@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from numbers import Real
 from typing import Any
 
 from probstat.distributions import Bernoulli, Normal
-from probstat.foundations.validation import coerce_finite_sample
+from probstat.foundations.validation import (
+    coerce_finite_sample,
+    require_finite_real,
+    require_non_negative_integer,
+)
 from probstat.probability import (
     FiniteEvent,
     FiniteJointDistribution,
@@ -217,6 +220,74 @@ def plot_joint_pmf(
     return axes
 
 
+def plot_characteristic_function(
+    variable: FiniteRandomVariable[Any, Any],
+    *,
+    t_min: float = -3.141592653589793,
+    t_max: float = 3.141592653589793,
+    points: int = 401,
+    ax: Any | None = None,
+) -> Any:
+    """Plot real and imaginary parts of a finite characteristic function.
+
+    Args:
+        variable: Finite real-valued random variable.
+        t_min: Finite lower frequency bound.
+        t_max: Finite upper frequency bound, strictly greater than ``t_min``.
+        points: Number of equally spaced frequencies, at least two.
+        ax: Optional Matplotlib axes; a new axes is created when omitted.
+
+    Returns:
+        The populated Matplotlib axes.
+
+    Raises:
+        TypeError: If bounds, points, or mapped values have invalid types.
+        ValueError: If bounds, points, or mapped values have invalid domains.
+        OverflowError: If a characteristic-function phase cannot be represented.
+
+    Equation:
+        [EQ-GF-003].
+
+    References:
+        [REF-ROSS-2019, Section 6.5], [REF-MATPLOTLIB].
+
+    """
+    lower = require_finite_real(t_min, name="t_min")
+    upper = require_finite_real(t_max, name="t_max")
+    checked_points = require_non_negative_integer(points, name="points")
+    if upper <= lower:
+        raise ValueError("t_max must be greater than t_min")
+    if checked_points < 2:
+        raise ValueError("points must be at least two")
+    step = (upper - lower) / (checked_points - 1)
+    frequencies = tuple(lower + index * step for index in range(checked_points))
+    values = tuple(variable.characteristic_function(t) for t in frequencies)
+
+    plt = _pyplot()
+    axes = ax if ax is not None else plt.subplots()[1]
+    axes.plot(
+        frequencies,
+        tuple(value.real for value in values),
+        label="real part",
+        color="#4C78A8",
+    )
+    axes.plot(
+        frequencies,
+        tuple(value.imag for value in values),
+        label="imaginary part",
+        color="#E45756",
+    )
+    axes.axhline(0.0, color="#777777", linewidth=0.8)
+    axes.set(
+        xlabel="Frequency t",
+        ylabel="Characteristic-function component",
+        ylim=(-1.05, 1.05),
+    )
+    axes.set_title(f"Characteristic function of {variable.name}")
+    axes.legend()
+    return axes
+
+
 def plot_normal_pdf(
     distribution: Normal,
     *,
@@ -264,7 +335,7 @@ def plot_normal_pdf(
     return axes
 
 
-def plot_empirical_cdf(values: Iterable[Real], *, ax: Any | None = None) -> Any:
+def plot_empirical_cdf(values: Iterable[float], *, ax: Any | None = None) -> Any:
     """Plot the right-continuous empirical CDF of a finite sample.
 
     Args:

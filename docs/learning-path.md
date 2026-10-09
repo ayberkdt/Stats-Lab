@@ -43,6 +43,8 @@ Code: `probstat.distributions`.
 Read: [Finite random variables and joint laws](foundations/random-variables.md).
 The executable route moves from mappings and induced PMFs to transformations,
 moments, joint laws, marginalization, conditional PMFs, and dependence.
+It then introduces PGFs, MGFs, and characteristic functions as three distinct
+transforms with different mathematical domains and numerical behavior.
 
 ## Stage 4 and beyond
 

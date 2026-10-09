@@ -257,6 +257,40 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 - Code: `FiniteJointDistribution.are_independent`.
 - Source: [REF-ROSS-2019, Chapter 6].
 
+## Generating and characteristic functions
+
+### EQ-GF-001 — Probability-generating function
+
+`G_X(z) = E[z^X] = sum_{k=0}^infinity p_X(k) z^k`.
+
+- Domain: non-negative integer-valued `X`; this finite implementation gives a
+  polynomial at every finite complex `z`.
+- Meaning: encodes the full discrete law in polynomial coefficients and exposes
+  factorial moments through derivatives at one.
+- Code: `FiniteRandomVariable.probability_generating_function`.
+- Source: [REF-ROSS-2019, Section 4.7].
+
+### EQ-GF-002 — Moment-generating function
+
+`M_X(t) = E[exp(tX)]`.
+
+- Domain: finite real-valued `X` and finite real `t`; the mathematical finite-
+  support sum exists everywhere although machine exponentials can overflow.
+- Meaning: exponential transform of the law; derivatives at zero recover raw
+  moments when differentiation is justified.
+- Code: `FiniteRandomVariable.moment_generating_function`.
+- Source: [REF-ROSS-2019, Section 4.7].
+
+### EQ-GF-003 — Characteristic function
+
+`phi_X(t) = E[exp(i t X)] = E[cos(tX)] + i E[sin(tX)]`.
+
+- Domain: finite real-valued `X` and finite real `t`.
+- Meaning: bounded Fourier transform of the probability law; unlike an MGF, a
+  characteristic function exists for every real-valued probability law.
+- Code: `FiniteRandomVariable.characteristic_function`; characteristic plot.
+- Source: [REF-ROSS-2019, Section 6.5].
+
 ## Descriptive statistics
 
 ### EQ-STAT-001 — Arithmetic mean

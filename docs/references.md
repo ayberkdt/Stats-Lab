@@ -51,6 +51,12 @@ Python Software Foundation. "Mathematical functions." *Python 3 documentation*.
 Python Software Foundation. "Abstract Syntax Trees." *Python 3 documentation*.
 [https://docs.python.org/3/library/ast.html](https://docs.python.org/3/library/ast.html).
 
+## REF-PYTHON-CMATH
+
+Python Software Foundation. "Mathematical functions for complex numbers."
+*Python 3 documentation*.
+[https://docs.python.org/3/library/cmath.html](https://docs.python.org/3/library/cmath.html).
+
 ## REF-ROSS-2019
 
 Sheldon M. Ross. *A First Course in Probability*. 10th edition. Pearson, 2019.

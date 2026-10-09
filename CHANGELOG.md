@@ -3,6 +3,25 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.4.0] — 2026-10-09
+
+### Added
+
+- Finite probability-generating functions over complex arguments.
+- Finite moment-generating and characteristic functions with explicit overflow
+  behavior and transform identities.
+- Runtime-checkable `CumulativeDistribution`, `HasMeanAndVariance`,
+  `DiscreteProbabilityLaw`, and `ContinuousProbabilityLaw` protocols.
+- Cross-domain conformance tests for Bernoulli, Normal, and induced finite laws.
+- Characteristic-function visualization with generated teaching figure.
+- Equation records `EQ-GF-001` through `EQ-GF-003`.
+- ADR-0004 documenting dependency-neutral structural interfaces.
+
+### Changed
+
+- Packaging now uses current SPDX license metadata and declares all wheel build
+  requirements explicitly.
+
 ## [0.3.0] — 2026-10-09
 
 ### Added

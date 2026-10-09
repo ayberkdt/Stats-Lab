@@ -12,6 +12,7 @@ from probstat.probability import (
 )
 from probstat.visualization import (
     plot_bernoulli_pmf,
+    plot_characteristic_function,
     plot_empirical_cdf,
     plot_finite_measure,
     plot_joint_pmf,
@@ -23,11 +24,12 @@ from probstat.visualization import (
 def main() -> None:
     """Render deterministic foundation plots into ``examples/generated``.
 
-    The function writes six PNG images and closes their figures so repeated
+    The function writes seven PNG images and closes their figures so repeated
     runs do not leak GUI resources.
 
     References:
-        [EQ-PROB-002], [EQ-RV-001], [EQ-RV-010], [EQ-DIST-BER-001],
+        [EQ-PROB-002], [EQ-RV-001], [EQ-RV-010], [EQ-GF-003],
+        [EQ-DIST-BER-001],
         [EQ-DIST-NORM-001], [EQ-STAT-005], [REF-MATPLOTLIB].
 
     """
@@ -44,6 +46,7 @@ def main() -> None:
         lambda outcome: "even" if outcome % 2 == 0 else "odd",
         name="Parity",
     )
+    roll = FiniteRandomVariable.from_function(fair_die, float, name="Die roll")
     coin_pairs = FiniteSampleSpace(("HH", "HT", "TH", "TT"))
     fair_coin_pairs = FiniteProbabilityMeasure.uniform(coin_pairs)
     first_coin = FiniteRandomVariable.from_function(
@@ -60,6 +63,10 @@ def main() -> None:
         ),
         (plot_random_variable_pmf(parity), "random-variable-pmf.png"),
         (plot_joint_pmf(first_coin.joint_with(second_coin)), "joint-pmf.png"),
+        (
+            plot_characteristic_function(roll),
+            "characteristic-function.png",
+        ),
         (plot_bernoulli_pmf(Bernoulli(0.65)), "bernoulli-pmf.png"),
         (plot_normal_pdf(Normal(mu=0.0, sigma=1.0)), "normal-pdf.png"),
         (

@@ -101,4 +101,36 @@ but nonlinear dependent relationships can have zero covariance.
 Correlation is undefined when either variable has zero variance. The library
 raises an error instead of returning NaN or inventing a convention.
 
+## 6. Generating and characteristic functions
+
+For a non-negative integer-valued variable, the probability-generating function
+[EQ-GF-001] packages the PMF into a polynomial. In a finite model it is defined
+at every finite complex argument. A negative, fractional, or categorical mapped
+value violates the PGF domain and is rejected.
+
+The moment-generating function [EQ-GF-002] is an exponential transform. Finite
+support guarantees mathematical existence for every finite real `t`, but the
+machine value can overflow when `tX` is large. The implementation raises
+`OverflowError` rather than returning infinity and pretending the numerical
+result is valid.
+
+The characteristic function [EQ-GF-003] uses a complex unit-magnitude kernel.
+It is bounded and conceptually more general than the MGF. Finite machine
+multiplication can still overflow while forming an extreme phase, so that
+numerical boundary is explicit too.
+
+```python
+bernoulli_space = FiniteSampleSpace((0, 1))
+bernoulli_measure = FiniteProbabilityMeasure(
+    bernoulli_space, {0: 0.7, 1: 0.3}
+)
+bernoulli = FiniteRandomVariable.from_function(
+    bernoulli_measure, int, name="Bernoulli"
+)
+
+assert bernoulli.probability_generating_function(1) == 1 + 0j
+assert bernoulli.moment_generating_function(0) == 1.0
+assert bernoulli.characteristic_function(0) == 1 + 0j
+```
+
 References: [REF-ROSS-2019, Chapters 4-6].

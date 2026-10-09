@@ -11,8 +11,12 @@ The project has two equally important outputs:
 
 ## Foundation releases
 
-Release `0.3.0` provides:
+Release `0.4.0` provides:
 
+- probability-generating, moment-generating, and characteristic functions with
+  explicit mathematical and floating-point domains;
+- dependency-neutral runtime-checkable protocols shared by analytic and induced
+  discrete/continuous laws;
 - immutable finite random variables with induced PMFs and CDFs;
 - exact transformations, expectation, raw/central moments, and variance;
 - joint PMFs, marginalization, conditional PMFs, random-variable independence,

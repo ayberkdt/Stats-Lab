@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable
-from numbers import Real
+from numbers import Complex, Real
 
 
-def require_non_negative_integer(value: int, *, name: str) -> int:
+def require_non_negative_integer(value: object, *, name: str) -> int:
     """Validate and return a non-negative integer.
 
     Args:
@@ -34,7 +34,7 @@ def require_non_negative_integer(value: int, *, name: str) -> int:
     return value
 
 
-def require_probability(value: float, *, name: str = "p") -> float:
+def require_probability(value: object, *, name: str = "p") -> float:
     """Validate and return a finite probability in the closed unit interval.
 
     Args:
@@ -60,7 +60,7 @@ def require_probability(value: float, *, name: str = "p") -> float:
     return result
 
 
-def require_finite_real(value: Real, *, name: str) -> float:
+def require_finite_real(value: object, *, name: str) -> float:
     """Validate and return a finite real number.
 
     Args:
@@ -87,7 +87,34 @@ def require_finite_real(value: Real, *, name: str) -> float:
     return result
 
 
-def require_non_negative_finite_real(value: Real, *, name: str) -> float:
+def require_finite_complex(value: object, *, name: str) -> complex:
+    """Validate and return a finite complex number.
+
+    Args:
+        value: Candidate real or complex number. Boolean values are rejected.
+        name: Parameter name used in an error message.
+
+    Returns:
+        The value as a built-in ``complex`` with finite components.
+
+    Raises:
+        TypeError: If ``value`` is not a complex-number instance.
+        ValueError: If its real or imaginary component is NaN or infinite.
+
+    References:
+        [REF-PYTHON-CMATH]. This is a numerical-domain validator and evaluates
+        no mathematical equation.
+
+    """
+    if isinstance(value, bool) or not isinstance(value, Complex):
+        raise TypeError(f"{name} must be a real or complex number")
+    result = complex(value)
+    if not math.isfinite(result.real) or not math.isfinite(result.imag):
+        raise ValueError(f"{name} must have finite real and imaginary parts")
+    return result
+
+
+def require_non_negative_finite_real(value: object, *, name: str) -> float:
     """Validate and return a finite non-negative real number.
 
     Args:
@@ -113,7 +140,7 @@ def require_non_negative_finite_real(value: Real, *, name: str) -> float:
 
 
 def coerce_finite_sample(
-    values: Iterable[Real], *, name: str = "values"
+    values: Iterable[object], *, name: str = "values"
 ) -> tuple[float, ...]:
     """Materialize a non-empty iterable of finite real observations.
 

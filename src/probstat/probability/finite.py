@@ -433,7 +433,7 @@ class FiniteProbabilityMeasure(Generic[OutcomeT]):
     _weights: Mapping[OutcomeT, float] = field(repr=False)
 
     def __init__(
-        self, space: FiniteSampleSpace[OutcomeT], weights: Mapping[OutcomeT, Real]
+        self, space: FiniteSampleSpace[OutcomeT], weights: Mapping[OutcomeT, float]
     ) -> None:
         """Validate complete outcome weights and freeze the normalized mapping.
 
@@ -732,7 +732,7 @@ class FiniteProbabilityMeasure(Generic[OutcomeT]):
         likelihood = self.conditional_probability(evidence, hypothesis)
         return likelihood * prior / evidence_probability
 
-    def expectation(self, value: Callable[[OutcomeT], Real]) -> float:
+    def expectation(self, value: Callable[[OutcomeT], float]) -> float:
         """Return the expectation of a finite real-valued outcome function.
 
         This bridge treats ``value`` as a finite random variable without yet

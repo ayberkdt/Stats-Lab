@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable
-from numbers import Real
 
 from probstat.foundations.validation import coerce_finite_sample
 
 
-def mean(values: Iterable[Real]) -> float:
+def mean(values: Iterable[float]) -> float:
     """Return the arithmetic mean of a non-empty finite sample.
 
     Args:
@@ -33,7 +32,7 @@ def mean(values: Iterable[Real]) -> float:
     return math.fsum(sample) / len(sample)
 
 
-def variance(values: Iterable[Real], *, ddof: int = 0) -> float:
+def variance(values: Iterable[float], *, ddof: int = 0) -> float:
     """Return finite-sample variance with an explicit degrees-of-freedom offset.
 
     The two-pass centered computation is more stable than subtracting the
@@ -68,7 +67,7 @@ def variance(values: Iterable[Real], *, ddof: int = 0) -> float:
     return math.fsum(squared_deviations) / (len(sample) - ddof)
 
 
-def standard_deviation(values: Iterable[Real], *, ddof: int = 0) -> float:
+def standard_deviation(values: Iterable[float], *, ddof: int = 0) -> float:
     """Return the non-negative square root of finite-sample variance.
 
     Args:
@@ -92,7 +91,7 @@ def standard_deviation(values: Iterable[Real], *, ddof: int = 0) -> float:
     return math.sqrt(variance(values, ddof=ddof))
 
 
-def z_scores(values: Iterable[Real], *, ddof: int = 0) -> tuple[float, ...]:
+def z_scores(values: Iterable[float], *, ddof: int = 0) -> tuple[float, ...]:
     """Standardize observations relative to their sample center and spread.
 
     Args:
@@ -122,7 +121,7 @@ def z_scores(values: Iterable[Real], *, ddof: int = 0) -> tuple[float, ...]:
     return tuple((value - center) / spread for value in sample)
 
 
-def empirical_cdf(values: Iterable[Real], x: Real) -> float:
+def empirical_cdf(values: Iterable[float], x: float) -> float:
     """Evaluate the empirical cumulative distribution function at ``x``.
 
     Args:
@@ -149,7 +148,7 @@ def empirical_cdf(values: Iterable[Real], x: Real) -> float:
 
 
 def _paired_samples(
-    x_values: Iterable[Real], y_values: Iterable[Real]
+    x_values: Iterable[float], y_values: Iterable[float]
 ) -> tuple[tuple[float, ...], tuple[float, ...]]:
     """Validate two finite samples and require equal lengths.
 
@@ -176,7 +175,7 @@ def _paired_samples(
 
 
 def covariance(
-    x_values: Iterable[Real], y_values: Iterable[Real], *, ddof: int = 0
+    x_values: Iterable[float], y_values: Iterable[float], *, ddof: int = 0
 ) -> float:
     """Return covariance for two equally sized finite samples.
 
@@ -214,7 +213,7 @@ def covariance(
 
 
 def pearson_correlation(
-    x_values: Iterable[Real], y_values: Iterable[Real]
+    x_values: Iterable[float], y_values: Iterable[float]
 ) -> float:
     """Return the Pearson product-moment correlation coefficient.
 

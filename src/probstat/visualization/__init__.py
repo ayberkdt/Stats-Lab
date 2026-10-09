@@ -2,6 +2,7 @@
 
 from .foundations import (
     plot_bernoulli_pmf,
+    plot_characteristic_function,
     plot_empirical_cdf,
     plot_finite_measure,
     plot_joint_pmf,
@@ -11,6 +12,7 @@ from .foundations import (
 
 __all__ = [
     "plot_bernoulli_pmf",
+    "plot_characteristic_function",
     "plot_empirical_cdf",
     "plot_finite_measure",
     "plot_joint_pmf",

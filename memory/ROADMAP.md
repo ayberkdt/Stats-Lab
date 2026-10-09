@@ -20,7 +20,7 @@ Status markers: `[x]` complete, `[~]` in progress, `[ ]` planned.
 - [x] Conditional probability, independence, total probability, and Bayes' rule.
 - [x] Finite random variables, transformations, expectation, moments, and CDFs.
 - [x] Finite joint, marginal, and conditional PMFs; dependence summaries.
-- [ ] Probability generating, moment generating, and characteristic functions.
+- [x] Finite probability-, moment-, and characteristic-function evaluation.
 - [ ] Modes of convergence, laws of large numbers, and central limit theorems.
 - [ ] Measure/integration bridge: sigma-algebras, measurable maps, Lebesgue
   expectation, Radon-Nikodym derivatives, and product measures.
@@ -28,7 +28,8 @@ Status markers: `[x]` complete, `[~]` in progress, `[ ]` planned.
 ## Phase 2 — Distribution system
 
 - [x] Bernoulli and univariate normal baseline objects.
-- [ ] Distribution protocols, parameter constraints, and support abstractions.
+- [x] Dependency-neutral structural protocols for univariate probability laws.
+- [ ] Parameter constraints, support abstractions, and stable log-probability APIs.
 - [ ] Binomial, categorical, Poisson, geometric, negative binomial.
 - [ ] Uniform, exponential, gamma, beta, chi-square, Student-t, F, logistic.
 - [ ] Multivariate normal, Dirichlet, multinomial, and copulas.

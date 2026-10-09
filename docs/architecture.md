@@ -27,6 +27,12 @@ cycle.
 | `distributions` | Distribution objects, density/mass/CDF behavior, sampling | Educational rendering |
 | `visualization` | Optional plots and explanatory annotations | Mathematical truth or validation rules |
 
+Structural interfaces such as `DiscreteProbabilityLaw` and
+`ContinuousProbabilityLaw` live in `foundations.protocols`. Both analytic
+distribution objects and induced finite laws conform by structure; neither
+domain package imports the other. Protocol conformance does not replace each
+implementation's equation, domain, or numerical documentation.
+
 Sibling domain packages do not import one another unless an ADR introduces a
 clear higher-level layer. Cross-cutting code moves down only when it is truly
 domain-independent.

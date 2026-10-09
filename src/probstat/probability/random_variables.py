@@ -5,11 +5,11 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Hashable, Mapping
 from dataclasses import dataclass, field
-from numbers import Real
 from types import MappingProxyType
 from typing import Generic, TypeVar
 
 from probstat.foundations.validation import (
+    require_finite_complex,
     require_finite_real,
     require_non_negative_finite_real,
     require_non_negative_integer,
@@ -323,7 +323,7 @@ class FiniteRandomVariable(Generic[OutcomeT, ValueT]):
         }
         return MappingProxyType(checked)
 
-    def cdf(self, x: Real) -> float:
+    def cdf(self, x: float) -> float:
         """Evaluate the CDF of a finite real-valued random variable.
 
         Args:
@@ -401,6 +401,22 @@ class FiniteRandomVariable(Generic[OutcomeT, ValueT]):
             for outcome in self.measure.space
         )
         return math.fsum(terms)
+
+    @property
+    def mean(self) -> float:
+        """Return the expectation under the common law-summary name.
+
+        This alias lets induced finite laws satisfy the same structural moment
+        protocol as analytic distribution objects.
+
+        Equation:
+            [EQ-RV-004].
+
+        References:
+            [REF-ROSS-2019, Chapters 4-5].
+
+        """
+        return self.expectation
 
     def raw_moment(self, order: int) -> float:
         """Return the raw moment ``E[X**order]``.
@@ -485,6 +501,146 @@ class FiniteRandomVariable(Generic[OutcomeT, ValueT]):
 
         """
         return math.sqrt(self.variance)
+
+    def probability_generating_function(self, z: complex) -> complex:
+        """Evaluate the PGF of a non-negative integer-valued variable.
+
+        Args:
+            z: Finite real or complex evaluation point.
+
+        Returns:
+            The finite polynomial ``E[z**X]`` as a complex number.
+
+        Raises:
+            TypeError: If ``z`` is not numeric or a mapped value is not an
+                integer.
+            ValueError: If ``z`` is non-finite or a mapped value is negative.
+            OverflowError: If finite machine arithmetic cannot represent a
+                positive-mass polynomial term or the accumulated result.
+
+        Equation:
+            [EQ-GF-001].
+
+        References:
+            [REF-ROSS-2019, Section 4.7].
+
+        """
+        point = require_finite_complex(z, name="z")
+        terms: list[complex] = []
+        for outcome in self.measure.space:
+            value = require_non_negative_integer(
+                self._values[outcome], name=f"{self.name}[{outcome!r}]"
+            )
+            weight = self.measure.weights[outcome]
+            if weight == 0.0:
+                continue
+            try:
+                term = point**value * weight
+            except OverflowError as error:
+                raise OverflowError(
+                    "PGF term overflowed finite complex arithmetic"
+                ) from error
+            if not math.isfinite(term.real) or not math.isfinite(term.imag):
+                raise OverflowError("PGF term overflowed finite complex arithmetic")
+            terms.append(term)
+        result = complex(
+            math.fsum(term.real for term in terms),
+            math.fsum(term.imag for term in terms),
+        )
+        if not math.isfinite(result.real) or not math.isfinite(result.imag):
+            raise OverflowError("PGF result overflowed finite complex arithmetic")
+        return result
+
+    def moment_generating_function(self, t: float) -> float:
+        """Evaluate the MGF of a finite real-valued random variable.
+
+        A mathematical MGF for finite support exists at every finite real
+        ``t``. Floating-point evaluation can nevertheless overflow, which is
+        reported explicitly rather than returned as infinity.
+
+        Args:
+            t: Finite real evaluation point.
+
+        Returns:
+            ``E[exp(tX)]`` as a finite float.
+
+        Raises:
+            TypeError: If ``t`` or a mapped value is not real.
+            ValueError: If ``t`` or a mapped value is non-finite.
+            OverflowError: If an exponential term or accumulated result cannot
+                be represented as a finite float.
+
+        Equation:
+            [EQ-GF-002].
+
+        References:
+            [REF-ROSS-2019, Section 4.7].
+
+        """
+        point = require_finite_real(t, name="t")
+        numeric = self._numeric_values()
+        terms: list[float] = []
+        for outcome in self.measure.space:
+            weight = self.measure.weights[outcome]
+            if weight == 0.0:
+                continue
+            exponent = point * numeric[outcome]
+            if not math.isfinite(exponent):
+                raise OverflowError("MGF exponent overflowed finite arithmetic")
+            try:
+                term = math.exp(exponent) * weight
+            except OverflowError as error:
+                raise OverflowError(
+                    "MGF exponential overflowed finite arithmetic"
+                ) from error
+            if not math.isfinite(term):
+                raise OverflowError("MGF term overflowed finite arithmetic")
+            terms.append(term)
+        result = math.fsum(terms)
+        if not math.isfinite(result):
+            raise OverflowError("MGF result overflowed finite arithmetic")
+        return result
+
+    def characteristic_function(self, t: float) -> complex:
+        """Evaluate the characteristic function of a finite real variable.
+
+        Args:
+            t: Finite real frequency.
+
+        Returns:
+            ``E[exp(i t X)]`` as a complex number of modulus at most one up to
+            floating-point roundoff.
+
+        Raises:
+            TypeError: If ``t`` or a mapped value is not real.
+            ValueError: If ``t`` or a mapped value is non-finite.
+            OverflowError: If the phase product is not representable as finite
+                floating-point arithmetic.
+
+        Equation:
+            [EQ-GF-003].
+
+        References:
+            [REF-ROSS-2019, Section 6.5].
+
+        """
+        point = require_finite_real(t, name="t")
+        numeric = self._numeric_values()
+        terms: list[complex] = []
+        for outcome in self.measure.space:
+            weight = self.measure.weights[outcome]
+            if weight == 0.0:
+                continue
+            phase = point * numeric[outcome]
+            if not math.isfinite(phase):
+                raise OverflowError(
+                    "characteristic-function phase overflowed finite arithmetic"
+                )
+            terms.append(complex(math.cos(phase), math.sin(phase)) * weight)
+        return complex(
+            math.fsum(term.real for term in terms),
+            math.fsum(term.imag for term in terms),
+        )
 
     def joint_with(
         self, other: FiniteRandomVariable[OutcomeT, OtherT]
@@ -693,7 +849,7 @@ class FiniteJointDistribution(Generic[OutcomeT, ValueT, OtherT]):
             raise ValueError("conditional PMF requires positive conditioning mass")
         return self.joint_pmf(first_value, given_second) / denominator
 
-    def are_independent(self, *, tolerance: Real = 1e-12) -> bool:
+    def are_independent(self, *, tolerance: float = 1e-12) -> bool:
         """Test random-variable independence by joint PMF factorization.
 
         Args:
