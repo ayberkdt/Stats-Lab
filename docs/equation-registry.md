@@ -234,6 +234,84 @@ finite variance `sigma^2`.
 - Code: `examples.basic_monte_carlo_lab.projectile_model`.
 - Source: [REF-HALLIDAY-RESNICK-WALKER-2014, projectile motion].
 
+## Local and global sensitivity analysis
+
+### EQ-LAB-ISHIGAMI-001 — Ishigami sensitivity benchmark
+
+`Y=sin(X_1)+7 sin(X_2)^2+0.1 X_3^4 sin(X_1)`, with independent
+`X_i~Uniform(-pi,pi)`.
+
+- Domain: three independent unit-density uniform coordinates on `[-pi,pi]`.
+- Meaning: teaching benchmark whose third input acts through interaction with
+  the first and therefore distinguishes first-order from total-effect ranking.
+- Code: `examples.sensitivity_lab.ishigami`.
+- Source: [REF-SALTELLI-2008, Chapter 4].
+
+### EQ-SENS-LOCAL-001 — Central finite-difference sensitivity
+
+`partial_i f(x) ~= [f(x+h_i e_i)-f(x-h_i e_i)]/(2 h_i)`.
+
+- Domain: positive finite step, finite model evaluations, and sufficient local
+  smoothness for the usual second-order truncation interpretation.
+- Meaning: measures local slope at one point; it does not average over the
+  uncertain input distribution and charges two model calls per coordinate.
+- Code: `sensitivity.central_difference_gradient`.
+- Source: [REF-FORNBERG-1988].
+
+### EQ-SENS-ANOVA-001 — Functional ANOVA variance decomposition
+
+`f(X)=f_0+sum_i f_i(X_i)+sum_(i<j) f_ij(X_i,X_j)+...` and
+`Var(Y)=sum_(u nonempty) V_u`.
+
+- Domain: square-integrable scalar model response and mutually independent
+  input variables under the product measure.
+- Meaning: orthogonal component variances separate main and interaction
+  contributions; dependence requires different sensitivity definitions.
+- Code: `sensitivity.estimate_sobol_indices` estimates normalized components.
+- Source: [REF-SOBOL-1993], [REF-SALTELLI-2008, Chapter 4].
+
+### EQ-SENS-FIRST-001 — First-order Sobol index
+
+`S_i=Var(E[Y|X_i])/Var(Y)`.
+
+- Domain: [EQ-SENS-ANOVA-001] with positive output variance.
+- Meaning: fraction of output variance explained by input `i` alone.
+- Code: `sensitivity.estimate_sobol_indices` uses a Saltelli pick-freeze
+  estimator and retains finite-sample values without clipping.
+- Source: [REF-SOBOL-1993], [REF-SALTELLI-2010].
+
+### EQ-SENS-SECOND-001 — Second-order Sobol interaction
+
+`S_ij=V_ij/Var(Y)` for `i != j`, after subtracting both main effects from the
+closed two-input contribution.
+
+- Domain: [EQ-SENS-ANOVA-001].
+- Meaning: variance caused by the pair beyond their separate main effects.
+- Code: `sensitivity.estimate_sobol_indices` evaluates pair hybrids explicitly.
+- Source: [REF-SOBOL-1993], [REF-SALTELLI-2008, Chapter 4].
+
+### EQ-SENS-TOTAL-001 — Total-effect Sobol index
+
+`S_Ti=E[Var(Y|X_(-i))]/Var(Y)=1-Var(E[Y|X_(-i)])/Var(Y)`.
+
+- Domain: [EQ-SENS-ANOVA-001].
+- Meaning: all variance involving input `i`, including every interaction; the
+  implementation uses the Jansen squared-difference estimator.
+- Code: `sensitivity.estimate_sobol_indices`, `SobolResult.ranking`, and
+  `SobolResult.negligible_inputs`.
+- Source: [REF-SALTELLI-2010].
+
+### EQ-SENS-DECISION-001 — Total-effect screening rule
+
+`fix_candidates={i:S_Ti<=tau}` and remaining inputs are prioritized by
+descending estimated `S_Ti`, for a declared non-negative threshold `tau`.
+
+- Domain: an interpreted Sobol study with a user-chosen screening threshold.
+- Meaning: translates global importance into a transparent dimension-reduction
+  and measurement-priority suggestion; it is not a causal or economic optimum.
+- Code: `sensitivity.SobolResult.decision`.
+- Source: [REF-SALTELLI-2008, Chapters 1 and 6].
+
 ## Reliability and rare-event analysis
 
 ### EQ-REL-LIMIT-001 — Limit-state failure convention

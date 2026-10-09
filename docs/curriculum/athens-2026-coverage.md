@@ -76,17 +76,17 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-5.9 | Constrained optimization for reliability analysis | Implemented | UQ-4 | `probstat.optimization` | `src/probstat/reliability/analysis.py`; `docs/foundations/reliability-analysis.md` |
 | ATHENS-5.10 | Most-probable failure point and design point | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py` |
 | ATHENS-5.11 | Directional sampling and reliability-method comparison | Implemented | UQ-4 | `probstat.reliability.directional` | `src/probstat/reliability/analysis.py`; `examples/reliability_lab.py` |
-| ATHENS-6.1 | Local sensitivity analysis | Planned | UQ-5 | `probstat.sensitivity.local` | — |
-| ATHENS-6.2 | Global sensitivity analysis | Planned | UQ-5 | `probstat.sensitivity.global_` | — |
-| ATHENS-6.3 | Variance-based sensitivity decomposition | Planned | UQ-5 | `probstat.sensitivity.sobol` | — |
-| ATHENS-6.4 | Functional ANOVA decomposition | Planned | UQ-5 | `probstat.sensitivity.sobol` | — |
-| ATHENS-6.5 | First-order Sobol indices | Planned | UQ-5 | `probstat.sensitivity.sobol` | — |
-| ATHENS-6.6 | Second-order Sobol indices | Planned | UQ-5 | `probstat.sensitivity.sobol` | — |
-| ATHENS-6.7 | Total-effect Sobol indices | Planned | UQ-5 | `probstat.sensitivity.sobol` | — |
-| ATHENS-6.8 | Monte Carlo estimation of sensitivity indices | Planned | UQ-5 | `probstat.sensitivity.estimation` | — |
-| ATHENS-6.9 | Input-importance ranking | Planned | UQ-5 | `probstat.sensitivity` | — |
-| ATHENS-6.10 | Dimension reduction using sensitivity results | Planned | UQ-5 | `probstat.sensitivity` | — |
-| ATHENS-6.11 | Uncertainty-reduction strategy | Planned | UQ-5 | `probstat.sensitivity` | — |
+| ATHENS-6.1 | Local sensitivity analysis | Implemented | UQ-5 | `probstat.sensitivity.local` | `src/probstat/sensitivity/analysis.py` |
+| ATHENS-6.2 | Global sensitivity analysis | Implemented | UQ-5 | `probstat.sensitivity.global_` | `src/probstat/sensitivity/analysis.py`; `docs/foundations/sensitivity-analysis.md` |
+| ATHENS-6.3 | Variance-based sensitivity decomposition | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `src/probstat/sensitivity/analysis.py` |
+| ATHENS-6.4 | Functional ANOVA decomposition | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `docs/foundations/sensitivity-analysis.md`; `docs/equation-registry.md` |
+| ATHENS-6.5 | First-order Sobol indices | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `src/probstat/sensitivity/analysis.py` |
+| ATHENS-6.6 | Second-order Sobol indices | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `src/probstat/sensitivity/analysis.py` |
+| ATHENS-6.7 | Total-effect Sobol indices | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `src/probstat/sensitivity/analysis.py` |
+| ATHENS-6.8 | Monte Carlo estimation of sensitivity indices | Implemented | UQ-5 | `probstat.sensitivity.estimation` | `src/probstat/sensitivity/analysis.py`; `tests/test_uq5_sensitivity.py` |
+| ATHENS-6.9 | Input-importance ranking | Implemented | UQ-5 | `probstat.sensitivity` | `src/probstat/sensitivity/analysis.py`; `examples/sensitivity_lab.py` |
+| ATHENS-6.10 | Dimension reduction using sensitivity results | Implemented | UQ-5 | `probstat.sensitivity` | `src/probstat/sensitivity/analysis.py` |
+| ATHENS-6.11 | Uncertainty-reduction strategy | Implemented | UQ-5 | `probstat.sensitivity` | `src/probstat/sensitivity/analysis.py`; `docs/foundations/sensitivity-analysis.md` |
 | ATHENS-7.1 | Forward versus inverse formulation | Partial | UQ-6 | `probstat.inverse` | `docs/foundations/vv-uq-foundations.md` |
 | ATHENS-7.2 | Observation models | Planned | UQ-6 | `probstat.inverse.observation` | — |
 | ATHENS-7.3 | Measurement-noise models | Planned | UQ-6 | `probstat.inverse.observation` | — |

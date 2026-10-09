@@ -117,6 +117,32 @@ DOI: [10.1109/MCSE.2007.55](https://doi.org/10.1109/MCSE.2007.55).
 Robert E. Melchers and André T. Beck. *Structural Reliability Analysis and
 Prediction*. 3rd edition. Wiley, 2018. ISBN 978-1-119-26599-3.
 
+## REF-FORNBERG-1988
+
+Bengt Fornberg. "Generation of Finite Difference Formulas on Arbitrarily
+Spaced Grids." *Mathematics of Computation* 51(184), 699-706, 1988.
+DOI: [10.1090/S0025-5718-1988-0935077-0](https://doi.org/10.1090/S0025-5718-1988-0935077-0).
+
+## REF-SALTELLI-2008
+
+Andrea Saltelli, Marco Ratto, Terry Andres, Francesca Campolongo, Jessica
+Cariboni, Debora Gatelli, Michaela Saisana, and Stefano Tarantola. *Global
+Sensitivity Analysis: The Primer*. Wiley, 2008.
+DOI: [10.1002/9780470725184](https://doi.org/10.1002/9780470725184).
+
+## REF-SALTELLI-2010
+
+Andrea Saltelli, Paola Annoni, Ivano Azzini, Francesca Campolongo, Marco Ratto,
+and Stefano Tarantola. "Variance Based Sensitivity Analysis of Model Output:
+Design and Estimator for the Total Sensitivity Index." *Computer Physics
+Communications* 181(2), 259-270, 2010.
+DOI: [10.1016/j.cpc.2009.09.018](https://doi.org/10.1016/j.cpc.2009.09.018).
+
+## REF-SOBOL-1993
+
+Ilya M. Sobol'. "Sensitivity Estimates for Nonlinear Mathematical Models."
+*Mathematical Modelling and Computational Experiments* 1(4), 407-414, 1993.
+
 ## REF-NIST-DLMF
 
 NIST Digital Library of Mathematical Functions, Chapter 7, "Error Functions,

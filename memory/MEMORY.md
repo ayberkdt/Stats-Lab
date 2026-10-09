@@ -23,7 +23,7 @@ teaching are co-equal goals.
 
 ## Current state
 
-- Current release: `0.11.0` UQ-4 reliability and rare-event foundations.
+- Current release: `0.12.0` UQ-5 local and global sensitivity foundations.
 - Python baseline: 3.11+.
 - Runtime dependency policy: standard library first; optional Matplotlib for
   plots. Add numerical dependencies only through an ADR.
@@ -46,7 +46,10 @@ teaching are co-equal goals.
   [ADR-0010](decisions/ADR-0010-variance-reduction-estimator-contracts.md)
 - Reliability scope boundary:
   [ADR-0011](decisions/ADR-0011-reliability-domain-and-form-scope.md)
-- Latest session: [2026-10-09 UQ-4 reliability](sessions/2026-10-09-uq4-reliability.md)
+- Sensitivity estimator boundaries:
+  [ADR-0012](decisions/ADR-0012-sensitivity-estimator-boundaries.md)
+- Latest session: [2026-10-09 UQ-5 sensitivity](sessions/2026-10-09-uq5-sensitivity.md)
+- Previous session: [2026-10-09 UQ-4 reliability](sessions/2026-10-09-uq4-reliability.md)
 - Previous session: [2026-10-09 UQ-3 advanced Monte Carlo](sessions/2026-10-09-uq3-advanced-monte-carlo.md)
 - Previous session: [2026-10-09 UQ-2 propagation](sessions/2026-10-09-uq2-propagation.md)
 - Previous session: [2026-10-09 UQ-1 modeling and fitting](sessions/2026-10-09-uq1-modeling-and-fitting.md)
@@ -63,9 +66,8 @@ teaching are co-equal goals.
 
 ## Next safe step
 
-Build UQ-5 sensitivity analysis: local derivatives, functional ANOVA contracts,
-first/second/total Sobol indices, Monte Carlo estimators, ranking, dimension
-reduction, and uncertainty-reduction decisions. Preserve nonlinear/non-normal
-FORM as an explicit reliability extension rather than overstating the affine
-foundation.
+Build UQ-6 inverse problems and Bayesian calibration: observation/noise models,
+least squares and linear regression, Gaussian priors/likelihood/posteriors,
+conditioning, posterior sampling/prediction, model discrepancy, and the
+calibration-versus-prediction distinction.
 

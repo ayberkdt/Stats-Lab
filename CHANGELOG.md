@@ -3,6 +3,28 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.12.0] — 2026-10-09
+
+### Added
+
+- Coordinatewise central finite-difference local sensitivity with explicit
+  perturbations and exact model-evaluation cost.
+- Independent-input functional-ANOVA foundations and pick-freeze Monte Carlo
+  estimators for first-, second-, and total-effect Sobol indices.
+- Unclipped finite-sample diagnostics, total-effect ranking, threshold-based
+  dimension-reduction candidates, and uncertainty-reduction priorities.
+- A seeded Ishigami interaction laboratory and first-versus-total sensitivity
+  visualization demonstrating why main-effect-only ranking can fail.
+- Six equation records, four primary references, UQ-5 guide, regression tests,
+  ADR-0012, and session memory.
+
+### Changed
+
+- All eleven ATHENS sensitivity topics now have implemented evidence; the
+  canonical ledger advances to 58 implemented, 18 partial, and 34 planned rows.
+- Architecture adds a dedicated sensitivity layer while preserving dependency
+  direction and standard-library-first runtime policy.
+
 ## [0.11.0] — 2026-10-09
 
 ### Added

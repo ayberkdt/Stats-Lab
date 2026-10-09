@@ -149,10 +149,13 @@ dependency direction.
 
 ### UQ-5 — Sensitivity analysis
 
-- [ ] Local and global sensitivity with variance-based functional ANOVA.
-- [ ] First-, second-, and total-effect Sobol indices with Monte Carlo
+- [x] Local and global sensitivity with variance-based functional ANOVA.
+- [x] First-, second-, and total-effect Sobol indices with Monte Carlo
   estimators and uncertainty diagnostics.
-- [ ] Input ranking, dimension reduction, and uncertainty-reduction strategy.
+- [x] Input ranking, dimension reduction, and uncertainty-reduction strategy.
+- [ ] Correlated-input and Shapley effects, bootstrap intervals, replicated
+  stochastic simulators, derivative-based global measures, and screening at
+  very high dimension.
 
 ### UQ-6 — Inverse problems and Bayesian calibration
 

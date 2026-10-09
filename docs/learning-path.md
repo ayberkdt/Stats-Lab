@@ -25,6 +25,10 @@ Then study [reliability and rare-event analysis](foundations/reliability-analysi
 for limit states, direct failure probability, importance weighting, affine FORM,
 reliability index, design-point geometry, and directional sampling.
 
+Then study [sensitivity analysis](foundations/sensitivity-analysis.md) for local
+derivatives, functional ANOVA, Sobol main/interaction/total effects, ranking,
+dimension reduction, and uncertainty-reduction decisions.
+
 The library separates conceptual order from software layer order. Readers can
 learn progressively without losing topics needed later.
 

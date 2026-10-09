@@ -11,7 +11,16 @@ The project has two equally important outputs:
 
 ## Foundation releases
 
-Release `0.11.0` adds:
+Release `0.12.0` adds:
+
+- local finite-difference gradients with exact model-call accounting;
+- functional ANOVA and Monte Carlo first-, second-, and total-effect Sobol
+  indices for independent inputs;
+- total-effect ranking, dimension-reduction and uncertainty-reduction decisions;
+  and
+- a seeded Ishigami interaction laboratory with an explanatory comparison plot.
+
+Release `0.11.0` added:
 
 - a named limit-state contract, direct reliability Monte Carlo, and Wilson
   uncertainty including the zero-observed-failure case;
@@ -150,11 +159,12 @@ citation key to [the bibliography](docs/references.md).
 4. [Uncertainty propagation](docs/foundations/uncertainty-propagation.md)
 5. [Advanced Monte Carlo](docs/foundations/advanced-monte-carlo.md)
 6. [Reliability analysis](docs/foundations/reliability-analysis.md)
-7. [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
-8. [Architecture](docs/architecture.md)
-9. [Equation registry](docs/equation-registry.md)
-10. [Contribution contract](CONTRIBUTING.md)
-11. [Roadmap](memory/ROADMAP.md)
+7. [Sensitivity analysis](docs/foundations/sensitivity-analysis.md)
+8. [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
+9. [Architecture](docs/architecture.md)
+10. [Equation registry](docs/equation-registry.md)
+11. [Contribution contract](CONTRIBUTING.md)
+12. [Roadmap](memory/ROADMAP.md)
 
 ## Design promise
 
