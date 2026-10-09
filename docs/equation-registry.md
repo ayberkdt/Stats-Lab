@@ -1500,3 +1500,173 @@ clipping outside support.
 - Code: `distributions.Exponential.hazard`.
 - Source: [REF-KLEIN-MOESCHBERGER-2003, Chapter 2].
 
+## Inverse problems and Bayesian calibration
+
+### EQ-REG-LINE-001 — Straight-line response model
+
+`E[Y | x] = alpha + beta x`.
+
+- Domain: finite scalar predictor `x` and finite coefficients `alpha`, `beta`.
+- Meaning: conditional response mean for simple linear calibration.
+- Code: `inference.LinearRegressionResult.predict` and
+  `inverse.LinearCalibrationResult.design_rows`.
+- Source: [REF-MONTGOMERY-PECK-VINING-2021, Chapter 1].
+
+### EQ-REG-OLS-001 — Simple linear least-squares estimates
+
+`beta_hat = sum((x_i-x_bar)(y_i-y_bar)) / sum((x_i-x_bar)^2)` and
+`alpha_hat = y_bar - beta_hat x_bar`.
+
+- Domain: at least three paired finite observations with non-constant
+  predictors.
+- Meaning: the unique intercept and slope minimizing residual sum of squares.
+- Code: `inference.fit_simple_linear_regression`.
+- Source: [REF-MONTGOMERY-PECK-VINING-2021, Chapters 1-2].
+
+### EQ-REG-DIAG-001 — Regression residual variance and coefficient of determination
+
+`s^2 = SSE/(n-2)` and `R^2 = 1 - SSE/SST`.
+
+- Domain: [EQ-REG-OLS-001]; `R^2=1` by convention for a constant response
+  fitted exactly.
+- Meaning: residual scale estimate and in-sample variance-explanation summary.
+- Code: `inference.fit_simple_linear_regression`.
+- Source: [REF-MONTGOMERY-PECK-VINING-2021, Chapter 2].
+
+### EQ-INV-OBS-001 — Additive observation model
+
+`y_i = f(x_i, theta) + delta_i + epsilon_i`, with
+`Var(delta_i + epsilon_i) = sigma_delta^2 + sigma_epsilon^2` under independence.
+
+- Domain: paired finite inputs and responses; positive measurement variance;
+  non-negative discrepancy variance; independent centered Gaussian terms for
+  the implemented likelihood.
+- Meaning: measurement noise and model discrepancy combine numerically but
+  remain distinct uncertainty sources.
+- Code: `inverse.GaussianObservationModel`.
+- Source: [REF-KENNEDY-OHAGAN-2001].
+
+### EQ-INV-RESID-001 — Calibration residual
+
+`r_i(theta) = y_i - f(x_i, theta)`.
+
+- Domain: [EQ-INV-OBS-001].
+- Meaning: signed observed-minus-modeled response difference.
+- Code: `inverse.GaussianObservationModel.residuals`.
+- Source: [REF-SMITH-UQ-2024, Chapter 8].
+
+### EQ-INV-RMSE-001 — Root mean squared calibration residual
+
+`RMSE(theta) = sqrt((1/n) sum_i r_i(theta)^2)`.
+
+- Domain: a non-empty residual vector from [EQ-INV-RESID-001].
+- Meaning: response-scale descriptive fit error, not a validation certificate.
+- Code: `inverse.GaussianObservationModel.root_mean_squared_residual`.
+- Source: [REF-SMITH-UQ-2024, Chapter 8].
+
+### EQ-INV-IDENT-001 — Linear-design identifiability and conditioning
+
+`rank(H)=p` and `kappa_2(H^T H)=lambda_max/lambda_min`.
+
+- Domain: finite design matrix; the implemented diagnostic specializes to the
+  two-column intercept/slope design.
+- Meaning: full column rank is structural identifiability; a large condition
+  number warns of weak practical separation.
+- Code: `inverse.diagnose_linear_identifiability`.
+- Source: [REF-TARANTOLA-2005, Chapter 3] and
+  [REF-GOLUB-VANLOAN-2013, Section 8.1].
+
+### EQ-BAYES-RULE-001 — Bayes' rule for parameter inference
+
+`p(theta | y) = p(y | theta) p(theta) / p(y)`.
+
+- Domain: a proper prior and finite positive evidence for the observed data.
+- Meaning: posterior uncertainty is conditional on prior, likelihood, data,
+  and model assumptions.
+- Code: `inference.condition_linear_gaussian`.
+- Source: [REF-GELMAN-ETAL-2013, Chapter 1].
+
+### EQ-BAYES-LIKE-001 — Independent Gaussian log-likelihood
+
+`log p(y | mu,sigma^2) = -(n/2)log(2 pi sigma^2)
+ - sum_i (y_i-mu_i)^2/(2 sigma^2)`.
+
+- Domain: paired finite observations and predictions with known
+  `sigma^2 > 0`.
+- Meaning: log density of independent homoscedastic Gaussian measurement
+  errors.
+- Code: `inference.gaussian_log_likelihood` and
+  `inverse.GaussianObservationModel.log_likelihood`.
+- Source: [REF-GELMAN-ETAL-2013, Section 3.2].
+
+### EQ-BAYES-LIN-POST-001 — Linear-Gaussian posterior conditioning
+
+`Sigma_n = (Sigma_0^-1 + H^T H/sigma^2)^-1` and
+`mu_n = Sigma_n(Sigma_0^-1 mu_0 + H^T y/sigma^2)`.
+
+- Domain: positive-definite Gaussian prior covariance, finite compatible
+  design and observations, and known `sigma^2 > 0`.
+- Meaning: exact conjugate posterior mean and covariance for linear parameters.
+- Code: `inference.condition_linear_gaussian` and
+  `inverse.calibrate_linear_gaussian`.
+- Source: [REF-GELMAN-ETAL-2013, Section 3.3] and
+  [REF-BISHOP-2006, Section 3.3].
+
+### EQ-BAYES-POST-SAMPLE-001 — Gaussian posterior sampling
+
+`theta^(s) = mu_n + L z^(s)`, where `L L^T = Sigma_n` and `z^(s) ~ N(0,I)`.
+
+- Domain: positive-definite posterior covariance and a controlled random stream.
+- Meaning: correlated parameter draws preserving posterior covariance.
+- Code: `inference.GaussianLinearPosterior.sample`.
+- Source: [REF-DEVROYE-1986, Chapter XI].
+
+### EQ-BAYES-PRED-001 — Linear posterior-predictive distribution
+
+`y_* | y ~ N(H_* mu_n, H_* Sigma_n H_*^T + sigma_obs^2 I + sigma_delta^2 I)`.
+
+- Domain: [EQ-BAYES-LIN-POST-001], compatible prediction design, and
+  non-negative included variance components.
+- Meaning: separates parameter, future-observation, and model-discrepancy
+  uncertainty; latent prediction omits `sigma_obs^2`.
+- Code: `inference.posterior_predictive` and `PosteriorPredictive.sample`.
+- Source: [REF-GELMAN-ETAL-2013, Section 6.3] and
+  [REF-KENNEDY-OHAGAN-2001].
+
+### EQ-BAYES-PPC-001 — Posterior-predictive tail diagnostic
+
+`p_B = (1/S) sum_s 1[T(y_rep^s) >= T(y_obs)]`, with
+`T(y)=(y-mu_pred)^T Sigma_pred^-1 (y-mu_pred)`.
+
+- Domain: positive-definite joint predictive covariance and `S>0` seeded
+  replicates.
+- Meaning: simulation-based extremeness diagnostic; it is not a frequentist
+  p-value or a model-validation certificate.
+- Code: `inference.posterior_predictive_check`.
+- Source: [REF-GELMAN-ETAL-2013, Section 6.3].
+
+### EQ-CAL-DISC-001 — Additive Gaussian model-discrepancy variance
+
+`delta ~ N(0, sigma_delta^2)` and
+`Var(model + delta + epsilon) = Var(model) + sigma_delta^2 + sigma_epsilon^2`
+under independence.
+
+- Domain: declared finite `sigma_delta >= 0`, independent additive centered
+  discrepancy, and a stated applicability domain.
+- Meaning: records model inadequacy separately from parameter and observation
+  uncertainty while acknowledging possible confounding.
+- Code: `validation.AdditiveGaussianDiscrepancy`,
+  `inverse.GaussianObservationModel`, and `inference.posterior_predictive`.
+- Source: [REF-KENNEDY-OHAGAN-2001] and
+  [REF-BRYNJARSDOTTIR-OHAGAN-2014].
+
+### EQ-LAB-CAL-001 — Calibration-laboratory data generator
+
+`Y_i = 1.25 + 0.82 x_i + epsilon_i`, where `epsilon_i ~ N(0,0.35^2)`.
+
+- Domain: finite teaching inputs and a call-local pseudo-random stream.
+- Meaning: reproducible synthetic truth for demonstrating calibration without
+  implying that generated data validate the fitted model.
+- Code: `examples/bayesian_calibration_lab.py`.
+- Source: [REF-GELMAN-ETAL-2013, Chapter 3].
+

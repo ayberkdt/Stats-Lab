@@ -159,11 +159,13 @@ dependency direction.
 
 ### UQ-6 — Inverse problems and Bayesian calibration
 
-- [ ] Observation and measurement-noise models, parameter identification,
+- [x] Observation and measurement-noise models, parameter identification,
   least squares, and linear-regression calibration.
-- [ ] Priors, likelihoods, posteriors, Gaussian conditioning, posterior
+- [x] Priors, likelihoods, posteriors, Gaussian conditioning, posterior
   sampling, posterior predictive checks, and identifiability diagnostics.
-- [ ] Model discrepancy and the explicit calibration-versus-prediction split.
+- [x] Model discrepancy and the explicit calibration-versus-prediction split.
+- [ ] Nonlinear calibration, unknown/heteroscedastic noise, robust likelihoods,
+  MCMC, correlated discrepancy processes, and optimal experiment design.
 
 ### UQ-7 — Filtering and data assimilation
 
@@ -177,7 +179,7 @@ dependency direction.
 - [x] Basic Monte Carlo and advanced variance-reduction laboratories.
 - [~] Statistical-fitting and uncertainty-visualization laboratories.
 - [x] Reliability laboratory with FORM and directional sampling.
-- [ ] Bayesian-calibration laboratory.
+- [x] Bayesian-calibration laboratory.
 - [ ] Every lab includes definitions, assumptions, equations, seeded examples,
   plots, diagnostics, cost/error discussion, citations, and regression tests.
 

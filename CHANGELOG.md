@@ -3,6 +3,28 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.13.0] — 2026-10-09
+
+### Added
+
+- Independent Gaussian observation models with separately retained measurement
+  and model-discrepancy variance components.
+- Simple linear least squares, residual diagnostics, rank/condition-based
+  identifiability evidence, and a combined calibration result.
+- General multivariate linear-Gaussian conditioning, seeded posterior sampling,
+  predictive covariance decomposition, and posterior-predictive checks.
+- An applicability-scoped discrepancy record, cited calibration guide, seeded
+  practical lab, explanatory uncertainty-band plot, regression tests,
+  ADR-0013, and session memory.
+
+### Changed
+
+- All fifteen ATHENS inverse/calibration topics and the Bayesian calibration lab
+  now have implemented evidence; the ledger advances to 74 implemented, 17
+  partial, and 19 planned rows.
+- Architecture adds explicit inverse and validation layers while preserving the
+  acyclic dependency direction and standard-library-first runtime policy.
+
 ## [0.12.0] — 2026-10-09
 
 ### Added

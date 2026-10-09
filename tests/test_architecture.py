@@ -19,8 +19,10 @@ LAYER = {
     "probstat.uq": 2,
     "probstat.monte_carlo": 3,
     "probstat.propagation": 4,
+    "probstat.inverse": 4,
     "probstat.reliability": 5,
     "probstat.sensitivity": 5,
+    "probstat.validation": 5,
     "probstat.visualization": 6,
 }
 

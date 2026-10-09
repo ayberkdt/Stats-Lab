@@ -9,6 +9,8 @@ depend on."
 visualization
   ├─> reliability ─> monte_carlo ─> inference ─┐
   ├─> sensitivity ─> foundations ──────────────┤
+  ├─> validation ─> foundations ───────────────┤
+  ├─> inverse ─> inference ─> multivariate ────┤
   ├─> propagation ─> monte_carlo ─> inference ─┤
   │        ├─> uq ──────────────────────────────┤
   │        └─> numerics ────────────────────────┤
@@ -37,8 +39,10 @@ cycle.
 | `inference` | Estimation, confidence procedures, tests, and diagnostics | Rendering, simulation orchestration, or application models |
 | `monte_carlo` | Sample estimators, sampling-error diagnostics, and evaluation accounting | Forward-model semantics or plotting |
 | `propagation` | QoI sample propagation, expectation integration, output summaries, thresholds | Distribution implementations or rendering |
+| `inverse` | Observation models, calibration orchestration, identifiability, and calibration/prediction boundaries | Rendering or model-validation claims |
 | `reliability` | Limit states, failure estimators, FORM geometry, and directional sampling | Rendering or generic probability foundations |
 | `sensitivity` | Local derivatives, functional-ANOVA/Sobol estimators, ranking, and screening decisions | Rendering, inference, or input-distribution implementations |
+| `validation` | Model discrepancy and validation-evidence records | Parameter inference, numerical verification, or rendering |
 | `visualization` | Optional plots and explanatory annotations | Mathematical truth or validation rules |
 
 Structural interfaces such as `DiscreteProbabilityLaw` and

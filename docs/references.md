@@ -3,6 +3,41 @@
 Citation keys are stable project identifiers. A locator in a docstring or
 equation record narrows the relevant part of a source.
 
+## REF-BISHOP-2006
+
+Christopher M. Bishop. *Pattern Recognition and Machine Learning*. Springer,
+2006. ISBN 978-0-387-31073-2.
+
+## REF-BRYNJARSDOTTIR-OHAGAN-2014
+
+Jenný Brynjarsdóttir and Anthony O'Hagan. "Learning about Physical Parameters:
+The Importance of Model Discrepancy." *Inverse Problems* 30(11), 114007, 2014.
+DOI: [10.1088/0266-5611/30/11/114007](https://doi.org/10.1088/0266-5611/30/11/114007).
+
+## REF-GELMAN-ETAL-2013
+
+Andrew Gelman, John B. Carlin, Hal S. Stern, David B. Dunson, Aki Vehtari, and
+Donald B. Rubin. *Bayesian Data Analysis*. 3rd edition. CRC Press, 2013.
+ISBN 978-1-4398-4095-5.
+
+## REF-KENNEDY-OHAGAN-2001
+
+Marc C. Kennedy and Anthony O'Hagan. "Bayesian Calibration of Computer
+Models." *Journal of the Royal Statistical Society: Series B* 63(3), 425-464,
+2001. DOI: [10.1111/1467-9868.00294](https://doi.org/10.1111/1467-9868.00294).
+
+## REF-MONTGOMERY-PECK-VINING-2021
+
+Douglas C. Montgomery, Elizabeth A. Peck, and G. Geoffrey Vining.
+*Introduction to Linear Regression Analysis*. 6th edition. Wiley, 2021.
+ISBN 978-1-119-57872-7.
+
+## REF-TARANTOLA-2005
+
+Albert Tarantola. *Inverse Problem Theory and Methods for Model Parameter
+Estimation*. Society for Industrial and Applied Mathematics, 2005.
+DOI: [10.1137/1.9780898717921](https://doi.org/10.1137/1.9780898717921).
+
 ## REF-DAVIS-RABINOWITZ-1984
 
 Philip J. Davis and Philip Rabinowitz. *Methods of Numerical Integration*.

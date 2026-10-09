@@ -11,7 +11,18 @@ The project has two equally important outputs:
 
 ## Foundation releases
 
-Release `0.12.0` adds:
+Release `0.13.0` adds:
+
+- explicit observation/noise/discrepancy contracts and linear identifiability
+  diagnostics;
+- ordinary least squares plus general multivariate linear-Gaussian posterior
+  conditioning with reproducible posterior sampling;
+- posterior-predictive distributions that separate parameter, future
+  measurement, and model-discrepancy uncertainty;
+- seeded posterior-predictive checking and a calibration-versus-prediction lab
+  with an explanatory uncertainty-band plot.
+
+Release `0.12.0` added:
 
 - local finite-difference gradients with exact model-call accounting;
 - functional ANOVA and Monte Carlo first-, second-, and total-effect Sobol
@@ -160,11 +171,12 @@ citation key to [the bibliography](docs/references.md).
 5. [Advanced Monte Carlo](docs/foundations/advanced-monte-carlo.md)
 6. [Reliability analysis](docs/foundations/reliability-analysis.md)
 7. [Sensitivity analysis](docs/foundations/sensitivity-analysis.md)
-8. [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
-9. [Architecture](docs/architecture.md)
-10. [Equation registry](docs/equation-registry.md)
-11. [Contribution contract](CONTRIBUTING.md)
-12. [Roadmap](memory/ROADMAP.md)
+8. [Inverse problems and Bayesian calibration](docs/foundations/inverse-problems-and-calibration.md)
+9. [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
+10. [Architecture](docs/architecture.md)
+11. [Equation registry](docs/equation-registry.md)
+12. [Contribution contract](CONTRIBUTING.md)
+13. [Roadmap](memory/ROADMAP.md)
 
 ## Design promise
 

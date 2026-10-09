@@ -29,6 +29,11 @@ Then study [sensitivity analysis](foundations/sensitivity-analysis.md) for local
 derivatives, functional ANOVA, Sobol main/interaction/total effects, ranking,
 dimension reduction, and uncertainty-reduction decisions.
 
+Continue with [inverse problems and Bayesian calibration](foundations/inverse-problems-and-calibration.md)
+for observation/noise models, least squares, identifiability, Gaussian priors
+and posteriors, predictive checking, model discrepancy, and the explicit
+calibration-versus-prediction boundary.
+
 The library separates conceptual order from software layer order. Readers can
 learn progressively without losing topics needed later.
 

@@ -23,7 +23,7 @@ teaching are co-equal goals.
 
 ## Current state
 
-- Current release: `0.12.0` UQ-5 local and global sensitivity foundations.
+- Current release: `0.13.0` UQ-6 inverse problems and Bayesian calibration.
 - Python baseline: 3.11+.
 - Runtime dependency policy: standard library first; optional Matplotlib for
   plots. Add numerical dependencies only through an ADR.
@@ -48,7 +48,10 @@ teaching are co-equal goals.
   [ADR-0011](decisions/ADR-0011-reliability-domain-and-form-scope.md)
 - Sensitivity estimator boundaries:
   [ADR-0012](decisions/ADR-0012-sensitivity-estimator-boundaries.md)
-- Latest session: [2026-10-09 UQ-5 sensitivity](sessions/2026-10-09-uq5-sensitivity.md)
+- Inverse-calibration boundaries:
+  [ADR-0013](decisions/ADR-0013-linear-gaussian-calibration-boundaries.md)
+- Latest session: [2026-10-09 UQ-6 inverse calibration](sessions/2026-10-09-uq6-inverse-calibration.md)
+- Previous session: [2026-10-09 UQ-5 sensitivity](sessions/2026-10-09-uq5-sensitivity.md)
 - Previous session: [2026-10-09 UQ-4 reliability](sessions/2026-10-09-uq4-reliability.md)
 - Previous session: [2026-10-09 UQ-3 advanced Monte Carlo](sessions/2026-10-09-uq3-advanced-monte-carlo.md)
 - Previous session: [2026-10-09 UQ-2 propagation](sessions/2026-10-09-uq2-propagation.md)
@@ -66,8 +69,8 @@ teaching are co-equal goals.
 
 ## Next safe step
 
-Build UQ-6 inverse problems and Bayesian calibration: observation/noise models,
-least squares and linear regression, Gaussian priors/likelihood/posteriors,
-conditioning, posterior sampling/prediction, model discrepancy, and the
-calibration-versus-prediction distinction.
+Build UQ-7 filtering and data assimilation: discrete-time state-space models,
+prediction and measurement updates, process/measurement noise, covariance
+propagation, sequential Bayes, filtering versus smoothing, and tested Kalman,
+extended/ensemble Kalman, and particle-filter foundations.
 
