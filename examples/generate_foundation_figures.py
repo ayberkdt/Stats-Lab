@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from probstat.distributions import Bernoulli, Binomial, Categorical, Normal, Poisson
+from probstat.distributions import (
+    Bernoulli,
+    Binomial,
+    Categorical,
+    Exponential,
+    Geometric,
+    NegativeBinomial,
+    Normal,
+    Poisson,
+)
 from probstat.probability import (
     FiniteProbabilityMeasure,
     FiniteRandomVariable,
@@ -14,25 +23,28 @@ from probstat.visualization import (
     plot_bernoulli_pmf,
     plot_categorical_pmf,
     plot_characteristic_function,
+    plot_continuous_functions,
     plot_empirical_cdf,
     plot_finite_measure,
     plot_integer_pmf,
     plot_joint_pmf,
     plot_normal_pdf,
     plot_random_variable_pmf,
+    plot_waiting_count_pmfs,
 )
 
 
 def main() -> None:
     """Render deterministic foundation plots into ``examples/generated``.
 
-    The function writes ten PNG images and closes their figures so repeated
+    The function writes twelve PNG images and closes their figures so repeated
     runs do not leak GUI resources.
 
     References:
         [EQ-PROB-002], [EQ-RV-001], [EQ-RV-010], [EQ-GF-003],
         [EQ-DIST-BER-001], [EQ-DIST-BIN-001], [EQ-DIST-CAT-001],
-        [EQ-DIST-POIS-001],
+        [EQ-DIST-POIS-001], [EQ-DIST-GEOM-001], [EQ-DIST-NBIN-001],
+        [EQ-DIST-EXP-001], [EQ-DIST-EXP-002],
         [EQ-DIST-NORM-001], [EQ-STAT-005], [REF-MATPLOTLIB].
 
     """
@@ -84,6 +96,18 @@ def main() -> None:
         (
             plot_integer_pmf(Poisson(4.0), lower=0, upper=12),
             "poisson-pmf-window.png",
+        ),
+        (
+            plot_waiting_count_pmfs(
+                Geometric(0.35), NegativeBinomial(4, 0.55), upper=18
+            ),
+            "waiting-count-pmfs.png",
+        ),
+        (
+            plot_continuous_functions(
+                Exponential(1.25), lower=-0.5, upper=4.0
+            ),
+            "exponential-functions.png",
         ),
         (plot_normal_pdf(Normal(mu=0.0, sigma=1.0)), "normal-pdf.png"),
         (

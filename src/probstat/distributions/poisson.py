@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
+    require_probability,
 )
 
 from ._special import regularized_gamma_p, regularized_gamma_q
@@ -163,6 +164,46 @@ class Poisson:
         if self.lam == 0.0:
             return 0.0
         return regularized_gamma_p(cutoff + 1.0, self.lam)
+
+    def quantile(self, probability: float) -> float:
+        """Return the Poisson generalized inverse CDF by adaptive bracketing.
+
+        Args:
+            probability: Cumulative probability in ``[0, 1]``.
+
+        Returns:
+            Smallest supported count whose CDF reaches the target; positive
+            infinity at probability one for a positive-rate law.
+
+        Raises:
+            TypeError: If ``probability`` is not real.
+            ValueError: If it is non-finite or outside ``[0, 1]``.
+            ArithmeticError: If a gamma expansion does not converge.
+
+        Equation:
+            [EQ-DIST-POIS-005].
+
+        References:
+            [REF-CASELLA-BERGER-2002, Chapter 2].
+
+        """
+        target = require_probability(probability, name="probability")
+        if target == 0.0 or self.lam == 0.0:
+            return 0.0
+        if target == 1.0:
+            return math.inf
+        lower = -1
+        upper = max(1, math.ceil(self.lam))
+        while self.cdf(upper) < target:
+            lower = upper
+            upper *= 2
+        while upper - lower > 1:
+            midpoint = (lower + upper) // 2
+            if self.cdf(midpoint) >= target:
+                upper = midpoint
+            else:
+                lower = midpoint
+        return float(upper)
 
     @property
     def mean(self) -> float:

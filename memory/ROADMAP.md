@@ -32,11 +32,13 @@ Status markers: `[x]` complete, `[~]` in progress, `[ ]` planned.
 - [x] Parameter constraints, support abstractions, and initial stable
   log-probability APIs.
 - [x] Binomial, categorical, and Poisson.
-- [ ] Geometric and negative binomial.
-- [ ] Uniform, exponential, gamma, beta, chi-square, Student-t, F, logistic.
+- [x] Geometric and negative binomial with explicit failure-count convention.
+- [x] Continuous uniform and rate-parameterized exponential.
+- [ ] Gamma, beta, chi-square, Student-t, F, and logistic.
 - [ ] Multivariate normal, Dirichlet, multinomial, and copulas.
-- [ ] Stable log-density, quantile, survival, hazard, and entropy interfaces.
-- [ ] Deterministic sampling streams and goodness-of-fit checks.
+- [~] Stable log-density, quantile, survival, hazard, and entropy interfaces.
+- [x] Call-local deterministic sampling streams for implemented families.
+- [ ] Goodness-of-fit checks and stream-splitting abstractions.
 
 ## Phase 3 — Descriptive statistics and data diagnostics
 

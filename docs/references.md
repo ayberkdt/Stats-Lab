@@ -30,6 +30,12 @@ Wolfgang Hörmann. "The transformed rejection method for generating Poisson
 random variables." *Insurance: Mathematics and Economics* 12(1), 39-45, 1993.
 DOI: [10.1016/0167-6687(93)90997-4](https://doi.org/10.1016/0167-6687(93)90997-4).
 
+## REF-KLEIN-MOESCHBERGER-2003
+
+John P. Klein and Melvin L. Moeschberger. *Survival Analysis: Techniques for
+Censored and Truncated Data*. 2nd edition. Springer, 2003.
+DOI: [10.1007/b97377](https://doi.org/10.1007/b97377).
+
 ## REF-MATPLOTLIB
 
 John D. Hunter. "Matplotlib: A 2D Graphics Environment." *Computing in Science
@@ -41,6 +47,12 @@ DOI: [10.1109/MCSE.2007.55](https://doi.org/10.1109/MCSE.2007.55).
 NIST Digital Library of Mathematical Functions, Chapter 7, "Error Functions,
 Dawson's and Fresnel Integrals." National Institute of Standards and
 Technology. [https://dlmf.nist.gov/7](https://dlmf.nist.gov/7).
+
+## REF-NIST-DLMF-BETA
+
+NIST Digital Library of Mathematical Functions, Section 8.17, "Incomplete Beta
+Functions." National Institute of Standards and Technology.
+[https://dlmf.nist.gov/8.17](https://dlmf.nist.gov/8.17).
 
 ## REF-NIST-DLMF-GAMMA
 
@@ -63,6 +75,12 @@ Python Software Foundation. "Data model." *Python 3 documentation*.
 
 Python Software Foundation. "Mathematical functions." *Python 3 documentation*.
 [https://docs.python.org/3/library/math.html](https://docs.python.org/3/library/math.html).
+
+## REF-PYTHON-STATISTICS
+
+Python Software Foundation. "Mathematical statistics functions," including
+`statistics.NormalDist` and `NormalDist.inv_cdf`. *Python 3 documentation*.
+[https://docs.python.org/3/library/statistics.html](https://docs.python.org/3/library/statistics.html).
 
 ## REF-PYTHON-AST
 

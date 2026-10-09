@@ -23,7 +23,7 @@ teaching are co-equal goals.
 
 ## Current state
 
-- Current release: `0.5.0` distribution infrastructure and core discrete laws.
+- Current release: `0.6.0` waiting-count and foundational continuous laws.
 - Python baseline: 3.11+.
 - Runtime dependency policy: standard library first; optional Matplotlib for
   plots. Add numerical dependencies only through an ADR.
@@ -34,8 +34,9 @@ teaching are co-equal goals.
 
 - Work status and future sequencing: [ROADMAP.md](ROADMAP.md)
 - Architecture rationale: [ADR-0001](decisions/ADR-0001-layered-citation-first.md)
-- Latest session: [2026-10-09 discrete distributions](sessions/2026-10-09-discrete-distributions.md)
-- Previous session: [2026-10-09 generating functions](sessions/2026-10-09-generating-functions.md)
+- Latest session: [2026-10-09 waiting and continuous foundations](sessions/2026-10-09-waiting-and-continuous-foundations.md)
+- Previous session: [2026-10-09 discrete distributions](sessions/2026-10-09-discrete-distributions.md)
+- Generating-functions session: [2026-10-09 generating functions](sessions/2026-10-09-generating-functions.md)
 - Random-variable session: [2026-10-09 random variables](sessions/2026-10-09-random-variables.md)
 - Finite probability session: [2026-10-09 finite probability](sessions/2026-10-09-finite-probability.md)
 - Initial session: [2026-10-09 foundation](sessions/2026-10-09-foundation.md)
@@ -45,7 +46,8 @@ teaching are co-equal goals.
 
 ## Next safe step
 
-Add Geometric and Negative Binomial laws, followed by Uniform and Exponential
-continuous laws. Extend stable survival and quantile behavior without merging
-unordered categorical semantics into ordered numeric-law protocols.
+Implement Gamma and Beta laws on the internal regularized gamma/beta
+foundation, then derive Chi-square. Add stable inverse special-function methods,
+accuracy comparisons, and explicit numerical error budgets before Student-t and
+F distributions.
 

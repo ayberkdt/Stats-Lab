@@ -50,6 +50,11 @@ Then read: [Discrete distribution foundations](foundations/discrete-distribution
 It separates parameter constraints, support, PMF/log-PMF, categorical label
 semantics, finite versus infinite count support, and stable tail computation.
 
+Continue with: [Waiting counts, tails, quantiles, and continuous foundations](foundations/waiting-and-continuous-distributions.md).
+It fixes Geometric/Negative Binomial parameterization, connects discrete and
+continuous waiting, and explains why survival and quantile need explicit
+numerical contracts.
+
 ## Stage 4 and beyond
 
 The ordered route is:

@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
+    require_probability,
 )
 
 from .constraints import PROBABILITY
@@ -127,6 +128,56 @@ class Bernoulli:
         if point < 1.0:
             return 1.0 - self.p
         return 1.0
+
+    def sf(self, x: float) -> float:
+        """Evaluate the direct Bernoulli survival probability ``P(X>x)``.
+
+        Args:
+            x: Finite real evaluation point.
+
+        Returns:
+            Upper-tail probability as a right-continuous step complement.
+
+        Raises:
+            TypeError: If ``x`` is not real.
+            ValueError: If ``x`` is non-finite.
+
+        Equation:
+            [EQ-DIST-BER-002].
+
+        References:
+            [REF-ROSS-2019, Section 4.2].
+
+        """
+        point = require_finite_real(x, name="x")
+        if point < 0.0:
+            return 1.0
+        if point < 1.0:
+            return self.p
+        return 0.0
+
+    def quantile(self, probability: float) -> float:
+        """Return the Bernoulli generalized inverse CDF.
+
+        Args:
+            probability: Cumulative probability in ``[0, 1]``.
+
+        Returns:
+            Zero until the target exceeds ``1-p``, then one.
+
+        Raises:
+            TypeError: If ``probability`` is not real.
+            ValueError: If it is non-finite or outside ``[0, 1]``.
+
+        Equation:
+            [EQ-DIST-BER-005].
+
+        References:
+            [REF-CASELLA-BERGER-2002, Chapter 2].
+
+        """
+        target = require_probability(probability, name="probability")
+        return 0.0 if target <= 1.0 - self.p else 1.0
 
     @property
     def mean(self) -> float:

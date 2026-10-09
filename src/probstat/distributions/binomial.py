@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
+    require_probability,
 )
 
 from .constraints import NON_NEGATIVE_INTEGER, PROBABILITY
@@ -153,6 +154,65 @@ class Binomial:
             )
             result = 1.0 - upper_tail
         return max(0.0, min(1.0, result))
+
+    def sf(self, x: float) -> float:
+        """Evaluate the direct binomial survival probability ``P(X>x)``.
+
+        Args:
+            x: Finite real evaluation point.
+
+        Returns:
+            Upper-tail probability summed without CDF subtraction.
+
+        Raises:
+            TypeError: If ``x`` is not real.
+            ValueError: If ``x`` is non-finite.
+
+        Equation:
+            [EQ-DIST-BIN-002].
+
+        References:
+            [REF-ROSS-2019, Section 4.3].
+
+        """
+        point = require_finite_real(x, name="x")
+        cutoff = math.floor(point)
+        if cutoff < 0:
+            return 1.0
+        if cutoff >= self.n:
+            return 0.0
+        return math.fsum(self.pmf(k) for k in range(cutoff + 1, self.n + 1))
+
+    def quantile(self, probability: float) -> float:
+        """Return the binomial generalized inverse CDF by binary search.
+
+        Args:
+            probability: Cumulative probability in ``[0, 1]``.
+
+        Returns:
+            Smallest supported count whose CDF reaches the target.
+
+        Raises:
+            TypeError: If ``probability`` is not real.
+            ValueError: If it is non-finite or outside ``[0, 1]``.
+
+        Equation:
+            [EQ-DIST-BIN-005].
+
+        References:
+            [REF-CASELLA-BERGER-2002, Chapter 2].
+
+        """
+        target = require_probability(probability, name="probability")
+        lower = 0
+        upper = self.n
+        while lower < upper:
+            midpoint = (lower + upper) // 2
+            if self.cdf(midpoint) >= target:
+                upper = midpoint
+            else:
+                lower = midpoint + 1
+        return float(lower)
 
     @property
     def mean(self) -> float:

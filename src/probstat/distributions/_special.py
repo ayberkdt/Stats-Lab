@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 
-from .constraints import NON_NEGATIVE_FINITE, POSITIVE_FINITE
+from .constraints import NON_NEGATIVE_FINITE, POSITIVE_FINITE, PROBABILITY
 
 _EPSILON = 8.0 * math.ulp(1.0)
 _FPMIN = 1e-300
@@ -169,4 +169,129 @@ def _clamp_probability(value: float) -> float:
 
     """
     return max(0.0, min(1.0, value))
+
+
+def regularized_beta(x: float, a: float, b: float) -> float:
+    """Return the regularized incomplete beta function ``I_x(a, b)``.
+
+    The implementation chooses the direct or symmetry-transformed continued
+    fraction so the smaller tail is evaluated before any complement.
+
+    Args:
+        x: Finite evaluation point in ``[0, 1]``.
+        a: Finite positive first shape parameter.
+        b: Finite positive second shape parameter.
+
+    Returns:
+        A value clamped to ``[0, 1]`` against floating-point roundoff.
+
+    Raises:
+        TypeError: If an argument is not real.
+        ValueError: If an argument violates its domain.
+        ArithmeticError: If the continued fraction does not converge.
+
+    Equation:
+        [EQ-NUM-BETA-001].
+
+    References:
+        [REF-NIST-DLMF-BETA, Sections 8.17 and 8.18].
+
+    """
+    point = PROBABILITY.validate(x, name="x")
+    first_shape = POSITIVE_FINITE.validate(a, name="a")
+    second_shape = POSITIVE_FINITE.validate(b, name="b")
+    if point == 0.0:
+        return 0.0
+    if point == 1.0:
+        return 1.0
+    log_front = (
+        math.lgamma(first_shape + second_shape)
+        - math.lgamma(first_shape)
+        - math.lgamma(second_shape)
+        + first_shape * math.log(point)
+        + second_shape * math.log1p(-point)
+    )
+    split = (first_shape + 1.0) / (first_shape + second_shape + 2.0)
+    if point < split:
+        result = (
+            math.exp(log_front)
+            * _beta_continued_fraction(first_shape, second_shape, point)
+            / first_shape
+        )
+        return _clamp_probability(result)
+    complement = (
+        math.exp(log_front)
+        * _beta_continued_fraction(
+            second_shape, first_shape, 1.0 - point
+        )
+        / second_shape
+    )
+    return _clamp_probability(1.0 - complement)
+
+
+def _beta_continued_fraction(a: float, b: float, x: float) -> float:
+    """Evaluate the incomplete-beta continued-fraction factor.
+
+    Args:
+        a: Validated positive first shape.
+        b: Validated positive second shape.
+        x: Validated point strictly between zero and one.
+
+    Returns:
+        Continued-fraction multiplier used by ``I_x(a,b)``.
+
+    Raises:
+        ArithmeticError: If convergence is not reached within the iteration cap.
+
+    Equation:
+        [EQ-NUM-BETA-001].
+
+    References:
+        [REF-NIST-DLMF-BETA, Section 8.17].
+
+    """
+    total_shape = a + b
+    a_plus_one = a + 1.0
+    a_minus_one = a - 1.0
+    c = 1.0
+    d = 1.0 - total_shape * x / a_plus_one
+    if abs(d) < _FPMIN:
+        d = _FPMIN
+    d = 1.0 / d
+    fraction = d
+    for index in range(1, _MAX_ITERATIONS + 1):
+        doubled = 2.0 * index
+        coefficient = (
+            index
+            * (b - index)
+            * x
+            / ((a_minus_one + doubled) * (a + doubled))
+        )
+        d = 1.0 + coefficient * d
+        if abs(d) < _FPMIN:
+            d = _FPMIN
+        c = 1.0 + coefficient / c
+        if abs(c) < _FPMIN:
+            c = _FPMIN
+        d = 1.0 / d
+        fraction *= d * c
+
+        coefficient = -(
+            (a + index)
+            * (total_shape + index)
+            * x
+            / ((a + doubled) * (a_plus_one + doubled))
+        )
+        d = 1.0 + coefficient * d
+        if abs(d) < _FPMIN:
+            d = _FPMIN
+        c = 1.0 + coefficient / c
+        if abs(c) < _FPMIN:
+            c = _FPMIN
+        d = 1.0 / d
+        delta = d * c
+        fraction *= delta
+        if abs(delta - 1.0) <= _EPSILON:
+            return fraction
+    raise ArithmeticError("regularized-beta continued fraction did not converge")
 

@@ -3,6 +3,29 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.6.0] — 2026-10-09
+
+### Added
+
+- Zero-based Geometric and Negative Binomial distributions with explicit
+  failures-before-success parameterization.
+- Continuous Uniform and rate-parameterized Exponential distributions.
+- Symmetry-aware regularized incomplete-beta continued fraction for stable
+  Negative Binomial CDF and survival evaluation.
+- Runtime-checkable density, log-density, survival, quantile, and hazard
+  protocols.
+- Direct survival and generalized quantile methods for earlier ordered analytic
+  distributions where mathematically appropriate.
+- Waiting-count comparison and coordinated PDF/CDF/survival visualizations.
+- Twenty-eight equation records covering the new numerical and distribution
+  functions, plus primary references and boundary conventions.
+- Conceptual documentation, numerical identity tests, and ADR-0006.
+
+### Changed
+
+- The distribution roadmap now separates completed deterministic sampling from
+  planned stream splitting and goodness-of-fit work.
+
 ## [0.5.0] — 2026-10-09
 
 ### Added

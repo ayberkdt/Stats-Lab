@@ -266,5 +266,6 @@ PROBABILITY = RealIntervalConstraint(0.0, 1.0)
 NON_NEGATIVE_FINITE = RealIntervalConstraint(0.0, None)
 POSITIVE_FINITE = RealIntervalConstraint(0.0, None, lower_closed=False)
 NON_NEGATIVE_INTEGER = IntegerIntervalConstraint(0, None)
+POSITIVE_INTEGER = IntegerIntervalConstraint(1, None)
 SIMPLEX = ProbabilitySimplexConstraint()
 

@@ -39,6 +39,11 @@ claiming a CDF or numeric moments. Parameter constraints, support descriptors,
 and special-function algorithms stay inside `distributions`; they may depend on
 foundation validators but never on probability or statistics domain packages.
 
+Density, log-density, survival, quantile, and hazard are also independent narrow
+protocols. A type implements only capabilities that are mathematically defined
+and numerically supported. Direct survival functions are not replaced by a
+generic `1-CDF` adapter because that would erase tail-accuracy guarantees.
+
 Sibling domain packages do not import one another unless an ADR introduces a
 clear higher-level layer. Cross-cutting code moves down only when it is truly
 domain-independent.

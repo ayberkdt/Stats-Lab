@@ -553,3 +553,278 @@ before exponentiation, with explicit `p=0` and `p=1` limits.
 - Code: `distributions.Poisson.variance`.
 - Source: [REF-ROSS-2019, Section 4.8].
 
+## Extended distribution functions
+
+### EQ-NUM-BETA-001 — Regularized incomplete beta function
+
+`I_x(a,b) = B_x(a,b) / B(a,b)` and
+`I_x(a,b) = 1 - I_(1-x)(b,a)`.
+
+- Domain: finite `a>0`, `b>0`, and `0<=x<=1`.
+- Meaning: normalized beta integral. The implementation uses a continued
+  fraction and the symmetry branch selected around
+  `x=(a+1)/(a+b+2)` to evaluate the numerically smaller tail first.
+- Code: `distributions._special.regularized_beta`.
+- Source: [REF-NIST-DLMF-BETA, Equations 8.17.2, 8.17.4, and 8.17.22].
+
+### EQ-DIST-BER-005 — Bernoulli quantile
+
+`Q(u)=0` for `u<=1-p`, and `Q(u)=1` otherwise.
+
+- Domain: `X~Bernoulli(p)` and `0<=u<=1`.
+- Meaning: generalized inverse of [EQ-DIST-BER-002] on binary support.
+- Code: `distributions.Bernoulli.quantile`.
+- Source: [REF-CASELLA-BERGER-2002, Chapter 2].
+
+### EQ-DIST-BIN-005 — Binomial quantile
+
+`Q(u) = min{k in {0,...,n}: F(k)>=u}`.
+
+- Domain: `X~Binomial(n,p)` and `0<=u<=1`.
+- Meaning: generalized inverse CDF found by monotone binary search.
+- Code: `distributions.Binomial.quantile`.
+- Source: [REF-CASELLA-BERGER-2002, Chapter 2].
+
+### EQ-DIST-POIS-005 — Poisson quantile
+
+`Q(u) = min{k in nonnegative integers: F(k)>=u}`.
+
+- Domain: `X~Poisson(lambda)` and `0<=u<=1`; for `lambda>0`, `Q(1)=+infinity`.
+- Meaning: generalized inverse CDF found by adaptive bracketing and bisection.
+- Code: `distributions.Poisson.quantile`.
+- Source: [REF-CASELLA-BERGER-2002, Chapter 2].
+
+### EQ-DIST-NORM-005 — Normal survival function
+
+`S(x) = (1/2) erfc((x-mu)/(sigma sqrt(2)))`.
+
+- Domain: finite real `x`, `mu`, and finite `sigma>0`.
+- Meaning: direct upper-tail evaluation that avoids subtracting a near-one CDF.
+- Code: `distributions.Normal.sf`; continuous-functions plot.
+- Source: [REF-NIST-DLMF, Equation 7.2.2].
+
+### EQ-DIST-NORM-006 — Normal quantile
+
+`Q(u) = mu + sigma Phi^(-1)(u)`.
+
+- Domain: `0<=u<=1`; endpoint values are negative and positive infinity.
+- Meaning: generalized inverse normal CDF.
+- Code: `distributions.Normal.quantile` using `statistics.NormalDist.inv_cdf`.
+- Source: [REF-PYTHON-STATISTICS].
+
+## Waiting-count distributions
+
+### EQ-DIST-GEOM-001 — Geometric PMF and log-PMF
+
+`P(X=k) = p(1-p)^k` for integers `k>=0`.
+
+- Domain: `0<p<=1` and integer `k`; `X` counts failures before first success.
+- Meaning: zero-based geometric waiting count, distinct from the convention
+  that counts the successful trial.
+- Code: `distributions.Geometric.pmf`, `Geometric.log_pmf`, and waiting-count
+  PMF plot.
+- Source: [REF-ROSS-2019, Section 4.5].
+
+### EQ-DIST-GEOM-002 — Geometric CDF and survival function
+
+`F(x)=1-(1-p)^(floor(x)+1)` and `S(x)=(1-p)^(floor(x)+1)` for `x>=0`.
+
+- Domain: [EQ-DIST-GEOM-001] and finite real `x`, with boundary clipping below
+  support.
+- Meaning: accumulated and direct upper-tail waiting-count probabilities.
+- Code: `distributions.Geometric.cdf` and `Geometric.sf`.
+- Source: [REF-ROSS-2019, Section 4.5].
+
+### EQ-DIST-GEOM-003 — Geometric mean
+
+`E[X] = (1-p)/p`.
+
+- Domain: the failures-before-first-success convention.
+- Meaning: expected failures before success.
+- Code: `distributions.Geometric.mean`.
+- Source: [REF-ROSS-2019, Section 4.5].
+
+### EQ-DIST-GEOM-004 — Geometric variance
+
+`Var(X) = (1-p)/p^2`.
+
+- Domain: the failures-before-first-success convention.
+- Meaning: spread of the zero-based waiting count.
+- Code: `distributions.Geometric.variance`.
+- Source: [REF-ROSS-2019, Section 4.5].
+
+### EQ-DIST-GEOM-005 — Geometric quantile
+
+`Q(u) = ceil(log(1-u)/log(1-p) - 1)`, clipped at zero.
+
+- Domain: `0<p<1`, `0<=u<1`; `Q(1)=+infinity`. For `p=1`, `Q(u)=0`.
+- Meaning: generalized inverse of [EQ-DIST-GEOM-002].
+- Code: `distributions.Geometric.quantile`.
+- Source: [REF-CASELLA-BERGER-2002, Chapter 2].
+
+### EQ-DIST-NBIN-001 — Negative binomial PMF and log-PMF
+
+`P(X=k) = C(k+r-1,k) p^r (1-p)^k` for integers `k>=0`.
+
+- Domain: integer `r>=1`, `0<p<=1`; `X` counts failures before the `r`-th
+  success.
+- Meaning: sum of `r` independent zero-based geometric waiting counts.
+- Code: `distributions.NegativeBinomial.pmf`, `NegativeBinomial.log_pmf`, and
+  waiting-count PMF plot.
+- Source: [REF-ROSS-2019, Section 4.5].
+
+### EQ-DIST-NBIN-002 — Negative binomial CDF and survival function
+
+`F(k)=I_p(r,k+1)` and `S(k)=I_(1-p)(k+1,r)`.
+
+- Domain: [EQ-DIST-NBIN-001] and integer cutoff `k>=0`, with real thresholds
+  mapped through `floor`.
+- Meaning: complementary count tails evaluated through direct incomplete-beta
+  branches rather than near-one subtraction.
+- Code: `distributions.NegativeBinomial.cdf` and `NegativeBinomial.sf`.
+- Source: [REF-NIST-DLMF-BETA, Equations 8.17.4 and 8.17.5].
+
+### EQ-DIST-NBIN-003 — Negative binomial mean
+
+`E[X] = r(1-p)/p`.
+
+- Domain: failures before the `r`-th success.
+- Meaning: expected total of `r` independent geometric failure counts.
+- Code: `distributions.NegativeBinomial.mean`.
+- Source: [REF-ROSS-2019, Section 4.5].
+
+### EQ-DIST-NBIN-004 — Negative binomial variance
+
+`Var(X) = r(1-p)/p^2`.
+
+- Domain: failures before the `r`-th success.
+- Meaning: variance sum of independent geometric failure counts.
+- Code: `distributions.NegativeBinomial.variance`.
+- Source: [REF-ROSS-2019, Section 4.5].
+
+### EQ-DIST-NBIN-005 — Negative binomial quantile
+
+`Q(u) = min{k in nonnegative integers: F(k)>=u}`.
+
+- Domain: [EQ-DIST-NBIN-001] and `0<=u<=1`; a non-degenerate law has
+  `Q(1)=+infinity`.
+- Meaning: generalized inverse found by adaptive bracketing and bisection.
+- Code: `distributions.NegativeBinomial.quantile`.
+- Source: [REF-CASELLA-BERGER-2002, Chapter 2].
+
+## Foundational continuous distributions
+
+### EQ-DIST-UNIF-001 — Continuous uniform PDF and log-PDF
+
+`f(x)=1/(b-a)` for `a<=x<=b`, and zero otherwise.
+
+- Domain: finite `a<b` and finite real `x`; endpoint density values do not
+  affect probabilities.
+- Meaning: constant density over a finite interval.
+- Code: `distributions.Uniform.pdf` and `Uniform.log_pdf`; continuous-functions
+  plot.
+- Source: [REF-CASELLA-BERGER-2002, Section 3.3].
+
+### EQ-DIST-UNIF-002 — Continuous uniform CDF and survival function
+
+`F(x)=(x-a)/(b-a)` and `S(x)=(b-x)/(b-a)` inside `[a,b]`, with boundary
+clipping outside support.
+
+- Domain: [EQ-DIST-UNIF-001].
+- Meaning: linear lower and upper interval proportions.
+- Code: `distributions.Uniform.cdf` and `Uniform.sf`; continuous-functions plot.
+- Source: [REF-CASELLA-BERGER-2002, Section 3.3].
+
+### EQ-DIST-UNIF-003 — Continuous uniform mean
+
+`E[X]=(a+b)/2`.
+
+- Domain: `X~Uniform(a,b)` with `a<b`.
+- Meaning: interval midpoint.
+- Code: `distributions.Uniform.mean`.
+- Source: [REF-CASELLA-BERGER-2002, Section 3.3].
+
+### EQ-DIST-UNIF-004 — Continuous uniform variance
+
+`Var(X)=(b-a)^2/12`.
+
+- Domain: `X~Uniform(a,b)` with `a<b`.
+- Meaning: squared interval-width dispersion.
+- Code: `distributions.Uniform.variance`.
+- Source: [REF-CASELLA-BERGER-2002, Section 3.3].
+
+### EQ-DIST-UNIF-005 — Continuous uniform quantile
+
+`Q(u)=a+u(b-a)`.
+
+- Domain: `0<=u<=1` and finite `a<b`.
+- Meaning: linear generalized inverse CDF.
+- Code: `distributions.Uniform.quantile`.
+- Source: [REF-CASELLA-BERGER-2002, Chapter 2].
+
+### EQ-DIST-UNIF-006 — Continuous uniform hazard
+
+`h(x)=1/(b-x)` for `a<=x<b`, and zero below support.
+
+- Domain: finite `x<b`; hazard is undefined after survival reaches zero.
+- Meaning: conditional instantaneous rate increases toward the fixed endpoint.
+- Code: `distributions.Uniform.hazard`.
+- Source: [REF-KLEIN-MOESCHBERGER-2003, Chapter 2].
+
+### EQ-DIST-EXP-001 — Exponential PDF and log-PDF
+
+`f(x)=lambda exp(-lambda x)` for `x>=0`, and zero otherwise.
+
+- Domain: finite `lambda>0` and finite real `x`.
+- Meaning: rate-parameterized continuous waiting-time density.
+- Code: `distributions.Exponential.pdf` and `Exponential.log_pdf`;
+  continuous-functions plot.
+- Source: [REF-ROSS-2019, Chapter 5].
+
+### EQ-DIST-EXP-002 — Exponential CDF and survival function
+
+`F(x)=1-exp(-lambda x)` and `S(x)=exp(-lambda x)` for `x>=0`.
+
+- Domain: [EQ-DIST-EXP-001], with `F(x)=0` and `S(x)=1` below support.
+- Meaning: complementary waiting-time probabilities; the CDF uses `expm1` for
+  small arguments while survival is evaluated directly.
+- Code: `distributions.Exponential.cdf` and `Exponential.sf`;
+  continuous-functions plot.
+- Source: [REF-ROSS-2019, Chapter 5].
+
+### EQ-DIST-EXP-003 — Exponential mean
+
+`E[X]=1/lambda`.
+
+- Domain: `X~Exponential(lambda)`, `lambda>0`.
+- Meaning: expected waiting time, reciprocal to the event rate.
+- Code: `distributions.Exponential.mean`.
+- Source: [REF-ROSS-2019, Chapter 5].
+
+### EQ-DIST-EXP-004 — Exponential variance
+
+`Var(X)=1/lambda^2`.
+
+- Domain: `X~Exponential(lambda)`, `lambda>0`.
+- Meaning: squared waiting-time scale.
+- Code: `distributions.Exponential.variance`.
+- Source: [REF-ROSS-2019, Chapter 5].
+
+### EQ-DIST-EXP-005 — Exponential quantile
+
+`Q(u)=-log(1-u)/lambda`.
+
+- Domain: `0<=u<1`, with `Q(1)=+infinity`.
+- Meaning: generalized inverse CDF and inverse-transform sampling equation.
+- Code: `distributions.Exponential.quantile` and `Exponential.sample`.
+- Source: [REF-DEVROYE-1986, Chapter II].
+
+### EQ-DIST-EXP-006 — Exponential hazard
+
+`h(x)=f(x)/S(x)=lambda` for `x>=0`.
+
+- Domain: `X~Exponential(lambda)` on non-negative support.
+- Meaning: constant instantaneous rate, equivalent to memorylessness.
+- Code: `distributions.Exponential.hazard`.
+- Source: [REF-KLEIN-MOESCHBERGER-2003, Chapter 2].
+

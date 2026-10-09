@@ -60,6 +60,137 @@ class LogProbabilityMassFunction(Protocol[ValueContra]):
 
 
 @runtime_checkable
+class ProbabilityDensity(Protocol):
+    """A continuous law that evaluates a probability density function.
+
+    References:
+        [REF-CASELLA-BERGER-2002, Chapter 3].
+
+    """
+
+    def pdf(self, x: float) -> float:
+        """Return probability density at ``x``.
+
+        Args:
+            x: Real evaluation point accepted by the implementation.
+
+        Returns:
+            Non-negative density; a density value is not a point probability.
+
+        References:
+            [REF-CASELLA-BERGER-2002, Chapter 3]. The implementation supplies
+            the applicable density equation.
+
+        """
+        ...
+
+
+@runtime_checkable
+class LogProbabilityDensity(Protocol):
+    """A continuous law that evaluates natural log density.
+
+    References:
+        [REF-CASELLA-BERGER-2002, Chapter 3].
+
+    """
+
+    def log_pdf(self, x: float) -> float:
+        """Return natural log density at ``x``.
+
+        Args:
+            x: Real evaluation point accepted by the implementation.
+
+        Returns:
+            Log density, conventionally negative infinity for zero density.
+
+        References:
+            [REF-CASELLA-BERGER-2002, Chapter 3]. The implementation supplies
+            the applicable density equation.
+
+        """
+        ...
+
+
+@runtime_checkable
+class SurvivalFunction(Protocol):
+    """A law exposing the direct upper-tail probability ``P(X>x)``.
+
+    References:
+        [REF-CASELLA-BERGER-2002, Chapter 3].
+
+    """
+
+    def sf(self, x: float) -> float:
+        """Return survival probability at ``x``.
+
+        Args:
+            x: Real evaluation point accepted by the implementation.
+
+        Returns:
+            Upper-tail probability, preferably evaluated without cancellation.
+
+        References:
+            [REF-CASELLA-BERGER-2002, Chapter 3]. The implementation supplies
+            the applicable survival equation.
+
+        """
+        ...
+
+
+@runtime_checkable
+class QuantileFunction(Protocol):
+    """A law exposing a generalized inverse cumulative distribution.
+
+    References:
+        [REF-CASELLA-BERGER-2002, Chapter 2].
+
+    """
+
+    def quantile(self, probability: float) -> float:
+        """Return the generalized inverse CDF at a cumulative probability.
+
+        Args:
+            probability: Target cumulative probability in ``[0, 1]``.
+
+        Returns:
+            Smallest ordered value whose CDF reaches the target, with documented
+            endpoint conventions.
+
+        References:
+            [REF-CASELLA-BERGER-2002, Chapter 2]. The implementation supplies
+            the applicable quantile equation.
+
+        """
+        ...
+
+
+@runtime_checkable
+class HazardFunction(Protocol):
+    """A continuous law exposing instantaneous event rate where defined.
+
+    References:
+        [REF-KLEIN-MOESCHBERGER-2003, Chapter 2].
+
+    """
+
+    def hazard(self, x: float) -> float:
+        """Return density divided by survival probability at ``x``.
+
+        Args:
+            x: Real evaluation point accepted by the implementation.
+
+        Returns:
+            Instantaneous rate under the implementation's domain convention.
+
+        References:
+            [REF-KLEIN-MOESCHBERGER-2003, Chapter 2]. The implementation
+            supplies the applicable hazard equation.
+
+        """
+        ...
+
+
+@runtime_checkable
 class CumulativeDistribution(Protocol):
     """A univariate law that can evaluate a cumulative distribution function.
 
@@ -136,7 +267,7 @@ class DiscreteProbabilityLaw(
 
 @runtime_checkable
 class ContinuousProbabilityLaw(
-    CumulativeDistribution, HasMeanAndVariance, Protocol
+    ProbabilityDensity, CumulativeDistribution, HasMeanAndVariance, Protocol
 ):
     """A continuous univariate law with PDF, CDF, mean, and variance.
 
@@ -145,18 +276,4 @@ class ContinuousProbabilityLaw(
 
     """
 
-    def pdf(self, x: float) -> float:
-        """Return probability density at ``x``.
-
-        Args:
-            x: Real evaluation point accepted by the implementation.
-
-        Returns:
-            Non-negative density; a density value is not a point probability.
-
-        References:
-            [REF-ROSS-2019, Chapter 5]. The concrete implementation supplies the
-            applicable PDF equation.
-
-        """
-        ...
+    ...

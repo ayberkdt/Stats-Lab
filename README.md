@@ -11,7 +11,16 @@ The project has two equally important outputs:
 
 ## Foundation releases
 
-Release `0.5.0` provides:
+Release `0.6.0` provides:
+
+- zero-based Geometric and Negative Binomial waiting-count laws with explicit
+  parameterization contracts;
+- continuous Uniform and rate-parameterized Exponential laws;
+- direct survival, generalized quantile, density/log-density, and hazard
+  protocols, with existing ordered laws extended where supported;
+- a symmetry-aware regularized incomplete-beta implementation for stable
+  Negative Binomial tails;
+- coordinated waiting-count and PDF/CDF/survival teaching plots;
 
 - reusable parameter constraints and explicit finite, integer, and real support
   descriptors;

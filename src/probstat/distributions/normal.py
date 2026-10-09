@@ -5,10 +5,12 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
+from statistics import NormalDist
 
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
+    require_probability,
 )
 
 from .constraints import FINITE_REAL, POSITIVE_FINITE
@@ -128,6 +130,57 @@ class Normal:
         point = require_finite_real(x, name="x")
         standardized = (point - self.mu) / (self.sigma * math.sqrt(2.0))
         return 0.5 * (1.0 + math.erf(standardized))
+
+    def sf(self, x: float) -> float:
+        """Evaluate the normal survival function through ``erfc``.
+
+        Args:
+            x: Finite real-valued evaluation point.
+
+        Returns:
+            Upper-tail probability evaluated without near-one subtraction.
+
+        Raises:
+            TypeError: If ``x`` is not real.
+            ValueError: If ``x`` is non-finite.
+
+        Equation:
+            [EQ-DIST-NORM-005].
+
+        References:
+            [REF-NIST-DLMF, Equation 7.2.2].
+
+        """
+        point = require_finite_real(x, name="x")
+        standardized = (point - self.mu) / (self.sigma * math.sqrt(2.0))
+        return 0.5 * math.erfc(standardized)
+
+    def quantile(self, probability: float) -> float:
+        """Return the normal generalized inverse CDF.
+
+        Args:
+            probability: Cumulative probability in ``[0, 1]``.
+
+        Returns:
+            Real quantile, with infinite endpoints at zero and one.
+
+        Raises:
+            TypeError: If ``probability`` is not real.
+            ValueError: If it is non-finite or outside ``[0, 1]``.
+
+        Equation:
+            [EQ-DIST-NORM-006].
+
+        References:
+            [REF-PYTHON-STATISTICS].
+
+        """
+        target = require_probability(probability, name="probability")
+        if target == 0.0:
+            return -math.inf
+        if target == 1.0:
+            return math.inf
+        return NormalDist(mu=self.mu, sigma=self.sigma).inv_cdf(target)
 
     @property
     def mean(self) -> float:

@@ -5,8 +5,18 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from probstat.distributions import Bernoulli, Categorical, Normal
-from probstat.foundations import ProbabilityMassFunction
+from probstat.distributions import (
+    Bernoulli,
+    Categorical,
+    Geometric,
+    NegativeBinomial,
+    Normal,
+)
+from probstat.foundations import (
+    ContinuousProbabilityLaw,
+    ProbabilityMassFunction,
+    SurvivalFunction,
+)
 from probstat.foundations.validation import (
     coerce_finite_sample,
     require_finite_real,
@@ -159,6 +169,151 @@ def plot_categorical_pmf(
     axes.set_title("Categorical PMF (labels are unordered)")
     for position, mass in zip(positions, masses, strict=True):
         axes.annotate(f"{mass:.3f}", (position, mass), ha="center", va="bottom")
+    return axes
+
+
+def plot_waiting_count_pmfs(
+    geometric: Geometric,
+    negative_binomial: NegativeBinomial,
+    *,
+    upper: int = 20,
+    ax: Any | None = None,
+) -> Any:
+    """Compare two failures-before-success PMFs on one integer window.
+
+    Args:
+        geometric: First-success waiting-count law.
+        negative_binomial: Target-success waiting-count law.
+        upper: Inclusive non-negative count-window endpoint.
+        ax: Optional Matplotlib axes; a new axes is created when omitted.
+
+    Returns:
+        The populated Matplotlib axes.
+
+    Raises:
+        TypeError: If ``upper`` is not an integer.
+        ValueError: If ``upper`` is negative.
+
+    Equation:
+        [EQ-DIST-GEOM-001], [EQ-DIST-NBIN-001].
+
+    References:
+        [REF-ROSS-2019, Section 4.5], [REF-MATPLOTLIB].
+
+    """
+    checked_upper = require_non_negative_integer(upper, name="upper")
+    counts = tuple(range(checked_upper + 1))
+    geometric_masses = tuple(geometric.pmf(k) for k in counts)
+    negative_masses = tuple(negative_binomial.pmf(k) for k in counts)
+    plt = _pyplot()
+    axes = ax if ax is not None else plt.subplots()[1]
+    axes.plot(
+        counts,
+        geometric_masses,
+        marker="o",
+        label=f"Geometric(p={geometric.p:g})",
+        color="#4C78A8",
+    )
+    axes.plot(
+        counts,
+        negative_masses,
+        marker="s",
+        label=(
+            "NegativeBinomial"
+            f"(r={negative_binomial.r}, p={negative_binomial.p:g})"
+        ),
+        color="#F58518",
+    )
+    axes.set(
+        xlabel="Failures k before target success",
+        ylabel="P(X = k)",
+        xlim=(-0.25, checked_upper + 0.25),
+        ylim=(0.0, 1.1 * max((*geometric_masses, *negative_masses))),
+    )
+    axes.set_title("Waiting-count PMFs (zero-based convention)")
+    axes.legend()
+    return axes
+
+
+def plot_continuous_functions(
+    distribution: ContinuousProbabilityLaw,
+    *,
+    lower: float,
+    upper: float,
+    points: int = 401,
+    ax: Any | None = None,
+) -> Any:
+    """Plot PDF, CDF, and survival function on coordinated axes.
+
+    Density uses the left axis because it can exceed one; CDF and survival use
+    the right probability axis. This prevents density from being mislabeled as
+    probability while keeping their relationship visible.
+
+    Args:
+        distribution: Continuous law that also exposes a direct survival method.
+        lower: Finite lower viewing bound.
+        upper: Finite upper viewing bound, strictly greater than ``lower``.
+        points: Number of equally spaced evaluation points, at least two.
+        ax: Optional primary Matplotlib axes; a new axes is created when omitted.
+
+    Returns:
+        The primary density axes; its figure also contains a probability axis.
+
+    Raises:
+        TypeError: If bounds or points have invalid types, or survival is absent.
+        ValueError: If bounds are invalid or fewer than two points are requested.
+
+    Equation:
+        [EQ-DIST-UNIF-001], [EQ-DIST-UNIF-002], [EQ-DIST-EXP-001],
+        [EQ-DIST-EXP-002], [EQ-DIST-NORM-001], [EQ-DIST-NORM-005].
+
+    References:
+        [REF-CASELLA-BERGER-2002, Chapter 3], [REF-MATPLOTLIB].
+
+    """
+    if not isinstance(distribution, SurvivalFunction):
+        raise TypeError("distribution must expose a survival function")
+    checked_lower = require_finite_real(lower, name="lower")
+    checked_upper = require_finite_real(upper, name="upper")
+    checked_points = require_non_negative_integer(points, name="points")
+    if checked_upper <= checked_lower:
+        raise ValueError("upper must be greater than lower")
+    if checked_points < 2:
+        raise ValueError("points must be at least two")
+    step = (checked_upper - checked_lower) / (checked_points - 1)
+    x_values = tuple(
+        checked_lower + index * step for index in range(checked_points)
+    )
+    plt = _pyplot()
+    axes = ax if ax is not None else plt.subplots()[1]
+    probability_axes = axes.twinx()
+    density_line = axes.plot(
+        x_values,
+        tuple(distribution.pdf(x) for x in x_values),
+        color="#4C78A8",
+        label="PDF",
+    )[0]
+    cdf_line = probability_axes.plot(
+        x_values,
+        tuple(distribution.cdf(x) for x in x_values),
+        color="#54A24B",
+        label="CDF",
+    )[0]
+    survival_line = probability_axes.plot(
+        x_values,
+        tuple(distribution.sf(x) for x in x_values),
+        color="#E45756",
+        linestyle="--",
+        label="survival",
+    )[0]
+    axes.set(xlabel="x", ylabel="Density f(x)")
+    probability_axes.set(ylabel="Probability", ylim=(0.0, 1.05))
+    axes.set_title(f"{type(distribution).__name__}: density and tail functions")
+    axes.legend(
+        handles=(density_line, cdf_line, survival_line),
+        labels=("PDF", "CDF", "survival"),
+        loc="center right",
+    )
     return axes
 
 
