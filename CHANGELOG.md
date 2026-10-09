@@ -3,6 +3,55 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.10.0] — 2026-10-09
+
+### Added
+
+- Antithetic variates, control variates, conditional Monte Carlo, equal-width
+  stratified sampling, and ordinary importance sampling with explicit
+  assumptions, confidence intervals, seeded streams, and work accounting.
+- Weight effective-sample-size and maximum-normalized-weight diagnostics that
+  remain explicitly separate from estimator standard error.
+- Lower-bounded Neyman allocation with exact integer-budget preservation and a
+  cost-normalized estimator-efficiency comparison contract.
+- An efficiency-gain visualization and a reproducible advanced Monte Carlo lab
+  comparing five estimators under one evaluation budget.
+- Eight equation records, an advanced Monte Carlo guide, ADR-0010, regression
+  tests, and primary references.
+
+### Changed
+
+- All twelve ATHENS advanced Monte Carlo topics and the advanced practical lab
+  now have implemented evidence; the canonical ledger advances to 35
+  implemented, 18 partial, and 57 planned rows.
+- Project memory advances the next safe delivery slice to reliability and rare
+  events while preserving remaining general Monte Carlo frontier work.
+
+## [0.9.0] — 2026-10-09
+
+### Added
+
+- Composite trapezoid and Simpson quadrature with finite-value validation and
+  exact evaluation counts.
+- Monte Carlo mean, event-probability, and uniform-integration estimators with
+  sample variance, estimator standard error, confidence intervals, sample
+  sizes, and charged work.
+- Nested convergence traces and a confidence-band convergence visualization.
+- Named forward propagation over explicit parameter samples, retaining raw QoI
+  outputs, output moments, strict exceedance probabilities, Wilson intervals,
+  and complete model-call counts.
+- A reproducible laboratory for pi estimation, deterministic versus stochastic
+  integration, and uncertain projectile-range propagation.
+- UQ-2 guide, equation records, tests, and ADR-0009 separating output
+  variability, sampling error, numerical error, and computational cost.
+
+### Changed
+
+- ATHENS UQ-2 rows advance from planned to implemented with direct code and lab
+  evidence; advanced budget allocation remains partial.
+- Architecture adds domain-neutral `numerics`, estimator-only `monte_carlo`,
+  and higher-level `propagation` packages while preserving dependency direction.
+
 ## [0.8.0] — 2026-10-09
 
 ### Added

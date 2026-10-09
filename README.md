@@ -11,7 +11,29 @@ The project has two equally important outputs:
 
 ## Foundation releases
 
-Release `0.8.0` adds:
+Release `0.10.0` adds:
+
+- antithetic, control-variate, conditional, stratified, and importance-sampling
+  estimators with explicit assumptions and reproducible streams;
+- exact integer budget allocation, weight-degeneracy diagnostics, and
+  cost-normalized estimator-efficiency comparisons;
+- a seeded advanced Monte Carlo laboratory comparing five strategies under one
+  evaluation budget; and
+- an efficiency-gain visualization, cited equations, boundary tests, and an
+  honest limitations/future-work guide.
+
+Release `0.9.0` added:
+
+- deterministic trapezoid/Simpson quadrature and finite-bound expectation
+  integration with explicit function-evaluation costs;
+- Monte Carlo mean, probability, and integral estimators with output variance,
+  estimator standard error, confidence intervals, convergence traces, and
+  work accounting;
+- named forward-model propagation with raw QoI outputs and threshold
+  probabilities; and
+- a seeded pi/integration/projectile laboratory plus convergence visualization.
+
+Release `0.8.0` added:
 
 - Lognormal, Weibull, and positive-definite multivariate Normal models with
   documented parameterizations and reproducible sampling;
@@ -116,11 +138,13 @@ citation key to [the bibliography](docs/references.md).
 1. [Learning path](docs/learning-path.md)
 2. [VV-UQ foundations](docs/foundations/vv-uq-foundations.md)
 3. [Uncertainty modeling and fitting](docs/foundations/uncertainty-modeling-and-fitting.md)
-4. [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
-5. [Architecture](docs/architecture.md)
-6. [Equation registry](docs/equation-registry.md)
-7. [Contribution contract](CONTRIBUTING.md)
-8. [Roadmap](memory/ROADMAP.md)
+4. [Uncertainty propagation](docs/foundations/uncertainty-propagation.md)
+5. [Advanced Monte Carlo](docs/foundations/advanced-monte-carlo.md)
+6. [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
+7. [Architecture](docs/architecture.md)
+8. [Equation registry](docs/equation-registry.md)
+9. [Contribution contract](CONTRIBUTING.md)
+10. [Roadmap](memory/ROADMAP.md)
 
 ## Design promise
 

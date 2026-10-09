@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable
 from typing import Any
 
@@ -23,6 +24,7 @@ from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
 )
+from probstat.monte_carlo import EfficiencyComparison, MonteCarloEstimate
 from probstat.probability import (
     FiniteEvent,
     FiniteJointDistribution,
@@ -742,6 +744,139 @@ def plot_refinement_convergence(
         ylabel="|QoI(h) - extrapolated QoI|",
     )
     axes.set_title(f"Uniform refinement convergence (observed p = {order:.3g})")
+    axes.legend()
+    return axes
+
+
+def plot_monte_carlo_convergence(
+    estimates: Iterable[MonteCarloEstimate],
+    *,
+    reference: float | None = None,
+    ax: Any | None = None,
+) -> Any:
+    """Plot nested Monte Carlo estimates and their reported confidence bands.
+
+    Args:
+        estimates: Non-empty sequence with strictly increasing sample sizes.
+        reference: Optional finite analytic/reference value.
+        ax: Optional Matplotlib axes; a new axes is created when omitted.
+
+    Returns:
+        Axes with log-sample-size estimate path and confidence band.
+
+    Raises:
+        TypeError: If an item is not a Monte Carlo estimate.
+        ValueError: If input is empty, sizes do not increase, or reference is
+            non-finite.
+
+    Equation:
+        [EQ-MC-MEAN-001], [EQ-MC-SE-001], [EQ-MC-ROOTN-001].
+
+    References:
+        [REF-ROBERT-CASELLA-2004, Chapters 3-4], [REF-MATPLOTLIB].
+
+    """
+    trace = tuple(estimates)
+    if not trace:
+        raise ValueError("estimates must not be empty")
+    for index, estimate in enumerate(trace):
+        if not isinstance(estimate, MonteCarloEstimate):
+            raise TypeError(f"estimates[{index}] must be a MonteCarloEstimate")
+        if index and estimate.sample_size <= trace[index - 1].sample_size:
+            raise ValueError("estimate sample sizes must be strictly increasing")
+    checked_reference = (
+        None
+        if reference is None
+        else require_finite_real(reference, name="reference")
+    )
+    sample_sizes = tuple(estimate.sample_size for estimate in trace)
+    centers = tuple(estimate.estimate for estimate in trace)
+    lowers = tuple(estimate.confidence_interval.lower for estimate in trace)
+    uppers = tuple(estimate.confidence_interval.upper for estimate in trace)
+    plt = _pyplot()
+    axes = ax if ax is not None else plt.subplots()[1]
+    axes.plot(
+        sample_sizes,
+        centers,
+        marker="o",
+        color="#4C78A8",
+        label="Monte Carlo estimate",
+    )
+    axes.fill_between(
+        sample_sizes,
+        lowers,
+        uppers,
+        color="#4C78A8",
+        alpha=0.2,
+        label="reported confidence interval",
+    )
+    if checked_reference is not None:
+        axes.axhline(
+            checked_reference,
+            color="#E45756",
+            linestyle="--",
+            label="reference",
+        )
+    axes.set_xscale("log")
+    axes.set(xlabel="Sample size N", ylabel="Estimate")
+    axes.set_title("Monte Carlo convergence and sampling uncertainty")
+    axes.legend()
+    return axes
+
+
+def plot_efficiency_comparison(
+    comparisons: Iterable[EfficiencyComparison],
+    *,
+    ax: Any | None = None,
+) -> Any:
+    """Plot cost-normalized efficiency gains against a common baseline.
+
+    Args:
+        comparisons: Non-empty comparisons sharing the same baseline label.
+        ax: Optional Matplotlib axes; a new axes is created when omitted.
+
+    Returns:
+        Axes whose bars show variance-cost gain; the horizontal value one marks
+        parity with the baseline. Infinite gains are rejected because no finite
+        logarithmic bar can represent a zero-variance candidate.
+
+    Raises:
+        TypeError: If an item is not an efficiency comparison.
+        ValueError: If input is empty, baselines differ, or a gain is non-finite.
+
+    Equation:
+        [EQ-MC-EFF-001].
+
+    References:
+        [REF-OWEN-2013, Chapter 2], [REF-MATPLOTLIB].
+
+    """
+    records = tuple(comparisons)
+    if not records:
+        raise ValueError("comparisons must not be empty")
+    for index, comparison in enumerate(records):
+        if not isinstance(comparison, EfficiencyComparison):
+            raise TypeError(
+                f"comparisons[{index}] must be an EfficiencyComparison"
+            )
+        if comparison.baseline_label != records[0].baseline_label:
+            raise ValueError("all comparisons must share one baseline label")
+        if not math.isfinite(comparison.efficiency_gain):
+            raise ValueError("efficiency gains must be finite for plotting")
+    labels = tuple(record.candidate_label for record in records)
+    gains = tuple(record.efficiency_gain for record in records)
+    plt = _pyplot()
+    axes = ax if ax is not None else plt.subplots()[1]
+    colors = tuple("#54A24B" if gain >= 1.0 else "#E45756" for gain in gains)
+    axes.bar(labels, gains, color=colors)
+    axes.axhline(1.0, color="#4C78A8", linestyle="--", label="baseline parity")
+    axes.set_yscale("log")
+    axes.set(
+        xlabel="Candidate strategy",
+        ylabel="Variance-cost efficiency gain",
+    )
+    axes.set_title(f"Efficiency relative to {records[0].baseline_label}")
+    axes.tick_params(axis="x", rotation=20)
     axes.legend()
     return axes
 

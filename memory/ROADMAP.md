@@ -115,17 +115,26 @@ dependency direction.
 
 ### UQ-2 — Forward propagation
 
-- [ ] Output expectation/variance, expectation integrals, deterministic
-  quadrature, basic Monte Carlo, estimator error and confidence intervals.
-- [ ] Convergence and computational-cost diagnostics, sample-budget controls,
-  threshold/exceedance probabilities, and uncertainty visualizations.
+- [x] Output expectation/variance, finite-bound expectation integrals,
+  composite trapezoid/Simpson quadrature, and evaluation counts.
+- [x] Basic Monte Carlo mean/probability/integral estimators, sample variance,
+  standard error, normal/Wilson intervals, convergence traces, and costs.
+- [x] Named forward-model sample propagation, immutable raw outputs, QoI
+  summaries, strict threshold probabilities, and a seeded teaching lab.
+- [ ] Unbounded-domain quadrature transformations, adaptive error estimates,
+  correlated-input sampling, vector QoIs, streaming/out-of-core accumulation,
+  and propagation of numerical/model-form uncertainty.
 
 ### UQ-3 — Advanced Monte Carlo
 
-- [ ] Standard Monte Carlo and the pedagogical pi experiment.
-- [ ] Root-N convergence and estimator-efficiency comparisons.
-- [ ] Antithetic and control variates, conditional Monte Carlo, stratified
+- [x] Standard Monte Carlo, pedagogical pi experiment, explicit work counts,
+  and root-N convergence visualization.
+- [x] Estimator-efficiency and sampling-strategy comparisons.
+- [x] Antithetic and control variates, conditional Monte Carlo, stratified
   sampling, importance sampling, and simulation-budget allocation.
+- [ ] Latin hypercube and randomized quasi-Monte Carlo, multilevel Monte Carlo,
+  self-normalized/adaptive importance sampling, control functionals, and
+  unequal-cost optimal allocation.
 
 ### UQ-4 — Reliability and rare events
 
@@ -158,9 +167,10 @@ dependency direction.
 
 ### LAB-1 through LAB-6 — Reproducible practical work
 
-- [ ] Statistical fitting, basic Monte Carlo, advanced variance reduction,
-  reliability (FORM and directional sampling), Bayesian calibration, and
-  uncertainty-visualization laboratories.
+- [x] Basic Monte Carlo and advanced variance-reduction laboratories.
+- [~] Statistical-fitting and uncertainty-visualization laboratories.
+- [ ] Reliability (FORM and directional sampling) and Bayesian-calibration
+  laboratories.
 - [ ] Every lab includes definitions, assumptions, equations, seeded examples,
   plots, diagnostics, cost/error discussion, citations, and regression tests.
 

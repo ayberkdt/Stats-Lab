@@ -3,10 +3,26 @@
 Citation keys are stable project identifiers. A locator in a docstring or
 equation record narrows the relevant part of a source.
 
+## REF-DAVIS-RABINOWITZ-1984
+
+Philip J. Davis and Philip Rabinowitz. *Methods of Numerical Integration*.
+2nd edition. Academic Press, 1984. ISBN 978-0-12-206360-2.
+
+## REF-ROBERT-CASELLA-2004
+
+Christian P. Robert and George Casella. *Monte Carlo Statistical Methods*.
+2nd edition. Springer, 2004.
+DOI: [10.1007/978-1-4757-4145-2](https://doi.org/10.1007/978-1-4757-4145-2).
+
 ## REF-GOLUB-VANLOAN-2013
 
 Gene H. Golub and Charles F. Van Loan. *Matrix Computations*. 4th edition.
 Johns Hopkins University Press, 2013.
+
+## REF-HALLIDAY-RESNICK-WALKER-2014
+
+David Halliday, Robert Resnick, and Jearl Walker. *Fundamentals of Physics*.
+10th edition. Wiley, 2014.
 
 ## REF-MARDIA-KENT-BIBBY-1979
 
@@ -39,6 +55,11 @@ William L. Oberkampf and Christopher J. Roy. *Verification, Validation, and
 Uncertainty Quantification in Scientific Computing*. Cambridge University
 Press, 2025.
 DOI: [10.1017/9781009031004](https://doi.org/10.1017/9781009031004).
+
+## REF-OWEN-2013
+
+Art B. Owen. *Monte Carlo Theory, Methods and Examples*. 2013.
+[https://artowen.su.domains/mc/](https://artowen.su.domains/mc/).
 
 ## REF-ROACHE-1998
 

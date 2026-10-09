@@ -7,14 +7,14 @@ depend on."
 
 ```text
 visualization
-  ├─> uq ───────────────────────────────────────┐
-  ├─> inference ──> distributions ──────────────┤
+  ├─> propagation ─> monte_carlo ─> inference ─┐
+  │        ├─> uq ──────────────────────────────┤
+  │        └─> numerics ────────────────────────┤
   ├─> multivariate ─> distributions ────────────┤
-  ├─> distributions ────────────────────────────┤
   ├─> statistics ───────────────────────────────┤
   └─> probability ──────────────────────────────┤
-                                                v
-                                           foundations
+                                               v
+                                          foundations
 ```
 
 `probstat.__init__` exposes version metadata only. This deliberate choice keeps
@@ -26,12 +26,15 @@ cycle.
 | Layer | Owns | Must not own |
 |---|---|---|
 | `foundations` | Validation, scalar numerical primitives, shared protocols | Domain distributions or estimators |
+| `numerics` | Domain-neutral deterministic algorithms, work counts, and numerical diagnostics | Probability models or UQ workflows |
 | `probability` | Sets, counting, probability rules, random-variable algebra | Inference or plotting |
 | `statistics` | Descriptive statistics, estimators, diagnostics | Distribution implementations or plotting |
 | `distributions` | Distribution objects, density/mass/CDF behavior, sampling | Educational rendering |
 | `uq` | Cross-cutting uncertainty vocabulary, QoI contracts, numerical verification | Monte Carlo, reliability, inference, or domain-specific solvers |
 | `multivariate` | Vector-valued distributions and covariance-aware probability operations | Inference workflows or plotting |
 | `inference` | Estimation, confidence procedures, tests, and diagnostics | Rendering, simulation orchestration, or application models |
+| `monte_carlo` | Sample estimators, sampling-error diagnostics, and evaluation accounting | Forward-model semantics or plotting |
+| `propagation` | QoI sample propagation, expectation integration, output summaries, thresholds | Distribution implementations or rendering |
 | `visualization` | Optional plots and explanatory annotations | Mathematical truth or validation rules |
 
 Structural interfaces such as `DiscreteProbabilityLaw` and
@@ -72,7 +75,9 @@ promoted deliberately; experimental frontier work begins under an explicit
 `experimental` namespace and cannot leak into foundations.
 
 The `uq` package stays narrow: it defines concepts shared across workflows and
-solution-verification primitives. Dedicated packages own Monte Carlo,
+solution-verification primitives. `monte_carlo` owns estimator behavior without
+knowing forward-model semantics; `propagation` combines those estimators with
+QoIs and explicit model calls. Dedicated packages will likewise own
 reliability, sensitivity, inverse problems, filtering, and data assimilation,
 so `uq` does not become a dependency hub. The complete target graph and its
 delivery order are recorded in ADR-0007 and the ATHENS coverage matrix.

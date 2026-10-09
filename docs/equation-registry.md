@@ -4,6 +4,236 @@ This file is the authoritative catalog of equations currently evaluated by
 code. Symbols are local to each record. Source keys resolve in
 `docs/references.md`.
 
+## Numerical integration and Monte Carlo propagation
+
+### EQ-NUM-TRAP-001 — Composite trapezoid rule
+
+`integral_a^b f(x) dx ~= h[f(x_0)/2 + sum_(i=1)^(n-1)f(x_i) + f(x_n)/2]`,
+where `h=(b-a)/n`.
+
+- Domain: finite `a<b`, positive integer `n`, equally spaced nodes, and finite
+  real integrand values.
+- Meaning: integrates the piecewise-linear interpolant and charges `n+1`
+  evaluations.
+- Code: `numerics.composite_trapezoid`.
+- Source: [REF-DAVIS-RABINOWITZ-1984, Chapter 2].
+
+### EQ-NUM-SIMP-001 — Composite Simpson rule
+
+`integral_a^b f(x) dx ~= (h/3)[f(x_0)+4 sum_odd f(x_i)+
+2 sum_even f(x_i)+f(x_n)]`.
+
+- Domain: [EQ-NUM-TRAP-001] with a positive even number of subintervals.
+- Meaning: integrates local quadratic interpolants and is exact for cubics in
+  exact arithmetic.
+- Code: `numerics.composite_simpson`.
+- Source: [REF-DAVIS-RABINOWITZ-1984, Chapter 2].
+
+### EQ-PROP-EXP-001 — Expectation integral
+
+`E[g(X)] = integral g(x) f_X(x) dx`.
+
+- Domain: measurable transform and density with an absolutely integrable
+  product; the implemented rule integrates only explicitly supplied finite
+  bounds.
+- Meaning: deterministic uncertainty propagation of a scalar transform through
+  its input density.
+- Code: `propagation.expectation_by_quadrature`.
+- Source: [REF-SMITH-UQ-2024, Chapter 3].
+
+### EQ-MC-MEAN-001 — Monte Carlo sample-mean estimator
+
+`mu_hat_N=(1/N) sum_(i=1)^N Y_i`.
+
+- Domain: at least two finite sampled contributions; consistency requires the
+  relevant law-of-large-numbers assumptions.
+- Meaning: estimates an expectation from independent representative draws.
+- Code: `monte_carlo.estimate_mean` and `propagation.propagate_samples`.
+- Source: [REF-ROBERT-CASELLA-2004, Chapter 3].
+
+### EQ-MC-VAR-001 — Unbiased sample variance
+
+`s_N^2=(1/(N-1)) sum_(i=1)^N (Y_i-mu_hat_N)^2`.
+
+- Domain: at least two finite observations.
+- Meaning: estimates output variance; it is distinct from variance of the
+  sample-mean estimator.
+- Code: `monte_carlo.estimate_mean` and `propagation.OutputSummary.variance`.
+- Source: [REF-ROBERT-CASELLA-2004, Chapter 3].
+
+### EQ-MC-SE-001 — Estimated Monte Carlo standard error
+
+`SE(mu_hat_N)=s_N/sqrt(N)`.
+
+- Domain: [EQ-MC-VAR-001], with independent identically distributed sampling
+  for the usual interpretation.
+- Meaning: estimates sampling variability of the mean rather than physical
+  output variability.
+- Code: `monte_carlo.estimate_mean`.
+- Source: [REF-ROBERT-CASELLA-2004, Chapters 3-4].
+
+### EQ-MC-PROB-001 — Monte Carlo event-probability estimator
+
+`p_hat_N=(1/N) sum_(i=1)^N I(A_i)` and
+`SE(p_hat_N)=sqrt(p_hat_N(1-p_hat_N)/N)`.
+
+- Domain: non-empty exact Boolean event indicators; the plug-in standard error
+  may be zero at observed boundaries while the Wilson interval remains
+  non-degenerate.
+- Meaning: estimates threshold, failure, or other event probabilities.
+- Code: `monte_carlo.estimate_probability`.
+- Source: [REF-ROBERT-CASELLA-2004, Chapter 3], [REF-WILSON-1927].
+
+### EQ-MC-INT-001 — Uniform Monte Carlo integration
+
+`integral_a^b f(x) dx = (b-a) E[f(U)]`, where `U~Uniform(a,b)`.
+
+- Domain: finite `a<b`, integrable `f`, and independent uniform draws.
+- Meaning: converts a finite-interval integral into a sample-mean problem.
+- Code: `monte_carlo.estimate_uniform_integral`.
+- Source: [REF-ROBERT-CASELLA-2004, Chapter 3].
+
+### EQ-MC-ROOTN-001 — Root-sample Monte Carlo scaling
+
+`SD(mu_hat_N)=sigma/sqrt(N)` for independent equal-distribution draws with
+finite variance `sigma^2`.
+
+- Domain: independent identically distributed finite-variance contributions.
+- Meaning: multiplying sample count by four is needed to halve idealized
+  standard error; a trace alone does not prove asymptotic behavior.
+- Code: `monte_carlo.convergence_trace` exposes nested-prefix estimates and
+  standard errors.
+- Source: [REF-ROBERT-CASELLA-2004, Chapters 3-4].
+
+### EQ-MC-ANTI-001 — Antithetic-pair estimator
+
+`Z_i=[f(U_i)+f(1-U_i)]/2` and `mu_hat_A=(1/m) sum_i Z_i`, where
+`U_i~Uniform(0,1)` independently across pairs.
+
+- Domain: integrable unit-interval `f`, at least two independent pairs, and
+  finite evaluated values; gains require favorable negative covariance within
+  a pair and are not guaranteed for arbitrary functions.
+- Meaning: preserves `E[f(U)]`, charges two function evaluations per independent
+  pair, and estimates uncertainty from the pair averages rather than treating
+  the negatively dependent evaluations as independent.
+- Code: `monte_carlo.estimate_antithetic_uniform`.
+- Source: [REF-OWEN-2013, Section 8.2].
+
+### EQ-MC-CONTROL-001 — Control-variate adjustment
+
+`Y_i^(cv)=Y_i-beta(C_i-mu_C)` with
+`beta*=Cov(Y,C)/Var(C)` when `Var(C)>0`.
+
+- Domain: paired finite target/control observations and a genuinely known
+  control mean `mu_C`; the automatic plug-in coefficient also requires
+  positive sample control variance.
+- Meaning: the adjustment preserves the target expectation for a fixed
+  coefficient and can reduce variance when the control is correlated with the
+  target. A coefficient fitted on the same sample makes the reported standard
+  error a plug-in diagnostic rather than an exact finite-sample result.
+- Code: `monte_carlo.estimate_control_variate`.
+- Source: [REF-OWEN-2013, Section 8.9].
+
+### EQ-MC-COND-001 — Conditional Monte Carlo identity
+
+`E[Y]=E[E[Y|Z]]` and
+`Var(Y)=E[Var(Y|Z)]+Var(E[Y|Z])`.
+
+- Domain: integrable `Y`; the variance decomposition requires finite second
+  moments and an actual conditional expectation under the intended model.
+- Meaning: sampling `E[Y|Z]` instead of raw `Y` preserves the expectation and
+  cannot have larger population variance.
+- Code: `monte_carlo.estimate_conditional_expectation`.
+- Source: [REF-OWEN-2013, Section 8.1].
+
+### EQ-MC-STRAT-001 — Stratified mean and variance estimator
+
+`mu_hat_st=sum_h W_h mu_hat_h` and
+`Var_hat(mu_hat_st)=sum_h W_h^2 s_h^2/n_h`.
+
+- Domain: disjoint exhaustive strata with known weights `W_h`, independent
+  within-stratum samples, and at least two samples per stratum for each `s_h^2`.
+  The implementation uses equal-width unit-interval strata, so `W_h=1/H`.
+- Meaning: combines local means and accounts for heterogeneous allocation
+  without pretending all sampled outputs are identically distributed.
+- Code: `monte_carlo.estimate_stratified_uniform`.
+- Source: [REF-OWEN-2013, Section 8.4].
+
+### EQ-MC-IS-001 — Ordinary importance-sampling identity
+
+`E_p[g(X)]=E_q[g(X) w(X)]`, where `w(x)=p(x)/q(x)`.
+
+- Domain: the proposal `q` is positive wherever `|g|p` contributes, the target
+  and proposal densities are evaluated consistently, and the weighted
+  integrand has the moments needed for the requested error summary.
+- Meaning: draws come from a convenient proposal while density-ratio weights
+  preserve the target expectation. The implementation is ordinary, not
+  self-normalized, importance sampling.
+- Code: `monte_carlo.estimate_importance_sampling`.
+- Source: [REF-OWEN-2013, Chapter 9].
+
+### EQ-MC-ESS-001 — Weight-only effective sample size diagnostic
+
+`ESS_w=(sum_i w_i)^2/(sum_i w_i^2)`.
+
+- Domain: non-negative finite weights with at least one positive weight.
+- Meaning: reports weight concentration on a scale from one to `N`; it is a
+  heuristic diagnostic and is not the estimator's actual independent-sample
+  count or a replacement for its standard error.
+- Code: `monte_carlo.estimate_importance_sampling`.
+- Source: [REF-OWEN-2013, Section 9.3].
+
+### EQ-MC-NEYMAN-001 — Stratified simulation-budget allocation
+
+`n_h proportional to W_h sigma_h` for equal per-sample costs.
+
+- Domain: fixed total budget, known or pilot-estimated non-negative stratum
+  standard deviations, and the classical independent stratified estimator.
+- Meaning: the unconstrained Neyman rule minimizes stratified estimator
+  variance. The implementation first enforces an integer minimum in every
+  equal-width stratum, then apportions the remaining budget proportionally by
+  largest remainders; this lower-bounded construction is transparent and
+  deterministic but need not equal the exact constrained optimum.
+- Code: `monte_carlo.allocate_stratified_budget`.
+- Source: [REF-OWEN-2013, Section 8.4].
+
+### EQ-MC-EFF-001 — Cost-normalized estimator efficiency
+
+`score=SE(mu_hat)^2 C` and
+`gain_(base->cand)=score_base/score_candidate`, where `C` is charged work.
+
+- Domain: comparable estimands, non-negative finite estimated standard errors,
+  and positive evaluation counts; both-zero scores are undefined.
+- Meaning: under the usual inverse-cost variance scaling, a gain above one
+  means the candidate delivers more precision per evaluation. It is an
+  empirical comparison, not a universal ranking independent of model and
+  integrand.
+- Code: `monte_carlo.compare_efficiency` and
+  `visualization.plot_efficiency_comparison`.
+- Source: [REF-OWEN-2013, Chapters 2 and 8].
+
+### EQ-PROP-THRESH-001 — Strict exceedance probability
+
+`P(Y>S)=E[I(Y>S)]`.
+
+- Domain: finite threshold `S` and propagated finite output samples.
+- Meaning: turns a decision threshold into a Bernoulli Monte Carlo estimator;
+  equality is not counted as exceedance.
+- Code: `propagation.propagate_samples` and
+  `monte_carlo.estimate_probability`.
+- Source: [REF-SMITH-UQ-2024, Chapter 4].
+
+### EQ-LAB-PROJECTILE-001 — Idealized projectile range
+
+`R=v^2 sin(2 theta)/g`.
+
+- Domain: constant gravitational acceleration, level launch/landing height, no
+  drag, non-negative speed, and launch angle interpreted in radians.
+- Meaning: transparent nonlinear teaching model for propagating uncertain
+  speed and angle; it is not an orbital or high-fidelity trajectory model.
+- Code: `examples.basic_monte_carlo_lab.projectile_model`.
+- Source: [REF-HALLIDAY-RESNICK-WALKER-2014, projectile motion].
+
 ## UQ-1 continuous and multivariate distributions
 
 ### EQ-DIST-LN-001 — Lognormal PDF and log-PDF

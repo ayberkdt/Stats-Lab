@@ -10,13 +10,16 @@ SOURCE_ROOT = Path(__file__).parents[1] / "src" / "probstat"
 LAYER = {
     "probstat": 0,
     "probstat.foundations": 0,
+    "probstat.numerics": 0,
     "probstat.probability": 1,
     "probstat.statistics": 1,
     "probstat.distributions": 1,
     "probstat.inference": 2,
     "probstat.multivariate": 2,
     "probstat.uq": 2,
-    "probstat.visualization": 3,
+    "probstat.monte_carlo": 3,
+    "probstat.propagation": 4,
+    "probstat.visualization": 5,
 }
 
 

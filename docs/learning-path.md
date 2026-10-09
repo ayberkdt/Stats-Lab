@@ -10,6 +10,17 @@ Continue with
 for required univariate families, multivariate normal structure, MLE,
 confidence intervals, and goodness-of-fit limitations.
 
+Then study
+[uncertainty propagation](foundations/uncertainty-propagation.md) for
+expectation integrals, deterministic quadrature, Monte Carlo estimators,
+sampling error, evaluation cost, threshold probabilities, and a reproducible
+forward-model laboratory.
+
+Continue with
+[advanced Monte Carlo](foundations/advanced-monte-carlo.md) for antithetic,
+control, conditional, stratified, and importance-sampling strategies together
+with budget-allocation and cost-aware efficiency diagnostics.
+
 The library separates conceptual order from software layer order. Readers can
 learn progressively without losing topics needed later.
 
