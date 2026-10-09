@@ -23,7 +23,7 @@ teaching are co-equal goals.
 
 ## Current state
 
-- Current release: `0.6.0` waiting-count and foundational continuous laws.
+- Current release: `0.7.0` auditable ATHENS VV-UQ scope and verification core.
 - Python baseline: 3.11+.
 - Runtime dependency policy: standard library first; optional Matplotlib for
   plots. Add numerical dependencies only through an ADR.
@@ -33,8 +33,13 @@ teaching are co-equal goals.
 ## Navigation
 
 - Work status and future sequencing: [ROADMAP.md](ROADMAP.md)
+- Canonical ATHENS curriculum ledger:
+  [athens-2026-coverage.md](../docs/curriculum/athens-2026-coverage.md)
 - Architecture rationale: [ADR-0001](decisions/ADR-0001-layered-citation-first.md)
-- Latest session: [2026-10-09 waiting and continuous foundations](sessions/2026-10-09-waiting-and-continuous-foundations.md)
+- VV-UQ scope architecture:
+  [ADR-0007](decisions/ADR-0007-auditable-vv-uq-curriculum.md)
+- Latest session: [2026-10-09 ATHENS VV-UQ scope](sessions/2026-10-09-athens-vv-uq-scope.md)
+- Previous session: [2026-10-09 waiting and continuous foundations](sessions/2026-10-09-waiting-and-continuous-foundations.md)
 - Previous session: [2026-10-09 discrete distributions](sessions/2026-10-09-discrete-distributions.md)
 - Generating-functions session: [2026-10-09 generating functions](sessions/2026-10-09-generating-functions.md)
 - Random-variable session: [2026-10-09 random variables](sessions/2026-10-09-random-variables.md)
@@ -46,8 +51,10 @@ teaching are co-equal goals.
 
 ## Next safe step
 
-Implement Gamma and Beta laws on the internal regularized gamma/beta
-foundation, then derive Chi-square. Add stable inverse special-function methods,
-accuracy comparisons, and explicit numerical error budgets before Student-t and
-F distributions.
+Complete ATHENS UQ-1 before building propagation: implement Lognormal and
+Weibull, then a dependency-neutral multivariate-vector foundation and
+multivariate Normal. Add sampling contracts, maximum-likelihood estimation,
+Kolmogorov-Smirnov and Anderson-Darling diagnostics, confidence intervals, and
+teaching plots. Preserve the distribution roadmap by deriving Gamma, Beta,
+Chi-square, Student-t, and F on the existing special-function foundation.
 

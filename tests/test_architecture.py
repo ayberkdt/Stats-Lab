@@ -13,7 +13,8 @@ LAYER = {
     "probstat.probability": 1,
     "probstat.statistics": 1,
     "probstat.distributions": 1,
-    "probstat.visualization": 2,
+    "probstat.uq": 2,
+    "probstat.visualization": 3,
 }
 
 

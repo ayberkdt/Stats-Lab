@@ -11,6 +11,7 @@ from .foundations import (
     plot_joint_pmf,
     plot_normal_pdf,
     plot_random_variable_pmf,
+    plot_refinement_convergence,
     plot_waiting_count_pmfs,
 )
 
@@ -25,6 +26,7 @@ __all__ = [
     "plot_integer_pmf",
     "plot_normal_pdf",
     "plot_random_variable_pmf",
+    "plot_refinement_convergence",
     "plot_waiting_count_pmfs",
 ]
 

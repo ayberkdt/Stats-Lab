@@ -2,6 +2,11 @@
 
 Status markers: `[x]` complete, `[~]` in progress, `[ ]` planned.
 
+The [ATHENS 2026 coverage matrix](../docs/curriculum/athens-2026-coverage.md)
+is the authoritative 110-topic ledger. A checked roadmap phase does not override
+the matrix: curriculum completion requires 110/110 `Implemented` rows with
+tested evidence.
+
 ## Phase 0 — Repository constitution
 
 - [x] Layered acyclic package layout.
@@ -80,6 +85,88 @@ Status markers: `[x]` complete, `[~]` in progress, `[ ]` planned.
   robustness, and sequential decision systems.
 - [ ] Reproducible benchmark suites that compare correctness, calibration,
   numerical stability, and computational cost—not accuracy alone.
+
+## ATHENS VV-UQ delivery track
+
+This track cuts across the general library phases while preserving package
+dependency direction.
+
+### UQ-0 — Verification, validation, and workflow vocabulary
+
+- [x] Aleatory/epistemic nature and parametric/model-form/numerical/observation
+  source classifications as separate axes.
+- [x] Named forward-model and quantity-of-interest contracts.
+- [x] Conservative numerical-error budgets, observed order, and Richardson
+  extrapolation with assumptions and failure modes.
+- [ ] Validation experiment records, validation metrics, applicability domain,
+  and explicit separation of verification, validation, and prediction.
+
+### UQ-1 — Uncertainty modeling and statistical fitting
+
+- [~] Random variables, PMF/PDF/CDF, moments, covariance, correlation, Normal,
+  and Uniform foundations.
+- [ ] Lognormal, Weibull, multivariate random variables, multivariate Normal,
+  sampling abstractions, parameter estimation, and maximum likelihood.
+- [ ] Kolmogorov-Smirnov and Anderson-Darling goodness-of-fit plus estimator
+  confidence intervals and diagnostic plots.
+
+### UQ-2 — Forward propagation
+
+- [ ] Output expectation/variance, expectation integrals, deterministic
+  quadrature, basic Monte Carlo, estimator error and confidence intervals.
+- [ ] Convergence and computational-cost diagnostics, sample-budget controls,
+  threshold/exceedance probabilities, and uncertainty visualizations.
+
+### UQ-3 — Advanced Monte Carlo
+
+- [ ] Standard Monte Carlo and the pedagogical pi experiment.
+- [ ] Root-N convergence and estimator-efficiency comparisons.
+- [ ] Antithetic and control variates, conditional Monte Carlo, stratified
+  sampling, importance sampling, and simulation-budget allocation.
+
+### UQ-4 — Reliability and rare events
+
+- [ ] Reliability definitions, limit-state functions, failure probability,
+  direct Monte Carlo, rare events, and binomial confidence intervals.
+- [ ] FORM, reliability index beta, constrained design-point optimization,
+  most-probable failure points, directional sampling, and method comparison.
+
+### UQ-5 — Sensitivity analysis
+
+- [ ] Local and global sensitivity with variance-based functional ANOVA.
+- [ ] First-, second-, and total-effect Sobol indices with Monte Carlo
+  estimators and uncertainty diagnostics.
+- [ ] Input ranking, dimension reduction, and uncertainty-reduction strategy.
+
+### UQ-6 — Inverse problems and Bayesian calibration
+
+- [ ] Observation and measurement-noise models, parameter identification,
+  least squares, and linear-regression calibration.
+- [ ] Priors, likelihoods, posteriors, Gaussian conditioning, posterior
+  sampling, posterior predictive checks, and identifiability diagnostics.
+- [ ] Model discrepancy and the explicit calibration-versus-prediction split.
+
+### UQ-7 — Filtering and data assimilation
+
+- [ ] Discrete-time state-space models, prediction, observation, measurement
+  update, process/measurement noise, and covariance propagation.
+- [ ] Sequential Bayes, filtering versus smoothing, and data assimilation.
+- [ ] Kalman, extended Kalman, ensemble Kalman, and particle filters.
+
+### LAB-1 through LAB-6 — Reproducible practical work
+
+- [ ] Statistical fitting, basic Monte Carlo, advanced variance reduction,
+  reliability (FORM and directional sampling), Bayesian calibration, and
+  uncertainty-visualization laboratories.
+- [ ] Every lab includes definitions, assumptions, equations, seeded examples,
+  plots, diagnostics, cost/error discussion, citations, and regression tests.
+
+### PRE-1 — Prerequisite bridges
+
+- [~] Probability and statistics learning paths.
+- [ ] Linear algebra; numerical integration, convergence, and error;
+  optimization; multivariable calculus, Jacobians, conditional distributions;
+  and an R programming interoperability guide.
 
 ## Cross-cutting work (never “finished”)
 

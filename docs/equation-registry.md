@@ -4,6 +4,54 @@ This file is the authoritative catalog of equations currently evaluated by
 code. Symbols are local to each record. Source keys resolve in
 `docs/references.md`.
 
+## Verification and uncertainty quantification
+
+### EQ-UQ-001 — Named forward-model map
+
+`Y = g(X)`, with requested components `Y_q = g_q(X)` for quantities of
+interest `q`.
+
+- Domain: `X` is a finite named parameter realization, `g` is deterministic
+  for that realization, and every requested output is a finite real scalar.
+- Meaning: uncertainty propagation starts from an explicit input-to-output
+  contract; the quantity of interest determines which model response is used.
+- Code: `uq.taxonomy.ForwardModel` and `uq.taxonomy.evaluate_model`.
+- Source: [REF-SMITH-UQ-2024, Chapters 1-3].
+
+### EQ-VV-001 — Observed order under uniform refinement
+
+`p = log(|phi_coarse - phi_medium| / |phi_medium - phi_fine|) / log(r)`.
+
+- Domain: three finite solutions from uniform refinement ratio `r>1`, non-zero
+  consecutive differences, and an asymptotic single-term error regime.
+- Meaning: estimates how rapidly the selected quantity converges as resolution
+  is refined; a value alone does not prove asymptotic convergence.
+- Code: `uq.verification.observed_order_of_accuracy`.
+- Source: [REF-ROACHE-1998, Chapters 4-5].
+
+### EQ-VV-002 — Richardson extrapolation
+
+`phi_ext = phi_fine + (phi_fine - phi_medium)/(r^p - 1)`.
+
+- Domain: finite medium and fine solutions, uniform `r>1`, positive order
+  `p`, and the same asymptotic leading-error assumption as [EQ-VV-001].
+- Meaning: cancels the estimated leading discretization-error term to predict
+  the zero-step-size quantity.
+- Code: `uq.verification.richardson_extrapolation`.
+- Source: [REF-ROACHE-1998, Chapters 4-5].
+
+### EQ-VV-003 — Conservative numerical-error budget
+
+`epsilon_total <= epsilon_truncation + epsilon_roundoff +
+epsilon_discretization + epsilon_iterative`.
+
+- Domain: each term is a non-negative absolute error bound for the same
+  quantity and units.
+- Meaning: the triangle inequality gives a conservative bound without silently
+  assuming independence; it is not a root-sum-square uncertainty estimate.
+- Code: `uq.verification.NumericalErrorBudget.total_bound`.
+- Source: [REF-OBERKAMPF-ROY-2025, Chapters 6-8].
+
 ## Probability and counting
 
 ### EQ-PROB-001 — Probability-measure bounds and axioms

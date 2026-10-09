@@ -30,6 +30,7 @@ from probstat.visualization import (
     plot_joint_pmf,
     plot_normal_pdf,
     plot_random_variable_pmf,
+    plot_refinement_convergence,
     plot_waiting_count_pmfs,
 )
 
@@ -37,7 +38,7 @@ from probstat.visualization import (
 def main() -> None:
     """Render deterministic foundation plots into ``examples/generated``.
 
-    The function writes twelve PNG images and closes their figures so repeated
+    The function writes thirteen PNG images and closes their figures so repeated
     runs do not leak GUI resources.
 
     References:
@@ -45,7 +46,8 @@ def main() -> None:
         [EQ-DIST-BER-001], [EQ-DIST-BIN-001], [EQ-DIST-CAT-001],
         [EQ-DIST-POIS-001], [EQ-DIST-GEOM-001], [EQ-DIST-NBIN-001],
         [EQ-DIST-EXP-001], [EQ-DIST-EXP-002],
-        [EQ-DIST-NORM-001], [EQ-STAT-005], [REF-MATPLOTLIB].
+        [EQ-DIST-NORM-001], [EQ-STAT-005], [EQ-VV-001], [EQ-VV-002],
+        [REF-MATPLOTLIB].
 
     """
     import matplotlib.pyplot as plt
@@ -113,6 +115,10 @@ def main() -> None:
         (
             plot_empirical_cdf((1.1, 1.3, 1.3, 1.8, 2.4, 2.9)),
             "empirical-cdf.png",
+        ),
+        (
+            plot_refinement_convergence(1.16, 1.04, 1.01),
+            "refinement-convergence.png",
         ),
     )
     for axes, filename in figures:

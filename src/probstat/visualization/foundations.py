@@ -29,6 +29,7 @@ from probstat.probability import (
     FiniteRandomVariable,
 )
 from probstat.statistics import empirical_cdf
+from probstat.uq import observed_order_of_accuracy, richardson_extrapolation
 
 
 def _pyplot() -> Any:
@@ -610,5 +611,72 @@ def plot_empirical_cdf(values: Iterable[float], *, ax: Any | None = None) -> Any
     axes.scatter(sample, y_values, color="#54A24B", s=18)
     axes.set(xlabel="x", ylabel="F_n(x)", ylim=(0.0, 1.05))
     axes.set_title(f"Empirical CDF (n = {len(sample)})")
+    return axes
+
+
+def plot_refinement_convergence(
+    coarse: float,
+    medium: float,
+    fine: float,
+    *,
+    refinement_ratio: float = 2.0,
+    ax: Any | None = None,
+) -> Any:
+    """Visualize three-level convergence against Richardson extrapolation.
+
+    Args:
+        coarse: Quantity of interest on the coarsest resolution.
+        medium: Quantity after one uniform refinement.
+        fine: Quantity after a second uniform refinement.
+        refinement_ratio: Common resolution ratio greater than one.
+        ax: Optional Matplotlib axes; a new axes is created when omitted.
+
+    Returns:
+        Log-log error axes annotated with the observed convergence order.
+
+    Raises:
+        TypeError: If any refinement argument is not real.
+        ValueError: If refinement assumptions needed by the estimators fail.
+        OverflowError: If extrapolation is not representable.
+
+    Equation:
+        [EQ-VV-001], [EQ-VV-002].
+
+    References:
+        [REF-ROACHE-1998, Chapters 4-5], [REF-MATPLOTLIB].
+
+    """
+    order = observed_order_of_accuracy(
+        coarse,
+        medium,
+        fine,
+        refinement_ratio=refinement_ratio,
+    )
+    extrapolated = richardson_extrapolation(
+        medium,
+        fine,
+        refinement_ratio=refinement_ratio,
+        order=order,
+    )
+    ratio = require_finite_real(refinement_ratio, name="refinement_ratio")
+    step_sizes = (1.0, 1.0 / ratio, 1.0 / (ratio * ratio))
+    estimates = (coarse, medium, fine)
+    errors = tuple(abs(value - extrapolated) for value in estimates)
+    plt = _pyplot()
+    axes = ax if ax is not None else plt.subplots()[1]
+    axes.loglog(
+        step_sizes,
+        errors,
+        marker="o",
+        color="#4C78A8",
+        label="absolute error to extrapolated value",
+    )
+    axes.invert_xaxis()
+    axes.set(
+        xlabel="Relative step size h",
+        ylabel="|QoI(h) - extrapolated QoI|",
+    )
+    axes.set_title(f"Uniform refinement convergence (observed p = {order:.3g})")
+    axes.legend()
     return axes
 

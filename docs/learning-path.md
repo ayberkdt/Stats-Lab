@@ -1,5 +1,10 @@
 # Learning Path
 
+The ATHENS verification, validation, and uncertainty-quantification track starts
+with [VV-UQ foundations](foundations/vv-uq-foundations.md). Its complete topic
+ledger and implementation status live in the
+[ATHENS 2026 coverage matrix](curriculum/athens-2026-coverage.md).
+
 The library separates conceptual order from software layer order. Readers can
 learn progressively without losing topics needed later.
 

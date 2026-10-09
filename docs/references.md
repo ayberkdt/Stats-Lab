@@ -3,6 +3,25 @@
 Citation keys are stable project identifiers. A locator in a docstring or
 equation record narrows the relevant part of a source.
 
+## REF-OBERKAMPF-ROY-2025
+
+William L. Oberkampf and Christopher J. Roy. *Verification, Validation, and
+Uncertainty Quantification in Scientific Computing*. Cambridge University
+Press, 2025.
+DOI: [10.1017/9781009031004](https://doi.org/10.1017/9781009031004).
+
+## REF-ROACHE-1998
+
+Patrick J. Roache. *Verification and Validation in Computational Science and
+Engineering*. Hermosa Publishers, 1998. ISBN 978-0-913478-08-0.
+
+## REF-SMITH-UQ-2024
+
+Ralph C. Smith. *Uncertainty Quantification: Theory, Implementation, and
+Applications*. 2nd edition. Society for Industrial and Applied Mathematics,
+2024.
+DOI: [10.1137/1.9781611977844](https://doi.org/10.1137/1.9781611977844).
+
 ## REF-CASELLA-BERGER-2002
 
 George Casella and Roger L. Berger. *Statistical Inference*. 2nd edition.

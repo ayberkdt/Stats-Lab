@@ -3,6 +3,27 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.7.0] — 2026-10-09
+
+### Added
+
+- A canonical, test-enforced ATHENS 2026 VV-UQ coverage matrix containing all
+  110 supplied topics with status, target phase, owner, and evidence.
+- A narrow `probstat.uq` package with independent uncertainty-nature and
+  uncertainty-source classifications, immutable quantities of interest, and a
+  validated named forward-model contract.
+- Conservative numerical-error budgets, observed convergence order, and
+  Richardson extrapolation with documented assumptions and failure modes.
+- Four equation records and primary VV-UQ references.
+- A VV-UQ foundation guide, the UQ-0 through UQ-7 delivery track, and ADR-0007
+  governing package growth and honest completion semantics.
+
+### Changed
+
+- Visualization is now layer 3 and may consume the layer-2 UQ contract; the
+  architecture test still rejects upward imports and cycles.
+- Project memory now points to ATHENS UQ-1 as the next safe delivery slice.
+
 ## [0.6.0] — 2026-10-09
 
 ### Added

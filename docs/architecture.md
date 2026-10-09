@@ -6,11 +6,11 @@ The repository uses a directed acyclic package graph. An arrow means "may
 depend on."
 
 ```text
-probstat.visualization ──> probstat.distributions ──> probstat.foundations
-          │                                           ^
-          └────────────> probstat.statistics ──────────┤
-                                                      │
-probstat.probability ──────────────────────────────────┘
+probstat.visualization ──> probstat.uq ────────────────┐
+          │                   │                        v
+          ├────────────> probstat.distributions ─> probstat.foundations
+          ├────────────> probstat.statistics ──────────^
+          └────────────> probstat.probability ─────────^
 ```
 
 `probstat.__init__` exposes version metadata only. This deliberate choice keeps
@@ -25,6 +25,7 @@ cycle.
 | `probability` | Sets, counting, probability rules, random-variable algebra | Inference or plotting |
 | `statistics` | Descriptive statistics, estimators, diagnostics | Distribution implementations or plotting |
 | `distributions` | Distribution objects, density/mass/CDF behavior, sampling | Educational rendering |
+| `uq` | Cross-cutting uncertainty vocabulary, QoI contracts, numerical verification | Monte Carlo, reliability, inference, or domain-specific solvers |
 | `visualization` | Optional plots and explanatory annotations | Mathematical truth or validation rules |
 
 Structural interfaces such as `DiscreteProbabilityLaw` and
@@ -51,23 +52,32 @@ domain-independent.
 ## Planned layer growth
 
 ```text
-frontier systems
-  └─ probabilistic programming / generative systems / causal systems
-      └─ stochastic processes / Bayesian computation / asymptotics
-          └─ inference / multivariate analysis / information theory
-              └─ distributions / statistics / probability
-                  └─ measure and numerical foundations
+frontier / probabilistic programming / causal systems
+  └─ filtering / smoothing / data assimilation
+      └─ reliability / sensitivity / inverse problems
+          └─ propagation / Monte Carlo / inference
+              └─ UQ contracts / multivariate distributions
+                  └─ probability / statistics / distributions
+                      └─ numerical / linear algebra / optimization foundations
 ```
 
 Each new layer may depend only on layers below it. Mature public interfaces are
 promoted deliberately; experimental frontier work begins under an explicit
 `experimental` namespace and cannot leak into foundations.
 
+The `uq` package stays narrow: it defines concepts shared across workflows and
+solution-verification primitives. Dedicated packages own Monte Carlo,
+reliability, sensitivity, inverse problems, filtering, and data assimilation,
+so `uq` does not become a dependency hub. The complete target graph and its
+delivery order are recorded in ADR-0007 and the ATHENS coverage matrix.
+
 ## Enforcement
 
 `tests/test_architecture.py` builds a module-level import graph from Python's
 AST. It rejects both upward imports and cycles. `tests/test_documentation_contract.py`
 checks docstrings and all `EQ-*` and `REF-*` identifiers used by source code.
+`tests/test_athens_coverage.py` prevents curriculum rows from disappearing or
+claiming completion without repository evidence.
 
 This is an initial structural guard, not a formal proof. Future rounds will add
 API stability tiers and generated dependency diagrams.

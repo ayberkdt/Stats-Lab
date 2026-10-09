@@ -11,7 +11,17 @@ The project has two equally important outputs:
 
 ## Foundation releases
 
-Release `0.6.0` provides:
+Release `0.7.0` adds:
+
+- a test-enforced matrix for all 110 supplied ATHENS 2026 VV-UQ topics, with
+  honest `Implemented`, `Partial`, and `Planned` states;
+- separate aleatory/epistemic and engineering-source classifications;
+- immutable quantities of interest and a validated `Y = g(X)` forward-model
+  contract; and
+- numerical-error budgets, observed convergence order, and Richardson
+  extrapolation with cited assumptions and boundary tests.
+
+Earlier foundation releases provide:
 
 - zero-based Geometric and Negative Binomial waiting-count laws with explicit
   parameterization contracts;
@@ -94,10 +104,12 @@ citation key to [the bibliography](docs/references.md).
 ## Read in this order
 
 1. [Learning path](docs/learning-path.md)
-2. [Architecture](docs/architecture.md)
-3. [Equation registry](docs/equation-registry.md)
-4. [Contribution contract](CONTRIBUTING.md)
-5. [Roadmap](memory/ROADMAP.md)
+2. [VV-UQ foundations](docs/foundations/vv-uq-foundations.md)
+3. [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
+4. [Architecture](docs/architecture.md)
+5. [Equation registry](docs/equation-registry.md)
+6. [Contribution contract](CONTRIBUTING.md)
+7. [Roadmap](memory/ROADMAP.md)
 
 ## Design promise
 

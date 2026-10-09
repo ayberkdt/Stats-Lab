@@ -1,0 +1,132 @@
+# ATHENS 2026 VV-UQ Curriculum Coverage
+
+This matrix is the canonical scope ledger for the supplied ATHENS 2026
+verification, validation, and uncertainty-quantification curriculum. Coverage
+means that every topic is tracked; it does **not** mean every topic is already
+implemented.
+
+Status semantics:
+
+- `Implemented`: a documented, cited, tested implementation exists at the
+  evidence path.
+- `Partial`: a prerequisite or first usable slice exists, but the complete
+  curriculum outcome does not.
+- `Planned`: the topic has an assigned phase and package owner but no qualifying
+  implementation yet.
+
+The curriculum is complete only when all 110 rows are `Implemented`, each with
+repository evidence. `tests/test_athens_coverage.py` guards identity, count,
+status, ownership, target, and evidence-path integrity.
+
+| ID | Topic | Status | Target | Planned owner | Evidence |
+|---|---|---|---|---|---|
+| ATHENS-1.1 | Numerical simulation as a model-based computational experiment | Partial | UQ-0 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
+| ATHENS-1.2 | Solution verification: solving the equations right | Partial | UQ-0 | `probstat.uq.verification` | `src/probstat/uq/verification.py` |
+| ATHENS-1.3 | Model validation: solving the right equations for intended use | Planned | UQ-0 | `probstat.validation` | — |
+| ATHENS-1.4 | Uncertainty quantification workflow | Partial | UQ-0 | `probstat.uq` | `docs/foundations/vv-uq-foundations.md` |
+| ATHENS-1.5 | Numerical uncertainty | Partial | UQ-0 | `probstat.uq.verification` | `src/probstat/uq/verification.py` |
+| ATHENS-1.6 | Parametric uncertainty | Partial | UQ-0 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
+| ATHENS-1.7 | Model-form uncertainty | Partial | UQ-0 | `probstat.validation` | `src/probstat/uq/taxonomy.py` |
+| ATHENS-1.8 | Aleatory versus epistemic uncertainty | Implemented | UQ-0 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
+| ATHENS-1.9 | Forward versus inverse problems | Partial | UQ-0 | `probstat.uq` | `docs/foundations/vv-uq-foundations.md` |
+| ATHENS-1.10 | Quantity-of-interest definition and selection | Implemented | UQ-0 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
+| ATHENS-2.1 | Random variables | Implemented | UQ-1 | `probstat.probability` | `src/probstat/probability/random_variables.py` |
+| ATHENS-2.2 | Probability mass and density functions | Partial | UQ-1 | `probstat.distributions` | `src/probstat/foundations/protocols.py` |
+| ATHENS-2.3 | Cumulative distribution functions | Implemented | UQ-1 | `probstat.distributions` | `src/probstat/foundations/protocols.py` |
+| ATHENS-2.4 | Normal, Uniform, Lognormal, and Weibull families | Partial | UQ-1 | `probstat.distributions` | `src/probstat/distributions/normal.py`; `src/probstat/distributions/uniform.py` |
+| ATHENS-2.5 | Expectation and variance | Implemented | UQ-1 | `probstat.probability` | `src/probstat/probability/random_variables.py` |
+| ATHENS-2.6 | Covariance and correlation | Implemented | UQ-1 | `probstat.statistics` | `src/probstat/statistics/descriptive.py` |
+| ATHENS-2.7 | Multivariate random variables | Planned | UQ-1 | `probstat.multivariate` | — |
+| ATHENS-2.8 | Multivariate normal distribution | Planned | UQ-1 | `probstat.multivariate` | — |
+| ATHENS-2.9 | Parameter estimation | Planned | UQ-1 | `probstat.inference` | — |
+| ATHENS-2.10 | Maximum-likelihood estimation | Planned | UQ-1 | `probstat.inference` | — |
+| ATHENS-2.11 | Kolmogorov-Smirnov and Anderson-Darling goodness-of-fit | Planned | UQ-1 | `probstat.inference.gof` | — |
+| ATHENS-2.12 | Confidence intervals and sampling concepts | Partial | UQ-1 | `probstat.inference` | `docs/foundations/descriptive-statistics.md` |
+| ATHENS-3.1 | Deterministic propagation map Y = g(X) | Implemented | UQ-2 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
+| ATHENS-3.2 | Output mean under input uncertainty | Planned | UQ-2 | `probstat.propagation` | — |
+| ATHENS-3.3 | Output variance under input uncertainty | Planned | UQ-2 | `probstat.propagation` | — |
+| ATHENS-3.4 | Expectation integrals | Partial | UQ-2 | `probstat.propagation` | `src/probstat/probability/finite.py` |
+| ATHENS-3.5 | Numerical quadrature for uncertainty propagation | Planned | UQ-2 | `probstat.numerics.quadrature` | — |
+| ATHENS-3.6 | Basic Monte Carlo propagation | Planned | UQ-2 | `probstat.monte_carlo` | — |
+| ATHENS-3.7 | Monte Carlo estimators | Planned | UQ-2 | `probstat.monte_carlo` | — |
+| ATHENS-3.8 | Monte Carlo convergence | Planned | UQ-2 | `probstat.monte_carlo` | — |
+| ATHENS-3.9 | Estimation error and estimator confidence intervals | Planned | UQ-2 | `probstat.monte_carlo` | — |
+| ATHENS-3.10 | Computational cost and sample-budget tradeoffs | Planned | UQ-2 | `probstat.monte_carlo` | — |
+| ATHENS-3.11 | Threshold and exceedance probabilities | Planned | UQ-2 | `probstat.propagation` | — |
+| ATHENS-4.1 | Standard Monte Carlo simulation | Planned | UQ-3 | `probstat.monte_carlo` | — |
+| ATHENS-4.2 | Monte Carlo estimation of pi | Planned | UQ-3 | `examples.monte_carlo` | — |
+| ATHENS-4.3 | Variance-reduction principles | Planned | UQ-3 | `probstat.monte_carlo.variance_reduction` | — |
+| ATHENS-4.4 | Estimator efficiency | Planned | UQ-3 | `probstat.monte_carlo.diagnostics` | — |
+| ATHENS-4.5 | Root-N Monte Carlo convergence rate | Planned | UQ-3 | `probstat.monte_carlo.diagnostics` | — |
+| ATHENS-4.6 | Strategy comparison and diagnostics | Planned | UQ-3 | `probstat.monte_carlo.diagnostics` | — |
+| ATHENS-4.7 | Simulation-budget allocation | Planned | UQ-3 | `probstat.monte_carlo` | — |
+| ATHENS-4.8 | Antithetic variates | Planned | UQ-3 | `probstat.monte_carlo.variance_reduction` | — |
+| ATHENS-4.9 | Control variates | Planned | UQ-3 | `probstat.monte_carlo.variance_reduction` | — |
+| ATHENS-4.10 | Conditional Monte Carlo | Planned | UQ-3 | `probstat.monte_carlo.variance_reduction` | — |
+| ATHENS-4.11 | Stratified sampling | Planned | UQ-3 | `probstat.monte_carlo.variance_reduction` | — |
+| ATHENS-4.12 | Importance sampling | Planned | UQ-3 | `probstat.monte_carlo.importance_sampling` | — |
+| ATHENS-5.1 | Reliability as probability of satisfactory performance | Planned | UQ-4 | `probstat.reliability` | — |
+| ATHENS-5.2 | Limit-state functions | Planned | UQ-4 | `probstat.reliability` | — |
+| ATHENS-5.3 | Failure probability | Planned | UQ-4 | `probstat.reliability` | — |
+| ATHENS-5.4 | Rare-event probability estimation | Planned | UQ-4 | `probstat.reliability.rare_events` | — |
+| ATHENS-5.5 | Direct Monte Carlo reliability estimation | Planned | UQ-4 | `probstat.reliability` | — |
+| ATHENS-5.6 | Binomial confidence intervals for failure probability | Planned | UQ-4 | `probstat.reliability` | — |
+| ATHENS-5.7 | First-order reliability method (FORM) | Planned | UQ-4 | `probstat.reliability.form` | — |
+| ATHENS-5.8 | Reliability index beta | Planned | UQ-4 | `probstat.reliability.form` | — |
+| ATHENS-5.9 | Constrained optimization for reliability analysis | Planned | UQ-4 | `probstat.optimization` | — |
+| ATHENS-5.10 | Most-probable failure point and design point | Planned | UQ-4 | `probstat.reliability.form` | — |
+| ATHENS-5.11 | Directional sampling and reliability-method comparison | Planned | UQ-4 | `probstat.reliability.directional` | — |
+| ATHENS-6.1 | Local sensitivity analysis | Planned | UQ-5 | `probstat.sensitivity.local` | — |
+| ATHENS-6.2 | Global sensitivity analysis | Planned | UQ-5 | `probstat.sensitivity.global_` | — |
+| ATHENS-6.3 | Variance-based sensitivity decomposition | Planned | UQ-5 | `probstat.sensitivity.sobol` | — |
+| ATHENS-6.4 | Functional ANOVA decomposition | Planned | UQ-5 | `probstat.sensitivity.sobol` | — |
+| ATHENS-6.5 | First-order Sobol indices | Planned | UQ-5 | `probstat.sensitivity.sobol` | — |
+| ATHENS-6.6 | Second-order Sobol indices | Planned | UQ-5 | `probstat.sensitivity.sobol` | — |
+| ATHENS-6.7 | Total-effect Sobol indices | Planned | UQ-5 | `probstat.sensitivity.sobol` | — |
+| ATHENS-6.8 | Monte Carlo estimation of sensitivity indices | Planned | UQ-5 | `probstat.sensitivity.estimation` | — |
+| ATHENS-6.9 | Input-importance ranking | Planned | UQ-5 | `probstat.sensitivity` | — |
+| ATHENS-6.10 | Dimension reduction using sensitivity results | Planned | UQ-5 | `probstat.sensitivity` | — |
+| ATHENS-6.11 | Uncertainty-reduction strategy | Planned | UQ-5 | `probstat.sensitivity` | — |
+| ATHENS-7.1 | Forward versus inverse formulation | Partial | UQ-6 | `probstat.inverse` | `docs/foundations/vv-uq-foundations.md` |
+| ATHENS-7.2 | Observation models | Planned | UQ-6 | `probstat.inverse.observation` | — |
+| ATHENS-7.3 | Measurement-noise models | Planned | UQ-6 | `probstat.inverse.observation` | — |
+| ATHENS-7.4 | Parameter identification | Planned | UQ-6 | `probstat.inverse` | — |
+| ATHENS-7.5 | Least-squares estimation | Planned | UQ-6 | `probstat.inference.regression` | — |
+| ATHENS-7.6 | Linear regression for calibration | Planned | UQ-6 | `probstat.inference.regression` | — |
+| ATHENS-7.7 | Bayesian inference | Planned | UQ-6 | `probstat.inference.bayesian` | — |
+| ATHENS-7.8 | Prior distributions | Planned | UQ-6 | `probstat.inference.bayesian` | — |
+| ATHENS-7.9 | Likelihood functions | Planned | UQ-6 | `probstat.inference.likelihood` | — |
+| ATHENS-7.10 | Posterior distributions | Planned | UQ-6 | `probstat.inference.bayesian` | — |
+| ATHENS-7.11 | Gaussian conditioning | Planned | UQ-6 | `probstat.multivariate.gaussian` | — |
+| ATHENS-7.12 | Posterior sampling | Planned | UQ-6 | `probstat.inference.sampling` | — |
+| ATHENS-7.13 | Posterior-predictive distributions and checks | Planned | UQ-6 | `probstat.inference.predictive` | — |
+| ATHENS-7.14 | Model discrepancy in calibration | Planned | UQ-6 | `probstat.validation.discrepancy` | — |
+| ATHENS-7.15 | Calibration versus prediction | Planned | UQ-6 | `probstat.inverse` | — |
+| ATHENS-8.1 | Dynamic state-space models | Planned | UQ-7 | `probstat.filtering.state_space` | — |
+| ATHENS-8.2 | Discrete-time dynamical systems | Planned | UQ-7 | `probstat.filtering.state_space` | — |
+| ATHENS-8.3 | State estimation | Planned | UQ-7 | `probstat.filtering` | — |
+| ATHENS-8.4 | Prediction step | Planned | UQ-7 | `probstat.filtering` | — |
+| ATHENS-8.5 | Observation model for filtering | Planned | UQ-7 | `probstat.filtering` | — |
+| ATHENS-8.6 | Measurement-update step | Planned | UQ-7 | `probstat.filtering` | — |
+| ATHENS-8.7 | Process noise and measurement noise | Planned | UQ-7 | `probstat.filtering.noise` | — |
+| ATHENS-8.8 | Covariance propagation | Planned | UQ-7 | `probstat.filtering` | — |
+| ATHENS-8.9 | Sequential Bayesian updating | Planned | UQ-7 | `probstat.filtering.bayesian` | — |
+| ATHENS-8.10 | Data assimilation | Planned | UQ-7 | `probstat.data_assimilation` | — |
+| ATHENS-8.11 | Filtering versus smoothing | Planned | UQ-7 | `probstat.filtering.smoothing` | — |
+| ATHENS-8.12 | Kalman filter | Planned | UQ-7 | `probstat.filtering.kalman` | — |
+| ATHENS-8.13 | Extended Kalman filter | Planned | UQ-7 | `probstat.filtering.ekf` | — |
+| ATHENS-8.14 | Ensemble Kalman filter | Planned | UQ-7 | `probstat.data_assimilation.enkf` | — |
+| ATHENS-8.15 | Particle filtering | Planned | UQ-7 | `probstat.filtering.particle` | — |
+| ATHENS-9.1 | Statistical fitting laboratory | Planned | LAB-1 | `examples.labs.statistical_fitting` | — |
+| ATHENS-9.2 | Basic Monte Carlo laboratory | Planned | LAB-2 | `examples.labs.basic_monte_carlo` | — |
+| ATHENS-9.3 | Advanced Monte Carlo variance-reduction laboratory | Planned | LAB-3 | `examples.labs.advanced_monte_carlo` | — |
+| ATHENS-9.4 | Reliability laboratory with FORM and directional sampling | Planned | LAB-4 | `examples.labs.reliability` | — |
+| ATHENS-9.5 | Bayesian calibration laboratory | Planned | LAB-5 | `examples.labs.bayesian_calibration` | — |
+| ATHENS-9.6 | Uncertainty-visualization laboratory | Partial | LAB-6 | `examples.labs.visualization` | `examples/generate_foundation_figures.py`; `src/probstat/visualization/foundations.py` |
+| ATHENS-10.1 | Probability prerequisite | Partial | PRE-1 | `probstat.probability` | `docs/foundations/probability.md` |
+| ATHENS-10.2 | Statistics prerequisite | Partial | PRE-1 | `probstat.statistics` | `docs/foundations/descriptive-statistics.md` |
+| ATHENS-10.3 | Linear-algebra prerequisite | Planned | PRE-1 | `probstat.linalg` | — |
+| ATHENS-10.4 | Numerical integration, convergence, and error prerequisite | Partial | PRE-1 | `probstat.numerics` | `src/probstat/uq/verification.py` |
+| ATHENS-10.5 | Optimization prerequisite | Planned | PRE-1 | `probstat.optimization` | — |
+| ATHENS-10.6 | Multivariable calculus, Jacobians, and conditional distributions | Planned | PRE-1 | `docs.prerequisites` | — |
+| ATHENS-10.7 | R programming bridge | Planned | PRE-1 | `bindings.r` | — |
