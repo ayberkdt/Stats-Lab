@@ -21,6 +21,10 @@ Continue with
 control, conditional, stratified, and importance-sampling strategies together
 with budget-allocation and cost-aware efficiency diagnostics.
 
+Then study [reliability and rare-event analysis](foundations/reliability-analysis.md)
+for limit states, direct failure probability, importance weighting, affine FORM,
+reliability index, design-point geometry, and directional sampling.
+
 The library separates conceptual order from software layer order. Readers can
 learn progressively without losing topics needed later.
 

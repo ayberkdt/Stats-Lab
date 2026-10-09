@@ -138,10 +138,14 @@ dependency direction.
 
 ### UQ-4 — Reliability and rare events
 
-- [ ] Reliability definitions, limit-state functions, failure probability,
+- [x] Reliability definitions, limit-state functions, failure probability,
   direct Monte Carlo, rare events, and binomial confidence intervals.
-- [ ] FORM, reliability index beta, constrained design-point optimization,
-  most-probable failure points, directional sampling, and method comparison.
+- [x] Affine standard-normal FORM, reliability index beta, exact constrained
+  design-point optimization, most-probable failure points, directional sampling,
+  and method comparison.
+- [ ] General nonlinear/non-normal FORM transformations and iterations,
+  multiple design points, subset simulation, cross-entropy adaptation,
+  line sampling, and system reliability.
 
 ### UQ-5 — Sensitivity analysis
 
@@ -169,8 +173,8 @@ dependency direction.
 
 - [x] Basic Monte Carlo and advanced variance-reduction laboratories.
 - [~] Statistical-fitting and uncertainty-visualization laboratories.
-- [ ] Reliability (FORM and directional sampling) and Bayesian-calibration
-  laboratories.
+- [x] Reliability laboratory with FORM and directional sampling.
+- [ ] Bayesian-calibration laboratory.
 - [ ] Every lab includes definitions, assumptions, equations, seeded examples,
   plots, diagnostics, cost/error discussion, citations, and regression tests.
 

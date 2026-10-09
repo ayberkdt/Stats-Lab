@@ -112,6 +112,11 @@ John D. Hunter. "Matplotlib: A 2D Graphics Environment." *Computing in Science
 & Engineering* 9(3), 90-95, 2007.
 DOI: [10.1109/MCSE.2007.55](https://doi.org/10.1109/MCSE.2007.55).
 
+## REF-MELCHERS-BECK-2018
+
+Robert E. Melchers and André T. Beck. *Structural Reliability Analysis and
+Prediction*. 3rd edition. Wiley, 2018. ISBN 978-1-119-26599-3.
+
 ## REF-NIST-DLMF
 
 NIST Digital Library of Mathematical Functions, Chapter 7, "Error Functions,

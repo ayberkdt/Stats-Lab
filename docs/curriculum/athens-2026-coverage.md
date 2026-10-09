@@ -65,17 +65,17 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-4.10 | Conditional Monte Carlo | Implemented | UQ-3 | `probstat.monte_carlo.variance_reduction` | `src/probstat/monte_carlo/variance_reduction.py` |
 | ATHENS-4.11 | Stratified sampling | Implemented | UQ-3 | `probstat.monte_carlo.variance_reduction` | `src/probstat/monte_carlo/variance_reduction.py` |
 | ATHENS-4.12 | Importance sampling | Implemented | UQ-3 | `probstat.monte_carlo.importance_sampling` | `src/probstat/monte_carlo/variance_reduction.py` |
-| ATHENS-5.1 | Reliability as probability of satisfactory performance | Planned | UQ-4 | `probstat.reliability` | — |
-| ATHENS-5.2 | Limit-state functions | Planned | UQ-4 | `probstat.reliability` | — |
-| ATHENS-5.3 | Failure probability | Planned | UQ-4 | `probstat.reliability` | — |
-| ATHENS-5.4 | Rare-event probability estimation | Planned | UQ-4 | `probstat.reliability.rare_events` | — |
-| ATHENS-5.5 | Direct Monte Carlo reliability estimation | Planned | UQ-4 | `probstat.reliability` | — |
-| ATHENS-5.6 | Binomial confidence intervals for failure probability | Planned | UQ-4 | `probstat.reliability` | — |
-| ATHENS-5.7 | First-order reliability method (FORM) | Planned | UQ-4 | `probstat.reliability.form` | — |
-| ATHENS-5.8 | Reliability index beta | Planned | UQ-4 | `probstat.reliability.form` | — |
-| ATHENS-5.9 | Constrained optimization for reliability analysis | Planned | UQ-4 | `probstat.optimization` | — |
-| ATHENS-5.10 | Most-probable failure point and design point | Planned | UQ-4 | `probstat.reliability.form` | — |
-| ATHENS-5.11 | Directional sampling and reliability-method comparison | Planned | UQ-4 | `probstat.reliability.directional` | — |
+| ATHENS-5.1 | Reliability as probability of satisfactory performance | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py`; `docs/foundations/reliability-analysis.md` |
+| ATHENS-5.2 | Limit-state functions | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py` |
+| ATHENS-5.3 | Failure probability | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py` |
+| ATHENS-5.4 | Rare-event probability estimation | Implemented | UQ-4 | `probstat.reliability.rare_events` | `src/probstat/reliability/analysis.py`; `examples/reliability_lab.py` |
+| ATHENS-5.5 | Direct Monte Carlo reliability estimation | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py` |
+| ATHENS-5.6 | Binomial confidence intervals for failure probability | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py`; `src/probstat/inference/confidence.py` |
+| ATHENS-5.7 | First-order reliability method (FORM) | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py` |
+| ATHENS-5.8 | Reliability index beta | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py` |
+| ATHENS-5.9 | Constrained optimization for reliability analysis | Implemented | UQ-4 | `probstat.optimization` | `src/probstat/reliability/analysis.py`; `docs/foundations/reliability-analysis.md` |
+| ATHENS-5.10 | Most-probable failure point and design point | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py` |
+| ATHENS-5.11 | Directional sampling and reliability-method comparison | Implemented | UQ-4 | `probstat.reliability.directional` | `src/probstat/reliability/analysis.py`; `examples/reliability_lab.py` |
 | ATHENS-6.1 | Local sensitivity analysis | Planned | UQ-5 | `probstat.sensitivity.local` | — |
 | ATHENS-6.2 | Global sensitivity analysis | Planned | UQ-5 | `probstat.sensitivity.global_` | — |
 | ATHENS-6.3 | Variance-based sensitivity decomposition | Planned | UQ-5 | `probstat.sensitivity.sobol` | — |
@@ -120,7 +120,7 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-9.1 | Statistical fitting laboratory | Partial | LAB-1 | `examples.labs.statistical_fitting` | `examples/statistical_fitting_lab.py`; `src/probstat/visualization/foundations.py` |
 | ATHENS-9.2 | Basic Monte Carlo laboratory | Implemented | LAB-2 | `examples.labs.basic_monte_carlo` | `examples/basic_monte_carlo_lab.py`; `src/probstat/visualization/foundations.py` |
 | ATHENS-9.3 | Advanced Monte Carlo variance-reduction laboratory | Implemented | LAB-3 | `examples.labs.advanced_monte_carlo` | `examples/advanced_monte_carlo_lab.py`; `docs/foundations/advanced-monte-carlo.md` |
-| ATHENS-9.4 | Reliability laboratory with FORM and directional sampling | Planned | LAB-4 | `examples.labs.reliability` | — |
+| ATHENS-9.4 | Reliability laboratory with FORM and directional sampling | Implemented | LAB-4 | `examples.labs.reliability` | `examples/reliability_lab.py`; `docs/foundations/reliability-analysis.md` |
 | ATHENS-9.5 | Bayesian calibration laboratory | Planned | LAB-5 | `examples.labs.bayesian_calibration` | — |
 | ATHENS-9.6 | Uncertainty-visualization laboratory | Partial | LAB-6 | `examples.labs.visualization` | `examples/generate_foundation_figures.py`; `src/probstat/visualization/foundations.py` |
 | ATHENS-10.1 | Probability prerequisite | Partial | PRE-1 | `probstat.probability` | `docs/foundations/probability.md` |

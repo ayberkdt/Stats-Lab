@@ -11,7 +11,16 @@ The project has two equally important outputs:
 
 ## Foundation releases
 
-Release `0.10.0` adds:
+Release `0.11.0` adds:
+
+- a named limit-state contract, direct reliability Monte Carlo, and Wilson
+  uncertainty including the zero-observed-failure case;
+- importance-weighted rare-event estimation with weight diagnostics;
+- exact affine standard-normal FORM, signed reliability index, constrained
+  design point, and directional sampling; and
+- a reproducible reliability comparison lab with an explanatory figure.
+
+Release `0.10.0` added:
 
 - antithetic, control-variate, conditional, stratified, and importance-sampling
   estimators with explicit assumptions and reproducible streams;
@@ -140,11 +149,12 @@ citation key to [the bibliography](docs/references.md).
 3. [Uncertainty modeling and fitting](docs/foundations/uncertainty-modeling-and-fitting.md)
 4. [Uncertainty propagation](docs/foundations/uncertainty-propagation.md)
 5. [Advanced Monte Carlo](docs/foundations/advanced-monte-carlo.md)
-6. [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
-7. [Architecture](docs/architecture.md)
-8. [Equation registry](docs/equation-registry.md)
-9. [Contribution contract](CONTRIBUTING.md)
-10. [Roadmap](memory/ROADMAP.md)
+6. [Reliability analysis](docs/foundations/reliability-analysis.md)
+7. [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
+8. [Architecture](docs/architecture.md)
+9. [Equation registry](docs/equation-registry.md)
+10. [Contribution contract](CONTRIBUTING.md)
+11. [Roadmap](memory/ROADMAP.md)
 
 ## Design promise
 

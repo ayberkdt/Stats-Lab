@@ -23,8 +23,7 @@ teaching are co-equal goals.
 
 ## Current state
 
-- Current release: `0.10.0` UQ-3 variance reduction, budget allocation, and
-  cost-aware efficiency diagnostics.
+- Current release: `0.11.0` UQ-4 reliability and rare-event foundations.
 - Python baseline: 3.11+.
 - Runtime dependency policy: standard library first; optional Matplotlib for
   plots. Add numerical dependencies only through an ADR.
@@ -45,7 +44,10 @@ teaching are co-equal goals.
   [ADR-0009](decisions/ADR-0009-propagation-cost-and-error-separation.md)
 - Advanced Monte Carlo estimator boundaries:
   [ADR-0010](decisions/ADR-0010-variance-reduction-estimator-contracts.md)
-- Latest session: [2026-10-09 UQ-3 advanced Monte Carlo](sessions/2026-10-09-uq3-advanced-monte-carlo.md)
+- Reliability scope boundary:
+  [ADR-0011](decisions/ADR-0011-reliability-domain-and-form-scope.md)
+- Latest session: [2026-10-09 UQ-4 reliability](sessions/2026-10-09-uq4-reliability.md)
+- Previous session: [2026-10-09 UQ-3 advanced Monte Carlo](sessions/2026-10-09-uq3-advanced-monte-carlo.md)
 - Previous session: [2026-10-09 UQ-2 propagation](sessions/2026-10-09-uq2-propagation.md)
 - Previous session: [2026-10-09 UQ-1 modeling and fitting](sessions/2026-10-09-uq1-modeling-and-fitting.md)
 - Earlier session: [2026-10-09 ATHENS VV-UQ scope](sessions/2026-10-09-athens-vv-uq-scope.md)
@@ -61,10 +63,9 @@ teaching are co-equal goals.
 
 ## Next safe step
 
-Build UQ-4 reliability on the probability and work-accounting contracts:
-limit-state functions, direct failure estimation with Wilson intervals, rare
-event diagnostics, FORM with an explicit optimization boundary, reliability
-index, design point, and directional sampling. Preserve the UQ-1 backlog for
-Weibull MLE, Student-t intervals, fitted-null calibration, stream splitting,
-and a real-data fitting case study.
+Build UQ-5 sensitivity analysis: local derivatives, functional ANOVA contracts,
+first/second/total Sobol indices, Monte Carlo estimators, ranking, dimension
+reduction, and uncertainty-reduction decisions. Preserve nonlinear/non-normal
+FORM as an explicit reliability extension rather than overstating the affine
+foundation.
 

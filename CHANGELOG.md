@@ -3,6 +3,28 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.11.0] — 2026-10-09
+
+### Added
+
+- An explicit `g(x) <= 0` limit-state contract, direct failure-probability
+  estimation, complement reliability, Wilson intervals, and work counts.
+- Ordinary importance-weighted rare-event estimation with proposal failure,
+  weight ESS, and maximum normalized-weight diagnostics.
+- Exact affine standard-normal FORM with signed reliability index, constrained
+  nearest-boundary/design point, unit normal, residual, and `Phi(-beta)`.
+- Standard-normal directional sampling using analytic chi radial tails.
+- A cited reliability guide, seeded method-comparison lab, five equation
+  records, regression tests, and a generated comparison chart.
+
+### Changed
+
+- All eleven ATHENS reliability topics and the reliability lab now have
+  implemented evidence; the ledger advances to 47 implemented, 18 partial,
+  and 45 planned rows.
+- Architecture adds a dedicated reliability layer above propagation and Monte
+  Carlo without introducing cycles.
+
 ## [0.10.0] — 2026-10-09
 
 ### Added

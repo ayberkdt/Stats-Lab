@@ -234,6 +234,67 @@ finite variance `sigma^2`.
 - Code: `examples.basic_monte_carlo_lab.projectile_model`.
 - Source: [REF-HALLIDAY-RESNICK-WALKER-2014, projectile motion].
 
+## Reliability and rare-event analysis
+
+### EQ-REL-LIMIT-001 — Limit-state failure convention
+
+`failure = {x : g(x) <= 0}` and `safe = {x : g(x) > 0}`.
+
+- Domain: a finite deterministic scalar limit-state evaluation on each input.
+- Meaning: zero belongs to the closed failure domain, so every reliability
+  method uses one explicit and consistent boundary convention.
+- Code: `reliability.LimitState.evaluate` and `LimitState.failed`.
+- Source: [REF-MELCHERS-BECK-2018, Chapter 3].
+
+### EQ-REL-PF-001 — Failure probability and reliability
+
+`P_f=P(g(X)<=0)=E[I(g(X)<=0)]` and `R=1-P_f`.
+
+- Domain: a probabilistic input model and measurable failure event.
+- Meaning: direct Monte Carlo estimates the Bernoulli event and retains a
+  Wilson interval, including a nonzero upper bound after zero observed failures.
+- Code: `reliability.estimate_failure_probability`.
+- Source: [REF-MELCHERS-BECK-2018, Chapters 3 and 5].
+
+### EQ-REL-IS-001 — Importance-weighted failure estimator
+
+`P_f=E_q[I(g(X)<=0) p(X)/q(X)]`.
+
+- Domain: proposal support covers the target failure contribution, likelihood
+  ratios are correct and non-negative, and weighted contributions have finite
+  variance for the usual error interpretation.
+- Meaning: proposal draws can deliberately visit a rare failure region while
+  ordinary importance weights preserve the target probability.
+- Code: `reliability.estimate_weighted_failure_probability`.
+- Source: [REF-MELCHERS-BECK-2018, Chapter 6], [REF-OWEN-2013, Chapter 9].
+
+### EQ-REL-FORM-001 — Affine standard-normal FORM geometry
+
+For `g(u)=b+a^T u`, `U~N(0,I)`,
+`beta=b/||a||`, `u*=-beta a/||a||`, and `P_f=Phi(-beta)`.
+
+- Domain: nonzero finite coefficient vector and independent standard-normal
+  coordinates. For affine boundaries the result is exact; general nonlinear
+  FORM additionally requires transformation, gradients, and iterative
+  constrained optimization not claimed by this implementation.
+- Meaning: `u*` solves the nearest-boundary problem and signed `beta` records
+  whether the origin lies in the safe or failed half-space.
+- Code: `reliability.linear_normal_form`.
+- Source: [REF-MELCHERS-BECK-2018, Chapters 4 and 5].
+
+### EQ-REL-DIR-001 — Directional standard-normal probability
+
+`P_f=E_A[Q(d/2, r(A)^2/2)]`, where `A` is a uniform unit direction,
+`R^2~chi-square_d`, and failure begins at radial boundary `r(A)`.
+
+- Domain: independent standard-normal space and a failure set that is
+  star-shaped from the origin along sampled rays; a ray without failure
+  contributes zero.
+- Meaning: analytically integrates the radial chi tail and Monte Carlo samples
+  only direction, often reducing variance for suitable reliability geometry.
+- Code: `reliability.estimate_directional_failure_probability`.
+- Source: [REF-MELCHERS-BECK-2018, Chapter 6].
+
 ## UQ-1 continuous and multivariate distributions
 
 ### EQ-DIST-LN-001 — Lognormal PDF and log-PDF
