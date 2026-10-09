@@ -8,6 +8,12 @@ equation record narrows the relevant part of a source.
 George Casella and Roger L. Berger. *Statistical Inference*. 2nd edition.
 Duxbury, 2002.
 
+## REF-COVER-THOMAS-2006
+
+Thomas M. Cover and Joy A. Thomas. *Elements of Information Theory*. 2nd
+edition. Wiley, 2006.
+DOI: [10.1002/047174882X](https://doi.org/10.1002/047174882X).
+
 ## REF-DEVROYE-1986
 
 Luc Devroye. *Non-Uniform Random Variate Generation*. Springer, 1986.
@@ -17,6 +23,12 @@ DOI: [10.1007/978-1-4613-8643-8](https://doi.org/10.1007/978-1-4613-8643-8).
 
 A. N. Kolmogorov. *Foundations of the Theory of Probability*. 2nd English
 edition, translated by Nathan Morrison. Chelsea Publishing Company, 1956.
+
+## REF-HORMANN-1993
+
+Wolfgang Hörmann. "The transformed rejection method for generating Poisson
+random variables." *Insurance: Mathematics and Economics* 12(1), 39-45, 1993.
+DOI: [10.1016/0167-6687(93)90997-4](https://doi.org/10.1016/0167-6687(93)90997-4).
 
 ## REF-MATPLOTLIB
 
@@ -29,6 +41,12 @@ DOI: [10.1109/MCSE.2007.55](https://doi.org/10.1109/MCSE.2007.55).
 NIST Digital Library of Mathematical Functions, Chapter 7, "Error Functions,
 Dawson's and Fresnel Integrals." National Institute of Standards and
 Technology. [https://dlmf.nist.gov/7](https://dlmf.nist.gov/7).
+
+## REF-NIST-DLMF-GAMMA
+
+NIST Digital Library of Mathematical Functions, Chapters 5 and 8, "Gamma
+Function" and "Incomplete Gamma and Related Functions." National Institute of
+Standards and Technology. [https://dlmf.nist.gov/8](https://dlmf.nist.gov/8).
 
 ## REF-NIST-EDA
 

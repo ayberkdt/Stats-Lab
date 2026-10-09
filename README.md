@@ -11,7 +11,17 @@ The project has two equally important outputs:
 
 ## Foundation releases
 
-Release `0.4.0` provides:
+Release `0.5.0` provides:
+
+- reusable parameter constraints and explicit finite, integer, and real support
+  descriptors;
+- stable Binomial, Categorical, and Poisson distributions with log-PMFs,
+  moments where mathematically defined, reproducible sampling, and documented
+  boundary behavior;
+- regularized incomplete-gamma tails for stable Poisson CDF and survival
+  evaluation;
+- narrow PMF/log-PMF protocols that preserve unordered categorical semantics;
+- count-window and categorical teaching plots;
 
 - probability-generating, moment-generating, and characteristic functions with
   explicit mathematical and floating-point domains;

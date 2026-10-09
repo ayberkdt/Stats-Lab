@@ -6,12 +6,14 @@ import cmath
 import math
 import unittest
 
-from probstat.distributions import Bernoulli, Normal
+from probstat.distributions import Bernoulli, Binomial, Categorical, Normal, Poisson
 from probstat.foundations import (
     ContinuousProbabilityLaw,
     CumulativeDistribution,
     DiscreteProbabilityLaw,
     HasMeanAndVariance,
+    LogProbabilityMassFunction,
+    ProbabilityMassFunction,
 )
 from probstat.probability import (
     FiniteProbabilityMeasure,
@@ -34,6 +36,13 @@ class ProbabilityLawProtocolTests(unittest.TestCase):
         self.assertIsInstance(normal, CumulativeDistribution)
         self.assertIsInstance(normal, HasMeanAndVariance)
         self.assertNotIsInstance(normal, DiscreteProbabilityLaw)
+        for law in (bernoulli, Binomial(3, 0.4), Poisson(2.0)):
+            self.assertIsInstance(law, ProbabilityMassFunction)
+            self.assertIsInstance(law, LogProbabilityMassFunction)
+            self.assertIsInstance(law, DiscreteProbabilityLaw)
+        categorical = Categorical({"left": 0.4, "right": 0.6})
+        self.assertIsInstance(categorical, ProbabilityMassFunction)
+        self.assertNotIsInstance(categorical, DiscreteProbabilityLaw)
 
     def test_finite_numeric_variable_conforms_as_discrete_law(self) -> None:
         """An induced finite numeric law shares PMF/CDF/moment interfaces."""
@@ -42,6 +51,7 @@ class ProbabilityLawProtocolTests(unittest.TestCase):
         variable = FiniteRandomVariable.from_function(measure, int)
         self.assertIsInstance(variable, DiscreteProbabilityLaw)
         self.assertIsInstance(variable, HasMeanAndVariance)
+        self.assertIsInstance(variable, LogProbabilityMassFunction)
         self.assertAlmostEqual(variable.mean, variable.expectation)
 
 

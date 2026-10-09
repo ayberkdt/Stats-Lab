@@ -432,3 +432,124 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 - Code: `distributions.Normal.variance`.
 - Source: [REF-CASELLA-BERGER-2002, Section 3.3].
 
+## Numerical functions
+
+### EQ-NUM-GAMMA-001 — Regularized incomplete gamma functions
+
+`P(a,x) = gamma(a,x) / Gamma(a)` and
+`Q(a,x) = Gamma(a,x) / Gamma(a) = 1 - P(a,x)`.
+
+- Domain: finite `a > 0` and finite `x >= 0`.
+- Meaning: normalized lower and upper incomplete-gamma integrals. The code uses
+  a convergent series for the lower region and a stabilized continued fraction
+  for the upper region, avoiding a numerically inappropriate single formula.
+- Code: `distributions._special.regularized_gamma_p` and
+  `distributions._special.regularized_gamma_q`.
+- Source: [REF-NIST-DLMF-GAMMA, Sections 8.2 and 8.9].
+
+## Discrete distribution families
+
+### EQ-DIST-BIN-001 — Binomial PMF and log-PMF
+
+`P(X=k) = C(n,k) p^k (1-p)^(n-k)` for `k in {0,...,n}`.
+
+The implementation evaluates the logarithmic form with `lgamma` and `log1p`
+before exponentiation, with explicit `p=0` and `p=1` limits.
+
+- Domain: integer `n >= 0`, `0 <= p <= 1`, integer `k`.
+- Meaning: probability of exactly `k` successes in `n` independent Bernoulli
+  trials with common success probability `p`.
+- Code: `distributions.Binomial.pmf` and `Binomial.log_pmf`.
+- Source: [REF-ROSS-2019, Section 4.3].
+
+### EQ-DIST-BIN-002 — Binomial CDF
+
+`F(x) = sum_{k=0}^{floor(x)} C(n,k) p^k (1-p)^(n-k)` with support clipping.
+
+- Domain: [EQ-DIST-BIN-001] and finite real `x`.
+- Meaning: probability of at most `floor(x)` successes. The implementation
+  sums the lower tail below the mean and the complementary upper tail above it
+  to reduce cancellation in small-tail regimes.
+- Code: `distributions.Binomial.cdf`.
+- Source: [REF-ROSS-2019, Section 4.3].
+
+### EQ-DIST-BIN-003 — Binomial mean
+
+`E[X] = n p`.
+
+- Domain: `X ~ Binomial(n,p)`.
+- Meaning: expected success count.
+- Code: `distributions.Binomial.mean`.
+- Source: [REF-ROSS-2019, Section 4.3].
+
+### EQ-DIST-BIN-004 — Binomial variance
+
+`Var(X) = n p (1-p)`.
+
+- Domain: `X ~ Binomial(n,p)`.
+- Meaning: success-count spread implied by independent binary trials.
+- Code: `distributions.Binomial.variance`.
+- Source: [REF-ROSS-2019, Section 4.3].
+
+### EQ-DIST-CAT-001 — Categorical probability mass
+
+`P(X=c_j) = p_j`, where `p_j >= 0` and `sum_j p_j = 1`.
+
+- Domain: a non-empty finite set of distinct hashable labels and a matching
+  probability vector on the unit simplex.
+- Meaning: one draw from named, unordered categories. Labels have no canonical
+  numeric value or order, so this law does not manufacture a CDF or moments.
+- Code: `distributions.Categorical`, `ProbabilitySimplexConstraint`, and
+  `visualization.foundations.plot_categorical_pmf`.
+- Source: [REF-ROSS-2019, Section 4.6].
+
+### EQ-DIST-CAT-002 — Categorical Shannon entropy
+
+`H(X) = -sum_j p_j log(p_j)`, with `0 log(0) = 0`.
+
+- Domain: [EQ-DIST-CAT-001]; natural logarithms give entropy in nats.
+- Meaning: expected self-information and uncertainty in the category draw.
+- Code: `distributions.Categorical.entropy`.
+- Source: [REF-COVER-THOMAS-2006, Section 2.1].
+
+### EQ-DIST-POIS-001 — Poisson PMF and log-PMF
+
+`P(X=k) = exp(-lambda) lambda^k / k!` for integers `k >= 0`.
+
+- Domain: finite `lambda >= 0`; integer `k`, with the `lambda=0` distribution
+  concentrated at zero.
+- Meaning: count law for events occurring at a constant rate under the Poisson
+  model assumptions.
+- Code: `distributions.Poisson.pmf` and `Poisson.log_pmf`.
+- Source: [REF-ROSS-2019, Section 4.8].
+
+### EQ-DIST-POIS-002 — Poisson CDF and survival function
+
+`P(X <= k) = Q(k+1, lambda)` and `P(X > k) = P(k+1, lambda)`.
+
+- Domain: [EQ-DIST-POIS-001], finite real threshold `x`, and
+  `k=floor(x) >= 0`.
+- Meaning: lower count probability and its complementary upper tail, evaluated
+  through the numerically appropriate regularized incomplete-gamma branch.
+- Code: `distributions.Poisson.cdf` and `Poisson.sf`.
+- Source: [REF-NIST-DLMF-GAMMA, Equation 8.4.10].
+
+### EQ-DIST-POIS-003 — Poisson mean
+
+`E[X] = lambda`.
+
+- Domain: `X ~ Poisson(lambda)`.
+- Meaning: expected count in the modeled interval.
+- Code: `distributions.Poisson.mean`.
+- Source: [REF-ROSS-2019, Section 4.8].
+
+### EQ-DIST-POIS-004 — Poisson variance
+
+`Var(X) = lambda`.
+
+- Domain: `X ~ Poisson(lambda)`.
+- Meaning: the Poisson model equates count variance and mean; empirical
+  disagreement is a model-diagnostic signal rather than a fact to conceal.
+- Code: `distributions.Poisson.variance`.
+- Source: [REF-ROSS-2019, Section 4.8].
+

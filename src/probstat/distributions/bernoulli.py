@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass
 
 from probstat.foundations.validation import (
+    require_finite_real,
     require_non_negative_integer,
-    require_probability,
 )
+
+from .constraints import PROBABILITY
+from .support import IntegerSupport
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +40,39 @@ class Bernoulli:
             [EQ-PROB-001], [REF-KOLMOGOROV-1956].
 
         """
-        object.__setattr__(self, "p", require_probability(self.p))
+        object.__setattr__(self, "p", PROBABILITY.validate(self.p, name="p"))
+
+    @property
+    def support(self) -> IntegerSupport:
+        """Return binary integer support ``{0, 1}``.
+
+        References:
+            [EQ-DIST-BER-001], [REF-ROSS-2019, Section 4.2].
+
+        """
+        return IntegerSupport(0, 1)
+
+    def log_pmf(self, k: int) -> float:
+        """Evaluate natural log Bernoulli mass at integer ``k``.
+
+        Args:
+            k: Candidate binary outcome.
+
+        Returns:
+            Log mass, or negative infinity for zero or out-of-support mass.
+
+        Raises:
+            TypeError: If ``k`` is not an integer.
+
+        Equation:
+            [EQ-DIST-BER-001].
+
+        References:
+            [REF-ROSS-2019, Section 4.2].
+
+        """
+        mass = self.pmf(k)
+        return -math.inf if mass == 0.0 else math.log(mass)
 
     def pmf(self, k: int) -> float:
         """Evaluate probability mass at integer outcome ``k``.
@@ -85,9 +121,7 @@ class Bernoulli:
             [REF-ROSS-2019, Section 4.2].
 
         """
-        from probstat.foundations.validation import coerce_finite_sample
-
-        point = coerce_finite_sample((x,), name="x")[0]
+        point = require_finite_real(x, name="x")
         if point < 0.0:
             return 0.0
         if point < 1.0:

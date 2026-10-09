@@ -23,7 +23,7 @@ teaching are co-equal goals.
 
 ## Current state
 
-- Current release: `0.4.0` transform-functions and shared-law protocols.
+- Current release: `0.5.0` distribution infrastructure and core discrete laws.
 - Python baseline: 3.11+.
 - Runtime dependency policy: standard library first; optional Matplotlib for
   plots. Add numerical dependencies only through an ADR.
@@ -34,7 +34,8 @@ teaching are co-equal goals.
 
 - Work status and future sequencing: [ROADMAP.md](ROADMAP.md)
 - Architecture rationale: [ADR-0001](decisions/ADR-0001-layered-citation-first.md)
-- Latest session: [2026-10-09 generating functions](sessions/2026-10-09-generating-functions.md)
+- Latest session: [2026-10-09 discrete distributions](sessions/2026-10-09-discrete-distributions.md)
+- Previous session: [2026-10-09 generating functions](sessions/2026-10-09-generating-functions.md)
 - Random-variable session: [2026-10-09 random variables](sessions/2026-10-09-random-variables.md)
 - Finite probability session: [2026-10-09 finite probability](sessions/2026-10-09-finite-probability.md)
 - Initial session: [2026-10-09 foundation](sessions/2026-10-09-foundation.md)
@@ -44,8 +45,7 @@ teaching are co-equal goals.
 
 ## Next safe step
 
-Build explicit parameter-constraint and support abstractions in the
-`distributions` layer, then implement Binomial, Categorical, and Poisson laws
-with stable PMF/log-PMF/CDF behavior. Preserve conformance to the foundation
-protocols and keep finite random variables independent of analytic distributions.
+Add Geometric and Negative Binomial laws, followed by Uniform and Exponential
+continuous laws. Extend stable survival and quantile behavior without merging
+unordered categorical semantics into ordered numeric-law protocols.
 

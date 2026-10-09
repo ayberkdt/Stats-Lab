@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from probstat.distributions import Bernoulli, Normal
+from probstat.distributions import Bernoulli, Categorical, Normal
+from probstat.foundations import ProbabilityMassFunction
 from probstat.foundations.validation import (
     coerce_finite_sample,
     require_finite_real,
@@ -68,6 +69,96 @@ def plot_bernoulli_pmf(distribution: Bernoulli, *, ax: Any | None = None) -> Any
     axes.set_title(f"Bernoulli PMF (p = {distribution.p:.3g})")
     for outcome, mass in zip(outcomes, masses, strict=True):
         axes.annotate(f"{mass:.3f}", (outcome, mass), ha="center", va="bottom")
+    return axes
+
+
+def plot_integer_pmf(
+    distribution: ProbabilityMassFunction[int],
+    *,
+    lower: int,
+    upper: int,
+    ax: Any | None = None,
+) -> Any:
+    """Plot an integer-valued PMF over an explicit finite viewing window.
+
+    The window is explicit because count distributions such as Poisson may have
+    infinite support; a plot must not imply that omitted tail mass is zero.
+
+    Args:
+        distribution: Integer-valued object exposing ``pmf``.
+        lower: Inclusive lower display bound.
+        upper: Inclusive upper display bound, not below ``lower``.
+        ax: Optional Matplotlib axes; a new axes is created when omitted.
+
+    Returns:
+        The populated Matplotlib axes.
+
+    Raises:
+        TypeError: If either bound is not an integer.
+        ValueError: If ``upper < lower``.
+
+    Equation:
+        [EQ-DIST-BIN-001], [EQ-DIST-POIS-001].
+
+    References:
+        [REF-ROSS-2019, Chapter 4], [REF-MATPLOTLIB].
+
+    """
+    checked_lower = require_non_negative_integer(lower, name="lower")
+    checked_upper = require_non_negative_integer(upper, name="upper")
+    if checked_upper < checked_lower:
+        raise ValueError("upper must not be below lower")
+    support = tuple(range(checked_lower, checked_upper + 1))
+    masses = tuple(distribution.pmf(value) for value in support)
+    plt = _pyplot()
+    axes = ax if ax is not None else plt.subplots()[1]
+    axes.bar(support, masses, width=0.72, color="#4C78A8")
+    axes.set(
+        xlabel="Count k",
+        ylabel="P(X = k)",
+        ylim=(0.0, max(masses, default=0.0) * 1.15 or 1.0),
+    )
+    axes.set_title(
+        f"{type(distribution).__name__} PMF on k = {checked_lower},...,{checked_upper}"
+    )
+    return axes
+
+
+def plot_categorical_pmf(
+    distribution: Categorical[Any], *, ax: Any | None = None
+) -> Any:
+    """Plot an unordered categorical PMF without imposing numeric meaning.
+
+    Args:
+        distribution: Validated categorical distribution.
+        ax: Optional Matplotlib axes; a new axes is created when omitted.
+
+    Returns:
+        The populated Matplotlib axes.
+
+    Equation:
+        [EQ-DIST-CAT-001].
+
+    References:
+        [REF-ROSS-2019, Section 4.6], [REF-MATPLOTLIB].
+
+    """
+    labels = distribution.support.values
+    masses = tuple(distribution.pmf(label) for label in labels)
+    positions = tuple(range(len(labels)))
+    plt = _pyplot()
+    axes = ax if ax is not None else plt.subplots()[1]
+    axes.bar(positions, masses, width=0.65, color="#72B7B2")
+    axes.set(
+        xticks=positions,
+        xticklabels=tuple(str(label) for label in labels),
+        xlabel="Category label",
+        ylabel="Probability mass",
+        ylim=(0.0, max(masses) * 1.18),
+    )
+    axes.set_title("Categorical PMF (labels are unordered)")
+    for position, mass in zip(positions, masses, strict=True):
+        axes.annotate(f"{mass:.3f}", (position, mass), ha="center", va="bottom")
     return axes
 
 

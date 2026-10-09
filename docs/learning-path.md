@@ -46,6 +46,10 @@ moments, joint laws, marginalization, conditional PMFs, and dependence.
 It then introduces PGFs, MGFs, and characteristic functions as three distinct
 transforms with different mathematical domains and numerical behavior.
 
+Then read: [Discrete distribution foundations](foundations/discrete-distributions.md).
+It separates parameter constraints, support, PMF/log-PMF, categorical label
+semantics, finite versus infinite count support, and stable tail computation.
+
 ## Stage 4 and beyond
 
 The ordered route is:

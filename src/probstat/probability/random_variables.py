@@ -287,6 +287,25 @@ class FiniteRandomVariable(Generic[OutcomeT, ValueT]):
         """
         return self.measure.probability(self.preimage(value))
 
+    def log_pmf(self, value: ValueT) -> float:
+        """Return natural log mass of an induced support value.
+
+        Args:
+            value: Candidate codomain value.
+
+        Returns:
+            Natural log point mass, or negative infinity for zero mass.
+
+        Equation:
+            [EQ-RV-001].
+
+        References:
+            [REF-ROSS-2019, Chapters 4-5].
+
+        """
+        mass = self.pmf(value)
+        return -math.inf if mass == 0.0 else math.log(mass)
+
     @property
     def distribution(self) -> Mapping[ValueT, float]:
         """Return the read-only induced PMF over structural support values.

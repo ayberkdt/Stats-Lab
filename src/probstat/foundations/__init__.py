@@ -5,6 +5,8 @@ from .protocols import (
     CumulativeDistribution,
     DiscreteProbabilityLaw,
     HasMeanAndVariance,
+    LogProbabilityMassFunction,
+    ProbabilityMassFunction,
 )
 from .validation import (
     coerce_finite_sample,
@@ -19,6 +21,8 @@ __all__ = [
     "CumulativeDistribution",
     "DiscreteProbabilityLaw",
     "HasMeanAndVariance",
+    "LogProbabilityMassFunction",
+    "ProbabilityMassFunction",
     "coerce_finite_sample",
     "require_finite_complex",
     "require_finite_real",

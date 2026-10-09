@@ -3,6 +3,28 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.5.0] — 2026-10-09
+
+### Added
+
+- Immutable parameter constraints and finite, integer, and real support objects.
+- Stable Binomial, Categorical, and Poisson distributions with explicit
+  degenerate cases, log-PMFs, and reproducible sampling.
+- Regularized incomplete-gamma series and continued fractions for direct
+  Poisson CDF and survival-tail evaluation.
+- Narrow runtime-checkable PMF and log-PMF protocols.
+- Categorical entropy and event probabilities without invented numeric order.
+- Count-window and categorical PMF visualizations plus generated teaching
+  figures.
+- Equation records `EQ-DIST-BIN-001` through `004`, `EQ-DIST-CAT-001` through
+  `002`, `EQ-DIST-POIS-001` through `004`, and `EQ-NUM-GAMMA-001`.
+- A discrete-distribution guide, numerical boundary tests, and ADR-0005.
+
+### Changed
+
+- Bernoulli and Normal now expose explicit support and stable log-probability
+  evaluation through the shared distribution infrastructure.
+
 ## [0.4.0] — 2026-10-09
 
 ### Added

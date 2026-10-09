@@ -21,6 +21,8 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(distribution.cdf(-1.0), 0.0)
         self.assertEqual(distribution.cdf(0.0), 0.7)
         self.assertEqual(distribution.cdf(1.0), 1.0)
+        self.assertEqual(distribution.support.finite_values(), (0, 1))
+        self.assertAlmostEqual(math.exp(distribution.log_pmf(1)), 0.3)
 
     def test_normal_reference_values(self) -> None:
         """Standard normal density and CDF match analytic center values."""
@@ -29,6 +31,10 @@ class DistributionTests(unittest.TestCase):
         self.assertAlmostEqual(distribution.cdf(0.0), 0.5)
         self.assertEqual(distribution.mean, 0.0)
         self.assertEqual(distribution.variance, 1.0)
+        self.assertTrue(distribution.support.contains(-1e100))
+        self.assertAlmostEqual(
+            math.exp(distribution.log_pdf(0.0)), distribution.pdf(0.0)
+        )
 
     def test_sampling_is_call_reproducible(self) -> None:
         """Equal seeds produce equal samples without shared mutable RNG state."""

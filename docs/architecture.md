@@ -33,6 +33,12 @@ distribution objects and induced finite laws conform by structure; neither
 domain package imports the other. Protocol conformance does not replace each
 implementation's equation, domain, or numerical documentation.
 
+Narrow `ProbabilityMassFunction` and `LogProbabilityMassFunction` protocols let
+unordered categorical laws participate in generic mass-based algorithms without
+claiming a CDF or numeric moments. Parameter constraints, support descriptors,
+and special-function algorithms stay inside `distributions`; they may depend on
+foundation validators but never on probability or statistics domain packages.
+
 Sibling domain packages do not import one another unless an ADR introduces a
 clear higher-level layer. Cross-cutting code moves down only when it is truly
 domain-independent.

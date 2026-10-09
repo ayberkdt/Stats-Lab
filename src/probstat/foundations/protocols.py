@@ -8,6 +8,58 @@ ValueContra = TypeVar("ValueContra", contravariant=True)
 
 
 @runtime_checkable
+class ProbabilityMassFunction(Protocol[ValueContra]):
+    """A discrete law that assigns probability mass to candidate values.
+
+    References:
+        [REF-ROSS-2019, Chapters 4-6].
+
+    """
+
+    def pmf(self, value: ValueContra) -> float:
+        """Return probability mass at ``value``.
+
+        Args:
+            value: Candidate discrete support value.
+
+        Returns:
+            Non-negative point probability.
+
+        References:
+            [REF-ROSS-2019, Chapters 4-6]. The concrete implementation supplies
+            the applicable PMF equation.
+
+        """
+        ...
+
+
+@runtime_checkable
+class LogProbabilityMassFunction(Protocol[ValueContra]):
+    """A discrete law that evaluates natural log probability mass.
+
+    References:
+        [REF-NIST-DLMF-GAMMA, Section 5.2].
+
+    """
+
+    def log_pmf(self, value: ValueContra) -> float:
+        """Return natural log mass at ``value``.
+
+        Args:
+            value: Candidate discrete support value.
+
+        Returns:
+            Log mass, conventionally negative infinity for zero mass.
+
+        References:
+            [REF-NIST-DLMF-GAMMA, Section 5.2]. The implementation supplies the
+            applicable mass equation.
+
+        """
+        ...
+
+
+@runtime_checkable
 class CumulativeDistribution(Protocol):
     """A univariate law that can evaluate a cumulative distribution function.
 
@@ -70,7 +122,10 @@ class HasMeanAndVariance(Protocol):
 
 @runtime_checkable
 class DiscreteProbabilityLaw(
-    CumulativeDistribution, HasMeanAndVariance, Protocol[ValueContra]
+    ProbabilityMassFunction[ValueContra],
+    CumulativeDistribution,
+    HasMeanAndVariance,
+    Protocol[ValueContra],
 ):
     """A discrete univariate law with PMF, CDF, mean, and variance.
 
@@ -78,23 +133,6 @@ class DiscreteProbabilityLaw(
         [REF-ROSS-2019, Chapters 4-6].
 
     """
-
-    def pmf(self, value: ValueContra) -> float:
-        """Return probability mass at ``value``.
-
-        Args:
-            value: Candidate discrete support value.
-
-        Returns:
-            Non-negative point probability.
-
-        References:
-            [REF-ROSS-2019, Chapters 4-6]. The concrete implementation supplies
-            the applicable PMF equation.
-
-        """
-        ...
-
 
 @runtime_checkable
 class ContinuousProbabilityLaw(

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from probstat.distributions import Bernoulli, Normal
+from probstat.distributions import Bernoulli, Binomial, Categorical, Normal, Poisson
 from probstat.probability import (
     FiniteProbabilityMeasure,
     FiniteRandomVariable,
@@ -12,9 +12,11 @@ from probstat.probability import (
 )
 from probstat.visualization import (
     plot_bernoulli_pmf,
+    plot_categorical_pmf,
     plot_characteristic_function,
     plot_empirical_cdf,
     plot_finite_measure,
+    plot_integer_pmf,
     plot_joint_pmf,
     plot_normal_pdf,
     plot_random_variable_pmf,
@@ -24,12 +26,13 @@ from probstat.visualization import (
 def main() -> None:
     """Render deterministic foundation plots into ``examples/generated``.
 
-    The function writes seven PNG images and closes their figures so repeated
+    The function writes ten PNG images and closes their figures so repeated
     runs do not leak GUI resources.
 
     References:
         [EQ-PROB-002], [EQ-RV-001], [EQ-RV-010], [EQ-GF-003],
-        [EQ-DIST-BER-001],
+        [EQ-DIST-BER-001], [EQ-DIST-BIN-001], [EQ-DIST-CAT-001],
+        [EQ-DIST-POIS-001],
         [EQ-DIST-NORM-001], [EQ-STAT-005], [REF-MATPLOTLIB].
 
     """
@@ -68,6 +71,20 @@ def main() -> None:
             "characteristic-function.png",
         ),
         (plot_bernoulli_pmf(Bernoulli(0.65)), "bernoulli-pmf.png"),
+        (
+            plot_integer_pmf(Binomial(12, 0.35), lower=0, upper=12),
+            "binomial-pmf.png",
+        ),
+        (
+            plot_categorical_pmf(
+                Categorical({"red": 0.50, "green": 0.20, "blue": 0.30})
+            ),
+            "categorical-pmf.png",
+        ),
+        (
+            plot_integer_pmf(Poisson(4.0), lower=0, upper=12),
+            "poisson-pmf-window.png",
+        ),
         (plot_normal_pdf(Normal(mu=0.0, sigma=1.0)), "normal-pdf.png"),
         (
             plot_empirical_cdf((1.1, 1.3, 1.3, 1.8, 2.4, 2.9)),

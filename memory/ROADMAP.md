@@ -29,8 +29,10 @@ Status markers: `[x]` complete, `[~]` in progress, `[ ]` planned.
 
 - [x] Bernoulli and univariate normal baseline objects.
 - [x] Dependency-neutral structural protocols for univariate probability laws.
-- [ ] Parameter constraints, support abstractions, and stable log-probability APIs.
-- [ ] Binomial, categorical, Poisson, geometric, negative binomial.
+- [x] Parameter constraints, support abstractions, and initial stable
+  log-probability APIs.
+- [x] Binomial, categorical, and Poisson.
+- [ ] Geometric and negative binomial.
 - [ ] Uniform, exponential, gamma, beta, chi-square, Student-t, F, logistic.
 - [ ] Multivariate normal, Dirichlet, multinomial, and copulas.
 - [ ] Stable log-density, quantile, survival, hazard, and entropy interfaces.
