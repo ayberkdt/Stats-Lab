@@ -50,6 +50,23 @@ class DocumentationContractTests(unittest.TestCase):
                         missing.append(f"{relative}:{node.lineno}:{node.name}")
         self.assertEqual(missing, [], "Missing docstrings: " + ", ".join(missing))
 
+    def test_callable_docstrings_include_references(self) -> None:
+        """Every maintained callable docstring includes a references section."""
+        missing: list[str] = []
+        documented_definitions = ast.FunctionDef | ast.AsyncFunctionDef
+        for path, tree in source_trees():
+            relative = path.relative_to(REPOSITORY_ROOT)
+            for node in ast.walk(tree):
+                if isinstance(node, documented_definitions):
+                    docstring = ast.get_docstring(node) or ""
+                    if "References:" not in docstring:
+                        missing.append(f"{relative}:{node.lineno}:{node.name}")
+        self.assertEqual(
+            missing,
+            [],
+            "Callable docstrings without references: " + ", ".join(missing),
+        )
+
     def test_source_equation_ids_exist_in_registry(self) -> None:
         """Every equation ID cited by source exists in the central registry."""
         registry_text = EQUATION_REGISTRY.read_text(encoding="utf-8")

@@ -9,10 +9,14 @@ The project has two equally important outputs:
 1. trustworthy, modular software; and
 2. explanations that make every implemented equation traceable and teachable.
 
-## First foundation release
+## Foundation releases
 
-Release `0.1.0` provides:
+Release `0.2.0` provides:
 
+- immutable finite sample spaces and owned event algebra;
+- arbitrary finite probability measures and uniform measures;
+- conditional probability, event independence, total probability, Bayes' rule,
+  and finite expectation;
 - validated counting primitives;
 - descriptive statistics for finite samples;
 - Bernoulli and normal distributions;
@@ -41,14 +45,14 @@ python examples/generate_foundation_figures.py
 ## Small example
 
 ```python
-from probstat.distributions import Bernoulli
-from probstat.statistics import mean, variance
+from probstat.probability import FiniteProbabilityMeasure, FiniteSampleSpace
 
-coin = Bernoulli(0.65)
-observations = coin.sample(1_000, seed=7)
+die = FiniteSampleSpace((1, 2, 3, 4, 5, 6))
+fair = FiniteProbabilityMeasure.uniform(die)
+even = die.event((2, 4, 6))
 
-print(mean(observations))
-print(variance(observations))
+print(fair.probability(even))  # 0.5
+print(fair.expectation(float))  # 3.5
 ```
 
 Each public function links its formula to an ID such as `EQ-STAT-001`. Look up

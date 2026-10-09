@@ -15,10 +15,10 @@ Status markers: `[x]` complete, `[~]` in progress, `[ ]` planned.
 ## Phase 1 — Probability foundations
 
 - [x] Exact factorial, permutation, combination, and multiplication rule.
-- [~] Probability-space concepts and axioms documented.
-- [ ] Finite sample spaces, event algebra, and set identities.
-- [ ] Conditional probability, independence, total probability, and Bayes' rule.
-- [ ] Random variables, expectation, moments, and transformations.
+- [x] Probability-space concepts and axioms documented.
+- [x] Finite sample spaces, event algebra, and set identities.
+- [x] Conditional probability, independence, total probability, and Bayes' rule.
+- [~] Random variables and finite expectation; moments and transformations planned.
 - [ ] Joint, marginal, and conditional distributions.
 - [ ] Probability generating, moment generating, and characteristic functions.
 - [ ] Modes of convergence, laws of large numbers, and central limit theorems.

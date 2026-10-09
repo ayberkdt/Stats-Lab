@@ -17,6 +17,87 @@ code. Symbols are local to each record. Source keys resolve in
   validation.
 - Source: [REF-KOLMOGOROV-1956, Chapter I, Section 2].
 
+### EQ-PROB-002 — Probability of an event in a finite weighted space
+
+`P(A) = sum_{omega in A} p(omega)`, where `p(omega) >= 0` and
+`sum_{omega in Omega} p(omega) = 1`.
+
+- Domain: non-empty finite `Omega`, event `A` contained in `Omega`.
+- Meaning: event probability is the total mass of its member outcomes.
+- Code: `probability.finite.FiniteProbabilityMeasure` and finite-measure plot.
+- Source: [REF-KOLMOGOROV-1956, Chapter I], [REF-ROSS-2019, Chapter 2].
+
+### EQ-PROB-003 — Complement rule
+
+`P(A^c) = 1 - P(A)`; in particular, `P(empty set) = 0`.
+
+- Domain: event `A` in a probability space.
+- Meaning: exactly one of an event and its complement occurs.
+- Code: `probability.finite.FiniteEvent.complement`; verified against finite
+  probability measures in tests.
+- Source: [REF-ROSS-2019, Chapter 2].
+
+### EQ-PROB-004 — Two-event inclusion-exclusion rule
+
+`P(A union B) = P(A) + P(B) - P(A intersection B)`.
+
+- Domain: events `A` and `B` in the same probability space.
+- Meaning: subtract the overlap counted once by each marginal probability.
+- Code: `FiniteEvent.union` and `FiniteEvent.intersection`; the probability
+  identity is verified in tests.
+- Source: [REF-ROSS-2019, Chapter 2].
+
+### EQ-PROB-005 — Conditional probability
+
+`P(A | B) = P(A intersection B) / P(B)`.
+
+- Domain: events `A`, `B` with `P(B) > 0`.
+- Meaning: renormalize probability after restricting the sample space to `B`.
+- Code: `FiniteProbabilityMeasure.conditional_probability`.
+- Source: [REF-ROSS-2019, Chapter 3].
+
+### EQ-PROB-006 — Independence criterion
+
+`A independent B` if and only if `P(A intersection B) = P(A)P(B)`.
+
+- Domain: events `A` and `B` in the same probability space.
+- Meaning: knowledge that either event occurred does not alter the probability
+  of the other; the product criterion remains valid for zero-probability events.
+- Code: `FiniteProbabilityMeasure.are_independent`.
+- Source: [REF-ROSS-2019, Chapter 3].
+
+### EQ-PROB-007 — Law of total probability
+
+For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
+`P(A) = sum_{i=1}^m P(A | B_i) P(B_i)`.
+
+- Domain: finite partition with pairwise-disjoint cells, exhaustive union, and
+  `P(B_i) > 0` for every cell.
+- Meaning: reconstruct an event probability by conditioning on exhaustive cases.
+- Code: `FiniteProbabilityMeasure.total_probability`.
+- Source: [REF-ROSS-2019, Chapter 3].
+
+### EQ-PROB-008 — Bayes' rule for two events
+
+`P(H | E) = P(E | H) P(H) / P(E)`.
+
+- Domain: events `H`, `E` with `P(H) > 0` and `P(E) > 0` for this factorized
+  implementation.
+- Meaning: update a prior probability using evidence likelihood and normalize by
+  evidence probability.
+- Code: `FiniteProbabilityMeasure.bayes_probability`.
+- Source: [REF-ROSS-2019, Chapter 3].
+
+### EQ-PROB-009 — Expectation on a finite probability space
+
+`E[g(X)] = sum_{omega in Omega} g(omega) p(omega)`.
+
+- Domain: non-empty finite `Omega`, normalized mass `p`, and finite real-valued
+  function `g`.
+- Meaning: probability-weighted average of a quantity attached to outcomes.
+- Code: `FiniteProbabilityMeasure.expectation`.
+- Source: [REF-ROSS-2019, Chapter 4].
+
 ### EQ-COMB-001 — Factorial
 
 `n! = product_{j=1}^n j`, with `0! = 1`.

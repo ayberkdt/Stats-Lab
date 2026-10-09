@@ -8,6 +8,7 @@ from typing import Any
 
 from probstat.distributions import Bernoulli, Normal
 from probstat.foundations.validation import coerce_finite_sample
+from probstat.probability import FiniteEvent, FiniteProbabilityMeasure
 from probstat.statistics import empirical_cdf
 
 
@@ -59,6 +60,63 @@ def plot_bernoulli_pmf(distribution: Bernoulli, *, ax: Any | None = None) -> Any
     axes.set_title(f"Bernoulli PMF (p = {distribution.p:.3g})")
     for outcome, mass in zip(outcomes, masses, strict=True):
         axes.annotate(f"{mass:.3f}", (outcome, mass), ha="center", va="bottom")
+    return axes
+
+
+def plot_finite_measure(
+    measure: FiniteProbabilityMeasure[Any],
+    *,
+    highlight: FiniteEvent[Any] | None = None,
+    ax: Any | None = None,
+) -> Any:
+    """Plot outcome masses and optionally highlight one finite event.
+
+    Args:
+        measure: Validated finite probability measure.
+        highlight: Optional event from the measure's sample space. Highlighted
+            outcomes use a contrasting color and the title reports ``P(A)``.
+        ax: Optional Matplotlib axes; a new axes is created when omitted.
+
+    Returns:
+        The populated Matplotlib axes.
+
+    Raises:
+        TypeError: If ``highlight`` is not a finite event.
+        ValueError: If ``highlight`` belongs to another sample space.
+
+    Equation:
+        [EQ-PROB-002].
+
+    References:
+        [REF-ROSS-2019, Chapter 2], [REF-MATPLOTLIB].
+
+    """
+    event_probability: float | None = None
+    if highlight is not None:
+        event_probability = measure.probability(highlight)
+    plt = _pyplot()
+    axes = ax if ax is not None else plt.subplots()[1]
+    outcomes = tuple(measure.space)
+    masses = tuple(measure.weights[outcome] for outcome in outcomes)
+    colors = tuple(
+        "#F58518" if highlight is not None and outcome in highlight else "#4C78A8"
+        for outcome in outcomes
+    )
+    positions = tuple(range(len(outcomes)))
+    axes.bar(positions, masses, color=colors, width=0.65)
+    axes.set(
+        xticks=positions,
+        xticklabels=tuple(str(outcome) for outcome in outcomes),
+        xlabel="Outcome",
+        ylabel="Probability mass",
+        ylim=(0.0, max(masses) * 1.18),
+    )
+    title = "Finite probability measure"
+    if event_probability is not None:
+        title += f" — highlighted event P(A) = {event_probability:.3f}"
+    axes.set_title(title)
+    for position, mass in zip(positions, masses, strict=True):
+        axes.annotate(f"{mass:.3f}", (position, mass), ha="center", va="bottom")
     return axes
 
 

@@ -11,12 +11,18 @@ not a synonym for frequency or confidence.
 
 Read: [Probability foundations](foundations/probability.md).
 
+Code: `probstat.probability.FiniteSampleSpace`, `FiniteEvent`, and
+`FiniteProbabilityMeasure` make these ideas executable for finite models.
+
 ## Stage 1 — Counting and finite probability
 
 Use the multiplication rule, permutations, and combinations to count equally
 likely finite outcomes. Learn when an ordering matters and when it does not.
 
 Code: `probstat.probability.counting`.
+
+Then use conditional probability, independence, total probability, and Bayes'
+rule on validated events before moving to random variables.
 
 ## Stage 2 — Data summaries
 

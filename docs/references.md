@@ -41,6 +41,11 @@ NIST/SEMATECH. *e-Handbook of Statistical Methods*, Section 1.3,
 Python Software Foundation. "Data model." *Python 3 documentation*.
 [https://docs.python.org/3/reference/datamodel.html](https://docs.python.org/3/reference/datamodel.html).
 
+## REF-PYTHON-MATH
+
+Python Software Foundation. "Mathematical functions." *Python 3 documentation*.
+[https://docs.python.org/3/library/math.html](https://docs.python.org/3/library/math.html).
+
 ## REF-PYTHON-AST
 
 Python Software Foundation. "Abstract Syntax Trees." *Python 3 documentation*.
