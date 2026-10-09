@@ -103,12 +103,15 @@ dependency direction.
 
 ### UQ-1 — Uncertainty modeling and statistical fitting
 
-- [~] Random variables, PMF/PDF/CDF, moments, covariance, correlation, Normal,
-  and Uniform foundations.
-- [ ] Lognormal, Weibull, multivariate random variables, multivariate Normal,
-  sampling abstractions, parameter estimation, and maximum likelihood.
-- [ ] Kolmogorov-Smirnov and Anderson-Darling goodness-of-fit plus estimator
-  confidence intervals and diagnostic plots.
+- [x] Random variables, PMF/PDF/CDF, moments, covariance, correlation, Normal,
+  Uniform, Lognormal, and Weibull foundations.
+- [x] Positive-definite multivariate Normal density, marginals, correlation,
+  Mahalanobis distance, and Cholesky sampling.
+- [~] Normal/Lognormal maximum likelihood, generic KS/AD statistics, z and
+  Wilson confidence intervals, fitted-CDF visualization, and seeded lab.
+- [ ] General multivariate protocols and transformations, Weibull estimation,
+  exact/bootstrapped fitted-null calibration, Student-t intervals, sampling
+  stream splitting, and real-data fitting case studies.
 
 ### UQ-2 — Forward propagation
 

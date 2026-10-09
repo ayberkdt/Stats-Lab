@@ -31,17 +31,17 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-1.9 | Forward versus inverse problems | Partial | UQ-0 | `probstat.uq` | `docs/foundations/vv-uq-foundations.md` |
 | ATHENS-1.10 | Quantity-of-interest definition and selection | Implemented | UQ-0 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
 | ATHENS-2.1 | Random variables | Implemented | UQ-1 | `probstat.probability` | `src/probstat/probability/random_variables.py` |
-| ATHENS-2.2 | Probability mass and density functions | Partial | UQ-1 | `probstat.distributions` | `src/probstat/foundations/protocols.py` |
+| ATHENS-2.2 | Probability mass and density functions | Implemented | UQ-1 | `probstat.distributions` | `src/probstat/foundations/protocols.py`; `src/probstat/distributions` |
 | ATHENS-2.3 | Cumulative distribution functions | Implemented | UQ-1 | `probstat.distributions` | `src/probstat/foundations/protocols.py` |
-| ATHENS-2.4 | Normal, Uniform, Lognormal, and Weibull families | Partial | UQ-1 | `probstat.distributions` | `src/probstat/distributions/normal.py`; `src/probstat/distributions/uniform.py` |
+| ATHENS-2.4 | Normal, Uniform, Lognormal, and Weibull families | Implemented | UQ-1 | `probstat.distributions` | `src/probstat/distributions/normal.py`; `src/probstat/distributions/uniform.py`; `src/probstat/distributions/lognormal.py`; `src/probstat/distributions/weibull.py` |
 | ATHENS-2.5 | Expectation and variance | Implemented | UQ-1 | `probstat.probability` | `src/probstat/probability/random_variables.py` |
 | ATHENS-2.6 | Covariance and correlation | Implemented | UQ-1 | `probstat.statistics` | `src/probstat/statistics/descriptive.py` |
-| ATHENS-2.7 | Multivariate random variables | Planned | UQ-1 | `probstat.multivariate` | — |
-| ATHENS-2.8 | Multivariate normal distribution | Planned | UQ-1 | `probstat.multivariate` | — |
-| ATHENS-2.9 | Parameter estimation | Planned | UQ-1 | `probstat.inference` | — |
-| ATHENS-2.10 | Maximum-likelihood estimation | Planned | UQ-1 | `probstat.inference` | — |
-| ATHENS-2.11 | Kolmogorov-Smirnov and Anderson-Darling goodness-of-fit | Planned | UQ-1 | `probstat.inference.gof` | — |
-| ATHENS-2.12 | Confidence intervals and sampling concepts | Partial | UQ-1 | `probstat.inference` | `docs/foundations/descriptive-statistics.md` |
+| ATHENS-2.7 | Multivariate random variables | Partial | UQ-1 | `probstat.multivariate` | `src/probstat/multivariate/normal.py` |
+| ATHENS-2.8 | Multivariate normal distribution | Implemented | UQ-1 | `probstat.multivariate` | `src/probstat/multivariate/normal.py` |
+| ATHENS-2.9 | Parameter estimation | Partial | UQ-1 | `probstat.inference` | `src/probstat/inference/estimation.py` |
+| ATHENS-2.10 | Maximum-likelihood estimation | Partial | UQ-1 | `probstat.inference` | `src/probstat/inference/estimation.py` |
+| ATHENS-2.11 | Kolmogorov-Smirnov and Anderson-Darling goodness-of-fit | Partial | UQ-1 | `probstat.inference.gof` | `src/probstat/inference/goodness_of_fit.py` |
+| ATHENS-2.12 | Confidence intervals and sampling concepts | Partial | UQ-1 | `probstat.inference` | `src/probstat/inference/confidence.py`; `src/probstat/distributions` |
 | ATHENS-3.1 | Deterministic propagation map Y = g(X) | Implemented | UQ-2 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
 | ATHENS-3.2 | Output mean under input uncertainty | Planned | UQ-2 | `probstat.propagation` | — |
 | ATHENS-3.3 | Output variance under input uncertainty | Planned | UQ-2 | `probstat.propagation` | — |
@@ -117,7 +117,7 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-8.13 | Extended Kalman filter | Planned | UQ-7 | `probstat.filtering.ekf` | — |
 | ATHENS-8.14 | Ensemble Kalman filter | Planned | UQ-7 | `probstat.data_assimilation.enkf` | — |
 | ATHENS-8.15 | Particle filtering | Planned | UQ-7 | `probstat.filtering.particle` | — |
-| ATHENS-9.1 | Statistical fitting laboratory | Planned | LAB-1 | `examples.labs.statistical_fitting` | — |
+| ATHENS-9.1 | Statistical fitting laboratory | Partial | LAB-1 | `examples.labs.statistical_fitting` | `examples/statistical_fitting_lab.py`; `src/probstat/visualization/foundations.py` |
 | ATHENS-9.2 | Basic Monte Carlo laboratory | Planned | LAB-2 | `examples.labs.basic_monte_carlo` | — |
 | ATHENS-9.3 | Advanced Monte Carlo variance-reduction laboratory | Planned | LAB-3 | `examples.labs.advanced_monte_carlo` | — |
 | ATHENS-9.4 | Reliability laboratory with FORM and directional sampling | Planned | LAB-4 | `examples.labs.reliability` | — |
@@ -125,7 +125,7 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-9.6 | Uncertainty-visualization laboratory | Partial | LAB-6 | `examples.labs.visualization` | `examples/generate_foundation_figures.py`; `src/probstat/visualization/foundations.py` |
 | ATHENS-10.1 | Probability prerequisite | Partial | PRE-1 | `probstat.probability` | `docs/foundations/probability.md` |
 | ATHENS-10.2 | Statistics prerequisite | Partial | PRE-1 | `probstat.statistics` | `docs/foundations/descriptive-statistics.md` |
-| ATHENS-10.3 | Linear-algebra prerequisite | Planned | PRE-1 | `probstat.linalg` | — |
+| ATHENS-10.3 | Linear-algebra prerequisite | Partial | PRE-1 | `probstat.linalg` | `src/probstat/multivariate/normal.py` |
 | ATHENS-10.4 | Numerical integration, convergence, and error prerequisite | Partial | PRE-1 | `probstat.numerics` | `src/probstat/uq/verification.py` |
 | ATHENS-10.5 | Optimization prerequisite | Planned | PRE-1 | `probstat.optimization` | — |
 | ATHENS-10.6 | Multivariable calculus, Jacobians, and conditional distributions | Planned | PRE-1 | `docs.prerequisites` | — |

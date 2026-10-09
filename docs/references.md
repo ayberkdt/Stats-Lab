@@ -3,6 +3,36 @@
 Citation keys are stable project identifiers. A locator in a docstring or
 equation record narrows the relevant part of a source.
 
+## REF-GOLUB-VANLOAN-2013
+
+Gene H. Golub and Charles F. Van Loan. *Matrix Computations*. 4th edition.
+Johns Hopkins University Press, 2013.
+
+## REF-MARDIA-KENT-BIBBY-1979
+
+Kanti V. Mardia, John T. Kent, and John M. Bibby. *Multivariate Analysis*.
+Academic Press, 1979. ISBN 978-0-12-471252-2.
+
+## REF-NIST-DISTRIBUTIONS
+
+NIST/SEMATECH. *e-Handbook of Statistical Methods*, Section 1.3.6,
+"Probability Distributions." National Institute of Standards and Technology.
+[https://www.itl.nist.gov/div898/handbook/eda/section3/eda36.htm](https://www.itl.nist.gov/div898/handbook/eda/section3/eda36.htm).
+
+## REF-NIST-GOF
+
+NIST/SEMATECH. *e-Handbook of Statistical Methods*, Section 1.3.5,
+"Quantitative Techniques," including Kolmogorov-Smirnov and Anderson-Darling
+goodness-of-fit tests. National Institute of Standards and Technology.
+[https://www.itl.nist.gov/div898/handbook/eda/section3/eda35.htm](https://www.itl.nist.gov/div898/handbook/eda/section3/eda35.htm).
+
+## REF-WILSON-1927
+
+Edwin B. Wilson. "Probable Inference, the Law of Succession, and Statistical
+Inference." *Journal of the American Statistical Association* 22(158),
+209-212, 1927.
+DOI: [10.1080/01621459.1927.10502953](https://doi.org/10.1080/01621459.1927.10502953).
+
 ## REF-OBERKAMPF-ROY-2025
 
 William L. Oberkampf and Christopher J. Roy. *Verification, Validation, and

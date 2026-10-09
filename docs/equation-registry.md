@@ -4,6 +4,261 @@ This file is the authoritative catalog of equations currently evaluated by
 code. Symbols are local to each record. Source keys resolve in
 `docs/references.md`.
 
+## UQ-1 continuous and multivariate distributions
+
+### EQ-DIST-LN-001 — Lognormal PDF and log-PDF
+
+`f(x) = exp(-(log(x)-mu)^2/(2 sigma^2)) / (x sigma sqrt(2 pi))` for
+`x>0`, and zero otherwise.
+
+- Domain: finite `mu`, finite `sigma>0`, and finite real `x`.
+- Meaning: `log(X)` is normal with location `mu` and scale `sigma`; these are
+  not the mean and standard deviation of `X` itself.
+- Code: `distributions.LogNormal.pdf` and `LogNormal.log_pdf`.
+- Source: [REF-NIST-DISTRIBUTIONS, Lognormal Distribution].
+
+### EQ-DIST-LN-002 — Lognormal CDF and survival function
+
+`F(x)=Phi((log(x)-mu)/sigma)` and `S(x)=1-F(x)` for `x>0`.
+
+- Domain: [EQ-DIST-LN-001], with `F(x)=0` and `S(x)=1` for `x<=0`.
+- Meaning: lower and upper probabilities are transformed normal tails; direct
+  error-function branches avoid near-one subtraction.
+- Code: `distributions.LogNormal.cdf` and `LogNormal.sf`.
+- Source: [REF-NIST-DISTRIBUTIONS], [REF-NIST-DLMF, Section 7.2].
+
+### EQ-DIST-LN-003 — Lognormal quantile and inverse sampling
+
+`Q(u)=exp(mu + sigma Phi^-1(u))`.
+
+- Domain: `0<=u<=1`, with `Q(0)=0` and `Q(1)=+infinity`.
+- Meaning: exponentiating a normal quantile gives the lognormal generalized
+  inverse and inverse-transform sampler.
+- Code: `distributions.LogNormal.quantile` and `LogNormal.sample`.
+- Source: [REF-NIST-DISTRIBUTIONS], [REF-DEVROYE-1986, Chapter IX].
+
+### EQ-DIST-LN-004 — Lognormal moments
+
+`E[X]=exp(mu+sigma^2/2)` and
+`Var(X)=(exp(sigma^2)-1) exp(2 mu+sigma^2)`.
+
+- Domain: [EQ-DIST-LN-001]; values must fit finite-precision range to be
+  returned as floats.
+- Meaning: original-scale moments are nonlinear functions of log-space
+  parameters.
+- Code: `distributions.LogNormal.mean` and `LogNormal.variance`.
+- Source: [REF-NIST-DISTRIBUTIONS, Lognormal Distribution].
+
+### EQ-DIST-WEIB-001 — Weibull PDF and log-PDF
+
+`f(x)=(k/lambda)(x/lambda)^(k-1) exp(-(x/lambda)^k)` for `x>=0`.
+
+- Domain: finite shape `k>0`, scale `lambda>0`, and finite real `x`; the
+  endpoint density is infinite for `k<1`, `1/lambda` for `k=1`, and zero for
+  `k>1`.
+- Meaning: shape controls decreasing, constant, or increasing failure rates.
+- Code: `distributions.Weibull.pdf` and `Weibull.log_pdf`.
+- Source: [REF-NIST-DISTRIBUTIONS, Weibull Distribution].
+
+### EQ-DIST-WEIB-002 — Weibull CDF and survival function
+
+`F(x)=1-exp(-(x/lambda)^k)` and `S(x)=exp(-(x/lambda)^k)` for `x>=0`.
+
+- Domain: [EQ-DIST-WEIB-001], with boundary clipping below support.
+- Meaning: the survival form is evaluated directly and the CDF uses `expm1`
+  near zero.
+- Code: `distributions.Weibull.cdf` and `Weibull.sf`.
+- Source: [REF-NIST-DISTRIBUTIONS, Weibull Distribution].
+
+### EQ-DIST-WEIB-003 — Weibull quantile and inverse sampling
+
+`Q(u)=lambda[-log(1-u)]^(1/k)`.
+
+- Domain: `0<=u<1`, with `Q(1)=+infinity`.
+- Meaning: generalized inverse used for quantiles and reproducible
+  inverse-transform samples.
+- Code: `distributions.Weibull.quantile` and `Weibull.sample`.
+- Source: [REF-NIST-DISTRIBUTIONS], [REF-DEVROYE-1986, Chapter II].
+
+### EQ-DIST-WEIB-004 — Weibull mean
+
+`E[X]=lambda Gamma(1+1/k)`.
+
+- Domain: positive finite shape and scale, subject to float range.
+- Meaning: expected lifetime under the selected shape-scale convention.
+- Code: `distributions.Weibull.mean`.
+- Source: [REF-NIST-DISTRIBUTIONS, Weibull Distribution].
+
+### EQ-DIST-WEIB-005 — Weibull variance
+
+`Var(X)=lambda^2[Gamma(1+2/k)-Gamma(1+1/k)^2]`.
+
+- Domain: positive finite shape and scale, subject to float range.
+- Meaning: lifetime dispersion on the original scale.
+- Code: `distributions.Weibull.variance`.
+- Source: [REF-NIST-DISTRIBUTIONS, Weibull Distribution].
+
+### EQ-DIST-WEIB-006 — Weibull hazard
+
+`h(x)=(k/lambda)(x/lambda)^(k-1)`.
+
+- Domain: `x>=0`; the endpoint limit follows the cases in
+  [EQ-DIST-WEIB-001].
+- Meaning: hazard decreases for `k<1`, is constant for `k=1`, and increases for
+  `k>1`.
+- Code: `distributions.Weibull.hazard`.
+- Source: [REF-NIST-DISTRIBUTIONS, Weibull Distribution].
+
+### EQ-DIST-MVN-001 — Multivariate normal density
+
+`f(x)=(2 pi)^(-d/2)|Sigma|^(-1/2)
+exp(-(x-mu)'Sigma^-1(x-mu)/2)`.
+
+- Domain: finite `d`-vectors and symmetric positive-definite covariance
+  `Sigma`; singular Gaussian measures are excluded.
+- Meaning: joint Gaussian density with dependence encoded by covariance.
+- Code: `multivariate.MultivariateNormal.pdf` and `log_pdf`.
+- Source: [REF-MARDIA-KENT-BIBBY-1979, Chapter 1].
+
+### EQ-DIST-MVN-002 — Squared Mahalanobis distance
+
+`D_M^2=(x-mu)'Sigma^-1(x-mu)=||L^-1(x-mu)||_2^2`, where `Sigma=LL'`.
+
+- Domain: [EQ-DIST-MVN-001].
+- Meaning: covariance-standardized squared distance evaluated without forming
+  an explicit matrix inverse.
+- Code: `multivariate.MultivariateNormal.mahalanobis_squared` and `log_pdf`.
+- Source: [REF-MARDIA-KENT-BIBBY-1979, Chapter 1].
+
+### EQ-DIST-MVN-003 — Univariate Gaussian marginal
+
+`X_i ~ Normal(mu_i, sqrt(Sigma_ii))`.
+
+- Domain: any component of a positive-definite multivariate normal.
+- Meaning: selecting one coordinate preserves normality.
+- Code: `multivariate.MultivariateNormal.marginal`.
+- Source: [REF-MARDIA-KENT-BIBBY-1979, Chapter 3].
+
+### EQ-DIST-MVN-004 — Component correlation
+
+`rho_ij=Sigma_ij/sqrt(Sigma_ii Sigma_jj)`.
+
+- Domain: positive marginal variances guaranteed by positive definiteness.
+- Meaning: standardized linear dependence between two Gaussian components.
+- Code: `multivariate.MultivariateNormal.correlation`.
+- Source: [REF-MARDIA-KENT-BIBBY-1979, Chapter 1].
+
+### EQ-DIST-MVN-005 — Cholesky Gaussian sampling
+
+`X=mu+LZ`, where `LL'=Sigma` and `Z~Normal(0,I)`.
+
+- Domain: [EQ-DIST-MVN-001] and independent standard-normal pseudo-random
+  components.
+- Meaning: a linear map transfers identity covariance to `Sigma`.
+- Code: `multivariate.MultivariateNormal.sample`.
+- Source: [REF-DEVROYE-1986, Chapter XI].
+
+## Linear algebra primitives
+
+### EQ-LINALG-001 — Cholesky factorization
+
+`A=LL'` for symmetric positive-definite `A` and lower-triangular `L` with a
+positive diagonal.
+
+- Domain: finite symmetric positive-definite square matrix.
+- Meaning: exposes determinant, solves, and Gaussian transforms without an
+  explicit inverse.
+- Code: `multivariate.normal._cholesky_factor`.
+- Source: [REF-GOLUB-VANLOAN-2013, Section 4.2].
+
+### EQ-LINALG-002 — Forward substitution
+
+`x_i=(b_i-sum_(j<i) L_ij x_j)/L_ii`.
+
+- Domain: lower-triangular `L` with nonzero diagonal and matching finite `b`.
+- Meaning: solves `Lx=b` one component at a time.
+- Code: `multivariate.normal._solve_lower`.
+- Source: [REF-GOLUB-VANLOAN-2013, Section 3.1].
+
+## UQ-1 estimation and goodness of fit
+
+### EQ-INF-MLE-NORM-001 — Normal maximum-likelihood estimators
+
+`mu_hat=(1/n)sum x_i` and
+`sigma_hat^2=(1/n)sum (x_i-mu_hat)^2`.
+
+- Domain: non-empty finite real sample with positive empirical MLE variance.
+- Meaning: likelihood maximizers; the variance divisor is `n`, not the
+  unbiased-estimator divisor `n-1`.
+- Code: `inference.fit_normal_mle`.
+- Source: [REF-CASELLA-BERGER-2002, Sections 7.2-7.3].
+
+### EQ-INF-MLE-LN-001 — Lognormal maximum-likelihood estimators
+
+`mu_hat=mean(log x_i)` and
+`sigma_hat^2=(1/n)sum(log x_i-mu_hat)^2`.
+
+- Domain: strictly positive finite observations with nonzero log variance.
+- Meaning: fitting the lognormal is equivalent to fitting a normal law after
+  the natural-log transform.
+- Code: `inference.fit_lognormal_mle`.
+- Source: [REF-NIST-DISTRIBUTIONS], [REF-CASELLA-BERGER-2002, Section 7.2].
+
+### EQ-INF-GOF-KS-001 — One-sample Kolmogorov-Smirnov statistic
+
+`D_n=max_i{i/n-F(x_(i)), F(x_(i))-(i-1)/n}`.
+
+- Domain: ordered finite sample and a fully specified continuous null CDF `F`.
+- Meaning: maximum vertical distance between empirical and null CDFs.
+- Code: `inference.kolmogorov_smirnov_test`.
+- Source: [REF-NIST-GOF, Kolmogorov-Smirnov Test].
+
+### EQ-INF-GOF-KS-002 — Limiting Kolmogorov tail probability
+
+`P(K>z)=2 sum_(j>=1)(-1)^(j-1) exp(-2j^2z^2)`, with a transformed small-`z`
+series and Stephens finite-sample argument correction.
+
+- Domain: non-negative corrected statistic; asymptotic one-sample calibration
+  for a fully specified continuous null.
+- Meaning: approximate KS p-value; it is invalid without correction when null
+  parameters are estimated from the tested data.
+- Code: `inference.goodness_of_fit._kolmogorov_survival`.
+- Source: [REF-NIST-GOF, Kolmogorov-Smirnov Test].
+
+### EQ-INF-GOF-AD-001 — Anderson-Darling statistic
+
+`A^2=-n-(1/n)sum_i(2i-1)[log F(x_(i))+log(1-F(x_(n+1-i)))]`.
+
+- Domain: ordered finite sample and a fully specified continuous null CDF;
+  exact boundary tail probability zero gives infinite discrepancy.
+- Meaning: empirical-CDF discrepancy with additional tail weight; critical
+  values depend on null family and parameter-estimation procedure.
+- Code: `inference.anderson_darling_test`.
+- Source: [REF-NIST-GOF, Anderson-Darling Test].
+
+### EQ-INF-CI-NMEAN-001 — Normal z interval for a mean
+
+`x_bar +- z_(1-alpha/2) sigma/sqrt(n)`.
+
+- Domain: independent normal observations with known positive `sigma`; using
+  sample standard deviation instead is explicitly labeled a large-sample
+  approximation.
+- Meaning: repeated-sampling confidence procedure, not a posterior probability
+  statement about a fixed mean.
+- Code: `inference.normal_mean_confidence_interval`.
+- Source: [REF-CASELLA-BERGER-2002, Sections 9.2-9.3].
+
+### EQ-INF-CI-WILSON-001 — Wilson score interval
+
+`center=(p_hat+z^2/(2n))/(1+z^2/n)` and
+`half=z sqrt(p_hat(1-p_hat)/n+z^2/(4n^2))/(1+z^2/n)`.
+
+- Domain: `0<=successes<=n`, positive integer `n`, and confidence in `(0,1)`.
+- Meaning: score-based binomial-proportion interval with better boundary
+  behavior than the uncorrected Wald interval.
+- Code: `inference.wilson_score_interval`.
+- Source: [REF-WILSON-1927].
+
 ## Verification and uncertainty quantification
 
 ### EQ-UQ-001 — Named forward-model map

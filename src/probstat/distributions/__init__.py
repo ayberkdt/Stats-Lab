@@ -5,11 +5,13 @@ from .binomial import Binomial
 from .categorical import Categorical
 from .exponential import Exponential
 from .geometric import Geometric
+from .lognormal import LogNormal
 from .negative_binomial import NegativeBinomial
 from .normal import Normal
 from .poisson import Poisson
 from .support import FiniteSupport, IntegerSupport, RealSupport
 from .uniform import Uniform
+from .weibull import Weibull
 
 __all__ = [
     "Bernoulli",
@@ -19,10 +21,12 @@ __all__ = [
     "FiniteSupport",
     "Geometric",
     "IntegerSupport",
+    "LogNormal",
     "Normal",
     "NegativeBinomial",
     "Poisson",
     "RealSupport",
     "Uniform",
+    "Weibull",
 ]
 

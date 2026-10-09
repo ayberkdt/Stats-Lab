@@ -5,6 +5,11 @@ with [VV-UQ foundations](foundations/vv-uq-foundations.md). Its complete topic
 ledger and implementation status live in the
 [ATHENS 2026 coverage matrix](curriculum/athens-2026-coverage.md).
 
+Continue with
+[uncertainty modeling and statistical fitting](foundations/uncertainty-modeling-and-fitting.md)
+for required univariate families, multivariate normal structure, MLE,
+confidence intervals, and goodness-of-fit limitations.
+
 The library separates conceptual order from software layer order. Readers can
 learn progressively without losing topics needed later.
 

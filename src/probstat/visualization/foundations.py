@@ -14,6 +14,7 @@ from probstat.distributions import (
 )
 from probstat.foundations import (
     ContinuousProbabilityLaw,
+    CumulativeDistribution,
     ProbabilityMassFunction,
     SurvivalFunction,
 )
@@ -611,6 +612,70 @@ def plot_empirical_cdf(values: Iterable[float], *, ax: Any | None = None) -> Any
     axes.scatter(sample, y_values, color="#54A24B", s=18)
     axes.set(xlabel="x", ylabel="F_n(x)", ylim=(0.0, 1.05))
     axes.set_title(f"Empirical CDF (n = {len(sample)})")
+    return axes
+
+
+def plot_fitted_cdf(
+    values: Iterable[float],
+    distribution: CumulativeDistribution,
+    *,
+    points: int = 401,
+    ax: Any | None = None,
+) -> Any:
+    """Compare an empirical CDF with a fitted or specified model CDF.
+
+    The plot is diagnostic rather than proof of fit. Parameter estimation from
+    the same observations changes the calibration of formal goodness-of-fit
+    statistics and must be reported separately.
+
+    Args:
+        values: Non-empty finite real observations.
+        distribution: Object exposing a cumulative distribution function.
+        points: Number of model-curve evaluation points, at least two.
+        ax: Optional Matplotlib axes; a new axes is created when omitted.
+
+    Returns:
+        Axes containing the empirical step function and model CDF.
+
+    Raises:
+        TypeError: If observations, distribution, or points have invalid types.
+        ValueError: If observations are invalid or fewer than two points are used.
+
+    Equation:
+        [EQ-STAT-005], [EQ-INF-GOF-KS-001].
+
+    References:
+        [REF-NIST-GOF], [REF-MATPLOTLIB].
+
+    """
+    sample = tuple(sorted(coerce_finite_sample(values)))
+    if not isinstance(distribution, CumulativeDistribution):
+        raise TypeError("distribution must expose cdf(x)")
+    checked_points = require_non_negative_integer(points, name="points")
+    if checked_points < 2:
+        raise ValueError("points must be at least two")
+    span = sample[-1] - sample[0]
+    padding = 0.05 * span if span > 0.0 else max(1.0, abs(sample[0]) * 0.05)
+    lower = sample[0] - padding
+    upper = sample[-1] + padding
+    step = (upper - lower) / (checked_points - 1)
+    x_values = tuple(lower + index * step for index in range(checked_points))
+    unique = tuple(dict.fromkeys(sample))
+    empirical = tuple(empirical_cdf(sample, value) for value in unique)
+    model = tuple(distribution.cdf(value) for value in x_values)
+    plt = _pyplot()
+    axes = ax if ax is not None else plt.subplots()[1]
+    axes.step(
+        unique,
+        empirical,
+        where="post",
+        color="#4C78A8",
+        label=f"empirical CDF (n={len(sample)})",
+    )
+    axes.plot(x_values, model, color="#E45756", label="model CDF")
+    axes.set(xlabel="x", ylabel="Cumulative probability", ylim=(0.0, 1.05))
+    axes.set_title(f"Empirical versus {type(distribution).__name__} CDF")
+    axes.legend()
     return axes
 
 

@@ -6,11 +6,15 @@ The repository uses a directed acyclic package graph. An arrow means "may
 depend on."
 
 ```text
-probstat.visualization ──> probstat.uq ────────────────┐
-          │                   │                        v
-          ├────────────> probstat.distributions ─> probstat.foundations
-          ├────────────> probstat.statistics ──────────^
-          └────────────> probstat.probability ─────────^
+visualization
+  ├─> uq ───────────────────────────────────────┐
+  ├─> inference ──> distributions ──────────────┤
+  ├─> multivariate ─> distributions ────────────┤
+  ├─> distributions ────────────────────────────┤
+  ├─> statistics ───────────────────────────────┤
+  └─> probability ──────────────────────────────┤
+                                                v
+                                           foundations
 ```
 
 `probstat.__init__` exposes version metadata only. This deliberate choice keeps
@@ -26,6 +30,8 @@ cycle.
 | `statistics` | Descriptive statistics, estimators, diagnostics | Distribution implementations or plotting |
 | `distributions` | Distribution objects, density/mass/CDF behavior, sampling | Educational rendering |
 | `uq` | Cross-cutting uncertainty vocabulary, QoI contracts, numerical verification | Monte Carlo, reliability, inference, or domain-specific solvers |
+| `multivariate` | Vector-valued distributions and covariance-aware probability operations | Inference workflows or plotting |
+| `inference` | Estimation, confidence procedures, tests, and diagnostics | Rendering, simulation orchestration, or application models |
 | `visualization` | Optional plots and explanatory annotations | Mathematical truth or validation rules |
 
 Structural interfaces such as `DiscreteProbabilityLaw` and

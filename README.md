@@ -11,7 +11,17 @@ The project has two equally important outputs:
 
 ## Foundation releases
 
-Release `0.7.0` adds:
+Release `0.8.0` adds:
+
+- Lognormal, Weibull, and positive-definite multivariate Normal models with
+  documented parameterizations and reproducible sampling;
+- Normal and Lognormal MLE, KS/AD goodness-of-fit diagnostics, and explicit z,
+  large-sample, and Wilson confidence procedures;
+- fitted-CDF visualization and a seeded statistical-fitting laboratory; and
+- dependency-free Cholesky algebra with singular-covariance rejection instead
+  of hidden numerical jitter.
+
+Release `0.7.0` added:
 
 - a test-enforced matrix for all 110 supplied ATHENS 2026 VV-UQ topics, with
   honest `Implemented`, `Partial`, and `Planned` states;
@@ -105,11 +115,12 @@ citation key to [the bibliography](docs/references.md).
 
 1. [Learning path](docs/learning-path.md)
 2. [VV-UQ foundations](docs/foundations/vv-uq-foundations.md)
-3. [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
-4. [Architecture](docs/architecture.md)
-5. [Equation registry](docs/equation-registry.md)
-6. [Contribution contract](CONTRIBUTING.md)
-7. [Roadmap](memory/ROADMAP.md)
+3. [Uncertainty modeling and fitting](docs/foundations/uncertainty-modeling-and-fitting.md)
+4. [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
+5. [Architecture](docs/architecture.md)
+6. [Equation registry](docs/equation-registry.md)
+7. [Contribution contract](CONTRIBUTING.md)
+8. [Roadmap](memory/ROADMAP.md)
 
 ## Design promise
 

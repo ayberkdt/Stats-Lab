@@ -3,6 +3,32 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.8.0] — 2026-10-09
+
+### Added
+
+- Lognormal and shape-scale Weibull laws with explicit parameterizations,
+  stable direct tails, generalized quantiles, moments, hazards where defined,
+  and call-local seeded sampling.
+- A positive-definite multivariate Normal implementation with Cholesky
+  validation/sampling, log-density, Mahalanobis distance, marginals, and
+  correlations, without adding a numerical runtime dependency.
+- Closed-form Normal and Lognormal maximum-likelihood estimators.
+- One-sample Kolmogorov-Smirnov statistic with an explicitly limited
+  asymptotic p-value and a tail-stable Anderson-Darling statistic without an
+  invented universal calibration.
+- Known-scale/large-sample mean intervals and Wilson score intervals.
+- A fitted-CDF diagnostic, reproducible statistical-fitting lab, UQ-1 guide,
+  equation records, tests, and primary references.
+
+### Changed
+
+- ATHENS coverage evidence advances required families and multivariate Normal
+  to implemented; broader estimation, GOF calibration, confidence intervals,
+  and labs remain honestly partial.
+- Architecture now reserves separate layer-2 ownership for `multivariate` and
+  `inference`, avoiding a monolithic UQ package.
+
 ## [0.7.0] — 2026-10-09
 
 ### Added
