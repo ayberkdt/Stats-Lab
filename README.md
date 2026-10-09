@@ -11,8 +11,12 @@ The project has two equally important outputs:
 
 ## Foundation releases
 
-Release `0.2.0` provides:
+Release `0.3.0` provides:
 
+- immutable finite random variables with induced PMFs and CDFs;
+- exact transformations, expectation, raw/central moments, and variance;
+- joint PMFs, marginalization, conditional PMFs, random-variable independence,
+  covariance, and correlation;
 - immutable finite sample spaces and owned event algebra;
 - arbitrary finite probability measures and uniform measures;
 - conditional probability, event independence, total probability, Bayes' rule,
@@ -46,6 +50,7 @@ python examples/generate_foundation_figures.py
 
 ```python
 from probstat.probability import FiniteProbabilityMeasure, FiniteSampleSpace
+from probstat.probability import FiniteRandomVariable
 
 die = FiniteSampleSpace((1, 2, 3, 4, 5, 6))
 fair = FiniteProbabilityMeasure.uniform(die)
@@ -53,6 +58,10 @@ even = die.event((2, 4, 6))
 
 print(fair.probability(even))  # 0.5
 print(fair.expectation(float))  # 3.5
+
+roll = FiniteRandomVariable.from_function(fair, float, name="Roll")
+print(roll.expectation)  # 3.5
+print(roll.variance)  # 2.916666...
 ```
 
 Each public function links its formula to an ID such as `EQ-STAT-001`. Look up

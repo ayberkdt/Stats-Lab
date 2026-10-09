@@ -18,8 +18,8 @@ Status markers: `[x]` complete, `[~]` in progress, `[ ]` planned.
 - [x] Probability-space concepts and axioms documented.
 - [x] Finite sample spaces, event algebra, and set identities.
 - [x] Conditional probability, independence, total probability, and Bayes' rule.
-- [~] Random variables and finite expectation; moments and transformations planned.
-- [ ] Joint, marginal, and conditional distributions.
+- [x] Finite random variables, transformations, expectation, moments, and CDFs.
+- [x] Finite joint, marginal, and conditional PMFs; dependence summaries.
 - [ ] Probability generating, moment generating, and characteristic functions.
 - [ ] Modes of convergence, laws of large numbers, and central limit theorems.
 - [ ] Measure/integration bridge: sigma-algebras, measurable maps, Lebesgue

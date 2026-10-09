@@ -9,7 +9,10 @@ from numbers import Real
 from types import MappingProxyType
 from typing import Generic, TypeVar
 
-from probstat.foundations.validation import require_probability
+from probstat.foundations.validation import (
+    require_non_negative_finite_real,
+    require_probability,
+)
 
 OutcomeT = TypeVar("OutcomeT", bound=Hashable)
 _NORMALIZATION_TOLERANCE = 1e-12
@@ -609,7 +612,9 @@ class FiniteProbabilityMeasure(Generic[OutcomeT]):
         """
         self._require_owned_event(first)
         self._require_owned_event(second)
-        checked_tolerance = _require_tolerance(tolerance)
+        checked_tolerance = require_non_negative_finite_real(
+            tolerance, name="tolerance"
+        )
         joint = self.probability(first.intersection(second))
         product = self.probability(first) * self.probability(second)
         return math.isclose(
@@ -761,28 +766,3 @@ class FiniteProbabilityMeasure(Generic[OutcomeT]):
                 raise ValueError(f"value({outcome!r}) must be finite")
             terms.append(numeric_result * self._weights[outcome])
         return math.fsum(terms)
-
-
-def _require_tolerance(value: float) -> float:
-    """Validate a finite, non-negative numerical comparison tolerance.
-
-    Args:
-        value: Candidate absolute tolerance.
-
-    Returns:
-        The validated tolerance as a float.
-
-    Raises:
-        TypeError: If ``value`` is not real.
-        ValueError: If ``value`` is negative or non-finite.
-
-    References:
-        [REF-PYTHON-MATH]. This validator evaluates no probability equation.
-
-    """
-    if isinstance(value, bool) or not isinstance(value, Real):
-        raise TypeError("tolerance must be a real number")
-    result = float(value)
-    if not math.isfinite(result) or result < 0.0:
-        raise ValueError("tolerance must be finite and non-negative")
-    return result

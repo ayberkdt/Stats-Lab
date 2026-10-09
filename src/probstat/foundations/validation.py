@@ -60,6 +60,58 @@ def require_probability(value: float, *, name: str = "p") -> float:
     return result
 
 
+def require_finite_real(value: Real, *, name: str) -> float:
+    """Validate and return a finite real number.
+
+    Args:
+        value: Candidate real number. Boolean values are rejected.
+        name: Parameter name used in an error message.
+
+    Returns:
+        The finite value as a ``float``.
+
+    Raises:
+        TypeError: If ``value`` is not a real number.
+        ValueError: If ``value`` is NaN or infinite.
+
+    References:
+        [REF-PYTHON-MATH]. This is a numerical-domain validator and evaluates no
+        mathematical equation.
+
+    """
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise TypeError(f"{name} must be a real number")
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError(f"{name} must be finite")
+    return result
+
+
+def require_non_negative_finite_real(value: Real, *, name: str) -> float:
+    """Validate and return a finite non-negative real number.
+
+    Args:
+        value: Candidate real number. Boolean values are rejected.
+        name: Parameter name used in an error message.
+
+    Returns:
+        The finite non-negative value as a ``float``.
+
+    Raises:
+        TypeError: If ``value`` is not a real number.
+        ValueError: If ``value`` is negative, NaN, or infinite.
+
+    References:
+        [REF-PYTHON-MATH]. This is a numerical-domain validator and evaluates no
+        mathematical equation.
+
+    """
+    result = require_finite_real(value, name=name)
+    if result < 0.0:
+        raise ValueError(f"{name} must be non-negative")
+    return result
+
+
 def coerce_finite_sample(
     values: Iterable[Real], *, name: str = "values"
 ) -> tuple[float, ...]:

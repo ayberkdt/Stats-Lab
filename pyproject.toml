@@ -1,21 +1,21 @@
 [build-system]
-requires = ["hatchling>=1.26"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=77", "wheel>=0.43"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "probstat-library"
-version = "0.2.0"
+version = "0.3.0"
 description = "A citation-first, layered probability and statistics library."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { file = "LICENSE" }
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
 authors = [{ name = "Probability and Statistics Library contributors" }]
 keywords = ["probability", "statistics", "education", "scientific-computing"]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Intended Audience :: Education",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: BSD License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -27,8 +27,8 @@ dependencies = []
 visualization = ["matplotlib>=3.8"]
 dev = ["pytest>=8.0", "ruff>=0.6", "mypy>=1.11"]
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/probstat"]
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"

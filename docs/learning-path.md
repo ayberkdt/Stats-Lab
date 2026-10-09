@@ -40,6 +40,10 @@ families. Distinguish PMFs, PDFs, CDFs, expectations, and samples.
 
 Code: `probstat.distributions`.
 
+Read: [Finite random variables and joint laws](foundations/random-variables.md).
+The executable route moves from mappings and induced PMFs to transformations,
+moments, joint laws, marginalization, conditional PMFs, and dependence.
+
 ## Stage 4 and beyond
 
 The ordered route is:

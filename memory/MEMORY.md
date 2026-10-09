@@ -23,7 +23,7 @@ teaching are co-equal goals.
 
 ## Current state
 
-- Current release: `0.2.0` finite-probability foundation.
+- Current release: `0.3.0` finite random-variable and joint-law foundation.
 - Python baseline: 3.11+.
 - Runtime dependency policy: standard library first; optional Matplotlib for
   plots. Add numerical dependencies only through an ADR.
@@ -34,7 +34,8 @@ teaching are co-equal goals.
 
 - Work status and future sequencing: [ROADMAP.md](ROADMAP.md)
 - Architecture rationale: [ADR-0001](decisions/ADR-0001-layered-citation-first.md)
-- Latest session: [2026-10-09 finite probability](sessions/2026-10-09-finite-probability.md)
+- Latest session: [2026-10-09 random variables](sessions/2026-10-09-random-variables.md)
+- Finite probability session: [2026-10-09 finite probability](sessions/2026-10-09-finite-probability.md)
 - Initial session: [2026-10-09 foundation](sessions/2026-10-09-foundation.md)
 - Contributor rules: `CONTRIBUTING.md`
 - Equations: `docs/equation-registry.md`
@@ -42,8 +43,9 @@ teaching are co-equal goals.
 
 ## Next safe step
 
-Implement an immutable finite random-variable abstraction over
-`FiniteProbabilityMeasure`, then add transformations, moments, covariance of
-random variables, and joint/marginal distributions without coupling the
-probability package to the distribution-object layer.
+Add probability-generating, moment-generating, and characteristic functions to
+finite random variables with explicit existence and numeric-domain behavior.
+Then define the distribution protocol that lets analytic distribution objects
+and induced finite laws share carefully limited interfaces without reversing
+the package dependency direction.
 

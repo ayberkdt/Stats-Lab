@@ -8,7 +8,12 @@ from typing import Any
 
 from probstat.distributions import Bernoulli, Normal
 from probstat.foundations.validation import coerce_finite_sample
-from probstat.probability import FiniteEvent, FiniteProbabilityMeasure
+from probstat.probability import (
+    FiniteEvent,
+    FiniteJointDistribution,
+    FiniteProbabilityMeasure,
+    FiniteRandomVariable,
+)
 from probstat.statistics import empirical_cdf
 
 
@@ -117,6 +122,98 @@ def plot_finite_measure(
     axes.set_title(title)
     for position, mass in zip(positions, masses, strict=True):
         axes.annotate(f"{mass:.3f}", (position, mass), ha="center", va="bottom")
+    return axes
+
+
+def plot_random_variable_pmf(
+    variable: FiniteRandomVariable[Any, Any], *, ax: Any | None = None
+) -> Any:
+    """Plot the induced PMF of a finite random variable.
+
+    Args:
+        variable: Finite random variable with hashable support values.
+        ax: Optional Matplotlib axes; a new axes is created when omitted.
+
+    Returns:
+        The populated Matplotlib axes.
+
+    Equation:
+        [EQ-RV-001].
+
+    References:
+        [REF-ROSS-2019, Chapters 4-5], [REF-MATPLOTLIB].
+
+    """
+    plt = _pyplot()
+    axes = ax if ax is not None else plt.subplots()[1]
+    support = variable.support
+    masses = tuple(variable.pmf(value) for value in support)
+    positions = tuple(range(len(support)))
+    axes.bar(positions, masses, width=0.65, color="#72B7B2")
+    axes.set(
+        xticks=positions,
+        xticklabels=tuple(str(value) for value in support),
+        xlabel=f"{variable.name} value",
+        ylabel="Probability mass",
+        ylim=(0.0, max(masses) * 1.18),
+    )
+    axes.set_title(f"Induced PMF of {variable.name}")
+    for position, mass in zip(positions, masses, strict=True):
+        axes.annotate(f"{mass:.3f}", (position, mass), ha="center", va="bottom")
+    return axes
+
+
+def plot_joint_pmf(
+    joint: FiniteJointDistribution[Any, Any, Any], *, ax: Any | None = None
+) -> Any:
+    """Plot a finite joint PMF as an annotated probability-mass matrix.
+
+    Args:
+        joint: Joint law of two finite random variables.
+        ax: Optional Matplotlib axes; a new axes is created when omitted.
+
+    Returns:
+        The populated Matplotlib axes.
+
+    Equation:
+        [EQ-RV-010].
+
+    References:
+        [REF-ROSS-2019, Chapter 6], [REF-MATPLOTLIB].
+
+    """
+    plt = _pyplot()
+    axes = ax if ax is not None else plt.subplots()[1]
+    first_support = joint.first.support
+    second_support = joint.second.support
+    matrix = tuple(
+        tuple(joint.joint_pmf(first, second) for first in first_support)
+        for second in second_support
+    )
+    maximum_mass = max(max(row) for row in matrix)
+    image = axes.imshow(matrix, cmap="Blues", vmin=0.0)
+    axes.set(
+        xticks=tuple(range(len(first_support))),
+        xticklabels=tuple(str(value) for value in first_support),
+        yticks=tuple(range(len(second_support))),
+        yticklabels=tuple(str(value) for value in second_support),
+        xlabel=joint.first.name,
+        ylabel=joint.second.name,
+    )
+    axes.set_title(f"Joint PMF of {joint.first.name} and {joint.second.name}")
+    for row, second in enumerate(second_support):
+        for column, first in enumerate(first_support):
+            mass = joint.joint_pmf(first, second)
+            text_color = "white" if mass > 0.5 * maximum_mass else "#1F1F1F"
+            axes.text(
+                column,
+                row,
+                f"{mass:.3f}",
+                ha="center",
+                va="center",
+                color=text_color,
+            )
+    axes.figure.colorbar(image, ax=axes, label="Probability mass")
     return axes
 
 

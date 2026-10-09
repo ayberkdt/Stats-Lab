@@ -135,6 +135,128 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 - Code: `probability.counting.multiplication_rule`.
 - Source: [REF-ROSS-2019, Section 1.1].
 
+## Finite random variables and joint laws
+
+### EQ-RV-001 — Induced probability mass function
+
+`p_X(x) = P({omega in Omega : X(omega) = x})`.
+
+- Domain: finite probability space and hashable-valued mapping `X`.
+- Meaning: collect the probability of every source outcome mapped to `x`.
+- Code: `FiniteRandomVariable`, `preimage`, `pmf`, and `distribution`.
+- Source: [REF-ROSS-2019, Chapters 4-5].
+
+### EQ-RV-002 — Transformation of a random variable
+
+`Y(omega) = g(X(omega))`.
+
+- Domain: finite random variable `X` and deterministic hashable-valued `g`.
+- Meaning: composition changes values while retaining the underlying probability
+  measure and outcome ownership.
+- Code: `FiniteRandomVariable.transform`.
+- Source: [REF-ROSS-2019, Chapter 5].
+
+### EQ-RV-003 — CDF of a finite real-valued random variable
+
+`F_X(x) = P(X <= x) = sum_{u <= x} p_X(u)`.
+
+- Domain: finite real-valued `X` and finite real evaluation point `x`.
+- Meaning: accumulated probability mass through `x`.
+- Code: `FiniteRandomVariable.cdf`.
+- Source: [REF-ROSS-2019, Chapters 4-5].
+
+### EQ-RV-004 — Expectation of a finite random variable
+
+`E[X] = sum_x x p_X(x) = sum_{omega in Omega} X(omega)p(omega)`.
+
+- Domain: finite real-valued `X`.
+- Meaning: probability-weighted center, whether summed over source outcomes or
+  induced values.
+- Code: `FiniteRandomVariable.expectation`.
+- Source: [REF-ROSS-2019, Chapters 4-5].
+
+### EQ-RV-005 — Raw moment
+
+`mu'_k = E[X^k]`.
+
+- Domain: finite real-valued `X`, integer `k >= 0`.
+- Meaning: expectation of the `k`th raw power.
+- Code: `FiniteRandomVariable.raw_moment`.
+- Source: [REF-ROSS-2019, Chapter 4].
+
+### EQ-RV-006 — Central moment
+
+`mu_k = E[(X - E[X])^k]`.
+
+- Domain: finite real-valued `X`, integer `k >= 0`.
+- Meaning: moment of deviations from the expected value.
+- Code: `FiniteRandomVariable.central_moment`.
+- Source: [REF-ROSS-2019, Chapter 4].
+
+### EQ-RV-007 — Variance and standard deviation
+
+`Var(X) = E[(X-E[X])^2]` and `sigma_X = sqrt(Var(X))`.
+
+- Domain: finite real-valued `X`.
+- Meaning: squared spread and its original-unit scale.
+- Code: `FiniteRandomVariable.variance` and `standard_deviation`.
+- Source: [REF-ROSS-2019, Chapter 4].
+
+### EQ-RV-008 — Covariance of two finite random variables
+
+`Cov(X,Y) = E[(X-E[X])(Y-E[Y])]`.
+
+- Domain: finite real-valued `X` and `Y` on the same probability measure.
+- Meaning: probability-weighted joint centered movement.
+- Code: `FiniteJointDistribution.covariance`.
+- Source: [REF-ROSS-2019, Chapter 6].
+
+### EQ-RV-009 — Correlation of two finite random variables
+
+`Corr(X,Y) = Cov(X,Y) / (sigma_X sigma_Y)`.
+
+- Domain: [EQ-RV-008] with both variances strictly positive.
+- Meaning: dimensionless linear association.
+- Code: `FiniteJointDistribution.correlation`.
+- Source: [REF-ROSS-2019, Chapter 6].
+
+### EQ-RV-010 — Joint PMF
+
+`p_{X,Y}(x,y) = P(X=x, Y=y)`.
+
+- Domain: finite random variables `X` and `Y` sharing one measure object.
+- Meaning: mass assigned to a pair of simultaneous mapped values.
+- Code: `FiniteJointDistribution`, `joint_pmf`, and `distribution`.
+- Source: [REF-ROSS-2019, Chapter 6].
+
+### EQ-RV-011 — Marginalization of a joint PMF
+
+`p_X(x) = sum_y p_{X,Y}(x,y)` and `p_Y(y) = sum_x p_{X,Y}(x,y)`.
+
+- Domain: finite joint PMF.
+- Meaning: recover either one-variable law by summing out the other value.
+- Code: `FiniteJointDistribution.first_marginal` and `second_marginal`.
+- Source: [REF-ROSS-2019, Chapter 6].
+
+### EQ-RV-012 — Conditional PMF from a joint PMF
+
+`p_{X|Y}(x|y) = p_{X,Y}(x,y) / p_Y(y)`.
+
+- Domain: finite joint PMF with `p_Y(y) > 0`.
+- Meaning: renormalize the joint slice at the observed value `y`.
+- Code: `FiniteJointDistribution.conditional_pmf_first_given_second`.
+- Source: [REF-ROSS-2019, Chapter 6].
+
+### EQ-RV-013 — Random-variable independence
+
+`X independent Y` if and only if
+`p_{X,Y}(x,y) = p_X(x)p_Y(y)` for every pair `(x,y)`.
+
+- Domain: finite random variables sharing one probability measure.
+- Meaning: the complete joint law factorizes into its marginal laws.
+- Code: `FiniteJointDistribution.are_independent`.
+- Source: [REF-ROSS-2019, Chapter 6].
+
 ## Descriptive statistics
 
 ### EQ-STAT-001 — Arithmetic mean

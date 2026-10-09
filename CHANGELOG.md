@@ -3,6 +3,22 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.3.0] — 2026-10-09
+
+### Added
+
+- Immutable finite random variables with generic hashable codomains.
+- Structural and positive support, preimages, predicate events, PMFs, and CDFs.
+- Exact finite transformations, expectations, raw/central moments, variance,
+  and standard deviation.
+- Joint PMFs, marginalization, conditional PMFs, variable-independence tests,
+  covariance, and correlation.
+- PMF and joint-mass visualizations plus two generated teaching figures.
+- Equation records `EQ-RV-001` through `EQ-RV-013` and a full conceptual guide.
+- ADR-0003 documenting codomain and shared-measure ownership rules.
+- Offline-verifiable setuptools packaging in place of an unavailable build
+  backend.
+
 ## [0.2.0] — 2026-10-09
 
 ### Added
