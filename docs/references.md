@@ -361,3 +361,30 @@ Bruno Sudret. *Uncertainty Propagation and Sensitivity Analysis in Mechanical
 Models: Contributions to Structural Reliability and Stochastic Spectral
 Methods*. Habilitation thesis, Université Blaise Pascal, Clermont-Ferrand,
 2007.
+
+## REF-ARCHER-SALTELLI-SOBOL-1997
+
+G. E. B. Archer, A. Saltelli, and I. M. Sobol. "Sensitivity Measures,
+ANOVA-like Techniques and the Use of Bootstrap." *Journal of Statistical
+Computation and Simulation* 58(2), 99-120, 1997.
+
+## REF-EFRON-TIBSHIRANI-1993
+
+Bradley Efron and Robert J. Tibshirani. *An Introduction to the Bootstrap*.
+Chapman & Hall, 1993.
+
+## REF-JANSEN-1999
+
+Michiel J. W. Jansen. "Analysis of Variance Designs for Model Output."
+*Computer Physics Communications* 117(1-2), 35-43, 1999.
+
+## REF-MORRIS-1991
+
+Max D. Morris. "Factorial Sampling Plans for Preliminary Computational
+Experiments." *Technometrics* 33(2), 161-174, 1991.
+
+## REF-CAMPOLONGO-CARIBONI-SALTELLI-2007
+
+Francesca Campolongo, Jessica Cariboni, and Andrea Saltelli. "An Effective
+Screening Design for Sensitivity Analysis of Large Models." *Environmental
+Modelling & Software* 22(10), 1509-1518, 2007.

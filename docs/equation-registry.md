@@ -2005,3 +2005,32 @@ normal consistency.
 - Code: `statistics.ranks`, `statistics.spearman_correlation`,
   `propagation.PropagationStudy.rank_correlations`.
 - Source: [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 8].
+
+## Model-based sensitivity analysis
+
+### EQ-SENS-BOOT-001 — Bootstrap percentile intervals for Sobol indices
+
+Resample the design rows `k = 1..N` with replacement `B` times, recompute
+[EQ-SENS-FIRST-001] and [EQ-SENS-TOTAL-001] on each resample from the stored
+outputs `f(A)`, `f(B)`, `f(A_B^(i))`, and report the `(1-c)/2` and `(1+c)/2`
+quantiles of the replicates.
+
+- Domain: independent design rows; percentile intervals assume the bootstrap
+  distribution approximates the sampling distribution, which is weakest for
+  indices near zero and for strongly skewed outputs.
+- Meaning: quantifies Monte Carlo error of the indices at no extra model cost.
+- Code: `sensitivity.sobol_analysis`.
+- Source: [REF-ARCHER-SALTELLI-SOBOL-1997] and [REF-EFRON-TIBSHIRANI-1993].
+
+### EQ-SENS-MORRIS-001 — Morris elementary effects
+
+`EE_i = [f(x + Delta e_i) - f(x)] / Delta`, `mu*_i = mean |EE_i|`,
+`sigma_i = sd(EE_i)` over `r` one-at-a-time trajectories on a `p`-level grid
+with `Delta = p / (2(p-1))` in the unit (probability) scale.
+
+- Domain: independent inputs; effects are measured on the probability scale
+  of each input.
+- Meaning: cheap screening (`r(d+1)` runs); large `mu*` means influential,
+  large `sigma` means nonlinear or interacting.
+- Code: `sensitivity.morris_screening`.
+- Source: [REF-MORRIS-1991] and [REF-CAMPOLONGO-CARIBONI-SALTELLI-2007].
