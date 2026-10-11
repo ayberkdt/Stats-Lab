@@ -3,6 +3,84 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.14.0] — 2026-10-12
+
+One model for every question: forward, backward, and risk analyses now share
+a single `ProbabilisticModel`, and `UQStudy` runs them with one seed tree and
+one report.
+
+### Added
+
+- **Central model** (`modeling`): `RandomInput`, `JointInput` with a Gaussian
+  copula and Nataf transformation (Pearson-to-latent correlation solver,
+  tail-accurate upper-tail maps), `ProbabilisticModel` with evaluation
+  counting, Karhunen-Loeve random-field inputs.
+- **Shared numerics**: `linalg` (Cholesky, triangular, LU, Jacobi eigen,
+  log-determinant; `multivariate` and `inference` now use it), `optimization`
+  (BFGS, Nelder-Mead, Levenberg-Marquardt, Gauss-Newton covariance, Brent,
+  finite differences), `sampling` (Latin hypercube, scrambled Halton, Sobol),
+  SplitMix64 `RandomStream` seed trees.
+- **Forward**: design-based `propagation.propagate` with quantiles, exceedance
+  curves, rank correlations, and design comparison.
+- **Sensitivity**: Sobol indices on the model with bootstrap intervals at no
+  extra model cost; Morris screening.
+- **Reliability**: HL-RF FORM for correlated non-normal inputs, SORM
+  (Breitung, Hohenbichler-Rackwitz), design-point importance sampling, subset
+  simulation, series/parallel systems with Ditlevsen bounds, bivariate normal
+  CDF, inverse FORM, design for a target reliability, method comparison.
+- **Risk**: VaR/CVaR (weighted, tie-exact), loss functions, model risk
+  assessment, fault trees (MOCUS, exact with repeated events, importance
+  measures), event trees, lognormal fragility MLE and hazard convolution,
+  EVPI/EVSI, risk matrices with documented caveats.
+- **Backward**: adaptive Metropolis with split and rank-normalized R-hat, ESS,
+  MCSE; Laplace approximation; Normal-inverse-gamma regression;
+  `CalibrationProblem` for nonlinear models with known, unknown, or Student-t
+  noise; posterior push-forward `predict`; Fisher identifiability.
+- **Validation**: area metric, u-pooling, Mahalanobis and reliability metrics,
+  ASME V&V 20 comparison, Bayes factor, applicability domain, scoped verdicts
+  and credibility records.
+- **Dynamics**: Kalman filter with Joseph update, RTS smoother, EKF, UKF,
+  bootstrap particle filter, EnKF, 3D-Var; Markov chains, Poisson and compound
+  Poisson processes, Brownian/GBM/OU, Euler-Maruyama and Milstein, KL
+  expansions.
+- **Surrogates**: polynomial chaos (Hermite/Legendre, LOO error, Sobol from
+  coefficients) and Gaussian-process regression; surrogate forward-model
+  adapter.
+- **Statistics**: Hyndman-Fan quantiles, MAD, skewness, kurtosis, ranks,
+  Spearman; t, chi-square, Fisher, binomial, rank, permutation, ANOVA and TOST
+  tests; bootstrap (percentile, basic, normal, studentized, BCa), jackknife,
+  power and sample size, multiple-testing adjustments.
+- **Distributions**: Gamma, Beta, Student-t, Chi-square, F, Logistic, Gumbel,
+  Triangular, truncated Normal, GEV; inverse survival functions; Gamma and
+  Weibull MLE; digamma/trigamma.
+- **Workflow**: `UQStudy` stages `propagate`, `sensitivity`, `screening`,
+  `reliability`, `form`, `risk`, `calibrate`, `predict`, `validate`,
+  `emulate`, plus Markdown reports and per-stage figures.
+- **Visualization**: semantic chart theme (light porcelain and dark graphite
+  palettes, validated for colour-vision deficiency), assertion titles, direct
+  labels, uncertainty bands, and new plots for designs, output distributions,
+  FORM geometry, method comparisons, loss exceedance, MCMC, filtering,
+  surrogates, and random fields; `PROBSTAT_CHART_THEME` selects the theme.
+- Labs: central model, UQ study, nonlinear calibration, filtering, surrogate,
+  random field; CI on Python 3.11-3.13; `py.typed`.
+
+### Changed
+
+- `Normal.cdf` evaluates the lower tail through `erfc` (relative error below
+  1e-13 down to 1e-300).
+- All foundation plots were rebuilt on the theme; the PDF/CDF twin-axis plot is
+  now two panels.
+- ATHENS ledger: 91 implemented, 17 partial, 2 planned rows.
+
+### Fixed
+
+- Nataf maps saturated near latent values of 8, stalling FORM at high
+  reliability; upper tails now use inverse survival functions.
+- `UQStudy.emulate` chooses a Legendre basis for independent uniform inputs; a
+  Hermite basis extrapolated badly at far-tail design points.
+- Method comparison omits SORM rows when the FORM index is not positive
+  instead of failing.
+
 ## [0.13.0] — 2026-10-09
 
 ### Added
