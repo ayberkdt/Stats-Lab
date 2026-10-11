@@ -1546,3 +1546,81 @@ Random Vector." *Problems of Information Transmission* 23(2), 95-101, 1987
 
 Jianhua Lin. "Divergence Measures Based on the Shannon Entropy." *IEEE
 Transactions on Information Theory* 37(1), 145-151, 1991.
+
+## REF-DEMPSTER-LAIRD-RUBIN-1977
+
+A. P. Dempster, N. M. Laird, and D. B. Rubin. "Maximum Likelihood from
+Incomplete Data via the EM Algorithm." *Journal of the Royal Statistical
+Society: Series B (Methodological)* 39(1), 1-38, 1977. JSTOR 2984875.
+
+## REF-WU-1983
+
+C. F. Jeff Wu. "On the Convergence Properties of the EM Algorithm." *The
+Annals of Statistics* 11(1), 95-103, 1983.
+DOI: [10.1214/aos/1176346060](https://doi.org/10.1214/aos/1176346060).
+
+## REF-MCLACHLAN-KRISHNAN-2008
+
+Geoffrey J. McLachlan and Thriyambakam Krishnan. *The EM Algorithm and
+Extensions*. 2nd edition. Wiley, 2008. ISBN 978-0-471-20170-0.
+
+## REF-MCLACHLAN-PEEL-2000
+
+Geoffrey McLachlan and David Peel. *Finite Mixture Models*. Wiley, 2000.
+ISBN 978-0-471-00626-8.
+
+## REF-ARTHUR-VASSILVITSKII-2007
+
+David Arthur and Sergei Vassilvitskii. "k-means++: The Advantages of Careful
+Seeding." In *Proceedings of the Eighteenth Annual ACM-SIAM Symposium on
+Discrete Algorithms (SODA '07)*, 1027-1035. SIAM, 2007.
+
+## REF-RUBIN-1981
+
+Donald B. Rubin. "Estimation in Parallel Randomized Experiments." *Journal of
+Educational Statistics* 6(4), 377-401, 1981.
+DOI: [10.3102/10769986006004377](https://doi.org/10.3102/10769986006004377).
+
+## REF-RUBIN-1984
+
+Donald B. Rubin. "Bayesianly Justifiable and Relevant Frequency Calculations
+for the Applied Statistician." *The Annals of Statistics* 12(4), 1151-1172,
+1984. DOI: [10.1214/aos/1176346785](https://doi.org/10.1214/aos/1176346785).
+
+## REF-GELMAN-MENG-STERN-1996
+
+Andrew Gelman, Xiao-Li Meng, and Hal Stern. "Posterior Predictive Assessment
+of Model Fitness via Realized Discrepancies." *Statistica Sinica* 6(4),
+733-807 (with discussion), 1996.
+
+## REF-BETANCOURT-GIROLAMI-2013
+
+M. J. Betancourt and Mark Girolami. "Hamiltonian Monte Carlo for Hierarchical
+Models." arXiv preprint arXiv:1312.0906, 2013.
+
+## REF-GELMAN-2006
+
+Andrew Gelman. "Prior Distributions for Variance Parameters in Hierarchical
+Models." *Bayesian Analysis* 1(3), 515-534, 2006.
+DOI: [10.1214/06-BA117A](https://doi.org/10.1214/06-BA117A).
+
+## REF-MORRIS-1983
+
+Carl N. Morris. "Parametric Empirical Bayes Inference: Theory and
+Applications." *Journal of the American Statistical Association* 78(381),
+47-55, 1983.
+DOI: [10.1080/01621459.1983.10477920](https://doi.org/10.1080/01621459.1983.10477920).
+
+## REF-GNEITING-BALABDAOUI-RAFTERY-2007
+
+Tilmann Gneiting, Fadoua Balabdaoui, and Adrian E. Raftery. "Probabilistic
+Forecasts, Calibration and Sharpness." *Journal of the Royal Statistical
+Society: Series B* 69(2), 243-268, 2007.
+DOI: [10.1111/j.1467-9868.2007.00587.x](https://doi.org/10.1111/j.1467-9868.2007.00587.x).
+
+## REF-DAWID-1984
+
+A. P. Dawid. "Present Position and Potential Developments: Some Personal
+Views. Statistical Theory: The Prequential Approach." *Journal of the Royal
+Statistical Society: Series A* 147(2), 278-292 (with discussion), 1984.
+JSTOR 2981683.
