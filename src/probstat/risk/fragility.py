@@ -53,8 +53,8 @@ def _log_standard_normal_cdf(z: float) -> float:
         z: Finite argument.
 
     Returns:
-        Natural log of the standard normal CDF; for ``z < -30`` the leading
-        Mills-ratio asymptote is used.
+        Natural log of the standard normal CDF; for ``z < -30`` the
+        asymptotic Mills-ratio series (four correction terms) is used.
 
     References:
         [EQ-DIST-NORM-002], [REF-NIST-DLMF, Equation 7.12.1].
@@ -62,7 +62,15 @@ def _log_standard_normal_cdf(z: float) -> float:
     """
     if z > -30.0:
         return math.log(0.5 * math.erfc(-z / math.sqrt(2.0)))
-    return -0.5 * z * z - math.log(-z) - 0.5 * math.log(2.0 * math.pi)
+    # Asymptotic Mills-ratio series 1 - 1/z^2 + 3/z^4 - 15/z^6 + 105/z^8; at
+    # z = -30 the truncation error is below 1e-13, so the switch is seamless.
+    inverse = 1.0 / (z * z)
+    series = 1.0 - inverse * (
+        1.0 - 3.0 * inverse * (1.0 - 5.0 * inverse * (1.0 - 7.0 * inverse))
+    )
+    return (
+        -0.5 * z * z - math.log(-z) - 0.5 * math.log(2.0 * math.pi) + math.log(series)
+    )
 
 
 @dataclass(frozen=True, slots=True)
