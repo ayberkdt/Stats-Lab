@@ -226,22 +226,24 @@ def plot_sobol_indices(
             color=palette.ink,
         )
     top = len(order) - 1
+    top_first, top_total = first_order[order[top]], total_effect[order[top]]
+    left_first = top_first <= top_total
     axes.annotate(
         "first-order S_i",
-        (first_order[order[top]], top),
-        xytext=(0.0, 12.0),
+        (min(top_first, top_total) if left_first else max(top_first, top_total), top),
+        xytext=(-6.0 if left_first else 6.0, 12.0),
         textcoords="offset points",
-        ha="center",
+        ha="right" if left_first else "left",
         fontsize=ANNOTATION_SIZE,
         fontweight="bold",
         color=first_colour,
     )
     axes.annotate(
         "total S_Ti",
-        (total_effect[order[top]], top),
-        xytext=(0.0, 12.0),
+        (max(top_first, top_total) if left_first else min(top_first, top_total), top),
+        xytext=(6.0 if left_first else -6.0, 12.0),
         textcoords="offset points",
-        ha="center",
+        ha="left" if left_first else "right",
         fontsize=ANNOTATION_SIZE,
         fontweight="bold",
         color=total_colour,
@@ -260,10 +262,16 @@ def plot_sobol_indices(
     if title is None and candidates:
         key = max(candidates, key=lambda i: gaps[i] / total_effect[i])
         share = gaps[key] / total_effect[key]
+        top_input = max(range(len(names)), key=lambda i: total_effect[i])
         if share >= 0.8:
             title = (
                 f"{names[key]} matters only through interactions "
                 f"(S = {first_order[key]:.2f}, S_T = {total_effect[key]:.2f})"
+            )
+        elif gaps[key] < 0.02:
+            title = (
+                f"{names[top_input]} drives {total_effect[top_input]:.0%} of the "
+                "variance; interactions are negligible"
             )
         else:
             title = f"Interactions add {gaps[key]:.2f} to the influence of {names[key]}"

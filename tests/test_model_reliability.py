@@ -597,3 +597,31 @@ class ComparisonTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ComparisonRobustnessTests(unittest.TestCase):
+    """Method comparison degrades gracefully when the median input fails."""
+
+    def test_negative_beta_omits_sorm_rows(self) -> None:
+        """With beta < 0 the comparison keeps FORM and MC and skips SORM."""
+        from probstat.distributions import Normal as _Normal
+        from probstat.modeling import JointInput as _Joint
+        from probstat.modeling import ProbabilisticModel as _Model
+        from probstat.modeling import RandomInput as _Input
+        from probstat.reliability import ModelLimitState as _State
+        from probstat.reliability import compare_reliability_methods as _compare
+        from probstat.uq import QuantityOfInterest as _QoI
+
+        model = _Model(
+            _Joint.independent(_Input("x", _Normal(0.0, 1.0))),
+            lambda p: {"y": p["x"]},
+            (_QoI("y", "identity"),),
+        )
+        state = _State(model, "y", -1.0, failure="above")
+        comparison = _compare(
+            state, methods=("form", "sorm", "mc"), monte_carlo_samples=2000, seed=1
+        )
+        methods = [row.method for row in comparison.rows]
+        self.assertIn("FORM", methods)
+        self.assertNotIn("SORM-Breitung", methods)
+        self.assertAlmostEqual(comparison.row("FORM").probability, 0.8413447, places=5)

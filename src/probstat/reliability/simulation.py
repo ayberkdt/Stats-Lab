@@ -663,7 +663,9 @@ def compare_reliability_methods(
 
     Args:
         limit_state: Model limit state.
-        methods: Subset of ``("form", "sorm", "is", "subset", "mc")``.
+        methods: Subset of ``("form", "sorm", "is", "subset", "mc")``. SORM
+            rows are omitted when the FORM index is not positive, because the
+            curvature corrections are undefined there.
         monte_carlo_samples: Crude Monte Carlo sample size.
         importance_samples: Design-point importance-sampling sample size.
         subset_samples: Subset-simulation samples per level.
@@ -707,7 +709,9 @@ def compare_reliability_methods(
                 None,
             )
         )
-    if "sorm" in requested and form_result is not None:
+    if "sorm" in requested and form_result is not None and form_result.beta > 0.0:
+        # SORM corrections are undefined for beta <= 0 (median input fails);
+        # the comparison then omits the SORM rows instead of failing outright.
         second = sorm(state, form_result=form_result)
         for label, probability in (
             ("SORM-Breitung", second.breitung_probability),

@@ -381,6 +381,7 @@ def title_block(ax: Any, title: str, subtitle: str | None = None) -> None:
 
     """
     palette = active_palette()
+    title = title[:1].upper() + title[1:]
     ax.set_title(
         title,
         loc="left",
