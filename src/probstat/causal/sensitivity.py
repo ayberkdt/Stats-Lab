@@ -60,7 +60,9 @@ def _e_value_of(ratio: float) -> float:
 
     """
     rr = ratio if ratio >= 1.0 else 1.0 / ratio
-    return rr + math.sqrt(rr * (rr - 1.0))
+    # sqrt(rr) sqrt(rr - 1) instead of sqrt(rr (rr - 1)) avoids overflow of
+    # the product for ratios beyond about 1e154 (or below 1e-154).
+    return rr + math.sqrt(rr) * math.sqrt(rr - 1.0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,7 +124,9 @@ def e_value(
     if hi is not None and hi < rr:
         raise ValueError("upper must not be below risk_ratio")
     limit_value: float | None = None
-    if lo is not None or hi is not None:
+    if rr == 1.0 and (lo is not None or hi is not None):
+        limit_value = 1.0
+    elif lo is not None or hi is not None:
         limit = lo if rr >= 1.0 else hi
         if limit is None:
             needed = "lower" if rr >= 1.0 else "upper"
@@ -163,7 +167,9 @@ def confounding_bias_factor(
     ud = _positive(confounder_outcome_rr, name="confounder_outcome_rr")
     if eu < 1.0 or ud < 1.0:
         raise ValueError("association strengths must be at least one")
-    return eu * ud / (eu + ud - 1.0)
+    # Divide before multiplying so that very strong associations do not
+    # overflow: eu ud / (eu + ud - 1) = eu / ((eu + ud - 1) / ud).
+    return eu / ((eu + ud - 1.0) / ud)
 
 
 def risk_ratio_from_odds_ratio(odds_ratio: float, *, common_outcome: bool) -> float:

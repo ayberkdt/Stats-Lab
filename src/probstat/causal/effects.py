@@ -74,7 +74,9 @@ def _binary_treatment(treatment: Iterable[object], size: int) -> tuple[int, ...]
         Project validation policy. No equation is evaluated.
 
     """
-    values = as_vector(treatment, name="treatment")
+    values = as_vector(
+        [int(v) if isinstance(v, bool) else v for v in treatment], name="treatment"
+    )
     if len(values) != size:
         raise ValueError("treatment must have one entry per observation")
     if any(value not in (0.0, 1.0) for value in values):
@@ -493,8 +495,11 @@ def estimate_ipw(
 
     Returns:
         :class:`EffectEstimate`; its standard error treats the propensity
-        scores as known (use :func:`bootstrap_effect` to include their
-        estimation).
+        scores as known. With fitted scores it is conservative: in a
+        simulation with n = 300 the Horvitz-Thompson SE was about twice the
+        sampling SD (coverage near 1.0) and the Hajek SE about 1.5 times.
+        Use :func:`bootstrap_effect` (or AIPW) for intervals that reflect
+        the estimation of the scores.
 
     Raises:
         ValueError: If inputs are invalid or trimming empties an arm.

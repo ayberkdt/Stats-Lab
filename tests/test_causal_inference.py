@@ -497,6 +497,13 @@ class EffectEstimationTests(unittest.TestCase):
         self.assertLess(abs(regression.estimate - TRUE_ATE), 0.1)
         self.assertTrue(math.isnan(regression.standard_error))
 
+    def test_boolean_treatment_is_accepted(self) -> None:
+        """Booleans are 0/1 indicators, as the docstring promises."""
+        as_bool = [bool(v) for v in self.treatment]
+        numeric = estimate_ipw(self.rows, self.treatment, self.outcome)
+        boolean = estimate_ipw(self.rows, as_bool, self.outcome)
+        self.assertEqual(numeric.estimate, boolean.estimate)
+
     def test_aipw_is_doubly_robust(self) -> None:
         """AIPW stays consistent when exactly one working model omits X1."""
         t, y = self.treatment, self.outcome
@@ -669,3 +676,21 @@ class EValueTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SensitivityOverflowTests(unittest.TestCase):
+    """E-values and bias factors stay finite where the answer is finite."""
+
+    def test_extreme_ratios_do_not_overflow(self) -> None:
+        """E(1e-300) = 2e300 and B(1e200, 1e200) = 5e199 (closed forms)."""
+        self.assertAlmostEqual(e_value(1e-300).point / 2e300, 1.0, places=12)
+        self.assertAlmostEqual(e_value(1e300).point / 2e300, 1.0, places=12)
+        self.assertAlmostEqual(
+            confounding_bias_factor(1e200, 1e200) / 5e199, 1.0, places=12
+        )
+        self.assertAlmostEqual(confounding_bias_factor(3.0, 2.0), 1.5, places=15)
+
+    def test_null_ratio_with_only_an_upper_limit(self) -> None:
+        """At RR = 1 both E-values are 1, whichever limit is supplied."""
+        result = e_value(1.0, upper=1.2)
+        self.assertEqual((result.point, result.confidence_limit), (1.0, 1.0))

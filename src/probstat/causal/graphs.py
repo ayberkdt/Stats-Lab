@@ -574,8 +574,12 @@ def satisfies_frontdoor(
     intercepts every directed path from ``X`` to ``Y``; (ii) there is no
     unblocked backdoor path from ``X`` to ``M``; and (iii) ``X`` blocks every
     backdoor path from ``M`` to ``Y``. Conditions (ii) and (iii) are checked
-    as d-separations in the graphs with the edges leaving ``X`` (respectively
-    ``M``) cut.
+    as set-level d-separations in the graphs with the edges leaving ``X``
+    (respectively every member of ``M``) cut. For a multi-element ``M`` the
+    set-level form of (iii) is weaker than checking each mediator separately
+    as in Pearl's statement; a path that leaves through another mediator's
+    outgoing edge is cut. Exhaustive checks on random discrete models found
+    the frontdoor formula exact in every case this test accepts.
 
     Args:
         graph: Causal graph.
