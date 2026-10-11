@@ -33,6 +33,26 @@ from .theme import (
 )
 
 
+def _plain_log_axis(axis: Any, *, percent: bool = False) -> None:
+    """Label a logarithmic axis with plain numbers instead of powers of ten.
+
+    Args:
+        axis: Matplotlib ``xaxis`` or ``yaxis``.
+        percent: Write probabilities as percentages.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    from matplotlib.ticker import FuncFormatter, NullFormatter
+
+    if percent:
+        axis.set_major_formatter(FuncFormatter(lambda v, _: f"{100.0 * v:.4g}%"))
+    else:
+        axis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+    axis.set_minor_formatter(NullFormatter())
+
+
 @themed
 def plot_method_comparison(
     entries: Sequence[tuple[str, float, float | None, float | None]],
@@ -378,6 +398,7 @@ def plot_output_distribution(
     name: str = "Y",
     unit: str | None = None,
     threshold: float | None = None,
+    failure_below: bool = False,
     probabilities: Sequence[float] = (0.05, 0.5, 0.95),
     bins: int | None = None,
     ax: Any | None = None,
@@ -388,7 +409,9 @@ def plot_output_distribution(
         values: Propagated output sample.
         name: Output name.
         unit: Optional unit.
-        threshold: Optional limit; its exceedance fraction is annotated.
+        threshold: Optional limit; its tail fraction is annotated.
+        failure_below: Report ``P(Y < limit)`` instead of ``P(Y > limit)``
+            (for margins, where low values are failures).
         probabilities: Quantile levels drawn as muted ticks.
         bins: Histogram bin count (Freedman-Diaconis-like default).
         ax: Optional axes.
@@ -420,23 +443,30 @@ def plot_output_distribution(
         zorder=2,
     )
     top = axes.get_ylim()[1]
-    for p in probabilities:
+    for row, p in enumerate(probabilities):
         q = quantile(sample, p)
+        height = top * (0.95 - 0.09 * (row % 3))
         axes.vlines(
-            q, 0.0, top * 0.92, color=palette.ink, linewidth=0.9, alpha=0.6, zorder=3
+            q, 0.0, height, color=palette.ink, linewidth=0.9, alpha=0.55, zorder=3
         )
         axes.annotate(
             f"q{p:g} = {q:.3g}",
-            (q, top * 0.92),
-            xytext=(3.0, 2.0),
+            (q, height),
+            xytext=(0.0, 3.0),
             textcoords="offset points",
             fontsize=ANNOTATION_SIZE,
-            color=palette.muted,
-            rotation=0,
-            ha="left",
+            color=palette.ink,
+            ha="center",
             va="bottom",
+            bbox={
+                "boxstyle": "round,pad=0.2",
+                "facecolor": palette.canvas,
+                "edgecolor": "none",
+                "alpha": 0.9,
+            },
+            zorder=6,
         )
-    axes.set_ylim(0.0, top * 1.08)
+    axes.set_ylim(0.0, top * 1.12)
     subtitle = f"{len(sample)} propagated samples; ticks mark the stated quantiles"
     headline = (
         f"{name}: median {quantile(sample, 0.5):.3g}, 90% range "
@@ -444,8 +474,25 @@ def plot_output_distribution(
     )
     if threshold is not None:
         limit = require_finite_real(threshold, name="threshold")
-        exceed = sum(value > limit for value in sample) / len(sample)
-        reference_line(axes, x=limit, label=f"limit: P(exceed) = {exceed:.3g}")
+        if failure_below:
+            fraction = sum(value < limit for value in sample) / len(sample)
+            text = f"limit {limit:g}: P(Y < limit) = {fraction:.3g}"
+        else:
+            fraction = sum(value > limit for value in sample) / len(sample)
+            text = f"limit {limit:g}: P(Y > limit) = {fraction:.3g}"
+        reference_line(axes, x=limit, label=None)
+        axes.annotate(
+            text,
+            xy=(0.0, 1.0),
+            xycoords="axes fraction",
+            xytext=(0.0, -2.0),
+            textcoords="offset points",
+            ha="left",
+            va="top",
+            fontsize=ANNOTATION_SIZE,
+            fontweight="semibold",
+            color=palette.accent,
+        )
     axis_labels(axes, name, "Density", x_unit=unit)
     title_block(axes, headline, subtitle)
     return axes
@@ -515,6 +562,7 @@ def plot_design_comparison(
             color=palette.ink,
         )
     axes.set_xscale("log")
+    _plain_log_axis(axes.xaxis)
     low = min(spread for _, (_, spread) in ordered)
     axes.set_xlim(low / 12.0, baseline * 2.0)
     axes.set(yticks=positions, yticklabels=tuple(names.get(d, d) for d, _ in ordered))
@@ -586,6 +634,7 @@ def plot_exceedance_curves(
         )
         labels.append((xs[-1], ps[-1], label, colour))
     axes.set_yscale("log")
+    _plain_log_axis(axes.yaxis, percent=True)
     axes.set_ylim(floor / 2.0, 1.2)
     if threshold is not None:
         reference_line(axes, x=threshold, label="limit")
@@ -595,6 +644,97 @@ def plot_exceedance_curves(
         axes,
         "Exceedance probability falls steeply in the tail",
         "Empirical complementary CDF on a logarithmic probability axis",
+    )
+    return axes
+
+
+@themed
+def plot_loss_exceedance(
+    losses: Sequence[float],
+    value_at_risk: Mapping[float, float],
+    conditional_value_at_risk: Mapping[float, float],
+    *,
+    unit: str | None = None,
+    ax: Any | None = None,
+) -> Any:
+    """Plot the loss exceedance curve with VaR and CVaR markers.
+
+    The curve ``P(L > l)`` is drawn on a logarithmic probability axis so tail
+    risk stays visible; each VaR level is a muted drop line and each CVaR a
+    rimmed marker on the same horizontal level.
+
+    Args:
+        losses: Sample of losses (zero losses allowed).
+        value_at_risk: Confidence level to VaR.
+        conditional_value_at_risk: Confidence level to CVaR.
+        unit: Optional loss unit.
+        ax: Optional axes.
+
+    Returns:
+        Populated axes.
+
+    Equation:
+        [EQ-PROP-THRESH-001].
+
+    References:
+        [REF-ROCKAFELLAR-URYASEV-2002], [REF-MATPLOTLIB].
+
+    """
+    sample = sorted(coerce_finite_sample(losses, name="losses"))
+    if not sample:
+        raise ValueError("losses must not be empty")
+    axes = new_axes(ax)
+    palette = active_palette()
+    n = len(sample)
+    xs = [value for value in sample]
+    ps = [(n - index - 1) / n for index in range(n)]
+    kept = [(x, p) for x, p in zip(xs, ps, strict=True) if p > 0.0]
+    if kept:
+        axes.step(
+            [x for x, _ in kept],
+            [p for _, p in kept],
+            where="post",
+            color=palette.observed,
+            linewidth=2.0,
+            zorder=3,
+        )
+    floor = 1.0 / n
+    for level in sorted(value_at_risk):
+        tail = 1.0 - level
+        var = value_at_risk[level]
+        cvar = conditional_value_at_risk.get(level, math.nan)
+        axes.hlines(
+            tail,
+            var,
+            cvar if math.isfinite(cvar) else var,
+            color=palette.model,
+            linewidth=1.4,
+            zorder=2,
+        )
+        points(axes, [var], [tail], color=palette.observed, size=34.0, zorder=5)
+        if math.isfinite(cvar):
+            points(axes, [cvar], [tail], color=palette.model, size=44.0, zorder=5)
+        axes.annotate(
+            f"{level:.0%}: VaR {var:.3g} / CVaR {cvar:.3g}",
+            (cvar if math.isfinite(cvar) else var, tail),
+            xytext=(8.0, 0.0),
+            textcoords="offset points",
+            va="center",
+            fontsize=ANNOTATION_SIZE,
+            color=palette.ink,
+        )
+        floor = min(floor, tail)
+    axes.set_yscale("log")
+    _plain_log_axis(axes.yaxis, percent=True)
+    axes.set_ylim(floor / 3.0, 1.3)
+    axes.set_xlim(left=min(0.0, sample[0]))
+    axis_labels(axes, "Loss l", "P(L > l)", x_unit=unit)
+    mean = math.fsum(sample) / n
+    title_block(
+        axes,
+        f"Expected loss {mean:.3g}, but the worst 1% averages "
+        f"{conditional_value_at_risk.get(0.99, max(sample)):.3g}",
+        "Curve: loss exceedance. Teal dot: VaR. Copper dot: CVaR (mean beyond VaR)",
     )
     return axes
 
@@ -631,6 +771,7 @@ __all__ = [
     "plot_calibration_prediction",
     "plot_design_comparison",
     "plot_exceedance_curves",
+    "plot_loss_exceedance",
     "plot_method_comparison",
     "plot_output_distribution",
     "plot_sobol_indices",
