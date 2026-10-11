@@ -529,3 +529,18 @@ class AssessmentIntegrationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EnergyOffsetRegressionTests(unittest.TestCase):
+    """The 1-D energy distance is invariant to a large common offset."""
+
+    def test_offset_does_not_cost_digits(self) -> None:
+        """Shifting both samples by 1e9 leaves the statistic unchanged."""
+        from probstat.validation import energy_distance
+
+        rng = random.Random(4)
+        first = [rng.gauss(0.0, 1.0) for _ in range(200)]
+        second = [rng.gauss(0.3, 1.0) for _ in range(200)]
+        base = energy_distance(first, second)
+        moved = energy_distance([x + 1e9 for x in first], [y + 1e9 for y in second])
+        self.assertAlmostEqual(moved / base, 1.0, delta=1e-6)

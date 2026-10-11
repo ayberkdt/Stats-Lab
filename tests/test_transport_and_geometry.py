@@ -618,3 +618,43 @@ class DivergenceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SixthReviewRegressionTests(unittest.TestCase):
+    """Regression tests for the sixth numerical review."""
+
+    def test_heavy_tailed_quantile_wasserstein(self) -> None:
+        """W2(t(2.2), N(0,1)) = 2.81613710369 (scipy quad of the cross term)."""
+        from probstat.distributions import Normal, StudentT
+        from probstat.information import quantile_wasserstein
+
+        value = quantile_wasserstein(StudentT(2.2), Normal(0.0, 1.0), p=2.0)
+        self.assertAlmostEqual(value / 2.81613710369, 1.0, places=9)
+
+    def test_large_order_renyi_and_overflowing_alpha_divergences(self) -> None:
+        """Renyi of order 200 is finite (mpmath 3.90853985376704)."""
+        from probstat.information import (
+            alpha_divergence,
+            alpha_divergence_gaussian,
+            renyi_divergence,
+        )
+
+        p, q = [0.5, 0.5], [0.01, 0.99]
+        self.assertAlmostEqual(renyi_divergence(p, q, 200), 3.90853985376704, places=12)
+        self.assertEqual(alpha_divergence(p, q, 200), math.inf)
+        self.assertEqual(
+            alpha_divergence_gaussian([0.0], [[1.0]], [40.0], [[1.0]], 3.0), math.inf
+        )
+
+    def test_fisher_rao_categorical_for_nearby_laws(self) -> None:
+        """Nearby laws keep full relative accuracy (closed form 2 asin form)."""
+        from probstat.information import fisher_rao_categorical
+
+        p = [0.25, 0.25, 0.5]
+        q = [0.25 + 1e-12, 0.25 - 1e-12, 0.5]
+        # For tiny displacements d ~ sqrt(sum dp^2 / p) (Fisher metric), with
+        # the displacements as actually represented in floating point.
+        expected = math.sqrt(
+            math.fsum((b - a) ** 2 / a for a, b in zip(p, q, strict=True))
+        )
+        self.assertAlmostEqual(fisher_rao_categorical(p, q) / expected, 1.0, places=9)

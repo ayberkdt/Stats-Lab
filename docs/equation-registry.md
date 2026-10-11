@@ -7984,7 +7984,9 @@ rule with `h = 2^-k`, nodes kept while `min(x, 1 - x) >= 1e-15`.
 - Domain: integrands smooth inside, integrable endpoint singularities.
 - Meaning: double-exponential decay of the transformed integrand gives fast
   convergence for quantile-scale integrals.
-- Code: `validation._quadrature.tanh_sinh`.
+- Code: `numerics.double_exponential.tanh_sinh` (re-exported as
+  `numerics.tanh_sinh`; used by `validation.scoring`, `validation.shift`,
+  and `information.wasserstein.quantile_wasserstein`).
 - Source: [REF-TAKAHASI-MORI-1974].
 
 ### EQ-INF-GOF-KS2-001 — Two-sample Kolmogorov-Smirnov statistic

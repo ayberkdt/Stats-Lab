@@ -687,9 +687,12 @@ class SinkhornResult:
     Args:
         plan: Entropic coupling ``P_ij = a_i b_j exp((f_i + g_j - C_ij)/eps)``.
         transport_cost: ``sum_ij C_ij P_ij``.
-        regularized_cost: Dual value ``<a, f> + <b, g> - eps <a b',
-            exp((f + g - C)/eps) - 1>``, equal at convergence to
-            ``min_P <P, C> + eps KL(P || a b')``.
+        regularized_cost: ``M`` times the dual value of the problem on the
+            normalized marginals ``a/M`` and ``b/M`` (``M`` the total mass).
+            For ``M = 1`` it equals ``min_P <P, C> + eps KL(P || a b')`` at
+            convergence; for other masses it differs from that objective by
+            the constant ``eps (M^2 - M - M log M)``, which cancels in
+            :func:`sinkhorn_divergence`.
         source_potential: Dual potential ``f``.
         target_potential: Dual potential ``g``.
         epsilon: Regularization strength.

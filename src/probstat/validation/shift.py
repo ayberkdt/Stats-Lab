@@ -131,6 +131,20 @@ def _energy_from_sums(
     )
 
 
+def _pooled_median(values: Sequence[float]) -> float:
+    """Return the median of the pooled one-dimensional sample.
+
+    References:
+        [REF-SZEKELY-RIZZO-2013]. No equation is evaluated.
+
+    """
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[middle]
+    return 0.5 * (ordered[middle - 1] + ordered[middle])
+
+
 def energy_distance(
     first: Sequence[float] | Sequence[Sequence[float]],
     second: Sequence[float] | Sequence[Sequence[float]],
@@ -164,8 +178,11 @@ def energy_distance(
     a, b = _paired_points(first, second)
     m, n = len(a), len(b)
     if len(a[0]) == 1:
-        xs = sorted(point[0] for point in a)
-        ys = sorted(point[0] for point in b)
+        # The statistic is shift-invariant; centring on the pooled median keeps
+        # the rank-weighted sums from losing digits to a large common offset.
+        centre = _pooled_median([point[0] for point in a + b])
+        xs = sorted(point[0] - centre for point in a)
+        ys = sorted(point[0] - centre for point in b)
         total = _sorted_pair_sum(sorted(xs + ys))
         within_x, within_y = _sorted_pair_sum(xs), _sorted_pair_sum(ys)
         return max(
@@ -337,7 +354,8 @@ def energy_distance_test(
     labels = [True] * m + [False] * n
     if len(a[0]) == 1:
         order = sorted(range(m + n), key=lambda index: pooled[index][0])
-        values = [pooled[index][0] for index in order]
+        centre = _pooled_median([point[0] for point in pooled])
+        values = [pooled[index][0] - centre for index in order]
         total = _sorted_pair_sum(values)
 
         def statistic(mask: Sequence[bool]) -> float:

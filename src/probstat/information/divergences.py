@@ -32,6 +32,9 @@ from .discrete import _pmf, kl_divergence
 
 _SQRT_TWO = math.sqrt(2.0)
 
+# exp(x) overflows a double above about 709.78.
+_LOG_MAX = 709.0
+
 
 def _pair(
     p: Iterable[object], q: Iterable[object]
@@ -190,10 +193,14 @@ def _order(alpha: float, *, allow_infinity: bool) -> float:
     return value
 
 
-def _power_sum(
+def _log_power_sum(
     first: tuple[float, ...], second: tuple[float, ...], alpha: float
 ) -> float:
-    """Return ``sum_i p_i^alpha q_i^(1 - alpha)`` with limiting conventions.
+    """Return ``log sum_i p_i^alpha q_i^(1 - alpha)`` with limiting conventions.
+
+    The sum is formed by log-sum-exp, so large orders whose individual terms
+    overflow (``alpha = 200`` with ``q_i = 0.01``) still give a finite
+    logarithm.
 
     Terms with ``p_i = q_i = 0`` vanish; a term with ``q_i = 0 < p_i`` is
     ``+inf`` when ``alpha > 1`` and zero when ``alpha < 1``; a term with
@@ -206,7 +213,7 @@ def _power_sum(
         alpha: Finite order other than ``0`` and ``1``.
 
     Returns:
-        The affinity ``A_alpha``, possibly ``+inf``.
+        ``log A_alpha``, possibly ``+inf`` (or ``-inf`` for an empty sum).
 
     Equation:
         [EQ-DIV-RENYI-001].
@@ -227,8 +234,11 @@ def _power_sum(
             if alpha < 0.0:
                 return math.inf
             continue
-        terms.append(math.exp(alpha * math.log(a) + (1.0 - alpha) * math.log(b)))
-    return math.fsum(terms)
+        terms.append(alpha * math.log(a) + (1.0 - alpha) * math.log(b))
+    if not terms:
+        return -math.inf
+    top = max(terms)
+    return top + math.log(math.fsum(math.exp(t - top) for t in terms))
 
 
 def renyi_divergence(
@@ -282,10 +292,10 @@ def renyi_divergence(
                     return math.inf
                 ratios.append(a / b)
         return max(0.0, math.log(max(ratios))) * factor
-    affinity = _power_sum(first, second, order)
-    if affinity == 0.0 or math.isinf(affinity):
+    log_affinity = _log_power_sum(first, second, order)
+    if math.isinf(log_affinity):
         return math.inf
-    return max(0.0, math.log(affinity) / (order - 1.0)) * factor
+    return max(0.0, log_affinity / (order - 1.0)) * factor
 
 
 def alpha_divergence(p: Iterable[object], q: Iterable[object], alpha: float) -> float:
@@ -321,10 +331,10 @@ def alpha_divergence(p: Iterable[object], q: Iterable[object], alpha: float) -> 
         return kl_divergence(first, second)
     if order == 0.0:
         return kl_divergence(second, first)
-    affinity = _power_sum(first, second, order)
-    if math.isinf(affinity):
+    log_affinity = _log_power_sum(first, second, order)
+    if log_affinity == math.inf or log_affinity > _LOG_MAX:
         return math.inf
-    return max(0.0, (affinity - 1.0) / (order * (order - 1.0)))
+    return max(0.0, math.expm1(log_affinity) / (order * (order - 1.0)))
 
 
 def _gaussian_inputs(
@@ -509,7 +519,7 @@ def alpha_divergence_gaussian(
     if order == 0.0:
         return kl_multivariate_normal(m1, s1, m0, s0)
     log_affinity = _gaussian_log_affinity(m0, s0, m1, s1, order)
-    if math.isinf(log_affinity):
+    if math.isinf(log_affinity) or log_affinity > _LOG_MAX:
         return math.inf
     return max(0.0, math.expm1(log_affinity) / (order * (order - 1.0)))
 

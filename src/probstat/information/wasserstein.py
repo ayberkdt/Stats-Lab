@@ -27,6 +27,7 @@ from probstat.linalg import (
     symmetric_eigen,
     symmetrize,
 )
+from probstat.numerics import tanh_sinh
 
 from ._quantile_quadrature import quantile_at, quantile_expectation
 
@@ -229,43 +230,83 @@ def quantile_wasserstein(
     law1: object,
     *,
     p: float = 2.0,
+    method: str = "tanh-sinh",
     intervals: int = 512,
     z_max: float = 8.0,
 ) -> float:
     """Return ``W_p`` between 1-D laws from their quantile functions.
 
-    ``W_p^p = int_0^1 |Q0(u) - Q1(u)|^p du`` is evaluated as
-    ``int |Q0(Phi(z)) - Q1(Phi(z))|^p phi(z) dz`` by composite Simpson
-    quadrature on ``[-z_max, z_max]``. Upper-tail nodes use ``isf`` when the
-    objects provide it. The truncation omits probability ``2 Phi(-z_max)``
-    (about ``1.2e-15`` for ``z_max = 8``), which is negligible for laws with
-    light tails; heavy tails with ``W_p`` barely finite converge slowly.
+    ``W_p^p = int_0^1 |Q0(u) - Q1(u)|^p du``. The default ``"tanh-sinh"``
+    method integrates in ``u`` on ``(0, 1/2)`` and ``(1/2, 1)`` with nodes
+    reaching about ``1e-300`` from either end, so heavy-tailed laws with a
+    barely finite ``W_p`` (for example Student t with 2.2 degrees of freedom
+    against a normal at ``p = 2``) converge to rounding level. The
+    ``"simpson"`` method integrates ``|Q0(Phi(z)) - Q1(Phi(z))|^p phi(z)``
+    on ``[-z_max, z_max]``; its truncation omits probability
+    ``2 Phi(-z_max)`` and, for heavy tails, a mass that can reach several per
+    cent. Upper-tail nodes use ``isf`` when the objects provide it.
 
     Args:
         law0: Object with ``quantile`` (for example a distribution or a
             :class:`QuantileBarycenter`).
         law1: Second object with ``quantile``.
         p: Exponent ``p >= 1``.
-        intervals: Positive even number of Simpson subintervals.
-        z_max: Positive truncation point in the normal variable.
+        method: ``"tanh-sinh"`` (default) or ``"simpson"``.
+        intervals: Positive even number of Simpson subintervals
+            (``"simpson"`` only).
+        z_max: Positive truncation point in the normal variable
+            (``"simpson"`` only).
 
     Returns:
         The Wasserstein-``p`` distance.
 
     Raises:
         TypeError: If a law has no ``quantile``.
-        ValueError: If ``p < 1`` or the quadrature settings are invalid.
+        ValueError: If ``p < 1``, the method is unknown, or the quadrature
+            settings are invalid.
 
     Equation:
-        [EQ-OT-W1D-001].
+        [EQ-OT-W1D-001], [EQ-VAL-QUAD-DE-001].
 
     References:
-        [REF-PEYRE-CUTURI-2019, Remark 2.30], [REF-VILLANI-2009, Chapter 6].
+        [REF-PEYRE-CUTURI-2019, Remark 2.30], [REF-VILLANI-2009, Chapter 6],
+        [REF-TAKAHASI-MORI-1974].
 
     """
     exponent = require_finite_real(p, name="p")
     if exponent < 1.0:
         raise ValueError("p must be at least 1")
+    if method == "tanh-sinh":
+
+        def quantile(law: object, u: float, uc: float) -> float:
+            """Return ``Q(u)``, using ``isf(1 - u)`` in the upper half.
+
+            References:
+                [EQ-OT-W1D-001], [REF-PEYRE-CUTURI-2019, Remark 2.30].
+
+            """
+            function = getattr(law, "quantile", None)
+            if not callable(function):
+                raise TypeError(f"{type(law).__name__} has no quantile method")
+            if u <= 0.5:
+                return float(function(u))
+            isf = getattr(law, "isf", None)
+            return float(isf(uc)) if callable(isf) else float(function(u))
+
+        def by_u(u: float, uc: float) -> float:
+            """Return ``|Q0(u) - Q1(u)|^p``.
+
+            References:
+                [EQ-OT-W1D-001], [REF-PEYRE-CUTURI-2019, Remark 2.30].
+
+            """
+            difference = quantile(law0, u, uc) - quantile(law1, u, uc)
+            return float(abs(difference) ** exponent)
+
+        total = tanh_sinh(by_u, 0.0, 0.5).value + tanh_sinh(by_u, 0.5, 1.0).value
+        return float(max(total, 0.0) ** (1.0 / exponent))
+    if method != "simpson":
+        raise ValueError("method must be 'tanh-sinh' or 'simpson'")
 
     def integrand(z: float) -> float:
         """Return ``|Q0 - Q1|^p`` at ``u = Phi(z)``.

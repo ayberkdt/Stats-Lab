@@ -644,8 +644,14 @@ def fisher_rao_categorical(
             raise ValueError(f"{name} entries must be non-negative")
         if abs(math.fsum(values) - 1.0) > 1e-9:
             raise ValueError(f"{name} must sum to one")
+    # sqrt(a) - sqrt(b) = (a - b) / (sqrt(a) + sqrt(b)) avoids cancellation
+    # for nearby laws.
     chord = math.sqrt(
-        math.fsum((math.sqrt(a) - math.sqrt(b)) ** 2 for a, b in zip(p, q, strict=True))
+        math.fsum(
+            ((a - b) / (math.sqrt(a) + math.sqrt(b))) ** 2
+            for a, b in zip(p, q, strict=True)
+            if a + b > 0.0
+        )
     )
     return 4.0 * math.asin(min(1.0, 0.5 * chord))
 
