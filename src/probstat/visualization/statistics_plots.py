@@ -1,10 +1,12 @@
-"""Plots for regression diagnostics, time series, and survival curves."""
+"""Plots for distributions, regression diagnostics, time series, and survival."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from statistics import NormalDist
 from typing import Any
+
+from probstat.statistics import gaussian_kde, quantile
 
 from .theme import (
     PROJECTED,
@@ -286,3 +288,128 @@ def plot_regression_diagnostics(
     )
     figure.tight_layout()
     return figure
+
+
+@themed
+def plot_distribution_comparison(
+    groups: Mapping[str, Sequence[float]],
+    *,
+    value_label: str = "Value",
+    reference: float | None = None,
+    reference_label: str = "reference",
+    ax: Any | None = None,
+) -> Any:
+    """Compare group distributions as violins with an embedded box plot.
+
+    Each violin is a mirrored Gaussian kernel density estimate in the group's
+    identity hue; inside it a box spans the quartiles, a dot marks the median,
+    whiskers reach the most extreme points within 1.5 IQR (Tukey), and points
+    beyond the whiskers are drawn individually in muted ink.
+
+    Args:
+        groups: Group label to at least two finite observations (at most six
+            groups, the categorical palette size).
+        value_label: Vertical axis title.
+        reference: Optional value drawn as an accent reference line.
+        reference_label: Label of the reference line.
+        ax: Optional axes.
+
+    Returns:
+        Populated axes.
+
+    Raises:
+        ValueError: If there are no groups or more groups than palette slots.
+
+    Equation:
+        [EQ-STAT-KDE-001], [EQ-STAT-QUANT-001].
+
+    References:
+        [REF-HINTZE-NELSON-1998], [REF-TUKEY-1977],
+        [REF-SILVERMAN-1986, Chapter 3], [REF-MATPLOTLIB].
+
+    """
+    axes = new_axes(ax)
+    palette = active_palette()
+    if not groups or len(groups) > len(palette.series):
+        raise ValueError(
+            f"supply between 1 and {len(palette.series)} groups; fold the rest "
+            "into an 'other' group or use small multiples"
+        )
+    medians: dict[str, float] = {}
+    spreads: dict[str, float] = {}
+    for index, (label, values) in enumerate(groups.items()):
+        colour = palette.series[index]
+        density = gaussian_kde(values)
+        grid = density.grid(160, extend=2.0)
+        heights = [density.pdf(x) for x in grid]
+        scale = 0.38 / max(heights)
+        axes.fill_betweenx(
+            grid,
+            [index - h * scale for h in heights],
+            [index + h * scale for h in heights],
+            color=colour,
+            alpha=0.22,
+            linewidth=0.0,
+        )
+        axes.plot(
+            [index + h * scale for h in heights], grid, color=colour, linewidth=1.0
+        )
+        axes.plot(
+            [index - h * scale for h in heights], grid, color=colour, linewidth=1.0
+        )
+        q1, q2, q3 = (quantile(values, level) for level in (0.25, 0.5, 0.75))
+        iqr = q3 - q1
+        inside = [v for v in values if q1 - 1.5 * iqr <= v <= q3 + 1.5 * iqr]
+        axes.vlines(index, min(inside), max(inside), colors=palette.ink, linewidth=1.0)
+        axes.add_patch(
+            pyplot().Rectangle(
+                (index - 0.06, q1),
+                0.12,
+                iqr,
+                facecolor=palette.canvas,
+                edgecolor=palette.ink,
+                linewidth=1.0,
+                zorder=3,
+            )
+        )
+        axes.scatter(
+            [index], [q2], s=28.0, color=colour, edgecolors=palette.ink, zorder=4
+        )
+        outliers = [v for v in values if v < q1 - 1.5 * iqr or v > q3 + 1.5 * iqr]
+        if outliers:
+            axes.scatter(
+                [index] * len(outliers),
+                outliers,
+                s=12.0,
+                color=palette.muted,
+                zorder=3,
+            )
+        medians[label] = q2
+        spreads[label] = iqr
+    labels = list(groups)
+    axes.set_xticks(range(len(labels)))
+    axes.set_xticklabels(labels)
+    axes.set_xlim(-0.6, len(labels) - 0.4)
+    axes.grid(axis="x", visible=False)
+    if reference is not None:
+        reference_line(axes, y=reference, label=reference_label)
+    axis_labels(axes, "", value_label)
+    top = max(medians, key=lambda name: medians[name])
+    widest = max(spreads, key=lambda name: spreads[name])
+    narrowest = min(spreads, key=lambda name: spreads[name])
+    if len(labels) == 1:
+        title = f"{top}: median {medians[top]:.3g}, IQR {spreads[top]:.3g}"
+    elif spreads[narrowest] > 0.0:
+        ratio = spreads[widest] / spreads[narrowest]
+        title = (
+            f"{top} has the highest median ({medians[top]:.3g}); {widest} "
+            f"spreads {ratio:.1f}x wider than {narrowest}"
+        )
+    else:
+        title = f"{top} has the highest median ({medians[top]:.3g})"
+    title_block(
+        axes,
+        title,
+        "Violin: kernel density. Box: quartiles. Dot: median. Whiskers: 1.5 IQR",
+    )
+    return axes

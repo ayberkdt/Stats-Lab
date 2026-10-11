@@ -205,6 +205,23 @@ class ThemeTests(unittest.TestCase):
         )
         self.assertEqual(len(figure.axes), 2)
 
+    def test_distribution_comparison_title_and_limits(self) -> None:
+        """Violins carry a data-derived title; too many groups are refused."""
+        from probstat.visualization.statistics_plots import (
+            plot_distribution_comparison,
+        )
+
+        groups = {
+            "low": [1.0, 1.2, 0.8, 1.1, 0.9, 1.0],
+            "high": [5.0, 6.0, 4.0, 5.5, 4.5, 5.0],
+        }
+        axes = plot_distribution_comparison(groups, reference=3.0)
+        title = axes.get_title(loc="left")
+        self.assertTrue(title.startswith("High has the highest median (5)"))
+        self.assertIn("5.0x wider than low", title)
+        with self.assertRaises(ValueError):
+            plot_distribution_comparison({str(i): [0.0, 1.0] for i in range(7)})
+
     def test_dark_theme_changes_canvas(self) -> None:
         """The graphite context paints the dark canvas."""
         from matplotlib.colors import to_hex

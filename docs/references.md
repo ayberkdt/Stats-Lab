@@ -1546,3 +1546,12 @@ Random Vector." *Problems of Information Transmission* 23(2), 95-101, 1987
 
 Jianhua Lin. "Divergence Measures Based on the Shannon Entropy." *IEEE
 Transactions on Information Theory* 37(1), 145-151, 1991.
+
+## REF-TUKEY-1977
+
+John W. Tukey. *Exploratory Data Analysis*. Addison-Wesley, 1977.
+
+## REF-HINTZE-NELSON-1998
+
+Jerry L. Hintze and Ray D. Nelson. "Violin Plots: A Box Plot-Density Trace
+Synergism." *The American Statistician* 52(2), 181-184, 1998.

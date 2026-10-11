@@ -1,9 +1,10 @@
-"""Statistical modeling laboratory: regression, time series, and survival.
+"""Statistical modeling laboratory: distributions, regression, time series, survival.
 
-Three classical modeling tasks on seeded synthetic data, each with its
-diagnostic figure: a multiple regression with residual diagnostics, an AR(2)
-series identified from its correlogram and forecast with exact intervals,
-and two Kaplan-Meier survival curves compared by the log-rank test.
+Four classical tasks on seeded synthetic data, each with its diagnostic
+figure: three suppliers' strength distributions compared as violins with
+box plots, a multiple regression with residual diagnostics, an AR(2) series
+identified from its correlogram and forecast with exact intervals, and two
+Kaplan-Meier survival curves compared by the log-rank test.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from probstat.timeseries import (
 from probstat.visualization import save_figure
 from probstat.visualization.statistics_plots import (
     plot_correlogram,
+    plot_distribution_comparison,
     plot_forecast,
     plot_regression_diagnostics,
     plot_survival_curves,
@@ -35,7 +37,8 @@ def main() -> None:
     """Fit the three models and write their figures.
 
     References:
-        [REF-MONTGOMERY-PECK-VINING-2021], [REF-BROCKWELL-DAVIS-2016],
+        [REF-HINTZE-NELSON-1998], [REF-MONTGOMERY-PECK-VINING-2021],
+        [REF-BROCKWELL-DAVIS-2016],
         [REF-KAPLAN-MEIER-1958], [REF-MATPLOTLIB].
 
     """
@@ -43,6 +46,27 @@ def main() -> None:
 
     output = Path(__file__).parent / "generated"
     root = RandomStream(2026)
+
+    rng = root.child("suppliers").generator()
+    strengths = {
+        "Supplier A": [rng.gauss(52.0, 2.0) for _ in range(150)],
+        "Supplier B": [48.0 + rng.lognormvariate(1.0, 0.6) for _ in range(150)],
+        "Supplier C": [
+            rng.gauss(50.0, 1.2) if rng.random() < 0.7 else rng.gauss(55.0, 1.2)
+            for _ in range(150)
+        ],
+    }
+    for name, values in strengths.items():
+        below = sum(v < 49.0 for v in values)
+        print(f"{name}: {below} of {len(values)} below the 49 MPa limit")
+    axes = plot_distribution_comparison(
+        strengths,
+        value_label="Tensile strength (MPa)",
+        reference=49.0,
+        reference_label="lower spec limit",
+    )
+    save_figure(axes.figure, output / "modeling-distribution-comparison.png")
+    plt.close(axes.figure)
 
     rng = root.child("regression").generator()
     rows, response = [], []

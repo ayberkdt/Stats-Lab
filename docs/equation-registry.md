@@ -7166,3 +7166,23 @@ marginal space.
   marginal spaces makes the k-NN biases largely cancel.
 - Code: `information.ksg_mutual_information`.
 - Source: [REF-KRASKOV-STOGBAUER-GRASSBERGER-2004].
+
+## Kernel density estimation
+
+### EQ-STAT-KDE-001 — Gaussian kernel density estimate and rule-of-thumb bandwidths
+
+`f_h(x) = (1/(n h)) sum_i phi((x - x_i)/h)` and
+`F_h(x) = (1/n) sum_i Phi((x - x_i)/h)`, with bandwidth
+`h = 0.9 min(s, IQR/1.34) n^(-1/5)` (Silverman's robust rule) or
+`h = 1.06 s n^(-1/5)` (normal reference rule).
+
+- Domain: at least two finite observations, not all equal; `s` is the sample
+  standard deviation and `IQR` the type-7 interquartile range (a zero IQR
+  falls back to `s`).
+- Meaning: a smooth, everywhere-positive estimate of the sampling density;
+  the normal rule minimizes the asymptotic mean integrated squared error for
+  normal data and oversmooths multimodal data, which the robust rule
+  mitigates.
+- Code: `statistics.density.gaussian_kde`, `statistics.density.kde_bandwidth`,
+  `statistics.density.KernelDensity`.
+- Source: [REF-SILVERMAN-1986, Sections 3.3 and 3.4.2].
