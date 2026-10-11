@@ -89,3 +89,23 @@ uncertain.
 self-contained page for a `UQStudy`: one section per stage with its numbers,
 cost, stream seed, and figures embedded in both palettes so the page follows
 the reader's light or dark preference.
+
+## Analysis figures
+
+Four modules draw the results of the causal, design, extremes, and
+information packages under the same rules (ADR-0037). Each has a seeded lab
+in `examples/` that prints its numbers and writes the figures.
+
+| Module | Functions | Lab |
+|---|---|---|
+| `extremes_plots` | `plot_return_levels`, `plot_mean_residual_life`, `plot_tail_quantiles` | `extremes_lab.py` |
+| `design_plots` | `plot_optimal_design`, `plot_greedy_design` | `experimental_design_lab.py` |
+| `causal_plots` | `plot_effect_estimates`, `plot_covariate_balance`, `plot_e_value_contour` | `causal_lab.py` |
+| `information_plots` | `plot_estimator_check`, `plot_entropy_decomposition` | `information_lab.py` |
+
+The functions take result objects and never refit, so the caller decides,
+for example, between delta-method and profile-likelihood return-level
+intervals. The Q-Q band of `plot_tail_quantiles` maps the central interval of
+each uniform order statistic through the model quantile function
+[EQ-VIZ-QQBAND-001]; it is pointwise, so about 5% of points fall outside a
+95% band by chance.

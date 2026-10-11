@@ -7163,3 +7163,20 @@ marginal space.
   marginal spaces makes the k-NN biases largely cancel.
 - Code: `information.ksg_mutual_information`.
 - Source: [REF-KRASKOV-STOGBAUER-GRASSBERGER-2004].
+
+## Visualization diagnostics
+
+### EQ-VIZ-QQBAND-001 — Pointwise Q-Q band from uniform order statistics
+
+`U_(i) ~ Beta(i, n - i + 1)` for the `i`-th smallest of `n` independent
+uniforms; the pointwise band for the `i`-th ordered observation is
+`(F^-1(b_(alpha/2)), F^-1(b_(1 - alpha/2)))` with `b_q` the `q`-quantile of that
+beta law and `F` the model CDF.
+
+- Domain: continuous model law with a quantile function; `1 <= i <= n`;
+  `0 < alpha < 1`. Limits are pointwise, not simultaneous.
+- Meaning: an ordered observation outside its band is unusual for its rank
+  under the model; about `alpha n` points fall outside by chance.
+- Code: `visualization.extremes_plots.order_statistic_band`,
+  `visualization.extremes_plots.plot_tail_quantiles`.
+- Source: [REF-CASELLA-BERGER-2002, Section 5.4].
