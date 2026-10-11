@@ -6299,3 +6299,371 @@ element of a seeded permutation to fold `i mod K`.
 - Code: `inference.cross_validate_elastic_net`, `inference.kfold_assignment`.
 - Source: [REF-HASTIE-TIBSHIRANI-FRIEDMAN-2009, Section 7.10],
   [REF-FRIEDMAN-HASTIE-TIBSHIRANI-2010].
+
+### EQ-DIST-GPD-001 — Generalized Pareto distribution
+
+`S(x) = exp(-y)`, `y = log1p(xi z)/xi` (`y = z` when `xi z` is zero to
+working precision), `z = (x - mu)/sigma >= 0`; `F(x) = -expm1(-y)`,
+`log f = -log sigma - (1 + xi) y` and hazard `1/(sigma (1 + xi z))` on
+`1 + xi z > 0`.
+
+- Domain: `sigma > 0`, real `xi`; support `[mu, inf)` for `xi >= 0` and
+  `[mu, mu - sigma/xi]` for `xi < 0` (`xi = -1` is uniform).
+- Meaning: the Pickands-Balkema-de Haan limit law of excesses over a high
+  threshold `mu`; `xi = 0` is the exponential law with mean `sigma`, reached
+  continuously through the `log1p` form.
+- Code: `distributions.GeneralizedPareto.log_pdf`,
+  `distributions.GeneralizedPareto.pdf`, `distributions.GeneralizedPareto.cdf`,
+  `distributions.GeneralizedPareto.sf`, `distributions.GeneralizedPareto.log_sf`,
+  `distributions.GeneralizedPareto.hazard`.
+- Source: [REF-PICKANDS-1975], [REF-BALKEMA-DEHAAN-1974],
+  [REF-COLES-2001, Section 4.2].
+
+### EQ-DIST-GPD-002 — GPD quantile and inverse survival
+
+`x = mu + sigma expm1(xi L)/xi` with `L = -log1p(-p)` (quantile) or
+`L = -log q` (inverse survival), and `x = mu + sigma L` when `xi L` is zero to
+working precision.
+
+- Domain: `0 < p < 1`, `0 < q < 1`.
+- Meaning: closed-form inverse used for `quantile`, `isf`, and inverse-
+  transform sampling; upper-tail levels keep relative accuracy in `q`.
+- Code: `distributions.GeneralizedPareto.quantile`,
+  `distributions.GeneralizedPareto.isf`, `distributions.GeneralizedPareto.sample`.
+- Source: [REF-COLES-2001, Section 4.2].
+
+### EQ-DIST-GPD-003 — GPD moments and entropy
+
+`E[X] = mu + sigma/(1 - xi)` (`xi < 1`), `Var X = sigma^2/((1 - xi)^2
+(1 - 2 xi))` (`xi < 1/2`), and `h(X) = log sigma + xi + 1` for every `xi`
+(because `y = -log S(X)` is standard exponential).
+
+- Domain: `sigma > 0`; infinite mean/variance outside the stated ranges.
+- Meaning: moments for checking fits; the entropy is linear in `xi`.
+- Code: `distributions.GeneralizedPareto.mean`,
+  `distributions.GeneralizedPareto.variance`,
+  `distributions.GeneralizedPareto.entropy`.
+- Source: [REF-HOSKING-WALLIS-1987], [REF-COVER-THOMAS-2006, Chapter 8].
+
+### EQ-EVA-BM-001 — Block maxima and the GEV likelihood
+
+`M_k = max(x_((k-1)b+1), ..., x_(kb))` for complete blocks of size `b`;
+`l(mu, sigma, xi) = sum_k log f_GEV(M_k)` with `f_GEV` from
+[EQ-DIST-GEV-001].
+
+- Domain: `b >= 1`; an incomplete final block is discarded; the MLE is
+  regular for `xi > -1/2`.
+- Meaning: by the extremal types theorem block maxima are approximately GEV;
+  the maximum-likelihood fit reuses [EQ-INF-MLE-GEN-001].
+- Code: `risk.block_maxima`, `risk.fit_gev`.
+- Source: [REF-COLES-2001, Sections 3.1 and 3.3], [REF-SMITH-1985].
+
+### EQ-EVA-RL-001 — GEV return level
+
+`z_T = mu - sigma r(-xi, log y_T)` with `y_T = -log(1 - 1/T)` and
+`r(a, t) = expm1(a t)/a` (`r(0, t) = t`); equivalently
+`z_T = mu - (sigma/xi)(1 - y_T^(-xi))`, and `mu - sigma log y_T` at `xi = 0`.
+
+- Domain: `T > 1` blocks.
+- Meaning: the level exceeded by one block maximum with probability `1/T`
+  (the `T`-block return level), `z_T = F^-1(1 - 1/T)`.
+- Code: `risk.gev_return_level`, `risk.GEVFit.return_level`.
+- Source: [REF-COLES-2001, Section 3.3].
+
+### EQ-EVA-RL-002 — Delta-method return-level interval
+
+`grad z_T = (1, -r(-xi, l), sigma r_a(-xi, l))` with `l = log y_T` and
+`r_a(a, t) = d r/da = sum_(k>=2) (k-1) t^k a^(k-2)/k!` (series for
+`|a t| < 0.05`, otherwise `(a t e^(a t) - expm1(a t))/a^2`);
+`Var z_T ~ grad' V grad`, interval `z_T +/- z_(1-alpha/2) sqrt(Var z_T)`.
+
+- Domain: `V` the observed-information covariance of the MLE.
+- Meaning: symmetric Wald interval; it ignores the skewness of the
+  likelihood for long return periods (compare [EQ-EVA-PROF-001]).
+- Code: `risk.gev_return_level_gradient`, `risk.GEVFit.return_level`,
+  `risk.PeaksOverThresholdFit.return_level`.
+- Source: [REF-COLES-2001, Sections 2.6 and 3.3].
+
+### EQ-EVA-PROF-001 — Profile-likelihood interval for a return level
+
+With `mu = z_T + sigma r(-xi, log y_T)`,
+`l_p(z_T) = max_(sigma, xi) l(mu(z_T, sigma, xi), sigma, xi)` and the interval
+is `{z : 2 (l_max - l_p(z)) <= chi2_1(1 - alpha)}`,
+`chi2_1(c) = Phi^-1((1 + c)/2)^2`.
+
+- Domain: regular GEV likelihood; endpoints bracketed by doubling steps of
+  the delta-method standard error and refined by Brent's method.
+- Meaning: asymmetric interval that follows the likelihood; typically
+  longer upward than the Wald interval for heavy tails.
+- Code: `risk.GEVFit.profile_log_likelihood`,
+  `risk.GEVFit.profile_return_level`.
+- Source: [REF-COLES-2001, Sections 2.6 and 3.3], [REF-BRENT-1973].
+
+### EQ-EVA-GPD-001 — Threshold excesses and the GPD likelihood
+
+`Y = X - u | X > u` is approximately `GPD(sigma_u, xi)` for high `u`;
+`l(sigma, xi) = -k log sigma - (1 + 1/xi) sum log(1 + xi y_i/sigma)`
+(`-k log sigma - sum y_i/sigma` at `xi = 0`).
+
+- Domain: `y_i >= 0`, `1 + xi y_i/sigma > 0`; regular for `xi > -1/2`,
+  unbounded likelihood for `xi < -1`.
+- Meaning: the peaks-over-threshold model for the far tail; fitted through
+  [EQ-INF-MLE-GEN-001] with a feasible PWM start.
+- Code: `risk.threshold_excesses`, `risk.fit_gpd`, `risk.GPD_FAMILY`.
+- Source: [REF-PICKANDS-1975], [REF-BALKEMA-DEHAAN-1974],
+  [REF-COLES-2001, Section 4.3], [REF-SMITH-1985].
+
+### EQ-EVA-LMOM-001 — Sample L-moments
+
+`b_r = n^-1 sum_j [C(j-1, r)/C(n-1, r)] x_(j)` (unbiased probability-weighted
+moments `beta_r = E[X F^r]`); `l1 = b0`, `l2 = 2b1 - b0`,
+`l3 = 6b2 - 6b1 + b0`, `l4 = 20b3 - 30b2 + 12b1 - b0`.
+
+- Domain: `n >= 4` ordered observations `x_(1) <= ... <= x_(n)`.
+- Meaning: linear analogues of moments; robust and defined whenever the
+  mean exists.
+- Code: `risk.sample_l_moments`.
+- Source: [REF-HOSKING-1990].
+
+### EQ-EVA-PWM-001 — PWM / L-moment estimator of the GPD
+
+With `alpha_s = E[X (1 - F)^s] = sigma/((s+1)(s+1-xi))`:
+`xi = 2 - alpha_0/(alpha_0 - 2 alpha_1)`,
+`sigma = 2 alpha_0 alpha_1/(alpha_0 - 2 alpha_1)`, estimated with
+`a_0 = b_0`, `a_1 = b_0 - b_1`; equivalently `xi = 2 - l1/l2`,
+`sigma = l1 (l1/l2 - 1)`.
+
+- Domain: `xi < 1` (finite mean); Hosking-Wallis write `k = -xi`.
+- Meaning: closed-form estimator that is competitive with the MLE for small
+  samples and `xi` near zero; also used as the MLE start.
+- Code: `risk.fit_gpd` (`method="pwm"`).
+- Source: [REF-HOSKING-WALLIS-1987], [REF-HOSKING-1990].
+
+### EQ-EVA-MRL-001 — Mean residual life
+
+`e(u) = E[X - u | X > u]`, estimated by the mean of the `n_u` excesses with
+limits `e(u) +/- z_(1-alpha/2) s_u/sqrt(n_u)`; under a GPD above `u_0`,
+`e(u) = (sigma_(u_0) + xi u)/(1 - xi)` is linear in `u > u_0`.
+
+- Domain: `xi < 1`; thresholds with fewer than `min_exceedances` skipped.
+- Meaning: threshold choice: the lowest `u` above which the plot is
+  approximately linear.
+- Code: `risk.mean_residual_life`.
+- Source: [REF-COLES-2001, Section 4.3].
+
+### EQ-EVA-STAB-001 — Threshold stability of GPD parameters
+
+`sigma*(u) = sigma_u - xi u` and `xi` are constant for `u > u_0`;
+`Var sigma* = V_ss - 2u V_sx + u^2 V_xx` (delta method).
+
+- Domain: GPD MLE at each threshold.
+- Meaning: threshold choice: the lowest `u` above which `xi` and `sigma*`
+  are constant within their intervals.
+- Code: `risk.threshold_stability`.
+- Source: [REF-COLES-2001, Section 4.3].
+
+### EQ-EVA-RATE-001 — Exceedance-rate model
+
+`zeta_u = k/n`, `Var zeta_u = zeta_u (1 - zeta_u)/n` (binomial);
+annual rate `lambda = n_y zeta_u` with standard error
+`n_y sqrt(zeta_u (1 - zeta_u)/n)`; `P(N_t >= 1) = 1 - exp(-lambda t)` under
+a Poisson count.
+
+- Domain: `0 < k <= n`, `n_y > 0` observations per year.
+- Meaning: frequency part of the POT model, combined with the GPD severity.
+- Code: `risk.ExceedanceRate`, `risk.exceedance_rate`.
+- Source: [REF-COLES-2001, Section 4.3].
+
+### EQ-EVA-POT-001 — POT return level
+
+`x_N = u + sigma r(xi, log(m zeta_u))`, `m = N n_y`,
+`r(a, t) = expm1(a t)/a`; i.e. `u + (sigma/xi)((m zeta_u)^xi - 1)`, and
+`u + sigma log(m zeta_u)` at `xi = 0`. The yearly exceedance rate of a level
+`x >= u` is `lambda S_GPD(x)`.
+
+- Domain: `m zeta_u > 1` (otherwise the level lies below `u`).
+- Meaning: the level exceeded on average once every `N` years.
+- Code: `risk.pot_return_level`, `risk.PeaksOverThresholdFit.return_level`,
+  `risk.PeaksOverThresholdFit.annual_exceedance_rate`.
+- Source: [REF-COLES-2001, Section 4.3].
+
+### EQ-EVA-POT-002 — Delta-method POT return-level interval
+
+`grad x_N = (sigma e^(xi l)/zeta_u, r(xi, l), sigma r_a(xi, l))` in
+`(zeta_u, sigma, xi)` with `l = log(m zeta_u)`; `V` is block diagonal with
+`Var zeta_u` and the GPD observed-information covariance.
+
+- Domain: as [EQ-EVA-POT-001]; unavailable for PWM fits (no covariance).
+- Meaning: Wald interval for the `N`-year level.
+- Code: `risk.PeaksOverThresholdFit.return_level`.
+- Source: [REF-COLES-2001, Section 4.3].
+
+### EQ-EVA-DECL-001 — Runs declustering and the extremal index
+
+A cluster starts at an exceedance of `u` and ends after `r` consecutive
+non-exceedances; one peak (cluster maximum) is kept per cluster. The runs
+estimate of the extremal index is `theta = n_clusters/n_exceedances`.
+
+- Domain: run length `r >= 1`; results depend on `(u, r)`.
+- Meaning: removes short-range dependence before fitting the GPD to
+  (approximately independent) cluster peaks.
+- Code: `risk.decluster_runs`, `risk.DeclusteredExceedances.extremal_index`,
+  `risk.fit_pot`.
+- Source: [REF-COLES-2001, Section 5.3].
+
+### EQ-INFO-H-001 — Shannon entropy and information units
+
+`H(X) = -sum_x p(x) log p(x)` with `0 log 0 = 0`; one bit equals `log 2`
+nats.
+
+- Domain: finite PMF summing to one within `1e-9`.
+- Meaning: average surprise; `0 <= H <= log |support|`.
+- Code: `information.entropy`, `information._units.unit_factor`.
+- Source: [REF-COVER-THOMAS-2006, Section 2.1].
+
+### EQ-INFO-H-002 — Joint and conditional entropy (chain rule)
+
+`H(X, Y) = -sum p(x, y) log p(x, y)`,
+`H(Y | X) = -sum p(x, y) log(p(x, y)/p(x))`, and
+`H(X, Y) = H(X) + H(Y | X)`.
+
+- Domain: rectangular joint PMF with rows indexing `X`.
+- Meaning: uncertainty left in `Y` once `X` is known.
+- Code: `information.joint_entropy`, `information.conditional_entropy`,
+  `information.marginals`.
+- Source: [REF-COVER-THOMAS-2006, Section 2.2].
+
+### EQ-INFO-MI-001 — Mutual information
+
+`I(X; Y) = sum p(x, y) log(p(x, y)/(p(x) p(y))) = H(X) + H(Y) - H(X, Y)
+= D(p_XY || p_X p_Y) >= 0`, with equality iff `X` and `Y` are independent.
+
+- Domain: joint PMF; rounding-level negative sums are returned as zero.
+- Meaning: reduction of uncertainty in one variable from observing the
+  other.
+- Code: `information.mutual_information`.
+- Source: [REF-COVER-THOMAS-2006, Section 2.4].
+
+### EQ-INFO-KL-001 — Kullback-Leibler divergence and cross-entropy
+
+`D(p || q) = sum p log(p/q) >= 0` (Gibbs), `inf` if `q_i = 0 < p_i`;
+`H(p, q) = -sum p log q = H(p) + D(p || q)`.
+
+- Domain: two PMFs on one finite support.
+- Meaning: expected log-likelihood ratio; extra code length when coding `p`
+  with a code built for `q`. Not symmetric.
+- Code: `information.kl_divergence`, `information.cross_entropy`.
+- Source: [REF-COVER-THOMAS-2006, Section 2.3].
+
+### EQ-INFO-JS-001 — Jensen-Shannon divergence
+
+`JS(p, q) = D(p || m)/2 + D(q || m)/2`, `m = (p + q)/2`;
+`0 <= JS <= log 2`.
+
+- Domain: two PMFs on one finite support.
+- Meaning: symmetric, always finite divergence; its square root is a metric.
+- Code: `information.jensen_shannon_divergence`.
+- Source: [REF-LIN-1991].
+
+### EQ-INFO-DH-001 — Gaussian differential entropy
+
+`h(N(mu, sigma^2)) = log(sigma sqrt(2 pi e))`;
+`h(N_d(mu, Sigma)) = (d log(2 pi e) + log det Sigma)/2`.
+
+- Domain: `sigma > 0`; `Sigma` symmetric positive definite.
+- Meaning: the maximum entropy among laws with a given covariance.
+- Code: `information.normal_entropy`,
+  `information.multivariate_normal_entropy`,
+  `information.differential_entropy`.
+- Source: [REF-COVER-THOMAS-2006, Sections 8.1 and 8.4].
+
+### EQ-INFO-DH-002 — Uniform and exponential differential entropy
+
+`h(U(a, b)) = log(b - a)`; `h(Exp(lambda)) = 1 - log lambda`.
+
+- Domain: `b > a`; `lambda > 0`.
+- Meaning: differential entropy can be negative (`b - a < 1`).
+- Code: `information.uniform_entropy`, `information.exponential_entropy`.
+- Source: [REF-COVER-THOMAS-2006, Section 8.1].
+
+### EQ-INFO-DH-003 — Gamma and beta differential entropy
+
+`h(Gamma(k, lambda)) = k - log lambda + log Gamma(k) + (1 - k) psi(k)`;
+`h(Beta(a, b)) = log B(a, b) - (a-1) psi(a) - (b-1) psi(b)
++ (a+b-2) psi(a+b)`.
+
+- Domain: positive shapes and rate; `psi` is the digamma function.
+- Meaning: from `E[log X] = psi(k) - log lambda` (gamma) and
+  `E[log X] = psi(a) - psi(a+b)` (beta).
+- Code: `information.gamma_entropy`, `information.beta_entropy`.
+- Source: [REF-COVER-THOMAS-2006, Chapter 8], [REF-NIST-DLMF-GAMMA,
+  Section 5.2].
+
+### EQ-INFO-DH-004 — Lognormal differential entropy
+
+`h(X) = mu + log(sigma sqrt(2 pi e))` for `log X ~ N(mu, sigma^2)`.
+
+- Domain: `sigma > 0`.
+- Meaning: `h(e^Y) = h(Y) + E[Y]` (change of variables).
+- Code: `information.lognormal_entropy`.
+- Source: [REF-COVER-THOMAS-2006, Chapter 8].
+
+### EQ-INFO-DH-005 — GEV and Gumbel differential entropy
+
+`h(GEV(mu, sigma, xi)) = log sigma + gamma_E (1 + xi) + 1`; the Gumbel case
+is `xi = 0`.
+
+- Domain: `sigma > 0`, real `xi`.
+- Meaning: with `T = exp(-y)` standard exponential, `E[y] = gamma_E` and
+  `E[T] = 1` in `-E log f = log sigma + (1 + xi) E[y] + E[T]`.
+- Code: `information.gev_entropy`, `information.differential_entropy`.
+- Source: [REF-COLES-2001, Section 3.1], [REF-COVER-THOMAS-2006, Chapter 8].
+
+### EQ-INFO-KLG-001 — KL divergence between univariate normals
+
+`D(N(m0, s0^2) || N(m1, s1^2)) = log(s1/s0) + (s0^2 + (m0 - m1)^2)/(2 s1^2)
+- 1/2`.
+
+- Domain: `s0, s1 > 0`.
+- Meaning: closed form used to check numerical integration and estimators.
+- Code: `information.kl_normal`.
+- Source: [REF-COVER-THOMAS-2006, Section 8.5].
+
+### EQ-INFO-KLG-002 — KL divergence between multivariate normals
+
+`D = (tr(S1^-1 S0) + (m1 - m0)' S1^-1 (m1 - m0) - d + log det S1
+- log det S0)/2`, evaluated with Cholesky factors.
+
+- Domain: symmetric positive-definite `S0`, `S1` of one dimension `d`.
+- Meaning: reduces to a sum of [EQ-INFO-KLG-001] terms for diagonal
+  covariances.
+- Code: `information.kl_multivariate_normal`.
+- Source: [REF-COVER-THOMAS-2006, Section 8.5].
+
+### EQ-INFO-KLE-001 — Kozachenko-Leonenko k-NN entropy estimator
+
+`h = psi(n) - psi(k) + log V_d + (d/n) sum_i log r_i`, `r_i` the distance from
+point `i` to its `k`-th nearest neighbour, `V_d = pi^(d/2)/Gamma(d/2 + 1)`
+(Euclidean) or `2^d` (max norm).
+
+- Domain: `1 <= k < n`, continuous data without duplicated points;
+  exhaustive `O(n^2 d)` neighbour search.
+- Meaning: local uniform-density approximation inside each `k`-NN ball;
+  consistent, with bias decaying in `n`.
+- Code: `information.kozachenko_leonenko_entropy`.
+- Source: [REF-KOZACHENKO-LEONENKO-1987],
+  [REF-KRASKOV-STOGBAUER-GRASSBERGER-2004].
+
+### EQ-INFO-KSG-001 — KSG mutual-information estimator
+
+`I = psi(k) + psi(n) - n^-1 sum_i [psi(n_x(i) + 1) + psi(n_y(i) + 1)]`, where
+`eps_i` is the max-norm distance to the `k`-th joint neighbour and
+`n_x(i)`, `n_y(i)` count other points strictly within `eps_i` in each
+marginal space.
+
+- Domain: `1 <= k < n`, paired continuous samples without duplicated pairs;
+  `O(n^2)` search.
+- Meaning: algorithm 1 of Kraskov et al.; using one radius for joint and
+  marginal spaces makes the k-NN biases largely cancel.
+- Code: `information.ksg_mutual_information`.
+- Source: [REF-KRASKOV-STOGBAUER-GRASSBERGER-2004].
