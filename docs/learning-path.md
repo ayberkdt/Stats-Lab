@@ -57,6 +57,30 @@ With those foundations, switch to the integrated toolset built on one model:
 `probstat.workflow.UQStudy` runs all of these on one model with one seed and
 produces a single report.
 
+Statistical modelling and decision tools extend the same foundations:
+
+- [Regression and GLMs](foundations/regression-and-glms.md) and
+  [hierarchical models](foundations/hierarchical-models.md): least squares,
+  generalized linear models, regularization, EM and mixtures, partial
+  pooling, and posterior predictive checks.
+- [Time series](foundations/time-series.md) and
+  [survival analysis](foundations/survival-analysis.md): ARIMA with exact
+  likelihoods and forecasts; censored data, Kaplan-Meier, and Cox models.
+- [Model discrepancy](foundations/model-discrepancy.md): Kennedy-O'Hagan
+  calibration when the simulator itself is wrong.
+- [Extreme values](foundations/extreme-value-analysis.md) and
+  [adaptive reliability](foundations/adaptive-reliability.md): return levels,
+  multiple design points, and active learning for rare events.
+- [Causal inference](foundations/causal-inference.md) and
+  [experimental design](foundations/experimental-design.md): identification
+  from graphs, effect estimation, and choosing the next experiment.
+- [Conformal prediction](foundations/conformal-prediction.md) and
+  [information theory](foundations/information-theory.md): distribution-free
+  prediction intervals and moment-independent dependence measures.
+
+[The visual language](foundations/visual-language.md) explains how every
+figure encodes data, model, and uncertainty.
+
 The library separates conceptual order from software layer order. Readers can
 learn progressively without losing topics needed later.
 
