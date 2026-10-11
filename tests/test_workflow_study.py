@@ -295,6 +295,23 @@ class CalibrationAndEmulationTests(unittest.TestCase):
         self.assertNotIn("validated", good.summary().lower())
         self.assertEqual(study.latest("validation").summary["consistent"], "False")
 
+    def test_emulator_conformal_error_bars_cover_new_runs(self) -> None:
+        """The conformal half-width covers about 1 - alpha of fresh outputs."""
+        study = UQStudy(capacity_model(), seed=9)
+        emulated = study.emulate(
+            "g", method="pce", degree=2, conformal_alpha=0.1, conformal_size=200
+        )
+        record = study.latest("emulation")
+        half_width = record.summary["conformal_half_width"]
+        self.assertGreaterEqual(record.summary["conformal_coverage"], 0.9)
+        fresh = study.model.inputs.sample(1000, seed=77)
+        inside = sum(
+            abs(study.model.evaluate(x)["g"] - emulated.model.evaluate(x)["g"])
+            <= half_width
+            for x in fresh
+        )
+        self.assertGreater(inside / 1000, 0.85)
+
 
 if __name__ == "__main__":
     unittest.main()

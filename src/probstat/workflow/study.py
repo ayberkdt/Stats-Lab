@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, Literal
 
+from probstat.conformal import conformalize_surrogate
 from probstat.distributions import Uniform
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.inverse import (
@@ -746,6 +747,8 @@ class UQStudy:
         degree: int = 3,
         size: int | None = None,
         basis: str | None = None,
+        conformal_alpha: float | None = None,
+        conformal_size: int = 200,
     ) -> UQStudy:
         """Fit a surrogate of one QoI and return a study on the surrogate.
 
@@ -764,6 +767,11 @@ class UQStudy:
                 independent uniform law and Hermite (Nataf space) otherwise.
                 Hermite polynomials on bounded inputs extrapolate badly in
                 the far tails of large quasi-random designs.
+            conformal_alpha: If given, calibrate split-conformal error bars of
+                the emulator on ``conformal_size`` fresh true-model runs; the
+                recorded half-width covers a new output with probability at
+                least ``1 - conformal_alpha`` (marginally).
+            conformal_size: Number of independent calibration runs.
 
         Returns:
             New study whose model evaluates the surrogate.
@@ -819,6 +827,17 @@ class UQStudy:
         )
         summary: dict[str, float | str] = {"method": method, "quantity": quantity}
         summary.update(accuracy)
+        if conformal_alpha is not None:
+            calibration = conformalize_surrogate(
+                self._model,
+                fitted,
+                quantity=quantity,
+                alpha=conformal_alpha,
+                size=conformal_size,
+                seed=stream.child("conformal"),
+            )
+            summary["conformal_half_width"] = calibration.regressor.quantile
+            summary["conformal_coverage"] = calibration.regressor.guaranteed_coverage
         self._record(
             "emulation",
             f"{method.upper()} surrogate of {quantity}",
