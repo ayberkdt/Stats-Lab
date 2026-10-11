@@ -878,8 +878,9 @@ class UQStudy:
             "u_pooling_area": result.u_pooling.area,
             "log_bayes_factor": result.log_bayes_factor,
         }
-        for item in result.experiments:
-            summary[f"area[{item.experiment.name}]"] = item.area
+        for index, item in enumerate(result.experiments, start=1):
+            # Index-qualified keys keep every experiment even if names repeat.
+            summary[f"area[{index}:{item.experiment.name}]"] = item.area
         self._record(
             "validation",
             f"validation of {quantity} against {len(result.experiments)} experiments",

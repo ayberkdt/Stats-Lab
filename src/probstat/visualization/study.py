@@ -97,6 +97,28 @@ def _figures_for(record: Any) -> list[tuple[str, Any]]:
     return []
 
 
+def _safe_stem(text: str) -> str:
+    """Return a file-name stem without path separators or leading dots.
+
+    Study and QoI names are user text; this keeps every figure inside the
+    requested directory.
+
+    Args:
+        text: Raw stem.
+
+    Returns:
+        Stem made of letters, digits, ``-``, ``_`` and ``.``.
+
+    References:
+        [REF-PYTHON-DATAMODEL]. No equation is evaluated.
+
+    """
+    import re
+
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "-", text).lstrip(".-")
+    return cleaned or "figure"
+
+
 def save_study_figures(study: UQStudy, directory: str | Path) -> tuple[Path, ...]:
     """Save one themed figure per supported stage of a study.
 
@@ -116,7 +138,8 @@ def save_study_figures(study: UQStudy, directory: str | Path) -> tuple[Path, ...
     written: list[Path] = []
     for index, record in enumerate(study.records, start=1):
         for suffix, axes in _figures_for(record):
-            path = destination / f"{study.name}-{index:02d}-{record.stage}-{suffix}.png"
+            stem = _safe_stem(f"{study.name}-{index:02d}-{record.stage}-{suffix}")
+            path = destination / f"{stem}.png"
             written.append(save_figure(axes.figure, path))
             plt.close(axes.figure)
     return tuple(written)

@@ -152,6 +152,26 @@ class StudyTests(unittest.TestCase):
         self.assertEqual(result.ranking()[0], "S")
         self.assertEqual(study.latest("shapley").evaluations, result.evaluations)
 
+    @unittest.skipUnless(
+        importlib.util.find_spec("matplotlib") is not None, "matplotlib is optional"
+    )
+    def test_figure_paths_stay_inside_directory(self) -> None:
+        """A study name with path separators cannot escape the output folder."""
+        import matplotlib
+
+        matplotlib.use("Agg")
+        from pathlib import Path
+
+        from probstat.visualization.study import save_study_figures
+
+        study = UQStudy(capacity_model(), seed=2, name="../../evil/name")
+        study.propagate(128)
+        with tempfile.TemporaryDirectory() as directory:
+            paths = save_study_figures(study, directory)
+            root = Path(directory).resolve()
+            for path in paths:
+                self.assertEqual(path.resolve().parent, root)
+
 
 class CalibrationAndEmulationTests(unittest.TestCase):
     """Backward modeling and surrogates inside the same study."""
