@@ -4638,3 +4638,159 @@ of `exp(-a s - s^2/2)`).
 - Code: `distributions._continuous.log_normal_short_mass`,
   `distributions.TruncatedNormal.cdf`, `distributions.TruncatedNormal.sf`.
 - Source: [REF-NIST-DLMF, Section 7.2] and [REF-JKB-1994, Chapter 13].
+
+## Generic fitting, goodness-of-fit calibration, and model selection
+
+### EQ-INF-MLE-EXP-001 — Exponential rate maximum-likelihood estimator
+
+`lambda_hat = n / sum x_i = 1 / mean(x)`.
+
+- Domain: non-negative finite observations with positive mean.
+- Meaning: the score `n/lambda - sum x_i` vanishes at the reciprocal mean;
+  observed information `n / lambda^2` gives `se(lambda_hat) = lambda_hat/sqrt(n)`.
+- Code: `inference.fitting.EXPONENTIAL_FAMILY`, `inference.fit_distribution`.
+- Source: [REF-CASELLA-BERGER-2002, Section 7.2].
+
+### EQ-INF-MLE-UNIF-001 — Uniform endpoint maximum-likelihood estimator
+
+`(a_hat, b_hat) = (min x_i, max x_i)`, `log L = -n log(b_hat - a_hat)`.
+
+- Domain: finite real observations with at least two distinct values.
+- Meaning: the likelihood `(b - a)^-n` on `a <= min x, b >= max x` is
+  maximized at the sample range. The support depends on the parameters, so
+  the model is non-regular: observed-information errors are undefined and AIC
+  is used only as a descriptive score.
+- Code: `inference.fitting.UNIFORM_FAMILY`.
+- Source: [REF-CASELLA-BERGER-2002, Section 7.2].
+
+### EQ-INF-MLE-GEN-001 — Generic likelihood maximization in unconstrained coordinates
+
+`theta_hat = argmin_theta -sum_i log f(x_i; theta)`, searched over `u` with
+`theta_j = a_j + s_j u_j` (location: `s_j` = data spread; real: `s_j = 1`),
+`theta_j = a_j exp(u_j)` (positive), or
+`theta_j = b_j / (1 + (b_j/a_j - 1) exp(-u_j))` (positive, bounded by `b_j`),
+anchored at start values `a`, by BFGS with Armijo backtracking and a
+Nelder-Mead fallback.
+
+- Domain: `log_pdf` defined for every observation; invalid parameters or zero
+  likelihood map to `+inf`.
+- Meaning: transforms remove positivity constraints and equalize scales, so a
+  single quasi-Newton routine fits every family; the MLE is invariant to the
+  reparameterization.
+- Code: `inference.fit_distribution`, `inference.fitting._numerical_mle`,
+  `modeling.fit_joint_input`.
+- Source: [REF-CASELLA-BERGER-2002, Section 7.2] and
+  [REF-NOCEDAL-WRIGHT-2006, Chapter 6].
+
+### EQ-INF-MLE-GEN-002 — Observed-information covariance by the delta method
+
+`Cov(theta_hat) ~= J H_u^-1 J`, with `H_u` the central-difference Hessian of
+the negative log-likelihood in `u` at the estimate and diagonal Jacobian
+`J = diag(d theta_j / d u_j)` (`s_j`, `theta_j`, or
+`theta_j (1 - theta_j/b_j)`); `se_j = sqrt(Cov_jj)`.
+
+- Domain: regular interior maximum with positive-definite `H_u`; parameters
+  within `0.1 %` of an upper bound are held fixed and get `se = nan`.
+- Meaning: inverse observed Fisher information gives large-sample standard
+  errors; at a stationary point the Hessian transforms exactly by `J`.
+- Code: `inference.fitting._observed_information`, `inference.fit_distribution`.
+- Source: [REF-CASELLA-BERGER-2002, Section 10.1].
+
+### EQ-INF-IC-001 — Akaike information criterion
+
+`AIC = 2k - 2 log L(theta_hat)`.
+
+- Domain: maximized log-likelihood with `k` estimated parameters.
+- Meaning: estimate of relative expected Kullback-Leibler information loss;
+  only differences between models fitted to the same data are meaningful.
+- Code: `inference.information_criteria`, `inference.FitResult`.
+- Source: [REF-AKAIKE-1974] and [REF-BURNHAM-ANDERSON-2002, Chapter 2].
+
+### EQ-INF-IC-002 — Small-sample corrected AIC
+
+`AICc = AIC + 2k(k+1)/(n-k-1)`, `inf` when `n <= k + 1`.
+
+- Domain: `n > k + 1`.
+- Meaning: bias correction of AIC that matters when `n/k` is small.
+- Code: `inference.information_criteria`.
+- Source: [REF-HURVICH-TSAI-1989] and [REF-BURNHAM-ANDERSON-2002, Chapter 2].
+
+### EQ-INF-IC-003 — Bayesian (Schwarz) information criterion
+
+`BIC = k log n - 2 log L(theta_hat)`.
+
+- Domain: maximized log-likelihood, `n` independent observations.
+- Meaning: leading terms of the log marginal likelihood; penalizes
+  parameters more strongly than AIC for `n >= 8`.
+- Code: `inference.information_criteria`.
+- Source: [REF-SCHWARZ-1978].
+
+### EQ-INF-IC-004 — Akaike weights
+
+`Delta_i = IC_i - min_j IC_j`, `w_i = exp(-Delta_i/2) / sum_j exp(-Delta_j/2)`.
+
+- Domain: finite criterion values over one candidate set and one data set.
+- Meaning: relative support of each candidate within the set; they do not
+  measure absolute adequacy.
+- Code: `inference.akaike_weights`, `inference.select_distribution`.
+- Source: [REF-BURNHAM-ANDERSON-2002, Chapter 2].
+
+### EQ-INF-GOF-PB-001 — Parametric-bootstrap p-value with estimated parameters
+
+`T = T(x, F(.; theta_hat(x)))`; for `b = 1..B`: `x*_b ~ F(.; theta_hat(x))`,
+`T*_b = T(x*_b, F(.; theta_hat(x*_b)))`;
+`p = (1 + #{T*_b >= T}) / (1 + B_ok)`, with `B_ok` successful refits.
+
+- Domain: EDF statistic `T` (KS `D` or AD `A^2`); the refit uses the same
+  estimator as the original fit; `p = nan` for an infinite observed `A^2`.
+- Meaning: reproduces the null law of the statistic when parameters are
+  estimated from the tested data, which the fully specified KS/AD tables do
+  not (the Lilliefors/Stephens problem); the smallest attainable p-value is
+  `1/(B+1)`.
+- Code: `inference.bootstrap_goodness_of_fit`, `inference.select_distribution`.
+- Source: [REF-STEPHENS-1974], [REF-LILLIEFORS-1967],
+  [REF-DAVISON-HINKLEY-1997, Chapter 4], and [REF-EFRON-TIBSHIRANI-1993,
+  Chapter 16].
+
+### EQ-INF-GOF-QQ-001 — Q-Q and P-P plotting positions
+
+`p_i = (i - 1/2)/n`; Q-Q pairs `(F^-1(p_i), x_(i))`; P-P pairs
+`(F(x_(i)), p_i)`.
+
+- Domain: ordered finite sample and a continuous model law.
+- Meaning: points near the diagonal indicate agreement; Q-Q emphasizes tails,
+  P-P the centre.
+- Code: `inference.qq_points`, `inference.pp_points`.
+- Source: [REF-WILK-GNANADESIKAN-1968] and [REF-NIST-EDA, Section 1.3.3].
+
+### EQ-INF-MLE-MVN-001 — Multivariate normal maximum-likelihood estimators
+
+`mu_hat = (1/n) sum x_i`,
+`Sigma_hat = (1/n) sum (x_i - mu_hat)(x_i - mu_hat)'`.
+
+- Domain: `n > d` observations with non-singular sample covariance.
+- Meaning: likelihood maximizers; divisor `n`, not `n - 1`.
+- Code: `inference.fit_multivariate_normal_mle`.
+- Source: [REF-MARDIA-KENT-BIBBY-1979, Chapter 4].
+
+### EQ-MOD-COPULA-FIT-001 — Spearman-to-latent Gaussian-copula correlation
+
+`r_s = (6/pi) arcsin(rho/2)`, inverted as `rho = 2 sin(pi r_s / 6)`.
+
+- Domain: bivariate Gaussian copula; `r_s` in `[-1, 1]`.
+- Meaning: Spearman's rho is a copula invariant, so it converts to the latent
+  normal correlation regardless of the marginals.
+- Code: `modeling.spearman_to_latent_correlation`, `modeling.fit_gaussian_copula`.
+- Source: [REF-KRUSKAL-1958] and [REF-MCNEIL-FREY-EMBRECHTS-2015].
+
+### EQ-MOD-COPULA-FIT-002 — Normal scores of rank pseudo-observations
+
+`U_i = R_i/(n+1)`, `z_i = Phi^-1(U_i)`; `rho_jk = corr(z_j, z_k)`.
+
+- Domain: at least two observations per column; ties take average ranks.
+- Meaning: rank pseudo-observations remove marginal effects; the Pearson
+  correlation of their normal scores (van der Waerden) estimates the latent
+  Gaussian-copula correlation.
+- Code: `modeling.normal_scores`, `modeling.fit_gaussian_copula`.
+- Source: [REF-GENEST-GHOUDI-RIVEST-1995] and
+  [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 8].

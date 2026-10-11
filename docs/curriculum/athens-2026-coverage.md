@@ -36,11 +36,11 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-2.4 | Normal, Uniform, Lognormal, and Weibull families | Implemented | UQ-1 | `probstat.distributions` | `src/probstat/distributions/normal.py`; `src/probstat/distributions/uniform.py`; `src/probstat/distributions/lognormal.py`; `src/probstat/distributions/weibull.py` |
 | ATHENS-2.5 | Expectation and variance | Implemented | UQ-1 | `probstat.probability` | `src/probstat/probability/random_variables.py` |
 | ATHENS-2.6 | Covariance and correlation | Implemented | UQ-1 | `probstat.statistics` | `src/probstat/statistics/descriptive.py` |
-| ATHENS-2.7 | Multivariate random variables | Partial | UQ-1 | `probstat.multivariate` | `src/probstat/multivariate/normal.py` |
+| ATHENS-2.7 | Multivariate random variables | Implemented | UQ-1 | `probstat.multivariate` | `src/probstat/multivariate/normal.py`; `src/probstat/modeling/inputs.py`; `src/probstat/modeling/fitting.py`; `tests/test_core_modeling.py`; `tests/test_generic_fitting_model_selection.py`; `docs/foundations/uncertainty-modeling-and-fitting.md` |
 | ATHENS-2.8 | Multivariate normal distribution | Implemented | UQ-1 | `probstat.multivariate` | `src/probstat/multivariate/normal.py` |
-| ATHENS-2.9 | Parameter estimation | Partial | UQ-1 | `probstat.inference` | `src/probstat/inference/estimation.py` |
-| ATHENS-2.10 | Maximum-likelihood estimation | Partial | UQ-1 | `probstat.inference` | `src/probstat/inference/estimation.py` |
-| ATHENS-2.11 | Kolmogorov-Smirnov and Anderson-Darling goodness-of-fit | Partial | UQ-1 | `probstat.inference.gof` | `src/probstat/inference/goodness_of_fit.py` |
+| ATHENS-2.9 | Parameter estimation | Implemented | UQ-1 | `probstat.inference` | `src/probstat/inference/estimation.py`; `src/probstat/inference/fitting.py`; `tests/test_generic_fitting_model_selection.py`; `docs/foundations/uncertainty-modeling-and-fitting.md` |
+| ATHENS-2.10 | Maximum-likelihood estimation | Implemented | UQ-1 | `probstat.inference` | `src/probstat/inference/estimation.py`; `src/probstat/inference/fitting.py`; `tests/test_generic_fitting_model_selection.py`; `docs/foundations/uncertainty-modeling-and-fitting.md` |
+| ATHENS-2.11 | Kolmogorov-Smirnov and Anderson-Darling goodness-of-fit | Implemented | UQ-1 | `probstat.inference.gof` | `src/probstat/inference/goodness_of_fit.py`; `src/probstat/inference/fitting.py`; `tests/test_generic_fitting_model_selection.py`; `docs/foundations/uncertainty-modeling-and-fitting.md` |
 | ATHENS-2.12 | Confidence intervals and sampling concepts | Implemented | UQ-1 | `probstat.inference` | `src/probstat/inference/confidence.py`; `src/probstat/inference/resampling.py`; `src/probstat/inference/sampling_distributions.py`; `tests/test_classical_resampling_inference.py`; `docs/foundations/hypothesis-testing-and-bootstrap.md` |
 | ATHENS-3.1 | Deterministic propagation map Y = g(X) | Implemented | UQ-2 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
 | ATHENS-3.2 | Output mean under input uncertainty | Implemented | UQ-2 | `probstat.propagation` | `src/probstat/propagation/forward.py` |
@@ -117,7 +117,7 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-8.13 | Extended Kalman filter | Implemented | UQ-7 | `probstat.filtering.extended` | `src/probstat/filtering/extended.py`; `tests/test_uq7_filtering.py` |
 | ATHENS-8.14 | Ensemble Kalman filter | Implemented | UQ-7 | `probstat.data_assimilation.enkf` | `src/probstat/data_assimilation/enkf.py`; `tests/test_uq7_filtering.py` |
 | ATHENS-8.15 | Particle filtering | Implemented | UQ-7 | `probstat.filtering.particle` | `src/probstat/filtering/particle.py`; `tests/test_uq7_filtering.py` |
-| ATHENS-9.1 | Statistical fitting laboratory | Partial | LAB-1 | `examples.labs.statistical_fitting` | `examples/statistical_fitting_lab.py`; `src/probstat/visualization/foundations.py` |
+| ATHENS-9.1 | Statistical fitting laboratory | Implemented | LAB-1 | `examples.labs.statistical_fitting` | `examples/statistical_fitting_lab.py`; `examples/model_selection_lab.py`; `src/probstat/visualization/foundations.py`; `docs/foundations/uncertainty-modeling-and-fitting.md` |
 | ATHENS-9.2 | Basic Monte Carlo laboratory | Implemented | LAB-2 | `examples.labs.basic_monte_carlo` | `examples/basic_monte_carlo_lab.py`; `src/probstat/visualization/foundations.py` |
 | ATHENS-9.3 | Advanced Monte Carlo variance-reduction laboratory | Implemented | LAB-3 | `examples.labs.advanced_monte_carlo` | `examples/advanced_monte_carlo_lab.py`; `docs/foundations/advanced-monte-carlo.md` |
 | ATHENS-9.4 | Reliability laboratory with FORM and directional sampling | Implemented | LAB-4 | `examples.labs.reliability` | `examples/reliability_lab.py`; `docs/foundations/reliability-analysis.md` |
