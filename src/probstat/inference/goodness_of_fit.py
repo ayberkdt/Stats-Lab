@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
+from fractions import Fraction
 from numbers import Real
 from typing import cast
 
@@ -457,3 +458,191 @@ def _kolmogorov_survival(argument: float) -> float:
         if term < 1e-16:
             break
     return min(1.0, max(0.0, math.fsum(alternating)))
+
+
+_KS2_EXACT_MAX_PRODUCT = 250_000
+_KS2_EXACT_LABEL = "exact two-sample KS (lattice-path count, conditional on ties)"
+_KS2_ASYMPTOTIC_LABEL = "asymptotic two-sample KS (limiting Kolmogorov law)"
+
+
+@dataclass(frozen=True, slots=True)
+class TwoSampleKolmogorovSmirnovResult:
+    """Two-sample Kolmogorov-Smirnov (Smirnov) statistic and null p-value.
+
+    Args:
+        statistic: ``D = sup_x |F_m(x) - G_n(x)|`` in ``[0, 1]``.
+        p_value: Null probability of a statistic at least ``D`` under
+            exchangeability of the pooled sample; exact (conditional on the
+            observed tie pattern) or asymptotic as recorded by ``method``.
+        first_size: Positive size ``m`` of the first sample.
+        second_size: Positive size ``n`` of the second sample.
+        method: Label identifying the p-value computation.
+        exact: Whether the p-value was computed by exact enumeration.
+
+    References:
+        [REF-HODGES-1958], [REF-HOLLANDER-WOLFE-CHICKEN-2014].
+
+    """
+
+    statistic: float
+    p_value: float
+    first_size: int
+    second_size: int
+    method: str
+    exact: bool
+
+    def __post_init__(self) -> None:
+        """Validate probability fields and sample sizes.
+
+        Raises:
+            TypeError: If a field has an invalid type.
+            ValueError: If a probability or a size is outside its domain.
+
+        References:
+            [EQ-INF-GOF-KS2-001], [REF-HODGES-1958].
+
+        """
+        object.__setattr__(
+            self, "statistic", require_probability(self.statistic, name="statistic")
+        )
+        object.__setattr__(
+            self, "p_value", require_probability(self.p_value, name="p_value")
+        )
+        for name in ("first_size", "second_size"):
+            size = require_non_negative_integer(getattr(self, name), name=name)
+            if size == 0:
+                raise ValueError(f"{name} must be positive")
+
+
+def kolmogorov_smirnov_two_sample_test(
+    first: Iterable[object],
+    second: Iterable[object],
+    *,
+    exact: bool | None = None,
+) -> TwoSampleKolmogorovSmirnovResult:
+    """Test whether two samples come from the same continuous distribution.
+
+    The statistic ``D = max_z |F_m(z) - G_n(z)|`` is evaluated at every
+    distinct pooled value. It is kept as the exact integer
+    ``K = m n D = max |i n - j m|`` over the ECDF step points, so the
+    comparison "at least as extreme" involves no floating-point tolerance.
+
+    The exact p-value counts the monotone lattice paths from ``(0, 0)`` to
+    ``(m, n)`` (one step per pooled order statistic, right for the first
+    sample, up for the second) that reach ``|i n - j m| >= K`` at a point
+    where the pooled ordering is not inside a block of tied values. All
+    ``C(m + n, m)`` paths are equally likely under exchangeability, so the
+    ratio is exact; with ties it is exact conditionally on the observed tie
+    pattern (the permutation distribution). The counts are exact Python
+    integers and the final ratio is rounded once, so tiny p-values keep full
+    relative accuracy. For large samples the limiting law
+    ``P(sqrt(m n/(m + n)) D > t) -> 2 sum_k (-1)^(k-1) exp(-2 k^2 t^2)`` is
+    used without small-sample correction.
+
+    Args:
+        first: Non-empty finite sample of size ``m``.
+        second: Non-empty finite sample of size ``n``.
+        exact: ``True`` forces the exact count, ``False`` the asymptotic law,
+            ``None`` (default) uses the exact count when ``m n <= 250000``.
+
+    Returns:
+        Statistic, p-value, sizes, and method label.
+
+    Raises:
+        TypeError: If a value is not real or ``exact`` is not a bool/None.
+        ValueError: If a sample is empty or contains a non-finite value.
+
+    Equation:
+        [EQ-INF-GOF-KS2-001], [EQ-INF-GOF-KS2-002], [EQ-INF-GOF-KS2-003].
+
+    References:
+        [REF-HODGES-1958], [REF-HOLLANDER-WOLFE-CHICKEN-2014],
+        [REF-NIST-GOF, Kolmogorov-Smirnov Goodness-of-Fit Test].
+
+    """
+    a = sorted(coerce_finite_sample(first, name="first"))
+    b = sorted(coerce_finite_sample(second, name="second"))
+    if exact is not None and not isinstance(exact, bool):
+        raise TypeError("exact must be a bool or None")
+    m, n = len(a), len(b)
+    pooled = sorted([(value, 0) for value in a] + [(value, 1) for value in b])
+    block_ends: set[int] = set()
+    largest = 0
+    i = j = 0
+    for position, (value, label) in enumerate(pooled):
+        if label == 0:
+            i += 1
+        else:
+            j += 1
+        last = position + 1 == m + n
+        if last or pooled[position + 1][0] != value:
+            block_ends.add(position + 1)
+            largest = max(largest, abs(i * n - j * m))
+    statistic = largest / (m * n)
+    use_exact = m * n <= _KS2_EXACT_MAX_PRODUCT if exact is None else exact
+    if use_exact:
+        p_value = _smirnov_exact_tail(m, n, largest, block_ends)
+        return TwoSampleKolmogorovSmirnovResult(
+            statistic, p_value, m, n, _KS2_EXACT_LABEL, True
+        )
+    effective = math.sqrt(m * n / (m + n))
+    return TwoSampleKolmogorovSmirnovResult(
+        statistic,
+        _kolmogorov_survival(effective * statistic),
+        m,
+        n,
+        _KS2_ASYMPTOTIC_LABEL,
+        False,
+    )
+
+
+def _smirnov_exact_tail(
+    m: int, n: int, threshold: int, block_ends: set[int]
+) -> float:
+    """Return the exact share of lattice paths that reach the threshold.
+
+    ``inside[j]`` holds, for the current column ``i``, the number of paths
+    from ``(0, 0)`` to ``(i, j)`` that never satisfied ``|i' n - j' m| >=
+    threshold`` at a checked step ``i' + j'`` in ``block_ends``.
+
+    Args:
+        m: First sample size.
+        n: Second sample size.
+        threshold: Observed integer statistic ``K = m n D``.
+        block_ends: Pooled positions at which the ECDFs are compared.
+
+    Returns:
+        ``1 - inside / C(m + n, m)`` rounded once to the nearest float.
+
+    Equation:
+        [EQ-INF-GOF-KS2-002].
+
+    References:
+        [REF-HODGES-1958].
+
+    """
+    if threshold == 0:
+        return 1.0
+
+    def allowed(row: int, column: int) -> bool:
+        """Return whether the lattice point stays strictly inside the band.
+
+        References:
+            [EQ-INF-GOF-KS2-002].
+
+        """
+        if row + column not in block_ends:
+            return True
+        return abs(row * n - column * m) < threshold
+
+    inside = [0] * (n + 1)
+    inside[0] = 1
+    for column in range(1, n + 1):
+        inside[column] = inside[column - 1] if allowed(0, column) else 0
+    for row in range(1, m + 1):
+        inside[0] = inside[0] if allowed(row, 0) else 0
+        for column in range(1, n + 1):
+            total = inside[column] + inside[column - 1]
+            inside[column] = total if allowed(row, column) else 0
+    paths = math.comb(m + n, m)
+    return float(Fraction(paths - inside[n], paths))

@@ -77,8 +77,10 @@ from .glm import (
 from .goodness_of_fit import (
     AndersonDarlingResult,
     KolmogorovSmirnovResult,
+    TwoSampleKolmogorovSmirnovResult,
     anderson_darling_test,
     kolmogorov_smirnov_test,
+    kolmogorov_smirnov_two_sample_test,
 )
 from .hamiltonian import (
     GradientFunction,
@@ -273,6 +275,7 @@ __all__ = [
     "SmallExpectedCountWarning",
     "StudentTPredictive",
     "TTestResult",
+    "TwoSampleKolmogorovSmirnovResult",
     "UNIFORM_FAMILY",
     "VariationalResult",
     "WEIBULL_FAMILY",
@@ -321,6 +324,7 @@ __all__ = [
     "jackknife",
     "kfold_assignment",
     "kolmogorov_smirnov_test",
+    "kolmogorov_smirnov_two_sample_test",
     "laplace_approximation",
     "leapfrog",
     "mann_whitney_u_distribution",

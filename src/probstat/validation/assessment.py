@@ -45,6 +45,7 @@ from .metrics import (
     validation_bayes_factor,
 )
 from .records import DomainCheck, ValidationDomain, ValidationExperiment
+from .scoring import crps_ensemble
 
 
 def predict_at_conditions(
@@ -135,6 +136,25 @@ class ExperimentAssessment:
 
         """
         return math.fsum(self.latent_predictions) / len(self.latent_predictions)
+
+    @property
+    def crps(self) -> float:
+        """Return the mean ensemble CRPS of the observations.
+
+        Each observation is scored against ``observable_predictions`` with
+        :func:`~probstat.validation.scoring.crps_ensemble`; the mean is in
+        QoI units and rewards calibration and sharpness jointly.
+
+        References:
+            [EQ-VAL-SCORE-CRPS-002], [REF-GNEITING-RAFTERY-2007],
+            [REF-HERSBACH-2000].
+
+        """
+        scores = [
+            crps_ensemble(self.observable_predictions, y)
+            for y in self.experiment.observations
+        ]
+        return math.fsum(scores) / len(scores)
 
 
 @dataclass(frozen=True, slots=True)
@@ -257,6 +277,7 @@ class ValidationAssessment:
         for item in self.experiments:
             lines.append(
                 f"  - {item.experiment.name}: area={item.area:.4g}, "
+                f"CRPS={item.crps:.4g}, "
                 f"reliability(eps={item.reliability.tolerance:.3g})="
                 f"{item.reliability.estimate:.3f}, "
                 f"log B={item.bayes.log_bayes_factor:.3g}"
