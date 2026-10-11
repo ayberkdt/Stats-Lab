@@ -7163,3 +7163,110 @@ marginal space.
   marginal spaces makes the k-NN biases largely cancel.
 - Code: `information.ksg_mutual_information`.
 - Source: [REF-KRASKOV-STOGBAUER-GRASSBERGER-2004].
+
+## Model discrepancy and heteroscedastic calibration (Kennedy-O'Hagan)
+
+### EQ-KOH-MODEL-001 — Kennedy-O'Hagan observation model
+
+`y_i = eta(c_i, theta) + delta(x_i) + eps_i`, `delta ~ GP(0, k_psi)`,
+`eps_i ~ N(0, sigma_i^2)` independent of each other and of `delta`; `x_i` is
+the subset of the conditions `c_i` the discrepancy depends on.
+
+- Domain: one scalar observed quantity; simulator evaluated directly (no
+  emulator); zero-mean discrepancy; no simulator scale factor `rho`.
+- Meaning: the simulator at the best-fitting `theta` differs from reality by
+  a smooth unknown function plus measurement error.
+- Code: `inverse.DiscrepancyCalibration`,
+  `inverse.DiscrepancyCalibration.predictions`.
+- Source: [REF-KENNEDY-OHAGAN-2001] and [REF-HIGDON-ETAL-2004].
+
+### EQ-KOH-KERNEL-001 — Discrepancy covariance kernels
+
+`k_psi(x, x') = sigma_delta^2 exp(-r^2/2)` (squared exponential) or
+`sigma_delta^2 (1 + sqrt(5) r + 5 r^2/3) exp(-sqrt(5) r)` (Matern 5/2), with
+`r^2 = sum_i ((x_i - x'_i)/ell_i)^2` and `psi = (sigma_delta, ell_1..ell_p)`.
+
+- Domain: `sigma_delta >= 0`, `ell_i > 0`.
+- Meaning: stationary prior on the discrepancy; `sigma_delta` sets its size,
+  `ell_i` its smoothness scale along input `i`.
+- Code: `inverse.discrepancy_kernel`,
+  `inverse.DiscrepancyCalibration.discrepancy_covariance`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
+
+### EQ-KOH-MARG-001 — Marginal likelihood with the discrepancy integrated out
+
+`C_psi = K_psi + diag(sigma_i^2) = L L'`, `r = y - eta(C, theta)`,
+`log p(y | theta, psi, sigma) = -(1/2)|L^-1 r|^2 - sum_i log L_ii
+- (n/2) log 2pi`. Without an active discrepancy `C_psi` is diagonal and the
+value is `sum_i -(1/2)(log 2pi + 2 log sigma_i + r_i^2/sigma_i^2)`.
+
+- Domain: positive-definite `C_psi` (guaranteed in exact arithmetic when every
+  `sigma_i > 0`); a failed factorization returns `-inf`. Cost `O(n^3)`.
+- Meaning: `delta` is Gaussian and enters linearly, so it can be integrated
+  out exactly; the remaining parameters are `(theta, psi, sigma)`.
+- Code: `inverse.DiscrepancyCalibration.log_likelihood`,
+  `inverse.DiscrepancyCalibration.marginal_covariance`.
+- Source: [REF-KENNEDY-OHAGAN-2001] and
+  [REF-RASMUSSEN-WILLIAMS-2006, Section 2.2].
+
+### EQ-KOH-POST-001 — Posterior of parameters and log hyperparameters
+
+`log p(theta, eta, beta | y) = log L + log pi(theta)
++ sum_k [log p_k(e^eta_k) + eta_k] + sum_j log p_j(beta_j) + const`, with
+`eta = (log sigma_delta, log ell)` for free hyperparameters and `beta =
+(a, b)` the noise coefficients. In sampling coordinates `theta = T^-1(u)` and
+`log pi(theta)` is replaced by `-|u|^2/2`.
+
+- Domain: proper priors; hyperparameter priors on `(0, inf)`.
+- Meaning: `+ eta_k` is the Jacobian of the log transform; maximizing gives
+  MAP (or, without priors, the MLE) and MCMC samples the joint posterior.
+- Code: `inverse.DiscrepancyCalibration.log_prior`,
+  `inverse.DiscrepancyCalibration.log_posterior`,
+  `inverse.DiscrepancyCalibration.standard_log_posterior`,
+  `inverse.DiscrepancyCalibration.fit`,
+  `inverse.DiscrepancyCalibration.sample_posterior`.
+- Source: [REF-KENNEDY-OHAGAN-2001], [REF-HIGDON-ETAL-2004], and
+  [REF-GELMAN-ETAL-2013, Section 1.3].
+
+### EQ-KOH-PRED-001 — Bias-corrected and simulator-only prediction
+
+Per draw `s`: `m_s = k*' C_psi^-1 r_s`, `v_s = k(x*, x*) - |L^-1 k*|^2`; the
+bias-corrected process is `S^-1 sum_s N(eta(c*, theta_s) + m_s, v_s)` with
+mean `mean_s(eta_s + m_s)` and variance `Var_s(eta_s + m_s) + mean_s(v_s)`;
+the simulator alone is the sample `eta(c*, theta_s)`; a new observation adds
+`sigma(c*)^2`. Interval limits invert the mixture CDF by bisection.
+
+- Domain: positive-definite `C_psi` at every draw; marginal (pointwise)
+  predictions only.
+- Meaning: Gaussian conditioning of `delta(x*)` on the residuals, averaged
+  over parameter uncertainty; the gap between the two predictions is the
+  estimated discrepancy contribution.
+- Code: `inverse.DiscrepancyCalibration.predict`,
+  `inverse.DiscrepancyPrediction.interval`.
+- Source: [REF-KENNEDY-OHAGAN-2001] and
+  [REF-RASMUSSEN-WILLIAMS-2006, Section 2.2].
+
+### EQ-KOH-HET-001 — Log-linear heteroscedastic noise
+
+`sigma(c) = exp(a + b' g(c))`, with user covariates `g(c)` and unconstrained
+coefficients `(a, b)` estimated jointly with `theta`.
+
+- Domain: finite covariates; `b = ()` gives an unknown constant noise level.
+- Meaning: multiplicative heteroscedasticity; the log link keeps every
+  standard deviation positive.
+- Code: `inverse.LogLinearNoise`,
+  `inverse.DiscrepancyCalibration.noise_standard_deviations`.
+- Source: [REF-HARVEY-1976].
+
+### EQ-KOH-IDENT-001 — Theta-discrepancy confounding diagnostics
+
+`rho_jk = Cov(theta_j, eta_k) / (sd(theta_j) sd(eta_k))` from posterior draws
+or from the Hessian covariance, and `ratio_j = sd_post(theta_j) /
+sd_prior(theta_j)`.
+
+- Domain: at least two posterior draws, or a positive-definite Hessian.
+- Meaning: large `|rho|` or a ratio near one signals that the data cannot
+  separate `theta` from `delta`; small values do not prove identifiability.
+- Code: `inverse.DiscrepancyCalibration.identifiability`,
+  `inverse.DiscrepancyFit.correlation`.
+- Source: [REF-BRYNJARSDOTTIR-OHAGAN-2014] and [REF-KENNEDY-OHAGAN-2001].

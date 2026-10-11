@@ -1546,3 +1546,16 @@ Random Vector." *Problems of Information Transmission* 23(2), 95-101, 1987
 
 Jianhua Lin. "Divergence Measures Based on the Shannon Entropy." *IEEE
 Transactions on Information Theory* 37(1), 145-151, 1991.
+
+## REF-HIGDON-ETAL-2004
+
+Dave Higdon, Marc Kennedy, James C. Cavendish, John A. Cafeo, and Robert D.
+Ryne. "Combining Field Data and Computer Simulations for Calibration and
+Prediction." *SIAM Journal on Scientific Computing* 26(2), 448-466, 2004.
+DOI: [10.1137/S1064827503426693](https://doi.org/10.1137/S1064827503426693).
+
+## REF-HARVEY-1976
+
+A. C. Harvey. "Estimating Regression Models with Multiplicative
+Heteroscedasticity." *Econometrica* 44(3), 461-465, 1976.
+DOI: [10.2307/1913974](https://doi.org/10.2307/1913974).

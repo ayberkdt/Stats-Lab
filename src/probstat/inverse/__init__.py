@@ -7,6 +7,18 @@ from .calibration import (
     calibrate_linear_gaussian,
     diagnose_linear_identifiability,
 )
+from .discrepancy import (
+    DISCREPANCY_KERNELS,
+    DiscrepancyCalibration,
+    DiscrepancyFit,
+    DiscrepancyIdentifiability,
+    DiscrepancyPosterior,
+    DiscrepancyPrediction,
+    DiscrepancyProcess,
+    KnownNoise,
+    LogLinearNoise,
+    discrepancy_kernel,
+)
 from .nonlinear import (
     CalibrationPosterior,
     CalibrationProblem,
@@ -20,6 +32,16 @@ from .observation import ForwardResponse, GaussianObservationModel, ParameterVec
 from .prediction import PosteriorPrediction, PredictedQuantity, predict
 
 __all__ = [
+    "DISCREPANCY_KERNELS",
+    "DiscrepancyCalibration",
+    "DiscrepancyFit",
+    "DiscrepancyIdentifiability",
+    "DiscrepancyPosterior",
+    "DiscrepancyPrediction",
+    "DiscrepancyProcess",
+    "KnownNoise",
+    "LogLinearNoise",
+    "discrepancy_kernel",
     "CalibrationPosterior",
     "CalibrationProblem",
     "Experiment",
