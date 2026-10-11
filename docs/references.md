@@ -711,3 +711,29 @@ Machine Learning*. MIT Press, 2006.
 NIST Digital Library of Mathematical Functions, Chapter 18, "Orthogonal
 Polynomials." National Institute of Standards and Technology.
 [https://dlmf.nist.gov/18](https://dlmf.nist.gov/18).
+
+## REF-JKB-1994
+
+Norman L. Johnson, Samuel Kotz, and N. Balakrishnan. *Continuous Univariate
+Distributions*, Volume 1. 2nd edition. Wiley, 1994.
+
+## REF-JKB-1995
+
+Norman L. Johnson, Samuel Kotz, and N. Balakrishnan. *Continuous Univariate
+Distributions*, Volume 2. 2nd edition. Wiley, 1995.
+
+## REF-MARSAGLIA-TSANG-2000
+
+George Marsaglia and Wai Wan Tsang. "A Simple Method for Generating Gamma
+Variables." *ACM Transactions on Mathematical Software* 26(3), 363-372, 2000.
+
+## REF-COLES-2001
+
+Stuart Coles. *An Introduction to Statistical Modeling of Extreme Values*.
+Springer, 2001.
+
+## REF-KOTZ-VANDORP-2004
+
+Samuel Kotz and Johan René van Dorp. *Beyond Beta: Other Continuous Families
+of Distributions with Bounded Support and Applications*. World Scientific,
+2004.

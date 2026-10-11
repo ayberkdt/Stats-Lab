@@ -198,18 +198,57 @@ def regularized_beta(x: float, a: float, b: float) -> float:
 
     """
     point = PROBABILITY.validate(x, name="x")
+    return regularized_beta_pair(point, 1.0 - point, a, b)
+
+
+def regularized_beta_pair(x: float, complement: float, a: float, b: float) -> float:
+    """Return ``I_x(a, b)`` when ``x`` and ``1 - x`` are both supplied.
+
+    Callers that can form ``1 - x`` directly (for example ``z^2/(nu + z^2)``
+    beside ``nu/(nu + z^2)``) pass it as ``complement``, so neither the
+    logarithmic prefactor nor the symmetry-branch continued fraction has to
+    recover a small quantity from a difference with one.
+
+    Args:
+        x: Finite evaluation point in ``[0, 1]``.
+        complement: ``1 - x`` evaluated without cancellation.
+        a: Finite positive first shape parameter.
+        b: Finite positive second shape parameter.
+
+    Returns:
+        A value clamped to ``[0, 1]`` against floating-point roundoff.
+
+    Raises:
+        TypeError: If an argument is not real.
+        ValueError: If an argument violates its domain or
+            ``|x + complement - 1| > 1e-12``.
+        ArithmeticError: If the continued fraction does not converge.
+
+    Equation:
+        [EQ-NUM-BETA-001].
+
+    References:
+        [REF-NIST-DLMF-BETA, Sections 8.17 and 8.18].
+
+    """
+    point = PROBABILITY.validate(x, name="x")
+    other = PROBABILITY.validate(complement, name="complement")
     first_shape = POSITIVE_FINITE.validate(a, name="a")
     second_shape = POSITIVE_FINITE.validate(b, name="b")
+    if abs(point + other - 1.0) > 1e-12:
+        raise ValueError("complement must equal 1 - x")
     if point == 0.0:
         return 0.0
-    if point == 1.0:
+    if other == 0.0:
         return 1.0
+    log_point = math.log(point) if point <= 0.5 else math.log1p(-other)
+    log_other = math.log(other) if other <= 0.5 else math.log1p(-point)
     log_front = (
         math.lgamma(first_shape + second_shape)
         - math.lgamma(first_shape)
         - math.lgamma(second_shape)
-        + first_shape * math.log(point)
-        + second_shape * math.log1p(-point)
+        + first_shape * log_point
+        + second_shape * log_other
     )
     split = (first_shape + 1.0) / (first_shape + second_shape + 2.0)
     if point < split:
@@ -219,14 +258,12 @@ def regularized_beta(x: float, a: float, b: float) -> float:
             / first_shape
         )
         return _clamp_probability(result)
-    complement = (
+    reflected = (
         math.exp(log_front)
-        * _beta_continued_fraction(
-            second_shape, first_shape, 1.0 - point
-        )
+        * _beta_continued_fraction(second_shape, first_shape, other)
         / second_shape
     )
-    return _clamp_probability(1.0 - complement)
+    return _clamp_probability(1.0 - reflected)
 
 
 def _beta_continued_fraction(a: float, b: float, x: float) -> float:

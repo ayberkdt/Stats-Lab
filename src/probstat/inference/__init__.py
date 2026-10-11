@@ -19,7 +19,12 @@ from .confidence import (
     normal_mean_confidence_interval,
     wilson_score_interval,
 )
-from .estimation import fit_lognormal_mle, fit_normal_mle
+from .estimation import (
+    fit_gamma_mle,
+    fit_lognormal_mle,
+    fit_normal_mle,
+    fit_weibull_mle,
+)
 from .goodness_of_fit import (
     AndersonDarlingResult,
     KolmogorovSmirnovResult,
@@ -63,9 +68,11 @@ __all__ = [
     "condition_linear_gaussian",
     "condition_linear_normal_inverse_gamma",
     "effective_sample_size",
+    "fit_gamma_mle",
     "fit_lognormal_mle",
     "fit_normal_mle",
     "fit_simple_linear_regression",
+    "fit_weibull_mle",
     "gaussian_log_likelihood",
     "kolmogorov_smirnov_test",
     "laplace_approximation",

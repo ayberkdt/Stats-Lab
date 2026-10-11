@@ -3281,3 +3281,509 @@ exponential) or `(5/3) sigma_f^2 (Delta_i/ell_i)^2 (1 + sqrt(5) r) exp(-sqrt(5) 
 - Meaning: cross-validation residuals without refitting.
 - Code: `surrogates.GaussianProcessRegression.leave_one_out`.
 - Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
+
+## Continuous distribution catalog: UQ and reliability families
+
+### EQ-DIST-INV-001 — Tail-aware quantile inversion
+
+For `p <= 1/2` solve `log F(x(t)) = log p`; otherwise solve
+`log S(x(t)) = log(1-p)` (and symmetrically for `isf`). The coordinate map
+`x(t)` is `exp(t)` on `(0, inf)`, `expit(t)` on `(0, 1)`, `mu + sigma sinh(t)`
+on the real line, and an endpoint-anchored map for truncated supports. The
+increasing residual is bracketed by geometric expansion and refined by
+Brent's zeroin method.
+
+- Domain: continuous strictly increasing CDF on the support interior;
+  `0 < p < 1`.
+- Meaning: quantiles keep relative accuracy in the tail that carries the
+  smaller probability, without forming `1 - p` near one; the coordinate
+  maps let far quantiles (for example `1e-120` or `1e24`) be bracketed in a
+  few dozen steps. Accuracy is ultimately limited by the spacing of floats
+  near a finite support end.
+- Code: `distributions._continuous.solve_tail_quantile`,
+  `distributions._continuous.invert_increasing`,
+  `distributions._continuous.brent_increasing`; used by `Gamma`, `Beta`,
+  `StudentT`, `ChiSquare`, `FisherF`, and `TruncatedNormal`.
+- Source: [REF-BRENT-1973, Chapter 4].
+
+### EQ-DIST-GAM-001 — Gamma density (shape-rate)
+
+`f(x) = lambda^k x^(k-1) exp(-lambda x) / Gamma(k)` for `x >= 0`;
+`log f = k log lambda + (k-1) log x - lambda x - lgamma(k)`.
+
+- Domain: `k > 0`, `lambda > 0`; at `x = 0` the density is `inf` for
+  `k < 1`, `lambda` for `k = 1`, and `0` for `k > 1`.
+- Meaning: waiting time to the `k`-th Poisson event and the conjugate law
+  for rates; `k = 1` is `Exponential(lambda)` and `Gamma(nu/2, 1/2)` is
+  `chi2(nu)`.
+- Code: `distributions.Gamma.log_pdf`, `distributions.Gamma.pdf`.
+- Source: [REF-JKB-1994, Chapter 17] and [REF-NIST-DISTRIBUTIONS].
+
+### EQ-DIST-GAM-002 — Gamma CDF and survival function
+
+`F(x) = P(k, lambda x)` and `S(x) = Q(k, lambda x)`.
+
+- Domain: `x >= 0`.
+- Meaning: both tails are regularized incomplete gamma functions evaluated
+  through the branch that computes the smaller tail directly.
+- Code: `distributions.Gamma.cdf`, `distributions.Gamma.sf`.
+- Source: [REF-NIST-DLMF-GAMMA, Section 8.2].
+
+### EQ-DIST-GAM-003 — Gamma quantile
+
+`x_p = F^-1(p)` solved by [EQ-DIST-INV-001] on `t = log x`.
+
+- Domain: `0 < p < 1`; `x_0 = 0`, `x_1 = inf`.
+- Meaning: no closed form exists; inversion of `log P` or `log Q` keeps far
+  tails accurate.
+- Code: `distributions.Gamma.quantile`, `distributions.Gamma.isf`,
+  `distributions.ChiSquare.quantile`, `distributions.ChiSquare.isf`.
+- Source: [REF-NIST-DLMF-GAMMA, Section 8.10] and [REF-BRENT-1973, Chapter 4].
+
+### EQ-DIST-GAM-004 — Gamma moments
+
+`E[X] = k / lambda` and `Var(X) = k / lambda^2`.
+
+- Domain: `k > 0`, `lambda > 0`.
+- Meaning: first two moments in the shape-rate parameterization.
+- Code: `distributions.Gamma.mean`, `distributions.Gamma.variance`.
+- Source: [REF-JKB-1994, Chapter 17].
+
+### EQ-DIST-GAM-005 — Marsaglia-Tsang gamma variates
+
+For `a >= 1`: `d = a - 1/3`, `c = 1/sqrt(9d)`, `v = (1 + c Z)^3`; accept
+`d v` when `U < 1 - 0.0331 Z^4` or
+`log U < Z^2/2 + d (1 - v + log v)`. For `a < 1`:
+`G_a = G_(a+1) U^(1/a)`, applied in log space.
+
+- Domain: `a > 0`; `Z ~ N(0,1)`, `U ~ Uniform(0,1)` independent.
+- Meaning: exact rejection sampler for `Gamma(a, 1)`; scaled by `1/lambda`
+  and reused for beta, chi-square, Student-t, and F variates.
+- Code: `distributions._continuous.log_standard_gamma_variate`,
+  `distributions.Gamma.sample`.
+- Source: [REF-MARSAGLIA-TSANG-2000].
+
+### EQ-DIST-BETA-001 — Beta density
+
+`f(x) = x^(a-1) (1-x)^(b-1) / B(a, b)` on `[0, 1]`, with
+`log B(a, b) = lgamma(a) + lgamma(b) - lgamma(a+b)`.
+
+- Domain: `a > 0`, `b > 0`; endpoint density is `inf`, `1/B`, or `0` as
+  the matching shape is below, equal to, or above one.
+- Meaning: law of a bounded fraction or probability; `Beta(1,1)` is
+  `Uniform(0,1)`.
+- Code: `distributions.Beta.log_pdf`, `distributions.Beta.pdf`.
+- Source: [REF-JKB-1995, Chapter 25] and [REF-NIST-DISTRIBUTIONS].
+
+### EQ-DIST-BETA-002 — Beta CDF and survival function
+
+`F(x) = I_x(a, b)` and `S(x) = I_(1-x)(b, a)`.
+
+- Domain: `0 <= x <= 1`.
+- Meaning: the survival function uses the symmetry relation directly, so
+  small upper tails are not formed as `1 - F`.
+- Code: `distributions.Beta.cdf`, `distributions.Beta.sf`; quantiles use
+  [EQ-DIST-INV-001] on `t = logit x`.
+- Source: [REF-NIST-DLMF-BETA, Section 8.17].
+
+### EQ-DIST-BETA-003 — Beta moments
+
+`E[X] = a/(a+b)` and `Var(X) = ab / ((a+b)^2 (a+b+1))`.
+
+- Domain: `a > 0`, `b > 0`.
+- Meaning: mean and variance of the bounded law.
+- Code: `distributions.Beta.mean`, `distributions.Beta.variance`.
+- Source: [REF-JKB-1995, Chapter 25].
+
+### EQ-DIST-BETA-004 — Beta variates from gamma ratios
+
+`X = G_a / (G_a + G_b) = expit(log G_a - log G_b)` with independent
+`G_a ~ Gamma(a,1)`, `G_b ~ Gamma(b,1)`.
+
+- Domain: `a > 0`, `b > 0`.
+- Meaning: exact transformation; the log form avoids `0/0` for tiny shapes.
+- Code: `distributions.Beta.sample`.
+- Source: [REF-DEVROYE-1986, Chapter IX].
+
+### EQ-DIST-STT-001 — Location-scale Student-t density
+
+`f(x) = Gamma((nu+1)/2) / (sqrt(nu pi) sigma Gamma(nu/2))
+(1 + z^2/nu)^(-(nu+1)/2)`, `z = (x - mu)/sigma`.
+
+- Domain: `nu > 0`, `sigma > 0`, real `x`.
+- Meaning: heavy-tailed symmetric law; `nu = 1` is Cauchy and
+  `nu -> inf` is `Normal(mu, sigma)`.
+- Code: `distributions.StudentT.log_pdf`, `distributions.StudentT.pdf`.
+- Source: [REF-JKB-1995, Chapter 28] and [REF-NIST-DISTRIBUTIONS].
+
+### EQ-DIST-STT-002 — Student-t tails through the incomplete beta function
+
+`P(T > |z|) = I_(nu/(nu+z^2))(nu/2, 1/2) / 2`, evaluated as
+`(1 - I_(z^2/(nu+z^2))(1/2, nu/2)) / 2` when `nu/(nu+z^2) >= 1/2`;
+`F(x) = P(T > -z)` for `z < 0` and `S(x) = P(T > z)` for `z > 0`.
+
+- Domain: `nu > 0`, real `z` with finite `z^2`.
+- Meaning: both incomplete-beta arguments are formed without subtraction
+  from one, so the centre and both tails keep relative accuracy.
+- Code: `distributions.StudentT.cdf`, `distributions.StudentT.sf`; quantiles
+  use [EQ-DIST-INV-001] on `t = asinh(z)`.
+- Source: [REF-NIST-DLMF-BETA, Section 8.17] and [REF-JKB-1995, Chapter 28].
+
+### EQ-DIST-STT-003 — Student-t moments
+
+`E[X] = mu` for `nu > 1`; `Var(X) = sigma^2 nu/(nu-2)` for `nu > 2` and
+`inf` for `1 < nu <= 2`.
+
+- Domain: undefined mean and variance for `nu <= 1` (raised as errors).
+- Meaning: heavy tails remove moments of order `>= nu`.
+- Code: `distributions.StudentT.mean`, `distributions.StudentT.variance`.
+- Source: [REF-JKB-1995, Chapter 28].
+
+### EQ-DIST-STT-004 — Student-t variates
+
+`T = Z / sqrt(V/nu)` with `Z ~ N(0,1)` and `V = 2 G`, `G ~ Gamma(nu/2, 1)`.
+
+- Domain: `nu > 0`.
+- Meaning: exact normal/chi construction of the t law.
+- Code: `distributions.StudentT.sample`.
+- Source: [REF-DEVROYE-1986, Chapter IX].
+
+### EQ-DIST-CHI2-001 — Chi-square as a gamma law
+
+`chi2(nu) = Gamma(nu/2, 1/2)`: `F(x) = P(nu/2, x/2)`,
+`S(x) = Q(nu/2, x/2)`, and variates `2 G`, `G ~ Gamma(nu/2, 1)`.
+
+- Domain: `nu > 0`, `x >= 0`.
+- Meaning: law of a sum of `nu` squared standard normals (integer `nu`);
+  the reference law for variance and goodness-of-fit statistics.
+- Code: `distributions.ChiSquare`.
+- Source: [REF-JKB-1994, Chapter 18] and [REF-NIST-DISTRIBUTIONS].
+
+### EQ-DIST-CHI2-002 — Chi-square moments
+
+`E[X] = nu` and `Var(X) = 2 nu`.
+
+- Domain: `nu > 0`.
+- Meaning: first two moments.
+- Code: `distributions.ChiSquare.mean`, `distributions.ChiSquare.variance`.
+- Source: [REF-JKB-1994, Chapter 18].
+
+### EQ-DIST-F-001 — F density
+
+`f(x) = y^(nu1/2) (1-y)^(nu2/2) / (x B(nu1/2, nu2/2))`,
+`y = nu1 x / (nu1 x + nu2)`.
+
+- Domain: `nu1 > 0`, `nu2 > 0`, `x > 0`; `f(0) = inf, 1, 0` for
+  `nu1 < 2, = 2, > 2`.
+- Meaning: law of a ratio of independent scaled chi-squares (variance
+  ratios, ANOVA).
+- Code: `distributions.FisherF.log_pdf`, `distributions.FisherF.pdf`.
+- Source: [REF-JKB-1995, Chapter 27] and [REF-NIST-DISTRIBUTIONS].
+
+### EQ-DIST-F-002 — F CDF and survival function
+
+`F(x) = I_y(nu1/2, nu2/2)` and `S(x) = I_(1-y)(nu2/2, nu1/2)` with
+`1 - y = nu2 / (nu1 x + nu2)` formed directly.
+
+- Domain: `x >= 0`.
+- Meaning: both tails without subtraction; quantiles use
+  [EQ-DIST-INV-001] on `t = log x`.
+- Code: `distributions.FisherF.cdf`, `distributions.FisherF.sf`,
+  `distributions.FisherF.quantile`, `distributions.FisherF.isf`.
+- Source: [REF-NIST-DLMF-BETA, Section 8.17].
+
+### EQ-DIST-F-003 — F moments
+
+`E[X] = nu2/(nu2-2)` for `nu2 > 2` (else `inf`);
+`Var(X) = 2 nu2^2 (nu1+nu2-2) / (nu1 (nu2-2)^2 (nu2-4))` for `nu2 > 4`
+(else `inf`).
+
+- Domain: `nu1 > 0`, `nu2 > 0`.
+- Meaning: positive support makes missing moments infinite rather than
+  undefined.
+- Code: `distributions.FisherF.mean`, `distributions.FisherF.variance`.
+- Source: [REF-JKB-1995, Chapter 27].
+
+### EQ-DIST-F-004 — F variates
+
+`X = (G_1/(nu1/2)) / (G_2/(nu2/2))` with independent `G_i ~ Gamma(nu_i/2, 1)`.
+
+- Domain: `nu1 > 0`, `nu2 > 0`.
+- Meaning: exact chi-square ratio construction, evaluated in log space.
+- Code: `distributions.FisherF.sample`.
+- Source: [REF-DEVROYE-1986, Chapter IX].
+
+### EQ-DIST-LOGIS-001 — Logistic density
+
+`f(x) = exp(-z) / (s (1 + exp(-z))^2)`, evaluated as
+`log f = -|z| - log s - 2 log1p(exp(-|z|))`, `z = (x - mu)/s`.
+
+- Domain: `s > 0`, real `x`.
+- Meaning: symmetric law with exponential tails heavier than the normal.
+- Code: `distributions.Logistic.log_pdf`, `distributions.Logistic.pdf`.
+- Source: [REF-JKB-1995, Chapter 23].
+
+### EQ-DIST-LOGIS-002 — Logistic CDF and survival function
+
+`F(x) = expit(z) = 1/(1 + exp(-z))` and `S(x) = expit(-z)`; `expit(t)` is
+evaluated as `exp(t)/(1 + exp(t))` for `t < 0`.
+
+- Domain: real `z`.
+- Meaning: both tails with relative accuracy and no overflow.
+- Code: `distributions.Logistic.cdf`, `distributions.Logistic.sf`,
+  `distributions._continuous.expit`.
+- Source: [REF-JKB-1995, Chapter 23].
+
+### EQ-DIST-LOGIS-003 — Logistic quantile
+
+`x_p = mu + s (log p - log1p(-p))` and
+`S^-1(q) = mu + s (log1p(-q) - log q)`.
+
+- Domain: `0 < p, q < 1`.
+- Meaning: closed-form inverse; also the inverse-transform sampler.
+- Code: `distributions.Logistic.quantile`, `distributions.Logistic.isf`,
+  `distributions.Logistic.sample`.
+- Source: [REF-JKB-1995, Chapter 23].
+
+### EQ-DIST-LOGIS-004 — Logistic moments
+
+`E[X] = mu` and `Var(X) = s^2 pi^2 / 3`.
+
+- Domain: `s > 0`.
+- Meaning: first two moments.
+- Code: `distributions.Logistic.mean`, `distributions.Logistic.variance`.
+- Source: [REF-JKB-1995, Chapter 23].
+
+### EQ-DIST-GUM-001 — Gumbel laws for maxima and minima
+
+Maximum: `F(x) = exp(-exp(-z))`, `S(x) = -expm1(-exp(-z))`,
+`log f = -log beta - z - exp(-z)`. Minimum: the reflection `w = -z`, so
+`F(x) = -expm1(-exp(z))` and `S(x) = exp(-exp(z))`.
+
+- Domain: `beta > 0`, real `x`, `z = (x - mu)/beta`.
+- Meaning: limiting law of block maxima (or minima) of light-tailed
+  variables; the GEV law with `xi = 0`.
+- Code: `distributions.Gumbel.log_pdf`, `distributions.Gumbel.pdf`,
+  `distributions.Gumbel.cdf`, `distributions.Gumbel.sf`.
+- Source: [REF-JKB-1995, Chapter 22], [REF-NIST-DISTRIBUTIONS], and
+  [REF-COLES-2001, Chapter 3].
+
+### EQ-DIST-GUM-002 — Gumbel quantile
+
+Maximum: `x_p = mu - beta log(-log p)`, with `-log p` replaced by
+`-log1p(-q)` in the upper tail; minimum: `x_p = mu + beta log(-log1p(-p))`.
+
+- Domain: `0 < p < 1`.
+- Meaning: closed-form inverse used for quantiles, `isf`, and sampling.
+- Code: `distributions.Gumbel.quantile`, `distributions.Gumbel.isf`,
+  `distributions.Gumbel.sample`.
+- Source: [REF-JKB-1995, Chapter 22].
+
+### EQ-DIST-GUM-003 — Gumbel moments
+
+`E[X] = mu +/- beta gamma_E` (plus for maxima, minus for minima) and
+`Var(X) = pi^2 beta^2 / 6`, with `gamma_E` the Euler-Mascheroni constant.
+
+- Domain: `beta > 0`.
+- Meaning: first two moments.
+- Code: `distributions.Gumbel.mean`, `distributions.Gumbel.variance`.
+- Source: [REF-JKB-1995, Chapter 22].
+
+### EQ-DIST-TRI-001 — Triangular density
+
+`f(x) = 2(x-a)/((b-a)(c-a))` on `[a, c)`, `2/(b-a)` at `c`, and
+`2(b-x)/((b-a)(b-c))` on `(c, b]`.
+
+- Domain: `a < b`, `a <= c <= b`.
+- Meaning: expert-elicited bounded law with lower, most likely, and upper
+  values.
+- Code: `distributions.Triangular.pdf`, `distributions.Triangular.log_pdf`.
+- Source: [REF-KOTZ-VANDORP-2004, Chapter 1].
+
+### EQ-DIST-TRI-002 — Triangular CDF and survival function
+
+`F(x) = (x-a)^2/((b-a)(c-a))` for `a < x <= c`;
+`S(x) = (b-x)^2/((b-a)(b-c))` for `c <= x < b`; each function uses the
+complement only on the far side of the mode.
+
+- Domain: `a <= x <= b`.
+- Meaning: piecewise-quadratic tails evaluated from the nearer endpoint.
+- Code: `distributions.Triangular.cdf`, `distributions.Triangular.sf`.
+- Source: [REF-KOTZ-VANDORP-2004, Chapter 1].
+
+### EQ-DIST-TRI-003 — Triangular quantile
+
+`x_p = a + sqrt(p (b-a)(c-a))` for `p <= (c-a)/(b-a)`, otherwise
+`x_p = b - sqrt(q (b-a)(b-c))`, `q = 1 - p`.
+
+- Domain: `0 <= p <= 1`.
+- Meaning: closed-form inverse used for quantiles, `isf`, and sampling.
+- Code: `distributions.Triangular.quantile`, `distributions.Triangular.isf`,
+  `distributions.Triangular.sample`.
+- Source: [REF-KOTZ-VANDORP-2004, Chapter 1].
+
+### EQ-DIST-TRI-004 — Triangular moments
+
+`E[X] = (a+b+c)/3` and
+`Var(X) = (a^2+b^2+c^2-ab-ac-bc)/18 = ((b-a)^2 - (c-a)(b-c))/18`.
+
+- Domain: `a < b`, `a <= c <= b`.
+- Meaning: the second form avoids cancellation far from the origin.
+- Code: `distributions.Triangular.mean`, `distributions.Triangular.variance`.
+- Source: [REF-KOTZ-VANDORP-2004, Chapter 1].
+
+### EQ-DIST-TN-001 — Truncated normal density
+
+`f(x) = phi(z) / (sigma Z)` for `l <= x <= u`, `z = (x - mu)/sigma`,
+`Z = Phi(beta) - Phi(alpha)`, `alpha = (l - mu)/sigma`,
+`beta = (u - mu)/sigma`.
+
+- Domain: `sigma > 0`, `l < u` with either end possibly infinite.
+- Meaning: normal law conditioned on a physical interval (positive loads,
+  bounded tolerances).
+- Code: `distributions.TruncatedNormal.log_pdf`,
+  `distributions.TruncatedNormal.pdf`.
+- Source: [REF-JKB-1994, Chapter 13].
+
+### EQ-DIST-TN-002 — Truncated normal CDF and survival function
+
+`F(x) = (Phi(z) - Phi(alpha)) / Z` and `S(x) = (Phi(beta) - Phi(z)) / Z`,
+with every interval mass `log(Phi(b) - Phi(a))` evaluated as a log-space
+difference of upper tails (`a >= 0`), lower tails (`b <= 0`), or as
+`(erf(b/sqrt 2) - erf(a/sqrt 2))/2` across zero.
+
+- Domain: `alpha <= z <= beta`.
+- Meaning: probabilities stay finite and accurate for truncation regions
+  deep in a normal tail; quantiles use [EQ-DIST-INV-001].
+- Code: `distributions.TruncatedNormal.cdf`,
+  `distributions.TruncatedNormal.sf`,
+  `distributions._continuous.log_normal_interval_mass`.
+- Source: [REF-JKB-1994, Chapter 13] and [REF-NIST-DLMF, Sections 7.2 and 7.9].
+
+### EQ-DIST-TN-003 — Truncated normal moments
+
+`E[X] = mu + sigma (phi(alpha) - phi(beta)) / Z` and
+`Var(X) = sigma^2 [1 + (alpha phi(alpha) - beta phi(beta))/Z
+- ((phi(alpha) - phi(beta))/Z)^2]`, infinite ends contributing zero.
+
+- Domain: `sigma > 0`, `l < u`.
+- Meaning: mean shift and variance reduction caused by truncation; the
+  variance bracket loses relative accuracy as a finite end moves far into a
+  tail.
+- Code: `distributions.TruncatedNormal.mean`,
+  `distributions.TruncatedNormal.variance`.
+- Source: [REF-JKB-1994, Chapter 13].
+
+### EQ-DIST-TN-004 — Log standard-normal tail beyond erfc underflow
+
+`log(1 - Phi(z)) = log(erfc(z/sqrt 2)/2)` for `z < 35`; otherwise
+`-z^2/2 - log sqrt(2 pi) + log R(z)` with Mills ratio
+`R(z) = 1/(z + 1/(z + 2/(z + 3/(z + ...))))`; `log Phi(z) = log(1 - Phi(-z))`.
+
+- Domain: real `z`, including `+/- inf`.
+- Meaning: finite log tail probabilities where `erfc` underflows to zero.
+- Code: `distributions._continuous.log_standard_normal_sf`,
+  `distributions._continuous.log_standard_normal_cdf`.
+- Source: [REF-NIST-DLMF, Sections 7.2 and 7.9].
+
+### EQ-DIST-GEV-001 — Generalized extreme value distribution
+
+`F(x) = exp(-t)`, `t = exp(-y)`, `y = log1p(xi z)/xi` (`y = z` when
+`xi z` is zero to working precision), `z = (x - mu)/sigma`;
+`S(x) = -expm1(-t)` and `log f = -log sigma - (1 + xi) y - t` on
+`1 + xi z > 0`.
+
+- Domain: `sigma > 0`, real `xi`; lower endpoint `mu - sigma/xi` for
+  `xi > 0`, upper endpoint `mu - sigma/xi` for `xi < 0`.
+- Meaning: the three extreme-value types in one family (Frechet `xi > 0`,
+  Gumbel `xi = 0`, reversed Weibull `xi < 0`); the `log1p` form is
+  continuous through `xi = 0`.
+- Code: `distributions.GeneralizedExtremeValue.log_pdf`,
+  `distributions.GeneralizedExtremeValue.pdf`,
+  `distributions.GeneralizedExtremeValue.cdf`,
+  `distributions.GeneralizedExtremeValue.sf`.
+- Source: [REF-COLES-2001, Section 3.1].
+
+### EQ-DIST-GEV-002 — GEV quantile (return level)
+
+`x_p = mu + sigma expm1(-xi log L)/xi` with `L = -log p` (or `-log1p(-q)`
+in the upper tail), and `x_p = mu - sigma log L` when `xi log L` is zero to
+working precision.
+
+- Domain: `0 < p < 1`.
+- Meaning: return level exceeded with probability `q = 1 - p` per block;
+  used for `isf` and inverse-transform sampling.
+- Code: `distributions.GeneralizedExtremeValue.quantile`,
+  `distributions.GeneralizedExtremeValue.isf`,
+  `distributions.GeneralizedExtremeValue.sample`.
+- Source: [REF-COLES-2001, Section 3.1].
+
+### EQ-DIST-GEV-003 — GEV moments with a stable Gumbel limit
+
+`E[X] = mu + sigma (Gamma(1-xi) - 1)/xi` for `xi < 1` (`inf` otherwise) and
+`Var(X) = sigma^2 (Gamma(1-2xi) - Gamma(1-xi)^2)/xi^2` for `xi < 1/2`
+(`inf` otherwise). For `|xi| < 0.01` the series
+`log Gamma(1-xi) = gamma_E xi + sum_(k>=2) zeta(k) xi^k / k = xi S_1` gives
+`(Gamma(1-xi)-1)/xi = expm1(xi S_1)/xi` and the variance factor
+`exp(2 xi S_1) S_2 expm1(xi^2 S_2)/(xi^2 S_2)` with
+`S_2 = sum_(k>=2) zeta(k) (2^k - 2) xi^(k-2) / k`.
+
+- Domain: `sigma > 0`, real `xi`; series truncated at `k = 12`.
+- Meaning: moments converge continuously to the Gumbel values
+  `mu + sigma gamma_E` and `sigma^2 pi^2/6` without cancellation.
+- Code: `distributions.GeneralizedExtremeValue.mean`,
+  `distributions.GeneralizedExtremeValue.variance`.
+- Source: [REF-COLES-2001, Section 3.1] and [REF-NIST-DLMF-GAMMA, Section 5.7].
+
+### EQ-NUM-DIGAMMA-001 — Digamma and trigamma functions
+
+`psi(x) = psi(x+1) - 1/x`, `psi'(x) = psi'(x+1) + 1/x^2`;
+for `x >= 10`, `log x - psi(x) = 1/(2x) + sum_(k=1..6) B_(2k)/(2k x^(2k))`
+and `psi'(x) = 1/x + 1/(2x^2) + sum_(k=1..6) B_(2k)/x^(2k+1)`.
+
+- Domain: finite `x > 0`.
+- Meaning: derivatives of `log Gamma` needed by the gamma likelihood
+  equations; `log x - psi(x)` is returned without cancellation.
+- Code: `numerics.digamma`, `numerics.trigamma`, `numerics.log_minus_digamma`.
+- Source: [REF-NIST-DLMF-GAMMA, Sections 5.5, 5.11, and 5.15].
+
+### EQ-INF-MLE-GAM-001 — Gamma maximum-likelihood equations
+
+`lambda_hat = k_hat / mean(x)` and
+`log k_hat - psi(k_hat) = s = log(mean(x)) - mean(log x)`; Newton's method on
+the decreasing left side, safeguarded by a bracket, from
+`k_0 = (3 + sqrt(9 + 12 s))/(12 s)`.
+
+- Domain: positive observations with at least two distinct values
+  (`s > 0`).
+- Meaning: profile likelihood reduces the two-parameter fit to one
+  monotone scalar equation.
+- Code: `inference.fit_gamma_mle`.
+- Source: [REF-JKB-1994, Chapter 17] and [REF-CASELLA-BERGER-2002, Section 7.2].
+
+### EQ-INF-MLE-WEIB-001 — Weibull maximum-likelihood equations
+
+`sum x_i^k log x_i / sum x_i^k - 1/k - mean(log x) = 0` and
+`lambda_hat = (mean(x^k_hat))^(1/k_hat)`; logarithms are centred and power
+sums use a log-sum-exp shift; Newton's method with bracket safeguard from
+`k_0 = pi / (sqrt 6 sd(log x))`.
+
+- Domain: positive observations with at least two distinct values.
+- Meaning: the profile equation is strictly increasing in `k`, so its root
+  is the unique shape MLE.
+- Code: `inference.fit_weibull_mle`.
+- Source: [REF-JKB-1994, Chapter 21] and [REF-NIST-DISTRIBUTIONS].
+
+### EQ-DIST-TN-005 — Short-interval normal mass from the interval width
+
+`Phi(a + w) - Phi(a) = phi(a) sum_(n>=0) c_n w^(n+1)/(n+1)` with `c_0 = 1`,
+`c_1 = -a`, and `(n+1) c_(n+1) = -a c_n - c_(n-1)` (the Taylor coefficients
+of `exp(-a s - s^2/2)`).
+
+- Domain: finite `a`, `w > 0`; used when `w (|a| + w) <= 1/2`.
+- Meaning: probability next to a truncation point computed from the physical
+  distance `w = (x - l)/sigma` instead of a difference of nearly equal
+  standardized points, so `F(x)` keeps relative accuracy as `x -> l`.
+- Code: `distributions._continuous.log_normal_short_mass`,
+  `distributions.TruncatedNormal.cdf`, `distributions.TruncatedNormal.sf`.
+- Source: [REF-NIST-DLMF, Section 7.2] and [REF-JKB-1994, Chapter 13].
