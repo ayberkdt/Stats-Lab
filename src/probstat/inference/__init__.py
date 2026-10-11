@@ -63,6 +63,16 @@ from .goodness_of_fit import (
     anderson_darling_test,
     kolmogorov_smirnov_test,
 )
+from .hamiltonian import (
+    GradientFunction,
+    HamiltonianChainStatistics,
+    HamiltonianResult,
+    adaptation_windows,
+    hamiltonian_energy,
+    hamiltonian_monte_carlo,
+    leapfrog,
+    no_u_turn_sampler,
+)
 from .hypothesis_tests import (
     AnovaResult,
     BinomialTestResult,
@@ -135,6 +145,7 @@ from .sampling_distributions import (
     student_t_sf,
     student_t_two_sided_p,
 )
+from .variational import VariationalResult, advi
 
 __all__ = [
     "AndersonDarlingResult",
@@ -157,6 +168,9 @@ __all__ = [
     "GEV_FAMILY",
     "GUMBEL_FAMILY",
     "GaussianLinearPosterior",
+    "GradientFunction",
+    "HamiltonianChainStatistics",
+    "HamiltonianResult",
     "JackknifeResult",
     "KolmogorovSmirnovResult",
     "LOGISTIC_FAMILY",
@@ -183,9 +197,12 @@ __all__ = [
     "StudentTPredictive",
     "TTestResult",
     "UNIFORM_FAMILY",
+    "VariationalResult",
     "WEIBULL_FAMILY",
+    "adaptation_windows",
     "adaptive_metropolis",
     "adjust_p_values",
+    "advi",
     "akaike_weights",
     "anderson_darling_test",
     "binomial_test",
@@ -211,15 +228,19 @@ __all__ = [
     "fit_simple_linear_regression",
     "fit_weibull_mle",
     "gaussian_log_likelihood",
+    "hamiltonian_energy",
+    "hamiltonian_monte_carlo",
     "hedges_correction",
     "hedges_g",
     "information_criteria",
     "jackknife",
     "kolmogorov_smirnov_test",
     "laplace_approximation",
+    "leapfrog",
     "mann_whitney_u_distribution",
     "mann_whitney_u_test",
     "monte_carlo_standard_error",
+    "no_u_turn_sampler",
     "noncentral_t_cdf",
     "normal_mean_confidence_interval",
     "one_sample_t_test",

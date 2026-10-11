@@ -267,8 +267,8 @@ which the tests check to ten decimals.
 ## 11. Boundaries
 
 - Random-walk samplers scale poorly beyond roughly ten to twenty parameters
-  and with strongly curved posteriors. Gradient-based samplers (HMC/NUTS) are
-  not implemented.
+  and with strongly curved posteriors. Gradient-based samplers (HMC/NUTS) and
+  Gaussian ADVI are described in Section 12.
 - Adaptation stops at the end of warm-up. A poor warm-up gives a valid but
   inefficient chain; check ESS.
 - Multimodal posteriors can defeat every diagnostic when no chain starts near
@@ -280,3 +280,164 @@ which the tests check to ten decimals.
 - The Laplace approximation is computed in physical coordinates. Bounded
   priors with modes on the boundary make it unreliable; prefer
   `sample_posterior`.
+
+## 12. Gradient-based sampling and variational inference
+
+Random-walk proposals move a distance of order `d^-1/2` per step. Hamiltonian
+Monte Carlo instead uses the gradient of `log p` to travel along the target's
+level sets. `inference.hamiltonian_monte_carlo`, `inference.no_u_turn_sampler`,
+and `inference.advi` need only a log-density (and optionally its gradient), so
+they live in layer 2 next to the Metropolis samplers.
+
+### Hamiltonian dynamics and the leapfrog integrator
+
+A momentum `p ~ N(0, M)` is drawn and `H(x, p) = -log p(x) + p' M^-1 p / 2` is
+simulated with the leapfrog scheme ([EQ-HMC-H-001], [EQ-HMC-LEAPFROG-001]).
+Leapfrog is volume-preserving and reversible for any position-dependent
+force. A Metropolis test on the exact `H` ([EQ-HMC-ACCEPT-001]) therefore
+keeps the target invariant even when the gradient comes from central
+differences; a poor gradient only lowers acceptance. Its energy error over a
+fixed time is second order. On the correlated Gaussian below, for one
+trajectory of length 3, the library measures:
+
+| `eps` | max \|H(t) - H(0)\| |
+|---:|---:|
+| 0.1 | 7.52e-4 |
+| 0.05 | 1.88e-4 |
+| 0.025 | 4.68e-5 |
+
+Each halving divides the error by 4.0.
+
+### Static HMC and NUTS
+
+Static HMC takes a fixed number `L` of steps. If `L eps` is close to the
+period of the target's oscillation, the trajectory returns to its start and
+the chain stalls. `step_size_jitter` breaks that resonance.
+
+NUTS removes the choice of `L`. The implementation is the efficient recursive
+algorithm of Hoffman and Gelman with **slice sampling** ([EQ-NUTS-SLICE-001]);
+the multinomial variant is not implemented. The trajectory doubles in a
+random direction until its ends turn back towards each other
+([EQ-NUTS-UTURN-001]), a leaf diverges, or `max_tree_depth` (default 10) is
+reached.
+
+### Warm-up: step size and metric
+
+The step size is tuned by dual averaging towards acceptance 0.8
+([EQ-HMC-DA-001]). The inverse metric `M^-1` is the shrunk sample covariance
+of doubling warm-up windows ([EQ-HMC-METRIC-001]); `adaptation_windows(1000)`
+returns `(75, 50, (100, 150, 250, 450, 950))`. Both are frozen at the end of
+warm-up, so retained draws come from one fixed kernel and `R-hat`, ESS, and
+MCSE apply unchanged. The draws are an ordinary `MCMCResult` in `result.mcmc`.
+
+The frozen step size is the average of the warm-up iterates, which is smaller
+than the last iterate. Post-warm-up acceptance is therefore above the 0.8
+target: 0.90-0.95 in the runs below.
+
+Correlated 2-D Gaussian (`mean (1, -2)`, covariance `((1, 0.8), (0.8, 2))`),
+4 chains, 300 warm-up and 400 kept draws, analytic gradient, seed 1:
+
+| Metric | Mean | Covariance (11, 12, 22) | Min ESS | Gradients | Mean depth |
+|---|---|---|---:|---:|---:|
+| diagonal | (0.984, -2.007) | (0.962, 0.733, 1.882) | 647 | 13 397 | 2.26-2.37 |
+| dense | (1.054, -1.979) | (1.038, 0.808, 2.122) | 758 | 11 710 | 1.94-2.41 |
+
+The dense metric learns the correlation. Chain 0 ends with
+`M^-1 = ((1.174, 0.803), (0.803, 1.518))`. There were no divergences and
+E-BFMI was between 0.97 and 1.23 ([EQ-HMC-BFMI-001]). Static HMC with `L = 6`
+and jitter 0.3 (seed 2) gives mean `(1.029, -2.028)` and ESS 4072 and 2807
+from 1600 draws. ESS above the draw count means the draws are antithetic,
+which is typical of HMC on Gaussians.
+
+### Efficiency per gradient
+
+10-D iid standard normal, 2 chains, 200 warm-up and 300 kept draws (seed 5).
+NUTS used 6763 gradients and reached a **minimum** ESS of 841 over the ten
+coordinates, or 0.124 per gradient. Random-walk Metropolis with the optimal
+scale `2.38^2/d` was given the same budget of 6762 density evaluations. It
+reached a **maximum** ESS of 257, or 0.038 per evaluation, at acceptance
+0.262. Even comparing NUTS's worst coordinate with RWM's best, NUTS is 3.3
+times as efficient here. Theory predicts the gap to grow with dimension
+[REF-NEAL-2011].
+
+### Divergences
+
+A trajectory diverges when its energy error exceeds 1000 or it leaves the
+region where `log p` and its gradient are finite. Divergences are counted per
+chain (`result.divergences_per_chain`, with iteration indices in each
+`HamiltonianChainStatistics`). On Neal's funnel (`v ~ N(0, 9)`,
+`z_i | v ~ N(0, e^v)`, 3-D) with a fixed step of 1.0, 2 chains of 200
+iterations gave:
+
+| Sampler | Divergences per chain | Acceptance |
+|---|---|---:|
+| static HMC (`L = 16`) | (61, 74) | 0.196 |
+| NUTS | (6, 12) | 0.611 |
+
+The same NUTS settings on a standard normal give no divergences. Even with
+full adaptation (400 warm-up iterations) NUTS on the funnel ends with 7
+divergences in one chain, step size 0.283, and E-BFMI 0.28. These are the
+signatures of a neck the sampler cannot enter. Treat any divergence as
+evidence of possible bias and reparameterize; a smaller step only hides the
+symptom.
+
+### Gradient cost
+
+With `gradient=None` each gradient is a central difference ([EQ-OPT-FD-001])
+costing `2d` extra evaluations. The tests check that density evaluations
+equal `(2d + 1)` times gradient evaluations exactly. In calibration,
+`sample_posterior(method="nuts")` or `"hmc"` uses such gradients of
+`standard_log_posterior` and a diagonal metric started from the Laplace
+variances; HMC/NUTS diagnostics are stored in `posterior.sampler`. The default
+`method="adaptive-metropolis"` reproduces earlier results bit for bit. On the
+2-parameter straight-line calibration used in the tests (`a + b x`, known
+noise 0.3; 2 chains, 200 + 300 iterations, seed 11; exact posterior mean `(0.6417, 0.7875)`, sd
+`(0.2025, 0.1123)`):
+
+| Method | Means | SDs | ESS | Posterior evaluations |
+|---|---|---|---|---:|
+| adaptive Metropolis | (0.6311, 0.8010) | (0.2151, 0.1134) | 109, 125 | 1 002 |
+| NUTS, FD gradients | (0.6484, 0.7844) | (0.1938, 0.1055) | 151, 166 | 33 340 |
+
+For two well-conditioned parameters, finite-difference NUTS spends far more
+model runs per effective draw than adaptive Metropolis. It pays off for many
+parameters, strongly curved posteriors, or when an analytic gradient is
+available.
+
+### Gaussian ADVI
+
+`inference.advi` fits `q = N(mu, L L')` by maximizing the ELBO
+([EQ-VI-ELBO-001]) with reparameterization gradients ([EQ-VI-REPARAM-001])
+and Adam ([EQ-OPT-ADAM-001]). The mean-field family has diagonal `L`; the
+full-rank family uses a lower-triangular `L` with a log-parameterized
+diagonal ([EQ-VI-ADVI-001]).
+
+Three implementation choices:
+
+- The ELBO is monitored every `evaluation_interval` iterations on one fixed
+  set of draws (common random numbers). Changes then reflect parameter
+  changes, not resampling noise.
+- The returned parameters average the iterates over the most recent half of
+  the run (Polyak-Ruppert averaging).
+- The reported `elbo` uses the returned independent draws.
+
+On the same correlated Gaussian (4 gradient samples per step, learning rate
+0.02, tolerance `1e-4`, seed 2; `log Z = 1.9916`):
+
+| Family | Iterations | Mean | Covariance (11, 12, 22) | ELBO |
+|---|---:|---|---|---:|
+| full-rank | 5000 | (0.999, -2.018) | (0.992, 0.790, 1.974) | 1.963 |
+| mean-field | 5400 | (1.000, -2.018) | (0.673, 0, 1.358) | 1.770 |
+
+Full-rank recovers the target. Mean-field recovers the mean and the variances
+`1/Lambda_ii = (0.68, 1.36)`, well below the true `(1, 2)`; its ELBO gap
+0.222 matches the analytic KL divergence 0.193 within Monte Carlo error. The
+ELBO trace rises from 1.357 (full-rank, iteration 100) to its plateau
+within a few hundred iterations.
+
+ADVI requires an unconstrained target. Transform constrained parameters
+first, for example `log sigma` or the prior's standard-normal space used by
+`CalibrationProblem.standard_log_posterior`, and include the Jacobian. A
+Gaussian `q` underestimates the spread of skewed or heavy-tailed posteriors.
+Use ADVI for fast exploration and starting points, and confirm reported
+uncertainty with MCMC.

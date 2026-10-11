@@ -5253,3 +5253,181 @@ combined interval is the equal-tailed sample interval of `z`.
 - Code: `visualization.uncertainty.dkw_epsilon`,
   `visualization.uncertainty.plot_ecdf_band`.
 - Source: [REF-DVORETZKY-KIEFER-WOLFOWITZ-1956] and [REF-MASSART-1990].
+
+## Hamiltonian Monte Carlo, NUTS, and Gaussian variational inference
+
+### EQ-HMC-H-001 — Hamiltonian with a Gaussian momentum
+
+`H(x, p) = U(x) + K(p)` with potential `U(x) = -log p(x)` and kinetic energy
+`K(p) = p' M^-1 p / 2` for momentum `p ~ N(0, M)`; `dx/dt = M^-1 p`,
+`dp/dt = grad log p(x)`. The augmented density is `exp(-H)`, whose
+`x`-marginal is the target.
+
+- Domain: `log p` differentiable on `R^d`; `M` symmetric positive definite
+  (the code stores `M^-1`, diagonal or dense).
+- Meaning: Hamiltonian flow conserves `H` and phase-space volume, so it can
+  move far along the target's level sets without being rejected; `M^-1`
+  plays the role of a preconditioner (ideally the posterior covariance).
+- Code: `inference.hamiltonian_energy`, `inference.hamiltonian._Metric`,
+  `inference.hamiltonian._joint`.
+- Source: [REF-NEAL-2011] and [REF-BETANCOURT-2017].
+
+### EQ-HMC-LEAPFROG-001 — Leapfrog (Stormer-Verlet) integrator
+
+`p_{1/2} = p + (eps/2) grad log p(x)`, `x' = x + eps M^-1 p_{1/2}`,
+`p' = p_{1/2} + (eps/2) grad log p(x')`.
+
+- Domain: step size `eps > 0` (negative integrates backwards); any
+  position-dependent force field, including a finite-difference gradient.
+- Meaning: each half-step is a shear, so the map is volume-preserving and
+  reversible under momentum negation for any force; the energy error over a
+  fixed integration time is `O(eps^2)` (the library measures
+  `7.52e-4, 1.88e-4, 4.68e-5` for `eps = 0.1, 0.05, 0.025`).
+- Code: `inference.leapfrog`, `inference.hamiltonian._leapfrog_step`.
+- Source: [REF-NEAL-2011] and [REF-BETANCOURT-2017].
+
+### EQ-HMC-ACCEPT-001 — Static HMC Metropolis correction
+
+After `L` leapfrog steps from `(x, p)` to `(x*, p*)`, accept `x*` with
+probability `min(1, exp(H(x, p) - H(x*, p*)))`.
+
+- Domain: fixed `L` and `eps` (optionally jittered independently of the
+  state); `H(x*, p*) = +inf` outside the support (rejected).
+- Meaning: corrects the integrator's energy error exactly, so the chain is
+  reversible with respect to `p(x)` regardless of `eps`; the acceptance
+  probability is the statistic targeted by dual averaging.
+- Code: `inference.hamiltonian_monte_carlo`,
+  `inference.hamiltonian._hmc_transition`.
+- Source: [REF-NEAL-2011].
+
+### EQ-HMC-DA-001 — Dual-averaging step-size adaptation
+
+`Hbar_m = (1 - 1/(m + t0)) Hbar_{m-1} + (delta - alpha_m)/(m + t0)`,
+`log eps_m = mu - sqrt(m) Hbar_m / gamma`,
+`log epsbar_m = m^-kappa log eps_m + (1 - m^-kappa) log epsbar_{m-1}`, with
+`mu = log(10 eps_0)`, `gamma = 0.05`, `t0 = 10`, `kappa = 0.75`, and target
+acceptance `delta = 0.8`.
+
+- Domain: warm-up iterations only; `alpha_m` is the iteration's mean
+  acceptance statistic; restarted after every metric update.
+- Meaning: drives the average acceptance to `delta`; `epsbar` (frozen after
+  warm-up) averages out the noisy late iterates.
+- Code: `inference.hamiltonian._DualAveraging`,
+  `inference.hamiltonian._run_hamiltonian_chain`.
+- Source: [REF-HOFFMAN-GELMAN-2014, Algorithm 5] and [REF-NESTEROV-2009].
+
+### EQ-HMC-METRIC-001 — Windowed, shrunk inverse-metric estimate
+
+`M^-1 = n/(n + 5) C_w + 10^-3 * 5/(n + 5) I`, where `C_w` is the unbiased
+sample covariance (or its diagonal) of the `n` draws of one slow warm-up
+window; windows double in length between a 75-iteration initial and a
+50-iteration terminal fast buffer (15 % / 75 % / 10 % below 150 warm-up
+iterations).
+
+- Domain: `n >= 3` window draws; the update is skipped if the estimate is not
+  positive definite.
+- Meaning: whitens the target so one step size fits every direction; the
+  shrinkage keeps short windows from producing a singular metric. The
+  constants are a project choice modeled on common practice and documented in
+  ADR-0032.
+- Code: `inference.adaptation_windows`,
+  `inference.hamiltonian._window_metric`.
+- Source: [REF-BETANCOURT-2017] and [REF-HOFFMAN-GELMAN-2014].
+
+### EQ-HMC-BFMI-001 — Energy Bayesian fraction of missing information
+
+`E-BFMI = sum_{n>=2} (E_n - E_{n-1})^2 / sum_n (E_n - Ebar)^2` over the
+post-warm-up energies `E_n = H(x_n, p_n)` after momentum refresh.
+
+- Domain: at least two energies with positive spread.
+- Meaning: how well momentum resampling explores the marginal energy
+  distribution; values below about 0.3 indicate heavy tails or funnels that
+  HMC explores slowly.
+- Code: `inference.HamiltonianChainStatistics.e_bfmi`.
+- Source: [REF-BETANCOURT-2017].
+
+### EQ-NUTS-SLICE-001 — NUTS slice variable and progressive sampling
+
+Draw `u ~ Uniform(0, exp(-H(x, p_0)))`; the candidate set is the leapfrog
+states with `-H >= log u`. Within a subtree the second half's candidate is
+chosen with probability `n''/(n' + n'')`; a new top-level subtree's candidate
+replaces the current one with probability `min(1, n'/n)`. A leaf with
+`-H < log u - Delta_max` (`Delta_max = 1000`) is a divergence and stops the
+doubling.
+
+- Domain: trajectory built by repeated doubling in a random direction up to
+  the maximum tree depth.
+- Meaning: the slice-sampling version of efficient NUTS (Algorithm 3 with the
+  dual-averaging statistics of Algorithm 6); it leaves the target invariant
+  and favors states far from the start. The multinomial variant is not
+  implemented.
+- Code: `inference.no_u_turn_sampler`,
+  `inference.hamiltonian._nuts_transition`.
+- Source: [REF-HOFFMAN-GELMAN-2014, Algorithms 3 and 6].
+
+### EQ-NUTS-UTURN-001 — No-U-turn termination criterion
+
+Stop doubling when `(x+ - x-) . M^-1 p- < 0` or `(x+ - x-) . M^-1 p+ < 0` for
+the whole trajectory or any balanced subtree.
+
+- Domain: trajectory end points `(x-, p-)` and `(x+, p+)`; `M^-1 p` is the
+  velocity under the chosen metric.
+- Meaning: continuing would start to bring the ends closer again, so further
+  integration wastes gradients; checking every subtree preserves
+  reversibility.
+- Code: `inference.hamiltonian._no_u_turn`.
+- Source: [REF-HOFFMAN-GELMAN-2014] and [REF-BETANCOURT-2017].
+
+### EQ-VI-ELBO-001 — Evidence lower bound
+
+`ELBO(q) = E_q[log p(x)] + H[q] = log Z - KL(q || p/Z)`; for
+`q = N(mu, L L')`, `H[q] = sum_i log L_ii + (d/2)(1 + log 2 pi)`.
+
+- Domain: unnormalized `log p` on `R^d` integrable under `q`.
+- Meaning: maximizing the ELBO minimizes the reverse KL divergence; the gap
+  to `log Z` is the KL divergence (for a mean-field fit of a Gaussian,
+  `(1/2)(sum_i log Lambda_ii - log det Lambda)`).
+- Code: `inference.advi`, `inference.variational._entropy`.
+- Source: [REF-BLEI-KUCUKELBIR-MCAULIFFE-2017] and
+  [REF-KUCUKELBIR-ETAL-2017].
+
+### EQ-VI-REPARAM-001 — Reparameterization gradient
+
+With `x = mu + L eta`, `eta ~ N(0, I)`:
+`grad_mu ELBO = E[g]`, `grad_{L_ij} ELBO = E[g_i eta_j]` (`i > j`),
+`grad_{lambda_i} ELBO = E[g_i eta_i] L_ii + 1` for `L_ii = exp(lambda_i)`,
+where `g = grad log p(x)`.
+
+- Domain: differentiable `log p`; estimated by averaging over a few `eta`
+  draws per iteration.
+- Meaning: unbiased low-variance stochastic gradients of the ELBO from
+  gradients of `log p` alone; the `+1` is the entropy gradient.
+- Code: `inference.advi`, `inference.variational._transform`.
+- Source: [REF-KUCUKELBIR-ETAL-2017].
+
+### EQ-VI-ADVI-001 — Gaussian variational families
+
+Mean-field: `L = diag(exp(omega))`; full-rank: `L` lower triangular with
+`L_ii = exp(lambda_i)` and free strictly-lower entries; covariance `L L'`.
+
+- Domain: unconstrained parameters on `R^d` (constrained ones transformed by
+  the caller with the Jacobian in `log p`).
+- Meaning: mean-field ignores correlations and, for a Gaussian target,
+  recovers the mean and the variances `1/Lambda_ii` (too small); full-rank
+  can represent the target exactly.
+- Code: `inference.advi`, `inference.VariationalResult.covariance`.
+- Source: [REF-KUCUKELBIR-ETAL-2017].
+
+### EQ-OPT-ADAM-001 — Adam update with Polyak-Ruppert tail averaging
+
+`m_t = b1 m_{t-1} + (1 - b1) g_t`, `v_t = b2 v_{t-1} + (1 - b2) g_t^2`,
+`theta_t = theta_{t-1} + alpha (m_t / (1 - b1^t)) / (sqrt(v_t / (1 - b2^t)) + eps)`
+(ascent); the reported parameters average the iterates over the most recent
+half of the iterations.
+
+- Domain: stochastic gradients `g_t`; `0 <= b1, b2 < 1`, `alpha, eps > 0`.
+- Meaning: per-coordinate step sizes normalized by a running gradient scale;
+  averaging the tail removes most of the step noise that a constant `alpha`
+  leaves around the optimum.
+- Code: `inference.advi`.
+- Source: [REF-KINGMA-BA-2015, Algorithm 1] and [REF-POLYAK-JUDITSKY-1992].
