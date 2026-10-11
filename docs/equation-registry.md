@@ -4638,3 +4638,161 @@ of `exp(-a s - s^2/2)`).
 - Code: `distributions._continuous.log_normal_short_mass`,
   `distributions.TruncatedNormal.cdf`, `distributions.TruncatedNormal.sf`.
 - Source: [REF-NIST-DLMF, Section 7.2] and [REF-JKB-1994, Chapter 13].
+
+## Multilevel Monte Carlo, adaptive rare-event sampling, and Shapley effects
+
+### EQ-MC-MLMC-001 — Multilevel telescoping estimator
+
+`E[P_L] = E[P_0] + sum_(l=1..L) E[P_l - P_(l-1)]`, estimated by
+`Y_hat = sum_(l=0..L) (1/N_l) sum_(n=1..N_l) (P_l^(n,l) - P_(l-1)^(n,l))` with
+`P_(-1) = 0`; `Var(Y_hat) = sum_l V_l / N_l`, `V_l = Var(P_l - P_(l-1))`.
+
+- Domain: square-integrable approximations; the fine and coarse values of
+  one sample `(n, l)` share randomness, different levels are independent.
+- Meaning: the bias is that of the finest level `L`, while most samples are
+  spent on cheap coarse levels because coupling makes `V_l` small.
+- Code: `monte_carlo.multilevel_monte_carlo`,
+  `monte_carlo.adaptive_multilevel_monte_carlo`,
+  `monte_carlo.MultilevelResult.standard_error`.
+- Source: [REF-GILES-2008] and [REF-GILES-2015].
+
+### EQ-MC-MLMC-002 — Cost-optimal multilevel allocation
+
+Minimizing `sum_l N_l C_l` subject to `sum_l V_l / N_l = v` gives
+`N_l = ceil(sqrt(V_l / C_l) sum_k sqrt(V_k C_k) / v)` and total cost
+`(sum_k sqrt(V_k C_k))^2 / v`. A coupled sample costs
+`C_l = c(l) + c(l-1)` (`C_0 = c(0)`) for fine-path cost `c(l)`; plain Monte
+Carlo on level `L` with the same variance costs `Var(P_L) c(L) / v`.
+
+- Domain: `V_l >= 0`, `C_l > 0`, `v > 0`.
+- Meaning: Lagrange-multiplier allocation; samples go where variance per
+  unit cost is largest.
+- Code: `monte_carlo.optimal_level_allocation`,
+  `monte_carlo.MultilevelResult.single_level_cost`,
+  `monte_carlo.MultilevelResult.cost_ratio`.
+- Source: [REF-GILES-2008] and [REF-GILES-2015].
+
+### EQ-MC-MLMC-003 — Rate regression, bias extrapolation, and MSE split
+
+`|E[Y_l]| ~ M^(-alpha l)`, `V_l ~ M^(-beta l)`, `C_l ~ M^(gamma l)`, fitted by
+least squares of `log_M` values on `l >= 1`. Remaining bias
+`|E[P - P_L]| ~ max_(j=0,1,2) m_(L-j) M^(-j alpha) / (M^alpha - 1)`. With
+`Var(Y_hat) <= eps^2/2` and bias `<= eps/sqrt 2`,
+`MSE = Var(Y_hat) + bias^2 <= eps^2`.
+
+- Domain: geometric refinement factor `M >= 2`; `alpha > 0` for the
+  extrapolation (the adaptive driver uses `max(alpha, 1/2)`).
+- Meaning: Giles' complexity theorem gives total cost `O(eps^-2)` when
+  `beta > gamma`, `O(eps^-2 (log eps)^2)` when `beta = gamma`, and
+  `O(eps^(-2-(gamma-beta)/alpha))` when `beta < gamma`; the adaptive driver
+  adds levels until the extrapolated bias passes.
+- Code: `monte_carlo.convergence_rates`,
+  `monte_carlo.adaptive_multilevel_monte_carlo`,
+  `monte_carlo.MultilevelResult.rmse_estimate`.
+- Source: [REF-GILES-2008] and [REF-GILES-2015].
+
+### EQ-REL-CE-001 — Cross-entropy levels and Gaussian parameter update
+
+`gamma_t = max(q_rho(G(u_1..u_N)), 0)` for `u_k ~ h_(t-1) = N(mu, Sigma)`;
+with elite set `E_t = {k : G(u_k) <= gamma_t}` and likelihood ratios
+`W_k = phi_n(u_k) / h_(t-1)(u_k)`,
+`mu_t = sum_(E_t) W_k u_k / sum_(E_t) W_k` and
+`Sigma_t = sum_(E_t) W_k (u_k - mu_t)(u_k - mu_t)' / sum_(E_t) W_k`.
+
+- Domain: standard-normal space of the Nataf map; `0 < rho <= 1/2`;
+  covariance adaptation needs at least `d + 1` elite points.
+- Meaning: weighted maximum likelihood of the Gaussian family for the
+  conditional law `phi_n(u) I(G(u) <= gamma_t)`, which minimizes the
+  Kullback-Leibler (cross-entropy) distance to it; the levels end at
+  `gamma = 0`.
+- Code: `reliability.cross_entropy_importance_sampling`.
+- Source: [REF-RUBINSTEIN-KROESE-2004] and [REF-KURTZ-SONG-2013].
+
+### EQ-REL-CE-002 — Gaussian-proposal importance-sampling estimate
+
+`P_f_hat = (1/N) sum_k I(G(u_k) <= 0) w(u_k)` with `u_k ~ N(mu, LL')` and
+`log w(u) = -||u||^2/2 + ||z||^2/2 + log det L`, `z = L^-1 (u - mu)`;
+`c.o.v. = SE(P_f_hat) / P_f_hat`.
+
+- Domain: proposal with full support (positive-definite `LL'`).
+- Meaning: unbiased for any such proposal; the normalizing constants of
+  both Gaussians cancel in the weight.
+- Code: `reliability.cross_entropy_importance_sampling`,
+  `reliability.compare_reliability_methods` (row `"CE-IS"`).
+- Source: [REF-RUBINSTEIN-KROESE-2004] and [REF-OWEN-2013, Chapter 9].
+
+### EQ-REL-LINE-001 — Line-sampling estimator and variance
+
+For unit `alpha` and `u_k ~ N(0, I)`, `u_perp = u_k - (alpha . u_k) alpha`,
+`G(u_perp + c_k alpha) = 0`, `p_k = Phi(-c_k)`;
+`P_f_hat = (1/N) sum_k p_k` and
+`Var(P_f_hat) = sum_k (p_k - P_f_hat)^2 / (N (N - 1))`.
+
+- Domain: each line crosses the limit state at most once, with failure on
+  the side of increasing `c`; lines without a crossing in `|c| <= c_max`
+  contribute 0 (always safe) or 1 (always failed).
+- Meaning: conditional Monte Carlo that integrates the coordinate along
+  `alpha` exactly; for a planar limit state orthogonal to `alpha` every
+  `p_k = Phi(-beta)` and the variance is zero.
+- Code: `reliability.line_sampling`,
+  `reliability.compare_reliability_methods` (row `"Line"`).
+- Source: [REF-KOUTSOURELAKIS-PRADLWARTER-SCHUELLER-2004].
+
+### EQ-SENS-SHAPLEY-001 — Shapley effect
+
+`Sh_i = (1/Var Y) sum_(J subset D\{i}) [|J|! (d-|J|-1)! / d!] (c(J u {i}) - c(J))`
+`= (1/(d! Var Y)) sum_(pi) [c(P_i(pi) u {i}) - c(P_i(pi))]`, where `P_i(pi)` is
+the set of inputs preceding `i` in permutation `pi`; `c(empty) = 0`,
+`c(D) = Var Y`, so `sum_i Sh_i = 1`.
+
+- Domain: square-integrable output; any joint input law.
+- Meaning: the Shapley value of the variance game; with independent inputs
+  and no interactions it equals the first-order and total Sobol indices.
+- Code: `sensitivity.exact_shapley_values`, `sensitivity.shapley_effects`,
+  `sensitivity.linear_gaussian_shapley`.
+- Source: [REF-OWEN-2014] and [REF-SONG-NELSON-STAUM-2016].
+
+### EQ-SENS-SHAPLEY-002 — Conditional-variance cost and its estimator
+
+`c(J) = E[Var(Y | X_(-J))]` gives the same Shapley values as
+`Var(E[Y | X_J])`. Estimate:
+`c_hat(J) = (1/N_O) sum_(o) s^2(Y(X_J^(o,1..N_I), X_(-J)^(o)))` with outer
+draws `X_(-J)^(o)` from their marginal, inner draws
+`X_J^(o,i) ~ X_J | X_(-J)^(o)`, and unbiased inner sample variance `s^2`.
+
+- Domain: `N_I >= 2`; conditional sampling of `X_J` given `X_(-J)` must be
+  available.
+- Meaning: an unbiased estimator of the cost that needs only `N_I` inner
+  draws; exact enumeration costs `N_V + (2^d - 2) N_O N_I` evaluations and
+  random permutations `N_V + m (d - 1) N_O N_I`.
+- Code: `sensitivity.shapley_effects`.
+- Source: [REF-SONG-NELSON-STAUM-2016].
+
+### EQ-SENS-SHAPLEY-003 — Gaussian conditioning by the Schur complement
+
+For latent `z ~ N(0, R)`:
+`z_J | z_K ~ N(R_JK R_KK^-1 z_K, R_JJ - R_JK R_KK^-1 R_KJ)`, then
+`x_i = F_i^-1(Phi(z_i))`.
+
+- Domain: positive-definite latent correlation `R`; Gaussian-copula inputs.
+- Meaning: conditional laws of Nataf inputs are exact in latent space.
+- Code: `sensitivity.shapley._ConditionalSampler`,
+  `sensitivity.shapley_effects`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Appendix A.2] and
+  [REF-LIU-DERKIUREGHIAN-1986].
+
+### EQ-SENS-SHAPLEY-004 — Shapley effects of a linear Gaussian model
+
+For `Y = b'X`, `X ~ N(mu, Sigma)`, `s = Sigma b`:
+`Var(E[Y | X_J]) = s_J' Sigma_JJ^-1 s_J`, `Var Y = b' Sigma b`. For `d = 2`
+with standard deviations `sigma_1, sigma_2` and correlation `rho`,
+`Sh_1 = (b1^2 sigma_1^2 (1 - rho^2/2) + rho b1 b2 sigma_1 sigma_2 +
+b2^2 sigma_2^2 rho^2/2) / Var Y`.
+
+- Domain: positive-definite `Sigma`, `Var Y > 0`.
+- Meaning: the correlated share `2 rho b1 b2 sigma_1 sigma_2` is split
+  equally and each own share loses `rho^2/2` of itself to the partner;
+  the two-dimensional formula was derived and checked numerically
+  against the subset enumeration for this release.
+- Code: `sensitivity.linear_gaussian_shapley`.
+- Source: [REF-OWEN-PRIEUR-2017] and [REF-IOOSS-PRIEUR-2019].

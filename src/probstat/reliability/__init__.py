@@ -1,12 +1,19 @@
 """Reliability, failure-probability, FORM/SORM, rare-event, and system analysis.
 
 ``analysis`` holds the original vector-level estimators. ``model_based``,
-``simulation``, and ``systems`` work on a
+``simulation``, ``adaptive``, and ``systems`` work on a
 :class:`~probstat.modeling.ProbabilisticModel` through
 :class:`ModelLimitState`, sharing one joint input law across FORM, SORM,
-importance sampling, subset simulation, system reliability, and inverse design.
+importance sampling, subset simulation, cross-entropy importance sampling,
+line sampling, system reliability, and inverse design.
 """
 
+from .adaptive import (
+    CrossEntropyResult,
+    LineSamplingResult,
+    cross_entropy_importance_sampling,
+    line_sampling,
+)
 from .analysis import (
     DirectionalSamplingResult,
     DirectReliabilityResult,
@@ -34,6 +41,9 @@ from .model_based import (
     sorm,
 )
 from .simulation import (
+    AVAILABLE_METHODS,
+    METHODS,
+    OPTIONAL_METHODS,
     DesignPointImportanceResult,
     MethodComparison,
     MethodComparisonRow,
@@ -54,6 +64,8 @@ from .systems import (
 )
 
 __all__ = [
+    "AVAILABLE_METHODS",
+    "CrossEntropyResult",
     "DesignParameterResult",
     "DesignPointImportanceResult",
     "DirectReliabilityResult",
@@ -61,11 +73,14 @@ __all__ = [
     "FORMResult",
     "InverseFORMResult",
     "LimitState",
+    "LineSamplingResult",
     "LinearNormalFORMResult",
+    "METHODS",
     "MethodComparison",
     "MethodComparisonRow",
     "ModelLimitState",
     "ModelMonteCarloResult",
+    "OPTIONAL_METHODS",
     "SORMResult",
     "SeriesSystemBounds",
     "SubsetSimulationResult",
@@ -74,6 +89,7 @@ __all__ = [
     "bivariate_normal_cdf",
     "compare_reliability_methods",
     "correlated_importance",
+    "cross_entropy_importance_sampling",
     "design_for_target_beta",
     "design_point_importance_sampling",
     "estimate_directional_failure_probability",
@@ -83,6 +99,7 @@ __all__ = [
     "gauss_legendre",
     "generalized_reliability_index",
     "inverse_form",
+    "line_sampling",
     "linear_normal_form",
     "model_monte_carlo",
     "principal_curvatures",

@@ -1,4 +1,4 @@
-"""Monte Carlo estimators, convergence diagnostics, and cost accounting."""
+"""Monte Carlo estimators, convergence diagnostics, cost accounting, and MLMC."""
 
 from .estimation import (
     MonteCarloEstimate,
@@ -7,6 +7,15 @@ from .estimation import (
     estimate_mean,
     estimate_probability,
     estimate_uniform_integral,
+)
+from .multilevel import (
+    LevelSampler,
+    LevelStatistics,
+    MultilevelResult,
+    adaptive_multilevel_monte_carlo,
+    convergence_rates,
+    multilevel_monte_carlo,
+    optimal_level_allocation,
 )
 from .variance_reduction import (
     ControlVariateResult,
@@ -30,6 +39,13 @@ __all__ = [
     "CostedEstimate",
     "EfficiencyComparison",
     "ImportanceSamplingResult",
+    "LevelSampler",
+    "LevelStatistics",
+    "MultilevelResult",
+    "adaptive_multilevel_monte_carlo",
+    "convergence_rates",
+    "multilevel_monte_carlo",
+    "optimal_level_allocation",
     "StratifiedEstimate",
     "allocate_stratified_budget",
     "compare_efficiency",

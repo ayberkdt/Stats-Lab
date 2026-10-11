@@ -110,9 +110,9 @@ experiment contrasts raw-indicator and conditional Monte Carlo estimators.
 - Stratification is presently one-dimensional with equal-width strata.
 - Importance sampling is ordinary rather than self-normalized; adaptive and
   multiple importance sampling are not yet implemented.
-- Randomized quasi-Monte Carlo, Latin hypercube sampling, multilevel Monte
-  Carlo, control functionals, and rare-event proposal design remain roadmap
-  work.
+- Randomized quasi-Monte Carlo, Latin hypercube sampling, control
+  functionals, and rare-event proposal design remain roadmap work here;
+  multilevel Monte Carlo is covered in the section below.
 
 The next ATHENS slice builds reliability and rare-event analysis on these
 auditable probability, cost, and importance-weight foundations.
@@ -121,3 +121,89 @@ auditable probability, cost, and importance-weight foundations.
 
 - [REF-OWEN-2013, Chapters 2, 8, and 9].
 - [REF-ROBERT-CASELLA-2004, Chapters 3-4].
+
+## Multilevel Monte Carlo
+
+Many quantities are only computable through an approximation `P_l` whose
+accuracy and cost grow with a level `l`: an SDE path with `M^l` Euler steps, a
+PDE solve on a mesh refined `l` times. Plain Monte Carlo on the finest level
+pays the full cost for every sample. Multilevel Monte Carlo (MLMC) rewrites the
+finest expectation as a telescoping sum [EQ-MC-MLMC-001]
+
+`E[P_L] = E[P_0] + sum_(l=1..L) E[P_l - P_(l-1)]`
+
+and estimates every term independently. The trick is *coupling*: the fine and
+coarse values in one correction sample use the same randomness (for an SDE the
+coarse path sums pairs of the fine Brownian increments), so
+`V_l = Var(P_l - P_(l-1))` shrinks with `l` and only a few expensive samples are
+needed on fine levels.
+
+The user supplies the hierarchy as one function,
+`level_sampler(level, n, stream) -> (fine, coarse)`, returning `n` coupled
+values; at level 0 `coarse` is ignored. Every batch receives its own child
+`RandomStream`, so runs are reproducible. A fine path at level `l` costs
+`path_cost(l)` (default `M^l`), and one correction sample costs
+`C_l = c(l) + c(l-1)`.
+
+- `multilevel_monte_carlo(sampler, (N_0, ..., N_L))` uses a fixed allocation.
+- `optimal_level_allocation(V, C, v)` returns the cost-optimal
+  `N_l = ceil(sqrt(V_l/C_l) sum_k sqrt(V_k C_k) / v)` [EQ-MC-MLMC-002].
+- `convergence_rates(means, variances, costs)` fits `alpha` (weak rate),
+  `beta` (variance rate), and `gamma` (cost rate) by log-linear least squares
+  on levels `l >= 1` [EQ-MC-MLMC-003].
+- `adaptive_multilevel_monte_carlo(sampler, eps)` runs Giles' algorithm: start
+  with levels `0..2`, allocate for sampling variance `eps^2/2`, and add levels
+  until the extrapolated bias `max_j m_(L-j) M^(-j alpha) / (M^alpha - 1)` is
+  below `eps/sqrt 2`, so that `MSE <= eps^2`.
+
+`MultilevelResult` reports the estimate, sampling variance, extrapolated bias,
+an RMSE estimate, per-level statistics, the three rates, the total cost
+`sum N_l C_l`, and `single_level_cost`: plain Monte Carlo on the finest level
+with the same sampling variance, `Var(P_L) c(L) / Var(Y_hat)`.
+
+### Worked example (numbers computed with this release)
+
+Geometric Brownian motion `dS = S dt + 0.5 S dW`, `S_0 = 1`, `T = 1`, Euler-
+Maruyama with `2^l` steps on level `l`; the exact answer is
+`E[S_T] = e = 2.718282`. `adaptive_multilevel_monte_carlo(sampler, 0.02,
+seed=1)` (the sampler is `GeometricBrownianMotion` in
+`tests/test_mlmc_ce_line_shapley.py`):
+
+| level | `N_l` | mean of `Y_l` | `V_l` | `C_l` |
+| --- | --- | --- | --- | --- |
+| 0 | 15494 | 2.0031 | 0.2532 | 1 |
+| 1 | 5037 | 0.25639 | 0.07964 | 3 |
+| 2 | 3426 | 0.18452 | 0.07675 | 6 |
+| 3 | 1916 | 0.11324 | 0.04595 | 12 |
+| 4 | 1034 | 0.076085 | 0.02643 | 24 |
+| 5 | 483 | 0.048253 | 0.01164 | 48 |
+| 6 | 240 | 0.019291 | 0.005682 | 96 |
+| 7 | 120 | 0.011723 | 0.002531 | 192 |
+| 8 | 59 | 0.0028269 | 0.001121 | 384 |
+
+- Estimate `2.71547` (error `-0.0028`), standard error `0.0139`,
+  extrapolated bias `0.0081` (the true Euler bias at `L = 8` is `0.0053`), RMSE
+  estimate `0.0160 <= 0.02`.
+- Rates `alpha = 0.88`, `beta = 0.93`, `gamma = 1.00` (theory for Euler on
+  GBM: `alpha = beta = gamma = 1`).
+- Total cost `190,889` Euler steps, exactly the number of steps the sampler
+  took. Plain Monte Carlo at `L = 8` with the exact `Var(S_T) = 2.0987` needs
+  `2 Var(S_T) 2^8 / eps^2 = 2.69e6` steps, a ratio of `14.1`; the in-run
+  estimate `single_level_cost` gives `1.58e6` (ratio `8.3`) because
+  `Var(P_8)` is estimated from only 59 samples.
+- With `eps = 0.04` and `eps = 0.01` the run also stops at `L = 8`, costing
+  `47,332` and `745,338` steps, ratios `14.2` and `14.4` against the exact
+  single-level cost. Since `beta ~ gamma`, MLMC cost grows like
+  `eps^-2 (log eps)^2` instead of `eps^-3` for plain Monte Carlo.
+
+### Limits
+
+- The rate regression and the bias extrapolation assume geometric decay from
+  level 1 on; very coarse levels outside the asymptotic regime bias both.
+- The bias test uses sample means of the finest corrections, so it is itself
+  random; Giles' flooring of `m_l` and `V_l` (at half the value extrapolated
+  from level `l - 1`) is applied to keep it stable.
+- Cost is the user's model `c(l)`, not wall-clock time.
+- Multi-index MC, randomized (unbiased) MLMC, and MLQMC are not implemented.
+
+Sources: [REF-GILES-2008], [REF-GILES-2015].
