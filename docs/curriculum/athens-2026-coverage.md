@@ -20,15 +20,15 @@ status, ownership, target, and evidence-path integrity.
 
 | ID | Topic | Status | Target | Planned owner | Evidence |
 |---|---|---|---|---|---|
-| ATHENS-1.1 | Numerical simulation as a model-based computational experiment | Partial | UQ-0 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
-| ATHENS-1.2 | Solution verification: solving the equations right | Partial | UQ-0 | `probstat.uq.verification` | `src/probstat/uq/verification.py` |
+| ATHENS-1.1 | Numerical simulation as a model-based computational experiment | Implemented | UQ-0 | `probstat.uq` | `src/probstat/uq/experiment.py`; `src/probstat/uq/taxonomy.py`; `tests/test_uq0_solution_verification.py`; `docs/foundations/vv-uq-foundations.md` |
+| ATHENS-1.2 | Solution verification: solving the equations right | Implemented | UQ-0 | `probstat.uq.verification` | `src/probstat/uq/verification.py`; `src/probstat/uq/experiment.py`; `tests/test_uq0_solution_verification.py`; `docs/foundations/vv-uq-foundations.md` |
 | ATHENS-1.3 | Model validation: solving the right equations for intended use | Implemented | UQ-0 | `probstat.validation` | `src/probstat/validation/assessment.py`; `src/probstat/validation/metrics.py`; `src/probstat/validation/records.py`; `tests/test_model_validation.py`; `docs/foundations/model-validation.md` |
-| ATHENS-1.4 | Uncertainty quantification workflow | Partial | UQ-0 | `probstat.uq` | `docs/foundations/vv-uq-foundations.md`; `src/probstat/validation/credibility.py` |
-| ATHENS-1.5 | Numerical uncertainty | Partial | UQ-0 | `probstat.uq.verification` | `src/probstat/uq/verification.py` |
-| ATHENS-1.6 | Parametric uncertainty | Partial | UQ-0 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
-| ATHENS-1.7 | Model-form uncertainty | Partial | UQ-0 | `probstat.validation` | `src/probstat/uq/taxonomy.py`; `src/probstat/validation/discrepancy.py`; `src/probstat/validation/metrics.py` |
+| ATHENS-1.4 | Uncertainty quantification workflow | Implemented | UQ-0 | `probstat.uq` | `src/probstat/uq/workflow_record.py`; `src/probstat/workflow/study.py`; `tests/test_uq0_prediction_workflow.py`; `examples/uq_workflow_lab.py`; `docs/foundations/vv-uq-foundations.md` |
+| ATHENS-1.5 | Numerical uncertainty | Implemented | UQ-0 | `probstat.uq.verification` | `src/probstat/uq/verification.py`; `src/probstat/validation/prediction.py`; `tests/test_uq0_solution_verification.py`; `tests/test_uq0_prediction_workflow.py`; `docs/foundations/vv-uq-foundations.md` |
+| ATHENS-1.6 | Parametric uncertainty | Implemented | UQ-0 | `probstat.uq` | `src/probstat/modeling/inputs.py`; `src/probstat/propagation/study.py`; `src/probstat/inverse/nonlinear.py`; `src/probstat/validation/prediction.py`; `tests/test_uq0_prediction_workflow.py`; `docs/foundations/vv-uq-foundations.md` |
+| ATHENS-1.7 | Model-form uncertainty | Implemented | UQ-0 | `probstat.validation` | `src/probstat/validation/discrepancy.py`; `src/probstat/validation/prediction.py`; `src/probstat/validation/metrics.py`; `tests/test_uq0_prediction_workflow.py`; `docs/foundations/vv-uq-foundations.md` |
 | ATHENS-1.8 | Aleatory versus epistemic uncertainty | Implemented | UQ-0 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
-| ATHENS-1.9 | Forward versus inverse problems | Partial | UQ-0 | `probstat.uq` | `docs/foundations/vv-uq-foundations.md` |
+| ATHENS-1.9 | Forward versus inverse problems | Implemented | UQ-0 | `probstat.uq` | `src/probstat/propagation/study.py`; `src/probstat/inverse/nonlinear.py`; `src/probstat/uq/workflow_record.py`; `tests/test_uq0_prediction_workflow.py`; `examples/uq_workflow_lab.py`; `docs/foundations/vv-uq-foundations.md` |
 | ATHENS-1.10 | Quantity-of-interest definition and selection | Implemented | UQ-0 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
 | ATHENS-2.1 | Random variables | Implemented | UQ-1 | `probstat.probability` | `src/probstat/probability/random_variables.py` |
 | ATHENS-2.2 | Probability mass and density functions | Implemented | UQ-1 | `probstat.distributions` | `src/probstat/foundations/protocols.py`; `src/probstat/distributions` |

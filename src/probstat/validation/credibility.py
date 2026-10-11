@@ -28,7 +28,7 @@ from probstat.foundations.validation import (
     require_finite_real,
 )
 from probstat.statistics import quantile
-from probstat.uq import NumericalErrorBudget
+from probstat.uq import NumericalErrorBudget, SolutionVerification
 
 from .assessment import ValidationAssessment
 from .metrics import budget_standard_uncertainty
@@ -80,6 +80,49 @@ class VerificationEvidence:
                 "observed_order",
                 require_finite_real(self.observed_order, name="observed_order"),
             )
+
+    @classmethod
+    def from_solution_verification(
+        cls, verification: SolutionVerification
+    ) -> VerificationEvidence:
+        """Build evidence whose discretization bound is the expanded ``U_num``.
+
+        The bound is the half-width ``U`` of ``phi_1 +/- U``; the inherited
+        :attr:`standard_uncertainty` therefore applies the rectangular
+        conversion ``U / sqrt(3)`` (the ``"uniform"`` option of
+        :meth:`~probstat.uq.SolutionVerification.standard_uncertainty`).
+
+        Args:
+            verification: Solution-verification statement.
+
+        Returns:
+            Verification evidence with method, warnings, and order recorded.
+
+        Raises:
+            TypeError: If ``verification`` has the wrong type.
+
+        Equation:
+            [EQ-VV-003], [EQ-VV-UNUM-001].
+
+        References:
+            [REF-ROACHE-1998, Chapters 4-5], [REF-CELIK-ETAL-2008].
+
+        """
+        if not isinstance(verification, SolutionVerification):
+            raise TypeError("verification must be a SolutionVerification")
+        description = (
+            f"{verification.method}; {verification.grid_count} grids, finest "
+            f"h={verification.fine_spacing:.4g}, {verification.convergence.value} "
+            "convergence"
+        )
+        if verification.warnings:
+            description += "; warnings: " + "; ".join(verification.warnings)
+        return cls(
+            verification.quantity,
+            verification.error_budget(),
+            description,
+            verification.observed_order,
+        )
 
     @property
     def standard_uncertainty(self) -> float:
