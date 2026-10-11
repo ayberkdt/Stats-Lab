@@ -1927,3 +1927,43 @@ Correlated Proportions or Percentages." *Psychometrika* 12(2), 153-157,
 
 Shelby J. Haberman. "The Analysis of Residuals in Cross-Classified Tables."
 *Biometrics* 29(1), 205-220, 1973.
+
+## REF-LITTLE-RUBIN-2019
+
+Roderick J. A. Little and Donald B. Rubin. *Statistical Analysis with Missing
+Data*. 3rd edition. Wiley, 2019. ISBN 978-0-470-52679-8.
+
+## REF-SCHAFER-1997
+
+J. L. Schafer. *Analysis of Incomplete Multivariate Data*. Monographs on
+Statistics and Applied Probability 72. Chapman & Hall, 1997.
+ISBN 0-412-04061-1.
+
+## REF-RUBIN-1987
+
+Donald B. Rubin. *Multiple Imputation for Nonresponse in Surveys*. Wiley,
+1987. ISBN 0-471-08705-X. DOI:
+[10.1002/9780470316696](https://doi.org/10.1002/9780470316696).
+
+## REF-LITTLE-1988
+
+Roderick J. A. Little. "A Test of Missing Completely at Random for
+Multivariate Data with Missing Values." *Journal of the American Statistical
+Association* 83(404), 1198-1202, 1988. doi:10.2307/2290157.
+
+## REF-BARNARD-RUBIN-1999
+
+John Barnard and Donald B. Rubin. "Small-Sample Degrees of Freedom with
+Multiple Imputation." *Biometrika* 86(4), 948-955, 1999.
+
+## REF-TANNER-WONG-1987
+
+Martin A. Tanner and Wing Hung Wong. "The Calculation of Posterior
+Distributions by Data Augmentation." *Journal of the American Statistical
+Association* 82(398), 528-540 (with discussion), 1987.
+
+## REF-SMITH-HOCKING-1972
+
+W. B. Smith and R. R. Hocking. "Algorithm AS 53: Wishart Variate Generator."
+*Journal of the Royal Statistical Society: Series C (Applied Statistics)*
+21(3), 341-345, 1972. doi:10.2307/2346290.

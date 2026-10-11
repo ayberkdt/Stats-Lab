@@ -8411,3 +8411,159 @@ residual `(O_ij - E_ij)/sqrt(E_ij (1 - R_i/n)(1 - C_j/n))`.
   lives after a significant chi-square test.
 - Code: `inference.contingency.contingency_residuals`.
 - Source: [REF-HABERMAN-1973], [REF-AGRESTI-2013, Chapter 2].
+
+## Missing data
+
+### EQ-MISS-001 — Observed-data multivariate normal log-likelihood
+
+`l(mu, Sigma) = sum_i [-(p_i/2) log(2 pi) - (1/2) log|Sigma_(oo,i)|
+- (1/2) (x_(o,i) - mu_(o,i))' Sigma_(oo,i)^-1 (x_(o,i) - mu_(o,i))]`, where
+`o_i` is the set of `p_i` observed variables of row `i`; rows with `p_i = 0`
+contribute zero.
+
+- Domain: `Sigma` symmetric positive definite; missing entries coded as `None`
+  or `nan`; evaluated per pattern with one Cholesky factor of `Sigma_oo`.
+- Meaning: the marginal likelihood of what was observed. Under MAR with
+  parameters distinct from those of the missingness mechanism, likelihood
+  and Bayesian inference may ignore the mechanism and use this function.
+- Code: `inference.incomplete_normal_log_likelihood`,
+  `inference.fit_incomplete_multivariate_normal`.
+- Source: [REF-LITTLE-RUBIN-2019], [REF-SCHAFER-1997].
+
+### EQ-MISS-002 — EM steps for the incomplete multivariate normal
+
+E-step for row `i` with observed block `o` and missing block `m`:
+`xhat_m = mu_m + B (x_o - mu_o)`, `B = Sigma_mo Sigma_oo^-1`,
+`C_i = Sigma_mm - Sigma_mo Sigma_oo^-1 Sigma_om` (Schur complement; zero for
+observed coordinates). M-step: `mu = (1/n) sum_i xhat_i`,
+`Sigma = (1/n) sum_i [(xhat_i - mu)(xhat_i - mu)' + C_i]`.
+
+- Domain: every variable observed at least twice with positive spread; the
+  completed `Sigma` must stay positive definite.
+- Meaning: the complete-data MLE applied to conditionally expected
+  sufficient statistics; monotone in [EQ-MISS-001] by [EQ-EM-001]. With no
+  missing values the first M-step equals the sample mean and the
+  divisor-`n` covariance computed on centred values.
+- Code: `inference.fit_incomplete_multivariate_normal`.
+- Source: [REF-DEMPSTER-LAIRD-RUBIN-1977], [REF-LITTLE-RUBIN-2019],
+  [REF-SCHAFER-1997].
+
+### EQ-MISS-003 — Observed-information standard errors of the mean
+
+`I(theta) = -d^2 l / d theta d theta'` at the EM estimate, with
+`theta = (mu, vech Sigma)`; `Cov(mu_hat) ~ [I^-1]_(mu, mu)`. The library
+evaluates the Hessian by central differences in standardized parameters
+`mu_j = mu_hat_j + s_j t_j`, `Sigma_jk = Sigma_hat_jk + s_j s_k u_jk`,
+`s_j = sqrt(Sigma_hat_jj)`.
+
+- Domain: an interior maximum where `I` is positive definite; otherwise no
+  standard errors are reported.
+- Meaning: inverting the full observed information keeps the
+  `mu`-`Sigma` cross information, which is non-zero under MAR (the expected
+  information is block diagonal and can give inconsistent standard errors
+  when data are MAR but not MCAR). With complete data it reduces to
+  `Sigma_hat / n`.
+- Code: `inference.fit_incomplete_multivariate_normal`.
+- Source: [REF-LITTLE-RUBIN-2019], [REF-NOCEDAL-WRIGHT-2006, Section 8.1].
+
+### EQ-MISS-004 — Little's MCAR test
+
+`d^2 = sum_j n_j (ybar_j - mu_hat_(o_j))' Sigma_hat_(o_j o_j)^-1
+(ybar_j - mu_hat_(o_j))`, summed over missingness patterns `j` with `n_j`
+rows, observed set `o_j` of size `p_j >= 1` and observed-variable mean
+`ybar_j`, using the EM estimates `(mu_hat, Sigma_hat)`. Under MCAR,
+`d^2` is asymptotically chi-square on `sum_j p_j - p` degrees of freedom.
+
+- Domain: at least two patterns with observed values. The library uses the
+  maximum-likelihood `Sigma_hat` (divisor `n`).
+- Meaning: one global test of whether pattern-wise means differ from the
+  pooled estimate; a small p-value is evidence against MCAR. It cannot
+  distinguish MAR from MNAR and is sensitive to non-normality.
+- Code: `inference.little_mcar_test`.
+- Source: [REF-LITTLE-1988], [REF-LITTLE-RUBIN-2019].
+
+### EQ-MISS-005 — Inverse-Wishart draws by the Bartlett decomposition
+
+`A` lower triangular with `A_ii^2 ~ chi^2(nu - i + 1)` (`i = 1..p`) and
+`A_ij ~ N(0, 1)` for `i > j`, all independent, so `A A' ~ W_p(nu, I)`. With
+`Psi = C C'` (Cholesky), `Sigma = C A^-T A^-1 C'` satisfies
+`Sigma^-1 ~ W_p(nu, Psi^-1)`, i.e. `Sigma ~ IW_p(Psi, nu)`, and
+`E[Sigma] = Psi / (nu - p - 1)` for `nu > p + 1`.
+
+- Domain: `Psi` symmetric positive definite; real `nu > p - 1`.
+- Meaning: an inverse-Wishart sampler that needs only chi-square and normal
+  variates and triangular solves.
+- Code: `inference.sample_inverse_wishart`,
+  `inference.impute_multivariate_normal`.
+- Source: [REF-SMITH-HOCKING-1972], [REF-MARDIA-KENT-BIBBY-1979, Chapter 3],
+  [REF-GELMAN-ETAL-2013, Section 3.6].
+
+### EQ-MISS-006 — Data augmentation for the multivariate normal
+
+I-step: `x_m ~ N(mu_m + B (x_o - mu_o), Sigma_mm.o)` for every row, with `B`
+and `Sigma_mm.o` as in [EQ-MISS-002]. P-step under the normal-inverse-Wishart
+prior `(mu_0, kappa_0, Psi_0, nu_0)`: with completed mean `ybar` and centred
+cross-products `A`, `kappa_n = kappa_0 + n`, `nu_n = nu_0 + n`,
+`mu_n = (kappa_0 mu_0 + n ybar)/kappa_n`,
+`Psi_n = Psi_0 + A + (kappa_0 n / kappa_n)(ybar - mu_0)(ybar - mu_0)'`;
+draw `Sigma ~ IW(Psi_n, nu_n)`, then `mu ~ N(mu_n, Sigma / kappa_n)`.
+
+- Domain: `nu_n > p - 1`, `Psi_n` positive definite. The default
+  `kappa_0 = 0`, `Psi_0 = 0`, `nu_0 = -1` is the improper prior
+  `p(mu, Sigma) ∝ |Sigma|^-(p+1)/2`, giving `Sigma | Y ~ IW(A, n - 1)` and
+  `mu | Sigma, Y ~ N(ybar, Sigma / n)`.
+- Meaning: a Gibbs sampler on (missing values, parameters); after burn-in the
+  I-step draws come from the posterior predictive distribution of the
+  missing values, which makes the imputations proper. Each imputation runs
+  its own chain from the EM estimate on a child random stream.
+- Code: `inference.impute_multivariate_normal`.
+- Source: [REF-TANNER-WONG-1987], [REF-SCHAFER-1997],
+  [REF-GELMAN-ETAL-2013, Section 3.6].
+
+### EQ-MISS-007 — Rubin's combining rules
+
+`Qbar = (1/m) sum_k Q_k`, `Ubar = (1/m) sum_k U_k`,
+`B = (1/(m-1)) sum_k (Q_k - Qbar)^2`, `T = Ubar + (1 + 1/m) B`,
+`r = (1 + 1/m) B / Ubar`, `lambda = (1 + 1/m) B / T`,
+`nu_old = (m - 1)/lambda^2 = (m - 1)(1 + 1/r)^2`, and
+`gamma = ((nu + 1) lambda + 2)/(nu + 3)` with `nu` the degrees of freedom
+used; the interval is `Qbar +/- t_nu(1 - alpha/2) sqrt(T)`.
+
+- Domain: `m >= 2`, `U_k >= 0`, `Ubar > 0`; scalar estimands whose
+  completed-data estimates are approximately normal. With `B = 0`,
+  `nu_old = inf` and a normal quantile is used.
+- Meaning: total variance adds the between-imputation spread to the average
+  completed-data variance; `r` is the relative increase in variance due to
+  missingness, `lambda` the share of total variance it causes, and `gamma`
+  the estimated fraction of missing information. With `nu = nu_old`,
+  `gamma = (r + 2/(nu_old + 3))/(1 + r)`.
+- Code: `inference.pool_estimates`.
+- Source: [REF-RUBIN-1987], [REF-SCHAFER-1997].
+
+### EQ-MISS-008 — Barnard-Rubin small-sample degrees of freedom
+
+`nu_obs = ((nu_com + 1)/(nu_com + 3)) nu_com (1 - lambda)` and
+`nu_BR = (1/nu_old + 1/nu_obs)^-1`, with `nu_com` the complete-data degrees
+of freedom.
+
+- Domain: `nu_com > 0`; when `B = 0`, `nu_BR = nu_obs`.
+- Meaning: `nu_BR <= nu_com` always, unlike `nu_old`, which can exceed the
+  complete-data value when the fraction of missing information is small.
+- Code: `inference.pool_estimates`.
+- Source: [REF-BARNARD-RUBIN-1999].
+
+### EQ-MISS-009 — Biased baselines: listwise deletion and mean imputation
+
+Complete-case analysis keeps rows with `R_i = 1` (all observed); unconditional
+mean imputation sets `x_ij = ybar_j^obs` for missing entries, so the completed
+variance is `((n_j^obs - 1) s_j^2)/(n - 1) < s_j^2` and covariances shrink
+toward zero.
+
+- Domain: any incomplete rectangular data.
+- Meaning: complete cases are a random subsample only under MCAR; under MAR
+  their means are biased. Mean imputation inherits the observed-mean bias,
+  understates variances by about the observed fraction, attenuates
+  correlations, and treats imputed values as data, so its standard errors
+  are too small.
+- Code: `inference.complete_cases`, `inference.mean_impute`.
+- Source: [REF-LITTLE-RUBIN-2019].
