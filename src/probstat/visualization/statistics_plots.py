@@ -198,7 +198,9 @@ def plot_survival_curves(
         labels.append((xs[-1], survival[-1], label, colour))
         below = [t for t, s in zip(times, survival, strict=True) if s <= 0.5]
         medians.append(
-            f"{label} median {below[0]:.3g}" if below else f"{label} median > {xs[-1]:.3g}"
+            f"{label} median {below[0]:.3g}"
+            if below
+            else f"{label} median > {xs[-1]:.3g}"
         )
     axes.set_ylim(0.0, 1.05)
     reference_line(axes, y=0.5, label="50%")
