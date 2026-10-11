@@ -16,7 +16,7 @@ from probstat.distributions import LogNormal, Normal
 from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
 from probstat.risk import linear_loss
 from probstat.uq import QuantityOfInterest
-from probstat.visualization.study import save_study_figures
+from probstat.visualization.study import save_study_figures, write_study_html
 from probstat.workflow import UQStudy
 
 LENGTH = 2.0
@@ -94,6 +94,8 @@ def main() -> None:
     report = study.report()
     (output / "cantilever-study-report.md").write_text(report, encoding="utf-8")
     paths = save_study_figures(study, output)
+    page = write_study_html(study, output / "cantilever-study.html")
+    print(f"HTML report: {page.name}")
     print(f"report: {len(report.splitlines())} lines; figures: {len(paths)}")
     print(f"true-model evaluations: {study.total_evaluations:,}")
 

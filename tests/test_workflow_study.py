@@ -92,6 +92,26 @@ class StudyTests(unittest.TestCase):
             self.assertEqual(len(paths), 2)
             self.assertTrue(all(path.stat().st_size > 1000 for path in paths))
 
+    @unittest.skipUnless(
+        importlib.util.find_spec("matplotlib") is not None, "matplotlib is optional"
+    )
+    def test_study_html_is_self_contained(self) -> None:
+        """The HTML report embeds light and dark figures and every stage."""
+        import matplotlib
+
+        matplotlib.use("Agg")
+        from probstat.visualization.study import study_html
+
+        study = UQStudy(capacity_model(), seed=2)
+        study.propagate(256)
+        study.screening("g", 6)
+        page = study_html(study)
+        self.assertIn("<!doctype html>", page)
+        self.assertEqual(page.count("<section"), 2)
+        self.assertEqual(page.count("data:image/png;base64,"), 4)
+        self.assertIn("prefers-color-scheme: dark", page)
+        self.assertNotIn("http://", page.replace("http://www.w3.org", ""))
+
 
 class CalibrationAndEmulationTests(unittest.TestCase):
     """Backward modeling and surrogates inside the same study."""

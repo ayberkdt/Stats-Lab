@@ -102,3 +102,181 @@ def save_study_figures(study: UQStudy, directory: str | Path) -> tuple[Path, ...
             written.append(save_figure(axes.figure, path))
             plt.close(axes.figure)
     return tuple(written)
+
+
+_HTML_STYLE = """
+:root {
+  --canvas: #F6F4EF; --surface: #FFFFFF; --ink: #23262B; --muted: #656A73;
+  --rule: #DCD8CF; --accent: #44599C;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #141519; --surface: #1E2026; --ink: #F1F0EB; --muted: #A6A9B1;
+    --rule: #303339; --accent: #E8804A;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--canvas); color: var(--ink);
+  font: 16px/1.55 "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+main { max-width: 920px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 24px; margin: 0 0 8px; }
+h2 { font-size: 16px; margin: 0 0 4px; }
+.meta, .stage-meta { color: var(--muted); font-size: 14px; margin: 0; }
+.meta { margin-bottom: 24px; }
+nav ol { list-style: none; padding: 0; margin: 0 0 32px; display: flex;
+  flex-wrap: wrap; gap: 8px 24px; font-size: 14px; }
+nav a { color: var(--accent); text-decoration: none; }
+section { border-top: 1px solid var(--rule); padding: 24px 0; }
+figure { margin: 16px 0; }
+figure img { width: 100%; height: auto; border-radius: 6px; display: block; }
+table { border-collapse: collapse; width: 100%; font-size: 14px;
+  font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--rule); }
+th { color: var(--muted); font-weight: 600; }
+td.value { text-align: right; }
+footer { color: var(--muted); font-size: 12px; margin-top: 32px; }
+"""
+
+
+def _encode_figure(axes: Any) -> str:
+    """Return a PNG data URI for an axes' figure and close it.
+
+    Args:
+        axes: Matplotlib axes or figure.
+
+    Returns:
+        ``data:image/png;base64,...`` string.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    import base64
+    import io
+
+    figure = getattr(axes, "figure", axes)
+    buffer = io.BytesIO()
+    figure.savefig(
+        buffer,
+        format="png",
+        dpi=150,
+        facecolor=figure.get_facecolor(),
+        bbox_inches="tight",
+        pad_inches=0.2,
+    )
+    pyplot().close(figure)
+    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+
+
+def study_html(study: UQStudy) -> str:
+    """Return a self-contained HTML report of every stage of a study.
+
+    Each stage becomes one section with its headline numbers, cost, stream
+    seed, and (where supported) its figure in light and dark variants that
+    follow the reader's colour scheme. Figures are embedded as data URIs, so
+    the file has no external dependencies.
+
+    Args:
+        study: Study to render.
+
+    Returns:
+        HTML document text.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    import html
+
+    from .theme import GRAPHITE, PORCELAIN, chart_theme
+
+    model = study.model
+    sections: list[str] = []
+    navigation: list[str] = []
+    for index, record in enumerate(study.records, start=1):
+        anchor = f"stage-{index}"
+        if index <= 7:
+            navigation.append(
+                f'<li><a href="#{anchor}">{index}. {html.escape(record.stage)}</a></li>'
+            )
+        figures = []
+        with chart_theme(PORCELAIN):
+            light = [_encode_figure(axes) for _, axes in _figures_for(record)]
+        with chart_theme(GRAPHITE):
+            dark = [_encode_figure(axes) for _, axes in _figures_for(record)]
+        for light_uri, dark_uri in zip(light, dark, strict=True):
+            figures.append(
+                "<figure><picture>"
+                f'<source media="(prefers-color-scheme: dark)" srcset="{dark_uri}">'
+                f'<img alt="{html.escape(record.label)}" src="{light_uri}">'
+                "</picture></figure>"
+            )
+        rows = "".join(
+            f"<tr><td>{html.escape(str(key))}</td>"
+            f'<td class="value">{html.escape(_format_value(value))}</td></tr>'
+            for key, value in record.summary.items()
+        )
+        sections.append(
+            f'<section id="{anchor}">'
+            f"<h2>{index}. {html.escape(record.stage)}: "
+            f"{html.escape(record.label)}</h2>"
+            f'<p class="stage-meta">{record.evaluations:,} model evaluations · '
+            f"stream seed {record.seed}</p>"
+            + "".join(figures)
+            + "<table><thead><tr><th>Quantity</th><th>Value</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table></section>"
+        )
+    more = len(study.records) - 7
+    extra = (
+        f'<p class="meta">{more} further stage(s) follow below.</p>' if more > 0 else ""
+    )
+    dependence = "independent" if model.inputs.is_independent else "Gaussian copula"
+    return (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        f"<title>UQ study: {html.escape(study.name)}</title>"
+        f"<style>{_HTML_STYLE}</style></head><body><main>"
+        f"<h1>UQ study: {html.escape(study.name)}</h1>"
+        f'<p class="meta">Inputs: {html.escape(", ".join(model.inputs.names))} · '
+        f"QoIs: {html.escape(', '.join(model.quantity_names))} · {dependence} · "
+        f"{study.total_evaluations:,} model evaluations</p>"
+        f'<nav aria-label="Stages"><ol>{"".join(navigation)}</ol></nav>{extra}'
+        + "".join(sections)
+        + "<footer>Generated by probstat.workflow.UQStudy. Every number is "
+        "reproducible from the root seed and the stream seeds shown.</footer>"
+        "</main></body></html>"
+    )
+
+
+def _format_value(value: object) -> str:
+    """Format a summary value for display.
+
+    References:
+        [REF-PYTHON-DATAMODEL]. No equation is evaluated.
+
+    """
+    if isinstance(value, float):
+        return f"{value:.6g}"
+    return str(value)
+
+
+def write_study_html(study: UQStudy, path: str | Path) -> Path:
+    """Write :func:`study_html` to a file.
+
+    Args:
+        study: Study to render.
+        path: Destination ``.html`` path (parents are created).
+
+    Returns:
+        The written path.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(study_html(study), encoding="utf-8")
+    return destination
