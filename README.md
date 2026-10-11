@@ -91,11 +91,11 @@ the data.
 
 | | |
 |---|---|
-| ![Sampling designs](docs/images/central-model-design-comparison.png) | ![FORM geometry](docs/images/central-model-form-geometry.png) |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/central-model-design-comparison-dark.png"><img alt="Sampling designs" src="docs/images/central-model-design-comparison.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/central-model-form-geometry-dark.png"><img alt="FORM geometry" src="docs/images/central-model-form-geometry.png"></picture> |
 | **Forward**: scrambled Sobol points cut the error of the mean 15x at the same cost. | **Reliability**: FORM finds the most likely failure point in standard-normal space. |
-| ![Loss exceedance](docs/images/central-model-loss-exceedance.png) | ![Calibration forecast](docs/images/calibration-forecast.png) |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/central-model-loss-exceedance-dark.png"><img alt="Loss exceedance" src="docs/images/central-model-loss-exceedance.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/calibration-forecast-dark.png"><img alt="Calibration forecast" src="docs/images/calibration-forecast.png"></picture> |
 | **Risk**: the expected loss hides a heavy tail; CVaR shows it. | **Backward**: MCMC calibration, then a forecast whose bands widen beyond the data. |
-| ![Filter tracking](docs/images/filtering-velocity.png) | ![Sobol indices](docs/images/ishigami-sobol-indices.png) |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/filtering-velocity-dark.png"><img alt="Filter tracking" src="docs/images/filtering-velocity.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/ishigami-sobol-indices-dark.png"><img alt="Sobol indices" src="docs/images/ishigami-sobol-indices.png"></picture> |
 | **Filtering**: the Kalman filter recovers a velocity that is never measured. | **Sensitivity**: X3 matters only through interactions. |
 
 Start with [`examples/uq_study_lab.py`](examples/uq_study_lab.py) (one model

@@ -123,7 +123,25 @@ PROJECTED: tuple[float, tuple[float, ...]] = (0.0, (1.0, 3.5))
 SIMULATED: tuple[float, tuple[float, ...]] = (0.0, (8.0, 3.0, 1.5, 3.0))
 REFERENCE: tuple[float, tuple[float, ...]] = (0.0, (3.5, 3.0))
 
-_ACTIVE: list[ChartPalette] = [PORCELAIN]
+
+
+def _default_palette() -> ChartPalette:
+    """Return the palette named by ``PROBSTAT_CHART_THEME`` (default light).
+
+    ``graphite`` (or ``dark``) selects the dark palette; anything else keeps
+    the light porcelain palette.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    import os
+
+    choice = os.environ.get("PROBSTAT_CHART_THEME", "porcelain").strip().lower()
+    return GRAPHITE if choice in {"graphite", "dark"} else PORCELAIN
+
+
+_ACTIVE: list[ChartPalette] = [_default_palette()]
 
 
 def active_palette() -> ChartPalette:
