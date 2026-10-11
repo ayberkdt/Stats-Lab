@@ -34,10 +34,12 @@ probability is `Phi(-beta)` [EQ-REL-FORM-001].
 
 `linear_normal_form` solves this constrained problem exactly for an affine
 boundary. It returns `beta`, the most-probable failure/design point, unit normal,
-boundary residual, and probability. This is a firm testable foundation, not a
-claim that nonlinear FORM is already general: non-normal transformations,
-gradients, iterative optimization, convergence diagnostics, and multiple design
-points remain future work.
+boundary residual, and probability. It is an exact, testable special case.
+General nonlinear FORM is covered in
+[Model-based reliability](advanced-reliability.md). That guide treats
+non-normal and correlated inputs, the HL-RF iteration with convergence
+diagnostics, SORM, subset simulation, and systems. Finding several design
+points is still not supported.
 
 ## Directional sampling
 

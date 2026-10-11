@@ -470,3 +470,80 @@ Masanobu Shinozuka, Maria Q. Feng, Jongheon Lee, and Toshihiko Naganuma.
 
 W. E. Vesely, F. F. Goldberg, N. H. Roberts, and D. F. Haasl. *Fault Tree
 Handbook*. NUREG-0492, U.S. Nuclear Regulatory Commission, 1981.
+
+## REF-HASOFER-LIND-1974
+
+Abraham M. Hasofer and Niels C. Lind. "Exact and Invariant Second-Moment Code
+Format." *Journal of the Engineering Mechanics Division* (ASCE) 100(1),
+111-121, 1974.
+
+## REF-RACKWITZ-FIESSLER-1978
+
+Rüdiger Rackwitz and Bernd Fiessler. "Structural Reliability under Combined
+Random Load Sequences." *Computers & Structures* 9(5), 489-494, 1978.
+
+## REF-ZHANG-DERKIUREGHIAN-1995
+
+Yan Zhang and Armen Der Kiureghian. "Two Improved Algorithms for Reliability
+Analysis." In R. Rackwitz, G. Augusti, and A. Borri (eds.), *Reliability and
+Optimization of Structural Systems: Proceedings of the Sixth IFIP WG 7.5
+Working Conference*. Chapman & Hall, 1995.
+
+## REF-DERKIUREGHIAN-2005
+
+Armen Der Kiureghian. "First- and Second-Order Reliability Methods." In
+E. Nikolaidis, D. M. Ghiocel, and S. Singhal (eds.), *Engineering Design
+Reliability Handbook*. CRC Press, 2005.
+
+## REF-BREITUNG-1984
+
+Karl Breitung. "Asymptotic Approximations for Multinormal Integrals."
+*Journal of Engineering Mechanics* 110(3), 357-366, 1984.
+
+## REF-HOHENBICHLER-RACKWITZ-1988
+
+Michael Hohenbichler and Rüdiger Rackwitz. "Improvement of Second-Order
+Reliability Estimates by Importance Sampling." *Journal of Engineering
+Mechanics* 114(12), 2195-2199, 1988.
+
+## REF-AU-BECK-2001
+
+Siu-Kui Au and James L. Beck. "Estimation of Small Failure Probabilities in
+High Dimensions by Subset Simulation." *Probabilistic Engineering Mechanics*
+16(4), 263-277, 2001.
+
+## REF-CORNELL-1967
+
+C. Allin Cornell. "Bounds on the Reliability of Structural Systems." *Journal
+of the Structural Division* (ASCE) 93(ST1), 171-200, 1967.
+
+## REF-DITLEVSEN-1979
+
+Ove Ditlevsen. "Narrow Reliability Bounds for Structural Systems." *Journal of
+Structural Mechanics* 7(4), 453-472, 1979.
+
+## REF-DITLEVSEN-MADSEN-1996
+
+Ove Ditlevsen and Henrik O. Madsen. *Structural Reliability Methods*. Wiley,
+1996.
+
+## REF-GENZ-2004
+
+Alan Genz. "Numerical Computation of Rectangular Bivariate and Trivariate
+Normal and t Probabilities." *Statistics and Computing* 14(3), 251-260, 2004.
+
+## REF-DREZNER-WESOLOWSKY-1990
+
+Zvi Drezner and George O. Wesolowsky. "On the Computation of the Bivariate
+Normal Integral." *Journal of Statistical Computation and Simulation*
+35(1-2), 101-107, 1990.
+
+## REF-DERKIUREGHIAN-ZHANG-LI-1994
+
+Armen Der Kiureghian, Yan Zhang, and Chun-Ching Li. "Inverse Reliability
+Problem." *Journal of Engineering Mechanics* 120(5), 1154-1159, 1994.
+
+## REF-TU-CHOI-PARK-1999
+
+Jian Tu, Kyung K. Choi, and Young H. Park. "A New Study on Reliability-Based
+Design Optimization." *Journal of Mechanical Design* 121(4), 557-564, 1999.

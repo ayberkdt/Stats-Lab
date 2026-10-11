@@ -68,14 +68,14 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-5.1 | Reliability as probability of satisfactory performance | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py`; `docs/foundations/reliability-analysis.md` |
 | ATHENS-5.2 | Limit-state functions | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py` |
 | ATHENS-5.3 | Failure probability | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py` |
-| ATHENS-5.4 | Rare-event probability estimation | Implemented | UQ-4 | `probstat.reliability.rare_events` | `src/probstat/reliability/analysis.py`; `examples/reliability_lab.py` |
+| ATHENS-5.4 | Rare-event probability estimation | Implemented | UQ-4 | `probstat.reliability.rare_events` | `src/probstat/reliability/analysis.py`; `examples/reliability_lab.py`; `src/probstat/reliability/simulation.py` |
 | ATHENS-5.5 | Direct Monte Carlo reliability estimation | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py` |
 | ATHENS-5.6 | Binomial confidence intervals for failure probability | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py`; `src/probstat/inference/confidence.py` |
-| ATHENS-5.7 | First-order reliability method (FORM) | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py` |
-| ATHENS-5.8 | Reliability index beta | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py` |
-| ATHENS-5.9 | Constrained optimization for reliability analysis | Implemented | UQ-4 | `probstat.optimization` | `src/probstat/reliability/analysis.py`; `docs/foundations/reliability-analysis.md` |
-| ATHENS-5.10 | Most-probable failure point and design point | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py` |
-| ATHENS-5.11 | Directional sampling and reliability-method comparison | Implemented | UQ-4 | `probstat.reliability.directional` | `src/probstat/reliability/analysis.py`; `examples/reliability_lab.py` |
+| ATHENS-5.7 | First-order reliability method (FORM) | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py`; `src/probstat/reliability/model_based.py`; `docs/foundations/advanced-reliability.md` |
+| ATHENS-5.8 | Reliability index beta | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py`; `src/probstat/reliability/model_based.py` |
+| ATHENS-5.9 | Constrained optimization for reliability analysis | Implemented | UQ-4 | `probstat.optimization` | `src/probstat/reliability/analysis.py`; `docs/foundations/reliability-analysis.md`; `src/probstat/reliability/model_based.py` |
+| ATHENS-5.10 | Most-probable failure point and design point | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py`; `src/probstat/reliability/model_based.py` |
+| ATHENS-5.11 | Directional sampling and reliability-method comparison | Implemented | UQ-4 | `probstat.reliability.directional` | `src/probstat/reliability/analysis.py`; `examples/reliability_lab.py`; `src/probstat/reliability/simulation.py` |
 | ATHENS-6.1 | Local sensitivity analysis | Implemented | UQ-5 | `probstat.sensitivity.local` | `src/probstat/sensitivity/analysis.py` |
 | ATHENS-6.2 | Global sensitivity analysis | Implemented | UQ-5 | `probstat.sensitivity.global_` | `src/probstat/sensitivity/analysis.py`; `docs/foundations/sensitivity-analysis.md` |
 | ATHENS-6.3 | Variance-based sensitivity decomposition | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `src/probstat/sensitivity/analysis.py` |
