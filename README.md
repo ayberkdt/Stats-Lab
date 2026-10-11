@@ -114,16 +114,16 @@ their figures to `examples/generated/`.
 
 ## Documentation
 
-Suggested reading order:
+Start with the [learning path](docs/learning-path.md), then read the
+foundation guides in order:
 
-1. [Learning path](docs/learning-path.md)
-2. [VV-UQ foundations](docs/foundations/vv-uq-foundations.md)
-3. [Uncertainty modeling and fitting](docs/foundations/uncertainty-modeling-and-fitting.md)
-4. [Uncertainty propagation](docs/foundations/uncertainty-propagation.md)
-5. [Advanced Monte Carlo](docs/foundations/advanced-monte-carlo.md)
-6. [Reliability analysis](docs/foundations/reliability-analysis.md)
-7. [Sensitivity analysis](docs/foundations/sensitivity-analysis.md)
-8. [Inverse problems and Bayesian calibration](docs/foundations/inverse-problems-and-calibration.md)
+1. [VV-UQ foundations](docs/foundations/vv-uq-foundations.md)
+2. [Uncertainty modeling and fitting](docs/foundations/uncertainty-modeling-and-fitting.md)
+3. [Uncertainty propagation](docs/foundations/uncertainty-propagation.md)
+4. [Advanced Monte Carlo](docs/foundations/advanced-monte-carlo.md)
+5. [Reliability analysis](docs/foundations/reliability-analysis.md)
+6. [Sensitivity analysis](docs/foundations/sensitivity-analysis.md)
+7. [Inverse problems and Bayesian calibration](docs/foundations/inverse-problems-and-calibration.md)
 
 Reference: [Architecture](docs/architecture.md) ·
 [Roadmap](memory/ROADMAP.md) · [Changelog](CHANGELOG.md)
