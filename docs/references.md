@@ -997,3 +997,52 @@ Bertrand Iooss and Clémentine Prieur. "Shapley Effects for Sensitivity
 Analysis with Correlated Inputs: Comparisons with Sobol' Indices, Numerical
 Estimation and Applications." *International Journal for Uncertainty
 Quantification* 9(5), 493-514, 2019.
+
+## REF-AKAIKE-1974
+
+Hirotugu Akaike. "A New Look at the Statistical Model Identification." *IEEE
+Transactions on Automatic Control* 19(6), 716-723, 1974.
+
+## REF-SCHWARZ-1978
+
+Gideon Schwarz. "Estimating the Dimension of a Model." *The Annals of
+Statistics* 6(2), 461-464, 1978.
+
+## REF-HURVICH-TSAI-1989
+
+Clifford M. Hurvich and Chih-Ling Tsai. "Regression and Time Series Model
+Selection in Small Samples." *Biometrika* 76(2), 297-307, 1989.
+
+## REF-BURNHAM-ANDERSON-2002
+
+Kenneth P. Burnham and David R. Anderson. *Model Selection and Multimodel
+Inference: A Practical Information-Theoretic Approach*. 2nd edition.
+Springer, 2002.
+
+## REF-LILLIEFORS-1967
+
+Hubert W. Lilliefors. "On the Kolmogorov-Smirnov Test for Normality with Mean
+and Variance Unknown." *Journal of the American Statistical Association*
+62(318), 399-402, 1967.
+
+## REF-STEPHENS-1974
+
+Michael A. Stephens. "EDF Statistics for Goodness of Fit and Some
+Comparisons." *Journal of the American Statistical Association* 69(347),
+730-737, 1974.
+
+## REF-WILK-GNANADESIKAN-1968
+
+Martin B. Wilk and Ram Gnanadesikan. "Probability Plotting Methods for the
+Analysis of Data." *Biometrika* 55(1), 1-17, 1968.
+
+## REF-GENEST-GHOUDI-RIVEST-1995
+
+Christian Genest, Kilani Ghoudi, and Louis-Paul Rivest. "A Semiparametric
+Estimation Procedure of Dependence Parameters in Multivariate Families of
+Distributions." *Biometrika* 82(3), 543-552, 1995.
+
+## REF-KRUSKAL-1958
+
+William H. Kruskal. "Ordinal Measures of Association." *Journal of the
+American Statistical Association* 53(284), 814-861, 1958.

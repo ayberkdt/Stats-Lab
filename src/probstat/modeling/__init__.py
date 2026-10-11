@@ -7,6 +7,14 @@ calibration, surrogates, and risk analysis all consume the same object.
 random field as standard-normal inputs of that object.
 """
 
+from .fitting import (
+    GaussianCopulaFit,
+    JointInputFit,
+    fit_gaussian_copula,
+    fit_joint_input,
+    normal_scores,
+    spearman_to_latent_correlation,
+)
 from .inputs import (
     ContinuousMarginal,
     JointInput,
@@ -22,13 +30,19 @@ from .random_field import RandomFieldInput, karhunen_loeve_inputs
 __all__ = [
     "ContinuousMarginal",
     "EvaluationCounter",
+    "GaussianCopulaFit",
     "JointInput",
+    "JointInputFit",
     "ProbabilisticModel",
     "RandomFieldInput",
     "RandomInput",
+    "fit_gaussian_copula",
+    "fit_joint_input",
     "gauss_hermite",
     "karhunen_loeve_inputs",
     "nataf_correlation",
+    "normal_scores",
+    "spearman_to_latent_correlation",
     "standard_normal_cdf",
     "standard_normal_quantile",
 ]

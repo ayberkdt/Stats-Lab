@@ -7,6 +7,8 @@ from collections.abc import Iterable
 
 from probstat.distributions import Gamma, LogNormal, Normal, Weibull
 from probstat.foundations import coerce_finite_sample
+from probstat.linalg import as_matrix
+from probstat.multivariate import MultivariateNormal
 from probstat.numerics import log_minus_digamma, trigamma
 
 _EPSILON = math.ulp(1.0)
@@ -258,3 +260,58 @@ def fit_weibull_mle(values: Iterable[object]) -> Weibull:
         raise ArithmeticError("Weibull shape Newton iteration did not converge")
     _, _, log_power_mean = _weibull_profile(centered, shape)
     return Weibull(shape, math.exp(center + log_power_mean / shape))
+
+
+def fit_multivariate_normal_mle(
+    rows: Iterable[Iterable[object]],
+) -> MultivariateNormal:
+    """Fit a non-degenerate multivariate normal law by maximum likelihood.
+
+    The MLE mean is the sample mean vector and the MLE covariance uses the
+    divisor ``n`` (not ``n - 1``). Sums are accumulated with ``math.fsum`` on
+    centred values.
+
+    Args:
+        rows: Observations as equally long rows of finite reals (``n`` rows of
+            dimension ``d``).
+
+    Returns:
+        Multivariate normal law with MLE mean and covariance.
+
+    Raises:
+        TypeError: If entries are not real numbers.
+        ValueError: If the data are empty, ragged, non-finite, have
+            ``n <= d``, or give a singular covariance.
+
+    Equation:
+        [EQ-INF-MLE-MVN-001].
+
+    References:
+        [REF-MARDIA-KENT-BIBBY-1979, Chapter 4].
+
+    """
+    data = as_matrix(rows, name="rows")
+    count, dimension = len(data), len(data[0])
+    if count <= dimension:
+        raise ValueError(
+            "multivariate normal MLE needs more observations than dimensions"
+        )
+    mean = tuple(
+        math.fsum(row[j] for row in data) / count for j in range(dimension)
+    )
+    centered = tuple(
+        tuple(row[j] - mean[j] for j in range(dimension)) for row in data
+    )
+    covariance = tuple(
+        tuple(
+            math.fsum(row[i] * row[j] for row in centered) / count
+            for j in range(dimension)
+        )
+        for i in range(dimension)
+    )
+    try:
+        return MultivariateNormal(mean, covariance)
+    except ValueError as error:
+        raise ValueError(
+            "sample covariance is singular; the MVN MLE does not exist"
+        ) from error
