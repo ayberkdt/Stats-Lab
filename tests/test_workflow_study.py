@@ -137,6 +137,21 @@ class StudyTests(unittest.TestCase):
         self.assertIn(record.summary["family[R]"], ("LogNormal", "Gamma", "Normal"))
         self.assertAlmostEqual(study.propagate(512)["g"].mean, 2.0, delta=0.15)
 
+    def test_shapley_stage_handles_dependent_inputs(self) -> None:
+        """Shapley effects sum to one for correlated inputs and are recorded."""
+        base = capacity_model()
+        dependent = ProbabilisticModel(
+            JointInput(base.inputs.inputs, ((1.0, 0.5), (0.5, 1.0))),
+            base.model,
+            base.quantities,
+            name="dependent",
+        )
+        study = UQStudy(dependent, seed=1)
+        result = study.shapley("g", variance_samples=1000)
+        self.assertAlmostEqual(sum(result.effects), 1.0, places=12)
+        self.assertEqual(result.ranking()[0], "S")
+        self.assertEqual(study.latest("shapley").evaluations, result.evaluations)
+
 
 class CalibrationAndEmulationTests(unittest.TestCase):
     """Backward modeling and surrogates inside the same study."""

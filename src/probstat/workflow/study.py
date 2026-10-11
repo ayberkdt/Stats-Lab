@@ -40,7 +40,9 @@ from probstat.risk import LossFunction, RiskAssessment, assess_risk
 from probstat.sensitivity import (
     ModelSobolResult,
     MorrisResult,
+    ShapleyResult,
     morris_screening,
+    shapley_effects,
     sobol_analysis,
 )
 from probstat.surrogates import (
@@ -363,6 +365,58 @@ class UQStudy:
         self._record(
             "sensitivity",
             f"Sobol indices of {quantity}",
+            summary,
+            result.evaluations,
+            stream,
+            result,
+        )
+        return result
+
+    def shapley(
+        self,
+        quantity: str,
+        *,
+        permutations: int = 200,
+        inner_samples: int = 3,
+        variance_samples: int = 1000,
+    ) -> ShapleyResult:
+        """Estimate Shapley effects, valid also for dependent inputs.
+
+        Unlike Sobol indices, Shapley effects share interaction and dependence
+        contributions fairly among inputs and always sum to one.
+
+        Args:
+            quantity: QoI name.
+            permutations: Random permutations when exact enumeration is not
+                used (inputs above six).
+            inner_samples: Conditional draws per outer sample.
+            variance_samples: Draws for the output variance.
+
+        Returns:
+            Shapley result with approximate standard errors.
+
+        Equation:
+            [EQ-SENS-SHAPLEY-001].
+
+        References:
+            [REF-OWEN-2014], [REF-SONG-NELSON-STAUM-2016].
+
+        """
+        stream = self.stream("shapley")
+        result = shapley_effects(
+            self._model,
+            quantity,
+            permutations=permutations,
+            inner_samples=inner_samples,
+            variance_samples=variance_samples,
+            seed=stream,
+        )
+        summary: dict[str, float | str] = {"quantity": quantity}
+        for name, value in result.as_mapping().items():
+            summary[f"Sh[{name}]"] = value
+        self._record(
+            "shapley",
+            f"Shapley effects of {quantity}",
             summary,
             result.evaluations,
             stream,

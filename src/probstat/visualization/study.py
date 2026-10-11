@@ -63,6 +63,24 @@ def _figures_for(record: Any) -> list[tuple[str, Any]]:
                 ),
             )
         ]
+    if record.stage == "shapley":
+        entries = tuple(
+            (name, value, value - 1.96 * error, value + 1.96 * error)
+            for name, value, error in zip(
+                result.input_names, result.effects, result.standard_errors, strict=True
+            )
+        )
+        return [
+            (
+                result.quantity,
+                plot_method_comparison(
+                    entries,
+                    quantity_label="Shapley effect (share of output variance)",
+                    title=f"{result.ranking()[0]} carries the largest Shapley share",
+                    subtitle="Dot: effect. Whisker: about 95% Monte Carlo interval",
+                ),
+            )
+        ]
     if record.stage == "reliability":
         return [("methods", plot_reliability_comparison(result.rows))]
     if record.stage == "risk":
