@@ -6942,7 +6942,7 @@ With `alpha_s = E[X (1 - F)^s] = sigma/((s+1)(s+1-xi))`:
 
 `e(u) = E[X - u | X > u]`, estimated by the mean of the `n_u` excesses with
 limits `e(u) +/- z_(1-alpha/2) s_u/sqrt(n_u)`; under a GPD above `u_0`,
-`e(u) = (sigma_(u_0) + xi u)/(1 - xi)` is linear in `u > u_0`.
+`e(u) = (sigma_(u_0) + xi (u - u_0))/(1 - xi)` is linear in `u > u_0`.
 
 - Domain: `xi < 1`; thresholds with fewer than `min_exceedances` skipped.
 - Meaning: threshold choice: the lowest `u` above which the plot is

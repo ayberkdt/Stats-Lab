@@ -65,6 +65,29 @@ Condition = Mapping[str, float]
 """Deterministic model inputs of one experiment."""
 
 _METHODS = ("linearized", "laplace", "nested")
+_SYMMETRY_TOLERANCE = 1e-10
+
+
+def _require_symmetric(matrix: Matrix, *, name: str) -> None:
+    """Raise if a square matrix is not symmetric relative to its scale.
+
+    The test is ``|A_ij - A_ji| <= 1e-10 max_kl |A_kl|``; a Cholesky
+    factorization reads only one triangle, so an asymmetric covariance would
+    otherwise be accepted silently.
+
+    Raises:
+        ValueError: If the matrix is not symmetric.
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 4.2]. No equation is evaluated.
+
+    """
+    scale = max((abs(value) for row in matrix for value in row), default=0.0)
+    size = len(matrix)
+    for i in range(size):
+        for j in range(i):
+            if abs(matrix[i][j] - matrix[j][i]) > _SYMMETRY_TOLERANCE * scale:
+                raise ValueError(f"{name} must be symmetric")
 
 
 def _log_mean_exp(values: Sequence[float]) -> float:
@@ -120,8 +143,9 @@ def linear_gaussian_information_gain(
         EIG in nats.
 
     Raises:
-        ValueError: If shapes disagree, a covariance is not positive
-            definite, or not exactly one noise argument is given.
+        ValueError: If shapes disagree, a covariance is not symmetric
+            (relative tolerance ``1e-10``) or not positive definite, or not
+            exactly one noise argument is given.
 
     Equation:
         [EQ-OED-EIG-LIN-001].
@@ -137,6 +161,7 @@ def linear_gaussian_information_gain(
         raise ValueError("jacobian columns and prior_covariance must match")
     if (noise_variances is None) == (noise_covariance is None):
         raise ValueError("give exactly one of noise_variances or noise_covariance")
+    _require_symmetric(sigma, name="prior_covariance")
     lower_prior = cholesky(sigma)
     mapped = matmul(rows, lower_prior)
     m = len(rows)
@@ -153,6 +178,7 @@ def linear_gaussian_information_gain(
         noise = as_matrix(noise_covariance, name="noise_covariance")
         if len(noise) != m or any(len(row) != m for row in noise):
             raise ValueError("noise_covariance must be m by m")
+        _require_symmetric(noise, name="noise_covariance")
         lower_noise = cholesky(noise)
         columns = tuple(
             solve_lower(lower_noise, tuple(row[j] for row in mapped)) for j in range(d)
@@ -420,7 +446,8 @@ class InformationGainEstimate:
     Args:
         value: EIG estimate in nats.
         standard_error: Monte Carlo standard error over the outer samples
-            (0 for deterministic estimators). For nested Monte Carlo it omits
+            (0 for deterministic estimators, ``nan`` for a Monte Carlo
+            estimate from a single sample). For nested Monte Carlo it omits
             the inner-sample bias and, with reused samples, the dependence
             between outer terms.
         method: ``"linearized"``, ``"laplace"``, ``"nested"`` or
@@ -536,7 +563,8 @@ def laplace_information_gain(
             random numbers).
 
     Returns:
-        Estimate with Monte Carlo standard error.
+        Estimate with Monte Carlo standard error (``nan`` when
+        ``samples = 1``: one draw carries no information about the spread).
 
     Raises:
         ValueError: If ``samples`` is not positive.
@@ -559,8 +587,8 @@ def laplace_information_gain(
         evaluations += calls
         terms.append(_half_log_det_identity_plus(matmul(transpose(jacobian), jacobian)))
     value, error = _mean_and_error(terms)
-    if count == 1:
-        error = 0.0
+    if count < 2:
+        error = math.nan
     return InformationGainEstimate(
         value, error, "laplace", count, 0, evaluations, "exact-if-linear-gaussian"
     )
@@ -692,7 +720,10 @@ class GreedyDesignResult:
         indices: Their indices in the candidate list.
         information_gains: EIG of ``baseline + selected[:k+1]`` for each step.
         increments: EIG gained at each step (conditional mutual
-            information of the new condition given the earlier ones).
+            information of the new condition given the earlier ones). All
+            designs of one run share the same random draws, so for
+            ``"linearized"`` and ``"laplace"`` the increments are
+            non-negative (up to rounding).
         baseline_information_gain: EIG of the baseline alone (0 if empty).
         candidate_scores: EIG of every candidate at every step.
         method: Estimator used.
@@ -785,10 +816,18 @@ def greedy_design(
     Step ``k`` adds the candidate ``c`` maximizing
     ``EIG(baseline + selected + [c])``. By the chain rule of mutual
     information this equals maximizing the conditional gain
-    ``I(theta; y_c | y_previous)`` (EQ-OED-GREEDY-001). Within one step every
-    candidate is scored with the same random stream (common random numbers),
-    so their differences are much less noisy than their values. Ties go to
-    the earliest candidate. Greedy selection is myopic and is not guaranteed
+    ``I(theta; y_c | y_previous)`` (EQ-OED-GREEDY-001). Every design of the
+    run -- the baseline and every candidate design at every step -- is
+    scored with one common random stream (common random numbers), so the
+    differences between scores, both across candidates and across steps,
+    are much less noisy than the scores. For ``"laplace"`` the same prior
+    draws ``u_n`` are used for every design and each term
+    ``1/2 log det(I + J_u' J_u)`` can only grow when a condition (rows of
+    ``J_u``) is added, so the reported increments are non-negative, as a
+    conditional mutual information must be. For ``"nested"`` the outer
+    parameter draws are shared; the increments are differences of
+    estimates and can still be slightly negative. Ties go to the earliest
+    candidate. Greedy selection is myopic and is not guaranteed
     to find the best batch design.
 
     Args:
@@ -833,8 +872,10 @@ def greedy_design(
     stream = resolve_stream(seed)
     start = problem.model.counter.count
 
-    def score(design: Sequence[Condition], step: int | str) -> float:
-        """Return the EIG of a design with the step's common stream.
+    common = stream.child("common")
+
+    def score(design: Sequence[Condition]) -> float:
+        """Return the EIG of a design with the run's common stream.
 
         References:
             [EQ-OED-EIG-001]. No new equation is introduced.
@@ -848,19 +889,19 @@ def greedy_design(
             outer=outer,
             inner=inner,
             reuse_samples=reuse_samples,
-            seed=stream.child("step", step),
+            seed=common,
         ).value
 
-    base_value = score(prior, "baseline") if prior else 0.0
+    base_value = score(prior) if prior else 0.0
     chosen: list[int] = []
     gains: list[float] = []
     increments: list[float] = []
     table: list[Vector] = []
     previous = base_value
-    for step in range(steps):
+    for _ in range(steps):
         current = list(prior) + [pool[i] for i in chosen]
         values = tuple(
-            score(current + [candidate], step)
+            score(current + [candidate])
             if allow_repeats or index not in chosen
             else -math.inf
             for index, candidate in enumerate(pool)

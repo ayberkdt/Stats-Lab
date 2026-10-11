@@ -9,14 +9,43 @@ throughout, and every quantity is returned in nats or bits.
 from __future__ import annotations
 
 import math
-from collections.abc import Iterable, Sequence
+import sys
+from collections.abc import Iterable
 
 from probstat.foundations import require_finite_real
 
 from ._units import InformationUnit, unit_factor
 
 _SUM_TOLERANCE = 1e-9
+_SMALLEST_NORMAL = sys.float_info.min
+_LOG_TWO = math.log(2.0)
 Table = tuple[tuple[float, ...], ...]
+
+
+def _log_ratio(numerator: float, denominator: float) -> float:
+    """Return ``log(numerator/denominator)`` for positive arguments.
+
+    The quotient is used when it is a finite normal float (one rounding);
+    when it would overflow or underflow, ``log numerator - log denominator``
+    is returned instead, so extreme but valid probabilities never produce
+    ``inf``, ``0`` or a division error.
+
+    Args:
+        numerator: Positive finite value.
+        denominator: Positive finite value.
+
+    Returns:
+        Natural logarithm of the ratio.
+
+    References:
+        [REF-COVER-THOMAS-2006, Section 2.3]. Floating-point evaluation of
+        the log-ratio in the divergences; no equation is evaluated.
+
+    """
+    ratio = numerator / denominator
+    if _SMALLEST_NORMAL <= ratio < math.inf:
+        return math.log(ratio)
+    return math.log(numerator) - math.log(denominator)
 
 
 def _pmf(values: Iterable[object], *, name: str) -> tuple[float, ...]:
@@ -222,7 +251,9 @@ def mutual_information(
     """Return ``I(X; Y) = sum p(x, y) log(p(x, y)/(p(x) p(y)))``.
 
     ``I = H(X) + H(Y) - H(X, Y) >= 0`` with equality iff ``X`` and ``Y`` are
-    independent; rounding-level negative sums are returned as ``0``.
+    independent; rounding-level negative sums are returned as ``0``. When
+    ``p(x) p(y)`` underflows, each term is evaluated as
+    ``p ((log p - log p(x)) - log p(y))``.
 
     Args:
         joint: Joint PMF table.
@@ -244,13 +275,17 @@ def mutual_information(
     factor = unit_factor(unit)
     rows = _joint(joint)
     p_x, p_y = marginals(rows)
-    total = math.fsum(
-        p * math.log(p / (p_x[i] * p_y[j]))
-        for i, row in enumerate(rows)
-        for j, p in enumerate(row)
-        if p > 0.0
-    )
-    return max(total, 0.0) * factor
+    terms: list[float] = []
+    for i, row in enumerate(rows):
+        for j, p in enumerate(row):
+            if p <= 0.0:
+                continue
+            product = p_x[i] * p_y[j]
+            if product >= _SMALLEST_NORMAL:
+                terms.append(p * _log_ratio(p, product))
+            else:
+                terms.append(p * ((math.log(p) - math.log(p_x[i])) - math.log(p_y[j])))
+    return max(math.fsum(terms), 0.0) * factor
 
 
 def _pair(
@@ -283,6 +318,10 @@ def kl_divergence(
 ) -> float:
     """Return the Kullback-Leibler divergence ``D(p || q) = sum p log(p/q)``.
 
+    A quotient ``p_i/q_i`` that would overflow (for example ``q_i`` close to
+    the smallest subnormal) is replaced by ``log p_i - log q_i``, so the
+    divergence stays finite whenever every ``q_i > 0`` where ``p_i > 0``.
+
     Args:
         p: PMF of the reference law.
         q: PMF of the approximating law on the same support.
@@ -309,7 +348,7 @@ def kl_divergence(
             continue
         if b == 0.0:
             return math.inf
-        terms.append(a * math.log(a / b))
+        terms.append(a * _log_ratio(a, b))
     return max(math.fsum(terms), 0.0) * factor
 
 
@@ -354,7 +393,8 @@ def jensen_shannon_divergence(
     """Return ``JS(p, q) = D(p || m)/2 + D(q || m)/2`` with ``m = (p + q)/2``.
 
     The divergence is symmetric, finite, and bounded by ``log 2`` (one bit);
-    its square root is a metric.
+    its square root is a metric. Where the midpoint ``(p_i + q_i)/2``
+    underflows, ``log m_i = log(p_i + q_i) - log 2`` is used instead.
 
     Args:
         p: First PMF.
@@ -376,18 +416,23 @@ def jensen_shannon_divergence(
     """
     factor = unit_factor(unit)
     first, second = _pair(p, q)
-    middle = tuple(0.5 * (a + b) for a, b in zip(first, second, strict=True))
 
-    def half_divergence(source: Sequence[float]) -> float:
-        """Return ``D(source || m)`` with ``0 log 0 = 0``.
+    def term(a: float, b: float) -> float:
+        """Return ``a log(a/m)`` with ``m = (a + b)/2`` and ``0 log 0 = 0``.
 
         References:
             [EQ-INFO-KL-001], [REF-COVER-THOMAS-2006, Section 2.3].
 
         """
-        return math.fsum(
-            a * math.log(a / c) for a, c in zip(source, middle, strict=True) if a > 0.0
-        )
+        if a <= 0.0:
+            return 0.0
+        middle = 0.5 * (a + b)
+        if middle >= _SMALLEST_NORMAL:
+            return a * _log_ratio(a, middle)
+        return a * ((math.log(a) - math.log(a + b)) + _LOG_TWO)
 
-    value = 0.5 * (half_divergence(first) + half_divergence(second))
+    total = math.fsum(
+        term(a, b) + term(b, a) for a, b in zip(first, second, strict=True)
+    )
+    value = 0.5 * total
     return min(max(value, 0.0), math.log(2.0)) * factor

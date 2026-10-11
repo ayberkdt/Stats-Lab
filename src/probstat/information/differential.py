@@ -23,6 +23,7 @@ from probstat.distributions import (
     Normal,
     Uniform,
 )
+from probstat.distributions._special import log1pmx, stirling_error
 from probstat.foundations import require_finite_real
 from probstat.linalg import (
     Matrix,
@@ -32,14 +33,18 @@ from probstat.linalg import (
     cholesky,
     cholesky_solve,
     solve_lower,
+    symmetric_eigen,
 )
-from probstat.numerics import digamma
+from probstat.numerics import digamma, log_minus_digamma
 
 from ._units import InformationUnit, unit_factor
 
 _EULER_GAMMA = 0.5772156649015329
 _LOG_TWO_PI_E = math.log(2.0 * math.pi) + 1.0
 _SYMMETRY_TOLERANCE = 1e-10
+_LOG_SQRT_TWO_PI = 0.5 * math.log(2.0 * math.pi)
+_ASYMPTOTIC_SHAPE = 15.0
+_SERIES_RATIO = 0.5
 
 
 def _positive(value: float, *, name: str) -> float:
@@ -94,6 +99,11 @@ def normal_entropy(sigma: float, *, unit: InformationUnit = "nats") -> float:
 def _spd(matrix: Iterable[Iterable[object]], *, name: str) -> Matrix:
     """Validate a symmetric positive-definite covariance matrix.
 
+    Symmetry is checked relative to the matrix scale,
+    ``|A_ij - A_ji| <= 1e-10 max_kl |A_kl|``, so the test is invariant to a
+    rescaling of the covariance (an absolute floor would accept any
+    asymmetry in a matrix whose entries are all tiny).
+
     Args:
         matrix: Candidate square matrix.
         name: Argument name.
@@ -111,10 +121,11 @@ def _spd(matrix: Iterable[Iterable[object]], *, name: str) -> Matrix:
     """
     checked = as_matrix(matrix, name=name, square=True)
     size = len(checked)
+    scale = max(abs(value) for row in checked for value in row)
     for i in range(size):
         for j in range(i):
             a, b = checked[i][j], checked[j][i]
-            if abs(a - b) > _SYMMETRY_TOLERANCE * max(1.0, abs(a), abs(b)):
+            if abs(a - b) > _SYMMETRY_TOLERANCE * scale:
                 raise ValueError(f"{name} must be symmetric")
     cholesky(checked)
     return checked
@@ -224,6 +235,13 @@ def gamma_entropy(
 ) -> float:
     """Return ``h = k - log lambda + log Gamma(k) + (1 - k) psi(k)``.
 
+    For ``k >= 15`` the terms of size ``k log k`` cancel analytically: with
+    the Stirling remainder ``e(k) = log Gamma(k) - (k - 1/2) log k + k -
+    log sqrt(2 pi)`` and ``L(k) = log k - psi(k)``,
+    ``h = log sqrt(2 pi) + (log k)/2 + e(k) + (k - 1) L(k) - log lambda``,
+    which keeps full relative accuracy for any large ``k`` (the direct sum
+    loses all digits near ``k = 1e15``).
+
     Args:
         shape: Positive shape ``k``.
         rate: Positive rate ``lambda``.
@@ -236,22 +254,41 @@ def gamma_entropy(
         ValueError: If a parameter or the unit is invalid.
 
     Equation:
-        [EQ-INFO-DH-003].
+        [EQ-INFO-DH-003], [EQ-NUM-STIRLING-001], [EQ-NUM-DIGAMMA-001].
 
     References:
-        [REF-COVER-THOMAS-2006, Chapter 8], [REF-NIST-DLMF-GAMMA, Section 5.2].
+        [REF-COVER-THOMAS-2006, Chapter 8], [REF-NIST-DLMF-GAMMA, Sections
+        5.2 and 5.11].
 
     """
     factor = unit_factor(unit)
     k = _positive(shape, name="shape")
     lam = _positive(rate, name="rate")
-    return (k - math.log(lam) + math.lgamma(k) + (1.0 - k) * digamma(k)) * factor
+    if k < _ASYMPTOTIC_SHAPE:
+        value = k + math.lgamma(k) + (1.0 - k) * digamma(k)
+    else:
+        value = (
+            _LOG_SQRT_TWO_PI
+            + 0.5 * math.log(k)
+            + stirling_error(k)
+            + (k - 1.0) * log_minus_digamma(k)
+        )
+    return (value - math.log(lam)) * factor
 
 
 def beta_entropy(alpha: float, beta: float, *, unit: InformationUnit = "nats") -> float:
     """Return the ``Beta(a, b)`` entropy.
 
     ``h = log B(a, b) - (a - 1) psi(a) - (b - 1) psi(b) + (a + b - 2) psi(a + b)``.
+
+    When ``max(a, b) >= 15`` each large argument ``x`` is expanded as
+    ``log Gamma(x) = (x - 1/2) log x - x + log sqrt(2 pi) + e(x)`` and
+    ``psi(x) = log x - L(x)`` (Stirling remainder ``e``, ``L = log - psi``);
+    the terms of size ``x log x`` and ``x`` then cancel analytically, e.g.
+    for ``a, b >= 15``
+    ``h = log sqrt(2 pi) + (log a + log b - 3 log s)/2 + e(a) + e(b) - e(s)
+    + (a-1) L(a) + (b-1) L(b) - (s-2) L(s)`` with ``s = a + b``. The direct
+    sum loses all digits for shapes near ``1e15``.
 
     Args:
         alpha: Positive first shape ``a``.
@@ -265,22 +302,48 @@ def beta_entropy(alpha: float, beta: float, *, unit: InformationUnit = "nats") -
         ValueError: If a parameter or the unit is invalid.
 
     Equation:
-        [EQ-INFO-DH-003].
+        [EQ-INFO-DH-003], [EQ-NUM-STIRLING-001], [EQ-NUM-DIGAMMA-001].
 
     References:
-        [REF-COVER-THOMAS-2006, Chapter 8], [REF-NIST-DLMF-GAMMA, Section 5.2].
+        [REF-COVER-THOMAS-2006, Chapter 8], [REF-NIST-DLMF-GAMMA, Sections
+        5.2 and 5.11].
 
     """
     factor = unit_factor(unit)
     a = _positive(alpha, name="alpha")
     b = _positive(beta, name="beta")
-    log_beta = math.lgamma(a) + math.lgamma(b) - math.lgamma(a + b)
+    small, large = min(a, b), max(a, b)
+    if large < _ASYMPTOTIC_SHAPE:
+        log_beta = math.lgamma(a) + math.lgamma(b) - math.lgamma(a + b)
+        value = (
+            log_beta
+            - (a - 1.0) * digamma(a)
+            - (b - 1.0) * digamma(b)
+            + (a + b - 2.0) * digamma(a + b)
+        )
+        return value * factor
+    total = small + large
+    # Large-argument part: (log x)/2 + e(x) + (x - 1) L(x) for the larger
+    # shape, minus 3 (log s)/2 + e(s) + (s - 2) L(s) for the sum.
     value = (
-        log_beta
-        - (a - 1.0) * digamma(a)
-        - (b - 1.0) * digamma(b)
-        + (a + b - 2.0) * digamma(a + b)
+        0.5 * math.log(large)
+        - 1.5 * math.log(total)
+        + stirling_error(large)
+        - stirling_error(total)
+        + (large - 1.0) * log_minus_digamma(large)
+        - (total - 2.0) * log_minus_digamma(total)
     )
+    if small >= _ASYMPTOTIC_SHAPE:
+        # The linear terms -a - b + s cancel exactly; one log sqrt(2 pi) stays.
+        value += (
+            _LOG_SQRT_TWO_PI
+            + 0.5 * math.log(small)
+            + stirling_error(small)
+            + (small - 1.0) * log_minus_digamma(small)
+        )
+    else:
+        # The linear terms -large + s equal the small shape exactly.
+        value += math.lgamma(small) - (small - 1.0) * digamma(small) + small
     return value * factor
 
 
@@ -402,6 +465,12 @@ def kl_normal(
 
     ``log(s1/s0) + (s0^2 + (m0 - m1)^2)/(2 s1^2) - 1/2``.
 
+    With ``u = (s0/s1)^2 - 1 = d (d + 2)``, ``d = (s0 - s1)/s1``, this is
+    ``(u - log(1 + u))/2 + ((m0 - m1)/s1)^2/2``; for ``|u| <= 1/2`` the
+    first term is evaluated as ``-log1pmx(u)/2`` so that nearly equal laws
+    keep full relative accuracy (the direct form returns rounding noise of
+    order ``1e-16`` once the divergence falls below it).
+
     Args:
         mu0: Mean of the reference law.
         sigma0: Positive standard deviation of the reference law.
@@ -416,10 +485,10 @@ def kl_normal(
         ValueError: If a parameter or the unit is invalid.
 
     Equation:
-        [EQ-INFO-KLG-001].
+        [EQ-INFO-KLG-001], [EQ-NUM-STIRLING-001].
 
     References:
-        [REF-COVER-THOMAS-2006, Section 8.5].
+        [REF-COVER-THOMAS-2006, Section 8.5], [REF-DIDONATO-MORRIS-1992].
 
     """
     factor = unit_factor(unit)
@@ -427,9 +496,15 @@ def kl_normal(
     m1 = require_finite_real(mu1, name="mu1")
     s0 = _positive(sigma0, name="sigma0")
     s1 = _positive(sigma1, name="sigma1")
-    ratio = s0 / s1
     shift = (m0 - m1) / s1
-    value = -math.log(ratio) + 0.5 * (ratio * ratio + shift * shift) - 0.5
+    relative = (s0 - s1) / s1
+    excess = relative * (relative + 2.0)
+    if abs(excess) <= _SERIES_RATIO:
+        variance_term = -log1pmx(excess)
+    else:
+        ratio = s0 / s1
+        variance_term = ratio * ratio - 1.0 - 2.0 * math.log(ratio)
+    value = 0.5 * (variance_term + shift * shift)
     return max(value, 0.0) * factor
 
 
@@ -446,6 +521,14 @@ def kl_multivariate_normal(
     ``(tr(S1^-1 S0) + (m1 - m0)' S1^-1 (m1 - m0) - d + log det S1
     - log det S0)/2``, evaluated with Cholesky factors.
 
+    With ``S1 = L1 L1'`` the covariance part equals
+    ``sum_i (mu_i - log(1 + mu_i))`` over the eigenvalues ``mu_i`` of
+    ``W = L1^-1 (S0 - S1) L1^-T`` (``1 + mu_i`` are the eigenvalues of
+    ``S1^-1 S0``). When every ``|mu_i| <= 1/2`` the sum is evaluated as
+    ``-sum log1pmx(mu_i)`` from the whitened difference, which keeps full
+    relative accuracy for nearly equal laws; otherwise the trace and
+    log-determinant form is used (no harmful cancellation there).
+
     Args:
         mean0: Mean of the reference law.
         covariance0: Symmetric positive-definite covariance of the reference.
@@ -461,10 +544,11 @@ def kl_multivariate_normal(
         ValueError: If dimensions disagree or a covariance is invalid.
 
     Equation:
-        [EQ-INFO-KLG-002].
+        [EQ-INFO-KLG-002], [EQ-LINALG-005], [EQ-NUM-STIRLING-001].
 
     References:
-        [REF-COVER-THOMAS-2006, Section 8.5].
+        [REF-COVER-THOMAS-2006, Section 8.5], [REF-GOLUB-VANLOAN-2013,
+        Section 8.5], [REF-DIDONATO-MORRIS-1992].
 
     """
     factor = unit_factor(unit)
@@ -476,12 +560,16 @@ def kl_multivariate_normal(
     if not (len(m1) == size and len(s0) == size and len(s1) == size):
         raise ValueError("means and covariances must share one dimension")
     lower0, lower1 = cholesky(s0), cholesky(s1)
+    whitened = solve_lower(lower1, tuple(b - a for a, b in zip(m0, m1, strict=True)))
+    mahalanobis = math.fsum(value * value for value in whitened)
+    eigenvalues = _whitened_difference_eigenvalues(s0, s1, lower1)
+    if all(abs(value) <= _SERIES_RATIO for value in eigenvalues):
+        covariance_term = -math.fsum(log1pmx(value) for value in eigenvalues)
+        return max(0.5 * (covariance_term + mahalanobis), 0.0) * factor
     trace = math.fsum(
         cholesky_solve(lower1, tuple(s0[i][j] for i in range(size)))[j]
         for j in range(size)
     )
-    whitened = solve_lower(lower1, tuple(b - a for a, b in zip(m0, m1, strict=True)))
-    mahalanobis = math.fsum(value * value for value in whitened)
     value = 0.5 * (
         trace
         + mahalanobis
@@ -490,3 +578,49 @@ def kl_multivariate_normal(
         - _log_det_from_lower(lower0)
     )
     return max(value, 0.0) * factor
+
+
+def _whitened_difference_eigenvalues(
+    covariance0: Matrix, covariance1: Matrix, lower1: Matrix
+) -> Vector:
+    """Return the eigenvalues of ``W = L1^-1 (S0 - S1) L1^-T``.
+
+    The difference ``S0 - S1`` is formed before whitening, so eigenvalues of
+    a small ``W`` carry relative (not absolute) accuracy.
+
+    Args:
+        covariance0: Reference covariance ``S0``.
+        covariance1: Approximating covariance ``S1``.
+        lower1: Lower Cholesky factor of ``S1``.
+
+    Returns:
+        Eigenvalues of the symmetric matrix ``W`` in ascending order.
+
+    Equation:
+        [EQ-INFO-KLG-002], [EQ-LINALG-005].
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Sections 4.2 and 8.5].
+
+    """
+    size = len(covariance0)
+    difference = [
+        [covariance0[i][j] - covariance1[i][j] for j in range(size)]
+        for i in range(size)
+    ]
+    # Columns of X = L1^-1 D; then W = L1^-1 X' because D is symmetric.
+    left = [
+        solve_lower(lower1, tuple(difference[i][j] for i in range(size)))
+        for j in range(size)
+    ]
+    columns = [
+        solve_lower(lower1, tuple(left[i][j] for i in range(size))) for j in range(size)
+    ]
+    matrix = tuple(
+        tuple(0.5 * (columns[j][i] + columns[i][j]) for j in range(size))
+        for i in range(size)
+    )
+    if not any(value for row in matrix for value in row):
+        return tuple(0.0 for _ in range(size))
+    eigenvalues, _ = symmetric_eigen(matrix)
+    return eigenvalues
