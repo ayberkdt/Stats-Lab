@@ -5253,3 +5253,254 @@ combined interval is the equal-tailed sample interval of `z`.
 - Code: `visualization.uncertainty.dkw_epsilon`,
   `visualization.uncertainty.plot_ecdf_band`.
 - Source: [REF-DVORETZKY-KIEFER-WOLFOWITZ-1956] and [REF-MASSART-1990].
+
+## Survival analysis and conformal prediction
+
+### EQ-SURV-KM-001 — Kaplan-Meier product-limit estimator
+
+`S_hat(t) = prod_{t_j <= t} (1 - d_j / n_j)` over the distinct event times
+`t_j`, with `n_j = #{i : t_i >= t_j}` at risk and `d_j` events at `t_j`.
+
+- Domain: independent right-censored observations `(t_i, delta_i)`;
+  censoring independent of the event time (non-informative); a subject
+  censored at `t_j` counts in `n_j`.
+- Meaning: the nonparametric MLE of the survival function; a right-continuous
+  step function that drops only at event times and is undefined beyond the
+  last observed time when that time is censored.
+- Code: `inference.survival.nonparametric.kaplan_meier`,
+  `inference.survival.nonparametric.KaplanMeierEstimate.survival_at`,
+  `inference.survival.data.SurvivalData.risk_table`.
+- Source: [REF-KAPLAN-MEIER-1958], [REF-KLEIN-MOESCHBERGER-2003, Chapter 4].
+
+### EQ-SURV-KM-002 — Greenwood variance
+
+`Var_hat(S_hat(t)) = S_hat(t)^2 sum_{t_j <= t} d_j / (n_j (n_j - d_j))`.
+
+- Domain: as EQ-SURV-KM-001; large-sample (delta-method) approximation. When
+  `n_j = d_j` the curve reaches zero and the project reports variance `0`.
+- Meaning: sampling variance of the product-limit estimate at a fixed `t`.
+- Code: `inference.survival.nonparametric.kaplan_meier`,
+  `inference.survival.nonparametric.KaplanMeierEstimate.standard_errors`.
+- Source: [REF-GREENWOOD-1926], [REF-KLEIN-MOESCHBERGER-2003, Chapter 4].
+
+### EQ-SURV-KM-003 — Log-log pointwise confidence interval
+
+`[S_hat^{exp(z w)}, S_hat^{exp(-z w)}]` with
+`w = sqrt(sum_{t_j <= t} d_j / (n_j (n_j - d_j))) / |log S_hat(t)|` and
+`z = Phi^-1((1 + confidence) / 2)`.
+
+- Domain: `0 < S_hat(t) < 1`; the project returns `(1, 1)` before the first
+  event and `(0, 0)` once `S_hat = 0`.
+- Meaning: a delta-method interval on the `log(-log S)` scale; it always lies
+  inside `(0, 1)`, unlike the plain `S_hat +/- z se` interval.
+- Code: `inference.survival.nonparametric.kaplan_meier`,
+  `inference.survival.nonparametric.KaplanMeierEstimate.interval_at`.
+- Source: [REF-KLEIN-MOESCHBERGER-2003, Chapter 4].
+
+### EQ-SURV-NA-001 — Nelson-Aalen cumulative hazard
+
+`H_hat(t) = sum_{t_j <= t} d_j / n_j`, `Var_hat(H_hat(t)) = sum_{t_j <= t}
+d_j / n_j^2`, log-transformed interval `H_hat exp(+/- z sqrt(Var) / H_hat)`,
+and survival estimate `exp(-H_hat(t))`.
+
+- Domain: as EQ-SURV-KM-001.
+- Meaning: the nonparametric estimate of the integrated hazard; `exp(-H_hat)`
+  is never below the Kaplan-Meier value.
+- Code: `inference.survival.nonparametric.nelson_aalen`,
+  `inference.survival.nonparametric.NelsonAalenEstimate.cumulative_hazard_at`,
+  `inference.survival.nonparametric.NelsonAalenEstimate.survival_at`.
+- Source: [REF-NELSON-1972], [REF-AALEN-1978],
+  [REF-KLEIN-MOESCHBERGER-2003, Chapter 4].
+
+### EQ-SURV-MED-001 — Survival quantiles and band-inversion interval
+
+`t_p = min{t_j : S_hat(t_j) <= 1 - p}` (median: `p = 1/2`); the interval is
+`[min{t_j : S_L(t_j) <= 1 - p}, min{t_j : S_U(t_j) <= 1 - p}]` with the
+log-log pointwise bands `S_L <= S_hat <= S_U` of EQ-SURV-KM-003.
+
+- Domain: `0 < p < 1`; a limit is `+inf` when the corresponding curve never
+  reaches `1 - p` during follow-up.
+- Meaning: the set of times at which `1 - p` lies inside the pointwise band.
+- Code: `inference.survival.nonparametric.KaplanMeierEstimate.quantile`,
+  `inference.survival.nonparametric.KaplanMeierEstimate.median`.
+- Source: [REF-KLEIN-MOESCHBERGER-2003, Chapter 4].
+
+### EQ-SURV-RMST-001 — Restricted mean survival time
+
+`mu_hat(tau) = int_0^tau S_hat(u) du` with
+`Var_hat = sum_{t_j <= tau} A_j^2 d_j / (n_j (n_j - d_j))`,
+`A_j = int_{t_j}^tau S_hat(u) du`, and a normal interval
+`mu_hat +/- z sqrt(Var_hat)`.
+
+- Domain: `tau > 0`, not beyond the last observed time while `S_hat > 0`.
+- Meaning: the expected event-free time up to `tau`, `E[min(T, tau)]`; it is
+  identified even when the median is not.
+- Code: `inference.survival.nonparametric.KaplanMeierEstimate.restricted_mean`.
+- Source: [REF-KLEIN-MOESCHBERGER-2003, Chapter 4].
+
+### EQ-SURV-LR-001 — k-sample log-rank statistic
+
+`U_g = sum_j (d_gj - d_j n_gj / n_j)`,
+`V_gh = sum_j d_j (n_j - d_j) / (n_j - 1) (n_gj / n_j) (1[g = h] - n_hj / n_j)`,
+`X^2 = U' V^-1 U` over the first `k - 1` groups, referred to chi-square with
+`k - 1` degrees of freedom. For two groups `X^2 = (O_1 - E_1)^2 / V_11`.
+
+- Domain: independent groups with non-informative censoring; large-sample
+  chi-square approximation; terms with `n_j = 1` contribute no variance.
+- Meaning: compares observed with expected events under equal hazards using
+  the hypergeometric moments of each risk-set table; most powerful against
+  proportional-hazards alternatives.
+- Code: `inference.survival.nonparametric.log_rank_test`.
+- Source: [REF-MANTEL-1966], [REF-KLEIN-MOESCHBERGER-2003, Chapter 7].
+
+### EQ-SURV-AFT-001 — Censored accelerated-failure-time log-likelihood
+
+`log T_i = x_i' beta + sigma W`, `z_i = (log t_i - x_i' beta) / sigma`,
+`l = sum_i delta_i [log f_W(z_i) - log sigma - log t_i] + (1 - delta_i)
+log S_W(z_i)`, with `f_W(z) = exp(z - e^z)`, `S_W(z) = exp(-e^z)` (Weibull;
+`sigma = 1` is exponential) or `f_W = phi`, `S_W = 1 - Phi` (lognormal).
+Weibull shape `= 1/sigma`, scale `= exp(x' beta)`; exponential rate
+`= exp(-x' beta)`.
+
+- Domain: strictly positive times, non-informative censoring, at least one
+  event; observed-information standard errors are large-sample.
+- Meaning: covariates multiply survival time by `exp(beta_k)` per unit; the
+  likelihood uses the density for events and the survival function for
+  censored subjects.
+- Code: `inference.survival.parametric.fit_parametric_survival`,
+  `inference.survival.parametric.ParametricSurvivalFit.distribution`,
+  `inference.survival.parametric.ParametricSurvivalFit.weibull_parameters`.
+- Source: [REF-KLEIN-MOESCHBERGER-2003, Chapter 12].
+
+### EQ-SURV-COX-001 — Cox partial likelihood with Breslow ties
+
+`l(beta) = sum_j [sum_{i in D_j} x_i' beta - d_j log S0(R_j)]`,
+`S0(A) = sum_{i in A} exp(x_i' beta)`; score
+`U = sum_j [sum_{D_j} x_i - d_j S1/S0]`, information
+`I = sum_j d_j [S2/S0 - (S1/S0)(S1/S0)']` over `R_j = {i : t_i >= t_j}`.
+
+- Domain: proportional hazards `h(t | x) = h_0(t) exp(x' beta)`;
+  non-informative censoring; covariates fixed in time.
+- Meaning: Cox's partial likelihood; with ties every tied event is compared
+  with the full risk set, which biases `beta` toward zero when ties are many.
+- Code: `inference.survival.cox.cox_partial_likelihood`,
+  `inference.survival.cox.fit_cox_model`.
+- Source: [REF-COX-1972], [REF-BRESLOW-1974],
+  [REF-KLEIN-MOESCHBERGER-2003, Chapter 8].
+
+### EQ-SURV-COX-002 — Efron tie correction
+
+`l(beta) = sum_j [sum_{i in D_j} x_i' beta - sum_{r=0}^{d_j - 1}
+log(S0(R_j) - (r/d_j) S0(D_j))]`, with the score and information obtained by
+replacing `S_k(R_j)` by `S_k(R_j) - (r/d_j) S_k(D_j)` term by term.
+
+- Domain: as EQ-SURV-COX-001; identical to it when there are no ties.
+- Meaning: the tied events leave the risk set in equal fractions, a close
+  approximation to the exact (discrete-time) partial likelihood.
+- Code: `inference.survival.cox.cox_partial_likelihood`,
+  `inference.survival.cox.fit_cox_model`.
+- Source: [REF-EFRON-1977], [REF-KLEIN-MOESCHBERGER-2003, Chapter 8].
+
+### EQ-SURV-COX-003 — Wald hazard-ratio interval and global tests
+
+`HR_k = exp(beta_k)`, interval `exp(beta_k +/- z se_k)` with
+`se_k = sqrt([I(beta_hat)^-1]_kk)`; likelihood ratio `2[l(beta_hat) - l(0)]`
+and score `U(0)' I(0)^-1 U(0)`, both chi-square with `p` degrees of freedom.
+
+- Domain: large-sample normality of `beta_hat`; finite MLE (no monotone
+  likelihood).
+- Meaning: multiplicative change in the hazard per unit covariate. With one
+  binary covariate, untied times, and Breslow ties, the score statistic equals
+  the two-sample log-rank statistic.
+- Code: `inference.survival.cox.fit_cox_model`.
+- Source: [REF-COX-1972], [REF-KLEIN-MOESCHBERGER-2003, Chapter 8].
+
+### EQ-SURV-COX-004 — Breslow baseline cumulative hazard
+
+`H_0_hat(t) = sum_{t_j <= t} d_j / sum_{i in R_j} exp(x_i' beta_hat)` and
+`S_hat(t | x) = exp(-H_0_hat(t) exp(x' beta_hat))`.
+
+- Domain: as EQ-SURV-COX-001; reduces to Nelson-Aalen at `beta = 0`.
+- Meaning: the baseline needed to turn hazard ratios into survival curves.
+- Code: `inference.survival.cox.fit_cox_model`,
+  `inference.survival.cox.CoxModelResult.survival`.
+- Source: [REF-BRESLOW-1974], [REF-KLEIN-MOESCHBERGER-2003, Chapter 8].
+
+### EQ-CONF-001 — Finite-sample conformal quantile
+
+`k = ceil((1 - alpha)(n + 1))`, `q_hat = s_(k)` (the `k`-th smallest of `n`
+calibration scores), `q_hat = +inf` when `k = n + 1`; equivalently the
+empirical `(1 - alpha)(n + 1)/n` quantile.
+
+- Domain: `0 < alpha < 1`, `n >= 1`; computed exactly from the decimal text of
+  `alpha`.
+- Meaning: the `(n + 1)/n` inflation makes room for the exchangeable test
+  point; `alpha < 1/(n + 1)` forces infinite sets.
+- Code: `conformal.quantile.conformal_rank`,
+  `conformal.quantile.conformal_quantile`.
+- Source: [REF-VOVK-GAMMERMAN-SHAFER-2005], [REF-LEI-ETAL-2018],
+  [REF-ANGELOPOULOS-BATES-2023].
+
+### EQ-CONF-002 — Split conformal regression intervals
+
+Absolute score `s_i = |y_i - mu(x_i)|`, interval `mu(x) +/- q_hat`;
+normalized (locally weighted) score `s_i = |y_i - mu(x_i)| / sigma(x_i)`,
+interval `mu(x) +/- q_hat sigma(x)`, with `mu` and `sigma > 0` fixed before
+seeing the calibration data.
+
+- Domain: calibration and test pairs exchangeable; `mu`, `sigma` independent
+  of the calibration set.
+- Meaning: wraps any predictor (including a surrogate of a probabilistic
+  model) with marginally valid error bars; normalization adapts the width to
+  `sigma(x)` without changing the guarantee.
+- Code: `conformal.regression.split_conformal_regression`,
+  `conformal.regression.SplitConformalRegressor.interval`,
+  `conformal.surrogate.conformalize_surrogate`.
+- Source: [REF-LEI-ETAL-2018], [REF-VOVK-GAMMERMAN-SHAFER-2005].
+
+### EQ-CONF-003 — Conformalized quantile regression
+
+`E_i = max(q_lo(x_i) - y_i, y_i - q_hi(x_i))`, interval
+`[q_lo(x) - q_hat, q_hi(x) + q_hat]` with `q_hat` from EQ-CONF-001 applied to
+the `E_i`.
+
+- Domain: as EQ-CONF-002; `q_lo`, `q_hi` any functions fitted without the
+  calibration data.
+- Meaning: shifts estimated conditional-quantile bands outward (or inward when
+  `q_hat < 0`) until they are marginally valid, keeping their adaptive width.
+- Code: `conformal.regression.conformalized_quantile_regression`,
+  `conformal.regression.ConformalizedQuantileRegressor.interval`.
+- Source: [REF-ROMANO-PATTERSON-CANDES-2019].
+
+### EQ-CONF-004 — Jackknife+ interval
+
+`R_i = |y_i - mu_{-i}(x_i)|`; lower limit the `floor(alpha (n + 1))`-th
+smallest of `mu_{-i}(x) - R_i` (`-inf` if that index is 0), upper limit the
+`ceil((1 - alpha)(n + 1))`-th smallest of `mu_{-i}(x) + R_i` (`+inf` if it
+exceeds `n`).
+
+- Domain: exchangeable training and test data; a fitting algorithm that is
+  symmetric in its training points.
+- Meaning: uses every point for both fitting and calibration at the cost of
+  `n` refits; marginal coverage is at least `1 - 2 alpha` and typically near
+  `1 - alpha`.
+- Code: `conformal.regression.jackknife_plus_regression`,
+  `conformal.regression.JackknifePlusRegressor.interval`,
+  `conformal.quantile.lower_conformal_rank`.
+- Source: [REF-BARBER-ETAL-2021].
+
+### EQ-CONF-005 — Split conformal marginal coverage
+
+`1 - alpha <= k / (n + 1) <= P(Y_{n+1} in C(X_{n+1}))`, with equality
+`P = k/(n + 1) < 1 - alpha + 1/(n + 1)` when scores are almost surely distinct.
+
+- Domain: exchangeable calibration and test points; the probability is over
+  both the calibration set and the test point (marginal, not conditional on
+  `x` or on the calibration set).
+- Meaning: the exact target against which empirical coverage is checked; a
+  coverage count on held-out data is binomial and its Clopper-Pearson interval
+  shows how precisely coverage has been measured.
+- Code: `conformal.quantile.split_conformal_coverage`,
+  `conformal.coverage.empirical_coverage`,
+  `conformal.regression.SplitConformalRegressor.guaranteed_coverage`.
+- Source: [REF-LEI-ETAL-2018], [REF-ANGELOPOULOS-BATES-2023].

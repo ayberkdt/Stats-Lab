@@ -1116,3 +1116,74 @@ Human Factors in Computing Systems*, 5092-5103, 2016.
 
 David Spiegelhalter, Mike Pearson, and Ian Short. "Visualizing
 Uncertainty About the Future." *Science* 333(6048), 1393-1400, 2011.
+
+## REF-KAPLAN-MEIER-1958
+
+E. L. Kaplan and Paul Meier. "Nonparametric Estimation from Incomplete
+Observations." *Journal of the American Statistical Association* 53(282),
+457-481, 1958.
+
+## REF-GREENWOOD-1926
+
+Major Greenwood. "The Natural Duration of Cancer." *Reports on Public Health
+and Medical Subjects* 33, 1-26. His Majesty's Stationery Office, London, 1926.
+
+## REF-NELSON-1972
+
+Wayne Nelson. "Theory and Applications of Hazard Plotting for Censored Failure
+Data." *Technometrics* 14(4), 945-966, 1972.
+
+## REF-AALEN-1978
+
+Odd Aalen. "Nonparametric Inference for a Family of Counting Processes."
+*The Annals of Statistics* 6(4), 701-726, 1978.
+
+## REF-MANTEL-1966
+
+Nathan Mantel. "Evaluation of Survival Data and Two New Rank Order Statistics
+Arising in Its Consideration." *Cancer Chemotherapy Reports* 50(3), 163-170,
+1966.
+
+## REF-COX-1972
+
+D. R. Cox. "Regression Models and Life-Tables." *Journal of the Royal
+Statistical Society: Series B (Methodological)* 34(2), 187-220, 1972.
+
+## REF-BRESLOW-1974
+
+N. Breslow. "Covariance Analysis of Censored Survival Data." *Biometrics*
+30(1), 89-99, 1974.
+
+## REF-EFRON-1977
+
+Bradley Efron. "The Efficiency of Cox's Likelihood Function for Censored
+Data." *Journal of the American Statistical Association* 72(359), 557-565,
+1977.
+
+## REF-VOVK-GAMMERMAN-SHAFER-2005
+
+Vladimir Vovk, Alex Gammerman, and Glenn Shafer. *Algorithmic Learning in a
+Random World*. Springer, 2005.
+
+## REF-LEI-ETAL-2018
+
+Jing Lei, Max G'Sell, Alessandro Rinaldo, Ryan J. Tibshirani, and Larry
+Wasserman. "Distribution-Free Predictive Inference for Regression." *Journal
+of the American Statistical Association* 113(523), 1094-1111, 2018.
+
+## REF-ROMANO-PATTERSON-CANDES-2019
+
+Yaniv Romano, Evan Patterson, and Emmanuel J. Candès. "Conformalized Quantile
+Regression." In *Advances in Neural Information Processing Systems 32
+(NeurIPS 2019)*, 2019.
+
+## REF-BARBER-ETAL-2021
+
+Rina Foygel Barber, Emmanuel J. Candès, Aaditya Ramdas, and Ryan J.
+Tibshirani. "Predictive Inference with the Jackknife+." *The Annals of
+Statistics* 49(1), 486-507, 2021.
+
+## REF-ANGELOPOULOS-BATES-2023
+
+Anastasios N. Angelopoulos and Stephen Bates. "Conformal Prediction: A Gentle
+Introduction." *Foundations and Trends in Machine Learning* 16(4), 2023.
