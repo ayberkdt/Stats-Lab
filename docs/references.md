@@ -711,3 +711,51 @@ Machine Learning*. MIT Press, 2006.
 NIST Digital Library of Mathematical Functions, Chapter 18, "Orthogonal
 Polynomials." National Institute of Standards and Technology.
 [https://dlmf.nist.gov/18](https://dlmf.nist.gov/18).
+
+## REF-FERSON-OBERKAMPF-GINZBURG-2008
+
+Scott Ferson, William L. Oberkampf, and Lev Ginzburg. "Model Validation and
+Predictive Capability for the Thermal Challenge Problem." *Computer Methods in
+Applied Mechanics and Engineering* 197(29-32), 2408-2430, 2008.
+
+## REF-ROY-OBERKAMPF-2011
+
+Christopher J. Roy and William L. Oberkampf. "A Comprehensive Framework for
+Verification, Validation, and Uncertainty Quantification in Scientific
+Computing." *Computer Methods in Applied Mechanics and Engineering* 200(25-28),
+2131-2144, 2011.
+
+## REF-ASME-VV20-2009
+
+ASME V&V 20-2009. *Standard for Verification and Validation in Computational
+Fluid Dynamics and Heat Transfer*. American Society of Mechanical Engineers,
+New York, 2009.
+
+## REF-LIU-CHEN-ARENDT-HUANG-2011
+
+Yu Liu, Wei Chen, Paul Arendt, and Hong-Zhong Huang. "Toward a Better
+Understanding of Model Validation Metrics." *Journal of Mechanical Design*
+133(7), 071005, 2011.
+
+## REF-REBBA-MAHADEVAN-2008
+
+Ramesh Rebba and Sankaran Mahadevan. "Computational Methods for Model
+Reliability Assessment." *Reliability Engineering & System Safety* 93(8),
+1197-1207, 2008.
+DOI: [10.1016/j.ress.2007.08.001](https://doi.org/10.1016/j.ress.2007.08.001).
+
+## REF-KASS-RAFTERY-1995
+
+Robert E. Kass and Adrian E. Raftery. "Bayes Factors." *Journal of the
+American Statistical Association* 90(430), 773-795, 1995.
+
+## REF-JCGM-100-2008
+
+JCGM 100:2008. *Evaluation of Measurement Data — Guide to the Expression of
+Uncertainty in Measurement* (GUM 1995 with minor corrections). Joint Committee
+for Guides in Metrology, 2008.
+
+## REF-SILVERMAN-1986
+
+B. W. Silverman. *Density Estimation for Statistics and Data Analysis*.
+Chapman and Hall, 1986.

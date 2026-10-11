@@ -22,11 +22,11 @@ status, ownership, target, and evidence-path integrity.
 |---|---|---|---|---|---|
 | ATHENS-1.1 | Numerical simulation as a model-based computational experiment | Partial | UQ-0 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
 | ATHENS-1.2 | Solution verification: solving the equations right | Partial | UQ-0 | `probstat.uq.verification` | `src/probstat/uq/verification.py` |
-| ATHENS-1.3 | Model validation: solving the right equations for intended use | Planned | UQ-0 | `probstat.validation` | — |
-| ATHENS-1.4 | Uncertainty quantification workflow | Partial | UQ-0 | `probstat.uq` | `docs/foundations/vv-uq-foundations.md` |
+| ATHENS-1.3 | Model validation: solving the right equations for intended use | Implemented | UQ-0 | `probstat.validation` | `src/probstat/validation/assessment.py`; `src/probstat/validation/metrics.py`; `src/probstat/validation/records.py`; `tests/test_model_validation.py`; `docs/foundations/model-validation.md` |
+| ATHENS-1.4 | Uncertainty quantification workflow | Partial | UQ-0 | `probstat.uq` | `docs/foundations/vv-uq-foundations.md`; `src/probstat/validation/credibility.py` |
 | ATHENS-1.5 | Numerical uncertainty | Partial | UQ-0 | `probstat.uq.verification` | `src/probstat/uq/verification.py` |
 | ATHENS-1.6 | Parametric uncertainty | Partial | UQ-0 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
-| ATHENS-1.7 | Model-form uncertainty | Partial | UQ-0 | `probstat.validation` | `src/probstat/uq/taxonomy.py` |
+| ATHENS-1.7 | Model-form uncertainty | Partial | UQ-0 | `probstat.validation` | `src/probstat/uq/taxonomy.py`; `src/probstat/validation/discrepancy.py`; `src/probstat/validation/metrics.py` |
 | ATHENS-1.8 | Aleatory versus epistemic uncertainty | Implemented | UQ-0 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
 | ATHENS-1.9 | Forward versus inverse problems | Partial | UQ-0 | `probstat.uq` | `docs/foundations/vv-uq-foundations.md` |
 | ATHENS-1.10 | Quantity-of-interest definition and selection | Implemented | UQ-0 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |

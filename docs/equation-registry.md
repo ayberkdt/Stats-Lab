@@ -3281,3 +3281,136 @@ exponential) or `(5/3) sigma_f^2 (Delta_i/ell_i)^2 (1 + sqrt(5) r) exp(-sqrt(5) 
 - Meaning: cross-validation residuals without refitting.
 - Code: `surrogates.GaussianProcessRegression.leave_one_out`.
 - Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
+
+## Model validation metrics and prediction credibility
+
+### EQ-VAL-AREA-001 — Area validation metric
+
+`d(F, S_n) = integral_{-inf}^{inf} |F(y) - S_n(y)| dy`, where `F` is the
+predictive CDF and `S_n` the empirical CDF of the observations. For two step
+CDFs with merged breakpoints `z_1 < ... < z_K`,
+`d = sum_k |F(z_k) - S_n(z_k)| (z_{k+1} - z_k)` exactly.
+
+- Domain: non-empty finite predictive samples and observations; both CDFs are
+  right-continuous step functions.
+- Meaning: mismatch between prediction and data in QoI units. If either law is
+  a point mass at `c`, `d` equals the mean absolute distance of the other
+  sample from `c`; `d = 0` only for identical distributions.
+- Code: `validation.metrics.area_metric`.
+- Source: [REF-FERSON-OBERKAMPF-GINZBURG-2008], [REF-OBERKAMPF-ROY-2025,
+  Chapter 12].
+
+### EQ-VAL-UPOOL-001 — Probability integral transform for u-pooling
+
+`u_ij = F_i(y_ij)`, with `F_i(y) = #{s : y_s^(i) <= y} / S` the predictive
+ECDF of experiment `i`.
+
+- Domain: each experiment has its own predictive sample `y_s^(i)`.
+- Meaning: maps observations from experiments with different conditions onto
+  one common probability scale; under a correct predictive law the pooled `u`
+  are approximately `Uniform(0, 1)`.
+- Code: `validation.metrics.probability_integral_transform`,
+  `validation.metrics.u_pooling`.
+- Source: [REF-FERSON-OBERKAMPF-GINZBURG-2008].
+
+### EQ-VAL-UPOOL-002 — Area between pooled u values and the uniform CDF
+
+`d_u = integral_0^1 |S_n(u) - u| du = sum_k integral_{u_(k)}^{u_(k+1)}
+|k/n - u| du`, with `u_(0) = 0`, `u_(n+1) = 1`, each piece evaluated in closed
+form.
+
+- Domain: `n >= 1` values in `[0, 1]`.
+- Meaning: pooled calibration mismatch on the probability scale; `0 <= d_u <=
+  1/2`. It is reported together with the KS statistic of [EQ-INF-GOF-KS-001].
+- Code: `validation.metrics.uniform_area`, `validation.metrics.u_pooling`.
+- Source: [REF-FERSON-OBERKAMPF-GINZBURG-2008].
+
+### EQ-VAL-MAHAL-001 — Standardized residuals and Mahalanobis distance
+
+`r = y - mu`, `z_i = r_i / sqrt(C_ii)`, `D^2 = r' C^-1 r`,
+`p = P(chi^2_n >= D^2) = Q(n/2, D^2/2)`.
+
+- Domain: symmetric positive-definite `C` that includes predictive, measurement,
+  and any discrepancy variance.
+- Meaning: Gaussian-summary consistency check; the chi-square tail is exact
+  only for a Gaussian predictive law with covariance `C`. In
+  `assess_predictions`, `C = diag(s_i^2 + sigma_m,i^2)` with observations
+  treated as conditionally independent.
+- Code: `validation.metrics.mahalanobis_metric`,
+  `validation.assessment.assess_predictions`.
+- Source: [REF-MARDIA-KENT-BIBBY-1979, Chapters 1-3], [REF-NIST-DLMF-GAMMA].
+
+### EQ-VAL-REL-001 — Model reliability metric
+
+`r = P(|Y_pred - Y_obs| < epsilon)`, estimated by
+`r_hat = (1/S) sum_s (1/n) sum_i 1(|y_s - y_i| < epsilon)` with conditional
+standard error `sd(h_s)/sqrt(S)`, `h_s = (1/n) sum_i 1(|y_s - y_i| < epsilon)`.
+
+- Domain: `epsilon > 0`, at least two predictive samples, at least one
+  observation.
+- Meaning: probability that model and experiment agree within a decision-
+  relevant tolerance; the standard error is conditional on the observations.
+- Code: `validation.metrics.reliability_metric`.
+- Source: [REF-REBBA-MAHADEVAN-2008], [REF-LIU-CHEN-ARENDT-HUANG-2011].
+
+### EQ-VAL-ASME-001 — V&V 20 comparison error and validation uncertainty
+
+`E = S - D`, `u_val = sqrt(u_num^2 + u_input^2 + u_D^2)`,
+`delta_model in [E - k u_val, E + k u_val]`.
+
+- Domain: independent numerical, input, and data error sources expressed as
+  standard uncertainties; coverage factor `k > 0`.
+- Meaning: an estimate of the model-form error, not a pass/fail test. If
+  `|E| <= k u_val` the model error is not resolved beyond the validation
+  uncertainty; if `|E| >> u_val`, `delta_model ~ E`.
+- Code: `validation.metrics.asme_validation_comparison`,
+  `validation.metrics.AsmeComparison`,
+  `validation.records.ValidationExperiment.data_standard_uncertainty`.
+- Source: [REF-ASME-VV20-2009], [REF-OBERKAMPF-ROY-2025, Chapter 12].
+
+### EQ-VAL-ASME-002 — Numerical bound to standard uncertainty
+
+`u_num = B / sqrt(3)` for an absolute error bound `B` from [EQ-VV-003].
+
+- Domain: the numerical error is modeled as rectangular on `[-B, B]`.
+- Meaning: a GUM Type B conversion that lets a conservative verification bound
+  enter the V&V 20 root-sum-square; the rectangular assumption is explicit.
+- Code: `validation.metrics.budget_standard_uncertainty`,
+  `validation.credibility.VerificationEvidence.standard_uncertainty`.
+- Source: [REF-JCGM-100-2008, Section 4.3.7], [REF-ASME-VV20-2009].
+
+### EQ-VAL-BF-001 — Validation Bayes factor against a declared alternative
+
+`p_M(y) = (1/S) sum_s N(y; y_s, h^2)`, `log B = sum_i log p_M(y_i) -
+sum_i log p_A(y_i)`, with `h = sigma_m` when measurement noise is known and
+`h = 0.9 min(s, IQR/1.34) S^(-1/5)` (Silverman) otherwise. The alternative
+`p_A` is uniform on `[a, b]`, `N(m, t^2)`, or the inflated
+`N(mean(y_s), c^2 (s^2 + h^2))` with `c > 1`.
+
+- Domain: at least two predictive samples; observations conditionally
+  independent given the predictive law; the alternative is declared by the
+  user and reported.
+- Meaning: positive `log B` favors the model's predictive density over the
+  alternative; magnitudes are read on the Kass-Raftery `2 log B` scale. The
+  value depends on the breadth of the alternative.
+- Code: `validation.metrics.validation_bayes_factor`,
+  `validation.metrics.ValidationAlternative.log_density`,
+  `validation.metrics.silverman_bandwidth`.
+- Source: [REF-KASS-RAFTERY-1995], [REF-REBBA-MAHADEVAN-2008],
+  [REF-SILVERMAN-1986, Section 3.4.2].
+
+### EQ-VAL-DOM-001 — Validation-domain membership and scaled distance
+
+`x_tilde_j = (x_j - l_j)/(u_j - l_j)`; box: `l <= x <= u`; hull: feasible
+`lambda >= 0`, `sum lambda_i = 1`, `sum lambda_i x_tilde_i = x_tilde`
+(phase-one simplex optimum zero); distance `delta = min_i ||x_tilde -
+x_tilde_i||_2`; extrapolation if outside the hull or `delta > tau`.
+
+- Domain: validation conditions share names; zero-range dimensions require
+  equality with the single validated value.
+- Meaning: validation evidence applies directly only near tested conditions;
+  outside the convex hull a prediction is extrapolation.
+- Code: `validation.records.ValidationDomain.check`,
+  `validation.records._convex_hull_residual`.
+- Source: [REF-OBERKAMPF-ROY-2025, Part IV], [REF-NOCEDAL-WRIGHT-2006,
+  Chapter 13].
