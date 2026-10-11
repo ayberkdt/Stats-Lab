@@ -237,6 +237,13 @@ returned 0.73 of the exact value with a reported c.o.v. of 0.04, so the
 reported c.o.v. can understate the error badly. Gaussian-mixture proposals
 [REF-KURTZ-SONG-2013] address multiple failure regions and are not implemented.
 
+The table above shows the unguarded adaptation, still available as
+`covariance_floor=None`. Adapted covariances are now floored at eigenvalue
+`0.55` by default (the weight variance is infinite once an eigenvalue drops to
+`1/2` or below [EQ-REL-CE-003]), and a collapsed or degenerate run warns and
+sets `weights_degenerate`. See
+[Adaptive reliability](adaptive-reliability.md) for the guarded numbers.
+
 ### Line sampling
 
 `line_sampling` uses an important direction `alpha`: the FORM `alpha` by

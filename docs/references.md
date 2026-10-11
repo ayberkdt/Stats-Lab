@@ -1646,3 +1646,16 @@ A. P. Dawid. "Present Position and Potential Developments: Some Personal
 Views. Statistical Theory: The Prequential Approach." *Journal of the Royal
 Statistical Society: Series A* 147(2), 278-292 (with discussion), 1984.
 JSTOR 2981683.
+
+## REF-DERKIUREGHIAN-DAKESSIAN-1998
+
+Armen Der Kiureghian and T. Dakessian. "Multiple Design Points in First
+and Second-Order Reliability." *Structural Safety* 20(1), 37-49, 1998.
+DOI: [10.1016/S0167-4730(97)00026-X](https://doi.org/10.1016/S0167-4730(97)00026-X).
+
+## REF-ECHARD-GAYTON-LEMAIRE-2011
+
+B. Echard, N. Gayton, and M. Lemaire. "AK-MCS: An Active Learning
+Reliability Method Combining Kriging and Monte Carlo Simulation."
+*Structural Safety* 33(2), 145-154, 2011.
+DOI: [10.1016/j.strusafe.2011.01.002](https://doi.org/10.1016/j.strusafe.2011.01.002).

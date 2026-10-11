@@ -16,12 +16,21 @@ and report their model-evaluation cost.
 from __future__ import annotations
 
 import math
+import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import require_finite_real
-from probstat.linalg import Matrix, Vector, as_vector, cholesky, dot, norm
+from probstat.linalg import (
+    Matrix,
+    Vector,
+    as_vector,
+    cholesky,
+    dot,
+    norm,
+    symmetric_eigen,
+)
 from probstat.modeling import standard_normal_cdf
 from probstat.optimization import brent_root
 
@@ -85,10 +94,23 @@ class CrossEntropyResult:
         samples_per_level: Samples per adaptation level.
         final_samples: Samples of the final importance-sampling stage.
         failures: Final-stage samples in the failure domain.
-        effective_sample_size: Kish effective sample size of the final
-            weights.
+        effective_sample_size: Kish effective sample size of all final
+            weights (including the zero-indicator samples). For a rare event
+            this is small even for a healthy proposal; use
+            ``failure_effective_sample_size`` to judge the estimate.
         evaluations: Model evaluations (adaptation plus final stage).
         converged: Whether an adaptation level reached threshold ``0``.
+        failure_effective_sample_size: Kish effective sample size
+            ``(sum w)^2 / sum w^2`` of the weights of the final-stage failure
+            samples, the terms that make up the estimate.
+        weights_degenerate: ``True`` when ``failure_effective_sample_size``
+            is below ``CE_MIN_FAILURE_ESS_FRACTION`` times ``final_samples``
+            with at least one failure (a few samples carry the estimate), or
+            when ``min_covariance_eigenvalue <= 0.5`` (the weights have
+            infinite variance). The reported standard error is then unreliable; it
+            typically understates the error.
+        min_covariance_eigenvalue: Smallest eigenvalue of the final proposal
+            covariance (``1`` for the mean-shift default).
 
     References:
         [REF-RUBINSTEIN-KROESE-2004], [REF-KURTZ-SONG-2013].
@@ -109,6 +131,52 @@ class CrossEntropyResult:
     effective_sample_size: float
     evaluations: int
     converged: bool
+    failure_effective_sample_size: float = math.nan
+    weights_degenerate: bool = False
+    min_covariance_eigenvalue: float = 1.0
+
+
+CE_MIN_FAILURE_ESS_FRACTION = 0.01
+"""Failure-weight ESS fraction below which a CE-IS result is flagged."""
+
+CE_COVARIANCE_FLOOR = 0.55
+"""Default lower bound on the eigenvalues of an adapted CE proposal."""
+
+
+def _kish_effective_size(weights: Sequence[float]) -> float:
+    """Return Kish's effective sample size ``(sum w)^2 / sum w^2``.
+
+    References:
+        [EQ-MC-ESS-001], [REF-OWEN-2013, Chapter 9].
+
+    """
+    squared = math.fsum(w * w for w in weights)
+    return math.fsum(weights) ** 2 / squared if squared > 0.0 else 0.0
+
+
+def _floor_eigenvalues(matrix: Matrix, floor: float) -> Matrix:
+    """Return ``V diag(max(lambda_i, floor)) V'`` for a symmetric matrix.
+
+    References:
+        [EQ-REL-CE-003], [EQ-LINALG-005], [REF-GOLUB-VANLOAN-2013, Section 8.5].
+
+    """
+    values, vectors = symmetric_eigen(matrix)
+    if min(values) >= floor:
+        return matrix
+    size = len(matrix)
+    clipped = [max(value, floor) for value in values]
+    rebuilt = [
+        [
+            math.fsum(vectors[i][k] * clipped[k] * vectors[j][k] for k in range(size))
+            for j in range(size)
+        ]
+        for i in range(size)
+    ]
+    return tuple(
+        tuple(0.5 * (rebuilt[i][j] + rebuilt[j][i]) for j in range(size))
+        for i in range(size)
+    )
 
 
 def _gaussian_draw(
@@ -151,6 +219,7 @@ def cross_entropy_importance_sampling(
     adapt_covariance: bool = False,
     max_levels: int = 20,
     initial_mean: Sequence[float] | None = None,
+    covariance_floor: float | None = CE_COVARIANCE_FLOOR,
     seed: int | RandomStream | None = None,
 ) -> CrossEntropyResult:
     """Estimate ``P_f`` by cross-entropy adaptive importance sampling.
@@ -169,6 +238,21 @@ def cross_entropy_importance_sampling(
     ``final_samples`` points from ``h_t`` gives
     ``P_f = mean(I(G <= 0) phi_n(u) / h_t(u))``.
 
+    Weight-variance guard: with ``h = N(mu, Sigma)`` the second moment
+    ``E_h[w^2] = int phi_n^2 / h`` is finite only when every eigenvalue of
+    ``Sigma`` exceeds ``1/2``. The elite covariance of a near-planar failure
+    domain collapses along the important direction, which makes the weights
+    heavy-tailed: the estimate is then biased low in practice and the c.o.v.
+    understates the error several-fold. Adapted covariances are therefore
+    projected onto ``lambda_min >= covariance_floor`` (default ``0.55``) at
+    every level. Independently of the guard, a :class:`UserWarning` is
+    emitted and ``weights_degenerate`` set when the final proposal has an
+    eigenvalue ``<= 1/2`` (possible only with ``covariance_floor=None``) or
+    when the failure-weight effective sample size falls below
+    ``CE_MIN_FAILURE_ESS_FRACTION = 0.01`` of ``final_samples``. A Kish
+    effective sample size alone cannot detect the collapse: a heavy weight
+    tail that was never sampled leaves the observed weights looking healthy.
+
     Args:
         limit_state: Model limit state.
         samples_per_level: Samples ``N`` per adaptation level (at least 10).
@@ -179,9 +263,14 @@ def cross_entropy_importance_sampling(
             elite covariance shrinks along the important direction, so on
             near-planar limit states the levels can stall and the final
             weights can be heavy-tailed, so the c.o.v. may understate the
-            error. The mean-shift default is the robust choice.
+            error; see the weight-variance guard above. The mean-shift
+            default is the robust choice.
         max_levels: Maximum adaptation levels before stopping unconverged.
         initial_mean: Optional starting proposal mean.
+        covariance_floor: Lower bound on the eigenvalues of the adapted
+            covariance (must exceed ``0.5``), or ``None`` to disable the guard
+            (unguarded adaptation, kept only to study the failure mode).
+            Ignored unless ``adapt_covariance``.
         seed: Integer seed, random stream, or ``None`` for fresh entropy.
 
     Returns:
@@ -193,8 +282,13 @@ def cross_entropy_importance_sampling(
         TypeError: If ``limit_state`` has the wrong type.
         ValueError: If options are invalid or all elite weights underflow.
 
+    Warns:
+        UserWarning: If the final proposal covariance has an eigenvalue
+            ``<= 1/2`` or the final failure-weight effective sample size is
+            below ``CE_MIN_FAILURE_ESS_FRACTION * final_samples``.
+
     Equation:
-        [EQ-REL-CE-001], [EQ-REL-CE-002], [EQ-MC-ESS-001].
+        [EQ-REL-CE-001], [EQ-REL-CE-002], [EQ-REL-CE-003], [EQ-MC-ESS-001].
 
     References:
         [REF-RUBINSTEIN-KROESE-2004], [REF-KURTZ-SONG-2013].
@@ -209,6 +303,11 @@ def cross_entropy_importance_sampling(
         count if final_samples is None else final_samples, "final_samples", 2
     )
     levels_limit = _require_count(max_levels, "max_levels", 1)
+    floor: float | None = None
+    if covariance_floor is not None:
+        floor = require_finite_real(covariance_floor, name="covariance_floor")
+        if floor <= 0.5:
+            raise ValueError("covariance_floor must exceed 0.5")
     dimension = state.dimension
     elite_count = max(1, math.ceil(rho * count))
     if adapt_covariance and elite_count < dimension + 1:
@@ -277,6 +376,8 @@ def cross_entropy_importance_sampling(
                 )
                 for i in range(dimension)
             )
+            if floor is not None:
+                covariance = _floor_eigenvalues(covariance, floor)
             try:
                 lower = cholesky(covariance)
             except ValueError as error:
@@ -301,7 +402,27 @@ def cross_entropy_importance_sampling(
         else:
             contributions.append(0.0)
     probability, standard_error = _mean_and_error(contributions)
-    squared = math.fsum(w * w for w in weights_all)
+    failure_ess = _kish_effective_size([w for w in contributions if w > 0.0])
+    smallest = min(symmetric_eigen(covariance)[0]) if adapt_covariance else 1.0
+    reasons: list[str] = []
+    if smallest <= 0.5:
+        reasons.append(
+            f"proposal eigenvalue {smallest:.3g} <= 0.5 gives infinite weight variance"
+        )
+    if failures > 0 and failure_ess < CE_MIN_FAILURE_ESS_FRACTION * final_count:
+        reasons.append(
+            f"failure-weight effective sample size {failure_ess:.1f} is below "
+            f"{CE_MIN_FAILURE_ESS_FRACTION:g} of {final_count} final samples"
+        )
+    degenerate = bool(reasons)
+    if degenerate:
+        warnings.warn(
+            "CE-IS weights are degenerate ("
+            + "; ".join(reasons)
+            + "); the estimate and its standard error are unreliable",
+            UserWarning,
+            stacklevel=2,
+        )
     return CrossEntropyResult(
         limit_state=state.label,
         probability=probability,
@@ -316,11 +437,12 @@ def cross_entropy_importance_sampling(
         samples_per_level=count,
         final_samples=final_count,
         failures=failures,
-        effective_sample_size=(
-            math.fsum(weights_all) ** 2 / squared if squared > 0.0 else 0.0
-        ),
+        effective_sample_size=_kish_effective_size(weights_all),
         evaluations=state.model.evaluations - before,
         converged=converged,
+        failure_effective_sample_size=failure_ess,
+        weights_degenerate=degenerate,
+        min_covariance_eigenvalue=smallest,
     )
 
 
@@ -371,7 +493,10 @@ def _line_probability(
     The line ``c -> G(u_perp + c alpha)`` is assumed to cross zero at most
     once with failure on the side of increasing ``c``. A bracket is grown from
     ``start`` in doubling steps; Brent's method refines it. Values are cached,
-    so Brent's endpoint evaluations are free.
+    so Brent's endpoint evaluations are free. A line that is still safe at
+    ``c = max_distance`` returns ``(0.0, inf)`` and one that already fails at
+    ``c = -max_distance`` returns ``(1.0, -inf)``: exactly 0 or 1, not
+    ``Phi(-+max_distance)``.
 
     References:
         [EQ-REL-LINE-001], [EQ-OPT-BRENT-001],
@@ -442,8 +567,12 @@ def line_sampling(
         direction: Optional important direction (normalized internally).
         form_result: Optional FORM result supplying ``alpha`` and the starting
             distance ``beta``.
-        max_distance: Search half-width along each line; a line that does not
-            cross within it contributes ``Phi(-max_distance)`` ~ 0 or 1.
+        max_distance: Search half-width along each line. A line with no
+            crossing in ``|c| <= max_distance`` contributes exactly ``0`` when
+            it is safe at ``c = max_distance`` (distance recorded as ``inf``)
+            and exactly ``1`` when it fails at ``c = -max_distance`` (distance
+            ``-inf``); the neglected mass is at most ``Phi(-max_distance)``
+            per line (about ``7.6e-24`` for the default ``10``).
         tolerance: Absolute Brent tolerance on ``c_k``.
         seed: Integer seed, random stream, or ``None`` for fresh entropy.
 

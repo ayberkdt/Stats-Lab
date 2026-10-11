@@ -409,6 +409,97 @@ def correlated_importance(limit_state: ModelLimitState, alpha: Vector) -> Vector
     return tuple(value / size for value in raw)
 
 
+HLRFState = tuple[Vector, float, Vector, int, bool, str]
+
+
+def _hlrf_iterate(
+    function: Callable[[Vector], float],
+    start: Vector,
+    gradient_of: Callable[[Vector], Vector],
+    line_search: bool,
+    iterations_limit: int,
+    tol: float,
+    scale: float | None = None,
+) -> HLRFState:
+    """Run (improved) HL-RF iterations on any standard-space function.
+
+    This is the search loop of :func:`form_hlrf`, shared with the deflated
+    (bulged) searches of the multiple-design-point module.
+
+    Args:
+        function: Limit-state function ``G(u)``.
+        start: Starting point.
+        gradient_of: Gradient callable of ``G``.
+        line_search: Whether to use the iHL-RF merit line search.
+        iterations_limit: Maximum number of updates.
+        tol: Relative feasibility and direction tolerance.
+        scale: Reference value for the feasibility test ``|G| <= tol scale``;
+            ``|G(start)|`` (or one when that is zero) when omitted.
+
+    Returns:
+        ``(u, G(u), grad G(u), iterations, converged, message)``.
+
+    Raises:
+        ValueError: If the gradient vanishes.
+
+    References:
+        [EQ-REL-HLRF-001], [EQ-REL-HLRF-002], [REF-RACKWITZ-FIESSLER-1978],
+        [REF-ZHANG-DERKIUREGHIAN-1995].
+
+    """
+    u = start
+    value = function(u)
+    grad = gradient_of(u)
+    if scale is None:
+        scale = abs(value) if value != 0.0 else 1.0
+    iterations = 0
+    converged = False
+    message = "maximum iterations reached before convergence"
+    while True:
+        grad_norm = norm(grad)
+        if not math.isfinite(grad_norm) or grad_norm == 0.0:
+            raise ValueError(
+                f"limit-state gradient vanished at u={u}; FORM direction undefined"
+            )
+        alpha = tuple(-component / grad_norm for component in grad)
+        projection = dot(alpha, u)
+        residual = norm(
+            tuple(ui - projection * ai for ui, ai in zip(u, alpha, strict=True))
+        )
+        if abs(value) <= tol * scale and residual <= tol * max(1.0, norm(u)):
+            converged = True
+            message = "converged"
+            break
+        if iterations >= iterations_limit:
+            break
+        factor = (dot(grad, u) - value) / (grad_norm * grad_norm)
+        target = tuple(factor * component for component in grad)
+        direction = tuple(t - ui for t, ui in zip(target, u, strict=True))
+        if line_search:
+            penalty = 2.0 * max(norm(u), norm(target)) / grad_norm
+            merit = 0.5 * dot(u, u) + penalty * abs(value)
+            slope = dot(u, direction) - penalty * abs(value)
+            step = 1.0
+            trial: Vector = target
+            trial_value = 0.0
+            for _ in range(_MAX_LINE_SEARCH):
+                trial = tuple(
+                    ui + step * di for ui, di in zip(u, direction, strict=True)
+                )
+                trial_value = function(trial)
+                trial_merit = 0.5 * dot(trial, trial) + penalty * abs(trial_value)
+                if trial_merit <= merit + _ARMIJO * step * slope:
+                    break
+                step *= 0.5
+            u, value = trial, trial_value
+        else:
+            u = target
+            value = function(u)
+        grad = gradient_of(u)
+        iterations += 1
+    return u, value, grad, iterations, converged, message
+
+
 def form_hlrf(
     limit_state: ModelLimitState,
     *,
@@ -489,54 +580,27 @@ def form_hlrf(
             gradient_calls += 1
         return _gradient_at(state, point, gradient, step_size)
 
-    value = state.standard(u)
-    grad = gradient_of(u)
-    scale = abs(value) if value != 0.0 else 1.0
-    iterations = 0
-    converged = False
-    message = "maximum iterations reached before convergence"
-    while True:
-        grad_norm = norm(grad)
-        if not math.isfinite(grad_norm) or grad_norm == 0.0:
-            raise ValueError(
-                f"limit-state gradient vanished at u={u}; FORM direction undefined"
-            )
-        alpha = tuple(-component / grad_norm for component in grad)
-        projection = dot(alpha, u)
-        residual = norm(
-            tuple(ui - projection * ai for ui, ai in zip(u, alpha, strict=True))
-        )
-        if abs(value) <= tol * scale and residual <= tol * max(1.0, norm(u)):
-            converged = True
-            message = "converged"
-            break
-        if iterations >= iterations_limit:
-            break
-        factor = (dot(grad, u) - value) / (grad_norm * grad_norm)
-        target = tuple(factor * component for component in grad)
-        direction = tuple(t - ui for t, ui in zip(target, u, strict=True))
-        if line_search:
-            penalty = 2.0 * max(norm(u), norm(target)) / grad_norm
-            merit = 0.5 * dot(u, u) + penalty * abs(value)
-            slope = dot(u, direction) - penalty * abs(value)
-            step = 1.0
-            trial: Vector = target
-            trial_value = 0.0
-            for _ in range(_MAX_LINE_SEARCH):
-                trial = tuple(
-                    ui + step * di for ui, di in zip(u, direction, strict=True)
-                )
-                trial_value = state.standard(trial)
-                trial_merit = 0.5 * dot(trial, trial) + penalty * abs(trial_value)
-                if trial_merit <= merit + _ARMIJO * step * slope:
-                    break
-                step *= 0.5
-            u, value = trial, trial_value
-        else:
-            u = target
-            value = state.standard(u)
-        grad = gradient_of(u)
-        iterations += 1
+    search = _hlrf_iterate(
+        state.standard, u, gradient_of, line_search, iterations_limit, tol
+    )
+    return _form_result(
+        state, search, state.model.evaluations - before, gradient_calls
+    )
+
+
+def _form_result(
+    state: ModelLimitState,
+    search: HLRFState,
+    evaluations: int,
+    gradient_evaluations: int,
+) -> FORMResult:
+    """Assemble a :class:`FORMResult` from a finished HL-RF search.
+
+    References:
+        [EQ-REL-FORM-002], [REF-DERKIUREGHIAN-2005].
+
+    """
+    u, value, grad, iterations, converged, message = search
     grad_norm = norm(grad)
     alpha = tuple(-component / grad_norm for component in grad)
     beta = dot(alpha, u)
@@ -556,8 +620,8 @@ def form_hlrf(
         gradient_u=grad,
         limit_state_value=value,
         iterations=iterations,
-        evaluations=state.model.evaluations - before,
-        gradient_evaluations=gradient_calls,
+        evaluations=evaluations,
+        gradient_evaluations=gradient_evaluations,
         converged=converged,
         message=message,
     )

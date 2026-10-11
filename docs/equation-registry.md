@@ -7512,3 +7512,118 @@ indicator chains (or `S` for independent draws).
   uniformity is descriptive only.
 - Code: `inference.pit_values`, `inference.pit_uniformity`.
 - Source: [REF-DAWID-1984], [REF-GNEITING-BALABDAOUI-RAFTERY-2007].
+
+### EQ-REL-CE-003 — Finite importance-weight variance of a Gaussian proposal
+
+For `h = N(mu, Sigma)` and `w = phi_n / h`,
+`E_h[w^2] = int phi_n(u)^2 / h(u) du` is finite if and only if
+`I - Sigma^-1 / 2` is positive definite, i.e. every eigenvalue of `Sigma`
+exceeds `1/2`. The CE guard replaces `Sigma = V diag(lambda) V'` by
+`V diag(max(lambda_i, lambda_min)) V'` with `lambda_min > 1/2`
+(default `0.55`).
+
+- Domain: unbounded failure domains in standard-normal space; the guard is
+  applied to every adapted CE covariance.
+- Meaning: `phi_n^2 / h` has the quadratic exponent
+  `-u'(I - Sigma^-1 / 2) u + O(u)`; when it is not negative definite the
+  weights have infinite variance, so the sample variance (and the reported
+  c.o.v.) cannot represent the error. Elite covariances of near-planar
+  failure domains collapse along the important direction and violate the
+  condition.
+- Code: `reliability.cross_entropy_importance_sampling`
+  (`covariance_floor`, `min_covariance_eigenvalue`, `weights_degenerate`).
+- Source: [REF-OWEN-2013, Chapter 9] (importance-sampling variance and
+  light-tailed proposals); the eigenvalue condition is a direct Gaussian
+  integral.
+
+### EQ-REL-MDP-001 — Bulged limit state for successive design points
+
+`G_b(u) = G(u) + sum_j B_j(u)` with
+`B_j(u) = h_j (1 - ||u - u_j*||^2 / r_j^2)^2` for `||u - u_j*|| < r_j` and
+`0` otherwise; `r_j = gamma beta_j`, `h_j = delta G(0)`
+(defaults `gamma = 1.1`, `delta = 0.75`).
+
+- Domain: safe origin (`G(0) > 0`); known design points with `beta_j > 0`.
+- Meaning: each bulge is continuously differentiable, equals `h_j` at the
+  known point and vanishes with its gradient on the sphere of radius `r_j`,
+  so the known point becomes safe for `G_b` and a new HL-RF search is
+  deflected elsewhere; candidates are refined on the original `G`. The
+  quartic profile and the `G(0)` height scaling are this library's choices.
+- Code: `reliability.bulge_value`, `reliability.find_design_points`.
+- Source: [REF-DERKIUREGHIAN-DAKESSIAN-1998] (bulging idea).
+
+### EQ-REL-MDP-002 — Multi-point FORM series approximation
+
+With design points `u_i*`, indices `beta_i`, and directions `alpha_i`,
+`P_f ~= P(union_i {alpha_i . u >= beta_i}) = 1 - Phi_m(beta; R)`,
+`R_ij = alpha_i . alpha_j`; for `m = 2`,
+`P_f ~= Phi(-beta_1) + Phi(-beta_2) - Phi_2(-beta_1, -beta_2; R_12)`.
+
+- Domain: converged design points in one standard-normal space.
+- Meaning: each mode is linearized at its own design point and the modes
+  are combined as a series system; exact when `G` is the minimum of the
+  linear functions.
+- Code: `reliability.multi_point_form`.
+- Source: [REF-DERKIUREGHIAN-DAKESSIAN-1998] and
+  [REF-MELCHERS-BECK-2018, Chapter 5].
+
+### EQ-REL-MDP-003 — Mixture importance sampling over design points
+
+`h(u) = sum_k pi_k phi_n(u - u_k*)`,
+`w(u) = phi_n(u) / h(u) = 1 / sum_k pi_k exp(u . u_k* - ||u_k*||^2 / 2)`,
+`P_f_hat = N^-1 sum_i I(G(u_i) <= 0) w(u_i)`; `pi_k = 1/m` or
+`pi_k proportional to Phi(-beta_k)`.
+
+- Domain: any centres; every component has unit covariance, so `h > 0`.
+- Meaning: unbiased importance sampling whose proposal covers all known
+  failure modes; on `u . u_k* >= ||u_k*||^2` the weight is at most
+  `exp(-||u_k*||^2 / 2) / pi_k`.
+- Code: `reliability.mixture_importance_sampling`.
+- Source: [REF-OWEN-2013, Chapter 9] and [REF-MELCHERS-BECK-2018, Chapter 6].
+
+### EQ-REL-MVN-001 — Separation-of-variables multivariate normal probability
+
+For `V ~ N(0, R)`, `R = C C'` (lower `C`):
+`P(V <= b) = E[prod_i e_i(w)]`, `e_i = Phi((b_i - sum_(j<i) c_ij y_j) / c_ii)`,
+`y_j = Phi^-1(w_j e_j)`, `w_j ~ U(0, 1)`; the union probability is
+averaged as `1 - prod_i e_i = -expm1(sum_i log1p(-Phi(-t_i)))`.
+
+- Domain: positive semidefinite `R`. A row `i` with a zero pivot satisfies
+  `V_i = sum_(k<=j) c_ik Z_k` with last non-zero column `j`; its constraint
+  is folded into step `j` as an upper (`c_ij > 0`) or lower (`c_ij < 0`)
+  bound, so `e_j = Phi(t_hi) - Phi(t_lo)` and
+  `y_j = Phi^-1(Phi(t_lo) + w_j e_j)`.
+- Meaning: Genz's transformation of the rectangle probability into an
+  integral over the unit cube, estimated by Monte Carlo with a standard
+  error; averaging the complement keeps relative precision for small union
+  probabilities.
+- Code: `reliability.multi_point_form` (three or more points).
+- Source: [REF-GENZ-BRETZ-2009, Chapter 4].
+
+### EQ-REL-AKMCS-001 — AK-MCS learning function and stopping rule
+
+`U(u) = |mu_G(u)| / sigma_G(u)` from the GP posterior of `G`; next point
+`u* = argmin_(i not in T) U(u_i)` over the Monte Carlo population; stop when
+`min_i U(u_i) >= 2`.
+
+- Domain: GP surrogate of `G` in standard-normal space; fixed population.
+- Meaning: `Phi(-U)` is the posterior probability that the predicted sign
+  of `G(u_i)` is wrong, so `min U >= 2` bounds every point's misclassification
+  probability by `Phi(-2) ~ 0.023`. Between hyperparameter fits the
+  posterior is updated by exact rank-one Cholesky updates.
+- Code: `reliability.ak_mcs`.
+- Source: [REF-ECHARD-GAYTON-LEMAIRE-2011] and
+  [REF-RASMUSSEN-WILLIAMS-2006, Algorithm 2.1].
+
+### EQ-REL-AKMCS-002 — AK-MCS population estimate and coefficient of variation
+
+`P_f_hat = N_f / N` with `N_f = #{i : mu_G(u_i) <= 0}`;
+`c.o.v. = sqrt((1 - P_f_hat) / (N P_f_hat))`; the population is enlarged
+while the c.o.v. exceeds the target.
+
+- Domain: `N_f > 0`; the c.o.v. is the Monte Carlo error of the population
+  and excludes surrogate misclassification.
+- Meaning: crude Monte Carlo on the population with the surrogate's sign in
+  place of the true indicator.
+- Code: `reliability.ak_mcs`.
+- Source: [REF-ECHARD-GAYTON-LEMAIRE-2011] and [REF-OWEN-2013, Chapter 2].
