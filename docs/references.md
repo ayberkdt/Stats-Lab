@@ -1046,3 +1046,31 @@ Distributions." *Biometrika* 82(3), 543-552, 1995.
 
 William H. Kruskal. "Ordinal Measures of Association." *Journal of the
 American Statistical Association* 53(284), 814-861, 1958.
+
+## REF-STRANG-2016
+
+Gilbert Strang. *Introduction to Linear Algebra*. 5th edition.
+Wellesley-Cambridge Press, 2016.
+
+## REF-MAGNUS-NEUDECKER-2019
+
+Jan R. Magnus and Heinz Neudecker. *Matrix Differential Calculus with
+Applications in Statistics and Econometrics*. 3rd edition. Wiley, 2019.
+
+## REF-BOX-MULLER-1958
+
+G. E. P. Box and Mervin E. Muller. "A Note on the Generation of Random Normal
+Deviates." *The Annals of Mathematical Statistics* 29(2), 610-611, 1958.
+
+## REF-GENZ-BRETZ-2009
+
+Alan Genz and Frank Bretz. *Computation of Multivariate Normal and t
+Probabilities*. Lecture Notes in Statistics 195. Springer, 2009.
+
+## REF-R-CORE-TEAM
+
+R Core Team. *R: A Language and Environment for Statistical Computing*. R
+Foundation for Statistical Computing, Vienna, Austria.
+[https://www.R-project.org/](https://www.R-project.org/). Function defaults
+quoted in `docs/prerequisites/r-bridge.md` were read from the `stats` package
+R sources (development trunk) on 2026-10-11.

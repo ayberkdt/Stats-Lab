@@ -613,6 +613,110 @@ def lu_solve(matrix: Matrix, right_hand_side: Vector) -> Vector:
     return solve_upper(upper, tuple(row[size] for row in work))
 
 
+def _lu_diagonal(matrix: Matrix) -> tuple[Vector, int] | None:
+    """Return the ``U`` diagonal and row-swap count of ``PA = LU``.
+
+    Partial pivoting selects the largest remaining magnitude in each column.
+    Only an exactly zero pivot column is treated as singular, so uniformly
+    tiny but non-singular matrices keep their (tiny) determinant.
+
+    Args:
+        matrix: Square finite matrix.
+
+    Returns:
+        ``(diag(U), swaps)``, or ``None`` when a pivot column is exactly zero.
+
+    Raises:
+        ValueError: If the matrix is empty, ragged, non-finite, or not square.
+
+    Equation:
+        [EQ-LINALG-004], [EQ-LINALG-008].
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 3.4].
+
+    """
+    checked = as_matrix(matrix, name="matrix", square=True)
+    size = len(checked)
+    work = [list(row) for row in checked]
+    swaps = 0
+    diagonal: list[float] = []
+    for column in range(size):
+        pivot_row = max(range(column, size), key=lambda r: abs(work[r][column]))
+        if work[pivot_row][column] == 0.0:
+            return None
+        if pivot_row != column:
+            work[column], work[pivot_row] = work[pivot_row], work[column]
+            swaps += 1
+        pivot = work[column][column]
+        diagonal.append(pivot)
+        for row in range(column + 1, size):
+            factor = work[row][column] / pivot
+            if factor != 0.0:
+                for inner in range(column, size):
+                    work[row][inner] -= factor * work[column][inner]
+    return tuple(diagonal), swaps
+
+
+def determinant(matrix: Matrix) -> float:
+    """Return ``det A`` from a partial-pivot LU factorization.
+
+    Args:
+        matrix: Square finite matrix.
+
+    Returns:
+        ``(-1)^s prod_i U_ii``; exactly ``0.0`` when a pivot column vanishes.
+        The product may overflow or underflow for large dimensions; use
+        :func:`log_abs_determinant` for scale-free work.
+
+    Raises:
+        TypeError: If entries are not real.
+        ValueError: If the matrix is empty, ragged, non-finite, or not square.
+
+    Equation:
+        [EQ-LINALG-008].
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 3.4], [REF-STRANG-2016, Chapter 5].
+
+    """
+    factors = _lu_diagonal(matrix)
+    if factors is None:
+        return 0.0
+    diagonal, swaps = factors
+    return (-1.0 if swaps % 2 else 1.0) * math.prod(diagonal)
+
+
+def log_abs_determinant(matrix: Matrix) -> float:
+    """Return ``log |det A|`` from a partial-pivot LU factorization.
+
+    Unlike :func:`log_det_spd`, the matrix need not be symmetric or definite;
+    this is the quantity required by a change-of-variables Jacobian.
+
+    Args:
+        matrix: Square finite non-singular matrix.
+
+    Returns:
+        ``sum_i log |U_ii|``.
+
+    Raises:
+        TypeError: If entries are not real.
+        ValueError: If the matrix is malformed or exactly singular.
+
+    Equation:
+        [EQ-LINALG-008].
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 3.4].
+
+    """
+    factors = _lu_diagonal(matrix)
+    if factors is None:
+        raise ValueError("matrix is singular; log|det| is -infinity")
+    diagonal, _ = factors
+    return math.fsum(math.log(abs(value)) for value in diagonal)
+
+
 def symmetric_eigen(
     matrix: Matrix, *, tolerance: float = 1e-14, max_sweeps: int = 100
 ) -> tuple[Vector, Matrix]:

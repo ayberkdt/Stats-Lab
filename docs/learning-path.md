@@ -60,6 +60,24 @@ produces a single report.
 The library separates conceptual order from software layer order. Readers can
 learn progressively without losing topics needed later.
 
+## Prerequisites
+
+Readers who need a refresher before the VV-UQ track can start with the
+prerequisite guides. Every snippet in them is executed by
+`tests/test_prerequisite_guides.py`.
+
+- [Linear algebra](prerequisites/linear-algebra.md): Cholesky, LU
+  determinants, conditioning, and symmetric eigen-decompositions.
+- [Optimization](prerequisites/optimization.md): finite differences, BFGS,
+  Nelder-Mead, Levenberg-Marquardt, and Brent root finding.
+- [Multivariable calculus and conditioning](prerequisites/multivariable-calculus-and-conditioning.md):
+  Jacobians, change of variables, the delta method, and Gaussian
+  conditioning.
+- [Probability and statistics refresher](prerequisites/probability-and-statistics-refresher.md):
+  a map from course concepts to `probstat` objects.
+- [R bridge](prerequisites/r-bridge.md): R functions and their `probstat`
+  equivalents, with parameterization and default differences.
+
 ## Stage 0 — Language of uncertainty
 
 Learn experiments, outcomes, sample spaces, events, set operations, and the
