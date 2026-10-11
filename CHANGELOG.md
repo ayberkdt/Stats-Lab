@@ -89,6 +89,10 @@ defects that are now fixed with oracle-backed regression tests.
   Wasserstein distances and barycenters; closed-form and numerical Fisher
   information, Fisher-Rao distances, Hellinger, Bhattacharyya, total
   variation, Renyi, and alpha divergences.
+- **Contingency tables** (`inference`): risk difference (Newcombe hybrid
+  score interval), risk ratio (Katz), and odds ratio (Woolf, with the
+  Haldane-Anscombe correction); exact and asymptotic McNemar tests; Pearson
+  and Haberman adjusted residuals.
 - **Kernel density** (`statistics.gaussian_kde`) with Silverman and
   normal-reference bandwidths.
 - **Figures**: discrepancy-corrected predictions and estimated

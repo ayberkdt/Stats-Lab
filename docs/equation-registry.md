@@ -8366,3 +8366,48 @@ If `n` PIT values are independent and uniform on `[0, 1]`, the count in each of
   `visualization.hierarchical_plots.plot_pit_histogram`.
 - Source: [REF-CASELLA-BERGER-2002, Section 3.2] and
   [REF-GNEITING-BALABDAOUI-RAFTERY-2007].
+
+## Contingency tables
+
+### EQ-INF-CT-001 — Two-by-two effect measures and their intervals
+
+With `p1 = a/(a+b)`, `p2 = c/(c+d)`: risk difference `RD = p1 - p2` with the
+Newcombe hybrid score interval `[RD - sqrt((p1 - l1)^2 + (u2 - p2)^2),
+RD + sqrt((u1 - p1)^2 + (p2 - l2)^2)]` from Wilson limits `(l_i, u_i)`; risk
+ratio `RR = p1/p2` with `log RR +/- z sqrt(1/a - 1/(a+b) + 1/c - 1/(c+d))`
+(Katz); odds ratio `OR = ad/(bc)` with `log OR +/- z sqrt(1/a + 1/b + 1/c +
+1/d)` (Woolf), adding 0.5 to every cell when one is zero.
+
+- Domain: independent binomial rows with positive totals; the log intervals
+  need `a, c > 0` (RR) or the corrected table (OR).
+- Meaning: absolute, relative, and odds-scale contrasts of two risks; the
+  Newcombe interval keeps nominal coverage near 0 and 1 where the Wald
+  interval fails.
+- Code: `inference.contingency.two_by_two_measures`.
+- Source: [REF-NEWCOMBE-1998], [REF-KATZ-ETAL-1978], [REF-WOOLF-1955],
+  [REF-AGRESTI-2013, Chapter 3].
+
+### EQ-INF-CT-002 — McNemar test for paired proportions
+
+With discordant counts `b` and `c`, `b ~ Binomial(b + c, 1/2)` under marginal
+homogeneity; the asymptotic statistic is `(|b - c| - k)^2 / (b + c)` with
+`k = 1` (continuity correction) or `0`, compared with chi-square on one
+degree of freedom.
+
+- Domain: paired binary outcomes; concordant pairs carry no information.
+- Meaning: tests whether the probability of a positive outcome changed
+  between the two measurements; `b/c` is the conditional odds ratio.
+- Code: `inference.contingency.mcnemar_test`.
+- Source: [REF-MCNEMAR-1947], [REF-AGRESTI-2013, Chapter 11].
+
+### EQ-INF-CT-003 — Pearson and adjusted residuals under independence
+
+`E_ij = R_i C_j / n`, Pearson residual `(O_ij - E_ij)/sqrt(E_ij)`, adjusted
+residual `(O_ij - E_ij)/sqrt(E_ij (1 - R_i/n)(1 - C_j/n))`.
+
+- Domain: an `r x c` table with no empty row or column.
+- Meaning: adjusted residuals are approximately standard normal under
+  independence, so cells with `|residual| > 2` show where the association
+  lives after a significant chi-square test.
+- Code: `inference.contingency.contingency_residuals`.
+- Source: [REF-HABERMAN-1973], [REF-AGRESTI-2013, Chapter 2].

@@ -1898,3 +1898,32 @@ DOI: [10.1016/j.ins.2013.06.018](https://doi.org/10.1016/j.ins.2013.06.018).
 
 Alexandre B. Tsybakov. *Introduction to Nonparametric Estimation*. Springer
 Series in Statistics. Springer, 2009.
+
+## REF-NEWCOMBE-1998
+
+Robert G. Newcombe. "Interval Estimation for the Difference Between
+Independent Proportions: Comparison of Eleven Methods." *Statistics in
+Medicine* 17(8), 873-890, 1998.
+
+## REF-KATZ-ETAL-1978
+
+D. Katz, J. Baptista, S. P. Azen, and M. C. Pike. "Obtaining Confidence
+Intervals for the Risk Ratio in Cohort Studies." *Biometrics* 34(3),
+469-474, 1978. doi:10.2307/2530610.
+
+## REF-WOOLF-1955
+
+Barnet Woolf. "On Estimating the Relation Between Blood Group and Disease."
+*Annals of Human Genetics* 19(4), 251-253, 1955.
+doi:10.1111/j.1469-1809.1955.tb01348.x.
+
+## REF-MCNEMAR-1947
+
+Quinn McNemar. "Note on the Sampling Error of the Difference Between
+Correlated Proportions or Percentages." *Psychometrika* 12(2), 153-157,
+1947. doi:10.1007/BF02295996.
+
+## REF-HABERMAN-1973
+
+Shelby J. Haberman. "The Analysis of Residuals in Cross-Classified Tables."
+*Biometrics* 29(1), 205-220, 1973.

@@ -21,6 +21,14 @@ from .confidence import (
     student_t_mean_confidence_interval,
     wilson_score_interval,
 )
+from .contingency import (
+    ContingencyResiduals,
+    McNemarResult,
+    TwoByTwoMeasures,
+    contingency_residuals,
+    mcnemar_test,
+    two_by_two_measures,
+)
 from .em import (
     CensoredNormalFit,
     EMMonotonicityWarning,
@@ -291,6 +299,12 @@ __all__ = [
     "bootstrap_goodness_of_fit",
     "chi_square_goodness_of_fit",
     "chi_square_independence_test",
+    "contingency_residuals",
+    "ContingencyResiduals",
+    "mcnemar_test",
+    "McNemarResult",
+    "two_by_two_measures",
+    "TwoByTwoMeasures",
     "chi_square_sf",
     "clopper_pearson_interval",
     "cohens_d",

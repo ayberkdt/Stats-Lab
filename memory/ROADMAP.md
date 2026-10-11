@@ -52,7 +52,8 @@ tested evidence.
 - [x] Mean, variance, standard deviation, z-scores, ECDF.
 - [x] Covariance and Pearson correlation.
 - [~] Hyndman-Fan quantiles, MAD, skewness, kurtosis, ranks, Spearman
-  correlation; contingency summaries and missing-data policies remain.
+  correlation, contingency summaries (two-by-two effect measures, McNemar,
+  adjusted residuals); missing-data policies remain.
 - [x] Histograms, Q-Q plots, ECDF bands, violin/box plots with kernel
   density, scatter diagnostics, uncertainty annotations, and accessible
   colour/label standards (CVD-validated light and dark palettes, ADR-0024).
