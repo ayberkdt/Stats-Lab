@@ -2005,3 +2005,283 @@ normal consistency.
 - Code: `statistics.ranks`, `statistics.spearman_correlation`,
   `propagation.PropagationStudy.rank_correlations`.
 - Source: [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 8].
+
+## Model-based reliability: FORM, SORM, subset simulation, and systems
+
+### EQ-REL-MLS-001 — Model limit state from a quantity of interest
+
+For `y = g_q(x)` from a probabilistic model and threshold `t`:
+`g(x) = t - y` when failure means `y >= t` ("above"), and `g(x) = y - t` when
+failure means `y <= t` ("below"). In standard-normal space
+`G(u) = g(T^-1(u))` with the Nataf map of [EQ-MOD-NATAF-001].
+
+- Domain: a finite threshold and a model QoI that is finite at every
+  evaluated input.
+- Meaning: one model and one joint input law define the limit state for every
+  reliability method, always with the closed failure convention `g <= 0`
+  [EQ-REL-LIMIT-001].
+- Code: `reliability.ModelLimitState.margin`, `physical`, `standard`,
+  `output_from_margin`.
+- Source: [REF-MELCHERS-BECK-2018, Chapter 3].
+
+### EQ-REL-HLRF-001 — Hasofer-Lind-Rackwitz-Fiessler recursion
+
+`u_hlrf = [(grad G(u_k) . u_k - G(u_k)) / ||grad G(u_k)||^2] grad G(u_k)`,
+`d_k = u_hlrf - u_k`, `u_{k+1} = u_k + lambda_k d_k`.
+Convergence: `|G(u)| <= eps |G(u_0)|` and
+`||u - (alpha . u) alpha|| <= eps max(1, ||u||)`.
+
+- Domain: `G` continuously differentiable near the iterates with non-zero
+  gradient; plain HL-RF uses `lambda_k = 1`. Gradients are central differences
+  [EQ-OPT-FD-001] unless an analytic gradient is supplied.
+- Meaning: each step jumps to the design point of the limit state linearized at
+  `u_k`; at a fixed point `u` is parallel to the gradient and on `G = 0`, the
+  first-order optimality conditions of `min ||u|| s.t. G(u) = 0`.
+- Code: `reliability.form_hlrf`.
+- Source: [REF-HASOFER-LIND-1974], [REF-RACKWITZ-FIESSLER-1978].
+
+### EQ-REL-HLRF-002 — iHL-RF merit function and Armijo step
+
+`m(u) = ||u||^2 / 2 + c |G(u)|` with
+`c = 2 max(||u_k||, ||u_hlrf||) / ||grad G(u_k)||`; `lambda_k` is the largest
+`2^-j` with `m(u_k + lambda d_k) <= m(u_k) + 10^-4 lambda (u_k . d_k - c |G(u_k)|)`.
+
+- Domain: as [EQ-REL-HLRF-001]. Because `grad G . d_k = -G(u_k)`, the
+  directional derivative of `m` along `d_k` is `u_k . d_k - c|G(u_k)|`, which is
+  negative whenever `c > ||u_k|| / ||grad G||` and `u_k` is not a solution.
+- Meaning: the HL-RF direction becomes a descent direction of a merit function,
+  so step halving removes the oscillation of plain HL-RF on strongly nonlinear
+  limit states. After 30 halvings the smallest trial step is accepted.
+- Code: `reliability.form_hlrf` with `line_search=True`.
+- Source: [REF-ZHANG-DERKIUREGHIAN-1995], [REF-DERKIUREGHIAN-2005].
+
+### EQ-REL-FORM-002 — General FORM index, probability, and importance
+
+At the converged design point `u*`: `alpha = -grad G(u*) / ||grad G(u*)||`,
+`beta = alpha . u*`, `P_f ~= Phi(-beta)`, `x* = T^-1(u*)`, importance
+factors `alpha_i^2` (summing to one), and for the Nataf map `u = L^-1 z`
+the correlated importance vector `gamma = L^-T alpha / ||L^-T alpha||`.
+
+- Domain: a unique dominant design point and a limit surface well
+  approximated by its tangent hyperplane; the sign of `beta` is negative when
+  the origin lies in the failure domain. Under correlation `u_i` is the i-th
+  Cholesky coordinate, so `alpha_i^2` depends on input order while `gamma`
+  refers to the physical inputs.
+- Meaning: generalizes [EQ-REL-FORM-001] to nonlinear, non-normal, and
+  correlated inputs; exact whenever `G = 0` is a hyperplane in `u` (for example
+  a lognormal `R - S` margin).
+- Code: `reliability.form_hlrf`, `reliability.FORMResult`,
+  `reliability.correlated_importance`.
+- Source: [REF-HASOFER-LIND-1974], [REF-DERKIUREGHIAN-2005],
+  [REF-MELCHERS-BECK-2018, Chapter 5].
+
+### EQ-REL-SORM-001 — Principal curvatures at the design point
+
+Let `R` be orthonormal with last row `alpha` and `T` its first `n-1` rows.
+The principal curvatures are the eigenvalues of
+`A = T H T' / ||grad G(u*)||`, where `H` is the Hessian of `G` at `u*`.
+
+- Domain: `G` twice differentiable at `u*` with non-zero gradient; `H` is a
+  central-difference Hessian [EQ-OPT-FD-002] (`2n^2 + 1` model calls) and the
+  eigenvalues come from cyclic Jacobi [EQ-LINALG-005].
+- Meaning: near `u*` the limit surface is the paraboloid
+  `v_n = beta + (1/2) sum_i kappa_i v_i^2` in rotated coordinates; positive
+  `kappa_i` bend it away from the origin and shrink the failure domain.
+- Code: `reliability.principal_curvatures`, `reliability.sorm`.
+- Source: [REF-BREITUNG-1984], [REF-DERKIUREGHIAN-2005].
+
+### EQ-REL-SORM-002 — Breitung asymptotic SORM formula
+
+`P_f ~= Phi(-beta) prod_{i=1}^{n-1} (1 + beta kappa_i)^(-1/2)`.
+
+- Domain: `beta > 0` and `1 + beta kappa_i > 0` for every curvature;
+  otherwise the code raises instead of returning a meaningless value. The
+  formula is asymptotically exact as `beta -> infinity` with `beta kappa_i`
+  fixed.
+- Meaning: corrects the FORM hyperplane by the Gaussian mass of the
+  osculating paraboloid.
+- Code: `reliability.second_order_probabilities`, `reliability.sorm`.
+- Source: [REF-BREITUNG-1984].
+
+### EQ-REL-SORM-003 — Hohenbichler-Rackwitz SORM improvement
+
+`P_f ~= Phi(-beta) prod_i (1 + psi(beta) kappa_i)^(-1/2)`, with
+`psi(beta) = phi(beta) / Phi(-beta)`.
+
+- Domain: `beta > 0` and `1 + psi kappa_i > 0`. Since `psi(beta) > beta`, it
+  departs further from FORM than [EQ-REL-SORM-002] for moderate `beta`.
+- Meaning: replaces `beta` by the inverse Mills ratio, improving accuracy for
+  moderate reliability indices.
+- Code: `reliability.second_order_probabilities`, `reliability.sorm`.
+- Source: [REF-HOHENBICHLER-RACKWITZ-1988].
+
+### EQ-REL-ISDP-001 — Importance sampling centered at the design point
+
+Proposal `h(u) = phi_n(u - c)` with `c = u*` (or a supplied center);
+`w(u) = phi_n(u) / h(u) = exp(||c||^2 / 2 - u . c)` and
+`P_f ~= N^-1 sum_i I(G(u_i) <= 0) w(u_i)`. For a system proposal, the equal
+mixture `h(u) = m^-1 sum_k phi_n(u - c_k)` over component design points gives
+`w(u) = phi_n(u) / h(u)`.
+
+- Domain: the proposal covers the failure contribution (always true for a
+  Gaussian proposal); efficiency requires the failure mass to concentrate near
+  the centers. Distant secondary failure regions are under-sampled and inflate
+  the variance.
+- Meaning: the specialization of [EQ-REL-IS-001] that reuses FORM to turn a
+  rare event into a frequent one under the proposal.
+- Code: `reliability.design_point_importance_sampling`,
+  `reliability.system_failure_probability` with `method="is"`.
+- Source: [REF-MELCHERS-BECK-2018, Chapter 6], [REF-OWEN-2013, Chapter 9].
+
+### EQ-REL-SUBSET-001 — Subset-simulation product of conditional levels
+
+`F_1 ⊃ F_2 ⊃ ... ⊃ F_m = F` with `F_j = {G(u) <= b_j}` and
+`P_f = P(F_1) prod_{j=2}^{m} P(F_j | F_{j-1}) ~= p0^(m-1) N_F / N`. The
+threshold `b_j` is the midpoint of the `N p0`-th and `(N p0 + 1)`-th smallest
+values of `G` at the current level; the run stops when at least `N p0`
+samples satisfy `G <= 0`.
+
+- Domain: `N p0` a positive integer dividing `N`; a continuous response near
+  the intermediate thresholds (level-0 ties are rejected).
+- Meaning: a rare probability becomes a product of frequent conditional
+  probabilities, each estimated from about `N` samples.
+- Code: `reliability.subset_simulation`.
+- Source: [REF-AU-BECK-2001].
+
+### EQ-REL-SUBSET-002 — Component-wise modified Metropolis step
+
+For each coordinate, `xi_k = u_k + s Z` with `Z ~ N(0, 1)` is accepted with
+probability `min(1, phi(xi_k) / phi(u_k))`; the candidate vector replaces the
+current state only if `G(xi) <= b_j`, otherwise the chain repeats its state.
+
+- Domain: independent standard-normal target restricted to `F_j`; the
+  proposal spread `s > 0` controls acceptance and correlation.
+- Meaning: generates conditional samples given `F_j` whose stationary law is
+  `phi_n(u) I(u in F_j) / P(F_j)`, with acceptance rates that do not collapse
+  in high dimension as a full-vector Metropolis step would.
+- Code: `reliability.subset_simulation`.
+- Source: [REF-AU-BECK-2001].
+
+### EQ-REL-SUBSET-003 — Subset-simulation coefficient of variation
+
+`delta_j^2 = (1 - P_j) / (N P_j) (1 + gamma_j)`,
+`gamma_j = 2 sum_{k=1}^{N_s - 1} (1 - k/N_s) rho_j(k)`,
+`rho_j(k) = R_j(k)/R_j(0)` with
+`R_j(k) = (N - k N_c)^-1 sum_chains sum_l I_l I_{l+k} - P_j^2`;
+reported `delta ~= sqrt(sum_j delta_j^2)` and upper value `sum_j delta_j`.
+
+- Domain: chains of length `N_s = 1/p0` started from `N_c = N p0` seeds;
+  level 0 has `gamma = 0`. The root-sum-square value assumes uncorrelated
+  level estimators and typically understates the true c.o.v.; the sum is the
+  fully correlated value.
+- Meaning: an approximate a-posteriori error measure that accounts for
+  within-chain correlation of the indicator samples.
+- Code: `reliability.subset_simulation` (`_level_cov`).
+- Source: [REF-AU-BECK-2001].
+
+### EQ-REL-SYS-001 — Series and parallel system failure events
+
+Series: `F_sys = union_k {g_k <= 0} = {min_k g_k <= 0}`.
+Parallel: `F_sys = intersection_k {g_k <= 0} = {max_k g_k <= 0}`.
+`P_sys = E[I(x in F_sys)]` estimated by crude Monte Carlo [EQ-MC-PROB-001]
+or by the mixture importance sampler of [EQ-REL-ISDP-001].
+
+- Domain: all components share one joint input law; each distinct model is
+  evaluated once per sample.
+- Meaning: the system event is a deterministic Boolean combination of
+  component events on the same random input.
+- Code: `reliability.system_failure_probability`.
+- Source: [REF-MELCHERS-BECK-2018, Chapter 5].
+
+### EQ-REL-SYS-002 — Uni-modal series-system bounds
+
+`max_i P_i <= P_sys <= 1 - prod_i (1 - P_i)`.
+
+- Domain: the upper bound requires positively dependent component events
+  (reported through `positively_correlated`, i.e. all `rho_ij >= 0` in the
+  first-order model); the lower bound always holds.
+- Meaning: brackets a series system from component probabilities alone; wide
+  when several components have similar probabilities.
+- Code: `reliability.series_system_bounds`.
+- Source: [REF-CORNELL-1967], [REF-MELCHERS-BECK-2018, Chapter 5].
+
+### EQ-REL-SYS-003 — Ditlevsen bi-modal series-system bounds
+
+With components ordered by decreasing `P_i`, `P_i = Phi(-beta_i)`,
+`rho_ij = alpha_i . alpha_j`, and `P_ij = Phi_2(-beta_i, -beta_j; rho_ij)`:
+`P_1 + sum_{i>=2} max(0, P_i - sum_{j<i} P_ij) <= P_sys <=
+sum_i P_i - sum_{i>=2} max_{j<i} P_ij`.
+
+- Domain: valid for any dependence given exact `P_i` and `P_ij`; here both
+  come from linearized (FORM) components, so the bounds bracket the
+  first-order system probability. Bounds depend on ordering.
+- Meaning: second-order inclusion-exclusion bounds that are usually much
+  narrower than [EQ-REL-SYS-002]; exact for two components.
+- Code: `reliability.series_system_bounds`.
+- Source: [REF-DITLEVSEN-1979], [REF-MELCHERS-BECK-2018, Chapter 5].
+
+### EQ-REL-BVN-001 — Bivariate standard normal CDF
+
+`Phi_2(h, k; rho) = Phi(h) Phi(k) + (2 pi)^-1 integral_0^{asin rho}
+exp(-(h^2 + k^2 - 2 h k sin t) / (2 cos^2 t)) dt` for `|rho| < 0.925`; for
+`|rho| >= 0.925` the integral is rewritten in `sqrt(1 - rho^2)` with an
+asymptotic expansion of the singular part, and `rho = +-1` is handled
+exactly. Special value: `Phi_2(0, 0; rho) = 1/4 + asin(rho) / (2 pi)`.
+
+- Domain: real limits (infinite limits handled explicitly), `rho in [-1, 1]`.
+- Meaning: joint failure probability of two linearized components; computed
+  with 6, 12, or 20 Gauss-Legendre nodes [EQ-REL-BVN-002] to about `1e-15`
+  absolute error.
+- Code: `reliability.bivariate_normal_cdf`.
+- Source: [REF-GENZ-2004], [REF-DREZNER-WESOLOWSKY-1990].
+
+### EQ-REL-BVN-002 — Gauss-Legendre quadrature by Golub-Welsch
+
+`integral_{-1}^{1} f(t) dt ~= sum_i w_i f(t_i)`, where `t_i` are the
+eigenvalues of the symmetric tridiagonal matrix with off-diagonal
+`k / sqrt(4k^2 - 1)` and `w_i = 2 v_{1i}^2`.
+
+- Domain: order `1 <= n <= 64`; exact for polynomials of degree `<= 2n - 1`.
+- Meaning: deterministic quadrature nodes for the bivariate normal integral,
+  computed rather than tabulated.
+- Code: `reliability.gauss_legendre`.
+- Source: [REF-GOLUB-WELSCH-1969].
+
+### EQ-REL-INV-001 — Inverse FORM threshold on the target sphere
+
+For target `beta_t > 0`, iterate `u_{k+1} = beta_t alpha(u_k)` with
+`alpha = -grad G / ||grad G||` from `u_0 = 0` until
+`||u_{k+1} - u_k|| <= eps beta_t`; the threshold is `t* = y(u*)`.
+
+- Domain: the threshold enters `g` additively, so the minimizer of `G` on the
+  sphere `||u|| = beta_t` does not depend on `t`; convergence of the fixed
+  point is reported, not assumed (it can oscillate on concave responses).
+- Meaning: the performance-measure form of target reliability: the quantity
+  level whose first-order failure index equals `beta_t`.
+- Code: `reliability.inverse_form`.
+- Source: [REF-DERKIUREGHIAN-ZHANG-LI-1994], [REF-TU-CHOI-PARK-1999].
+
+### EQ-REL-RBDO-001 — Design parameter for a target reliability index
+
+Find `theta` in a sign-changing bracket with
+`beta_FORM(theta) - beta_t = 0`, where `theta` is a deterministic entry of
+`model.fixed`, using Brent's method [EQ-OPT-BRENT-001].
+
+- Domain: `beta_FORM` continuous in `theta` on the bracket and FORM
+  converging at every trial value (otherwise an explicit error is raised).
+- Meaning: the reliability-index (RIA) view of a one-parameter
+  reliability-based design problem.
+- Code: `reliability.design_for_target_beta`.
+- Source: [REF-TU-CHOI-PARK-1999], [REF-BRENT-1973, Chapter 4].
+
+### EQ-REL-BETA-001 — Generalized (equivalent) reliability index
+
+`beta_g = -Phi^-1(P_f)`, with `beta_g = +inf` for `P_f = 0` and `-inf` for
+`P_f = 1`.
+
+- Domain: any failure probability in `[0, 1]`.
+- Meaning: expresses estimates from SORM, sampling, or subset simulation on
+  the same scale as the FORM index for comparison.
+- Code: `reliability.generalized_reliability_index`,
+  `reliability.compare_reliability_methods`.
+- Source: [REF-DITLEVSEN-MADSEN-1996].
