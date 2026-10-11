@@ -1116,3 +1116,48 @@ Human Factors in Computing Systems*, 5092-5103, 2016.
 
 David Spiegelhalter, Mike Pearson, and Ian Short. "Visualizing
 Uncertainty About the Future." *Science* 333(6048), 1393-1400, 2011.
+
+## REF-BOX-JENKINS-2015
+
+George E. P. Box, Gwilym M. Jenkins, Gregory C. Reinsel, and Greta M. Ljung.
+*Time Series Analysis: Forecasting and Control*. 5th edition. Wiley, 2015.
+
+## REF-BROCKWELL-DAVIS-2016
+
+Peter J. Brockwell and Richard A. Davis. *Introduction to Time Series and
+Forecasting*. 3rd edition. Springer Texts in Statistics. Springer, 2016.
+
+## REF-HAMILTON-1994
+
+James D. Hamilton. *Time Series Analysis*. Princeton University Press, 1994.
+
+## REF-DURBIN-KOOPMAN-2012
+
+James Durbin and Siem Jan Koopman. *Time Series Analysis by State Space
+Methods*. 2nd edition. Oxford University Press, 2012.
+
+## REF-LJUNG-BOX-1978
+
+G. M. Ljung and G. E. P. Box. "On a Measure of Lack of Fit in Time Series
+Models." *Biometrika* 65(2), 297-303, 1978.
+
+## REF-JONES-1980
+
+Richard H. Jones. "Maximum Likelihood Fitting of ARMA Models to Time Series
+with Missing Observations." *Technometrics* 22(3), 389-395, 1980.
+
+## REF-MONAHAN-1984
+
+John F. Monahan. "A Note on Enforcing Stationarity in
+Autoregressive-Moving Average Models." *Biometrika* 71(2), 403-404, 1984.
+
+## REF-KERNER-1966
+
+Immo O. Kerner. "Ein Gesamtschrittverfahren zur Berechnung der Nullstellen
+von Polynomen." *Numerische Mathematik* 8, 290-294, 1966.
+
+## REF-HOLT-2004
+
+Charles C. Holt. "Forecasting Seasonals and Trends by Exponentially Weighted
+Moving Averages." *International Journal of Forecasting* 20(1), 5-10, 2004.
+Reprint of a 1957 Office of Naval Research memorandum.
