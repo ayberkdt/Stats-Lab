@@ -139,13 +139,14 @@ def render() -> str:
 
     Raises:
         ValueError: If a package is missing from, or listed twice in,
-            ``GROUPS``.
+            ``GROUPS``, or has no stability label.
 
     References:
         Project documentation tooling. No equation is evaluated.
 
     """
     import probstat
+    from probstat.foundations.stability import PACKAGE_STABILITY
 
     packages = sorted(
         info.name
@@ -157,6 +158,9 @@ def render() -> str:
         missing = sorted(set(packages) - set(grouped))
         extra = sorted(set(grouped) - set(packages))
         raise ValueError(f"GROUPS out of date: missing {missing}, unknown {extra}")
+    unlabelled = sorted(set(packages) - set(PACKAGE_STABILITY))
+    if unlabelled:
+        raise ValueError(f"packages without a stability label: {unlabelled}")
     total = 0
     sections: list[str] = []
     for title, blurb, names in GROUPS:
@@ -166,7 +170,8 @@ def render() -> str:
                 exported = sorted(module.__all__, key=str.lower)
                 total += len(exported)
                 dotted = module.__name__
-                sections.append(f"### `{dotted}`\n")
+                label = PACKAGE_STABILITY[dotted.split(".")[1]]
+                sections.append(f"### `{dotted}` · {label}\n")
                 doc = (module.__doc__ or "").strip().splitlines()
                 if doc:
                     sections.append(f"{doc[0]}\n")
@@ -184,7 +189,11 @@ def render() -> str:
         "entry shows the first line of the docstring; the full docstring "
         "states arguments, equations (`EQ-*`, see "
         "[equation-registry.md](equation-registry.md)) and references "
-        "(`REF-*`, see [references.md](references.md)).\n\n"
+        "(`REF-*`, see [references.md](references.md)). Each package heading "
+        "carries its stability label (ADR-0048): *stable* changes only after "
+        "a deprecation period, *provisional* may still change but is "
+        "deprecated first where practical, *experimental* may change in any "
+        "release.\n\n"
         f"{contents}\n"
     )
     return header + "\n" + "\n".join(sections).rstrip() + "\n"

@@ -30,6 +30,13 @@ adding or renaming a public name, regenerate it with
 `PYTHONPATH=src python tools/generate_api_reference.py`;
 `tests/test_api_reference.py` fails while it is stale.
 
+Every top-level package carries a stability label (`stable`, `provisional`,
+`experimental`) in `probstat.foundations.stability` (ADR-0048). A new package
+starts as `experimental`. Removing or changing a name in a `stable` package
+requires a deprecation period of at least one minor release: wrap the old
+name with `probstat.foundations.deprecated(since=..., removal=...,
+alternative=...)` and record it in the changelog.
+
 ## 3. Equation contract
 
 Every implemented or documented equation receives one stable ID:

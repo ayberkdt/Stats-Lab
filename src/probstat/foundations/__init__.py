@@ -14,6 +14,7 @@ from .protocols import (
     SurvivalFunction,
 )
 from .random_streams import RandomStream, derive_seed, resolve_stream, splitmix64
+from .stability import PACKAGE_STABILITY, Stability, deprecated, package_stability
 from .validation import (
     coerce_finite_sample,
     require_finite_complex,
@@ -30,13 +31,17 @@ __all__ = [
     "HasMeanAndVariance",
     "LogProbabilityDensity",
     "LogProbabilityMassFunction",
+    "PACKAGE_STABILITY",
     "ProbabilityDensity",
     "ProbabilityMassFunction",
     "QuantileFunction",
     "RandomStream",
+    "Stability",
     "SurvivalFunction",
     "coerce_finite_sample",
+    "deprecated",
     "derive_seed",
+    "package_stability",
     "require_finite_complex",
     "require_finite_real",
     "require_non_negative_finite_real",
