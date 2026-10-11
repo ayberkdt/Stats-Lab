@@ -102,21 +102,21 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-7.13 | Posterior-predictive distributions and checks | Implemented | UQ-6 | `probstat.inference.predictive` | `src/probstat/inference/bayesian.py`; `examples/bayesian_calibration_lab.py` |
 | ATHENS-7.14 | Model discrepancy in calibration | Implemented | UQ-6 | `probstat.validation.discrepancy` | `src/probstat/validation/discrepancy.py`; `docs/foundations/inverse-problems-and-calibration.md` |
 | ATHENS-7.15 | Calibration versus prediction | Implemented | UQ-6 | `probstat.inverse` | `src/probstat/inverse/calibration.py`; `examples/bayesian_calibration_lab.py` |
-| ATHENS-8.1 | Dynamic state-space models | Planned | UQ-7 | `probstat.filtering.state_space` | — |
-| ATHENS-8.2 | Discrete-time dynamical systems | Planned | UQ-7 | `probstat.filtering.state_space` | — |
-| ATHENS-8.3 | State estimation | Planned | UQ-7 | `probstat.filtering` | — |
-| ATHENS-8.4 | Prediction step | Planned | UQ-7 | `probstat.filtering` | — |
-| ATHENS-8.5 | Observation model for filtering | Planned | UQ-7 | `probstat.filtering` | — |
-| ATHENS-8.6 | Measurement-update step | Planned | UQ-7 | `probstat.filtering` | — |
-| ATHENS-8.7 | Process noise and measurement noise | Planned | UQ-7 | `probstat.filtering.noise` | — |
-| ATHENS-8.8 | Covariance propagation | Planned | UQ-7 | `probstat.filtering` | — |
-| ATHENS-8.9 | Sequential Bayesian updating | Planned | UQ-7 | `probstat.filtering.bayesian` | — |
-| ATHENS-8.10 | Data assimilation | Planned | UQ-7 | `probstat.data_assimilation` | — |
-| ATHENS-8.11 | Filtering versus smoothing | Planned | UQ-7 | `probstat.filtering.smoothing` | — |
-| ATHENS-8.12 | Kalman filter | Planned | UQ-7 | `probstat.filtering.kalman` | — |
-| ATHENS-8.13 | Extended Kalman filter | Planned | UQ-7 | `probstat.filtering.ekf` | — |
-| ATHENS-8.14 | Ensemble Kalman filter | Planned | UQ-7 | `probstat.data_assimilation.enkf` | — |
-| ATHENS-8.15 | Particle filtering | Planned | UQ-7 | `probstat.filtering.particle` | — |
+| ATHENS-8.1 | Dynamic state-space models | Implemented | UQ-7 | `probstat.filtering.state_space` | `src/probstat/filtering/state_space.py`; `docs/foundations/filtering-and-data-assimilation.md` |
+| ATHENS-8.2 | Discrete-time dynamical systems | Implemented | UQ-7 | `probstat.filtering.state_space` | `src/probstat/filtering/state_space.py`; `tests/test_uq7_filtering.py` |
+| ATHENS-8.3 | State estimation | Implemented | UQ-7 | `probstat.filtering` | `src/probstat/filtering/kalman.py`; `tests/test_uq7_filtering.py` |
+| ATHENS-8.4 | Prediction step | Implemented | UQ-7 | `probstat.filtering.kalman` | `src/probstat/filtering/kalman.py`; `tests/test_uq7_filtering.py` |
+| ATHENS-8.5 | Observation model for filtering | Implemented | UQ-7 | `probstat.filtering.state_space` | `src/probstat/filtering/state_space.py`; `src/probstat/filtering/kalman.py` |
+| ATHENS-8.6 | Measurement-update step | Implemented | UQ-7 | `probstat.filtering.kalman` | `src/probstat/filtering/kalman.py`; `tests/test_uq7_filtering.py` |
+| ATHENS-8.7 | Process noise and measurement noise | Implemented | UQ-7 | `probstat.filtering.state_space` | `src/probstat/filtering/state_space.py`; `docs/foundations/filtering-and-data-assimilation.md`; `tests/test_uq7_filtering.py` |
+| ATHENS-8.8 | Covariance propagation | Implemented | UQ-7 | `probstat.filtering.kalman` | `src/probstat/filtering/kalman.py`; `tests/test_uq7_filtering.py` |
+| ATHENS-8.9 | Sequential Bayesian updating | Implemented | UQ-7 | `probstat.filtering.kalman` | `src/probstat/filtering/kalman.py`; `src/probstat/filtering/particle.py`; `docs/foundations/filtering-and-data-assimilation.md` |
+| ATHENS-8.10 | Data assimilation | Implemented | UQ-7 | `probstat.data_assimilation` | `src/probstat/data_assimilation/enkf.py`; `src/probstat/data_assimilation/variational.py`; `tests/test_uq7_filtering.py` |
+| ATHENS-8.11 | Filtering versus smoothing | Implemented | UQ-7 | `probstat.filtering.kalman` | `src/probstat/filtering/kalman.py`; `docs/foundations/filtering-and-data-assimilation.md`; `tests/test_uq7_filtering.py` |
+| ATHENS-8.12 | Kalman filter | Implemented | UQ-7 | `probstat.filtering.kalman` | `src/probstat/filtering/kalman.py`; `tests/test_uq7_filtering.py` |
+| ATHENS-8.13 | Extended Kalman filter | Implemented | UQ-7 | `probstat.filtering.extended` | `src/probstat/filtering/extended.py`; `tests/test_uq7_filtering.py` |
+| ATHENS-8.14 | Ensemble Kalman filter | Implemented | UQ-7 | `probstat.data_assimilation.enkf` | `src/probstat/data_assimilation/enkf.py`; `tests/test_uq7_filtering.py` |
+| ATHENS-8.15 | Particle filtering | Implemented | UQ-7 | `probstat.filtering.particle` | `src/probstat/filtering/particle.py`; `tests/test_uq7_filtering.py` |
 | ATHENS-9.1 | Statistical fitting laboratory | Partial | LAB-1 | `examples.labs.statistical_fitting` | `examples/statistical_fitting_lab.py`; `src/probstat/visualization/foundations.py` |
 | ATHENS-9.2 | Basic Monte Carlo laboratory | Implemented | LAB-2 | `examples.labs.basic_monte_carlo` | `examples/basic_monte_carlo_lab.py`; `src/probstat/visualization/foundations.py` |
 | ATHENS-9.3 | Advanced Monte Carlo variance-reduction laboratory | Implemented | LAB-3 | `examples.labs.advanced_monte_carlo` | `examples/advanced_monte_carlo_lab.py`; `docs/foundations/advanced-monte-carlo.md` |
