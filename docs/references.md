@@ -1354,3 +1354,49 @@ Statistical Software* 33(1), 1-22, 2010.
 
 F. J. Anscombe. "Graphs in Statistical Analysis." *The American
 Statistician* 27(1), 17-21, 1973.
+
+## REF-PEARL-2009
+
+Judea Pearl. *Causality: Models, Reasoning, and Inference*. 2nd edition.
+Cambridge University Press, 2009.
+
+## REF-HERNAN-ROBINS-2020
+
+Miguel A. Hernán and James M. Robins. *Causal Inference: What If*. Chapman
+and Hall/CRC, 2020.
+
+## REF-ROSENBAUM-RUBIN-1983
+
+Paul R. Rosenbaum and Donald B. Rubin. "The Central Role of the Propensity
+Score in Observational Studies for Causal Effects." *Biometrika* 70(1),
+41-55, 1983.
+
+## REF-ROBINS-ROTNITZKY-ZHAO-1994
+
+James M. Robins, Andrea Rotnitzky, and Lue Ping Zhao. "Estimation of
+Regression Coefficients When Some Regressors Are Not Always Observed."
+*Journal of the American Statistical Association* 89(427), 846-866, 1994.
+
+## REF-IMBENS-RUBIN-2015
+
+Guido W. Imbens and Donald B. Rubin. *Causal Inference for Statistics,
+Social, and Biomedical Sciences: An Introduction*. Cambridge University
+Press, 2015.
+
+## REF-SHPITSER-PEARL-2006
+
+Ilya Shpitser and Judea Pearl. "Identification of Joint Interventional
+Distributions in Recursive Semi-Markovian Causal Models." *Proceedings of the
+Twenty-First National Conference on Artificial Intelligence (AAAI-06)*,
+1219-1226, 2006.
+
+## REF-VANDERWEELE-DING-2017
+
+Tyler J. VanderWeele and Peng Ding. "Sensitivity Analysis in Observational
+Research: Introducing the E-Value." *Annals of Internal Medicine* 167(4),
+268-274, 2017.
+
+## REF-LAURITZEN-ETAL-1990
+
+S. L. Lauritzen, A. P. Dawid, B. N. Larsen, and H.-G. Leimer. "Independence
+Properties of Directed Markov Fields." *Networks* 20(5), 491-505, 1990.

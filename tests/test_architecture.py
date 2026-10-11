@@ -33,6 +33,7 @@ LAYER = {
     "probstat.filtering": 6,
     "probstat.data_assimilation": 6,
     "probstat.conformal": 6,
+    "probstat.causal": 3,
     "probstat.workflow": 7,
     "probstat.timeseries": 7,
     "probstat.visualization": 9,
