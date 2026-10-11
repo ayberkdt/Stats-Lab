@@ -25,6 +25,11 @@ callable docstring describes parameters, returns, errors, the mathematical
 meaning, and source keys. If code evaluates or defines a mathematical equation,
 the docstring includes its equation ID.
 
+`docs/api-reference.md` is generated from every package's `__all__`. After
+adding or renaming a public name, regenerate it with
+`PYTHONPATH=src python tools/generate_api_reference.py`;
+`tests/test_api_reference.py` fails while it is stale.
+
 ## 3. Equation contract
 
 Every implemented or documented equation receives one stable ID:
@@ -55,6 +60,7 @@ including decisions, verification results, and the next safe step.
 - The architecture test reports no dependency cycle or upward import.
 - The documentation test reports no undocumented callable, unknown equation
   ID, or unknown reference key.
+- The API reference is current (`tests/test_api_reference.py`).
 - Numerical edge cases and error behavior are tested.
 - User-facing examples remain executable.
 
