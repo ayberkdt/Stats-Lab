@@ -175,6 +175,36 @@ class ThemeTests(unittest.TestCase):
         ):
             self.assertTrue(axes.get_title(loc="left"))
 
+    def test_statistical_model_plots_render(self) -> None:
+        """Correlogram, forecast, survival, and regression panels render."""
+        from probstat.visualization.statistics_plots import (
+            plot_correlogram,
+            plot_forecast,
+            plot_regression_diagnostics,
+            plot_survival_curves,
+        )
+
+        produced = [
+            plot_correlogram([1.0, 0.5, 0.2, 0.05], 0.1, kind="ACF"),
+            plot_forecast([1.0, 2.0, 1.5], [1.4, 1.3], [0.4, 0.1], [2.4, 2.5]),
+            plot_survival_curves(
+                {
+                    "a": (
+                        (1.0, 2.0, 3.0),
+                        (0.8, 0.5, 0.2),
+                        (0.6, 0.3, 0.05),
+                        (0.95, 0.7, 0.4),
+                    )
+                }
+            ),
+        ]
+        for axes in produced:
+            self.assertTrue(axes.get_title(loc="left"))
+        figure = plot_regression_diagnostics(
+            [1.0, 2.0, 3.0, 4.0], [0.1, -0.2, 0.3, -0.1]
+        )
+        self.assertEqual(len(figure.axes), 2)
+
     def test_dark_theme_changes_canvas(self) -> None:
         """The graphite context paints the dark canvas."""
         from matplotlib.colors import to_hex
