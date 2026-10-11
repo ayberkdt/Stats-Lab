@@ -7310,3 +7310,205 @@ beta law and `F` the model CDF.
 - Code: `visualization.extremes_plots.order_statistic_band`,
   `visualization.extremes_plots.plot_tail_quantiles`.
 - Source: [REF-CASELLA-BERGER-2002, Section 5.4].
+
+### EQ-EM-001 — EM iteration and its monotonicity
+
+`theta_{t+1} = argmax_theta Q(theta | theta_t)`,
+`Q(theta | theta_t) = E[log p(y, Z | theta) | y, theta_t]`, and
+`l(theta_{t+1}) >= l(theta_t)` for the observed-data log-likelihood `l`.
+
+- Domain: an exact E-step and an M-step that maximizes `Q` (or a penalized
+  `Q` whose penalty is fixed across iterations, in which case the inequality
+  holds for the penalized objective).
+- Meaning: `Q(theta | theta_t) - l(theta)` is maximized at `theta_t`
+  (Jensen), so each step cannot decrease `l`; limit points are stationary
+  points under Wu's conditions, not necessarily global maxima. The driver
+  flags a decrease larger than `slack (1 + |l_t|)`.
+- Code: `inference.expectation_maximization`.
+- Source: [REF-DEMPSTER-LAIRD-RUBIN-1977], [REF-WU-1983],
+  [REF-MCLACHLAN-KRISHNAN-2008].
+
+### EQ-EM-CENS-001 — Observed-data log-likelihood of censored normal data
+
+`l(mu, sigma) = sum_exact [-log sigma - log sqrt(2 pi) - z_i^2/2]
++ sum_censored log(Phi(b_i) - Phi(a_i))`, with `z_i = (y_i - mu)/sigma`,
+`a_i = (l_i - mu)/sigma`, `b_i = (u_i - mu)/sigma`.
+
+- Domain: `sigma > 0`; each censored value lies in `[l_i, u_i]` with
+  `l_i = -inf` (left), `u_i = inf` (right), or both finite (interval).
+- Meaning: exact values contribute densities, censored values contribute
+  interval probabilities, evaluated in log space without tail cancellation.
+- Code: `inference.censored_normal_log_likelihood`.
+- Source: [REF-DEMPSTER-LAIRD-RUBIN-1977], [REF-NIST-DLMF, Section 7.2].
+
+### EQ-EM-CENS-002 — EM steps for censored normal data
+
+E-step: `E[Y_i] = m_i`, `E[Y_i^2] = v_i + m_i^2`, where `m_i`, `v_i` are the
+mean and variance of `N(mu_t, sigma_t^2)` truncated to `[l_i, u_i]` (exact
+values: `m_i = y_i`, `v_i = 0`). M-step: `mu = (1/n) sum E[Y_i]`,
+`sigma^2 = (1/n) sum E[Y_i^2] - mu^2`.
+
+- Domain: at least two finite values to start; positive completed variance.
+- Meaning: the complete-data normal MLE applied to completed sufficient
+  statistics; truncated moments from [EQ-DIST-TN-003].
+- Code: `inference.fit_censored_normal`.
+- Source: [REF-DEMPSTER-LAIRD-RUBIN-1977], [REF-MCLACHLAN-KRISHNAN-2008],
+  [REF-JKB-1994, Chapter 13].
+
+### EQ-GMM-001 — Gaussian-mixture log-likelihood and responsibilities
+
+`l = sum_i log sum_k w_k N(x_i | m_k, S_k)` and
+`r_ik = w_k N(x_i | m_k, S_k) / sum_l w_l N(x_i | m_l, S_l)`, computed with
+`log-sum-exp` and Cholesky factors of `S_k`.
+
+- Domain: weights on the simplex, symmetric positive-definite `S_k`.
+- Meaning: `r_ik` is the posterior probability that point `i` came from
+  component `k`; it is the E-step of mixture EM.
+- Code: `inference.GaussianMixture.log_pdf`,
+  `inference.GaussianMixture.responsibilities`, `inference.fit_gaussian_mixture`.
+- Source: [REF-MCLACHLAN-PEEL-2000], [REF-BISHOP-2006, Section 9.2].
+
+### EQ-GMM-002 — Penalized M-step with a fixed covariance floor
+
+Objective `l_pen = l - (1/2) sum_k tr(Lambda S_k^-1)`,
+`Lambda = diag(lambda_j)`, `lambda_j = c var_j`. M-step:
+`N_k = sum_i r_ik`, `w_k = N_k/n`, `m_k = sum_i r_ik x_i / N_k`,
+`S_k = (sum_i r_ik (x_i - m_k)(x_i - m_k)' + Lambda) / N_k` (diagonal part only
+for diagonal covariances).
+
+- Domain: `c >= 0`; with `c > 0` every `S_k` is positive definite and
+  `l_pen` is bounded above.
+- Meaning: the exact maximizer of `Q - (1/2) sum_k tr(Lambda S_k^-1)`; since
+  `Lambda` does not change between iterations, EM is monotone for `l_pen`
+  ([EQ-EM-001]). Information criteria use the unpenalized `l`.
+- Code: `inference.fit_gaussian_mixture`.
+- Source: [REF-MCLACHLAN-PEEL-2000], [REF-DEMPSTER-LAIRD-RUBIN-1977].
+
+### EQ-GMM-003 — k-means++ seeding
+
+First center uniform over the data; each next center is `x_i` with
+probability `D(x_i)^2 / sum_j D(x_j)^2`, `D(x)` the distance from `x` to the
+nearest chosen center.
+
+- Domain: `1 <= K <= n`; if all distances are zero the choice is uniform.
+- Meaning: the `D^2` weighting of Arthur and Vassilvitskii; the library
+  follows it with up to 20 Lloyd iterations before forming EM starting values.
+- Code: `inference.kmeans_plus_plus`, `inference.fit_gaussian_mixture`.
+- Source: [REF-ARTHUR-VASSILVITSKII-2007].
+
+### EQ-GMM-004 — Free parameters of a Gaussian mixture
+
+`p = (K - 1) + K d + K d (d + 1)/2` (full covariances) or
+`p = (K - 1) + 2 K d` (diagonal covariances); `AIC = 2p - 2 l`,
+`BIC = p log n - 2 l`.
+
+- Domain: maximized unpenalized log-likelihood `l`, `n` data points.
+- Meaning: BIC penalizes each extra component by its parameter count; used to
+  choose `K` ([EQ-INF-IC-001], [EQ-INF-IC-003]).
+- Code: `inference.GaussianMixture.parameter_count`,
+  `inference.select_gaussian_mixture`.
+- Source: [REF-MCLACHLAN-PEEL-2000], [REF-SCHWARZ-1978], [REF-AKAIKE-1974].
+
+### EQ-HIER-001 — Conditional posteriors of the hierarchical normal model
+
+`mu | tau, y ~ N(mu_hat, V_mu)` with
+`V_mu^-1 = [1/s_0^2] + sum_j 1/(s_j^2 + tau^2)`,
+`mu_hat = V_mu ([m_0/s_0^2] + sum_j y_j/(s_j^2 + tau^2))` (bracketed terms
+only for a `N(m_0, s_0^2)` prior); `theta_j | mu, tau, y ~
+N((1 - B_j) y_j + B_j mu, (1 - B_j) s_j^2)`.
+
+- Domain: known `s_j > 0`, `tau >= 0` (at `tau = 0`, `theta_j = mu`).
+- Meaning: normal-normal conjugacy given `tau`; integrating `mu` gives
+  `E[theta_j | tau, y] = (1 - B_j) y_j + B_j mu_hat`,
+  `Var = (1 - B_j) s_j^2 + B_j^2 V_mu`.
+- Code: `inference.HierarchicalNormalPosterior.conditional_mu`,
+  `inference.HierarchicalNormalPosterior.conditional_theta`,
+  `inference.HierarchicalNormalPosterior.sample`.
+- Source: [REF-GELMAN-ETAL-2013, Chapter 5], [REF-RUBIN-1981].
+
+### EQ-HIER-002 — Marginal posterior of the population scale tau
+
+`p(tau | y) ∝ p(tau) V_mu^(1/2) prod_j (s_j^2 + tau^2)^(-1/2)
+exp(-(y_j - mu_hat)^2 / (2 (s_j^2 + tau^2))) [x exp(-(mu_hat - m_0)^2 /
+(2 s_0^2))]`.
+
+- Domain: `tau >= 0`; with a flat `mu` prior and uniform `p(tau)` the tail
+  decays like `tau^-(J-1)`, so at least three groups are needed for
+  propriety. The library checks the tail slope before integrating.
+- Meaning: `theta` and `mu` integrated analytically; evaluated on a grid
+  uniform in `u = log(1 + tau/c)` with Simpson weights times the Jacobian
+  `tau + c`; draws use the piecewise-linear CDF in `u`.
+- Code: `inference.hierarchical_normal_posterior`.
+- Source: [REF-GELMAN-ETAL-2013, Chapter 5].
+
+### EQ-HIER-003 — Non-centered parameterization
+
+`x = (mu, eta, z_1..z_J)`, `tau = exp(eta)`, `theta_j = mu + tau z_j`;
+`log p(x | y) = log p(mu) + log p(tau) + eta - (1/2) sum_j z_j^2
+- (1/2) sum_j (y_j - mu - tau z_j)^2 / s_j^2 + const`.
+
+- Domain: all of `R^(J+2)`; `eta` is the log-Jacobian of `tau = exp(eta)`.
+- Meaning: the prior on `z` no longer depends on `tau`, removing the funnel
+  between `tau` and `theta` that the centered form has when the data are
+  weakly informative; sampled with NUTS and an analytic gradient.
+- Code: `inference.non_centered_log_density`,
+  `inference.sample_hierarchical_normal`.
+- Source: [REF-BETANCOURT-GIROLAMI-2013], [REF-GELMAN-ETAL-2013, Chapter 5].
+
+### EQ-HIER-004 — Partial-pooling shrinkage factor
+
+`B_j(tau) = s_j^2 / (s_j^2 + tau^2)`, `E[B_j | y] = integral B_j(tau)
+p(tau | y) dtau`.
+
+- Domain: `s_j > 0`, `tau >= 0`.
+- Meaning: weight that `E[theta_j | tau, y]` puts on the pooled mean;
+  `B_j = 1` is complete pooling, `B_j = 0` no pooling. Noisier groups shrink
+  more.
+- Code: `inference.shrinkage_factors`,
+  `inference.HierarchicalNormalPosterior.expected_shrinkage`.
+- Source: [REF-GELMAN-ETAL-2013, Chapter 5], [REF-MORRIS-1983].
+
+### EQ-HIER-BB-001 — Beta-binomial marginal likelihood
+
+`l(alpha, beta) = sum_j [log C(n_j, y_j) + log B(y_j + alpha, n_j - y_j +
+beta) - log B(alpha, beta)]`; posterior mean
+`(y_j + alpha)/(n_j + alpha + beta) = (1 - b_j) y_j/n_j + b_j alpha/(alpha +
+beta)` with `b_j = (alpha + beta)/(n_j + alpha + beta)`.
+
+- Domain: `alpha, beta > 0`, `0 <= y_j <= n_j`, `n_j > 0`; maximized over
+  `(logit m, log kappa)`.
+- Meaning: type-II maximum likelihood (empirical Bayes); the plug-in posterior
+  ignores uncertainty in `(alpha, beta)`. Without over-dispersion the
+  maximum is at `kappa -> inf`.
+- Code: `inference.beta_binomial_log_likelihood`, `inference.fit_beta_binomial`.
+- Source: [REF-GELMAN-ETAL-2013, Chapter 5], [REF-MORRIS-1983].
+
+### EQ-PPC-001 — Simulation-based posterior predictive p-value
+
+`p_B = (1/S) sum_s 1[T(y_rep^s, theta^s) >= T(y, theta^s)]`,
+`y_rep^s ~ p(y | theta^s)`; lower tail with `<=`; Monte Carlo standard error
+`sqrt(p_B (1 - p_B) / S_eff)` with `S_eff` the effective sample size of the
+indicator chains (or `S` for independent draws).
+
+- Domain: posterior draws `theta^s`, a simulator, data-only statistics
+  `T(y)` or realized discrepancies `T(y, theta)`.
+- Meaning: tail probability of the observed test quantity under the
+  posterior predictive law. Not uniform under a correct model in general
+  (conservative toward 0.5); uniform when `T`'s sampling law is free of the
+  unknown parameters.
+- Code: `inference.posterior_predictive_pvalues`.
+- Source: [REF-RUBIN-1984], [REF-GELMAN-MENG-STERN-1996],
+  [REF-GELMAN-ETAL-2013, Chapter 6].
+
+### EQ-PPC-002 — Probability integral transform from replicates
+
+`PIT_i = (#{s : y_rep,i^s < y_i} + c_i #{s : y_rep,i^s = y_i}) / S`, with
+`c_i = 1/2` or `c_i ~ Uniform(0, 1)` (randomized PIT).
+
+- Domain: `S >= 1` replicated datasets aligned with the observations.
+- Meaning: uniform for a calibrated predictive law of independent outcomes.
+  When the replicates come from a posterior fitted to the same data (not
+  leave-one-out), PIT values are pulled toward `1/2` and a KS test of
+  uniformity is descriptive only.
+- Code: `inference.pit_values`, `inference.pit_uniformity`.
+- Source: [REF-DAWID-1984], [REF-GNEITING-BALABDAOUI-RAFTERY-2007].

@@ -21,6 +21,14 @@ from .confidence import (
     student_t_mean_confidence_interval,
     wilson_score_interval,
 )
+from .em import (
+    CensoredNormalFit,
+    EMMonotonicityWarning,
+    EMResult,
+    censored_normal_log_likelihood,
+    expectation_maximization,
+    fit_censored_normal,
+)
 from .estimation import (
     fit_gamma_mle,
     fit_lognormal_mle,
@@ -82,6 +90,18 @@ from .hamiltonian import (
     leapfrog,
     no_u_turn_sampler,
 )
+from .hierarchical import (
+    BetaBinomialEmpiricalBayes,
+    HierarchicalNormalPosterior,
+    HierarchicalNormalSamples,
+    beta_binomial_log_likelihood,
+    fit_beta_binomial,
+    half_cauchy_log_prior,
+    hierarchical_normal_posterior,
+    non_centered_log_density,
+    sample_hierarchical_normal,
+    shrinkage_factors,
+)
 from .hypothesis_tests import (
     AnovaResult,
     BinomialTestResult,
@@ -126,6 +146,14 @@ from .mcmc import (
     split_rhat,
     summarize_draws,
 )
+from .mixtures import (
+    GaussianMixture,
+    GaussianMixtureFit,
+    MixtureSelection,
+    fit_gaussian_mixture,
+    kmeans_plus_plus,
+    select_gaussian_mixture,
+)
 from .multiple_testing import MultipleTestingResult, adjust_p_values
 from .power import (
     SampleSizeResult,
@@ -136,6 +164,13 @@ from .power import (
     required_sample_size,
     t_test_power,
     z_test_power,
+)
+from .predictive_checks import (
+    PosteriorPredictivePValues,
+    PredictiveStatisticCheck,
+    pit_uniformity,
+    pit_values,
+    posterior_predictive_pvalues,
 )
 from .rank_tests import (
     RankTestResult,
@@ -325,4 +360,31 @@ __all__ = [
     "wilcoxon_signed_rank_test",
     "wilson_score_interval",
     "z_test_power",
+    "CensoredNormalFit",
+    "EMMonotonicityWarning",
+    "EMResult",
+    "censored_normal_log_likelihood",
+    "expectation_maximization",
+    "fit_censored_normal",
+    "BetaBinomialEmpiricalBayes",
+    "HierarchicalNormalPosterior",
+    "HierarchicalNormalSamples",
+    "beta_binomial_log_likelihood",
+    "fit_beta_binomial",
+    "half_cauchy_log_prior",
+    "hierarchical_normal_posterior",
+    "non_centered_log_density",
+    "sample_hierarchical_normal",
+    "shrinkage_factors",
+    "GaussianMixture",
+    "GaussianMixtureFit",
+    "MixtureSelection",
+    "fit_gaussian_mixture",
+    "kmeans_plus_plus",
+    "select_gaussian_mixture",
+    "PosteriorPredictivePValues",
+    "PredictiveStatisticCheck",
+    "pit_uniformity",
+    "pit_values",
+    "posterior_predictive_pvalues",
 ]
