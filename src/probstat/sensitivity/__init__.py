@@ -1,4 +1,4 @@
-"""Local and global sensitivity analysis."""
+"""Local and global sensitivity analysis, including Shapley effects."""
 
 from .analysis import (
     LocalSensitivityResult,
@@ -14,6 +14,12 @@ from .model_based import (
     morris_screening,
     sobol_analysis,
 )
+from .shapley import (
+    ShapleyResult,
+    exact_shapley_values,
+    linear_gaussian_shapley,
+    shapley_effects,
+)
 
 __all__ = [
     "IndexInterval",
@@ -23,7 +29,11 @@ __all__ = [
     "sobol_analysis",
     "LocalSensitivityResult",
     "SensitivityDecision",
+    "ShapleyResult",
     "SobolResult",
     "central_difference_gradient",
     "estimate_sobol_indices",
+    "exact_shapley_values",
+    "linear_gaussian_shapley",
+    "shapley_effects",
 ]

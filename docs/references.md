@@ -946,3 +946,54 @@ Springer, 2001.
 Samuel Kotz and Johan René van Dorp. *Beyond Beta: Other Continuous Families
 of Distributions with Bounded Support and Applications*. World Scientific,
 2004.
+
+## REF-GILES-2008
+
+Michael B. Giles. "Multilevel Monte Carlo Path Simulation." *Operations
+Research* 56(3), 607-617, 2008.
+
+## REF-GILES-2015
+
+Michael B. Giles. "Multilevel Monte Carlo Methods." *Acta Numerica* 24,
+259-328, 2015.
+
+## REF-RUBINSTEIN-KROESE-2004
+
+Reuven Y. Rubinstein and Dirk P. Kroese. *The Cross-Entropy Method: A Unified
+Approach to Combinatorial Optimization, Monte-Carlo Simulation, and Machine
+Learning*. Springer, 2004.
+
+## REF-KURTZ-SONG-2013
+
+Nolan Kurtz and Junho Song. "Cross-Entropy-Based Adaptive Importance Sampling
+Using Gaussian Mixture." *Structural Safety* 42, 35-44, 2013.
+
+## REF-KOUTSOURELAKIS-PRADLWARTER-SCHUELLER-2004
+
+Phaedon-Stelios Koutsourelakis, Helmut J. Pradlwarter, and Gerhart I.
+Schuëller. "Reliability of Structures in High Dimensions, Part I: Algorithms
+and Applications." *Probabilistic Engineering Mechanics* 19(4), 409-417, 2004.
+
+## REF-OWEN-2014
+
+Art B. Owen. "Sobol' Indices and Shapley Value." *SIAM/ASA Journal on
+Uncertainty Quantification* 2(1), 245-251, 2014.
+
+## REF-SONG-NELSON-STAUM-2016
+
+Eunhye Song, Barry L. Nelson, and Jeremy Staum. "Shapley Effects for Global
+Sensitivity Analysis: Theory and Computation." *SIAM/ASA Journal on
+Uncertainty Quantification* 4(1), 1060-1083, 2016.
+
+## REF-OWEN-PRIEUR-2017
+
+Art B. Owen and Clémentine Prieur. "On Shapley Value for Measuring Importance
+of Dependent Inputs." *SIAM/ASA Journal on Uncertainty Quantification* 5(1),
+986-1002, 2017.
+
+## REF-IOOSS-PRIEUR-2019
+
+Bertrand Iooss and Clémentine Prieur. "Shapley Effects for Sensitivity
+Analysis with Correlated Inputs: Comparisons with Sobol' Indices, Numerical
+Estimation and Applications." *International Journal for Uncertainty
+Quantification* 9(5), 493-514, 2019.

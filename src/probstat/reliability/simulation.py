@@ -4,7 +4,9 @@ Crude Monte Carlo, importance sampling around the FORM design point, and
 subset simulation all sample the shared joint input law of the model in
 independent standard-normal space ``u`` and report their model-evaluation
 cost. :func:`compare_reliability_methods` runs these estimators together with
-FORM and SORM on one limit state and returns a table-like comparison.
+FORM and SORM on one limit state and returns a table-like comparison;
+cross-entropy importance sampling and line sampling from
+:mod:`probstat.reliability.adaptive` are available as opt-in methods.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ from probstat.monte_carlo import (
     estimate_probability,
 )
 
+from .adaptive import cross_entropy_importance_sampling, line_sampling
 from .model_based import (
     FORMResult,
     ModelLimitState,
@@ -32,6 +35,8 @@ from .model_based import (
 )
 
 METHODS = ("form", "sorm", "is", "subset", "mc")
+OPTIONAL_METHODS = ("ce", "line")
+AVAILABLE_METHODS = METHODS + OPTIONAL_METHODS
 
 
 def _require_limit_state(limit_state: object) -> ModelLimitState:
@@ -653,22 +658,32 @@ def compare_reliability_methods(
     monte_carlo_samples: int = 10_000,
     importance_samples: int = 2_000,
     subset_samples: int = 1_000,
+    cross_entropy_samples: int = 1_000,
+    line_samples: int = 100,
     seed: int | RandomStream | None = None,
 ) -> MethodComparison:
     """Run FORM, SORM, IS, subset simulation, and crude MC on one limit state.
 
-    FORM is run once and reused by SORM and importance sampling; their rows
-    report cumulative cost. SORM contributes two rows, ``"SORM-Breitung"`` and
-    ``"SORM-HR"``. Each sampling method uses an independent child stream.
+    FORM is run once and reused by SORM, importance sampling, and line
+    sampling; their rows report cumulative cost. SORM contributes two rows,
+    ``"SORM-Breitung"`` and ``"SORM-HR"``. Each sampling method uses an
+    independent child stream. Cross-entropy importance sampling (``"ce"``,
+    row ``"CE-IS"``) and line sampling (``"line"``, row ``"Line"``) are
+    opt-in: they are in ``AVAILABLE_METHODS`` but not in the default
+    ``METHODS``, so default comparisons are unchanged.
 
     Args:
         limit_state: Model limit state.
-        methods: Subset of ``("form", "sorm", "is", "subset", "mc")``. SORM
-            rows are omitted when the FORM index is not positive, because the
-            curvature corrections are undefined there.
+        methods: Subset of ``AVAILABLE_METHODS`` = ``("form", "sorm", "is",
+            "subset", "mc", "ce", "line")``; default ``METHODS`` (the first
+            five). SORM rows are omitted when the FORM index is not positive,
+            because the curvature corrections are undefined there.
         monte_carlo_samples: Crude Monte Carlo sample size.
         importance_samples: Design-point importance-sampling sample size.
         subset_samples: Subset-simulation samples per level.
+        cross_entropy_samples: Cross-entropy samples per level (also the final
+            importance-sampling size).
+        line_samples: Number of lines for line sampling.
         seed: Integer seed, random stream, or ``None`` for fresh entropy.
 
     Returns:
@@ -683,21 +698,23 @@ def compare_reliability_methods(
     Equation:
         [EQ-REL-BETA-001], [EQ-REL-FORM-002], [EQ-REL-SORM-002],
         [EQ-REL-SORM-003], [EQ-REL-ISDP-001], [EQ-REL-SUBSET-001],
-        [EQ-REL-PF-001].
+        [EQ-REL-PF-001], [EQ-REL-CE-002], [EQ-REL-LINE-001].
 
     References:
-        [REF-MELCHERS-BECK-2018, Chapters 5 and 6], [REF-AU-BECK-2001].
+        [REF-MELCHERS-BECK-2018, Chapters 5 and 6], [REF-AU-BECK-2001],
+        [REF-RUBINSTEIN-KROESE-2004],
+        [REF-KOUTSOURELAKIS-PRADLWARTER-SCHUELLER-2004].
 
     """
     state = _require_limit_state(limit_state)
     requested = tuple(methods)
-    unknown = sorted(set(requested) - set(METHODS))
+    unknown = sorted(set(requested) - set(AVAILABLE_METHODS))
     if unknown:
         raise ValueError(f"unknown reliability methods: {unknown}")
     stream = resolve_stream(seed)
     rows: list[MethodComparisonRow] = []
     form_result: FORMResult | None = None
-    if {"form", "sorm", "is"} & set(requested):
+    if {"form", "sorm", "is", "line"} & set(requested):
         form_result = form_hlrf(state)
     if "form" in requested and form_result is not None:
         rows.append(
@@ -764,6 +781,37 @@ def compare_reliability_methods(
                 generalized_reliability_index(crude.probability),
                 crude.evaluations,
                 crude.coefficient_of_variation,
+            )
+        )
+    if "ce" in requested:
+        adaptive = cross_entropy_importance_sampling(
+            state,
+            samples_per_level=cross_entropy_samples,
+            seed=stream.child("ce"),
+        )
+        rows.append(
+            MethodComparisonRow(
+                "CE-IS",
+                adaptive.probability,
+                generalized_reliability_index(adaptive.probability),
+                adaptive.evaluations,
+                adaptive.coefficient_of_variation,
+            )
+        )
+    if "line" in requested and form_result is not None:
+        lined = line_sampling(
+            state,
+            line_samples,
+            form_result=form_result,
+            seed=stream.child("line"),
+        )
+        rows.append(
+            MethodComparisonRow(
+                "Line",
+                lined.probability,
+                generalized_reliability_index(lined.probability),
+                lined.evaluations + form_result.evaluations,
+                lined.coefficient_of_variation,
             )
         )
     return MethodComparison(state.label, tuple(rows))

@@ -195,3 +195,88 @@ and correlations `(0.6, 0.8, 0)`. Its bounds and estimate:
   [REF-DREZNER-WESOLOWSKY-1990].
 - [REF-DERKIUREGHIAN-ZHANG-LI-1994], [REF-TU-CHOI-PARK-1999].
 - [REF-MELCHERS-BECK-2018, Chapters 5 and 6], [REF-DITLEVSEN-MADSEN-1996].
+
+## 8. Cross-entropy importance sampling and line sampling
+
+Two further estimators in `probstat.reliability.adaptive` work on the same
+`ModelLimitState` in standard-normal space. Both are opt-in rows of
+`compare_reliability_methods`: `methods=(..., "ce", "line")` adds the rows
+`"CE-IS"` and `"Line"`. The default `METHODS` tuple is unchanged, so existing
+comparisons and the study workflow give the same numbers as before;
+`AVAILABLE_METHODS` lists all seven keys.
+
+### Cross-entropy adaptive importance sampling
+
+`cross_entropy_importance_sampling` needs no design point. It starts from
+`N(0, I)`, draws `N` points per level, and sets the intermediate threshold to
+the `rho = 0.1` sample quantile of `G` (clipped at 0). The proposal mean (and,
+optionally, covariance) is refitted to the elite points `G <= gamma_t` with
+likelihood-ratio weights `phi_n(u) / h(u)` [EQ-REL-CE-001]. When a level
+reaches `gamma = 0`, a fresh sample from the final proposal gives the
+importance-sampling estimate and its c.o.v. [EQ-REL-CE-002]. The result
+reports the thresholds, final mean and covariance, the Kish effective sample
+size, the number of levels, and every model evaluation (levels plus final
+stage).
+
+The default adapts the **mean only**. `adapt_covariance=True` also fits the
+covariance, but the elite covariance shrinks along the important direction.
+On `G = 4 - (u1 + u2)/sqrt 2` (`P_f = 3.17e-5`) with `N = 500` and seeds 1-5:
+
+| seed | mean-shift ratio to exact | c.o.v. | covariance-adapted ratio | c.o.v. |
+| --- | --- | --- | --- | --- |
+| 1 | 1.063 | 0.094 | 0.429 | 0.35 |
+| 2 | 1.007 | 0.094 | 1.009 | 0.045 |
+| 3 | 0.975 | 0.096 | 0 (stalled, 20 levels) | — |
+| 4 | 0.856 | 0.104 | 0 (stalled, 20 levels) | — |
+| 5 | 1.046 | 0.094 | 0 (stalled, 20 levels) | — |
+
+Each mean-shift run took 3 levels and 2000 calls. With covariance adaptation
+the levels stall on this planar limit state, and a finished run can still be
+far off (seed 1: 0.43 of the exact value). In a trial with `rho = 0.2`, seed 1
+returned 0.73 of the exact value with a reported c.o.v. of 0.04, so the
+reported c.o.v. can understate the error badly. Gaussian-mixture proposals
+[REF-KURTZ-SONG-2013] address multiple failure regions and are not implemented.
+
+### Line sampling
+
+`line_sampling` uses an important direction `alpha`: the FORM `alpha` by
+default (FORM runs once unless a `FORMResult` or a `direction` is supplied).
+Each line draws `u ~ N(0, I)`, projects it onto the hyperplane orthogonal to
+`alpha`, and finds the crossing `c_k` of `G(u_perp + c alpha) = 0` by bracket
+doubling from the previous root followed by Brent's method (cached, so the
+bracket ends are not re-evaluated). The line contributes `p_k = Phi(-c_k)`, and
+`P_f = mean(p_k)` with variance `sum (p_k - P_f)^2 / (N (N - 1))`
+[EQ-REL-LINE-001]. A line that does not cross within `|c| <= max_distance`
+contributes 0 (safe) or 1 (failed). The estimator assumes at most one crossing
+per line with failure beyond it.
+
+For a planar limit state every `p_k` equals `Phi(-beta)`, so line sampling is
+exact with zero variance. For curved limit states it is conditional Monte
+Carlo along `alpha` and is far more precise per call than crude Monte Carlo.
+
+### Numbers computed with this release
+
+Correlated lognormal `R - S` example of Section 7,
+`compare_reliability_methods(state, methods=("form", "is", "ce", "line"),
+seed=2026)` (defaults: 2000 IS draws, 1000 CE samples per level, 100 lines):
+
+| Method | `P_f` | equivalent `beta` | calls | c.o.v. |
+| --- | --- | --- | --- | --- |
+| FORM | 6.2118e-5 | 3.8376 | 35 | — |
+| IS | 6.490e-5 | 3.8268 | 2035 | 0.046 |
+| CE-IS | 6.002e-5 | 3.8460 | 4000 | 0.064 |
+| Line | 6.2118e-5 | 3.8376 | 335 | 0 (planar) |
+
+Parabolic limit state `G = 3 - u2 + kappa u1^2 / 2` (seed 1; exact values by
+Gauss-Hermite quadrature):
+
+| `kappa` | exact | CE-IS (`N = 500`) | calls | Line (100 lines) | calls |
+| --- | --- | --- | --- | --- | --- |
+| +0.2 | 1.0436e-3 | 9.86e-4 (c.o.v. 0.091) | 2000 | 1.0153e-3 (c.o.v. 0.034) | 402 + 10 FORM |
+| -0.2 | 2.1257e-3 | 1.90e-3 (c.o.v. 0.097) | 1500 | 2.1733e-3 (c.o.v. 0.069) | 401 + 10 FORM |
+
+Line sampling needs about four calls per line here. CE-IS spends most of its
+calls on adaptation but needs neither a gradient nor a design point.
+
+Sources: [REF-RUBINSTEIN-KROESE-2004], [REF-KURTZ-SONG-2013],
+[REF-KOUTSOURELAKIS-PRADLWARTER-SCHUELLER-2004], [REF-BRENT-1973].
