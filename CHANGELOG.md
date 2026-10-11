@@ -48,14 +48,33 @@ defects that are now fixed with oracle-backed regression tests.
   cross-entropy, Jensen-Shannon for finite laws; closed-form differential
   entropies and Gaussian KL; Kozachenko-Leonenko entropy and KSG mutual
   information estimators.
-- **Figures**: correlogram, forecast fan, Kaplan-Meier, and regression
-  diagnostic plots; statistical modelling lab.
+- **Model discrepancy** (`inverse`): Kennedy-O'Hagan calibration with a
+  Gaussian-process discrepancy (squared-exponential or Matern-5/2 kernel,
+  priors on hyperparameters), MAP fits and MCMC/NUTS posteriors, predictions
+  of the simulator alone and of the bias-corrected process, heteroscedastic
+  log-linear noise, and an identifiability report for theta-discrepancy
+  confounding.
+- **Study stages**: `UQStudy.extremes` (peaks-over-threshold tail of a QoI
+  reusing the propagation sample), `UQStudy.information_sensitivity`
+  (KSG mutual information per input), and `UQStudy.design` (greedy Bayesian
+  design for the study's calibration, re-estimated on an independent stream).
+- **Kernel density** (`statistics.gaussian_kde`) with Silverman and
+  normal-reference bandwidths.
+- **Figures**: violin/box distribution comparison, correlogram, forecast fan,
+  Kaplan-Meier, and regression diagnostic plots; statistical modelling lab.
+- **API reference**: `docs/api-reference.md` generated from every package's
+  `__all__` by `tools/generate_api_reference.py`, guarded by a staleness test.
 
 ### Fixed
 
 - Cox model: the Breslow baseline overflowed (or divided by zero) when
   `|x' beta|` exceeded about 709, e.g. with uncentred covariates; it is now
   stored at a reference linear predictor and predictions are shift-invariant.
+- Linear models detect an intercept carried by a constant column other than
+  ones or by full dummy coding, so R^2 and the F test are centred.
+- Kaplan-Meier quantiles take the midpoint of a flat segment at exactly
+  `1 - p` (R's `quantile.survfit` convention); the uncensored median is now
+  the ordinary sample median.
 - `UQWorkflowRecord.record_stages` rejected the `fitting` and `shapley`
   stages recorded by `UQStudy`; a test now keeps the guide in sync.
 - Gaussian-copula fitting returned a numerically singular latent correlation
