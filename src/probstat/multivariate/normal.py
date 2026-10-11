@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 from probstat.distributions import Normal
 from probstat.foundations.validation import require_non_negative_integer
-from probstat.linalg import Matrix, Vector, as_vector, cholesky, solve_lower
+from probstat.linalg import Matrix, Vector, as_vector, cholesky, dot, solve_lower
 
 
 @dataclass(frozen=True, slots=True)
@@ -197,6 +197,139 @@ class MultivariateNormal:
         if not 0 <= index < self.dimension:
             raise IndexError("index outside distribution dimension")
         return Normal(self.mean[index], math.sqrt(self.covariance[index][index]))
+
+    def _checked_indices(self, indices: Iterable[int]) -> tuple[int, ...]:
+        """Validate a non-empty list of distinct in-range component indices.
+
+        Args:
+            indices: Zero-based component indices.
+
+        Returns:
+            Indices as a tuple in the order supplied.
+
+        Raises:
+            TypeError: If ``indices`` is not iterable or holds a non-integer.
+            ValueError: If it is empty or repeats an index.
+            IndexError: If an index is outside the vector dimension.
+
+        References:
+            Project validation policy. No equation is evaluated.
+
+        """
+        try:
+            selected = tuple(indices)
+        except TypeError as error:
+            raise TypeError("indices must be an iterable of integers") from error
+        if not selected:
+            raise ValueError("indices must be non-empty")
+        for index in selected:
+            if isinstance(index, bool) or not isinstance(index, int):
+                raise TypeError("indices must be integers")
+            if not 0 <= index < self.dimension:
+                raise IndexError("index outside distribution dimension")
+        if len(set(selected)) != len(selected):
+            raise ValueError("indices must be distinct")
+        return selected
+
+    def marginal_subset(self, indices: Iterable[int]) -> MultivariateNormal:
+        """Return the joint marginal law of a subset of components.
+
+        Args:
+            indices: Distinct zero-based indices; their order sets the order of
+                the returned components.
+
+        Returns:
+            ``Normal(mu_S, Sigma_SS)`` for the selected index list ``S``.
+
+        Raises:
+            TypeError: If indices are not integers.
+            ValueError: If indices are empty or repeated.
+            IndexError: If an index is outside the vector dimension.
+
+        Equation:
+            [EQ-DIST-MVN-006].
+
+        References:
+            [REF-BISHOP-2006, Section 2.3.2],
+            [REF-MARDIA-KENT-BIBBY-1979, Chapter 3].
+
+        """
+        selected = self._checked_indices(indices)
+        return MultivariateNormal(
+            tuple(self.mean[i] for i in selected),
+            tuple(tuple(self.covariance[i][j] for j in selected) for i in selected),
+        )
+
+    def conditional(
+        self, indices: Iterable[int], values: Iterable[float]
+    ) -> MultivariateNormal:
+        """Condition on observed components and return the remaining law.
+
+        With ``b`` the observed indices and ``a`` the remaining indices in
+        ascending order, the conditional law is Gaussian with mean
+        ``mu_a + Sigma_ab Sigma_bb^-1 (x_b - mu_b)`` and Schur-complement
+        covariance ``Sigma_aa - Sigma_ab Sigma_bb^-1 Sigma_ba``. Both are
+        evaluated through the Cholesky factor ``Sigma_bb = L L'`` as
+        ``W = L^-1 Sigma_ba``, so the covariance ``Sigma_aa - W'W`` is
+        symmetric by construction and no inverse is formed.
+
+        Args:
+            indices: Distinct zero-based indices of the observed components.
+            values: Observed values, one per index and in the same order.
+
+        Returns:
+            Conditional multivariate normal of the unobserved components,
+            ordered by ascending original index.
+
+        Raises:
+            TypeError: If indices or values have invalid types.
+            ValueError: If indices are empty, repeated, or cover every
+                component; if ``values`` has the wrong length; or if the
+                Schur complement is not numerically positive definite.
+            IndexError: If an index is outside the vector dimension.
+
+        Equation:
+            [EQ-DIST-MVN-007].
+
+        References:
+            [REF-BISHOP-2006, Section 2.3.1],
+            [REF-MARDIA-KENT-BIBBY-1979, Chapter 3].
+
+        """
+        observed = self._checked_indices(indices)
+        point = as_vector(values, name="values")
+        if len(point) != len(observed):
+            raise ValueError("values must have one entry per observed index")
+        observed_set = set(observed)
+        free = tuple(i for i in range(self.dimension) if i not in observed_set)
+        if not free:
+            raise ValueError("conditioning on every component leaves no free law")
+        lower = cholesky(
+            tuple(tuple(self.covariance[i][j] for j in observed) for i in observed)
+        )
+        whitened = solve_lower(
+            lower,
+            tuple(
+                value - self.mean[index]
+                for index, value in zip(observed, point, strict=True)
+            ),
+        )
+        weights = tuple(
+            solve_lower(lower, tuple(self.covariance[b][a] for b in observed))
+            for a in free
+        )
+        mean = tuple(
+            self.mean[a] + dot(weight, whitened)
+            for a, weight in zip(free, weights, strict=True)
+        )
+        covariance = tuple(
+            tuple(
+                self.covariance[a][c] - dot(weights[row], weights[column])
+                for column, c in enumerate(free)
+            )
+            for row, a in enumerate(free)
+        )
+        return MultivariateNormal(mean, covariance)
 
     def correlation(self, first: int, second: int) -> float:
         """Return the Pearson correlation between two components.

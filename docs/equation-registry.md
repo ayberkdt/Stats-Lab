@@ -4638,3 +4638,76 @@ of `exp(-a s - s^2/2)`).
 - Code: `distributions._continuous.log_normal_short_mass`,
   `distributions.TruncatedNormal.cdf`, `distributions.TruncatedNormal.sf`.
 - Source: [REF-NIST-DLMF, Section 7.2] and [REF-JKB-1994, Chapter 13].
+
+## Prerequisite bridges: determinants, Gaussian conditioning, change of variables
+
+### EQ-LINALG-008 — Determinant from a partial-pivot LU factorization
+
+`PA=LU` with unit lower-triangular `L` gives `det A = (-1)^s prod_i U_ii` and
+`log|det A| = sum_i log|U_ii|`, where `s` is the number of row interchanges.
+
+- Domain: square finite `A`. Only an exactly zero pivot column is reported as
+  singular (determinant `0`, log-determinant error), so uniformly tiny but
+  non-singular matrices keep their determinant.
+- Meaning: volume scaling of the linear map `x -> Ax`; the log form is the
+  Jacobian term of a change of variables and does not overflow.
+- Code: `linalg.determinant`, `linalg.log_abs_determinant`,
+  `multivariate.TransformedDensity.log_abs_det_jacobian`.
+- Source: [REF-GOLUB-VANLOAN-2013, Section 3.4] and
+  [REF-STRANG-2016, Chapter 5].
+
+### EQ-DIST-MVN-006 — Gaussian subset marginal
+
+`X_S ~ Normal(mu_S, Sigma_SS)` for an ordered list `S` of distinct indices.
+
+- Domain: [EQ-DIST-MVN-001]; any principal submatrix of a positive-definite
+  matrix is positive definite.
+- Meaning: integrating out the other components of a Gaussian vector leaves
+  a Gaussian whose parameters are simply read off the joint ones.
+- Code: `multivariate.MultivariateNormal.marginal_subset`.
+- Source: [REF-BISHOP-2006, Section 2.3.2] and
+  [REF-MARDIA-KENT-BIBBY-1979, Chapter 3].
+
+### EQ-DIST-MVN-007 — Gaussian conditioning by the Schur complement
+
+`X_a | X_b = x_b ~ Normal(mu_a + Sigma_ab Sigma_bb^-1 (x_b - mu_b),
+Sigma_aa - Sigma_ab Sigma_bb^-1 Sigma_ba)`; evaluated as
+`mu_a + W'L^-1(x_b - mu_b)` and `Sigma_aa - W'W` with `Sigma_bb = LL'` and
+`W = L^-1 Sigma_ba`.
+
+- Domain: positive-definite joint covariance; `a` and `b` partition the
+  indices and `a` is non-empty.
+- Meaning: the conditional mean is linear in the observation (the population
+  regression of `X_a` on `X_b`) and the conditional covariance does not depend
+  on the observed value.
+- Code: `multivariate.MultivariateNormal.conditional`.
+- Source: [REF-BISHOP-2006, Section 2.3.1] and
+  [REF-MARDIA-KENT-BIBBY-1979, Chapter 3].
+
+### EQ-MVN-JAC-001 — Change of variables for densities
+
+`p_Y(y) = p_X(g^-1(y)) |det J_(g^-1)(y)|`, i.e.
+`log p_Y(y) = log p_X(g^-1(y)) + log|det d g^-1/dy|`.
+
+- Domain: `g` a continuously differentiable bijection between open subsets of
+  `R^n` with differentiable inverse; `X` has a density `p_X`.
+- Meaning: probability mass is conserved while volume elements are stretched
+  by the Jacobian determinant of the inverse map; analytic or
+  central-difference Jacobians ([EQ-OPT-FD-001]) are accepted.
+- Code: `multivariate.transformed_density`, `multivariate.TransformedDensity`.
+- Source: [REF-CASELLA-BERGER-2002, Sections 2.1, 4.3, and 4.6] and
+  [REF-MAGNUS-NEUDECKER-2019, Chapter 9].
+
+### EQ-MVN-DELTA-001 — First-order (delta-method) moment propagation
+
+`E[g(X)] ~= g(mu)` and `Cov[g(X)] ~= J Sigma J'`, where `J = dg/dx` at
+`mu = E[X]` and `Sigma = Cov[X]`.
+
+- Domain: `g` differentiable near `mu`; exact for affine `g`; otherwise the
+  neglected mean bias is `tr(H_k Sigma)/2` per output with Hessian `H_k`.
+- Meaning: the linearization behind standard errors of transformed
+  estimators and local uncertainty propagation; the covariance is the
+  congruence [EQ-LINALG-007].
+- Code: `multivariate.delta_method`, `multivariate.DeltaMethodResult`.
+- Source: [REF-CASELLA-BERGER-2002, Section 5.5.4] and
+  [REF-MAGNUS-NEUDECKER-2019, Chapter 5].
