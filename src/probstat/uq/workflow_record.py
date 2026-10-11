@@ -158,6 +158,8 @@ WORKFLOW_GUIDE: Mapping[WorkflowStep, StepGuide] = MappingProxyType(
                 "probstat.workflow.UQStudy.propagate",
                 "probstat.workflow.UQStudy.sensitivity",
                 "probstat.workflow.UQStudy.reliability",
+                "probstat.workflow.UQStudy.extremes",
+                "probstat.workflow.UQStudy.information_sensitivity",
             ),
             (
                 "propagation",
@@ -168,6 +170,8 @@ WORKFLOW_GUIDE: Mapping[WorkflowStep, StepGuide] = MappingProxyType(
                 "form",
                 "risk",
                 "emulation",
+                "extremes",
+                "information",
             ),
         ),
         WorkflowStep.CALIBRATION: StepGuide(
@@ -178,8 +182,10 @@ WORKFLOW_GUIDE: Mapping[WorkflowStep, StepGuide] = MappingProxyType(
                 "probstat.inverse.CalibrationProblem",
                 "probstat.inverse.calibrate_linear_gaussian",
                 "probstat.workflow.UQStudy.calibrate",
+                "probstat.design.greedy_design",
+                "probstat.workflow.UQStudy.design",
             ),
-            ("calibration",),
+            ("calibration", "design"),
         ),
         WorkflowStep.PREDICTION: StepGuide(
             WorkflowStep.PREDICTION,
