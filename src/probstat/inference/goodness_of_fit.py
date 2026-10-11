@@ -18,26 +18,33 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+_KS_EXACT_MAX_N = 100
+_KS_SMIRNOV_SWITCH = 1e-7
+_KS_EXACT_LABEL = "exact finite-n one-sample KS"
+_KS_ASYMPTOTIC_LABEL = "Stephens-corrected asymptotic one-sample KS"
+
 
 @dataclass(frozen=True, slots=True)
 class KolmogorovSmirnovResult:
-    """One-sample Kolmogorov-Smirnov statistic and asymptotic p-value.
+    """One-sample Kolmogorov-Smirnov statistic and null p-value.
 
     Args:
         statistic: Supremum empirical-CDF distance in ``[0, 1]``.
-        p_value: Approximate null-tail probability in ``[0, 1]``.
+        p_value: Null-tail probability ``P(D_n >= d)`` in ``[0, 1]``; exact
+            for ``n <= 100`` and asymptotic beyond.
         sample_size: Positive number of observations.
-        method: Label identifying the p-value approximation.
+        method: Label identifying the p-value computation.
 
     References:
-        [REF-NIST-GOF, Kolmogorov-Smirnov Goodness-of-Fit Test].
+        [REF-NIST-GOF, Kolmogorov-Smirnov Goodness-of-Fit Test],
+        [REF-NOE-1972].
 
     """
 
     statistic: float
     p_value: float
     sample_size: int
-    method: str = "Stephens-corrected asymptotic one-sample KS"
+    method: str = _KS_ASYMPTOTIC_LABEL
 
     def __post_init__(self) -> None:
         """Validate probability-valued fields, sample size, and method label.
@@ -117,26 +124,34 @@ def kolmogorov_smirnov_test(
 ) -> KolmogorovSmirnovResult:
     """Run a one-sample KS test against a fully specified continuous CDF.
 
-    The returned p-value is asymptotic. If distribution parameters were fitted
-    from the same sample, its ordinary null calibration is invalid; use a
-    parametric bootstrap or a family-specific correction instead.
+    For ``n <= 100`` the p-value ``P(D_n >= d)`` is the exact finite-sample
+    value from :func:`kolmogorov_exact_sf`. The asymptotic Kolmogorov law
+    with Stephens' correction is used only for larger samples; it would give
+    ``p >= 0.097`` for every single observation, whereas the exact value for
+    ``n = 1`` is ``2 (1 - d)`` when ``d >= 1/2``. If distribution parameters
+    were fitted from the same sample, the ordinary null calibration is
+    invalid; use a parametric bootstrap or a family-specific correction
+    instead.
 
     Args:
         values: Non-empty iterable of finite real observations.
         distribution: Object exposing a valid cumulative distribution method.
 
     Returns:
-        KS statistic, approximate p-value, sample size, and method label.
+        KS statistic, p-value, sample size, and method label.
 
     Raises:
         TypeError: If inputs violate the iterable or CDF protocol.
         ValueError: If observations or returned probabilities are invalid.
 
     Equation:
-        [EQ-INF-GOF-KS-001], [EQ-INF-GOF-KS-002].
+        [EQ-INF-GOF-KS-001], [EQ-INF-GOF-KS-002], [EQ-INF-GOF-KS-003],
+        [EQ-INF-GOF-KS-004].
 
     References:
-        [REF-NIST-GOF, Kolmogorov-Smirnov Goodness-of-Fit Test].
+        [REF-NIST-GOF, Kolmogorov-Smirnov Goodness-of-Fit Test],
+        [REF-NOE-1972], [REF-BIRNBAUM-TINGEY-1951],
+        [REF-MARSAGLIA-TSANG-WANG-2003].
 
     """
     sample = tuple(sorted(coerce_finite_sample(values)))
@@ -150,6 +165,13 @@ def kolmogorov_smirnov_test(
         lower_gap = max(lower_gap, rank / count - probability)
         upper_gap = max(upper_gap, probability - (rank - 1) / count)
     statistic = max(lower_gap, upper_gap)
+    if count <= _KS_EXACT_MAX_N:
+        return KolmogorovSmirnovResult(
+            statistic,
+            kolmogorov_exact_sf(count, statistic),
+            count,
+            _KS_EXACT_LABEL,
+        )
     root_count = math.sqrt(count)
     corrected = (root_count + 0.12 + 0.11 / root_count) * statistic
     return KolmogorovSmirnovResult(
@@ -157,6 +179,172 @@ def kolmogorov_smirnov_test(
         _kolmogorov_survival(corrected),
         count,
     )
+
+
+def kolmogorov_exact_sf(count: int, statistic: float) -> float:
+    """Return the exact two-sided one-sample KS tail ``P(D_n >= d)``.
+
+    ``D_n`` is the statistic of ``n`` independent ``Uniform(0, 1)`` values
+    (equivalently of any continuous, fully specified null). With the exact
+    one-sided tail ``p_+ = P(D_n^+ >= d)`` of
+    :func:`smirnov_one_sided_sf`, the value is ``2 p_+`` when ``d >= 1/2``
+    (the events ``D_n^+ >= d`` and ``D_n^- >= d`` are then disjoint) and when
+    ``p_+ <= 1e-7`` (the first event is decreasing and the second increasing
+    in the observations, so by the Harris-FKG inequality their overlap is at
+    most ``p_+^2 <= 1e-14``). Otherwise ``1 - P(D_n < d)`` from
+    :func:`_kolmogorov_noe_cdf` is returned, accurate to about ``1e-14`` in
+    absolute terms (the regression tests compare it with the
+    Marsaglia-Tsang-Wang matrix formula evaluated in exact rationals).
+
+    Args:
+        count: Positive sample size ``n`` (practical up to a few hundred).
+        statistic: Observed ``d`` in ``[0, 1]``.
+
+    Returns:
+        Exact null tail probability in ``[0, 1]``.
+
+    Raises:
+        ValueError: If ``count`` is not positive or ``statistic`` is NaN.
+
+    Equation:
+        [EQ-INF-GOF-KS-003], [EQ-INF-GOF-KS-004].
+
+    References:
+        [REF-NOE-1972], [REF-BIRNBAUM-TINGEY-1951],
+        [REF-ESARY-PROSCHAN-WALKUP-1967], [REF-MARSAGLIA-TSANG-WANG-2003].
+
+    """
+    if count < 1:
+        raise ValueError("count must be positive")
+    if statistic != statistic:
+        raise ValueError("statistic must not be NaN")
+    if statistic <= 0.5 / count:
+        return 1.0
+    if statistic >= 1.0:
+        return 0.0
+    one_sided = smirnov_one_sided_sf(count, statistic)
+    if statistic >= 0.5 or one_sided <= _KS_SMIRNOV_SWITCH:
+        return min(1.0, 2.0 * one_sided)
+    return min(1.0, max(0.0, 1.0 - _kolmogorov_noe_cdf(count, statistic)))
+
+
+def smirnov_one_sided_sf(count: int, statistic: float) -> float:
+    """Return the exact one-sided tail ``P(D_n^+ >= d)`` (Birnbaum-Tingey).
+
+    ``P(D_n^+ >= d) = d sum_(j=0)^(floor(n(1-d))) C(n, j) (1 - d - j/n)^(n-j)
+    (d + j/n)^(j-1)``; all terms are positive, so the sum (accumulated in
+    log space) keeps relative accuracy far into the tail.
+
+    Args:
+        count: Positive sample size ``n``.
+        statistic: Observed ``d`` in ``[0, 1]``.
+
+    Returns:
+        One-sided tail probability in ``[0, 1]``.
+
+    Equation:
+        [EQ-INF-GOF-KS-003].
+
+    References:
+        [REF-BIRNBAUM-TINGEY-1951].
+
+    """
+    if statistic <= 0.0:
+        return 1.0
+    if statistic >= 1.0:
+        return 0.0
+    n = count
+    log_terms: list[float] = []
+    for j in range(n + 1):
+        base = 1.0 - statistic - j / n
+        if base < 0.0 or (base == 0.0 and j < n):
+            break
+        log_base_part = 0.0 if base == 0.0 else (n - j) * math.log(base)
+        log_terms.append(
+            math.lgamma(n + 1.0)
+            - math.lgamma(j + 1.0)
+            - math.lgamma(n - j + 1.0)
+            + log_base_part
+            + (j - 1) * math.log(statistic + j / n)
+        )
+    peak = max(log_terms)
+    total = math.fsum(math.exp(term - peak) for term in log_terms)
+    return min(1.0, statistic * total * math.exp(peak))
+
+
+def _kolmogorov_noe_cdf(count: int, statistic: float) -> float:
+    """Return ``P(D_n < d)`` by Noé's recursion over the boundary crossings.
+
+    ``D_n < d`` holds exactly when the counting process ``N(t)`` of the
+    uniform sample satisfies ``N(i/n - d) <= i - 1`` and
+    ``N((i-1)/n + d) >= i`` for every ``i``. Merging these boundary times
+    ``0 = t_0 < t_1 < ... < t_M = 1``, the multinomial law of the counts in
+    the gaps gives the recursion
+    ``Q_(m+1)(c') = sum_(c <= c') Q_m(c) (t_(m+1) - t_m)^(c'-c)/(c'-c)!``
+    restricted to the admissible counts, and ``P(D_n < d) = n! Q_M(n)``.
+    All terms are non-negative; the vector is rescaled at every step and the
+    scale is carried in logarithms.
+
+    Args:
+        count: Positive sample size ``n``.
+        statistic: Observed ``d`` with ``1/(2n) < d < 1``.
+
+    Returns:
+        Lower-tail probability in ``[0, 1]``.
+
+    Equation:
+        [EQ-INF-GOF-KS-004].
+
+    References:
+        [REF-NOE-1972].
+
+    """
+    n = count
+    bounds: dict[float, list[int]] = {}
+    for index in range(1, n + 1):
+        upper_time = index / n - statistic
+        if 0.0 < upper_time < 1.0:
+            entry = bounds.setdefault(upper_time, [0, n])
+            entry[1] = min(entry[1], index - 1)
+        lower_time = (index - 1) / n + statistic
+        if 0.0 < lower_time < 1.0:
+            entry = bounds.setdefault(lower_time, [0, n])
+            entry[0] = max(entry[0], index)
+    schedule = sorted(bounds.items())
+    schedule.append((1.0, [n, n]))
+    weights = [1.0] + [0.0] * n
+    low = high = 0
+    log_scale = 0.0
+    previous = 0.0
+    for time, (lower_count, upper_count) in schedule:
+        gap = time - previous
+        new_low = max(lower_count, low)
+        new_high = upper_count
+        if new_low > new_high:
+            return 0.0
+        poisson = [1.0]
+        for step in range(1, new_high - low + 1):
+            poisson.append(poisson[-1] * gap / step)
+        updated = [0.0] * (n + 1)
+        peak = 0.0
+        for target in range(new_low, new_high + 1):
+            value = math.fsum(
+                weights[source] * poisson[target - source]
+                for source in range(low, min(high, target) + 1)
+            )
+            updated[target] = value
+            peak = max(peak, value)
+        if peak == 0.0:
+            return 0.0
+        for target in range(new_low, new_high + 1):
+            updated[target] /= peak
+        log_scale += math.log(peak)
+        weights, low, high = updated, new_low, new_high
+        previous = time
+    final = weights[n]
+    if final <= 0.0:
+        return 0.0
+    return min(1.0, math.exp(math.lgamma(n + 1.0) + log_scale + math.log(final)))
 
 
 def anderson_darling_test(

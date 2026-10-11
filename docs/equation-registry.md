@@ -643,7 +643,8 @@ remaining pivot magnitude before subtracting multiples of it.
 series and Stephens finite-sample argument correction.
 
 - Domain: non-negative corrected statistic; asymptotic one-sample calibration
-  for a fully specified continuous null.
+  for a fully specified continuous null, used for `n > 100` (smaller samples
+  use the exact law of [EQ-INF-GOF-KS-003] and [EQ-INF-GOF-KS-004]).
 - Meaning: approximate KS p-value; it is invalid without correction when null
   parameters are estimated from the tested data.
 - Code: `inference.goodness_of_fit._kolmogorov_survival`.
@@ -3832,7 +3833,7 @@ transform `T` (for example `T = exp` for a log-normal field).
 `T' = (Z + delta)/sqrt(V/nu)`; with `S = sqrt(V/nu)`,
 `P(T' <= t) = integral_0^inf Phi(t s - delta) g_nu(s) ds`,
 `g_nu(s) = 2 (nu/2)^(nu/2) s^(nu-1) exp(-nu s^2/2) / Gamma(nu/2)`;
-integrated by composite Simpson (2000 subintervals) on
+integrated by adaptive Gauss-Legendre quadrature [EQ-INF-DIST-NCT-002] on
 `[max(0, 1 - 12/sqrt(nu)), 1 + 12/sqrt(nu)]`.
 
 - Domain: `nu >= 1`, finite `t` and `delta`; `delta = 0` returns the central
@@ -5237,3 +5238,116 @@ combined interval is the equal-tailed sample interval of `z`.
   being averaged into a variance.
 - Code: `validation.prediction.predict_with_uncertainty_components`.
 - Source: [REF-ROY-OBERKAMPF-2011].
+
+## Numerical regressions, round two
+
+### EQ-NUM-STIRLING-001 — Stirling-difference prefactors for large parameters
+
+`stirling_error(a) = lgamma(a) - (a - 1/2) log a + a - log sqrt(2 pi)
+= sum_(k=1..7) B_(2k) / (2k (2k-1) a^(2k-1))` for `a >= 15`;
+`log1pmx(t) = log(1 + t) - t = -t y + 2 sum_(k>=1) y^(2k+1)/(2k+1)`,
+`y = t/(2+t)`, for `|t| <= 1/2`;
+`a log x - x - lgamma(a) = a log1pmx((x-a)/a) + log(a)/2 - log sqrt(2 pi)
+- stirling_error(a)`;
+`a log x + b log(1-x) - log B(a,b) = a log1pmx(t) + b log1pmx(s)
++ log(ab/(a+b))/2 - log sqrt(2 pi) - stirling_error(a) - stirling_error(b)
++ stirling_error(a+b)` with `1 + t = x(a+b)/a`, `1 + s = (1-x)(a+b)/b`.
+
+- Domain: used when the larger shape is at least `100`; the shared offset
+  `x(a+b) - a` is formed in exact rational arithmetic.
+- Meaning: removes the cancellation between `lgamma` values of size
+  `a log a` that cost relative errors of `1e-5` to `1e-3` in densities and
+  incomplete-function prefactors at shapes `1e10` to `1e12`.
+- Code: `distributions._special.stirling_error`, `distributions._special.log1pmx`,
+  `distributions._special.log_gamma_kernel`,
+  `distributions._special.log_beta_kernel`,
+  `distributions._special.log_gamma_ratio`,
+  `distributions._special.log_beta_function`, `distributions.Gamma.log_pdf`,
+  `distributions.Beta.log_pdf`, `distributions.FisherF.log_pdf`,
+  `distributions.StudentT.log_pdf`, `inference.noncentral_t_cdf`.
+- Source: [REF-NIST-DLMF-GAMMA, Section 5.11] and [REF-DIDONATO-MORRIS-1992].
+
+### EQ-NUM-GAMMA-002 — Temme's uniform expansion of the incomplete gamma ratios
+
+`Q(a,x) = erfc(eta sqrt(a/2))/2 + R`, `P(a,x) = erfc(-eta sqrt(a/2))/2 - R`,
+`R = exp(-a eta^2/2)/sqrt(2 pi a) (c_0(eta) + c_1(eta)/a)`,
+`eta = sign(lambda - 1) sqrt(2(lambda - 1 - log lambda))`, `lambda = x/a`,
+`c_0 = 1/(lambda-1) - 1/eta`,
+`c_1 = 1/eta^3 - 1/(lambda-1)^3 - 1/(lambda-1)^2 - 1/(12(lambda-1))`, both
+summed from 18-term Taylor series in `eta` with exact rational coefficients.
+
+- Domain: `a >= 1e6` and `|x - a| <= 0.3 a`, where the series and continued
+  fraction would need `O(sqrt(a))` terms; the omitted `c_2/a^2` term is below
+  `5e-15` relative to `R`.
+- Meaning: constant-cost, relatively accurate `P` and `Q` for very large
+  shapes (for example chi-square with `2e7` degrees of freedom).
+- Code: `distributions._special._gamma_temme`,
+  `distributions._special.regularized_gamma_p`,
+  `distributions._special.regularized_gamma_q`.
+- Source: [REF-TEMME-1979] and [REF-NIST-DLMF-GAMMA, Section 8.12].
+
+### EQ-INF-GOF-KS-003 — Exact one-sided Smirnov tail and the two-sided tail
+
+`P(D_n^+ >= d) = d sum_(j=0)^(floor(n(1-d))) C(n,j) (1-d-j/n)^(n-j)
+(d+j/n)^(j-1)`; `P(D_n >= d) = 2 P(D_n^+ >= d)` exactly for `d >= 1/2`, and
+`|P(D_n >= d) - 2 P(D_n^+ >= d)| <= P(D_n^+ >= d)^2` for every `d`.
+
+- Domain: continuous fully specified null; `n >= 1`. For `n = 1` and
+  `d >= 1/2` the tail is `2 (1 - d)`.
+- Meaning: the events `D_n^+ >= d` (decreasing in the observations) and
+  `D_n^- >= d` (increasing) are disjoint for `d >= 1/2` and negatively
+  correlated in general (Harris-FKG inequality for independent variables),
+  so doubling the one-sided tail is exact or within `1e-14` once that tail
+  is below `1e-7`.
+- Code: `inference.goodness_of_fit.smirnov_one_sided_sf`,
+  `inference.goodness_of_fit.kolmogorov_exact_sf`.
+- Source: [REF-BIRNBAUM-TINGEY-1951] and [REF-ESARY-PROSCHAN-WALKUP-1967].
+
+### EQ-INF-GOF-KS-004 — Exact finite-n Kolmogorov distribution (Noé recursion)
+
+`D_n < d` iff `N(i/n - d) <= i - 1` and `N((i-1)/n + d) >= i` for all `i`,
+with `N` the uniform-sample counting process; over the merged boundary
+times `t_m`, `Q_(m+1)(c') = sum_(c<=c') Q_m(c) (t_(m+1)-t_m)^(c'-c)/(c'-c)!`
+on admissible counts and `P(D_n < d) = n! Q_M(n)`.
+
+- Domain: `n <= 100` in `inference.kolmogorov_smirnov_test` (larger samples
+  keep [EQ-INF-GOF-KS-002]); `1/(2n) < d < 1`.
+- Meaning: the exact small-sample p-value `1 - P(D_n < d)`; all terms are
+  non-negative, and the result agrees with the Marsaglia-Tsang-Wang matrix
+  formula in exact arithmetic to about `1e-15`.
+- Code: `inference.goodness_of_fit._kolmogorov_noe_cdf`,
+  `inference.goodness_of_fit.kolmogorov_exact_sf`.
+- Source: [REF-NOE-1972] and [REF-MARSAGLIA-TSANG-WANG-2003].
+
+### EQ-DIST-TN-006 — Short-interval truncated normal moments
+
+On `[c - h, c + h]` (standardized), `w(u) = exp(-c u - u^2/2)`,
+`(n+1) q_(n+1) = -c h q_n - h^2 q_(n-1)`, `q_0 = 1`,
+`S_k = sum_(n+k even) q_n/(n+k+1)`; `E[Z] = c + h S_1/S_0`,
+`Var[Z] = h^2 (S_2/S_0 - (S_1/S_0)^2)`.
+
+- Domain: both ends finite and `w (|alpha| + w) <= 1/2` (`w = 2h`), the
+  same regime as [EQ-DIST-TN-005].
+- Meaning: moments of a narrow truncation without subtracting nearly equal
+  density ratios (the closed form gave a variance of `5.55e-17` instead of
+  `3.33e-17` on `(-1e-8, 1e-8)` and was 38% off on `(10, 10.0001)`).
+- Code: `distributions.truncated_normal._short_interval_moments`,
+  `distributions.TruncatedNormal.mean`, `distributions.TruncatedNormal.variance`.
+- Source: [REF-JKB-1994, Chapter 13] and [REF-NIST-DLMF, Section 7.6].
+
+### EQ-INF-DIST-NCT-002 — Adaptive Gauss-Legendre evaluation of the noncentral t
+
+`P(T' <= t) = integral Phi(t s - delta) g_nu(s) ds` by 10-point
+Gauss-Legendre panels, bisected until the two halves agree with the panel
+estimate within the panel's share of `1e-13`; breakpoints at
+`1 + {-3, 0, 3}/sqrt(2 nu)` and `delta/t + {-8, -1, 0, 1, 8}/|t|`; for
+`nu < 2` the variable `u = s^nu` gives the bounded integrand
+`Phi(t u^(1/nu) - delta) C exp(-nu u^(2/nu)/2)/nu`.
+
+- Domain: `nu >= 1`, finite `t` and `delta != 0`.
+- Meaning: resolves both the chi-scale bump and the normal step of width
+  `1/|t|`; a fixed 2000-panel Simpson rule erred by up to `7e-4`.
+- Code: `inference.noncentral_t_cdf`,
+  `inference.sampling_distributions._adaptive_integral`,
+  `inference.sampling_distributions._gauss_legendre_rule`.
+- Source: [REF-DAVIS-RABINOWITZ-1984, Chapters 2 and 6].

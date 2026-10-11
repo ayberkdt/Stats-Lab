@@ -20,7 +20,12 @@ from ._continuous import (
     safe_log,
     solve_tail_quantile,
 )
-from ._special import regularized_gamma_p, regularized_gamma_q
+from ._special import (
+    LARGE_SHAPE,
+    log_gamma_kernel,
+    regularized_gamma_p,
+    regularized_gamma_q,
+)
 from .constraints import POSITIVE_FINITE
 from .support import RealSupport
 
@@ -139,10 +144,10 @@ class Gamma:
             ValueError: If ``x`` is non-finite.
 
         Equation:
-            [EQ-DIST-GAM-001].
+            [EQ-DIST-GAM-001], [EQ-NUM-STIRLING-001].
 
         References:
-            [REF-JKB-1994, Chapter 17].
+            [REF-JKB-1994, Chapter 17], [REF-NIST-DLMF-GAMMA, Section 5.11].
 
         """
         point = require_finite_real(x, name="x")
@@ -157,6 +162,10 @@ class Gamma:
         scaled = self._scaled(point)
         if scaled == math.inf:
             return -math.inf
+        if self.shape >= LARGE_SHAPE and scaled > 0.0:
+            # k log(lambda x) - lambda x - lgamma(k) without differencing
+            # lgamma(k) (size k log k) against k log(lambda x).
+            return log_gamma_kernel(self.shape, point, self.rate) - math.log(point)
         return (
             self.shape * math.log(self.rate)
             + (self.shape - 1.0) * math.log(point)

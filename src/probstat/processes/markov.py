@@ -383,16 +383,34 @@ class MarkovChain:
         return tuple(i for i in range(self.size) if i not in recurrent)
 
     def absorbing_states(self) -> tuple[int, ...]:
-        """Return the states with ``P_ii = 1``.
+        """Return the states that no transition leaves (closed singletons).
+
+        State ``i`` is absorbing when ``P_ij = 0`` for every ``j != i``, i.e.
+        when ``{i}`` is a closed class. Because rows need only sum to one
+        within ``1e-10``, the diagonal of such a row may differ from ``1.0``
+        by rounding (``1 - 1e-11``); testing ``P_ii == 1.0`` would then
+        silently drop the state from absorption analysis. The structural
+        definition agrees with :meth:`closed_classes`.
 
         Returns:
             Sorted absorbing state indices.
 
+        Equation:
+            [EQ-PROC-MC-004].
+
         References:
-            [REF-NORRIS-1997, Section 1.3].
+            [REF-NORRIS-1997, Sections 1.3 and 1.5].
 
         """
-        return tuple(i for i in range(self.size) if self.transition[i][i] == 1.0)
+        return tuple(
+            i
+            for i in range(self.size)
+            if all(
+                value == 0.0
+                for j, value in enumerate(self.transition[i])
+                if j != i
+            )
+        )
 
     def is_irreducible(self) -> bool:
         """Return whether every state communicates with every other state.

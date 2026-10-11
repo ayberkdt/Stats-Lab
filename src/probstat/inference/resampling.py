@@ -282,6 +282,10 @@ class BootstrapInterval:
         bootstrap: Underlying replicates and summaries.
         bias_correction: BCa ``z_0`` (``None`` for other methods).
         acceleration: BCa jackknife acceleration ``a`` (``None`` otherwise).
+        degenerate_resamples: Studentized method only: resamples whose
+            standard error was zero (for example a resample of identical
+            values), so their pivot ``t*`` is undefined; they are excluded
+            from the pivot quantiles. Zero for the other methods.
 
     References:
         [REF-EFRON-TIBSHIRANI-1993, Chapters 12-14],
@@ -294,6 +298,7 @@ class BootstrapInterval:
     bootstrap: BootstrapResult
     bias_correction: float | None = None
     acceleration: float | None = None
+    degenerate_resamples: int = 0
 
     @property
     def lower(self) -> float:
@@ -365,8 +370,11 @@ def bootstrap_confidence_interval(
     Raises:
         TypeError: If an argument has an invalid type.
         ValueError: If the method is unknown, BCa replicates all lie on one
-            side of the estimate, the jackknife is degenerate, or a
-            resample has zero standard error.
+            side of the estimate, the jackknife is degenerate, the original
+            sample has zero standard error, or fewer than two resamples have
+            a positive standard error (studentized method). Resamples with a
+            zero standard error are skipped and counted in
+            ``degenerate_resamples``.
 
     Equation:
         [EQ-INF-BOOT-002], [EQ-INF-BOOT-003], [EQ-INF-BOOT-004],
@@ -500,10 +508,17 @@ def _studentized_interval(
         standard_error: Optional standard-error function; jackknife otherwise.
 
     Returns:
-        Studentized interval.
+        Studentized interval. Resamples whose standard error is zero (for a
+        small sample, e.g. a resample of one repeated value, whose jackknife
+        standard error vanishes) have an undefined pivot; they are skipped
+        and their number is reported as ``degenerate_resamples``. The pivot
+        quantiles are then conditional on a positive resample standard
+        error.
 
     Raises:
-        ValueError: If a standard error is zero or non-finite.
+        ValueError: If the original standard error is zero, a standard error
+            is negative or non-finite, or fewer than two resamples have a
+            positive standard error.
 
     References:
         [EQ-INF-BOOT-003], [REF-EFRON-TIBSHIRANI-1993, Chapter 12],
@@ -515,7 +530,7 @@ def _studentized_interval(
         raise ValueError("replicates must be at least two")
 
     def scale(sample: Sequence[T]) -> float:
-        """Return a positive standard error for one (re)sample.
+        """Return the non-negative standard error of one (re)sample.
 
         References:
             [EQ-INF-BOOT-003], [EQ-INF-JACK-001].
@@ -525,18 +540,32 @@ def _studentized_interval(
             value = jackknife(statistic, sample).standard_error
         else:
             value = require_finite_real(standard_error(sample), name="standard_error")
-        if value <= 0.0:
-            raise ValueError("a standard error is zero; studentization undefined")
+        if value < 0.0:
+            raise ValueError("a standard error is negative")
         return value
 
     theta = _finite_statistic(statistic(items))
     se = scale(items)
+    if se == 0.0:
+        raise ValueError(
+            "the sample standard error is zero; studentization undefined"
+        )
     replicate_values: list[float] = []
     pivots: list[float] = []
+    degenerate = 0
     for sample in _resamples(items, count, stream):
         value = _finite_statistic(statistic(sample))
         replicate_values.append(value)
-        pivots.append((value - theta) / scale(sample))
+        resample_se = scale(sample)
+        if resample_se == 0.0:
+            degenerate += 1
+            continue
+        pivots.append((value - theta) / resample_se)
+    if len(pivots) < 2:
+        raise ValueError(
+            "fewer than two resamples have a positive standard error; "
+            "studentization undefined"
+        )
     alpha = 1.0 - level
     ordered = sorted(pivots)
     lower = theta - quantile(ordered, 1.0 - 0.5 * alpha) * se
@@ -552,6 +581,7 @@ def _studentized_interval(
         ConfidenceInterval(lower, upper, level, "bootstrap studentized (bootstrap-t)"),
         "studentized",
         result,
+        degenerate_resamples=degenerate,
     )
 
 
@@ -615,8 +645,14 @@ def permutation_test(
     ``permutations`` random relabelings are drawn and the p-value is
     ``(b + 1)/(permutations + 1)``, where ``b`` counts draws at least as
     extreme; this estimate is never zero and keeps the test valid. The
-    two-sided version compares absolute differences. Comparisons use a
-    relative tolerance of ``1e-12`` so floating-point ties count as extreme.
+    two-sided version compares absolute differences. The pooled data are
+    centred on their first value before any sum is formed (the shift leaves
+    every relabeled statistic unchanged, and for data with a large common
+    offset it is exact), and statistics within
+    ``1e-12 max(|observed|, max|x - c|) + 16 eps max|x|`` of the observed
+    value count as ties: the first term absorbs summation roundoff, the
+    second the representation error of the raw observations. Without the
+    centring, an offset of ``1e9`` turned exact ties into misses.
 
     Args:
         first: First sample.
@@ -647,6 +683,10 @@ def permutation_test(
     limit = require_non_negative_integer(max_exact, name="max_exact")
     if draws < 1:
         raise ValueError("permutations must be positive")
+    centre = (a + b)[0]
+    raw_scale = max(abs(value) for value in a + b)
+    a = tuple(value - centre for value in a)
+    b = tuple(value - centre for value in b)
     pooled = a + b
     m, n = len(a), len(b)
     total = math.fsum(pooled)
@@ -661,7 +701,11 @@ def permutation_test(
         return first_sum / m - (total - first_sum) / n
 
     observed = difference(math.fsum(a))
-    tolerance = 1e-12 * max(1.0, abs(observed))
+    centred_scale = max(abs(value) for value in pooled)
+    tolerance = (
+        1e-12 * max(abs(observed), centred_scale)
+        + 16.0 * math.ulp(1.0) * raw_scale
+    )
 
     def extreme(value: float) -> bool:
         """Return whether a relabeled statistic is at least as extreme.

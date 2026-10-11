@@ -183,8 +183,12 @@ def invert_increasing(
         maximum: Finite upper coordinate limit.
 
     Returns:
-        Root coordinate, or the violated limit when no sign change exists
-        inside ``[minimum, maximum]``.
+        Root coordinate. When the residual keeps one sign up to a coordinate
+        limit, the root lies beyond the representable range and ``inf``
+        (residual still negative at ``maximum``) or ``-inf`` (still positive
+        at ``minimum``) is returned, so callers map it to the true limit of
+        their support (for example ``inf`` or ``0``) instead of a finite but
+        wrong boundary value.
 
     Equation:
         [EQ-DIST-INV-001].
@@ -206,7 +210,7 @@ def invert_increasing(
             if value_high >= 0.0:
                 return brent_increasing(residual, low, high, value_low, value_high)
             if high >= maximum:
-                return maximum
+                return math.inf
             low, value_low = high, value_high
             step *= 2.0
         return low
@@ -217,7 +221,7 @@ def invert_increasing(
         if value_low <= 0.0:
             return brent_increasing(residual, low, high, value_low, value_high)
         if low <= minimum:
-            return minimum
+            return -math.inf
         high, value_high = low, value_low
         step *= 2.0
     return high
@@ -251,7 +255,10 @@ def solve_tail_quantile(
         maximum: Finite upper coordinate limit.
 
     Returns:
-        Quantile ``x`` in the distribution support.
+        Quantile ``x`` in the distribution support. ``to_x`` is evaluated at
+        ``+-inf`` when the quantile lies beyond the coordinate limits, so it
+        must map infinite coordinates to the support limits (``sinh``,
+        :func:`expit`, and :func:`bounded_exp` do).
 
     Equation:
         [EQ-DIST-INV-001], [EQ-DIST-ISF-001].
@@ -301,15 +308,21 @@ def bounded_exp(t: float) -> float:
     """Return ``exp(t)`` for a coordinate limited to the finite float range.
 
     Args:
-        t: Coordinate in ``[LOG_MIN, LOG_MAX]``.
+        t: Coordinate in ``[LOG_MIN, LOG_MAX]``, or ``+-inf`` for the limits
+            reported by :func:`invert_increasing`.
 
     Returns:
-        Positive value ``exp(t)``.
+        Positive value ``exp(t)``; ``inf`` at ``t = inf`` and ``0`` at
+        ``t = -inf``.
 
     References:
         [REF-PYTHON-MATH]. No probability equation is evaluated.
 
     """
+    if t == math.inf:
+        return math.inf
+    if t == -math.inf:
+        return 0.0
     return math.exp(min(max(t, LOG_MIN), LOG_MAX))
 
 

@@ -18,7 +18,12 @@ from ._continuous import (
     safe_log,
     solve_tail_quantile,
 )
-from ._special import regularized_beta_pair
+from ._special import (
+    LARGE_SHAPE,
+    log_beta_function,
+    log_gamma_ratio,
+    regularized_beta_pair,
+)
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
 
@@ -77,7 +82,13 @@ class StudentT:
 
         Uses ``I_(nu/(nu+t^2))(nu/2, 1/2)/2`` with both ``nu/(nu+t^2)`` and
         its complement ``t^2/(nu+t^2)`` formed directly, so neither the centre
-        nor the tails (nor ``nu -> inf``) lose accuracy to ``1 - x``.
+        nor the tails (nor ``nu -> inf``) lose accuracy to ``1 - x``. When
+        ``t^2`` or ``nu + t^2`` would overflow, the same ratios are formed
+        from ``r = sqrt(nu)/|t|`` as ``r^2/(1+r^2)`` and ``1/(1+r^2)``; when
+        even ``r^2`` underflows (``x < 1e-300``) the leading term
+        ``x^(nu/2) / (nu B(nu/2, 1/2))`` of the incomplete-beta series is
+        used in log space, whose relative error ``O(x)`` is far below
+        rounding. Hence ``StudentT(1).cdf(-1e200) = 1/(pi 1e200)``.
 
         Args:
             magnitude: Non-negative standardized point ``|t|``.
@@ -86,19 +97,35 @@ class StudentT:
             Upper-tail probability in ``[0, 1/2]``.
 
         Equation:
-            [EQ-DIST-STT-002], [EQ-DIST-T-001].
+            [EQ-DIST-STT-002], [EQ-DIST-T-001], [EQ-NUM-BETA-001].
 
         References:
             [REF-NIST-DLMF-BETA, Section 8.17], [REF-JKB-1995, Chapter 28].
 
         """
-        squared = magnitude * magnitude
-        if squared == math.inf:
+        if magnitude == math.inf:
             return 0.0
+        squared = magnitude * magnitude
         denominator = self.nu + squared
-        return 0.5 * regularized_beta_pair(
-            self.nu / denominator, squared / denominator, 0.5 * self.nu, 0.5
+        if denominator != math.inf:
+            return 0.5 * regularized_beta_pair(
+                self.nu / denominator, squared / denominator, 0.5 * self.nu, 0.5
+            )
+        ratio = math.sqrt(self.nu) / magnitude
+        ratio_squared = ratio * ratio
+        if ratio_squared >= 1e-300:
+            scale = 1.0 + ratio_squared
+            return 0.5 * regularized_beta_pair(
+                ratio_squared / scale, 1.0 / scale, 0.5 * self.nu, 0.5
+            )
+        # I_x(nu/2, 1/2) = x^(nu/2) (1-x)^(1/2) / ((nu/2) B(nu/2, 1/2)) (1 + O(x))
+        # with log x = 2 log r - log1p(r^2) and x < 1e-300.
+        log_tail = (
+            self.nu * math.log(ratio)
+            - math.log(self.nu)
+            - log_beta_function(0.5 * self.nu, 0.5)
         )
+        return math.exp(log_tail) if log_tail > -745.2 else 0.0
 
     def _standardized(self, x: float) -> float:
         """Validate ``x`` and return ``(x - mu) / sigma``.
@@ -133,10 +160,10 @@ class StudentT:
             ValueError: If ``x`` is non-finite.
 
         Equation:
-            [EQ-DIST-STT-001].
+            [EQ-DIST-STT-001], [EQ-NUM-STIRLING-001].
 
         References:
-            [REF-JKB-1995, Chapter 28].
+            [REF-JKB-1995, Chapter 28], [REF-NIST-DLMF-GAMMA, Section 5.11].
 
         """
         z = self._standardized(x)
@@ -145,9 +172,13 @@ class StudentT:
             log_term = 2.0 * math.log(ratio)
         else:
             log_term = math.log1p(ratio * ratio)
+        if 0.5 * self.nu >= LARGE_SHAPE:
+            # lgamma((nu+1)/2) - lgamma(nu/2) from Stirling differences.
+            log_ratio = log_gamma_ratio(0.5 * self.nu, 0.5)
+        else:
+            log_ratio = math.lgamma(0.5 * (self.nu + 1.0)) - math.lgamma(0.5 * self.nu)
         return (
-            math.lgamma(0.5 * (self.nu + 1.0))
-            - math.lgamma(0.5 * self.nu)
+            log_ratio
             - 0.5 * math.log(self.nu * math.pi)
             - math.log(self.sigma)
             - 0.5 * (self.nu + 1.0) * log_term
