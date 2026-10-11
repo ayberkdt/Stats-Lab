@@ -77,9 +77,7 @@ class ThemeTests(unittest.TestCase):
             ),
             plot_method_comparison((("a", 1.0, 0.9, 1.1), ("b", 1.05, None, None))),
             plot_sobol_indices(("x1", "x2"), (0.3, 0.0), (0.5, 0.4)),
-            plot_output_distribution(
-                [math.sin(i) for i in range(300)], threshold=0.5
-            ),
+            plot_output_distribution([math.sin(i) for i in range(300)], threshold=0.5),
             plot_design_comparison({"mc": (1.0, 0.2), "sobol": (1.0, 0.01)}, size=64),
         ]
         with tempfile.TemporaryDirectory() as directory:
@@ -87,6 +85,71 @@ class ThemeTests(unittest.TestCase):
                 self.assertTrue(axes.get_title(loc="left"))
                 path = save_figure(axes.figure, Path(directory) / f"plot-{index}.png")
                 self.assertGreater(path.stat().st_size, 1000)
+
+    def test_new_workflow_plots_render(self) -> None:
+        """Inference, filtering, surrogate, field, and risk plots all render."""
+        from types import SimpleNamespace
+
+        from probstat.visualization.inference_plots import (
+            plot_chain_traces,
+            plot_filter_track,
+            plot_posterior_marginals,
+            plot_surrogate_parity,
+        )
+        from probstat.visualization.processes_plots import (
+            plot_field_realizations,
+            plot_kl_spectrum,
+        )
+        from probstat.visualization.uq import (
+            plot_calibration_prediction,
+            plot_exceedance_curves,
+            plot_form_geometry,
+            plot_loss_exceedance,
+            plot_reliability_comparison,
+        )
+
+        grid = [0.1 * k for k in range(30)]
+        wave = [math.sin(x) for x in grid]
+        rows = (
+            SimpleNamespace(
+                method="FORM",
+                probability=0.01,
+                evaluations=40,
+                coefficient_of_variation=None,
+            ),
+            SimpleNamespace(
+                method="MC",
+                probability=0.012,
+                evaluations=10000,
+                coefficient_of_variation=0.09,
+            ),
+        )
+        produced = [
+            plot_chain_traces([wave, [w + 0.01 for w in wave]], name="k", rhat=1.0),
+            plot_filter_track(grid, wave, [0.1] * 30, truth=wave, name="x"),
+            plot_surrogate_parity(wave, [w * 1.01 for w in wave]),
+            plot_field_realizations(grid, [wave, [-w for w in wave]]),
+            plot_kl_spectrum([0.5, 0.3, 0.1, 0.05, 0.05], 3),
+            plot_calibration_prediction(
+                grid[:5],
+                wave[:5],
+                grid,
+                wave,
+                ([w - 0.1 for w in wave], [w + 0.1 for w in wave]),
+                ([w - 0.2 for w in wave], [w + 0.2 for w in wave]),
+                calibration_limit=1.0,
+            ),
+            plot_exceedance_curves({"model": [(x, math.exp(-x)) for x in grid]}),
+            plot_form_geometry(lambda a, b: 3.0 - a - b, (1.5, 1.5), 2.1213),
+            plot_loss_exceedance(
+                [float(k % 7) for k in range(200)], {0.95: 6.0}, {0.95: 6.0}
+            ),
+            plot_reliability_comparison(rows, reference=0.011),
+        ]
+        figure = plot_posterior_marginals({"a": wave, "b": grid}, truth={"a": 0.0})
+        self.assertEqual(len(figure.axes), 2)
+        for axes in produced:
+            self.assertTrue(axes.get_title(loc="left"))
 
     def test_dark_theme_changes_canvas(self) -> None:
         """The graphite context paints the dark canvas."""
