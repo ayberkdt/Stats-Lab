@@ -11,6 +11,9 @@ defects that are now fixed with oracle-backed regression tests.
 
 ### Added
 
+- **API stability**: every package is labelled stable, provisional, or
+  experimental (ADR-0048); `foundations.deprecated` manages deprecations.
+
 - **Regression** (`inference`): treatment-coded design matrices; OLS/WLS by
   Householder QR with t/F inference, intervals, leverage, studentized
   residuals, Cook's distance, HC0-HC3, VIF; GLMs by IRLS (Gaussian,
@@ -120,6 +123,12 @@ defects that are now fixed with oracle-backed regression tests.
   proposal (eigenvalues near 5e-4, estimates biased low by up to 100% with
   small reported c.o.v.); adapted eigenvalues are now floored at 0.55 and a
   warning flags degenerate weights.
+- Fifth review round: censored-normal EM cancelled catastrophically far
+  from zero (now centred moments, matching scipy at locations up to 1e8);
+  hierarchical posteriors report infinite moments as `inf` instead of
+  grid-dependent values; AK-MCS reports a probability consistent with the
+  returned surrogate when stopped by `max_added`; predictive-check thinning
+  respects its draw cap; the KDE cdf keeps lower-tail accuracy.
 - Fourth review round: GEV profile-likelihood return-level intervals crashed
   on heavy-tailed samples (now level-adapted starts and finite brackets);
   gamma and beta differential entropies lost all accuracy at large shapes

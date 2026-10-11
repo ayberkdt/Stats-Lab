@@ -15,7 +15,7 @@ tested evidence.
 - [x] Durable project memory, ADRs, and session notes.
 - [x] Optional visualization layer separated from mathematics.
 - [x] Continuous integration across supported Python versions (3.11-3.13).
-- [ ] API stability labels and deprecation policy.
+- [x] API stability labels and deprecation policy (ADR-0048).
 
 ## Phase 1 — Probability foundations
 
