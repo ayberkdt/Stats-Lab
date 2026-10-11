@@ -1546,3 +1546,16 @@ Random Vector." *Problems of Information Transmission* 23(2), 95-101, 1987
 
 Jianhua Lin. "Divergence Measures Based on the Shannon Entropy." *IEEE
 Transactions on Information Theory* 37(1), 145-151, 1991.
+
+## REF-DERKIUREGHIAN-DAKESSIAN-1998
+
+Armen Der Kiureghian and T. Dakessian. "Multiple Design Points in First
+and Second-Order Reliability." *Structural Safety* 20(1), 37-49, 1998.
+DOI: [10.1016/S0167-4730(97)00026-X](https://doi.org/10.1016/S0167-4730(97)00026-X).
+
+## REF-ECHARD-GAYTON-LEMAIRE-2011
+
+B. Echard, N. Gayton, and M. Lemaire. "AK-MCS: An Active Learning
+Reliability Method Combining Kriging and Monte Carlo Simulation."
+*Structural Safety* 33(2), 145-154, 2011.
+DOI: [10.1016/j.strusafe.2011.01.002](https://doi.org/10.1016/j.strusafe.2011.01.002).

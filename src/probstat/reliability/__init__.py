@@ -5,10 +5,16 @@
 :class:`~probstat.modeling.ProbabilisticModel` through
 :class:`ModelLimitState`, sharing one joint input law across FORM, SORM,
 importance sampling, subset simulation, cross-entropy importance sampling,
-line sampling, system reliability, and inverse design.
+line sampling, system reliability, and inverse design. ``design_points``
+finds multiple design points and combines them (multi-point FORM, mixture
+importance sampling); ``active_learning`` implements AK-MCS on a Gaussian
+process surrogate from :mod:`probstat.surrogates`.
 """
 
+from .active_learning import AKMCSIteration, AKMCSResult, ak_mcs
 from .adaptive import (
+    CE_COVARIANCE_FLOOR,
+    CE_MIN_FAILURE_ESS_FRACTION,
     CrossEntropyResult,
     LineSamplingResult,
     cross_entropy_importance_sampling,
@@ -24,6 +30,15 @@ from .analysis import (
     estimate_failure_probability,
     estimate_weighted_failure_probability,
     linear_normal_form,
+)
+from .design_points import (
+    MixtureImportanceResult,
+    MultipleDesignPointsResult,
+    MultiPointFORMResult,
+    bulge_value,
+    find_design_points,
+    mixture_importance_sampling,
+    multi_point_form,
 )
 from .model_based import (
     DesignParameterResult,
@@ -64,7 +79,11 @@ from .systems import (
 )
 
 __all__ = [
+    "AKMCSIteration",
+    "AKMCSResult",
     "AVAILABLE_METHODS",
+    "CE_COVARIANCE_FLOOR",
+    "CE_MIN_FAILURE_ESS_FRACTION",
     "CrossEntropyResult",
     "DesignParameterResult",
     "DesignPointImportanceResult",
@@ -78,15 +97,20 @@ __all__ = [
     "METHODS",
     "MethodComparison",
     "MethodComparisonRow",
+    "MixtureImportanceResult",
     "ModelLimitState",
     "ModelMonteCarloResult",
+    "MultiPointFORMResult",
+    "MultipleDesignPointsResult",
     "OPTIONAL_METHODS",
     "SORMResult",
     "SeriesSystemBounds",
     "SubsetSimulationResult",
     "SystemReliabilityResult",
     "WeightedFailureResult",
+    "ak_mcs",
     "bivariate_normal_cdf",
+    "bulge_value",
     "compare_reliability_methods",
     "correlated_importance",
     "cross_entropy_importance_sampling",
@@ -95,13 +119,16 @@ __all__ = [
     "estimate_directional_failure_probability",
     "estimate_failure_probability",
     "estimate_weighted_failure_probability",
+    "find_design_points",
     "form_hlrf",
     "gauss_legendre",
     "generalized_reliability_index",
     "inverse_form",
     "line_sampling",
     "linear_normal_form",
+    "mixture_importance_sampling",
     "model_monte_carlo",
+    "multi_point_form",
     "principal_curvatures",
     "second_order_probabilities",
     "series_system_bounds",
