@@ -20,7 +20,8 @@ log-scale makes noise parameters unconstrained; the prior density is
 transformed with its Jacobian ``|d sigma / d log sigma| = sigma``.
 
 Posterior sampling (:meth:`CalibrationProblem.sample_posterior`) runs adaptive
-Metropolis in the Nataf standard-normal space ``u = T(theta)`` of the prior.
+Metropolis (default), static HMC, or NUTS in the Nataf standard-normal space
+``u = T(theta)`` of the prior.
 Because ``T`` pushes the prior forward to ``N(0, I)``, the posterior density in
 ``u`` is ``L(T^-1(u)) phi(u)`` exactly; the prior Jacobian is absorbed by the
 transformation and no determinant needs to be computed. Bounded or skewed
@@ -40,11 +41,14 @@ from probstat.foundations.validation import (
     require_non_negative_integer,
 )
 from probstat.inference import (
+    HamiltonianResult,
     LaplaceApproximation,
     MCMCResult,
     ParameterSummary,
     adaptive_metropolis,
+    hamiltonian_monte_carlo,
     laplace_approximation,
+    no_u_turn_sampler,
 )
 from probstat.linalg import (
     Matrix,
@@ -335,9 +339,12 @@ class CalibrationPosterior:
             ``(u, log sigma)``.
         laplace: Laplace approximation in sampling coordinates used to start
             the chains (``None`` if the Hessian was not positive definite).
+        sampler: HMC/NUTS diagnostics (divergences, tree depths, step sizes)
+            in sampling coordinates; ``None`` for adaptive Metropolis.
 
     References:
-        [REF-GELMAN-ETAL-2013, Chapter 11], [REF-KENNEDY-OHAGAN-2001].
+        [REF-GELMAN-ETAL-2013, Chapter 11], [REF-KENNEDY-OHAGAN-2001],
+        [REF-HOFFMAN-GELMAN-2014].
 
     """
 
@@ -346,6 +353,7 @@ class CalibrationPosterior:
     mcmc: MCMCResult
     standard_space: MCMCResult
     laplace: LaplaceApproximation | None
+    sampler: HamiltonianResult | None = None
 
     @property
     def evaluations(self) -> int:
@@ -1187,8 +1195,9 @@ class CalibrationProblem:
         thin: int = 1,
         dispersion: float = 2.0,
         seed: int | RandomStream | None = None,
+        method: str = "adaptive-metropolis",
     ) -> CalibrationPosterior:
-        """Sample the posterior by adaptive Metropolis in standard-normal space.
+        """Sample the posterior by MCMC in standard-normal space.
 
         Steps: (1) Laplace approximation of :meth:`standard_log_posterior`
         from ``u = 0`` and log prior-median noise; (2) chain starts drawn from
@@ -1199,6 +1208,16 @@ class CalibrationProblem:
         ``(theta, sigma)``. If the Laplace Hessian is not positive definite,
         chains start near ``u = 0`` with a small isotropic proposal.
 
+        With ``method="hmc"`` or ``"nuts"`` step (3) is replaced by static
+        Hamiltonian Monte Carlo or the No-U-Turn Sampler with a diagonal
+        metric initialized from the Laplace variances and adapted in warm-up
+        windows. Gradients of :meth:`standard_log_posterior` are central
+        differences, so every leapfrog step costs ``2 n + 1`` posterior
+        evaluations (``n`` = :attr:`dimension`), i.e. ``2 n + 1`` forward-model
+        runs per experiment; divergences are reported in ``sampler``. The
+        default reproduces the adaptive-Metropolis results of earlier
+        versions exactly.
+
         Args:
             draws: Kept draws per chain.
             warmup: Adaptation and burn-in iterations per chain.
@@ -1206,21 +1225,27 @@ class CalibrationProblem:
             thin: Thinning interval.
             dispersion: Start-point spread relative to the Laplace scale.
             seed: Integer seed or stream.
+            method: ``"adaptive-metropolis"`` (default), ``"hmc"``, or
+                ``"nuts"``.
 
         Returns:
             Posterior with physical and sampling-space chains.
 
         Raises:
-            ValueError: For invalid run arguments.
+            ValueError: For invalid run arguments or an unknown ``method``.
 
         Equation:
-            [EQ-CAL-STD-001], [EQ-MCMC-AM-001], [EQ-MCMC-MH-001].
+            [EQ-CAL-STD-001], [EQ-MCMC-AM-001], [EQ-MCMC-MH-001],
+            [EQ-HMC-LEAPFROG-001], [EQ-NUTS-SLICE-001].
 
         References:
             [REF-HAARIO-SAKSMAN-TAMMINEN-2001], [REF-GELMAN-RUBIN-1992],
-            [REF-LIU-DERKIUREGHIAN-1986].
+            [REF-LIU-DERKIUREGHIAN-1986], [REF-HOFFMAN-GELMAN-2014],
+            [REF-NEAL-2011].
 
         """
+        if method not in ("adaptive-metropolis", "hmc", "nuts"):
+            raise ValueError("method must be 'adaptive-metropolis', 'hmc', or 'nuts'")
         spread = require_finite_real(dispersion, name="dispersion")
         if spread <= 0.0:
             raise ValueError("dispersion must be positive")
@@ -1257,22 +1282,46 @@ class CalibrationProblem:
                     start = candidate
                     break
             starts.append(start)
-        proposal = scale_matrix(covariance, 2.38**2 / size)
-        sampled = adaptive_metropolis(
-            self.standard_log_posterior,
-            tuple(starts),
-            draws=draws,
-            warmup=warmup,
-            chains=chains,
-            thin=thin,
-            initial_covariance=proposal,
-            seed=stream.child("chains"),
-            names=tuple(f"u[{name}]" for name in self.parameter_names)
-            + tuple(f"log_sigma[{q}]" for q in self._unknown),
+        names = tuple(f"u[{name}]" for name in self.parameter_names) + tuple(
+            f"log_sigma[{q}]" for q in self._unknown
         )
+        sampler: HamiltonianResult | None = None
+        if method == "adaptive-metropolis":
+            proposal = scale_matrix(covariance, 2.38**2 / size)
+            sampled = adaptive_metropolis(
+                self.standard_log_posterior,
+                tuple(starts),
+                draws=draws,
+                warmup=warmup,
+                chains=chains,
+                thin=thin,
+                initial_covariance=proposal,
+                seed=stream.child("chains"),
+                names=names,
+            )
+        else:
+            run = no_u_turn_sampler if method == "nuts" else hamiltonian_monte_carlo
+            sampler = run(
+                self.standard_log_posterior,
+                tuple(starts),
+                draws=draws,
+                warmup=warmup,
+                chains=chains,
+                thin=thin,
+                metric="diag",
+                initial_inverse_metric=covariance,
+                seed=stream.child("chains"),
+                names=names,
+            )
+            sampled = sampler.mcmc
         physical = sampled.transformed(
             self.to_physical, self.parameter_names + self.noise_names
         )
         return CalibrationPosterior(
-            self.parameter_names, self.noise_names, physical, sampled, laplace
+            self.parameter_names,
+            self.noise_names,
+            physical,
+            sampled,
+            laplace,
+            sampler,
         )

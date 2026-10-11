@@ -1116,3 +1116,55 @@ Human Factors in Computing Systems*, 5092-5103, 2016.
 
 David Spiegelhalter, Mike Pearson, and Ian Short. "Visualizing
 Uncertainty About the Future." *Science* 333(6048), 1393-1400, 2011.
+
+## REF-NEAL-2011
+
+Radford M. Neal. "MCMC Using Hamiltonian Dynamics." In Steve Brooks, Andrew
+Gelman, Galin L. Jones, and Xiao-Li Meng (editors), *Handbook of Markov Chain
+Monte Carlo*. Chapman & Hall/CRC, 2011.
+DOI: [10.1201/b10905](https://doi.org/10.1201/b10905) (book). Preprint:
+[arXiv:1206.1901](https://arxiv.org/abs/1206.1901).
+
+## REF-HOFFMAN-GELMAN-2014
+
+Matthew D. Hoffman and Andrew Gelman. "The No-U-Turn Sampler: Adaptively
+Setting Path Lengths in Hamiltonian Monte Carlo." *Journal of Machine Learning
+Research* 15(47), 1593-1623, 2014.
+
+## REF-BETANCOURT-2017
+
+Michael Betancourt. "A Conceptual Introduction to Hamiltonian Monte Carlo."
+Preprint, 2017. [arXiv:1701.02434](https://arxiv.org/abs/1701.02434).
+
+## REF-KUCUKELBIR-ETAL-2017
+
+Alp Kucukelbir, Dustin Tran, Rajesh Ranganath, Andrew Gelman, and David M.
+Blei. "Automatic Differentiation Variational Inference." *Journal of Machine
+Learning Research* 18(14), 1-45, 2017.
+
+## REF-BLEI-KUCUKELBIR-MCAULIFFE-2017
+
+David M. Blei, Alp Kucukelbir, and Jon D. McAuliffe. "Variational Inference:
+A Review for Statisticians." *Journal of the American Statistical
+Association* 112(518), 859-877, 2017.
+DOI: [10.1080/01621459.2017.1285773](https://doi.org/10.1080/01621459.2017.1285773).
+
+## REF-NESTEROV-2009
+
+Yurii Nesterov. "Primal-Dual Subgradient Methods for Convex Problems."
+*Mathematical Programming* 120(1), 221-259, 2009.
+DOI: [10.1007/s10107-007-0149-x](https://doi.org/10.1007/s10107-007-0149-x).
+
+## REF-KINGMA-BA-2015
+
+Diederik P. Kingma and Jimmy Ba. "Adam: A Method for Stochastic
+Optimization." In *Proceedings of the 3rd International Conference on
+Learning Representations (ICLR)*, 2015.
+[arXiv:1412.6980](https://arxiv.org/abs/1412.6980).
+
+## REF-POLYAK-JUDITSKY-1992
+
+B. T. Polyak and A. B. Juditsky. "Acceleration of Stochastic
+Approximation by Averaging." *SIAM Journal on Control and Optimization*
+30(4), 838-855, 1992.
+DOI: [10.1137/0330046](https://doi.org/10.1137/0330046).
