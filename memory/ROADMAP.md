@@ -161,7 +161,8 @@ dependency direction.
   and method comparison.
 - [x] Nonlinear/non-normal HL-RF FORM via Nataf, SORM, design-point IS, subset
   simulation, system reliability bounds, inverse FORM.
-- [ ] Multiple design points, cross-entropy adaptation, and line sampling.
+- [x] Multiple design points, cross-entropy adaptation, line sampling, and
+  AK-MCS active learning (ADR-0029, ADR-0041).
 
 ### UQ-5 — Sensitivity analysis
 

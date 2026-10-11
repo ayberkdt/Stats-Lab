@@ -48,6 +48,12 @@ defects that are now fixed with oracle-backed regression tests.
   cross-entropy, Jensen-Shannon for finite laws; closed-form differential
   entropies and Gaussian KL; Kozachenko-Leonenko entropy and KSG mutual
   information estimators.
+- **Adaptive reliability** (`reliability`): sequential search for multiple
+  design points (bulging plus multi-start HL-RF), multi-point FORM for series
+  systems (closed form for two points, Genz separation of variables beyond,
+  Ditlevsen bounds), mixture importance sampling over all design points, and
+  AK-MCS active learning with a Gaussian-process limit state (U-function,
+  population enlargement, comparison with Monte Carlo on the same population).
 - **Model discrepancy** (`inverse`): Kennedy-O'Hagan calibration with a
   Gaussian-process discrepancy (squared-exponential or Matern-5/2 kernel,
   priors on hyperparameters), MAP fits and MCMC/NUTS posteriors, predictions
@@ -85,6 +91,12 @@ defects that are now fixed with oracle-backed regression tests.
 
 ### Fixed
 
+- Cross-entropy importance sampling with covariance adaptation collapsed the
+  proposal (eigenvalues near 5e-4, estimates biased low by up to 100% with
+  small reported c.o.v.); adapted eigenvalues are now floored at 0.55 and a
+  warning flags degenerate weights.
+- E-values and confounding bias factors overflowed for extreme ratios;
+  treatment vectors accept booleans as documented.
 - Cox model: the Breslow baseline overflowed (or divided by zero) when
   `|x' beta|` exceeded about 709, e.g. with uncentred covariates; it is now
   stored at a reference linear predictor and predictions are shift-invariant.
