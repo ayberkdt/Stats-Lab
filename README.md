@@ -54,6 +54,9 @@ sobol.ranking()                          # ('load', 'strength')
 methods.row("FORM").probability          # 0.0362  (Monte Carlo: 0.0395)
 risk.conditional_value_at_risk[0.99]     # 49.8, mean loss in the worst 1%
 print(study.report())                    # Markdown: every stage, cost, and seed
+
+from probstat.visualization.study import write_study_html
+write_study_html(study, "study.html")    # one page, every stage, light and dark figures
 ```
 
 The same study can also `calibrate` the inputs against experiments,
