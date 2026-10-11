@@ -27,7 +27,8 @@ LAYER = {
     "probstat.reliability": 5,
     "probstat.sensitivity": 5,
     "probstat.validation": 5,
-    "probstat.visualization": 6,
+    "probstat.risk": 6,
+    "probstat.visualization": 9,
 }
 
 

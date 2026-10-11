@@ -2034,3 +2034,305 @@ with `Delta = p / (2(p-1))` in the unit (probability) scale.
   large `sigma` means nonlinear or interacting.
 - Code: `sensitivity.morris_screening`.
 - Source: [REF-MORRIS-1991] and [REF-CAMPOLONGO-CARIBONI-SALTELLI-2007].
+
+## Quantitative risk analysis
+
+### EQ-RISK-DEF-001 — Risk as scenarios, frequencies, and consequences
+
+`R = {<s_i, f_i, c_i>}`; the scalar summary is expected consequence
+`sum_i f_i c_i`.
+
+- Domain: exhaustive, mutually exclusive scenarios `s_i` with non-negative
+  frequencies (or probabilities) `f_i` and finite consequences `c_i`.
+- Meaning: risk answers "what can happen, how likely is it, and what are the
+  consequences"; the expected value discards the shape that the exceedance
+  curve retains.
+- Code: `risk.EventSequence.risk`, `risk.EventTree.total_risk`,
+  `risk.EventTree.ranked_sequences`.
+- Source: [REF-KAPLAN-GARRICK-1981].
+
+### EQ-RISK-EL-001 — Expected loss
+
+`E[L] = sum_i w_i L_i` with normalized weights `w_i >= 0`, `sum_i w_i = 1`
+(equal weights `1/n` for plain Monte Carlo).
+
+- Domain: non-empty finite losses; weights non-negative with positive sum.
+- Meaning: risk-neutral summary of the loss distribution.
+- Code: `risk.expected_loss`, `risk.assess_risk`, `risk.bootstrap_risk_interval`.
+- Source: [REF-KAPLAN-GARRICK-1981], [REF-MCNEIL-FREY-EMBRECHTS-2015,
+  Chapter 2].
+
+### EQ-RISK-VAR-001 — Value-at-risk (lower quantile)
+
+`VaR_alpha(L) = inf{l : F_L(l) >= alpha}`; for a weighted sample sorted
+ascending, the smallest `L_(k)` with `sum_{j<=k} w_(j) >= alpha`; for equal
+weights `L_(ceil(n alpha))` (Hyndman-Fan type 1). Cumulative sums are compared
+with a `1e-10` tolerance.
+
+- Domain: `0 < alpha < 1`; losses oriented so larger is worse.
+- Meaning: loss level not exceeded with probability at least `alpha`; not
+  subadditive in general and silent about the size of tail losses.
+- Code: `risk.value_at_risk`, `risk.assess_risk`, `risk.bootstrap_risk_interval`.
+- Source: [REF-ROCKAFELLAR-URYASEV-2002], [REF-HYNDMAN-FAN-1996].
+
+### EQ-RISK-CVAR-001 — Conditional value-at-risk (expected shortfall)
+
+`CVaR_alpha(L) = min_c {c + E[(L - c)^+] / (1 - alpha)}
+= VaR_alpha + E[(L - VaR_alpha)^+] / (1 - alpha)`.
+
+- Domain: `0 < alpha < 1`, `E|L| < infinity`; valid for general laws,
+  including atoms and finite samples with ties, where it equals
+  `[(F(VaR) - alpha) VaR + E[L 1{L > VaR}]] / (1 - alpha)`.
+- Meaning: average of the worst `1 - alpha` probability mass; a coherent
+  risk measure.
+- Code: `risk.conditional_value_at_risk`, `risk.expected_shortfall`,
+  `risk.assess_risk`, `risk.bootstrap_risk_interval`.
+- Source: [REF-ROCKAFELLAR-URYASEV-2000], [REF-ROCKAFELLAR-URYASEV-2002],
+  [REF-ACERBI-TASCHE-2002], [REF-ARTZNER-ETAL-1999].
+
+### EQ-RISK-EXC-001 — Loss exceedance curve
+
+`G(l) = P(L > l) = sum_i w_i 1{L_i > l}`.
+
+- Domain: finite losses and levels; equality is not an exceedance.
+- Meaning: complete tail picture of the loss distribution; for event trees,
+  the frequency of consequences above `l` (an F-N style curve).
+- Code: `risk.exceedance_probability`, `risk.loss_exceedance_curve`,
+  `risk.RiskAssessment.exceedance_probability`,
+  `risk.EventTree.consequence_exceedance_frequency`.
+- Source: [REF-KAPLAN-GARRICK-1981], [REF-BAKER-BRADLEY-STAFFORD-2021].
+
+### EQ-RISK-RP-001 — Return period and Poisson exceedance probability
+
+`T = 1 / lambda`; `P(N(t) >= 1) = 1 - exp(-lambda t)`.
+
+- Domain: mean annual rate `lambda > 0` (for `T`), exposure `t >= 0`, events
+  forming a homogeneous Poisson process.
+- Meaning: mean recurrence interval and probability of at least one event in
+  `t` years; `T` is not a guaranteed waiting time.
+- Code: `risk.return_period`, `risk.poisson_exceedance_probability`,
+  `risk.HazardConvolution.return_period`.
+- Source: [REF-BAKER-BRADLEY-STAFFORD-2021].
+
+### EQ-RISK-BOOT-001 — Percentile bootstrap interval
+
+Draw `B` resamples `L*_b` of size `n` with replacement; the interval is the
+type-7 empirical `(1 - gamma)/2` and `(1 + gamma)/2` quantiles of `{T(L*_b)}`.
+
+- Domain: i.i.d. equally weighted losses, `n >= 2`, `B >= 20`.
+- Meaning: nonparametric sampling uncertainty of VaR, CVaR, or expected loss;
+  unreliable when `n (1 - alpha)` is small.
+- Code: `risk.bootstrap_risk_interval`.
+- Source: [REF-EFRON-TIBSHIRANI-1993, Chapter 13].
+
+### EQ-RISK-NORMAL-001 — Normal VaR and CVaR
+
+`VaR_alpha = mu + sigma z_alpha`,
+`CVaR_alpha = mu + sigma phi(z_alpha) / (1 - alpha)`, `z_alpha = Phi^-1(alpha)`.
+
+- Domain: `L ~ Normal(mu, sigma^2)`, `sigma > 0`, `0 < alpha < 1`.
+- Meaning: closed-form oracle for sample estimators.
+- Code: `risk.normal_value_at_risk`, `risk.normal_conditional_value_at_risk`.
+- Source: [REF-MCNEIL-FREY-EMBRECHTS-2015, Chapter 2],
+  [REF-ROCKAFELLAR-URYASEV-2000].
+
+### EQ-RISK-LOGNORMAL-001 — Lognormal VaR and CVaR
+
+`VaR_alpha = exp(mu + sigma z_alpha)`,
+`CVaR_alpha = exp(mu + sigma^2/2) Phi(sigma - z_alpha) / (1 - alpha)`.
+
+- Domain: `ln L ~ Normal(mu, sigma^2)`, `sigma > 0`, `0 < alpha < 1`.
+- Meaning: closed-form oracle for right-skewed losses; follows from the
+  lognormal partial expectation `E[L 1{L > v}]`.
+- Code: `risk.lognormal_value_at_risk`,
+  `risk.lognormal_conditional_value_at_risk`.
+- Source: [REF-MCNEIL-FREY-EMBRECHTS-2015, Chapter 2].
+
+### EQ-RISK-LOSS-001 — Consequence (loss) functions
+
+Step `c 1{y > t}`; hinge `min(cap, r max(0, y - t))`; piecewise linear
+interpolation between knots `(y_k, l_k)` with constant extrapolation; or a
+user callable `c(y)`. The loss sample is `L_i = c(g(X_i))`.
+
+- Domain: finite QoI values; finite losses.
+- Meaning: maps a physical QoI to the decision-relevant consequence before
+  any risk measure is applied.
+- Code: `risk.LossFunction`, `risk.step_loss`, `risk.linear_loss`,
+  `risk.piecewise_linear_loss`, `risk.custom_loss`, `risk.assess_risk`.
+- Source: [REF-KAPLAN-GARRICK-1981].
+
+### EQ-RISK-FT-GATE-001 — Gate probabilities under independence
+
+AND: `prod_j p_j`; OR: `1 - prod_j (1 - p_j)`; k-out-of-n:
+`P(sum_j B_j >= k)` for independent Bernoulli `B_j ~ Bern(p_j)` (Poisson-binomial
+tail by dynamic programming).
+
+- Domain: statistically independent gate inputs.
+- Meaning: bottom-up quantification of a tree without repeated events.
+- Code: `risk.and_gate`, `risk.or_gate`, `risk.k_of_n_gate`,
+  `risk.FaultTree.top_event_probability`.
+- Source: [REF-VESELY-ETAL-1981], [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-RISK-FT-MOCUS-001 — MOCUS minimal cut sets
+
+Start from the row `{TOP}`; replace an AND gate in a row by all its inputs, an
+OR gate by one new row per input, and a k-out-of-n gate by one row per
+`k`-subset; when rows contain only basic events, remove duplicates and every
+set that contains another set (absorption `A + AB = A`).
+
+- Domain: coherent static fault trees (AND, OR, k-out-of-n gates).
+- Meaning: the minimal combinations of basic events that cause the top event.
+- Code: `risk.FaultTree.minimal_cut_sets`.
+- Source: [REF-VESELY-ETAL-1981], [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-RISK-FT-SHANNON-001 — Shannon decomposition on repeated events
+
+`P(TOP) = sum_{x in {0,1}^r} prod_{i<=r} p_i^{x_i} (1 - p_i)^{1 - x_i}
+P(TOP | E_R = x)`, where `E_R` are the `r` repeated basic events and the
+conditional probability is evaluated bottom-up with EQ-RISK-FT-GATE-001.
+
+- Domain: independent basic events; `r` not above the configured guard.
+- Meaning: exact top-event probability; conditioning removes every shared
+  event, so remaining sibling subtrees are independent.
+- Code: `risk.FaultTree.top_event_probability`, `risk.FaultTree.importance`.
+- Source: [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-RISK-FT-IE-001 — Inclusion-exclusion over minimal cut sets
+
+`P(union_j C_j) = sum_{nonempty S} (-1)^{|S|+1} prod_{i in union_{j in S} C_j} p_i`.
+
+- Domain: independent basic events; at most 15 cut sets in this
+  implementation.
+- Meaning: exact top-event probability from cut sets; cross-check for the
+  Shannon method.
+- Code: `risk.FaultTree.top_event_probability`.
+- Source: [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-RISK-FT-BOUND-001 — Rare-event approximation and min-cut upper bound
+
+`Q_REA = sum_j P(C_j)`, `Q_MCUB = 1 - prod_j (1 - P(C_j))`,
+`P(C_j) = prod_{i in C_j} p_i`; for coherent trees
+`Q <= Q_MCUB <= Q_REA`.
+
+- Domain: independent basic events, coherent tree.
+- Meaning: conservative cut-set approximations, accurate when cut-set
+  probabilities are small.
+- Code: `risk.FaultTree.rare_event_approximation`,
+  `risk.FaultTree.min_cut_upper_bound`, `risk.FaultTree.cut_set_probability`.
+- Source: [REF-VESELY-ETAL-1981], [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-RISK-FT-IMP-001 — Component importance measures
+
+Birnbaum `I_B = Q(1_i) - Q(0_i)`; Fussell-Vesely
+`I_FV = P(union_{C_j ∋ i} C_j) / Q`; risk achievement worth
+`RAW = Q(1_i) / Q`; risk reduction worth `RRW = Q / Q(0_i)`.
+
+- Domain: `Q > 0` for ratios (otherwise reported as `inf` or `nan`).
+- Meaning: sensitivity of top risk to an event (Birnbaum), share of risk
+  involving it (FV), and risk increase or decrease if it is certain to fail or
+  made perfect (RAW, RRW).
+- Code: `risk.FaultTree.importance`, `risk.ImportanceMeasures`.
+- Source: [REF-BIRNBAUM-1969], [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-RISK-ET-001 — Event-tree sequence frequency
+
+`f_seq = f_IE prod_{k in path} P(branch_k | path before k)`;
+`sum_seq f_seq = f_IE`.
+
+- Domain: branch probabilities at each heading sum to one and are conditional
+  on the path so far.
+- Meaning: frequency of each accident sequence from an initiating event.
+- Code: `risk.EventTree.sequences`, `risk.EventTree.total_frequency`,
+  `risk.EventTree.outcome_frequencies`, `risk.binary_heading`.
+- Source: [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-RISK-FRAG-001 — Lognormal fragility function
+
+`P(F | IM = a) = Phi(ln(a / theta) / beta)` for `a > 0`.
+
+- Domain: median capacity `theta > 0`, dispersion `beta > 0`.
+- Meaning: conditional failure probability at a given intensity.
+- Code: `risk.LognormalFragility`.
+- Source: [REF-SHINOZUKA-ETAL-2000], [REF-BAKER-2015].
+
+### EQ-RISK-FRAG-MLE-001 — Binomial likelihood for fragility fitting
+
+`ln L(theta, beta) = sum_j [z_j ln p_j + (n_j - z_j) ln(1 - p_j)]`,
+`p_j = Phi(ln(a_j / theta) / beta)`, maximized over `(ln theta, ln beta)`.
+
+- Domain: positive intensities, at least one failure and one survival, no
+  complete separation by intensity, and at least two distinct intensities.
+- Meaning: maximum-likelihood fragility parameters from binary or
+  multiple-stripe data.
+- Code: `risk.fit_lognormal_fragility`.
+- Source: [REF-BAKER-2015], [REF-SHINOZUKA-ETAL-2000].
+
+### EQ-RISK-CONV-001 — Risk convolution with a hazard curve
+
+`lambda_F = int P(F | a) |d lambda(a)|
+~= sum_i P(F | sqrt(a_i a_{i+1})) (lambda(a_i) - lambda(a_{i+1}))
++ P(F | a_max) lambda(a_max)`.
+
+- Domain: hazard levels strictly increasing and positive; rates non-negative
+  and non-increasing; fragility negligible below the first level.
+- Meaning: mean annual failure frequency combining hazard and vulnerability;
+  the summands disaggregate it by intensity.
+- Code: `risk.annual_failure_frequency`, `risk.HazardConvolution`.
+- Source: [REF-BAKER-BRADLEY-STAFFORD-2021], [REF-CORNELL-ETAL-2002].
+
+### EQ-RISK-CONV-002 — Closed form for power-law hazard
+
+`lambda(a) = k0 a^-k` and a lognormal fragility give
+`lambda_F = k0 theta^-k exp(k^2 beta^2 / 2)`.
+
+- Domain: `k0 > 0`, `k > 0`, power-law hazard over the whole intensity range.
+- Meaning: analytic oracle for the numerical convolution.
+- Code: `risk.power_law_failure_frequency`.
+- Source: [REF-CORNELL-ETAL-2002].
+
+### EQ-RISK-DEC-EU-001 — Expected payoff and Bayes decision
+
+`U(d) = sum_s p_s u(d, s)`; `d* = argmax_d U(d)` (or `argmin` for losses).
+
+- Domain: finite decisions and states, prior probabilities summing to one,
+  finite payoffs.
+- Meaning: decision that is best on average under the stated beliefs.
+- Code: `risk.DecisionProblem.expected_values`,
+  `risk.DecisionProblem.optimal_decision`,
+  `risk.DecisionProblem.optimal_value`.
+- Source: [REF-RAIFFA-SCHLAIFER-1961, Chapter 1].
+
+### EQ-RISK-DEC-EVPI-001 — Expected value of perfect information
+
+`EVPI = sum_s p_s max_d u(d, s) - max_d sum_s p_s u(d, s)` (signs reversed
+for losses); `EVPI >= 0`.
+
+- Domain: as for EQ-RISK-DEC-EU-001.
+- Meaning: maximum worth of resolving the uncertainty before deciding.
+- Code: `risk.DecisionProblem.value_with_perfect_information`,
+  `risk.DecisionProblem.expected_value_of_perfect_information`.
+- Source: [REF-RAIFFA-SCHLAIFER-1961, Chapter 4].
+
+### EQ-RISK-DEC-EVSI-001 — Preposterior analysis and EVSI
+
+`P(o) = sum_s P(o | s) p_s`, `p(s | o) = P(o | s) p_s / P(o)`,
+`EVSI = sum_o P(o) max_d sum_s p(s | o) u(d, s) - max_d sum_s p_s u(d, s)`;
+`0 <= EVSI <= EVPI`.
+
+- Domain: discrete experiment with likelihood rows summing to one.
+- Meaning: expected gain from observing the experiment before deciding;
+  compare with the experiment's cost.
+- Code: `risk.DecisionProblem.preposterior`, `risk.PreposteriorAnalysis`.
+- Source: [REF-RAIFFA-SCHLAIFER-1961, Chapters 1 and 4].
+
+### EQ-RISK-MATRIX-001 — Risk-matrix classification
+
+`row = #{t in T_L : t <= likelihood}`, `column = #{t in T_S : t <= severity}`,
+category `= M[row][column]` for interior edge sets `T_L`, `T_S`.
+
+- Domain: strictly increasing finite edges; a value on an edge falls into the
+  higher bin.
+- Meaning: qualitative communication only; can rank risks inconsistently
+  with their quantitative values.
+- Code: `risk.RiskMatrix.cell`, `risk.RiskMatrix.classify`.
+- Source: [REF-COX-2008].

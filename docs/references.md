@@ -368,6 +368,44 @@ G. E. B. Archer, A. Saltelli, and I. M. Sobol. "Sensitivity Measures,
 ANOVA-like Techniques and the Use of Bootstrap." *Journal of Statistical
 Computation and Simulation* 58(2), 99-120, 1997.
 
+## REF-ACERBI-TASCHE-2002
+
+Carlo Acerbi and Dirk Tasche. "On the Coherence of Expected Shortfall."
+*Journal of Banking & Finance* 26(7), 1487-1503, 2002.
+
+## REF-ARTZNER-ETAL-1999
+
+Philippe Artzner, Freddy Delbaen, Jean-Marc Eber, and David Heath. "Coherent
+Measures of Risk." *Mathematical Finance* 9(3), 203-228, 1999.
+
+## REF-BAKER-2015
+
+Jack W. Baker. "Efficient Analytical Fragility Function Fitting Using Dynamic
+Structural Analysis." *Earthquake Spectra* 31(1), 579-599, 2015.
+
+## REF-BAKER-BRADLEY-STAFFORD-2021
+
+Jack W. Baker, Brendon A. Bradley, and Peter J. Stafford. *Seismic Hazard and
+Risk Analysis*. Cambridge University Press, 2021.
+
+## REF-BIRNBAUM-1969
+
+Z. W. Birnbaum. "On the Importance of Different Components in a
+Multicomponent System." In P. R. Krishnaiah (ed.), *Multivariate Analysis II*,
+Academic Press, 581-592, 1969.
+
+## REF-CORNELL-ETAL-2002
+
+C. Allin Cornell, Fatemeh Jalayer, Ronald O. Hamburger, and Douglas A. Foutch.
+"Probabilistic Basis for 2000 SAC Federal Emergency Management Agency Steel
+Moment Frame Guidelines." *Journal of Structural Engineering* 128(4), 526-533,
+2002.
+
+## REF-COX-2008
+
+Louis Anthony (Tony) Cox Jr. "What's Wrong with Risk Matrices?" *Risk
+Analysis* 28(2), 497-512, 2008.
+
 ## REF-EFRON-TIBSHIRANI-1993
 
 Bradley Efron and Robert J. Tibshirani. *An Introduction to the Bootstrap*.
@@ -388,3 +426,47 @@ Experiments." *Technometrics* 33(2), 161-174, 1991.
 Francesca Campolongo, Jessica Cariboni, and Andrea Saltelli. "An Effective
 Screening Design for Sensitivity Analysis of Large Models." *Environmental
 Modelling & Software* 22(10), 1509-1518, 2007.
+
+## REF-KAPLAN-GARRICK-1981
+
+Stanley Kaplan and B. John Garrick. "On the Quantitative Definition of Risk."
+*Risk Analysis* 1(1), 11-27, 1981.
+
+## REF-MCNEIL-FREY-EMBRECHTS-2015
+
+Alexander J. McNeil, Rüdiger Frey, and Paul Embrechts. *Quantitative Risk
+Management: Concepts, Techniques and Tools*. Revised edition. Princeton
+University Press, 2015.
+
+## REF-RAIFFA-SCHLAIFER-1961
+
+Howard Raiffa and Robert Schlaifer. *Applied Statistical Decision Theory*.
+Division of Research, Graduate School of Business Administration, Harvard
+University, 1961.
+
+## REF-RAUSAND-HOYLAND-2004
+
+Marvin Rausand and Arnljot Høyland. *System Reliability Theory: Models,
+Statistical Methods, and Applications*. 2nd edition. Wiley, 2004.
+
+## REF-ROCKAFELLAR-URYASEV-2000
+
+R. Tyrrell Rockafellar and Stanislav Uryasev. "Optimization of Conditional
+Value-at-Risk." *Journal of Risk* 2(3), 21-41, 2000.
+
+## REF-ROCKAFELLAR-URYASEV-2002
+
+R. Tyrrell Rockafellar and Stanislav Uryasev. "Conditional Value-at-Risk for
+General Loss Distributions." *Journal of Banking & Finance* 26(7), 1443-1471,
+2002.
+
+## REF-SHINOZUKA-ETAL-2000
+
+Masanobu Shinozuka, Maria Q. Feng, Jongheon Lee, and Toshihiko Naganuma.
+"Statistical Analysis of Fragility Curves." *Journal of Engineering Mechanics*
+126(12), 1224-1231, 2000.
+
+## REF-VESELY-ETAL-1981
+
+W. E. Vesely, F. F. Goldberg, N. H. Roberts, and D. F. Haasl. *Fault Tree
+Handbook*. NUREG-0492, U.S. Nuclear Regulatory Commission, 1981.
