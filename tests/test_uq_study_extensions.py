@@ -299,3 +299,71 @@ class ChainedStudyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _four_branch_study(seed: int) -> UQStudy:
+    """Return a study of the four-branch series system (beta = 3 per branch)."""
+    from probstat.distributions import Normal as _Normal
+    from probstat.modeling import JointInput as _Joint
+    from probstat.modeling import ProbabilisticModel as _Model
+    from probstat.modeling import RandomInput as _Input
+    from probstat.uq import QuantityOfInterest as _QoI
+
+    root2 = 2.0**0.5
+
+    def branches(p: dict[str, float]) -> dict[str, float]:
+        """Return the minimum of the four branch margins."""
+        a, b = p["x1"], p["x2"]
+        return {
+            "g": min(
+                3.0 + 0.1 * (a - b) ** 2 - (a + b) / root2,
+                3.0 + 0.1 * (a - b) ** 2 + (a + b) / root2,
+                (a - b) + 6.0 / root2,
+                (b - a) + 6.0 / root2,
+            )
+        }
+
+    inputs = _Joint.independent(
+        _Input("x1", _Normal(0.0, 1.0)), _Input("x2", _Normal(0.0, 1.0))
+    )
+    model = _Model(inputs, branches, (_QoI("g", "four-branch margin", "1"),))
+    return UQStudy(model, seed=seed)
+
+
+class ReliabilityStageTests(unittest.TestCase):
+    """Multiple design points and AK-MCS run as recorded study stages."""
+
+    def test_design_points_stage_finds_all_branches(self) -> None:
+        """Four design points at beta = 3; multi-point FORM is 4x single FORM."""
+        study = _four_branch_study(7)
+        analysis = study.design_points(
+            "g", 0.0, max_points=4, importance_samples=1000, start=(0.3, 0.1)
+        )
+        self.assertEqual(len(analysis.points.forms), 4)
+        for beta in analysis.points.betas:
+            self.assertAlmostEqual(beta, 3.0, places=3)
+        single = analysis.points.forms[0].probability
+        self.assertGreater(analysis.system.probability, 3.5 * single)
+        assert analysis.mixture is not None
+        record = study.latest("design_points")
+        self.assertIn("pf[multi-point FORM]", record.summary)
+        self.assertGreater(record.evaluations, 0)
+
+    def test_active_reliability_matches_same_population_monte_carlo(self) -> None:
+        """AK-MCS classifies the population (almost) like the true model."""
+        study = _four_branch_study(3)
+        result = study.active_reliability(
+            "g", 0.0, population=2000, target_cov=0.6, compare_with_monte_carlo=True
+        )
+        # U >= 2 leaves each uncertain point misclassified with probability
+        # at most Phi(-2), so a handful of errors is allowed, not zero.
+        self.assertLessEqual(result.misclassified, 0.005 * result.population)
+        self.assertLessEqual(
+            abs(result.probability - result.reference_probability),
+            result.misclassified / result.population + 1e-15,
+        )
+        self.assertLess(result.evaluations, 100)
+        summary = study.latest("active_reliability").summary
+        self.assertEqual(summary["misclassified"], float(result.misclassified))
+        kinds = [record.stage for record in study.records]
+        self.assertEqual(kinds, ["active_reliability"])

@@ -41,11 +41,19 @@ from probstat.modeling.fitting import JointInputFit, fit_joint_input
 from probstat.monte_carlo import ProbabilityEstimate, estimate_probability
 from probstat.propagation import PropagationStudy, propagate
 from probstat.reliability import (
+    AKMCSResult,
     FORMResult,
     MethodComparison,
+    MixtureImportanceResult,
     ModelLimitState,
+    MultipleDesignPointsResult,
+    MultiPointFORMResult,
+    ak_mcs,
     compare_reliability_methods,
+    find_design_points,
     form_hlrf,
+    mixture_importance_sampling,
+    multi_point_form,
 )
 from probstat.risk import (
     LossFunction,
@@ -100,6 +108,27 @@ class StageRecord:
     evaluations: int
     seed: int
     result: Any = field(repr=False, compare=False)
+
+
+@dataclass(frozen=True, slots=True)
+class DesignPointAnalysis:
+    """Several design points of one failure event and their system estimates.
+
+    Args:
+        points: Design points found by sequential bulging search.
+        system: Multi-point FORM series-system probability with bounds.
+        mixture: Mixture importance sampling over all design points, or
+            ``None`` when it was not requested.
+
+    References:
+        [REF-DERKIUREGHIAN-DAKESSIAN-1998], [REF-MELCHERS-BECK-2018,
+        Chapter 5].
+
+    """
+
+    points: MultipleDesignPointsResult
+    system: MultiPointFORMResult
+    mixture: MixtureImportanceResult | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -716,6 +745,172 @@ class UQStudy:
             comparison,
         )
         return comparison
+
+    def design_points(
+        self,
+        quantity: str,
+        threshold: float,
+        *,
+        failure: Literal["above", "below"] = "below",
+        max_points: int = 3,
+        importance_samples: int = 2000,
+        start: Sequence[float] | None = None,
+    ) -> DesignPointAnalysis:
+        """Find several design points and estimate the system probability.
+
+        A single FORM point underestimates ``P_f`` when the failure domain has
+        several important regions. This stage searches up to ``max_points``
+        design points, combines them as a series system by multi-point FORM
+        (with Ditlevsen bounds), and, unless ``importance_samples`` is zero,
+        checks the result by mixture importance sampling centred on every
+        point.
+
+        Args:
+            quantity: QoI name.
+            threshold: Failure threshold.
+            failure: ``"below"`` or ``"above"``.
+            max_points: Maximum number of design points.
+            importance_samples: Mixture importance-sampling size (``0`` skips
+                it).
+            start: Standard-normal starting point of the first HL-RF search;
+                needed when the limit-state gradient vanishes at the origin
+                (for example at a kink of a series system).
+
+        Returns:
+            Design points, multi-point FORM, and the optional mixture estimate.
+
+        Raises:
+            ValueError: If ``importance_samples`` is negative.
+
+        Equation:
+            [EQ-REL-MDP-001], [EQ-REL-MDP-002], [EQ-REL-MDP-003].
+
+        References:
+            [REF-DERKIUREGHIAN-DAKESSIAN-1998], [REF-MELCHERS-BECK-2018,
+            Chapter 5].
+
+        """
+        if importance_samples < 0:
+            raise ValueError("importance_samples must be non-negative")
+        stream = self.stream("design_points")
+        state = self.limit_state(quantity, threshold, failure=failure)
+        before = self._model.evaluations
+        first = None if start is None else form_hlrf(state, start=start)
+        points = find_design_points(state, max_points, first=first)
+        system = multi_point_form(points, seed=stream.child("system"))
+        mixture = (
+            mixture_importance_sampling(
+                state, points, importance_samples, seed=stream.child("mixture")
+            )
+            if importance_samples
+            else None
+        )
+        summary: dict[str, float | str] = {
+            "quantity": quantity,
+            "threshold": threshold,
+            "failure": failure,
+            "design points": float(len(points.forms)),
+        }
+        for index, beta in enumerate(points.betas, start=1):
+            summary[f"beta[{index}]"] = beta
+        summary["pf[single-point FORM]"] = points.forms[0].probability
+        summary["pf[multi-point FORM]"] = system.probability
+        summary["pf bounds (Ditlevsen)"] = (
+            f"[{system.bounds.ditlevsen_lower:.4g}, "
+            f"{system.bounds.ditlevsen_upper:.4g}]"
+        )
+        if mixture is not None:
+            summary["pf[mixture IS]"] = mixture.probability
+            summary["cov[mixture IS]"] = mixture.coefficient_of_variation
+        sign = "<=" if failure == "below" else ">="
+        self._record(
+            "design_points",
+            f"{len(points.forms)} design points of {quantity} {sign} {threshold:g}",
+            summary,
+            self._model.evaluations - before,
+            stream,
+            DesignPointAnalysis(points, system, mixture),
+        )
+        return DesignPointAnalysis(points, system, mixture)
+
+    def active_reliability(
+        self,
+        quantity: str,
+        threshold: float,
+        *,
+        failure: Literal["above", "below"] = "below",
+        population: int = 10_000,
+        target_cov: float = 0.1,
+        max_added: int = 200,
+        compare_with_monte_carlo: bool = False,
+    ) -> AKMCSResult:
+        """Estimate a failure probability by AK-MCS active learning.
+
+        A Gaussian-process surrogate of the limit state is refined where its
+        sign is most uncertain until the learning function ``U`` exceeds 2 on
+        the whole Monte Carlo population; the true model is called only for
+        the training points. With ``compare_with_monte_carlo`` the whole
+        population is also evaluated on the true model (counted separately in
+        the result, and in this stage's evaluations).
+
+        Args:
+            quantity: QoI name.
+            threshold: Failure threshold.
+            failure: ``"below"`` or ``"above"``.
+            population: Initial Monte Carlo population size.
+            target_cov: Target coefficient of variation of the estimate; the
+                population grows until it is met (``0.1`` by default, since
+                halving it quadruples the population and the surrogate's
+                prediction cost).
+            max_added: Maximum number of training points added.
+            compare_with_monte_carlo: Also run crude Monte Carlo on the same
+                population.
+
+        Returns:
+            AK-MCS result with probability, true-model evaluations, and the
+            final surrogate.
+
+        Equation:
+            [EQ-REL-AKMCS-001], [EQ-REL-AKMCS-002].
+
+        References:
+            [REF-ECHARD-GAYTON-LEMAIRE-2011].
+
+        """
+        stream = self.stream("active_reliability")
+        state = self.limit_state(quantity, threshold, failure=failure)
+        before = self._model.evaluations
+        result = ak_mcs(
+            state,
+            population,
+            target_cov=target_cov,
+            max_added=max_added,
+            compare_with_monte_carlo=compare_with_monte_carlo,
+            seed=stream,
+        )
+        summary: dict[str, float | str] = {
+            "quantity": quantity,
+            "threshold": threshold,
+            "failure": failure,
+            "pf[AK-MCS]": result.probability,
+            "cov": result.coefficient_of_variation,
+            "population": float(result.population),
+            "training runs": float(result.evaluations),
+            "converged": "yes" if result.converged else f"no ({result.message})",
+        }
+        if compare_with_monte_carlo:
+            summary["pf[MC, same population]"] = result.reference_probability
+            summary["misclassified"] = float(result.misclassified)
+        sign = "<=" if failure == "below" else ">="
+        self._record(
+            "active_reliability",
+            f"AK-MCS P({quantity} {sign} {threshold:g})",
+            summary,
+            self._model.evaluations - before,
+            stream,
+            result,
+        )
+        return result
 
     def form(
         self,
