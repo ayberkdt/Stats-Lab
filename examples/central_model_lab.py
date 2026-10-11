@@ -9,20 +9,28 @@ reliability, risk, and calibration.
 from __future__ import annotations
 
 import math
+import random
 from collections.abc import Mapping
 from pathlib import Path
 
 from probstat.distributions import LogNormal, Normal, Uniform
 from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
 from probstat.propagation import compare_designs, propagate
+from probstat.reliability import (
+    ModelLimitState,
+    compare_reliability_methods,
+    form_hlrf,
+)
 from probstat.risk import assess_risk, custom_loss
 from probstat.sensitivity import morris_screening, sobol_analysis
 from probstat.uq import QuantityOfInterest
 from probstat.visualization import save_figure
 from probstat.visualization.uq import (
     plot_design_comparison,
+    plot_form_geometry,
     plot_loss_exceedance,
     plot_output_distribution,
+    plot_reliability_comparison,
     plot_sobol_indices,
 )
 
@@ -167,6 +175,42 @@ def main() -> None:
         unit="kEUR",
     )
     save_figure(axes.figure, output / "central-model-loss-exceedance.png")
+    plt.close(axes.figure)
+
+    state = ModelLimitState(model, "margin", 0.0, failure="below")
+    form = form_hlrf(state)
+    print(
+        f"FORM beta={form.beta:.4f} pf={form.probability:.5f} "
+        f"evaluations={form.evaluations} converged={form.converged}"
+    )
+    print(f"importance factors={dict(form.importance_factors)}")
+    comparison = compare_reliability_methods(state, seed=2026)
+    for row in comparison.rows:
+        print(
+            f"{row.method:10s} pf={row.probability:.5f} beta={row.beta:.3f} "
+            f"runs={row.evaluations} cov={row.coefficient_of_variation}"
+        )
+    third = form.design_point_u[2]
+    generator = random.Random(2026)
+    cloud = [
+        (generator.gauss(0.0, 1.0), generator.gauss(0.0, 1.0)) for _ in range(1500)
+    ]
+    axes = plot_form_geometry(
+        lambda u1, u2: state.standard((u1, u2, third)),
+        form.design_point_u[:2],
+        form.beta,
+        axis_names=("u_load", "u_strength"),
+        samples=cloud,
+    )
+    save_figure(axes.figure, output / "central-model-form-geometry.png")
+    plt.close(axes.figure)
+    mc_row = comparison.row("MC")
+    axes = plot_reliability_comparison(
+        comparison.rows,
+        reference=mc_row.probability,
+        reference_label="crude MC",
+    )
+    save_figure(axes.figure, output / "central-model-reliability-methods.png")
     plt.close(axes.figure)
 
 

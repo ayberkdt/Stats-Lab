@@ -739,6 +739,193 @@ def plot_loss_exceedance(
     return axes
 
 
+@themed
+def plot_form_geometry(
+    function: Any,
+    design_point: Sequence[float],
+    beta: float,
+    *,
+    axis_names: tuple[str, str] = ("u1", "u2"),
+    samples: Sequence[Sequence[float]] | None = None,
+    extent: float | None = None,
+    grid: int = 90,
+    ax: Any | None = None,
+) -> Any:
+    """Draw the FORM picture in a two-dimensional standard-normal slice.
+
+    The limit-state curve ``g(u) = 0`` separates safe from failure regions,
+    the dashed circle of radius ``beta`` is the set of points as likely as
+    the design point, and the design point is where the circle touches the
+    curve. Optional samples show which draws failed.
+
+    Args:
+        function: Callable ``g(u1, u2)`` on the slice (failure when ``<= 0``).
+        design_point: Design point coordinates in the slice.
+        beta: Reliability index.
+        axis_names: Axis labels for the two standard-normal coordinates.
+        samples: Optional standard-normal points to scatter.
+        extent: Half-width of the plotted square (defaults to ``beta + 2``).
+        grid: Grid resolution for the contour.
+        ax: Optional axes.
+
+    Returns:
+        Populated axes.
+
+    Equation:
+        [EQ-REL-FORM-001].
+
+    References:
+        [REF-MELCHERS-BECK-2018, Chapter 5], [REF-MATPLOTLIB].
+
+    """
+    axes = new_axes(ax, figsize=(5.8, 5.4))
+    palette = active_palette()
+    half = extent if extent is not None else abs(beta) + 2.0
+    ticks = [-half + 2.0 * half * k / (grid - 1) for k in range(grid)]
+    values = [[function(x, y) for x in ticks] for y in ticks]
+    axes.contourf(
+        ticks, ticks, values, levels=[-1e300, 0.0], colors=[palette.model], alpha=0.12
+    )
+    axes.contour(
+        ticks, ticks, values, levels=[0.0], colors=[palette.model], linewidths=2.0
+    )
+    if samples:
+        safe = [point for point in samples if function(point[0], point[1]) > 0.0]
+        failed = [point for point in samples if function(point[0], point[1]) <= 0.0]
+        if safe:
+            axes.scatter(
+                [p[0] for p in safe],
+                [p[1] for p in safe],
+                s=6.0,
+                color=palette.muted,
+                alpha=0.35,
+                linewidths=0.0,
+                zorder=2,
+            )
+        if failed:
+            axes.scatter(
+                [p[0] for p in failed],
+                [p[1] for p in failed],
+                s=9.0,
+                color=palette.model,
+                alpha=0.8,
+                linewidths=0.0,
+                zorder=2,
+            )
+    circle_x = [abs(beta) * math.cos(2.0 * math.pi * k / 200) for k in range(201)]
+    circle_y = [abs(beta) * math.sin(2.0 * math.pi * k / 200) for k in range(201)]
+    line(axes, circle_x, circle_y, color=palette.accent, dashes=FITTED, width=1.2)
+    axes.plot(
+        [0.0, design_point[0]],
+        [0.0, design_point[1]],
+        color=palette.ink,
+        linewidth=1.0,
+        zorder=3,
+    )
+    points(
+        axes,
+        [design_point[0]],
+        [design_point[1]],
+        color=palette.observed,
+        size=70.0,
+        zorder=6,
+    )
+    points(axes, [0.0], [0.0], color=palette.ink, size=24.0, zorder=6)
+    axes.annotate(
+        f"design point u*  (beta = {beta:.3f})",
+        (design_point[0], design_point[1]),
+        xytext=(10.0, 10.0),
+        textcoords="offset points",
+        fontsize=ANNOTATION_SIZE,
+        fontweight="bold",
+        color=palette.observed,
+    )
+    axes.annotate(
+        "failure region g <= 0",
+        xy=(0.98, 0.04 if design_point[1] < 0 else 0.96),
+        xycoords="axes fraction",
+        ha="right",
+        va="bottom" if design_point[1] < 0 else "top",
+        fontsize=ANNOTATION_SIZE,
+        color=palette.model,
+        fontweight="semibold",
+    )
+    axes.set_xlim(-half, half)
+    axes.set_ylim(-half, half)
+    axes.set_aspect("equal")
+    axes.grid(axis="both", color=palette.rule, linewidth=0.6)
+    axis_labels(axes, axis_names[0], axis_names[1])
+    title_block(
+        axes,
+        f"The closest failure point lies beta = {beta:.2f} from the origin",
+        "Standard-normal space. Dashed circle: equally likely points",
+    )
+    return axes
+
+
+@themed
+def plot_reliability_comparison(
+    rows: Sequence[Any],
+    *,
+    reference: float | None = None,
+    reference_label: str = "reference",
+    ax: Any | None = None,
+) -> Any:
+    """Compare reliability methods by failure probability and model cost.
+
+    Args:
+        rows: Objects with ``method``, ``probability``, ``evaluations`` and an
+            optional ``coefficient_of_variation`` (for example
+            ``reliability.MethodComparison.rows``).
+        reference: Optional reference failure probability.
+        reference_label: Label for the reference line.
+        ax: Optional axes.
+
+    Returns:
+        Populated axes with a logarithmic probability axis.
+
+    References:
+        [REF-MELCHERS-BECK-2018, Chapters 3-5], [REF-MATPLOTLIB].
+
+    """
+    entries: list[tuple[str, float, float | None, float | None]] = []
+    for row in rows:
+        cov = getattr(row, "coefficient_of_variation", None)
+        pf = float(row.probability)
+        if cov is not None and math.isfinite(cov) and pf > 0.0:
+            spread = 1.96 * cov * pf
+            entries.append(
+                (
+                    f"{row.method}  ({row.evaluations:,} runs)",
+                    pf,
+                    max(pf - spread, pf / 50.0),
+                    pf + spread,
+                )
+            )
+        else:
+            entries.append(
+                (f"{row.method}  ({row.evaluations:,} runs)", pf, None, None)
+            )
+    magnitudes = [value for entry in entries for value in entry[1:] if value]
+    wide = max(magnitudes) / min(magnitudes) > 10.0 if magnitudes else False
+    cheapest = min(rows, key=lambda row: row.evaluations)
+    costliest = max(rows, key=lambda row: row.evaluations)
+    axes = plot_method_comparison(
+        entries,
+        reference=reference,
+        reference_label=reference_label,
+        log_scale=wide,
+        quantity_label="Failure probability Pf" + (" (log scale)" if wide else ""),
+        title=f"{cheapest.method} needs {cheapest.evaluations:,} runs; "
+        f"{costliest.method} needs {costliest.evaluations:,}",
+        subtitle="Dot: estimate. Whisker: about 95% (1.96 c.o.v.) where reported",
+        ax=ax,
+    )
+    if wide:
+        _plain_log_axis(axes.xaxis)
+    return axes
+
+
 def credible_band(
     samples: Sequence[Sequence[float]], level: float = 0.95
 ) -> tuple[tuple[float, ...], tuple[float, ...], tuple[float, ...]]:
@@ -771,6 +958,8 @@ __all__ = [
     "plot_calibration_prediction",
     "plot_design_comparison",
     "plot_exceedance_curves",
+    "plot_form_geometry",
+    "plot_reliability_comparison",
     "plot_loss_exceedance",
     "plot_method_comparison",
     "plot_output_distribution",
