@@ -186,10 +186,12 @@ WORKFLOW_GUIDE: Mapping[WorkflowStep, StepGuide] = MappingProxyType(
                 "probstat.inverse.CalibrationProblem",
                 "probstat.inverse.calibrate_linear_gaussian",
                 "probstat.workflow.UQStudy.calibrate",
+                "probstat.inverse.DiscrepancyCalibration",
+                "probstat.workflow.UQStudy.calibrate_with_discrepancy",
                 "probstat.design.greedy_design",
                 "probstat.workflow.UQStudy.design",
             ),
-            ("calibration", "design"),
+            ("calibration", "discrepancy_calibration", "design"),
         ),
         WorkflowStep.PREDICTION: StepGuide(
             WorkflowStep.PREDICTION,

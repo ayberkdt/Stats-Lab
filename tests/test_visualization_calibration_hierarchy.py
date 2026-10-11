@@ -499,7 +499,9 @@ class StudyStageFigureTests(unittest.TestCase):
         # propagation, extremes, sensitivity, information: one figure each,
         # light and dark.
         self.assertEqual(page.count("data:image/png;base64,"), 8)
-        self.assertEqual(study_html(self.decay).count("data:image/png;base64,"), 2)
+        # The design stage draws its EIG path and, for one-factor candidates,
+        # the greedy candidate curves: two figures, light and dark.
+        self.assertEqual(study_html(self.decay).count("data:image/png;base64,"), 4)
 
 
 if __name__ == "__main__":

@@ -31,7 +31,14 @@ from probstat.information import InformationUnit, ksg_mutual_information
 from probstat.inverse import (
     CalibrationPosterior,
     CalibrationProblem,
+    DiscrepancyCalibration,
+    DiscrepancyIdentifiability,
+    DiscrepancyPosterior,
+    DiscrepancyPrediction,
+    DiscrepancyProcess,
     Experiment,
+    KnownNoise,
+    LogLinearNoise,
     NoiseModel,
     PosteriorPrediction,
     predict,
@@ -82,6 +89,9 @@ from probstat.validation import (
     ValidationAssessment,
     ValidationExperiment,
     assess_validation,
+    crps_ensemble,
+    ensemble_pit,
+    pit_coverage,
 )
 
 
@@ -151,6 +161,10 @@ class TailAnalysis:
             interval, or ``None``.
         sample_size: Number of model outputs analyzed.
         source: Where the sample came from.
+        exceedances: Outputs beyond the threshold in QoI units, ordered from
+            the least to the most extreme (empty for results built without
+            them). The ``k``-th most extreme of ``sample_size`` runs has the
+            empirical tail probability ``(k - 1/2) / sample_size``.
 
     References:
         [REF-COLES-2001, Section 4.3], [REF-WILSON-1927].
@@ -166,6 +180,7 @@ class TailAnalysis:
     empirical: ProbabilityEstimate | None
     sample_size: int
     source: str
+    exceedances: tuple[float, ...] = field(default=(), repr=False)
 
     @property
     def threshold(self) -> float:
@@ -240,6 +255,9 @@ class DesignRecommendation:
             design ``baseline + selected``.
         baseline: Conditions already performed (the calibration experiments)
             or empty.
+        candidates: Candidate conditions in the order they were scored, so
+            ``selection.candidate_scores[k][i]`` belongs to ``candidates[i]``
+            (empty for results built without them).
 
     References:
         [REF-CHALONER-VERDINELLI-1995], [REF-HUAN-MARZOUK-2013].
@@ -249,6 +267,7 @@ class DesignRecommendation:
     selection: GreedyDesignResult
     estimate: InformationGainEstimate
     baseline: tuple[Condition, ...]
+    candidates: tuple[Condition, ...] = ()
 
     @property
     def design(self) -> tuple[Condition, ...]:
@@ -259,6 +278,58 @@ class DesignRecommendation:
 
         """
         return self.baseline + self.selection.selected
+
+
+@dataclass(frozen=True, slots=True)
+class DiscrepancyAnalysis:
+    """Kennedy-O'Hagan calibration of one QoI with its diagnostics.
+
+    Args:
+        calibration: The calibration problem (simulator, data, noise model,
+            and discrepancy process).
+        posterior: MCMC posterior of ``(theta, sigma_delta, ell, a, b)``.
+        identifiability: Theta-discrepancy confounding report.
+        level: Central probability of the recorded intervals.
+        grid_input: Condition along which ``grid`` was predicted, or
+            ``None`` when no grid was requested or the discrepancy has more
+            than one input.
+        grid: Predictions at evenly spaced values of ``grid_input`` across
+            the experiments' range (other conditions at the model defaults).
+
+    References:
+        [REF-KENNEDY-OHAGAN-2001], [REF-BRYNJARSDOTTIR-OHAGAN-2014].
+
+    """
+
+    calibration: DiscrepancyCalibration
+    posterior: DiscrepancyPosterior
+    identifiability: DiscrepancyIdentifiability
+    level: float
+    grid_input: str | None
+    grid: tuple[DiscrepancyPrediction, ...] = field(default=(), repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class DiscrepancyStudyPrediction:
+    """Simulator-only and bias-corrected predictions after a KOH calibration.
+
+    Args:
+        quantity: Calibrated QoI.
+        predictions: One prediction per requested condition.
+        level: Central probability of the recorded intervals.
+        draws: Posterior draws propagated.
+        evaluations: Forward-model evaluations used.
+
+    References:
+        [REF-KENNEDY-OHAGAN-2001], [REF-GELMAN-ETAL-2013, Section 6.3].
+
+    """
+
+    quantity: str
+    predictions: tuple[DiscrepancyPrediction, ...]
+    level: float
+    draws: int
+    evaluations: int
 
 
 def _orient_return_level(level: ReturnLevel, sign: float) -> ReturnLevel:
@@ -330,6 +401,9 @@ class UQStudy:
         self._records: list[StageRecord] = []
         self._problem: CalibrationProblem | None = None
         self._posterior: CalibrationPosterior | None = None
+        self._discrepancy: DiscrepancyAnalysis | None = None
+        # Which calibration predict() and design() use: the latest one run.
+        self._active: Literal["plain", "discrepancy"] | None = None
 
     @classmethod
     def from_data(
@@ -1043,6 +1117,7 @@ class UQStudy:
             draws=draws, warmup=warmup, chains=chains, seed=stream
         )
         self._problem, self._posterior = problem, posterior
+        self._active = "plain"
         summary: dict[str, float | str] = {"experiments": len(problem.experiments)}
         for entry in posterior.summary():
             summary[f"mean[{entry.name}]"] = entry.mean
@@ -1058,6 +1133,230 @@ class UQStudy:
         )
         return posterior
 
+    def calibrate_with_discrepancy(
+        self,
+        experiments: Sequence[Experiment],
+        quantity: str,
+        noise: KnownNoise | LogLinearNoise,
+        discrepancy: DiscrepancyProcess | None,
+        *,
+        draws: int = 2000,
+        warmup: int = 1000,
+        chains: int = 4,
+        method: Literal["adaptive-metropolis", "hmc", "nuts"] = "adaptive-metropolis",
+        level: float = 0.95,
+        grid: int = 41,
+        grid_draws: int = 200,
+        correlation_warning: float = 0.5,
+        ratio_warning: float = 0.8,
+    ) -> DiscrepancyAnalysis:
+        """Calibrate one QoI with a Kennedy-O'Hagan model-discrepancy term.
+
+        The observation model is ``y = eta(x, theta) + delta(x) + eps`` with a
+        Gaussian-process discrepancy ``delta`` and known or log-linear noise
+        ``eps``. As in :meth:`calibrate`, the study model's joint input law is
+        the prior of ``theta``. The chains run on this stage's stream exactly
+        as :meth:`~probstat.inverse.DiscrepancyCalibration.sample_posterior`
+        with ``seed=stream``. The identifiability report (theta against the
+        discrepancy hyperparameters, posterior over prior standard deviation)
+        is recorded in the summary. With ``grid > 1`` and a one-input
+        discrepancy, simulator-only and bias-corrected predictions on an even
+        grid across the experiments' range are stored for figures (their
+        model runs are charged to this stage).
+
+        After this stage :meth:`predict` reports simulator-only and
+        bias-corrected intervals, and :meth:`design` needs explicit ``noise``
+        models (the design problem has no discrepancy term).
+
+        Args:
+            experiments: Observed experiments; each must observe ``quantity``.
+            quantity: Calibrated QoI.
+            noise: :class:`~probstat.inverse.KnownNoise` or
+                :class:`~probstat.inverse.LogLinearNoise`.
+            discrepancy: Gaussian-process discrepancy, or ``None`` for a
+                calibration with the given noise model only.
+            draws: Kept draws per chain.
+            warmup: Warm-up iterations per chain.
+            chains: Number of chains.
+            method: ``"adaptive-metropolis"``, ``"hmc"``, or ``"nuts"``.
+            level: Central probability of recorded intervals.
+            grid: Number of grid predictions (``0`` or ``1`` skips the grid).
+            grid_draws: Posterior draws used for the grid predictions.
+            correlation_warning: ``|rho|`` threshold of the identifiability
+                warning.
+            ratio_warning: Standard-deviation ratio threshold of the warning.
+
+        Returns:
+            Calibration problem, posterior, identifiability report, and grid
+            predictions; also kept for :meth:`predict`.
+
+        Raises:
+            ValueError: If ``level`` is outside ``(0, 1)`` or ``grid`` is
+                negative (and as raised by ``DiscrepancyCalibration``).
+
+        Equation:
+            [EQ-KOH-MODEL-001], [EQ-KOH-POST-001], [EQ-KOH-IDENT-001],
+            [EQ-KOH-PRED-001].
+
+        References:
+            [REF-KENNEDY-OHAGAN-2001], [REF-HIGDON-ETAL-2004],
+            [REF-BRYNJARSDOTTIR-OHAGAN-2014].
+
+        """
+        if not 0.0 < level < 1.0:
+            raise ValueError("level must lie strictly inside (0, 1)")
+        if isinstance(grid, bool) or not isinstance(grid, int) or grid < 0:
+            raise ValueError("grid must be a non-negative integer")
+        stream = self.stream("discrepancy_calibration")
+        calibration = DiscrepancyCalibration(
+            self._model, tuple(experiments), quantity, noise, discrepancy
+        )
+        before = self._model.evaluations
+        posterior = calibration.sample_posterior(
+            draws=draws, warmup=warmup, chains=chains, seed=stream, method=method
+        )
+        report = calibration.identifiability(
+            posterior,
+            correlation_warning=correlation_warning,
+            ratio_warning=ratio_warning,
+        )
+        grid_input: str | None = None
+        predictions: tuple[DiscrepancyPrediction, ...] = ()
+        if grid > 1 and discrepancy is not None and len(discrepancy.inputs) == 1:
+            grid_input = discrepancy.inputs[0]
+            observed_x = [
+                float({**self._model.fixed, **item.conditions}[grid_input])
+                for item in calibration.experiments
+            ]
+            low, high = min(observed_x), max(observed_x)
+            if high > low:
+                predictions = calibration.predict(
+                    posterior,
+                    tuple(
+                        {grid_input: low + (high - low) * i / (grid - 1)}
+                        for i in range(grid)
+                    ),
+                    max_draws=grid_draws,
+                )
+            else:
+                grid_input = None
+        analysis = DiscrepancyAnalysis(
+            calibration, posterior, report, level, grid_input, predictions
+        )
+        self._discrepancy = analysis
+        self._active = "discrepancy"
+        summary: dict[str, float | str] = {
+            "quantity": quantity,
+            "experiments": calibration.observation_count,
+            "noise": "known" if isinstance(noise, KnownNoise) else "log-linear",
+            "discrepancy": "none" if discrepancy is None else discrepancy.kernel,
+            "method": method,
+        }
+        for entry in posterior.summary():
+            summary[f"mean[{entry.name}]"] = entry.mean
+            summary[f"sd[{entry.name}]"] = entry.standard_deviation
+            summary[f"rhat[{entry.name}]"] = entry.rank_normalized_rhat
+        summary["max |rho(theta, psi)|"] = report.max_abs_cross_correlation
+        for name, ratio in report.standard_deviation_ratios.items():
+            summary[f"sd ratio[{name}]"] = ratio
+        summary["identifiability"] = report.warning or "no confounding flagged"
+        if predictions:
+            shifts = [item.discrepancy_mean for item in predictions]
+            worst = max(range(len(shifts)), key=lambda i: abs(shifts[i]))
+            summary["largest delta mean"] = shifts[worst]
+            summary[f"at {grid_input}"] = float(
+                predictions[worst].condition[str(grid_input)]
+            )
+        self._record(
+            "discrepancy_calibration",
+            f"Kennedy-O'Hagan posterior of {quantity} from "
+            f"{calibration.observation_count} experiments",
+            summary,
+            self._model.evaluations - before,
+            stream,
+            analysis,
+        )
+        return analysis
+
+    def _predict_discrepancy(
+        self,
+        quantities: Sequence[str] | None,
+        conditions: Sequence[Mapping[str, float]],
+        include_noise: bool,
+        max_draws: int | None,
+    ) -> DiscrepancyStudyPrediction:
+        """Predict after a Kennedy-O'Hagan calibration and record the stage.
+
+        Raises:
+            ValueError: If another QoI is requested, or noise is requested
+                with per-experiment known noise (unknown at new conditions).
+
+        References:
+            [REF-KENNEDY-OHAGAN-2001]. Equation [EQ-KOH-PRED-001].
+
+        """
+        assert self._discrepancy is not None
+        analysis = self._discrepancy
+        calibration = analysis.calibration
+        quantity = calibration.quantity
+        if quantities is not None and tuple(quantities) != (quantity,):
+            raise ValueError(f"the discrepancy calibration predicts only {quantity!r}")
+        targets = tuple(conditions)
+        known: tuple[float, ...] | None = None
+        if include_noise and isinstance(calibration.noise, KnownNoise):
+            shared = calibration.noise.standard_deviations
+            if not isinstance(shared, float):
+                raise ValueError(
+                    "include_noise needs one shared KnownNoise standard deviation"
+                )
+            known = tuple(shared for _ in targets)
+        stream = self.stream("prediction")
+        before = self._model.evaluations
+        predictions = calibration.predict(
+            analysis.posterior,
+            targets,
+            max_draws=max_draws,
+            observation_standard_deviations=known,
+        )
+        draws = len(predictions[0].simulator)
+        result = DiscrepancyStudyPrediction(
+            quantity,
+            predictions,
+            analysis.level,
+            draws,
+            self._model.evaluations - before,
+        )
+        summary: dict[str, float | str] = {
+            "draws": draws,
+            "level": analysis.level,
+            "calibration": "Kennedy-O'Hagan",
+        }
+        for index, item in enumerate(predictions):
+            key = f"{quantity}#{index}"
+            low, high = item.interval(analysis.level, kind="simulator")
+            summary[f"simulator mean[{key}]"] = item.simulator_mean
+            summary[f"simulator q_low[{key}]"] = low
+            summary[f"simulator q_high[{key}]"] = high
+            low, high = item.interval(analysis.level, kind="corrected")
+            summary[f"corrected mean[{key}]"] = item.corrected_mean
+            summary[f"corrected q_low[{key}]"] = low
+            summary[f"corrected q_high[{key}]"] = high
+            summary[f"delta mean[{key}]"] = item.discrepancy_mean
+            if include_noise and item.noise_variances is not None:
+                low, high = item.interval(analysis.level, kind="observed")
+                summary[f"observed q_low[{key}]"] = low
+                summary[f"observed q_high[{key}]"] = high
+        self._record(
+            "prediction",
+            f"simulator-only and bias-corrected predictions at {len(targets)} "
+            "conditions",
+            summary,
+            result.evaluations,
+            stream,
+            result,
+        )
+        return result
+
     def predict(
         self,
         quantities: Sequence[str] | None = None,
@@ -1065,8 +1364,16 @@ class UQStudy:
         *,
         include_noise: bool = False,
         max_draws: int | None = 1000,
-    ) -> PosteriorPrediction:
+    ) -> PosteriorPrediction | DiscrepancyStudyPrediction:
         """Push the latest posterior through the forward model.
+
+        After :meth:`calibrate` the result is a
+        :class:`~probstat.inverse.PosteriorPrediction`. After
+        :meth:`calibrate_with_discrepancy` it is a
+        :class:`DiscrepancyStudyPrediction` whose summary separates the
+        simulator alone ``eta(x, theta)`` from the bias-corrected process
+        ``eta + delta`` (and, with ``include_noise``, a new observation).
+        The latest calibration of either kind is used.
 
         Args:
             quantities: QoIs to predict (all observed QoIs by default).
@@ -1078,15 +1385,19 @@ class UQStudy:
             Posterior prediction separating latent and observed uncertainty.
 
         Raises:
-            RuntimeError: If :meth:`calibrate` has not been run.
+            RuntimeError: If no calibration stage has been run.
 
         Equation:
-            [EQ-BAYES-PRED-001].
+            [EQ-BAYES-PRED-001], [EQ-KOH-PRED-001].
 
         References:
-            [REF-GELMAN-ETAL-2013, Section 1.3].
+            [REF-GELMAN-ETAL-2013, Section 1.3], [REF-KENNEDY-OHAGAN-2001].
 
         """
+        if self._active == "discrepancy":
+            return self._predict_discrepancy(
+                quantities, conditions, include_noise, max_draws
+            )
         if self._problem is None or self._posterior is None:
             raise RuntimeError("run calibrate() before predict()")
         stream = self.stream("prediction")
@@ -1231,6 +1542,7 @@ class UQStudy:
         tolerance: float,
         sample_size: int = 2000,
         significance: float = 0.05,
+        coverage_levels: Sequence[float] = (0.5, 0.9),
     ) -> ValidationAssessment:
         """Compare model predictions with validation experiments.
 
@@ -1238,21 +1550,35 @@ class UQStudy:
         stated tolerance and significance inside the validation domain, never
         a general claim that the model is validated.
 
+        Proper-scoring and calibration evidence is recorded next to the
+        verdict without changing its criteria: the mean ensemble CRPS of each
+        experiment (and over all observations) in QoI units, and randomized
+        ensemble PIT values of every observation (stream ``validation/k/pit``)
+        with their mean and the empirical coverage of central predictive
+        intervals at ``coverage_levels`` (Clopper-Pearson 95% intervals).
+        PIT values of replicates within one experiment share its predictive
+        sample, so they are not independent cases.
+
         Args:
             quantity: QoI compared with the observations.
             experiments: Validation experiments with conditions and data.
             tolerance: Area-metric tolerance in QoI units.
             sample_size: Predictive samples per experiment.
             significance: Significance level of the u-pooling test.
+            coverage_levels: Nominal central coverages reported from the PIT
+                values (each in ``(0, 1)``).
 
         Returns:
             Validation assessment with per-experiment and pooled metrics.
 
         Equation:
-            [EQ-VAL-AREA-001].
+            [EQ-VAL-AREA-001], [EQ-VAL-SCORE-CRPS-002], [EQ-VAL-CAL-PIT-002],
+            [EQ-VAL-CAL-COV-001].
 
         References:
-            [REF-FERSON-OBERKAMPF-GINZBURG-2008], [REF-OBERKAMPF-ROY-2025, Part IV].
+            [REF-FERSON-OBERKAMPF-GINZBURG-2008], [REF-OBERKAMPF-ROY-2025, Part IV],
+            [REF-GNEITING-RAFTERY-2007], [REF-GNEITING-BALABDAOUI-RAFTERY-2007],
+            [REF-CLOPPER-PEARSON-1934].
 
         """
         stream = self.stream("validation")
@@ -1275,6 +1601,25 @@ class UQStudy:
         for index, item in enumerate(result.experiments, start=1):
             # Index-qualified keys keep every experiment even if names repeat.
             summary[f"area[{index}:{item.experiment.name}]"] = item.area
+        ensembles: list[tuple[float, ...]] = []
+        observations: list[float] = []
+        scores: list[float] = []
+        for index, item in enumerate(result.experiments, start=1):
+            summary[f"crps[{index}:{item.experiment.name}]"] = item.crps
+            for value in item.experiment.observations:
+                ensembles.append(item.observable_predictions)
+                observations.append(value)
+                scores.append(crps_ensemble(item.observable_predictions, value))
+        summary["crps.mean"] = math.fsum(scores) / len(scores)
+        pit = ensemble_pit(ensembles, observations, seed=stream.child("pit"))
+        summary["pit.mean"] = math.fsum(pit) / len(pit)
+        for entry in pit_coverage(pit, coverage_levels):
+            key = f"coverage[{entry.nominal:.0%}]"
+            summary[key] = entry.rate
+            summary[f"{key}.interval"] = (
+                f"{entry.covered}/{entry.size}, "
+                f"[{entry.interval.lower:.3f}, {entry.interval.upper:.3f}]"
+            )
         self._record(
             "validation",
             f"validation of {quantity} against {len(result.experiments)} experiments",
@@ -1424,6 +1769,7 @@ class UQStudy:
             empirical,
             len(oriented),
             source,
+            tuple(sign * value for value in sorted(v for v in oriented if v > cut)),
         )
         sigma_se, xi_se = fit.gpd.standard_errors
         summary: dict[str, float | str] = {
@@ -1587,7 +1933,9 @@ class UQStudy:
         observed values. Conditions are chosen greedily
         (stream ``design/greedy``); the full design is then re-estimated on an
         independent stream (``design/final``) to report its EIG with a
-        standard error.
+        standard error. After :meth:`calibrate_with_discrepancy` the
+        Kennedy-O'Hagan experiments form the baseline, but ``noise`` is
+        required because the design problem has no discrepancy term.
 
         Args:
             candidates: Candidate conditions (deterministic model inputs).
@@ -1606,7 +1954,7 @@ class UQStudy:
             Greedy selection and the final EIG estimate.
 
         Raises:
-            ValueError: If there is neither a calibration problem nor
+            ValueError: If there is neither a plain calibration problem nor
                 ``noise``, or the design arguments are invalid.
 
         Equation:
@@ -1616,26 +1964,39 @@ class UQStudy:
             [REF-CHALONER-VERDINELLI-1995], [REF-HUAN-MARZOUK-2013].
 
         """
+        plain = self._problem if self._active == "plain" else None
         if noise is not None:
             problem = BayesianDesignProblem(self._model, tuple(noise))
-        elif self._problem is not None:
-            problem = BayesianDesignProblem.from_calibration(self._problem)
+        elif plain is not None:
+            problem = BayesianDesignProblem.from_calibration(plain)
+        elif self._active == "discrepancy":
+            raise ValueError(
+                "design() after calibrate_with_discrepancy() needs known-scale "
+                "noise models via noise= (the design problem has no discrepancy)"
+            )
         else:
             raise ValueError(
                 "design() needs a calibration problem: run calibrate() first "
                 "or pass known-scale noise models via noise="
             )
+        performed: tuple[Experiment, ...] = ()
+        if plain is not None:
+            performed = plain.experiments
+        elif self._active == "discrepancy" and self._discrepancy is not None:
+            performed = self._discrepancy.calibration.experiments
         baseline: tuple[Condition, ...] = ()
-        if include_experiments and self._problem is not None:
+        if include_experiments:
             baseline = tuple(
-                MappingProxyType(dict(item.conditions))
-                for item in self._problem.experiments
+                MappingProxyType(dict(item.conditions)) for item in performed
             )
+        pool: tuple[Condition, ...] = tuple(
+            MappingProxyType(dict(item)) for item in candidates
+        )
         stream = self.stream("design")
         before = self._model.evaluations
         selection = greedy_design(
             problem,
-            candidates,
+            pool,
             size,
             baseline=baseline,
             allow_repeats=allow_repeats,
@@ -1656,10 +2017,10 @@ class UQStudy:
             reuse_samples=reuse_samples,
             seed=stream.child("final"),
         )
-        result = DesignRecommendation(selection, estimate, baseline)
+        result = DesignRecommendation(selection, estimate, baseline, pool)
         summary: dict[str, float | str] = {
             "method": method,
-            "candidates": len(tuple(candidates)),
+            "candidates": len(pool),
             "baseline_conditions": len(baseline),
             "baseline_eig": selection.baseline_information_gain,
         }
