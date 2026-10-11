@@ -39,6 +39,24 @@ for nonlinear forward models, unknown and robust noise models, Laplace
 approximations, adaptive Metropolis, convergence diagnostics, Fisher-based
 identifiability, and posterior push-forward prediction.
 
+With those foundations, switch to the integrated toolset built on one model:
+
+- [The central probabilistic model](foundations/probabilistic-modeling.md):
+  correlated non-normal inputs, the Nataf transformation, quasi-random
+  designs, and design-based propagation.
+- [Model-based reliability](foundations/advanced-reliability.md): HL-RF FORM,
+  SORM, design-point importance sampling, subset simulation, system bounds,
+  and inverse FORM.
+- [Risk analysis](foundations/risk-analysis.md): VaR/CVaR, loss models, fault
+  and event trees, fragility curves, and decision value of information.
+- [Surrogate models](foundations/surrogate-models.md): polynomial chaos and
+  Gaussian-process emulators that replace an expensive forward model.
+- [Filtering and data assimilation](foundations/filtering-and-data-assimilation.md):
+  Kalman, extended/unscented Kalman, particle and ensemble Kalman filters.
+
+`probstat.workflow.UQStudy` runs all of these on one model with one seed and
+produces a single report.
+
 The library separates conceptual order from software layer order. Readers can
 learn progressively without losing topics needed later.
 

@@ -2,102 +2,116 @@
 
 ## Dependency direction
 
-The repository uses a directed acyclic package graph. An arrow means "may
-depend on."
+The repository is a directed acyclic package graph organized in numbered
+layers. A module may import modules in its own or a lower layer, never a
+higher one; `tests/test_architecture.py` enforces the map below and rejects
+cycles.
+
+| Layer | Packages | Role |
+|---|---|---|
+| 0 | `foundations`, `numerics`, `linalg` | validation, protocols, random streams, quadrature, dense linear algebra |
+| 1 | `probability`, `statistics`, `distributions`, `optimization`, `sampling` | probability rules, descriptive and order statistics, distribution families, solvers, space-filling designs |
+| 2 | `inference`, `multivariate`, `uq` | estimation, Bayesian updating, MCMC, multivariate laws, UQ vocabulary and verification |
+| 3 | `monte_carlo`, `modeling` | estimators and work accounting; **the central `ProbabilisticModel`** |
+| 4 | `propagation`, `inverse` | forward propagation; calibration and posterior prediction |
+| 5 | `reliability`, `sensitivity`, `surrogates`, `validation` | failure probability, sensitivity indices, emulators, validation evidence |
+| 6 | `risk`, `filtering`, `data_assimilation` | risk measures and decision analysis; sequential state estimation |
+| 7 | `workflow` | `UQStudy`: every analysis on one model, one seed tree, one report |
+| 9 | `visualization` | optional themed figures (Matplotlib) |
 
 ```text
-visualization
-  ├─> reliability ─> monte_carlo ─> inference ─┐
-  ├─> sensitivity ─> foundations ──────────────┤
-  ├─> validation ─> foundations ───────────────┤
-  ├─> inverse ─> inference ─> multivariate ────┤
-  ├─> propagation ─> monte_carlo ─> inference ─┤
-  │        ├─> uq ──────────────────────────────┤
-  │        └─> numerics ────────────────────────┤
-  ├─> multivariate ─> distributions ────────────┤
-  ├─> statistics ───────────────────────────────┤
-  └─> probability ──────────────────────────────┤
-                                               v
-                                          foundations
+                         visualization (9)
+                               |
+                          workflow (7)
+              _________________|__________________
+             |                 |                  |
+          risk (6)      filtering (6)   data_assimilation (6)
+             |
+   reliability · sensitivity · surrogates · validation   (5)
+             |                                  |
+       propagation (4) ----------------- inverse (4)
+             |                                  |
+          modeling (3)  <-- the central model  -+--- monte_carlo (3)
+             |
+   inference · multivariate · uq                  (2)
+             |
+   probability · statistics · distributions · optimization · sampling   (1)
+             |
+   foundations · numerics · linalg               (0)
 ```
 
-`probstat.__init__` exposes version metadata only. This deliberate choice keeps
-domain ownership visible and avoids a root import hub that could become a
-cycle.
+`probstat.__init__` exposes version metadata only. This keeps domain ownership
+visible and avoids a root import hub that could become a cycle.
+
+## The central model
+
+`modeling.ProbabilisticModel` binds three things: a `JointInput` (named
+marginals plus a Gaussian copula), a `ForwardModel` mapping named inputs to
+named outputs, and the quantities of interest. Every workflow from layer 4
+upward accepts it:
+
+| Question | Call |
+|---|---|
+| What does the output look like? | `propagation.propagate(model, n, design=...)` |
+| Which inputs matter? | `sensitivity.sobol_analysis`, `sensitivity.morris_screening` |
+| How likely is failure? | `reliability.form_hlrf`, `sorm`, `subset_simulation`, `compare_reliability_methods` |
+| What is the loss at risk? | `risk.assess_risk` |
+| What do the data say about the inputs? | `inverse.CalibrationProblem(model, experiments, noise)` |
+| What will we observe next? | `inverse.predict(problem, posterior, ...)` |
+| Can a cheap emulator stand in? | `surrogates.fit_polynomial_chaos`, `fit_gaussian_process_to_model` |
+| All of the above, reproducibly? | `workflow.UQStudy(model, seed=...)` |
+
+The Nataf transformation inside `JointInput` is the single bridge between
+physical inputs, latent normals, independent standard normals (used by FORM,
+SORM, subset simulation, MCMC), and unit-hypercube designs (used by Monte
+Carlo, LHS, Halton, Sobol). See ADR-0014 and
+[the central-model guide](foundations/probabilistic-modeling.md).
 
 ## Layer responsibilities
 
 | Layer | Owns | Must not own |
 |---|---|---|
-| `foundations` | Validation, scalar numerical primitives, shared protocols | Domain distributions or estimators |
-| `numerics` | Domain-neutral deterministic algorithms, work counts, and numerical diagnostics | Probability models or UQ workflows |
+| `foundations` | Validation, structural protocols, SplitMix64 random streams | Domain distributions or estimators |
+| `numerics` | Deterministic quadrature and numerical diagnostics | Probability models |
+| `linalg` | Dense Cholesky, triangular, LU, Jacobi eigen, log-determinants | Statistical meaning |
+| `optimization` | BFGS, Nelder-Mead, Levenberg-Marquardt, Brent, finite differences | Likelihoods or limit states |
+| `sampling` | MC, Latin hypercube, Halton, Sobol designs on the unit cube | Marginal transformations |
 | `probability` | Sets, counting, probability rules, random-variable algebra | Inference or plotting |
-| `statistics` | Descriptive statistics, estimators, diagnostics | Distribution implementations or plotting |
-| `distributions` | Distribution objects, density/mass/CDF behavior, sampling | Educational rendering |
-| `uq` | Cross-cutting uncertainty vocabulary, QoI contracts, numerical verification | Monte Carlo, reliability, inference, or domain-specific solvers |
-| `multivariate` | Vector-valued distributions and covariance-aware probability operations | Inference workflows or plotting |
-| `inference` | Estimation, confidence procedures, tests, and diagnostics | Rendering, simulation orchestration, or application models |
-| `monte_carlo` | Sample estimators, sampling-error diagnostics, and evaluation accounting | Forward-model semantics or plotting |
-| `propagation` | QoI sample propagation, expectation integration, output summaries, thresholds | Distribution implementations or rendering |
-| `inverse` | Observation models, calibration orchestration, identifiability, and calibration/prediction boundaries | Rendering or model-validation claims |
-| `reliability` | Limit states, failure estimators, FORM geometry, and directional sampling | Rendering or generic probability foundations |
-| `sensitivity` | Local derivatives, functional-ANOVA/Sobol estimators, ranking, and screening decisions | Rendering, inference, or input-distribution implementations |
-| `validation` | Model discrepancy and validation-evidence records | Parameter inference, numerical verification, or rendering |
-| `visualization` | Optional plots and explanatory annotations | Mathematical truth or validation rules |
+| `statistics` | Descriptive, order, and rank statistics | Distribution implementations |
+| `distributions` | Distribution objects, special functions, sampling | Rendering |
+| `inference` | Estimation, confidence, tests, Bayesian conjugacy, MCMC, Laplace | Forward-model semantics |
+| `multivariate` | Vector-valued distributions | Inference workflows |
+| `uq` | QoI and forward-model contracts, numerical verification | Monte Carlo, reliability, inference |
+| `monte_carlo` | Sample estimators, variance reduction, work accounting | Forward-model semantics |
+| `modeling` | Joint input laws, Nataf, `ProbabilisticModel`, evaluation counting | Analysis methods |
+| `propagation` | Design-based propagation, output distributions | Distribution implementations |
+| `inverse` | Observation/noise models, calibration problems, posterior prediction | Validation claims |
+| `reliability` | Limit states, FORM/SORM, IS, subset simulation, systems | Generic probability foundations |
+| `sensitivity` | Local derivatives, Sobol, Morris, ranking and screening | Input-distribution implementations |
+| `surrogates` | PCE and GP emulators and the surrogate forward-model adapter | Analyses on the emulator |
+| `validation` | Discrepancy and validation evidence | Parameter inference |
+| `risk` | Risk measures, losses, fault/event trees, fragility, decisions | Reliability algorithms |
+| `filtering`, `data_assimilation` | State-space models, Kalman/EKF/UKF, particle filter, EnKF, 3D-Var | Plotting |
+| `workflow` | Orchestration, stage records, reports | New numerical methods |
+| `visualization` | Themed figures and annotations | Mathematical truth or validation rules |
 
-Structural interfaces such as `DiscreteProbabilityLaw` and
-`ContinuousProbabilityLaw` live in `foundations.protocols`. Both analytic
-distribution objects and induced finite laws conform by structure; neither
-domain package imports the other. Protocol conformance does not replace each
-implementation's equation, domain, or numerical documentation.
+Structural interfaces such as `ContinuousProbabilityLaw` live in
+`foundations.protocols`. Analytic distributions and induced finite laws conform
+by structure; neither domain package imports the other. Density, log-density,
+survival, quantile, inverse-survival, and hazard are narrow capabilities that a
+type implements only when they are mathematically defined and numerically
+supported.
 
-Narrow `ProbabilityMassFunction` and `LogProbabilityMassFunction` protocols let
-unordered categorical laws participate in generic mass-based algorithms without
-claiming a CDF or numeric moments. Parameter constraints, support descriptors,
-and special-function algorithms stay inside `distributions`; they may depend on
-foundation validators but never on probability or statistics domain packages.
-
-Density, log-density, survival, quantile, and hazard are also independent narrow
-protocols. A type implements only capabilities that are mathematically defined
-and numerically supported. Direct survival functions are not replaced by a
-generic `1-CDF` adapter because that would erase tail-accuracy guarantees.
-
-Sibling domain packages do not import one another unless an ADR introduces a
-clear higher-level layer. Cross-cutting code moves down only when it is truly
-domain-independent.
-
-## Planned layer growth
-
-```text
-frontier / probabilistic programming / causal systems
-  └─ filtering / smoothing / data assimilation
-      └─ reliability / sensitivity / inverse problems
-          └─ propagation / Monte Carlo / inference
-              └─ UQ contracts / multivariate distributions
-                  └─ probability / statistics / distributions
-                      └─ numerical / linear algebra / optimization foundations
-```
-
-Each new layer may depend only on layers below it. Mature public interfaces are
-promoted deliberately; experimental frontier work begins under an explicit
-`experimental` namespace and cannot leak into foundations.
-
-The `uq` package stays narrow: it defines concepts shared across workflows and
-solution-verification primitives. `monte_carlo` owns estimator behavior without
-knowing forward-model semantics; `propagation` combines those estimators with
-QoIs and explicit model calls. Dedicated packages will likewise own
-reliability, sensitivity, inverse problems, filtering, and data assimilation,
-so `uq` does not become a dependency hub. The complete target graph and its
-delivery order are recorded in ADR-0007 and the ATHENS coverage matrix.
+Sibling packages in one layer may import each other only when that does not
+create a cycle and an ADR justifies it; the default is that they do not.
+Cross-cutting code moves down only when it is truly domain-independent.
 
 ## Enforcement
 
-`tests/test_architecture.py` builds a module-level import graph from Python's
-AST. It rejects both upward imports and cycles. `tests/test_documentation_contract.py`
-checks docstrings and all `EQ-*` and `REF-*` identifiers used by source code.
-`tests/test_athens_coverage.py` prevents curriculum rows from disappearing or
-claiming completion without repository evidence.
-
-This is an initial structural guard, not a formal proof. Future rounds will add
-API stability tiers and generated dependency diagrams.
-
+`tests/test_architecture.py` builds the module import graph from Python's AST
+and rejects both upward imports and cycles. `tests/test_documentation_contract.py`
+requires docstrings with references on every definition and resolves every
+`EQ-*` and `REF-*` identifier against the registry and bibliography.
+`tests/test_athens_coverage.py` keeps the 110-topic curriculum ledger honest.
+CI (`.github/workflows/ci.yml`) runs ruff, strict mypy, the test suite, and
+every example lab on Python 3.11-3.13.

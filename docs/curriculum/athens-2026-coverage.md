@@ -125,8 +125,8 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-9.6 | Uncertainty-visualization laboratory | Partial | LAB-6 | `examples.labs.visualization` | `examples/generate_foundation_figures.py`; `src/probstat/visualization/foundations.py` |
 | ATHENS-10.1 | Probability prerequisite | Partial | PRE-1 | `probstat.probability` | `docs/foundations/probability.md` |
 | ATHENS-10.2 | Statistics prerequisite | Partial | PRE-1 | `probstat.statistics` | `docs/foundations/descriptive-statistics.md` |
-| ATHENS-10.3 | Linear-algebra prerequisite | Partial | PRE-1 | `probstat.linalg` | `src/probstat/multivariate/normal.py` |
+| ATHENS-10.3 | Linear-algebra prerequisite | Partial | PRE-1 | `probstat.linalg` | `src/probstat/linalg/dense.py`; `tests/test_core_modeling.py` |
 | ATHENS-10.4 | Numerical integration, convergence, and error prerequisite | Implemented | PRE-1 | `probstat.numerics` | `src/probstat/numerics/quadrature.py`; `src/probstat/uq/verification.py` |
-| ATHENS-10.5 | Optimization prerequisite | Planned | PRE-1 | `probstat.optimization` | — |
+| ATHENS-10.5 | Optimization prerequisite | Partial | PRE-1 | `probstat.optimization` | `src/probstat/optimization/solvers.py`; `tests/test_core_modeling.py` |
 | ATHENS-10.6 | Multivariable calculus, Jacobians, and conditional distributions | Planned | PRE-1 | `docs.prerequisites` | — |
 | ATHENS-10.7 | R programming bridge | Planned | PRE-1 | `bindings.r` | — |
