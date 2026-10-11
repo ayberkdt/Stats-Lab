@@ -10,6 +10,8 @@ from probstat.inference import posterior_predictive, posterior_predictive_check
 from probstat.inverse import calibrate_linear_gaussian
 from probstat.multivariate import MultivariateNormal
 from probstat.validation import AdditiveGaussianDiscrepancy
+from probstat.visualization import save_figure
+from probstat.visualization.uq import plot_calibration_prediction
 
 
 def generate_measurements(
@@ -119,50 +121,20 @@ def main() -> None:
         for center, scale in zip(future.mean, future_scale, strict=True)
     )
 
-    figure, axes = plt.subplots()
-    axes.fill_between(
-        grid,
-        future_lower,
-        future_upper,
-        color="#F58518",
-        alpha=0.18,
-        label="future observation: 95% marginal band",
-    )
-    axes.fill_between(
-        grid,
-        latent_lower,
-        latent_upper,
-        color="#4C78A8",
-        alpha=0.3,
-        label="parameter uncertainty: 95% marginal band",
-    )
-    axes.plot(grid, latent.mean, color="#2F4B7C", label="posterior mean response")
-    axes.scatter(
+    axes = plot_calibration_prediction(
         calibration_inputs,
         observations,
-        color="#E45756",
-        marker="o",
-        zorder=3,
-        label="calibration measurements",
+        grid,
+        latent.mean,
+        (latent_lower, latent_upper),
+        (future_lower, future_upper),
+        calibration_limit=max(calibration_inputs),
     )
-    axes.axvline(
-        max(calibration_inputs),
-        color="black",
-        linestyle="--",
-        linewidth=0.9,
-        label="calibration-domain boundary",
+    save_figure(
+        axes.figure,
+        Path(__file__).parent / "generated" / "bayesian-calibration-prediction.png",
     )
-    axes.set(
-        xlabel="Input x",
-        ylabel="Response y",
-        title="Linear-Gaussian calibration and prediction",
-    )
-    axes.legend(fontsize="small")
-    figure.tight_layout()
-    output = Path(__file__).parent / "generated"
-    output.mkdir(exist_ok=True)
-    figure.savefig(output / "bayesian-calibration-prediction.png", dpi=160)
-    plt.close(figure)
+    plt.close(axes.figure)
 
 
 if __name__ == "__main__":

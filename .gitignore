@@ -49,8 +49,9 @@ examples/generated/
 Thumbs.db
 desktop.ini
 
-# Local AI assistant settings
+# Local AI assistant settings and agent worktrees
 .claude/settings.local.json
+.claude/worktrees/
 
 # Logs
 *.log

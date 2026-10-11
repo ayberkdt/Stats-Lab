@@ -1,4 +1,9 @@
-"""Optional explanatory plots built on stable domain APIs."""
+"""Optional explanatory plots built on stable domain APIs.
+
+All plots share one theme (:mod:`probstat.visualization.theme`): semantic
+colour roles, assertion titles, direct labels, and quiet axes. Use
+``chart_theme(GRAPHITE)`` for dark output and ``save_figure`` to export.
+"""
 
 from .foundations import (
     plot_bernoulli_pmf,
@@ -17,8 +22,22 @@ from .foundations import (
     plot_refinement_convergence,
     plot_waiting_count_pmfs,
 )
+from .theme import (
+    GRAPHITE,
+    PORCELAIN,
+    ChartPalette,
+    active_palette,
+    chart_theme,
+    save_figure,
+)
 
 __all__ = [
+    "GRAPHITE",
+    "PORCELAIN",
+    "ChartPalette",
+    "active_palette",
+    "chart_theme",
+    "save_figure",
     "plot_bernoulli_pmf",
     "plot_categorical_pmf",
     "plot_characteristic_function",
@@ -35,4 +54,3 @@ __all__ = [
     "plot_refinement_convergence",
     "plot_waiting_count_pmfs",
 ]
-

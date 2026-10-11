@@ -40,6 +40,7 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 88
 target-version = "py311"
+extend-exclude = [".claude"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "D", "UP", "B"]
@@ -51,6 +52,6 @@ strict = true
 packages = ["probstat"]
 
 [[tool.mypy.overrides]]
-module = ["matplotlib", "matplotlib.*"]
+module = ["matplotlib", "matplotlib.*", "mpl_toolkits", "mpl_toolkits.*", "cycler"]
 ignore_missing_imports = true
 

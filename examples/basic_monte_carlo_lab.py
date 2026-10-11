@@ -122,7 +122,9 @@ def main() -> None:
         f"model evaluations={propagation.model_evaluations}"
     )
 
-    axes = plot_monte_carlo_convergence(pi_trace, reference=math.pi)
+    axes = plot_monte_carlo_convergence(
+        pi_trace, reference=math.pi, reference_label="exact pi"
+    )
     axes.figure.tight_layout()
     output = Path(__file__).parent / "generated"
     output.mkdir(exist_ok=True)

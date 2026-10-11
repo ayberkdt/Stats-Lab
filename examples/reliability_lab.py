@@ -14,6 +14,8 @@ from probstat.reliability import (
     estimate_weighted_failure_probability,
     linear_normal_form,
 )
+from probstat.visualization import save_figure
+from probstat.visualization.uq import plot_method_comparison
 
 
 def main() -> None:
@@ -79,34 +81,34 @@ def main() -> None:
         f"proposal failures={rare.observed_failures}"
     )
 
-    labels = ("direct MC", "directional", "affine FORM")
-    values = (
-        direct.failure.probability,
-        directional.failure_probability,
-        form.failure_probability,
+    axes = plot_method_comparison(
+        (
+            (
+                "direct Monte Carlo",
+                direct.failure.probability,
+                direct.failure.confidence_interval.lower,
+                direct.failure.confidence_interval.upper,
+            ),
+            (
+                "directional sampling",
+                directional.failure_probability,
+                directional.estimate.confidence_interval.lower,
+                directional.estimate.confidence_interval.upper,
+            ),
+            ("affine FORM (exact here)", form.failure_probability, None, None),
+        ),
+        reference=form.failure_probability,
+        reference_label="exact Pf",
+        quantity_label="Failure probability Pf",
+        title="Sampling methods bracket the exact failure probability",
+        subtitle="Dot: estimate. Whisker: 95% interval. FORM is exact for an "
+        "affine limit state",
     )
-    errors = (
-        direct.failure.confidence_interval.upper - direct.failure.probability,
-        directional.estimate.confidence_interval.upper
-        - directional.failure_probability,
-        0.0,
+    save_figure(
+        axes.figure,
+        Path(__file__).parent / "generated" / "reliability-method-comparison.png",
     )
-    figure, axes = plt.subplots()
-    axes.bar(
-        labels,
-        values,
-        yerr=errors,
-        capsize=5,
-        color=("#4C78A8", "#54A24B", "#F58518"),
-    )
-    axes.axhline(form.failure_probability, color="#E45756", linestyle="--")
-    axes.set(ylabel="Failure probability", title="Reliability method comparison")
-    axes.tick_params(axis="x", rotation=15)
-    figure.tight_layout()
-    output = Path(__file__).parent / "generated"
-    output.mkdir(exist_ok=True)
-    figure.savefig(output / "reliability-method-comparison.png", dpi=160)
-    plt.close(figure)
+    plt.close(axes.figure)
 
 
 if __name__ == "__main__":

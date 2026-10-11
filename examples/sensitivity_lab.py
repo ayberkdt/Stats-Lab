@@ -7,6 +7,8 @@ import random
 from pathlib import Path
 
 from probstat.sensitivity import central_difference_gradient, estimate_sobol_indices
+from probstat.visualization import save_figure
+from probstat.visualization.uq import plot_sobol_indices
 
 
 def ishigami(parameters: tuple[float, ...]) -> float:
@@ -66,32 +68,15 @@ def main() -> None:
     print(f"fix candidates={decision.fix_candidates}")
     print(f"model evaluations={global_result.evaluations}")
 
-    positions = tuple(range(3))
-    width = 0.36
-    figure, axes = plt.subplots()
-    axes.bar(
-        tuple(position - width / 2 for position in positions),
+    axes = plot_sobol_indices(
+        ("X1", "X2", "X3"),
         global_result.first_order,
-        width,
-        label="first-order",
-        color="#4C78A8",
-    )
-    axes.bar(
-        tuple(position + width / 2 for position in positions),
         global_result.total_effect,
-        width,
-        label="total-effect",
-        color="#F58518",
     )
-    axes.set_xticks(positions, ("X1", "X2", "X3"))
-    axes.set(ylabel="Sobol index", title="Ishigami global sensitivity")
-    axes.axhline(0.0, color="black", linewidth=0.8)
-    axes.legend()
-    figure.tight_layout()
-    output = Path(__file__).parent / "generated"
-    output.mkdir(exist_ok=True)
-    figure.savefig(output / "ishigami-sobol-indices.png", dpi=160)
-    plt.close(figure)
+    save_figure(
+        axes.figure, Path(__file__).parent / "generated" / "ishigami-sobol-indices.png"
+    )
+    plt.close(axes.figure)
 
 
 if __name__ == "__main__":
