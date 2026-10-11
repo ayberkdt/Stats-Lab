@@ -82,8 +82,8 @@ figures.
 | Foundations | `linalg`, `optimization`, `numerics`, `probability` | Cholesky/LU/Jacobi, BFGS/Levenberg-Marquardt/Brent, quadrature, exact finite probability |
 
 The [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
-tracks all 110 topics of the ATHENS 2026 VV-UQ course: 91 implemented,
-17 partial, 2 planned.
+tracks all 110 topics of the ATHENS 2026 VV-UQ course; all 110 are
+implemented, each with source, tests, and documentation as evidence.
 
 ## Example labs
 

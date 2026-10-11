@@ -207,6 +207,7 @@ dependency direction.
   stochastic processes (ADR-0015 to ADR-0023).
 - [x] `UQStudy` orchestration with one seed tree and one report (ADR-0025).
 - [x] Semantic chart theme for every figure (ADR-0024).
+- [x] All 110 ATHENS curriculum rows implemented with evidence.
 - [ ] Numerical backend boundary for large dense problems (ADR-0008 follow-up).
 
 ## Cross-cutting work (never “finished”)

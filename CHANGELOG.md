@@ -62,7 +62,14 @@ one report.
   FORM geometry, method comparisons, loss exceedance, MCMC, filtering,
   surrogates, and random fields; `PROBSTAT_CHART_THEME` selects the theme.
 - Labs: central model, UQ study, nonlinear calibration, filtering, surrogate,
-  random field; CI on Python 3.11-3.13; `py.typed`.
+  random field, model selection, UQ workflow, uncertainty visualization;
+  CI on Python 3.11-3.13; `py.typed`.
+- Solution verification (GCI, least-squares order), uncertainty components in
+  predictions, workflow records; generic MLE, bootstrap-calibrated
+  goodness of fit, AIC/BIC model selection, joint-input fitting; multilevel
+  Monte Carlo, cross-entropy IS, line sampling, Shapley effects; Gaussian
+  conditioning, change of variables, delta method, prerequisite guides and an
+  R bridge; `UQStudy.from_data`, `shapley`, and a self-contained HTML report.
 
 ### Changed
 
@@ -70,7 +77,8 @@ one report.
   1e-13 down to 1e-300).
 - All foundation plots were rebuilt on the theme; the PDF/CDF twin-axis plot is
   now two panels.
-- ATHENS ledger: 91 implemented, 17 partial, 2 planned rows.
+- ATHENS ledger: all 110 rows implemented (was 74 implemented, 17 partial,
+  19 planned).
 
 ### Fixed
 
