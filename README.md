@@ -1,11 +1,14 @@
 # Stats-Lab
 
-**A citation-first Python library that builds probability, statistics, and
-uncertainty quantification from auditable foundations.**
+**A citation-first Python library for probability, statistics, and
+uncertainty quantification, built around one model object that every analysis
+shares.**
 
-Every public formula carries an equation ID, every equation points to a primary
-source, and every design decision is recorded. The goal is software you can
-trust *and* explanations you can teach from.
+Define your uncertain inputs and your simulator once. The same object then
+answers forward questions (what does the output look like?), backward
+questions (what do the data say about the inputs?), and risk questions (how
+likely is failure and what does it cost?), with one seed tree and one report.
+Every formula carries an equation ID that resolves to a primary source.
 
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB)
 ![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue)
@@ -18,112 +21,112 @@ git clone https://github.com/ayberkdt/Stats-Lab.git
 cd Stats-Lab
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
-python -m pip install -e .
-```
-
-Exact probability on a finite sample space:
-
-```python
-from probstat.probability import (
-    FiniteProbabilityMeasure,
-    FiniteRandomVariable,
-    FiniteSampleSpace,
-)
-
-die = FiniteSampleSpace((1, 2, 3, 4, 5, 6))
-fair = FiniteProbabilityMeasure.uniform(die)
-
-print(fair.probability(die.event((2, 4, 6))))  # 0.5
-
-roll = FiniteRandomVariable.from_function(fair, float, name="Roll")
-print(roll.expectation, roll.variance)  # 3.5 2.9166666666666665
-```
-
-A seeded Monte Carlo estimate that reports its own uncertainty:
-
-```python
-import random
-
-from probstat.monte_carlo import estimate_mean
-
-rng = random.Random(2026)
-hits = (
-    4.0 if rng.random() ** 2 + rng.random() ** 2 <= 1.0 else 0.0
-    for _ in range(20_000)
-)
-pi = estimate_mean(hits)
-print(f"{pi.estimate:.4f} ± {pi.standard_error:.4f}")  # 3.1580 ± 0.0115
-print(pi.confidence_interval)  # 95% interval, method stated explicitly
-```
-
-The core library has no runtime dependencies. Plotting is optional:
-
-```bash
 python -m pip install -e ".[visualization]"
-python examples/basic_monte_carlo_lab.py
 ```
+
+One model, every analysis:
+
+```python
+from probstat.distributions import LogNormal, Normal
+from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
+from probstat.risk import custom_loss
+from probstat.uq import QuantityOfInterest
+from probstat.workflow import UQStudy
+
+inputs = JointInput.independent(
+    RandomInput("load", LogNormal(0.9, 0.25), unit="kN"),
+    RandomInput("strength", Normal(4.0, 0.4), unit="kN"),
+)
+model = ProbabilisticModel(
+    inputs,
+    lambda p: {"margin": p["strength"] - p["load"]},
+    (QuantityOfInterest("margin", "capacity minus demand", "kN"),),
+)
+
+study = UQStudy(model, seed=2026)
+forward = study.propagate(4096, design="sobol")           # output distribution
+sobol = study.sensitivity("margin", 1024)                  # which input matters
+methods = study.reliability("margin", 0.0, failure="below")  # FORM, SORM, IS, subset, MC
+risk = study.risk("margin", custom_loss(lambda m: 50.0 * max(0.0, -m)), 20_000)
+
+forward["margin"].quantile(0.05)        # 0.124
+sobol.ranking()                          # ('load', 'strength')
+methods.row("FORM").probability          # 0.0362  (Monte Carlo: 0.0395)
+risk.conditional_value_at_risk[0.99]     # 49.8, mean loss in the worst 1%
+print(study.report())                    # Markdown: every stage, cost, and seed
+```
+
+The same study can also `calibrate` the inputs against experiments,
+`predict` with the posterior, `validate` against independent data, and
+`emulate` the model with a polynomial-chaos or Gaussian-process surrogate.
+The core library has no runtime dependencies; Matplotlib is only needed for
+figures.
 
 ## What's inside
 
-| Layer | Package | Covers |
+| Layer | Packages | Highlights |
 |---|---|---|
-| Foundations | `probability` | Finite sample spaces, event algebra, measures, Bayes' rule, counting |
-| | `distributions` | Bernoulli, Binomial, Categorical, Poisson, Geometric, Negative Binomial, Uniform, Exponential, Normal, Lognormal, Weibull |
-| | `statistics` | Descriptive statistics for univariate and paired samples |
-| | `multivariate` | Positive-definite multivariate Normal, dependency-free Cholesky |
-| Inference | `inference` | MLE, confidence procedures (z, Wilson), KS/AD goodness of fit |
-| Numerics | `numerics`, `foundations` | Trapezoid and Simpson quadrature, parameter validation, shared law protocols |
-| Uncertainty quantification | `uq`, `validation` | Uncertainty taxonomy, quantities of interest, `Y = g(X)` contracts, error budgets, observed convergence order, Richardson extrapolation, model discrepancy |
-| | `monte_carlo` | Crude MC, antithetic, control variates, stratified and importance sampling, cost-normalized efficiency |
-| | `propagation` | Forward propagation with threshold probabilities |
-| | `reliability` | Failure probability, Wilson bounds, affine FORM, directional sampling |
-| | `sensitivity` | Finite-difference gradients, first-, second-, and total-effect Sobol indices |
-| | `inverse` | Linear-Gaussian Bayesian calibration, posterior predictive, model discrepancy |
-| Optional | `visualization` | Explanatory plots built on stable domain APIs (matplotlib) |
+| Central model | `modeling` | Named marginals + Gaussian copula, Nataf transform, random-field (KL) inputs, `ProbabilisticModel` |
+| Forward | `propagation`, `sampling`, `monte_carlo` | Monte Carlo, Latin hypercube, scrambled Halton and Sobol designs; variance reduction; quantiles and exceedance curves |
+| Sensitivity | `sensitivity` | Sobol first/total indices with bootstrap intervals, Morris screening, local derivatives |
+| Reliability | `reliability` | HL-RF FORM, SORM, design-point importance sampling, subset simulation, system bounds, inverse FORM |
+| Risk | `risk` | VaR/CVaR, loss models, fault and event trees, fragility curves, EVPI/EVSI |
+| Backward | `inverse`, `inference` | Nonlinear calibration, adaptive MCMC with R-hat/ESS, Laplace, unknown noise, posterior prediction |
+| Validation | `validation` | Area metric, u-pooling, ASME V&V 20 comparison, applicability domain, scoped verdicts |
+| Dynamics | `filtering`, `data_assimilation`, `processes` | Kalman/EKF/UKF, RTS smoother, particle filter, EnKF, 3D-Var; Markov chains, SDEs, random fields |
+| Emulators | `surrogates` | Polynomial chaos (Sobol from coefficients), Gaussian-process regression |
+| Statistics | `statistics`, `inference`, `distributions` | t/chi-square/rank/permutation tests, bootstrap (BCa), power, multiple testing, distribution families |
+| Foundations | `linalg`, `optimization`, `numerics`, `probability` | Cholesky/LU/Jacobi, BFGS/Levenberg-Marquardt/Brent, quadrature, exact finite probability |
 
 The [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
-tracks all 110 topics of the ATHENS 2026 VV-UQ course: 74 implemented,
-17 partial, 19 planned.
+tracks all 110 topics of the ATHENS 2026 VV-UQ course: 91 implemented,
+17 partial, 2 planned.
 
 ## Example labs
 
-Each lab in [`examples/`](examples) is seeded and reproducible. They write
-their figures to `examples/generated/`.
+Every lab in [`examples/`](examples) is seeded and reproducible and writes its
+figures to `examples/generated/`. All figures share one theme: colour follows
+meaning (data, model, reference), titles state the finding, and labels sit on
+the data.
 
 | | |
 |---|---|
-| ![Monte Carlo convergence](docs/images/monte-carlo-pi-convergence.png) | ![Bayesian calibration](docs/images/bayesian-calibration-prediction.png) |
-| **Monte Carlo convergence**: the estimate and its confidence interval tighten at the 1/√N rate. | **Bayesian calibration**: parameter uncertainty is kept separate from future-observation uncertainty. |
-| ![Reliability comparison](docs/images/reliability-method-comparison.png) | ![Sobol indices](docs/images/ishigami-sobol-indices.png) |
-| **Reliability**: direct MC, directional sampling, and FORM estimate the same failure probability. | **Global sensitivity**: Sobol indices show that X3 matters only through interactions. |
+| ![Sampling designs](docs/images/central-model-design-comparison.png) | ![FORM geometry](docs/images/central-model-form-geometry.png) |
+| **Forward**: scrambled Sobol points cut the error of the mean 15x at the same cost. | **Reliability**: FORM finds the most likely failure point in standard-normal space. |
+| ![Loss exceedance](docs/images/central-model-loss-exceedance.png) | ![Calibration forecast](docs/images/calibration-forecast.png) |
+| **Risk**: the expected loss hides a heavy tail; CVaR shows it. | **Backward**: MCMC calibration, then a forecast whose bands widen beyond the data. |
+| ![Filter tracking](docs/images/filtering-velocity.png) | ![Sobol indices](docs/images/ishigami-sobol-indices.png) |
+| **Filtering**: the Kalman filter recovers a velocity that is never measured. | **Sensitivity**: X3 matters only through interactions. |
+
+Start with [`examples/uq_study_lab.py`](examples/uq_study_lab.py) (one model
+through every stage) and
+[`examples/central_model_lab.py`](examples/central_model_lab.py) (the same
+steps with the low-level APIs).
 
 ## Design principles
 
-- **Citation-first.** Docstrings cite equation IDs such as `EQ-MC-PROB-001`.
-  Look them up in the [equation registry](docs/equation-registry.md), then
-  follow the citation key to the [bibliography](docs/references.md).
-- **Honest boundaries.** Each estimator states its assumptions, cost, and
-  failure modes. Singular covariances raise errors instead of being
-  silently jittered.
-- **Reproducible randomness.** Every random stream is seeded locally, with no
-  shared global state.
-- **Recorded decisions.** Architectural choices are kept as ADRs in
+- **One model, every question.** `ProbabilisticModel` is the only model
+  contract; analyses never redefine the inputs or the simulator.
+- **Citation-first.** Docstrings cite equation IDs such as `EQ-REL-HLRF-001`;
+  each resolves in the [equation registry](docs/equation-registry.md) to a
+  [bibliography](docs/references.md) entry.
+- **Honest boundaries.** Estimators report assumptions, model-evaluation cost,
+  and failure modes. Singular inputs raise instead of being jittered, and
+  validation results are scoped verdicts, never "validated".
+- **Reproducible randomness.** One root seed derives named child streams for
+  every stage.
+- **Recorded decisions.** Architecture choices are ADRs in
   [`memory/decisions/`](memory/decisions).
-- **Layered teaching.** Concepts go from definitions to assumptions,
-  equations, examples, and visuals without dropping mathematical scope.
 
 ## Documentation
 
-Start with the [learning path](docs/learning-path.md), then read the
-foundation guides in order:
-
-1. [VV-UQ foundations](docs/foundations/vv-uq-foundations.md)
-2. [Uncertainty modeling and fitting](docs/foundations/uncertainty-modeling-and-fitting.md)
-3. [Uncertainty propagation](docs/foundations/uncertainty-propagation.md)
-4. [Advanced Monte Carlo](docs/foundations/advanced-monte-carlo.md)
-5. [Reliability analysis](docs/foundations/reliability-analysis.md)
-6. [Sensitivity analysis](docs/foundations/sensitivity-analysis.md)
-7. [Inverse problems and Bayesian calibration](docs/foundations/inverse-problems-and-calibration.md)
+1. [Learning path](docs/learning-path.md): the suggested reading order
+2. [The central probabilistic model](docs/foundations/probabilistic-modeling.md)
+3. [Uncertainty propagation](docs/foundations/uncertainty-propagation.md) and [sensitivity analysis](docs/foundations/sensitivity-analysis.md)
+4. [Model-based reliability](docs/foundations/advanced-reliability.md) and [risk analysis](docs/foundations/risk-analysis.md)
+5. [Nonlinear calibration and MCMC](docs/foundations/nonlinear-calibration-and-mcmc.md) and [model validation](docs/foundations/model-validation.md)
+6. [Filtering and data assimilation](docs/foundations/filtering-and-data-assimilation.md) and [surrogate models](docs/foundations/surrogate-models.md)
+7. [All foundation guides](docs/foundations)
 
 Reference: [Architecture](docs/architecture.md) ·
 [Roadmap](memory/ROADMAP.md) · [Changelog](CHANGELOG.md)
@@ -137,8 +140,9 @@ python -m ruff check .
 python -m mypy src/probstat
 ```
 
-Before you open a pull request, read the [contribution contract](CONTRIBUTING.md).
-New public functions need a docstring, an equation record, and a citation.
+CI runs these checks and every example lab on Python 3.11 to 3.13. Before
+opening a pull request, read the [contribution contract](CONTRIBUTING.md): new
+public functions need a docstring, an equation record, and a citation.
 
 ## License
 
