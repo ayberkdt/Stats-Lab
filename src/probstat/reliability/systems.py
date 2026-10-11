@@ -302,14 +302,20 @@ def series_system_bounds(forms: Sequence[FORMResult]) -> SeriesSystemBounds:
         earlier = order[:position]
         lower += max(0.0, probabilities[i] - math.fsum(joint[i][j] for j in earlier))
         upper += probabilities[i] - max(joint[i][j] for j in earlier)
-    survival = 1.0
-    for probability in probabilities:
-        survival *= 1.0 - probability
+    # 1 - prod(1 - P_i) evaluated as -expm1(sum log1p(-P_i)): the naive form
+    # cancels to zero for component probabilities below about 1e-16.
+    union = (
+        1.0
+        if any(probability >= 1.0 for probability in probabilities)
+        else -math.expm1(
+            math.fsum(math.log1p(-probability) for probability in probabilities)
+        )
+    )
     return SeriesSystemBounds(
         component_probabilities=probabilities,
         correlations=correlations,
         unimodal_lower=max(probabilities),
-        unimodal_upper=1.0 - survival,
+        unimodal_upper=union,
         ditlevsen_lower=min(1.0, lower),
         ditlevsen_upper=min(1.0, upper),
         order=order,

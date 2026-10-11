@@ -12,7 +12,7 @@ import random
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
-from probstat.distributions._special import regularized_beta, regularized_gamma_p
+from probstat.distributions import Gamma, StudentT
 from probstat.foundations import coerce_finite_sample
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
@@ -36,7 +36,6 @@ from probstat.linalg import (
     transpose,
 )
 from probstat.multivariate import MultivariateNormal
-from probstat.optimization import brent_root
 
 
 @dataclass(frozen=True, slots=True)
@@ -480,10 +479,10 @@ def student_t_cdf(value: float, degrees_of_freedom: float) -> float:
     nu = require_finite_real(degrees_of_freedom, name="degrees_of_freedom")
     if nu <= 0.0:
         raise ValueError("degrees_of_freedom must be positive")
-    if t == 0.0:
-        return 0.5
-    tail = 0.5 * regularized_beta(nu / (nu + t * t), 0.5 * nu, 0.5)
-    return 1.0 - tail if t > 0.0 else tail
+    # The catalog law evaluates the complementary incomplete beta near the
+    # centre and the direct tail far out, so neither large nu nor tiny tail
+    # masses lose relative accuracy.
+    return StudentT(nu, 0.0, 1.0).cdf(t)
 
 
 def student_t_quantile(probability: float, degrees_of_freedom: float) -> float:
@@ -512,26 +511,8 @@ def student_t_quantile(probability: float, degrees_of_freedom: float) -> float:
     nu = require_finite_real(degrees_of_freedom, name="degrees_of_freedom")
     if nu <= 0.0:
         raise ValueError("degrees_of_freedom must be positive")
-    if p == 0.5:
-        return 0.0
-    target = max(p, 1.0 - p)
-    upper = 1.0
-    while student_t_cdf(upper, nu) < target:
-        upper *= 2.0
-        if upper > 1e300:
-            raise ArithmeticError("Student-t quantile bracket overflowed")
-
-    def excess(t: float) -> float:
-        """Return ``F_nu(t) - target`` for the root search.
-
-        References:
-            [EQ-DIST-T-001]. No new equation is introduced.
-
-        """
-        return student_t_cdf(t, nu) - target
-
-    root = brent_root(excess, 0.0, upper, tolerance=1e-13 * max(1.0, upper)).root
-    return root if p > 0.5 else -root
+    # Inverts the smaller tail directly (no ``1 - p`` cancellation).
+    return StudentT(nu, 0.0, 1.0).quantile(p)
 
 
 def _gamma_quantile(probability: float, shape: float) -> float:
@@ -541,22 +522,9 @@ def _gamma_quantile(probability: float, shape: float) -> float:
         [EQ-NUM-GAMMA-001], [EQ-OPT-BRENT-001], [REF-NIST-DLMF-GAMMA, 8.2].
 
     """
-    upper = max(1.0, shape)
-    while regularized_gamma_p(shape, upper) < probability:
-        upper *= 2.0
-        if upper > 1e300:
-            raise ArithmeticError("gamma quantile bracket overflowed")
-
-    def excess(x: float) -> float:
-        """Return ``P(shape, x) - probability`` for the root search.
-
-        References:
-            [EQ-NUM-GAMMA-001]. No new equation is introduced.
-
-        """
-        return regularized_gamma_p(shape, x) - probability
-
-    return brent_root(excess, 0.0, upper, tolerance=1e-14 * max(1.0, upper)).root
+    # Inverts in log space with relative accuracy; a result below the
+    # smallest subnormal float is returned as 0.0.
+    return Gamma(shape, 1.0).quantile(probability)
 
 
 def _interval_tails(probability: object) -> tuple[float, float]:
@@ -802,9 +770,13 @@ class NormalInverseGamma:
 
         """
         lower_tail, upper_tail = _interval_tails(probability)
+        high = _gamma_quantile(upper_tail, self.shape)
+        low = _gamma_quantile(lower_tail, self.shape)
+        # A lower gamma quantile that underflows to zero means the upper
+        # sigma^2 bound exceeds the float range: report it as infinite.
         return (
-            self.rate / _gamma_quantile(upper_tail, self.shape),
-            self.rate / _gamma_quantile(lower_tail, self.shape),
+            self.rate / high if high > 0.0 else math.inf,
+            self.rate / low if low > 0.0 else math.inf,
         )
 
     def predictive(

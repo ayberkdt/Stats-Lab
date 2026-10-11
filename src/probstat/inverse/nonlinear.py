@@ -461,8 +461,7 @@ def fisher_identifiability(
             raise ValueError("scales must be positive and match the names")
         information = tuple(
             tuple(
-                information[i][j] * factors[i] * factors[j]
-                for j in range(len(labels))
+                information[i][j] * factors[i] * factors[j] for j in range(len(labels))
             )
             for i in range(len(labels))
         )
@@ -699,7 +698,8 @@ class CalibrationProblem:
             if item.standard_deviation is not None:
                 sigmas[item.quantity] = item.standard_deviation
         for offset, quantity in enumerate(self._unknown):
-            sigmas[quantity] = math.exp(vector[d + offset])
+            eta = vector[d + offset]
+            sigmas[quantity] = math.exp(eta) if eta < 709.0 else math.inf
         return vector[:d], MappingProxyType(sigmas)
 
     # -- forward evaluation -------------------------------------------------
@@ -838,6 +838,10 @@ class CalibrationProblem:
         """
         total = 0.0
         for prior, eta in zip(self._sigma_priors, log_sigmas, strict=True):
+            if eta >= 709.0:
+                # exp would overflow: such a scale has zero prior density for
+                # every proper prior, so reject instead of aborting a chain.
+                return -math.inf
             sigma = math.exp(eta)
             if sigma <= 0.0 or not math.isfinite(sigma):
                 return -math.inf
@@ -933,7 +937,9 @@ class CalibrationProblem:
         vector = as_vector(coordinates, name="coordinates")
         d = self.model.dimension
         theta = self.model.inputs.from_standard_normal(vector[:d])
-        return theta + tuple(math.exp(eta) for eta in vector[d:])
+        return theta + tuple(
+            math.exp(eta) if eta < 709.0 else math.inf for eta in vector[d:]
+        )
 
     def _default_log_sigmas(self) -> Vector:
         """Return log prior medians of unknown noise scales.
@@ -959,9 +965,7 @@ class CalibrationProblem:
 
         """
         weights = tuple(
-            math.sqrt(
-                scales[q] ** 2 + self._noise_by_name[q].discrepancy_variance
-            )
+            math.sqrt(scales[q] ** 2 + self._noise_by_name[q].discrepancy_variance)
             for _, q, _ in self._pairs
         )
 
@@ -1088,8 +1092,7 @@ class CalibrationProblem:
 
                 """
                 return tuple(
-                    r / w
-                    for r, w in zip(self.residuals(point), weights, strict=True)
+                    r / w for r, w in zip(self.residuals(point), weights, strict=True)
                 )
 
             result = least_squares(
@@ -1105,7 +1108,8 @@ class CalibrationProblem:
             changed = 0.0
             for quantity in self._unknown:
                 values = [
-                    r for (_, q, _), r in zip(self._pairs, raw, strict=True)
+                    r
+                    for (_, q, _), r in zip(self._pairs, raw, strict=True)
                     if q == quantity
                 ]
                 total = math.fsum(r * r for r in values) / len(values) * n / (n - d)

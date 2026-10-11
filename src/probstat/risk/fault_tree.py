@@ -256,9 +256,33 @@ def _gate_probability(
     if node.kind == "and":
         return math.prod(children)
     if node.kind == "or":
-        return 1.0 - math.prod(1.0 - p for p in children)
+        return _independent_union(children)
     assert node.k is not None
     return _at_least_k(children, node.k)
+
+
+def _independent_union(probabilities: Iterable[float]) -> float:
+    """Return ``1 - prod(1 - p_i)`` without cancellation for rare events.
+
+    Computed as ``-expm1(sum log1p(-p_i))``; any certain event gives one.
+
+    Args:
+        probabilities: Probabilities of independent events.
+
+    Returns:
+        Probability that at least one event occurs.
+
+    Equation:
+        [EQ-RISK-FT-GATE-001].
+
+    References:
+        [REF-VESELY-ETAL-1981], [REF-PYTHON-MATH].
+
+    """
+    values = list(probabilities)
+    if any(value >= 1.0 for value in values):
+        return 1.0
+    return -math.expm1(math.fsum(math.log1p(-value) for value in values))
 
 
 @dataclass(frozen=True, slots=True)
@@ -521,8 +545,8 @@ class FaultTree:
 
         """
         table = self._probabilities(probabilities)
-        return 1.0 - math.prod(
-            1.0 - math.prod(table[name] for name in cut) for cut in self._cut_sets
+        return _independent_union(
+            math.prod(table[name] for name in cut) for cut in self._cut_sets
         )
 
     def importance(
@@ -592,7 +616,12 @@ def _ratio(numerator: float, denominator: float) -> float:
 
 
 def _mocus(top: Gate) -> tuple[frozenset[str], ...]:
-    """Return minimal cut sets by MOCUS expansion and absorption.
+    """Return minimal cut sets by Boolean expansion with absorption.
+
+    Cut-set families are built bottom-up (OR = union, AND = pairwise
+    product, k-out-of-n = union of products) and minimized at every gate,
+    so repeated sub-structures never multiply rows; the result equals the
+    minimal cut sets of the top-down MOCUS procedure.
 
     Args:
         top: Top gate.
@@ -608,33 +637,65 @@ def _mocus(top: Gate) -> tuple[frozenset[str], ...]:
         [REF-RAUSAND-HOYLAND-2004].
 
     """
-    rows: list[list[BasicEvent | Gate]] = [[top]]
-    found: set[frozenset[str]] = set()
-    processed = 0
-    while rows:
-        processed += 1
-        if processed > _MAX_MOCUS_ROWS:
+    memo: dict[str, frozenset[frozenset[str]]] = {}
+
+    def minimize(family: Iterable[frozenset[str]]) -> frozenset[frozenset[str]]:
+        """Remove non-minimal sets (absorption ``A + A B = A``).
+
+        References:
+            [EQ-RISK-FT-MOCUS-001], [REF-RAUSAND-HOYLAND-2004].
+
+        """
+        kept: list[frozenset[str]] = []
+        for candidate in sorted(set(family), key=len):
+            if not any(other <= candidate for other in kept):
+                kept.append(candidate)
+        if len(kept) > _MAX_MOCUS_ROWS:
             raise ValueError("MOCUS expansion exceeded the row guard")
-        row = rows.pop()
-        position = next(
-            (index for index, node in enumerate(row) if isinstance(node, Gate)), None
-        )
-        if position is None:
-            found.add(frozenset(node.name for node in row))
-            continue
-        gate = row[position]
-        assert isinstance(gate, Gate)
-        rest = row[:position] + row[position + 1 :]
-        if gate.kind == "and":
-            rows.append(rest + list(gate.inputs))
-        elif gate.kind == "or":
-            rows.extend(rest + [child] for child in gate.inputs)
+        return frozenset(kept)
+
+    def product(
+        left: frozenset[frozenset[str]], right: frozenset[frozenset[str]]
+    ) -> frozenset[frozenset[str]]:
+        """Return the minimized AND-combination of two cut-set families.
+
+        References:
+            [EQ-RISK-FT-MOCUS-001], [REF-VESELY-ETAL-1981].
+
+        """
+        return minimize(a | b for a in left for b in right)
+
+    def cuts(node: BasicEvent | Gate) -> frozenset[frozenset[str]]:
+        """Return the minimal cut sets of one node, memoized by gate name.
+
+        References:
+            [EQ-RISK-FT-MOCUS-001], [REF-VESELY-ETAL-1981].
+
+        """
+        if isinstance(node, BasicEvent):
+            return frozenset({frozenset({node.name})})
+        if node.name in memo:
+            return memo[node.name]
+        families = [cuts(child) for child in node.inputs]
+        if node.kind == "or":
+            result = minimize(cut for family in families for cut in family)
+        elif node.kind == "and":
+            result = families[0]
+            for family in families[1:]:
+                result = product(result, family)
         else:
-            assert gate.k is not None
-            rows.extend(
-                rest + list(combination)
-                for combination in itertools.combinations(gate.inputs, gate.k)
-            )
+            assert node.k is not None
+            combined: list[frozenset[str]] = []
+            for combination in itertools.combinations(families, node.k):
+                partial = combination[0]
+                for family in combination[1:]:
+                    partial = product(partial, family)
+                combined.extend(partial)
+            result = minimize(combined)
+        memo[node.name] = result
+        return result
+
+    found = set(cuts(top))
     ordered = sorted(found, key=lambda cut: (len(cut), sorted(cut)))
     minimal: list[frozenset[str]] = []
     for cut in ordered:
