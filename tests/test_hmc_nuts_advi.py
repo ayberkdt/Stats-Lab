@@ -436,6 +436,29 @@ class VariationalInferenceTests(unittest.TestCase):
             self.assertLess(fit.covariance[i][i], TARGET_COVARIANCE[i][i])
         self.assertEqual(fit.covariance[0][1], 0.0)
 
+    def test_slow_ridge_climb_is_not_reported_as_converged(self) -> None:
+        """A run still climbing a flat ridge must not claim convergence."""
+        mean = (10.0, -5.0)
+        precision = inverse_spd(((25.0, 4.9), (4.9, 1.0)))
+
+        def gradient(x: tuple[float, ...]) -> tuple[float, ...]:
+            """Return the gradient of the ridge-shaped Gaussian."""
+            d = (x[0] - mean[0], x[1] - mean[1])
+            return tuple(
+                -(precision[i][0] * d[0] + precision[i][1] * d[1]) for i in range(2)
+            )
+
+        def log_density(x: tuple[float, ...]) -> float:
+            """Return the log-density of the ridge-shaped Gaussian."""
+            g = gradient(x)
+            return 0.5 * ((x[0] - mean[0]) * g[0] + (x[1] - mean[1]) * g[1])
+
+        fit = advi(log_density, (0.0, 0.0), gradient=gradient, seed=0, draws=0)
+        if fit.converged:
+            self.assertAlmostEqual(fit.mean[0], mean[0], delta=0.5)
+        else:
+            self.assertEqual(fit.iterations, 10000)
+
     def test_elbo_increases_toward_log_normalizer(self) -> None:
         """The ELBO trace rises and ends near log Z, the bound's maximum."""
         for fit in (self.full, self.mean_field):

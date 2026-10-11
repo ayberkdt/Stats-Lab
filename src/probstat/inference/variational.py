@@ -349,8 +349,12 @@ def advi(
     returned approximation. The run
     stops when the mean or the median of the recent relative ELBO changes
     ``|ELBO_k - ELBO_{k-1}| / max(1, |ELBO_k|)`` falls below ``tolerance``
-    (a project heuristic; the buffer holds the last
-    ``max(2, 0.1 max_iterations / evaluation_interval)`` changes).
+    and the ELBO has not risen by more than ``tolerance`` (relative) over the
+    whole buffer (a project heuristic; the buffer holds the last
+    ``B = max(2, 0.1 max_iterations / evaluation_interval)`` changes). The
+    second condition stops slow climbs along a flat ridge, where every
+    single change is small, from being reported as converged; such a run
+    ends at ``max_iterations`` with ``converged=False``.
 
     Args:
         log_density: Target ``log p(x)`` up to a constant on ``R^d``; must be
@@ -560,10 +564,17 @@ def advi(
             if previous is not None:
                 changes.append(abs(current - previous) / max(1.0, abs(current)))
                 recent = changes[-buffer_size:]
-                if (
-                    math.fsum(recent) / len(recent) < tol
-                    or median(recent) < tol
-                ):
+                settled = (
+                    math.fsum(recent) / len(recent) < tol or median(recent) < tol
+                )
+                # A flat ridge can keep per-interval changes below tol while
+                # the ELBO still climbs; also require no net rise over the
+                # whole buffer before declaring convergence.
+                rise = math.inf
+                if len(trace) > buffer_size:
+                    rise = current - trace[-1 - buffer_size][1]
+                drift_free = rise / max(1.0, abs(current)) < tol
+                if settled and drift_free:
                     converged = True
                     break
             previous = current
