@@ -339,5 +339,97 @@ class NearestNeighbourEstimatorTests(unittest.TestCase):
             ksg_mutual_information([1.0, 1.0, 2.0], [3.0, 3.0, 4.0], k=1)
 
 
+class NumericalStabilityRegressionTests(unittest.TestCase):
+    """Extreme-parameter regressions against high-precision oracles.
+
+    Oracle values were computed with mpmath at 250 (entropies) or 60
+    (divergences) significant digits from the closed forms of the equation
+    registry, with every float input converted exactly (``mp.mpf(x)``);
+    ``k = 1e300`` used 700 digits. The scratch scripts are not shipped.
+    """
+
+    def test_gamma_entropy_large_shape(self) -> None:
+        """The Stirling form keeps relative accuracy up to ``k = 1e300``."""
+        for shape, oracle in (
+            (15.0, 2.7503679194875697),
+            (1e9, 11.780571451344545),
+            (1e15, 18.688326730660015),
+            (1e100, 116.54819318290696),
+            (1e300, 346.80670248231153),
+        ):
+            with self.subTest(shape=shape):
+                self.assertAlmostEqual(
+                    gamma_entropy(shape), oracle, delta=4e-16 * abs(oracle)
+                )
+        self.assertAlmostEqual(
+            gamma_entropy(1e15, 2.5), 18.688326730660015 - math.log(2.5), places=13
+        )
+
+    def test_beta_entropy_large_shapes(self) -> None:
+        """Large and mixed shapes keep relative accuracy."""
+        for alpha, beta, oracle in (
+            (15.0, 15.0, -0.99203541299817311),
+            (1e12, 1e12, -13.436292795599769),
+            (1e9, 3e15, -23.856817732234166),
+            (1e12, 1e6, -19.304329137073905),
+            (1.0, 1e15, -33.538776394910686),
+            (7.0, 1e17, -36.801401379479479),
+            (0.3, 20.0, -4.0494539140755256),
+        ):
+            with self.subTest(alpha=alpha, beta=beta):
+                self.assertAlmostEqual(
+                    beta_entropy(alpha, beta), oracle, delta=1e-15 * abs(oracle)
+                )
+                self.assertAlmostEqual(
+                    beta_entropy(beta, alpha), oracle, delta=1e-15 * abs(oracle)
+                )
+
+    def test_kl_normal_nearly_equal_laws(self) -> None:
+        """Tiny divergences are returned with full relative accuracy."""
+        for args, oracle in (
+            ((0.0, 1.0, 0.0, 1.0 + 1e-8), 9.9999997117839196e-17),
+            ((0.0, 1.0, 1e-9, 1.0), 5.0000000000000006e-19),
+            ((0.0, 2.0, 0.0, 2.0 * (1.0 - 3e-7)), 9.0000044971887533e-14),
+        ):
+            with self.subTest(args=args):
+                self.assertAlmostEqual(kl_normal(*args), oracle, delta=1e-13 * oracle)
+
+    def test_kl_multivariate_normal_nearly_equal_laws(self) -> None:
+        """The whitened-eigenvalue form is accurate for nearly equal laws."""
+        s0 = ((2.0, 0.3), (0.3, 1.0))
+        s1 = ((2.0000002, 0.3000001), (0.3000001, 0.9999999))
+        value = kl_multivariate_normal((0.0, 0.0), s0, (1e-7, -2e-7), s1)
+        self.assertAlmostEqual(value, 3.4801681806347729e-14, delta=1e-12 * value)
+        value = kl_multivariate_normal((0.0, 0.0), s0, (0.0, 0.0), s1)
+        self.assertAlmostEqual(value, 8.100107407344977e-15, delta=1e-12 * value)
+
+    def test_covariance_symmetry_is_relative(self) -> None:
+        """Asymmetry is detected for tiny matrices and tolerated when tiny."""
+        with self.assertRaises(ValueError):
+            multivariate_normal_entropy(((1e-12, 5e-11), (0.0, 1e-12)))
+        scaled = ((1e20, 3e19), (3e19 * (1.0 + 1e-14), 1e20))
+        self.assertTrue(math.isfinite(multivariate_normal_entropy(scaled)))
+
+    def test_discrete_divergences_with_extreme_probabilities(self) -> None:
+        """Underflowing products and overflowing ratios do not break sums."""
+        self.assertAlmostEqual(
+            mutual_information(((1e-200, 0.0), (0.0, 1.0))),
+            4.6051701859880913e-198,
+            delta=1e-14 * 4.6e-198,
+        )
+        self.assertAlmostEqual(
+            kl_divergence((0.5, 0.5), (1.0, 1e-320)),
+            367.72047326492701,
+            delta=1e-13,
+        )
+        value = jensen_shannon_divergence((1.0, 5e-324), (1.0, 0.0))
+        self.assertGreaterEqual(value, 0.0)
+        self.assertLessEqual(value, 5e-324)
+        self.assertAlmostEqual(
+            jensen_shannon_divergence((1.0, 1e-310), (1.0, 0.0)),
+            0.5 * 1e-310 * math.log(2.0),
+            delta=1e-12 * 1e-310,
+        )
+
 if __name__ == "__main__":
     unittest.main()

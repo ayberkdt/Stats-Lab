@@ -94,7 +94,11 @@ prefer it over the Wald interval.
 `GEV(0, 1, 0.1)`, the nominal 95% delta interval for `z_10` covered the truth
 in 90 replicates (a separate 150-replicate run gave 90.7%). The
 test requires a rate between 82% and 99%. The mild undercoverage is the
-known small-sample behaviour of Wald intervals.
+known small-sample behaviour of Wald intervals. It grows for shorter records
+and longer periods: with 30 maxima and `T = 100` (200 replicates each for
+`xi = -0.2, 0.1, 0.3`), nominal 95% delta intervals covered the truth in
+76.5-86% of fits and profile intervals in 92.5-96.5%. Use the profile interval
+for small samples.
 
 ## 4. Choosing a threshold (EQ-EVA-MRL-001, EQ-EVA-STAB-001)
 
@@ -102,8 +106,8 @@ The threshold trades bias (too low: the GPD does not hold yet) against
 variance (too high: few excesses). Two diagnostics help:
 
 - `mean_residual_life(values)`: the mean excess `e(u)` with normal-theory
-  limits. Above a valid threshold, `e(u) = (sigma_u0 + xi u)/(1 - xi)` is
-  linear in `u`.
+  limits. Above a valid threshold `u0`, `e(u) = (sigma_u0 + xi (u - u0))/(1 - xi)`
+  is linear in `u`.
 - `threshold_stability(values, thresholds)`: the GPD `xi` and the modified
   scale `sigma* = sigma_u - xi u` at each threshold. Both are constant above a
   valid threshold.

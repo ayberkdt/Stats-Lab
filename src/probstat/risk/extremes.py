@@ -46,6 +46,8 @@ _GPD_METHODS = ("mle", "pwm")
 _SERIES_CUTOFF = 0.05
 _SERIES_TERMS = 30
 _MAX_EXPANSIONS = 40
+_MAX_BISECTIONS = 60
+_PROFILE_START_SHAPES = (0.25, 0.75, 1.5)
 
 
 # ---------------------------------------------------------------------------
@@ -447,6 +449,13 @@ class GEVFit:
     ) -> ReturnLevel:
         """Return ``z_T`` with a delta-method (Wald) interval.
 
+        The Wald interval is symmetric although the sampling distribution of
+        ``z_T`` is right-skewed, so it under-covers for few maxima: in a
+        200-replicate simulation with ``n = 30`` maxima, ``T = 100`` and
+        ``xi`` in ``{-0.2, 0.1, 0.3}``, nominal 95 % intervals covered the
+        truth in 76.5-86 % of fits, against 92.5-96.5 % for
+        :meth:`profile_return_level`, which is recommended for small samples.
+
         Args:
             return_period: Return period ``T > 1`` in blocks.
             confidence: Two-sided confidence strictly inside ``(0, 1)``.
@@ -481,7 +490,8 @@ class GEVFit:
         The GEV is reparameterized by ``(z_T, sigma, xi)`` with
         ``mu = z_T + sigma r(-xi, log y)`` and the log-likelihood is
         maximized over ``(log sigma, xi)`` by Nelder-Mead from several
-        starts (the MLE and the Gumbel point).
+        starts (the MLE, the Gumbel point, and level-adapted starts whose
+        location stays at the sample median); the best optimum is kept.
 
         Args:
             level: Candidate return level ``z_T``.
@@ -516,7 +526,10 @@ class GEVFit:
         Each endpoint is bracketed by expanding steps of the delta-method
         standard error and refined by Brent's method. An endpoint that is
         never reached within 40 doublings is reported as ``-inf``/``inf``
-        (typical for the upper end with heavy tails and few maxima).
+        (typical for the upper end with heavy tails and few maxima). A level
+        at which no profile start is feasible is never used as a Brent
+        bracket; the bracket is bisected inward until the deviance is
+        finite.
 
         Args:
             return_period: Return period ``T > 1`` in blocks.
@@ -581,14 +594,23 @@ def _profile_maximum(
 ) -> tuple[float, tuple[float, float]]:
     """Minimize the GEV negative log-likelihood at a fixed return level.
 
+    Besides the supplied starts, a Gumbel start (``xi = 0`` at the first
+    start's scale) and level-adapted starts are tried. A level-adapted start
+    fixes ``xi`` on a small grid and chooses ``sigma`` so that the implied
+    location ``mu = z_T + sigma r(-xi, log y)`` equals the sample median;
+    for a level far above the data this keeps the start feasible, whereas
+    the MLE scale would put ``mu`` above every observation. Every feasible
+    start is refined by Nelder-Mead and the best optimum is returned.
+
     Args:
         sample: Block maxima.
         level: Fixed return level ``z_T``.
         period: Return period ``T``.
-        starts: Candidate starts ``(log sigma, xi)``; a Gumbel start is added.
+        starts: Candidate starts ``(log sigma, xi)``.
 
     Returns:
-        Minimum negative log-likelihood and its ``(log sigma, xi)``.
+        Minimum negative log-likelihood and its ``(log sigma, xi)``
+        (``inf`` if no start is feasible).
 
     Equation:
         [EQ-EVA-PROF-001].
@@ -615,8 +637,28 @@ def _profile_maximum(
     candidates = list(starts)
     if candidates:
         candidates.append((candidates[0][0], 0.0))
-    best_value, best_point = math.inf, candidates[0] if candidates else (0.0, 0.0)
+    ordered = sorted(sample)
+    middle = len(ordered) // 2
+    median = (
+        ordered[middle]
+        if len(ordered) % 2
+        else 0.5 * (ordered[middle - 1] + ordered[middle])
+    )
+    for shape in _PROFILE_START_SHAPES:
+        # mu = z - sigma (y^-xi - 1)/xi = median  =>  sigma = (z - median)/r.
+        ratio = -_expm1_ratio(-shape, log_y)
+        if ratio > 0.0 and level > median:
+            candidates.append((math.log(level - median) - math.log(ratio), shape))
+    best_value = math.inf
+    best_point = candidates[0] if candidates else (0.0, 0.0)
+    tried: list[tuple[float, float]] = []
     for start in candidates:
+        if any(
+            abs(start[0] - other[0]) < 1e-9 and abs(start[1] - other[1]) < 1e-9
+            for other in tried
+        ):
+            continue
+        tried.append(start)
         if not math.isfinite(objective(start)):
             continue
         result = minimize_nelder_mead(
@@ -625,8 +667,6 @@ def _profile_maximum(
         if result.value < best_value:
             best_value = result.value
             best_point = (result.x[0], result.x[1])
-        if math.isfinite(best_value):
-            break
     return best_value, best_point
 
 
@@ -634,6 +674,13 @@ def _profile_endpoint(
     excess: Callable[[float], float], estimate: float, step: float
 ) -> float:
     """Find where the profile deviance crosses the chi-square critical value.
+
+    The search expands from the estimate in doubling steps until the excess
+    is positive. A non-finite excess (no feasible profile start at that
+    level) is never used as a Brent bracket: the bracket is bisected inward
+    until the outer excess is finite. Inside the bracket a non-finite
+    excess is treated as a large positive value, i.e. beyond the critical
+    value.
 
     Args:
         excess: Deviance minus critical value; negative at the estimate.
@@ -653,12 +700,38 @@ def _profile_endpoint(
     inner = estimate
     for _ in range(_MAX_EXPANSIONS):
         outer = inner + step
-        if excess(outer) > 0.0:
-            root = brent_root(excess, inner, outer, tolerance=1e-9 * (1.0 + abs(outer)))
-            return root.root
+        value = excess(outer)
+        if value > 0.0:
+            break
         inner = outer
         step *= 2.0
-    return math.copysign(math.inf, step)
+    else:
+        return math.copysign(math.inf, step)
+    for _ in range(_MAX_BISECTIONS):
+        if math.isfinite(value):
+            break
+        midpoint = 0.5 * (inner + outer)
+        middle_value = excess(midpoint)
+        if math.isfinite(middle_value) and middle_value <= 0.0:
+            inner = midpoint
+        else:
+            outer, value = midpoint, middle_value
+    if not math.isfinite(value):
+        return 0.5 * (inner + outer)
+    cap = abs(value)
+
+    def bounded(candidate: float) -> float:
+        """Return the excess with non-finite values mapped to ``+cap``.
+
+        References:
+            [EQ-EVA-PROF-001], [REF-BRENT-1973, Chapter 4].
+
+        """
+        result = excess(candidate)
+        return result if math.isfinite(result) else cap
+
+    root = brent_root(bounded, inner, outer, tolerance=1e-9 * (1.0 + abs(outer)))
+    return root.root
 
 
 def fit_gev(maxima: Iterable[float]) -> GEVFit:
@@ -823,9 +896,14 @@ class GPDFit:
         sample_size: Number of excesses.
         method: ``"mle"`` or ``"pwm"``.
         converged: Whether the optimizer converged (always ``True`` for PWM).
+            ``False`` also flags an MLE with ``xi < -1``: there the GPD
+            likelihood is unbounded (it grows without limit as the endpoint
+            ``sigma/(-xi)`` approaches the largest excess), so the reported
+            point is an artefact of the optimizer, not a maximum.
 
     References:
-        [REF-COLES-2001, Section 4.3], [REF-HOSKING-WALLIS-1987].
+        [REF-COLES-2001, Section 4.3], [REF-HOSKING-WALLIS-1987],
+        [REF-SMITH-1985].
 
     """
 
@@ -903,9 +981,15 @@ def fit_gpd(
     moment estimator with unbiased ``b_r``, identical to the two-L-moment
     estimator; it exists for ``xi < 1`` and has no covariance here.
 
+    For MLE every excess must be strictly positive: with an excess equal to
+    zero the likelihood is unbounded (``sigma -> 0`` with ``xi -> inf``
+    sends the density at zero to infinity faster than the other terms
+    decay), so zeros are rejected. An MLE that lands at ``xi < -1``, where
+    the likelihood is also unbounded, is returned with ``converged=False``.
+
     Args:
         excesses: Non-negative excesses with at least two distinct values
-            (``>= 3`` for MLE).
+            (``>= 3`` for MLE, all strictly positive).
         method: ``"mle"`` or ``"pwm"``.
         threshold: Threshold recorded as the location of the fitted law.
 
@@ -913,7 +997,8 @@ def fit_gpd(
         GPD fit record.
 
     Raises:
-        ValueError: If the excesses or method are invalid.
+        ValueError: If the excesses or method are invalid, or if a
+            maximum-likelihood fit is requested with a zero excess.
 
     Equation:
         [EQ-EVA-GPD-001], [EQ-EVA-PWM-001], [EQ-INF-MLE-GEN-002].
@@ -940,6 +1025,11 @@ def fit_gpd(
         )
     if len(sample) < 3:
         raise ValueError("maximum likelihood needs at least three excesses")
+    if any(x == 0.0 for x in sample):
+        raise ValueError(
+            "maximum likelihood needs strictly positive excesses: a zero "
+            "excess makes the GPD likelihood unbounded (use method='pwm')"
+        )
     fit = fit_distribution(sample, GPD_FAMILY)
     return GPDFit(
         location,
@@ -949,7 +1039,7 @@ def fit_gpd(
         fit.log_likelihood,
         len(sample),
         "mle",
-        fit.converged,
+        fit.converged and fit.estimates[1] >= -1.0,
     )
 
 
@@ -1017,9 +1107,10 @@ def mean_residual_life(
 ) -> tuple[MeanResidualLifePoint, ...]:
     """Return mean-residual-life data ``(u, e(u))`` with confidence limits.
 
-    Above a threshold where the GPD holds, ``e(u) = (sigma_u0 + xi u)/(1 - xi)``
-    is linear in ``u``; the plot is read for the lowest ``u`` beyond which it
-    is approximately linear. Limits are ``e(u) +/- z s_u / sqrt(n_u)``.
+    Above a threshold ``u0`` where the GPD holds with scale ``sigma_u0``,
+    ``e(u) = (sigma_u0 + xi (u - u0))/(1 - xi)`` is linear in ``u``; the
+    plot is read for the lowest ``u`` beyond which it is approximately
+    linear. Limits are ``e(u) +/- z s_u / sqrt(n_u)``.
 
     Args:
         values: Finite observations.
@@ -1590,6 +1681,14 @@ class PeaksOverThresholdFit:
         self, return_period: float, *, confidence: float = 0.95
     ) -> ReturnLevel:
         """Return the ``N``-year level with a delta-method interval.
+
+        The symmetric Wald interval under-covers for few excesses because
+        the sampling distribution of ``x_N`` is right-skewed: in a
+        300-replicate simulation (20 years of 100 observations, 10 %
+        exceedances, ``xi = 0.2``, ``N = 50``) nominal 95 % intervals
+        covered the truth in about 87 % of fits. Treat the interval as a
+        rough guide; a profile-likelihood interval is preferable when
+        available.
 
         The gradient in ``(zeta_u, sigma, xi)`` is
         ``(sigma e^(xi l)/zeta_u, r(xi, l), sigma r_a(xi, l))`` with

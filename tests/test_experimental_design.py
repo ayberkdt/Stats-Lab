@@ -444,5 +444,68 @@ class BayesianDesignTests(unittest.TestCase):
             greedy_design(problem, LINE_DESIGN, 4, allow_repeats=False)
 
 
+class GreedyAndValidationRegressionTests(unittest.TestCase):
+    """Regressions for common random numbers and input validation."""
+
+    def test_greedy_laplace_increments_are_non_negative(self) -> None:
+        """One common stream makes every Laplace increment non-negative.
+
+        Seed 19 reproduced an increment of about -0.0035 when each greedy
+        step drew its own prior sample.
+        """
+        prior = JointInput.independent(
+            RandomInput("A", Normal(3.0, 0.3)),
+            RandomInput("k", LogNormal(math.log(0.5), 0.6)),
+        )
+        model = ProbabilisticModel(prior, decay_model, (QuantityOfInterest("y", "y"),))
+        problem = BayesianDesignProblem(
+            model, (NoiseModel("y", standard_deviation=0.1),)
+        )
+        candidates = [{"t": t} for t in (0.0, 1.0, 2.0, 4.0, 8.0)]
+        baseline = [{"t": 2.0}, {"t": 4.0}]
+        for seed in (19, 0, 7):
+            with self.subTest(seed=seed):
+                result = greedy_design(
+                    problem,
+                    candidates,
+                    3,
+                    baseline=baseline,
+                    method="laplace",
+                    samples=3,
+                    seed=seed,
+                )
+                self.assertGreaterEqual(min(result.increments), 0.0)
+                path = (result.baseline_information_gain, *result.information_gains)
+                for before, after in zip(path, path[1:], strict=False):
+                    self.assertGreaterEqual(after, before)
+
+    def test_linear_gaussian_rejects_asymmetric_covariances(self) -> None:
+        """Covariances are checked for symmetry before the Cholesky factor."""
+        jacobian = ((1.0, 0.0), (0.0, 1.0))
+        with self.assertRaises(ValueError):
+            linear_gaussian_information_gain(
+                jacobian, ((1.0, 0.5), (0.0, 1.0)), noise_variances=(1.0, 1.0)
+            )
+        with self.assertRaises(ValueError):
+            linear_gaussian_information_gain(
+                jacobian,
+                ((1e-12, 0.0), (0.0, 1e-12)),
+                noise_covariance=((1e-12, 5e-13), (0.0, 1e-12)),
+            )
+        self.assertGreater(
+            linear_gaussian_information_gain(
+                jacobian, ((1.0, 0.5), (0.5, 1.0)), noise_variances=(1.0, 1.0)
+            ),
+            0.0,
+        )
+
+    def test_single_sample_laplace_has_undefined_error(self) -> None:
+        """One prior draw yields a ``nan`` standard error, not zero."""
+        estimate = laplace_information_gain(
+            decay_problem(), [{"t": 1.0}], samples=1, seed=3
+        )
+        self.assertTrue(math.isnan(estimate.standard_error))
+        self.assertTrue(math.isfinite(estimate.value))
+
 if __name__ == "__main__":
     unittest.main()

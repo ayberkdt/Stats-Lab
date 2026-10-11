@@ -368,5 +368,65 @@ class PeaksOverThresholdTests(unittest.TestCase):
             self.assertGreater(point.modified_scale_upper, 1.0)
 
 
+# Thirty block maxima with a heavy upper tail (GEV MLE about
+# (-0.097, 0.689, 0.879)); the profile upper endpoint for z_100 lies near 644.
+HEAVY_TAILED_MAXIMA = (
+    -0.15164212315051895, -0.36613042548127406, 2.9563561437974597,
+    0.949496632592682, -0.11754437775262473, -0.6450264892507018,
+    0.5586708111960909, -0.3053591137274865, -0.4593736455144538,
+    2.140840724633267, -0.07950629740654293, 0.13720588725661576,
+    1.6914006879432708, -0.5790260471470562, -0.35049810790619806,
+    1.3741753753523913, 18.51736493118179, 0.9802070932950883,
+    1.1113018063648445, 4.934916533508613, 3.7061192731624892,
+    -0.5658644928085497, -0.16291565088931376, 0.03479924485330801,
+    -0.5745079902263062, 0.31167709583639375, 0.4939226482256293,
+    0.06694964062251699, 5.005326432072438, 3.547545577821558,
+)  # fmt: skip
+
+
+class ExtremeValueRegressionTests(unittest.TestCase):
+    """Regressions for the GEV profile likelihood and GPD MLE edge cases."""
+
+    def test_profile_interval_for_heavy_tailed_maxima(self) -> None:
+        """The profile upper endpoint matches an independent optimizer.
+
+        The oracle endpoint 644.1751 and the deviance 4.10187 at
+        ``z = 722.657`` were computed with SciPy: ``genextreme`` log-density,
+        Nelder-Mead over ``(log sigma, xi)`` from a grid of 16 starts at each
+        level, and ``brentq`` on the deviance (``xtol = 1e-4``).
+        """
+        fit = fit_gev(HEAVY_TAILED_MAXIMA)
+        interval = fit.profile_return_level(100.0)
+        self.assertAlmostEqual(interval.upper, 644.1751431960995, delta=0.6)
+        self.assertLess(interval.lower, interval.level)
+        level = 722.6572176855143
+        deviance = 2.0 * (
+            fit.fit.log_likelihood - fit.profile_log_likelihood(level, 100.0)
+        )
+        self.assertAlmostEqual(deviance, 4.101872022117945, delta=1e-3)
+
+    def test_profile_endpoint_never_brackets_non_finite_values(self) -> None:
+        """An infeasible outer level is bisected inward before Brent's method."""
+        from probstat.risk.extremes import _profile_endpoint
+
+        def excess(z: float) -> float:
+            """Return ``z - 1`` up to ``z = 3`` and ``inf`` beyond."""
+            return z - 1.0 if z < 3.0 else math.inf
+
+        self.assertAlmostEqual(_profile_endpoint(excess, 0.0, 4.0), 1.0, places=8)
+
+    def test_gpd_mle_rejects_zero_excesses_and_flags_xi_below_minus_one(
+        self,
+    ) -> None:
+        """Unbounded-likelihood cases are refused or flagged."""
+        with self.assertRaises(ValueError):
+            fit_gpd([0.0, 0.0, 1.0, 2.0, 0.5])
+        self.assertTrue(fit_gpd([0.0, 0.0, 1.0, 2.0, 0.5], method="pwm").converged)
+        uniform_like = [k / 16.0 for k in range(1, 16)]
+        fit = fit_gpd(uniform_like)
+        self.assertLess(fit.xi, -1.0)
+        self.assertFalse(fit.converged)
+        self.assertTrue(fit_gpd(Exponential(1.0).sample(200, seed=5)).converged)
+
 if __name__ == "__main__":
     unittest.main()

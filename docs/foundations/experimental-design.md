@@ -173,8 +173,11 @@ for every noise level (common random numbers) and gave
 `greedy_design(problem, candidates, size, method=..., baseline=...)` adds the
 candidate that maximizes the EIG of the enlarged design. By the chain rule,
 that is the candidate with the largest information conditional on the
-earlier choices. All candidates of one step share a random stream, so their
-*differences* are much less noisy than their values.
+earlier choices. The baseline and every candidate design at every step are
+scored with one common random stream, so *differences* between scores are much
+less noisy than the scores. For Laplace the same prior draws are reused, and
+each per-draw term can only grow when a condition is added, so the reported
+increments are never negative.
 
 - **Slope only** (`y = b x`, `x in {0, 0.25, ..., 1}`). The greedy rule picks
   `x = 1` three times; the EIG `1/2 log 4` is the closed form.
@@ -185,8 +188,8 @@ earlier choices. All candidates of one step share a random stream, so their
   `sd = 0.1`, `t in {0, 0.5, ..., 6}`, Laplace with 8 draws).
   - Step 1 picks `t = 0`. Its EIG is `1/2 log(1 + (0.3/0.1)^2) = 1.1513`,
     because `t = 0` informs only `A`.
-  - Step 2 picks `t = 2.0 = 1/k`, raising the EIG to `2.028`. The candidate
-    scores peak at `t = 2` (`2.028`) against `1.992` at `1.5` and `2.017`
+  - Step 2 picks `t = 2.0 = 1/k`, raising the EIG to `2.062`. The candidate
+    scores peak at `t = 2` (`2.062`) against `2.043` at `1.5` and `2.032`
     at `2.5`.
   - This reproduces the local design of Section 6 without fixing `k`. The
     search cost 1248 model evaluations.
