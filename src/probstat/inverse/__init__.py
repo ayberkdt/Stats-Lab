@@ -7,15 +7,35 @@ from .calibration import (
     calibrate_linear_gaussian,
     diagnose_linear_identifiability,
 )
+from .nonlinear import (
+    CalibrationPosterior,
+    CalibrationProblem,
+    Experiment,
+    FisherIdentifiability,
+    LeastSquaresCalibration,
+    NoiseModel,
+    fisher_identifiability,
+)
 from .observation import ForwardResponse, GaussianObservationModel, ParameterVector
+from .prediction import PosteriorPrediction, PredictedQuantity, predict
 
 __all__ = [
+    "CalibrationPosterior",
+    "CalibrationProblem",
+    "Experiment",
+    "FisherIdentifiability",
     "ForwardResponse",
     "GaussianObservationModel",
     "IdentifiabilityDiagnostic",
+    "LeastSquaresCalibration",
     "LinearCalibrationResult",
+    "NoiseModel",
     "ParameterVector",
+    "PosteriorPrediction",
+    "PredictedQuantity",
     "PredictionTarget",
     "calibrate_linear_gaussian",
     "diagnose_linear_identifiability",
+    "fisher_identifiability",
+    "predict",
 ]

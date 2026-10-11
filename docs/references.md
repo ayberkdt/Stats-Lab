@@ -547,3 +547,65 @@ Problem." *Journal of Engineering Mechanics* 120(5), 1154-1159, 1994.
 
 Jian Tu, Kyung K. Choi, and Young H. Park. "A New Study on Reliability-Based
 Design Optimization." *Journal of Mechanical Design* 121(4), 557-564, 1999.
+
+## REF-METROPOLIS-ETAL-1953
+
+Nicholas Metropolis, Arianna W. Rosenbluth, Marshall N. Rosenbluth, Augusta H.
+Teller, and Edward Teller. "Equation of State Calculations by Fast Computing
+Machines." *The Journal of Chemical Physics* 21(6), 1087-1092, 1953.
+DOI: [10.1063/1.1699114](https://doi.org/10.1063/1.1699114).
+
+## REF-HASTINGS-1970
+
+W. K. Hastings. "Monte Carlo Sampling Methods Using Markov Chains and Their
+Applications." *Biometrika* 57(1), 97-109, 1970.
+DOI: [10.1093/biomet/57.1.97](https://doi.org/10.1093/biomet/57.1.97).
+
+## REF-HAARIO-SAKSMAN-TAMMINEN-2001
+
+Heikki Haario, Eero Saksman, and Johanna Tamminen. "An Adaptive Metropolis
+Algorithm." *Bernoulli* 7(2), 223-242, 2001.
+DOI: [10.2307/3318737](https://doi.org/10.2307/3318737).
+
+## REF-ROBERTS-ROSENTHAL-2001
+
+Gareth O. Roberts and Jeffrey S. Rosenthal. "Optimal Scaling for Various
+Metropolis-Hastings Algorithms." *Statistical Science* 16(4), 351-367, 2001.
+DOI: [10.1214/ss/1015346320](https://doi.org/10.1214/ss/1015346320).
+
+## REF-GELMAN-RUBIN-1992
+
+Andrew Gelman and Donald B. Rubin. "Inference from Iterative Simulation Using
+Multiple Sequences." *Statistical Science* 7(4), 457-472, 1992.
+DOI: [10.1214/ss/1177011136](https://doi.org/10.1214/ss/1177011136).
+
+## REF-GEYER-1992
+
+Charles J. Geyer. "Practical Markov Chain Monte Carlo." *Statistical Science*
+7(4), 473-483, 1992.
+DOI: [10.1214/ss/1177011137](https://doi.org/10.1214/ss/1177011137).
+
+## REF-VEHTARI-ETAL-2021
+
+Aki Vehtari, Andrew Gelman, Daniel Simpson, Bob Carpenter, and Paul-Christian
+Bürkner. "Rank-Normalization, Folding, and Localization: An Improved R-hat for
+Assessing Convergence of MCMC (with Discussion)." *Bayesian Analysis* 16(2),
+667-718, 2021. DOI: [10.1214/20-BA1221](https://doi.org/10.1214/20-BA1221).
+
+## REF-TIERNEY-KADANE-1986
+
+Luke Tierney and Joseph B. Kadane. "Accurate Approximations for Posterior
+Moments and Marginal Densities." *Journal of the American Statistical
+Association* 81(393), 82-86, 1986.
+DOI: [10.1080/01621459.1986.10478240](https://doi.org/10.1080/01621459.1986.10478240).
+
+## REF-LANGE-LITTLE-TAYLOR-1989
+
+Kenneth L. Lange, Roderick J. A. Little, and Jeremy M. G. Taylor. "Robust
+Statistical Modeling Using the t Distribution." *Journal of the American
+Statistical Association* 84(408), 881-896, 1989.
+
+## REF-MURPHY-2012
+
+Kevin P. Murphy. *Machine Learning: A Probabilistic Perspective*. MIT Press,
+2012.

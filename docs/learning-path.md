@@ -34,6 +34,11 @@ for observation/noise models, least squares, identifiability, Gaussian priors
 and posteriors, predictive checking, model discrepancy, and the explicit
 calibration-versus-prediction boundary.
 
+Then move to [nonlinear calibration and MCMC](foundations/nonlinear-calibration-and-mcmc.md)
+for nonlinear forward models, unknown and robust noise models, Laplace
+approximations, adaptive Metropolis, convergence diagnostics, Fisher-based
+identifiability, and posterior push-forward prediction.
+
 The library separates conceptual order from software layer order. Readers can
 learn progressively without losing topics needed later.
 

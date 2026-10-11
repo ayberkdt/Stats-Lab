@@ -90,7 +90,7 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-7.1 | Forward versus inverse formulation | Implemented | UQ-6 | `probstat.inverse` | `docs/foundations/inverse-problems-and-calibration.md` |
 | ATHENS-7.2 | Observation models | Implemented | UQ-6 | `probstat.inverse.observation` | `src/probstat/inverse/observation.py` |
 | ATHENS-7.3 | Measurement-noise models | Implemented | UQ-6 | `probstat.inverse.observation` | `src/probstat/inverse/observation.py` |
-| ATHENS-7.4 | Parameter identification | Implemented | UQ-6 | `probstat.inverse` | `src/probstat/inverse/calibration.py` |
+| ATHENS-7.4 | Parameter identification | Implemented | UQ-6 | `probstat.inverse` | `src/probstat/inverse/calibration.py`; `src/probstat/inverse/nonlinear.py` |
 | ATHENS-7.5 | Least-squares estimation | Implemented | UQ-6 | `probstat.inference.regression` | `src/probstat/inference/regression.py` |
 | ATHENS-7.6 | Linear regression for calibration | Implemented | UQ-6 | `probstat.inference.regression` | `src/probstat/inference/regression.py`; `src/probstat/inverse/calibration.py` |
 | ATHENS-7.7 | Bayesian inference | Implemented | UQ-6 | `probstat.inference.bayesian` | `src/probstat/inference/bayesian.py`; `docs/foundations/inverse-problems-and-calibration.md` |
@@ -98,7 +98,7 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-7.9 | Likelihood functions | Implemented | UQ-6 | `probstat.inference.likelihood` | `src/probstat/inference/bayesian.py`; `src/probstat/inverse/observation.py` |
 | ATHENS-7.10 | Posterior distributions | Implemented | UQ-6 | `probstat.inference.bayesian` | `src/probstat/inference/bayesian.py` |
 | ATHENS-7.11 | Gaussian conditioning | Implemented | UQ-6 | `probstat.multivariate.gaussian` | `src/probstat/inference/bayesian.py`; `tests/test_uq6_inverse_calibration.py` |
-| ATHENS-7.12 | Posterior sampling | Implemented | UQ-6 | `probstat.inference.sampling` | `src/probstat/inference/bayesian.py` |
+| ATHENS-7.12 | Posterior sampling | Implemented | UQ-6 | `probstat.inference.sampling` | `src/probstat/inference/bayesian.py`; `src/probstat/inference/mcmc.py` |
 | ATHENS-7.13 | Posterior-predictive distributions and checks | Implemented | UQ-6 | `probstat.inference.predictive` | `src/probstat/inference/bayesian.py`; `examples/bayesian_calibration_lab.py` |
 | ATHENS-7.14 | Model discrepancy in calibration | Implemented | UQ-6 | `probstat.validation.discrepancy` | `src/probstat/validation/discrepancy.py`; `docs/foundations/inverse-problems-and-calibration.md` |
 | ATHENS-7.15 | Calibration versus prediction | Implemented | UQ-6 | `probstat.inverse` | `src/probstat/inverse/calibration.py`; `examples/bayesian_calibration_lab.py` |
