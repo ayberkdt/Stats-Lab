@@ -63,7 +63,11 @@ defects that are now fixed with oracle-backed regression tests.
 - **Study stages**: `UQStudy.extremes` (peaks-over-threshold tail of a QoI
   reusing the propagation sample), `UQStudy.information_sensitivity`
   (KSG mutual information per input), and `UQStudy.design` (greedy Bayesian
-  design for the study's calibration, re-estimated on an independent stream).
+  design for the study's calibration, re-estimated on an independent stream),
+  `UQStudy.design_points` (multiple design points with multi-point FORM and
+  mixture importance sampling), and `UQStudy.active_reliability` (AK-MCS);
+  the HTML report draws figures for the tail, information, and design
+  stages.
 - **Hierarchical models and EM** (`inference`): generic EM driver with a
   monotonicity check, Gaussian mixtures (full/diagonal covariance, k-means++
   starts, BIC/AIC selection), EM for censored normal data; exact gridded
@@ -71,9 +75,26 @@ defects that are now fixed with oracle-backed regression tests.
   NUTS on the non-centred parameterization, shrinkage factors, beta-binomial
   empirical Bayes; posterior predictive p-values with Monte Carlo errors and
   PIT uniformity checks.
+- **Forecast evaluation** (`validation`): CRPS (ensemble, fair ensemble,
+  closed forms for normal, lognormal, logistic, exponential, uniform, and
+  quadrature for any law), log, Dawid-Sebastiani, energy, and variogram
+  scores; pinball, interval, and weighted interval scores; Brier score with
+  the Murphy decomposition; PIT values and histograms, interval coverage,
+  reliability diagrams with consistency bands; energy-distance and MMD
+  permutation tests, sample and quantile Wasserstein distances; exact
+  two-sample Kolmogorov-Smirnov test (`inference`).
+- **Optimal transport and information geometry** (`information`): exact
+  transportation simplex with an optimality certificate, log-domain Sinkhorn
+  and the debiased Sinkhorn divergence, Gaussian (Bures) and quantile
+  Wasserstein distances and barycenters; closed-form and numerical Fisher
+  information, Fisher-Rao distances, Hellinger, Bhattacharyya, total
+  variation, Renyi, and alpha divergences.
 - **Kernel density** (`statistics.gaussian_kde`) with Silverman and
   normal-reference bandwidths.
-- **Figures**: return-level, mean-residual-life, and tail Q-Q plots;
+- **Figures**: discrepancy-corrected predictions and estimated
+  discrepancy; eight-schools shrinkage, tau posterior, mixture fit and BIC
+  selection, predictive-check and PIT histograms; return-level,
+  mean-residual-life, and tail Q-Q plots;
   D-optimal design with its variance function and greedy EIG paths; causal
   effect forest, covariate balance (Love plot), and E-value contour; entropy
   decomposition and estimator checks; violin/box distribution comparison,

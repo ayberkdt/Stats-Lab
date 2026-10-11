@@ -91,12 +91,13 @@ tested evidence.
 - [ ] Probabilistic programming intermediate representation and inference API.
 - [x] Causal graphs, interventions, identification, sensitivity analysis
   (ADR-0034).
-- [~] Information measures and estimators (ADR-0036); information geometry
-  and optimal transport remain.
+- [x] Information measures and estimators (ADR-0036), information geometry
+  and optimal transport (ADR-0043).
 - [ ] Normalizing flows, energy-based models, diffusion/score systems,
   neural stochastic differential equations.
-- [~] Conformal prediction (ADR-0033); distribution shift, uncertainty
-  calibration, robustness, and sequential decision systems remain.
+- [~] Conformal prediction (ADR-0033), distribution-shift tests and forecast
+  calibration with proper scoring rules (ADR-0042); robustness and
+  sequential decision systems remain.
 - [ ] Reproducible benchmark suites that compare correctness, calibration,
   numerical stability, and computational cost—not accuracy alone.
 
