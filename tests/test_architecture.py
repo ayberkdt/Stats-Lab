@@ -25,6 +25,7 @@ LAYER = {
     "probstat.modeling": 3,
     "probstat.propagation": 4,
     "probstat.inverse": 4,
+    "probstat.design": 5,
     "probstat.reliability": 5,
     "probstat.sensitivity": 5,
     "probstat.validation": 5,

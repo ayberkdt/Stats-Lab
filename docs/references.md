@@ -1354,3 +1354,70 @@ Statistical Software* 33(1), 1-22, 2010.
 
 F. J. Anscombe. "Graphs in Statistical Analysis." *The American
 Statistician* 27(1), 17-21, 1973.
+
+## REF-ATKINSON-DONEV-TOBIAS-2007
+
+A. C. Atkinson, A. N. Donev, and R. D. Tobias. *Optimum Experimental
+Designs, with SAS*. Oxford University Press, 2007.
+
+## REF-FEDOROV-1972
+
+V. V. Fedorov. *Theory of Optimal Experiments*. Translated and edited by
+W. J. Studden and E. M. Klimko. Academic Press, 1972.
+
+## REF-KIEFER-WOLFOWITZ-1960
+
+J. Kiefer and J. Wolfowitz. "The Equivalence of Two Extremum Problems."
+*Canadian Journal of Mathematics* 12, 363-366, 1960.
+
+## REF-SILVEY-TITTERINGTON-TORSNEY-1978
+
+S. D. Silvey, D. M. Titterington, and B. Torsney. "An Algorithm for
+Optimal Designs on a Design Space." *Communications in Statistics - Theory
+and Methods* 7(14), 1379-1389, 1978.
+
+## REF-WYNN-1970
+
+Henry P. Wynn. "The Sequential Generation of D-Optimum Experimental
+Designs." *Annals of Mathematical Statistics* 41(5), 1655-1664, 1970.
+
+## REF-PUKELSHEIM-RIEDER-1992
+
+Friedrich Pukelsheim and Sabine Rieder. "Efficient Rounding of Approximate
+Designs." *Biometrika* 79(4), 763-770, 1992.
+
+## REF-BOX-LUCAS-1959
+
+G. E. P. Box and H. L. Lucas. "Design of Experiments in Non-Linear
+Situations." *Biometrika* 46(1/2), 77-90, 1959.
+
+## REF-CHALONER-VERDINELLI-1995
+
+Kathryn Chaloner and Isabella Verdinelli. "Bayesian Experimental Design: A
+Review." *Statistical Science* 10(3), 273-304, 1995.
+
+## REF-RYAN-2003
+
+Kenneth J. Ryan. "Estimating Expected Information Gains for Experimental
+Designs with Application to the Random Fatigue-Limit Model." *Journal of
+Computational and Graphical Statistics* 12(3), 585-603, 2003.
+
+## REF-HUAN-MARZOUK-2013
+
+Xun Huan and Youssef M. Marzouk. "Simulation-Based Optimal Bayesian
+Experimental Design for Nonlinear Systems." *Journal of Computational
+Physics* 232(1), 288-317, 2013.
+
+## REF-RAINFORTH-ETAL-2018
+
+Tom Rainforth, Rob Cornish, Hongseok Yang, Andrew Warrington, and Frank
+Wood. "On Nesting Monte Carlo Estimators." *Proceedings of the 35th
+International Conference on Machine Learning*, PMLR 80, 4267-4276, 2018.
+
+## REF-FOSTER-ETAL-2020
+
+Adam Foster, Martin Jankowiak, Matthew O'Meara, Yee Whye Teh, and Tom
+Rainforth. "A Unified Stochastic Gradient Approach to Designing
+Bayesian-Optimal Experiments." *Proceedings of the 23rd International
+Conference on Artificial Intelligence and Statistics*, PMLR 108, 2959-2969,
+2020.
