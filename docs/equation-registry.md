@@ -5025,3 +5025,215 @@ Sigma_aa - Sigma_ab Sigma_bb^-1 Sigma_ba)`; evaluated as
 - Code: `multivariate.delta_method`, `multivariate.DeltaMethodResult`.
 - Source: [REF-CASELLA-BERGER-2002, Section 5.5.4] and
   [REF-MAGNUS-NEUDECKER-2019, Chapter 5].
+
+## Solution verification, prediction components, and the UQ workflow
+
+### EQ-VV-GCI-001 — Representative grid size
+
+`h = (V / N)^(1/d)` for `N` cells (or degrees of freedom) filling a domain of
+length, area, or volume `V` in `d` dimensions.
+
+- Domain: `N > 0`, `V > 0`, `d in {1, 2, 3}`; meshes of one study should be
+  geometrically similar so that one `h` characterizes each.
+- Meaning: a single spacing per grid that makes refinement ratios
+  `r = h_coarse / h_fine` well defined for unstructured or non-uniform meshes.
+- Code: `uq.verification.representative_spacing`.
+- Source: [REF-CELIK-ETAL-2008].
+
+### EQ-VV-GCI-002 — Three-grid observed order with non-uniform ratios
+
+Grids fine (1), medium (2), coarse (3): `r21 = h2/h1`, `r32 = h3/h2`,
+`eps21 = phi2 - phi1`, `eps32 = phi3 - phi2`, `s = sign(eps32/eps21)`,
+`p = |ln|eps32/eps21| + q(p)| / ln r21`,
+`q(p) = ln((r21^p - s)/(r32^p - s))`, solved by fixed-point iteration from
+`q = 0`. For monotone data the equivalent strictly increasing equation
+`eps32/eps21 = r21^p (r32^p - 1)/(r21^p - 1)` is solved by Brent's method when
+the iteration fails.
+
+- Domain: `h1 < h2 < h3`, non-zero differences; for a uniform ratio `q = 0`
+  and the formula reduces to [EQ-VV-001].
+- Meaning: the rate at which the QoI converges, estimated from three grids
+  without requiring a constant refinement ratio.
+- Code: `uq.verification._observed_order`,
+  `uq.verification._monotone_order_equation`,
+  `uq.verification.grid_convergence_index`.
+- Source: [REF-CELIK-ETAL-2008], [REF-BRENT-1973, Chapter 4].
+
+### EQ-VV-GCI-003 — Extrapolated value and relative errors
+
+`phi_ext^21 = (r21^p phi1 - phi2)/(r21^p - 1) = phi1 + (phi1 - phi2)/(r21^p - 1)`,
+`e_a^21 = |(phi1 - phi2)/phi1|`, `e_ext^21 = |(phi_ext^21 - phi1)/phi_ext^21|`.
+
+- Domain: monotone asymptotic convergence with order `p > 0`; relative errors
+  are undefined (reported as `None`) when the denominator is zero.
+- Meaning: Richardson extrapolation with the observed order and the size of
+  the last refinement step relative to the solution.
+- Code: `uq.verification.grid_convergence_index`,
+  `uq.verification.GridConvergenceResult`.
+- Source: [REF-CELIK-ETAL-2008], [REF-ROACHE-1998, Chapters 4-5].
+
+### EQ-VV-GCI-004 — Fine-grid Grid Convergence Index
+
+Absolute: `GCI_fine^21 = F_s |phi1 - phi2| / (r21^p - 1)`; relative:
+`GCI_fine,rel^21 = F_s e_a^21 / (r21^p - 1)`; coarse pair:
+`GCI^32 = F_s |phi2 - phi3| / (r32^p - 1)`. `F_s = 1.25` for three or more
+grids with an observed order; `F_s = 3` when the order is not trusted.
+
+- Domain: as [EQ-VV-GCI-003].
+- Meaning: an error band `phi1 +/- GCI` intended to bracket the
+  discretization error with high (about 95 %) confidence; with the exact order
+  it equals `F_s` times the true fine-grid error.
+- Code: `uq.verification.grid_convergence_index`,
+  `uq.verification.verify_solution`.
+- Source: [REF-ROACHE-1998, Chapters 4-5], [REF-CELIK-ETAL-2008].
+
+### EQ-VV-GCI-005 — Asymptotic-range check
+
+`GCI^32 / (r21^p GCI^21) ~ 1`. With absolute GCIs at a reference order `p`
+the ratio equals `(eps32/eps21) / f(p)`, `f(p) = r21^p (r32^p - 1)/(r21^p - 1)`;
+with relative GCIs (Roache's form, `GCI^32` relative to `phi2`) it is
+additionally multiplied by `|phi1/phi2|`.
+
+- Domain: monotone three-grid data; reference order positive.
+- Meaning: whether the grids behave as a single leading error term predicts.
+  At the observed order of the same grids the absolute ratio is identically
+  one (an algebraic consequence of [EQ-VV-GCI-002]); evaluated at the
+  theoretical order it tests the asymptotic range (for a uniform ratio it
+  equals `r^(p_obs - p_th)`).
+- Code: `uq.verification.GridConvergenceResult.asymptotic_ratio_at`,
+  `uq.verification.GridConvergenceResult.in_asymptotic_range`,
+  `uq.verification.grid_convergence_index`, `uq.verification.verify_solution`.
+- Source: [REF-ROACHE-1998, Chapters 4-5], [REF-CELIK-ETAL-2008].
+
+### EQ-VV-GCI-006 — Convergence classification
+
+`R = eps32 / eps21`: oscillatory if `R < 0`; monotone if
+`R > ln r32 / ln r21` (the `p -> 0` limit of `f(p)`, which is one for a
+uniform ratio); otherwise divergent.
+
+- Domain: non-zero differences.
+- Meaning: Richardson-based estimates require monotone convergence;
+  oscillatory sequences are flagged and divergent ones admit no positive
+  order. With the fine-over-coarse ratio `eps21/eps32` used by Roy (2005), a
+  uniform ratio gives monotone convergence for values in `(0, 1)`.
+- Code: `uq.verification.classify_convergence`, `uq.verification._classify`,
+  `uq.verification.ConvergenceType`.
+- Source: [REF-CELIK-ETAL-2008], [REF-ROY-2005].
+
+### EQ-VV-LSQ-001 — Least-squares observed order
+
+`S(phi_0, alpha, p) = sum_i (phi_i - phi_0 - alpha (h_i/h_1)^p)^2`; for fixed
+`p` the minimizer in `(phi_0, alpha)` is ordinary linear regression on
+`x_i = (h_i/h_1)^p`; `p` minimizes the profile `S(p)` (400-point log scan plus
+golden-section refinement); `U_s = sqrt(S_min/(n - 3))`.
+
+- Domain: `n >= 4` distinct spacings, non-constant data, `p` inside declared
+  bounds.
+- Meaning: with more grids than unknowns the order is fitted rather than
+  solved, so scatter in the data is visible in `U_s` instead of corrupting
+  `p`; `alpha` is the fitted error of the finest solution.
+- Code: `uq.verification.least_squares_convergence`,
+  `uq.verification._fixed_order_fit`.
+- Source: [REF-ECA-HOEKSTRA-2014], [REF-BRENT-1973, Chapter 5].
+
+### EQ-VV-LSQ-002 — Simplified least-squares numerical uncertainty
+
+If `0.5 <= p < p_th + 0.1` (credible order): `U = 1.25 |alpha| + U_s`;
+otherwise, with `alpha_th`, `U_s,th = sqrt(S_th/(n - 2))` from the refit at
+`p = p_th`: `U = 3 max(|alpha|, |alpha_th|) + max(U_s, U_s,th)`.
+
+- Domain: as [EQ-VV-LSQ-001]; `p_th > 0` declared by the user.
+- Meaning: a project simplification that keeps the structure of the
+  Eca-Hoekstra procedure (fitted order, scatter term, factor of safety 1.25 or
+  3) but omits their weighted fits, alternative fixed-order expansions, and
+  data-range term. It is not their complete procedure.
+- Code: `uq.verification.least_squares_convergence`,
+  `uq.verification.verify_solution`.
+- Source: [REF-ECA-HOEKSTRA-2014] (structure); simplification documented in
+  this registry.
+
+### EQ-VV-OSC-001 — Oscillatory three-grid bound
+
+`U = F_s,osc (phi_max - phi_min)/2` with `F_s,osc = 3` by default.
+
+- Domain: three grids with `eps32/eps21 < 0`.
+- Meaning: a conservative project rule that does not use Richardson
+  extrapolation when the sequence oscillates: half the oscillation range,
+  multiplied by the factor of safety for untrusted estimates.
+- Code: `uq.verification.verify_solution`.
+- Source: [REF-ROY-2005] (oscillatory convergence invalidates Richardson
+  estimates), [REF-ROACHE-1998, Chapters 4-5] (factor of safety 3); the rule
+  itself is a project choice.
+
+### EQ-VV-UNUM-001 — Numerical-uncertainty statement and standard uncertainty
+
+Statement `phi_1 +/- U` with interval `[phi_1 - U, phi_1 + U]`;
+`u_num = U / sqrt(3)` (rectangular, "uniform") or `u_num = U / 1.959964`
+(Gaussian with `U` a 95 % expanded uncertainty, "normal95").
+
+- Domain: `U >= 0` from [EQ-VV-GCI-004], [EQ-VV-LSQ-002], or [EQ-VV-OSC-001];
+  the distribution is a declared assumption.
+- Meaning: turns a verification result into the `u_num` term used by the
+  V&V 20 comparison [EQ-VAL-ASME-001] and prediction [EQ-VAL-PRED-001].
+- Code: `uq.verification.SolutionVerification.interval`,
+  `uq.verification.SolutionVerification.standard_uncertainty`,
+  `validation.credibility.VerificationEvidence.from_solution_verification`,
+  `validation.prediction.predict_with_uncertainty_components`.
+- Source: [REF-JCGM-100-2008, Sections 4.3.7 and 6.2],
+  [REF-ROACHE-1998, Chapters 4-5].
+
+### EQ-VAL-DISC-001 — Distance-based discrepancy-variance extrapolation
+
+`sigma_delta^2(x) = sigma_delta,0^2 (1 + kappa d(x))`, with `d(x)` the scaled
+distance from `x` to the nearest validation condition ([EQ-VAL-DOM-001]) and
+declared `kappa >= 0`.
+
+- Domain: finite `d(x)` (the condition may not leave a validation dimension
+  of zero range); `sigma_delta,0` estimated at validation points.
+- Meaning: model-form uncertainty equals its validation estimate at the
+  validation points and grows linearly with distance from them; `kappa` is a
+  modelling assumption, not an estimate.
+- Code: `validation.prediction.DiscrepancyExtrapolation.at`,
+  `validation.prediction.DiscrepancyAtCondition.variance`.
+- Source: [REF-ROY-OBERKAMPF-2011] (extrapolating model-form uncertainty
+  beyond the validation domain); the linear rule is a project choice.
+
+### EQ-VAL-DISC-002 — Moment estimate of the discrepancy variance
+
+`sigma_delta,0^2 = max(0, mean_i(E_i^2) - mean_i(u_val,i^2))` with
+`E_i = S_i - D_i` and `u_val,i` from [EQ-VAL-ASME-001].
+
+- Domain: at least one comparison; errors modeled as zero-mean discrepancy
+  plus independent validation uncertainty.
+- Meaning: the part of the observed comparison error not explained by
+  numerical, input, and data uncertainty; a systematic bias is absorbed into
+  the variance and reported separately as `mean(E_i)`.
+- Code: `validation.prediction.estimate_discrepancy`.
+- Source: [REF-ASME-VV20-2009], [REF-KENNEDY-OHAGAN-2001].
+
+### EQ-VAL-PRED-001 — Probabilistic combination of prediction components
+
+`z_s = y_s + e_s + d_s` with parametric samples `y_s`, independent
+`d_s ~ N(0, sigma_delta^2(x))`, and `e_s ~ Uniform(-U, U)` or
+`N(0, (U/1.96)^2)`; `Var(Z) = Var(Y) + u_num^2 + sigma_delta^2(x)`; the
+combined interval is the equal-tailed sample interval of `z`.
+
+- Domain: the three components are independent; the treatment of numerical
+  error is declared.
+- Meaning: one interval for decision use, while the component variances and
+  their shares stay reported separately.
+- Code: `validation.prediction.predict_with_uncertainty_components`,
+  `validation.prediction.ComponentPrediction.variance_shares`.
+- Source: [REF-ROY-OBERKAMPF-2011], [REF-OBERKAMPF-ROY-2025, Part IV].
+
+### EQ-VAL-PRED-002 — Interval treatment of numerical uncertainty
+
+`[q_(alpha/2)(Y + delta) - U, q_(1-alpha/2)(Y + delta) + U]`.
+
+- Domain: numerical error known only to lie in `[-U, U]` (epistemic, no
+  distribution).
+- Meaning: the union of the probabilistic interval shifted anywhere in the
+  numerical-error interval; numerical uncertainty widens the bounds instead of
+  being averaged into a variance.
+- Code: `validation.prediction.predict_with_uncertainty_components`.
+- Source: [REF-ROY-OBERKAMPF-2011].

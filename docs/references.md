@@ -1074,3 +1074,22 @@ Foundation for Statistical Computing, Vienna, Austria.
 [https://www.R-project.org/](https://www.R-project.org/). Function defaults
 quoted in `docs/prerequisites/r-bridge.md` were read from the `stats` package
 R sources (development trunk) on 2026-10-11.
+
+## REF-CELIK-ETAL-2008
+
+Ismail B. Celik, Urmila Ghia, Patrick J. Roache, Christopher J. Freitas, Hugh
+Coleman, and Peter E. Raad. "Procedure for Estimation and Reporting of
+Uncertainty Due to Discretization in CFD Applications." *Journal of Fluids
+Engineering* 130(7), 078001, 2008.
+
+## REF-ROY-2005
+
+Christopher J. Roy. "Review of Code and Solution Verification Procedures for
+Computational Simulation." *Journal of Computational Physics* 205(1), 131-156,
+2005.
+
+## REF-ECA-HOEKSTRA-2014
+
+L. Eça and M. Hoekstra. "A Procedure for the Estimation of the Numerical
+Uncertainty of CFD Calculations Based on Grid Refinement Studies." *Journal of
+Computational Physics* 262, 104-130, 2014.

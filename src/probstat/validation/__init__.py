@@ -3,8 +3,10 @@
 The package owns discrepancy records, validation-experiment records and their
 applicability domain, validation metrics (area metric, u-pooling, Gaussian
 residuals, reliability metric, ASME V&V 20 comparison, Bayes factor), the
-scoped :func:`assess_validation` report, and a :class:`CredibilityRecord` that
-keeps verification, validation, and prediction evidence separate.
+scoped :func:`assess_validation` report, a :class:`CredibilityRecord` that
+keeps verification, validation, and prediction evidence separate, and
+:func:`predict_with_uncertainty_components`, which reports parametric,
+numerical, and model-form prediction uncertainty as separate components.
 """
 
 from .assessment import (
@@ -36,16 +38,30 @@ from .metrics import (
     uniform_area,
     validation_bayes_factor,
 )
+from .prediction import (
+    ComponentPrediction,
+    DiscrepancyAtCondition,
+    DiscrepancyEstimate,
+    DiscrepancyExtrapolation,
+    NumericalTreatment,
+    estimate_discrepancy,
+    predict_with_uncertainty_components,
+)
 from .records import DomainCheck, ValidationDomain, ValidationExperiment
 
 __all__ = [
     "AdditiveGaussianDiscrepancy",
     "AsmeComparison",
+    "ComponentPrediction",
     "BayesFactorResult",
     "CredibilityRecord",
+    "DiscrepancyAtCondition",
+    "DiscrepancyEstimate",
+    "DiscrepancyExtrapolation",
     "DomainCheck",
     "ExperimentAssessment",
     "MahalanobisResult",
+    "NumericalTreatment",
     "PredictionStatement",
     "ReliabilityMetricResult",
     "UPoolingResult",
@@ -60,9 +76,11 @@ __all__ = [
     "assess_predictions",
     "assess_validation",
     "budget_standard_uncertainty",
+    "estimate_discrepancy",
     "interpret_log_bayes_factor",
     "mahalanobis_metric",
     "predict_at_conditions",
+    "predict_with_uncertainty_components",
     "probability_integral_transform",
     "reliability_metric",
     "silverman_bandwidth",
