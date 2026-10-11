@@ -60,8 +60,10 @@ write_study_html(study, "study.html")    # one page, every stage, light and dark
 ```
 
 The same study can also `calibrate` the inputs against experiments,
-`predict` with the posterior, `validate` against independent data, and
-`emulate` the model with a polynomial-chaos or Gaussian-process surrogate.
+`predict` with the posterior, `validate` against independent data, `emulate`
+the model with a polynomial-chaos or Gaussian-process surrogate, fit the
+output tail (`extremes`), rank inputs by mutual information
+(`information_sensitivity`), and choose the next experiment (`design`).
 The core library has no runtime dependencies; Matplotlib is only needed for
 figures.
 
@@ -73,13 +75,14 @@ figures.
 | Forward | `propagation`, `sampling`, `monte_carlo` | Monte Carlo, Latin hypercube, scrambled Halton and Sobol designs; variance reduction; quantiles and exceedance curves |
 | Sensitivity | `sensitivity` | Sobol first/total indices with bootstrap intervals, Morris screening, local derivatives |
 | Reliability | `reliability` | HL-RF FORM, SORM, design-point importance sampling, subset simulation, system bounds, inverse FORM |
-| Risk | `risk` | VaR/CVaR, loss models, fault and event trees, fragility curves, EVPI/EVSI |
-| Backward | `inverse`, `inference` | Nonlinear calibration, adaptive Metropolis, HMC/NUTS, ADVI, Laplace, unknown noise, posterior prediction |
+| Risk | `risk` | VaR/CVaR, loss models, fault and event trees, fragility curves, EVPI/EVSI, GEV/GPD extremes and return levels |
+| Backward | `inverse`, `inference` | Nonlinear calibration, Kennedy-O'Hagan model discrepancy, adaptive Metropolis, HMC/NUTS, ADVI, Laplace, posterior prediction |
 | Validation | `validation` | Area metric, u-pooling, ASME V&V 20 comparison, applicability domain, scoped verdicts |
 | Dynamics | `filtering`, `data_assimilation`, `processes` | Kalman/EKF/UKF, RTS smoother, particle filter, EnKF, 3D-Var; Markov chains, SDEs, random fields |
 | Emulators | `surrogates` | Polynomial chaos (Sobol from coefficients), Gaussian-process regression |
-| Statistics | `statistics`, `inference`, `distributions` | Tests, bootstrap (BCa), power, multiple testing, 20+ distribution families, generic MLE and AIC/BIC model selection |
-| Modeling | `inference`, `timeseries`, `conformal` | Multiple regression and GLMs, ridge/lasso, ARIMA via the Kalman filter, Kaplan-Meier/Cox survival, conformal prediction |
+| Statistics | `statistics`, `inference`, `distributions`, `information` | Tests, bootstrap (BCa), power, multiple testing, kernel density, 20+ distribution families, generic MLE and AIC/BIC selection, entropy and mutual information |
+| Modeling | `inference`, `timeseries`, `conformal` | Regression and GLMs, ridge/lasso, hierarchical models, EM and mixtures, ARIMA, Kaplan-Meier/Cox survival, conformal prediction |
+| Decisions | `causal`, `design` | Back-door/front-door identification, IPW/AIPW, E-values; D-optimal and Bayesian experimental design |
 | Foundations | `linalg`, `optimization`, `numerics`, `probability` | Cholesky/LU/Jacobi, BFGS/Levenberg-Marquardt/Brent, quadrature, exact finite probability |
 
 The [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
@@ -101,6 +104,8 @@ the data.
 | **Risk**: the expected loss hides a heavy tail; CVaR shows it. | **Backward**: MCMC calibration, then a forecast whose bands widen beyond the data. |
 | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/filtering-velocity-dark.png"><img alt="Filter tracking" src="docs/images/filtering-velocity.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/ishigami-sobol-indices-dark.png"><img alt="Sobol indices" src="docs/images/ishigami-sobol-indices.png"></picture> |
 | **Filtering**: the Kalman filter recovers a velocity that is never measured. | **Sensitivity**: X3 matters only through interactions. |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/causal-effect-estimates-dark.png"><img alt="Causal effect estimates" src="docs/images/causal-effect-estimates.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/extremes-return-levels-dark.png"><img alt="Return levels" src="docs/images/extremes-return-levels.png"></picture> |
+| **Causal**: adjusting for confounders recovers the true effect the naive difference misses. | **Extremes**: a 40-year record gives a 100-year level with an honest, wide interval. |
 
 Start with [`examples/uq_study_lab.py`](examples/uq_study_lab.py) (one model
 through every stage) and
@@ -132,8 +137,9 @@ steps with the low-level APIs).
 6. [Filtering and data assimilation](docs/foundations/filtering-and-data-assimilation.md) and [surrogate models](docs/foundations/surrogate-models.md)
 7. [All foundation guides](docs/foundations)
 
-Reference: [Architecture](docs/architecture.md) ·
-[Roadmap](memory/ROADMAP.md) · [Changelog](CHANGELOG.md)
+Reference: [API reference](docs/api-reference.md) ·
+[Architecture](docs/architecture.md) · [Roadmap](memory/ROADMAP.md) ·
+[Changelog](CHANGELOG.md)
 
 ## Development
 
