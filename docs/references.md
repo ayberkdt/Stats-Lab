@@ -1503,3 +1503,46 @@ Rainforth. "A Unified Stochastic Gradient Approach to Designing
 Bayesian-Optimal Experiments." *Proceedings of the 23rd International
 Conference on Artificial Intelligence and Statistics*, PMLR 108, 2959-2969,
 2020.
+
+## REF-PICKANDS-1975
+
+James Pickands III. "Statistical Inference Using Extreme Order Statistics."
+*The Annals of Statistics* 3(1), 119-131, 1975.
+
+## REF-BALKEMA-DEHAAN-1974
+
+A. A. Balkema and L. de Haan. "Residual Life Time at Great Age." *The Annals
+of Probability* 2(5), 792-804, 1974.
+
+## REF-HOSKING-WALLIS-1987
+
+J. R. M. Hosking and J. R. Wallis. "Parameter and Quantile Estimation for the
+Generalized Pareto Distribution." *Technometrics* 29(3), 339-349, 1987.
+
+## REF-HOSKING-1990
+
+J. R. M. Hosking. "L-moments: Analysis and Estimation of Distributions Using
+Linear Combinations of Order Statistics." *Journal of the Royal Statistical
+Society: Series B* 52(1), 105-124, 1990.
+
+## REF-SMITH-1985
+
+Richard L. Smith. "Maximum Likelihood Estimation in a Class of Nonregular
+Cases." *Biometrika* 72(1), 67-90, 1985.
+
+## REF-KRASKOV-STOGBAUER-GRASSBERGER-2004
+
+Alexander Kraskov, Harald Stögbauer, and Peter Grassberger. "Estimating
+Mutual Information." *Physical Review E* 69, 066138, 2004.
+DOI: [10.1103/PhysRevE.69.066138](https://doi.org/10.1103/PhysRevE.69.066138).
+
+## REF-KOZACHENKO-LEONENKO-1987
+
+L. F. Kozachenko and N. N. Leonenko. "Sample Estimate of the Entropy of a
+Random Vector." *Problems of Information Transmission* 23(2), 95-101, 1987
+(translated from *Problemy Peredachi Informatsii* 23(2), 9-16).
+
+## REF-LIN-1991
+
+Jianhua Lin. "Divergence Measures Based on the Shannon Entropy." *IEEE
+Transactions on Information Theory* 37(1), 145-151, 1991.

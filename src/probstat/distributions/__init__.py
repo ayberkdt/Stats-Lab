@@ -10,6 +10,7 @@ from .fisher_f import FisherF
 from .gamma import Gamma
 from .geometric import Geometric
 from .gev import GeneralizedExtremeValue
+from .gpd import GeneralizedPareto
 from .gumbel import Gumbel
 from .logistic import Logistic
 from .lognormal import LogNormal
@@ -34,6 +35,7 @@ __all__ = [
     "FisherF",
     "Gamma",
     "GeneralizedExtremeValue",
+    "GeneralizedPareto",
     "Geometric",
     "Gumbel",
     "IntegerSupport",
