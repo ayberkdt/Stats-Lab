@@ -27,6 +27,7 @@ from probstat.inverse import (
     predict,
 )
 from probstat.modeling import ProbabilisticModel
+from probstat.modeling.fitting import JointInputFit, fit_joint_input
 from probstat.propagation import PropagationStudy, propagate
 from probstat.reliability import (
     FORMResult,
@@ -47,6 +48,7 @@ from probstat.surrogates import (
     fit_polynomial_chaos,
     surrogate_probabilistic_model,
 )
+from probstat.uq import ForwardModel, QuantityOfInterest
 from probstat.validation import (
     ValidationAssessment,
     ValidationExperiment,
@@ -116,6 +118,70 @@ class UQStudy:
         self._records: list[StageRecord] = []
         self._problem: CalibrationProblem | None = None
         self._posterior: CalibrationPosterior | None = None
+
+    @classmethod
+    def from_data(
+        cls,
+        data: Mapping[str, Sequence[float]],
+        model: ForwardModel,
+        quantities: Sequence[QuantityOfInterest],
+        *,
+        candidates: Sequence[str] | None = None,
+        dependence: Literal["spearman", "normal-scores", "independent"] = "spearman",
+        seed: int | RandomStream = 0,
+        name: str = "model",
+        fixed: Mapping[str, float] | None = None,
+    ) -> UQStudy:
+        """Fit the input law from data and start a study on the fitted model.
+
+        Each column is assigned the family with the best information criterion
+        among ``candidates`` and the dependence is a Gaussian copula fitted
+        from ranks. The fit is recorded as the first stage, so the report
+        shows which families were chosen and why.
+
+        Args:
+            data: Named input observations of equal length.
+            model: Forward model consuming the named inputs.
+            quantities: Quantities of interest.
+            candidates: Candidate family names (all ready-made by default).
+            dependence: Copula estimator or ``"independent"``.
+            seed: Root seed for the study.
+            name: Model and study label.
+            fixed: Deterministic parameters passed to every model call.
+
+        Returns:
+            A study whose model uses the fitted joint input law.
+
+        Equation:
+            [EQ-INF-IC-001], [EQ-MOD-COPULA-FIT-001].
+
+        References:
+            [REF-AKAIKE-1974], [REF-GENEST-GHOUDI-RIVEST-1995].
+
+        """
+        fit: JointInputFit = fit_joint_input(
+            data, candidates=candidates, dependence=dependence
+        )
+        probabilistic = ProbabilisticModel(
+            fit.joint_input, model, tuple(quantities), name=name, fixed=fixed or {}
+        )
+        study = cls(probabilistic, seed=seed, name=name)
+        summary: dict[str, float | str] = {"rows": len(next(iter(data.values())))}
+        for column, result in zip(
+            fit.joint_input.names, fit.marginal_fits, strict=True
+        ):
+            summary[f"family[{column}]"] = result.family
+            summary[f"aic[{column}]"] = result.aic
+        summary["dependence"] = dependence
+        study._record(
+            "fitting",
+            f"input law fitted from {summary['rows']} observations",
+            summary,
+            0,
+            study.stream("fitting"),
+            fit,
+        )
+        return study
 
     @property
     def model(self) -> ProbabilisticModel:

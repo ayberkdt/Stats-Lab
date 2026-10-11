@@ -112,6 +112,31 @@ class StudyTests(unittest.TestCase):
         self.assertIn("prefers-color-scheme: dark", page)
         self.assertNotIn("http://", page.replace("http://www.w3.org", ""))
 
+    def test_from_data_fits_inputs_and_runs(self) -> None:
+        """A study built from data picks plausible families and propagates."""
+        draws = JointInput.independent(
+            RandomInput("R", LogNormal(math.log(5.0), 0.1)),
+            RandomInput("S", Normal(3.0, 0.8)),
+        ).sample(400, seed=12)
+        data = {"R": [d[0] for d in draws], "S": [d[1] for d in draws]}
+
+        def margin(p):
+            """Return the safety margin."""
+            return {"g": p["R"] - p["S"]}
+
+        study = UQStudy.from_data(
+            data,
+            margin,
+            (QuantityOfInterest("g", "margin"),),
+            candidates=("Normal", "LogNormal", "Gamma"),
+            dependence="independent",
+            seed=3,
+        )
+        record = study.latest("fitting")
+        self.assertIn(record.summary["family[S]"], ("Normal",))
+        self.assertIn(record.summary["family[R]"], ("LogNormal", "Gamma", "Normal"))
+        self.assertAlmostEqual(study.propagate(512)["g"].mean, 2.0, delta=0.15)
+
 
 class CalibrationAndEmulationTests(unittest.TestCase):
     """Backward modeling and surrogates inside the same study."""
