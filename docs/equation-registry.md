@@ -2616,3 +2616,19 @@ Find `theta` in a sign-changing bracket with
 - Code: `reliability.generalized_reliability_index`,
   `reliability.compare_reliability_methods`.
 - Source: [REF-DITLEVSEN-MADSEN-1996].
+
+## Tail-accurate inverse survival functions
+
+### EQ-DIST-ISF-001 — Inverse survival function
+
+`S^-1(q) = F^-1(1-q)`, evaluated without forming `1-q`: Normal
+`mu - sigma Phi^-1(q)`; LogNormal `exp(mu - sigma Phi^-1(q))`; Exponential
+`-ln(q)/lambda`; Weibull `scale (-ln q)^(1/k)`; Uniform `b - q(b-a)`.
+
+- Domain: `q in [0,1]`; `q = 0` maps to the upper support end.
+- Meaning: upper-tail quantiles with full relative accuracy, so the Nataf
+  map stays injective for large latent values (FORM at reliability indices
+  beyond about 8, where `Phi(z)` rounds to one).
+- Code: `distributions.Normal.isf`, `LogNormal.isf`, `Exponential.isf`,
+  `Weibull.isf`, `Uniform.isf`, and `modeling.JointInput.from_standard_normal`.
+- Source: [REF-NIST-DLMF, Section 7.17] and [REF-PYTHON-STATISTICS].

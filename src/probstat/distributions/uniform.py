@@ -224,6 +224,32 @@ class Uniform:
             raise ValueError("hazard requires positive survival probability")
         return 1.0 / (self.upper - point)
 
+    def isf(self, probability: float) -> float:
+        """Return the inverse survival function ``x`` with ``S(x) = q``.
+
+        Evaluated directly from ``q`` so that upper-tail quantiles keep full
+        relative accuracy where ``1 - q`` would round to one.
+
+        Args:
+            probability: Upper-tail probability ``q`` in ``[0, 1]``.
+
+        Returns:
+            ``S^-1(q) = F^-1(1 - q)``.
+
+        Raises:
+            TypeError: If ``probability`` is not real.
+            ValueError: If ``probability`` lies outside ``[0, 1]``.
+
+        Equation:
+            [EQ-DIST-ISF-001].
+
+        References:
+            [REF-NIST-DLMF, Section 7.17], [REF-PYTHON-STATISTICS].
+
+        """
+        q = require_probability(probability, name="probability")
+        return self.upper - q * (self.upper - self.lower)
+
     @property
     def mean(self) -> float:
         """Return midpoint expectation ``(lower+upper)/2``.

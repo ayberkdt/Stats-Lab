@@ -201,6 +201,34 @@ class Exponential:
         point = require_finite_real(x, name="x")
         return 0.0 if point < 0.0 else self.rate
 
+    def isf(self, probability: float) -> float:
+        """Return the inverse survival function ``x`` with ``S(x) = q``.
+
+        Evaluated directly from ``q`` so that upper-tail quantiles keep full
+        relative accuracy where ``1 - q`` would round to one.
+
+        Args:
+            probability: Upper-tail probability ``q`` in ``[0, 1]``.
+
+        Returns:
+            ``S^-1(q) = F^-1(1 - q)``.
+
+        Raises:
+            TypeError: If ``probability`` is not real.
+            ValueError: If ``probability`` lies outside ``[0, 1]``.
+
+        Equation:
+            [EQ-DIST-ISF-001].
+
+        References:
+            [REF-NIST-DLMF, Section 7.17], [REF-PYTHON-STATISTICS].
+
+        """
+        q = require_probability(probability, name="probability")
+        if q == 0.0:
+            return math.inf
+        return -math.log(q) / self.rate
+
     @property
     def mean(self) -> float:
         """Return mean waiting time ``1/rate``.

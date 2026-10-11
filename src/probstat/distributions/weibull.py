@@ -223,6 +223,37 @@ class Weibull:
             raise OverflowError("Weibull quantile exceeds float range")
         return result
 
+    def isf(self, probability: float) -> float:
+        """Return the inverse survival function ``x`` with ``S(x) = q``.
+
+        Evaluated directly from ``q`` so that upper-tail quantiles keep full
+        relative accuracy where ``1 - q`` would round to one.
+
+        Args:
+            probability: Upper-tail probability ``q`` in ``[0, 1]``.
+
+        Returns:
+            ``S^-1(q) = F^-1(1 - q)``.
+
+        Raises:
+            TypeError: If ``probability`` is not real.
+            ValueError: If ``probability`` lies outside ``[0, 1]``.
+
+        Equation:
+            [EQ-DIST-ISF-001].
+
+        References:
+            [REF-NIST-DLMF, Section 7.17], [REF-PYTHON-STATISTICS].
+
+        """
+        q = require_probability(probability, name="probability")
+        if q == 0.0:
+            return math.inf
+        result = self.scale * (-math.log(q)) ** (1.0 / self.shape)
+        if not math.isfinite(result):
+            raise OverflowError("Weibull quantile exceeds float range")
+        return result
+
     @property
     def mean(self) -> float:
         """Return the Weibull expected value.

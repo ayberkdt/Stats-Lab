@@ -180,6 +180,34 @@ def gauss_hermite(order: int) -> tuple[Vector, Vector]:
     return values, tuple(w / total for w in weights)
 
 
+def _marginal_from_latent(law: ContinuousMarginal, z: float) -> float:
+    """Return ``F^-1(Phi(z))`` with full accuracy in both tails.
+
+    For ``z > 0`` the upper tail is evaluated as ``S^-1(Phi(-z))`` when the
+    law provides an inverse survival function ``isf``; otherwise ``Phi(z)``
+    is clamped below one, which saturates near ``z ~ 8``.
+
+    Args:
+        law: Marginal law.
+        z: Latent standard-normal value.
+
+    Returns:
+        Physical value with the same tail probability as ``z``.
+
+    Equation:
+        [EQ-MOD-NATAF-001], [EQ-DIST-ISF-001].
+
+    References:
+        [REF-LIU-DERKIUREGHIAN-1986].
+
+    """
+    inverse_survival = getattr(law, "isf", None)
+    if z > 0.0 and inverse_survival is not None:
+        return float(inverse_survival(max(standard_normal_cdf(-z), 1e-300)))
+    probability = min(max(standard_normal_cdf(z), 1e-300), 1.0 - 2.0**-53)
+    return float(law.quantile(probability))
+
+
 @dataclass(frozen=True, slots=True)
 class RandomInput:
     """One named uncertain model input.
@@ -598,6 +626,16 @@ class JointInput:
         latent: list[float] = []
         for item, value in zip(self.inputs, vector, strict=True):
             probability = float(item.distribution.cdf(value))
+            survival_method = getattr(item.distribution, "sf", None)
+            if probability > 0.5 and survival_method is not None:
+                # Upper tail: use S(x) directly; 1 - F(x) would round to 0.
+                upper = float(survival_method(value))
+                if not 0.0 < upper < 1.0:
+                    raise ValueError(
+                        f"{item.name}={value} lies outside the open support of its law"
+                    )
+                latent.append(-standard_normal_quantile(upper))
+                continue
             if not 0.0 < probability < 1.0:
                 raise ValueError(
                     f"{item.name}={value} lies outside the open support of its law"
@@ -649,12 +687,10 @@ class JointInput:
         if len(vector) != self.dimension:
             raise ValueError("u length must equal the dimension")
         latent = vector if self.is_independent else matvec(self._lower, vector)
-        physical: list[float] = []
-        for item, z in zip(self.inputs, latent, strict=True):
-            probability = standard_normal_cdf(z)
-            probability = min(max(probability, 1e-300), 1.0 - 2.0**-53)
-            physical.append(float(item.distribution.quantile(probability)))
-        return tuple(physical)
+        return tuple(
+            _marginal_from_latent(item.distribution, z)
+            for item, z in zip(self.inputs, latent, strict=True)
+        )
 
     def from_unit(self, point: Sequence[float]) -> Vector:
         """Map a unit-hypercube design point to a physical input vector.

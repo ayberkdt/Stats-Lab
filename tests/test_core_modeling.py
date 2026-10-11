@@ -430,3 +430,30 @@ class PropagationStudyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UpperTailAccuracyTests(unittest.TestCase):
+    """Tail-accurate Nataf maps keep FORM working at high reliability."""
+
+    def test_round_trip_far_in_both_tails(self) -> None:
+        """The latent map inverts exactly out to twenty standard deviations."""
+        joint = JointInput.independent(
+            RandomInput("x", LogNormal(0.0, 0.5)), RandomInput("y", Normal(0.0, 1.0))
+        )
+        for z in (-12.0, 9.0, 20.0):
+            back = joint.to_standard_normal(joint.from_standard_normal((z, z)))
+            self.assertAlmostEqual(back[0], z, places=9)
+            self.assertAlmostEqual(back[1], z, places=9)
+
+    def test_form_reaches_beta_nine_and_a_half(self) -> None:
+        """FORM recovers beta = 9.5 for a monotone lognormal exceedance."""
+        from probstat.reliability import ModelLimitState, form_hlrf
+
+        joint = JointInput.independent(RandomInput("x", LogNormal(0.0, 0.5)))
+        model = ProbabilisticModel(
+            joint, lambda p: {"y": p["x"]}, (QuantityOfInterest("y", "identity"),)
+        )
+        state = ModelLimitState(model, "y", math.exp(0.5 * 9.5), failure="above")
+        result = form_hlrf(state)
+        self.assertTrue(result.converged)
+        self.assertAlmostEqual(result.beta, 9.5, places=5)
