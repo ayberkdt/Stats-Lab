@@ -1116,3 +1116,73 @@ Human Factors in Computing Systems*, 5092-5103, 2016.
 
 David Spiegelhalter, Mike Pearson, and Ian Short. "Visualizing
 Uncertainty About the Future." *Science* 333(6048), 1393-1400, 2011.
+
+## REF-HOUSEHOLDER-1958
+
+A. S. Householder. "Unitary Triangularization of a Nonsymmetric Matrix."
+*Journal of the ACM* 5(4), 339-342, 1958.
+
+## REF-COOK-1977
+
+R. Dennis Cook. "Detection of Influential Observation in Linear Regression."
+*Technometrics* 19(1), 15-18, 1977.
+
+## REF-WHITE-1980
+
+Halbert White. "A Heteroskedasticity-Consistent Covariance Matrix Estimator
+and a Direct Test for Heteroskedasticity." *Econometrica* 48(4), 817-838,
+1980.
+
+## REF-MACKINNON-WHITE-1985
+
+James G. MacKinnon and Halbert White. "Some Heteroskedasticity-Consistent
+Covariance Matrix Estimators with Improved Finite Sample Properties."
+*Journal of Econometrics* 29(3), 305-325, 1985.
+
+## REF-NELDER-WEDDERBURN-1972
+
+J. A. Nelder and R. W. M. Wedderburn. "Generalized Linear Models." *Journal
+of the Royal Statistical Society: Series A* 135(3), 370-384, 1972.
+
+## REF-MCCULLAGH-NELDER-1989
+
+P. McCullagh and J. A. Nelder. *Generalized Linear Models*. 2nd edition.
+Chapman and Hall, 1989.
+
+## REF-ALBERT-ANDERSON-1984
+
+A. Albert and J. A. Anderson. "On the Existence of Maximum Likelihood
+Estimates in Logistic Regression Models." *Biometrika* 71(1), 1-10, 1984.
+
+## REF-HOERL-KENNARD-1970
+
+Arthur E. Hoerl and Robert W. Kennard. "Ridge Regression: Biased Estimation
+for Nonorthogonal Problems." *Technometrics* 12(1), 55-67, 1970.
+
+## REF-TIBSHIRANI-1996
+
+Robert Tibshirani. "Regression Shrinkage and Selection via the Lasso."
+*Journal of the Royal Statistical Society: Series B* 58(1), 267-288, 1996.
+
+## REF-ZOU-HASTIE-2005
+
+Hui Zou and Trevor Hastie. "Regularization and Variable Selection via the
+Elastic Net." *Journal of the Royal Statistical Society: Series B* 67(2),
+301-320, 2005.
+
+## REF-HASTIE-TIBSHIRANI-FRIEDMAN-2009
+
+Trevor Hastie, Robert Tibshirani, and Jerome Friedman. *The Elements of
+Statistical Learning: Data Mining, Inference, and Prediction*. 2nd edition.
+Springer, 2009.
+
+## REF-FRIEDMAN-HASTIE-TIBSHIRANI-2010
+
+Jerome Friedman, Trevor Hastie, and Robert Tibshirani. "Regularization Paths
+for Generalized Linear Models via Coordinate Descent." *Journal of
+Statistical Software* 33(1), 1-22, 2010.
+
+## REF-ANSCOMBE-1973
+
+F. J. Anscombe. "Graphs in Statistical Analysis." *The American
+Statistician* 27(1), 17-21, 1973.
