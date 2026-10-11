@@ -383,7 +383,11 @@ class GaussianProcessRegression:
 
         ``mu = m_y + s_y k_*' alpha`` and
         ``sigma^2 = s_y^2 (k_** - v'v [+ noise])`` with ``v = L^-1 k_*``.
-        Tiny negative variances from cancellation are reported as zero.
+        Tiny negative variances from cancellation are reported as zero. The
+        subtraction cannot resolve variances below about ``1e-16 k_**``; with
+        very long length scales (nearly flat posteriors) an exact zero means
+        "below resolution", so variance-normalized conformal scores need an
+        explicit offset (``conformal.conformalize_surrogate(scale_offset=...)``).
 
         Args:
             x: Input vector.
