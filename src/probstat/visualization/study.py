@@ -7,9 +7,17 @@ from typing import Any
 
 from probstat.workflow import UQStudy
 
+from .calibration_plots import (
+    plot_discrepancy_estimate,
+    plot_discrepancy_predictions,
+)
+from .design_plots import plot_greedy_design
 from .stage_plots import (
+    plot_active_learning,
     plot_design_path,
+    plot_design_points,
     plot_information_sensitivity,
+    plot_posterior_marginals,
     plot_tail_analysis,
 )
 from .theme import pyplot, save_figure
@@ -45,6 +53,32 @@ def _sobol_for(study: UQStudy | None, quantity: str) -> Any | None:
         ):
             return record.result
     return None
+
+
+def _scalar_candidates(candidates: Any) -> tuple[str, list[float]] | None:
+    """Return the factor name and values of one-factor increasing candidates.
+
+    Args:
+        candidates: Candidate conditions of a design recommendation.
+
+    Returns:
+        ``(name, values)`` when every candidate sets the same single
+        condition to strictly increasing values, else ``None``.
+
+    References:
+        [REF-HUAN-MARZOUK-2013]. No equation is evaluated.
+
+    """
+    if len(candidates) < 2:
+        return None
+    keys = {tuple(item) for item in candidates}
+    if len(keys) != 1 or len(next(iter(keys))) != 1:
+        return None
+    (name,) = next(iter(keys))
+    values = [float(item[name]) for item in candidates]
+    if any(b <= a for a, b in zip(values, values[1:], strict=False)):
+        return None
+    return name, values
 
 
 def _figures_for(record: Any, study: UQStudy | None = None) -> list[tuple[str, Any]]:
@@ -144,7 +178,48 @@ def _figures_for(record: Any, study: UQStudy | None = None) -> list[tuple[str, A
             )
         ]
     if record.stage == "design":
-        return [("eig", plot_design_path(result))]
+        figures = [("eig", plot_design_path(result))]
+        factor = _scalar_candidates(result.candidates)
+        if factor is not None:
+            figures.append(
+                (
+                    "candidates",
+                    plot_greedy_design(result.selection, factor[1], factor=factor[0]),
+                )
+            )
+        return figures
+    if record.stage == "design_points":
+        if len(result.points.forms[0].design_point_u) < 2:
+            return []
+        names = study.model.inputs.names if study is not None else None
+        return [("u-space", plot_design_points(result, input_names=names))]
+    if record.stage == "active_reliability":
+        if len(result.history) < 2:
+            return []
+        return [("learning", plot_active_learning(result))]
+    if record.stage == "calibration":
+        prior = study.model.inputs if study is not None else None
+        return [("posterior", plot_posterior_marginals(result, prior=prior))]
+    if record.stage == "discrepancy_calibration":
+        if result.grid_input is None or len(result.grid) < 2:
+            return []
+        return [
+            (
+                "predictions",
+                plot_discrepancy_predictions(
+                    result.calibration,
+                    result.grid,
+                    result.grid_input,
+                    level=result.level,
+                ),
+            ),
+            (
+                "discrepancy",
+                plot_discrepancy_estimate(
+                    result.grid, result.grid_input, level=result.level
+                ),
+            ),
+        ]
     if record.stage == "risk":
         return [
             (

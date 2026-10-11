@@ -125,6 +125,7 @@ result object and never refits; the labs write every figure to
 | `hierarchical_plots` | `plot_mixture_fit`, `plot_mixture_selection` | 1-D mixture density and `FITTED` components over the data; BIC or AIC against `K` | `hierarchical_lab.py` |
 | `hierarchical_plots` | `plot_predictive_check`, `plot_pit_histogram` | replicated test quantity with the observed value; PIT counts with a binomial band [EQ-VIZ-PITBAND-001] | `hierarchical_lab.py` |
 | `stage_plots` | `plot_tail_analysis`, `plot_information_sensitivity`, `plot_design_path` | `UQStudy.extremes`, `information_sensitivity` (beside Sobol), and `design` | `uq_study_extensions_lab.py` |
+| `stage_plots` | `plot_design_points`, `plot_active_learning`, `plot_posterior_marginals` | design points with FORM hyperplanes (model, `FITTED`) and the smallest-`beta` circle (accent); AK-MCS estimate and `min U` in two panels; posterior histograms (observed) over prior densities (muted), ADR-0045 | `uq_study_complete_lab.py` |
 
 The `theta_j` and `delta(x)` intervals are exact quantiles of Gaussian
 mixtures over quadrature nodes or posterior draws [EQ-VIZ-MIXQ-001], not

@@ -197,6 +197,63 @@ Results from `examples/uq_study_extensions_lab.py` (seed 2026, about 12 s):
     maximum over candidates scored with one stream, so it is biased upward.
     The independent re-estimate is the honest figure.
 
+## Discrepancy, scoring, and figures in the same study
+
+ADR-0045 closes the remaining gaps, so every analysis of this release runs
+from one `UQStudy` and appears in one report.
+
+| Addition | What it records |
+|---|---|
+| `calibrate_with_discrepancy(experiments, q, noise, discrepancy)` (stage kind `discrepancy_calibration`) | Kennedy-O'Hagan posterior of `(theta, sigma_delta, ell)` [EQ-KOH-POST-001], the identifiability report [EQ-KOH-IDENT-001], and simulator-only and bias-corrected predictions on a grid for the figure |
+| `predict` after it | simulator-only, bias-corrected, and (with `include_noise`) observed intervals per condition [EQ-KOH-PRED-001] |
+| `validate` | CRPS per experiment and overall [EQ-VAL-SCORE-CRPS-002], randomized ensemble PIT mean [EQ-VAL-CAL-PIT-002], coverage at 50% and 90% with Clopper-Pearson intervals [EQ-VAL-CAL-COV-001]; the verdict criteria are unchanged |
+| `TailAnalysis.exceedances`, `DesignRecommendation.candidates` | the data the tail and greedy-design figures need |
+
+The plain `calibrate` is unchanged and bit-identical. The study uses the
+latest calibration of either kind for `predict` and `design`. After a
+discrepancy calibration, `design` needs explicit `noise=` models, because the
+Bayesian design problem has no discrepancy term.
+
+Results from `examples/uq_study_complete_lab.py` (seed 2026, 17 s,
+139 887 model runs). The model is `y = A exp(-k x)` with `A ~ N(4, 0.4)` and
+`k ~ LogNormal(log 0.5, 0.25)`. The data come from
+`4.2 exp(-0.45 x) + 0.15 sin(2x)` plus noise with sd 0.03 at 11 points on
+`[0, 4]`.
+
+- **Two design points** of `|y(1) - 4 e^-0.5| >= 0.9`, at `beta = 2.38` and
+  `2.28`.
+  - Multi-point FORM: `2.00e-2`, 2.3 times the single-point value
+    `8.70e-3`.
+  - Mixture importance sampling: `2.05e-2` (c.o.v. 0.04).
+  - AK-MCS: `2.08e-2` from 26 true-model runs, equal to crude Monte Carlo on
+    the same 4000 points.
+- **Plain calibration** is confident and wrong.
+  - It gives `k = 0.455 ± 0.004`.
+  - At `x = 2` its 95% interval `[1.694, 1.738]` misses the truth `1.594`.
+- **Kennedy-O'Hagan calibration** gives `k = 0.420 ± 0.037` and
+  `sigma_delta = 0.20`.
+  - Max `|rho(theta, log psi)|` is 0.37. Posterior/prior sd ratios are 0.45
+    for `A` and 0.29 for `k`, so no confounding is flagged.
+  - At `x = 2` the simulator-only interval is `[1.428, 1.993]`. The
+    bias-corrected interval is `[1.548, 1.632]` and covers the truth.
+  - At `x = 5`, outside the data, the bias-corrected interval widens to
+    `[0.281, 0.935]`. It still covers the truth `0.361`.
+- **Validation** of the prior model at four conditions (5 replicates each)
+  is inconsistent.
+  - Mean CRPS is 0.165.
+  - PIT mean is 0.74: observations sit high in the predictive laws.
+  - 90% coverage is 20/20 (`[0.832, 1.000]`), so the intervals are too wide.
+    50% coverage is 7/20.
+
+`visualization.study` now also draws:
+
+- the standard-normal plane of the design points, with their FORM
+  hyperplanes and the smallest-`beta` circle;
+- the AK-MCS estimate and `min U` against training runs;
+- the posterior marginals of a calibration over their prior densities;
+- the two discrepancy figures of ADR-0044;
+- the greedy candidate curves of a one-factor design.
+
 ## What the model does not decide
 
 - It does not validate the forward model. Validation remains a separate
