@@ -129,7 +129,9 @@ class Normal:
         """
         point = require_finite_real(x, name="x")
         standardized = (point - self.mu) / (self.sigma * math.sqrt(2.0))
-        return 0.5 * (1.0 + math.erf(standardized))
+        # erfc(-z) equals 1 + erf(z) but keeps full relative accuracy in the
+        # lower tail, where 1 + erf(z) cancels catastrophically.
+        return 0.5 * math.erfc(-standardized)
 
     def sf(self, x: float) -> float:
         """Evaluate the normal survival function through ``erfc``.

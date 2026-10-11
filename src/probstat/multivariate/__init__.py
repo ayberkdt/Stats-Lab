@@ -1,5 +1,7 @@
 """Multivariate probability distributions and vector-valued operations."""
 
-from .normal import Matrix, MultivariateNormal, Vector
+from probstat.linalg import Matrix, Vector
+
+from .normal import MultivariateNormal
 
 __all__ = ["Matrix", "MultivariateNormal", "Vector"]

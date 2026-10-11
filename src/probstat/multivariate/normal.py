@@ -1,4 +1,4 @@
-"""Multivariate normal distribution using dependency-free Cholesky algebra."""
+"""Multivariate normal distribution using the shared Cholesky algebra."""
 
 from __future__ import annotations
 
@@ -8,13 +8,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from probstat.distributions import Normal
-from probstat.foundations.validation import (
-    require_finite_real,
-    require_non_negative_integer,
-)
-
-Vector = tuple[float, ...]
-Matrix = tuple[tuple[float, ...], ...]
+from probstat.foundations.validation import require_non_negative_integer
+from probstat.linalg import Matrix, Vector, as_vector, cholesky, solve_lower
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,7 +45,7 @@ class MultivariateNormal:
             [EQ-DIST-MVN-001], [REF-MARDIA-KENT-BIBBY-1979, Chapter 1].
 
         """
-        mean = _finite_vector(self.mean, name="mean")
+        mean = as_vector(self.mean, name="mean")
         if not mean:
             raise ValueError("mean must contain at least one component")
         try:
@@ -60,7 +55,7 @@ class MultivariateNormal:
         if len(raw_rows) != len(mean):
             raise ValueError("covariance row count must equal mean dimension")
         rows = tuple(
-            _finite_vector(row, name=f"covariance[{index}]")
+            as_vector(row, name=f"covariance[{index}]")
             for index, row in enumerate(raw_rows)
         )
         if any(len(row) != len(mean) for row in rows):
@@ -76,10 +71,13 @@ class MultivariateNormal:
                 symmetric_row.append(0.5 * (value + mirror))
             symmetric_rows.append(tuple(symmetric_row))
         covariance = tuple(symmetric_rows)
-        cholesky = _cholesky_factor(covariance)
+        try:
+            factor = cholesky(covariance)
+        except ValueError as error:
+            raise ValueError("covariance must be positive definite") from error
         object.__setattr__(self, "mean", mean)
         object.__setattr__(self, "covariance", covariance)
-        object.__setattr__(self, "_cholesky", cholesky)
+        object.__setattr__(self, "_cholesky", factor)
 
     @property
     def dimension(self) -> int:
@@ -111,14 +109,14 @@ class MultivariateNormal:
             [REF-MARDIA-KENT-BIBBY-1979, Chapter 1].
 
         """
-        point = _finite_vector(value, name="value")
+        point = as_vector(value, name="value")
         if len(point) != self.dimension:
             raise ValueError("value dimension must equal distribution dimension")
         centered = tuple(
             coordinate - location
             for coordinate, location in zip(point, self.mean, strict=True)
         )
-        solved = _solve_lower(self._cholesky, centered)
+        solved = solve_lower(self._cholesky, centered)
         return math.fsum(component * component for component in solved)
 
     def log_pdf(self, value: Iterable[float]) -> float:
@@ -269,93 +267,3 @@ class MultivariateNormal:
                 raise OverflowError("multivariate normal sample is not finite")
             observations.append(observation)
         return tuple(observations)
-
-
-def _finite_vector(values: Iterable[float], *, name: str) -> Vector:
-    """Materialize and validate a finite real vector.
-
-    Args:
-        values: Candidate vector components.
-        name: Field name for indexed error messages.
-
-    Returns:
-        Tuple of validated float components.
-
-    Raises:
-        TypeError: If ``values`` is not iterable or a component is not real.
-        ValueError: If a component is non-finite.
-
-    References:
-        Project validation policy. No mathematical equation is evaluated.
-
-    """
-    try:
-        materialized = tuple(values)
-    except TypeError as error:
-        raise TypeError(f"{name} must be iterable") from error
-    return tuple(
-        require_finite_real(value, name=f"{name}[{index}]")
-        for index, value in enumerate(materialized)
-    )
-
-
-def _cholesky_factor(matrix: Matrix) -> Matrix:
-    """Return a lower Cholesky factor or reject non-positive-definite input.
-
-    Args:
-        matrix: Finite symmetric square matrix.
-
-    Returns:
-        Lower triangular ``L`` satisfying ``matrix = L L'``.
-
-    Raises:
-        ValueError: If the matrix is not positive definite.
-
-    Equation:
-        [EQ-LINALG-001].
-
-    References:
-        [REF-GOLUB-VANLOAN-2013, Section 4.2].
-
-    """
-    dimension = len(matrix)
-    factor = [[0.0] * dimension for _ in range(dimension)]
-    for row in range(dimension):
-        for column in range(row + 1):
-            remainder = matrix[row][column] - math.fsum(
-                factor[row][inner] * factor[column][inner]
-                for inner in range(column)
-            )
-            if row == column:
-                if remainder <= 0.0 or not math.isfinite(remainder):
-                    raise ValueError("covariance must be positive definite")
-                factor[row][column] = math.sqrt(remainder)
-            else:
-                factor[row][column] = remainder / factor[column][column]
-    return tuple(tuple(row) for row in factor)
-
-
-def _solve_lower(matrix: Matrix, right_hand_side: Vector) -> Vector:
-    """Solve one lower-triangular linear system by forward substitution.
-
-    Args:
-        matrix: Non-singular lower-triangular coefficient matrix.
-        right_hand_side: Right-hand-side vector of matching dimension.
-
-    Returns:
-        Solution vector.
-
-    Equation:
-        [EQ-LINALG-002].
-
-    References:
-        [REF-GOLUB-VANLOAN-2013, Section 3.1].
-
-    """
-    solution: list[float] = []
-    for row, target in enumerate(right_hand_side):
-        residual = target - math.fsum(
-            matrix[row][column] * solution[column] for column in range(row)
-        )
-        solution.append(residual / matrix[row][row])
-    return tuple(solution)

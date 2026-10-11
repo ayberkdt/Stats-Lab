@@ -239,3 +239,125 @@ Larry Wasserman. *All of Statistics: A Concise Course in Statistical
 Inference*. Springer, 2004.
 DOI: [10.1007/978-0-387-21736-9](https://doi.org/10.1007/978-0-387-21736-9).
 
+
+## REF-BRATLEY-FOX-1988
+
+Paul Bratley and Bennett L. Fox. "Algorithm 659: Implementing Sobol's
+Quasirandom Sequence Generator." *ACM Transactions on Mathematical Software*
+14(1), 88-100, 1988.
+
+## REF-BRENT-1973
+
+Richard P. Brent. *Algorithms for Minimization without Derivatives*.
+Prentice-Hall, 1973.
+
+## REF-CRANLEY-PATTERSON-1976
+
+R. Cranley and T. N. L. Patterson. "Randomization of Number Theoretic Methods
+for Multiple Integration." *SIAM Journal on Numerical Analysis* 13(6),
+904-914, 1976.
+
+## REF-GOLUB-WELSCH-1969
+
+Gene H. Golub and John H. Welsch. "Calculation of Gauss Quadrature Rules."
+*Mathematics of Computation* 23(106), 221-230, 1969.
+
+## REF-HALTON-1960
+
+J. H. Halton. "On the Efficiency of Certain Quasi-Random Sequences of Points in
+Evaluating Multi-Dimensional Integrals." *Numerische Mathematik* 2, 84-90,
+1960.
+
+## REF-HAMPEL-1974
+
+Frank R. Hampel. "The Influence Curve and Its Role in Robust Estimation."
+*Journal of the American Statistical Association* 69(346), 383-393, 1974.
+
+## REF-HOLLANDER-WOLFE-CHICKEN-2014
+
+Myles Hollander, Douglas A. Wolfe, and Eric Chicken. *Nonparametric
+Statistical Methods*. 3rd edition. Wiley, 2014.
+
+## REF-HYNDMAN-FAN-1996
+
+Rob J. Hyndman and Yanan Fan. "Sample Quantiles in Statistical Packages."
+*The American Statistician* 50(4), 361-365, 1996.
+
+## REF-JOANES-GILL-1998
+
+D. N. Joanes and C. A. Gill. "Comparing Measures of Sample Skewness and
+Kurtosis." *Journal of the Royal Statistical Society, Series D (The
+Statistician)* 47(1), 183-189, 1998.
+
+## REF-JOE-KUO-2008
+
+Stephen Joe and Frances Y. Kuo. "Constructing Sobol Sequences with Better
+Two-Dimensional Projections." *SIAM Journal on Scientific Computing* 30(5),
+2635-2654, 2008.
+
+## REF-L-ECUYER-2018
+
+Pierre L'Ecuyer. "Randomized Quasi-Monte Carlo: An Introduction for
+Practitioners." In *Monte Carlo and Quasi-Monte Carlo Methods (MCQMC 2016)*,
+Springer Proceedings in Mathematics & Statistics 241, 29-52, 2018.
+
+## REF-LIU-DERKIUREGHIAN-1986
+
+Pei-Ling Liu and Armen Der Kiureghian. "Multivariate Distribution Models with
+Prescribed Marginals and Covariances." *Probabilistic Engineering Mechanics*
+1(2), 105-112, 1986.
+
+## REF-MATSUMOTO-NISHIMURA-1998
+
+Makoto Matsumoto and Takuji Nishimura. "Mersenne Twister: A
+623-Dimensionally Equidistributed Uniform Pseudo-Random Number Generator."
+*ACM Transactions on Modeling and Computer Simulation* 8(1), 3-30, 1998.
+
+## REF-MCKAY-BECKMAN-CONOVER-1979
+
+M. D. McKay, R. J. Beckman, and W. J. Conover. "A Comparison of Three Methods
+for Selecting Values of Input Variables in the Analysis of Output from a
+Computer Code." *Technometrics* 21(2), 239-245, 1979.
+
+## REF-MORE-1978
+
+Jorge J. Moré. "The Levenberg-Marquardt Algorithm: Implementation and
+Theory." In *Numerical Analysis*, Lecture Notes in Mathematics 630, Springer,
+105-116, 1978.
+
+## REF-NELDER-MEAD-1965
+
+J. A. Nelder and R. Mead. "A Simplex Method for Function Minimization." *The
+Computer Journal* 7(4), 308-313, 1965.
+
+## REF-NELSEN-2006
+
+Roger B. Nelsen. *An Introduction to Copulas*. 2nd edition. Springer, 2006.
+
+## REF-NOCEDAL-WRIGHT-2006
+
+Jorge Nocedal and Stephen J. Wright. *Numerical Optimization*. 2nd edition.
+Springer, 2006.
+
+## REF-SEBER-WILD-2003
+
+G. A. F. Seber and C. J. Wild. *Nonlinear Regression*. Wiley, 2003.
+
+## REF-SOBOL-1967
+
+I. M. Sobol'. "On the Distribution of Points in a Cube and the Approximate
+Evaluation of Integrals." *USSR Computational Mathematics and Mathematical
+Physics* 7(4), 86-112, 1967.
+
+## REF-STEELE-LEA-FLOOD-2014
+
+Guy L. Steele Jr., Doug Lea, and Christine H. Flood. "Fast Splittable
+Pseudorandom Number Generators." In *Proceedings of OOPSLA 2014*, ACM SIGPLAN
+Notices 49(10), 453-472, 2014.
+
+## REF-SUDRET-2007
+
+Bruno Sudret. *Uncertainty Propagation and Sensitivity Analysis in Mechanical
+Models: Contributions to Structural Reliability and Stochastic Spectral
+Methods*. Habilitation thesis, Université Blaise Pascal, Clermont-Ferrand,
+2007.

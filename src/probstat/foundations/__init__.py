@@ -13,6 +13,7 @@ from .protocols import (
     QuantileFunction,
     SurvivalFunction,
 )
+from .random_streams import RandomStream, derive_seed, resolve_stream, splitmix64
 from .validation import (
     coerce_finite_sample,
     require_finite_complex,
@@ -32,11 +33,15 @@ __all__ = [
     "ProbabilityDensity",
     "ProbabilityMassFunction",
     "QuantileFunction",
+    "RandomStream",
     "SurvivalFunction",
     "coerce_finite_sample",
+    "derive_seed",
     "require_finite_complex",
     "require_finite_real",
     "require_non_negative_finite_real",
     "require_probability",
+    "resolve_stream",
+    "splitmix64",
 ]
 

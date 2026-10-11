@@ -537,7 +537,8 @@ positive diagonal.
 - Domain: finite symmetric positive-definite square matrix.
 - Meaning: exposes determinant, solves, and Gaussian transforms without an
   explicit inverse.
-- Code: `multivariate.normal._cholesky_factor`.
+- Code: `linalg.cholesky`, `linalg.cholesky_semidefinite`, and every
+  Gaussian consumer (`multivariate`, `inference`, `filtering`).
 - Source: [REF-GOLUB-VANLOAN-2013, Section 4.2].
 
 ### EQ-LINALG-002 — Forward substitution
@@ -546,8 +547,62 @@ positive diagonal.
 
 - Domain: lower-triangular `L` with nonzero diagonal and matching finite `b`.
 - Meaning: solves `Lx=b` one component at a time.
-- Code: `multivariate.normal._solve_lower`.
+- Code: `linalg.solve_lower` and `linalg.cholesky_solve`.
 - Source: [REF-GOLUB-VANLOAN-2013, Section 3.1].
+
+### EQ-LINALG-003 — Back substitution
+
+`x_i=(b_i-sum_(j>i) U_ij x_j)/U_ii`, evaluated from `i=n` down to `1`.
+
+- Domain: upper-triangular `U` with nonzero diagonal and matching finite `b`.
+- Meaning: solves `Ux=b`; paired with [EQ-LINALG-002] it solves `LL'x=b`.
+- Code: `linalg.solve_upper`, `linalg.cholesky_solve`, `linalg.solve_spd`.
+- Source: [REF-GOLUB-VANLOAN-2013, Section 3.1].
+
+### EQ-LINALG-004 — Gaussian elimination with partial pivoting
+
+`PA=LU`, where each elimination step swaps in the row with the largest
+remaining pivot magnitude before subtracting multiples of it.
+
+- Domain: square finite non-singular `A`; a pivot below `1e-14 max|A_ij|` is
+  reported as singular rather than perturbed.
+- Meaning: general dense solve used where symmetry or definiteness is not
+  guaranteed, such as Newton steps on nonsymmetric Jacobians.
+- Code: `linalg.lu_solve`.
+- Source: [REF-GOLUB-VANLOAN-2013, Section 3.4].
+
+### EQ-LINALG-005 — Cyclic Jacobi eigenvalue iteration
+
+`A_(k+1)=J_k' A_k J_k`, where each plane rotation `J_k(p,q,theta)` zeroes
+`A_pq`; `V=prod J_k` accumulates the eigenvectors.
+
+- Domain: real symmetric finite `A`; iteration stops when the off-diagonal
+  Frobenius norm falls below a relative tolerance.
+- Meaning: returns `A=V diag(lambda) V'` with orthonormal `V`, used for
+  curvature analysis (SORM), spectral conditioning, and covariance geometry.
+- Code: `linalg.symmetric_eigen`.
+- Source: [REF-GOLUB-VANLOAN-2013, Section 8.5].
+
+### EQ-LINALG-006 — Log-determinant from a Cholesky factor
+
+`log det A = 2 sum_i log L_ii` for `A=LL'`.
+
+- Domain: symmetric positive-definite `A`.
+- Meaning: stable Gaussian normalizing constants without forming `det A`.
+- Code: `linalg.log_det_spd`.
+- Source: [REF-GOLUB-VANLOAN-2013, Section 4.2].
+
+### EQ-LINALG-007 — Linear covariance propagation
+
+`Cov(HX)=H Sigma H'` for a linear map `H` and `Cov(X)=Sigma`.
+
+- Domain: finite conformable `H` and symmetric `Sigma`; the result is
+  symmetrized to remove rounding asymmetry.
+- Meaning: exact second-moment propagation through linear maps; the basis of
+  Gaussian predictive covariance and Kalman prediction.
+- Code: `linalg.sandwich`.
+- Source: [REF-GOLUB-VANLOAN-2013, Section 1.1] and
+  [REF-BISHOP-2006, Section 3.3].
 
 ## UQ-1 estimation and goodness of fit
 
@@ -1079,7 +1134,10 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 
 ### EQ-DIST-NORM-002 — Normal CDF through the error function
 
-`F(x) = (1/2)[1 + erf((x-mu)/(sigma sqrt(2)))]`.
+`F(x) = (1/2)[1 + erf((x-mu)/(sigma sqrt(2)))] = (1/2) erfc(-(x-mu)/(sigma sqrt(2)))`.
+
+The code evaluates the `erfc` form, which avoids cancellation in the lower
+tail (measured round-trip relative error below `1e-13` down to `F(x)=1e-300`).
 
 - Domain: the domain of [EQ-DIST-NORM-001].
 - Meaning: accumulated normal probability through `x`.
@@ -1670,3 +1728,280 @@ under independence.
 - Code: `examples/bayesian_calibration_lab.py`.
 - Source: [REF-GELMAN-ETAL-2013, Chapter 3].
 
+
+## Central probabilistic modeling
+
+### EQ-MOD-NATAF-001 — Nataf isoprobabilistic transformation
+
+`z_i = Phi^-1(F_i(x_i))`, `u = L^-1 z`, with `R = LL'`; inversely
+`x_i = F_i^-1(Phi((Lu)_i))`.
+
+- Domain: continuous strictly increasing marginal CDFs `F_i` on their open
+  supports and a symmetric positive-definite latent correlation `R` with unit
+  diagonal. `R = I` gives the independent (Rosenblatt) case.
+- Meaning: maps physical inputs to independent standard normals so that FORM,
+  SORM, subset simulation, and every sampler share one joint law.
+- Code: `modeling.JointInput.to_latent`, `to_standard_normal`,
+  `from_standard_normal`, `from_unit`.
+- Source: [REF-LIU-DERKIUREGHIAN-1986] and
+  [REF-MELCHERS-BECK-2018, Chapter 5].
+
+### EQ-MOD-NATAF-002 — Nataf latent-correlation integral equation
+
+`rho_X,ij = integral integral h_i(z_1) h_j(z_2) phi_2(z_1,z_2; rho_Z,ij) dz_1 dz_2`,
+with `h_k(z) = (F_k^-1(Phi(z)) - mu_k)/sigma_k`.
+
+- Domain: marginals with finite variance and a target `rho_X` inside the
+  attainable range for that marginal pair; otherwise the solver reports that
+  the target cannot be reached.
+- Meaning: finds the Gaussian-copula parameter that reproduces a prescribed
+  physical Pearson correlation. The integral uses a tensor Gauss-Hermite rule
+  ([EQ-MOD-GH-001]) and Brent root finding ([EQ-OPT-BRENT-001]).
+- Code: `modeling.nataf_correlation`, `modeling.JointInput.from_pearson`.
+- Source: [REF-LIU-DERKIUREGHIAN-1986].
+
+### EQ-MOD-COPULA-001 — Gaussian-copula joint density
+
+`log f(x) = sum_i log f_i(x_i) - (1/2) z'(R^-1 - I) z - (1/2) log det R`,
+with `z` from [EQ-MOD-NATAF-001].
+
+- Domain: as [EQ-MOD-NATAF-001]; `-inf` outside the product support.
+- Meaning: the joint log-density used by MCMC priors, importance weights,
+  and likelihood-based diagnostics.
+- Code: `modeling.JointInput.log_pdf`.
+- Source: [REF-NELSEN-2006, Section 2.3] and [REF-LIU-DERKIUREGHIAN-1986].
+
+### EQ-MOD-GH-001 — Probabilists' Gauss-Hermite quadrature (Golub-Welsch)
+
+`E[g(Z)] ~= sum_k w_k g(z_k)` for `Z ~ N(0,1)`, where `z_k` are eigenvalues of
+the symmetric tridiagonal Jacobi matrix `J` with `J_(k,k+1) = sqrt(k)` and
+`w_k` is the squared first component of the k-th normalized eigenvector.
+
+- Domain: positive order `n <= 80`; exact for polynomials of degree `<= 2n-1`.
+- Meaning: Gaussian expectations without random sampling error.
+- Code: `modeling.gauss_hermite`.
+- Source: [REF-GOLUB-WELSCH-1969].
+
+## Sampling designs and random streams
+
+### EQ-RNG-SPLITMIX-001 — SplitMix64 seed derivation
+
+`z <- (s + 0x9E3779B97F4A7C15) mod 2^64`,
+`z <- (z xor (z >> 30)) * 0xBF58476D1CE4E5B9`,
+`z <- (z xor (z >> 27)) * 0x94D049BB133111EB`, output `z xor (z >> 31)`; a
+child seed is the mix of the parent seed XOR the mixed key.
+
+- Domain: integer states modulo `2^64`; integer or UTF-8 text keys.
+- Meaning: reproducible, order-independent named random streams that do not
+  depend on Python's salted string hashing.
+- Code: `foundations.splitmix64`, `foundations.derive_seed`,
+  `foundations.RandomStream`.
+- Source: [REF-STEELE-LEA-FLOOD-2014].
+
+### EQ-SAMP-INV-001 — Inverse-transform sampling
+
+`X = F^-1(U)` with `U ~ Uniform(0,1)` has CDF `F`.
+
+- Domain: generalized inverse of a univariate CDF; design coordinates are
+  kept strictly inside `(0,1)`.
+- Meaning: lets any unit-hypercube design (MC, LHS, QMC) induce samples from
+  arbitrary marginals while keeping its stratification.
+- Code: `modeling.JointInput.from_unit`, `sample_design`, `sample`.
+- Source: [REF-DEVROYE-1986, Section II.2].
+
+### EQ-SAMP-LHS-001 — Latin hypercube sampling
+
+`X_ij = (pi_j(i) + V_ij)/n`, where `pi_j` are independent random permutations
+of `{0,...,n-1}` and `V_ij ~ Uniform(0,1)` (or `1/2` when centered).
+
+- Domain: positive `n` and `d`.
+- Meaning: every one-dimensional projection has exactly one point per
+  stratum; the mean estimator is unbiased with variance never much worse than
+  Monte Carlo and much smaller for additive integrands.
+- Code: `sampling.latin_hypercube`.
+- Source: [REF-MCKAY-BECKMAN-CONOVER-1979] and
+  [REF-OWEN-2013, Section 10.3].
+
+### EQ-SAMP-HALTON-001 — Radical inverse and Halton sequence
+
+`phi_b(i) = sum_k d_k(i) b^-(k+1)` for base-`b` digits `d_k(i)`; the Halton
+point is `(phi_(p_1)(i), ..., phi_(p_d)(i))` for the first `d` primes. A
+scrambled version replaces `d_k` by `pi(d_k)` with `pi(0) = 0`.
+
+- Domain: non-negative integer index, dimension `<= 50`.
+- Meaning: deterministic low-discrepancy points; quality degrades in high
+  dimension, which scrambling partly mitigates.
+- Code: `sampling.radical_inverse`, `sampling.halton`.
+- Source: [REF-HALTON-1960] and [REF-OWEN-2013, Section 15.4].
+
+### EQ-SAMP-SOBOL-001 — Sobol digital sequence (Gray-code construction)
+
+`m_k = 2a_1 m_(k-1) xor 4a_2 m_(k-2) xor ... xor 2^s m_(k-s) xor m_(k-s)`,
+`v_k = m_k / 2^k`, and `x_(i+1) = x_i xor v_(c(i))`, where `c(i)` is the index
+of the lowest zero bit of `i` and `a_j` are coefficients of a primitive
+polynomial of degree `s`.
+
+- Domain: dimension `<= 16` with the bundled primitive polynomials and
+  initial direction numbers; `2^m` points give the full net property.
+- Meaning: a `(t,m,d)`-net whose one-dimensional projections are perfectly
+  stratified at every power of two.
+- Code: `sampling.sobol`.
+- Source: [REF-SOBOL-1967], [REF-BRATLEY-FOX-1988], and [REF-JOE-KUO-2008].
+
+### EQ-SAMP-RQMC-001 — Randomized quasi-Monte Carlo
+
+Cranley-Patterson shift `x' = (x + Delta) mod 1` with `Delta ~ U(0,1)^d`, or
+digital shift `x' = x xor Delta` for base-2 nets.
+
+- Domain: any deterministic point set on `[0,1)^d`.
+- Meaning: each randomized point is uniform, so the estimator is unbiased;
+  replicates give an honest error estimate while low discrepancy is kept.
+- Code: `sampling.halton(shift=True)`, `sampling.sobol(scramble=True)`,
+  `propagation.compare_designs`.
+- Source: [REF-CRANLEY-PATTERSON-1976] and [REF-L-ECUYER-2018].
+
+### EQ-SAMP-DISC-001 — Grid lower bound on star discrepancy
+
+`D*_grid = max_(t in G) | #{x_i in [0,t)}/n - prod_j t_j |` over anchored boxes
+whose corners lie on a regular grid `G`.
+
+- Domain: dimension `<= 4` for tractable enumeration.
+- Meaning: a lower bound on the star discrepancy that ranks designs of equal
+  size; it is not the exact discrepancy.
+- Code: `sampling.star_discrepancy_bound`.
+- Source: [REF-OWEN-2013, Section 15.2].
+
+## Optimization and numerical differentiation
+
+### EQ-OPT-FD-001 — Central difference derivative
+
+`df/dx_i ~= [f(x + h e_i) - f(x - h e_i)] / (2h)`, `h = eps_rel max(1,|x_i|)`.
+
+- Domain: `f` continuously differentiable near `x`; truncation error
+  `O(h^2)` plus rounding error `O(eps/h)`.
+- Meaning: gradient and Jacobian approximations for optimization, FORM, and
+  Laplace approximations; each costs `2n` evaluations.
+- Code: `optimization.central_gradient`, `optimization.central_jacobian`.
+- Source: [REF-NOCEDAL-WRIGHT-2006, Section 8.1].
+
+### EQ-OPT-FD-002 — Central difference Hessian
+
+`H_ii ~= [f(x+h_i e_i) - 2f(x) + f(x-h_i e_i)]/h_i^2` and
+`H_ij ~= [f(++) - f(+-) - f(-+) + f(--)]/(4 h_i h_j)`.
+
+- Domain: `f` twice continuously differentiable near `x`.
+- Meaning: curvature for SORM, Laplace posterior covariances, and
+  diagnostics; costs `1 + 2n + 4n(n-1)/2` evaluations.
+- Code: `optimization.central_hessian`.
+- Source: [REF-NOCEDAL-WRIGHT-2006, Section 8.1].
+
+### EQ-OPT-ARMIJO-001 — Armijo sufficient decrease
+
+Accept step `alpha` when `f(x + alpha p) <= f(x) + c alpha grad f(x)' p` with
+`c = 1e-4`, halving `alpha` otherwise.
+
+- Domain: descent direction `grad f(x)' p < 0`.
+- Meaning: guarantees monotone objective decrease in line-search methods.
+- Code: `optimization.minimize_bfgs`.
+- Source: [REF-NOCEDAL-WRIGHT-2006, Section 3.1].
+
+### EQ-OPT-BFGS-001 — BFGS inverse-Hessian update
+
+`H_(k+1) = (I - rho s y') H_k (I - rho y s') + rho s s'`, `rho = 1/(y's)`,
+`s = x_(k+1) - x_k`, `y = grad_(k+1) - grad_k`.
+
+- Domain: curvature condition `y's > 0`; otherwise the update is skipped.
+- Meaning: superlinearly convergent quasi-Newton minimization of smooth
+  objectives.
+- Code: `optimization.minimize_bfgs`.
+- Source: [REF-NOCEDAL-WRIGHT-2006, Section 6.1].
+
+### EQ-OPT-NM-001 — Nelder-Mead simplex moves
+
+With centroid `c` of the best `n` vertices and worst vertex `w`, trial points
+are `c + t(c - w)` for reflection `t=1`, expansion `t=2`, outside/inside
+contraction `t=+-1/2`, followed by shrinkage toward the best vertex.
+
+- Domain: any objective; no convergence guarantee in general.
+- Meaning: derivative-free minimization for noisy or non-smooth objectives.
+- Code: `optimization.minimize_nelder_mead`.
+- Source: [REF-NELDER-MEAD-1965].
+
+### EQ-OPT-LM-001 — Levenberg-Marquardt step
+
+`(J'J + lambda diag(J'J)) delta = -J'r`; accept when the cost
+`0.5||r||^2` decreases, then shrink `lambda`, otherwise enlarge it.
+
+- Domain: residual vector with at least as many components as parameters.
+- Meaning: interpolates between Gauss-Newton and scaled gradient descent for
+  nonlinear least squares and calibration.
+- Code: `optimization.least_squares`.
+- Source: [REF-MORE-1978] and [REF-NOCEDAL-WRIGHT-2006, Section 10.3].
+
+### EQ-OPT-LM-002 — Gauss-Newton asymptotic covariance
+
+`Cov(theta_hat) ~= s^2 (J'J)^-1`, with `s^2 = ||r||^2/(m-n)` or a known noise
+variance.
+
+- Domain: local linearity near the optimum, homoscedastic independent
+  residuals, and full-rank `J`.
+- Meaning: first-order parameter uncertainty of nonlinear least squares.
+- Code: `optimization.gauss_newton_covariance`.
+- Source: [REF-SEBER-WILD-2003, Section 2.1].
+
+### EQ-OPT-BRENT-001 — Brent root finding
+
+Combine inverse quadratic interpolation, secant steps, and bisection while
+keeping a sign-changing bracket `[a,b]`.
+
+- Domain: continuous `f` with `f(a)f(b) <= 0`.
+- Meaning: guaranteed bracketed convergence with superlinear local speed.
+- Code: `optimization.brent_root`.
+- Source: [REF-BRENT-1973, Chapter 4].
+
+## Order statistics and shape
+
+### EQ-STAT-QUANT-001 — Sample quantile (Hyndman-Fan types 1 and 7)
+
+Type 7: `Q(p) = x_(floor(h)) + (h - floor(h))(x_(floor(h)+1) - x_(floor(h)))`
+with zero-based `h = (n-1)p`. Type 1: `Q(p) = x_(ceil(np))` (inverse ECDF).
+
+- Domain: non-empty finite sample and `p in [0,1]`.
+- Meaning: explicit, reproducible quantile convention; type 7 matches the
+  default of R and NumPy.
+- Code: `statistics.quantile`, `statistics.quantiles`, `statistics.median`,
+  `propagation.OutputDistribution.quantile`.
+- Source: [REF-HYNDMAN-FAN-1996].
+
+### EQ-STAT-MAD-001 — Median absolute deviation
+
+`MAD = c median_i |x_i - median(x)|`, with `c = 1/Phi^-1(3/4) ~= 1.4826` for
+normal consistency.
+
+- Domain: non-empty finite sample.
+- Meaning: robust scale with a 50% breakdown point.
+- Code: `statistics.median_absolute_deviation`.
+- Source: [REF-HAMPEL-1974].
+
+### EQ-STAT-SHAPE-001 — Moment skewness and excess kurtosis
+
+`g1 = m3 / m2^(3/2)`, `g2 = m4 / m2^2 - 3`, with central moments
+`m_k = n^-1 sum (x_i - xbar)^k`.
+
+- Domain: at least two observations with positive `m2`.
+- Meaning: asymmetry and tail weight relative to a normal law; these are the
+  biased moment estimators.
+- Code: `statistics.skewness`, `statistics.excess_kurtosis`.
+- Source: [REF-JOANES-GILL-1998].
+
+### EQ-STAT-RANK-001 — Mid-ranks and Spearman correlation
+
+`r_i` = one-based position in the sorted sample, ties averaged;
+`rho_S = Pearson(r(x), r(y))`.
+
+- Domain: paired finite samples of equal length with non-constant ranks.
+- Meaning: monotone association robust to marginal transformations; used for
+  input-output screening after propagation.
+- Code: `statistics.ranks`, `statistics.spearman_correlation`,
+  `propagation.PropagationStudy.rank_correlations`.
+- Source: [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 8].

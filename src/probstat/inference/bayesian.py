@@ -12,10 +12,20 @@ from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
 )
+from probstat.linalg import (
+    Matrix,
+    Vector,
+    as_matrix,
+    as_vector,
+    cholesky_semidefinite,
+    inverse_spd,
+    matmul,
+    matvec,
+    sandwich,
+    symmetrize,
+    transpose,
+)
 from probstat.multivariate import MultivariateNormal
-
-Vector = tuple[float, ...]
-Matrix = tuple[tuple[float, ...], ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,14 +113,14 @@ class PosteriorPredictive:
             [EQ-BAYES-PRED-001], [REF-GELMAN-ETAL-2013, Section 6.3].
 
         """
-        mean = _finite_vector(self.mean, name="mean")
+        mean = as_vector(self.mean, name="mean")
         if not mean:
             raise ValueError("mean must contain at least one component")
         covariance = _symmetric_covariance(
             self.covariance, dimension=len(mean), name="covariance"
         )
-        cholesky = _cholesky_semidefinite(covariance)
-        parameter_variance = _finite_vector(
+        cholesky = cholesky_semidefinite(covariance)
+        parameter_variance = as_vector(
             self.parameter_variance, name="parameter_variance"
         )
         if len(parameter_variance) != len(mean):
@@ -255,7 +265,7 @@ def condition_linear_gaussian(
     """
     if not isinstance(prior, MultivariateNormal):
         raise TypeError("prior must be a MultivariateNormal")
-    design = _finite_matrix(design_matrix, name="design_matrix")
+    design = as_matrix(design_matrix, name="design_matrix")
     observed = coerce_finite_sample(observations, name="observations")
     if len(design) != len(observed):
         raise ValueError("design rows and observations must have equal length")
@@ -267,8 +277,8 @@ def condition_linear_gaussian(
     if variance <= 0.0:
         raise ValueError("observation_variance must be positive")
 
-    prior_precision = _inverse_spd(prior.covariance)
-    gram = _transpose_product(design, design)
+    prior_precision = inverse_spd(prior.covariance)
+    gram = matmul(transpose(design), design)
     posterior_precision = tuple(
         tuple(
             prior_precision[row][column] + gram[row][column] / variance
@@ -276,14 +286,14 @@ def condition_linear_gaussian(
         )
         for row in range(prior.dimension)
     )
-    posterior_covariance = _inverse_spd(posterior_precision)
-    prior_information = _matrix_vector(prior_precision, prior.mean)
-    data_information = _transpose_vector_product(design, observed)
+    posterior_covariance = inverse_spd(posterior_precision)
+    prior_information = matvec(prior_precision, prior.mean)
+    data_information = matvec(transpose(design), observed)
     information = tuple(
         prior_information[index] + data_information[index] / variance
         for index in range(prior.dimension)
     )
-    posterior_mean = _matrix_vector(posterior_covariance, information)
+    posterior_mean = matvec(posterior_covariance, information)
     return GaussianLinearPosterior(
         posterior_mean, posterior_covariance, variance
     )
@@ -320,7 +330,7 @@ def posterior_predictive(
         raise TypeError("posterior must be a GaussianLinearPosterior")
     if not isinstance(include_observation_noise, bool):
         raise TypeError("include_observation_noise must be a bool")
-    design = _finite_matrix(design_matrix, name="design_matrix")
+    design = as_matrix(design_matrix, name="design_matrix")
     if any(len(row) != posterior.dimension for row in design):
         raise ValueError("every design row must match posterior dimension")
     discrepancy = require_finite_real(
@@ -328,7 +338,7 @@ def posterior_predictive(
     )
     if discrepancy < 0.0:
         raise ValueError("discrepancy_variance must be non-negative")
-    parameter_covariance = _sandwich(design, posterior.covariance)
+    parameter_covariance = sandwich(design, posterior.covariance)
     observation = posterior.observation_variance if include_observation_noise else 0.0
     additive = observation + discrepancy
     covariance = tuple(
@@ -414,68 +424,6 @@ def posterior_predictive_check(
     )
 
 
-def _finite_vector(values: Iterable[object], *, name: str) -> Vector:
-    """Materialize a possibly empty finite vector.
-
-    References:
-        Project validation policy. No mathematical equation is evaluated.
-
-    """
-    try:
-        materialized = tuple(values)
-    except TypeError as error:
-        raise TypeError(f"{name} must be iterable") from error
-    return tuple(
-        require_finite_real(value, name=f"{name}[{index}]")
-        for index, value in enumerate(materialized)
-    )
-
-
-def _finite_matrix(values: Iterable[Iterable[object]], *, name: str) -> Matrix:
-    """Materialize a non-empty rectangular finite matrix.
-
-    References:
-        [REF-GOLUB-VANLOAN-2013, Chapter 1]. No equation is evaluated.
-
-    """
-    try:
-        rows = tuple(
-            _finite_vector(row, name=f"{name}[{index}]")
-            for index, row in enumerate(values)
-        )
-    except TypeError as error:
-        raise TypeError(f"{name} must be an iterable of rows") from error
-    if not rows or not rows[0]:
-        raise ValueError(f"{name} must be non-empty")
-    if any(len(row) != len(rows[0]) for row in rows):
-        raise ValueError(f"{name} must be rectangular")
-    return rows
-
-
-def _cholesky(matrix: Matrix) -> Matrix:
-    """Compute the lower Cholesky factor of a positive-definite matrix.
-
-    References:
-        [EQ-LINALG-001], [REF-GOLUB-VANLOAN-2013, Section 4.2].
-
-    """
-    size = len(matrix)
-    lower = [[0.0] * size for _ in range(size)]
-    for row in range(size):
-        for column in range(row + 1):
-            residual = matrix[row][column] - math.fsum(
-                lower[row][index] * lower[column][index]
-                for index in range(column)
-            )
-            if row == column:
-                if residual <= 0.0:
-                    raise ValueError("matrix must be positive definite")
-                lower[row][column] = math.sqrt(residual)
-            else:
-                lower[row][column] = residual / lower[column][column]
-    return tuple(tuple(row) for row in lower)
-
-
 def _symmetric_covariance(
     values: Iterable[Iterable[object]], *, dimension: int, name: str
 ) -> Matrix:
@@ -485,156 +433,7 @@ def _symmetric_covariance(
         [REF-GOLUB-VANLOAN-2013, Chapter 4]. No equation is evaluated.
 
     """
-    matrix = _finite_matrix(values, name=name)
+    matrix = as_matrix(values, name=name)
     if len(matrix) != dimension or any(len(row) != dimension for row in matrix):
         raise ValueError(f"{name} must be square with mean dimension")
-    symmetric: list[tuple[float, ...]] = []
-    for row, values_row in enumerate(matrix):
-        result_row: list[float] = []
-        for column, value in enumerate(values_row):
-            mirror = matrix[column][row]
-            tolerance = 1e-12 * max(1.0, abs(value), abs(mirror))
-            if not math.isclose(value, mirror, rel_tol=0.0, abs_tol=tolerance):
-                raise ValueError(f"{name} must be symmetric")
-            result_row.append(0.5 * (value + mirror))
-        symmetric.append(tuple(result_row))
-    return tuple(symmetric)
-
-
-def _cholesky_semidefinite(matrix: Matrix) -> Matrix:
-    """Compute a lower square root for a positive-semidefinite covariance.
-
-    References:
-        [EQ-LINALG-001], [REF-GOLUB-VANLOAN-2013, Section 4.2].
-
-    """
-    size = len(matrix)
-    scale = max(max(abs(value) for value in row) for row in matrix)
-    tolerance = 1e-12 * max(1.0, scale)
-    lower = [[0.0] * size for _ in range(size)]
-    for row in range(size):
-        for column in range(row + 1):
-            residual = matrix[row][column] - math.fsum(
-                lower[row][index] * lower[column][index]
-                for index in range(column)
-            )
-            if row == column:
-                if residual < -tolerance:
-                    raise ValueError("covariance must be positive semidefinite")
-                lower[row][column] = math.sqrt(max(0.0, residual))
-            elif lower[column][column] > tolerance:
-                lower[row][column] = residual / lower[column][column]
-            elif abs(residual) > tolerance:
-                raise ValueError("covariance must be positive semidefinite")
-    return tuple(tuple(row) for row in lower)
-
-
-def _solve_spd(matrix: Matrix, right_hand_side: Vector) -> Vector:
-    """Solve a symmetric positive-definite linear system by Cholesky factors.
-
-    References:
-        [EQ-LINALG-002], [REF-GOLUB-VANLOAN-2013, Sections 3.1 and 4.2].
-
-    """
-    lower = _cholesky(matrix)
-    size = len(matrix)
-    forward: list[float] = []
-    for row in range(size):
-        residual = right_hand_side[row] - math.fsum(
-            lower[row][column] * forward[column] for column in range(row)
-        )
-        forward.append(residual / lower[row][row])
-    solution = [0.0] * size
-    for row in range(size - 1, -1, -1):
-        residual = forward[row] - math.fsum(
-            lower[column][row] * solution[column]
-            for column in range(row + 1, size)
-        )
-        solution[row] = residual / lower[row][row]
-    return tuple(solution)
-
-
-def _inverse_spd(matrix: Matrix) -> Matrix:
-    """Invert a symmetric positive-definite matrix by repeated solves.
-
-    References:
-        [EQ-LINALG-002], [REF-GOLUB-VANLOAN-2013, Sections 3.1 and 4.2].
-
-    """
-    size = len(matrix)
-    columns = tuple(
-        _solve_spd(
-            matrix,
-            tuple(1.0 if row == column else 0.0 for row in range(size)),
-        )
-        for column in range(size)
-    )
-    return tuple(
-        tuple(columns[column][row] for column in range(size))
-        for row in range(size)
-    )
-
-
-def _matrix_vector(matrix: Matrix, vector: Vector) -> Vector:
-    """Multiply a dense matrix by a compatible vector.
-
-    References:
-        [REF-GOLUB-VANLOAN-2013, Chapter 1]. No named equation is needed.
-
-    """
-    return tuple(
-        math.fsum(value * weight for value, weight in zip(row, vector, strict=True))
-        for row in matrix
-    )
-
-
-def _transpose_product(left: Matrix, right: Matrix) -> Matrix:
-    """Return ``left.T @ right`` for equally shaped matrices.
-
-    References:
-        [REF-GOLUB-VANLOAN-2013, Chapter 1]. No named equation is needed.
-
-    """
-    columns = len(left[0])
-    return tuple(
-        tuple(
-            math.fsum(left[row][first] * right[row][second] for row in range(len(left)))
-            for second in range(columns)
-        )
-        for first in range(columns)
-    )
-
-
-def _transpose_vector_product(matrix: Matrix, vector: Vector) -> Vector:
-    """Return ``matrix.T @ vector``.
-
-    References:
-        [REF-GOLUB-VANLOAN-2013, Chapter 1]. No named equation is needed.
-
-    """
-    return tuple(
-        math.fsum(matrix[row][column] * vector[row] for row in range(len(matrix)))
-        for column in range(len(matrix[0]))
-    )
-
-
-def _sandwich(design: Matrix, covariance: Matrix) -> Matrix:
-    """Return ``design @ covariance @ design.T``.
-
-    References:
-        [EQ-BAYES-PRED-001], [REF-BISHOP-2006, Section 3.3].
-
-    """
-    transformed = tuple(_matrix_vector(covariance, row) for row in design)
-    return tuple(
-        tuple(
-            math.fsum(
-                left_value * right_value
-                for left_value, right_value in zip(
-                    left, transformed[column], strict=True
-                )
-            )
-            for column in range(len(design))
-        )
-        for left in design
-    )
+    return symmetrize(matrix, name=name)
