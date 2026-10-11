@@ -174,6 +174,47 @@ class CalibrationAndEmulationTests(unittest.TestCase):
         mean = emulated.propagate(8192, design="sobol")["y"].mean
         self.assertAlmostEqual(mean, 1.0 / 3.0, delta=0.01)
 
+    def test_validate_stage_gives_scoped_verdicts(self) -> None:
+        """Unbiased data are consistent; biased data are not."""
+        import random
+
+        from probstat.validation import ValidationExperiment
+
+        inputs = JointInput.independent(RandomInput("k", Normal(2.0, 0.1)))
+
+        def spring(p):
+            """Return the extension of a spring under a load."""
+            return {"x": p["k"] * p["load"]}
+
+        model = ProbabilisticModel(
+            inputs, spring, (QuantityOfInterest("x", "extension"),), fixed={"load": 1.0}
+        )
+        rng = random.Random(3)
+
+        def campaign(bias):
+            """Return three experiments drawn from the model plus a bias."""
+            return [
+                ValidationExperiment(
+                    f"load-{load}",
+                    [
+                        rng.gauss(2.0, 0.1) * load + rng.gauss(0.0, 0.05) + bias
+                        for _ in range(8)
+                    ],
+                    {"load": load},
+                    measurement_uncertainty=0.05,
+                    provenance="synthetic",
+                )
+                for load in (1.0, 2.0, 3.0)
+            ]
+
+        study = UQStudy(model, seed=6)
+        good = study.validate("x", campaign(0.0), tolerance=0.3, sample_size=800)
+        bad = study.validate("x", campaign(1.0), tolerance=0.3, sample_size=800)
+        self.assertTrue(good.consistent)
+        self.assertFalse(bad.consistent)
+        self.assertNotIn("validated", good.summary().lower())
+        self.assertEqual(study.latest("validation").summary["consistent"], "False")
+
 
 if __name__ == "__main__":
     unittest.main()

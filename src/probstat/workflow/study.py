@@ -47,6 +47,11 @@ from probstat.surrogates import (
     fit_polynomial_chaos,
     surrogate_probabilistic_model,
 )
+from probstat.validation import (
+    ValidationAssessment,
+    ValidationExperiment,
+    assess_validation,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -703,6 +708,67 @@ class UQStudy:
             fitted,
         )
         return UQStudy(surrogate, seed=stream.child("surrogate-study"))
+
+    def validate(
+        self,
+        quantity: str,
+        experiments: Sequence[ValidationExperiment],
+        *,
+        tolerance: float,
+        sample_size: int = 2000,
+        significance: float = 0.05,
+    ) -> ValidationAssessment:
+        """Compare model predictions with validation experiments.
+
+        The verdict is scoped: consistent or inconsistent with the data at the
+        stated tolerance and significance inside the validation domain, never
+        a general claim that the model is validated.
+
+        Args:
+            quantity: QoI compared with the observations.
+            experiments: Validation experiments with conditions and data.
+            tolerance: Area-metric tolerance in QoI units.
+            sample_size: Predictive samples per experiment.
+            significance: Significance level of the u-pooling test.
+
+        Returns:
+            Validation assessment with per-experiment and pooled metrics.
+
+        Equation:
+            [EQ-VAL-AREA-001].
+
+        References:
+            [REF-FERSON-OBERKAMPF-GINZBURG-2008], [REF-OBERKAMPF-ROY-2025, Part IV].
+
+        """
+        stream = self.stream("validation")
+        before = self._model.evaluations
+        result = assess_validation(
+            self._model,
+            quantity,
+            experiments,
+            tolerance=tolerance,
+            sample_size=sample_size,
+            significance=significance,
+            seed=stream,
+        )
+        summary: dict[str, float | str] = {
+            "quantity": quantity,
+            "consistent": str(result.consistent),
+            "u_pooling_area": result.u_pooling.area,
+            "log_bayes_factor": result.log_bayes_factor,
+        }
+        for item in result.experiments:
+            summary[f"area[{item.experiment.name}]"] = item.area
+        self._record(
+            "validation",
+            f"validation of {quantity} against {len(result.experiments)} experiments",
+            summary,
+            self._model.evaluations - before,
+            stream,
+            result,
+        )
+        return result
 
     def report(self) -> str:
         """Return a Markdown report of every stage with costs and seeds.
