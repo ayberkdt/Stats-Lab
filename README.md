@@ -74,7 +74,7 @@ figures.
 | Central model | `modeling` | Named marginals + Gaussian copula, Nataf transform, random-field (KL) inputs, `ProbabilisticModel` |
 | Forward | `propagation`, `sampling`, `monte_carlo` | Monte Carlo, Latin hypercube, scrambled Halton and Sobol designs; variance reduction; quantiles and exceedance curves |
 | Sensitivity | `sensitivity` | Sobol first/total indices with bootstrap intervals, Morris screening, local derivatives |
-| Reliability | `reliability` | HL-RF FORM, SORM, design-point importance sampling, subset simulation, system bounds, inverse FORM |
+| Reliability | `reliability` | HL-RF FORM, SORM, multiple design points, importance and subset sampling, line sampling, AK-MCS active learning, system bounds, inverse FORM |
 | Risk | `risk` | VaR/CVaR, loss models, fault and event trees, fragility curves, EVPI/EVSI, GEV/GPD extremes and return levels |
 | Backward | `inverse`, `inference` | Nonlinear calibration, Kennedy-O'Hagan model discrepancy, adaptive Metropolis, HMC/NUTS, ADVI, Laplace, posterior prediction |
 | Validation | `validation` | Area metric, u-pooling, ASME V&V 20 comparison, applicability domain, scoped verdicts |
