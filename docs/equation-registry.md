@@ -6413,3 +6413,208 @@ estimate within the panel's share of `1e-13`; breakpoints at
   `inference.sampling_distributions._adaptive_integral`,
   `inference.sampling_distributions._gauss_legendre_rule`.
 - Source: [REF-DAVIS-RABINOWITZ-1984, Chapters 2 and 6].
+
+## Causal inference: graphs, interventions, effect estimation, and E-values
+
+### EQ-CAUSAL-DSEP-001 — d-separation via the moralized ancestral graph
+
+`X _||_ Y | Z` in a DAG `G` iff `Z` separates `X` from `Y` in the undirected
+moral graph `(G_An(X u Y u Z))^m`: restrict `G` to the ancestral set of
+`X u Y u Z`, join every pair of parents of a common child, drop directions,
+and delete `Z`.
+
+- Domain: finite DAG; `X`, `Y` non-empty; `X`, `Y`, `Z` pairwise disjoint.
+- Meaning: every path between `X` and `Y` is blocked by `Z` (a non-collider
+  in `Z`, or a collider with neither itself nor a descendant in `Z`); then the
+  conditional independence holds in every distribution Markov to `G`.
+- Code: `causal.CausalGraph.is_d_separated`.
+- Source: [REF-PEARL-2009, Section 1.2.3], [REF-LAURITZEN-ETAL-1990].
+
+### EQ-CAUSAL-BD-001 — Backdoor criterion
+
+`Z` satisfies the backdoor criterion relative to `(X, Y)` iff
+`Z n De(X) = {}` and `X _||_ Y | Z` in `G_underline(X)` (the graph with all
+edges leaving `X` removed). Every minimal such `Z` lies in
+`An_{G_underline(X)}(X u Y)`.
+
+- Domain: [EQ-CAUSAL-DSEP-001]; `Z` disjoint from `X u Y`.
+- Meaning: `Z` blocks every path into `X` that could carry confounding and
+  opens no new path; then [EQ-CAUSAL-ADJ-001] identifies `P(y | do(x))`.
+- Code: `causal.satisfies_backdoor`, `causal.minimal_adjustment_sets`.
+- Source: [REF-PEARL-2009, Definition 3.3.1 and Theorem 3.3.2],
+  [REF-LAURITZEN-ETAL-1990].
+
+### EQ-CAUSAL-FDC-001 — Frontdoor criterion
+
+`M` satisfies the frontdoor criterion relative to `(X, Y)` iff (i) every
+directed path `X -> ... -> Y` meets `M`; (ii) `X _||_ M` in
+`G_underline(X)`; (iii) `M _||_ Y | X` in `G_underline(M)`.
+
+- Domain: single `X` and `Y`; non-empty `M` disjoint from `{X, Y}`.
+- Meaning: the effect is transmitted only through `M`, `X -> M` is
+  unconfounded, and `M -> Y` is deconfounded by `X`; then
+  [EQ-CAUSAL-FD-001] identifies `P(y | do(x))`.
+- Code: `causal.satisfies_frontdoor`.
+- Source: [REF-PEARL-2009, Definition 3.3.3 and Theorem 3.3.4].
+
+### EQ-CAUSAL-FACT-001 — Markov factorization of a causal Bayesian network
+
+`P(v_1, ..., v_n) = prod_i P(v_i | pa_i)`.
+
+- Domain: finite variables; one conditional table per variable given its
+  parents in a DAG.
+- Meaning: the observational joint law implied by the causal graph and its
+  conditional tables.
+- Code: `causal.DiscreteCausalModel.joint`.
+- Source: [REF-PEARL-2009, Section 1.2].
+
+### EQ-CAUSAL-TRUNC-001 — Truncated factorization under intervention
+
+`P(v | do(X = x)) = prod_{i: V_i not in X} P(v_i | pa_i)` if `v` agrees with
+`x` on `X`, and `0` otherwise.
+
+- Domain: [EQ-CAUSAL-FACT-001]; `x` in the domain of `X`.
+- Meaning: an intervention replaces the mechanisms of `X` by constants and
+  leaves every other mechanism unchanged (graph surgery).
+- Code: `causal.DiscreteCausalModel.interventional_joint`,
+  `causal.DiscreteCausalModel.interventional_distribution`,
+  `causal.DiscreteCausalModel.intervene`.
+- Source: [REF-PEARL-2009, Section 3.2], [REF-HERNAN-ROBINS-2020, Chapter 6].
+
+### EQ-CAUSAL-ADJ-001 — Backdoor adjustment formula
+
+`P(y | do(x)) = sum_z P(y | x, z) P(z)`.
+
+- Domain: `Z` satisfies [EQ-CAUSAL-BD-001]; positivity `P(x, z) > 0`
+  whenever `P(z) > 0`.
+- Meaning: standardize the stratum-specific outcome law to the population
+  distribution of `Z` instead of its distribution among the treated. The
+  naive `P(y | x) = sum_z P(y | x, z) P(z | x)` can reverse sign (Simpson).
+- Code: `causal.backdoor_adjustment`, `causal.compare_naive_and_adjusted`.
+- Source: [REF-PEARL-2009, Theorem 3.3.2 and Section 6.1],
+  [REF-HERNAN-ROBINS-2020, Chapter 2].
+
+### EQ-CAUSAL-FD-001 — Frontdoor adjustment formula
+
+`P(y | do(x)) = sum_m P(m | x) sum_x' P(y | x', m) P(x')`.
+
+- Domain: `M` satisfies [EQ-CAUSAL-FDC-001]; `P(x) > 0` and `P(x', m) > 0`
+  whenever `P(m | x) > 0` and `P(x') > 0`.
+- Meaning: identifies the effect despite an unobserved treatment-outcome
+  confounder by chaining two unconfounded steps.
+- Code: `causal.frontdoor_adjustment`.
+- Source: [REF-PEARL-2009, Theorem 3.3.4].
+
+### EQ-CAUSAL-PS-001 — Logistic propensity score
+
+`e(x) = P(T = 1 | X = x) = 1 / (1 + exp(-(b_0 + x'b)))`, fitted by maximum
+likelihood ([EQ-GLM-IRLS-001]).
+
+- Domain: binary `T`; both arms present; no separation.
+- Meaning: the coarsest balancing score; conditional exchangeability given
+  `X` implies exchangeability given `e(X)`.
+- Code: `causal.fit_propensity_scores`, and internally `causal.estimate_ipw`,
+  `causal.estimate_aipw`.
+- Source: [REF-ROSENBAUM-RUBIN-1983].
+
+### EQ-CAUSAL-REG-001 — Regression adjustment (standardization)
+
+`tau_reg = (1/n) sum_i [m_1(x_i) - m_0(x_i)]` with `m_t` the least-squares
+fit of `Y` on `(1, X)` within arm `t`.
+
+- Domain: each arm has more units than coefficients; conditional
+  exchangeability and positivity given `X`.
+- Meaning: predicts both potential outcomes for everyone and averages;
+  consistent when the outcome models are correct.
+- Code: `causal.estimate_regression_adjustment`, and the outcome part of
+  `causal.estimate_aipw`.
+- Source: [REF-HERNAN-ROBINS-2020, Chapter 13],
+  [REF-IMBENS-RUBIN-2015, Chapter 12].
+
+### EQ-CAUSAL-IPW-001 — Inverse-probability-weighted ATE
+
+Horvitz-Thompson: `tau_HT = (1/n) sum_i [T_i Y_i / e_i - (1 - T_i) Y_i /
+(1 - e_i)]`. Hajek: `tau_H = sum T Y / e / sum T / e - sum (1-T) Y / (1-e) /
+sum (1-T) / (1-e)`. Standard error `sd(psi_i) / sqrt(n)` with the
+corresponding influence values, treating `e` as known. Trimming keeps units
+with `a <= e_i <= 1 - a`.
+
+- Domain: `0 < e_i < 1`; after trimming the estimand is the ATE of the
+  overlap population.
+- Meaning: reweighting creates a pseudo-population in which `T` is
+  independent of `X`.
+- Code: `causal.estimate_ipw`.
+- Source: [REF-HERNAN-ROBINS-2020, Chapter 12],
+  [REF-IMBENS-RUBIN-2015, Chapter 16].
+
+### EQ-CAUSAL-SW-001 — Stabilized weights
+
+`SW_i = T_i p / e_i + (1 - T_i)(1 - p) / (1 - e_i)` with `p = mean(T)`; the
+`SW`-weighted arm means give the Hajek estimator of [EQ-CAUSAL-IPW-001].
+
+- Domain: [EQ-CAUSAL-IPW-001].
+- Meaning: the numerator `P(T = t)` keeps the mean weight near one and the
+  weights less variable without changing the saturated-model estimate.
+- Code: `causal.estimate_ipw` with `stabilized=True`.
+- Source: [REF-HERNAN-ROBINS-2020, Chapter 12].
+
+### EQ-CAUSAL-AIPW-001 — Augmented IPW (doubly robust) estimator
+
+`psi_i = m_1(x_i) - m_0(x_i) + T_i (Y_i - m_1(x_i)) / e_i -
+(1 - T_i)(Y_i - m_0(x_i)) / (1 - e_i)`, `tau_AIPW = mean(psi)`,
+`se = sd(psi) / sqrt(n)`.
+
+- Domain: [EQ-CAUSAL-PS-001] and [EQ-CAUSAL-REG-001].
+- Meaning: consistent if either the propensity model or the outcome model
+  is correct; locally efficient when both are.
+- Code: `causal.estimate_aipw`.
+- Source: [REF-ROBINS-ROTNITZKY-ZHAO-1994],
+  [REF-HERNAN-ROBINS-2020, Chapter 13].
+
+### EQ-CAUSAL-SMD-001 — Standardized mean difference
+
+`SMD_j = (xbar_1j - xbar_0j) / sqrt((s_1j^2 + s_0j^2) / 2)`, with weighted
+arm means when weights are supplied and unweighted arm variances in the
+denominator.
+
+- Domain: each arm has at least two units; the pooled variance is positive.
+- Meaning: scale-free covariate imbalance; values near zero after weighting
+  indicate the weights balance that covariate's mean.
+- Code: `causal.standardized_mean_differences`.
+- Source: [REF-IMBENS-RUBIN-2015, Chapter 14].
+
+### EQ-CAUSAL-EVALUE-001 — E-value
+
+For `RR >= 1`: `E = RR + sqrt(RR (RR - 1))`; for `RR < 1` apply to `1/RR`.
+The interval E-value uses the limit closest to one and is `1` if the
+interval contains one.
+
+- Domain: `RR > 0` on the risk-ratio scale.
+- Meaning: the minimum risk-ratio association an unmeasured confounder must
+  have with both treatment and outcome to explain the estimate away.
+- Code: `causal.e_value`.
+- Source: [REF-VANDERWEELE-DING-2017].
+
+### EQ-CAUSAL-BIAS-001 — Bounding factor for unmeasured confounding
+
+`B = RR_EU RR_UD / (RR_EU + RR_UD - 1)`; `B(E, E) = RR` for the E-value of
+[EQ-CAUSAL-EVALUE-001].
+
+- Domain: `RR_EU >= 1`, `RR_UD >= 1`.
+- Meaning: the largest factor by which a confounder of the given strengths
+  can inflate a risk ratio.
+- Code: `causal.confounding_bias_factor`.
+- Source: [REF-VANDERWEELE-DING-2017].
+
+### EQ-CAUSAL-RRAPPROX-001 — Approximate conversions to the risk-ratio scale
+
+`RR ~ OR` (rare outcome), `RR ~ sqrt(OR)` (common outcome), and
+`RR ~ exp(0.91 d)` for a standardized mean difference `d`.
+
+- Domain: approximations used only to place other effect measures on the
+  E-value scale.
+- Meaning: lets [EQ-CAUSAL-EVALUE-001] be applied to odds ratios and
+  continuous outcomes.
+- Code: `causal.risk_ratio_from_odds_ratio`,
+  `causal.risk_ratio_from_standardized_difference`.
+- Source: [REF-VANDERWEELE-DING-2017].
