@@ -53,40 +53,49 @@ tested evidence.
 - [x] Covariance and Pearson correlation.
 - [~] Hyndman-Fan quantiles, MAD, skewness, kurtosis, ranks, Spearman
   correlation; contingency summaries and missing-data policies remain.
-- [ ] Histograms, Q-Q plots, box/violin plots, scatter diagnostics, uncertainty
-  annotations, and accessible color/label standards.
+- [~] Histograms, Q-Q plots, ECDF bands, scatter diagnostics, uncertainty
+  annotations, and accessible colour/label standards (CVD-validated light and
+  dark palettes, ADR-0024); box/violin plots remain.
 
 ## Phase 4 — Statistical inference
 
 - [ ] Estimands, estimators, bias, risk, consistency, sufficiency, completeness.
-- [ ] Likelihood, score, Fisher information, MLE/MAP, EM.
+- [~] Likelihood, score, Fisher information, MLE/MAP (generic MLE with
+  observed-information SEs, Laplace/MAP); EM remains.
 - [x] Confidence intervals (z, Student-t, Wilson, Clopper-Pearson), bootstrap
   (percentile, basic, normal, studentized, BCa), permutation tests.
 - [x] Hypothesis tests, power, effect sizes, multiple testing, equivalence tests.
-- [ ] Bayesian priors/posteriors, conjugacy, posterior predictive checks,
-  decision theory, model comparison, calibration.
+- [~] Bayesian priors/posteriors, conjugacy, decision theory (EVPI/EVSI),
+  model comparison (AIC/BIC, Bayes factors), calibration; posterior
+  predictive checks remain.
 - [ ] Frequentist/Bayesian interpretations kept explicit and separate.
 
 ## Phase 5 — Modeling and computation
 
-- [ ] Linear/nonlinear regression, GLMs, regularization, hierarchical models.
+- [~] Linear/nonlinear regression, GLMs, regularization (ADR-0030);
+  hierarchical models remain.
 - [~] Numerical optimization (BFGS, Nelder-Mead, Levenberg-Marquardt, Brent)
   and consolidated dense linear algebra; automatic differentiation remains.
 - [~] Monte Carlo, importance sampling, adaptive MCMC with diagnostics, Laplace,
-  particle filters; HMC/NUTS, variational and amortized inference remain.
-- [~] Markov chains, Poisson processes, SDEs (Euler-Maruyama, Milstein),
-  Gaussian-process regression, random fields; time-series models remain.
-- [ ] Survival analysis, missing/censored data, experimental design.
+  particle filters, HMC/NUTS, Gaussian ADVI (ADR-0032); amortized inference
+  remains.
+- [x] Markov chains, Poisson processes, SDEs (Euler-Maruyama, Milstein),
+  Gaussian-process regression, random fields, ARIMA and exponential smoothing
+  (ADR-0031).
+- [~] Survival analysis and censored data (ADR-0033), optimal and Bayesian
+  experimental design (ADR-0035); general missing-data handling remains.
 
 ## Phase 6 — Frontier systems
 
 - [ ] Probabilistic programming intermediate representation and inference API.
-- [ ] Causal graphs, interventions, identification, sensitivity analysis.
-- [ ] Information geometry and optimal transport.
+- [x] Causal graphs, interventions, identification, sensitivity analysis
+  (ADR-0034).
+- [~] Information measures and estimators (ADR-0036); information geometry
+  and optimal transport remain.
 - [ ] Normalizing flows, energy-based models, diffusion/score systems,
   neural stochastic differential equations.
-- [ ] Conformal prediction, distribution shift, uncertainty calibration,
-  robustness, and sequential decision systems.
+- [~] Conformal prediction (ADR-0033); distribution shift, uncertainty
+  calibration, robustness, and sequential decision systems remain.
 - [ ] Reproducible benchmark suites that compare correctness, calibration,
   numerical stability, and computational cost—not accuracy alone.
 

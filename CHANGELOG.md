@@ -3,6 +3,77 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.15.0] — 2026-10-12
+
+Classical statistical modelling, causal questions, experiment planning, and
+tail risk join the central model; three independent numerical reviews found
+defects that are now fixed with oracle-backed regression tests.
+
+### Added
+
+- **Regression** (`inference`): treatment-coded design matrices; OLS/WLS by
+  Householder QR with t/F inference, intervals, leverage, studentized
+  residuals, Cook's distance, HC0-HC3, VIF; GLMs by IRLS (Gaussian,
+  binomial logit/probit, Poisson, Gamma) with deviance, dispersion, offsets,
+  and a separation certificate; ridge, lasso, and elastic net with
+  warm-started paths and K-fold cross-validation.
+- **Time series** (`timeseries`): ACF/PACF, Ljung-Box, differencing and
+  decomposition, stationarity checks, exact Kalman-likelihood ARIMA MLE with
+  exact forecast intervals, residual diagnostics, exponential smoothing.
+- **Survival** (`inference.survival`): Kaplan-Meier with Greenwood variance
+  and log-log intervals, Nelson-Aalen, RMST, log-rank test, censored
+  exponential/Weibull/lognormal AFT MLE, Cox proportional hazards with
+  Breslow or Efron ties.
+- **Conformal prediction** (`conformal`): split conformal, conformalized
+  quantile regression, jackknife+, coverage reports, conformal error bars
+  for surrogates; `UQStudy.emulate(conformal_alpha=...)`.
+- **Hamiltonian and variational inference**: static HMC and NUTS with
+  dual-averaging step size and windowed metric adaptation; mean-field and
+  full-rank Gaussian ADVI; `CalibrationProblem.sample_posterior(method="nuts")`.
+- **Causal inference** (`causal`): DAGs with d-separation, back-door and
+  front-door criteria and minimal adjustment sets; back-door and front-door
+  adjustment on discrete structural causal models; propensity scores,
+  regression adjustment, IPW and AIPW estimators with bootstrap intervals
+  and balance diagnostics; E-values and confounding bias factors.
+- **Experimental design** (`design`): approximate and exact D-optimal designs
+  with equivalence-theorem certificates, efficient rounding and exchange,
+  local designs for nonlinear models; Bayesian design by closed-form,
+  linearized, Laplace, and nested Monte Carlo expected information gain, and
+  greedy sequential design from a `CalibrationProblem`.
+- **Extremes** (`risk.extremes`, `distributions.GeneralizedPareto`): block
+  maxima and GEV fits with delta-method and profile-likelihood return-level
+  intervals, GPD by MLE or probability-weighted moments, mean residual life,
+  threshold stability, runs declustering, peaks-over-threshold return levels.
+- **Information theory** (`information`): entropy, mutual information, KL,
+  cross-entropy, Jensen-Shannon for finite laws; closed-form differential
+  entropies and Gaussian KL; Kozachenko-Leonenko entropy and KSG mutual
+  information estimators.
+- **Figures**: correlogram, forecast fan, Kaplan-Meier, and regression
+  diagnostic plots; statistical modelling lab.
+
+### Fixed
+
+- Cox model: the Breslow baseline overflowed (or divided by zero) when
+  `|x' beta|` exceeded about 709, e.g. with uncentred covariates; it is now
+  stored at a reference linear predictor and predictions are shift-invariant.
+- `UQWorkflowRecord.record_stages` rejected the `fitting` and `shapley`
+  stages recorded by `UQStudy`; a test now keeps the guide in sync.
+- Gaussian-copula fitting returned a numerically singular latent correlation
+  for perfectly monotone columns (u-space coordinates of order 1e6); repair
+  now triggers on the smallest eigenvalue, not on Cholesky failure.
+- ADVI reported convergence while still climbing a flat ridge (mean one
+  q-standard-deviation off); convergence now also requires no net ELBO rise
+  over the buffer.
+- Second review round: exact small-sample Kolmogorov-Smirnov p-values,
+  Temme expansion for the incomplete gamma at very large shapes,
+  cancellation-free density prefactors, narrow truncated-normal moments,
+  noncentral t, studentized bootstrap with zero-SE resamples, permutation
+  ties, Student-t tail overflow, Markov absorbing states, ANOVA/Welch
+  centring.
+- First review round: fault-tree rare-event cancellation and MOCUS
+  absorption, Normal-inverse-gamma small shapes, calibration overflow at
+  large log-noise, fragility tail continuity.
+
 ## [0.14.0] — 2026-10-12
 
 One model for every question: forward, backward, and risk analyses now share
