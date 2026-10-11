@@ -319,6 +319,29 @@ def _has_ones_column(rows: Matrix) -> bool:
     return any(all(row[j] == 1.0 for row in rows) for j in range(len(rows[0])))
 
 
+def _spans_constant(
+    factor: HouseholderQR, weighted_rows: Matrix, root_w: Vector
+) -> bool:
+    """Return whether the design's column space contains the constant vector.
+
+    An intercept can be carried implicitly, e.g. by a full set of dummy
+    columns or a constant column of twos; R^2 and the overall F test must
+    then be centred. With weights the test is ``sqrt(w) in span(W^1/2 X)``,
+    which is equivalent to ``1 in span(X)``.
+
+    References:
+        [REF-MONTGOMERY-PECK-VINING-2021, Chapter 3],
+        [REF-GOLUB-VANLOAN-2013, Section 5.3]. No new equation is evaluated.
+
+    """
+    coefficients = factor.solve(root_w)
+    residual = math.fsum(
+        (target - math.fsum(c * x for c, x in zip(coefficients, row, strict=True))) ** 2
+        for target, row in zip(root_w, weighted_rows, strict=True)
+    )
+    return math.sqrt(residual) <= 1e-8 * math.sqrt(math.fsum(r * r for r in root_w))
+
+
 def _positive_weights(weights: Iterable[object] | None, size: int) -> Vector:
     """Validate strictly positive finite case weights.
 
@@ -434,7 +457,9 @@ class LinearModelResult:
         residuals: Raw residuals ``y - X beta``.
         weights: Case weights ``w_i``.
         design: Unweighted design rows.
-        has_intercept: Whether a constant column is present.
+        has_intercept: Whether the column space contains the constant vector
+            (an explicit ones column, a constant column, or full dummy coding);
+            ``R^2`` and the overall ``F`` test are then centred.
         n_observations: ``n``.
         n_parameters: ``p``.
         df_residual: ``n - p``.
@@ -838,6 +863,8 @@ def fit_linear_model(
     weighted_y = tuple(r * value for r, value in zip(root_w, y, strict=True))
     factor = _factorize(weighted_rows, names, rank_tolerance)
     beta = factor.solve(weighted_y)
+    if not has_intercept:
+        has_intercept = _spans_constant(factor, weighted_rows, root_w)
     fitted = tuple(
         math.fsum(b * x for b, x in zip(beta, row, strict=True)) for row in rows
     )

@@ -482,6 +482,35 @@ class DesignAndRankTests(unittest.TestCase):
         self.assertAlmostEqual(fit.coefficients[2], 2.25 - 2.0, places=12)
         self.assertEqual(fit.f_df, (2, 4))
 
+    def test_implicit_intercept_gives_centred_fit_measures(self) -> None:
+        """A constant column of twos or full dummy coding is an intercept."""
+        rng = RandomStream(31).generator()
+        xs = [rng.uniform(0.0, 4.0) for _ in range(30)]
+        groups = [i % 2 for i in range(30)]
+        ys = [
+            1.0 + 0.5 * x + 0.8 * g + rng.gauss(0.0, 0.3)
+            for x, g in zip(xs, groups, strict=True)
+        ]
+        explicit = fit_linear_model(
+            [(1.0, x, g) for x, g in zip(xs, groups, strict=True)], ys
+        )
+        twos = fit_linear_model(
+            [(2.0, x, g) for x, g in zip(xs, groups, strict=True)], ys
+        )
+        dummies = fit_linear_model(
+            [(1.0 - g, float(g), x) for x, g in zip(xs, groups, strict=True)], ys
+        )
+        no_constant = fit_linear_model(
+            [(x, g) for x, g in zip(xs, groups, strict=True)], ys
+        )
+        for fit in (twos, dummies):
+            self.assertTrue(fit.has_intercept)
+            self.assertAlmostEqual(fit.r_squared, explicit.r_squared, places=10)
+            self.assertAlmostEqual(
+                fit.f_statistic, explicit.f_statistic, delta=1e-8 * explicit.f_statistic
+            )
+        self.assertFalse(no_constant.has_intercept)
+
     def test_variance_inflation_two_predictors(self) -> None:
         """With two predictors, VIF = 1 / (1 - r^2) for their correlation r."""
         x1 = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
