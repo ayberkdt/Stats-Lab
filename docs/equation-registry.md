@@ -5431,3 +5431,280 @@ half of the iterations.
   leaves around the optimum.
 - Code: `inference.advi`.
 - Source: [REF-KINGMA-BA-2015, Algorithm 1] and [REF-POLYAK-JUDITSKY-1992].
+
+## Time series: correlograms, ARIMA, and exponential smoothing
+
+### EQ-TS-ACF-001 — Sample autocovariance and autocorrelation
+
+`gamma_hat(h) = (1/n) sum_{t=1}^{n-h} (x_t - x_bar)(x_{t+h} - x_bar)`,
+`rho_hat(h) = gamma_hat(h) / gamma_hat(0)`.
+
+- Domain: `n >= 2` finite observations, non-constant, `0 <= h < n`.
+- Meaning: the `1/n` divisor (not `1/(n-h)`) keeps the sample autocovariance
+  matrix positive semidefinite, so the derived PACF stays in `[-1, 1]`.
+- Code: `timeseries.autocovariance`, `timeseries.acf`.
+- Source: [REF-BROCKWELL-DAVIS-2016, Chapter 1], [REF-BOX-JENKINS-2015,
+  Chapter 2].
+
+### EQ-TS-PACF-001 — Durbin-Levinson recursion
+
+`phi_kk = (rho(k) - sum_{j=1}^{k-1} phi_(k-1),j rho(k-j)) / v_(k-1)`,
+`phi_kj = phi_(k-1),j - phi_kk phi_(k-1),(k-j)`,
+`v_k = v_(k-1) (1 - phi_kk^2)`, `v_0 = 1`.
+
+- Domain: a positive-definite autocorrelation sequence.
+- Meaning: solves the Yule-Walker equations of every order `1..K` in
+  `O(K^2)`; `phi_kk` is the partial autocorrelation at lag `k`, which cuts
+  off after lag `p` for an AR(p).
+- Code: `timeseries.durbin_levinson`, `timeseries.pacf`.
+- Source: [REF-BROCKWELL-DAVIS-2016, Chapters 2 and 3], [REF-BOX-JENKINS-2015,
+  Chapter 3].
+
+### EQ-TS-BAND-001 — White-noise correlogram band
+
+`+/- z_(1-alpha/2) / sqrt(n)`.
+
+- Domain: i.i.d. noise with finite variance; pointwise, large `n`.
+- Meaning: each sample autocorrelation at a nonzero lag is approximately
+  `N(0, 1/n)`; about `alpha` of the lags fall outside by chance.
+- Code: `timeseries.white_noise_band`.
+- Source: [REF-BROCKWELL-DAVIS-2016, Chapter 1], [REF-BOX-JENKINS-2015,
+  Chapter 2].
+
+### EQ-TS-BAND-002 — Bartlett band for an MA(k-1) null
+
+`Var(rho_hat(k)) ~ (1/n) (1 + 2 sum_{j=1}^{k-1} rho(j)^2)`, half-width
+`z_(1-alpha/2) sqrt(Var)`.
+
+- Domain: the autocorrelations beyond lag `k - 1` are zero; sample values
+  replace `rho(j)`.
+- Meaning: the band widens with the lag because earlier autocorrelations add
+  sampling variance; used to judge where an ACF cuts off.
+- Code: `timeseries.bartlett_band`.
+- Source: [REF-BOX-JENKINS-2015, Chapter 2], [REF-BROCKWELL-DAVIS-2016,
+  Chapter 2].
+
+### EQ-TS-LB-001 — Ljung-Box portmanteau statistic
+
+`Q = n (n + 2) sum_{k=1}^{h} rho_hat(k)^2 / (n - k)`, compared with
+`chi^2(h - m)` where `m` is the number of fitted ARMA parameters.
+
+- Domain: `1 <= h < n`, `h > m`; asymptotic.
+- Meaning: tests that the first `h` autocorrelations are jointly zero; the
+  `(n + 2)/(n - k)` factor improves the chi-square approximation of the
+  Box-Pierce statistic in small samples.
+- Code: `timeseries.ljung_box`, `timeseries.ARIMAFit.diagnostics`.
+- Source: [REF-LJUNG-BOX-1978], [REF-BOX-JENKINS-2015, Chapter 8].
+
+### EQ-TS-DIFF-001 — Ordinary and seasonal differencing
+
+`(1 - B^s)^D (1 - B)^d y_t`; inverse
+`y_t = x_t - sum_{k=1}^{d} binom(d, k) (-1)^k y_(t-k)`.
+
+- Domain: `n > d + D s`; the inverse needs the first `d` observations.
+- Meaning: removes polynomial trends (`d`) and fixed seasonal patterns
+  (`D`, period `s`).
+- Code: `timeseries.difference`, `timeseries.seasonal_difference`,
+  `timeseries.undifference`, `timeseries.simulate_arima`.
+- Source: [REF-BOX-JENKINS-2015, Chapters 4 and 9],
+  [REF-BROCKWELL-DAVIS-2016, Chapter 6].
+
+### EQ-TS-DECOMP-001 — Classical moving-average decomposition
+
+Trend `T_t` = centred moving average (equal weights over `s` points for odd
+`s`; the `2 x s` average with half weights at both ends for even `s`).
+Additive: `S_j = mean_t(y_t - T_t | t = j mod s)` shifted to sum to zero,
+`R_t = y_t - T_t - S_t`. Multiplicative: ratios `y_t / T_t`, indices scaled to
+average one, `R_t = y_t / (T_t S_t)`.
+
+- Domain: at least two full periods; positive data for the multiplicative
+  form. The trend is undefined for the first and last `floor(s/2)` points.
+- Meaning: a descriptive split of level, seasonality, and irregular
+  variation; it does not model uncertainty.
+- Code: `timeseries.centered_moving_average`,
+  `timeseries.classical_decomposition`.
+- Source: [REF-BROCKWELL-DAVIS-2016, Chapter 1].
+
+### EQ-TS-ARMA-001 — ARMA model, causality, and invertibility
+
+`phi(B)(x_t - mu) = theta(B) e_t`, `phi(z) = 1 - sum_{j=1}^{p} phi_j z^j`,
+`theta(z) = 1 + sum_{j=1}^{q} theta_j z^j`, `e_t ~ N(0, sigma^2)` i.i.d.
+Causal (stationary) iff all roots of `phi` satisfy `|z| > 1`; invertible iff
+all roots of `theta` do.
+
+- Domain: real coefficients; `phi` and `theta` without common roots.
+- Meaning: the root conditions make `x_t` a convergent linear filter of past
+  shocks and make the shocks recoverable from past observations.
+- Code: `timeseries.ar_root_check`, `timeseries.ma_root_check`,
+  `timeseries.arma_state_space`.
+- Source: [REF-BROCKWELL-DAVIS-2016, Chapter 3], [REF-HAMILTON-1994,
+  Chapter 3].
+
+### EQ-TS-ARMA-002 — MA(infinity) weights
+
+`psi_0 = 1`, `psi_j = theta_j + sum_{i=1}^{min(j,p)} phi_i psi_(j-i)`
+(`theta_j = 0` for `j > q`); `gamma(k) = sigma^2 sum_j psi_j psi_(j+k)`.
+
+- Domain: causal ARMA.
+- Meaning: the impulse response of `theta(z)/phi(z)`; it gives the
+  autocovariances and the classical forecast-error variances.
+- Code: `timeseries.psi_weights`, `timeseries.arma_autocovariance`.
+- Source: [REF-BROCKWELL-DAVIS-2016, Chapter 3], [REF-BOX-JENKINS-2015,
+  Chapter 3].
+
+### EQ-TS-ROOT-001 — Durand-Kerner simultaneous root iteration
+
+`z_k <- z_k - p(z_k) / prod_{j != k} (z_k - z_j)` for a monic polynomial,
+starting on a circle of radius `|a_0|^(1/n)`, followed by accepted Newton
+steps `z <- z - p(z)/p'(z)`.
+
+- Domain: real or complex coefficients, nonzero leading coefficient.
+- Meaning: finds all complex roots at once (conjugate pairs included);
+  simple roots converge quadratically, repeated roots linearly.
+- Code: `timeseries.polynomial_roots`.
+- Source: [REF-KERNER-1966], [REF-GOLUB-VANLOAN-2013, Section 7.4].
+
+### EQ-TS-ROOT-002 — Schur-Cohn step-down stationarity test
+
+`r_k = phi_kk`, `phi_(k-1),j = (phi_kj + r_k phi_k,(k-j)) / (1 - r_k^2)`;
+`phi(z)` has all roots outside the unit circle iff `|r_k| < 1` for all `k`.
+
+- Domain: real AR coefficients.
+- Meaning: an exact algebraic stationarity decision that needs no root
+  finding; it is the inverse of the Durbin-Levinson step-up.
+- Code: `timeseries.coefficients_to_pacf`, `timeseries.is_stationary`,
+  `timeseries.is_invertible`.
+- Source: [REF-MONAHAN-1984], [REF-BROCKWELL-DAVIS-2016, Chapter 2].
+
+### EQ-TS-PARAM-001 — Partial-autocorrelation reparameterization
+
+`r_k = tanh(u_k)`, `phi^(k)_k = r_k`,
+`phi^(k)_j = phi^(k-1)_j - r_k phi^(k-1)_(k-j)`; MA coefficients use
+`theta_j = -phi_j(r)`.
+
+- Domain: unconstrained `u` in `R^p`.
+- Meaning: a smooth bijection from `R^p` onto the stationary (or invertible)
+  region, so an unconstrained optimizer cannot leave it.
+- Code: `timeseries.pacf_to_coefficients`, `timeseries.fit_arima`.
+- Source: [REF-JONES-1980], [REF-MONAHAN-1984].
+
+### EQ-TS-SSM-001 — Harvey state-space form of ARMA
+
+`alpha_t = T alpha_(t-1) + R e_t`, `x_t - mu = Z alpha_t`, `r = max(p, q+1)`,
+`T = [phi | I_(r-1); 0]` (first column `phi_1..phi_r`, ones above the
+diagonal), `R = (1, theta_1, ..., theta_(r-1))'`, `Z = e_1'`; stationary
+`P = T P T' + sigma^2 R R'`, `gamma(k) = Z T^k P Z'`.
+
+- Domain: causal ARMA; no measurement noise.
+- Meaning: the first state element is the observation; the Lyapunov solution
+  gives the exact stationary start for the Kalman filter.
+- Code: `timeseries.arma_state_space`, `timeseries.ARMAStateSpace`,
+  `timeseries.arma_autocovariance`.
+- Source: [REF-DURBIN-KOOPMAN-2012, Chapters 3 and 5], [REF-HAMILTON-1994,
+  Chapter 13].
+
+### EQ-TS-LIK-001 — Exact likelihood by prediction-error decomposition
+
+`log L = -(1/2) sum_t [log 2 pi + log(sigma^2 F_t) + v_t^2 / (sigma^2 F_t)]`
+with Kalman innovations `v_t` and unit-scale variances `F_t`;
+`sigma_hat^2 = (1/n) sum_t v_t^2 / F_t` and the concentrated
+`log L_c = -(n/2)(log 2 pi + 1 + log sigma_hat^2) - (1/2) sum_t log F_t`.
+
+- Domain: [EQ-TS-SSM-001] started at its stationary distribution.
+- Meaning: the exact Gaussian likelihood in `O(n r^2)` without forming the
+  `n x n` covariance; concentrating `sigma^2` removes one optimization
+  dimension.
+- Code: `timeseries.arma_log_likelihood`, `timeseries.ARMAStateSpace.kalman`,
+  `timeseries.fit_arima`.
+- Source: [REF-DURBIN-KOOPMAN-2012, Chapter 7], [REF-HAMILTON-1994,
+  Chapters 5 and 13].
+
+### EQ-TS-LIK-002 — Closed-form exact AR(1) likelihood
+
+`log L = -(1/2) log(2 pi sigma^2/(1 - phi^2)) - (1 - phi^2)(y_1 - mu)^2/(2 sigma^2)
+- ((n-1)/2) log(2 pi sigma^2)
+- sum_{t=2}^{n} (y_t - mu - phi (y_(t-1) - mu))^2 / (2 sigma^2)`.
+
+- Domain: `|phi| < 1`.
+- Meaning: independent reference value against which the Kalman likelihood
+  is tested.
+- Code: `tests/test_timeseries.py::ar1_closed_form_log_likelihood`.
+- Source: [REF-HAMILTON-1994, Chapter 5].
+
+### EQ-TS-YW-001 — Yule-Walker estimator
+
+`Gamma_hat_p phi_hat = gamma_hat_p`, `sigma_hat^2 = gamma_hat(0) - phi_hat'
+gamma_hat_p`, asymptotic `Cov(phi_hat) ~ sigma^2 Gamma_p^-1 / n`.
+
+- Domain: AR(p), `p < n`, biased sample autocovariances.
+- Meaning: a method-of-moments estimate that is always stationary; used as
+  the starting value for maximum likelihood.
+- Code: `timeseries.yule_walker`.
+- Source: [REF-BROCKWELL-DAVIS-2016, Chapter 5], [REF-BOX-JENKINS-2015,
+  Chapter 7].
+
+### EQ-TS-SE-001 — Observed-information standard errors
+
+`Cov(theta_hat) ~ H^-1`, `H = -nabla^2 log L` at the MLE in
+`(phi, theta, mu, log sigma^2)`; `se(sigma^2) = sigma^2 se(log sigma^2)`.
+
+- Domain: interior MLE, positive-definite Hessian; asymptotic.
+- Meaning: Wald standard errors; reported as `None` when the Hessian is not
+  positive definite or a difference step leaves the stationary region.
+- Code: `timeseries.fit_arima`.
+- Source: [REF-HAMILTON-1994, Chapter 5], [REF-BOX-JENKINS-2015, Chapter 7].
+
+### EQ-TS-FC-001 — Exact h-step ARIMA forecast and interval
+
+`x_hat_(n+j) = mu + Z T^(j-1) a_(n+1)`,
+`P_(n+j+1|n) = T P_(n+j|n) T' + sigma^2 R R'`,
+`Cov(x_(n+i), x_(n+j) | y) = Z T^(j-i) P_(n+i|n) Z'` (`i <= j`);
+`y_(n+h) = c_h + sum_{j=1}^{h} binom(h-j+d-1, d-1) x_(n+j)`, so
+`Var(y_(n+h) | y) = w_h' C w_h` and the interval is
+`y_hat +/- z_(1-alpha/2) sqrt(Var)`.
+
+- Domain: fitted parameters treated as known; first `d` observations treated
+  as fixed (diffuse) starting values.
+- Meaning: finite-sample conditional forecasts; for ARIMA(0,1,0) the
+  variance is `h sigma^2` and the interval widens as `sqrt(h)`; for large `n`
+  it reduces to `sigma^2 sum_{j<h} psi*_j^2`.
+- Code: `timeseries.forecast_arima`, `timeseries.ARIMAFit.forecast`.
+- Source: [REF-DURBIN-KOOPMAN-2012, Chapter 4], [REF-BOX-JENKINS-2015,
+  Chapter 5], [REF-BROCKWELL-DAVIS-2016, Chapter 6].
+
+### EQ-TS-SIM-001 — ARMA simulation recursion
+
+`w_t = sum_{i=1}^{p} phi_i w_(t-i) + e_t + sum_{j=1}^{q} theta_j e_(t-j)`,
+zero start, the first `B` values discarded, `x_t = mu + w_t`.
+
+- Domain: causal ARMA; `B` large relative to the slowest root decay.
+- Meaning: the burn-in lets the zero start forget itself so the returned
+  path is approximately stationary.
+- Code: `timeseries.simulate_arma`, `timeseries.simulate_arima`.
+- Source: [REF-BROCKWELL-DAVIS-2016, Chapter 3], [REF-BOX-JENKINS-2015,
+  Chapter 3].
+
+### EQ-TS-ES-001 — Simple exponential smoothing
+
+`y_hat_(t|t-1) = l_(t-1)`, `l_t = l_(t-1) + alpha (y_t - l_(t-1))`,
+`0 < alpha < 1`; `alpha` minimizes `sum_t (y_t - y_hat_(t|t-1))^2` with `l_0`
+chosen by least squares.
+
+- Domain: level without trend or season.
+- Meaning: an exponentially weighted average of the past; the forecast is
+  flat at `l_n`. Concentrating `l_0` is a project choice.
+- Code: `timeseries.simple_exponential_smoothing`.
+- Source: [REF-BROCKWELL-DAVIS-2016, Chapter 10], [REF-HOLT-2004].
+
+### EQ-TS-ES-002 — Holt's linear trend method
+
+`y_hat_(t|t-1) = l_(t-1) + b_(t-1)`, `l_t = alpha y_t + (1 - alpha)(l_(t-1) +
+b_(t-1))`, `b_t = beta (l_t - l_(t-1)) + (1 - beta) b_(t-1)`; forecast
+`l_n + h b_n`.
+
+- Domain: `0 < alpha, beta < 1`; locally linear trend.
+- Meaning: smooths the level and the slope separately; the parameters
+  minimize the one-step squared error with `(l_0, b_0)` chosen by least
+  squares (a project choice).
+- Code: `timeseries.holt_linear`.
+- Source: [REF-HOLT-2004], [REF-BROCKWELL-DAVIS-2016, Chapter 10].
