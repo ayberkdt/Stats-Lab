@@ -29,7 +29,7 @@ own figures through `probstat.visualization.theme`.
 | canvas | `#F6F4EF` | `#141519` |
 | ink | `#23262B` | `#F1F0EB` |
 | muted | `#656A73` | `#A6A9B1` |
-| accent (reference lines) | `#44599C` | `#E8804A` |
+| accent (reference lines) | `#44599C` | `#9BA9F0` |
 | series 1 (observed) | `#178F6E` | `#2A9E83` |
 | series 2 (model) | `#B0642F` | `#B67E2A` |
 | series 3-6 | `#7D5BC4` `#8C8A1C` `#C04A8A` `#2F7FB5` | `#8A78CF` `#CC5F70` `#3F8BCB` `#6A9638` |

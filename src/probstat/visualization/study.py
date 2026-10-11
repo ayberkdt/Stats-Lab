@@ -153,7 +153,7 @@ _HTML_STYLE = """
 @media (prefers-color-scheme: dark) {
   :root {
     --canvas: #141519; --surface: #1E2026; --ink: #F1F0EB; --muted: #A6A9B1;
-    --rule: #303339; --accent: #E8804A;
+    --rule: #303339; --accent: #9BA9F0;
   }
 }
 * { box-sizing: border-box; }

@@ -99,7 +99,7 @@ GRAPHITE = ChartPalette(
     ink="#F1F0EB",
     muted="#A6A9B1",
     rule="#303339",
-    accent="#E8804A",
+    accent="#9BA9F0",
     series=("#2A9E83", "#B67E2A", "#8A78CF", "#CC5F70", "#3F8BCB", "#6A9638"),
     sequential=("#1E2026", "#1F3F38", "#22604F", "#268266", "#2A9E83", "#7FD3BC"),
 )
