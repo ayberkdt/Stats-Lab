@@ -1555,3 +1555,16 @@ John W. Tukey. *Exploratory Data Analysis*. Addison-Wesley, 1977.
 
 Jerry L. Hintze and Ray D. Nelson. "Violin Plots: A Box Plot-Density Trace
 Synergism." *The American Statistician* 52(2), 181-184, 1998.
+
+## REF-HIGDON-ETAL-2004
+
+Dave Higdon, Marc Kennedy, James C. Cavendish, John A. Cafeo, and Robert D.
+Ryne. "Combining Field Data and Computer Simulations for Calibration and
+Prediction." *SIAM Journal on Scientific Computing* 26(2), 448-466, 2004.
+DOI: [10.1137/S1064827503426693](https://doi.org/10.1137/S1064827503426693).
+
+## REF-HARVEY-1976
+
+A. C. Harvey. "Estimating Regression Models with Multiplicative
+Heteroscedasticity." *Econometrica* 44(3), 461-465, 1976.
+DOI: [10.2307/1913974](https://doi.org/10.2307/1913974).
