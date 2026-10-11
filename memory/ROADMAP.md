@@ -14,7 +14,7 @@ tested evidence.
 - [x] Automated architecture and documentation checks.
 - [x] Durable project memory, ADRs, and session notes.
 - [x] Optional visualization layer separated from mathematics.
-- [ ] Continuous integration across supported Python versions.
+- [x] Continuous integration across supported Python versions (3.11-3.13).
 - [ ] API stability labels and deprecation policy.
 
 ## Phase 1 — Probability foundations
@@ -40,17 +40,19 @@ tested evidence.
 - [x] Geometric and negative binomial with explicit failure-count convention.
 - [x] Continuous uniform and rate-parameterized exponential.
 - [ ] Gamma, beta, chi-square, Student-t, F, and logistic.
-- [ ] Multivariate normal, Dirichlet, multinomial, and copulas.
+- [~] Multivariate normal and Gaussian copula (Nataf) joint inputs; Dirichlet,
+  multinomial, and non-Gaussian copulas remain.
 - [~] Stable log-density, quantile, survival, hazard, and entropy interfaces.
 - [x] Call-local deterministic sampling streams for implemented families.
-- [ ] Goodness-of-fit checks and stream-splitting abstractions.
+- [~] Stream splitting via SplitMix64 `RandomStream`; family-specific
+  goodness-of-fit calibration remains.
 
 ## Phase 3 — Descriptive statistics and data diagnostics
 
 - [x] Mean, variance, standard deviation, z-scores, ECDF.
 - [x] Covariance and Pearson correlation.
-- [ ] Quantiles with explicit convention, robust location/scale, skewness,
-  kurtosis, ranks, contingency summaries, missing-data policies.
+- [~] Hyndman-Fan quantiles, MAD, skewness, kurtosis, ranks, Spearman
+  correlation; contingency summaries and missing-data policies remain.
 - [ ] Histograms, Q-Q plots, box/violin plots, scatter diagnostics, uncertainty
   annotations, and accessible color/label standards.
 
@@ -58,8 +60,9 @@ tested evidence.
 
 - [ ] Estimands, estimators, bias, risk, consistency, sufficiency, completeness.
 - [ ] Likelihood, score, Fisher information, MLE/MAP, EM.
-- [ ] Confidence intervals, bootstrap, permutation methods.
-- [ ] Hypothesis tests, power, effect sizes, multiple testing, equivalence tests.
+- [x] Confidence intervals (z, Student-t, Wilson, Clopper-Pearson), bootstrap
+  (percentile, basic, normal, studentized, BCa), permutation tests.
+- [x] Hypothesis tests, power, effect sizes, multiple testing, equivalence tests.
 - [ ] Bayesian priors/posteriors, conjugacy, posterior predictive checks,
   decision theory, model comparison, calibration.
 - [ ] Frequentist/Bayesian interpretations kept explicit and separate.
@@ -67,11 +70,12 @@ tested evidence.
 ## Phase 5 — Modeling and computation
 
 - [ ] Linear/nonlinear regression, GLMs, regularization, hierarchical models.
-- [ ] Numerical optimization, automatic differentiation boundary, stable linear
-  algebra, special functions, and error budgets.
-- [ ] Monte Carlo, importance sampling, MCMC, HMC/NUTS, SMC, variational
-  inference, amortized inference.
-- [ ] Time series, Markov chains, Gaussian processes, point processes, SDEs.
+- [~] Numerical optimization (BFGS, Nelder-Mead, Levenberg-Marquardt, Brent)
+  and consolidated dense linear algebra; automatic differentiation remains.
+- [~] Monte Carlo, importance sampling, adaptive MCMC with diagnostics, Laplace,
+  particle filters; HMC/NUTS, variational and amortized inference remain.
+- [~] Markov chains, Poisson processes, SDEs (Euler-Maruyama, Milstein),
+  Gaussian-process regression, random fields; time-series models remain.
 - [ ] Survival analysis, missing/censored data, experimental design.
 
 ## Phase 6 — Frontier systems
@@ -98,7 +102,7 @@ dependency direction.
 - [x] Named forward-model and quantity-of-interest contracts.
 - [x] Conservative numerical-error budgets, observed order, and Richardson
   extrapolation with assumptions and failure modes.
-- [ ] Validation experiment records, validation metrics, applicability domain,
+- [x] Validation experiment records, validation metrics, applicability domain,
   and explicit separation of verification, validation, and prediction.
 
 ### UQ-1 — Uncertainty modeling and statistical fitting
@@ -109,7 +113,8 @@ dependency direction.
   Mahalanobis distance, and Cholesky sampling.
 - [~] Normal/Lognormal maximum likelihood, generic KS/AD statistics, z and
   Wilson confidence intervals, fitted-CDF visualization, and seeded lab.
-- [ ] General multivariate protocols and transformations, Weibull estimation,
+- [~] Nataf transformations and correlated joint inputs delivered; general
+  multivariate protocols, Weibull estimation,
   exact/bootstrapped fitted-null calibration, Student-t intervals, sampling
   stream splitting, and real-data fitting case studies.
 
@@ -121,9 +126,10 @@ dependency direction.
   standard error, normal/Wilson intervals, convergence traces, and costs.
 - [x] Named forward-model sample propagation, immutable raw outputs, QoI
   summaries, strict threshold probabilities, and a seeded teaching lab.
+- [x] Correlated-input sampling, vector QoIs, quasi-random designs, quantiles,
+  exceedance curves, and design comparison on `ProbabilisticModel`.
 - [ ] Unbounded-domain quadrature transformations, adaptive error estimates,
-  correlated-input sampling, vector QoIs, streaming/out-of-core accumulation,
-  and propagation of numerical/model-form uncertainty.
+  streaming accumulation, and propagation of numerical/model-form uncertainty.
 
 ### UQ-3 — Advanced Monte Carlo
 
@@ -132,9 +138,9 @@ dependency direction.
 - [x] Estimator-efficiency and sampling-strategy comparisons.
 - [x] Antithetic and control variates, conditional Monte Carlo, stratified
   sampling, importance sampling, and simulation-budget allocation.
-- [ ] Latin hypercube and randomized quasi-Monte Carlo, multilevel Monte Carlo,
-  self-normalized/adaptive importance sampling, control functionals, and
-  unequal-cost optimal allocation.
+- [x] Latin hypercube and randomized quasi-Monte Carlo (scrambled Halton/Sobol).
+- [ ] Multilevel Monte Carlo, adaptive importance sampling, control
+  functionals, and unequal-cost optimal allocation.
 
 ### UQ-4 — Reliability and rare events
 
@@ -143,9 +149,9 @@ dependency direction.
 - [x] Affine standard-normal FORM, reliability index beta, exact constrained
   design-point optimization, most-probable failure points, directional sampling,
   and method comparison.
-- [ ] General nonlinear/non-normal FORM transformations and iterations,
-  multiple design points, subset simulation, cross-entropy adaptation,
-  line sampling, and system reliability.
+- [x] Nonlinear/non-normal HL-RF FORM via Nataf, SORM, design-point IS, subset
+  simulation, system reliability bounds, inverse FORM.
+- [ ] Multiple design points, cross-entropy adaptation, and line sampling.
 
 ### UQ-5 — Sensitivity analysis
 
@@ -153,9 +159,10 @@ dependency direction.
 - [x] First-, second-, and total-effect Sobol indices with Monte Carlo
   estimators and uncertainty diagnostics.
 - [x] Input ranking, dimension reduction, and uncertainty-reduction strategy.
-- [ ] Correlated-input and Shapley effects, bootstrap intervals, replicated
-  stochastic simulators, derivative-based global measures, and screening at
-  very high dimension.
+- [x] Bootstrap intervals for Sobol indices on the central model; Morris
+  screening.
+- [ ] Correlated-input and Shapley effects, replicated stochastic simulators,
+  and derivative-based global measures.
 
 ### UQ-6 — Inverse problems and Bayesian calibration
 
@@ -164,15 +171,18 @@ dependency direction.
 - [x] Priors, likelihoods, posteriors, Gaussian conditioning, posterior
   sampling, posterior predictive checks, and identifiability diagnostics.
 - [x] Model discrepancy and the explicit calibration-versus-prediction split.
-- [ ] Nonlinear calibration, unknown/heteroscedastic noise, robust likelihoods,
-  MCMC, correlated discrepancy processes, and optimal experiment design.
+- [x] Nonlinear calibration, unknown noise, Student-t robust likelihoods,
+  adaptive MCMC, Laplace, posterior push-forward prediction.
+- [ ] Heteroscedastic noise, correlated discrepancy processes, and optimal
+  experiment design.
 
 ### UQ-7 — Filtering and data assimilation
 
-- [ ] Discrete-time state-space models, prediction, observation, measurement
+- [x] Discrete-time state-space models, prediction, observation, measurement
   update, process/measurement noise, and covariance propagation.
-- [ ] Sequential Bayes, filtering versus smoothing, and data assimilation.
-- [ ] Kalman, extended Kalman, ensemble Kalman, and particle filters.
+- [x] Sequential Bayes, filtering versus smoothing, and data assimilation.
+- [x] Kalman, extended and unscented Kalman, ensemble Kalman, and particle
+  filters.
 
 ### LAB-1 through LAB-6 — Reproducible practical work
 
@@ -189,6 +199,15 @@ dependency direction.
 - [ ] Linear algebra; numerical integration, convergence, and error;
   optimization; multivariable calculus, Jacobians, conditional distributions;
   and an R programming interoperability guide.
+
+## Integration track (0.14)
+
+- [x] Central `ProbabilisticModel` shared by every workflow (ADR-0014).
+- [x] Model-based reliability, risk analysis, surrogates, validation, and
+  stochastic processes (ADR-0015 to ADR-0023).
+- [x] `UQStudy` orchestration with one seed tree and one report (ADR-0025).
+- [x] Semantic chart theme for every figure (ADR-0024).
+- [ ] Numerical backend boundary for large dense problems (ADR-0008 follow-up).
 
 ## Cross-cutting work (never “finished”)
 
