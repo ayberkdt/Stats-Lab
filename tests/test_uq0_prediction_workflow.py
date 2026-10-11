@@ -307,6 +307,29 @@ class WorkflowRecordTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             record.record_stages([object()])  # type: ignore[list-item]
 
+    def test_every_uq_study_stage_kind_maps_to_a_step(self) -> None:
+        """Each stage kind that UQStudy records is accepted by record_stages."""
+        import re
+
+        source = (
+            Path(__file__).resolve().parents[1]
+            / "src"
+            / "probstat"
+            / "workflow"
+            / "study.py"
+        ).read_text(encoding="utf-8")
+        kinds = set(re.findall(r'_record\(\s*"([a-z_]+)"', source))
+        self.assertIn("fitting", kinds)
+        self.assertIn("shapley", kinds)
+        record = UQWorkflowRecord.start("study", (self.quantity,))
+        record = record.record_stages(
+            [FakeStage(kind, kind, 0, 0) for kind in sorted(kinds)]
+        )
+        self.assertEqual(
+            record.entry(WorkflowStep.INPUT_CHARACTERIZATION).status,
+            StepStatus.COMPLETE,
+        )
+
     def test_guide_covers_every_step_with_resolvable_calls(self) -> None:
         """Each step has a guide whose library calls exist in the package."""
         self.assertEqual(set(WORKFLOW_GUIDE), set(WorkflowStep))

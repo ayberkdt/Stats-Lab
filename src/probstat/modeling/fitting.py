@@ -195,21 +195,22 @@ def _pearson(first: Sequence[float], second: Sequence[float]) -> float:
 def _repair_correlation(matrix: Matrix) -> tuple[Matrix, bool]:
     """Return a positive-definite unit-diagonal version of a correlation matrix.
 
-    If Cholesky succeeds the matrix is returned unchanged. Otherwise the
-    eigenvalues are clipped at ``1e-6`` and the result is rescaled to a unit
-    diagonal (the eigenvalue method).
+    If every eigenvalue is at least ``1e-6`` the matrix is returned
+    unchanged. Otherwise the eigenvalues are clipped at ``1e-6`` and the
+    result is rescaled to a unit diagonal (the eigenvalue method). Testing
+    the eigenvalues rather than Cholesky success matters: a latent
+    correlation of ``0.9999999999999999`` from perfectly monotone columns
+    factorizes, but its pivot of order ``1e-8`` maps observed points to
+    standard-normal coordinates of order ``1e6``.
 
     References:
         [REF-MCNEIL-FREY-EMBRECHTS-2015], [REF-GOLUB-VANLOAN-2013,
         Section 8.5].
 
     """
-    try:
-        cholesky(matrix)
-        return matrix, False
-    except ValueError:
-        pass
     values, vectors = symmetric_eigen(matrix)
+    if min(values) >= _EIGEN_FLOOR:
+        return matrix, False
     size = len(matrix)
     clipped = tuple(max(value, _EIGEN_FLOOR) for value in values)
     rebuilt = [
@@ -328,7 +329,7 @@ def fit_gaussian_copula(
     )
     if repaired:
         warnings.warn(
-            "pairwise latent correlation was not positive definite and was "
+            "pairwise latent correlation was not safely positive definite and was "
             "repaired by eigenvalue clipping",
             UserWarning,
             stacklevel=2,

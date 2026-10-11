@@ -587,6 +587,15 @@ class MultivariateAndCopulaFittingTests(unittest.TestCase):
         unchanged, flag = _repair_correlation(((1.0, 0.5), (0.5, 1.0)))
         self.assertFalse(flag)
         self.assertEqual(unchanged, ((1.0, 0.5), (0.5, 1.0)))
+        monotone = {
+            "x": tuple(float(v) for v in range(1, 21)),
+            "y": tuple(2.0 * v + 1.0 for v in range(1, 21)),
+        }
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            fitted = fit_gaussian_copula(monotone)
+        self.assertTrue(fitted.repaired)
+        self.assertLess(fitted.latent_correlation[0][1], 1.0 - 1e-7)
         good = {"a": (1.0, 2.0, 3.0, 4.0), "b": (2.0, 1.0, 4.0, 3.0)}
         with self.assertRaises(ValueError):
             fit_gaussian_copula({"a": (1.0, 2.0, 3.0), "b": (1.0, 2.0)})

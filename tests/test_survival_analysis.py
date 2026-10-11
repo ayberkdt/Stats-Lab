@@ -509,6 +509,25 @@ class CoxModelTests(unittest.TestCase):
             fit.survival(4.0, [1.0]), math.exp(-h0[2] * math.exp(beta)), places=12
         )
 
+    def test_cox_fit_is_invariant_to_covariate_shift(self) -> None:
+        """Uncentred covariates (|x' beta| > 709) neither overflow nor shift S."""
+        rng = RandomStream(7).generator()
+        xs = [rng.gauss(0.0, 1.0) for _ in range(60)]
+        times = [-math.log(1.0 - rng.random()) / math.exp(x) for x in xs]
+        data = survival_data(times, [True] * 60)
+        base = fit_cox_model(data, [[x] for x in xs])
+        self.assertEqual(base.baseline_reference, 0.0)
+        for shift in (800.0, -800.0):
+            fit = fit_cox_model(data, [[x + shift] for x in xs])
+            self.assertAlmostEqual(
+                fit.coefficients[0], base.coefficients[0], places=6
+            )
+            self.assertAlmostEqual(
+                fit.survival(0.5, [0.3 + shift]),
+                base.survival(0.5, [0.3]),
+                places=9,
+            )
+
     def test_errors(self) -> None:
         """Constant covariates, bad ties labels, and shapes are rejected."""
         data = survival_data(COX_TIMES, COX_EVENTS)

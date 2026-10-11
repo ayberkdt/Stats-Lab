@@ -219,8 +219,14 @@ class CoxModelResult:
         iterations: Newton iterations used.
         converged: Whether the convergence criterion was met.
         baseline_times: Distinct event times.
-        baseline_cumulative_hazard: Breslow estimate ``H_0(t_j)`` at
-            ``x = 0``.
+        baseline_cumulative_hazard: Breslow estimate of the cumulative
+            hazard at the event times for a subject whose linear predictor
+            equals ``baseline_reference``.
+        baseline_reference: Linear predictor ``c`` at which the baseline is
+            stored, so ``H(t | x) = H_c(t) exp(x' beta - c)``. It is ``0``
+            (the usual ``x = 0`` baseline) unless the fitted linear
+            predictors are so large that ``exp(x' beta)`` would overflow or
+            underflow, as with uncentred covariates.
 
     References:
         [EQ-SURV-COX-001], [EQ-SURV-COX-002], [EQ-SURV-COX-003],
@@ -252,6 +258,7 @@ class CoxModelResult:
     converged: bool
     baseline_times: Vector
     baseline_cumulative_hazard: Vector
+    baseline_reference: float = 0.0
 
     def survival(self, time: float, covariates: Sequence[float]) -> float:
         """Return ``S(t | x) = exp(-H_0(t) exp(x' beta))``.
@@ -281,7 +288,12 @@ class CoxModelResult:
         if index == 0:
             return 1.0
         eta = math.fsum(b * x for b, x in zip(self.coefficients, row, strict=True))
-        return math.exp(-self.baseline_cumulative_hazard[index - 1] * math.exp(eta))
+        exponent = eta - self.baseline_reference
+        if exponent > 700.0:
+            return 0.0
+        return math.exp(
+            -self.baseline_cumulative_hazard[index - 1] * math.exp(exponent)
+        )
 
 
 def _solve_step(information: Matrix, score: Vector) -> Vector:
@@ -412,7 +424,7 @@ def fit_cox_model(
         u * s for u, s in zip(null.score, null_step, strict=True)
     )
     likelihood_ratio = max(2.0 * (current.value - null.value), 0.0)
-    times, hazard = _breslow_baseline(data, rows, beta)
+    times, hazard, reference = _breslow_baseline(data, rows, beta)
     return CoxModelResult(
         names,
         beta,
@@ -437,24 +449,28 @@ def fit_cox_model(
         converged,
         times,
         hazard,
+        reference,
     )
 
 
 def _breslow_baseline(
     data: SurvivalData, rows: tuple[tuple[float, ...], ...], beta: Vector
-) -> tuple[Vector, Vector]:
+) -> tuple[Vector, Vector, float]:
     """Return the Breslow baseline cumulative hazard at the event times.
 
-    ``H_0(t) = sum_{t_j <= t} d_j / sum_{i in R_j} exp(x_i' beta)``.
+    ``H_c(t) = sum_{t_j <= t} d_j / sum_{i in R_j} exp(x_i' beta - c)``, the
+    cumulative hazard of a subject with linear predictor ``c``. ``c = 0``
+    gives the usual baseline; when some ``|x_i' beta|`` exceeds 500 the
+    largest linear predictor is used instead so that the weights stay
+    finite and the risk-set sums stay positive.
 
     References:
         [EQ-SURV-COX-004], [REF-BRESLOW-1974].
 
     """
-    risk = [
-        math.exp(math.fsum(b * x for b, x in zip(beta, row, strict=True)))
-        for row in rows
-    ]
+    etas = [math.fsum(b * x for b, x in zip(beta, row, strict=True)) for row in rows]
+    reference = max(etas) if max(abs(e) for e in etas) > 500.0 else 0.0
+    risk = [math.exp(e - reference) for e in etas]
     increments: list[tuple[float, float]] = []
     total = 0.0
     for time, members, deaths in _groups(data):
@@ -467,4 +483,4 @@ def _breslow_baseline(
     for _, increment in increments:
         running += increment
         cumulative.append(running)
-    return tuple(time for time, _ in increments), tuple(cumulative)
+    return tuple(time for time, _ in increments), tuple(cumulative), reference

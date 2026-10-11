@@ -119,8 +119,10 @@ WORKFLOW_GUIDE: Mapping[WorkflowStep, StepGuide] = MappingProxyType(
                 "probstat.uq.UncertaintySource",
                 "probstat.modeling.RandomInput",
                 "probstat.modeling.JointInput",
+                "probstat.modeling.fit_joint_input",
+                "probstat.workflow.UQStudy.from_data",
             ),
-            (),
+            ("fitting",),
         ),
         WorkflowStep.VERIFICATION: StepGuide(
             WorkflowStep.VERIFICATION,
@@ -160,6 +162,7 @@ WORKFLOW_GUIDE: Mapping[WorkflowStep, StepGuide] = MappingProxyType(
             (
                 "propagation",
                 "sensitivity",
+                "shapley",
                 "screening",
                 "reliability",
                 "form",
