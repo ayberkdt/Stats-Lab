@@ -17,6 +17,14 @@ from types import MappingProxyType
 from typing import Any, Literal
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
+from probstat.inverse import (
+    CalibrationPosterior,
+    CalibrationProblem,
+    Experiment,
+    NoiseModel,
+    PosteriorPrediction,
+    predict,
+)
 from probstat.modeling import ProbabilisticModel
 from probstat.propagation import PropagationStudy, propagate
 from probstat.reliability import (
@@ -32,6 +40,11 @@ from probstat.sensitivity import (
     MorrisResult,
     morris_screening,
     sobol_analysis,
+)
+from probstat.surrogates import (
+    fit_gaussian_process_to_model,
+    fit_polynomial_chaos,
+    surrogate_probabilistic_model,
 )
 
 
@@ -95,6 +108,8 @@ class UQStudy:
         self._root = resolve_stream(seed)
         self._name = name or model.name
         self._records: list[StageRecord] = []
+        self._problem: CalibrationProblem | None = None
+        self._posterior: CalibrationPosterior | None = None
 
     @property
     def model(self) -> ProbabilisticModel:
@@ -485,6 +500,185 @@ class UQStudy:
             result,
         )
         return result
+
+    def calibrate(
+        self,
+        experiments: Sequence[Experiment],
+        noise: Sequence[NoiseModel],
+        *,
+        draws: int = 2000,
+        warmup: int = 1000,
+        chains: int = 4,
+    ) -> CalibrationPosterior:
+        """Calibrate the model's random inputs against observed experiments.
+
+        The study model's joint input law is the prior over the calibration
+        parameters; each experiment supplies observed QoIs and the
+        deterministic conditions under which they were measured. Sampling is
+        adaptive Metropolis in the prior's standard-normal space.
+
+        Args:
+            experiments: Observed experiments.
+            noise: One noise model per observed QoI.
+            draws: Kept draws per chain.
+            warmup: Warm-up iterations per chain.
+            chains: Number of chains.
+
+        Returns:
+            Posterior with diagnostics; also kept for :meth:`predict`.
+
+        Equation:
+            [EQ-CAL-NL-001].
+
+        References:
+            [REF-KENNEDY-OHAGAN-2001], [REF-GELMAN-ETAL-2013, Chapter 11].
+
+        """
+        stream = self.stream("calibration")
+        problem = CalibrationProblem(self._model, tuple(experiments), tuple(noise))
+        before = self._model.evaluations
+        posterior = problem.sample_posterior(
+            draws=draws, warmup=warmup, chains=chains, seed=stream
+        )
+        self._problem, self._posterior = problem, posterior
+        summary: dict[str, float | str] = {"experiments": len(problem.experiments)}
+        for entry in posterior.summary():
+            summary[f"mean[{entry.name}]"] = entry.mean
+            summary[f"sd[{entry.name}]"] = entry.standard_deviation
+            summary[f"rhat[{entry.name}]"] = entry.rank_normalized_rhat
+        self._record(
+            "calibration",
+            f"posterior from {len(problem.experiments)} experiments",
+            summary,
+            max(self._model.evaluations - before, posterior.evaluations),
+            stream,
+            posterior,
+        )
+        return posterior
+
+    def predict(
+        self,
+        quantities: Sequence[str] | None = None,
+        conditions: Sequence[Mapping[str, float]] = ({},),
+        *,
+        include_noise: bool = False,
+        max_draws: int | None = 1000,
+    ) -> PosteriorPrediction:
+        """Push the latest posterior through the forward model.
+
+        Args:
+            quantities: QoIs to predict (all observed QoIs by default).
+            conditions: Prediction conditions.
+            include_noise: Add observation noise to the predictive draws.
+            max_draws: Cap on posterior draws propagated.
+
+        Returns:
+            Posterior prediction separating latent and observed uncertainty.
+
+        Raises:
+            RuntimeError: If :meth:`calibrate` has not been run.
+
+        Equation:
+            [EQ-BAYES-PRED-001].
+
+        References:
+            [REF-GELMAN-ETAL-2013, Section 1.3].
+
+        """
+        if self._problem is None or self._posterior is None:
+            raise RuntimeError("run calibrate() before predict()")
+        stream = self.stream("prediction")
+        result = predict(
+            self._problem,
+            self._posterior,
+            quantities,
+            conditions,
+            include_noise=include_noise,
+            max_draws=max_draws,
+            seed=stream,
+        )
+        summary: dict[str, float | str] = {"draws": result.draws}
+        for index, item in enumerate(result.predictions):
+            summary[f"mean[{item.quantity}#{index}]"] = item.mean
+            summary[f"q_low[{item.quantity}#{index}]"] = item.latent_quantiles[0]
+            summary[f"q_high[{item.quantity}#{index}]"] = item.latent_quantiles[-1]
+        self._record(
+            "prediction",
+            f"posterior predictive for {len(result.predictions)} targets",
+            summary,
+            result.evaluations,
+            stream,
+            result,
+        )
+        return result
+
+    def emulate(
+        self,
+        quantity: str,
+        *,
+        method: Literal["pce", "gp"] = "pce",
+        degree: int = 3,
+        size: int | None = None,
+    ) -> UQStudy:
+        """Fit a surrogate of one QoI and return a study on the surrogate.
+
+        The returned study shares this study's joint input law and draws its
+        streams from a child of this study's root, so expensive analyses
+        (large propagation, reliability, Sobol) can run on the emulator while
+        this study records the training cost and accuracy.
+
+        Args:
+            quantity: QoI to emulate.
+            method: Polynomial chaos (``pce``) or Gaussian process (``gp``).
+            degree: PCE total degree (ignored for GP).
+            size: Training-design size (defaults: PCE chooses from the number
+                of terms; GP uses ten points per input).
+
+        Returns:
+            New study whose model evaluates the surrogate.
+
+        Raises:
+            ValueError: If ``method`` is unknown.
+
+        Equation:
+            [EQ-UQ-001].
+
+        References:
+            [REF-SUDRET-2007, Chapter 4], [REF-RASMUSSEN-WILLIAMS-2006].
+
+        """
+        stream = self.stream("emulation")
+        before = self._model.evaluations
+        accuracy: dict[str, float | str]
+        if method == "pce":
+            fitted: Any = fit_polynomial_chaos(
+                self._model, quantity, degree=degree, size=size, seed=stream
+            )
+            accuracy = {"loo_error": fitted.loo_error, "terms": float(fitted.size)}
+        elif method == "gp":
+            fitted = fit_gaussian_process_to_model(
+                self._model,
+                quantity,
+                size=size or 10 * self._model.dimension,
+                seed=stream,
+            )
+            accuracy = {"log_marginal_likelihood": fitted.log_marginal_likelihood}
+        else:
+            raise ValueError("method must be pce or gp")
+        surrogate = surrogate_probabilistic_model(
+            self._model, {quantity: fitted}, name=f"{self._model.name}-{method}"
+        )
+        summary: dict[str, float | str] = {"method": method, "quantity": quantity}
+        summary.update(accuracy)
+        self._record(
+            "emulation",
+            f"{method.upper()} surrogate of {quantity}",
+            summary,
+            self._model.evaluations - before,
+            stream,
+            fitted,
+        )
+        return UQStudy(surrogate, seed=stream.child("surrogate-study"))
 
     def report(self) -> str:
         """Return a Markdown report of every stage with costs and seeds.

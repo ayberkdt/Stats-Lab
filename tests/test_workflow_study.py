@@ -93,5 +93,67 @@ class StudyTests(unittest.TestCase):
             self.assertTrue(all(path.stat().st_size > 1000 for path in paths))
 
 
+class CalibrationAndEmulationTests(unittest.TestCase):
+    """Backward modeling and surrogates inside the same study."""
+
+    def test_calibrate_then_predict_closes_the_loop(self) -> None:
+        """Calibration recovers a decay rate and prediction uses the posterior."""
+        from probstat.distributions import Uniform
+        from probstat.inverse import Experiment, NoiseModel
+
+        inputs = JointInput.independent(
+            RandomInput("A", Uniform(2.0, 8.0)), RandomInput("k", Uniform(0.05, 1.0))
+        )
+
+        def decay(p):
+            """Return the decayed amplitude at time t."""
+            return {"y": p["A"] * math.exp(-p["k"] * p["t"])}
+
+        model = ProbabilisticModel(
+            inputs, decay, (QuantityOfInterest("y", "amplitude"),), fixed={"t": 0.0}
+        )
+        times = (0.0, 1.0, 2.0, 4.0, 6.0, 8.0)
+        noise_free = (5.0 * math.exp(-0.3 * t) for t in times)
+        offsets = (0.04, -0.03, 0.05, -0.02, 0.01, -0.04)
+        experiments = tuple(
+            Experiment({"y": value + offset}, {"t": t})
+            for value, offset, t in zip(noise_free, offsets, times, strict=True)
+        )
+        study = UQStudy(model, seed=4)
+        posterior = study.calibrate(
+            experiments,
+            (NoiseModel("y", standard_deviation=0.05),),
+            draws=600,
+            warmup=600,
+            chains=2,
+        )
+        means = posterior.mean()
+        self.assertAlmostEqual(means["k"], 0.3, delta=0.03)
+        self.assertAlmostEqual(means["A"], 5.0, delta=0.2)
+        prediction = study.predict(conditions=({"t": 10.0},), max_draws=200)
+        expected = 5.0 * math.exp(-3.0)
+        self.assertAlmostEqual(prediction.predictions[0].mean, expected, delta=0.06)
+        self.assertEqual(
+            [record.stage for record in study.records], ["calibration", "prediction"]
+        )
+
+    def test_emulated_study_matches_original_reliability(self) -> None:
+        """A PCE emulator reproduces the failure probability far more cheaply."""
+        original = UQStudy(capacity_model(), seed=8)
+        emulated = original.emulate("g", method="pce", degree=3)
+        emulator_record = original.latest("emulation")
+        self.assertLess(emulator_record.summary["loo_error"], 1e-3)
+        reference = original.reliability(
+            "g", 0.0, methods=("mc",), monte_carlo_samples=20_000
+        )
+        cheap = emulated.reliability(
+            "g", 0.0, methods=("mc",), monte_carlo_samples=20_000
+        )
+        self.assertAlmostEqual(
+            cheap.row("MC").probability, reference.row("MC").probability, delta=0.004
+        )
+        self.assertLess(emulator_record.evaluations, 200)
+
+
 if __name__ == "__main__":
     unittest.main()
