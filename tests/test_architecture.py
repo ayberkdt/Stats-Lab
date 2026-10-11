@@ -20,6 +20,7 @@ LAYER = {
     "probstat.inference": 2,
     "probstat.multivariate": 2,
     "probstat.uq": 2,
+    "probstat.processes": 2,
     "probstat.monte_carlo": 3,
     "probstat.modeling": 3,
     "probstat.propagation": 4,

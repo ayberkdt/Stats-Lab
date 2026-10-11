@@ -711,3 +711,53 @@ Machine Learning*. MIT Press, 2006.
 NIST Digital Library of Mathematical Functions, Chapter 18, "Orthogonal
 Polynomials." National Institute of Standards and Technology.
 [https://dlmf.nist.gov/18](https://dlmf.nist.gov/18).
+
+## REF-NORRIS-1997
+
+J. R. Norris. *Markov Chains*. Cambridge Series in Statistical and
+Probabilistic Mathematics. Cambridge University Press, 1997.
+
+## REF-KEMENY-SNELL-1976
+
+John G. Kemeny and J. Laurie Snell. *Finite Markov Chains*. Undergraduate
+Texts in Mathematics. Springer-Verlag, 1976 (reprint of the 1960 Van
+Nostrand edition).
+
+## REF-KLOEDEN-PLATEN-1992
+
+Peter E. Kloeden and Eckhard Platen. *Numerical Solution of Stochastic
+Differential Equations*. Applications of Mathematics 23. Springer-Verlag,
+1992.
+
+## REF-HIGHAM-2001
+
+Desmond J. Higham. "An Algorithmic Introduction to Numerical Simulation of
+Stochastic Differential Equations." *SIAM Review* 43(3), 525-546, 2001.
+
+## REF-GLASSERMAN-2003
+
+Paul Glasserman. *Monte Carlo Methods in Financial Engineering*. Applications
+of Mathematics 53. Springer, 2003.
+
+## REF-GILLESPIE-1996
+
+Daniel T. Gillespie. "Exact Numerical Simulation of the Ornstein-Uhlenbeck
+Process and Its Integral." *Physical Review E* 54(2), 2084-2091, 1996.
+
+## REF-GHANEM-SPANOS-1991
+
+Roger G. Ghanem and Pol D. Spanos. *Stochastic Finite Elements: A Spectral
+Approach*. Springer-Verlag, 1991.
+
+## REF-LEMAITRE-KNIO-2010
+
+Olivier P. Le Maître and Omar M. Knio. *Spectral Methods for Uncertainty
+Quantification: With Applications to Computational Fluid Dynamics*.
+Scientific Computation. Springer, 2010.
+
+## REF-SUDRET-DERKIUREGHIAN-2000
+
+Bruno Sudret and Armen Der Kiureghian. *Stochastic Finite Element Methods and
+Reliability: A State-of-the-Art Report*. Report UCB/SEMM-2000/08, Department
+of Civil and Environmental Engineering, University of California, Berkeley,
+2000.
