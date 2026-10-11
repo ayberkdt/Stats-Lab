@@ -711,3 +711,114 @@ Machine Learning*. MIT Press, 2006.
 NIST Digital Library of Mathematical Functions, Chapter 18, "Orthogonal
 Polynomials." National Institute of Standards and Technology.
 [https://dlmf.nist.gov/18](https://dlmf.nist.gov/18).
+
+## REF-STUDENT-1908
+
+Student (William Sealy Gosset). "The Probable Error of a Mean." *Biometrika*
+6(1), 1-25, 1908.
+
+## REF-WELCH-1947
+
+B. L. Welch. "The Generalization of 'Student's' Problem When Several Different
+Population Variances Are Involved." *Biometrika* 34(1-2), 28-35, 1947.
+
+## REF-SATTERTHWAITE-1946
+
+F. E. Satterthwaite. "An Approximate Distribution of Estimates of Variance
+Components." *Biometrics Bulletin* 2(6), 110-114, 1946.
+
+## REF-EFRON-1979
+
+Bradley Efron. "Bootstrap Methods: Another Look at the Jackknife." *The Annals
+of Statistics* 7(1), 1-26, 1979.
+
+## REF-EFRON-1987
+
+Bradley Efron. "Better Bootstrap Confidence Intervals." *Journal of the
+American Statistical Association* 82(397), 171-185, 1987.
+
+## REF-DAVISON-HINKLEY-1997
+
+A. C. Davison and D. V. Hinkley. *Bootstrap Methods and Their Application*.
+Cambridge University Press, 1997.
+
+## REF-GOOD-2005
+
+Phillip I. Good. *Permutation, Parametric, and Bootstrap Tests of
+Hypotheses*. 3rd edition. Springer, 2005.
+
+## REF-PHIPSON-SMYTH-2010
+
+Belinda Phipson and Gordon K. Smyth. "Permutation P-values Should Never Be
+Zero: Calculating Exact P-values When Permutations Are Randomly Drawn."
+*Statistical Applications in Genetics and Molecular Biology* 9(1), Article 39,
+2010.
+
+## REF-AGRESTI-2013
+
+Alan Agresti. *Categorical Data Analysis*. 3rd edition. Wiley, 2013.
+
+## REF-COCHRAN-1954
+
+William G. Cochran. "Some Methods for Strengthening the Common chi-squared
+Tests." *Biometrics* 10(4), 417-451, 1954.
+
+## REF-CLOPPER-PEARSON-1934
+
+C. J. Clopper and E. S. Pearson. "The Use of Confidence or Fiducial Limits
+Illustrated in the Case of the Binomial." *Biometrika* 26(4), 404-413, 1934.
+
+## REF-MANN-WHITNEY-1947
+
+H. B. Mann and D. R. Whitney. "On a Test of Whether One of Two Random
+Variables Is Stochastically Larger than the Other." *The Annals of
+Mathematical Statistics* 18(1), 50-60, 1947.
+
+## REF-WILCOXON-1945
+
+Frank Wilcoxon. "Individual Comparisons by Ranking Methods." *Biometrics
+Bulletin* 1(6), 80-83, 1945.
+
+## REF-LEHMANN-ROMANO-2005
+
+E. L. Lehmann and Joseph P. Romano. *Testing Statistical Hypotheses*. 3rd
+edition. Springer, 2005.
+
+## REF-COHEN-1988
+
+Jacob Cohen. *Statistical Power Analysis for the Behavioral Sciences*. 2nd
+edition. Lawrence Erlbaum Associates, 1988.
+
+## REF-HEDGES-1981
+
+Larry V. Hedges. "Distribution Theory for Glass's Estimator of Effect Size
+and Related Estimators." *Journal of Educational Statistics* 6(2), 107-128,
+1981.
+
+## REF-JOHNSON-KOTZ-BALAKRISHNAN-1995
+
+Norman L. Johnson, Samuel Kotz, and N. Balakrishnan. *Continuous Univariate
+Distributions, Volume 2*. 2nd edition. Wiley, 1995.
+
+## REF-HOLM-1979
+
+Sture Holm. "A Simple Sequentially Rejective Multiple Test Procedure."
+*Scandinavian Journal of Statistics* 6(2), 65-70, 1979.
+
+## REF-BENJAMINI-HOCHBERG-1995
+
+Yoav Benjamini and Yosef Hochberg. "Controlling the False Discovery Rate: A
+Practical and Powerful Approach to Multiple Testing." *Journal of the Royal
+Statistical Society, Series B* 57(1), 289-300, 1995.
+
+## REF-BENJAMINI-YEKUTIELI-2001
+
+Yoav Benjamini and Daniel Yekutieli. "The Control of the False Discovery Rate
+in Multiple Testing under Dependency." *The Annals of Statistics* 29(4),
+1165-1188, 2001.
+
+## REF-SCHUIRMANN-1987
+
+Donald J. Schuirmann. "A Comparison of the Two One-Sided Tests Procedure and
+the Power Approach for Assessing the Equivalence of Average Bioavailability."
+*Journal of Pharmacokinetics and Biopharmaceutics* 15(6), 657-680, 1987.
