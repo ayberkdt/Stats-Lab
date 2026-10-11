@@ -6618,3 +6618,180 @@ interval contains one.
 - Code: `causal.risk_ratio_from_odds_ratio`,
   `causal.risk_ratio_from_standardized_difference`.
 - Source: [REF-VANDERWEELE-DING-2017].
+
+## Optimal and Bayesian experimental design
+
+### EQ-OED-INFO-001 — Information matrix of an approximate design
+
+`M(xi) = sum_i w_i f(x_i) f(x_i)'` for the design
+`xi = {(x_i, w_i)}`, `w_i >= 0`, `sum_i w_i = 1`; an exact design with
+`n_i` runs at `x_i` has `w_i = n_i / n` and Fisher information
+`n M(xi) / sigma^2`.
+
+- Domain: regression model `E[y|x] = f(x)' beta` with independent
+  homoscedastic errors; `f: X -> R^p`.
+- Meaning: the per-run information about `beta`; `sigma^2 M^-1 / n` is the
+  covariance of the least-squares estimate.
+- Code: `design.information_matrix`, `design.ApproximateDesign`,
+  `design.ExactDesign.as_approximate`.
+- Source: [REF-ATKINSON-DONEV-TOBIAS-2007], [REF-FEDOROV-1972].
+
+### EQ-OED-CRIT-001 — D-, A-, E-, and I-optimality criteria
+
+`D: max log det M`; `A: min tr M^-1`; `E: max lambda_min(M)`;
+`I: min (1/K) sum_k f(z_k)' M^-1 f(z_k) = tr(M^-1 M_Z)` over region points
+`z_k`. D-efficiency `(det M(xi) / det M(xi_ref))^(1/p)`.
+
+- Domain: [EQ-OED-INFO-001]; singular `M` gives `D = -inf`, `A = I = inf`.
+- Meaning: D shrinks the confidence-ellipsoid volume, A the average
+  parameter variance, E the worst-direction variance, I the average
+  prediction variance over the region.
+- Code: `design.design_criterion`, `design.d_efficiency`.
+- Source: [REF-ATKINSON-DONEV-TOBIAS-2007], [REF-FEDOROV-1972].
+
+### EQ-OED-KW-001 — Kiefer-Wolfowitz equivalence theorem
+
+`d(x, xi) = f(x)' M(xi)^-1 f(x)`; `sum_i w_i d(x_i, xi) = p`, so
+`max_x d(x, xi) >= p`, with equality iff `xi` is D-optimal (equivalently
+G-optimal); then `d(x_i, xi) = p` on the support. Concavity of `log det`
+gives `log det M* - log det M(xi) <= max_x d(x, xi) - p`, i.e. D-efficiency
+`>= exp(1 - max_x d / p)`.
+
+- Domain: [EQ-OED-INFO-001] with nonsingular `M(xi)`; the maximum is over
+  the design space (here a finite candidate set).
+- Meaning: a computable certificate of optimality and an efficiency bound
+  for any design.
+- Code: `design.equivalence_check`, `design.standardized_variances`,
+  `design.OptimalDesignResult.equivalence`.
+- Source: [REF-KIEFER-WOLFOWITZ-1960], [REF-ATKINSON-DONEV-TOBIAS-2007].
+
+### EQ-OED-MULT-001 — Multiplicative algorithm for D-optimal weights
+
+`w_i^(t+1) = w_i^(t) d(x_i, w^(t)) / p` on a finite candidate set; stop when
+`max_i d(x_i, w) <= p (1 + tol)`.
+
+- Domain: all starting weights positive with nonsingular `M`.
+- Meaning: weights grow where the prediction variance exceeds `p` and shrink
+  elsewhere; they stay normalized because `sum_i w_i d_i = p`, and
+  `log det M` increases monotonically.
+- Code: `design.d_optimal_design(method="multiplicative")`.
+- Source: [REF-SILVEY-TITTERINGTON-TORSNEY-1978],
+  [REF-ATKINSON-DONEV-TOBIAS-2007].
+
+### EQ-OED-FW-001 — Fedorov-Wynn vertex-direction step
+
+`x* = argmax_x d(x, xi_t)`, `xi_(t+1) = (1 - alpha) xi_t + alpha delta_x*`,
+`alpha = (d(x*) - p) / ((d(x*) - 1) p)`, so
+`M_(t+1) = (1 - alpha) M_t + alpha f(x*) f(x*)'`.
+
+- Domain: [EQ-OED-INFO-001], nonsingular `M_t`, `d(x*) > p`.
+- Meaning: move mass toward the point of largest prediction variance; the
+  step is the exact maximizer of `log det` along that direction (Wynn's
+  sequential version uses `alpha_t = 1/(t+1)`).
+- Code: `design.d_optimal_design(method="fedorov-wynn")`.
+- Source: [REF-FEDOROV-1972], [REF-WYNN-1970].
+
+### EQ-OED-ROUND-001 — Efficient rounding to an exact design
+
+With `l` support points start at `n_i = ceil((n - l/2) w_i)`; while
+`sum n_i < n` increment `argmin_j n_j / w_j`; while `sum n_i > n`
+decrement `argmax_j (n_j - 1) / w_j`.
+
+- Domain: approximate design with positive weights; integer `n >= 1`.
+- Meaning: the apportionment with the smallest efficiency loss for a wide
+  class of criteria.
+- Code: `design.efficient_rounding`.
+- Source: [REF-PUKELSHEIM-RIEDER-1992].
+
+### EQ-OED-EXCH-001 — Fedorov exchange for exact designs
+
+Replace one run `x_i` by a candidate `x` when
+`log det M(xi_n - delta_x_i/n + delta_x/n) > log det M(xi_n)`; apply the
+best exchange of each pass until none improves.
+
+- Domain: exact `n`-run design with nonsingular `M`; finite candidates.
+- Meaning: monotone local search among exact designs; it stops at a design
+  no single exchange can improve.
+- Code: `design.exchange_exact_design`.
+- Source: [REF-FEDOROV-1972], [REF-ATKINSON-DONEV-TOBIAS-2007].
+
+### EQ-OED-LOCAL-001 — Local design basis of a nonlinear model
+
+`f(x) = d eta(x, theta) / d theta |_(theta_0)`. For
+`eta = A exp(-k t)` on `t in [0, T]`, `T >= 1/k`, two points with weights
+`1/2` give `det M = A^2 exp(-2k(t1 + t2)) (t2 - t1)^2 / 4`, maximized by
+`t1 = 0`, `t2 = 1/k`; the equivalence theorem confirms global D-optimality.
+
+- Domain: smooth `eta`; the design is optimal only at the nominal
+  `theta_0`, and here it does not depend on `A`.
+- Meaning: the asymptotic information of a nonlinear least-squares fit at
+  `theta_0` equals that of the linearized model.
+- Code: `design.LocalLinearization`.
+- Source: [REF-BOX-LUCAS-1959], [REF-ATKINSON-DONEV-TOBIAS-2007].
+
+### EQ-OED-EIG-001 — Expected information gain
+
+`EIG(D) = E_(theta, y | D)[log p(y | theta, D) - log p(y | D)]
+= I(theta; y | D) = E_y[KL(p(theta | y, D) || p(theta))]`.
+
+- Domain: proper prior, likelihood with a density; invariant under
+  bijective reparameterization of `theta`.
+- Meaning: the expected reduction of entropy about `theta` from the
+  experiment `D`; the Bayesian analogue of D-optimality.
+- Code: `design.expected_information_gain`, `design.greedy_design`,
+  `design.nested_monte_carlo_information_gain`.
+- Source: [REF-CHALONER-VERDINELLI-1995], [REF-COVER-THOMAS-2006, Chapter 2].
+
+### EQ-OED-EIG-LIN-001 — Closed-form EIG of a linear-Gaussian experiment
+
+For `y = J theta + e`, `theta ~ N(m, Sigma)`, `e ~ N(0, R)`:
+`EIG = 1/2 log det(I + Sigma J' R^-1 J) = 1/2 log det(I + B'B)`,
+`B = L_R^-1 J L_Sigma`.
+
+- Domain: SPD `Sigma`, `R`; independent of `m` and of the data.
+- Meaning: Bayesian D-optimality; prior entropy minus posterior entropy.
+- Code: `design.linear_gaussian_information_gain`,
+  `design.linearized_information_gain`.
+- Source: [REF-CHALONER-VERDINELLI-1995], [REF-COVER-THOMAS-2006, Chapter 8].
+
+### EQ-OED-LAP-001 — Laplace (Gauss-Newton) EIG in prior standard space
+
+With `u ~ N(0, I)`, `theta = T^-1(u)` (Nataf map) and whitened Jacobian
+`J_u = d[g(T^-1(u)) / s] / du`:
+`EIG ~= E_u[1/2 log det(I + J_u' J_u)]`, estimated by Monte Carlo over `u`.
+
+- Domain: known Gaussian noise; posterior approximately Gaussian with mode
+  near the data-generating `u`.
+- Meaning: prior entropy minus the expected Laplace posterior entropy;
+  exact for linear models with Gaussian priors.
+- Code: `design.laplace_information_gain`,
+  `design.linearized_information_gain`, `design.BayesianDesignProblem.standard_jacobian`.
+- Source: [REF-CHALONER-VERDINELLI-1995], [REF-TIERNEY-KADANE-1986].
+
+### EQ-OED-NMC-001 — Nested Monte Carlo EIG estimator
+
+`EIG_hat = (1/N) sum_n [log p(y_n | theta_n)
+- log((1/M) sum_m p(y_n | theta_(n,m)))]`, `theta_n ~ p(theta)`,
+`y_n ~ p(y | theta_n)`. Fresh inner draws: `E[EIG_hat] >= EIG`, bias
+`O(1/M)`, variance `O(1/N)`. Reusing the outer sample as inner sample
+(`theta_(n,m) = theta_m`, `M = N`): each term is a prior contrastive bound,
+`E[EIG_hat] <= EIG` and `EIG_hat <= log N`.
+
+- Domain: likelihood densities evaluable pointwise; Gaussian constants
+  cancel.
+- Meaning: consistent as `N, M -> inf`; reuse cuts model evaluations from
+  `N (1 + M)` to `N` per design condition at the price of a downward bias.
+- Code: `design.nested_monte_carlo_information_gain`.
+- Source: [REF-RYAN-2003], [REF-HUAN-MARZOUK-2013],
+  [REF-RAINFORTH-ETAL-2018], [REF-FOSTER-ETAL-2020].
+
+### EQ-OED-GREEDY-001 — Greedy sequential selection by EIG
+
+`c_(k+1) = argmax_(c in C) EIG(B + {c_1..c_k} + {c})`, and by the chain rule
+`EIG(D + {c}) - EIG(D) = I(theta; y_c | y_D)`.
+
+- Domain: finite candidate set `C`, baseline conditions `B`.
+- Meaning: each step buys the largest conditional information; myopic, so
+  not guaranteed optimal as a batch.
+- Code: `design.greedy_design`.
+- Source: [REF-CHALONER-VERDINELLI-1995], [REF-COVER-THOMAS-2006, Chapter 2].
