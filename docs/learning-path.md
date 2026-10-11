@@ -75,8 +75,12 @@ Statistical modelling and decision tools extend the same foundations:
   [experimental design](foundations/experimental-design.md): identification
   from graphs, effect estimation, and choosing the next experiment.
 - [Conformal prediction](foundations/conformal-prediction.md) and
-  [information theory](foundations/information-theory.md): distribution-free
-  prediction intervals and moment-independent dependence measures.
+  [forecast calibration](foundations/forecast-calibration.md):
+  distribution-free prediction intervals, proper scoring rules, PIT and
+  reliability diagrams, and distribution-shift tests.
+- [Information theory](foundations/information-theory.md) and
+  [optimal transport](foundations/optimal-transport.md): entropy and mutual
+  information, Wasserstein distances, and Fisher-Rao geometry.
 
 [The visual language](foundations/visual-language.md) explains how every
 figure encodes data, model, and uncertainty.
