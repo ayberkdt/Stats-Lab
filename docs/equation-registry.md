@@ -2005,3 +2005,393 @@ normal consistency.
 - Code: `statistics.ranks`, `statistics.spearman_correlation`,
   `propagation.PropagationStudy.rank_correlations`.
 - Source: [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 8].
+
+## State estimation, data assimilation, and surrogate models
+
+### EQ-FILT-SSM-001 — Linear-Gaussian state-space model
+
+`x_k = F x_(k-1) + B u_k + w_k`, `w_k ~ N(0,Q)`; `y_k = H x_k + v_k`,
+`v_k ~ N(0,R)`; `x_0 ~ N(m_0,P_0)`, with `w`, `v`, and `x_0` mutually
+independent.
+
+- Domain: `Q` and `P_0` symmetric positive semidefinite, `R` symmetric
+  positive definite, conformable `F`, `B`, `H`; observations `y_1..y_T`
+  follow the transitions.
+- Meaning: `Q` is process (dynamics) uncertainty that inflates predictions;
+  `R` is measurement uncertainty that limits how far one observation can move
+  the estimate.
+- Code: `filtering.LinearGaussianStateSpace`, `filtering.simulate`.
+- Source: [REF-KALMAN-1960] and [REF-SARKKA-2013, Chapter 4].
+
+### EQ-FILT-SSM-002 — Nonlinear additive-noise state-space model
+
+`x_k = f(x_(k-1)) + w_k`, `y_k = h(x_k) + v_k`, with Gaussian `w_k`, `v_k`,
+and `x_0` as in [EQ-FILT-SSM-001].
+
+- Domain: measurable `f` and `h`; differentiable where an extended filter
+  linearizes them.
+- Meaning: the common model consumed by extended, unscented, ensemble, and
+  particle methods.
+- Code: `filtering.NonlinearStateSpace`, `filtering.simulate`,
+  `data_assimilation.AdditiveGaussianModel`.
+- Source: [REF-SARKKA-2013, Chapters 4-5].
+
+### EQ-FILT-BAYES-001 — Sequential Bayesian filtering recursion
+
+Prediction (Chapman-Kolmogorov):
+`p(x_k|y_1:k-1) = integral p(x_k|x_(k-1)) p(x_(k-1)|y_1:k-1) dx_(k-1)`;
+update (Bayes): `p(x_k|y_1:k) ∝ p(y_k|x_k) p(x_k|y_1:k-1)`.
+
+- Domain: Markov states and observations conditionally independent given the
+  current state.
+- Meaning: every filter in the library is an exact or approximate
+  implementation of this two-step recursion; smoothing additionally conditions
+  on future data.
+- Code: `filtering.kalman_filter`, `filtering.bootstrap_particle_filter`,
+  `data_assimilation.ensemble_kalman_filter`.
+- Source: [REF-SARKKA-2013, Chapter 4].
+
+### EQ-FILT-KF-001 — Kalman prediction (covariance propagation)
+
+`m_k^- = F m_(k-1) + B u_k`, `P_k^- = F P_(k-1) F' + Q`.
+
+- Domain: [EQ-FILT-SSM-001].
+- Meaning: the Gaussian belief is pushed through the linear dynamics; the
+  congruence `F P F'` propagates covariance and `Q` adds new uncertainty.
+- Code: `filtering.kalman_predict`, `filtering.kalman_filter`.
+- Source: [REF-KALMAN-1960] and [REF-SARKKA-2013, Chapter 4].
+
+### EQ-FILT-KF-002 — Kalman measurement update
+
+`v_k = y_k - H m_k^-`, `S_k = H P_k^- H' + R`, `K_k = P_k^- H' S_k^-1`,
+`m_k = m_k^- + K_k v_k`.
+
+- Domain: [EQ-FILT-SSM-001] with positive-definite `S_k`.
+- Meaning: Gaussian conditioning on one new observation; the gain weighs the
+  innovation by the ratio of prediction to innovation uncertainty. The gain
+  is computed by Cholesky solves, never by explicit inversion.
+- Code: `filtering.kalman_update`, `filtering.linear_gaussian_update`,
+  `filtering.gain_from_cross_covariance`.
+- Source: [REF-KALMAN-1960] and [REF-SARKKA-2013, Chapter 4].
+
+### EQ-FILT-KF-003 — Joseph-form covariance update
+
+`P_k = (I - K_k H) P_k^- (I - K_k H)' + K_k R K_k'`.
+
+- Domain: any gain `K_k`; equals `(I - K_k H) P_k^-` for the optimal gain.
+- Meaning: a sum of congruences that stays symmetric positive semidefinite
+  under rounding and under suboptimal gains.
+- Code: `filtering.linear_gaussian_update`.
+- Source: [REF-SIMON-2006, Chapter 5] and
+  [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Chapter 5].
+
+### EQ-FILT-KF-004 — Innovation-form log marginal likelihood
+
+`log p(y_1:T) = sum_k [-(m/2) log 2pi - (1/2) log det S_k - (1/2) v_k' S_k^-1 v_k]`.
+
+- Domain: [EQ-FILT-SSM-001]; missing observations contribute zero.
+- Meaning: the prediction-error decomposition used for parameter estimation
+  and model comparison; exact for linear-Gaussian models and a linearized
+  approximation for EKF/UKF.
+- Code: `filtering.KalmanFilterResult.log_likelihood`,
+  `filtering.gaussian_log_density`.
+- Source: [REF-SARKKA-2013, Chapter 12].
+
+### EQ-FILT-KF-005 — Discrete Riccati steady state
+
+`P^- = F (P^- - P^- H' (H P^- H' + R)^-1 H P^-) F' + Q`, iterated from
+`F P_0 F' + Q`; `K = P^- H' (H P^- H' + R)^-1`. For the scalar random walk
+(`F = H = 1`) the fixed point is `P^- = (q + sqrt(q^2 + 4qr))/2`.
+
+- Domain: time-invariant model satisfying the usual detectability and
+  stabilizability conditions.
+- Meaning: the gain and covariance a long-running filter settles to;
+  non-convergence is reported, not raised.
+- Code: `filtering.steady_state_kalman`.
+- Source: [REF-SIMON-2006, Chapter 7] and
+  [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Chapter 5].
+
+### EQ-FILT-RTS-001 — Rauch-Tung-Striebel smoother
+
+`G_k = C_(k+1) (P_(k+1)^-)^-1` with `C_(k+1) = Cov(x_k, x_(k+1)|y_1:k)`
+(`= P_k F'` for linear dynamics), `m_k^s = m_k + G_k (m_(k+1)^s - m_(k+1)^-)`,
+`P_k^s = P_k + G_k (P_(k+1)^s - P_(k+1)^-) G_k'`.
+
+- Domain: positive-definite predicted covariances.
+- Meaning: the backward pass that yields `p(x_k|y_1:T)`; it uses future data
+  and so never has larger marginal variance than the filter. The same
+  recursion smooths EKF (Jacobian) and UKF (sigma-point) outputs.
+- Code: `filtering.rts_smoother`.
+- Source: [REF-RAUCH-TUNG-STRIEBEL-1965] and [REF-SARKKA-2013, Chapters 8-9].
+
+### EQ-FILT-EKF-001 — Extended Kalman filter linearization
+
+`m_k^- = f(m_(k-1))`, `P_k^- = F_x P_(k-1) F_x' + Q` with
+`F_x = df/dx(m_(k-1))`; update [EQ-FILT-KF-002]/[EQ-FILT-KF-003] with
+`y_hat = h(m_k^-)` and `H_x = dh/dx(m_k^-)`.
+
+- Domain: [EQ-FILT-SSM-002] with differentiable maps; Jacobians analytic or by
+  central differences [EQ-OPT-FD-001].
+- Meaning: first-order Taylor approximation of the nonlinear model; exact for
+  linear models, biased when curvature matters on the scale of `P`.
+- Code: `filtering.extended_kalman_filter`,
+  `filtering.NonlinearStateSpace.transition_jacobian`,
+  `filtering.NonlinearStateSpace.observation_jacobian`.
+- Source: [REF-SARKKA-2013, Chapter 5] and [REF-SIMON-2006, Chapter 13].
+
+### EQ-FILT-UKF-001 — Scaled unscented transform
+
+`lambda = alpha^2 (n + kappa) - n`; sigma points `chi_0 = m`,
+`chi_(i), chi_(n+i) = m +/- sqrt(n + lambda) L_i` with `P = L L'`;
+`W_0^m = lambda/(n+lambda)`, `W_0^c = W_0^m + 1 - alpha^2 + beta`,
+`W_i^m = W_i^c = 1/(2(n+lambda))`; `mu = sum W_i^m g(chi_i)`,
+`Sigma = sum W_i^c (g(chi_i)-mu)(g(chi_i)-mu)'`,
+`C = sum W_i^c (chi_i - m)(g(chi_i)-mu)'`.
+
+- Domain: `n + lambda > 0` and positive-semidefinite `P`.
+- Meaning: deterministic moment matching; exact mean and covariance for linear
+  `g`, exact mean for quadratic `g`.
+- Code: `filtering.UnscentedWeights`, `filtering.unscented_transform`.
+- Source: [REF-JULIER-UHLMANN-2004] and [REF-SARKKA-2013, Chapter 5].
+
+### EQ-FILT-UKF-002 — Unscented Kalman filter step
+
+Prediction: [EQ-FILT-UKF-001] on `f` plus `Q`. Update: [EQ-FILT-UKF-001] on
+`h` gives `mu`, `S = Sigma + R`, `C`; `K = C S^-1`, `m = m^- + K(y - mu)`,
+`P = P^- - K S K'`.
+
+- Domain: additive noise; negative `W_0^c` can make covariances indefinite,
+  which raises instead of being repaired.
+- Meaning: a derivative-free Gaussian filter for nonlinear models.
+- Code: `filtering.unscented_kalman_filter`, `filtering.unscented_update`.
+- Source: [REF-JULIER-UHLMANN-2004] and [REF-SARKKA-2013, Chapter 5].
+
+### EQ-FILT-PF-001 — Bootstrap particle filter
+
+`x_k^i = f(x_(k-1)^i) + w_k^i`, `w_k^i ~ N(0,Q)`;
+`W_k^i ∝ W_(k-1)^i N(y_k; h(x_k^i), R)`;
+`p_hat(y_k|y_1:k-1) = sum_i W_(k-1)^i N(y_k; h(x_k^i), R)` with normalized
+previous weights.
+
+- Domain: [EQ-FILT-SSM-002]; any posterior shape.
+- Meaning: sequential importance sampling with the transition prior as the
+  proposal; the product of the increments is an unbiased likelihood estimate
+  whose logarithm is biased downward.
+- Code: `filtering.bootstrap_particle_filter`,
+  `filtering.ParticleFilterResult.log_likelihood`.
+- Source: [REF-GORDON-SALMOND-SMITH-1993] and [REF-DOUCET-JOHANSEN-2011].
+
+### EQ-FILT-PF-002 — Effective sample size
+
+`ESS = 1 / sum_i (W^i)^2` for normalized weights.
+
+- Domain: non-negative weights with positive sum; `1 <= ESS <= N`.
+- Meaning: weight-degeneracy diagnostic; resampling runs when
+  `ESS < threshold * N`.
+- Code: `filtering.effective_sample_size`.
+- Source: [REF-DOUCET-JOHANSEN-2011].
+
+### EQ-FILT-PF-003 — Systematic resampling
+
+With one `U ~ Uniform[0,1)`, ancestor `j` is the smallest `i` with
+`sum_(l<=i) W^l > (U + j)/N`, `j = 0..N-1`.
+
+- Domain: normalized weights.
+- Meaning: each particle receives `floor(N W^i)` or `ceil(N W^i)` copies with
+  expected count `N W^i`, with less resampling noise than multinomial draws.
+- Code: `filtering.systematic_resample`.
+- Source: [REF-KITAGAWA-1996] and [REF-DOUCET-JOHANSEN-2011].
+
+### EQ-DA-ENKF-001 — Stochastic ensemble Kalman analysis
+
+`C_xy = (N-1)^-1 sum_i (x_i^f - xbar)(h(x_i^f) - hbar)'`,
+`C_yy = (N-1)^-1 sum_i (h(x_i^f) - hbar)(h(x_i^f) - hbar)'`,
+`K = C_xy (C_yy + R)^-1`, `x_i^a = x_i^f + K (y + e_i - h(x_i^f))`,
+`e_i ~ N(0,R)`.
+
+- Domain: at least two members; `C_yy + R` positive definite.
+- Meaning: Monte Carlo Kalman update; perturbing the observations keeps the
+  analysis spread consistent with the Kalman covariance in expectation. For
+  linear `h` and `N -> infinity` it converges to the Kalman filter.
+- Code: `data_assimilation.ensemble_analysis`,
+  `data_assimilation.ensemble_forecast`,
+  `data_assimilation.ensemble_kalman_filter`.
+- Source: [REF-EVENSEN-1994], [REF-BURGERS-VANLEEUWEN-EVENSEN-1998], and
+  [REF-EVENSEN-2003].
+
+### EQ-DA-ENKF-002 — Ensemble moments and multiplicative inflation
+
+`xbar = N^-1 sum_i x_i`, `P_e = (N-1)^-1 sum_i (x_i - xbar)(x_i - xbar)'`;
+inflation `x_i <- xbar + sqrt(lambda)(x_i - xbar)` gives
+`P_e <- lambda P_e`, `lambda >= 1`.
+
+- Domain: at least two members.
+- Meaning: `P_e` has rank at most `N - 1` and relative error of order
+  `N^-1/2`; inflation is an explicit, user-declared counter-measure against the
+  resulting under-dispersion.
+- Code: `data_assimilation.Ensemble.mean`, `data_assimilation.Ensemble.covariance`,
+  `data_assimilation.inflate`.
+- Source: [REF-EVENSEN-2003].
+
+### EQ-DA-3DVAR-001 — Three-dimensional variational cost
+
+`J(x) = (1/2)(x - x_b)' B^-1 (x - x_b) + (1/2)(y - h(x))' R^-1 (y - h(x))`,
+`grad J = B^-1 (x - x_b) - H_x' R^-1 (y - h(x))`; analysis covariance
+`(B^-1 + H_x' R^-1 H_x)^-1`.
+
+- Domain: positive-definite `B` and `R`; differentiable `h`.
+- Meaning: the MAP state of a Gaussian background and Gaussian observation
+  error; equals one Kalman update for linear `h`, but `B` is a static input
+  rather than a propagated covariance.
+- Code: `data_assimilation.three_dimensional_variational`.
+- Source: [REF-LORENC-1986].
+
+### EQ-SUR-PCE-001 — Polynomial chaos expansion
+
+`Y ~= sum_(alpha in A) c_alpha Psi_alpha(xi)`,
+`Psi_alpha(xi) = prod_i psi_(alpha_i)(xi_i)`, with
+`E[Psi_alpha Psi_beta] = delta_(alpha beta)` under independent `xi`.
+`xi = u` (Nataf standard normals, [EQ-MOD-NATAF-001]) for the Hermite basis;
+`xi_i = (2 x_i - a_i - b_i)/(b_i - a_i)` for independent `Uniform(a_i,b_i)`
+inputs and the Legendre basis.
+
+- Domain: square-integrable output; Legendre requires independent uniform
+  inputs.
+- Meaning: spectral surrogate whose coefficients encode moments and variance
+  decomposition.
+- Code: `surrogates.PolynomialChaosExpansion.predict`,
+  `surrogates.PolynomialChaosExpansion.basis_values`.
+- Source: [REF-XIU-KARNIADAKIS-2002] and [REF-SUDRET-2008].
+
+### EQ-SUR-PCE-002 — Orthonormal probabilists' Hermite recurrence
+
+`psi_0 = 1`, `psi_1 = x`, `psi_(n+1) = (x psi_n - sqrt(n) psi_(n-1))/sqrt(n+1)`,
+i.e. `psi_n = He_n / sqrt(n!)`.
+
+- Domain: real `x`; orthonormal under `N(0,1)`.
+- Meaning: Wiener-Askey basis for Gaussian variables.
+- Code: `surrogates.hermite_orthonormal`.
+- Source: [REF-XIU-KARNIADAKIS-2002] and [REF-NIST-DLMF-ORTHOGONAL].
+
+### EQ-SUR-PCE-003 — Orthonormal Legendre recurrence
+
+`(n+1) P_(n+1) = (2n+1) x P_n - n P_(n-1)`, `psi_n = sqrt(2n+1) P_n`.
+
+- Domain: `x in [-1,1]`; orthonormal under `Uniform(-1,1)`.
+- Meaning: Wiener-Askey basis for uniform variables.
+- Code: `surrogates.legendre_orthonormal`.
+- Source: [REF-XIU-KARNIADAKIS-2002] and [REF-NIST-DLMF-ORTHOGONAL].
+
+### EQ-SUR-PCE-004 — Total-degree and hyperbolic truncation
+
+`A_(p,q) = {alpha in N^d : (sum_i alpha_i^q)^(1/q) <= p}`, `0 < q <= 1`;
+`|A_(p,1)| = C(d+p, p)`.
+
+- Domain: `d >= 1`, `p >= 0`.
+- Meaning: `q = 1` keeps all terms up to total degree `p`; `q < 1` drops
+  high-order interactions first (sparsity-of-effects).
+- Code: `surrogates.multi_indices`.
+- Source: [REF-BLATMAN-SUDRET-2011].
+
+### EQ-SUR-PCE-005 — Least-squares PCE coefficients
+
+`c = argmin sum_j (y_j - Psi(x_j)'c)^2 = (Psi' Psi)^-1 Psi' y`, solved by a
+Cholesky factorization of the information matrix `Psi' Psi`.
+
+- Domain: more design points than basis terms and a positive-definite
+  information matrix; `Psi' Psi / N` near the identity indicates a
+  well-conditioned design.
+- Meaning: non-intrusive regression fit on an experimental design drawn from
+  the input law.
+- Code: `surrogates.polynomial_chaos_from_samples`,
+  `surrogates.fit_polynomial_chaos`, `surrogates.normalized_information_matrix`.
+- Source: [REF-BLATMAN-SUDRET-2011] and [REF-SUDRET-2008].
+
+### EQ-SUR-PCE-006 — Closed-form leave-one-out error
+
+`Delta_j = (y_j - y_hat_j)/(1 - h_j)`, `h_j = psi_j' (Psi' Psi)^-1 psi_j`;
+`epsilon_LOO = N^-1 sum_j Delta_j^2 / Var_hat(y)`.
+
+- Domain: [EQ-SUR-PCE-005] with `h_j < 1`.
+- Meaning: generalization-error estimate from one fit, no extra model runs.
+- Code: `surrogates.PolynomialChaosExpansion.loo_error`.
+- Source: [REF-BLATMAN-SUDRET-2011].
+
+### EQ-SUR-PCE-007 — PCE moments
+
+`E[Y] = c_0`, `Var[Y] = sum_(alpha != 0) c_alpha^2`.
+
+- Domain: orthonormal basis with `Psi_0 = 1`.
+- Meaning: moments of the surrogate obtained without sampling.
+- Code: `surrogates.PolynomialChaosExpansion.mean`,
+  `surrogates.PolynomialChaosExpansion.variance`.
+- Source: [REF-SUDRET-2008].
+
+### EQ-SUR-PCE-008 — Sobol indices from PCE coefficients
+
+`S_u = sum_(alpha in A_u) c_alpha^2 / Var[Y]` with
+`A_u = {alpha : alpha_i > 0 iff i in u}`;
+`S_Ti = sum_(alpha : alpha_i > 0) c_alpha^2 / Var[Y]`.
+
+- Domain: independent inputs (the PCE terms are then the ANOVA components).
+- Meaning: analytic first-, second-, and total-order indices of the surrogate
+  at no extra model cost.
+- Code: `surrogates.PolynomialChaosExpansion.sobol_indices`.
+- Source: [REF-SUDRET-2008].
+
+### EQ-SUR-GP-001 — Squared-exponential ARD kernel
+
+`k(x,x') = sigma_f^2 exp(-r^2/2)`, `r^2 = sum_i ((x_i - x'_i)/ell_i)^2`.
+
+- Domain: `sigma_f^2 > 0`, `ell_i > 0`.
+- Meaning: infinitely smooth stationary prior with one length scale per input.
+- Code: `surrogates.kernel_value`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
+
+### EQ-SUR-GP-002 — Matern-5/2 ARD kernel
+
+`k(x,x') = sigma_f^2 (1 + sqrt(5) r + 5 r^2/3) exp(-sqrt(5) r)`.
+
+- Domain: as [EQ-SUR-GP-001].
+- Meaning: twice mean-square differentiable prior, often more realistic than
+  the squared exponential for simulator outputs.
+- Code: `surrogates.kernel_value`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
+
+### EQ-SUR-GP-003 — GP predictive mean and variance
+
+`K = K_f + sigma_n^2 I = L L'`, `alpha = K^-1 y`;
+`mu(x*) = k*' alpha`, `sigma^2(x*) = k(x*,x*) - v'v`, `v = L^-1 k*`
+(plus `sigma_n^2` for a new noisy observation); outputs are standardized
+before and de-standardized after.
+
+- Domain: positive-definite `K`; `sigma_n^2` includes the explicit nugget.
+- Meaning: posterior Gaussian law of the latent function at a new input.
+- Code: `surrogates.GaussianProcessRegression.predict_with_variance`,
+  `surrogates.GaussianProcessRegression.predict`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Algorithm 2.1].
+
+### EQ-SUR-GP-004 — GP log marginal likelihood and gradient
+
+`log p(y|theta) = -(1/2) y'K^-1 y - (1/2) log det K - (n/2) log 2pi`;
+`d/d theta_j = (1/2) tr((alpha alpha' - K^-1) dK/d theta_j)` with
+`theta = (log sigma_f^2, log ell_1..d[, log sigma_n^2])`;
+`dk/d log ell_i = sigma_f^2 (Delta_i/ell_i)^2 exp(-r^2/2)` (squared
+exponential) or `(5/3) sigma_f^2 (Delta_i/ell_i)^2 (1 + sqrt(5) r) exp(-sqrt(5) r)`
+(Matern 5/2).
+
+- Domain: positive-definite `K`; log parameters restricted to `|theta_j| <= 25`.
+- Meaning: type-II maximum likelihood objective balancing data fit and
+  complexity; maximized by BFGS with seeded restarts.
+- Code: `surrogates.gaussian_process_log_marginal_likelihood`,
+  `surrogates.fit_gaussian_process`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
+
+### EQ-SUR-GP-005 — GP closed-form leave-one-out
+
+`mu_(-i) = y_i - [K^-1 y]_i / [K^-1]_ii`, `sigma_(-i)^2 = 1/[K^-1]_ii`.
+
+- Domain: fixed hyperparameters and positive-definite `K`.
+- Meaning: cross-validation residuals without refitting.
+- Code: `surrogates.GaussianProcessRegression.leave_one_out`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].

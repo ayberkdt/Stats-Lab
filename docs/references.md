@@ -361,3 +361,105 @@ Bruno Sudret. *Uncertainty Propagation and Sensitivity Analysis in Mechanical
 Models: Contributions to Structural Reliability and Stochastic Spectral
 Methods*. Habilitation thesis, Université Blaise Pascal, Clermont-Ferrand,
 2007.
+
+## REF-KALMAN-1960
+
+R. E. Kalman. "A New Approach to Linear Filtering and Prediction Problems."
+*Transactions of the ASME, Journal of Basic Engineering* 82(1), 35-45, 1960.
+DOI: [10.1115/1.3662552](https://doi.org/10.1115/1.3662552).
+
+## REF-RAUCH-TUNG-STRIEBEL-1965
+
+H. E. Rauch, F. Tung, and C. T. Striebel. "Maximum Likelihood Estimates of
+Linear Dynamic Systems." *AIAA Journal* 3(8), 1445-1450, 1965.
+DOI: [10.2514/3.3166](https://doi.org/10.2514/3.3166).
+
+## REF-SARKKA-2013
+
+Simo Särkkä. *Bayesian Filtering and Smoothing*. Institute of Mathematical
+Statistics Textbooks. Cambridge University Press, 2013.
+
+## REF-SIMON-2006
+
+Dan Simon. *Optimal State Estimation: Kalman, H-infinity, and Nonlinear
+Approaches*. Wiley, 2006.
+
+## REF-BAR-SHALOM-LI-KIRUBARAJAN-2001
+
+Yaakov Bar-Shalom, X. Rong Li, and Thiagalingam Kirubarajan. *Estimation with
+Applications to Tracking and Navigation*. Wiley, 2001.
+
+## REF-JULIER-UHLMANN-2004
+
+Simon J. Julier and Jeffrey K. Uhlmann. "Unscented Filtering and Nonlinear
+Estimation." *Proceedings of the IEEE* 92(3), 401-422, 2004.
+DOI: [10.1109/JPROC.2003.823141](https://doi.org/10.1109/JPROC.2003.823141).
+
+## REF-GORDON-SALMOND-SMITH-1993
+
+N. J. Gordon, D. J. Salmond, and A. F. M. Smith. "Novel Approach to
+Nonlinear/Non-Gaussian Bayesian State Estimation." *IEE Proceedings F (Radar
+and Signal Processing)* 140(2), 107-113, 1993.
+
+## REF-KITAGAWA-1996
+
+Genshiro Kitagawa. "Monte Carlo Filter and Smoother for Non-Gaussian Nonlinear
+State Space Models." *Journal of Computational and Graphical Statistics* 5(1),
+1-25, 1996.
+
+## REF-DOUCET-JOHANSEN-2011
+
+Arnaud Doucet and Adam M. Johansen. "A Tutorial on Particle Filtering and
+Smoothing: Fifteen Years Later." In D. Crisan and B. Rozovskii (eds.), *The
+Oxford Handbook of Nonlinear Filtering*. Oxford University Press, 2011.
+
+## REF-EVENSEN-1994
+
+Geir Evensen. "Sequential Data Assimilation with a Nonlinear Quasi-Geostrophic
+Model Using Monte Carlo Methods to Forecast Error Statistics." *Journal of
+Geophysical Research: Oceans* 99(C5), 10143-10162, 1994.
+DOI: [10.1029/94JC00572](https://doi.org/10.1029/94JC00572).
+
+## REF-BURGERS-VANLEEUWEN-EVENSEN-1998
+
+Gerrit Burgers, Peter Jan van Leeuwen, and Geir Evensen. "Analysis Scheme in
+the Ensemble Kalman Filter." *Monthly Weather Review* 126(6), 1719-1724, 1998.
+
+## REF-EVENSEN-2003
+
+Geir Evensen. "The Ensemble Kalman Filter: Theoretical Formulation and
+Practical Implementation." *Ocean Dynamics* 53(4), 343-367, 2003.
+DOI: [10.1007/s10236-003-0036-9](https://doi.org/10.1007/s10236-003-0036-9).
+
+## REF-LORENC-1986
+
+A. C. Lorenc. "Analysis Methods for Numerical Weather Prediction." *Quarterly
+Journal of the Royal Meteorological Society* 112(474), 1177-1194, 1986.
+
+## REF-XIU-KARNIADAKIS-2002
+
+Dongbin Xiu and George Em Karniadakis. "The Wiener-Askey Polynomial Chaos for
+Stochastic Differential Equations." *SIAM Journal on Scientific Computing*
+24(2), 619-644, 2002.
+
+## REF-SUDRET-2008
+
+Bruno Sudret. "Global Sensitivity Analysis Using Polynomial Chaos Expansions."
+*Reliability Engineering & System Safety* 93(7), 964-979, 2008.
+
+## REF-BLATMAN-SUDRET-2011
+
+Géraud Blatman and Bruno Sudret. "Adaptive Sparse Polynomial Chaos Expansion
+Based on Least Angle Regression." *Journal of Computational Physics* 230(6),
+2345-2367, 2011.
+
+## REF-RASMUSSEN-WILLIAMS-2006
+
+Carl Edward Rasmussen and Christopher K. I. Williams. *Gaussian Processes for
+Machine Learning*. MIT Press, 2006.
+
+## REF-NIST-DLMF-ORTHOGONAL
+
+NIST Digital Library of Mathematical Functions, Chapter 18, "Orthogonal
+Polynomials." National Institute of Standards and Technology.
+[https://dlmf.nist.gov/18](https://dlmf.nist.gov/18).
