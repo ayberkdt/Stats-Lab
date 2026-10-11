@@ -74,11 +74,12 @@ figures.
 | Sensitivity | `sensitivity` | Sobol first/total indices with bootstrap intervals, Morris screening, local derivatives |
 | Reliability | `reliability` | HL-RF FORM, SORM, design-point importance sampling, subset simulation, system bounds, inverse FORM |
 | Risk | `risk` | VaR/CVaR, loss models, fault and event trees, fragility curves, EVPI/EVSI |
-| Backward | `inverse`, `inference` | Nonlinear calibration, adaptive MCMC with R-hat/ESS, Laplace, unknown noise, posterior prediction |
+| Backward | `inverse`, `inference` | Nonlinear calibration, adaptive Metropolis, HMC/NUTS, ADVI, Laplace, unknown noise, posterior prediction |
 | Validation | `validation` | Area metric, u-pooling, ASME V&V 20 comparison, applicability domain, scoped verdicts |
 | Dynamics | `filtering`, `data_assimilation`, `processes` | Kalman/EKF/UKF, RTS smoother, particle filter, EnKF, 3D-Var; Markov chains, SDEs, random fields |
 | Emulators | `surrogates` | Polynomial chaos (Sobol from coefficients), Gaussian-process regression |
-| Statistics | `statistics`, `inference`, `distributions` | t/chi-square/rank/permutation tests, bootstrap (BCa), power, multiple testing, distribution families |
+| Statistics | `statistics`, `inference`, `distributions` | Tests, bootstrap (BCa), power, multiple testing, 20+ distribution families, generic MLE and AIC/BIC model selection |
+| Modeling | `inference`, `timeseries`, `conformal` | Multiple regression and GLMs, ridge/lasso, ARIMA via the Kalman filter, Kaplan-Meier/Cox survival, conformal prediction |
 | Foundations | `linalg`, `optimization`, `numerics`, `probability` | Cholesky/LU/Jacobi, BFGS/Levenberg-Marquardt/Brent, quadrature, exact finite probability |
 
 The [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
