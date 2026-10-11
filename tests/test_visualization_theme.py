@@ -151,6 +151,30 @@ class ThemeTests(unittest.TestCase):
         for axes in produced:
             self.assertTrue(axes.get_title(loc="left"))
 
+    def test_uncertainty_encodings_render(self) -> None:
+        """Fan, spaghetti, quantile dots, and ECDF band plots render."""
+        from probstat.visualization.uncertainty import (
+            dkw_epsilon,
+            plot_ecdf_band,
+            plot_fan_chart,
+            plot_quantile_dots,
+            plot_spaghetti,
+        )
+
+        self.assertAlmostEqual(
+            dkw_epsilon(120, 0.95), math.sqrt(math.log(40.0) / 240.0)
+        )
+        times = [0.1 * k for k in range(11)]
+        paths = [[math.sin(t + 0.3 * j) + 0.1 * j for t in times] for j in range(20)]
+        terminal = [path[-1] for path in paths]
+        for axes in (
+            plot_fan_chart(times, paths),
+            plot_spaghetti(times, paths),
+            plot_quantile_dots(terminal, dots=20, threshold=1.0),
+            plot_ecdf_band(terminal),
+        ):
+            self.assertTrue(axes.get_title(loc="left"))
+
     def test_dark_theme_changes_canvas(self) -> None:
         """The graphite context paints the dark canvas."""
         from matplotlib.colors import to_hex

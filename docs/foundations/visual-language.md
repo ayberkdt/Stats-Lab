@@ -60,6 +60,29 @@ with chart_theme():                      # or chart_theme(GRAPHITE)
 Set `PROBSTAT_CHART_THEME=graphite` to render every library figure in the dark
 palette, for example to produce dark-mode documentation images.
 
+## One uncertainty, six encodings
+
+`examples/uncertainty_visualization_lab.py` simulates 400 demand paths from a
+geometric Brownian motion (drift 0.05, volatility 0.25, start 100, horizon 4)
+and shows the same uncertainty six ways. With seed 2026 the simulated
+probability of exceeding the capacity 160 at the horizon is 0.212.
+
+| Encoding | Function | Answers |
+|---|---|---|
+| Fan chart | `plot_fan_chart` | Where will the value most likely be over time? |
+| Spaghetti | `plot_spaghetti` | What do individual futures look like? |
+| Quantile dot plot | `plot_quantile_dots` | How many in 50 outcomes exceed the limit? (11 of 50 here) |
+| ECDF with DKW band | `plot_ecdf_band` | How sure are we of the distribution itself? (+/-0.124 at n = 120) |
+| Exceedance curve | `plot_exceedance_curves` | How fast does the tail risk fall? |
+| Histogram with quantiles | `plot_output_distribution` | What is the typical range? |
+
+Frequency framings such as the quantile dot plot let readers count instead of
+judging areas, which supports better decisions under uncertainty
+[REF-KAY-ETAL-2016]; fan charts and spaghetti plots are complementary views of
+the same forecast [REF-SPIEGELHALTER-PEARSON-SHORT-2011]. The DKW band
+[EQ-STAT-DKW-001] reminds the reader that an empirical distribution is itself
+uncertain.
+
 ## Study reports
 
 `probstat.visualization.study.write_study_html(study, "report.html")` writes a

@@ -5237,3 +5237,19 @@ combined interval is the equal-tailed sample interval of `z`.
   being averaged into a variance.
 - Code: `validation.prediction.predict_with_uncertainty_components`.
 - Source: [REF-ROY-OBERKAMPF-2011].
+
+## Uncertainty visualization
+
+### EQ-STAT-DKW-001 — Dvoretzky-Kiefer-Wolfowitz confidence band
+
+`P(sup_x |F_n(x) - F(x)| > eps) <= 2 exp(-2 n eps^2)`, so
+`eps = sqrt(ln(2/alpha) / (2n))` gives a simultaneous `1 - alpha` band
+`[F_n - eps, F_n + eps]` clipped to `[0, 1]`.
+
+- Domain: independent identically distributed observations from any
+  continuous or discrete law; Massart's constant 2 is tight.
+- Meaning: a distribution-free band for the whole CDF, wider than pointwise
+  intervals because it holds for every `x` at once.
+- Code: `visualization.uncertainty.dkw_epsilon`,
+  `visualization.uncertainty.plot_ecdf_band`.
+- Source: [REF-DVORETZKY-KIEFER-WOLFOWITZ-1956] and [REF-MASSART-1990].

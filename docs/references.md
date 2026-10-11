@@ -1093,3 +1093,26 @@ Computational Simulation." *Journal of Computational Physics* 205(1), 131-156,
 L. Eça and M. Hoekstra. "A Procedure for the Estimation of the Numerical
 Uncertainty of CFD Calculations Based on Grid Refinement Studies." *Journal of
 Computational Physics* 262, 104-130, 2014.
+
+## REF-DVORETZKY-KIEFER-WOLFOWITZ-1956
+
+A. Dvoretzky, J. Kiefer, and J. Wolfowitz. "Asymptotic Minimax Character
+of the Sample Distribution Function and of the Classical Multinomial
+Estimator." *Annals of Mathematical Statistics* 27(3), 642-669, 1956.
+
+## REF-MASSART-1990
+
+P. Massart. "The Tight Constant in the Dvoretzky-Kiefer-Wolfowitz
+Inequality." *Annals of Probability* 18(3), 1269-1283, 1990.
+
+## REF-KAY-ETAL-2016
+
+Matthew Kay, Tara Kola, Jessica R. Hullman, and Sean A. Munson. "When
+(ish) is My Bus? User-centered Visualizations of Uncertainty in Everyday,
+Mobile Predictive Systems." In *Proceedings of the 2016 CHI Conference on
+Human Factors in Computing Systems*, 5092-5103, 2016.
+
+## REF-SPIEGELHALTER-PEARSON-SHORT-2011
+
+David Spiegelhalter, Mike Pearson, and Ian Short. "Visualizing
+Uncertainty About the Future." *Science* 333(6048), 1393-1400, 2011.
