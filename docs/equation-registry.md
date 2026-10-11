@@ -7512,3 +7512,37 @@ indicator chains (or `S` for independent draws).
   uniformity is descriptive only.
 - Code: `inference.pit_values`, `inference.pit_uniformity`.
 - Source: [REF-DAWID-1984], [REF-GNEITING-BALABDAOUI-RAFTERY-2007].
+
+### EQ-VIZ-MIXQ-001 — Central interval of a weighted Gaussian mixture
+
+`F(q) = sum_s w_s Phi((q - m_s) / sd_s)` with `w_s >= 0`, `sum_s w_s = 1` (a
+component with `sd_s = 0` is a point mass at `m_s`); the central
+`(1 - alpha)` interval is `(F^-1(alpha/2), F^-1(1 - alpha/2))`, found by
+bisection because `F` is continuous and non-decreasing.
+
+- Domain: finite means, non-negative variances and weights, `0 < alpha < 1`.
+- Meaning: the exact marginal interval of a quantity that is Gaussian given a
+  parameter and mixed over posterior draws (equal weights) or quadrature nodes
+  (quadrature weights), such as `delta(x*)` in Kennedy-O'Hagan prediction or
+  `theta_j` of the hierarchical normal model.
+- Code: `visualization.calibration_plots.gaussian_mixture_interval`,
+  `visualization.hierarchical_plots.theta_intervals`.
+- Source: [REF-GELMAN-ETAL-2013, Section 6.3] and [REF-NIST-DLMF].
+
+### EQ-VIZ-PITBAND-001 — Pointwise binomial band of a PIT histogram
+
+If `n` PIT values are independent and uniform on `[0, 1]`, the count in each of
+`B` equal-width bins is `Binomial(n, 1/B)`; the pointwise band is
+`(k_lo, k_hi)` with `k_lo` the smallest `k` such that
+`P(K <= k) >= alpha/2` and `k_hi` the smallest `k` such that
+`P(K <= k) >= 1 - alpha/2`, around the expected count `n/B`.
+
+- Domain: `n >= 1`, `B >= 2`, `0 < alpha < 1`. Limits are pointwise, not
+  simultaneous across bins; bin counts are dependent (they sum to `n`).
+- Meaning: a bin outside its band is unusual for a calibrated predictive
+  distribution; posterior (not leave-one-out) PIT values are pulled toward
+  `1/2`, so a central hump is expected for in-sample checks.
+- Code: `visualization.hierarchical_plots.binomial_band`,
+  `visualization.hierarchical_plots.plot_pit_histogram`.
+- Source: [REF-CASELLA-BERGER-2002, Section 3.2] and
+  [REF-GNEITING-BALABDAOUI-RAFTERY-2007].

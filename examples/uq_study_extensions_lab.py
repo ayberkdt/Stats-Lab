@@ -12,13 +12,20 @@ Three short studies exercise the stages added in ADR-0038:
 3. An exponential decay calibrated on two early-time observations: the
    ``design`` stage picks the next measurement times by expected information
    gain.
+
+With Matplotlib installed, every stage figure is written to
+``examples/generated/`` and each study gets a self-contained HTML report
+(``uq-study-<name>.html``) with light and dark figures.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import math
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 
 from probstat.distributions import LogNormal, Normal, Uniform
 from probstat.inverse import Experiment, NoiseModel
@@ -36,6 +43,7 @@ LENGTH = 2.0
 WIDTH = 0.10
 LIMIT = 0.075
 TIMES = (0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0)
+OUTPUT = Path(__file__).parent / "generated"
 
 
 def cantilever(parameters: Mapping[str, float]) -> Mapping[str, float]:
@@ -200,6 +208,24 @@ def run(seed: int = 2026) -> LabResults:
     return LabResults(beam, tail, benchmark, sobol, information, decay_study, design)
 
 
+def write_reports(results: LabResults) -> None:
+    """Write the stage figures and one HTML report per study.
+
+    References:
+        [REF-SMITH-UQ-2024, Chapter 1], [REF-MATPLOTLIB].
+
+    """
+    if importlib.util.find_spec("matplotlib") is None:
+        print("(install matplotlib to write the figures and HTML reports)")
+        return
+    from probstat.visualization.study import save_study_figures, write_study_html
+
+    for study in (results.beam, results.benchmark, results.decay):
+        figures = save_study_figures(study, OUTPUT)
+        report = write_study_html(study, OUTPUT / f"uq-study-{study.name}.html")
+        print(f"  {study.name}: {len(figures)} figures and {report.name}")
+
+
 def main() -> None:
     """Print the three study reports, then the headline numbers last.
 
@@ -207,6 +233,7 @@ def main() -> None:
         [REF-SMITH-UQ-2024, Chapter 1].
 
     """
+    started = time.perf_counter()
     print("Running the cantilever, Ishigami, and decay studies (about 12 s)...")
     results = run()
     for study in (results.beam, results.benchmark, results.decay):
@@ -243,6 +270,8 @@ def main() -> None:
         f"Next measurement times: t = {times} "
         f"(EIG {estimate.value:.2f} +/- {estimate.standard_error:.2f} nats)."
     )
+    write_reports(results)
+    print(f"wall time {time.perf_counter() - started:.1f} s")
 
 
 if __name__ == "__main__":
