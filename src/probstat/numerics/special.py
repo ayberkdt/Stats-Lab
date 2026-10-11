@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import sys
 
 from probstat.foundations.validation import require_finite_real
 
@@ -151,6 +152,9 @@ def trigamma(x: float) -> float:
     Raises:
         TypeError: If ``x`` is not real.
         ValueError: If ``x`` is non-finite or not positive.
+        OverflowError: If ``psi'(x) ~ 1/x^2`` exceeds the largest float,
+            which happens for ``x`` below about ``7.5e-155``. (Squaring ``x``
+            first used to underflow to zero and raise ``ZeroDivisionError``.)
 
     Equation:
         [EQ-NUM-DIGAMMA-001].
@@ -162,7 +166,17 @@ def trigamma(x: float) -> float:
     value = _validated_positive(x, name="x")
     shift = 0.0
     while value < _ASYMPTOTIC_START:
-        shift += 1.0 / (value * value)
+        square = value * value
+        if square >= sys.float_info.min:
+            shift += 1.0 / square
+        else:
+            # x^2 is subnormal or zero: square the reciprocal instead.
+            reciprocal = 1.0 / value
+            shift += reciprocal * reciprocal
+        if shift == math.inf:
+            raise OverflowError(
+                "trigamma(x) exceeds the floating-point range for x < ~7.5e-155"
+            )
         value += 1.0
     inverse = 1.0 / value
     inverse_square = inverse * inverse

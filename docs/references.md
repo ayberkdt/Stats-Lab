@@ -1354,3 +1354,39 @@ Statistical Software* 33(1), 1-22, 2010.
 
 F. J. Anscombe. "Graphs in Statistical Analysis." *The American
 Statistician* 27(1), 17-21, 1973.
+
+## REF-TEMME-1979
+
+N. M. Temme. "The Asymptotic Expansion of the Incomplete Gamma Functions."
+*SIAM Journal on Mathematical Analysis* 10(4), 757-766, 1979.
+
+## REF-DIDONATO-MORRIS-1992
+
+Armido R. DiDonato and Alfred H. Morris, Jr. "Algorithm 708: Significant Digit
+Computation of the Incomplete Beta Function Ratios." *ACM Transactions on
+Mathematical Software* 18(3), 360-373, 1992. The functions `rlog1`
+(`x - log(1 + x)`), `bcorr`, and `algdiv` motivate the Stirling-difference
+prefactors used here.
+
+## REF-NOE-1972
+
+Marc Noé. "The Calculation of Distributions of Two-Sided Kolmogorov-Smirnov
+Type Statistics." *The Annals of Mathematical Statistics* 43(1), 58-64, 1972.
+doi:10.1214/aoms/1177692700.
+
+## REF-BIRNBAUM-TINGEY-1951
+
+Z. W. Birnbaum and Fred H. Tingey. "One-Sided Confidence Contours for
+Probability Distribution Functions." *The Annals of Mathematical Statistics*
+22(4), 592-596, 1951.
+
+## REF-ESARY-PROSCHAN-WALKUP-1967
+
+J. D. Esary, F. Proschan, and D. W. Walkup. "Association of Random Variables,
+with Applications." *The Annals of Mathematical Statistics* 38(5), 1466-1474,
+1967. doi:10.1214/aoms/1177698701.
+
+## REF-MARSAGLIA-TSANG-WANG-2003
+
+George Marsaglia, Wai Wan Tsang, and Jingbo Wang. "Evaluating Kolmogorov's
+Distribution." *Journal of Statistical Software* 8(18), 1-4, 2003.

@@ -348,6 +348,10 @@ def _two_sample_parts(
 ) -> tuple[float, float, float, str, float, tuple[int, int]]:
     """Return estimate, standard error, df, label, effect, and sizes.
 
+    Both samples are first centred on one common observation; every returned
+    quantity is shift invariant, and the centring keeps the mean difference
+    accurate when the data share a large offset.
+
     Args:
         first: First sample.
         second: Second sample.
@@ -368,6 +372,13 @@ def _two_sample_parts(
     n1, n2 = len(a), len(b)
     if n1 < 2 or n2 < 2:
         raise ValueError("each sample must contain at least two observations")
+    # Centre both samples on one common value: the mean difference and the
+    # variances are shift invariant, the subtraction is exact for data with
+    # a large common offset, and the two means no longer carry rounding
+    # errors of size ulp(offset) into a small difference.
+    centre = a[0]
+    a = tuple(value - centre for value in a)
+    b = tuple(value - centre for value in b)
     v1, v2 = statistics.variance(a), statistics.variance(b)
     if v1 == 0.0 and v2 == 0.0:
         raise ValueError("both samples are constant; the t statistic is undefined")
@@ -1141,7 +1152,10 @@ class AnovaResult:
 def one_way_anova(*groups: Iterable[object]) -> AnovaResult:
     """Test equality of several normal means with a one-way ANOVA F test.
 
-    Assumes independent normal groups with a common variance.
+    Assumes independent normal groups with a common variance. Observations
+    are centred on one of them before the sums of squares are formed (both
+    are shift invariant), so a large common offset such as ``1e9`` no longer
+    costs relative accuracy in ``F``.
 
     Args:
         *groups: At least two non-empty samples with ``N > k`` in total.
@@ -1172,6 +1186,12 @@ def one_way_anova(*groups: Iterable[object]) -> AnovaResult:
     total_n = sum(len(sample) for sample in samples)
     if total_n <= k:
         raise ValueError("total observations must exceed the number of groups")
+    # Sums of squares are shift invariant; centring on one observation keeps
+    # group and grand means free of ulp(offset) rounding for offset data.
+    centre = samples[0][0]
+    samples = tuple(
+        tuple(value - centre for value in sample) for sample in samples
+    )
     grand_mean = math.fsum(math.fsum(sample) for sample in samples) / total_n
     group_means = [statistics.fmean(sample) for sample in samples]
     ss_between = math.fsum(

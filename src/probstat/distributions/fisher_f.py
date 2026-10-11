@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
+from fractions import Fraction
 
 from probstat.foundations.validation import (
     require_finite_real,
@@ -20,7 +21,12 @@ from ._continuous import (
     safe_log,
     solve_tail_quantile,
 )
-from ._special import regularized_beta_pair
+from ._special import (
+    LARGE_SHAPE,
+    log_beta_function,
+    log_beta_kernel,
+    regularized_beta_pair,
+)
 from .constraints import POSITIVE_FINITE
 from .support import RealSupport
 
@@ -102,17 +108,17 @@ class FisherF:
             ValueError: If ``x`` is non-finite.
 
         Equation:
-            [EQ-DIST-F-001].
+            [EQ-DIST-F-001], [EQ-NUM-STIRLING-001].
 
         References:
-            [REF-JKB-1995, Chapter 27].
+            [REF-JKB-1995, Chapter 27], [REF-NIST-DLMF-GAMMA, Section 5.11].
 
         """
         point = require_finite_real(x, name="x")
         if point < 0.0:
             return -math.inf
         half1, half2 = 0.5 * self.nu1, 0.5 * self.nu2
-        log_beta = math.lgamma(half1) + math.lgamma(half2) - math.lgamma(half1 + half2)
+        log_beta = log_beta_function(half1, half2)
         if point == 0.0:
             if self.nu1 < 2.0:
                 return math.inf
@@ -122,6 +128,15 @@ class FisherF:
         first, second = self._ratios(point)
         if second == 0.0:
             return -math.inf
+        if max(half1, half2) >= LARGE_SHAPE and first > 0.0:
+            # Exact offset y (a+b) - a = a b (x - 1) / (a x + b) keeps the
+            # cancellation-free kernel independent of the rounding of y.
+            a, b, value = Fraction(half1), Fraction(half2), Fraction(point)
+            offset = a * b * (value - 1) / (a * value + b)
+            return (
+                log_beta_kernel(half1, half2, first, second, offset)
+                - math.log(point)
+            )
         # f(x) = y^(nu1/2) (1-y)^(nu2/2) / (x B(nu1/2, nu2/2)).
         return (
             half1 * math.log(first)

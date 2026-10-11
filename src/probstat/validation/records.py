@@ -376,6 +376,10 @@ class ValidationDomain:
         Coordinates are scaled to ``[0, 1]`` by the validation range of each
         condition. Convex-hull membership is decided exactly (up to
         ``1e-9`` in scaled units) by a phase-one simplex feasibility problem.
+        The bounding-box test uses the same relative slack, ``1e-9`` of each
+        range width plus 16 ulps of the coordinate magnitude; a zero-width
+        range requires agreement with the single validated value to a
+        relative ``1e-9`` (exact equality when that value is zero).
 
         Args:
             condition: Mapping with a finite value for every domain name
@@ -421,7 +425,17 @@ class ValidationDomain:
         inside_box = True
         for i, (low, high) in enumerate(zip(lower, upper, strict=True)):
             width = high - low
-            slack = _HULL_TOLERANCE * max(1.0, abs(low), abs(high))
+            # Box slack is 1e-9 of the validation range (the same scaled
+            # tolerance as the hull test) plus 16 ulps of the coordinate
+            # magnitude for roundoff; a zero-width range (all experiments at
+            # one value) admits only values within relative 1e-9 of it (an
+            # exact match when that value is zero). An absolute floor of
+            # 1e-9 * max(1, |x|) would swamp narrow ranges at large offsets.
+            magnitude = max(abs(low), abs(high))
+            if width > 0.0:
+                slack = _HULL_TOLERANCE * width + 16.0 * math.ulp(magnitude)
+            else:
+                slack = _HULL_TOLERANCE * magnitude
             if target[i] < low - slack or target[i] > high + slack:
                 inside_box = False
             if width <= 0.0:

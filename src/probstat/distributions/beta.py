@@ -19,7 +19,12 @@ from ._continuous import (
     safe_log,
     solve_tail_quantile,
 )
-from ._special import regularized_beta_pair
+from ._special import (
+    LARGE_SHAPE,
+    log_beta_function,
+    log_beta_kernel,
+    regularized_beta_pair,
+)
 from .constraints import POSITIVE_FINITE
 from .support import RealSupport
 
@@ -73,17 +78,13 @@ class Beta:
         return RealSupport(0.0, 1.0, lower_closed=True, upper_closed=True)
 
     def _log_beta_function(self) -> float:
-        """Return ``log B(alpha, beta)``.
+        """Return ``log B(alpha, beta)``, via Stirling differences when large.
 
         References:
-            [REF-NIST-DLMF-GAMMA, Section 5.12].
+            [EQ-NUM-STIRLING-001], [REF-NIST-DLMF-GAMMA, Section 5.12].
 
         """
-        return (
-            math.lgamma(self.alpha)
-            + math.lgamma(self.beta)
-            - math.lgamma(self.alpha + self.beta)
-        )
+        return log_beta_function(self.alpha, self.beta)
 
     def log_pdf(self, x: float) -> float:
         """Evaluate the beta log-density, including endpoint limits.
@@ -100,10 +101,10 @@ class Beta:
             ValueError: If ``x`` is non-finite.
 
         Equation:
-            [EQ-DIST-BETA-001].
+            [EQ-DIST-BETA-001], [EQ-NUM-STIRLING-001].
 
         References:
-            [REF-JKB-1995, Chapter 25].
+            [REF-JKB-1995, Chapter 25], [REF-NIST-DLMF-GAMMA, Section 5.11].
 
         """
         point = require_finite_real(x, name="x")
@@ -117,6 +118,14 @@ class Beta:
             if shape > 1.0:
                 return -math.inf
             return -normalizer
+        if max(self.alpha, self.beta) >= LARGE_SHAPE:
+            # alpha log x + beta log(1-x) - log B as one cancellation-free
+            # kernel, then remove one power of x and of 1 - x.
+            return (
+                log_beta_kernel(self.alpha, self.beta, point, 1.0 - point)
+                - math.log(point)
+                - math.log1p(-point)
+            )
         return (
             (self.alpha - 1.0) * math.log(point)
             + (self.beta - 1.0) * math.log1p(-point)
