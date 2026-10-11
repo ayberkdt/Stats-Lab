@@ -83,7 +83,7 @@ Carlo, LHS, Halton, Sobol). See ADR-0014 and
 | `multivariate` | Vector-valued distributions | Inference workflows |
 | `uq` | QoI and forward-model contracts, numerical verification | Monte Carlo, reliability, inference |
 | `processes` | Markov chains, Poisson processes, SDEs, random fields | Filtering or inference |
-| `information` | Entropy, divergences, mutual information and their estimators | Hypothesis tests |
+| `information` | Entropy, divergences, mutual information and their estimators, optimal transport, Fisher information geometry | Hypothesis tests |
 | `monte_carlo` | Sample estimators, variance reduction, work accounting | Forward-model semantics |
 | `modeling` | Joint input laws, Nataf, `ProbabilisticModel`, evaluation counting | Analysis methods |
 | `causal` | Causal graphs, identification, discrete interventions, IPW/AIPW, E-values | Simulator-based analyses |
@@ -92,7 +92,7 @@ Carlo, LHS, Halton, Sobol). See ADR-0014 and
 | `reliability` | Limit states, FORM/SORM, multiple design points, IS, subset and line sampling, AK-MCS, systems | Generic probability foundations |
 | `sensitivity` | Local derivatives, Sobol, Morris, ranking and screening | Input-distribution implementations |
 | `surrogates` | PCE and GP emulators and the surrogate forward-model adapter | Analyses on the emulator |
-| `validation` | Discrepancy and validation evidence | Parameter inference |
+| `validation` | Discrepancy and validation evidence, proper scoring rules, forecast calibration, distribution-shift tests | Parameter inference |
 | `design` | Optimal and Bayesian experimental design | Calibration itself |
 | `risk` | Risk measures, losses, fault/event trees, fragility, extremes, decisions | Reliability algorithms |
 | `conformal` | Distribution-free prediction intervals and coverage reports | Model fitting |
