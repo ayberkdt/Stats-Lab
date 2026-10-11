@@ -73,8 +73,10 @@ deviation and introduces no independence assumption.
 
 ## Scope boundary
 
-This foundation does not yet implement experimental validation metrics,
-probability-box propagation, Monte Carlo estimators, model discrepancy,
+Experimental validation metrics, the scoped validation verdict, and the
+separation of verification, validation, and prediction evidence are covered in
+[Model Validation and Prediction Credibility](model-validation.md). This
+foundation page itself does not implement probability-box propagation, Monte Carlo estimators, model discrepancy,
 calibration, reliability, sensitivity analysis, or filtering. Those outcomes
 are individually tracked in the
 [ATHENS coverage matrix](../curriculum/athens-2026-coverage.md); a tracked topic
