@@ -3793,3 +3793,342 @@ transform `T` (for example `T = exp` for a log-normal field).
 - Code: `modeling.RandomFieldInput`, `modeling.karhunen_loeve_inputs`.
 - Source: [REF-GHANEM-SPANOS-1991, Chapter 2] and
   [REF-SUDRET-DERKIUREGHIAN-2000, Chapter 2].
+
+## Classical and resampling inference
+
+### EQ-INF-DIST-NORM-001 — Standard normal distribution and survival functions
+
+`Phi(z) = erfc(-z/sqrt(2))/2`, `1 - Phi(z) = erfc(z/sqrt(2))/2`.
+
+- Domain: finite real `z`.
+- Meaning: reference law of z statistics; the complementary error function
+  keeps both tails accurate without `1 - Phi` cancellation.
+- Code: `inference.standard_normal_cdf`, `inference.standard_normal_sf`.
+- Source: [REF-NIST-DLMF, Section 7.2] and [REF-CASELLA-BERGER-2002, Chapter 3].
+
+### EQ-INF-DIST-CHI2-001 — Chi-square upper tail
+
+`P(X >= x) = Q(k/2, x/2)` for `X ~ chi^2_k`.
+
+- Domain: `k > 0`, `x >= 0`.
+- Meaning: null reference law of Pearson statistics; the upper regularized
+  incomplete gamma function returns small p-values directly.
+- Code: `inference.chi_square_sf`.
+- Source: [REF-NIST-DLMF-GAMMA, Section 8.2] and
+  [REF-CASELLA-BERGER-2002, Chapter 5].
+
+### EQ-INF-DIST-F-001 — F upper tail
+
+`P(F >= f) = I_{d2/(d2 + d1 f)}(d2/2, d1/2)` for `F ~ F(d1, d2)`.
+
+- Domain: `d1, d2 > 0`, `f >= 0`.
+- Meaning: null reference law of the ANOVA ratio of mean squares.
+- Code: `inference.f_sf`, `inference.one_way_anova`.
+- Source: [REF-NIST-DLMF-BETA, Section 8.17] and
+  [REF-CASELLA-BERGER-2002, Chapter 5].
+
+### EQ-INF-DIST-NCT-001 — Noncentral t distribution function
+
+`T' = (Z + delta)/sqrt(V/nu)`; with `S = sqrt(V/nu)`,
+`P(T' <= t) = integral_0^inf Phi(t s - delta) g_nu(s) ds`,
+`g_nu(s) = 2 (nu/2)^(nu/2) s^(nu-1) exp(-nu s^2/2) / Gamma(nu/2)`;
+integrated by composite Simpson (2000 subintervals) on
+`[max(0, 1 - 12/sqrt(nu)), 1 + 12/sqrt(nu)]`.
+
+- Domain: `nu >= 1`, finite `t` and `delta`; `delta = 0` returns the central
+  CDF exactly.
+- Meaning: law of the t statistic under a shifted mean; drives t-test power.
+- Code: `inference.noncentral_t_cdf`.
+- Source: [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995] (noncentral t chapter) and
+  [REF-DAVIS-RABINOWITZ-1984, Chapter 2].
+
+### EQ-INF-CI-TMEAN-001 — Student-t interval for a normal mean
+
+`x_bar +- t_(n-1, 1-alpha/2) s / sqrt(n)`.
+
+- Domain: `n >= 2` independent normal observations, `s > 0`.
+- Meaning: exact `1 - alpha` repeated-sampling coverage for any `n`; closes
+  the large-sample caveat of `EQ-INF-CI-NMEAN-001` when `sigma` is estimated.
+- Code: `inference.student_t_mean_confidence_interval`,
+  `inference.TTestResult.confidence_interval`.
+- Source: [REF-STUDENT-1908] and [REF-CASELLA-BERGER-2002, Chapter 9].
+
+### EQ-INF-CI-CP-001 — Clopper-Pearson binomial interval
+
+`[B(alpha/2; x, n - x + 1), B(1 - alpha/2; x + 1, n - x)]`, with beta
+quantiles `B` and endpoints `0` at `x = 0`, `1` at `x = n`.
+
+- Domain: integers `0 <= x <= n`, `n >= 1`.
+- Meaning: inverts two one-sided exact binomial tests; coverage is at least
+  `1 - alpha` (conservative).
+- Code: `inference.clopper_pearson_interval`, `inference.binomial_test`.
+- Source: [REF-CLOPPER-PEARSON-1934] and [REF-AGRESTI-2013, Chapter 1].
+
+### EQ-INF-T-001 — One-sample and paired t statistic
+
+`t = (x_bar - mu_0)/(s/sqrt(n))`, `df = n - 1`; paired: apply to
+`d_i = x_i - y_i`.
+
+- Domain: `n >= 2`, `s > 0`, independent normal observations (differences).
+- Meaning: standardized distance of the sample mean from the null value.
+- Code: `inference.one_sample_t_test`, `inference.paired_t_test`,
+  `inference.tost_equivalence_test`.
+- Source: [REF-STUDENT-1908] and [REF-CASELLA-BERGER-2002, Chapter 8].
+
+### EQ-INF-T-002 — Pooled two-sample t statistic
+
+`s_p^2 = ((n1-1)s1^2 + (n2-1)s2^2)/(n1+n2-2)`,
+`t = (x_bar_1 - x_bar_2 - Delta_0)/(s_p sqrt(1/n1 + 1/n2))`, `df = n1+n2-2`.
+
+- Domain: independent normal samples with a common variance, `n1, n2 >= 2`.
+- Meaning: exact Student test when variances are equal.
+- Code: `inference.two_sample_t_test(equal_variances=True)`,
+  `inference.pooled_standard_deviation`.
+- Source: [REF-STUDENT-1908] and [REF-CASELLA-BERGER-2002, Chapter 8].
+
+### EQ-INF-T-003 — Welch statistic and Welch-Satterthwaite degrees of freedom
+
+`t = (x_bar_1 - x_bar_2 - Delta_0)/sqrt(s1^2/n1 + s2^2/n2)`,
+`nu = (s1^2/n1 + s2^2/n2)^2 / ((s1^2/n1)^2/(n1-1) + (s2^2/n2)^2/(n2-1))`.
+
+- Domain: independent normal samples, `n1, n2 >= 2`, not both constant.
+- Meaning: approximate t reference law without assuming equal variances;
+  `min(n1, n2) - 1 <= nu <= n1 + n2 - 2`.
+- Code: `inference.two_sample_t_test`, `inference.welch_satterthwaite_df`.
+- Source: [REF-WELCH-1947] and [REF-SATTERTHWAITE-1946].
+
+### EQ-INF-TOST-001 — Two one-sided tests for equivalence
+
+`t_L = (theta_hat - L)/se` (reject `theta <= L` if `P(T >= t_L) < alpha`),
+`t_U = (theta_hat - U)/se` (reject `theta >= U` if `P(T <= t_U) < alpha`);
+`p = max(p_L, p_U)`; equivalently the `1 - 2 alpha` t interval lies in
+`(L, U)`.
+
+- Domain: `L < U`, `0 < alpha < 1/2`, t-test assumptions.
+- Meaning: equivalence is the alternative hypothesis, so a non-significant
+  difference test is never used as evidence of equivalence.
+- Code: `inference.tost_equivalence_test`.
+- Source: [REF-SCHUIRMANN-1987].
+
+### EQ-INF-CHI2-GOF-001 — Pearson goodness-of-fit statistic
+
+`X^2 = sum_i (O_i - n p_i)^2 / (n p_i)`, `df = k - 1 - q` for `q` estimated
+parameters; Cohen's `w = sqrt(X^2/n)`.
+
+- Domain: `k >= 2` categories, `p_i > 0`, `sum p_i = 1`.
+- Meaning: asymptotically `chi^2_df` under the null; a warning is emitted
+  when an expected count is below five.
+- Code: `inference.chi_square_goodness_of_fit`.
+- Source: [REF-AGRESTI-2013, Chapter 1] and [REF-COCHRAN-1954].
+
+### EQ-INF-CHI2-IND-001 — Pearson independence statistic, Yates, Cramer's V
+
+`E_ij = R_i C_j / n`, `X^2 = sum (O_ij - E_ij)^2 / E_ij`,
+`df = (r - 1)(c - 1)`; Yates (2 x 2): `sum (max(0, |O - E| - 1/2))^2 / E`;
+`V = sqrt(X^2 / (n (min(r, c) - 1)))`.
+
+- Domain: `r, c >= 2`, all margins positive.
+- Meaning: asymptotic test of row/column independence and its effect size.
+- Code: `inference.chi_square_independence_test`.
+- Source: [REF-AGRESTI-2013, Chapter 3] and [REF-COCHRAN-1954].
+
+### EQ-INF-FISHER-001 — Fisher exact test for a 2 x 2 table
+
+`P(A = a) = C(R_1, a) C(R_2, C_1 - a) / C(n, C_1)` given margins;
+two-sided `p = sum_{P(k) <= P(a)(1 + 1e-7)} P(k)`; one-sided tails `A >= a`
+or `A <= a`.
+
+- Domain: non-negative integer cells, positive margins.
+- Meaning: exact conditional test of independence for small counts.
+- Code: `inference.fisher_exact_test`.
+- Source: [REF-AGRESTI-2013, Chapter 3].
+
+### EQ-INF-BINOM-001 — Exact binomial test
+
+`P(X = k) = C(n, k) p_0^k (1 - p_0)^(n-k)`; upper `sum_{k >= x}`, lower
+`sum_{k <= x}`, two-sided `sum_{P(k) <= P(x)(1 + 1e-7)} P(k)`.
+
+- Domain: `0 <= x <= n`, `0 < p_0 < 1`.
+- Meaning: exact null tail of the observed success count.
+- Code: `inference.binomial_test`.
+- Source: [REF-AGRESTI-2013, Chapter 1] and [REF-CLOPPER-PEARSON-1934].
+
+### EQ-INF-MWU-001 — Mann-Whitney U statistic and null law
+
+`U = R_1 - m(m+1)/2` (mid-ranks); exact counts are the coefficients of
+`prod_{i=1}^{m} (1 - q^(n+i))/(1 - q^i)`; normal approximation
+`E U = mn/2`, `Var U = (mn/12)(N + 1 - sum(t^3 - t)/(N(N - 1)))`, with a
+half-unit continuity correction; rank-biserial `r = 2U/(mn) - 1`.
+
+- Domain: `m, n >= 1`; exact law only without ties.
+- Meaning: `U/(mn)` estimates `P(X > Y) + P(X = Y)/2`.
+- Code: `inference.mann_whitney_u_test`, `inference.mann_whitney_u_distribution`.
+- Source: [REF-MANN-WHITNEY-1947] and
+  [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 4].
+
+### EQ-INF-WSR-001 — Wilcoxon signed-rank statistic and null law
+
+Zero differences dropped; `W+ = sum_{d_i > 0} rank(|d_i|)`; exact counts are
+the coefficients of `prod_{k=1}^{n} (1 + q^k)`; normal approximation
+`E W+ = n(n+1)/4`, `Var W+ = n(n+1)(2n+1)/24 - sum(t^3 - t)/48`, with a
+half-unit continuity correction; rank-biserial `(W+ - W-)/(W+ + W-)`.
+
+- Domain: `n >= 1` non-zero differences; exact law only without ties.
+- Meaning: tests symmetry of differences about the null location.
+- Code: `inference.wilcoxon_signed_rank_test`,
+  `inference.signed_rank_distribution`.
+- Source: [REF-WILCOXON-1945] and [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 3].
+
+### EQ-INF-ANOVA-001 — One-way ANOVA F statistic
+
+`SS_B = sum_i n_i (x_bar_i - x_bar)^2`, `SS_W = sum_i sum_j (x_ij - x_bar_i)^2`,
+`F = (SS_B/(k - 1)) / (SS_W/(N - k))`; `eta^2 = SS_B/(SS_B + SS_W)`.
+
+- Domain: `k >= 2` groups, `N > k`, `SS_W > 0`.
+- Meaning: `F ~ F(k - 1, N - k)` under equal normal means with common
+  variance.
+- Code: `inference.one_way_anova`.
+- Source: [REF-CASELLA-BERGER-2002, Chapter 11].
+
+### EQ-INF-BOOT-001 — Nonparametric bootstrap bias and standard error
+
+Resample `x*_b` of size `n` with replacement, `theta*_b = s(x*_b)`;
+`bias = mean(theta*) - theta_hat`, `se = sd(theta*)` (divisor `B - 1`).
+
+- Domain: `n >= 2` observations, `B >= 2` replicates.
+- Meaning: plug-in estimates of the sampling bias and spread of a statistic.
+- Code: `inference.bootstrap`, `inference.BootstrapResult`.
+- Source: [REF-EFRON-1979] and [REF-EFRON-TIBSHIRANI-1993, Chapters 6 and 10].
+
+### EQ-INF-BOOT-002 — Percentile, basic, and normal bootstrap intervals
+
+Percentile `[q_(alpha/2), q_(1-alpha/2)]`; basic
+`[2 theta_hat - q_(1-alpha/2), 2 theta_hat - q_(alpha/2)]`; normal
+`theta_hat - bias +- z_(1-alpha/2) se`, with type-7 replicate quantiles `q`.
+
+- Domain: bootstrap replicates of a smooth statistic.
+- Meaning: first-order accurate approximate confidence procedures.
+- Code: `inference.bootstrap_confidence_interval`.
+- Source: [REF-EFRON-TIBSHIRANI-1993, Chapter 13] and
+  [REF-DAVISON-HINKLEY-1997, Chapter 5].
+
+### EQ-INF-BOOT-003 — Studentized (bootstrap-t) interval
+
+`t*_b = (theta*_b - theta_hat)/se*_b`;
+`[theta_hat - t*_(1-alpha/2) se, theta_hat - t*_(alpha/2) se]`, with `se`
+from a supplied function or the jackknife.
+
+- Domain: positive standard errors for the data and every resample.
+- Meaning: second-order accurate for approximately pivotal statistics.
+- Code: `inference.bootstrap_confidence_interval(method="studentized")`.
+- Source: [REF-EFRON-TIBSHIRANI-1993, Chapter 12] and
+  [REF-DAVISON-HINKLEY-1997, Chapter 5].
+
+### EQ-INF-BOOT-004 — Bias-corrected and accelerated (BCa) interval
+
+`z_0 = Phi^-1((#{theta* < theta_hat} + #{theta* = theta_hat}/2)/B)`;
+`a = sum (m - theta_(i))^3 / (6 (sum (m - theta_(i))^2)^(3/2))` from
+jackknife values `theta_(i)` with mean `m`;
+`alpha_j = Phi(z_0 + (z_0 + z_j)/(1 - a(z_0 + z_j)))`, `z_j = Phi^-1` of
+`alpha/2` and `1 - alpha/2`; interval `[q_(alpha_1), q_(alpha_2)]`.
+
+- Domain: `0 < share < 1`, non-constant jackknife values,
+  `1 - a(z_0 + z_j) > 0`.
+- Meaning: transformation-respecting, second-order accurate correction of
+  the percentile interval for bias and skewness.
+- Code: `inference.bootstrap_confidence_interval(method="bca")`.
+- Source: [REF-EFRON-1987] and [REF-EFRON-TIBSHIRANI-1993, Chapter 14].
+
+### EQ-INF-JACK-001 — Jackknife bias and standard error
+
+`theta_(i) = s(x without x_i)`, `theta_(.) = mean theta_(i)`;
+`bias = (n - 1)(theta_(.) - theta_hat)`,
+`se = sqrt((n - 1)/n sum (theta_(i) - theta_(.))^2)`.
+
+- Domain: `n >= 2`; smooth statistics (unreliable for the median).
+- Meaning: deterministic leave-one-out estimates of bias and spread.
+- Code: `inference.jackknife`.
+- Source: [REF-EFRON-TIBSHIRANI-1993, Chapter 11].
+
+### EQ-INF-PERM-001 — Permutation p-value for a difference in means
+
+`T = mean(x) - mean(y)`; exact `p = #{g : T_g extreme} / C(m+n, m)` over all
+relabelings `g`; Monte Carlo `p = (b + 1)/(M + 1)` for `b` of `M` random
+relabelings at least as extreme (two-sided uses `|T|`).
+
+- Domain: exchangeable pooled observations under the null.
+- Meaning: exact-level test without distributional assumptions; the `+1`
+  terms keep the Monte Carlo test valid and the p-value positive.
+- Code: `inference.permutation_test`.
+- Source: [REF-GOOD-2005] and [REF-PHIPSON-SMYTH-2010].
+
+### EQ-INF-ES-001 — Cohen's d and Hedges' g
+
+`d = (x_bar_1 - x_bar_2)/s_p` (two samples), `(x_bar - mu_0)/s` (one
+sample), `d_bar/s_d` (paired); `g = J(m) d`,
+`J(m) = Gamma(m/2)/(sqrt(m/2) Gamma((m - 1)/2)) ~ 1 - 3/(4m - 1)`.
+
+- Domain: positive standard deviation; `m > 1` degrees of freedom.
+- Meaning: scale-free effect magnitude; `g` removes the small-sample upward
+  bias of `|d|`.
+- Code: `inference.cohens_d`, `inference.hedges_g`,
+  `inference.hedges_correction`.
+- Source: [REF-COHEN-1988, Chapter 2] and [REF-HEDGES-1981].
+
+### EQ-INF-POWER-001 — Power of z tests
+
+`delta = d sqrt(n)` (one-sample/paired) or `d sqrt(n/2)` (two groups of `n`);
+two-sided `Phi(delta - z_(1-alpha/2)) + Phi(-delta - z_(1-alpha/2))`,
+one-sided `Phi(+-delta - z_(1-alpha))`.
+
+- Domain: known variance, standardized effect `d`.
+- Meaning: probability of rejecting when the stated effect is true.
+- Code: `inference.z_test_power`.
+- Source: [REF-COHEN-1988, Chapter 2] and [REF-LEHMANN-ROMANO-2005, Chapter 3].
+
+### EQ-INF-POWER-002 — Exact power of t tests
+
+`df = n - 1` or `2n - 2`; two-sided
+`1 - F'_(df,delta)(t_c) + F'_(df,delta)(-t_c)` with `t_c = t_(df,1-alpha/2)`;
+one-sided analogues with `t_(df,1-alpha)`; `F'` from `EQ-INF-DIST-NCT-001`.
+
+- Domain: normal observations, `n >= 2`.
+- Meaning: exact design power under the noncentral t law (no normal
+  approximation, no simulation).
+- Code: `inference.t_test_power`.
+- Source: [REF-COHEN-1988, Chapter 2] and
+  [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995].
+
+### EQ-INF-POWER-003 — Required sample size
+
+`n* = min{n : power(n) >= 1 - beta}`, searched from the z start
+`k (z_(1-alpha') + z_(1-beta))^2 / d^2` (`k = 2` for two groups).
+
+- Domain: nonzero `d` whose sign agrees with a one-sided alternative,
+  `alpha < 1 - beta < 1`.
+- Meaning: smallest design achieving the target power.
+- Code: `inference.required_sample_size`.
+- Source: [REF-COHEN-1988, Chapter 2].
+
+### EQ-INF-MT-001 — Bonferroni and Holm adjusted p-values
+
+Bonferroni `min(1, m p_i)`; Holm
+`p~_(i) = max_{j <= i} min(1, (m - j + 1) p_(j))` for sorted `p_(1) <= ...`.
+
+- Domain: `m >= 1` p-values in `[0, 1]`, arbitrary dependence.
+- Meaning: control of the family-wise error rate at `alpha` when rejecting
+  `p~ <= alpha`; Holm is uniformly more powerful than Bonferroni.
+- Code: `inference.adjust_p_values`.
+- Source: [REF-HOLM-1979] and [REF-LEHMANN-ROMANO-2005, Chapter 9].
+
+### EQ-INF-MT-002 — Benjamini-Hochberg and Benjamini-Yekutieli adjusted p-values
+
+BH `p~_(i) = min_{j >= i} min(1, m p_(j)/j)`; BY multiplies by
+`c(m) = sum_{k=1}^{m} 1/k`.
+
+- Domain: BH for independent or positively regression-dependent p-values;
+  BY for arbitrary dependence.
+- Meaning: control of the false discovery rate at `alpha` when rejecting
+  `p~ <= alpha`.
+- Code: `inference.adjust_p_values`.
+- Source: [REF-BENJAMINI-HOCHBERG-1995] and [REF-BENJAMINI-YEKUTIELI-2001].

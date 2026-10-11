@@ -41,7 +41,7 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-2.9 | Parameter estimation | Partial | UQ-1 | `probstat.inference` | `src/probstat/inference/estimation.py` |
 | ATHENS-2.10 | Maximum-likelihood estimation | Partial | UQ-1 | `probstat.inference` | `src/probstat/inference/estimation.py` |
 | ATHENS-2.11 | Kolmogorov-Smirnov and Anderson-Darling goodness-of-fit | Partial | UQ-1 | `probstat.inference.gof` | `src/probstat/inference/goodness_of_fit.py` |
-| ATHENS-2.12 | Confidence intervals and sampling concepts | Partial | UQ-1 | `probstat.inference` | `src/probstat/inference/confidence.py`; `src/probstat/distributions` |
+| ATHENS-2.12 | Confidence intervals and sampling concepts | Implemented | UQ-1 | `probstat.inference` | `src/probstat/inference/confidence.py`; `src/probstat/inference/resampling.py`; `src/probstat/inference/sampling_distributions.py`; `tests/test_classical_resampling_inference.py`; `docs/foundations/hypothesis-testing-and-bootstrap.md` |
 | ATHENS-3.1 | Deterministic propagation map Y = g(X) | Implemented | UQ-2 | `probstat.uq` | `src/probstat/uq/taxonomy.py` |
 | ATHENS-3.2 | Output mean under input uncertainty | Implemented | UQ-2 | `probstat.propagation` | `src/probstat/propagation/forward.py` |
 | ATHENS-3.3 | Output variance under input uncertainty | Implemented | UQ-2 | `probstat.propagation` | `src/probstat/propagation/forward.py` |

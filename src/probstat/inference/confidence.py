@@ -8,12 +8,16 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from statistics import NormalDist
 
+from probstat.distributions._special import regularized_beta
 from probstat.foundations import coerce_finite_sample
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
+from probstat.optimization import brent_root
+
+from ._hypothesis import t_critical
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +180,146 @@ def wilson_score_interval(
         checked_confidence,
         "Wilson score interval",
     )
+
+
+def student_t_mean_confidence_interval(
+    values: Iterable[object],
+    *,
+    confidence: float = 0.95,
+) -> ConfidenceInterval:
+    """Construct the exact Student-t confidence interval for a normal mean.
+
+    Unlike the estimated-scale branch of
+    :func:`normal_mean_confidence_interval`, this interval uses the
+    ``t_{n-1}`` critical value, so its coverage is exact for independent
+    normal observations of any size ``n >= 2``. The confidence level is a
+    property of the procedure over repeated samples; it is not the
+    probability that this particular interval contains the mean.
+
+    Args:
+        values: Iterable of at least two finite real observations.
+        confidence: Nominal two-sided confidence level in ``(0, 1)``.
+
+    Returns:
+        Interval ``x_bar +- t_{n-1, 1-alpha/2} s / sqrt(n)``.
+
+    Raises:
+        TypeError: If inputs have invalid types.
+        ValueError: If fewer than two values, zero variation, or an invalid
+            confidence level is supplied.
+
+    Equation:
+        [EQ-INF-CI-TMEAN-001], [EQ-DIST-T-001].
+
+    References:
+        [REF-STUDENT-1908], [REF-CASELLA-BERGER-2002, Chapter 9].
+
+    """
+    sample = coerce_finite_sample(values)
+    checked_confidence = _confidence_level(confidence)
+    if len(sample) < 2:
+        raise ValueError("Student-t interval requires at least two values")
+    scale = statistics.stdev(sample)
+    if scale == 0.0:
+        raise ValueError("Student-t interval requires positive variation")
+    center = math.fsum(sample) / len(sample)
+    critical = t_critical(0.5 + 0.5 * checked_confidence, len(sample) - 1)
+    half_width = critical * scale / math.sqrt(len(sample))
+    return ConfidenceInterval(
+        center - half_width,
+        center + half_width,
+        checked_confidence,
+        "Student-t interval for a normal mean",
+    )
+
+
+def clopper_pearson_interval(
+    successes: int,
+    trials: int,
+    *,
+    confidence: float = 0.95,
+) -> ConfidenceInterval:
+    """Construct the Clopper-Pearson exact interval for a binomial probability.
+
+    The interval inverts two one-sided exact binomial tests, so its coverage
+    is at least the nominal level for every true probability (it is
+    conservative because the binomial law is discrete).
+
+    Args:
+        successes: Observed successes from zero through ``trials``.
+        trials: Positive number of Bernoulli trials.
+        confidence: Nominal two-sided confidence level in ``(0, 1)``.
+
+    Returns:
+        ``[B(alpha/2; x, n-x+1), B(1-alpha/2; x+1, n-x)]`` with beta quantiles
+        ``B``, using ``0`` for ``x = 0`` and ``1`` for ``x = n``.
+
+    Raises:
+        TypeError: If counts or confidence have invalid types.
+        ValueError: If count or confidence domains are invalid.
+
+    Equation:
+        [EQ-INF-CI-CP-001], [EQ-NUM-BETA-001].
+
+    References:
+        [REF-CLOPPER-PEARSON-1934], [REF-AGRESTI-2013, Chapter 1].
+
+    """
+    checked_successes = require_non_negative_integer(successes, name="successes")
+    checked_trials = require_non_negative_integer(trials, name="trials")
+    checked_confidence = _confidence_level(confidence)
+    if checked_trials == 0:
+        raise ValueError("trials must be positive")
+    if checked_successes > checked_trials:
+        raise ValueError("successes must not exceed trials")
+    alpha = 1.0 - checked_confidence
+    if checked_successes == 0:
+        lower = 0.0
+    else:
+        lower = _beta_quantile(
+            0.5 * alpha,
+            float(checked_successes),
+            float(checked_trials - checked_successes + 1),
+        )
+    if checked_successes == checked_trials:
+        upper = 1.0
+    else:
+        upper = _beta_quantile(
+            1.0 - 0.5 * alpha,
+            float(checked_successes + 1),
+            float(checked_trials - checked_successes),
+        )
+    return ConfidenceInterval(
+        lower, max(lower, upper), checked_confidence, "Clopper-Pearson exact interval"
+    )
+
+
+def _beta_quantile(probability: float, a: float, b: float) -> float:
+    """Invert the regularized incomplete beta function by Brent's method.
+
+    Args:
+        probability: Target level strictly inside ``(0, 1)``.
+        a: Positive first shape.
+        b: Positive second shape.
+
+    Returns:
+        ``x`` with ``I_x(a, b) = probability``.
+
+    References:
+        [EQ-NUM-BETA-001], [EQ-OPT-BRENT-001], [REF-BRENT-1973, Chapter 4].
+
+    """
+
+    def excess(x: float) -> float:
+        """Return ``I_x(a, b) - probability`` for the root search.
+
+        References:
+            [EQ-NUM-BETA-001]. No new equation is introduced.
+
+        """
+        return regularized_beta(x, a, b) - probability
+
+    return brent_root(excess, 0.0, 1.0, tolerance=1e-15).root
 
 
 def _confidence_level(value: float) -> float:
