@@ -13,20 +13,27 @@ discrepancy prior.
 Part 3 estimates a log-linear heteroscedastic noise model jointly with a
 straight line.
 
+With Matplotlib installed, Part 1 also writes two figures to
+``examples/generated/``: the observations with simulator-only and
+bias-corrected predictive bands, and the estimated discrepancy ``delta(x)``.
+
 Run with ``PYTHONPATH=src python examples/discrepancy_calibration_lab.py``.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import math
 import random
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 
 from probstat.distributions import LogNormal, Normal
 from probstat.inverse import (
     CalibrationProblem,
     DiscrepancyCalibration,
+    DiscrepancyPrediction,
     DiscrepancyProcess,
     Experiment,
     KnownNoise,
@@ -40,6 +47,8 @@ TRUE_RATE = 0.4
 NOISE = 0.03
 DATA_X = tuple(4.0 * i / 14 for i in range(15))
 HELD_OUT = (0.65, 1.9, 3.14, 4.5)
+FIGURE_GRID = tuple(4.5 * i / 44 for i in range(45))
+OUTPUT = Path(__file__).parent / "generated"
 
 
 def simulator(parameters: Mapping[str, float]) -> Mapping[str, float]:
@@ -155,12 +164,47 @@ def part_one() -> None:
             f"  {x:9.2f}  {true_value:.4f}  [{s_low:.3f}, {s_high:.3f}] {s_mark}"
             f"  [{c_low:.3f}, {c_high:.3f}] {c_mark}  {shift:+.3f}"
         )
+    grid = problem.predict(
+        posterior, tuple({"x": x} for x in FIGURE_GRID), max_draws=300
+    )
+    save_figures(problem, grid)
     report = problem.identifiability(posterior)
     print(
         f"  identifiability: max |rho(k, log psi)| = "
         f"{report.max_abs_cross_correlation:.3f}, sd ratio k = "
         f"{report.standard_deviation_ratios['k']:.3f}, warning = {report.warning}"
     )
+
+
+def save_figures(
+    problem: DiscrepancyCalibration, grid: Sequence[DiscrepancyPrediction]
+) -> None:
+    """Write the prediction and discrepancy figures when Matplotlib exists.
+
+    References:
+        [REF-KENNEDY-OHAGAN-2001], [REF-MATPLOTLIB].
+
+    """
+    if importlib.util.find_spec("matplotlib") is None:
+        print("  (install matplotlib to write the figures)")
+        return
+    import matplotlib.pyplot as plt
+
+    from probstat.visualization import save_figure
+    from probstat.visualization.calibration_plots import (
+        plot_discrepancy_estimate,
+        plot_discrepancy_predictions,
+    )
+
+    truth = [oscillating_truth(x) for x in FIGURE_GRID]
+    bias = [0.25 * math.sin(2.5 * x) for x in FIGURE_GRID]
+    axes = plot_discrepancy_predictions(problem, grid, "x", truth=truth)
+    first = save_figure(axes.figure, OUTPUT / "discrepancy-predictions.png")
+    plt.close(axes.figure)
+    axes = plot_discrepancy_estimate(grid, "x", truth=bias)
+    second = save_figure(axes.figure, OUTPUT / "discrepancy-delta.png")
+    plt.close(axes.figure)
+    print(f"  figures: {first.name}, {second.name} in {OUTPUT}")
 
 
 def part_two() -> None:

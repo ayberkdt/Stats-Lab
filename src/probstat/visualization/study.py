@@ -7,6 +7,11 @@ from typing import Any
 
 from probstat.workflow import UQStudy
 
+from .stage_plots import (
+    plot_design_path,
+    plot_information_sensitivity,
+    plot_tail_analysis,
+)
 from .theme import pyplot, save_figure
 from .uq import (
     plot_loss_exceedance,
@@ -17,11 +22,38 @@ from .uq import (
 )
 
 
-def _figures_for(record: Any) -> list[tuple[str, Any]]:
+def _sobol_for(study: UQStudy | None, quantity: str) -> Any | None:
+    """Return the latest Sobol result of ``quantity`` in a study, if any.
+
+    Args:
+        study: Study whose records are searched (``None`` for no study).
+        quantity: QoI name.
+
+    Returns:
+        The Sobol result, or ``None``.
+
+    References:
+        [REF-SALTELLI-2010]. No equation is evaluated.
+
+    """
+    if study is None:
+        return None
+    for record in reversed(study.records):
+        if (
+            record.stage == "sensitivity"
+            and getattr(record.result, "quantity", None) == quantity
+        ):
+            return record.result
+    return None
+
+
+def _figures_for(record: Any, study: UQStudy | None = None) -> list[tuple[str, Any]]:
     """Return ``(suffix, axes)`` pairs for one stage record.
 
     Args:
         record: Stage record of a study.
+        study: Owning study; lets the information figure show the Sobol
+            indices of the same QoI next to the mutual information.
 
     Returns:
         Figures to save; empty for stage kinds without a standard figure.
@@ -83,6 +115,36 @@ def _figures_for(record: Any) -> list[tuple[str, Any]]:
         ]
     if record.stage == "reliability":
         return [("methods", plot_reliability_comparison(result.rows))]
+    if record.stage == "extremes":
+        empirical = {
+            item.return_period: float(
+                record.summary.get(f"empirical x[T={item.return_period:g}]", "nan")
+            )
+            for item in result.return_levels
+        }
+        return [
+            (
+                result.quantity,
+                plot_tail_analysis(
+                    result,
+                    empirical_levels=empirical,
+                    confidence=result.return_levels[0].confidence
+                    if result.return_levels
+                    else 0.95,
+                ),
+            )
+        ]
+    if record.stage == "information":
+        return [
+            (
+                result.quantity,
+                plot_information_sensitivity(
+                    result, sobol=_sobol_for(study, result.quantity)
+                ),
+            )
+        ]
+    if record.stage == "design":
+        return [("eig", plot_design_path(result))]
     if record.stage == "risk":
         return [
             (
@@ -137,7 +199,7 @@ def save_study_figures(study: UQStudy, directory: str | Path) -> tuple[Path, ...
     destination = Path(directory)
     written: list[Path] = []
     for index, record in enumerate(study.records, start=1):
-        for suffix, axes in _figures_for(record):
+        for suffix, axes in _figures_for(record, study):
             stem = _safe_stem(f"{study.name}-{index:02d}-{record.stage}-{suffix}")
             path = destination / f"{stem}.png"
             written.append(save_figure(axes.figure, path))
@@ -244,9 +306,9 @@ def study_html(study: UQStudy) -> str:
             )
         figures = []
         with chart_theme(PORCELAIN):
-            light = [_encode_figure(axes) for _, axes in _figures_for(record)]
+            light = [_encode_figure(axes) for _, axes in _figures_for(record, study)]
         with chart_theme(GRAPHITE):
-            dark = [_encode_figure(axes) for _, axes in _figures_for(record)]
+            dark = [_encode_figure(axes) for _, axes in _figures_for(record, study)]
         for light_uri, dark_uri in zip(light, dark, strict=True):
             figures.append(
                 "<figure><picture>"

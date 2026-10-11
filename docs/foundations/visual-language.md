@@ -109,3 +109,24 @@ intervals. The Q-Q band of `plot_tail_quantiles` maps the central interval of
 each uniform order statistic through the model quantile function
 [EQ-VIZ-QQBAND-001]; it is pointwise, so about 5% of points fall outside a
 95% band by chance.
+
+## Calibration, hierarchy, and study-stage figures
+
+Three more modules follow the same rules (ADR-0044). Each function takes a
+result object and never refits; the labs write every figure to
+`examples/generated/`.
+
+| Module | Function | Shows | Lab |
+|---|---|---|---|
+| `calibration_plots` | `plot_discrepancy_predictions` | observations, simulator-only band (`series[3]`, `FITTED`), bias-corrected band (model hue), truth (accent) | `discrepancy_calibration_lab.py` |
+| `calibration_plots` | `plot_discrepancy_estimate` | posterior `delta(x)` with its mixture interval and the zero line | `discrepancy_calibration_lab.py` |
+| `hierarchical_plots` | `plot_shrinkage` | raw `y_j +/- s_j` (muted) against exact posterior intervals of `theta_j` (model), `mu` (accent) | `hierarchical_lab.py` |
+| `hierarchical_plots` | `plot_tau_posterior` | exact grid density of `tau` over a histogram of MCMC draws | `hierarchical_lab.py` |
+| `hierarchical_plots` | `plot_mixture_fit`, `plot_mixture_selection` | 1-D mixture density and `FITTED` components over the data; BIC or AIC against `K` | `hierarchical_lab.py` |
+| `hierarchical_plots` | `plot_predictive_check`, `plot_pit_histogram` | replicated test quantity with the observed value; PIT counts with a binomial band [EQ-VIZ-PITBAND-001] | `hierarchical_lab.py` |
+| `stage_plots` | `plot_tail_analysis`, `plot_information_sensitivity`, `plot_design_path` | `UQStudy.extremes`, `information_sensitivity` (beside Sobol), and `design` | `uq_study_extensions_lab.py` |
+
+The `theta_j` and `delta(x)` intervals are exact quantiles of Gaussian
+mixtures over quadrature nodes or posterior draws [EQ-VIZ-MIXQ-001], not
+mean +/- 2 sd. `save_study_figures` and the HTML report now draw the
+extremes, information, and design stages as well.

@@ -1,23 +1,34 @@
 """Hierarchical-model laboratory: EM, mixtures, eight schools, and PPCs.
 
-Five seeded experiments, all printed as numbers (no figures):
+Five seeded experiments, printed as numbers:
 
 1. Gaussian-mixture selection: BIC over K = 1..5 on three-component data.
 2. Censored normal data: EM against two naive fixes for detection limits.
 3. Eight schools: exact grid posterior against NUTS (non-centered).
 4. Posterior predictive checks on the eight-schools NUTS draws.
 5. Beta-binomial empirical Bayes shrinkage.
+
+With Matplotlib installed the lab also writes seven figures to
+``examples/generated/``: a one-dimensional mixture fit and its BIC curve, the
+eight-schools shrinkage plot, the posterior of tau with the NUTS draws, two
+predictive checks, and the PIT histogram.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import math
 import random
 import statistics
 import time
+from pathlib import Path
+from typing import Any
 
 from probstat.inference import (
     GaussianMixture,
+    HierarchicalNormalPosterior,
+    HierarchicalNormalSamples,
+    PosteriorPredictivePValues,
     fit_beta_binomial,
     fit_censored_normal,
     hierarchical_normal_posterior,
@@ -29,6 +40,98 @@ from probstat.inference import (
 
 SCHOOLS_Y = (28.0, 8.0, -3.0, 7.0, -1.0, 1.0, 18.0, 12.0)
 SCHOOLS_S = (15.0, 10.0, 16.0, 11.0, 9.0, 11.0, 10.0, 18.0)
+SCHOOLS = ("A", "B", "C", "D", "E", "F", "G", "H")
+OUTPUT = Path(__file__).parent / "generated"
+
+
+def has_matplotlib() -> bool:
+    """Return whether the optional plotting dependency is installed.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    return importlib.util.find_spec("matplotlib") is not None
+
+
+def save(axes: Any, name: str) -> str:
+    """Save and close one figure under ``examples/generated``.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    import matplotlib.pyplot as plt
+
+    from probstat.visualization import save_figure
+
+    figure = getattr(axes, "figure", axes)
+    path = save_figure(figure, OUTPUT / name)
+    plt.close(figure)
+    return path.name
+
+
+def mixture_figures() -> None:
+    """Fit and select a one-dimensional mixture and draw both figures.
+
+    References:
+        [EQ-GMM-001], [EQ-GMM-004], [REF-MCLACHLAN-PEEL-2000],
+        [REF-SCHWARZ-1978].
+
+    """
+    from probstat.visualization.hierarchical_plots import (
+        plot_mixture_fit,
+        plot_mixture_selection,
+    )
+
+    truth = GaussianMixture(
+        (0.3, 0.5, 0.2),
+        ((-3.0,), (0.5,), (4.0,)),
+        (((0.64,),), ((1.0,),), ((0.36,),)),
+    )
+    data = [point[0] for point in truth.sample(300, seed=21)]
+    selection = select_gaussian_mixture(
+        data, (1, 2, 3, 4, 5), seed=5, tolerance=1e-8, max_iterations=300
+    )
+    names = (
+        save(plot_mixture_fit(selection.best, data), "hierarchical-mixture-fit.png"),
+        save(plot_mixture_selection(selection), "hierarchical-mixture-bic.png"),
+    )
+    print(
+        f"   1-D mixture (n = 300, true K = 3): BIC selects K = "
+        f"{selection.best_components}; figures {', '.join(names)}"
+    )
+
+
+def schools_figures(
+    grid: HierarchicalNormalPosterior,
+    samples: HierarchicalNormalSamples,
+    check: PosteriorPredictivePValues,
+    pit: tuple[float, ...],
+) -> None:
+    """Draw the shrinkage, tau, predictive-check, and PIT figures.
+
+    References:
+        [EQ-HIER-001], [EQ-HIER-002], [EQ-PPC-001], [EQ-PPC-002],
+        [REF-GELMAN-ETAL-2013, Chapter 5].
+
+    """
+    from probstat.visualization.hierarchical_plots import (
+        plot_pit_histogram,
+        plot_predictive_check,
+        plot_shrinkage,
+        plot_tau_posterior,
+    )
+
+    tau_draws = [v for chain in samples.draws.chain_columns("tau") for v in chain]
+    names = (
+        save(plot_shrinkage(grid, names=SCHOOLS), "hierarchical-shrinkage.png"),
+        save(plot_tau_posterior(grid, draws=tau_draws), "hierarchical-tau.png"),
+        save(plot_predictive_check(check["max"]), "hierarchical-ppc-max.png"),
+        save(plot_predictive_check(check["chi2"]), "hierarchical-ppc-chi2.png"),
+        save(plot_pit_histogram(pit, bins=4), "hierarchical-pit.png"),
+    )
+    print(f"   figures: {', '.join(names)}")
 
 
 def mixture_selection() -> int:
@@ -65,6 +168,8 @@ def mixture_selection() -> int:
     for k in range(best.components):
         mean = ", ".join(f"{v:6.3f}" for v in best.means[k])
         print(f"   component {k}: weight {best.weights[k]:.3f}, mean ({mean})")
+    if has_matplotlib():
+        mixture_figures()
     print()
     return selection.best_components
 
@@ -196,6 +301,8 @@ def eight_schools() -> float:
         )
     pit = pit_values(SCHOOLS_Y, check.replicates)
     print("   PIT values:", ", ".join(f"{v:.2f}" for v in pit))
+    if has_matplotlib():
+        schools_figures(grid, samples, check, pit)
     print()
     return largest_z
 
