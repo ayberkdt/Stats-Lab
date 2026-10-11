@@ -190,6 +190,13 @@ class HierarchicalNormalPosterior:
         cdf: Trapezoid CDF in ``u`` at each grid point, used for sampling.
         scale: Grid scale ``c``.
         mu_prior: Optional ``(mean, sd)`` normal prior on ``mu``.
+        tail_exponent: Estimated ``k`` in ``p(tau | y) ~ tau^k`` at the grid
+            end. The ``m``-th moment of ``tau`` (and ``sd(mu)`` for
+            ``m = 2``) exists only if ``k + m < -1``; with a uniform prior on
+            ``tau`` and a flat prior on ``mu``, ``k = 1 - J``, so ``E[tau]``
+            is infinite for ``J = 3`` and ``sd(tau)``, ``sd(mu)`` for
+            ``J <= 4``. Moments that do not exist are returned as ``inf``
+            instead of a grid-dependent finite number.
 
     References:
         [REF-GELMAN-ETAL-2013, Chapter 5], [REF-RUBIN-1981].
@@ -204,6 +211,16 @@ class HierarchicalNormalPosterior:
     cdf: Vector
     scale: float
     mu_prior: tuple[float, float] | None
+    tail_exponent: float = -math.inf
+
+    def _moment_exists(self, order: int) -> bool:
+        """Return whether ``E[tau^order | y]`` is finite (with a 0.1 margin).
+
+        References:
+            [REF-GELMAN-ETAL-2013, Chapter 5]. No new equation is evaluated.
+
+        """
+        return self.tail_exponent + order < -1.1
 
     @property
     def groups(self) -> int:
@@ -267,7 +284,8 @@ class HierarchicalNormalPosterior:
 
         """
         return math.fsum(
-            w * function(t) for w, t in zip(self.weights, self.tau_grid, strict=True)
+            w * function(t)
+            for w, t in zip(self.weights, self.tau_grid, strict=True)
             if w > 0.0
         )
 
@@ -278,6 +296,8 @@ class HierarchicalNormalPosterior:
             [REF-GELMAN-ETAL-2013, Chapter 5]. Equation [EQ-HIER-002].
 
         """
+        if not self._moment_exists(1):
+            return math.inf
         return self.expectation(lambda t: t)
 
     def tau_sd(self) -> float:
@@ -287,6 +307,8 @@ class HierarchicalNormalPosterior:
             [REF-GELMAN-ETAL-2013, Chapter 5]. Equation [EQ-HIER-002].
 
         """
+        if not self._moment_exists(2):
+            return math.inf
         mean = self.tau_mean()
         return math.sqrt(max(self.expectation(lambda t: t * t) - mean * mean, 0.0))
 
@@ -311,6 +333,10 @@ class HierarchicalNormalPosterior:
 
         """
         mean = self.expectation(lambda t: self.conditional_mu(t)[0])
+        if not self._moment_exists(2):
+            # Var(mu | tau, y) grows like tau^2 / J, so sd(mu | y) is infinite
+            # whenever the second moment of tau is.
+            return mean, math.inf
         second = self.expectation(
             lambda t: self.conditional_mu(t)[1] + self.conditional_mu(t)[0] ** 2
         )
@@ -350,6 +376,7 @@ class HierarchicalNormalPosterior:
             [REF-GELMAN-ETAL-2013, Chapter 5].
 
         """
+
         def factor(error: float) -> Callable[[float], float]:
             """Return ``tau -> s^2 / (s^2 + tau^2)`` for one group.
 
@@ -524,9 +551,7 @@ def hierarchical_normal_posterior(
             [REF-GELMAN-ETAL-2013, Chapter 5]. Equation [EQ-HIER-002].
 
         """
-        return _log_marginal_tau(y, s, tau, prior_mu, log_prior) + math.log(
-            tau + scale
-        )
+        return _log_marginal_tau(y, s, tau, prior_mu, log_prior) + math.log(tau + scale)
 
     if tau_max is None:
         upper = 10.0 * max(s) + (max(y) - min(y))
@@ -554,18 +579,19 @@ def hierarchical_normal_posterior(
         upper = require_finite_real(tau_max, name="tau_max")
         if upper <= 0.0:
             raise ValueError("tau_max must be positive")
+        slope = (
+            _log_marginal_tau(y, s, 2.0 * upper, prior_mu, log_prior)
+            - _log_marginal_tau(y, s, upper, prior_mu, log_prior)
+        ) / math.log(2.0)
     u_max = math.log1p(upper / scale)
     step = u_max / (size - 1)
     grid = tuple(scale * math.expm1(i * step) for i in range(size))
-    log_density = tuple(
-        _log_marginal_tau(y, s, t, prior_mu, log_prior) for t in grid
-    )
+    log_density = tuple(_log_marginal_tau(y, s, t, prior_mu, log_prior) for t in grid)
     if not all(math.isfinite(v) for v in log_density):
         raise ValueError("log p(tau | y) is not finite on the grid")
     peak = max(log_density)
     in_u = [
-        math.exp(v - peak) * (t + scale)
-        for v, t in zip(log_density, grid, strict=True)
+        math.exp(v - peak) * (t + scale) for v, t in zip(log_density, grid, strict=True)
     ]
     simpson = [
         (1.0 if i in (0, size - 1) else (4.0 if i % 2 else 2.0)) * value
@@ -578,7 +604,7 @@ def hierarchical_normal_posterior(
         cumulative.append(cumulative[-1] + 0.5 * (left + right))
     cdf = tuple(value / cumulative[-1] for value in cumulative)
     return HierarchicalNormalPosterior(
-        y, s, grid, log_density, weights, cdf, scale, prior_mu
+        y, s, grid, log_density, weights, cdf, scale, prior_mu, slope
     )
 
 
@@ -902,6 +928,4 @@ def fit_beta_binomial(
     alpha, beta = m * kappa, (1.0 - m) * kappa
     means = tuple((k + alpha) / (count + kappa) for k, count in zip(y, n, strict=True))
     shrink = tuple(kappa / (count + kappa) for count in n)
-    return BetaBinomialEmpiricalBayes(
-        alpha, beta, -result.value, means, shrink, result
-    )
+    return BetaBinomialEmpiricalBayes(alpha, beta, -result.value, means, shrink, result)

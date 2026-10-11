@@ -168,7 +168,11 @@ def _thinned(
     total = sum(len(chain) for chain in chains)
     if max_draws is None or total <= max_draws:
         return chains
+    # Each chain keeps ceil(L_i / stride) draws, so the per-chain rounding can
+    # overshoot total / stride; increase the stride until the cap holds.
     stride = math.ceil(total / max_draws)
+    while sum(math.ceil(len(chain) / stride) for chain in chains) > max_draws:
+        stride += 1
     return tuple(chain[::stride] for chain in chains)
 
 
@@ -256,8 +260,9 @@ def posterior_predictive_pvalues(
     chains = _thinned(chains, cap)
     generator = resolve_stream(seed).generator()
     observed_data: Vector = tuple(data)
-    observed_stats = {name: float(function(observed_data))
-                      for name, function in stats.items()}
+    observed_stats = {
+        name: float(function(observed_data)) for name, function in stats.items()
+    }
     names = list(stats) + list(discs)
     observed_values: dict[str, list[list[float]]] = {n: [] for n in names}
     replicated_values: dict[str, list[list[float]]] = {n: [] for n in names}

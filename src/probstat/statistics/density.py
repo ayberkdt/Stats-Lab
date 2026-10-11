@@ -5,13 +5,12 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
-from statistics import NormalDist
 
 from probstat.foundations import coerce_finite_sample
 
 from .order import quantile
 
-_STANDARD = NormalDist()
+_SQRT2 = math.sqrt(2.0)
 _INV_SQRT_2PI = 1.0 / math.sqrt(2.0 * math.pi)
 
 
@@ -95,9 +94,11 @@ class KernelDensity:
 
         """
         h = self.bandwidth
-        return math.fsum(_STANDARD.cdf((x - v) / h) for v in self.sample) / len(
-            self.sample
-        )
+        # Phi(z) = erfc(-z / sqrt 2) / 2 keeps relative accuracy in the lower
+        # tail, where 0.5 (1 + erf(z / sqrt 2)) cancels to zero.
+        return math.fsum(
+            0.5 * math.erfc(-(x - v) / (h * _SQRT2)) for v in self.sample
+        ) / len(self.sample)
 
     def grid(self, size: int = 128, *, extend: float = 3.0) -> tuple[float, ...]:
         """Return ``size`` equally spaced points covering the sample +/- ``extend h``.

@@ -344,6 +344,23 @@ class AKMCSTests(unittest.TestCase):
             state.model.evaluations, result.evaluations + result.reference_evaluations
         )
 
+    def test_unconverged_estimate_uses_the_returned_surrogate(self) -> None:
+        """After max_added, P_f equals the returned GP's population fraction."""
+        from probstat.foundations.random_streams import resolve_stream
+
+        state = make_state(four_branch, 2)
+        result = ak_mcs(state, 5000, max_added=4, refit_growth=1.2, seed=3)
+        self.assertFalse(result.converged)
+        generator = resolve_stream(3).child("ak-mcs", "population").generator()
+        population = [
+            (generator.gauss(0.0, 1.0), generator.gauss(0.0, 1.0))
+            for _ in range(result.population)
+        ]
+        fraction = sum(
+            1 for point in population if result.surrogate.predict(point) <= 0.0
+        ) / len(population)
+        self.assertAlmostEqual(result.probability, fraction, places=15)
+
     def test_population_enlargement_and_determinism(self) -> None:
         """A c.o.v. target enlarges the population; seeds reproduce runs."""
 

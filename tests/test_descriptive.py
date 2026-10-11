@@ -82,6 +82,16 @@ class KernelDensityTests(unittest.TestCase):
             self.assertAlmostEqual(density.pdf(x), want, places=14)
         self.assertAlmostEqual(density.cdf(0.0), 0.5, places=14)
 
+    def test_cdf_keeps_lower_tail_accuracy(self) -> None:
+        """F(-1.5) for data (0, 1), h = 0.1: (Phi(-15) + Phi(-25)) / 2."""
+        density = gaussian_kde([0.0, 1.0], bandwidth=0.1)
+        exact = 0.5 * (
+            0.5 * math.erfc(15.0 / math.sqrt(2.0))
+            + 0.5 * math.erfc(25.0 / math.sqrt(2.0))
+        )
+        self.assertGreater(density.cdf(-1.5), 0.0)
+        self.assertAlmostEqual(density.cdf(-1.5) / exact, 1.0, places=12)
+
     def test_density_integrates_to_one(self) -> None:
         """The trapezoid integral over the default grid is one."""
         sample = [0.1 * i * i for i in range(30)]

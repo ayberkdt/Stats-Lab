@@ -169,8 +169,7 @@ def expectation_maximization(
             if -change > slack * (1.0 + abs(objective)):
                 monotone = False
                 message = (
-                    f"EM objective decreased by {-change:.3e} at iteration "
-                    f"{iterations}"
+                    f"EM objective decreased by {-change:.3e} at iteration {iterations}"
                 )
                 if on_decrease == "raise":
                     raise ArithmeticError(message)
@@ -360,9 +359,11 @@ def fit_censored_normal(
     data = _checked_intervals(intervals)
     exact = [lower for lower, upper in data if lower == upper]
     if initial is None:
-        pool = exact if len(exact) >= 2 else [
-            value for pair in data for value in pair if math.isfinite(value)
-        ]
+        pool = (
+            exact
+            if len(exact) >= 2
+            else [value for pair in data for value in pair if math.isfinite(value)]
+        )
         if len(pool) < 2:
             raise ValueError("at least two finite values are needed to start EM")
         start_mu = math.fsum(pool) / len(pool)
@@ -375,8 +376,14 @@ def fit_censored_normal(
             raise ValueError("initial sigma must be positive")
     count = len(data)
 
-    def e_step(theta: tuple[float, float]) -> tuple[tuple[float, float], float]:
-        """Return completed first and second moments and the log-likelihood.
+    def e_step(
+        theta: tuple[float, float],
+    ) -> tuple[tuple[tuple[float, ...], tuple[float, ...]], float]:
+        """Return per-observation conditional means and variances, and log L.
+
+        Keeping the moments per observation lets the M-step centre them on
+        the new mean; summing raw second moments and subtracting ``mu^2``
+        cancels catastrophically when the location dwarfs the scale.
 
         References:
             [REF-DEMPSTER-LAIRD-RUBIN-1977]. Equation [EQ-EM-CENS-002].
@@ -388,7 +395,7 @@ def fit_censored_normal(
         for lower, upper in data:
             if lower == upper:
                 first.append(lower)
-                second.append(lower * lower)
+                second.append(0.0)
                 continue
             law = TruncatedNormal(
                 mu,
@@ -396,24 +403,32 @@ def fit_censored_normal(
                 None if lower == -math.inf else lower,
                 None if upper == math.inf else upper,
             )
-            mean = law.mean
-            first.append(mean)
-            second.append(law.variance + mean * mean)
+            first.append(law.mean)
+            second.append(law.variance)
         return (
-            (math.fsum(first), math.fsum(second)),
+            (tuple(first), tuple(second)),
             _censored_log_likelihood(data, mu, sigma),
         )
 
-    def m_step(statistics: tuple[float, float]) -> tuple[float, float]:
+    def m_step(
+        statistics: tuple[tuple[float, ...], tuple[float, ...]],
+    ) -> tuple[float, float]:
         """Return the complete-data normal MLE from completed moments.
+
+        ``mu = mean(E[Y_i])`` and
+        ``sigma^2 = mean(Var[Y_i] + (E[Y_i] - mu)^2)``, the centred form of
+        ``E[Y^2] - mu^2``.
 
         References:
             [REF-DEMPSTER-LAIRD-RUBIN-1977]. Equation [EQ-EM-CENS-002].
 
         """
-        total, squares = statistics
-        mu = total / count
-        variance = squares / count - mu * mu
+        means, variances = statistics
+        mu = math.fsum(means) / count
+        variance = (
+            math.fsum(v + (m - mu) ** 2 for m, v in zip(means, variances, strict=True))
+            / count
+        )
         if not variance > 0.0:
             raise ValueError("censored data do not identify a positive scale")
         return mu, math.sqrt(variance)

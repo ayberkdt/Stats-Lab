@@ -7,6 +7,7 @@ import random
 import unittest
 import warnings
 
+from probstat.foundations import RandomStream
 from probstat.inference import (
     EMMonotonicityWarning,
     GaussianMixture,
@@ -74,9 +75,7 @@ class GenericEMTests(unittest.TestCase):
         e_step, m_step = self._normal_mean_em(broken=True)
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
-            result = expectation_maximization(
-                3.0, e_step, m_step, max_iterations=5
-            )
+            result = expectation_maximization(3.0, e_step, m_step, max_iterations=5)
         self.assertFalse(result.monotone)
         self.assertGreater(result.max_decrease, 0.0)
         self.assertTrue(
@@ -100,7 +99,10 @@ class GenericEMTests(unittest.TestCase):
             expectation_maximization(0.0, e_step, m_step, max_iterations=0)
         with self.assertRaises(ValueError):
             expectation_maximization(
-                0.0, e_step, m_step, on_decrease="loud"  # type: ignore[arg-type]
+                0.0,
+                e_step,
+                m_step,
+                on_decrease="loud",  # type: ignore[arg-type]
             )
 
 
@@ -116,7 +118,10 @@ class GaussianMixtureTests(unittest.TestCase):
         """The penalized EM objective is monotone for full and diagonal fits."""
         for covariance_type in ("full", "diag"):
             fit = fit_gaussian_mixture(
-                self.data, 3, covariance_type=covariance_type, seed=3,
+                self.data,
+                3,
+                covariance_type=covariance_type,
+                seed=3,
                 tolerance=1e-12,
             )
             self.assertTrue(fit.monotone)
@@ -162,7 +167,10 @@ class GaussianMixtureTests(unittest.TestCase):
     def test_bic_selects_true_component_count(self) -> None:
         """BIC chooses K = 3 on well-separated three-component data."""
         selection = select_gaussian_mixture(
-            self.data[:400], (1, 2, 3, 4, 5), seed=5, tolerance=1e-7,
+            self.data[:400],
+            (1, 2, 3, 4, 5),
+            seed=5,
+            tolerance=1e-7,
             max_iterations=150,
         )
         self.assertEqual(selection.best_components, 3)
@@ -250,6 +258,27 @@ class CensoredNormalTests(unittest.TestCase):
         self.assertAlmostEqual(fit.log_likelihood, -direct.value, delta=1e-7)
         self.assertAlmostEqual(fit.mean, 10.0, delta=0.4)
         self.assertAlmostEqual(fit.standard_deviation, 2.0, delta=0.4)
+
+    def test_censored_fit_is_shift_equivariant_far_from_zero(self) -> None:
+        """Shifting the data by 1e8 shifts mu and leaves sigma unchanged."""
+        rng = RandomStream(5).generator()
+        values = [rng.gauss(0.0, 0.01) for _ in range(40)]
+        low, high = 0.003, 0.012
+        base: list[tuple[float, float]] = []
+        for v in values:
+            if v < low:
+                base.append((-math.inf, low))
+            elif v > high:
+                base.append((high, math.inf))
+            else:
+                base.append((v, v))
+        centred = fit_censored_normal(base)
+        shift = 1e8
+        moved = fit_censored_normal([(a + shift, b + shift) for a, b in base])
+        self.assertAlmostEqual(moved.mean - shift, centred.mean, delta=1e-6)
+        self.assertAlmostEqual(
+            moved.standard_deviation / centred.standard_deviation, 1.0, delta=1e-4
+        )
 
     def test_uncensored_data_give_the_normal_mle(self) -> None:
         """Without censoring EM returns the sample mean and MLE deviation."""

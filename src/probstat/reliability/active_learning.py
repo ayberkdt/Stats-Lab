@@ -553,7 +553,12 @@ def ak_mcs(
             posterior.add_training(point, value_g)
     evaluations = state.model.evaluations - before
     if fitted_size != len(training_u):
+        # Refit on every training point and rebuild the population posterior
+        # so that the reported probability and the returned surrogate come
+        # from the same model.
         surrogate = fit()
+        fitted_size = len(training_u)
+        posterior = _IncrementalPosterior(surrogate, points)
     failures, probability, cov = _population_estimate(posterior.mu)
     reference = math.nan
     reference_calls = 0

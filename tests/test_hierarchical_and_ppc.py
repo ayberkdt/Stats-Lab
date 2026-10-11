@@ -123,6 +123,28 @@ class HierarchicalNormalGridTests(unittest.TestCase):
                 self.assertAlmostEqual(a, b, delta=1e-5 * max(1.0, abs(b)))
 
 
+class InfiniteMomentTests(unittest.TestCase):
+    """Moments that do not exist are infinite, not grid-dependent numbers."""
+
+    def test_few_groups_with_uniform_tau_prior(self) -> None:
+        """J = 4: E[tau] finite and grid-independent; sd(tau), sd(mu) infinite."""
+        y, s = (1.0, 5.0, -3.0, 2.0), (1.0, 1.0, 1.0, 1.0)
+        automatic = hierarchical_normal_posterior(y, s)
+        wide = hierarchical_normal_posterior(y, s, tau_max=1e20)
+        self.assertTrue(math.isinf(automatic.tau_sd()))
+        self.assertTrue(math.isinf(automatic.mu_moments()[1]))
+        self.assertTrue(math.isfinite(automatic.tau_mean()))
+        self.assertAlmostEqual(automatic.tau_mean(), wide.tau_mean(), delta=0.05)
+        three = hierarchical_normal_posterior(y[:3], s[:3])
+        self.assertTrue(math.isinf(three.tau_mean()))
+
+    def test_eight_schools_moments_stay_finite(self) -> None:
+        """J = 8 has finite first and second moments of tau."""
+        posterior = hierarchical_normal_posterior(SCHOOLS_Y, SCHOOLS_S)
+        self.assertTrue(math.isfinite(posterior.tau_sd()))
+        self.assertTrue(math.isfinite(posterior.mu_moments()[1]))
+
+
 class EightSchoolsAgreementTests(unittest.TestCase):
     """NUTS on the non-centered model agrees with the exact grid posterior."""
 
@@ -199,6 +221,15 @@ class BetaBinomialTests(unittest.TestCase):
 
 class PosteriorPredictiveCheckTests(unittest.TestCase):
     """Calibration of posterior predictive p-values and PIT values."""
+
+    def test_thinning_respects_the_draw_cap_across_chains(self) -> None:
+        """10 chains of 3 draws thinned to at most 15 draws, not 20."""
+        from probstat.inference.predictive_checks import _thinned
+
+        chains = tuple(tuple((float(c), float(i)) for i in range(3)) for c in range(10))
+        kept = _thinned(chains, 15)
+        self.assertLessEqual(sum(len(chain) for chain in kept), 15)
+        self.assertEqual(len(kept), 10)
 
     @staticmethod
     def _p_values(true_sd: float, datasets: int, seed: int) -> list[float]:
