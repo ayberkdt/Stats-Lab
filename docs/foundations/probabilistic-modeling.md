@@ -129,6 +129,74 @@ accident. Hand-picked seeds such as `310` and `311` are no longer necessary.
 the model, and each workflow reports the calls it charged. For expensive
 simulators this number, not wall time, is the honest measure of cost.
 
+## Tails, information, and design inside one `UQStudy`
+
+`workflow.UQStudy` (ADR-0025) runs every analysis on one model from one root
+seed. Three more stages (ADR-0038) put extreme-value analysis, information
+theory, and experimental design in the same study, the same report, and the
+same evaluation count. Each one calls a single domain function. Each draws
+from its own child stream `root.child(stage, k)`.
+
+| Stage method | Stage kind | Delegates to | New runs |
+|---|---|---|---|
+| `extremes(q, tail=..., level=..., return_periods=...)` | `extremes` | `risk.fit_pot`, `PeaksOverThresholdFit.return_level` | 0 if it reuses the latest propagation |
+| `information_sensitivity(q, max_points=512)` | `information` | `information.ksg_mutual_information` per input | 0 if it reuses the latest propagation |
+| `design(candidates, size, noise=None)` | `design` | `design.greedy_design`, `design.expected_information_gain` | EIG cost |
+
+- **`extremes`** fits a peaks-over-threshold (POT) model to the propagated
+  sample [EQ-EVA-GPD-001] [EQ-EVA-POT-001].
+  - Each model run counts as one observation, so a return period of `T`
+    means `T` runs. The `T`-run level has tail probability `1/T`.
+  - `tail="lower"` analyzes `-Y`, then maps results back to QoI units.
+  - Given a `level`, the summary puts the POT tail probability next to the
+    empirical fraction and its Wilson interval.
+  - The binomial rate model assumes independent runs. For a Sobol or LHS
+    sample, treat its intervals as references only.
+- **`information_sensitivity`** estimates `I(X_i; Y)` in nats with the KSG
+  estimator [EQ-INFO-KSG-001].
+  - It is zero only under independence and does not change under monotone
+    transforms. That makes it a moment-independent complement to Sobol
+    indices. It is not a variance share, and the values do not sum to one.
+  - The estimator costs `O(n^2)` per input, so the stage uses the first
+    `max_points` runs.
+- **`design`** reuses the study's calibration problem: the prior, the
+  forward model, and the known Gaussian noise.
+  - The calibration experiments become the baseline. Conditions are then
+    added greedily by expected information gain (EIG) [EQ-OED-GREEDY-001].
+  - The full design is re-estimated on an independent stream, so the
+    report gives the EIG with a standard error.
+  - The EIG is a preposterior quantity under the prior. It does not
+    condition on the values that were observed.
+  - With no calibration, `design` needs `noise=`; otherwise it raises
+    `ValueError`.
+
+Results from `examples/uq_study_extensions_lab.py` (seed 2026, about 12 s):
+
+- **Cantilever, 20 000 MC runs, threshold at the 95% quantile.**
+  - Fit: `xi = -0.057 ± 0.033`.
+  - `P(deflection > 0.075 m)`: POT `7.67e-3`, empirical `7.80e-3`
+    (Wilson 95% `[6.67e-3, 9.12e-3]`).
+  - 10 000-run return level: `99.3 mm` (`[94.4, 104.3]`), against an
+    empirical `96.5 mm`.
+  - The stage made no new model runs.
+- **Ishigami, 1024-row Sobol design plus 800 MC runs for KSG (`k = 3`).**
+
+  | Input | `S` | `ST` | MI (nats) |
+  |---|---|---|---|
+  | `x1` | 0.305 | 0.555 | 0.351 |
+  | `x2` | 0.443 | 0.441 | 0.446 |
+  | `x3` | -0.001 | 0.245 | 0.142 |
+
+  `x3` acts on `Y` only through its interaction with `x1`. Its first-order
+  Sobol index is zero, but its mutual information is clearly positive.
+- **Decay `A exp(-k t)`, calibrated on two observations at `t = 0, 1`.**
+  - Laplace EIG with 64 prior draws picks `t = 3`, then `t = 2`, from eight
+    candidates.
+  - Final EIG of the four-condition design: `6.50 ± 0.14` nats.
+  - The greedy path reports `6.81` for the same design. That value is the
+    maximum over candidates scored with one stream, so it is biased upward.
+    The independent re-estimate is the honest figure.
+
 ## What the model does not decide
 
 - It does not validate the forward model. Validation remains a separate

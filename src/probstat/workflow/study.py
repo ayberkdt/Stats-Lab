@@ -17,8 +17,17 @@ from types import MappingProxyType
 from typing import Any, Literal
 
 from probstat.conformal import conformalize_surrogate
+from probstat.design import (
+    BayesianDesignProblem,
+    Condition,
+    GreedyDesignResult,
+    InformationGainEstimate,
+    expected_information_gain,
+    greedy_design,
+)
 from probstat.distributions import Uniform
 from probstat.foundations.random_streams import RandomStream, resolve_stream
+from probstat.information import InformationUnit, ksg_mutual_information
 from probstat.inverse import (
     CalibrationPosterior,
     CalibrationProblem,
@@ -29,6 +38,7 @@ from probstat.inverse import (
 )
 from probstat.modeling import ProbabilisticModel
 from probstat.modeling.fitting import JointInputFit, fit_joint_input
+from probstat.monte_carlo import ProbabilityEstimate, estimate_probability
 from probstat.propagation import PropagationStudy, propagate
 from probstat.reliability import (
     FORMResult,
@@ -37,7 +47,14 @@ from probstat.reliability import (
     compare_reliability_methods,
     form_hlrf,
 )
-from probstat.risk import LossFunction, RiskAssessment, assess_risk
+from probstat.risk import (
+    LossFunction,
+    PeaksOverThresholdFit,
+    ReturnLevel,
+    RiskAssessment,
+    assess_risk,
+    fit_pot,
+)
 from probstat.sensitivity import (
     ModelSobolResult,
     MorrisResult,
@@ -46,6 +63,7 @@ from probstat.sensitivity import (
     shapley_effects,
     sobol_analysis,
 )
+from probstat.statistics import quantile
 from probstat.surrogates import (
     fit_gaussian_process_to_model,
     fit_polynomial_chaos,
@@ -82,6 +100,168 @@ class StageRecord:
     evaluations: int
     seed: int
     result: Any = field(repr=False, compare=False)
+
+
+@dataclass(frozen=True, slots=True)
+class TailAnalysis:
+    """Peaks-over-threshold analysis of one QoI tail, in QoI units.
+
+    Return periods count model runs: the ``T``-run return level is exceeded
+    (or, for the lower tail, undercut) with probability ``1/T`` per run.
+
+    Args:
+        quantity: QoI name.
+        tail: ``"upper"`` or ``"lower"``.
+        fit: POT fit on the oriented sample (``-Y`` for the lower tail), one
+            observation per model run.
+        return_levels: Return levels mapped back to QoI units.
+        level: Level whose tail probability was compared, or ``None``.
+        pot_probability: POT estimate ``zeta_u S_GPD`` of the tail
+            probability of ``level`` (``nan`` without a level).
+        empirical: Empirical tail probability of ``level`` with a Wilson
+            interval, or ``None``.
+        sample_size: Number of model outputs analyzed.
+        source: Where the sample came from.
+
+    References:
+        [REF-COLES-2001, Section 4.3], [REF-WILSON-1927].
+
+    """
+
+    quantity: str
+    tail: str
+    fit: PeaksOverThresholdFit
+    return_levels: tuple[ReturnLevel, ...]
+    level: float | None
+    pot_probability: float
+    empirical: ProbabilityEstimate | None
+    sample_size: int
+    source: str
+
+    @property
+    def threshold(self) -> float:
+        """Return the threshold in QoI units.
+
+        References:
+            [REF-COLES-2001, Section 4.3]. No equation is evaluated.
+
+        """
+        return self.fit.threshold if self.tail == "upper" else -self.fit.threshold
+
+
+@dataclass(frozen=True, slots=True)
+class InformationSensitivity:
+    """Mutual information between each input and one QoI.
+
+    Args:
+        quantity: QoI name.
+        input_names: Input names in model order.
+        mutual_information: KSG estimates ``I(X_i; Y)``, one per input.
+        k: KSG neighbour order.
+        sample_size: Number of model runs used.
+        unit: ``"nats"`` or ``"bits"``.
+        source: Where the sample came from.
+
+    References:
+        [REF-KRASKOV-STOGBAUER-GRASSBERGER-2004],
+        [REF-COVER-THOMAS-2006, Chapter 8].
+
+    """
+
+    quantity: str
+    input_names: tuple[str, ...]
+    mutual_information: tuple[float, ...]
+    k: int
+    sample_size: int
+    unit: str
+    source: str
+
+    def as_mapping(self) -> Mapping[str, float]:
+        """Return a read-only input-name mapping to mutual information.
+
+        References:
+            [REF-KRASKOV-STOGBAUER-GRASSBERGER-2004]. No equation is evaluated.
+
+        """
+        return MappingProxyType(
+            dict(zip(self.input_names, self.mutual_information, strict=True))
+        )
+
+    def ranking(self) -> tuple[str, ...]:
+        """Return input names from most to least informative.
+
+        References:
+            [REF-KRASKOV-STOGBAUER-GRASSBERGER-2004]. No equation is evaluated.
+
+        """
+        order = sorted(
+            range(len(self.input_names)),
+            key=lambda i: (-self.mutual_information[i], i),
+        )
+        return tuple(self.input_names[i] for i in order)
+
+
+@dataclass(frozen=True, slots=True)
+class DesignRecommendation:
+    """Greedy Bayesian design of new experiments for the study's calibration.
+
+    Args:
+        selection: Greedy selection with its EIG path and per-step scores.
+        estimate: Independent EIG estimate (with standard error) of the full
+            design ``baseline + selected``.
+        baseline: Conditions already performed (the calibration experiments)
+            or empty.
+
+    References:
+        [REF-CHALONER-VERDINELLI-1995], [REF-HUAN-MARZOUK-2013].
+
+    """
+
+    selection: GreedyDesignResult
+    estimate: InformationGainEstimate
+    baseline: tuple[Condition, ...]
+
+    @property
+    def design(self) -> tuple[Condition, ...]:
+        """Return the full design: baseline followed by the selected conditions.
+
+        References:
+            [REF-HUAN-MARZOUK-2013]. No equation is evaluated.
+
+        """
+        return self.baseline + self.selection.selected
+
+
+def _orient_return_level(level: ReturnLevel, sign: float) -> ReturnLevel:
+    """Map a return level of ``sign * Y`` back to QoI units.
+
+    References:
+        [REF-COLES-2001, Section 4.3]. No equation is evaluated.
+
+    """
+    if sign > 0.0:
+        return level
+    return ReturnLevel(
+        level.return_period,
+        -level.level,
+        level.standard_error,
+        -level.upper,
+        -level.lower,
+        level.confidence,
+        level.method,
+    )
+
+
+def _format_condition(condition: Condition) -> str:
+    """Render a condition mapping as ``name=value`` pairs.
+
+    References:
+        Project reporting policy. No equation is evaluated.
+
+    """
+    if not condition:
+        return "(model defaults)"
+    return ", ".join(f"{name}={value:g}" for name, value in condition.items())
 
 
 class UQStudy:
@@ -903,6 +1083,409 @@ class UQStudy:
         self._record(
             "validation",
             f"validation of {quantity} against {len(result.experiments)} experiments",
+            summary,
+            self._model.evaluations - before,
+            stream,
+            result,
+        )
+        return result
+
+    def _output_sample(
+        self,
+        stream: RandomStream,
+        quantity: str,
+        size: int | None,
+        design: str,
+        default_size: int,
+    ) -> tuple[PropagationStudy, int, str]:
+        """Return the latest propagation sample, or a fresh one on ``stream``.
+
+        With ``size=None`` the latest propagation stage is reused at no cost;
+        otherwise (or when none exists) ``size`` (default ``default_size``)
+        new runs are drawn from ``stream`` and charged to the caller.
+
+        Raises:
+            ValueError: If ``quantity`` is not a model QoI.
+
+        References:
+            [REF-SMITH-UQ-2024, Chapter 3]. No equation is evaluated.
+
+        """
+        if quantity not in self._model.quantity_names:
+            raise ValueError(f"{quantity!r} is not a quantity of the study model")
+        if size is None:
+            for record in reversed(self._records):
+                if record.stage == "propagation":
+                    return (
+                        record.result,
+                        0,
+                        f"propagation stage (stream seed {record.seed})",
+                    )
+        sample = propagate(
+            self._model,
+            default_size if size is None else size,
+            design=design,
+            seed=stream,
+        )
+        return sample, sample.model_evaluations, f"fresh {design} sample"
+
+    def extremes(
+        self,
+        quantity: str,
+        *,
+        tail: Literal["upper", "lower"] = "upper",
+        threshold_quantile: float = 0.95,
+        threshold: float | None = None,
+        level: float | None = None,
+        return_periods: Sequence[float] = (100.0, 1000.0),
+        method: Literal["mle", "pwm"] = "mle",
+        confidence: float = 0.95,
+        size: int | None = None,
+        design: str = "mc",
+    ) -> TailAnalysis:
+        """Fit a peaks-over-threshold model to the tail of one QoI.
+
+        The sample is the latest propagation (no new runs) unless ``size`` is
+        given or no propagation exists, in which case ``size`` (default 4096)
+        fresh runs are drawn from this stage's stream. Each model run is one
+        observation (``observations_per_year = 1``), so a return period ``T``
+        is a number of runs and the ``T``-run level has tail probability
+        ``1/T``. The lower tail is analyzed as the upper tail of ``-Y``.
+
+        The rate model assumes independent runs; for LHS or QMC samples the
+        binomial intervals are conservative references, not exact.
+
+        Args:
+            quantity: QoI name.
+            tail: ``"upper"`` (large values) or ``"lower"`` (small values).
+            threshold_quantile: Threshold as the sample quantile of the
+                oriented values (used when ``threshold`` is ``None``).
+            threshold: Explicit threshold in QoI units.
+            level: Optional level whose tail probability is estimated both by
+                the POT model and empirically (Wilson interval).
+            return_periods: Return periods in model runs (each must exceed
+                ``1/zeta_u``).
+            method: GPD estimator, ``"mle"`` (with delta intervals) or
+                ``"pwm"`` (point estimates only).
+            confidence: Two-sided interval confidence.
+            size: Fresh sample size; ``None`` reuses the latest propagation.
+            design: Sampling design of a fresh sample.
+
+        Returns:
+            Tail analysis in QoI units.
+
+        Raises:
+            ValueError: If the quantity, threshold quantile, tail, or level is
+                invalid (a level must lie beyond the threshold).
+
+        Equation:
+            [EQ-EVA-GPD-001], [EQ-EVA-RATE-001], [EQ-EVA-POT-001],
+            [EQ-EVA-POT-002], [EQ-MC-PROB-001].
+
+        References:
+            [REF-COLES-2001, Section 4.3], [REF-WILSON-1927].
+
+        """
+        if tail not in ("upper", "lower"):
+            raise ValueError("tail must be 'upper' or 'lower'")
+        if threshold is None and not 0.0 < threshold_quantile < 1.0:
+            raise ValueError("threshold_quantile must lie strictly inside (0, 1)")
+        stream = self.stream("extremes")
+        sample, evaluations, source = self._output_sample(
+            stream, quantity, size, design, 4096
+        )
+        sign = 1.0 if tail == "upper" else -1.0
+        oriented = tuple(sign * value for value in sample[quantity].values)
+        cut = (
+            quantile(oriented, threshold_quantile)
+            if threshold is None
+            else sign * threshold
+        )
+        fit = fit_pot(oriented, cut, observations_per_year=1.0, method=method)
+        levels = tuple(
+            _orient_return_level(fit.return_level(period, confidence=confidence), sign)
+            for period in return_periods
+        )
+        pot_probability = math.nan
+        empirical: ProbabilityEstimate | None = None
+        if level is not None:
+            point = sign * level
+            if point < cut:
+                raise ValueError(
+                    "level lies inside the threshold; raise threshold_quantile "
+                    "or pass a lower threshold"
+                )
+            pot_probability = fit.annual_exceedance_rate(point)
+            empirical = estimate_probability(
+                (value > point for value in oriented), confidence=confidence
+            )
+        result = TailAnalysis(
+            quantity,
+            tail,
+            fit,
+            levels,
+            level,
+            pot_probability,
+            empirical,
+            len(oriented),
+            source,
+        )
+        sigma_se, xi_se = fit.gpd.standard_errors
+        summary: dict[str, float | str] = {
+            "quantity": quantity,
+            "tail": tail,
+            "source": source,
+            "design": sample.design.method,
+            "sample_size": len(oriented),
+            "threshold": result.threshold,
+            "threshold_rule": (
+                f"q{threshold_quantile:g}" if threshold is None else "given"
+            ),
+            "exceedances": fit.rate.exceedances,
+            "zeta_u": fit.rate.probability,
+            "sigma": fit.gpd.sigma,
+            "sigma_se": sigma_se,
+            "xi": fit.gpd.xi,
+            "xi_se": xi_se,
+        }
+        n = len(oriented)
+        for item in levels:
+            key = f"x[T={item.return_period:g}]"
+            summary[key] = item.level
+            summary[f"{key}.low"] = item.lower
+            summary[f"{key}.high"] = item.upper
+            summary[f"empirical {key}"] = (
+                sign * quantile(oriented, 1.0 - 1.0 / item.return_period)
+                if item.return_period <= n
+                else math.nan
+            )
+        if level is not None and empirical is not None:
+            summary["level"] = level
+            summary["P_pot"] = pot_probability
+            summary["P_empirical"] = empirical.probability
+            summary["P_empirical.low"] = empirical.confidence_interval.lower
+            summary["P_empirical.high"] = empirical.confidence_interval.upper
+            summary["P_pot/P_empirical"] = (
+                pot_probability / empirical.probability
+                if empirical.probability > 0.0
+                else math.inf
+            )
+        self._record(
+            "extremes",
+            f"POT {tail} tail of {quantity}, threshold {result.threshold:g}",
+            summary,
+            evaluations,
+            stream,
+            result,
+        )
+        return result
+
+    def information_sensitivity(
+        self,
+        quantity: str,
+        *,
+        max_points: int = 512,
+        k: int = 3,
+        unit: InformationUnit = "nats",
+        size: int | None = None,
+        design: str = "mc",
+    ) -> InformationSensitivity:
+        """Estimate the mutual information between each input and one QoI.
+
+        ``I(X_i; Y)`` is zero exactly when ``Y`` is independent of ``X_i``
+        and is invariant under monotone transformations of either, so it
+        sees non-monotone and higher-moment dependence that variance-based
+        indices can miss, and it needs no independence between inputs. It is
+        a moment-independent complement to Sobol indices, not a variance
+        share: values are in nats (or bits) and do not sum to anything.
+
+        The sample is the first ``max_points`` runs of the latest propagation
+        unless ``size`` is given or none exists (then ``size``, default
+        ``max_points``, fresh runs are drawn from this stage's stream). The
+        KSG estimator costs ``O(n^2)`` per input, hence the cap.
+
+        Args:
+            quantity: QoI name.
+            max_points: Maximum number of runs entering the estimator.
+            k: KSG neighbour order.
+            unit: ``"nats"`` or ``"bits"``.
+            size: Fresh sample size; ``None`` reuses the latest propagation.
+            design: Sampling design of a fresh sample.
+
+        Returns:
+            Mutual information per input.
+
+        Raises:
+            ValueError: If the quantity or ``max_points`` is invalid, or the
+                sample has duplicated (input, output) pairs.
+
+        Equation:
+            [EQ-INFO-MI-001], [EQ-INFO-KSG-001].
+
+        References:
+            [REF-KRASKOV-STOGBAUER-GRASSBERGER-2004],
+            [REF-COVER-THOMAS-2006, Chapter 8].
+
+        """
+        if isinstance(max_points, bool) or not isinstance(max_points, int):
+            raise ValueError("max_points must be an integer")
+        if max_points < 2:
+            raise ValueError("max_points must be at least two")
+        stream = self.stream("information")
+        sample, evaluations, source = self._output_sample(
+            stream, quantity, size, design, max_points
+        )
+        outputs = sample[quantity].values[:max_points]
+        count = len(outputs)
+        estimates = tuple(
+            ksg_mutual_information(
+                sample.input_column(name)[:count], outputs, k=k, unit=unit
+            )
+            for name in sample.input_names
+        )
+        result = InformationSensitivity(
+            quantity, sample.input_names, estimates, k, count, unit, source
+        )
+        summary: dict[str, float | str] = {
+            "quantity": quantity,
+            "unit": unit,
+            "k": k,
+            "sample_size": count,
+            "source": source,
+        }
+        for name, value in zip(sample.input_names, estimates, strict=True):
+            summary[f"MI[{name}]"] = value
+        summary["ranking"] = " > ".join(result.ranking())
+        self._record(
+            "information",
+            f"mutual information of {quantity} with each input",
+            summary,
+            evaluations,
+            stream,
+            result,
+        )
+        return result
+
+    def design(
+        self,
+        candidates: Sequence[Condition],
+        size: int = 1,
+        *,
+        noise: Sequence[NoiseModel] | None = None,
+        include_experiments: bool = True,
+        allow_repeats: bool = True,
+        method: str = "laplace",
+        samples: int = 32,
+        outer: int = 1000,
+        inner: int = 200,
+        reuse_samples: bool = True,
+    ) -> DesignRecommendation:
+        """Choose new experimental conditions by expected information gain.
+
+        The design problem reuses the calibration problem of the latest
+        :meth:`calibrate` (prior = model input law, its Gaussian noise
+        models) or, before any calibration, the ``noise`` models given here.
+        With ``include_experiments`` the calibration's experimental conditions
+        form the baseline, so each greedy step maximizes the expected
+        conditional gain given data at those conditions. The EIG is a
+        preposterior quantity under the prior: it does not condition on the
+        observed values. Conditions are chosen greedily
+        (stream ``design/greedy``); the full design is then re-estimated on an
+        independent stream (``design/final``) to report its EIG with a
+        standard error.
+
+        Args:
+            candidates: Candidate conditions (deterministic model inputs).
+            size: Number of new conditions to choose.
+            noise: Known-scale Gaussian noise models; overrides the
+                calibration's when given.
+            include_experiments: Use the calibration experiments as baseline.
+            allow_repeats: Allow a candidate to be chosen more than once.
+            method: ``"linearized"``, ``"laplace"``, or ``"nested"``.
+            samples: Prior draws for ``"laplace"``.
+            outer: Outer samples for ``"nested"``.
+            inner: Inner samples for ``"nested"`` without reuse.
+            reuse_samples: Sample reuse for ``"nested"``.
+
+        Returns:
+            Greedy selection and the final EIG estimate.
+
+        Raises:
+            ValueError: If there is neither a calibration problem nor
+                ``noise``, or the design arguments are invalid.
+
+        Equation:
+            [EQ-OED-EIG-001], [EQ-OED-GREEDY-001], [EQ-OED-LAP-001].
+
+        References:
+            [REF-CHALONER-VERDINELLI-1995], [REF-HUAN-MARZOUK-2013].
+
+        """
+        if noise is not None:
+            problem = BayesianDesignProblem(self._model, tuple(noise))
+        elif self._problem is not None:
+            problem = BayesianDesignProblem.from_calibration(self._problem)
+        else:
+            raise ValueError(
+                "design() needs a calibration problem: run calibrate() first "
+                "or pass known-scale noise models via noise="
+            )
+        baseline: tuple[Condition, ...] = ()
+        if include_experiments and self._problem is not None:
+            baseline = tuple(
+                MappingProxyType(dict(item.conditions))
+                for item in self._problem.experiments
+            )
+        stream = self.stream("design")
+        before = self._model.evaluations
+        selection = greedy_design(
+            problem,
+            candidates,
+            size,
+            baseline=baseline,
+            allow_repeats=allow_repeats,
+            method=method,
+            samples=samples,
+            outer=outer,
+            inner=inner,
+            reuse_samples=reuse_samples,
+            seed=stream.child("greedy"),
+        )
+        estimate = expected_information_gain(
+            problem,
+            baseline + selection.selected,
+            method=method,
+            samples=samples,
+            outer=outer,
+            inner=inner,
+            reuse_samples=reuse_samples,
+            seed=stream.child("final"),
+        )
+        result = DesignRecommendation(selection, estimate, baseline)
+        summary: dict[str, float | str] = {
+            "method": method,
+            "candidates": len(tuple(candidates)),
+            "baseline_conditions": len(baseline),
+            "baseline_eig": selection.baseline_information_gain,
+        }
+        for step, (condition, gain, increment) in enumerate(
+            zip(
+                selection.selected,
+                selection.information_gains,
+                selection.increments,
+                strict=True,
+            ),
+            start=1,
+        ):
+            summary[f"condition[{step}]"] = _format_condition(condition)
+            summary[f"eig[{step}]"] = gain
+            summary[f"gain[{step}]"] = increment
+        summary["eig"] = estimate.value
+        summary["eig_se"] = estimate.standard_error
+        summary["eig_bias"] = estimate.bias
+        self._record(
+            "design",
+            f"greedy {method} design of {len(selection.selected)} new conditions",
             summary,
             self._model.evaluations - before,
             stream,

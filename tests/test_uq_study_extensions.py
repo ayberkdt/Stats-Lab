@@ -1,0 +1,301 @@
+"""Tests for the extremes, information, and design stages of ``UQStudy``."""
+
+from __future__ import annotations
+
+import math
+import unittest
+
+from probstat.design import (
+    BayesianDesignProblem,
+    expected_information_gain,
+    greedy_design,
+)
+from probstat.distributions import LogNormal, Normal, Uniform
+from probstat.foundations.random_streams import resolve_stream
+from probstat.information import ksg_mutual_information
+from probstat.inverse import CalibrationProblem, Experiment, NoiseModel
+from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
+from probstat.propagation import propagate
+from probstat.risk import fit_pot
+from probstat.statistics import quantile
+from probstat.uq import (
+    WORKFLOW_GUIDE,
+    QuantityOfInterest,
+    StepStatus,
+    UQWorkflowRecord,
+    WorkflowStep,
+)
+from probstat.workflow import UQStudy
+
+NOISE = (NoiseModel("y", standard_deviation=0.05),)
+CANDIDATES = tuple({"t": t} for t in (0.5, 2.0, 4.0, 8.0, 12.0))
+
+
+def capacity_model() -> ProbabilisticModel:
+    """Return ``g = R - S`` with lognormal resistance and normal load."""
+    inputs = JointInput.independent(
+        RandomInput("R", LogNormal(math.log(5.0), 0.1)),
+        RandomInput("S", Normal(3.0, 0.8)),
+    )
+
+    def margin(p):
+        """Return the safety margin."""
+        return {"g": p["R"] - p["S"]}
+
+    return ProbabilisticModel(
+        inputs, margin, (QuantityOfInterest("g", "margin"),), name="capacity"
+    )
+
+
+def decay_model() -> ProbabilisticModel:
+    """Return an exponential decay ``A exp(-k t)`` with time as a condition."""
+    inputs = JointInput.independent(
+        RandomInput("A", Uniform(2.0, 8.0)), RandomInput("k", Uniform(0.05, 1.0))
+    )
+
+    def decay(p):
+        """Return the decayed amplitude at time t."""
+        return {"y": p["A"] * math.exp(-p["k"] * p["t"])}
+
+    return ProbabilisticModel(
+        inputs, decay, (QuantityOfInterest("y", "amplitude"),), fixed={"t": 0.0}
+    )
+
+
+def decay_experiments() -> tuple[Experiment, ...]:
+    """Return two early-time observations of the decay with A=5, k=0.3."""
+    return tuple(
+        Experiment({"y": 5.0 * math.exp(-0.3 * t) + offset}, {"t": t})
+        for t, offset in ((0.0, 0.04), (1.0, -0.03))
+    )
+
+
+def calibrated_study(seed: int) -> UQStudy:
+    """Return a decay study calibrated on the two early observations."""
+    study = UQStudy(decay_model(), seed=seed)
+    study.calibrate(decay_experiments(), NOISE, draws=200, warmup=200, chains=2)
+    return study
+
+
+class ExtremesStageTests(unittest.TestCase):
+    """Peaks-over-threshold tail analysis inside the study."""
+
+    def test_reused_propagation_reproduces_direct_fit(self) -> None:
+        """The stage fits the latest propagation sample exactly like fit_pot."""
+        study = UQStudy(capacity_model(), seed=11)
+        study.propagate(4096, design="mc")
+        result = study.extremes("g", tail="lower", level=0.0)
+        values = study.latest("propagation").result["g"].values
+        oriented = tuple(-v for v in values)
+        cut = quantile(oriented, 0.95)
+        direct = fit_pot(oriented, cut, observations_per_year=1.0)
+        self.assertEqual(result.fit.gpd.sigma, direct.gpd.sigma)
+        self.assertEqual(result.fit.gpd.xi, direct.gpd.xi)
+        self.assertEqual(result.threshold, -cut)
+        level = direct.return_level(100.0)
+        self.assertEqual(result.return_levels[0].level, -level.level)
+        self.assertEqual(result.return_levels[0].lower, -level.upper)
+        record = study.latest("extremes")
+        self.assertEqual(record.evaluations, 0)
+        for key in (
+            "threshold",
+            "exceedances",
+            "xi",
+            "sigma",
+            "x[T=100]",
+            "x[T=1000].low",
+            "empirical x[T=100]",
+            "P_pot",
+            "P_empirical",
+            "P_pot/P_empirical",
+        ):
+            self.assertIn(key, record.summary)
+        # The POT tail probability lies inside the empirical Wilson interval.
+        assert result.empirical is not None
+        interval = result.empirical.confidence_interval
+        self.assertTrue(interval.lower <= result.pot_probability <= interval.upper)
+        self.assertAlmostEqual(record.summary["P_pot/P_empirical"], 1.0, delta=0.3)
+
+    def test_fresh_sample_uses_stage_stream_and_is_charged(self) -> None:
+        """Without a propagation the stage draws from root.child('extremes', 0)."""
+        study = UQStudy(capacity_model(), seed=5)
+        result = study.extremes("g", size=1024, return_periods=(200.0,))
+        stream = resolve_stream(5).child("extremes", 0)
+        sample = propagate(capacity_model(), 1024, design="mc", seed=stream)
+        values = sample["g"].values
+        direct = fit_pot(values, quantile(values, 0.95), observations_per_year=1.0)
+        self.assertEqual(result.fit.gpd.xi, direct.gpd.xi)
+        self.assertEqual(result.return_levels[0].level, direct.return_level(200).level)
+        record = study.latest("extremes")
+        self.assertEqual(record.evaluations, 1024)
+        self.assertEqual(record.seed, stream.seed)
+        self.assertEqual(study.total_evaluations, 1024)
+
+    def test_invalid_requests_raise(self) -> None:
+        """Bad quantities, tails, quantiles, and levels are rejected clearly."""
+        study = UQStudy(capacity_model(), seed=1)
+        study.propagate(512, design="mc")
+        with self.assertRaises(ValueError):
+            study.extremes("missing")
+        with self.assertRaises(ValueError):
+            study.extremes("g", threshold_quantile=1.0)
+        with self.assertRaises(ValueError):
+            study.extremes("g", tail="sideways")  # type: ignore[arg-type]
+        with self.assertRaisesRegex(ValueError, "inside the threshold"):
+            study.extremes("g", level=0.0)
+        self.assertEqual([r.stage for r in study.records], ["propagation"])
+
+
+class InformationStageTests(unittest.TestCase):
+    """Mutual-information sensitivity inside the study."""
+
+    def test_reproduces_ksg_on_propagation_prefix(self) -> None:
+        """The stage equals KSG on the first max_points propagated runs."""
+        study = UQStudy(capacity_model(), seed=11)
+        sample = study.propagate(1024, design="sobol")
+        result = study.information_sensitivity("g", max_points=300)
+        outputs = sample["g"].values[:300]
+        for name, value in result.as_mapping().items():
+            expected = ksg_mutual_information(
+                sample.input_column(name)[:300], outputs, k=3
+            )
+            self.assertEqual(value, expected)
+        self.assertEqual(result.ranking(), ("S", "R"))
+        record = study.latest("information")
+        self.assertEqual(record.evaluations, 0)
+        self.assertEqual(record.summary["ranking"], "S > R")
+        self.assertIn("MI[R]", record.summary)
+        self.assertEqual(record.summary["unit"], "nats")
+
+    def test_fresh_sample_and_bits(self) -> None:
+        """A fresh sample is charged; repeated runs use new streams and units."""
+        study = UQStudy(capacity_model(), seed=2)
+        nats = study.information_sensitivity("g", max_points=200)
+        self.assertEqual(study.latest("information").evaluations, 200)
+        stream = resolve_stream(2).child("information", 0)
+        sample = propagate(capacity_model(), 200, design="mc", seed=stream)
+        expected = ksg_mutual_information(
+            sample.input_column("S"), sample["g"].values, k=3
+        )
+        self.assertEqual(nats.as_mapping()["S"], expected)
+        bits = study.information_sensitivity("g", max_points=200, unit="bits")
+        self.assertNotEqual(study.records[0].seed, study.records[1].seed)
+        second = propagate(
+            capacity_model(),
+            200,
+            design="mc",
+            seed=resolve_stream(2).child("information", 1),
+        )
+        expected_bits = ksg_mutual_information(
+            second.input_column("S"), second["g"].values, k=3
+        ) / math.log(2.0)
+        self.assertAlmostEqual(bits.as_mapping()["S"], expected_bits, places=12)
+        self.assertEqual(study.latest("information").summary["unit"], "bits")
+        with self.assertRaises(ValueError):
+            study.information_sensitivity("g", max_points=1)
+
+
+class DesignStageTests(unittest.TestCase):
+    """Bayesian experimental design for the study's calibration problem."""
+
+    def test_reproduces_direct_greedy_design(self) -> None:
+        """The stage equals greedy_design plus a final EIG on its child streams."""
+        study = calibrated_study(4)
+        before = study.total_evaluations
+        result = study.design(CANDIDATES, 2, samples=8)
+        problem = BayesianDesignProblem.from_calibration(
+            CalibrationProblem(decay_model(), decay_experiments(), NOISE)
+        )
+        baseline = tuple(item.conditions for item in decay_experiments())
+        stream = resolve_stream(4).child("design", 0)
+        direct = greedy_design(
+            problem,
+            CANDIDATES,
+            2,
+            baseline=baseline,
+            samples=8,
+            seed=stream.child("greedy"),
+        )
+        final = expected_information_gain(
+            problem,
+            baseline + direct.selected,
+            samples=8,
+            seed=stream.child("final"),
+        )
+        self.assertEqual(result.selection.indices, direct.indices)
+        self.assertEqual(result.selection.information_gains, direct.information_gains)
+        self.assertEqual(result.estimate.value, final.value)
+        self.assertEqual(result.estimate.standard_error, final.standard_error)
+        self.assertEqual(len(result.design), 4)
+        record = study.latest("design")
+        self.assertEqual(
+            record.evaluations,
+            direct.model_evaluations + final.model_evaluations,
+        )
+        self.assertEqual(study.total_evaluations, before + record.evaluations)
+        for key in ("condition[1]", "eig[2]", "gain[1]", "eig", "eig_se"):
+            self.assertIn(key, record.summary)
+        self.assertGreater(record.summary["eig_se"], 0.0)
+
+    def test_late_times_are_informative_about_decay_rate(self) -> None:
+        """With only early data, the linearized design picks a later time."""
+        study = calibrated_study(4)
+        result = study.design(CANDIDATES, 1, method="linearized")
+        self.assertGreater(result.selection.selected[0]["t"], 1.0)
+        self.assertEqual(result.estimate.standard_error, 0.0)
+        self.assertGreater(result.selection.increments[0], 0.0)
+
+    def test_requires_calibration_or_noise(self) -> None:
+        """Without calibration the stage needs explicit noise models."""
+        study = UQStudy(decay_model(), seed=3)
+        with self.assertRaisesRegex(ValueError, "calibration problem"):
+            study.design(CANDIDATES, 1)
+        result = study.design(CANDIDATES, 1, noise=NOISE, method="linearized")
+        self.assertEqual(result.baseline, ())
+        self.assertEqual(study.latest("design").summary["baseline_conditions"], 0)
+
+
+class ChainedStudyTests(unittest.TestCase):
+    """New stages chain with the existing ones, report, and map to steps."""
+
+    def test_report_records_and_determinism(self) -> None:
+        """A chained study reports every stage and repeats under its seed."""
+
+        def run() -> UQStudy:
+            """Run a chained study on the decay model."""
+            study = calibrated_study(9)
+            study.propagate(512, design="mc")
+            study.extremes("y", threshold_quantile=0.9, return_periods=(50.0,))
+            study.information_sensitivity("y", max_points=200)
+            study.design(CANDIDATES, 1, samples=4)
+            return study
+
+        first, second = run(), run()
+        report = first.report()
+        for heading in ("extremes: POT upper tail", "information:", "design:"):
+            self.assertIn(heading, report)
+        self.assertEqual(
+            [dict(r.summary) for r in first.records],
+            [dict(r.summary) for r in second.records],
+        )
+        self.assertEqual(first.total_evaluations, second.total_evaluations)
+        record = UQWorkflowRecord.start(
+            "decay", (QuantityOfInterest("y", "amplitude"),)
+        ).record_stages(first.records)
+        for step in (WorkflowStep.PROPAGATION, WorkflowStep.CALIBRATION):
+            self.assertEqual(record.entry(step).status, StepStatus.COMPLETE)
+        evidence = " ".join(record.entry(WorkflowStep.CALIBRATION).evidence)
+        self.assertIn("'design'", evidence)
+
+    def test_guide_maps_new_stage_kinds(self) -> None:
+        """The workflow guide routes the new kinds to propagation or calibration."""
+        propagation = WORKFLOW_GUIDE[WorkflowStep.PROPAGATION]
+        calibration = WORKFLOW_GUIDE[WorkflowStep.CALIBRATION]
+        self.assertIn("extremes", propagation.study_stages)
+        self.assertIn("information", propagation.study_stages)
+        self.assertIn("design", calibration.study_stages)
+        self.assertIn("probstat.workflow.UQStudy.design", calibration.library_calls)
+
+
+if __name__ == "__main__":
+    unittest.main()
