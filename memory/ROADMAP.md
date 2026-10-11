@@ -53,27 +53,28 @@ tested evidence.
 - [x] Covariance and Pearson correlation.
 - [~] Hyndman-Fan quantiles, MAD, skewness, kurtosis, ranks, Spearman
   correlation; contingency summaries and missing-data policies remain.
-- [~] Histograms, Q-Q plots, ECDF bands, scatter diagnostics, uncertainty
-  annotations, and accessible colour/label standards (CVD-validated light and
-  dark palettes, ADR-0024); box/violin plots remain.
+- [x] Histograms, Q-Q plots, ECDF bands, violin/box plots with kernel
+  density, scatter diagnostics, uncertainty annotations, and accessible
+  colour/label standards (CVD-validated light and dark palettes, ADR-0024).
 
 ## Phase 4 — Statistical inference
 
 - [ ] Estimands, estimators, bias, risk, consistency, sufficiency, completeness.
-- [~] Likelihood, score, Fisher information, MLE/MAP (generic MLE with
-  observed-information SEs, Laplace/MAP); EM remains.
+- [x] Likelihood, score, Fisher information, MLE/MAP (generic MLE with
+  observed-information SEs, Laplace/MAP), EM and Gaussian mixtures
+  (ADR-0040).
 - [x] Confidence intervals (z, Student-t, Wilson, Clopper-Pearson), bootstrap
   (percentile, basic, normal, studentized, BCa), permutation tests.
 - [x] Hypothesis tests, power, effect sizes, multiple testing, equivalence tests.
-- [~] Bayesian priors/posteriors, conjugacy, decision theory (EVPI/EVSI),
-  model comparison (AIC/BIC, Bayes factors), calibration; posterior
-  predictive checks remain.
+- [x] Bayesian priors/posteriors, conjugacy, decision theory (EVPI/EVSI),
+  model comparison (AIC/BIC, Bayes factors), calibration, posterior
+  predictive checks (ADR-0040).
 - [ ] Frequentist/Bayesian interpretations kept explicit and separate.
 
 ## Phase 5 — Modeling and computation
 
-- [~] Linear/nonlinear regression, GLMs, regularization (ADR-0030);
-  hierarchical models remain.
+- [x] Linear/nonlinear regression, GLMs, regularization (ADR-0030),
+  hierarchical normal and beta-binomial models (ADR-0040).
 - [~] Numerical optimization (BFGS, Nelder-Mead, Levenberg-Marquardt, Brent)
   and consolidated dense linear algebra; automatic differentiation remains.
 - [~] Monte Carlo, importance sampling, adaptive MCMC with diagnostics, Laplace,
@@ -182,8 +183,8 @@ dependency direction.
 - [x] Model discrepancy and the explicit calibration-versus-prediction split.
 - [x] Nonlinear calibration, unknown noise, Student-t robust likelihoods,
   adaptive MCMC, Laplace, posterior push-forward prediction.
-- [ ] Heteroscedastic noise, correlated discrepancy processes, and optimal
-  experiment design.
+- [x] Heteroscedastic noise, correlated (Gaussian-process) discrepancy
+  processes (ADR-0039), and optimal experiment design (ADR-0035).
 
 ### UQ-7 — Filtering and data assimilation
 
@@ -224,7 +225,8 @@ dependency direction.
 - [~] Definitions, assumptions, examples, counterexamples, plots, and sources.
 - [~] Equation registry and reference integrity.
 - [~] Boundary/property/metamorphic testing.
-- [ ] Generated API and mathematical documentation.
+- [~] Generated API reference (`tools/generate_api_reference.py`); generated
+  mathematical documentation remains.
 - [ ] Accessibility, localization-ready prose, and interactive explanations.
 - [ ] Performance profiles and multiple-precision/reference backends.
 
