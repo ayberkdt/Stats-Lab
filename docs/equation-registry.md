@@ -3414,3 +3414,382 @@ x_tilde_i||_2`; extrapolation if outside the hull or `delta > tau`.
   `validation.records._convex_hull_residual`.
 - Source: [REF-OBERKAMPF-ROY-2025, Part IV], [REF-NOCEDAL-WRIGHT-2006,
   Chapter 13].
+
+## Stochastic processes and random fields
+
+### EQ-PROC-MC-001 — Finite Markov chain and transition matrix
+
+`Pr(X_(t+1) = j | X_t = i, X_(t-1), ..., X_0) = P_ij`, with `P_ij >= 0` and
+`sum_j P_ij = 1` for every row `i`.
+
+- Domain: finite state space `{0..n-1}`; time-homogeneous transitions; rows
+  checked to sum to one within `1e-10`.
+- Meaning: the next state depends on the past only through the present
+  state; a path is simulated by drawing each next state from row `X_t`.
+- Code: `processes.MarkovChain`, `processes.MarkovChain.simulate`.
+- Source: [REF-NORRIS-1997, Section 1.1].
+
+### EQ-PROC-MC-002 — Chapman-Kolmogorov and n-step distributions
+
+`P^(m+n) = P^m P^n`; `Pr(X_n = j | X_0 = i) = (P^n)_ij`;
+`pi_n = pi_0 P^n` for the row vector of state probabilities.
+
+- Domain: as [EQ-PROC-MC-001]; `n >= 0` with `P^0 = I`.
+- Meaning: the law after `n` steps is obtained by repeated matrix
+  multiplication; repeated squaring needs `O(log n)` products.
+- Code: `processes.MarkovChain.n_step_matrix`,
+  `processes.MarkovChain.distribution_after`.
+- Source: [REF-NORRIS-1997, Section 1.1].
+
+### EQ-PROC-MC-003 — Stationary distribution
+
+`pi = pi P`, `pi_i >= 0`, `sum_i pi_i = 1`; solved as `(P' - I) pi = 0` with
+one balance equation replaced by the normalization.
+
+- Domain: unique exactly when the chain has a single closed communicating
+  class; transient states then get `pi_i = 0`.
+- Meaning: the law left invariant by one step; for an irreducible aperiodic
+  chain it is also the limit of `pi_0 P^n` and the long-run fraction of time
+  spent in each state.
+- Code: `processes.MarkovChain.stationary_distribution`.
+- Source: [REF-NORRIS-1997, Sections 1.7-1.8].
+
+### EQ-PROC-MC-004 — Class structure and period
+
+`i <-> j` iff `(P^m)_ij > 0` and `(P^n)_ji > 0` for some `m, n >= 0`; a class
+`C` is closed iff `P_ij = 0` for `i in C`, `j not in C`;
+`d(i) = gcd{n >= 1 : (P^n)_ii > 0}`, computed as the gcd of
+`level(u) + 1 - level(v)` over class edges `u -> v` from breadth-first levels.
+
+- Domain: finite chains; in a finite chain the closed classes are exactly the
+  recurrent classes. The period is a class property; `0` marks a state that
+  cannot return to itself.
+- Meaning: irreducibility (one class) and aperiodicity (`d = 1`) decide
+  whether the stationary law is unique and whether `pi_0 P^n` converges.
+- Code: `processes.MarkovChain.communicating_classes`,
+  `processes.MarkovChain.closed_classes`, `processes.MarkovChain.period`.
+- Source: [REF-NORRIS-1997, Sections 1.2, 1.5, and 1.8].
+
+### EQ-PROC-MC-005 — Fundamental matrix of an absorbing chain
+
+Canonical form `P = [[Q, R], [0, I]]` (transient block `Q`); `N = (I - Q)^-1`,
+`B = N R`, `t = N 1`.
+
+- Domain: at least one absorbing state, every closed class a single absorbing
+  state, and at least one transient state (so `I - Q` is non-singular).
+- Meaning: `N_ij` is the expected number of visits to transient `j` from
+  transient `i`; `B_ik` is the probability of absorption in `k`; `t_i` is the
+  expected number of steps before absorption.
+- Code: `processes.MarkovChain.absorption`, `processes.AbsorptionAnalysis`.
+- Source: [REF-KEMENY-SNELL-1976, Chapter III] and [REF-NORRIS-1997,
+  Section 1.3].
+
+### EQ-PROC-MC-006 — Mean first passage and mean return times
+
+`m_ij = 1 + sum_(k != j) P_ik m_kj` for `i != j`; `m_jj = 1 / pi_j`.
+
+- Domain: irreducible finite chain.
+- Meaning: expected number of steps to reach `j` for the first time from `i`;
+  the diagonal is Kac's mean recurrence time.
+- Code: `processes.MarkovChain.mean_first_passage_times`.
+- Source: [REF-NORRIS-1997, Sections 1.3 and 1.7].
+
+### EQ-PROC-MC-007 — Gambler's ruin (validation reference)
+
+Walk on `{0..N}` with up-probability `p`, `q = 1 - p`, `r = q / p`:
+`Pr(hit N | X_0 = i) = (1 - r^i) / (1 - r^N)` and
+`E[T | X_0 = i] = i / (q - p) - (N / (q - p)) (1 - r^i) / (1 - r^N)` for
+`p != 1/2`; `i / N` and `i (N - i)` for `p = 1/2`.
+
+- Domain: `0 < p < 1`, absorbing barriers `0` and `N`.
+- Meaning: closed-form absorption probabilities and expected durations that
+  validate [EQ-PROC-MC-005].
+- Code: `tests/test_stochastic_processes.py` (validation only).
+- Source: [REF-ROSS-2019, Chapter 3] and [REF-NORRIS-1997, Section 1.3].
+
+### EQ-PROC-POIS-001 — Poisson counting process
+
+`N(t) ~ Poisson(lambda t)`: `Pr(N(t) = k) = e^(-lambda t) (lambda t)^k / k!`;
+`E[N(t)] = Var[N(t)] = lambda t`; increments over disjoint intervals are
+independent.
+
+- Domain: rate `lambda > 0`, `t >= 0`.
+- Meaning: events that occur singly, independently, and at a constant
+  average rate; equal mean and variance is its signature.
+- Code: `processes.PoissonProcess.mean_count`,
+  `processes.PoissonProcess.variance_count`, `processes.PoissonProcess.count_pmf`.
+- Source: [REF-NORRIS-1997, Section 2.4].
+
+### EQ-PROC-POIS-002 — Exponential inter-arrival construction
+
+`T_k = E_1 + ... + E_k` with independent `E_i ~ Exponential(lambda)`;
+`N(t) = max{k : T_k <= t}`.
+
+- Domain: as [EQ-PROC-POIS-001].
+- Meaning: exact simulation of event times and counts.
+- Code: `processes.PoissonProcess.event_times`,
+  `processes.PoissonProcess.sample_counts`, `processes.CompoundPoissonProcess.path`.
+- Source: [REF-NORRIS-1997, Section 2.4] and [REF-DEVROYE-1986, Chapter VI].
+
+### EQ-PROC-CPOIS-001 — Compound Poisson moments
+
+`S(t) = sum_(i=1)^(N(t)) J_i`; `E[S(t)] = lambda t E[J]`,
+`Var[S(t)] = lambda t E[J^2]`.
+
+- Domain: i.i.d. jumps with finite second moment, independent of `N`.
+- Meaning: aggregate loss or damage from randomly arriving shocks; follows
+  from the conditional expectation and conditional variance formulas for a
+  random sum.
+- Code: `processes.CompoundPoissonProcess.mean`,
+  `processes.CompoundPoissonProcess.variance`,
+  `processes.CompoundPoissonProcess.sample_values`.
+- Source: [REF-ROSS-2019, Chapter 7].
+
+### EQ-PROC-BM-001 — Brownian motion with drift
+
+`X_t = x_0 + mu t + sigma W_t`, `W_0 = 0`, independent increments
+`W_(t+h) - W_t ~ N(0, h)`; `E[X_t] = x_0 + mu t`, `Var[X_t] = sigma^2 t`.
+
+- Domain: `sigma > 0`, `h > 0`.
+- Meaning: exact simulation on a grid sums independent Gaussian increments;
+  coarse increments of the same path are block sums of fine ones.
+- Code: `processes.BrownianMotion`, `processes.brownian_increments`,
+  `processes.sde` convergence studies.
+- Source: [REF-GLASSERMAN-2003, Section 3.1] and [REF-HIGHAM-2001].
+
+### EQ-PROC-GBM-001 — Exact solution of geometric Brownian motion
+
+`dS = mu S dt + sigma S dW` has
+`S_t = S_0 exp((mu - sigma^2 / 2) t + sigma W_t)`.
+
+- Domain: `S_0 > 0`, `sigma > 0`.
+- Meaning: log-normal law at every time; simulation on a grid by multiplying
+  exact log-normal factors has no discretization error and gives the
+  pathwise reference for strong-error studies.
+- Code: `processes.GeometricBrownianMotion.exact`,
+  `processes.GeometricBrownianMotion.path`,
+  `processes.GeometricBrownianMotion.sample_terminal`,
+  `processes.ScalarSDE.geometric_brownian_motion`.
+- Source: [REF-GLASSERMAN-2003, Section 3.2] and [REF-HIGHAM-2001].
+
+### EQ-PROC-GBM-002 — Moments of geometric Brownian motion
+
+`E[S_t] = S_0 e^(mu t)`, `Var[S_t] = S_0^2 e^(2 mu t) (e^(sigma^2 t) - 1)`.
+
+- Domain: as [EQ-PROC-GBM-001].
+- Meaning: exact targets for sample moments and for weak-error studies.
+- Code: `processes.GeometricBrownianMotion.mean`,
+  `processes.GeometricBrownianMotion.variance`.
+- Source: [REF-GLASSERMAN-2003, Section 3.2].
+
+### EQ-PROC-OU-001 — Exact Ornstein-Uhlenbeck transition
+
+`dX = theta (mu - X) dt + sigma dW`;
+`X_(t+h) | X_t ~ N(mu + (X_t - mu) e^(-theta h), sigma^2 (1 - e^(-2 theta h)) / (2 theta))`.
+
+- Domain: `theta > 0`, `sigma > 0`, `h >= 0`.
+- Meaning: Gaussian mean-reverting process; the exact update has no
+  time-step error at any `h`.
+- Code: `processes.OrnsteinUhlenbeck.mean`, `processes.OrnsteinUhlenbeck.variance`,
+  `processes.OrnsteinUhlenbeck.path`, `processes.OrnsteinUhlenbeck.sample_terminal`,
+  `processes.ScalarSDE.ornstein_uhlenbeck`.
+- Source: [REF-GILLESPIE-1996] and [REF-GLASSERMAN-2003, Section 3.3].
+
+### EQ-PROC-OU-002 — Stationary Ornstein-Uhlenbeck law
+
+`X_infinity ~ N(mu, sigma^2 / (2 theta))`,
+`Cov(X_t, X_(t+s)) = sigma^2 e^(-theta |s|) / (2 theta)`.
+
+- Domain: as [EQ-PROC-OU-001].
+- Meaning: the stationary covariance is the exponential kernel
+  [EQ-PROC-KER-002] with length scale `1 / theta`.
+- Code: `processes.OrnsteinUhlenbeck.stationary_variance`,
+  `processes.OrnsteinUhlenbeck.stationary_covariance`.
+- Source: [REF-GILLESPIE-1996].
+
+### EQ-PROC-SDE-001 — Euler-Maruyama scheme
+
+`X_(n+1) = X_n + a(t_n, X_n) h + b(t_n, X_n) dW_n`, `dW_n ~ N(0, h)`.
+
+- Domain: scalar Ito SDE `dX = a dt + b dW`; uniform step `h = T / N`;
+  Lipschitz and linear-growth coefficients for the convergence results.
+- Meaning: strong order 1/2 and weak order 1.
+- Code: `processes.euler_maruyama`, `processes.solve_sde`.
+- Source: [REF-KLOEDEN-PLATEN-1992, Section 10.2] and [REF-HIGHAM-2001].
+
+### EQ-PROC-SDE-002 — Milstein scheme
+
+`X_(n+1) = X_n + a h + b dW_n + (1/2) b (db/dx) (dW_n^2 - h)`.
+
+- Domain: as [EQ-PROC-SDE-001] with differentiable `b`.
+- Meaning: the Ito-Taylor correction raises the strong order to 1; for
+  additive noise (`db/dx = 0`) it coincides with Euler-Maruyama.
+- Code: `processes.milstein`, `processes.solve_sde`.
+- Source: [REF-KLOEDEN-PLATEN-1992, Section 10.3] and [REF-HIGHAM-2001].
+
+### EQ-PROC-SDE-003 — Strong and weak errors
+
+Strong: `e_s(h) = E|X_N - X(T)| <= C h^gamma`; weak:
+`e_w(h) = |E f(X_N) - E f(X(T))| <= C h^beta` for smooth test functions `f`.
+
+- Domain: `X_N` and `X(T)` driven by the same Brownian path for the strong
+  error; estimated by Monte Carlo averages with standard errors.
+- Meaning: strong error measures pathwise accuracy, weak error accuracy of
+  expectations; a weak study is valid only while the bias dominates the
+  Monte Carlo standard error.
+- Code: `processes.strong_convergence_study`,
+  `processes.weak_convergence_study`, `processes.ConvergenceStudy`.
+- Source: [REF-KLOEDEN-PLATEN-1992, Sections 9.6-9.7] and [REF-HIGHAM-2001].
+
+### EQ-PROC-SDE-004 — Empirical convergence order
+
+`log e(h) = log C + q log h`; `q` is the ordinary least-squares slope over the
+studied step sizes.
+
+- Domain: at least two distinct positive step sizes with positive errors.
+- Meaning: observed order reported next to the theoretical order.
+- Code: `processes.empirical_order`.
+- Source: [REF-HIGHAM-2001] and [REF-MONTGOMERY-PECK-VINING-2021, Chapter 2].
+
+### EQ-PROC-KER-001 — Squared-exponential covariance kernel
+
+`C(x, y) = sigma^2 exp(-r^2 / (2 ell^2))`, `r = ||x - y||`.
+
+- Domain: `sigma^2 > 0`, `ell > 0`, points in any dimension.
+- Meaning: infinitely smooth stationary field; very fast KL eigenvalue decay.
+- Code: `processes.CovarianceKernel`, `processes.covariance_matrix`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
+
+### EQ-PROC-KER-002 — Exponential covariance kernel
+
+`C(x, y) = sigma^2 exp(-r / ell)` (Matern with `nu = 1/2`).
+
+- Domain: as [EQ-PROC-KER-001].
+- Meaning: continuous but nowhere mean-square differentiable field (the
+  Ornstein-Uhlenbeck covariance in 1-D); slow KL eigenvalue decay.
+- Code: `processes.CovarianceKernel`, `processes.exponential_kernel_kl_modes`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
+
+### EQ-PROC-KER-003 — Matern 3/2 covariance kernel
+
+`C(x, y) = sigma^2 (1 + sqrt(3) r / ell) exp(-sqrt(3) r / ell)`.
+
+- Domain: as [EQ-PROC-KER-001].
+- Meaning: once mean-square differentiable field.
+- Code: `processes.CovarianceKernel`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
+
+### EQ-PROC-KER-004 — Matern 5/2 covariance kernel
+
+`C(x, y) = sigma^2 (1 + sqrt(5) r / ell + 5 r^2 / (3 ell^2)) exp(-sqrt(5) r / ell)`.
+
+- Domain: as [EQ-PROC-KER-001].
+- Meaning: twice mean-square differentiable field.
+- Code: `processes.CovarianceKernel`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
+
+### EQ-PROC-KL-001 — Karhunen-Loeve expansion of a Gaussian field
+
+`H(x) = m + sum_(k>=1) sqrt(lambda_k) xi_k phi_k(x)`, where
+`integral_D C(x, y) phi_k(y) dy = lambda_k phi_k(x)`,
+`integral_D phi_k phi_l = delta_kl`, and `xi_k` are independent `N(0, 1)`;
+the truncated covariance is `C_M(x, y) = sum_(k<=M) lambda_k phi_k(x) phi_k(y)`.
+
+- Domain: continuous covariance on a bounded domain `D` (Mercer's theorem);
+  Gaussian field so the uncorrelated coefficients are independent.
+- Meaning: the mean-square optimal representation of the field by `M`
+  uncorrelated standard variables.
+- Code: `processes.KarhunenLoeveExpansion.realize`,
+  `processes.KarhunenLoeveExpansion.sample`,
+  `processes.KarhunenLoeveExpansion.covariance`, `modeling.RandomFieldInput.field`.
+- Source: [REF-GHANEM-SPANOS-1991, Chapter 2] and [REF-LEMAITRE-KNIO-2010,
+  Chapter 2].
+
+### EQ-PROC-KL-002 — Nystrom discretization of the KL eigenproblem
+
+`sum_j w_j C(x_i, x_j) phi_k(x_j) = lambda_k phi_k(x_i)`, symmetrized as
+`(W^(1/2) C W^(1/2)) psi_k = lambda_k psi_k`, `phi_k = W^(-1/2) psi_k`, so
+`sum_i w_i phi_k(x_i)^2 = 1`.
+
+- Domain: quadrature nodes `x_i` with positive weights `w_i`; unit weights
+  give the discrete KL (principal components) of the covariance matrix.
+- Meaning: replaces the integral operator by a quadrature rule; eigenvalues
+  converge to the continuous ones as the rule is refined (only algebraically
+  for the non-smooth exponential kernel).
+- Code: `processes.karhunen_loeve`, `processes.karhunen_loeve_interval`,
+  `processes.KarhunenLoeveExpansion.eigenfunction`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 4.3] and
+  [REF-SUDRET-DERKIUREGHIAN-2000, Chapter 2].
+
+### EQ-PROC-KL-003 — Truncation by explained variance
+
+`integral_D Var H = sum_k lambda_k` (discretely `sum_i w_i C(x_i, x_i)`);
+`M = min{m : sum_(k<=m) lambda_k >= alpha sum_k lambda_k}`; pointwise truncated
+variance `sum_(k<=M) lambda_k phi_k(x)^2 <= C(x, x)`.
+
+- Domain: `0 < alpha <= 1`; optional cap on `M`; non-positive discrete
+  eigenvalues are never retained.
+- Meaning: fraction of the integrated field variance represented by the
+  retained modes; truncation always under-represents pointwise variance.
+- Code: `processes.karhunen_loeve`,
+  `processes.KarhunenLoeveExpansion.explained_variance_fraction`,
+  `processes.KarhunenLoeveExpansion.total_variance`,
+  `processes.KarhunenLoeveExpansion.pointwise_variance`.
+- Source: [REF-SUDRET-DERKIUREGHIAN-2000, Chapter 2].
+
+### EQ-PROC-KL-004 — Exact KL eigenpairs of the exponential kernel on [-a, a]
+
+For `C(x, y) = sigma^2 exp(-|x - y| / b)`, `c = 1 / b`:
+`lambda = 2 c sigma^2 / (omega^2 + c^2)`; even modes
+`phi(x) = cos(omega x) / sqrt(a + sin(2 omega a) / (2 omega))` with
+`c - omega tan(omega a) = 0`; odd modes
+`phi(x) = sin(omega x) / sqrt(a - sin(2 omega a) / (2 omega))` with
+`omega + c tan(omega a) = 0`.
+
+- Domain: `sigma^2, b, a > 0`; even roots `omega a in (k pi, k pi + pi/2)`,
+  odd roots `omega a in (k pi - pi/2, k pi)`, solved in tangent-free form.
+- Meaning: analytic benchmark for discrete KL solvers; for `a = b = 1`,
+  `omega_1 = 0.860334`, `lambda_1 = 1.149310`.
+- Code: `processes.exponential_kernel_kl_modes`, `processes.ExponentialKLMode`.
+- Source: [REF-GHANEM-SPANOS-1991, Chapter 2].
+
+### EQ-PROC-KL-005 — Nystrom interpolation of eigenfunctions
+
+`phi_k(x) = (1 / lambda_k) sum_i w_i C(x, x_i) phi_k(x_i)`.
+
+- Domain: `lambda_k > 0`; any location `x` in the domain.
+- Meaning: extends discrete eigenvectors to continuous eigenfunctions,
+  exactly reproducing the nodal values.
+- Code: `processes.KarhunenLoeveExpansion.eigenfunction_at`,
+  `processes.KarhunenLoeveExpansion.realize_at`, `modeling.RandomFieldInput.field_at`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 4.3].
+
+### EQ-PROC-QUAD-001 — Interval quadrature rules
+
+`integral_a^b f ~ sum_i w_i f(x_i)`. Gauss-Legendre: nodes are eigenvalues of
+the Jacobi matrix with off-diagonal `k / sqrt(4 k^2 - 1)`, weights
+`(b - a) v_(0,i)^2` after the affine map; midpoint and trapezoid rules use
+uniform nodes; rectangles use tensor products.
+
+- Domain: `b > a`; Gauss-Legendre exact for polynomials of degree `2n - 1`.
+- Meaning: weights of the Nystrom KL discretization and of integrals of
+  field-dependent model outputs.
+- Code: `processes.gauss_legendre`, `processes.interval_rule`,
+  `processes.rectangle_rule`.
+- Source: [REF-GOLUB-WELSCH-1969] and [REF-DAVIS-RABINOWITZ-1984, Chapters 2
+  and 5].
+
+### EQ-MOD-RF-001 — Random-field input map
+
+`theta -> xi = (theta[prefix_1], ..., theta[prefix_M]) -> T(H_M(x_i; xi))`,
+with `xi_k ~ N(0, 1)` independent model inputs and optional pointwise
+transform `T` (for example `T = exp` for a log-normal field).
+
+- Domain: truncated KL expansion [EQ-PROC-KL-001]; `T` finite on the field
+  values.
+- Meaning: a forward model consumes a whole random field through `M`
+  standard-normal scalar inputs, so the model plugs into propagation,
+  reliability, and sensitivity workflows unchanged.
+- Code: `modeling.RandomFieldInput`, `modeling.karhunen_loeve_inputs`.
+- Source: [REF-GHANEM-SPANOS-1991, Chapter 2] and
+  [REF-SUDRET-DERKIUREGHIAN-2000, Chapter 2].
