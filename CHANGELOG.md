@@ -95,6 +95,15 @@ defects that are now fixed with oracle-backed regression tests.
   proposal (eigenvalues near 5e-4, estimates biased low by up to 100% with
   small reported c.o.v.); adapted eigenvalues are now floored at 0.55 and a
   warning flags degenerate weights.
+- Fourth review round: GEV profile-likelihood return-level intervals crashed
+  on heavy-tailed samples (now level-adapted starts and finite brackets);
+  gamma and beta differential entropies lost all accuracy at large shapes
+  (Stirling-remainder forms, exact to rounding against mpmath); discrete
+  mutual information, KL, and Jensen-Shannon divergences failed at extreme
+  probabilities; Gaussian KL lost relative accuracy for nearly equal laws;
+  greedy Bayesian design increments could be negative (one common stream for
+  the whole run); non-symmetric covariances were silently accepted; GPD MLE
+  rejects zero excesses and flags shape estimates below -1.
 - E-values and confounding bias factors overflowed for extreme ratios;
   treatment vectors accept booleans as documented.
 - Cox model: the Breslow baseline overflowed (or divided by zero) when
