@@ -1,14 +1,56 @@
+# Python bytecode and build output
 __pycache__/
 *.py[cod]
+*$py.class
+*.so
 *.egg-info/
+.eggs/
+build/
+dist/
+wheels/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Test, coverage, and type-check caches
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-.venv/
-dist/
-build/
-coverage.xml
+.hypothesis/
+.tox/
+.nox/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Generated example figures (curated copies live in docs/images/)
 examples/generated/
 
+# Local secrets and environment
+.env
+.env.*
+
+# Editors and IDEs
+.vscode/
+.idea/
+*.swp
+*~
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local AI assistant settings
+.claude/settings.local.json
+
+# Logs
+*.log

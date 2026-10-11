@@ -1,168 +1,120 @@
-# Probability and Statistics Library
+# Stats-Lab
 
-An English-language, citation-first Python library that builds probability and
-statistics from auditable foundations toward modern inference and frontier
-probabilistic systems.
+**A citation-first Python library that builds probability, statistics, and
+uncertainty quantification from auditable foundations.**
 
-The project has two equally important outputs:
+Every public formula carries an equation ID, every equation points to a primary
+source, and every design decision is recorded. The goal is software you can
+trust *and* explanations you can teach from.
 
-1. trustworthy, modular software; and
-2. explanations that make every implemented equation traceable and teachable.
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB)
+![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue)
+![Runtime dependencies: 0](https://img.shields.io/badge/runtime%20dependencies-0-success)
 
-## Foundation releases
+## Quick start
 
-Release `0.13.0` adds:
-
-- explicit observation/noise/discrepancy contracts and linear identifiability
-  diagnostics;
-- ordinary least squares plus general multivariate linear-Gaussian posterior
-  conditioning with reproducible posterior sampling;
-- posterior-predictive distributions that separate parameter, future
-  measurement, and model-discrepancy uncertainty;
-- seeded posterior-predictive checking and a calibration-versus-prediction lab
-  with an explanatory uncertainty-band plot.
-
-Release `0.12.0` added:
-
-- local finite-difference gradients with exact model-call accounting;
-- functional ANOVA and Monte Carlo first-, second-, and total-effect Sobol
-  indices for independent inputs;
-- total-effect ranking, dimension-reduction and uncertainty-reduction decisions;
-  and
-- a seeded Ishigami interaction laboratory with an explanatory comparison plot.
-
-Release `0.11.0` added:
-
-- a named limit-state contract, direct reliability Monte Carlo, and Wilson
-  uncertainty including the zero-observed-failure case;
-- importance-weighted rare-event estimation with weight diagnostics;
-- exact affine standard-normal FORM, signed reliability index, constrained
-  design point, and directional sampling; and
-- a reproducible reliability comparison lab with an explanatory figure.
-
-Release `0.10.0` added:
-
-- antithetic, control-variate, conditional, stratified, and importance-sampling
-  estimators with explicit assumptions and reproducible streams;
-- exact integer budget allocation, weight-degeneracy diagnostics, and
-  cost-normalized estimator-efficiency comparisons;
-- a seeded advanced Monte Carlo laboratory comparing five strategies under one
-  evaluation budget; and
-- an efficiency-gain visualization, cited equations, boundary tests, and an
-  honest limitations/future-work guide.
-
-Release `0.9.0` added:
-
-- deterministic trapezoid/Simpson quadrature and finite-bound expectation
-  integration with explicit function-evaluation costs;
-- Monte Carlo mean, probability, and integral estimators with output variance,
-  estimator standard error, confidence intervals, convergence traces, and
-  work accounting;
-- named forward-model propagation with raw QoI outputs and threshold
-  probabilities; and
-- a seeded pi/integration/projectile laboratory plus convergence visualization.
-
-Release `0.8.0` added:
-
-- Lognormal, Weibull, and positive-definite multivariate Normal models with
-  documented parameterizations and reproducible sampling;
-- Normal and Lognormal MLE, KS/AD goodness-of-fit diagnostics, and explicit z,
-  large-sample, and Wilson confidence procedures;
-- fitted-CDF visualization and a seeded statistical-fitting laboratory; and
-- dependency-free Cholesky algebra with singular-covariance rejection instead
-  of hidden numerical jitter.
-
-Release `0.7.0` added:
-
-- a test-enforced matrix for all 110 supplied ATHENS 2026 VV-UQ topics, with
-  honest `Implemented`, `Partial`, and `Planned` states;
-- separate aleatory/epistemic and engineering-source classifications;
-- immutable quantities of interest and a validated `Y = g(X)` forward-model
-  contract; and
-- numerical-error budgets, observed convergence order, and Richardson
-  extrapolation with cited assumptions and boundary tests.
-
-Earlier foundation releases provide:
-
-- zero-based Geometric and Negative Binomial waiting-count laws with explicit
-  parameterization contracts;
-- continuous Uniform and rate-parameterized Exponential laws;
-- direct survival, generalized quantile, density/log-density, and hazard
-  protocols, with existing ordered laws extended where supported;
-- a symmetry-aware regularized incomplete-beta implementation for stable
-  Negative Binomial tails;
-- coordinated waiting-count and PDF/CDF/survival teaching plots;
-
-- reusable parameter constraints and explicit finite, integer, and real support
-  descriptors;
-- stable Binomial, Categorical, and Poisson distributions with log-PMFs,
-  moments where mathematically defined, reproducible sampling, and documented
-  boundary behavior;
-- regularized incomplete-gamma tails for stable Poisson CDF and survival
-  evaluation;
-- narrow PMF/log-PMF protocols that preserve unordered categorical semantics;
-- count-window and categorical teaching plots;
-
-- probability-generating, moment-generating, and characteristic functions with
-  explicit mathematical and floating-point domains;
-- dependency-neutral runtime-checkable protocols shared by analytic and induced
-  discrete/continuous laws;
-- immutable finite random variables with induced PMFs and CDFs;
-- exact transformations, expectation, raw/central moments, and variance;
-- joint PMFs, marginalization, conditional PMFs, random-variable independence,
-  covariance, and correlation;
-- immutable finite sample spaces and owned event algebra;
-- arbitrary finite probability measures and uniform measures;
-- conditional probability, event independence, total probability, Bayes' rule,
-  and finite expectation;
-- validated counting primitives;
-- descriptive statistics for finite samples;
-- Bernoulli and normal distributions;
-- optional plotting helpers for PMFs, PDFs, and empirical CDFs;
-- an equation registry and a bibliography with stable citation keys;
-- automated checks for dependency cycles, missing docstrings, missing equation
-  records, and missing references; and
-- a roadmap, decision log, and session memory.
-
-## Install and verify
-
-```powershell
+```bash
+git clone https://github.com/ayberkdt/Stats-Lab.git
+cd Stats-Lab
 python -m venv .venv
-.venv\Scripts\Activate.ps1
+source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
 python -m pip install -e .
-python -m unittest discover -s tests -v
 ```
 
-Plotting support is optional:
-
-```powershell
-python -m pip install -e ".[visualization]"
-python examples/generate_foundation_figures.py
-```
-
-## Small example
+Exact probability on a finite sample space:
 
 ```python
-from probstat.probability import FiniteProbabilityMeasure, FiniteSampleSpace
-from probstat.probability import FiniteRandomVariable
+from probstat.probability import (
+    FiniteProbabilityMeasure,
+    FiniteRandomVariable,
+    FiniteSampleSpace,
+)
 
 die = FiniteSampleSpace((1, 2, 3, 4, 5, 6))
 fair = FiniteProbabilityMeasure.uniform(die)
-even = die.event((2, 4, 6))
 
-print(fair.probability(even))  # 0.5
-print(fair.expectation(float))  # 3.5
+print(fair.probability(die.event((2, 4, 6))))  # 0.5
 
 roll = FiniteRandomVariable.from_function(fair, float, name="Roll")
-print(roll.expectation)  # 3.5
-print(roll.variance)  # 2.916666...
+print(roll.expectation, roll.variance)  # 3.5 2.9166666666666665
 ```
 
-Each public function links its formula to an ID such as `EQ-STAT-001`. Look up
-that ID in [the equation registry](docs/equation-registry.md), then follow its
-citation key to [the bibliography](docs/references.md).
+A seeded Monte Carlo estimate that reports its own uncertainty:
 
-## Read in this order
+```python
+import random
+
+from probstat.monte_carlo import estimate_mean
+
+rng = random.Random(2026)
+hits = (
+    4.0 if rng.random() ** 2 + rng.random() ** 2 <= 1.0 else 0.0
+    for _ in range(20_000)
+)
+pi = estimate_mean(hits)
+print(f"{pi.estimate:.4f} ± {pi.standard_error:.4f}")  # 3.1580 ± 0.0115
+print(pi.confidence_interval)  # 95% interval, method stated explicitly
+```
+
+The core library has no runtime dependencies. Plotting is optional:
+
+```bash
+python -m pip install -e ".[visualization]"
+python examples/basic_monte_carlo_lab.py
+```
+
+## What's inside
+
+| Layer | Package | Covers |
+|---|---|---|
+| Foundations | `probability` | Finite sample spaces, event algebra, measures, Bayes' rule, counting |
+| | `distributions` | Bernoulli, Binomial, Categorical, Poisson, Geometric, Negative Binomial, Uniform, Exponential, Normal, Lognormal, Weibull |
+| | `statistics` | Descriptive statistics for univariate and paired samples |
+| | `multivariate` | Positive-definite multivariate Normal, dependency-free Cholesky |
+| Inference | `inference` | MLE, confidence procedures (z, Wilson), KS/AD goodness of fit |
+| Numerics | `numerics`, `foundations` | Trapezoid and Simpson quadrature, parameter validation, shared law protocols |
+| Uncertainty quantification | `uq`, `validation` | Uncertainty taxonomy, quantities of interest, `Y = g(X)` contracts, error budgets, observed convergence order, Richardson extrapolation, model discrepancy |
+| | `monte_carlo` | Crude MC, antithetic, control variates, stratified and importance sampling, cost-normalized efficiency |
+| | `propagation` | Forward propagation with threshold probabilities |
+| | `reliability` | Failure probability, Wilson bounds, affine FORM, directional sampling |
+| | `sensitivity` | Finite-difference gradients, first-, second-, and total-effect Sobol indices |
+| | `inverse` | Linear-Gaussian Bayesian calibration, posterior predictive, model discrepancy |
+| Optional | `visualization` | Explanatory plots built on stable domain APIs (matplotlib) |
+
+The [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
+tracks all 110 topics of the ATHENS 2026 VV-UQ course: 74 implemented,
+17 partial, 19 planned.
+
+## Example labs
+
+Each lab in [`examples/`](examples) is seeded and reproducible. They write
+their figures to `examples/generated/`.
+
+| | |
+|---|---|
+| ![Monte Carlo convergence](docs/images/monte-carlo-pi-convergence.png) | ![Bayesian calibration](docs/images/bayesian-calibration-prediction.png) |
+| **Monte Carlo convergence**: the estimate and its confidence interval tighten at the 1/√N rate. | **Bayesian calibration**: parameter uncertainty is kept separate from future-observation uncertainty. |
+| ![Reliability comparison](docs/images/reliability-method-comparison.png) | ![Sobol indices](docs/images/ishigami-sobol-indices.png) |
+| **Reliability**: direct MC, directional sampling, and FORM estimate the same failure probability. | **Global sensitivity**: Sobol indices show that X3 matters only through interactions. |
+
+## Design principles
+
+- **Citation-first.** Docstrings cite equation IDs such as `EQ-MC-PROB-001`.
+  Look them up in the [equation registry](docs/equation-registry.md), then
+  follow the citation key to the [bibliography](docs/references.md).
+- **Honest boundaries.** Each estimator states its assumptions, cost, and
+  failure modes. Singular covariances raise errors instead of being
+  silently jittered.
+- **Reproducible randomness.** Every random stream is seeded locally, with no
+  shared global state.
+- **Recorded decisions.** Architectural choices are kept as ADRs in
+  [`memory/decisions/`](memory/decisions).
+- **Layered teaching.** Concepts go from definitions to assumptions,
+  equations, examples, and visuals without dropping mathematical scope.
+
+## Documentation
+
+Suggested reading order:
 
 1. [Learning path](docs/learning-path.md)
 2. [VV-UQ foundations](docs/foundations/vv-uq-foundations.md)
@@ -172,17 +124,23 @@ citation key to [the bibliography](docs/references.md).
 6. [Reliability analysis](docs/foundations/reliability-analysis.md)
 7. [Sensitivity analysis](docs/foundations/sensitivity-analysis.md)
 8. [Inverse problems and Bayesian calibration](docs/foundations/inverse-problems-and-calibration.md)
-9. [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
-10. [Architecture](docs/architecture.md)
-11. [Equation registry](docs/equation-registry.md)
-12. [Contribution contract](CONTRIBUTING.md)
-13. [Roadmap](memory/ROADMAP.md)
 
-## Design promise
+Reference: [Architecture](docs/architecture.md) ·
+[Roadmap](memory/ROADMAP.md) · [Changelog](CHANGELOG.md)
 
-Ease of explanation never removes mathematical scope. Concepts are introduced
-in layers, with definitions, assumptions, equations, examples, and visuals,
-while the roadmap preserves the path to measure-theoretic probability,
-inference, stochastic processes, probabilistic programming, and frontier
-generative systems.
+## Development
 
+```bash
+python -m pip install -e ".[dev,visualization]"
+python -m unittest discover -s tests -v
+python -m ruff check .
+python -m mypy src/probstat
+```
+
+Before you open a pull request, read the [contribution contract](CONTRIBUTING.md).
+New public functions need a docstring, an equation record, and a citation.
+
+## License
+
+[BSD 3-Clause](LICENSE). If you use this library in research, see
+[`CITATION.cff`](CITATION.cff).
