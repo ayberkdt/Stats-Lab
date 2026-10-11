@@ -58,12 +58,30 @@ defects that are now fixed with oracle-backed regression tests.
   reusing the propagation sample), `UQStudy.information_sensitivity`
   (KSG mutual information per input), and `UQStudy.design` (greedy Bayesian
   design for the study's calibration, re-estimated on an independent stream).
+- **Hierarchical models and EM** (`inference`): generic EM driver with a
+  monotonicity check, Gaussian mixtures (full/diagonal covariance, k-means++
+  starts, BIC/AIC selection), EM for censored normal data; exact gridded
+  posterior of the hierarchical normal (eight-schools) model checked against
+  NUTS on the non-centred parameterization, shrinkage factors, beta-binomial
+  empirical Bayes; posterior predictive p-values with Monte Carlo errors and
+  PIT uniformity checks.
 - **Kernel density** (`statistics.gaussian_kde`) with Silverman and
   normal-reference bandwidths.
-- **Figures**: violin/box distribution comparison, correlogram, forecast fan,
-  Kaplan-Meier, and regression diagnostic plots; statistical modelling lab.
+- **Figures**: return-level, mean-residual-life, and tail Q-Q plots;
+  D-optimal design with its variance function and greedy EIG paths; causal
+  effect forest, covariate balance (Love plot), and E-value contour; entropy
+  decomposition and estimator checks; violin/box distribution comparison,
+  correlogram, forecast fan, Kaplan-Meier, and regression diagnostics. Labs
+  for extremes, experimental design, causal inference, information theory,
+  hierarchical models, discrepancy calibration, and the new study stages.
 - **API reference**: `docs/api-reference.md` generated from every package's
   `__all__` by `tools/generate_api_reference.py`, guarded by a staleness test.
+
+### Changed
+
+- The graphite (dark) accent is indigo `#9BA9F0` instead of orange
+  `#E8804A`, which sat below the normal-vision separation floor from the
+  amber model hue.
 
 ### Fixed
 
