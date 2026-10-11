@@ -2005,3 +2005,262 @@ normal consistency.
 - Code: `statistics.ranks`, `statistics.spearman_correlation`,
   `propagation.PropagationStudy.rank_correlations`.
 - Source: [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 8].
+
+## Nonlinear calibration and Markov chain Monte Carlo
+
+### EQ-MCMC-MH-001 — Random-walk Metropolis acceptance
+
+Propose `x' = x + L z` with `z ~ N(0, I)` and `L L' = C`; accept with
+probability `alpha = min(1, p(x') / p(x))`, i.e. when
+`log U < log p(x') - log p(x)` for `U ~ Uniform(0, 1)`.
+
+- Domain: target density `p` known up to a constant; symmetric proposal;
+  `log p = -inf` marks states outside the support (always rejected).
+- Meaning: the kernel satisfies detailed balance with respect to `p`, so `p`
+  is its stationary law; the Hastings ratio reduces to the density ratio
+  because the proposal is symmetric.
+- Code: `inference.random_walk_metropolis`, `inference.adaptive_metropolis`,
+  `inference.mcmc._run_chain`.
+- Source: [REF-METROPOLIS-ETAL-1953], [REF-HASTINGS-1970], and
+  [REF-ROBERT-CASELLA-2004, Section 7.5].
+
+### EQ-MCMC-AM-001 — Adaptive Metropolis proposal covariance
+
+`C_t = s_d (Cov(x_0, ..., x_t) + eps I_d)` with `s_d = 2.38^2 / d`, the
+running covariance updated by Welford's recursion, and `C_t` frozen at the
+end of warm-up.
+
+- Domain: `t >= t_0` warm-up iterations, `eps > 0`; only warm-up draws are
+  used for adaptation.
+- Meaning: learns the scale and orientation of the target; `2.38^2/d` is the
+  asymptotically optimal random-walk scaling for Gaussian-like targets.
+  Freezing the covariance keeps the retained chain time-homogeneous, so it is
+  an ordinary Metropolis chain.
+- Code: `inference.adaptive_metropolis`,
+  `inverse.CalibrationProblem.sample_posterior`.
+- Source: [REF-HAARIO-SAKSMAN-TAMMINEN-2001] and
+  [REF-ROBERTS-ROSENTHAL-2001].
+
+### EQ-MCMC-RHAT-001 — Split potential scale reduction factor
+
+Split each of `M` chains into halves (`m = 2M` sequences of length `n`);
+`W = mean_j s_j^2`, `B = n/(m-1) sum_j (xbar_j - xbar)^2`,
+`var+ = (n-1)/n W + B/n`, `R-hat = sqrt(var+ / W)`.
+
+- Domain: at least four draws per chain; `W > 0`.
+- Meaning: compares between- and within-sequence variance; values near one
+  are necessary for convergence, values above about 1.01-1.1 signal
+  non-mixing or drift.
+- Code: `inference.split_rhat`, `inference.summarize_draws`.
+- Source: [REF-GELMAN-RUBIN-1992] and [REF-GELMAN-ETAL-2013, Section 11.4].
+
+### EQ-MCMC-RHAT-002 — Rank-normalized and folded split R-hat
+
+Replace pooled split draws by `z = Phi^-1((r - 3/8)/(S + 1/4))` with average
+ranks `r`; compute [EQ-MCMC-RHAT-001] on `z` (bulk) and on the rank-normalized
+folded draws `|x - median(x)|` (tail); report the maximum.
+
+- Domain: as [EQ-MCMC-RHAT-001]; any continuous or discrete draws.
+- Meaning: robust to heavy tails and infinite variance and sensitive to
+  chains that differ in scale but not location.
+- Code: `inference.rank_normalized_rhat`, `inference.summarize_draws`.
+- Source: [REF-VEHTARI-ETAL-2021].
+
+### EQ-MCMC-ESS-001 — Effective sample size by Geyer's initial monotone sequence
+
+`rho_t = 1 - (W - mean_m c_{t,m}) / var+` with biased within-chain
+autocovariances `c_{t,m}` and `rho_0 = 1`;
+`Gamma_k = rho_{2k} + rho_{2k+1}`, truncated at the first non-positive
+`Gamma_k` and made non-increasing; `ESS = M n / (-1 + 2 sum_k Gamma_k)`.
+
+- Domain: `M` equal-length chains of at least four draws with positive
+  pooled variance.
+- Meaning: number of independent draws carrying the same information about
+  the mean; for AR(1) with coefficient `phi` it tends to
+  `M n (1 - phi)/(1 + phi)`.
+- Code: `inference.effective_sample_size`, `inference.summarize_draws`.
+- Source: [REF-GEYER-1992], [REF-VEHTARI-ETAL-2021], and
+  [REF-GELMAN-ETAL-2013, Section 11.5].
+
+### EQ-MCMC-MCSE-001 — Monte Carlo standard error of a posterior mean
+
+`MCSE(xbar) = s / sqrt(ESS)`, with pooled sample standard deviation `s`.
+
+- Domain: [EQ-MCMC-ESS-001] with finite posterior variance.
+- Meaning: simulation error of the posterior-mean estimate, not posterior
+  uncertainty.
+- Code: `inference.monte_carlo_standard_error`, `inference.summarize_draws`.
+- Source: [REF-GEYER-1992] and [REF-VEHTARI-ETAL-2021].
+
+### EQ-LAPLACE-001 — Laplace approximation
+
+`x* = argmax log p(x)`, `H = -grad^2 log p(x*)`, `p(x) ~= N(x*, H^-1)`, and
+`log integral p ~= log p(x*) + (d/2) log(2 pi) - (1/2) log det H`.
+
+- Domain: twice-differentiable `log p` with a strict interior local maximum
+  (`H` positive definite).
+- Meaning: second-order Gaussian approximation of a posterior and of its
+  normalizing constant; exact for Gaussian targets.
+- Code: `inference.laplace_approximation`, `inference.LaplaceApproximation`,
+  `inverse.CalibrationProblem.laplace_posterior`.
+- Source: [REF-TIERNEY-KADANE-1986] and [REF-GELMAN-ETAL-2013, Section 4.1].
+
+### EQ-DIST-T-001 — Student-t distribution function
+
+For `t >= 0`, `F_nu(t) = 1 - I_{nu/(nu+t^2)}(nu/2, 1/2) / 2`, and
+`F_nu(-t) = 1 - F_nu(t)`; quantiles invert `F_nu` by Brent's method.
+
+- Domain: real `t`, `nu > 0`.
+- Meaning: marginal and predictive law of regression quantities when the
+  noise variance is integrated out.
+- Code: `inference.student_t_cdf`, `inference.student_t_quantile`.
+- Source: [REF-NIST-DLMF-BETA, Section 8.17] and
+  [REF-CASELLA-BERGER-2002, Chapter 5].
+
+### EQ-BAYES-NIG-001 — Normal-inverse-gamma conjugate update
+
+Prior `sigma^2 ~ IG(a_0, b_0)`, `beta | sigma^2 ~ N(m_0, sigma^2 V_0)`; data
+`y = X beta + e`, `e ~ N(0, sigma^2 I_n)`. Posterior
+`V_n = (V_0^-1 + X'X)^-1`, `m_n = V_n (V_0^-1 m_0 + X'y)`, `a_n = a_0 + n/2`,
+`b_n = b_0 + ((y - X m_n)'(y - X m_n) + (m_n - m_0)' V_0^-1 (m_n - m_0)) / 2`.
+
+- Domain: positive-definite `V_0`, `a_0, b_0 > 0`, finite data.
+- Meaning: exact joint posterior of coefficients and unknown noise variance.
+- Code: `inference.condition_linear_normal_inverse_gamma`,
+  `inference.NormalInverseGamma`.
+- Source: [REF-MURPHY-2012, Section 7.6.3] and
+  [REF-GELMAN-ETAL-2013, Section 14.2].
+
+### EQ-BAYES-NIG-002 — Normal-inverse-gamma marginals
+
+`beta ~ t_{2a}(m, (b/a) V)`; `sigma^2 ~ IG(a, b)` with
+`E[sigma^2] = b/(a-1)` for `a > 1`, mode `b/(a+1)`, and quantiles
+`b / G_{1-p}` for unit-rate gamma quantiles `G`.
+
+- Domain: [EQ-BAYES-NIG-001].
+- Meaning: coefficient uncertainty inflated (heavier tails) by not knowing
+  the noise level.
+- Code: `inference.NormalInverseGamma.coefficient_marginal`,
+  `inference.NormalInverseGamma.coefficient_interval`,
+  `inference.NormalInverseGamma.noise_variance_interval`,
+  `inference.NormalInverseGamma.sample`.
+- Source: [REF-MURPHY-2012, Section 7.6.3] and
+  [REF-GELMAN-ETAL-2013, Appendix A].
+
+### EQ-BAYES-NIG-003 — Normal-inverse-gamma posterior predictive
+
+`y* | y ~ t_{2a}(X* m, (b/a)(I + X* V X*'))`, with component variance
+`nu/(nu-2)` times the scale for `nu = 2a > 2`.
+
+- Domain: [EQ-BAYES-NIG-001]; new design rows `X*`.
+- Meaning: prediction of future noisy observations with both parameter and
+  noise uncertainty.
+- Code: `inference.NormalInverseGamma.predictive`,
+  `inference.StudentTPredictive`.
+- Source: [REF-MURPHY-2012, Section 7.6.3] and
+  [REF-GELMAN-ETAL-2013, Section 14.2].
+
+### EQ-CAL-NL-001 — Nonlinear observation model with experimental conditions
+
+`y_jq = g_q(theta; c_j) + delta_jq + eps_jq`, where `c_j` are fixed
+experimental conditions merged over the model's fixed inputs.
+
+- Domain: deterministic forward model; independent errors across
+  observations; conditions that do not overlap calibration parameters.
+- Meaning: one calibration problem may combine many experiments and several
+  observed quantities of interest.
+- Code: `inverse.Experiment`, `inverse.CalibrationProblem.predictions`,
+  `inverse.CalibrationProblem.evaluate`.
+- Source: [REF-KENNEDY-OHAGAN-2001] and [REF-SMITH-UQ-2024, Chapter 8].
+
+### EQ-CAL-LIK-001 — Gaussian and Student-t calibration likelihood
+
+With total scale `s^2 = sigma_q^2 + sigma_delta_q^2` and residual `r`:
+Gaussian `log p = -0.5 (log(2 pi s^2) + r^2/s^2)`; Student-t
+`log p = log G((nu+1)/2) - log G(nu/2) - 0.5 log(nu pi s^2)
+- (nu+1)/2 log(1 + r^2/(nu s^2))`; the log-likelihood is the sum over
+observations.
+
+- Domain: `sigma_q > 0`, `sigma_delta_q^2 >= 0`, `nu > 0`.
+- Meaning: Gaussian noise or a heavy-tailed robust alternative; the
+  discrepancy variance is a declared additive model-inadequacy term.
+- Code: `inverse.NoiseModel.log_density`,
+  `inverse.CalibrationProblem.log_likelihood`.
+- Source: [REF-GELMAN-ETAL-2013, Section 17.2],
+  [REF-LANGE-LITTLE-TAYLOR-1989], and [REF-KENNEDY-OHAGAN-2001].
+
+### EQ-CAL-POST-001 — Calibration posterior with log-noise parameters
+
+`log p(theta, eta | y) = log L(theta, e^eta) + log pi(theta)
++ sum_q [log p_sigma(e^eta_q) + eta_q] + const`, with `eta_q = log sigma_q`.
+
+- Domain: proper prior `pi` (a `JointInput`), proper noise priors on
+  `(0, inf)`.
+- Meaning: the `+ eta_q` term is the Jacobian `|d sigma / d eta|`, so the
+  log-scale density is the same prior expressed in unconstrained coordinates.
+- Code: `inverse.CalibrationProblem.log_prior`,
+  `inverse.CalibrationProblem.log_posterior`.
+- Source: [REF-GELMAN-ETAL-2013, Section 1.3] and
+  [REF-CASELLA-BERGER-2002, Section 4.3].
+
+### EQ-CAL-STD-001 — Posterior in the prior's standard-normal space
+
+For the Nataf map `u = T(theta)` of the prior,
+`pi(T^-1(u)) |det dT^-1/du| = phi_d(u)`, so
+`p(u, eta | y) proportional to L(T^-1(u), e^eta) phi_d(u)
+prod_q p_sigma(e^eta_q) e^eta_q`.
+
+- Domain: continuous prior marginals with a Gaussian copula; `u` in `R^d`.
+- Meaning: sampling in `u` needs no explicit prior Jacobian; bounded or skewed
+  priors become unbounded and roughly isotropic, which conditions the
+  random-walk sampler.
+- Code: `inverse.CalibrationProblem.standard_log_posterior`,
+  `inverse.CalibrationProblem.to_physical`,
+  `inverse.CalibrationProblem.sample_posterior`.
+- Source: [REF-LIU-DERKIUREGHIAN-1986] and
+  [REF-CASELLA-BERGER-2002, Section 4.3].
+
+### EQ-CAL-WLS-001 — Weighted calibration least squares
+
+`theta_hat = argmin 0.5 sum_i (r_i(theta) / s_i)^2`, `s_i` the total noise
+scale of observation `i`; unknown scales are re-estimated as
+`s_q^2 = (RSS_q / n_q) n / (n - d)`.
+
+- Domain: more observations than parameters when scales are estimated.
+- Meaning: Gaussian maximum-likelihood estimate of `theta` (prior ignored)
+  with Gauss-Newton covariance [EQ-OPT-LM-002] at unit weighted variance.
+- Code: `inverse.CalibrationProblem.fit_least_squares`.
+- Source: [REF-SEBER-WILD-2003, Chapter 2] and [REF-MORE-1978].
+
+### EQ-CAL-FISHER-001 — Fisher-information identifiability spectrum
+
+`F = J_w' J_w` with the Jacobian `J_w` of weighted predictions; analyse
+`D F D = Q Lambda Q'` with `D = diag(scales)` (prior standard deviations by
+default); `kappa = lambda_max / lambda_min`; eigenvectors with small
+`lambda` are weakly identified parameter combinations.
+
+- Domain: local linearization at a parameter point; Gaussian errors.
+- Meaning: rank deficiency means non-identifiability; a large `kappa` means
+  practical (weak) identifiability; prior-scaled eigenvalues compare data
+  information with prior information.
+- Code: `inverse.fisher_identifiability`,
+  `inverse.CalibrationProblem.identifiability`,
+  `inverse.CalibrationProblem.fit_least_squares`.
+- Source: [REF-SEBER-WILD-2003, Section 3.4], [REF-TARANTOLA-2005, Chapter 3],
+  and [REF-GOLUB-VANLOAN-2013, Section 8.5].
+
+### EQ-CAL-PRED-001 — Posterior push-forward prediction
+
+Latent: `y*_s = g_q(theta^(s); c*)`; observed:
+`y*_s + e_s`, `e_s ~ s_q^(s) N(0,1)` or `s_q^(s) t_nu`, with
+`s_q^(s)^2 = sigma_q^(s)^2 + sigma_delta_q^2`; quantiles of the samples give
+predictive intervals.
+
+- Domain: posterior draws `theta^(s)` (and `sigma^(s)` when calibrated) and
+  declared prediction conditions `c*`.
+- Meaning: separates parameter uncertainty (latent) from measurement noise
+  (observed), closing the calibration-to-prediction loop; extrapolation in
+  `c*` is computable but not validated by the calibration data.
+- Code: `inverse.predict`, `inverse.PredictedQuantity`.
+- Source: [REF-GELMAN-ETAL-2013, Section 6.3] and
+  [REF-SMITH-UQ-2024, Chapter 8].

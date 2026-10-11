@@ -107,3 +107,10 @@ Future work includes unknown variance, nonlinear forward models, robust and
 heteroscedastic likelihoods, MCMC, correlated discrepancy processes,
 experimental design, and formal validation experiments. These limitations are
 model boundaries, not missing footnotes.
+
+Update: unknown noise variance (Normal-inverse-gamma and log-sigma sampling),
+nonlinear forward models, Student-t likelihoods, Laplace approximations, and
+MCMC with convergence diagnostics are now covered in
+[nonlinear calibration and MCMC](nonlinear-calibration-and-mcmc.md)
+(ADR-0017). Heteroscedastic and correlated error models, discrepancy
+processes, and experimental design remain open.
