@@ -5959,3 +5959,343 @@ exceeds `n`).
   `conformal.coverage.empirical_coverage`,
   `conformal.regression.SplitConformalRegressor.guaranteed_coverage`.
 - Source: [REF-LEI-ETAL-2018], [REF-ANGELOPOULOS-BATES-2023].
+
+## Multiple linear regression, generalized linear models, and regularization
+
+### EQ-LINALG-009 — Householder QR factorization and least squares
+
+`H_k = I - 2 v_k v_k'` with `v_k` proportional to `x - alpha e_1`,
+`alpha = -sign(x_1) ||x||`, applied to the trailing part of column `k`; then
+`A = Q R` with `Q = H_0 ... H_(p-1)` (thin, `n x p`) and upper-triangular
+`R`. The least-squares solution is `x = R^-1 Q'b`, `(A'A)^-1 = R^-1 R^-T`, and
+the leverages are `h_i = sum_j Q_ij^2`.
+
+- Domain: finite `n x p` matrix with `n >= p`; without pivoting, column `j`
+  is flagged rank deficient when `|R_jj| <= tol ||a_j||` (default
+  `tol = 1e-10`), and the solve then refuses instead of regularizing.
+- Meaning: least squares without forming `A'A`, so the solve sees `kappa(A)`
+  rather than `kappa(A)^2`.
+- Code: `linalg.householder_qr`, `linalg.HouseholderQR.solve`,
+  `linalg.HouseholderQR.gram_inverse`, `linalg.HouseholderQR.hat_diagonal`.
+- Source: [REF-HOUSEHOLDER-1958], [REF-GOLUB-VANLOAN-2013, Sections 5.1-5.3].
+
+### EQ-LM-DESIGN-001 — Treatment (reference-level) coding
+
+For a factor with sorted levels `L_1 < ... < L_m` and reference `L_r`, the
+design receives the indicators `1{x_i = L_k}` for `k != r`; without an
+intercept the first factor keeps all `m` indicators.
+
+- Domain: finite numeric columns; categorical values compared as text; new
+  data may only contain levels seen when the design was built.
+- Meaning: the intercept is the reference-level mean (at zero numeric
+  inputs) and each indicator coefficient is a contrast with the reference;
+  dropping one level avoids the dummy-variable trap.
+- Code: `inference.design_matrix`, `inference.DesignMatrix.transform`,
+  `inference.ColumnEncoding.column_names`.
+- Source: [REF-MONTGOMERY-PECK-VINING-2021, Chapter 8].
+
+### EQ-LM-OLS-001 — Ordinary and weighted least squares
+
+`beta_hat = argmin sum_i w_i (y_i - x_i'beta)^2`, the solution of
+`X'WX beta = X'Wy`, computed as `beta_hat = R^-1 Q' W^(1/2) y` from the QR
+factorization of `W^(1/2) X`.
+
+- Domain: `n > p`, full column rank, strictly positive finite weights
+  (inverse relative variances); unit weights give OLS.
+- Meaning: best linear unbiased estimate under `Var(e_i) = sigma^2 / w_i`.
+- Code: `inference.fit_linear_model`.
+- Source: [REF-MONTGOMERY-PECK-VINING-2021, Chapters 3 and 5].
+
+### EQ-LM-INF-001 — Coefficient covariance and t tests
+
+`sigma_hat^2 = RSS/(n-p)`, `RSS = sum w_i e_i^2`,
+`Cov(beta_hat) = sigma_hat^2 (X'WX)^-1`, `t_j = beta_hat_j / se_j` with
+`t_j ~ t_(n-p)` under `beta_j = 0`, and intervals
+`beta_hat_j +- t_(1-a/2, n-p) se_j`.
+
+- Domain: [EQ-LM-OLS-001] with independent normal errors for exact t laws.
+- Meaning: classical inference for individual coefficients.
+- Code: `inference.fit_linear_model`,
+  `inference.LinearModelResult.coefficient_intervals`.
+- Source: [REF-MONTGOMERY-PECK-VINING-2021, Chapter 3].
+
+### EQ-LM-FIT-001 — R squared, adjusted R squared, and the overall F test
+
+`R^2 = 1 - RSS/TSS`, `R^2_adj = 1 - (1 - R^2)(n - k0)/(n - p)`,
+`F = ((TSS - RSS)/(p - k0)) / (RSS/(n - p)) ~ F_(p-k0, n-p)`, where `k0 = 1`
+and `TSS = sum w_i (y_i - y_bar_w)^2` with an intercept, and `k0 = 0` with the
+uncentered `TSS = sum w_i y_i^2` without one.
+
+- Domain: [EQ-LM-INF-001]; `F` is undefined (`nan`) for an intercept-only fit.
+- Meaning: in-sample share of variation explained, its degrees-of-freedom
+  adjustment, and the test that every non-intercept coefficient is zero.
+- Code: `inference.fit_linear_model`.
+- Source: [REF-MONTGOMERY-PECK-VINING-2021, Chapter 3].
+
+### EQ-LM-PRED-001 — Confidence and prediction intervals at new rows
+
+`y_hat_0 = x_0'beta_hat`; mean interval
+`y_hat_0 +- t_(1-a/2, n-p) sigma_hat sqrt(x_0'(X'WX)^-1 x_0)`; prediction
+interval `y_hat_0 +- t_(1-a/2, n-p) sigma_hat sqrt(1/w_0 + x_0'(X'WX)^-1 x_0)`.
+
+- Domain: [EQ-LM-INF-001]; the new observation is independent of the fitting
+  data with variance `sigma^2 / w_0`.
+- Meaning: uncertainty of the regression mean versus that of one future
+  observation, which also carries the noise.
+- Code: `inference.LinearModelResult.predict`,
+  `inference.LinearModelResult.interval`.
+- Source: [REF-MONTGOMERY-PECK-VINING-2021, Chapter 3].
+
+### EQ-LM-DIAG-001 — Leverage
+
+`h_i = [H]_ii` for `H = X*(X*'X*)^-1 X*' = QQ'`, `X* = W^(1/2) X`, so
+`0 <= h_i <= 1` and `sum_i h_i = p`.
+
+- Domain: full-rank design.
+- Meaning: how strongly observation `i` pulls its own fitted value; large
+  leverage flags remote design points.
+- Code: `inference.fit_linear_model`, `linalg.HouseholderQR.hat_diagonal`.
+- Source: [REF-MONTGOMERY-PECK-VINING-2021, Chapter 6].
+
+### EQ-LM-DIAG-002 — Standardized and studentized residuals
+
+`r_i = e*_i / (sigma_hat sqrt(1 - h_i))` (internal) and
+`t_i = e*_i / (sigma_(i) sqrt(1 - h_i))` (external), with
+`sigma_(i)^2 = (RSS - e*_i^2/(1 - h_i)) / (n - p - 1)` and
+`e*_i = sqrt(w_i) e_i`.
+
+- Domain: `h_i < 1`; external residuals need `n - p > 1`; `t_i ~ t_(n-p-1)`
+  under normal errors.
+- Meaning: residuals on a common scale; the external version uses the
+  variance estimated without observation `i` and is the outlier statistic.
+- Code: `inference.fit_linear_model`.
+- Source: [REF-MONTGOMERY-PECK-VINING-2021, Chapter 4].
+
+### EQ-LM-DIAG-003 — Cook's distance
+
+`D_i = r_i^2 h_i / (p (1 - h_i))`, equivalently
+`(beta_hat_(i) - beta_hat)'X*'X*(beta_hat_(i) - beta_hat) / (p sigma_hat^2)`.
+
+- Domain: [EQ-LM-DIAG-002].
+- Meaning: the change in all fitted values when observation `i` is deleted,
+  combining residual size and leverage.
+- Code: `inference.fit_linear_model`.
+- Source: [REF-COOK-1977], [REF-MONTGOMERY-PECK-VINING-2021, Chapter 6].
+
+### EQ-LM-HC-001 — Heteroskedasticity-consistent covariance (HC0-HC3)
+
+`V_HC = (X*'X*)^-1 X*' diag(omega) X* (X*'X*)^-1` with
+`omega_i = e*_i^2` (HC0), `n/(n-p) e*_i^2` (HC1), `e*_i^2/(1-h_i)` (HC2), and
+`e*_i^2/(1-h_i)^2` (HC3).
+
+- Domain: independent errors with possibly unequal variances; `h_i < 1` for
+  HC2/HC3.
+- Meaning: coefficient standard errors that stay consistent without the
+  constant-variance assumption; HC2 and HC3 correct the downward bias of
+  HC0 at high-leverage points in small samples.
+- Code: `inference.LinearModelResult.robust_covariance`,
+  `inference.LinearModelResult.robust_standard_errors`.
+- Source: [REF-WHITE-1980], [REF-MACKINNON-WHITE-1985].
+
+### EQ-LM-VIF-001 — Variance inflation factor
+
+`VIF_j = 1/(1 - R_j^2)`, where `R_j^2` is the centered coefficient of
+determination from regressing column `j` on an intercept and the other
+non-constant columns.
+
+- Domain: at least one non-constant column and `n` larger than the number of
+  predictors; an exactly explained column gets `VIF = inf`.
+- Meaning: the factor by which collinearity inflates `Var(beta_hat_j)`
+  relative to orthogonal predictors.
+- Code: `inference.variance_inflation_factors`,
+  `inference.LinearModelResult.variance_inflation_factors`.
+- Source: [REF-MONTGOMERY-PECK-VINING-2021, Chapter 9].
+
+### EQ-LM-LL-001 — Gaussian log-likelihood of a linear model
+
+`log L = -(n/2)(log(2 pi RSS/n) + 1) + (1/2) sum_i log w_i`, the profile
+log-likelihood at `sigma^2_MLE = RSS/n`; `AIC` and `BIC` count `p + 1`
+parameters.
+
+- Domain: [EQ-LM-OLS-001] with `RSS > 0`.
+- Meaning: likelihood-based comparison of linear models with the same
+  response, consistent with the Gaussian GLM.
+- Code: `inference.fit_linear_model`.
+- Source: [REF-AKAIKE-1974], [REF-SCHWARZ-1978].
+
+### EQ-GLM-FAM-001 — GLM families, links, and variance functions
+
+`g(mu_i) = eta_i = x_i'beta + o_i`, `Var(y_i) = phi V(mu_i)/w_i`, with
+Gaussian `V = 1`, identity link; binomial (proportions, `w` = trials)
+`V = mu(1-mu)`, logit `log(mu/(1-mu))` or probit `Phi^-1(mu)`; Poisson
+`V = mu`, log link; Gamma `V = mu^2`, inverse `1/mu` or log link.
+
+- Domain: responses in `[0, 1]` (binomial), `[0, inf)` (Poisson),
+  `(0, inf)` (Gamma); logit and probit predictors are clipped to `[-30, 30]`
+  and `[-8, 8]` when inverted so fitted probabilities stay inside `(0, 1)`.
+- Meaning: the mean model, the link that makes it linear, and the
+  mean-variance relation that determines the IRLS weights.
+- Code: `inference.GLMFamily`, `inference.glm_family`,
+  `inference.GLMResult.predict`.
+- Source: [REF-NELDER-WEDDERBURN-1972],
+  [REF-MCCULLAGH-NELDER-1989, Chapters 2, 4, 6, and 8].
+
+### EQ-GLM-IRLS-001 — Iteratively reweighted least squares (Fisher scoring)
+
+`z_i = eta_i - o_i + (y_i - mu_i)/mu'(eta_i)`,
+`W_i = w_i mu'(eta_i)^2 / V(mu_i)`, `beta_new = (X'WX)^-1 X'Wz`, repeated
+with step halving when a step leaves the mean space or raises the deviance.
+
+- Domain: full-rank design; convergence when
+  `max_j |delta beta_j|/(|beta_j| + 0.1) < tol`; for canonical links Fisher
+  scoring equals Newton-Raphson.
+- Meaning: maximum-likelihood fitting of a GLM by a sequence of weighted
+  least-squares problems.
+- Code: `inference.fit_glm`.
+- Source: [REF-MCCULLAGH-NELDER-1989, Section 2.5],
+  [REF-NELDER-WEDDERBURN-1972].
+
+### EQ-GLM-DEV-001 — Unit deviances and the deviance
+
+`D = sum_i w_i d(y_i, mu_i)` with `d = (y - mu)^2` (Gaussian),
+`2[y log(y/mu) + (1-y) log((1-y)/(1-mu))]` (binomial),
+`2[y log(y/mu) - (y - mu)]` (Poisson), `2[-log(y/mu) + (y - mu)/mu]`
+(Gamma), using `0 log 0 = 0`.
+
+- Domain: [EQ-GLM-FAM-001].
+- Meaning: twice the log-likelihood gap to the saturated model (scaled by
+  `phi`); differences of deviances of nested models are likelihood-ratio
+  statistics. With the canonical log link and an intercept,
+  `sum (y - mu) = 0`, so the Poisson deviance reduces to
+  `2 sum y log(y/mu)`.
+- Code: `inference.GLMFamily.unit_deviance`, `inference.fit_glm`.
+- Source: [REF-MCCULLAGH-NELDER-1989, Section 2.3].
+
+### EQ-GLM-PEARSON-001 — Pearson chi-square and dispersion estimate
+
+`X^2 = sum_i w_i (y_i - mu_i)^2 / V(mu_i)`; `phi_hat = X^2/(n - p)` for the
+Gaussian and Gamma families, `phi = 1` for binomial and Poisson.
+
+- Domain: [EQ-GLM-FAM-001], `n > p`.
+- Meaning: moment estimate of the dispersion; `X^2/(n-p)` much larger than
+  one for binomial or Poisson data signals overdispersion.
+- Code: `inference.fit_glm`.
+- Source: [REF-MCCULLAGH-NELDER-1989, Section 2.5].
+
+### EQ-GLM-WALD-001 — Wald standard errors for GLM coefficients
+
+`Cov(beta_hat) = phi (X'WX)^-1` at the final IRLS weights;
+`z_j = beta_hat_j/se_j` compared with `N(0,1)` (known `phi`) or `t_(n-p)`
+(estimated `phi`); intervals `beta_hat_j +- q se_j`.
+
+- Domain: large-sample regularity; meaningless under separation.
+- Meaning: inverse expected Fisher information as the coefficient
+  covariance.
+- Code: `inference.fit_glm`, `inference.GLMResult.coefficient_intervals`.
+- Source: [REF-MCCULLAGH-NELDER-1989, Section 2.5].
+
+### EQ-GLM-AIC-001 — GLM log-likelihood and AIC
+
+Binomial `sum [log C(w_i, w_i y_i) + w_i y_i log mu_i + w_i(1-y_i) log(1-mu_i)]`;
+Poisson `sum w_i [y_i log mu_i - mu_i - log y_i!]`; Gaussian
+`-(n/2)(log(2 pi D/n) + 1) + (1/2) sum log w_i`; Gamma
+`sum w_i log f_Gamma(y_i; shape 1/phi, scale mu_i phi)` with the plug-in
+`phi = D / sum w_i`. `AIC = -2 log L + 2k`, `BIC = -2 log L + k log n`, with
+`k = p` plus one for an estimated dispersion.
+
+- Domain: [EQ-GLM-FAM-001]; the Gamma plug-in dispersion is an approximation,
+  not the exact shape MLE.
+- Meaning: likelihood-based comparison of models for the same response.
+- Code: `inference.fit_glm`.
+- Source: [REF-AKAIKE-1974], [REF-MCCULLAGH-NELDER-1989, Chapter 2].
+
+### EQ-GLM-SEP-001 — Separation certificate for binomial models
+
+The binomial MLE does not exist when some direction `d` satisfies
+`x_i'd >= 0` for `y_i = 1`, `x_i'd <= 0` for `y_i = 0`, and `x_i'd = 0` for
+`0 < y_i < 1`, with at least one strict inequality: the log-likelihood is
+then non-decreasing along `beta + t d` for every `t > 0`.
+
+- Domain: logit or probit link. The library takes `d` as the last IRLS step,
+  requires it to move some `x_i'd` by more than `1e-4`, and checks the
+  inequalities to the relative tolerance `1e-6 max_i |x_i'd|`.
+- Meaning: complete or quasi-complete separation; the coefficients diverge,
+  and the fit is rejected (or flagged with a warning) instead of returning
+  meaningless estimates and standard errors.
+- Code: `inference.fit_glm`, `inference.SeparationError`,
+  `inference.SeparationWarning`.
+- Source: [REF-ALBERT-ANDERSON-1984].
+
+### EQ-PEN-STD-001 — Standardization for penalized regression
+
+`x~_ij = (x_ij - x_bar_j)/s_j`, `s_j^2 = (1/n) sum_i (x_ij - x_bar_j)^2`,
+`y_c = y - y_bar`; the unpenalized intercept is
+`b_0 = y_bar - sum_j b_j x_bar_j` with original-scale slopes
+`b_j = b~_j / s_j`.
+
+- Domain: every predictor varies (`s_j > 0`); without an intercept no
+  centring is done and `s_j^2 = (1/n) sum x_ij^2`.
+- Meaning: the penalty acts on comparable scales, and the intercept is not
+  shrunk.
+- Code: `inference.fit_ridge`, `inference.fit_elastic_net`,
+  `inference.elastic_net_path`, `inference.cross_validate_elastic_net`.
+- Source: [REF-HASTIE-TIBSHIRANI-FRIEDMAN-2009, Section 3.4],
+  [REF-FRIEDMAN-HASTIE-TIBSHIRANI-2010, Section 2].
+
+### EQ-PEN-RIDGE-001 — Ridge regression and effective degrees of freedom
+
+`b~ = argmin ||y_c - X~b||^2 + lambda ||b||^2 = (X~'X~ + lambda I)^-1 X~'y_c`,
+solved as least squares on `[X~; sqrt(lambda) I]`;
+`df(lambda) = tr[X~(X~'X~ + lambda I)^-1 X~'] = sum_j d_j^2/(d_j^2 + lambda)`
+with singular values `d_j` of `X~`.
+
+- Domain: `lambda >= 0`; `lambda > 0` makes any design full rank; `lambda = 0`
+  is OLS and gives `df = p`.
+- Meaning: shrinkage that trades bias for variance; `df` counts the effective
+  number of fitted parameters (intercept excluded).
+- Code: `inference.fit_ridge`, `inference.RidgeResult.predict`.
+- Source: [REF-HOERL-KENNARD-1970],
+  [REF-HASTIE-TIBSHIRANI-FRIEDMAN-2009, Section 3.4.1].
+
+### EQ-PEN-EN-001 — Elastic net and its coordinate-descent update
+
+Minimize `(1/2n)||y_c - X~b||^2 + lambda[(1-alpha)/2 ||b||^2 + alpha ||b||_1]`
+by cycling `b_j <- S(rho_j, lambda alpha)/(v_j + lambda(1 - alpha))`, with
+`rho_j = (1/n) x~_j'(y_c - X~b) + v_j b_j`, `v_j = (1/n) x~_j'x~_j`, and
+`S(z, g) = sign(z) max(|z| - g, 0)`.
+
+- Domain: `lambda >= 0`, `0 <= alpha <= 1`; `alpha = 1` is the lasso and
+  `alpha = 0` equals ridge [EQ-PEN-RIDGE-001] with penalty `n lambda`.
+- Meaning: exact coordinatewise minimization of a convex objective; the soft
+  threshold sets small coefficients exactly to zero.
+- Code: `inference.fit_elastic_net`, `inference.elastic_net_path`,
+  `inference.ElasticNetResult.predict`.
+- Source: [REF-TIBSHIRANI-1996], [REF-ZOU-HASTIE-2005],
+  [REF-FRIEDMAN-HASTIE-TIBSHIRANI-2010, Section 2].
+
+### EQ-PEN-KKT-001 — Elastic-net optimality (KKT) conditions and lambda_max
+
+With `g_j = (1/n) x~_j'(y_c - X~b) - lambda(1-alpha) b_j`:
+`g_j = lambda alpha sign(b_j)` when `b_j != 0` and `|g_j| <= lambda alpha`
+when `b_j = 0`. Hence `b = 0` is optimal iff
+`lambda >= lambda_max = max_j |x~_j'y_c|/(n alpha)`.
+
+- Domain: [EQ-PEN-EN-001] with `alpha > 0` for `lambda_max`.
+- Meaning: certificate of optimality checked by the tests, and the start of
+  the default log-spaced penalty path.
+- Code: `inference.elastic_net_path`, `inference.fit_elastic_net`.
+- Source: [REF-FRIEDMAN-HASTIE-TIBSHIRANI-2010, Section 2].
+
+### EQ-PEN-CV-001 — K-fold cross-validation and the one-standard-error rule
+
+`CV(lambda) = (1/K) sum_k MSE_k(lambda)`, `SE(lambda) = sd_k(MSE_k)/sqrt(K)`;
+`lambda_min = argmin CV` and `lambda_1se` is the largest `lambda` with
+`CV(lambda) <= CV(lambda_min) + SE(lambda_min)`. Folds assign the `i`-th
+element of a seeded permutation to fold `i mod K`.
+
+- Domain: `2 <= K <= n`; each training part is re-standardized on its own.
+- Meaning: an estimate of out-of-sample prediction error along the path and
+  a deliberately more parsimonious choice within its noise.
+- Code: `inference.cross_validate_elastic_net`, `inference.kfold_assignment`.
+- Source: [REF-HASTIE-TIBSHIRANI-FRIEDMAN-2009, Section 7.10],
+  [REF-FRIEDMAN-HASTIE-TIBSHIRANI-2010].

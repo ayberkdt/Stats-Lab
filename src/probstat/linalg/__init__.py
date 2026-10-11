@@ -30,8 +30,11 @@ from .dense import (
     symmetrize,
     transpose,
 )
+from .qr import DEFAULT_RANK_TOLERANCE, HouseholderQR, householder_qr
 
 __all__ = [
+    "DEFAULT_RANK_TOLERANCE",
+    "HouseholderQR",
     "Matrix",
     "Vector",
     "add",
@@ -42,6 +45,7 @@ __all__ = [
     "cholesky_solve",
     "determinant",
     "dot",
+    "householder_qr",
     "identity",
     "inverse_spd",
     "log_abs_determinant",
