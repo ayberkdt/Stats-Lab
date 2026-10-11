@@ -8015,3 +8015,320 @@ lattice paths `(0,0) -> (m,n)` with `|i n - j m| < K` at every checked step.
 - Meaning: limiting Kolmogorov law for the scaled statistic.
 - Code: `inference.kolmogorov_smirnov_two_sample_test(exact=False)`.
 - Source: [REF-HOLLANDER-WOLFE-CHICKEN-2014] and [REF-NIST-GOF].
+
+### EQ-OT-COST-001 — Ground costs for discrete transport
+
+`C_ij = |x_i - y_j|^p` with the Euclidean norm; `p = 2` gives the squared
+Euclidean cost. For `p >= 1`, `W_p(alpha, beta) = (min_P <P, C>)^(1/p)`.
+
+- Domain: point clouds of one common dimension; `p > 0` for the matrix,
+  `p >= 1` for the distance.
+- Meaning: price of moving unit mass from `x_i` to `y_j`.
+- Code: `information.power_cost_matrix`,
+  `information.squared_euclidean_cost_matrix`,
+  `information.discrete_wasserstein`.
+- Source: [REF-PEYRE-CUTURI-2019, Section 2.4] and
+  [REF-VILLANI-2009, Chapter 6].
+
+### EQ-OT-LP-001 — Kantorovich linear program, dual, and certificate
+
+Primal `min sum_ij C_ij P_ij` over `P >= 0`, `P 1 = a`, `P' 1 = b`; dual
+`max sum_i a_i u_i + sum_j b_j v_j` subject to `u_i + v_j <= C_ij`. A
+primal-feasible `P` and dual-feasible `(u, v)` with
+`P_ij (C_ij - u_i - v_j) = 0` for all `(i, j)` are both optimal, and then
+`sum C P = sum a u + sum b v`.
+
+- Domain: non-negative weights with equal total mass; finite costs.
+- Meaning: complementary slackness is a checkable optimality certificate;
+  the certificate reports the duality gap, marginal error, negativity, dual
+  infeasibility, and the largest slackness product.
+- Code: `information.exact_transport`, `information.transport_certificate`,
+  `information.TransportPlan.certificate`.
+- Source: [REF-PEYRE-CUTURI-2019, Sections 3.1-3.3].
+
+### EQ-OT-SIMPLEX-001 — Transportation simplex
+
+Start from the north-west corner plan (exactly `m + n - 1` basic cells
+forming a spanning tree). Repeat: solve `u_i + v_j = C_ij` on the tree with
+`u_0 = 0`; if `min_ij (C_ij - u_i - v_j) >= -tol` stop; otherwise add the
+most negative cell, shift `theta = min` of the cells with sign `-` around
+the unique tree cycle (signs alternate `+, -, +, ...` from the entering
+cell), and remove a cell that reaches zero. After `m + n` consecutive
+degenerate pivots the entering and leaving cells are chosen by smallest
+index (Bland).
+
+- Domain: balanced problems; dense pure-Python implementation for small
+  `m n`.
+- Meaning: the simplex method specialized to the transportation polytope;
+  every iterate is a vertex, and the final potentials certify optimality.
+- Code: `information.exact_transport`.
+- Source: [REF-DANTZIG-1951], [REF-BLAND-1977], and
+  [REF-PEYRE-CUTURI-2019, Sections 3.4-3.5].
+
+### EQ-OT-SINK-001 — Log-domain Sinkhorn iterations
+
+For unit-mass `a, b` and `eps > 0`,
+`OT_eps = min_P <P, C> + eps KL(P || a b')`, with
+`P_ij = a_i b_j exp((f_i + g_j - C_ij)/eps)` and alternating soft
+c-transforms `f_i = -eps log sum_j b_j exp((g_j - C_ij)/eps)`,
+`g_j = -eps log sum_i a_i exp((f_i - C_ij)/eps)` computed by log-sum-exp.
+After a `g` update the columns of `P` are exact; the stopping error is
+`sum_i a_i |exp((f_i - f_i^new)/eps) - 1| = |P 1 - a|_1`. The reported
+regularized cost is the dual value
+`<a, f> + <b, g> - eps (<a b', exp((f + g - C)/eps)> - 1)`.
+
+- Domain: balanced non-negative weights (normalized internally), finite
+  costs, `eps > 0`.
+- Meaning: a strictly convex smoothing of the transport LP; `<P, C>`
+  approaches the exact optimum as `eps -> 0`, but the number of iterations
+  grows quickly when `eps` is small relative to the spread of `C`.
+- Code: `information.sinkhorn`, `information.SinkhornResult`.
+- Source: [REF-CUTURI-2013] and [REF-PEYRE-CUTURI-2019, Sections 4.2 and
+  4.4].
+
+### EQ-OT-SINK-002 — Sinkhorn divergence
+
+`S_eps(alpha, beta) = OT_eps(alpha, beta) - OT_eps(alpha, alpha)/2
+- OT_eps(beta, beta)/2`. The symmetric terms use the averaged map
+`f <- (f + T(f))/2`, `T(f)_i = -eps log sum_j a_j exp((f_j - C_ij)/eps)`,
+and `OT_eps(alpha, alpha) = 2 <a, f>` at the fixed point.
+
+- Domain: two weighted point clouds with equal mass; cost `|x - y|^p`.
+- Meaning: removes the entropic bias, so `S_eps(alpha, alpha) = 0`; it
+  interpolates between the transport cost (`eps -> 0`) and an MMD
+  (`eps -> infinity`).
+- Code: `information.sinkhorn_divergence`.
+- Source: [REF-FEYDY-ETAL-2019].
+
+### EQ-OT-W1D-001 — One-dimensional Wasserstein distance by quantiles
+
+`W_p(mu, nu)^p = int_0^1 |Q_mu(u) - Q_nu(u)|^p du`, evaluated as
+`int |Q_mu(Phi(z)) - Q_nu(Phi(z))|^p phi(z) dz` by composite Simpson
+quadrature on `[-z_max, z_max]`; upper-tail nodes use `isf(Phi(-z))`.
+
+- Domain: laws on the real line with finite `p`-th moments and a quantile
+  function; truncation omits probability `2 Phi(-z_max)` (about `1.2e-15`
+  for `z_max = 8`).
+- Meaning: on the line the optimal coupling is monotone, so `W_p` is the
+  `L^p` distance between quantile functions.
+- Code: `information.quantile_wasserstein`,
+  `information._quantile_quadrature`.
+- Source: [REF-PEYRE-CUTURI-2019, Remark 2.30] and
+  [REF-DAVIS-RABINOWITZ-1984, Chapter 2].
+
+### EQ-OT-GAUSS-001 — Wasserstein-2 distance between Gaussians (Bures)
+
+`W_2(N(m0, S0), N(m1, S1))^2 = |m0 - m1|^2 + B(S0, S1)^2` with
+`B(S0, S1)^2 = tr S0 + tr S1 - 2 tr (S0^(1/2) S1 S0^(1/2))^(1/2)`. In one
+dimension `W_2 = sqrt((mu0 - mu1)^2 + (sigma0 - sigma1)^2)`. Matrix square
+roots are `V diag(lambda^(1/2)) V'` from the Jacobi eigendecomposition, with
+eigenvalues above `-1e-10 max(1, |lambda|)` clipped to zero.
+
+- Domain: symmetric positive-semidefinite covariances of equal size.
+- Meaning: the optimal map between Gaussians is affine; `B` is the Bures
+  metric on covariance matrices.
+- Code: `information.gaussian_wasserstein`, `information.bures_distance`,
+  `information.normal_wasserstein`.
+- Source: [REF-DOWSON-LANDAU-1982], [REF-OLKIN-PUKELSHEIM-1982], and
+  [REF-PEYRE-CUTURI-2019, Remark 2.31].
+
+### EQ-OT-BARY-001 — Wasserstein-2 barycenter of 1-D laws
+
+`argmin_nu sum_k w_k W_2(nu, mu_k)^2` has quantile function
+`Q(u) = sum_k w_k Q_k(u)` and mean `sum_k w_k E[X_k]`; two normal laws give
+`N(sum w_k mu_k, (sum w_k sigma_k)^2)`.
+
+- Domain: laws on the line with finite second moments; weights on the
+  simplex.
+- Meaning: the line is flat in `W_2` (quantile functions form a convex
+  cone of `L^2`), so barycenters average quantiles.
+- Code: `information.quantile_barycenter`, `information.QuantileBarycenter`.
+- Source: [REF-PEYRE-CUTURI-2019, Section 9.2] and
+  [REF-ALVAREZ-ESTEBAN-ETAL-2016].
+
+### EQ-OT-BARY-002 — Fixed-point iteration for the Gaussian barycenter
+
+The barycenter of `N(m_k, S_k)` with weights `w_k` is `N(sum w_k m_k, S)`
+where `S = sum_k w_k (S^(1/2) S_k S^(1/2))^(1/2)`. Iterate
+`S <- S^(-1/2) (sum_k w_k (S^(1/2) S_k S^(1/2))^(1/2))^2 S^(-1/2)` from
+`S = sum w_k S_k` until the relative Frobenius step is below the tolerance.
+
+- Domain: positive-definite covariances of one dimension.
+- Meaning: for commuting covariances the fixed point is
+  `(sum_k w_k S_k^(1/2))^2`.
+- Code: `information.gaussian_barycenter`, `information.GaussianBarycenter`.
+- Source: [REF-ALVAREZ-ESTEBAN-ETAL-2016].
+
+### EQ-IG-FISHER-001 — Fisher information and its numerical evaluation
+
+`I(theta) = E[s s'] = -E[d^2 log f(X; theta) / d theta d theta']` with
+`s = d log f / d theta`. Numerically, derivatives are central differences
+in `theta`; the expectation is Simpson quadrature over `x = Q(Phi(z))`
+(continuous), a sum over the integer support truncated at upper-tail mass
+`1e-14` (discrete), or a Monte Carlo mean.
+
+- Domain: regular families whose support does not depend on `theta`.
+- Meaning: the Fisher metric `ds^2 = d theta' I(theta) d theta`; the two
+  forms agree under the usual regularity conditions.
+- Code: `information.numerical_fisher_information`.
+- Source: [REF-CASELLA-BERGER-2002, Section 7.3],
+  [REF-MIYAMOTO-ETAL-2024, Section 1], and [REF-AMARI-2016].
+
+### EQ-IG-FISHER-002 — Closed-form Fisher information matrices
+
+`N(mu, sigma)`: `diag(1/sigma^2, 2/sigma^2)`. `Exponential(lambda)`:
+`1/lambda^2`. `Gamma(k, lambda)` (rate): `[[psi'(k), -1/lambda],
+[-1/lambda, k/lambda^2]]`. `Beta(a, b)`: `[[psi'(a) - psi'(a + b),
+-psi'(a + b)], [-psi'(a + b), psi'(b) - psi'(a + b)]]`. `Bernoulli(p)`:
+`1/(p(1 - p))`. `Binomial(n, p)`: `n/(p(1 - p))`. `Poisson(lambda)`:
+`1/lambda`. Categorical in `(p_1, ..., p_{k-1})`: `delta_ij/p_i + 1/p_k`.
+Mean of `N(m, S)`: `S^-1`.
+
+- Domain: parameters in the open parameter space.
+- Meaning: gamma and beta entries are minus the expected Hessian of
+  `k log lambda - log Gamma(k) + (k - 1) log x - lambda x` and of
+  `(a - 1) log x + (b - 1) log(1 - x) - log B(a, b)`; `psi'` is the
+  trigamma function.
+- Code: `information.normal_fisher_information`,
+  `information.exponential_fisher_information`,
+  `information.gamma_fisher_information`,
+  `information.beta_fisher_information`,
+  `information.bernoulli_fisher_information`,
+  `information.binomial_fisher_information`,
+  `information.poisson_fisher_information`,
+  `information.categorical_fisher_information`,
+  `information.multivariate_normal_mean_fisher_information`,
+  `information.fisher_information`.
+- Source: [REF-MIYAMOTO-ETAL-2024, Sections 3.1, 3.2, 3.5, 4.1 and 4.4.1],
+  [REF-CASELLA-BERGER-2002, Section 7.3], and
+  [REF-NIST-DLMF-GAMMA, Section 5.15].
+
+### EQ-IG-FR-001 — Fisher-Rao distance between univariate normals
+
+`d = sqrt 2 arccosh(1 + ((mu0 - mu1)^2/2 + (sigma0 - sigma1)^2) /
+(2 sigma0 sigma1)) = 2 sqrt 2 asinh(sqrt(delta / (4 sigma0 sigma1)))` with
+`delta = (mu0 - mu1)^2/2 + (sigma0 - sigma1)^2`.
+
+- Domain: positive standard deviations.
+- Meaning: `(d mu^2 + 2 d sigma^2)/sigma^2` is the Poincaré half-plane
+  metric scaled by two in the coordinates `(mu/sqrt 2, sigma)`; the `asinh`
+  form keeps precision for nearby laws.
+- Code: `information.fisher_rao_normal`.
+- Source: [REF-MIYAMOTO-ETAL-2024, Lemma 2.1 and Section 4.4.1] and
+  [REF-ATKINSON-MITCHELL-1981].
+
+### EQ-IG-FR-002 — Fisher-Rao distance on the simplex (sphere)
+
+Categorical: `d(p, q) = 2 arccos(sum_i sqrt(p_i q_i)) =
+4 asin(|sqrt p - sqrt q|_2 / 2)`. Binomial with `n` known:
+`2 sqrt(n) |asin sqrt(p0) - asin sqrt(p1)|`; Bernoulli is `n = 1`.
+
+- Domain: PMFs on one finite support (boundary allowed); probabilities in
+  `[0, 1]`.
+- Meaning: `p -> 2 sqrt(p)` is an isometry onto the positive orthant of the
+  sphere of radius two; distances are great-circle arcs.
+- Code: `information.fisher_rao_categorical`,
+  `information.fisher_rao_bernoulli`, `information.fisher_rao_binomial`.
+- Source: [REF-MIYAMOTO-ETAL-2024, Sections 3.1 and 3.5].
+
+### EQ-IG-FR-003 — Fisher-Rao distances for one-parameter and flat models
+
+Poisson: `2 |sqrt(lambda0) - sqrt(lambda1)|`. Exponential (rate):
+`|log lambda0 - log lambda1|`. Normal mean with known covariance `S`:
+`sqrt((m0 - m1)' S^-1 (m0 - m1))`.
+
+- Domain: non-negative Poisson means, positive rates, positive-definite
+  `S`.
+- Meaning: one-parameter models give `d = |int sqrt(I(theta)) d theta|`;
+  a constant metric `S^-1` is flat, so the distance is Mahalanobis.
+- Code: `information.fisher_rao_poisson`,
+  `information.fisher_rao_exponential`,
+  `information.fisher_rao_normal_mean`.
+- Source: [REF-MIYAMOTO-ETAL-2024, Sections 1, 3.2 and 4.1].
+
+### EQ-DIV-TV-001 — Total variation distance for finite laws
+
+`TV(p, q) = sum_i |p_i - q_i| / 2 = max_A |P(A) - Q(A)|`.
+
+- Domain: two PMFs on one finite support.
+- Meaning: the largest difference in probability that the two laws assign
+  to an event; `TV` lies in `[0, 1]`.
+- Code: `information.total_variation_distance`.
+- Source: [REF-TSYBAKOV-2009, Chapter 2].
+
+### EQ-DIV-HELL-001 — Hellinger and Bhattacharyya for finite laws
+
+`BC = sum_i sqrt(p_i q_i)`, `D_B = -log BC`, and
+`H^2 = sum_i (sqrt p_i - sqrt q_i)^2 / 2 = 1 - BC`.
+
+- Domain: two PMFs on one finite support; `D_B = inf` for disjoint
+  supports.
+- Meaning: `H` lies in `[0, 1]`; texts that omit the factor `1/2` report
+  `sqrt 2 H`. `D_B = D_{1/2}/2` in Rényi terms.
+- Code: `information.bhattacharyya_coefficient`,
+  `information.bhattacharyya_distance`, `information.hellinger_distance`.
+- Source: [REF-KAILATH-1967] and [REF-TSYBAKOV-2009, Chapter 2].
+
+### EQ-DIV-RENYI-001 — Rényi divergence for finite laws
+
+`D_alpha(p || q) = log(sum_i p_i^alpha q_i^(1 - alpha)) / (alpha - 1)` for
+`alpha` in `(0, 1) U (1, inf)`; `D_0 = -log Q(p > 0)`, `D_1 = KL(p || q)`,
+`D_inf = log max_i p_i / q_i`. Conventions: a term with `q_i = 0 < p_i` is
+infinite for `alpha > 1` and zero for `alpha < 1`.
+
+- Domain: two PMFs on one finite support, `alpha` in `[0, inf]`.
+- Meaning: non-decreasing in `alpha`, continuous at `alpha = 1` where it
+  equals the KL divergence.
+- Code: `information.renyi_divergence`.
+- Source: [REF-VAN-ERVEN-HARREMOES-2014].
+
+### EQ-DIV-ALPHA-001 — Alpha-divergence
+
+`D_A^(alpha)(p || q) = (sum_i p_i^alpha q_i^(1 - alpha) - 1) /
+(alpha (alpha - 1))` for normalized `p, q` and `alpha` not in `{0, 1}`;
+`D_A^(1) = KL(p || q)`, `D_A^(0) = KL(q || p)`, and `D_A^(1/2) = 4 H^2`.
+Rényi: `D_alpha = log(1 + alpha (alpha - 1) D_A^(alpha)) / (alpha - 1)`.
+
+- Domain: two PMFs on one finite support or two Gaussian laws; any real
+  `alpha`.
+- Meaning: a one-parameter family of f-divergences through both KL
+  directions.
+- Code: `information.alpha_divergence`,
+  `information.alpha_divergence_gaussian`.
+- Source: [REF-CICHOCKI-CRUCES-AMARI-2011, Equation 25] (the general
+  positive-measure form reduces to this for normalized laws).
+
+### EQ-DIV-GAUSS-001 — Gaussian affinity, Rényi, Bhattacharyya, Hellinger
+
+With `S_alpha = alpha S1 + (1 - alpha) S0` and `d = m0 - m1`,
+`log int N0^alpha N1^(1 - alpha) = -alpha (1 - alpha) d' S_alpha^-1 d / 2
+- (log det S_alpha - (1 - alpha) log det S0 - alpha log det S1) / 2`,
+finite iff `S_alpha` is positive definite. Then
+`D_alpha = log A_alpha / (alpha - 1)`,
+`D_B = d' S^-1 d / 8 + (log det S - (log det S0 + log det S1)/2) / 2` with
+`S = (S0 + S1)/2`, and `H = sqrt(1 - exp(-D_B))`.
+
+- Domain: positive-definite covariances of one dimension; for `alpha > 1`
+  the divergence is infinite when `S_alpha` is not positive definite.
+- Meaning: completing the square in the exponent of `N0^alpha N1^(1-alpha)`.
+- Code: `information.renyi_divergence_gaussian`,
+  `information.bhattacharyya_distance_gaussian`,
+  `information.hellinger_distance_gaussian`,
+  `information.alpha_divergence_gaussian`.
+- Source: [REF-GIL-ALAJAJI-LINDER-2013] and [REF-KAILATH-1967]; checked
+  against numerical integration in `tests/test_transport_and_geometry.py`.
+
+### EQ-DIV-GAUSS-002 — Total variation between Gaussians
+
+Univariate: with `r1 < r2` the roots of `log p0(x) = log p1(x)` (a
+quadratic when `sigma0 != sigma1`),
+`TV = |(F0(r2) - F0(r1)) - (F1(r2) - F1(r1))|`; for `sigma0 = sigma1 =
+sigma`, `TV = erf(|mu0 - mu1| / (2 sqrt 2 sigma))`. Shared covariance `S`:
+`TV = erf(Delta / (2 sqrt 2))` with Mahalanobis `Delta`.
+
+- Domain: positive standard deviations; positive-definite shared `S`.
+- Meaning: Scheffé's identity `TV = int_{p0 > p1} (p0 - p1)` evaluated on
+  the region where one density dominates.
+- Code: `information.total_variation_normal`,
+  `information.total_variation_gaussian_shared_covariance`.
+- Source: [REF-TSYBAKOV-2009, Chapter 2].

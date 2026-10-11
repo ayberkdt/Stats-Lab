@@ -1790,3 +1790,111 @@ Hidetosi Takahasi and Masatake Mori. "Double Exponential Formulas for
 Numerical Integration." *Publications of the Research Institute for
 Mathematical Sciences* 9(3), 721-741, 1974 (volume dated 1973/74).
 DOI: [10.2977/prims/1195192451](https://doi.org/10.2977/prims/1195192451).
+
+## REF-PEYRE-CUTURI-2019
+
+Gabriel Peyré and Marco Cuturi. "Computational Optimal Transport."
+*Foundations and Trends in Machine Learning* 11(5-6), 355-607, 2019.
+arXiv: [1803.00567](https://arxiv.org/abs/1803.00567).
+
+## REF-CUTURI-2013
+
+Marco Cuturi. "Sinkhorn Distances: Lightspeed Computation of Optimal
+Transport." *Advances in Neural Information Processing Systems 26* (NIPS
+2013), 2013. arXiv: [1306.0895](https://arxiv.org/abs/1306.0895).
+
+## REF-VILLANI-2009
+
+Cédric Villani. *Optimal Transport: Old and New*. Grundlehren der
+mathematischen Wissenschaften 338. Springer, 2009.
+DOI: [10.1007/978-3-540-71050-9](https://doi.org/10.1007/978-3-540-71050-9).
+
+## REF-FEYDY-ETAL-2019
+
+Jean Feydy, Thibault Séjourné, François-Xavier Vialard, Shun-ichi Amari,
+Alain Trouvé, and Gabriel Peyré. "Interpolating between Optimal Transport and
+MMD using Sinkhorn Divergences." *Proceedings of the 22nd International
+Conference on Artificial Intelligence and Statistics (AISTATS)*, PMLR 89,
+2681-2690, 2019.
+
+## REF-DANTZIG-1951
+
+George B. Dantzig. "Application of the Simplex Method to a Transportation
+Problem." In T. C. Koopmans (ed.), *Activity Analysis of Production and
+Allocation*, 359-373. Wiley, 1951.
+
+## REF-BLAND-1977
+
+Robert G. Bland. "New Finite Pivoting Rules for the Simplex Method."
+*Mathematics of Operations Research* 2(2), 103-107, 1977.
+DOI: [10.1287/moor.2.2.103](https://doi.org/10.1287/moor.2.2.103).
+
+## REF-DOWSON-LANDAU-1982
+
+D. C. Dowson and B. V. Landau. "The Fréchet Distance between Multivariate
+Normal Distributions." *Journal of Multivariate Analysis* 12(3), 450-455,
+1982.
+
+## REF-OLKIN-PUKELSHEIM-1982
+
+Ingram Olkin and Friedrich Pukelsheim. "The Distance between Two Random
+Vectors with Given Dispersion Matrices." *Linear Algebra and its
+Applications* 48, 257-263, 1982.
+
+## REF-ALVAREZ-ESTEBAN-ETAL-2016
+
+Pedro C. Álvarez-Esteban, Eustasio del Barrio, Juan A. Cuesta-Albertos, and
+Carlos Matrán. "A Fixed-Point Approach to Barycenters in Wasserstein Space."
+*Journal of Mathematical Analysis and Applications* 441(2), 744-762, 2016.
+DOI: [10.1016/j.jmaa.2016.04.045](https://doi.org/10.1016/j.jmaa.2016.04.045).
+
+## REF-AMARI-2016
+
+Shun-ichi Amari. *Information Geometry and Its Applications*. Applied
+Mathematical Sciences 194. Springer, 2016.
+DOI: [10.1007/978-4-431-55978-8](https://doi.org/10.1007/978-4-431-55978-8).
+
+## REF-ATKINSON-MITCHELL-1981
+
+Colin Atkinson and Ann F. S. Mitchell. "Rao's Distance Measure."
+*Sankhyā: The Indian Journal of Statistics, Series A* 43(3), 345-365, 1981.
+
+## REF-MIYAMOTO-ETAL-2024
+
+Henrique K. Miyamoto, Fábio C. C. Meneghetti, Julianna Pinele, and Sueli I.
+R. Costa. "On Closed-Form Expressions for the Fisher-Rao Distance."
+*Information Geometry*, 2024.
+DOI: [10.1007/s41884-024-00143-2](https://doi.org/10.1007/s41884-024-00143-2).
+arXiv: [2304.14885](https://arxiv.org/abs/2304.14885) (section numbers cited
+from arXiv v3).
+
+## REF-VAN-ERVEN-HARREMOES-2014
+
+Tim van Erven and Peter Harremoës. "Rényi Divergence and Kullback-Leibler
+Divergence." *IEEE Transactions on Information Theory* 60(7), 3797-3820,
+2014. DOI: [10.1109/TIT.2014.2320500](https://doi.org/10.1109/TIT.2014.2320500).
+
+## REF-CICHOCKI-CRUCES-AMARI-2011
+
+Andrzej Cichocki, Sergio Cruces, and Shun-ichi Amari. "Generalized
+Alpha-Beta Divergences and Their Application to Robust Nonnegative Matrix
+Factorization." *Entropy* 13(1), 134-170, 2011.
+DOI: [10.3390/e13010134](https://doi.org/10.3390/e13010134).
+
+## REF-KAILATH-1967
+
+Thomas Kailath. "The Divergence and Bhattacharyya Distance Measures in
+Signal Selection." *IEEE Transactions on Communication Technology* 15(1),
+52-60, 1967.
+
+## REF-GIL-ALAJAJI-LINDER-2013
+
+M. Gil, F. Alajaji, and T. Linder. "Rényi Divergence Measures for Commonly
+Used Univariate Continuous Distributions." *Information Sciences* 249,
+2013.
+DOI: [10.1016/j.ins.2013.06.018](https://doi.org/10.1016/j.ins.2013.06.018).
+
+## REF-TSYBAKOV-2009
+
+Alexandre B. Tsybakov. *Introduction to Nonparametric Estimation*. Springer
+Series in Statistics. Springer, 2009.
