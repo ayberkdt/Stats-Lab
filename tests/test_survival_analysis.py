@@ -509,6 +509,15 @@ class CoxModelTests(unittest.TestCase):
             fit.survival(4.0, [1.0]), math.exp(-h0[2] * math.exp(beta)), places=12
         )
 
+    def test_median_on_flat_half_segment_is_midpoint(self) -> None:
+        """Uncensored n = 20 gives the sample median (t10 + t11) / 2."""
+        even = kaplan_meier(
+            survival_data([float(i) for i in range(1, 21)], [True] * 20)
+        )
+        self.assertAlmostEqual(even.median().estimate, 10.5, places=12)
+        odd = kaplan_meier(survival_data([float(i) for i in range(1, 22)], [True] * 21))
+        self.assertAlmostEqual(odd.median().estimate, 11.0, places=12)
+
     def test_cox_fit_is_invariant_to_covariate_shift(self) -> None:
         """Uncentred covariates (|x' beta| > 709) neither overflow nor shift S."""
         rng = RandomStream(7).generator()
@@ -519,9 +528,7 @@ class CoxModelTests(unittest.TestCase):
         self.assertEqual(base.baseline_reference, 0.0)
         for shift in (800.0, -800.0):
             fit = fit_cox_model(data, [[x + shift] for x in xs])
-            self.assertAlmostEqual(
-                fit.coefficients[0], base.coefficients[0], places=6
-            )
+            self.assertAlmostEqual(fit.coefficients[0], base.coefficients[0], places=6)
             self.assertAlmostEqual(
                 fit.survival(0.5, [0.3 + shift]),
                 base.survival(0.5, [0.3]),

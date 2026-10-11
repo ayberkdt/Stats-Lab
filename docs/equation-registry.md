@@ -5775,7 +5775,10 @@ and survival estimate `exp(-H_hat(t))`.
 log-log pointwise bands `S_L <= S_hat <= S_U` of EQ-SURV-KM-003.
 
 - Domain: `0 < p < 1`; a limit is `+inf` when the corresponding curve never
-  reaches `1 - p` during follow-up.
+  reaches `1 - p` during follow-up. If a curve equals `1 - p` exactly on a
+  horizontal segment `[t_j, t_{j+1})`, the midpoint `(t_j + t_{j+1}) / 2` is
+  used (the convention of `quantile.survfit` in the R survival package),
+  which gives the ordinary sample median for uncensored data.
 - Meaning: the set of times at which `1 - p` lies inside the pointwise band.
 - Code: `inference.survival.nonparametric.KaplanMeierEstimate.quantile`,
   `inference.survival.nonparametric.KaplanMeierEstimate.median`.

@@ -196,10 +196,10 @@ def plot_survival_curves(
         )
         axes.step(xs, [1.0, *survival], where="post", color=colour, linewidth=2.0)
         labels.append((xs[-1], survival[-1], label, colour))
-        below = [t for t, s in zip(times, survival, strict=True) if s <= 0.5]
+        median = _flat_aware_median(times, survival)
         medians.append(
-            f"{label} median {below[0]:.3g}"
-            if below
+            f"{label} median {median:.3g}"
+            if median is not None
             else f"{label} median > {xs[-1]:.3g}"
         )
     axes.set_ylim(0.0, 1.05)
@@ -213,6 +213,23 @@ def plot_survival_curves(
         + (f" · {test_label}" if test_label else ""),
     )
     return axes
+
+
+def _flat_aware_median(
+    times: Sequence[float], survival: Sequence[float]
+) -> float | None:
+    """Return the Kaplan-Meier median with the flat-segment midpoint rule.
+
+    References:
+        [EQ-SURV-MED-001]. No new equation is evaluated.
+
+    """
+    for index, (time, value) in enumerate(zip(times, survival, strict=True)):
+        if value <= 0.5 + 1e-12:
+            if abs(value - 0.5) <= 1e-12 and index + 1 < len(times):
+                return 0.5 * (time + times[index + 1])
+            return time
+    return None
 
 
 @themed

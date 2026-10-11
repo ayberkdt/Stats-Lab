@@ -266,12 +266,20 @@ class KaplanMeierEstimate:
         def first(values: Vector) -> float:
             """Return the first event time whose value is at most the target.
 
+            When the curve sits exactly on the target over a horizontal
+            segment, the segment's midpoint is returned instead, as R's
+            ``quantile.survfit`` does; for uncensored data this reproduces
+            the usual sample median. A segment that runs to the end of
+            follow-up without a later event keeps its left endpoint.
+
             References:
                 [EQ-SURV-MED-001]. No new equation is evaluated.
 
             """
-            for time, value in zip(self.times, values, strict=True):
+            for index, (time, value) in enumerate(zip(self.times, values, strict=True)):
                 if value <= target + tolerance:
+                    if abs(value - target) <= tolerance and index + 1 < len(self.times):
+                        return 0.5 * (time + self.times[index + 1])
                     return time
             return math.inf
 
