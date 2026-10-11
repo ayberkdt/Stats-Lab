@@ -80,6 +80,12 @@ one report.
   Hermite basis extrapolated badly at far-tail design points.
 - Method comparison omits SORM rows when the FORM index is not positive
   instead of failing.
+- Independent numerical review fixes: rare-event OR gates and min-cut bounds
+  (exact to p = 1e-17), fault-tree cut sets by expansion with absorption,
+  series-system uni-modal upper bound at very high reliability, Student-t
+  tails and large-nu centre, Normal-inverse-gamma intervals for vague
+  priors, calibration log-densities at extreme log-sigma, and a seamless
+  log-normal-CDF tail in the fragility likelihood.
 
 ## [0.13.0] — 2026-10-09
 
