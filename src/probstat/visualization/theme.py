@@ -659,6 +659,9 @@ def direct_labels(
     """
     if not items:
         return
+    # Force autoscaling first: transData is stale until limits are computed.
+    ax.get_xlim()
+    ax.get_ylim()
     figure = ax.figure
     to_display = ax.transData.transform
     scale = figure.dpi / 72.0

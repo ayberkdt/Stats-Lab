@@ -154,6 +154,26 @@ class CalibrationAndEmulationTests(unittest.TestCase):
         )
         self.assertLess(emulator_record.evaluations, 200)
 
+    def test_emulator_on_bounded_inputs_survives_large_designs(self) -> None:
+        """Uniform inputs get a Legendre basis, so far-tail design points stay sane."""
+        from probstat.distributions import Uniform
+
+        inputs = JointInput.independent(
+            RandomInput("a", Uniform(-1.0, 1.0)), RandomInput("b", Uniform(-1.0, 1.0))
+        )
+
+        def model(p):
+            """Return a smooth bounded response."""
+            return {"y": math.sin(3.0 * p["a"]) + p["b"] ** 2}
+
+        study = UQStudy(
+            ProbabilisticModel(inputs, model, (QuantityOfInterest("y", "y"),)), seed=1
+        )
+        emulated = study.emulate("y", method="pce", degree=7, size=120)
+        self.assertEqual(study.latest("emulation").summary["basis"], "legendre")
+        mean = emulated.propagate(8192, design="sobol")["y"].mean
+        self.assertAlmostEqual(mean, 1.0 / 3.0, delta=0.01)
+
 
 if __name__ == "__main__":
     unittest.main()

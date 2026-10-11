@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, Literal
 
+from probstat.distributions import Uniform
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.inverse import (
     CalibrationPosterior,
@@ -619,6 +620,7 @@ class UQStudy:
         method: Literal["pce", "gp"] = "pce",
         degree: int = 3,
         size: int | None = None,
+        basis: str | None = None,
     ) -> UQStudy:
         """Fit a surrogate of one QoI and return a study on the surrogate.
 
@@ -633,6 +635,10 @@ class UQStudy:
             degree: PCE total degree (ignored for GP).
             size: Training-design size (defaults: PCE chooses from the number
                 of terms; GP uses ten points per input).
+            basis: PCE basis; by default Legendre when every input is an
+                independent uniform law and Hermite (Nataf space) otherwise.
+                Hermite polynomials on bounded inputs extrapolate badly in
+                the far tails of large quasi-random designs.
 
         Returns:
             New study whose model evaluates the surrogate.
@@ -651,10 +657,28 @@ class UQStudy:
         before = self._model.evaluations
         accuracy: dict[str, float | str]
         if method == "pce":
-            fitted: Any = fit_polynomial_chaos(
-                self._model, quantity, degree=degree, size=size, seed=stream
+            chosen = basis or (
+                "legendre"
+                if self._model.inputs.is_independent
+                and all(
+                    isinstance(item.distribution, Uniform)
+                    for item in self._model.inputs.inputs
+                )
+                else "hermite"
             )
-            accuracy = {"loo_error": fitted.loo_error, "terms": float(fitted.size)}
+            fitted: Any = fit_polynomial_chaos(
+                self._model,
+                quantity,
+                degree=degree,
+                basis=chosen,
+                size=size,
+                seed=stream,
+            )
+            accuracy = {
+                "loo_error": fitted.loo_error,
+                "terms": float(fitted.size),
+                "basis": chosen,
+            }
         elif method == "gp":
             fitted = fit_gaussian_process_to_model(
                 self._model,
