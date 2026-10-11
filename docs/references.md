@@ -1568,3 +1568,141 @@ DOI: [10.1137/S1064827503426693](https://doi.org/10.1137/S1064827503426693).
 A. C. Harvey. "Estimating Regression Models with Multiplicative
 Heteroscedasticity." *Econometrica* 44(3), 461-465, 1976.
 DOI: [10.2307/1913974](https://doi.org/10.2307/1913974).
+
+## REF-GNEITING-RAFTERY-2007
+
+Tilmann Gneiting and Adrian E. Raftery. "Strictly Proper Scoring Rules,
+Prediction, and Estimation." *Journal of the American Statistical
+Association* 102(477), 359-378, 2007.
+DOI: [10.1198/016214506000001437](https://doi.org/10.1198/016214506000001437).
+
+## REF-MATHESON-WINKLER-1976
+
+James E. Matheson and Robert L. Winkler. "Scoring Rules for Continuous
+Probability Distributions." *Management Science* 22(10), 1087-1096, 1976.
+DOI: [10.1287/mnsc.22.10.1087](https://doi.org/10.1287/mnsc.22.10.1087).
+
+## REF-HERSBACH-2000
+
+Hans Hersbach. "Decomposition of the Continuous Ranked Probability Score for
+Ensemble Prediction Systems." *Weather and Forecasting* 15(5), 559-570, 2000.
+
+## REF-FERRO-2014
+
+Christopher A. T. Ferro. "Fair Scores for Ensemble Forecasts." *Quarterly
+Journal of the Royal Meteorological Society* 140, 1917-1923, 2014.
+
+## REF-GNEITING-RAFTERY-WESTVELD-GOLDMAN-2005
+
+Tilmann Gneiting, Adrian E. Raftery, Anton H. Westveld III, and Tom Goldman.
+"Calibrated Probabilistic Forecasting Using Ensemble Model Output Statistics
+and Minimum CRPS Estimation." *Monthly Weather Review* 133, 1098-1118, 2005.
+
+## REF-BARAN-LERCH-2015
+
+Sándor Baran and Sebastian Lerch. "Log-Normal Distribution Based Ensemble
+Model Output Statistics Models for Probabilistic Wind-Speed Forecasting."
+*Quarterly Journal of the Royal Meteorological Society* 141(691), 2289-2299,
+2015. DOI: [10.1002/qj.2521](https://doi.org/10.1002/qj.2521).
+
+## REF-JORDAN-KRUGER-LERCH-2019
+
+Alexander Jordan, Fabian Krüger, and Sebastian Lerch. "Evaluating
+Probabilistic Forecasts with scoringRules." *Journal of Statistical
+Software* 90(12), 1-37, 2019.
+DOI: [10.18637/jss.v090.i12](https://doi.org/10.18637/jss.v090.i12).
+
+## REF-DAWID-SEBASTIANI-1999
+
+A. Philip Dawid and Paola Sebastiani. "Coherent Dispersion Criteria for
+Optimal Experimental Design." *The Annals of Statistics* 27(1), 65-81, 1999.
+DOI: [10.1214/aos/1018031101](https://doi.org/10.1214/aos/1018031101).
+
+## REF-GNEITING-STANBERRY-ETAL-2008
+
+Tilmann Gneiting, Larissa I. Stanberry, Eric P. Grimit, Leonhard Held, and
+Nicholas A. Johnson. "Assessing Probabilistic Forecasts of Multivariate
+Quantities, with an Application to Ensemble Predictions of Surface Winds."
+*TEST* 17(2), 211-235, 2008.
+DOI: [10.1007/s11749-008-0114-x](https://doi.org/10.1007/s11749-008-0114-x).
+
+## REF-SCHEUERER-HAMILL-2015
+
+Michael Scheuerer and Thomas M. Hamill. "Variogram-Based Proper Scoring
+Rules for Probabilistic Forecasts of Multivariate Quantities." *Monthly
+Weather Review* 143, 1321-1334, 2015.
+DOI: [10.1175/MWR-D-14-00269.1](https://doi.org/10.1175/MWR-D-14-00269.1).
+
+## REF-BRACHER-RAY-GNEITING-REICH-2021
+
+Johannes Bracher, Evan L. Ray, Tilmann Gneiting, and Nicholas G. Reich.
+"Evaluating Epidemic Forecasts in an Interval Format." *PLOS Computational
+Biology* 17(2), e1008618, 2021.
+DOI: [10.1371/journal.pcbi.1008618](https://doi.org/10.1371/journal.pcbi.1008618).
+
+## REF-MURPHY-1973
+
+Allan H. Murphy. "A New Vector Partition of the Probability Score." *Journal
+of Applied Meteorology* 12, 595-600, 1973.
+
+## REF-STEPHENSON-COELHO-JOLLIFFE-2008
+
+David B. Stephenson, Caio A. S. Coelho, and Ian T. Jolliffe. "Two Extra
+Components in the Brier Score Decomposition." *Weather and Forecasting*
+23(4), 752-757, 2008.
+
+## REF-BROCKER-SMITH-2007
+
+Jochen Bröcker and Leonard A. Smith. "Increasing the Reliability of
+Reliability Diagrams." *Weather and Forecasting* 22(3), 651-661, 2007.
+DOI: [10.1175/WAF993.1](https://doi.org/10.1175/WAF993.1).
+
+## REF-GNEITING-BALABDAOUI-RAFTERY-2007
+
+Tilmann Gneiting, Fadoua Balabdaoui, and Adrian E. Raftery. "Probabilistic
+Forecasts, Calibration and Sharpness." *Journal of the Royal Statistical
+Society: Series B* 69(2), 243-268, 2007.
+DOI: [10.1111/j.1467-9868.2007.00587.x](https://doi.org/10.1111/j.1467-9868.2007.00587.x).
+
+## REF-HAMILL-2001
+
+Thomas M. Hamill. "Interpretation of Rank Histograms for Verifying Ensemble
+Forecasts." *Monthly Weather Review* 129(3), 550-560, 2001.
+
+## REF-CZADO-GNEITING-HELD-2009
+
+Claudia Czado, Tilmann Gneiting, and Leonhard Held. "Predictive Model
+Assessment for Count Data." *Biometrics* 65(4), 1254-1261, 2009.
+DOI: [10.1111/j.1541-0420.2009.01191.x](https://doi.org/10.1111/j.1541-0420.2009.01191.x).
+
+## REF-SZEKELY-RIZZO-2013
+
+Gábor J. Székely and Maria L. Rizzo. "Energy Statistics: A Class of
+Statistics Based on Distances." *Journal of Statistical Planning and
+Inference* 143(8), 1249-1272, 2013.
+
+## REF-GRETTON-ETAL-2012
+
+Arthur Gretton, Karsten M. Borgwardt, Malte J. Rasch, Bernhard Schölkopf, and
+Alexander Smola. "A Kernel Two-Sample Test." *Journal of Machine Learning
+Research* 13, 723-773, 2012.
+
+## REF-PANARETOS-ZEMEL-2019
+
+Victor M. Panaretos and Yoav Zemel. "Statistical Aspects of Wasserstein
+Distances." *Annual Review of Statistics and Its Application* 6, 405-431,
+2019.
+DOI: [10.1146/annurev-statistics-030718-104938](https://doi.org/10.1146/annurev-statistics-030718-104938).
+
+## REF-HODGES-1958
+
+J. L. Hodges Jr. "The Significance Probability of the Smirnov Two-Sample
+Test." *Arkiv för Matematik* 3(5), 469-486, 1958.
+DOI: [10.1007/BF02589501](https://doi.org/10.1007/BF02589501).
+
+## REF-TAKAHASI-MORI-1974
+
+Hidetosi Takahasi and Masatake Mori. "Double Exponential Formulas for
+Numerical Integration." *Publications of the Research Institute for
+Mathematical Sciences* 9(3), 721-741, 1974 (volume dated 1973/74).
+DOI: [10.2977/prims/1195192451](https://doi.org/10.2977/prims/1195192451).

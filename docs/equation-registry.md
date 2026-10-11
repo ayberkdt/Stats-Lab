@@ -7293,3 +7293,391 @@ sd_prior(theta_j)`.
 - Code: `inverse.DiscrepancyCalibration.identifiability`,
   `inverse.DiscrepancyFit.correlation`.
 - Source: [REF-BRYNJARSDOTTIR-OHAGAN-2014] and [REF-KENNEDY-OHAGAN-2001].
+
+## Proper scoring rules, forecast calibration, and distribution shift
+
+### EQ-VAL-SCORE-CRPS-001 — Continuous ranked probability score
+
+`CRPS(F, y) = int (F(x) - 1{x >= y})^2 dx = E|X - y| - (1/2) E|X - X'|`,
+with `X, X'` independent draws from `F`.
+
+- Domain: `F` with finite first moment; `y` real. Negatively oriented.
+- Meaning: strictly proper score that rewards calibration and sharpness
+  jointly; it reduces to the absolute error for a point forecast.
+- Code: `validation.scoring.crps_ensemble`,
+  `validation.scoring.crps_distribution`.
+- Source: [REF-MATHESON-WINKLER-1976] and [REF-GNEITING-RAFTERY-2007].
+
+### EQ-VAL-SCORE-CRPS-002 — Ensemble CRPS by sorting
+
+For members `x_1..x_m` with order statistics `x_(k)`:
+`CRPS(F_m, y) = (1/m) sum |x_i - y| - (1/m^2) sum_k (2k - m - 1) x_(k)`,
+using `sum_i sum_j |x_i - x_j| = 2 sum_k (2k - m - 1) x_(k)`.
+
+- Domain: at least one finite member; members shifted by `y` first.
+- Meaning: exact CRPS of the empirical CDF in `O(m log m)`; equals the
+  integral of EQ-VAL-SCORE-CRPS-001 for the step CDF `F_m`.
+- Code: `validation.scoring.crps_ensemble`,
+  `validation.ExperimentAssessment.crps`.
+- Source: [REF-HERSBACH-2000] and [REF-GNEITING-RAFTERY-2007].
+
+### EQ-VAL-SCORE-CRPS-003 — Fair ensemble CRPS
+
+`fCRPS(x, y) = (1/m) sum |x_i - y| - (1/(2 m (m - 1))) sum_i sum_j |x_i - x_j|`.
+
+- Domain: `m >= 2` members.
+- Meaning: unbiased for the CRPS of the law the members are drawn from; its
+  expectation does not depend on `m`.
+- Code: `validation.scoring.crps_ensemble(fair=True)`.
+- Source: [REF-FERRO-2014].
+
+### EQ-VAL-SCORE-CRPS-004 — CRPS of a normal law
+
+`CRPS(N(mu, sigma^2), y) = sigma [z (2 Phi(z) - 1) + 2 phi(z) - 1/sqrt(pi)]`,
+`z = (y - mu) / sigma`.
+
+- Domain: `sigma > 0`.
+- Meaning: closed form of EQ-VAL-SCORE-CRPS-001 for a Gaussian forecast.
+- Code: `validation.scoring.crps_normal`.
+- Source: [REF-GNEITING-RAFTERY-WESTVELD-GOLDMAN-2005] and
+  [REF-GNEITING-RAFTERY-2007].
+
+### EQ-VAL-SCORE-CRPS-005 — CRPS of a log-normal law
+
+For `y > 0`, `z = (ln y - mu)/sigma`:
+`CRPS = y (2 Phi(z) - 1) - 2 exp(mu + sigma^2/2) [Phi(z - sigma) + Phi(sigma/sqrt 2) - 1]`;
+for `y <= 0`, `CRPS = -y + 2 exp(mu + sigma^2/2) [1 - Phi(sigma/sqrt 2)]`.
+
+- Domain: `sigma > 0`; any real `y`.
+- Meaning: closed form for a log-normal forecast; the `y <= 0` branch is the
+  limit `Phi(z) = Phi(z - sigma) = 0` of the first.
+- Code: `validation.scoring.crps_lognormal`.
+- Source: [REF-BARAN-LERCH-2015] and [REF-JORDAN-KRUGER-LERCH-2019]; checked
+  against quadrature of EQ-VAL-SCORE-CRPS-001 in the tests.
+
+### EQ-VAL-SCORE-CRPS-006 — CRPS of a logistic law
+
+`CRPS(Logistic(mu, s), y) = s [z - 2 ln F(z) - 1]`, `z = (y - mu)/s`, with the
+standard logistic CDF `F`.
+
+- Domain: `s > 0`.
+- Meaning: closed form for a logistic forecast.
+- Code: `validation.scoring.crps_logistic`.
+- Source: [REF-JORDAN-KRUGER-LERCH-2019]; checked against quadrature of
+  EQ-VAL-SCORE-CRPS-001 in the tests.
+
+### EQ-VAL-SCORE-CRPS-007 — CRPS of an exponential law
+
+`CRPS(Exp(lambda), y) = y + 2 exp(-lambda y)/lambda - 3/(2 lambda)` for
+`y >= 0` and `|y| + 1/(2 lambda)` for `y < 0`.
+
+- Domain: `lambda > 0`.
+- Meaning: from `E|X - y| - E|X - X'|/2` with `E|X - X'| = 1/lambda`.
+- Code: `validation.scoring.crps_exponential`.
+- Source: derived from EQ-VAL-SCORE-CRPS-001 ([REF-GNEITING-RAFTERY-2007]);
+  same expression as [REF-JORDAN-KRUGER-LERCH-2019]; checked by quadrature.
+
+### EQ-VAL-SCORE-CRPS-008 — CRPS of a uniform law
+
+With `w = b - a`: `CRPS = ((y - a)^2 + (b - y)^2)/(2w) - w/6` for
+`a <= y <= b` and `|y - (a + b)/2| - w/6` otherwise.
+
+- Domain: `a < b`.
+- Meaning: from `E|X - y| - E|X - X'|/2` with `E|X - X'| = w/3`.
+- Code: `validation.scoring.crps_uniform`.
+- Source: derived from EQ-VAL-SCORE-CRPS-001 ([REF-GNEITING-RAFTERY-2007]);
+  checked by quadrature.
+
+### EQ-VAL-SCORE-CRPS-009 — CRPS as an integral of quantile scores
+
+`CRPS(F, y) = 2 int_0^1 QS_u(F^-1(u), y) du
+= 2 [int_0^(F(y)) u (y - Q(u)) du + int_(F(y))^1 (1 - u)(Q(u) - y) du]`.
+
+- Domain: continuous `F` with finite mean.
+- Meaning: generic CRPS for any law with `cdf` and `quantile`; the split at
+  `F(y)` leaves two smooth integrands for tanh-sinh quadrature.
+- Code: `validation.scoring.crps_quadrature`.
+- Source: [REF-GNEITING-RAFTERY-2007].
+
+### EQ-VAL-SCORE-LOG-001 — Logarithmic score
+
+`LogS(F, y) = -log f(y)` (density or mass function).
+
+- Domain: `f(y) >= 0`; `+inf` when `f(y) = 0`.
+- Meaning: strictly proper local score; in nats.
+- Code: `validation.scoring.log_score`.
+- Source: [REF-GNEITING-RAFTERY-2007].
+
+### EQ-VAL-SCORE-DSS-001 — Dawid-Sebastiani score
+
+`DSS(F, y) = (y - mu_F)^2 / sigma_F^2 + ln sigma_F^2`.
+
+- Domain: `sigma_F^2 > 0`.
+- Meaning: proper with respect to the first two moments; twice the Gaussian
+  log score up to a constant.
+- Code: `validation.scoring.dawid_sebastiani_score`.
+- Source: [REF-DAWID-SEBASTIANI-1999] and [REF-GNEITING-RAFTERY-2007].
+
+### EQ-VAL-SCORE-ES-001 — Energy score
+
+`ES(F_m, y) = (1/m) sum ||x_i - y|| - (1/(2 m^2)) sum_i sum_j ||x_i - x_j||`
+(Euclidean norm; fair version `2 m (m - 1)`).
+
+- Domain: `m` vectors of the dimension of `y`.
+- Meaning: multivariate generalization of EQ-VAL-SCORE-CRPS-002; equal to it
+  in one dimension.
+- Code: `validation.scoring.energy_score`.
+- Source: [REF-GNEITING-RAFTERY-2007] and [REF-GNEITING-STANBERRY-ETAL-2008].
+
+### EQ-VAL-SCORE-VS-001 — Variogram score of order p
+
+`VS_p = sum_(i<j) w_ij (|y_i - y_j|^p - (1/m) sum_k |x_ki - x_kj|^p)^2`.
+
+- Domain: dimension `d >= 2`, `p > 0`, `w_ij >= 0`.
+- Meaning: compares pairwise component differences and so targets the
+  dependence structure; proper but not strictly proper. Summing each pair
+  once is half of the full double sum with symmetric weights.
+- Code: `validation.scoring.variogram_score`.
+- Source: [REF-SCHEUERER-HAMILL-2015].
+
+### EQ-VAL-SCORE-QS-001 — Pinball (quantile) loss
+
+`QS_tau(q, y) = (1{y < q} - tau)(q - y)`.
+
+- Domain: `tau in [0, 1]`.
+- Meaning: proper for the `tau`-quantile.
+- Code: `validation.scoring.pinball_loss`.
+- Source: [REF-GNEITING-RAFTERY-2007].
+
+### EQ-VAL-SCORE-IS-001 — Interval score
+
+`IS_alpha(l, u; y) = (u - l) + (2/alpha)(l - y) 1{y < l} + (2/alpha)(y - u) 1{y > u}`.
+
+- Domain: `l <= u`, `alpha in (0, 1)`.
+- Meaning: width plus miss penalty for a central `(1 - alpha)` interval;
+  `(alpha/2) IS_alpha = QS_(alpha/2)(l, y) + QS_(1 - alpha/2)(u, y)`.
+- Code: `validation.scoring.interval_score`.
+- Source: [REF-GNEITING-RAFTERY-2007] and
+  [REF-BRACHER-RAY-GNEITING-REICH-2021].
+
+### EQ-VAL-SCORE-WIS-001 — Weighted interval score
+
+`WIS = (1/(K + 1/2)) [ (1/2)|y - m| + sum_k (alpha_k/2) IS_(alpha_k)(l_k, u_k; y) ]`,
+split into dispersion `sum (alpha_k/2)(u_k - l_k)` and over-/underprediction
+parts.
+
+- Domain: `K >= 0` central intervals and a median `m`.
+- Meaning: twice the mean pinball loss over the `2K + 1` quantile levels; an
+  approximation of the CRPS from a quantile forecast.
+- Code: `validation.scoring.weighted_interval_score`.
+- Source: [REF-BRACHER-RAY-GNEITING-REICH-2021].
+
+### EQ-VAL-SCORE-BS-001 — Brier score
+
+`BS = (1/N) sum (f_i - o_i)^2`, `o_i in {0, 1}`.
+
+- Domain: `f_i in [0, 1]`.
+- Meaning: strictly proper score for binary events.
+- Code: `validation.scoring.brier_score`.
+- Source: [REF-GNEITING-RAFTERY-2007] and [REF-MURPHY-1973].
+
+### EQ-VAL-SCORE-BSDEC-001 — Murphy decomposition
+
+For bins `k` with `n_k` forecasts, mean forecast `fbar_k`, event frequency
+`obar_k` and climatology `obar`:
+`REL = (1/N) sum n_k (fbar_k - obar_k)^2`, `RES = (1/N) sum n_k (obar_k - obar)^2`,
+`UNC = obar (1 - obar)`, and `BS = REL - RES + UNC` when every bin holds a
+single forecast value.
+
+- Domain: binary outcomes; grouping by distinct forecast values.
+- Meaning: miscalibration minus discrimination plus base-rate uncertainty.
+- Code: `validation.scoring.brier_decomposition(bins=None)`.
+- Source: [REF-MURPHY-1973].
+
+### EQ-VAL-SCORE-BSDEC-002 — Within-bin terms of the Brier decomposition
+
+`BS = REL - RES + UNC + WBV - WBC` with
+`WBV = (1/N) sum_k sum_(i in k) (f_i - fbar_k)^2` and
+`WBC = (2/N) sum_k sum_(i in k) (f_i - fbar_k)(o_i - obar_k)`.
+
+- Domain: any binning of the forecasts.
+- Meaning: restores the exact identity when forecasts inside a bin differ;
+  follows from expanding `f_i - o_i = (fbar_k - obar_k) + (f_i - fbar_k) -
+  (o_i - obar_k)` inside each bin.
+- Code: `validation.scoring.brier_decomposition`,
+  `validation.BrierDecomposition.identity_residual`.
+- Source: [REF-STEPHENSON-COELHO-JOLLIFFE-2008].
+
+### EQ-VAL-CAL-PIT-001 — Probability integral transform
+
+`u_i = F_i(y_i)`.
+
+- Domain: continuous forecast laws.
+- Meaning: `u ~ Uniform(0, 1)` across cases for a probabilistically
+  calibrated forecast.
+- Code: `validation.calibration.pit_values`.
+- Source: [REF-GNEITING-BALABDAOUI-RAFTERY-2007].
+
+### EQ-VAL-CAL-PIT-002 — Randomized ensemble PIT
+
+`u = (r + V (s + 1)) / (m + 1)`, `r = #{x_k < y}`, `s = #{x_k = y}`,
+`V ~ Uniform(0, 1)`.
+
+- Domain: ensemble of `m` members.
+- Meaning: if `y` is exchangeable with the members, its rank among the
+  `m + 1` values (ties broken at random) is uniform on `0..m`, so `u` is
+  exactly uniform.
+- Code: `validation.calibration.ensemble_pit`.
+- Source: [REF-HAMILL-2001], [REF-GNEITING-BALABDAOUI-RAFTERY-2007], and
+  [REF-CZADO-GNEITING-HELD-2009] (randomization for discrete forecasts).
+
+### EQ-VAL-CAL-HIST-001 — PIT histogram uniformity test
+
+Counts `c_1..c_K` of `u` in `K` equal bins; `X^2 = sum (c_k - N/K)^2 / (N/K)`
+against `chi^2_(K-1)`; edge ratio `(c_1 + c_K)/(2N/K)`.
+
+- Domain: independent cases; `N/K >= 5` for the chi-square approximation.
+- Meaning: a U shape (edge ratio above one) indicates overconfident
+  forecasts, a hump underconfident ones, a slope bias.
+- Code: `validation.calibration.pit_histogram`, `validation.PitHistogram`.
+- Source: [REF-GNEITING-BALABDAOUI-RAFTERY-2007] and [REF-HAMILL-2001].
+
+### EQ-VAL-CAL-COV-001 — Central-interval coverage from PIT values
+
+`y in [F^-1((1-beta)/2), F^-1((1+beta)/2)]` iff `(1-beta)/2 <= u <= (1+beta)/2`;
+empirical coverage `c/N` with a Clopper-Pearson or Wilson interval.
+
+- Domain: continuous forecasts; independent cases for the binomial interval.
+- Meaning: reads off coverage at every nominal level from one PIT sample.
+- Code: `validation.calibration.pit_coverage`,
+  `validation.calibration.interval_coverage`.
+- Source: [REF-GNEITING-BALABDAOUI-RAFTERY-2007],
+  [REF-CLOPPER-PEARSON-1934], and [REF-WILSON-1927].
+
+### EQ-VAL-CAL-REL-001 — Reliability diagram and consistency bands
+
+Per bin: `fbar_k`, `obar_k`, `n_k`; band = central quantiles of
+`(1/n_k) sum_(i in k) B_i`, `B_i ~ Bernoulli(f_i)`, over resamples.
+
+- Domain: binary outcomes; bins `[e_k, e_(k+1))`, the last closed.
+- Meaning: under reliability `obar_k` scatters inside the band; the band
+  keeps the bin's forecasts fixed (a simplification of Bröcker-Smith
+  consistency resampling, which also resamples the forecasts).
+- Code: `validation.calibration.reliability_diagram`.
+- Source: [REF-BROCKER-SMITH-2007] and [REF-MURPHY-1973].
+
+### EQ-VAL-CAL-SHARP-001 — Sharpness summaries
+
+Mean and median width `F^-1((1+beta)/2) - F^-1((1-beta)/2)` per level, and
+mean predictive standard deviation.
+
+- Domain: forecasts with quantiles (ensembles: type-7 sample quantiles).
+- Meaning: concentration of the forecasts, to be maximized subject to
+  calibration.
+- Code: `validation.calibration.sharpness_summary`.
+- Source: [REF-GNEITING-BALABDAOUI-RAFTERY-2007].
+
+### EQ-VAL-SHIFT-ENERGY-001 — Energy distance and its test statistic
+
+`E_(m,n) = (2/(mn)) sum_ij |x_i - y_j| - (1/m^2) sum_ij |x_i - x_j| - (1/n^2) sum_ij |y_i - y_j|`,
+test statistic `T = (m n/(m + n)) E_(m,n)`; in 1-D `E = 2 int (F_m - G_n)^2 dx`
+and within-sample sums use `sum_(i<j) |z_i - z_j| = sum_k (2k - K - 1) z_(k)`.
+
+- Domain: samples of equal dimension.
+- Meaning: zero iff the two (empirical) distributions coincide.
+- Code: `validation.shift.energy_distance`,
+  `validation.shift.energy_distance_test`.
+- Source: [REF-SZEKELY-RIZZO-2013].
+
+### EQ-VAL-SHIFT-MMD-001 — Unbiased squared MMD with a Gaussian kernel
+
+`MMD_u^2 = (1/(m(m-1))) sum_(i!=j) k(x_i, x_j) + (1/(n(n-1))) sum_(i!=j) k(y_i, y_j) - (2/(mn)) sum_ij k(x_i, y_j)`,
+`k(a, b) = exp(-||a - b||^2/(2 h^2))`, `h` = pooled median distance by default.
+
+- Domain: `m, n >= 2`; `h > 0`.
+- Meaning: unbiased estimate of the squared RKHS distance between the mean
+  embeddings; zero in population iff the laws coincide (characteristic
+  kernel).
+- Code: `validation.shift.mmd_squared`, `validation.shift.mmd_test`.
+- Source: [REF-GRETTON-ETAL-2012].
+
+### EQ-VAL-SHIFT-PERM-001 — Two-sample permutation p-value
+
+`p = (1 + #{b : T(pi_b) >= T_obs}) / (1 + B)`; pair sums per relabeling via
+`S_XY = sum_(i in X) R_i - 2 S_XX`, `S_YY = T - S_XX - S_XY` (off-diagonal row
+sums `R_i`, unordered total `T`).
+
+- Domain: exchangeable pooled sample under the null.
+- Meaning: valid p-value for any `B`; only the within-first block is summed
+  per relabeling.
+- Code: `validation.shift.energy_distance_test`, `validation.shift.mmd_test`.
+- Source: [REF-PHIPSON-SMYTH-2010] and [REF-GOOD-2005].
+
+### EQ-VAL-SHIFT-W-001 — Wasserstein distance between 1-D samples
+
+`W_p^p = int_0^1 |F_m^-1(u) - G_n^-1(u)|^p du`, summed exactly over the merged
+breakpoints `k/m`, `l/n`; `W_1 = int |F_m - G_n| dx`.
+
+- Domain: `p >= 1`.
+- Meaning: optimal-transport cost between the empirical laws.
+- Code: `validation.shift.wasserstein_distance`.
+- Source: [REF-PANARETOS-ZEMEL-2019].
+
+### EQ-VAL-SHIFT-W-002 — Wasserstein distance between 1-D laws
+
+`W_p^p = int_0^1 |Q_1(u) - Q_2(u)|^p du` by tanh-sinh quadrature.
+
+- Domain: laws with `quantile`; finite `p`-th moments.
+- Meaning: same quantity for distribution objects.
+- Code: `validation.shift.distribution_wasserstein_distance`.
+- Source: [REF-PANARETOS-ZEMEL-2019].
+
+### EQ-VAL-SHIFT-W-003 — W2 between two univariate normals
+
+`W_2^2(N(mu_1, s_1^2), N(mu_2, s_2^2)) = (mu_1 - mu_2)^2 + (s_1 - s_2)^2`.
+
+- Domain: `s_1, s_2 > 0`.
+- Meaning: quantile functions differ by `(mu_1 - mu_2) + (s_1 - s_2) z`.
+- Code: `validation.shift.normal_wasserstein_distance`.
+- Source: [REF-PANARETOS-ZEMEL-2019].
+
+### EQ-VAL-QUAD-DE-001 — Tanh-sinh quadrature on (0, 1)
+
+`int_a^b g(u) du = (b - a) int w(t) g(a + (b - a) x(t)) dt`,
+`x(t) = 1/(1 + exp(-pi sinh t))`, `w(t) = pi cosh(t) x (1 - x)`, trapezoidal
+rule with `h = 2^-k`, nodes kept while `min(x, 1 - x) >= 1e-15`.
+
+- Domain: integrands smooth inside, integrable endpoint singularities.
+- Meaning: double-exponential decay of the transformed integrand gives fast
+  convergence for quantile-scale integrals.
+- Code: `validation._quadrature.tanh_sinh`.
+- Source: [REF-TAKAHASI-MORI-1974].
+
+### EQ-INF-GOF-KS2-001 — Two-sample Kolmogorov-Smirnov statistic
+
+`D = max_z |F_m(z) - G_n(z)|`, kept as the integer `K = m n D = max |i n - j m|`
+over the ECDF step points.
+
+- Domain: two finite samples; comparisons only at ends of tied blocks.
+- Meaning: largest vertical gap between the two empirical CDFs.
+- Code: `inference.kolmogorov_smirnov_two_sample_test`.
+- Source: [REF-HODGES-1958] and [REF-HOLLANDER-WOLFE-CHICKEN-2014].
+
+### EQ-INF-GOF-KS2-002 — Exact two-sample KS tail by lattice paths
+
+`P(D >= d) = 1 - N_inside / C(m + n, m)` where `N_inside` counts monotone
+lattice paths `(0,0) -> (m,n)` with `|i n - j m| < K` at every checked step.
+
+- Domain: exchangeable pooled sample; exact conditionally on the tie pattern.
+- Meaning: exact permutation p-value computed with integer counts.
+- Code: `inference.kolmogorov_smirnov_two_sample_test`.
+- Source: [REF-HODGES-1958].
+
+### EQ-INF-GOF-KS2-003 — Asymptotic two-sample KS tail
+
+`P(sqrt(m n/(m + n)) D > t) -> 2 sum_(k>=1) (-1)^(k-1) exp(-2 k^2 t^2)`.
+
+- Domain: large `m`, `n`, continuous data; no small-sample correction.
+- Meaning: limiting Kolmogorov law for the scaled statistic.
+- Code: `inference.kolmogorov_smirnov_two_sample_test(exact=False)`.
+- Source: [REF-HOLLANDER-WOLFE-CHICKEN-2014] and [REF-NIST-GOF].
