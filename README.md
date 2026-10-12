@@ -109,6 +109,8 @@ the data.
 | **Filtering**: the Kalman filter recovers a velocity that is never measured. | **Sensitivity**: X3 matters only through interactions. |
 | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/causal-effect-estimates-dark.png"><img alt="Causal effect estimates" src="docs/images/causal-effect-estimates.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/extremes-return-levels-dark.png"><img alt="Return levels" src="docs/images/extremes-return-levels.png"></picture> |
 | **Causal**: adjusting for confounders recovers the true effect the naive difference misses. | **Extremes**: a 40-year record gives a 100-year level with an honest, wide interval. |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/adaptive-reliability-design-points-dark.png"><img alt="Multiple design points" src="docs/images/adaptive-reliability-design-points.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/discrepancy-predictions-dark.png"><img alt="Model discrepancy" src="docs/images/discrepancy-predictions.png"></picture> |
+| **Rare events**: four design points carry four times the one-point FORM probability. | **Model error**: a discrepancy term restores coverage the simulator alone loses. |
 
 Start with [`examples/uq_study_lab.py`](examples/uq_study_lab.py) (one model
 through every stage) and
