@@ -141,6 +141,7 @@ steps with the low-level APIs).
 7. [All foundation guides](docs/foundations)
 
 Reference: [API reference](docs/api-reference.md) ·
+[Benchmarks](docs/benchmarks.md) ·
 [Architecture](docs/architecture.md) · [Roadmap](memory/ROADMAP.md) ·
 [Changelog](CHANGELOG.md)
 

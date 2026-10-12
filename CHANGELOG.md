@@ -94,6 +94,12 @@ defects that are now fixed with oracle-backed regression tests.
   Wasserstein distances and barycenters; closed-form and numerical Fisher
   information, Fisher-Rao distances, Hellinger, Bhattacharyya, total
   variation, Renyi, and alpha divergences.
+- **Benchmark suite** (`benchmarks/`): 11 problems with independently
+  verified references (reliability, sensitivity, propagation, calibration)
+  and 34 method adapters; per-method error, error in units of the method's
+  own standard error, interval coverage, model evaluations, and wall time;
+  `python benchmarks/run.py --quick` runs in CI and writes
+  `docs/benchmarks.md`.
 - **Numerical integration** (`numerics`): adaptive Gauss-Kronrod G7-K15
   (QUADPACK QAG/QAGI style) with error estimates, tanh-sinh, exp-sinh, and
   sinh-sinh rules for finite, half-infinite, and infinite ranges, an
@@ -117,7 +123,12 @@ defects that are now fixed with oracle-backed regression tests.
   and Haberman adjusted residuals.
 - **Kernel density** (`statistics.gaussian_kde`) with Silverman and
   normal-reference bandwidths.
-- **Figures**: design-point maps, AK-MCS classification and convergence;
+- **Figures**: validation predictions with coverage (now in the study
+  report), missingness patterns, imputation diagnostics, Rubin's-rules
+  summaries, adjusted-residual heatmaps, two-by-two effect forests; PIT
+  histograms use a simultaneous (Bonferroni) band by default, so a
+  calibrated forecast is no longer called miscalibrated for one or two
+  bins outside pointwise limits; design-point maps, AK-MCS classification and convergence;
   reliability diagrams, CRPS comparison, coverage, and distribution-shift
   ECDFs; transport plans, Sinkhorn convergence, quantile W1 areas, and
   displacement interpolation; discrepancy-corrected predictions and estimated
@@ -145,6 +156,10 @@ defects that are now fixed with oracle-backed regression tests.
   proposal (eigenvalues near 5e-4, estimates biased low by up to 100% with
   small reported c.o.v.); adapted eigenvalues are now floored at 0.55 and a
   warning flags degenerate weights.
+- Found by the benchmark suite: `effective_sample_size` could be negative on
+  antithetic chains (now bounded below as in stan-dev/posterior), and AK-MCS
+  reported nonsense (Pf 0.641 vs 8.2e-4) on near-singular GP fits because its
+  incremental posterior did not repeat the fit's arithmetic.
 - Seventh review round: validation coverage keys rounded 0.975 to 98% (and
   could collide); the deprecation note broke docstring dedenting; contingency
   counts above 2^53 were rounded and huge tables lost residual accuracy

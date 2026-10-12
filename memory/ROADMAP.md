@@ -102,8 +102,8 @@ tested evidence.
 - [~] Conformal prediction (ADR-0033), distribution-shift tests and forecast
   calibration with proper scoring rules (ADR-0042); robustness and
   sequential decision systems remain.
-- [ ] Reproducible benchmark suites that compare correctness, calibration,
-  numerical stability, and computational cost—not accuracy alone.
+- [x] Reproducible benchmark suites that compare correctness, calibration,
+  numerical stability, and computational cost—not accuracy alone (ADR-0049).
 
 ## ATHENS VV-UQ delivery track
 
