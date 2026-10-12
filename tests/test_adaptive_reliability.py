@@ -377,7 +377,16 @@ class AKMCSTests(unittest.TestCase):
         from probstat.foundations.random_streams import resolve_stream
 
         state = make_state(lambda u: 3.0 + 0.25 * u[0] ** 2 - u[1], 2)
-        result = ak_mcs(state, 2000, max_population=2000, target_cov=1.0, seed=2)
+        # Unregularized fit: the near-singular hyperparameters this test needs
+        # (the default regularized fit avoids them, ADR-0054).
+        result = ak_mcs(
+            state,
+            2000,
+            max_population=2000,
+            target_cov=1.0,
+            seed=2,
+            regularization=None,
+        )
         generator = resolve_stream(2).child("ak-mcs", "population").generator()
         population = [
             (generator.gauss(0.0, 1.0), generator.gauss(0.0, 1.0))

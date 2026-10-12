@@ -11,10 +11,17 @@ importance sampling); ``active_learning`` implements AK-MCS on a Gaussian
 process surrogate from :mod:`probstat.surrogates`.
 """
 
-from .active_learning import AKMCSIteration, AKMCSResult, ak_mcs
+from .active_learning import (
+    AKMCS_GP_REGULARIZATION,
+    AKMCSIteration,
+    AKMCSResult,
+    ak_mcs,
+)
 from .adaptive import (
     CE_COVARIANCE_FLOOR,
+    CE_MAX_UNCOVERED_ELITE_FRACTION,
     CE_MIN_FAILURE_ESS_FRACTION,
+    CE_MIN_MEAN_NORM,
     CrossEntropyResult,
     LineSamplingResult,
     cross_entropy_importance_sampling,
@@ -81,9 +88,12 @@ from .systems import (
 __all__ = [
     "AKMCSIteration",
     "AKMCSResult",
+    "AKMCS_GP_REGULARIZATION",
     "AVAILABLE_METHODS",
     "CE_COVARIANCE_FLOOR",
+    "CE_MAX_UNCOVERED_ELITE_FRACTION",
     "CE_MIN_FAILURE_ESS_FRACTION",
+    "CE_MIN_MEAN_NORM",
     "CrossEntropyResult",
     "DesignParameterResult",
     "DesignPointImportanceResult",

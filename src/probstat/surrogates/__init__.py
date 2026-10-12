@@ -13,9 +13,11 @@ from .gaussian_process import (
     GaussianProcessHyperparameters,
     GaussianProcessLOO,
     GaussianProcessRegression,
+    GaussianProcessRegularization,
     fit_gaussian_process,
     fit_gaussian_process_to_model,
     gaussian_process_log_marginal_likelihood,
+    gaussian_process_log_parameter_bounds,
     kernel_value,
 )
 from .polynomial_chaos import (
@@ -36,6 +38,7 @@ __all__ = [
     "GaussianProcessHyperparameters",
     "GaussianProcessLOO",
     "GaussianProcessRegression",
+    "GaussianProcessRegularization",
     "PolynomialChaosExpansion",
     "PolynomialChaosSobol",
     "Surrogate",
@@ -44,6 +47,7 @@ __all__ = [
     "fit_gaussian_process_to_model",
     "fit_polynomial_chaos",
     "gaussian_process_log_marginal_likelihood",
+    "gaussian_process_log_parameter_bounds",
     "hermite_orthonormal",
     "kernel_value",
     "legendre_orthonormal",

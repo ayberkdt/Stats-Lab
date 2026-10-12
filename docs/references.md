@@ -2026,3 +2026,10 @@ Statistics. Springer-Verlag, New York, 1992. ISBN 0-387-97720-1.
 E. L. Lehmann and George Casella. *Theory of Point Estimation*. 2nd edition.
 Springer Texts in Statistics. Springer, New York, 1998. ISBN 0-387-98502-6.
 DOI: [10.1007/b98854](https://doi.org/10.1007/b98854).
+
+## REF-ANDRIANAKIS-CHALLENOR-2012
+
+Ioannis Andrianakis and Peter G. Challenor. "The Effect of the Nugget on
+Gaussian Process Emulators of Computer Models." *Computational Statistics &
+Data Analysis* 56(12), 4215-4228, 2012.
+DOI: [10.1016/j.csda.2012.04.020](https://doi.org/10.1016/j.csda.2012.04.020).

@@ -324,7 +324,10 @@ def _akmcs(
         target_cov=sizes["akmcs_target_cov"],
         seed=seed,
     )
-    notes = [f"{result.added} points added, population {result.population}"]
+    notes = [
+        f"{result.added} points added, population {result.population}, "
+        f"min U {result.min_learning:.3g}"
+    ]
     if not result.converged:
         notes.append("not converged: " + result.message)
     return MethodOutput(

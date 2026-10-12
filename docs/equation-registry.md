@@ -8930,3 +8930,51 @@ pointwise band of [EQ-VIZ-PITBAND-001] at level `1 - alpha/B` in every bin:
   `visualization.hierarchical_plots.plot_pit_histogram`.
 - Source: [REF-LEHMANN-ROMANO-2005, Chapter 9],
   [REF-GNEITING-BALABDAOUI-RAFTERY-2007].
+
+### EQ-SUR-GP-006 — Regularized GP hyperparameter estimation
+
+With per-input training extent `E_i` and smallest positive coordinate gap
+`h_i`, maximize `log p(y | theta) + log pi(theta)` over the box
+`log ell_i in [log(a h_i), log(b E_i)]`, `log sigma_f^2 in [log s_lo, log s_hi]`
+(`log sigma_n^2 in [-25, log s_hi]` when estimated), all clipped to
+`|theta_j| <= 25`, with kernel matrix
+`K = sigma_f^2 (R + tau I) + (nugget + sigma_n^2) I` and optional log-normal
+prior `log pi = -(1/2) sum_i ((log ell_i - log E_i) / s)^2`. The box is
+searched through `theta_j = l_j + (u_j - l_j) sin^2(phi_j / 2)`, so
+`d theta_j / d phi_j = (1/2)(u_j - l_j) sin(phi_j)`; a parameter within
+`0.01` of a bound is reported. The relative nugget adds
+`(1/2) tau sigma_f^2 tr(alpha alpha' - K^-1)` to `d log p / d log sigma_f^2`.
+
+- Domain: `a, b > 0`, `0 < s_lo < s_hi`, `tau >= 0`, `s > 0`; defaults
+  `a = 0.1`, `b = 20`, `[s_lo, s_hi] = [1e-3, 1e3]` (standardized output
+  units), `tau = 1e-8`, no prior. These values are computational choices.
+- Meaning: below the smallest gap all correlations vanish and the likelihood
+  is flat in `ell_i` (white-noise optimum); far above the extent `K` tends to
+  a singular polynomial limit whose likelihood keeps rising while the
+  posterior variance falls below rounding. `tau` bounds the condition number
+  of `R + tau I` by `1 + n / tau`, i.e. caps the signal-to-noise ratio at
+  `1 / tau`.
+- Code: `surrogates.GaussianProcessRegularization`,
+  `surrogates.gaussian_process_log_parameter_bounds`,
+  `surrogates.fit_gaussian_process`,
+  `surrogates.gaussian_process_log_marginal_likelihood`,
+  `reliability.ak_mcs`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Sections 5.2 and 5.4],
+  [REF-ANDRIANAKIS-CHALLENOR-2012].
+
+### EQ-REL-CE-004 — Coverage of the first-level elite set by a CE proposal
+
+With `E_1` the elite points of the first cross-entropy level (drawn from the
+starting density) and `mu` the final proposal mean,
+`f = #{u in E_1 : u . mu / ||mu|| <= 0} / |E_1|`, computed only when
+`||mu|| >= 1`; CE-IS warns when `f > 0.1`.
+
+- Domain: `||mu|| >= 1` (`f = nan` otherwise); standard-normal space.
+- Meaning: one convex or near-planar failure region `{u . alpha >= beta}`
+  has all elite points at `u . alpha >= q > 0`, so `f` is near `0`; elite
+  points behind the origin as seen from the proposal belong to a failure
+  region the single Gaussian proposal does not sample, whose probability
+  is then missed (four-branch system: `f` about `0.5`, estimate about a
+  quarter to a third of the exact value).
+- Code: `reliability.cross_entropy_importance_sampling`.
+- Source: [REF-RUBINSTEIN-KROESE-2004], [REF-KURTZ-SONG-2013].
