@@ -145,8 +145,8 @@ dependency direction.
 - [x] Correlated-input sampling, vector QoIs, quasi-random designs, quantiles,
   exceedance curves, and design comparison on `ProbabilisticModel`.
 - [~] Unbounded-domain quadrature transformations and adaptive error
-  estimates (ADR-0050); streaming accumulation and propagation of
-  numerical/model-form uncertainty remain.
+  estimates (ADR-0050), streaming accumulation (ADR-0055); propagation of
+  numerical/model-form uncertainty remains.
 
 ### UQ-3 — Advanced Monte Carlo
 

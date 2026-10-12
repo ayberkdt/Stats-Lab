@@ -128,6 +128,11 @@ defects that are now fixed with oracle-backed regression tests.
   score interval), risk ratio (Katz), and odds ratio (Woolf, with the
   Haldane-Anscombe correction); exact and asymptotic McNemar tests; Pearson
   and Haberman adjusted residuals.
+- **Streaming statistics** (`statistics`): mergeable one-pass moments up to
+  kurtosis (weighted and multivariate), covariance and correlation, P2
+  quantiles, reservoir sampling, exceedance counters with Wilson intervals,
+  and `run_until` stopping on a target relative error;
+  `monte_carlo.estimate_mean_streaming`.
 - **Kernel density** (`statistics.gaussian_kde`) with Silverman and
   normal-reference bandwidths.
 - **Figures**: validation predictions with coverage (now in the study
@@ -175,6 +180,18 @@ defects that are now fixed with oracle-backed regression tests.
   antithetic chains (now bounded below as in stan-dev/posterior), and AK-MCS
   reported nonsense (Pf 0.641 vs 8.2e-4) on near-singular GP fits because its
   incremental posterior did not repeat the fit's arithmetic.
+- Tenth review round: PPL coordinate names stated the wrong transform for
+  shifted bounds and mixed list supports; CE-IS left its multi-region flag
+  unset on stalled symmetric runs.
+- Ninth review round: `integrate(auto)` could return 3e-198 for an
+  integral of 1.77 (now chooses by relative miss and keeps the
+  double-exponential result when Gauss-Kronrod misses the mass);
+  Gauss-Kronrod reported an overflowing width as converged infinity;
+  double-exponential rules ignored truncation at their outermost nodes;
+  `kolmogorov_distance_to_normal` was 55% low at n = 1e8; binomial masses
+  lost about n eps (now Loader's saddle-point form); `effective_sample_size`
+  now matches stan-dev/posterior including the improved-estimate term
+  (antithetic chains were overstated by up to 19%).
 - Seventh review round: validation coverage keys rounded 0.975 to 98% (and
   could collide); the deprecation note broke docstring dedenting; contingency
   counts above 2^53 were rounded and huge tables lost residual accuracy
