@@ -69,6 +69,8 @@ defects that are now fixed with oracle-backed regression tests.
   design for the study's calibration, re-estimated on an independent stream),
   `UQStudy.design_points` (multiple design points with multi-point FORM and
   mixture importance sampling), `UQStudy.active_reliability` (AK-MCS), and
+  `UQStudy.verify` (solution verification of grid solutions; its numerical
+  uncertainty feeds `validate(numerical_uncertainty="verified")`),
   `UQStudy.propagate_until` (constant-memory Monte Carlo that stops at a
   target relative error of the mean or of an exceedance probability),
   `UQStudy.calibrate_with_discrepancy` (Kennedy-O'Hagan; `predict` then
