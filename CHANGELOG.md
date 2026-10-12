@@ -69,6 +69,8 @@ defects that are now fixed with oracle-backed regression tests.
   design for the study's calibration, re-estimated on an independent stream),
   `UQStudy.design_points` (multiple design points with multi-point FORM and
   mixture importance sampling), `UQStudy.active_reliability` (AK-MCS), and
+  `UQStudy.propagate_until` (constant-memory Monte Carlo that stops at a
+  target relative error of the mean or of an exceedance probability),
   `UQStudy.calibrate_with_discrepancy` (Kennedy-O'Hagan; `predict` then
   reports simulator-only and bias-corrected intervals); `validate` adds CRPS,
   PIT, and interval coverage. The HTML report draws figures for every stage
@@ -180,6 +182,10 @@ defects that are now fixed with oracle-backed regression tests.
   antithetic chains (now bounded below as in stan-dev/posterior), and AK-MCS
   reported nonsense (Pf 0.641 vs 8.2e-4) on near-singular GP fits because its
   incremental posterior did not repeat the fit's arithmetic.
+- Tenth review round: `integrate(auto)` reported convergence when
+  Gauss-Kronrod missed all of the mass; quantile Wasserstein distances hit
+  `Q(1) = inf` for discrete laws without `isf`; `run_until` could report
+  convergence before `min_samples` or for an all-zero stream.
 - Ninth review round: PPL coordinate names stated the wrong transform for
   shifted bounds and mixed list supports; CE-IS left its multi-region flag
   unset on stalled symmetric runs.
