@@ -30,7 +30,8 @@ the designed theme, and keep developing until 06:00.
   regularized Gaussian-process fits.
 - `UQStudy` stages: `extremes`, `information_sensitivity`, `design`,
   `design_points`, `active_reliability`, `calibrate_with_discrepancy`,
-  `propagate_until`; `validate` records CRPS, PIT, and coverage; the HTML
+  `propagate_until`, `verify`; `validate` records CRPS, PIT, coverage, and
+  verified numerical uncertainty; the HTML
   report draws a figure for every stage.
 - Figures for every new capability; the graphite accent moved from orange
   `#E8804A` to indigo `#9BA9F0` after the dataviz validator showed it sat
@@ -68,8 +69,10 @@ the designed theme, and keep developing until 06:00.
 
 ## Verification evidence
 
-Recorded in each merge commit message. Before this note's last revision:
-`1167 passed, 2350 subtests passed`, ruff clean, strict mypy clean on 220
-files, all 31 example labs run (none slower than 45 s), benchmark quick mode
-0 unexpected failures, UX auditor 0 HATA / 0 UYARI on the complete study
-report with no horizontal scroll at 375 px.
+Recorded in each merge commit message. Final state at 05:26:
+`1176 passed, 2351 subtests passed`, ruff clean, strict mypy clean on 220
+files, all 31 example labs run, benchmark quick mode 188 runs with 0
+unexpected failures, UX auditor 0 HATA / 0 UYARI on the complete study
+report (no horizontal scroll at 375 px, 85% of the first screen is primary
+content). Twelve numerical review rounds in total; the last two found only
+convergence-flag honesty issues, all fixed. Nothing was pushed.
