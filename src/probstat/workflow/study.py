@@ -27,6 +27,10 @@ from probstat.design import (
 )
 from probstat.distributions import Uniform
 from probstat.foundations.random_streams import RandomStream, resolve_stream
+from probstat.foundations.validation import (
+    require_finite_real,
+    require_non_negative_integer,
+)
 from probstat.information import InformationUnit, ksg_mutual_information
 from probstat.inverse import (
     CalibrationPosterior,
@@ -78,7 +82,12 @@ from probstat.sensitivity import (
     shapley_effects,
     sobol_analysis,
 )
-from probstat.statistics import quantile
+from probstat.statistics import (
+    ExceedanceCounter,
+    P2Quantile,
+    RunningMoments,
+    quantile,
+)
 from probstat.surrogates import (
     fit_gaussian_process_to_model,
     fit_polynomial_chaos,
@@ -118,6 +127,84 @@ class StageRecord:
     evaluations: int
     seed: int
     result: Any = field(repr=False, compare=False)
+
+
+@dataclass(frozen=True, slots=True)
+class TargetedPropagation:
+    """Monte Carlo propagation of one QoI stopped at a relative-error target.
+
+    Every summary comes from one-pass, constant-memory accumulators: no model
+    output is stored, so the memory use does not grow with ``sample_size``.
+
+    Args:
+        quantity: QoI name.
+        controlled: ``"mean"`` or ``"probability"``: the estimate whose
+            relative standard error was driven to the target.
+        target_relative_error: Requested relative standard error.
+        relative_error: Relative standard error reached by the controlled
+            estimate (``inf`` when it is undefined, e.g. no failures yet).
+        converged: Whether ``relative_error <= target_relative_error``.
+        sample_size: Model runs drawn (one evaluation each).
+        batches: Number of batches drawn.
+        mean: Running mean of the QoI.
+        standard_error: Monte Carlo standard error ``s / sqrt(n)`` of the mean.
+        quantiles: ``(probability, estimate)`` pairs from the P² algorithm
+            (approximate; exact type-7 quantiles for ``n <= 5``).
+        threshold: Failure threshold, or ``None`` in mean mode.
+        failure: ``"above"`` (failure when ``Y >= t``) or ``"below"``
+            (failure when ``Y <= t``).
+        probability: Failure-probability estimate (``nan`` without a
+            threshold).
+        probability_standard_error: Plug-in Bernoulli standard error
+            (``nan`` without a threshold).
+        probability_interval: 95% Wilson interval (``(nan, nan)`` without a
+            threshold).
+        events: Number of failures counted.
+
+    References:
+        [REF-ROBERT-CASELLA-2004, Chapters 3-4], [REF-WELFORD-1962],
+        [REF-JAIN-CHLAMTAC-1985], [REF-WILSON-1927].
+
+    """
+
+    quantity: str
+    controlled: str
+    target_relative_error: float
+    relative_error: float
+    converged: bool
+    sample_size: int
+    batches: int
+    mean: float
+    standard_error: float
+    quantiles: tuple[tuple[float, float], ...]
+    threshold: float | None
+    failure: str
+    probability: float
+    probability_standard_error: float
+    probability_interval: tuple[float, float]
+    events: int
+
+    def quantile(self, probability: float) -> float:
+        """Return the streaming estimate of one requested quantile level.
+
+        Args:
+            probability: A level that was requested from the stage.
+
+        Returns:
+            P² estimate of the quantile.
+
+        Raises:
+            KeyError: If the level was not requested.
+
+        References:
+            [REF-JAIN-CHLAMTAC-1985]. Reads the stored [EQ-STAT-STREAM-005]
+            estimate.
+
+        """
+        for level, estimate in self.quantiles:
+            if level == probability:
+                return estimate
+        raise KeyError(f"quantile level {probability!r} was not requested")
 
 
 @dataclass(frozen=True, slots=True)
@@ -609,6 +696,181 @@ class UQStudy:
             study,
         )
         return study
+
+    def propagate_until(
+        self,
+        quantity: str,
+        *,
+        target_relative_error: float = 0.01,
+        threshold: float | None = None,
+        failure: Literal["above", "below"] = "above",
+        batch: int = 256,
+        max_samples: int = 200_000,
+        quantiles: Sequence[float] = (0.05, 0.5, 0.95),
+    ) -> TargetedPropagation:
+        """Propagate plain Monte Carlo batches until a relative error is reached.
+
+        Batches of ``batch`` joint input draws (the model's own
+        :meth:`~probstat.modeling.JointInput.sample`, batch ``k`` on the child
+        stream ``stream.child("batch", k)``) are evaluated and pushed into a
+        :class:`~probstat.statistics.RunningMoments`, one
+        :class:`~probstat.statistics.P2Quantile` per level, and, with a
+        threshold, an :class:`~probstat.statistics.ExceedanceCounter`. After
+        every batch the relative standard error of the controlled estimate is
+        checked: ``s / (sqrt(n) |mean|)`` for the mean, or
+        ``sqrt((1 - p) / (n p))`` for the failure probability when
+        ``threshold`` is given. Sampling stops at the first batch meeting the
+        target or at ``max_samples`` (the last batch is truncated), in which
+        case the result reports ``converged=False``. No output is stored.
+
+        Checking once per batch limits, but does not remove, the optimism of
+        data-dependent stopping; a mean near zero or a failure probability
+        with no observed failures makes the target unreachable.
+
+        Args:
+            quantity: QoI name.
+            target_relative_error: Positive relative standard-error target.
+            threshold: Failure threshold; switches control to the failure
+                probability.
+            failure: ``"above"`` (failure when ``Y >= t``) or ``"below"``
+                (failure when ``Y <= t``), as in :meth:`limit_state`.
+            batch: Draws between checks, at least two.
+            max_samples: Draw budget, at least two.
+            quantiles: Quantile levels strictly between zero and one.
+
+        Returns:
+            Targeted propagation result; the stage charges ``sample_size``
+            evaluations.
+
+        Raises:
+            TypeError: If numeric arguments have invalid types.
+            ValueError: If ``quantity`` is unknown or an argument is out of
+                its domain.
+
+        Equation:
+            [EQ-UQ-001], [EQ-STAT-STREAM-007], [EQ-MC-SE-001],
+            [EQ-MC-PROB-001], [EQ-INF-CI-WILSON-001], [EQ-STAT-STREAM-005].
+
+        References:
+            [REF-ROBERT-CASELLA-2004, Chapters 3-4], [REF-WELFORD-1962],
+            [REF-JAIN-CHLAMTAC-1985], [REF-WILSON-1927].
+
+        """
+        if quantity not in self._model.quantity_names:
+            raise ValueError(f"{quantity!r} is not a quantity of the study model")
+        target = require_finite_real(
+            target_relative_error, name="target_relative_error"
+        )
+        if target <= 0.0:
+            raise ValueError("target_relative_error must be positive")
+        size = require_non_negative_integer(batch, name="batch")
+        budget = require_non_negative_integer(max_samples, name="max_samples")
+        if size < 2:
+            raise ValueError("batch must be at least two")
+        if budget < 2:
+            raise ValueError("max_samples must be at least two")
+        if failure not in ("above", "below"):
+            raise ValueError("failure must be 'above' or 'below'")
+        levels = tuple(require_finite_real(p, name="quantile level") for p in quantiles)
+        if any(not 0.0 < p < 1.0 for p in levels):
+            raise ValueError("quantile levels must lie strictly between 0 and 1")
+        limit = (
+            None
+            if threshold is None
+            else require_finite_real(threshold, name="threshold")
+        )
+
+        stream = self.stream("sequential_propagation")
+        moments = RunningMoments()
+        markers = tuple(P2Quantile(p) for p in levels)
+        counter = None if limit is None else ExceedanceCounter()
+        before = self._model.evaluations
+        relative = math.inf
+        converged = False
+        batches = 0
+        while moments.count < budget:
+            draws = min(size, budget - moments.count)
+            points = self._model.inputs.sample(
+                draws, seed=stream.child("batch", batches)
+            )
+            batches += 1
+            for point in points:
+                value = self._model.evaluate(point)[quantity]
+                moments.push(value)
+                for marker in markers:
+                    marker.push(value)
+                if counter is not None and limit is not None:
+                    counter.push(
+                        value >= limit if failure == "above" else value <= limit
+                    )
+            if counter is None:
+                relative = moments.relative_standard_error()
+            elif counter.events == 0:
+                relative = math.inf
+            else:
+                p = counter.proportion
+                relative = math.sqrt((1.0 - p) / (counter.trials * p))
+            if relative <= target:
+                converged = True
+                break
+
+        if counter is not None:
+            probability = counter.proportion
+            probability_se = counter.standard_error()
+            interval = counter.wilson_interval()
+            events = counter.events
+        else:
+            probability = probability_se = math.nan
+            interval = (math.nan, math.nan)
+            events = 0
+        result = TargetedPropagation(
+            quantity=quantity,
+            controlled="mean" if counter is None else "probability",
+            target_relative_error=target,
+            relative_error=relative,
+            converged=converged,
+            sample_size=moments.count,
+            batches=batches,
+            mean=moments.mean,
+            standard_error=moments.standard_error(),
+            quantiles=tuple((m.probability, m.estimate) for m in markers),
+            threshold=limit,
+            failure=failure,
+            probability=probability,
+            probability_standard_error=probability_se,
+            probability_interval=interval,
+            events=events,
+        )
+        summary: dict[str, float | str] = {
+            "quantity": quantity,
+            "controlled": result.controlled,
+            "target relative error": target,
+            "relative error": relative,
+            "converged": "yes" if converged else "no (max_samples reached)",
+            "samples": float(result.sample_size),
+            "batches": float(batches),
+            f"{quantity}.mean": result.mean,
+            f"{quantity}.se": result.standard_error,
+        }
+        for level, estimate in result.quantiles:
+            summary[f"{quantity}.q[{level:g}] (P2)"] = estimate
+        if limit is not None:
+            relation = ">=" if failure == "above" else "<="
+            event = f"P[{quantity} {relation} {limit:g}]"
+            summary[event] = probability
+            summary[f"{event} se"] = probability_se
+            summary[f"{event} Wilson 95% lower"] = interval[0]
+            summary[f"{event} Wilson 95% upper"] = interval[1]
+        self._record(
+            "sequential_propagation",
+            f"Monte Carlo of {quantity} until relative error {target:g} "
+            f"on the {result.controlled}",
+            summary,
+            self._model.evaluations - before,
+            stream,
+            result,
+        )
+        return result
 
     def sensitivity(
         self,

@@ -115,6 +115,24 @@ study.rank_correlations("margin")  # Spearman screening per input
 For Ishigami with 4096 Sobol points this gives a mean of 3.500004 and a
 standard deviation of 3.7213 against the exact 3.7208.
 
+When the sample size is not known in advance, `UQStudy.propagate_until(q,
+target_relative_error=0.01, threshold=None, batch=256, max_samples=200_000)`
+(stage kind `sequential_propagation`, ADR-0056) draws plain Monte Carlo
+batches and stops at the first batch whose relative standard error meets the
+target [EQ-STAT-STREAM-007]: `s / (sqrt(n) |mean|)` for the mean, or
+`sqrt((1 - p) / (n p))` for `P[Y >= t]` (or `P[Y <= t]` with
+`failure="below"`) when a threshold is given [EQ-MC-PROB-001]. Mean,
+variance, P² quantiles, and the exceedance count with its Wilson interval are
+streaming accumulators, so memory does not grow with `n`. For `Y ~ N(10, 2)`
+(coefficient of variation 0.2) the theory `n = (cv / target)^2` gives 400 runs
+at a 1% target; seeds 1, 2, 3 with `batch=50` stopped at 500, 400, and 400.
+For `P[Y >= 12] = 0.1587` at a 5% target (theory 2121 runs), seed 2 stopped at
+2200 runs with `p = 0.1559`, Wilson interval (0.1414, 0.1717); seed 1 stopped
+at 1800 runs with an interval (0.1667, 0.2025) that misses the truth, as a
+95% interval sometimes does. Stopping on the data makes the reported error
+slightly optimistic. If `max_samples` is reached first the stage reports
+`converged = no`.
+
 ## Seeds and streams
 
 `foundations.RandomStream` derives independent child seeds by SplitMix64

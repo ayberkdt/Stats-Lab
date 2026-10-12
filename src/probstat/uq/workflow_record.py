@@ -156,6 +156,7 @@ WORKFLOW_GUIDE: Mapping[WorkflowStep, StepGuide] = MappingProxyType(
             (
                 "probstat.propagation.propagate",
                 "probstat.workflow.UQStudy.propagate",
+                "probstat.workflow.UQStudy.propagate_until",
                 "probstat.workflow.UQStudy.sensitivity",
                 "probstat.workflow.UQStudy.reliability",
                 "probstat.workflow.UQStudy.design_points",
@@ -165,6 +166,7 @@ WORKFLOW_GUIDE: Mapping[WorkflowStep, StepGuide] = MappingProxyType(
             ),
             (
                 "propagation",
+                "sequential_propagation",
                 "sensitivity",
                 "shapley",
                 "screening",
