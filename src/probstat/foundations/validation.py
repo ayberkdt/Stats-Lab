@@ -79,6 +79,9 @@ def require_finite_real(value: object, *, name: str) -> float:
         mathematical equation.
 
     """
+    if type(value) is float and math.isfinite(value):
+        # Fast path for the common case; the ABC check below is slow.
+        return value
     if isinstance(value, bool) or not isinstance(value, Real):
         raise TypeError(f"{name} must be a real number")
     result = float(value)

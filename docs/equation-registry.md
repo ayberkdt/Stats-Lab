@@ -8930,3 +8930,73 @@ pointwise band of [EQ-VIZ-PITBAND-001] at level `1 - alpha/B` in every bin:
   `visualization.hierarchical_plots.plot_pit_histogram`.
 - Source: [REF-LEHMANN-ROMANO-2005, Chapter 9],
   [REF-GNEITING-BALABDAOUI-RAFTERY-2007].
+
+### EQ-PPL-TRANSFORM-001 — Log bijections for half-bounded supports
+
+For a support `(a, inf)`: `x = a + exp(u)`, `log |dx/du| = u`,
+`u = log(x - a)`. For `(-inf, b)`: `x = b - exp(u)`, `log |dx/du| = u`,
+`u = log(b - x)`. For `R`: `x = u` with zero log-Jacobian.
+
+- Domain: `u` in `R`; `exp(u)` overflows for `u > ~709` (mapped to a
+  log-density of `-inf`).
+- Meaning: a smooth bijection from `R` onto the interior of the support, so
+  samplers and optimizers work on an unconstrained space; the log-Jacobian
+  turns the density of `x` into a density of `u`.
+- Code: `inference.ppl.Bijection`, `inference.ppl.bijection_for`.
+- Source: [REF-CARPENTER-ETAL-2017], [REF-KUCUKELBIR-ETAL-2017].
+
+### EQ-PPL-TRANSFORM-002 — Scaled logit bijection for an interval
+
+For a support `(a, b)`: `x = a + (b - a) s(u)` with `s(u) = 1/(1 + exp(-u))`,
+`log |dx/du| = log(b - a) + log s(u) + log(1 - s(u))
+= log(b - a) - softplus(u) - softplus(-u)`, `softplus(t) = log(1 + exp(t))`,
+and `u = log(x - a) - log(b - x)`.
+
+- Domain: `u` in `R`, `a < b` finite.
+- Meaning: maps `R` onto `(a, b)`; the softplus form avoids overflow for
+  large `|u|`. Closed endpoints have probability zero under a continuous law
+  and are not reached.
+- Code: `inference.ppl.Bijection`, `inference.ppl.bijection_for`.
+- Source: [REF-CARPENTER-ETAL-2017], [REF-KUCUKELBIR-ETAL-2017].
+
+### EQ-PPL-JOINT-001 — Joint log-density on the unconstrained space
+
+With latent elements `x_k = T_k(u_k; x_1..x_{k-1})` in execution order and
+observed data `y`,
+`log p(u) = sum_k log p(x_k | x_1..x_{k-1}) + sum_i log p(y_i | x)
++ sum_k log |dT_k/du_k|`.
+
+- Domain: `u` in `R^d`; the bijection `T_k` may depend on earlier latent
+  values (bounds that are parameters), which keeps the map lower triangular
+  so its log-determinant is the sum of the diagonal terms.
+- Meaning: the density that the samplers, ADVI, and the Laplace
+  approximation target; draws of `u` are mapped back through `T`.
+- Code: `inference.ppl.ModelIR.log_density`, `inference.ppl.ModelIR.terms`.
+- Source: [REF-CARPENTER-ETAL-2017], [REF-BINGHAM-ETAL-2019].
+
+### EQ-PPL-NONCENTERED-001 — Non-centred reparameterization of a normal site
+
+`theta = loc + scale z`, `z ~ N(0, 1)`; the site contributes
+`log N(z; 0, 1)` to the joint log-density and no Jacobian term, because `z`
+is the sampled coordinate.
+
+- Domain: `scale > 0`; `loc` and `scale` may depend on earlier latent sites.
+- Meaning: the prior of the sampled coordinate no longer depends on `scale`,
+  which removes the funnel between a group scale and the group effects when
+  the data are weakly informative.
+- Code: `inference.ppl.ModelHandle.sample` (`reparam="noncentered"`).
+- Source: [REF-PAPASPILIOPOULOS-ROBERTS-SKOLD-2007],
+  [REF-BETANCOURT-GIROLAMI-2013].
+
+### EQ-PPL-PREDICTIVE-001 — Prior and posterior predictive simulation
+
+Prior predictive: `x^(s) ~ p(x)` site by site, then `y^(s) ~ p(y | x^(s))`.
+Posterior predictive: `y_rep^(s) ~ p(y | x^(s))` for posterior draws
+`x^(s) ~ p(x | y)`, so `y_rep` has law `int p(y | x) p(x | y) dx`.
+
+- Domain: any model whose observed sites can be sampled.
+- Meaning: simulated data under the prior or the fitted model, the input of
+  prior predictive checks and of [EQ-PPC-001].
+- Code: `inference.ppl.prior_predictive`, `inference.ppl.posterior_predictive`,
+  `inference.ppl.predictive_pvalues`.
+- Source: [REF-GELMAN-ETAL-2013, Chapter 6], [REF-RUBIN-1984].
