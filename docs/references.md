@@ -1967,3 +1967,31 @@ Association* 82(398), 528-540 (with discussion), 1987.
 W. B. Smith and R. R. Hocking. "Algorithm AS 53: Wishart Variate Generator."
 *Journal of the Royal Statistical Society: Series C (Applied Statistics)*
 21(3), 341-345, 1972. doi:10.2307/2346290.
+
+## REF-PIESSENS-QUADPACK-1983
+
+Robert Piessens, Elise de Doncker-Kapenga, Christoph W. Überhuber, and David
+K. Kahaner. *QUADPACK: A Subroutine Package for Automatic Integration*.
+Springer Series in Computational Mathematics 1. Springer, 1983.
+DOI: [10.1007/978-3-642-61786-7](https://doi.org/10.1007/978-3-642-61786-7).
+The double-precision routine `dqk15.f` (Netlib, `netlib.org/quadpack`) holds
+the 33-digit G7-K15 constants used here.
+
+## REF-KRONROD-1965
+
+Aleksandr S. Kronrod. *Nodes and Weights of Quadrature Formulas: Sixteen-Place
+Tables*. Consultants Bureau, New York, 1965 (translated from the Russian
+edition, Nauka, Moscow, 1964).
+
+## REF-LAURIE-1997
+
+Dirk P. Laurie. "Calculation of Gauss-Kronrod Quadrature Rules."
+*Mathematics of Computation* 66(219), 1133-1145, 1997.
+DOI: [10.1090/S0025-5718-97-00861-2](https://doi.org/10.1090/S0025-5718-97-00861-2).
+
+## REF-MORI-SUGIHARA-2001
+
+Masatake Mori and Masaaki Sugihara. "The Double-Exponential Transformation in
+Numerical Analysis." *Journal of Computational and Applied Mathematics*
+127, 287-296, 2001.
+DOI: [10.1016/S0377-0427(00)00501-X](https://doi.org/10.1016/S0377-0427(00)00501-X).
