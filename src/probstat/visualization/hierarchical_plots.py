@@ -24,6 +24,7 @@ from probstat.inference import (
     pit_uniformity,
 )
 
+from ._layout import wrapped_title_block
 from .calibration_plots import gaussian_mixture_interval
 from .theme import (
     ANNOTATION_SIZE,
@@ -637,6 +638,98 @@ def binomial_band(count: int, bins: int, confidence: float = 0.95) -> tuple[int,
     return (lower if lower is not None else count), count
 
 
+def simultaneous_binomial_band(
+    count: int, bins: int, confidence: float = 0.95
+) -> tuple[int, int]:
+    """Return Bonferroni-adjusted limits that hold for all bins at once.
+
+    Each bin gets the pointwise band of :func:`binomial_band` at level
+    ``1 - (1 - confidence)/bins``. A pointwise band leaves at most
+    ``(1 - confidence)/bins`` probability outside (its limits are chosen
+    conservatively for the discrete law), so by the union bound the chance
+    that any of the ``bins`` counts of a calibrated forecast leaves the band
+    is at most ``1 - confidence``, whatever the dependence between counts.
+
+    Args:
+        count: Number of values (positive).
+        bins: Number of bins (at least two).
+        confidence: Simultaneous probability strictly inside ``(0, 1)``.
+
+    Returns:
+        Lower and upper count limits shared by every bin.
+
+    Raises:
+        ValueError: If an argument is invalid.
+
+    Equation:
+        [EQ-VIZ-PITBAND-002], [EQ-INF-MT-001].
+
+    References:
+        [REF-LEHMANN-ROMANO-2005, Chapter 9],
+        [REF-GNEITING-BALABDAOUI-RAFTERY-2007].
+
+    """
+    if not 0.0 < confidence < 1.0:
+        raise ValueError("confidence must lie strictly inside (0, 1)")
+    if bins < 2:
+        raise ValueError("count must be positive and bins at least two")
+    return binomial_band(count, bins, 1.0 - (1.0 - confidence) / bins)
+
+
+def _pit_title(
+    count: int,
+    confidence: float,
+    pointwise_outside: int,
+    simultaneous_outside: int | None,
+) -> str:
+    """Return the conditional title of a PIT histogram.
+
+    Args:
+        count: Number of bins.
+        confidence: Band level.
+        pointwise_outside: Bins outside the pointwise band.
+        simultaneous_outside: Bins outside the simultaneous band, or ``None``
+            when only the pointwise band is drawn.
+
+    Returns:
+        Evidence of miscalibration only when the simultaneous band is
+        exceeded (a test at level ``1 - confidence``); pointwise excursions
+        alone are reported as numbers.
+
+    References:
+        [REF-GNEITING-BALABDAOUI-RAFTERY-2007]. No equation is evaluated.
+
+    """
+    chance = count * (1.0 - confidence)
+    if simultaneous_outside is None:
+        if pointwise_outside == 0:
+            return (
+                f"All {count} PIT bins stay inside the pointwise {confidence:.0%} "
+                "band of a calibrated model"
+            )
+        return (
+            f"{pointwise_outside} of {count} PIT bins leave the pointwise "
+            f"{confidence:.0%} band; about {chance:.1f} would by chance alone"
+        )
+    if simultaneous_outside > 0:
+        verb = "leaves" if simultaneous_outside == 1 else "leave"
+        return (
+            f"{simultaneous_outside} of {count} PIT bins {verb} the "
+            f"{confidence:.0%} simultaneous band: evidence of miscalibration at "
+            f"the {1.0 - confidence:.0%} level"
+        )
+    if pointwise_outside == 0:
+        return (
+            f"All {count} PIT bins stay inside the {confidence:.0%} simultaneous "
+            "band: consistent with calibration"
+        )
+    return (
+        f"PIT histogram is consistent with calibration: {pointwise_outside} of "
+        f"{count} bins leave the pointwise band (about {chance:.1f} expected by "
+        f"chance) but none leaves the {confidence:.0%} simultaneous band"
+    )
+
+
 @themed
 def plot_pit_histogram(
     values: Sequence[float],
@@ -644,21 +737,31 @@ def plot_pit_histogram(
     bins: int | None = None,
     confidence: float = 0.95,
     ax: Any | None = None,
+    simultaneous: bool = True,
 ) -> Any:
-    """Plot a PIT histogram with the uniform level and a binomial band.
+    """Plot a PIT histogram with the uniform level and binomial bands.
 
     Under a calibrated model PIT values are uniform, so every bin count is
-    ``Binomial(n, 1/B)``; the muted band spans its pointwise central limits
-    (:func:`binomial_band`) and the accent line is the expected count
-    ``n/B``. Posterior (not leave-one-out) PIT values are pulled toward
-    ``1/2``, so a hump in the middle is expected there.
+    ``Binomial(n, 1/B)``; the darker muted band spans its pointwise central
+    limits (:func:`binomial_band`) and the accent line is the expected count
+    ``n/B``. A pointwise band is exceeded by about ``B (1 - confidence)``
+    bins of a calibrated forecast (one in 20 bins at 95%), so by default a
+    lighter Bonferroni band (:func:`simultaneous_binomial_band`) that all
+    ``B`` bins stay inside with probability at least ``confidence`` is drawn
+    as well, and the title reports evidence of miscalibration (a test at
+    level ``1 - confidence``) only when that band is exceeded. Posterior
+    (not leave-one-out) PIT values are pulled toward ``1/2``, so a hump in
+    the middle is expected there.
 
     Args:
         values: PIT values in ``[0, 1]``.
         bins: Number of equal-width bins (default ``max(2, round(sqrt(n)))``
             capped at 20).
-        confidence: Pointwise band level.
+        confidence: Band level (pointwise, and simultaneous over all bins).
         ax: Optional axes.
+        simultaneous: Draw the simultaneous band and base the verdict on it
+            (default); ``False`` restores the pointwise-only figure, whose
+            title reports excursions without a verdict.
 
     Returns:
         Populated axes.
@@ -668,11 +771,12 @@ def plot_pit_histogram(
             invalid ``bins``.
 
     Equation:
-        [EQ-PPC-002], [EQ-VIZ-PITBAND-001], [EQ-INF-GOF-KS-001].
+        [EQ-PPC-002], [EQ-VIZ-PITBAND-001], [EQ-VIZ-PITBAND-002],
+        [EQ-INF-GOF-KS-001].
 
     References:
         [REF-GNEITING-BALABDAOUI-RAFTERY-2007], [REF-DAWID-1984],
-        [REF-MATPLOTLIB].
+        [REF-LEHMANN-ROMANO-2005, Chapter 9], [REF-MATPLOTLIB].
 
     """
     sample = coerce_finite_sample(values, name="values")
@@ -687,10 +791,20 @@ def plot_pit_histogram(
     for v in sample:
         counts[min(int(v * count), count - 1)] += 1
     low, high = binomial_band(len(sample), count, confidence)
+    wide_low, wide_high = (
+        simultaneous_binomial_band(len(sample), count, confidence)
+        if simultaneous
+        else (low, high)
+    )
     expected = len(sample) / count
     axes = new_axes(ax)
     palette = active_palette()
     width = 1.0 / count
+    if simultaneous:
+        axes.axhspan(
+            wide_low, wide_high, color=palette.muted, alpha=0.10, linewidth=0.0,
+            zorder=0,
+        )  # fmt: skip
     axes.axhspan(low, high, color=palette.muted, alpha=0.14, linewidth=0.0, zorder=0)
     axes.bar(
         [(i + 0.5) * width for i in range(count)],
@@ -703,24 +817,24 @@ def plot_pit_histogram(
     )
     reference_line(axes, y=expected, label="uniform")
     axes.set_xlim(0.0, 1.0)
-    axes.set_ylim(0.0, max(max(counts), high) * 1.3)
+    axes.set_ylim(0.0, max(max(counts), wide_high) * 1.3)
     axis_labels(axes, "PIT value", "Count")
     outside = sum(c < low or c > high for c in counts)
+    wide_outside = sum(c < wide_low or c > wide_high for c in counts)
     ks = pit_uniformity(sample)
-    if outside == 0:
-        title = (
-            f"All {count} PIT bins stay inside the {confidence:.0%} band of a "
-            "calibrated model"
+    title = _pit_title(
+        count, confidence, outside, wide_outside if simultaneous else None
+    )
+    if simultaneous:
+        bands = (
+            f"bands: {wide_low}-{wide_high} per bin for all bins at once "
+            f"(Bonferroni), darker {low}-{high} pointwise"
         )
     else:
-        title = (
-            f"{outside} of {count} PIT bins leave the {confidence:.0%} band: "
-            "the predictive distribution is miscalibrated"
-        )
-    title_block(
+        bands = f"band: binomial counts {low}-{high} per bin (pointwise)"
+    wrapped_title_block(
         axes,
         title,
-        f"Bars: {len(sample)} PIT values · band: binomial counts {low}-{high} "
-        f"per bin · KS distance {ks.statistic:.2f}",
+        [f"bars: {len(sample)} PIT values", bands, f"KS distance {ks.statistic:.2f}"],
     )
     return axes

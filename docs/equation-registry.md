@@ -8907,3 +8907,23 @@ bound is `n lambda^2/(n-1)^2`, and the efficiency is
 - Code: `inference.mle_efficiency`,
   `probability.delta_method_exponential_reciprocal`.
 - Source: [REF-CASELLA-BERGER-2002].
+
+### EQ-VIZ-PITBAND-002 — Simultaneous (Bonferroni) band of a PIT histogram
+
+With `B` equal-width bins of `n` PIT values, the simultaneous band is the
+pointwise band of [EQ-VIZ-PITBAND-001] at level `1 - alpha/B` in every bin:
+`k_lo` the smallest `k` with `P(K <= k) >= alpha/(2B)` and `k_hi` the smallest
+`k` with `P(K <= k) >= 1 - alpha/(2B)`, `K ~ Binomial(n, 1/B)`.
+
+- Domain: `n >= 1`, `B >= 2`, `0 < alpha < 1`.
+- Meaning: each pointwise band leaves at most `alpha/B` probability outside,
+  so by the union bound (Bonferroni, [EQ-INF-MT-001]) all `B` counts of
+  independent uniform PIT values stay inside with probability at least
+  `1 - alpha`, whatever the dependence between counts (they sum to `n`).
+  The pointwise band is exceeded by about `B alpha` bins of a calibrated
+  forecast; with `n = 400`, `B = 20`, `alpha = 0.05` some bin leaves it in
+  about half of all calibrated samples, the simultaneous band in under 5%.
+- Code: `visualization.hierarchical_plots.simultaneous_binomial_band`,
+  `visualization.hierarchical_plots.plot_pit_histogram`.
+- Source: [REF-LEHMANN-ROMANO-2005, Chapter 9],
+  [REF-GNEITING-BALABDAOUI-RAFTERY-2007].

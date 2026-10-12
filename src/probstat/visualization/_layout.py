@@ -52,10 +52,12 @@ def wrapped_title_block(
         if lines and len(candidate) <= subtitle_chars:
             lines[-1] = candidate
         else:
-            lines.extend(textwrap.wrap(part, subtitle_chars) or [part])
+            lines.extend(
+                textwrap.wrap(part, subtitle_chars, break_on_hyphens=False) or [part]
+            )
     if lines:
         lines[0] = lines[0][:1].upper() + lines[0][1:]
-    wrapped = textwrap.fill(title, title_chars)
+    wrapped = textwrap.fill(title, title_chars, break_on_hyphens=False)
     subtitle = "\n".join(lines) if lines else None
     title_block(axes, wrapped, subtitle)
     if len(lines) > 1:

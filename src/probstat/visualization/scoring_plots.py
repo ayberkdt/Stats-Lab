@@ -5,6 +5,8 @@ or per-case numbers and only present them; they never refit a forecast. PIT
 histograms are drawn by
 :func:`probstat.visualization.hierarchical_plots.plot_pit_histogram`, which
 already shows the binomial band of a calibrated forecast.
+:func:`plot_validation_predictions` draws a ``ValidationAssessment``
+(predictive bands in the model hue, observations in the observed hue).
 
 Colour roles (ADR-0024, ADR-0046): observed frequencies, empirical coverage,
 mean scores, and new data use the observed hue; the identity of perfect
@@ -26,11 +28,18 @@ from typing import Any
 from probstat.foundations.validation import coerce_finite_sample
 from probstat.inference import TwoSampleKolmogorovSmirnovResult
 from probstat.modeling import standard_normal_quantile
-from probstat.validation import CoverageAtLevel, ReliabilityDiagram
+from probstat.statistics import quantiles
+from probstat.validation import (
+    CoverageAtLevel,
+    ReliabilityDiagram,
+    ValidationAssessment,
+)
 
 from ._layout import wrapped_title_block
 from .theme import (
     ANNOTATION_SIZE,
+    BAND_ALPHA,
+    INNER_BAND_ALPHA,
     REFERENCE,
     REFERENCE_WIDTH,
     active_palette,
@@ -606,3 +615,225 @@ def plot_distribution_shift(
         axes, title, [f"grey: {names[0]}", f"colour: {names[1]}", tail]
     )
     return axes
+
+
+def _verdict_title(
+    assessment: ValidationAssessment, inside: int, total: int, level: float
+) -> str:
+    """Return the assertion title of a validation figure from its criteria.
+
+    Args:
+        assessment: Validation assessment whose criteria decide the verdict.
+        inside: Observations inside the outer predictive intervals.
+        total: Number of observations.
+        level: Nominal level of the outer intervals.
+
+    Returns:
+        ``"consistent ..."`` with the coverage count, or ``"inconsistent: ..."``
+        naming every criterion that failed.
+
+    References:
+        [REF-OBERKAMPF-ROY-2025, Chapter 12]. No equation is evaluated.
+
+    """
+    count = len(assessment.experiments)
+    if assessment.consistent:
+        return (
+            f"Model is consistent with the {count} validation experiment"
+            f"{'s' if count != 1 else ''}; {inside} of {total} observations lie "
+            f"inside the {level:.0%} predictive intervals"
+        )
+    reasons: list[str] = []
+    for criterion in assessment.criteria:
+        if criterion.passed:
+            continue
+        if criterion.name == "maximum area metric":
+            over = sum(
+                1 for item in assessment.experiments if not item.within_tolerance
+            )
+            reasons.append(
+                f"area metric exceeds {assessment.tolerance:.3g} in {over} of "
+                f"{count} experiments"
+            )
+        elif criterion.name == "u-pooling KS p-value":
+            reasons.append(
+                f"pooled PIT rejects uniformity (p = {criterion.value:.2g})"
+            )
+        else:
+            reasons.append(f"{criterion.name} not met")
+    return "Model is inconsistent with the validation data: " + " and ".join(reasons)
+
+
+@themed
+def plot_validation_predictions(
+    assessment: ValidationAssessment,
+    *,
+    coverage: Sequence[CoverageAtLevel] = (),
+    levels: tuple[float, float] = (0.5, 0.9),
+    pit_mean: float | None = None,
+) -> Any:
+    """Plot each experiment's predictive intervals against its observations.
+
+    One row per validation experiment: the central ``levels`` intervals of
+    the observable predictive sample (latent prediction plus measurement
+    noise when the assessment includes it) are bands in the model hue with
+    the predictive median as a model-hue tick; the measured replicates are
+    observed-hue dots. The area metric of each row is printed at the right
+    edge, in bold ink when it exceeds the tolerance. The title is the
+    assessment's own verdict: the criteria that failed, or the count of
+    observations inside the outer intervals. With ``coverage`` records (for
+    example the ``coverage[...]`` entries of ``UQStudy.validate``) a second
+    panel shows empirical against nominal coverage with their binomial
+    intervals and the identity as the accent reference.
+
+    Args:
+        assessment: Result of :func:`probstat.validation.assess_validation`
+            or ``UQStudy.validate``.
+        coverage: Optional coverage records from the PIT values.
+        levels: Inner and outer central interval levels in ``(0, 1)``.
+        pit_mean: Optional mean PIT value for the subtitle (``1/2`` when
+            calibrated).
+
+    Returns:
+        The figure (one panel, or two with ``coverage``).
+
+    Raises:
+        ValueError: If the assessment has no experiments or ``levels`` are
+            not two increasing values inside ``(0, 1)``.
+
+    Equation:
+        [EQ-STAT-QUANT-001], [EQ-VAL-AREA-001], [EQ-VAL-CAL-COV-001].
+
+    References:
+        [REF-OBERKAMPF-ROY-2025, Part IV], [REF-FERSON-OBERKAMPF-GINZBURG-2008],
+        [REF-GNEITING-BALABDAOUI-RAFTERY-2007], [REF-MATPLOTLIB].
+
+    """
+    experiments = assessment.experiments
+    if not experiments:
+        raise ValueError("the assessment has no experiments")
+    inner, outer = float(levels[0]), float(levels[1])
+    if not 0.0 < inner < outer < 1.0:
+        raise ValueError("levels must be two increasing values inside (0, 1)")
+    plt = pyplot()
+    palette = active_palette()
+    height = max(3.6, 0.62 * len(experiments) + 2.4)
+    side: Any | None = None
+    if coverage:
+        figure, (axes, side) = plt.subplots(
+            1,
+            2,
+            figsize=(10.4, height),
+            gridspec_kw={"width_ratios": (2.4, 1.0), "wspace": 0.85},
+        )
+        style_axes(side)
+    else:
+        figure, axes = plt.subplots(figsize=(7.6, height))
+    style_axes(axes)
+    probabilities = (
+        0.5 * (1.0 - outer), 0.5 * (1.0 - inner), 0.5,
+        0.5 * (1.0 + inner), 0.5 * (1.0 + outer),
+    )  # fmt: skip
+    rows = list(range(len(experiments) - 1, -1, -1))
+    inside = total = 0
+    lowest, highest = math.inf, -math.inf
+    for row, item in zip(rows, experiments, strict=True):
+        q = quantiles(item.observable_predictions, probabilities)
+        for low, high, alpha, half in (
+            (q[0], q[4], BAND_ALPHA, 0.26),
+            (q[1], q[3], INNER_BAND_ALPHA, 0.18),
+        ):
+            axes.fill_between(
+                [low, high], [row - half] * 2, [row + half] * 2,
+                color=palette.model, alpha=alpha, linewidth=0.0, zorder=1,
+            )  # fmt: skip
+        axes.vlines(
+            q[2], row - 0.26, row + 0.26, color=palette.model, linewidth=2.0, zorder=3
+        )
+        values = item.experiment.observations
+        spread = [
+            0.0 if len(values) == 1 else -0.12 + 0.24 * k / (len(values) - 1)
+            for k in range(len(values))
+        ]
+        points(
+            axes, list(values), [row + d for d in spread], color=palette.observed
+        )
+        inside += sum(1 for v in values if q[0] <= v <= q[4])
+        total += len(values)
+        lowest = min(lowest, q[0], *values)
+        highest = max(highest, q[4], *values)
+        failed = not item.within_tolerance
+        text = f"area {item.area:.3g}"
+        if failed:
+            text += f" > {assessment.tolerance:.3g}"
+        axes.annotate(
+            text, xy=(1.0, row), xycoords=("axes fraction", "data"),
+            xytext=(6.0, 0.0), textcoords="offset points", ha="left",
+            va="center", fontsize=ANNOTATION_SIZE, annotation_clip=False,
+            color=palette.ink if failed else palette.muted,
+            fontweight="bold" if failed else "normal",
+        )  # fmt: skip
+    span = highest - lowest or 1.0
+    axes.set_xlim(lowest - 0.04 * span, highest + 0.04 * span)
+    axes.set_yticks(rows)
+    axes.set_yticklabels([item.experiment.name for item in experiments])
+    axes.set_ylim(-0.6, len(experiments) - 0.4)
+    axes.grid(axis="y", visible=False)
+    axes.grid(axis="x", color=palette.rule, linewidth=0.7)
+    axis_labels(axes, assessment.quantity, None, x_unit=assessment.unit)
+    if side is not None:
+        _coverage_panel(side, coverage)
+    noise = "with" if assessment.include_measurement_noise else "without"
+    parts = [
+        f"bands: central {inner:.0%} and {outer:.0%} predictive intervals "
+        f"({assessment.sample_size:,} samples, {noise} measurement noise)",
+        "tick: predictive median",
+        "dots: observations",
+        f"{inside} of {total} inside the {outer:.0%} bands",
+    ]
+    if pit_mean is not None:
+        parts.append(f"PIT mean {pit_mean:.2f} (1/2 if calibrated)")
+    if side is not None:
+        parts.append("right: coverage with 95% binomial intervals")
+    wrapped_title_block(
+        axes,
+        _verdict_title(assessment, inside, total, outer),
+        parts,
+        width_inches=figure.get_figwidth(),
+    )
+    return figure
+
+
+def _coverage_panel(axes: Any, coverage: Sequence[CoverageAtLevel]) -> None:
+    """Draw empirical against nominal coverage on a unit square.
+
+    Args:
+        axes: Target axes.
+        coverage: Coverage records (one per nominal level).
+
+    References:
+        [REF-CLOPPER-PEARSON-1934], [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    palette = active_palette()
+    _identity(axes, 0.0, 1.0)
+    ordered = sorted(coverage, key=lambda r: r.nominal)
+    xs = [r.nominal for r in ordered]
+    ys = [r.rate for r in ordered]
+    axes.vlines(
+        xs, [r.interval.lower for r in ordered], [r.interval.upper for r in ordered],
+        colors=palette.observed, linewidth=1.8, zorder=3,
+    )  # fmt: skip
+    points(axes, xs, ys, color=palette.observed, size=40.0)
+    for record in ordered:
+        below = record.rate <= record.nominal
+        axes.annotate(
+            f"{record.covered}/{record.size}", (record.nominal, record.rate),
+            xytext=(-7.0, -9.0 if below else 9.0), textcoords="offset points",
+            ha="right", va="center", fontsize=ANNOTATION_SIZE, color=palette.ink,
+        )  # fmt: skip
+    axes.set_xlim(0.0, 1.0)
+    axes.set_ylim(0.0, 1.02)
+    axes.set_aspect("equal", adjustable="box")
+    axes.grid(axis="both", color=palette.rule, linewidth=0.6)
+    axis_labels(axes, "Nominal coverage", "Empirical coverage")

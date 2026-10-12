@@ -367,7 +367,7 @@ class HierarchyFigureTests(unittest.TestCase):
         title = plot_pit_histogram(uniform).get_title(loc="left")
         self.assertTrue(title.startswith("All 10 PIT bins"))
         piled = [0.02] * 60 + [0.98] * 40
-        self.assertIn("miscalibrated", plot_pit_histogram(piled).get_title(loc="left"))
+        self.assertIn("miscalibration", plot_pit_histogram(piled).get_title(loc="left"))
         with self.assertRaises(ValueError):
             plot_pit_histogram([0.2, 1.5])
 
