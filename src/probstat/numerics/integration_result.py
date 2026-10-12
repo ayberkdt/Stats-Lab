@@ -104,3 +104,41 @@ def check_limit(value: float) -> float:
     if math.isnan(limit):
         raise ValueError("integration limits must not be NaN")
     return limit
+
+
+def truncation_term(outer: dict[float, float], step: float) -> float:
+    """Estimate the double-exponential mass cut off beyond the last nodes.
+
+    ``outer`` maps the outermost nodes ``t`` (at least the last two at
+    spacing ``step`` on each side) to ``|w(t) f(x(t))|``. On each side the
+    decay rate ``r = log(|T(t_e - h)| / |T(t_e)|) / h`` between the edge
+    node ``t_e`` and its inner neighbour gives the tail ``|T(t_e)| / r`` of
+    an exponentially decaying transformed integrand. The rate of an
+    algebraic end behaviour grows outwards (like ``cosh t``), so the secant
+    rate errs on the large-tail side. A side that does not decay
+    (``r <= 0``) contributes ``|T(t_e)| / h``.
+
+    Args:
+        outer: Moduli of the transformed integrand at the outermost nodes.
+        step: Current trapezoid step ``h``.
+
+    Returns:
+        Estimated truncated mass (zero when both edge terms vanish).
+
+    References:
+        [REF-TAKAHASI-MORI-1974], [REF-MORI-SUGIHARA-2001].
+
+    """
+    total = 0.0
+    for sign in (1.0, -1.0):
+        side = [t for t in outer if t * sign > 0.0]
+        if not side:
+            continue
+        edge = max(side, key=abs)
+        modulus = outer[edge]
+        if modulus == 0.0:
+            continue
+        inner = outer.get(edge - sign * step, 0.0)
+        rate = math.log(inner / modulus) / step if inner > 0.0 else 0.0
+        total += modulus / rate if rate > 0.0 else modulus / step
+    return total

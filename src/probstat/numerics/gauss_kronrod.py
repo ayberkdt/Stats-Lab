@@ -64,6 +64,10 @@ G7_WEIGHTS = (
 )
 _TINY = sys.float_info.min
 _EPS = sys.float_info.epsilon
+# QAGI panels [t_left, t_right] with t_right below this are not bisected: the
+# substitution's 1/t^2 factor and the node x = (1 - t)/t are then beyond any
+# useful resolution, and the run is reported as not converged.
+_QAGI_MIN_T = 1.0e-150
 
 
 def kronrod_panel(
@@ -92,8 +96,10 @@ def kronrod_panel(
         [REF-KRONROD-1965].
 
     """
-    centre = 0.5 * (lower + upper)
-    half = 0.5 * (upper - lower)
+    # Halving before adding keeps the centre and half-width finite for any
+    # finite ends, e.g. [-1e308, 1e308], where upper - lower overflows.
+    centre = 0.5 * lower + 0.5 * upper
+    half = 0.5 * upper - 0.5 * lower
     f_centre = function(centre)
     gauss = f_centre * G7_WEIGHTS[3]
     kronrod = f_centre * K15_WEIGHTS[7]
@@ -143,13 +149,16 @@ def gauss_kronrod(
     bisected until the summed error estimate is at most
     ``max(abs_tol, rel_tol |I|)`` (converged), the number of panels reaches
     ``limit``, or the worst panel is too narrow to bisect in floating point
-    (both reported with ``converged=False``). There is no epsilon-algorithm
-    extrapolation (QAGS) and no QUADPACK roundoff detection, so an endpoint
-    singularity such as ``x^-1/2`` converges geometrically in the number of
-    bisections rather than faster.
+    (both reported with ``converged=False``). A non-finite estimate or error
+    estimate (for example after overflow) is never reported as converged.
+    There is no epsilon-algorithm extrapolation (QAGS) and no QUADPACK
+    roundoff detection, so an endpoint singularity such as ``x^-1/2``
+    converges geometrically in the number of bisections rather than faster.
 
     Infinite limits use ``x = a + (1 - t)/t`` on ``t in (0, 1]`` (QAGI), with
-    ``f(x) + f(-x)`` folded for the whole line; nodes never reach ``t = 0``.
+    ``f(x) + f(-x)`` folded for the whole line; nodes never reach ``t = 0``,
+    and panels ending below ``t = 1e-150`` are not bisected further (the run
+    then stops with ``converged=False``).
 
     Args:
         function: Integrand returning finite reals at every node.
@@ -220,7 +229,8 @@ def gauss_kronrod(
                 total = value_at(b - distance)
             else:
                 total = value_at(distance) + value_at(-distance)
-            weighted = total / (t * t)
+            # Divide twice: t * t underflows to zero for t < 1.5e-154.
+            weighted = total / t / t
             if not math.isfinite(weighted):
                 raise ValueError("transformed integrand overflowed near t = 0")
             return weighted
@@ -233,15 +243,31 @@ def gauss_kronrod(
     ]
     area = first_value
     error_sum = first_error
-    while (
-        error_sum > max(absolute_target, relative_target * abs(area))
-        and len(heap) < panel_limit
-    ):
+    infinite_range = not (math.isfinite(a) and math.isfinite(b))
+
+    def finished(total: float, error: float) -> bool:
+        """Return whether a finite estimate meets the error target.
+
+        References:
+            [EQ-NUM-QAG-001].
+
+        """
+        return (
+            math.isfinite(total)
+            and math.isfinite(error)
+            and error <= max(absolute_target, relative_target * abs(total))
+        )
+
+    while not finished(area, error_sum) and len(heap) < panel_limit:
+        if not (math.isfinite(area) and math.isfinite(error_sum)):
+            break
         negative_error, left, right, value = heapq.heappop(heap)
-        middle = 0.5 * (left + right)
+        middle = 0.5 * left + 0.5 * right
         too_narrow = max(abs(left), abs(right)) <= (1.0 + 100.0 * _EPS) * (
             abs(middle) + 1000.0 * _TINY
         )
+        if infinite_range and right < _QAGI_MIN_T:
+            too_narrow = True
         if too_narrow or not left < middle < right:
             heapq.heappush(heap, (negative_error, left, right, value))
             break
@@ -253,7 +279,7 @@ def gauss_kronrod(
         heapq.heappush(heap, (-error_2, middle, right, value_2))
     estimate = math.fsum(panel[3] for panel in heap)
     error_estimate = math.fsum(-panel[0] for panel in heap)
-    converged = error_estimate <= max(absolute_target, relative_target * abs(estimate))
+    converged = finished(estimate, error_estimate)
     intervals = tuple(sorted((panel[1], panel[2]) for panel in heap))
     return IntegrationResult(
         value=estimate,

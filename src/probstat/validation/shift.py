@@ -734,11 +734,16 @@ def distribution_wasserstein_distance(
 
     ``W_p^p = int_0^1 |Q_1(u) - Q_2(u)|^p du`` is integrated with the
     tanh-sinh rule, which tolerates the unbounded quantiles at both ends;
-    upper-tail quantiles use ``isf`` where available. Nodes within ``1e-15``
-    of ``0`` or ``1`` are omitted. Where the quantile functions cross,
-    ``|.|^p`` has a kink for ``p = 1``; convergence is then algebraic and
-    the reported error estimate is larger (about ``1e-7`` relative in the
-    tests), so use ``p = 2`` or the closed forms when high accuracy matters.
+    upper-tail quantiles use ``isf`` where available. Nodes reach about
+    ``1e-300`` from ``0`` and ``1``; closer than ``1e-15`` a failing or
+    overflowing quantile counts as zero (see
+    :func:`probstat.numerics.tanh_sinh`). Where the quantile functions cross
+    (or where they start or stop coinciding), ``|.|^p`` has a kink; these
+    points are located by :func:`sign_change_points` on the complement scale
+    in the upper half and made piece boundaries, so ``p = 1`` converges at
+    the double-exponential rate too. Crossings closer together than the
+    search grid (``1/64``) can be missed, which shows as a larger error
+    estimate and a warning.
 
     Args:
         first: Law exposing ``quantile`` (and optionally ``isf``).
@@ -790,7 +795,9 @@ def distribution_wasserstein_distance(
 
     q1, q2 = quantile_of(first), quantile_of(second)
     # Put the kinks of |Q1 - Q2|^p (crossing quantiles) at piece boundaries.
-    breaks = sign_change_points(lambda u, uc: q1(u, uc) - q2(u, uc))
+    breaks = sign_change_points(
+        lambda u, uc: q1(u, uc) - q2(u, uc), complements=True
+    )
     result = tanh_sinh_pieces(
         lambda u, uc: abs(q1(u, uc) - q2(u, uc)) ** p,
         breaks,

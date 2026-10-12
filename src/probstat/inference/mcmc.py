@@ -1125,14 +1125,20 @@ def effective_sample_size(chains: Sequence[Sequence[float]]) -> float:
     With within-chain autocovariances ``c_{t,m}`` (divisor ``n``), ``W`` the
     mean within-chain variance and ``var+ = (n-1)/n W + B/n``, the combined
     autocorrelation is ``rho_t = 1 - (W - mean_m c_{t,m}) / var+`` and
-    ``rho_0 = 1``. Geyer's initial monotone sequence sums the pair sums
-    ``Gamma_k = rho_{2k} + rho_{2k+1}`` while they are positive, forcing them
-    to be non-increasing, and ``ESS = M n / (-1 + 2 sum_k Gamma_k)``.
+    ``rho_0 = 1``. Geyer's initial positive sequence adds the pairs
+    ``(rho_t, rho_{t+1})``, ``t`` even, while their sum is positive (lags
+    ``t < n - 5``), the initial monotone sequence makes the pair sums
+    non-increasing, and with the stopping lag ``T``
+    ``tau = -1 + 2 sum_{t < T} rho_t + rho_T`` (``rho_T`` only when
+    positive: the improved estimate of the reference code, which reduces
+    the variance for antithetic chains) and ``ESS = M n / tau``. This is the
+    algorithm of the ``.ess`` function of the stan-dev ``posterior``
+    package, step for step; for ``n <= 5`` it gives ``tau = 2``.
 
     Chains are used as given (not split). Antithetic chains can give
-    ``ESS > M n``; ``tau = -1 + 2 sum_k Gamma_k`` is bounded below by
-    ``1 / log10(M n)`` (the safety bound of the Vehtari et al. reference
-    code), so the ESS is always positive and at most ``M n log10(M n)``.
+    ``ESS > M n``; ``tau`` is bounded below by ``1 / log10(M n)`` (the
+    safety bound of the reference code), so the ESS is always positive and
+    at most ``M n log10(M n)``.
 
     Args:
         chains: One or more equal-length scalar chains, at least 4 draws each.
@@ -1148,6 +1154,7 @@ def effective_sample_size(chains: Sequence[Sequence[float]]) -> float:
 
     References:
         [REF-GEYER-1992], [REF-VEHTARI-ETAL-2021],
+        [REF-BURKNER-ETAL-POSTERIOR, function ``.ess`` in R/convergence.R],
         [REF-GELMAN-ETAL-2013, Section 11.5].
 
     """
@@ -1189,22 +1196,46 @@ def effective_sample_size(chains: Sequence[Sequence[float]]) -> float:
             return 1.0
         return 1.0 - (within - mean_autocovariance(lag)) / pooled
 
-    total = 0.0
-    previous = math.inf
-    k = 0
-    while 2 * k + 1 < n:
-        pair = rho(2 * k) + rho(2 * k + 1)
-        if pair <= 0.0:
-            break
-        pair = min(pair, previous)
-        total += pair
-        previous = pair
-        k += 1
-    tau = -1.0 + 2.0 * total
-    # Strongly antithetic chains (lag-one autocorrelation below -1/2, as static
-    # HMC can produce) make the truncated sum give tau <= 0 and a negative or
-    # infinite ESS. Following the reference implementation of Vehtari et al.
-    # (2021), tau is bounded below by 1 / log10(M n), i.e. ESS <= M n log10(M n).
+    # Geyer's initial positive sequence, exactly as stan-dev/posterior's
+    # .ess (R/convergence.R): pairs (rho_t, rho_{t+1}), t even, are added
+    # while their sum is positive, scanning t < n - 5; a pair with a
+    # negative sum is not stored.
+    rho_hat = [0.0] * n
+    rho_even = 1.0
+    rho_odd = rho(1)
+    rho_hat[0] = rho_even
+    rho_hat[1] = rho_odd
+    t = 0
+    while t < n - 5 and rho_even + rho_odd > 0.0:
+        t += 2
+        rho_even = rho(t)
+        rho_odd = rho(t + 1)
+        if rho_even + rho_odd >= 0.0:
+            rho_hat[t] = rho_even
+            rho_hat[t + 1] = rho_odd
+    max_t = t
+    # The improved estimate uses the even autocorrelation at the stopping
+    # lag when it is positive.
+    if rho_even > 0.0:
+        rho_hat[max_t] = rho_even
+    # Geyer's initial monotone sequence: a pair larger than its predecessor
+    # is replaced by the predecessor's mean.
+    t = 0
+    while t <= max_t - 4:
+        t += 2
+        if rho_hat[t] + rho_hat[t + 1] > rho_hat[t - 2] + rho_hat[t - 1]:
+            rho_hat[t] = (rho_hat[t - 2] + rho_hat[t - 1]) / 2.0
+            rho_hat[t + 1] = rho_hat[t]
+    # tau = -1 + 2 sum_{t < max_t} rho_t + rho_{max_t}: Geyer's truncated sum
+    # plus the improved-estimate term, which reduces the variance in the
+    # antithetic case. The R code sums rho_hat_t[1:max_t]; for max_t = 0
+    # (always when n <= 5) that range is c(1, 0), i.e. rho_0 alone, so
+    # tau = -1 + 2 + 1 = 2 then.
+    truncated = math.fsum(rho_hat[:max_t]) if max_t > 0 else rho_hat[0]
+    tau = -1.0 + 2.0 * truncated + rho_hat[max_t]
+    # Safety bound of the reference code: tau >= 1 / log10(M n), so the ESS
+    # is positive and at most M n log10(M n) even for strongly antithetic
+    # chains (lag-one autocorrelation near -1, as static HMC can produce).
     tau = max(tau, 1.0 / math.log10(m * n))
     return m * n / tau
 

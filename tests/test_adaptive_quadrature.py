@@ -430,5 +430,87 @@ class EvaluationPolicyTests(unittest.TestCase):
             gauss_kronrod(lambda x: "1", 0.0, 1.0)  # type: ignore[arg-type,return-value]
 
 
+class ReviewRegressionTests(unittest.TestCase):
+    """Defects found in review: honest flags, overflow, and rule choice."""
+
+    def test_auto_keeps_double_exponential_when_kronrod_misses_mass(self) -> None:
+        """``exp(-(x - 50)^2)`` on the line: GK sees ``3e-198``, DE ``sqrt(pi)``.
+
+        Neither rule converges; the old choice by smaller absolute error
+        returned Gauss-Kronrod's ``2.9e-198``. Exact value ``sqrt(pi)``.
+        """
+        result = integrate(lambda x: math.exp(-((x - 50.0) ** 2)), -math.inf, math.inf)
+        self.assertEqual(result.rule, "sinh-sinh")
+        self.assertLess(abs(result.value - math.sqrt(math.pi)), 1e-12)
+        self.assertFalse(result.converged)
+
+    def test_auto_falls_back_when_double_exponential_raises(self) -> None:
+        """``[-1e308, 1e308]`` overflows ``upper - lower``; GK still runs.
+
+        Exact value ``2e307 atan(10)`` for ``1/(1 + (x/1e307)^2)``.
+        """
+        exact = 2.0e307 * math.atan(10.0)
+        result = integrate(lambda x: 1.0 / (1.0 + (x / 1.0e307) ** 2), -1e308, 1e308)
+        self.assertEqual(result.rule, "gauss-kronrod-15")
+        self.assertTrue(result.converged)
+        self.assertLess(abs(result.value - exact), 1e-12 * exact)
+
+    def test_kronrod_width_overflow_is_never_converged_infinity(self) -> None:
+        """Half-width ``0.5 (upper - lower)`` overflowed to ``inf``.
+
+        The old code returned ``inf`` with ``converged=True``.
+        """
+        exact = 2.0e307 * math.atan(10.0)
+        wide = gauss_kronrod(lambda x: 1.0 / (1.0 + (x / 1.0e307) ** 2), -1e308, 1e308)
+        self.assertTrue(math.isfinite(wide.value))
+        self.assertLess(abs(wide.value - exact), 1e-12 * exact)
+        gaussian = gauss_kronrod(lambda x: math.exp(-x * x), -1e308, 1e308)
+        self.assertTrue(math.isfinite(gaussian.value))
+        self.assertTrue(math.isfinite(gaussian.error_estimate))
+
+    def test_qagi_deep_bisection_reports_non_convergence(self) -> None:
+        """``x^-1.01`` on ``[1, inf)`` with 5000 panels raised ZeroDivisionError.
+
+        ``t * t`` underflowed for panels near ``t = 0``.
+        """
+        result = gauss_kronrod(lambda x: x**-1.01, 1.0, math.inf, limit=5000)
+        self.assertFalse(result.converged)
+        self.assertTrue(math.isfinite(result.value))
+
+    def test_truncation_at_t_max_is_not_converged(self) -> None:
+        """Slow algebraic tails beyond the last node were reported converged.
+
+        ``int_1^inf x^-1.025 = 40`` (old estimate ``2.7e-9``, true error
+        ``1.26e-6``); ``int_0^1 x^-0.97 = 100/3`` (true relative error
+        ``9.3e-10`` above ``rel_tol``).
+        """
+        tail = exp_sinh(lambda x: x**-1.025, 1.0, math.inf, max_level=12)
+        self.assertFalse(tail.converged)
+        self.assertGreaterEqual(tail.error_estimate, abs(tail.value - 40.0))
+        end = tanh_sinh_interval(lambda x: x**-0.97, 0.0, 1.0)
+        self.assertFalse(end.converged)
+        self.assertGreaterEqual(end.error_estimate, abs(end.value - 100.0 / 3.0))
+        # Faster tails still converge to rounding.
+        quick = exp_sinh(lambda x: x**-1.1, 1.0, math.inf)
+        self.assertTrue(quick.converged)
+        self.assertLess(abs(quick.value - 10.0), 1e-13)
+
+    def test_rounding_term_spares_smooth_integrands_on_shifted_ranges(self) -> None:
+        """A constant on ``[1e8, 1e8 + 1]`` was non-converged (estimate 5.5e-7).
+
+        The node-rounding term now scales with the log-log slope of ``|f|``
+        near the end, so ``(x - 2)^-1/2`` on ``[2, 3]`` stays flagged.
+        """
+        constant = tanh_sinh_interval(lambda x: 1.0, 1.0e8, 1.0e8 + 1.0)
+        self.assertTrue(constant.converged)
+        self.assertEqual(constant.value, 1.0)
+        line = tanh_sinh_interval(lambda x: x, 1.0e8, 1.0e8 + 1.0)
+        self.assertTrue(line.converged)
+        self.assertLess(abs(line.value - 100000000.5), 1e-6)
+        singular = tanh_sinh_interval(lambda x: (x - 2.0) ** -0.5, 2.0, 3.0)
+        self.assertFalse(singular.converged)
+        self.assertGreaterEqual(singular.error_estimate, abs(singular.value - 2.0))
+
+
 if __name__ == "__main__":
     unittest.main()

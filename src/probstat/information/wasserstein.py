@@ -316,7 +316,7 @@ def quantile_wasserstein(
             """
             return quantile(law0, u, uc) - quantile(law1, u, uc)
 
-        breaks = (*sign_change_points(signed), 0.5)
+        breaks = (*sign_change_points(signed, complements=True), (0.5, 0.5))
         total = warn_if_unreliable(
             tanh_sinh_pieces(by_u, breaks, absolute_tolerance=1e-30),
             "Wasserstein distance",

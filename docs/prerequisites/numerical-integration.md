@@ -157,7 +157,16 @@ safe, not sharp.
 
 - **Interior kinks or peaks** break the analyticity that tanh-sinh needs.
   `integrate` with the default `method="auto"` then also runs Gauss-Kronrod
-  and returns the result with the smaller error estimate.
+  and returns the result whose error estimate is the smaller multiple of its
+  own target `max(abs_tol, rel_tol |value|)`. If neither converges and the
+  two values differ by more than their error estimates, the
+  double-exponential value is kept: Gauss-Kronrod can miss all of the mass
+  of a narrow peak far from the origin (`exp(-(x - 50)^2)` on the line gives
+  `3e-198` with an error estimate of the same size).
+- **Mass beyond the outermost nodes** (`x^-1.025` at infinity, `x^-0.97` at
+  zero) is estimated from the weighted integrand at the last node on each
+  side and its decay rate; while it is not negligible the run reports
+  `converged=False`.
 - **Singularities at a non-zero end** `c`: the integrand only sees the
   rounded node, so the mass closer to `c` than `ulp(c)` is lost (about
   `2 sqrt(ulp(c))` for `(x - c)^-1/2`). A node-rounding term in the error
