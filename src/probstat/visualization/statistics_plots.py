@@ -357,9 +357,9 @@ def plot_distribution_comparison(
     for index, (label, values) in enumerate(groups.items()):
         colour = palette.series[index]
         density = gaussian_kde(values)
-        grid = density.grid(160, extend=2.0)
+        grid = density.grid(160, extend=3.0)
         heights = [density.pdf(x) for x in grid]
-        scale = 0.38 / max(heights)
+        scale = 0.36 / max(heights)  # full width 0.72 of the slot (sunumatik)
         axes.fill_betweenx(
             grid,
             [index - h * scale for h in heights],
@@ -369,10 +369,10 @@ def plot_distribution_comparison(
             linewidth=0.0,
         )
         axes.plot(
-            [index + h * scale for h in heights], grid, color=colour, linewidth=1.0
+            [index + h * scale for h in heights], grid, color=colour, linewidth=1.5
         )
         axes.plot(
-            [index - h * scale for h in heights], grid, color=colour, linewidth=1.0
+            [index - h * scale for h in heights], grid, color=colour, linewidth=1.5
         )
         q1, q2, q3 = (quantile(values, level) for level in (0.25, 0.5, 0.75))
         iqr = q3 - q1
