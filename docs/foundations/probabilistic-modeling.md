@@ -133,6 +133,28 @@ at 1800 runs with an interval (0.1667, 0.2025) that misses the truth, as a
 slightly optimistic. If `max_samples` is reached first the stage reports
 `converged = no`.
 
+Numerical (discretization) uncertainty enters the study through
+`UQStudy.verify(q, grid_values, refinement_ratio)` (or `grid_sizes=`; stage
+kind `verification`, ADR-0057). It runs `probstat.uq.verify_solution` on QoI
+values the user computed on three or more grids: the three-grid GCI
+[EQ-VV-GCI-004] or the oscillation bound [EQ-VV-OSC-001], and least squares
+for four or more grids [EQ-VV-LSQ-002]. It records the observed order, the
+extrapolated value, `U`, `u_num` (`U / sqrt(3)` by default [EQ-VV-UNUM-001]),
+and the asymptotic-range ratio at the theoretical order [EQ-VV-GCI-005]. No
+model evaluations are charged. `validate(..., numerical_uncertainty=
+"verified")` then adds that `u_num` to each ASME V&V 20 comparison,
+`u_val = sqrt(u_num^2 + u_input^2 + u_D^2)` [EQ-VAL-ASME-001]. The area
+verdict, u-pooling, CRPS, and PIT do not change. For
+`phi(h) = 2 + 0.03 h^2 + 0.004 h^3` on `h = 1, 2, 4` (values 2.034, 2.152,
+2.736) the stage gives observed order 2.307, extrapolated 2.00412,
+`GCI_fine = 0.03735`, and `u_num = 0.02156`. The ratio at order 2 is 1.237,
+so the stage warns that the grids are outside the asymptotic range. In the
+spring validation of `tests/test_workflow_verify.py` (seed 6, 400 samples),
+`u_val` grows from 0.1024 to 0.1046 at load 1 and from 0.2958 to 0.2966 at
+load 3. Input uncertainty dominates there. `predict` does not add `u_num`;
+pass the `SolutionVerification` that `verify` returns as `numerical=` to
+`probstat.validation.predict_with_uncertainty_components` explicitly.
+
 ## Seeds and streams
 
 `foundations.RandomStream` derives independent child seeds by SplitMix64
