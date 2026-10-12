@@ -162,7 +162,8 @@ def plot_forecast(
         axes,
         f"Forecast uncertainty grows {width_last / width_first:.1f}x over "
         f"{len(mean)} steps",
-        "Solid: observed series. Dotted line and band: forecast",
+        "Solid: observed series. Dotted line and band: forecast, drawn with "
+        "monotone cubic smoothing between steps",
     )
     return axes
 
