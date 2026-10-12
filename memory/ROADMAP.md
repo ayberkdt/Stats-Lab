@@ -26,7 +26,8 @@ tested evidence.
 - [x] Finite random variables, transformations, expectation, moments, and CDFs.
 - [x] Finite joint, marginal, and conditional PMFs; dependence summaries.
 - [x] Finite probability-, moment-, and characteristic-function evaluation.
-- [ ] Modes of convergence, laws of large numbers, and central limit theorems.
+- [x] Modes of convergence, laws of large numbers, and central limit theorems
+  (exact Berry-Esseen/Edgeworth/tail-bound comparisons, ADR-0051).
 - [ ] Measure/integration bridge: sigma-algebras, measurable maps, Lebesgue
   expectation, Radon-Nikodym derivatives, and product measures.
 
@@ -61,7 +62,8 @@ tested evidence.
 
 ## Phase 4 — Statistical inference
 
-- [ ] Estimands, estimators, bias, risk, consistency, sufficiency, completeness.
+- [~] Estimands, estimators, bias, risk, consistency, sufficiency (ADR-0051);
+  completeness is discussed but not computed.
 - [x] Likelihood, score, Fisher information, MLE/MAP (generic MLE with
   observed-information SEs, Laplace/MAP), EM and Gaussian mixtures
   (ADR-0040).
@@ -141,8 +143,9 @@ dependency direction.
   summaries, strict threshold probabilities, and a seeded teaching lab.
 - [x] Correlated-input sampling, vector QoIs, quasi-random designs, quantiles,
   exceedance curves, and design comparison on `ProbabilisticModel`.
-- [ ] Unbounded-domain quadrature transformations, adaptive error estimates,
-  streaming accumulation, and propagation of numerical/model-form uncertainty.
+- [~] Unbounded-domain quadrature transformations and adaptive error
+  estimates (ADR-0050); streaming accumulation and propagation of
+  numerical/model-form uncertainty remain.
 
 ### UQ-3 — Advanced Monte Carlo
 

@@ -94,6 +94,17 @@ defects that are now fixed with oracle-backed regression tests.
   Wasserstein distances and barycenters; closed-form and numerical Fisher
   information, Fisher-Rao distances, Hellinger, Bhattacharyya, total
   variation, Renyi, and alpha divergences.
+- **Numerical integration** (`numerics`): adaptive Gauss-Kronrod G7-K15
+  (QUADPACK QAG/QAGI style) with error estimates, tanh-sinh, exp-sinh, and
+  sinh-sinh rules for finite, half-infinite, and infinite ranges, an
+  `integrate` dispatcher; tanh-sinh reports convergence and skipped nodes.
+- **Limit theorems and estimator theory**: Berry-Esseen bounds against exact
+  Kolmogorov distances, one-term Edgeworth expansions, Chebyshev, Hoeffding,
+  and Bernstein bounds against exact tails, delta-method accuracy
+  (`probability`); LLN/CLT simulations (`monte_carlo`); `evaluate_estimator`
+  with Monte Carlo errors for bias, variance, MSE, efficiency, and coverage,
+  Cramer-Rao bounds and MLE efficiency, Rao-Blackwellization and
+  minimum-MSE examples (`inference`).
 - **Missing data** (`inference`): missingness patterns and Little's MCAR
   test; EM for the multivariate normal under MAR with observed-information
   standard errors; proper multiple imputation by data augmentation with a
@@ -134,6 +145,12 @@ defects that are now fixed with oracle-backed regression tests.
   proposal (eigenvalues near 5e-4, estimates biased low by up to 100% with
   small reported c.o.v.); adapted eigenvalues are now floored at 0.55 and a
   warning flags degenerate weights.
+- Seventh review round: validation coverage keys rounded 0.975 to 98% (and
+  could collide); the deprecation note broke docstring dedenting; contingency
+  counts above 2^53 were rounded and huge tables lost residual accuracy
+  (now exact rational arithmetic); Wasserstein integrals are split at
+  quantile crossings (W1 error 3.9e-5 to 8e-13) and unconverged quadrature
+  now warns instead of returning silently.
 - Sixth review round: tanh-sinh quadrature truncated 1e-15 from the ends,
   losing up to 3.7% of heavy-tailed quantile Wasserstein distances with a
   far too small error estimate (nodes now reach 1e-300; the routine moved to
