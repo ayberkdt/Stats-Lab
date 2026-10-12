@@ -184,6 +184,9 @@ defects that are now fixed with oracle-backed regression tests.
   antithetic chains (now bounded below as in stan-dev/posterior), and AK-MCS
   reported nonsense (Pf 0.641 vs 8.2e-4) on near-singular GP fits because its
   incremental posterior did not repeat the fit's arithmetic.
+- Eleventh review round: `integrate(auto)` reports `converged=False` whenever
+  its two rules disagree or Gauss-Kronrod is blind; `propagate_until` waits
+  for `min_samples` draws before declaring its target met.
 - Tenth review round: `integrate(auto)` reported convergence when
   Gauss-Kronrod missed all of the mass; quantile Wasserstein distances hit
   `Q(1) = inf` for discrete laws without `isf`; `run_until` could report
