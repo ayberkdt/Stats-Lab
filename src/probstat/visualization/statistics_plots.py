@@ -9,6 +9,7 @@ from typing import Any
 from probstat.statistics import gaussian_kde, quantile
 
 from .theme import (
+    MAX_BAND_ALPHA,
     PROJECTED,
     active_palette,
     axis_labels,
@@ -363,7 +364,7 @@ def plot_distribution_comparison(
             [index - h * scale for h in heights],
             [index + h * scale for h in heights],
             color=colour,
-            alpha=0.22,
+            alpha=MAX_BAND_ALPHA,
             linewidth=0.0,
         )
         axes.plot(

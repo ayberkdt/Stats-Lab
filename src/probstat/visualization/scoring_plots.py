@@ -40,6 +40,7 @@ from .theme import (
     ANNOTATION_SIZE,
     BAND_ALPHA,
     INNER_BAND_ALPHA,
+    MAX_BAND_ALPHA,
     REFERENCE,
     REFERENCE_WIDTH,
     active_palette,
@@ -121,7 +122,7 @@ def plot_reliability_diagram(
         for item in used:
             top.vlines(
                 item.mean_forecast, item.consistency_lower, item.consistency_upper,
-                colors=palette.muted, linewidth=7.0, alpha=0.3, zorder=1,
+                colors=palette.muted, linewidth=7.0, alpha=MAX_BAND_ALPHA, zorder=1,
             )  # fmt: skip
     _identity(top, 0.0, 1.0)
     xs = [item.mean_forecast for item in used]
