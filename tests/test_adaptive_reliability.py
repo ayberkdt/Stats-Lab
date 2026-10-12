@@ -425,3 +425,20 @@ class AKMCSTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CrossEntropyStallTests(unittest.TestCase):
+    """A stalled, unconverged CE run on a symmetric system is flagged."""
+
+    def test_four_branch_default_size_is_flagged(self) -> None:
+        """Four-branch at the default N: unconverged, mean near 0, flagged."""
+        from probstat.reliability import cross_entropy_importance_sampling
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            result = cross_entropy_importance_sampling(
+                make_state(four_branch, 2), seed=1
+            )
+        self.assertFalse(result.converged)
+        self.assertTrue(math.isnan(result.uncovered_elite_fraction))
+        self.assertTrue(result.multiple_failure_regions_suspected)

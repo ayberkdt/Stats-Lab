@@ -119,9 +119,12 @@ class CrossEntropyResult:
             proposal then overlaps every direction).
         multiple_failure_regions_suspected: ``True`` when
             ``uncovered_elite_fraction`` exceeds
-            ``CE_MAX_UNCOVERED_ELITE_FRACTION``: the nominal sample found
+            ``CE_MAX_UNCOVERED_ELITE_FRACTION`` (the nominal sample found
             low-``G`` regions that the single Gaussian proposal does not
-            cover, so the estimate is likely biased low.
+            cover, so the estimate is likely biased low), or when the run did
+            not converge while its mean stayed within ``CE_MIN_MEAN_NORM`` of
+            the origin, the symptom of several regions pulling the proposal
+            in opposite directions (symmetric series systems).
 
     References:
         [REF-RUBINSTEIN-KROESE-2004], [REF-KURTZ-SONG-2013].
@@ -303,9 +306,15 @@ def cross_entropy_importance_sampling(
     ``multiple_failure_regions_suspected`` is set. For one convex (or
     near-planar) failure region every elite point satisfies ``u . alpha >=
     q > 0``, so the fraction is close to zero. The check costs no model
-    calls. It cannot see a region with no first-level elite point, and with
-    an ``initial_mean`` the first level is no longer drawn from the input
-    law, which weakens it.
+    calls. It is a half-space test, so it only sees regions more than 90
+    degrees away from the final mean: two failure regions at right angles
+    (``min(3 - u1, 3 - u2)``) can leave CE locked on one region without a
+    warning (4 of 10 runs at ``d = 2``, ``N = 500`` in a review, estimate
+    0.39-0.67 of the exact value). It cannot see a region with no
+    first-level elite point, and with an ``initial_mean`` the first level is
+    no longer drawn from the input law, which weakens it. When CE does not
+    converge and its mean stalls near the origin (opposite or symmetric
+    regions), the flag is also set.
 
     Args:
         limit_state: Model limit state.
@@ -483,8 +492,18 @@ def cross_entropy_importance_sampling(
             stacklevel=2,
         )
     uncovered = _uncovered_fraction(first_elite, mean)
-    multimodal = uncovered > CE_MAX_UNCOVERED_ELITE_FRACTION
-    if multimodal:
+    stalled = math.isnan(uncovered) and not converged
+    multimodal = uncovered > CE_MAX_UNCOVERED_ELITE_FRACTION or stalled
+    if stalled:
+        warnings.warn(
+            "CE-IS did not converge and its proposal mean stayed near the "
+            "origin, the pattern of several failure regions in opposite "
+            "directions; use find_design_points with "
+            "mixture_importance_sampling, or subset_simulation",
+            UserWarning,
+            stacklevel=2,
+        )
+    elif multimodal:
         warnings.warn(
             f"CE-IS proposal covers one failure region only: {uncovered:.0%} of "
             "the first-level elite points lie behind the origin as seen from "

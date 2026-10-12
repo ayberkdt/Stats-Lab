@@ -463,3 +463,22 @@ class ErrorTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CoordinateLabelTests(unittest.TestCase):
+    """Unconstrained names state the transform actually used."""
+
+    def test_bounded_and_mixed_supports(self) -> None:
+        """Shifted bounds appear in the label; list sites label each element."""
+
+        def model(m: ModelHandle) -> None:
+            """Declare sites with shifted, interval, and mixed supports."""
+            m.sample("x", TruncatedNormal(0.0, 1.0, upper=1.0))
+            m.sample("s", Uniform(5.0, 7.0))
+            m.sample("v", [Normal(0.0, 1.0), Gamma(2.0, 1.0)])
+
+        names = ppl.trace(model).unconstrained_names
+        self.assertIn("log(1 - x)", names)
+        self.assertIn("log((s - 5) / (7 - s))", names)
+        self.assertIn("v[0]", names)
+        self.assertIn("log(v[1])", names)

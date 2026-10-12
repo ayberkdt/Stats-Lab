@@ -20,6 +20,14 @@ The bijection of a site is chosen from the support of the distribution that
 is active *at that evaluation*, so bounds that depend on earlier latent
 values (``Uniform(0, theta)``) are handled; the map is lower triangular in
 site order, so the log-Jacobian is the sum of the per-site terms.
+
+Floating-point limit: on an interval ``(a, b)`` the map
+``x = a + (b - a) sigmoid(u)`` rounds to exactly ``b`` once ``u`` exceeds
+about 37, where the density is evaluated at the bound and treated as zero.
+For a density with an integrable singularity at the upper bound (for
+example ``Beta(1, 0.05)``) this silently drops mass (16% for that law in a
+review); the lower bound at ``a = 0`` keeps full resolution. Reparameterize
+such a site (for example ``1 - x``) so the singular end sits at zero.
 """
 
 from __future__ import annotations
@@ -231,10 +239,17 @@ class Bijection:
         if self.kind == "identity":
             return name
         if self.kind == "lower":
-            return f"log({name})"
+            assert self.lower is not None
+            if self.lower == 0.0:
+                return f"log({name})"
+            return f"log({name} - {self.lower:g})"
         if self.kind == "upper":
-            return f"log(-{name})"
-        return f"logit({name})"
+            assert self.upper is not None
+            return f"log({self.upper:g} - {name})"
+        assert self.lower is not None and self.upper is not None
+        if self.lower == 0.0 and self.upper == 1.0:
+            return f"logit({name})"
+        return f"log(({name} - {self.lower:g}) / ({self.upper:g} - {name}))"
 
 
 _IDENTITY = Bijection("identity")
@@ -498,6 +513,7 @@ class SiteInfo:
     bijection: Bijection | None
     reparam: str | None
     value: Any
+    element_bijections: tuple[Bijection, ...] = ()
 
     @property
     def length(self) -> int:
@@ -791,6 +807,7 @@ class ModelHandle:
                 bijections[0],
                 reparam,
                 packed,
+                tuple(bijections),
             )
         )
         return packed
@@ -820,9 +837,12 @@ class ModelHandle:
                             f"site {site!r}: fixed value must be a scalar"
                         )
                     return [float(fixed)]
+                if isinstance(fixed, list):
+                    fixed = tuple(fixed)
                 if not isinstance(fixed, tuple) or len(fixed) != size:
                     raise ModelSpecificationError(
-                        f"site {site!r}: fixed value must have length {size}"
+                        f"site {site!r}: fixed value must be a sequence of "
+                        f"length {size}"
                     )
                 return [float(v) for v in fixed]
             if self._require_fixed:
@@ -1190,12 +1210,17 @@ class ModelIR:
         names: list[str] = []
         for site in self.latent_sites:
             assert site.bijection is not None
-            base = (
-                f"{site.name}_z"
-                if site.reparam == "noncentered"
-                else site.bijection.label(site.name)
-            )
-            names.extend(site.flat_names(base))
+            if site.reparam == "noncentered":
+                names.extend(site.flat_names(f"{site.name}_z"))
+            elif site.size is not None and len(site.element_bijections) == site.size:
+                # Mixed supports in one list site: label every element by its
+                # own transform.
+                names.extend(
+                    bijection.label(f"{site.name}[{index}]")
+                    for index, bijection in enumerate(site.element_bijections)
+                )
+            else:
+                names.extend(site.flat_names(site.bijection.label(site.name)))
         return tuple(names)
 
     @property

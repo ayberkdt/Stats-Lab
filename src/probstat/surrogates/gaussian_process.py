@@ -745,7 +745,9 @@ def fit_gaussian_process(
         kernel: ``"squared_exponential"`` or ``"matern52"``.
         nugget: Explicit positive diagonal variance in standardized units.
         estimate_noise: Also estimate a noise variance above the nugget.
-        optimize: Maximize the likelihood; ``False`` keeps the first start.
+        optimize: Maximize the likelihood; ``False`` keeps the first start
+            (with ``regularization``, the start is first clipped to the inner
+            98% of the box, so it can move slightly).
         restarts: Total number of optimizer starts (at least one).
         seed: Integer seed or stream for the restart perturbations.
         initial_log_parameters: Optional first start ``theta``.
