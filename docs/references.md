@@ -2026,3 +2026,26 @@ Statistics. Springer-Verlag, New York, 1992. ISBN 0-387-97720-1.
 E. L. Lehmann and George Casella. *Theory of Point Estimation*. 2nd edition.
 Springer Texts in Statistics. Springer, New York, 1998. ISBN 0-387-98502-6.
 DOI: [10.1007/b98854](https://doi.org/10.1007/b98854).
+
+## REF-CARPENTER-ETAL-2017
+
+Bob Carpenter, Andrew Gelman, Matthew D. Hoffman, Daniel Lee, Ben Goodrich,
+Michael Betancourt, Marcus A. Brubaker, Jiqiang Guo, Peter Li, and Allen
+Riddell. "Stan: A Probabilistic Programming Language." *Journal of
+Statistical Software* 76(1), 1-32, 2017.
+DOI: [10.18637/jss.v076.i01](https://doi.org/10.18637/jss.v076.i01).
+
+## REF-BINGHAM-ETAL-2019
+
+Eli Bingham, Jonathan P. Chen, Martin Jankowiak, Fritz Obermeyer, Neeraj
+Pradhan, Theofanis Karaletsos, Rohit Singh, Paul Szerlip, Paul Horsfall,
+and Noah D. Goodman. "Pyro: Deep Universal Probabilistic Programming."
+*Journal of Machine Learning Research* 20(28), 1-6, 2019.
+[https://jmlr.org/papers/v20/18-403.html](https://jmlr.org/papers/v20/18-403.html).
+
+## REF-PAPASPILIOPOULOS-ROBERTS-SKOLD-2007
+
+Omiros Papaspiliopoulos, Gareth O. Roberts, and Martin Sköld. "A General
+Framework for the Parametrization of Hierarchical Models." *Statistical
+Science* 22(1), 59-73, 2007.
+DOI: [10.1214/088342307000000014](https://doi.org/10.1214/088342307000000014).
