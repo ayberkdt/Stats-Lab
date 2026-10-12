@@ -2699,7 +2699,10 @@ folded draws `|x - median(x)|` (tail); report the maximum.
 `rho_t = 1 - (W - mean_m c_{t,m}) / var+` with biased within-chain
 autocovariances `c_{t,m}` and `rho_0 = 1`;
 `Gamma_k = rho_{2k} + rho_{2k+1}`, truncated at the first non-positive
-`Gamma_k` and made non-increasing; `ESS = M n / (-1 + 2 sum_k Gamma_k)`.
+`Gamma_k` and made non-increasing; `tau = max(-1 + 2 sum_k Gamma_k,
+1 / log10(M n))` and `ESS = M n / tau`. The lower bound on `tau` (from the
+reference code of Vehtari et al.) keeps the ESS positive for strongly
+antithetic chains, where the truncated sum can be below one half.
 
 - Domain: `M` equal-length chains of at least four draws with positive
   pooled variance.
