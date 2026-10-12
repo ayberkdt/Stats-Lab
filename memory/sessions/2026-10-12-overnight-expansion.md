@@ -74,5 +74,6 @@ Recorded in each merge commit message. Final state at 05:26:
 files, all 31 example labs run, benchmark quick mode 188 runs with 0
 unexpected failures, UX auditor 0 HATA / 0 UYARI on the complete study
 report (no horizontal scroll at 375 px, 85% of the first screen is primary
-content). Twelve numerical review rounds in total; the last two found only
-convergence-flag honesty issues, all fixed. Nothing was pushed.
+content). Eleven numerical review rounds in total (changelog numbering); the last
+two found mainly convergence-flag honesty issues and a missing minimum
+sample size, all fixed. Nothing was pushed.
