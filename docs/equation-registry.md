@@ -8569,3 +8569,52 @@ toward zero.
   are too small.
 - Code: `inference.complete_cases`, `inference.mean_impute`.
 - Source: [REF-LITTLE-RUBIN-2019].
+
+### EQ-NUM-GK15-001 — Gauss-Kronrod G7-K15 panel and QUADPACK local error
+
+On `[a, b]` with centre `c` and half-width `h`,
+`K15 = h sum_{i=1}^{15} w_i f(c + h x_i)` and `G7 = h sum_{j=1}^{7} v_j f(c + h y_j)`,
+the seven `y_j` being Gauss-Legendre nodes contained in the fifteen Kronrod
+nodes `x_i`. With `I_abs = h sum w_i |f_i|` and
+`I_asc = h sum w_i |f_i - K15/(2h)|`, the local error estimate is
+`E = max(50 eps I_abs, I_asc min(1, (200 |K15 - G7| / I_asc)^1.5))`.
+
+- Domain: finite panel; `f` finite at the 15 interior nodes (never at `a`, `b`).
+- Meaning: K15 is exact for polynomials of degree at most 22 and G7 for degree
+  at most 13; the scaled difference is QUADPACK's empirical, deliberately
+  pessimistic error estimate.
+- Code: `numerics.gauss_kronrod.kronrod_panel`, `numerics.gauss_kronrod`.
+- Source: [REF-PIESSENS-QUADPACK-1983], [REF-KRONROD-1965], [REF-LAURIE-1997].
+
+### EQ-NUM-QAG-001 — Globally adaptive bisection and the QAGI substitution
+
+Keep a partition `{P_k}` with estimates `(I_k, E_k)` from [EQ-NUM-GK15-001];
+bisect `argmax_k E_k` until `sum E_k <= max(abs_tol, rel_tol |sum I_k|)` or
+the panel count reaches `limit`. Infinite ranges use
+`int_a^inf f(x) dx = int_0^1 f(a + (1 - t)/t) t^-2 dt` (and the folded
+`f(x) + f(-x)` on the whole line).
+
+- Domain: `abs_tol >= 0`, `rel_tol >= 50 eps` when `abs_tol = 0`, `limit >= 1`.
+- Meaning: refinement concentrates where the local error is largest; reaching
+  `limit` or an unbisectable panel is reported as non-convergence.
+- Code: `numerics.gauss_kronrod`, `numerics.integrate`.
+- Source: [REF-PIESSENS-QUADPACK-1983].
+
+### EQ-NUM-DE-001 — Double-exponential rules on general ranges
+
+`int f(x) dx = int f(phi(t)) phi'(t) dt ~ h sum_k f(phi(kh)) phi'(kh)` with
+tanh-sinh `phi(t) = a + (b - a)/(1 + exp(-pi sinh t))` on `[a, b]`, exp-sinh
+`phi(t) = a + exp((pi/2) sinh t)` on `[a, inf)`, and sinh-sinh
+`phi(t) = sinh((pi/2) sinh t)` on the line; `h = 2^-k` is halved, reusing
+nodes, until `E = max(|T_k - T_{k-1}|, 50 eps h sum |f phi'|) +
+h sum |f phi'| min(1, ulp(x)/d) <= max(abs_tol, rel_tol |T_k|)`, `d` being
+the distance to the nearest finite end.
+
+- Domain: `f` analytic in a strip around the open range, integrable end
+  singularities at a zero end, decay faster than `1/|x|` on infinite ranges.
+- Meaning: the transformed integrand decays double-exponentially, so the
+  trapezoidal error falls like `exp(-c N / log N)`; the last term guards
+  against singularities at a non-zero end that floating point cannot resolve.
+- Code: `numerics.tanh_sinh_interval`, `numerics.exp_sinh`,
+  `numerics.sinh_sinh`, `numerics.integrate`.
+- Source: [REF-TAKAHASI-MORI-1974], [REF-MORI-SUGIHARA-2001].

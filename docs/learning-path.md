@@ -106,6 +106,9 @@ prerequisite guides. Every snippet in them is executed by
   a map from course concepts to `probstat` objects.
 - [R bridge](prerequisites/r-bridge.md): R functions and their `probstat`
   equivalents, with parameterization and default differences.
+- [Numerical integration](prerequisites/numerical-integration.md): adaptive
+  Gauss-Kronrod, tanh-sinh, exp-sinh and sinh-sinh rules with error
+  estimates, and where each one fails.
 
 ## Stage 0 — Language of uncertainty
 

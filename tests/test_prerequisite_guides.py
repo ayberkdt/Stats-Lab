@@ -22,6 +22,7 @@ GUIDES = (
     "multivariable-calculus-and-conditioning.md",
     "probability-and-statistics-refresher.md",
     "r-bridge.md",
+    "numerical-integration.md",
 )
 BLOCK_PATTERN = re.compile(r"^```(\w+)\n(.*?)^```$", re.MULTILINE | re.DOTALL)
 
@@ -57,7 +58,7 @@ class PrerequisiteGuideTests(unittest.TestCase):
     """Guides contain only snippets that run and print what they claim."""
 
     def test_every_guide_exists_and_has_snippets(self) -> None:
-        """The five guides exist and each holds at least two snippets."""
+        """Every listed guide exists and holds at least two snippets."""
         for name in GUIDES:
             with self.subTest(guide=name):
                 path = GUIDE_DIRECTORY / name
