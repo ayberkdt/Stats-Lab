@@ -1,4 +1,4 @@
-"""Descriptive statistics for finite, univariate and paired samples."""
+"""Descriptive statistics for finite samples and one-pass streaming summaries."""
 
 from .density import KernelDensity, gaussian_kde, kde_bandwidth
 from .descriptive import (
@@ -21,10 +21,21 @@ from .order import (
     skewness,
     spearman_correlation,
 )
+from .streaming import (
+    ExceedanceCounter,
+    P2Quantile,
+    ReservoirSampler,
+    RunningCovariance,
+    RunningMoments,
+    StreamingRunResult,
+    WeightedRunningMoments,
+    run_until,
+)
 
 __all__ = [
     "covariance",
     "empirical_cdf",
+    "ExceedanceCounter",
     "excess_kurtosis",
     "gaussian_kde",
     "interquartile_range",
@@ -33,13 +44,20 @@ __all__ = [
     "mean",
     "median",
     "median_absolute_deviation",
+    "P2Quantile",
     "pearson_correlation",
     "quantile",
     "quantiles",
     "ranks",
+    "ReservoirSampler",
+    "run_until",
+    "RunningCovariance",
+    "RunningMoments",
     "skewness",
     "spearman_correlation",
     "standard_deviation",
+    "StreamingRunResult",
     "variance",
+    "WeightedRunningMoments",
     "z_scores",
 ]

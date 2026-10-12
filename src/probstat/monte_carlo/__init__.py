@@ -5,6 +5,7 @@ from .estimation import (
     ProbabilityEstimate,
     convergence_trace,
     estimate_mean,
+    estimate_mean_streaming,
     estimate_probability,
     estimate_uniform_integral,
 )
@@ -63,6 +64,7 @@ __all__ = [
     "estimate_control_variate",
     "estimate_importance_sampling",
     "estimate_mean",
+    "estimate_mean_streaming",
     "estimate_probability",
     "estimate_stratified_uniform",
     "estimate_uniform_integral",

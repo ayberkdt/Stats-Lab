@@ -2056,3 +2056,42 @@ Ioannis Andrianakis and Peter G. Challenor. "The Effect of the Nugget on
 Gaussian Process Emulators of Computer Models." *Computational Statistics &
 Data Analysis* 56(12), 4215-4228, 2012.
 DOI: [10.1016/j.csda.2012.04.020](https://doi.org/10.1016/j.csda.2012.04.020).
+
+## REF-WELFORD-1962
+
+B. P. Welford. "Note on a Method for Calculating Corrected Sums of Squares
+and Products." *Technometrics* 4(3), 419-420, 1962.
+DOI: [10.2307/1266577](https://doi.org/10.2307/1266577).
+
+## REF-WEST-1979
+
+D. H. D. West. "Updating Mean and Variance Estimates: An Improved Method."
+*Communications of the ACM* 22(9), 532-535, 1979.
+DOI: [10.1145/359146.359153](https://doi.org/10.1145/359146.359153).
+
+## REF-CHAN-GOLUB-LEVEQUE-1983
+
+Tony F. Chan, Gene H. Golub, and Randall J. LeVeque. "Algorithms for
+Computing the Sample Variance: Analysis and Recommendations." *The American
+Statistician* 37(3), 242-247, 1983.
+DOI: [10.1080/00031305.1983.10483115](https://doi.org/10.1080/00031305.1983.10483115).
+
+## REF-PEBAY-2008
+
+Philippe Pébay. "Formulas for Robust, One-Pass Parallel Computation of
+Covariances and Arbitrary-Order Statistical Moments." Sandia National
+Laboratories technical report SAND2008-6212, 2008. OSTI ID 1028931.
+[https://www.osti.gov/biblio/1028931](https://www.osti.gov/biblio/1028931).
+
+## REF-JAIN-CHLAMTAC-1985
+
+Raj Jain and Imrich Chlamtac. "The P² Algorithm for Dynamic Calculation of
+Quantiles and Histograms Without Storing Observations." *Communications of
+the ACM* 28(10), 1076-1085, 1985. Author copy:
+[https://classes.engineering.wustl.edu/~jain/papers/ftp/psqr.pdf](https://classes.engineering.wustl.edu/~jain/papers/ftp/psqr.pdf).
+
+## REF-VITTER-1985
+
+Jeffrey Scott Vitter. "Random Sampling with a Reservoir." *ACM Transactions
+on Mathematical Software* 11(1), 37-57, 1985.
+DOI: [10.1145/3147.3165](https://doi.org/10.1145/3147.3165).

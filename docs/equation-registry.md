@@ -9048,3 +9048,111 @@ starting density) and `mu` the final proposal mean,
   quarter to a third of the exact value).
 - Code: `reliability.cross_entropy_importance_sampling`.
 - Source: [REF-RUBINSTEIN-KROESE-2004], [REF-KURTZ-SONG-2013].
+
+### EQ-STAT-STREAM-001 — Shifted Welford update of the mean and second central sum
+
+With shift `K = x_1`, `y_i = x_i - K`, running mean `a_n` of the `y_i`, and
+`M2_n = sum_{i<=n} (y_i - a_n)^2`: `delta = y_n - a_{n-1}`,
+`a_n = a_{n-1} + delta / n`, `M2_n = M2_{n-1} + delta^2 (n - 1) / n`; the
+reported mean is `K + a_n` and the variance `M2_n / (n - d)`.
+
+- Domain: finite real observations, `n >= 1`; `0 <= d < n` for the variance.
+- Meaning: one pass, constant memory. Central sums are shift invariant, and
+  for data with a large common offset `x_i - K` is exact, so the recurrence
+  runs on well-scaled numbers (2000 values `1e9 + Exp(1)`: relative variance
+  error `3.5e-16`, unshifted Welford `2.0e-8`).
+- Code: `statistics.RunningMoments`, `statistics.RunningCovariance`,
+  `monte_carlo.estimate_mean_streaming`.
+- Source: [REF-WELFORD-1962], [REF-CHAN-GOLUB-LEVEQUE-1983] (shifted data).
+
+### EQ-STAT-STREAM-002 — Pairwise merge of means, second central sums, and co-moments
+
+For disjoint chunks `A`, `B` with counts `n_A`, `n_B`, `n = n_A + n_B`, and
+`delta = mean_B - mean_A`: `mean = mean_A + delta n_B / n`,
+`M2 = M2_A + M2_B + delta^2 n_A n_B / n`, and for vectors
+`C_jk = C_A,jk + C_B,jk + delta_j delta_k n_A n_B / n`.
+
+- Domain: `n_A, n_B >= 1`; an empty chunk is the identity.
+- Meaning: summaries of chunks combine into the summary of the concatenated
+  data, so the computation parallelizes; the single-value update of
+  [EQ-STAT-STREAM-001] is the case `n_B = 1`.
+- Code: `statistics.RunningMoments.merge`, `statistics.RunningCovariance`.
+- Source: [REF-CHAN-GOLUB-LEVEQUE-1983], [REF-PEBAY-2008].
+
+### EQ-STAT-STREAM-003 — Pairwise merge of third and fourth central sums
+
+With the notation of [EQ-STAT-STREAM-002]:
+`M3 = M3_A + M3_B + delta^3 n_A n_B (n_A - n_B) / n^2
++ 3 delta (n_A M2_B - n_B M2_A) / n` and
+`M4 = M4_A + M4_B + delta^4 n_A n_B (n_A^2 - n_A n_B + n_B^2) / n^3
++ 6 delta^2 (n_A^2 M2_B + n_B^2 M2_A) / n^2 + 4 delta (n_A M3_B - n_B M3_A) / n`.
+Then `g1 = sqrt(n) M3 / M2^(3/2)` and `g2 = n M4 / M2^2 - 3`.
+
+- Domain: as [EQ-STAT-STREAM-002]; `M2 > 0` for `g1`, `g2`.
+- Meaning: one-pass, mergeable skewness and kurtosis equal to
+  [EQ-STAT-SHAPE-001]; with `n_B = 1` and `M2_B = M3_B = M4_B = 0` this is the
+  streaming update.
+- Code: `statistics.RunningMoments`.
+- Source: [REF-PEBAY-2008].
+
+### EQ-STAT-STREAM-004 — West's weighted update and weighted-variance conventions
+
+For weight `w > 0`: `W' = W + w`, `delta = x - mean`, `R = delta w / W'`,
+`mean' = mean + R`, `S' = S + W delta R`; merge
+`S = S_A + S_B + delta^2 W_A W_B / W`. Variances: population `S / W`,
+frequency `S / (W - 1)`, reliability `S / (W - V / W)` with `V = sum w_i^2`;
+effective sample size `W^2 / V`.
+
+- Domain: finite values, finite non-negative weights, `W > 0`; each
+  denominator must be positive.
+- Meaning: `S = sum w_i (x_i - mean)^2` and `mean = sum w_i x_i / W` in one
+  pass; the convention states whether weights are repeat counts or relative
+  precisions.
+- Code: `statistics.WeightedRunningMoments`.
+- Source: [REF-WEST-1979], [REF-CHAN-GOLUB-LEVEQUE-1983].
+
+### EQ-STAT-STREAM-005 — P² marker adjustment
+
+Markers at heights `q_1..q_5` and integer positions `n_1..n_5` with desired
+positions `n'_i` advancing by `(0, p/2, p, (1+p)/2, 1)` per observation. If
+`d = n'_i - n_i` satisfies `d >= 1, n_{i+1} - n_i > 1` or
+`d <= -1, n_{i-1} - n_i < -1`, set `s = sign(d)`,
+`q_i <- q_i + s / (n_{i+1} - n_{i-1}) [ (n_i - n_{i-1} + s)(q_{i+1} - q_i) /
+(n_{i+1} - n_i) + (n_{i+1} - n_i - s)(q_i - q_{i-1}) / (n_i - n_{i-1}) ]`
+when this stays strictly between `q_{i-1}` and `q_{i+1}`, else the linear
+`q_i + s (q_{i+s} - q_i) / (n_{i+s} - n_i)`; then `n_i <- n_i + s`.
+
+- Domain: `0 < p < 1`, at least six observations (exact type-7 quantile
+  before).
+- Meaning: five-number fixed-memory estimate `q_3` of the `p`-quantile; a
+  heuristic without a worst-case error bound and not mergeable.
+- Code: `statistics.P2Quantile`.
+- Source: [REF-JAIN-CHLAMTAC-1985].
+
+### EQ-STAT-STREAM-006 — Reservoir sampling (Algorithm R)
+
+Keep the first `k` items; for item `t > k` draw `J` uniform on
+`{1, ..., t}` and replace slot `J` when `J <= k`. After `n` items each item is
+retained with probability `min(1, k / n)` and every `k`-subset is equally
+likely.
+
+- Domain: capacity `k >= 1`; a uniform integer generator.
+- Meaning: an exact uniform random subsample of fixed size from a stream of
+  unknown length.
+- Code: `statistics.ReservoirSampler`.
+- Source: [REF-VITTER-1985].
+
+### EQ-STAT-STREAM-007 — Relative-standard-error stopping rule
+
+`r_n = s_n / (sqrt(n) |mean_n|)` with `s_n^2 = M2_n / (n - 1)`; stop at the
+first check `n in {n_0, n_0 + h, n_0 + 2h, ...}` with `r_n <= epsilon`, or at
+`n = N_max`.
+
+- Domain: `n >= 2`, `epsilon > 0`, `n_0 >= 2`, `h >= 1`; `r_n = inf` when
+  `mean_n = 0` and `s_n > 0`.
+- Meaning: a fixed relative precision target for a running Monte Carlo mean,
+  with constant memory; data-dependent stopping makes `r_n` slightly
+  optimistic.
+- Code: `statistics.run_until`, `statistics.RunningMoments`,
+  `monte_carlo.estimate_mean_streaming`.
+- Source: [REF-ROBERT-CASELLA-2004, Chapters 3-4] ([EQ-MC-SE-001]).
