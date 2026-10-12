@@ -83,7 +83,7 @@ figures.
 | Validation | `validation` | Area metric, u-pooling, ASME V&V 20 comparison, applicability domain, scoped verdicts, CRPS and proper scores, PIT and reliability diagrams, distribution-shift tests |
 | Dynamics | `filtering`, `data_assimilation`, `processes` | Kalman/EKF/UKF, RTS smoother, particle filter, EnKF, 3D-Var; Markov chains, SDEs, random fields |
 | Emulators | `surrogates` | Polynomial chaos (Sobol from coefficients), Gaussian-process regression |
-| Statistics | `statistics`, `inference`, `distributions`, `information` | Tests, bootstrap (BCa), power, multiple testing, kernel density, 20+ distribution families, generic MLE and AIC/BIC selection, entropy, mutual information, optimal transport, Fisher-Rao geometry |
+| Statistics | `statistics`, `inference`, `distributions`, `information` | Tests, bootstrap (BCa), power, multiple testing, kernel density, streaming summaries, limit theorems, 20+ distribution families, generic MLE and AIC/BIC selection, entropy, mutual information, optimal transport, Fisher-Rao geometry |
 | Modeling | `inference`, `timeseries`, `conformal` | Regression and GLMs, ridge/lasso, hierarchical models, EM and mixtures, missing data and multiple imputation, contingency tables, ARIMA, Kaplan-Meier/Cox survival, conformal prediction |
 | Decisions | `causal`, `design` | Back-door/front-door identification, IPW/AIPW, E-values; D-optimal and Bayesian experimental design |
 | Foundations | `linalg`, `optimization`, `numerics`, `probability` | Cholesky/LU/Jacobi, BFGS/Levenberg-Marquardt/Brent, quadrature, exact finite probability |
