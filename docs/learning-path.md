@@ -69,6 +69,9 @@ Statistical modelling and decision tools extend the same foundations:
   likelihoods and forecasts; censored data, Kaplan-Meier, and Cox models.
 - [Model discrepancy](foundations/model-discrepancy.md): Kennedy-O'Hagan
   calibration when the simulator itself is wrong.
+- [Probabilistic programming](foundations/probabilistic-programming.md):
+  write a Bayesian model as a Python function and run NUTS, ADVI, or Laplace
+  on it.
 - [Extreme values](foundations/extreme-value-analysis.md) and
   [adaptive reliability](foundations/adaptive-reliability.md): return levels,
   multiple design points, and active learning for rare events.

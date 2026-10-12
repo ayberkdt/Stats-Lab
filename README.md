@@ -79,7 +79,7 @@ figures.
 | Sensitivity | `sensitivity` | Sobol first/total indices with bootstrap intervals, Morris screening, local derivatives |
 | Reliability | `reliability` | HL-RF FORM, SORM, multiple design points, importance and subset sampling, line sampling, AK-MCS active learning, system bounds, inverse FORM |
 | Risk | `risk` | VaR/CVaR, loss models, fault and event trees, fragility curves, EVPI/EVSI, GEV/GPD extremes and return levels |
-| Backward | `inverse`, `inference` | Nonlinear calibration, Kennedy-O'Hagan model discrepancy, adaptive Metropolis, HMC/NUTS, ADVI, Laplace, posterior prediction |
+| Backward | `inverse`, `inference` | Nonlinear calibration, Kennedy-O'Hagan model discrepancy, a small probabilistic-programming interface, adaptive Metropolis, HMC/NUTS, ADVI, Laplace, posterior prediction |
 | Validation | `validation` | Area metric, u-pooling, ASME V&V 20 comparison, applicability domain, scoped verdicts, CRPS and proper scores, PIT and reliability diagrams, distribution-shift tests |
 | Dynamics | `filtering`, `data_assimilation`, `processes` | Kalman/EKF/UKF, RTS smoother, particle filter, EnKF, 3D-Var; Markov chains, SDEs, random fields |
 | Emulators | `surrogates` | Polynomial chaos (Sobol from coefficients), Gaussian-process regression |

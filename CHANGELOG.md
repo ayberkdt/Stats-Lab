@@ -94,6 +94,13 @@ defects that are now fixed with oracle-backed regression tests.
   Wasserstein distances and barycenters; closed-form and numerical Fisher
   information, Fisher-Rao distances, Hellinger, Bhattacharyya, total
   variation, Renyi, and alpha divergences.
+- **Probabilistic programming** (`inference.ppl`): models written as plain
+  Python functions with `sample`, `observe`, and `deterministic` sites;
+  automatic bijections to unconstrained space with Jacobians, non-centred
+  reparameterization, conditioning by name; NUTS, HMC, Metropolis, ADVI, and
+  Laplace back ends; prior and posterior predictive sampling and predictive
+  p-values. Eight schools written as a model matches the exact grid
+  posterior within Monte Carlo error.
 - **Benchmark suite** (`benchmarks/`): 11 problems with independently
   verified references (reliability, sensitivity, propagation, calibration)
   and 34 method adapters; per-method error, error in units of the method's
@@ -156,6 +163,14 @@ defects that are now fixed with oracle-backed regression tests.
   proposal (eigenvalues near 5e-4, estimates biased low by up to 100% with
   small reported c.o.v.); adapted eigenvalues are now floored at 0.55 and a
   warning flags degenerate weights.
+- Gaussian-process fits can be regularized (bounded length scales and
+  signal variance, relative nugget, optional log-normal prior; reported when
+  an optimum sits on a bound); AK-MCS uses this by default and no longer
+  stops at its initial design on smooth limit states or misclassifies on
+  white-noise fits (four-branch: 19 misclassified points over 10 seeds
+  before, 0 after). Cross-entropy IS warns when its proposal locks onto one
+  of several failure regions (all 7 locked four-branch runs warn; 0 of 40
+  single-region runs do).
 - Found by the benchmark suite: `effective_sample_size` could be negative on
   antithetic chains (now bounded below as in stan-dev/posterior), and AK-MCS
   reported nonsense (Pf 0.641 vs 8.2e-4) on near-singular GP fits because its

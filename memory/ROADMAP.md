@@ -92,7 +92,8 @@ tested evidence.
 
 ## Phase 6 — Frontier systems
 
-- [ ] Probabilistic programming intermediate representation and inference API.
+- [~] Probabilistic programming intermediate representation and inference API
+  (ADR-0053; finite-difference gradients, static flat-vector sites).
 - [x] Causal graphs, interventions, identification, sensitivity analysis
   (ADR-0034).
 - [x] Information measures and estimators (ADR-0036), information geometry
