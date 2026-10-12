@@ -227,17 +227,25 @@ class MarkovChainMonteCarloTests(unittest.TestCase):
         self.assertAlmostEqual(mcse, math.sqrt(1.0 / theory), delta=0.1 * mcse)
 
     def test_ess_of_antithetic_chains_is_positive_and_capped(self) -> None:
-        """Strongly antithetic chains give the capped ESS, not a negative one.
+        """Strongly antithetic chains give a positive ESS, not a negative one.
 
         Regression (benchmark suite, ADR-0049): a static-HMC calibration chain
         had lag-one autocorrelation near -1, the truncated Geyer sum gave
         ``tau = -0.16`` and ``ESS = -2471``, and ``summarize_draws`` crashed in
         ``sqrt``. An alternating chain has ``rho_1 ~ -1``, so the first pair
         sum is non-positive and the uncapped estimate was ``-M n``.
+
+        With stan-dev/posterior's improved estimate (review fix) a stopping
+        lag of zero gives ``tau = -1 + 2 rho_0 + rho_0 = 2`` (the R code's
+        ``sum(rho_hat_t[1:0])`` is ``rho_0``), so the alternating chain has
+        ``ESS = 100/2``; it used to hit the cap ``100 log10(100)``. AR(1)
+        chains with ``phi = -0.9`` still reach the cap ``200 log10(200)``.
         """
         alternating = [1.0 if t % 2 == 0 else -1.0 for t in range(100)]
         ess = effective_sample_size([alternating])
-        self.assertAlmostEqual(ess, 100.0 * math.log10(100.0))
+        self.assertAlmostEqual(ess, 50.0)
+        capped = effective_sample_size(ar1_chains(-0.9, 200, 1, seed=0))
+        self.assertAlmostEqual(capped, 200.0 * math.log10(200.0))
         jittered = [
             value + 0.01 * math.sin(3.0 * t) for t, value in enumerate(alternating)
         ]
@@ -245,6 +253,24 @@ class MarkovChainMonteCarloTests(unittest.TestCase):
         self.assertGreater(summary.effective_sample_size, 0.0)
         self.assertTrue(math.isfinite(summary.mcse_mean))
         self.assertLessEqual(summary.effective_sample_size, 200.0 * math.log10(200.0))
+
+    def test_ess_matches_posterior_improved_estimate(self) -> None:
+        """ESS equals stan-dev/posterior ``.ess`` on mildly antithetic chains.
+
+        Four AR(1) chains (``phi = -0.3``, ``n = 100``, ``random.Random(3)``).
+        Oracle ``825.6296706351059`` from a numpy port of ``.ess`` in
+        posterior's R/convergence.R (FFT autocovariances); without the
+        improved-estimate term ``rho_T`` the old code gave ``943.10``.
+        """
+        generator = random.Random(3)
+        chains = []
+        for _ in range(4):
+            x = [generator.gauss(0.0, 1.0)]
+            for _ in range(99):
+                x.append(-0.3 * x[-1] + generator.gauss(0.0, math.sqrt(1.0 - 0.09)))
+            chains.append(x)
+        ess = effective_sample_size(chains)
+        self.assertLess(abs(ess / 825.6296706351059 - 1.0), 1e-12)
 
     def test_summaries_and_degenerate_chains(self) -> None:
         """Summaries report quantiles; constant chains give undefined diagnostics."""

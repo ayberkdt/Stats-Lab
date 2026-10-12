@@ -2699,10 +2699,12 @@ folded draws `|x - median(x)|` (tail); report the maximum.
 `rho_t = 1 - (W - mean_m c_{t,m}) / var+` with biased within-chain
 autocovariances `c_{t,m}` and `rho_0 = 1`;
 `Gamma_k = rho_{2k} + rho_{2k+1}`, truncated at the first non-positive
-`Gamma_k` and made non-increasing; `tau = max(-1 + 2 sum_k Gamma_k,
-1 / log10(M n))` and `ESS = M n / tau`. The lower bound on `tau` (from the
-reference code of Vehtari et al.) keeps the ESS positive for strongly
-antithetic chains, where the truncated sum can be below one half.
+`Gamma_k` (lags `t < n - 5`, stopping lag `T`) and made non-increasing;
+`tau = max(-1 + 2 sum_{t < T} rho_t + rho_T^+, 1 / log10(M n))` and
+`ESS = M n / tau`, with `rho_T^+` the even autocorrelation at the stopping
+lag when positive (the improved estimate of the stan-dev `posterior`
+package, [REF-BURKNER-ETAL-POSTERIOR]). The lower bound on `tau` keeps the
+ESS positive for strongly antithetic chains.
 
 - Domain: `M` equal-length chains of at least four draws with positive
   pooled variance.
@@ -2710,8 +2712,8 @@ antithetic chains, where the truncated sum can be below one half.
   the mean; for AR(1) with coefficient `phi` it tends to
   `M n (1 - phi)/(1 + phi)`.
 - Code: `inference.effective_sample_size`, `inference.summarize_draws`.
-- Source: [REF-GEYER-1992], [REF-VEHTARI-ETAL-2021], and
-  [REF-GELMAN-ETAL-2013, Section 11.5].
+- Source: [REF-GEYER-1992], [REF-VEHTARI-ETAL-2021],
+  [REF-BURKNER-ETAL-POSTERIOR], and [REF-GELMAN-ETAL-2013, Section 11.5].
 
 ### EQ-MCMC-MCSE-001 — Monte Carlo standard error of a posterior mean
 
@@ -7982,7 +7984,12 @@ breakpoints `k/m`, `l/n`; `W_1 = int |F_m - G_n| dx`.
 
 `int_a^b g(u) du = (b - a) int w(t) g(a + (b - a) x(t)) dt`,
 `x(t) = 1/(1 + exp(-pi sinh t))`, `w(t) = pi cosh(t) x (1 - x)`, trapezoidal
-rule with `h = 2^-k`, nodes kept while `min(x, 1 - x) >= 1e-15`.
+rule with `h = 2^-k`, nodes kept while `min(x, 1 - x) >= 1e-300`. The error
+estimate is `|T_k - T_{k-1}|` plus the truncation term `|T(t_e)| / r` on each
+side, with `T(t_e)` the weighted integrand at the outermost node and `r` its
+decay rate towards the edge. Pieces split at breakpoints `(u, 1 - u)` (with
+exact complements near one) are converged when `sum E_i <= max(tol |sum I_i|,
+abs_tol)`.
 
 - Domain: integrands smooth inside, integrable endpoint singularities.
 - Meaning: double-exponential decay of the transformed integrand gives fast
@@ -8610,14 +8617,20 @@ tanh-sinh `phi(t) = a + (b - a)/(1 + exp(-pi sinh t))` on `[a, b]`, exp-sinh
 `phi(t) = a + exp((pi/2) sinh t)` on `[a, inf)`, and sinh-sinh
 `phi(t) = sinh((pi/2) sinh t)` on the line; `h = 2^-k` is halved, reusing
 nodes, until `E = max(|T_k - T_{k-1}|, 50 eps h sum |f phi'|) +
-h sum |f phi'| min(1, ulp(x)/d) <= max(abs_tol, rel_tol |T_k|)`, `d` being
-the distance to the nearest finite end.
+h sum' |f phi'| min(1, 2 alpha ulp(x)/d) + sum_sides |f phi'|(t_e) / r <=
+max(abs_tol, rel_tol |T_k|)`, `d` being the distance to the nearest finite
+end, `sum'` running over nodes with `ulp(x)/d >= 1e-4`, `alpha` the local
+log-log slope of `|f|` against `d`, and `t_e` the outermost node on each side
+with decay rate `r` of `|f phi'|` there.
 
 - Domain: `f` analytic in a strip around the open range, integrable end
   singularities at a zero end, decay faster than `1/|x|` on infinite ranges.
 - Meaning: the transformed integrand decays double-exponentially, so the
-  trapezoidal error falls like `exp(-c N / log N)`; the last term guards
-  against singularities at a non-zero end that floating point cannot resolve.
+  trapezoidal error falls like `exp(-c N / log N)`; the rounding term guards
+  against singularities at a non-zero end that floating point cannot resolve
+  (it vanishes for integrands that are flat at the ulp scale, `alpha ~ 0`),
+  and the truncation term against mass beyond the outermost nodes (slow
+  algebraic decay such as `x^-1.025` at infinity or `x^-0.97` at zero).
 - Code: `numerics.tanh_sinh_interval`, `numerics.exp_sinh`,
   `numerics.sinh_sinh`, `numerics.integrate`.
 - Source: [REF-TAKAHASI-MORI-1974], [REF-MORI-SUGIHARA-2001].
@@ -8651,8 +8664,10 @@ sqrt(n))` (regularized lower incomplete gamma, rate-free). Normal:
 - Code: `probability.standardized_mean_cdf`,
   `probability.sample_mean_upper_tail`,
   `probability.sample_mean_two_sided_tail`,
-  `probability.standard_normal_cdf`.
-- Source: [REF-CASELLA-BERGER-2002], [REF-NIST-DLMF-GAMMA].
+  `probability.standard_normal_cdf`. Binomial masses use Loader's
+  saddle-point form [REF-LOADER-2000], accurate to rounding for any `n`.
+- Source: [REF-CASELLA-BERGER-2002], [REF-NIST-DLMF-GAMMA],
+  [REF-LOADER-2000].
 
 ### EQ-LIM-003 — Kolmogorov distance to the normal law
 
@@ -8662,8 +8677,9 @@ atom `z_k`, so `K_n = max_k max(|F_n(z_k^-) - Phi(z_k)|, |F_n(z_k) -
 Phi(z_k)|)`.
 
 - Domain: any `n >= 1`. For continuous `F_n` the supremum is located on a
-  1601-node grid over `[-sqrt(n) - 8, 10]` (plus the support edge) and
-  refined by golden-section search.
+  1601-node grid over `[max(-sqrt(n) - 8, -40), 10]` (plus the support edge
+  when inside) and refined by golden-section search; both laws are compared
+  at the standardized value of the rounded sum `n + z sqrt(n)`.
 - Meaning: the exact uniform CLT error. The lattice formula is exact; the
   continuous maximization is numerical, and it agrees with a 40001-point
   scan to `1e-6` in the tests.

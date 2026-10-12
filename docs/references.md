@@ -2056,3 +2056,23 @@ Ioannis Andrianakis and Peter G. Challenor. "The Effect of the Nugget on
 Gaussian Process Emulators of Computer Models." *Computational Statistics &
 Data Analysis* 56(12), 4215-4228, 2012.
 DOI: [10.1016/j.csda.2012.04.020](https://doi.org/10.1016/j.csda.2012.04.020).
+
+## REF-LOADER-2000
+
+Catherine Loader. "Fast and Accurate Computation of Binomial
+Probabilities." Technical report, Lucent Technologies (Bell Laboratories),
+Murray Hill, NJ, 2000; revised version dated 5 February 2002. Saddle-point
+form of the binomial mass function with the Stirling error `delta(n)`
+(Equation 4) and the deviance `D_0` (Equation 6); the basis of R's
+`dbinom`.
+[https://www.r-project.org/doc/reports/CLoader-dbinom-2002.pdf](https://www.r-project.org/doc/reports/CLoader-dbinom-2002.pdf).
+
+## REF-BURKNER-ETAL-POSTERIOR
+
+Paul-Christian Bürkner, Jonah Gabry, Matthew Kay, and Aki Vehtari.
+*posterior: Tools for Working with Posterior Distributions*. R package
+(version 1.7.1 consulted), stan-dev. The internal function `.ess` in
+`R/convergence.R` implements Geyer's initial positive and monotone
+sequences with the improved estimate `tau = -1 + 2 sum_{t < T} rho_t +
+rho_T` and the bound `tau >= 1 / log10(M n)`.
+[https://github.com/stan-dev/posterior](https://github.com/stan-dev/posterior).

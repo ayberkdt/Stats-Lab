@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import random
 import unittest
+from fractions import Fraction
 
 from probstat.distributions import Binomial, Gamma
 from probstat.monte_carlo import (
@@ -33,6 +34,7 @@ from probstat.probability import (
     sample_mean_upper_tail,
     standardized_mean_cdf,
 )
+from probstat.probability.limit_theorems import _binomial_pmf
 
 
 def phi(z: float) -> float:
@@ -311,6 +313,72 @@ class SimulationTests(unittest.TestCase):
         exact = kolmogorov_distance_to_normal(exponential_summand(1.0), 10)
         self.assertLess(abs(sim.ks_distance - exact), 1.63 / math.sqrt(reps))
         self.assertAlmostEqual(sim.sampling_scale, 1.0 / math.sqrt(reps))
+
+
+class LargeSampleAccuracyTests(unittest.TestCase):
+    """Exactness claims hold for very large ``n`` (review regressions)."""
+
+    def test_exponential_distance_at_huge_n(self) -> None:
+        """The grid step grew like ``sqrt(n)/1600`` and missed the peak.
+
+        Oracles from mpmath (34 digits): ``P(n, n + z sqrt(n))`` by quadrature
+        of the gamma density, maximized by golden-section search. At
+        ``n = 1e8`` the old value was ``5.934e-6`` against ``1.3298e-5``.
+        """
+        summand = exponential_summand(1.0)
+        normal = kolmogorov_distance_to_normal(summand, 10**8)
+        self.assertLess(abs(normal / 1.32980760155051e-5 - 1.0), 1e-8)
+        edge = kolmogorov_distance_to_normal(summand, 10**8, edgeworth=True)
+        self.assertLess(abs(edge / 6.34526965746175e-10 - 1.0), 1e-6)
+        edge7 = kolmogorov_distance_to_normal(summand, 10**7, edgeworth=True)
+        self.assertLess(abs(edge7 / 6.34615076983067e-9 - 1.0), 1e-6)
+
+    def test_binomial_masses_keep_relative_precision(self) -> None:
+        """``lgamma`` differences lost ``n eps``: ``1.3e-8`` at ``n = 4e6``.
+
+        Oracles from mpmath (40 digits) for ``C(n, k) p^k (1 - p)^(n - k)``
+        with the double ``p``.
+        """
+        fair = _binomial_pmf(4 * 10**6, 0.5)
+        self.assertLess(abs(fair[2 * 10**6] / 0.00039894225546754093 - 1.0), 1e-13)
+        skewed = _binomial_pmf(10**6, 0.3)
+        for k, oracle in (
+            (300000, 0.00087056315463668078),
+            (299000, 8.0449410686192802e-5),
+            (302500, 3.0638089393926125e-10),
+        ):
+            with self.subTest(k=k):
+                self.assertLess(abs(skewed[k] / oracle - 1.0), 1e-12)
+        self.assertEqual(skewed[0], 0.0)
+        self.assertAlmostEqual(math.fsum(skewed), 1.0, places=13)
+
+    def test_fair_coin_distance_at_a_million(self) -> None:
+        """``n = 1e6``: half the central atom ``C(n, n/2) / 2^(n+1)``.
+
+        Oracle ``3.9894218066587504e-4`` from mpmath (40 digits); the old
+        masses gave a relative error of ``7e-7``.
+        """
+        distance = kolmogorov_distance_to_normal(bernoulli_summand(0.5), 10**6)
+        self.assertLess(abs(distance / 0.00039894218066587504 - 1.0), 1e-12)
+
+    def test_moderate_binomial_masses_match_rational_arithmetic(self) -> None:
+        """Saddle-point masses against exact rational masses.
+
+        The relative error stays below ``4 eps``-ish per unit of
+        ``|log p(k)|``: far-tail masses come from ``exp`` of a large
+        exponent, whose rounding is amplified by its size.
+        """
+        cases = ((1, 0.5), (2, 0.01), (10, 0.3), (40, 0.9999), (200, 0.003))
+        for n, p in (*cases, (1000, 0.5)):
+            masses = _binomial_pmf(n, p)
+            exact = Fraction(p)
+            for k, mass in enumerate(masses):
+                oracle = float(math.comb(n, k) * exact**k * (1 - exact) ** (n - k))
+                if oracle == 0.0:
+                    continue
+                with self.subTest(n=n, k=k):
+                    allowed = 4e-15 * (1.0 + abs(math.log(oracle))) * oracle
+                    self.assertLessEqual(abs(mass - oracle), allowed)
 
 
 if __name__ == "__main__":

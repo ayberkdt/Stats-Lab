@@ -340,26 +340,163 @@ def berry_esseen_bound(
     return c * rho / (sigma**3 * math.sqrt(size))
 
 
+# Stirling-formula errors log(k!) - log(sqrt(2 pi k) (k/e)^k) for k = 1..15,
+# evaluated with mpmath at 50 significant digits and rounded to doubles; they
+# agree with the integer entries of the table in R's stirlerr.c.
+_STIRLING_ERRORS = (
+    0.0,
+    0.08106146679532726,
+    0.0413406959554093,
+    0.02767792568499834,
+    0.020790672103765093,
+    0.016644691189821193,
+    0.013876128823070748,
+    0.01189670994589177,
+    0.010411265261972096,
+    0.009255462182712733,
+    0.00833056343336287,
+    0.007573675487951841,
+    0.00694284010720953,
+    0.006408994188004207,
+    0.0059513701127588475,
+    0.005554733551962801,
+)
+_LOG_TWO_PI = math.log(2.0 * math.pi)
+# exp(-750) / sqrt(2 pi) underflows to zero, so masses whose deviance exceeds
+# this are exactly zero in floating point and need not be evaluated.
+_DEVIANCE_CUTOFF = 750.0
+
+
+def _stirling_error(k: int) -> float:
+    """Return ``delta(k) = log(k!) - log(sqrt(2 pi k) (k/e)^k)``.
+
+    Tabulated for ``k <= 15``; otherwise the Stirling-De Moivre series
+    ``1/(12k) - 1/(360k^3) + 1/(1260k^5) - 1/(1680k^7) + 1/(1188k^9)``,
+    truncated as in Loader's implementation.
+
+    References:
+        [REF-LOADER-2000, Equation 4].
+
+    """
+    if k <= 15:
+        return _STIRLING_ERRORS[k]
+    square = float(k) * float(k)
+    s0, s1, s2, s3, s4 = 1 / 12, 1 / 360, 1 / 1260, 1 / 1680, 1 / 1188
+    if k > 500:
+        return (s0 - s1 / square) / k
+    if k > 80:
+        return (s0 - (s1 - s2 / square) / square) / k
+    if k > 35:
+        return (s0 - (s1 - (s2 - s3 / square) / square) / square) / k
+    return (s0 - (s1 - (s2 - (s3 - s4 / square) / square) / square) / square) / k
+
+
+def _deviance_term(x: float, mean: float) -> float:
+    """Return ``x log(x / mean) + mean - x`` without cancellation.
+
+    For ``|x - mean| < 0.1 (x + mean)`` the series
+    ``(x - mean)^2/(x + mean) + 2 x sum_j v^(2j+1)/(2j+1)`` with
+    ``v = (x - mean)/(x + mean)`` is summed; otherwise the closed form.
+
+    References:
+        [REF-LOADER-2000, Equation 6].
+
+    """
+    if abs(x - mean) < 0.1 * (x + mean):
+        v = (x - mean) / (x + mean)
+        total = (x - mean) * v
+        power = 2.0 * x * v
+        v_squared = v * v
+        for j in range(1, 1000):
+            power *= v_squared
+            updated = total + power / (2 * j + 1)
+            if updated == total:
+                return updated
+            total = updated
+        return total
+    return x * math.log(x / mean) + mean - x
+
+
 def _binomial_pmf(n: int, p: float) -> list[float]:
     """Return the ``Binomial(n, p)`` probability mass function as a list.
 
+    Loader's saddle-point form
+    ``p(k) = sqrt(n / (2 pi k (n - k))) exp(delta(n) - delta(k) - delta(n - k)
+    - D_0(k, n p) - D_0(n - k, n q))`` keeps full relative precision for
+    every ``n``, where the ``lgamma`` difference ``log n! - log k! - ...``
+    loses about ``n eps`` (``1e-8`` relative at ``n = 4e6``). Masses whose
+    deviance ``D_0(k, n p) + D_0(n - k, n q)`` exceeds 750 underflow to zero
+    and are left at zero without evaluation.
+
     References:
-        [EQ-LIM-002], [REF-CASELLA-BERGER-2002, Section 3.2].
+        [REF-LOADER-2000, Equations 3-6], [EQ-LIM-002],
+        [REF-CASELLA-BERGER-2002, Section 3.2].
 
     """
-    log_p = math.log(p)
-    log_q = math.log1p(-p)
-    log_n_factorial = math.lgamma(n + 1.0)
-    return [
-        math.exp(
-            log_n_factorial
-            - math.lgamma(k + 1.0)
-            - math.lgamma(n - k + 1.0)
-            + k * log_p
-            + (n - k) * log_q
+    q = 1.0 - p
+    mean_p = n * p
+    mean_q = n * q
+    pmf = [0.0] * (n + 1)
+    if n == 0:
+        return [1.0]
+    # The end masses q^n and p^n, in the forms of Loader's implementation.
+    pmf[0] = math.exp(
+        -_deviance_term(n, mean_q) - mean_p if p < 0.1 else n * math.log(q)
+    )
+    pmf[n] = math.exp(
+        -_deviance_term(n, mean_p) - mean_q if q < 0.1 else n * math.log(p)
+    )
+    if n == 1:
+        return pmf
+
+    def deviance(k: int) -> float:
+        """Return the binomial deviance ``D(k; n, p)``.
+
+        References:
+            [REF-LOADER-2000, Equation 6].
+
+        """
+        return _deviance_term(k, mean_p) + _deviance_term(n - k, mean_q)
+
+    # The deviance is convex in k with its minimum at n p: bisect for the
+    # range where masses can be representable.
+    mode = min(max(int(mean_p), 1), n - 1)
+    low, high = 1, mode
+    if deviance(low) > _DEVIANCE_CUTOFF:
+        while high - low > 1:
+            middle = (low + high) // 2
+            if deviance(middle) > _DEVIANCE_CUTOFF:
+                low = middle
+            else:
+                high = middle
+        first = high
+    else:
+        first = 1
+    low, high = mode, n - 1
+    if deviance(high) > _DEVIANCE_CUTOFF:
+        while high - low > 1:
+            middle = (low + high) // 2
+            if deviance(middle) > _DEVIANCE_CUTOFF:
+                high = middle
+            else:
+                low = middle
+        last = low
+    else:
+        last = n - 1
+    log_n_error = _stirling_error(n)
+    for k in range(first, last + 1):
+        # log((n - k)/n) to absolute rounding error: log1p(-k/n) would
+        # amplify the rounding of k/n by n/(n - k) when k is close to n.
+        log_fraction = math.log1p(-k / n) if 2 * k < n else math.log((n - k) / n)
+        exponent = (
+            log_n_error
+            - _stirling_error(k)
+            - _stirling_error(n - k)
+            - deviance(k)
+            - 0.5 * (_LOG_TWO_PI + math.log(k) + log_fraction)
         )
-        for k in range(n + 1)
-    ]
+        pmf[k] = math.exp(exponent)
+    return pmf
 
 
 def standardized_mean_cdf(summand: SummandLaw, n: int, z: float) -> float:
@@ -466,9 +603,10 @@ def _continuous_distance(
 ) -> float:
     """Return ``sup |exact - approximation|`` by a grid plus local refinement.
 
-    The supremum is located on a uniform grid (with ``kink`` added as a node)
-    and every grid local maximum among the five largest is refined by
-    golden-section search on its neighbouring cells.
+    The supremum is located on a uniform grid (with ``kink`` added as a node
+    when it lies inside the window) and every grid local maximum among the
+    five largest is refined by golden-section search on its neighbouring
+    cells.
 
     References:
         [EQ-LIM-003], [REF-BRENT-1973, Chapter 5].
@@ -485,7 +623,10 @@ def _continuous_distance(
         return abs(exact(z) - approximation(z))
 
     step = (high - low) / (_GRID_POINTS - 1)
-    grid = sorted({low + index * step for index in range(_GRID_POINTS)} | {kink})
+    nodes = {low + index * step for index in range(_GRID_POINTS)}
+    if low < kink < high:
+        nodes.add(kink)
+    grid = sorted(nodes)
     values = [gap(z) for z in grid]
     peaks = [
         index
@@ -517,10 +658,17 @@ def kolmogorov_distance_to_normal(
     ``A_n`` is ``Phi`` or, with ``edgeworth=True``, the one-term Edgeworth
     approximation. For the lattice Bernoulli case the supremum is attained at
     a jump, so both one-sided limits at each of the ``n + 1`` atoms are
-    compared with ``Phi`` exactly. For the exponential case the continuous
-    gap is maximized numerically on ``[-sqrt(n) - 8, 10]`` (1601-node grid,
-    golden-section refinement); outside that window both CDFs agree to
-    better than ``1e-15``. The normal case is exactly zero.
+    compared with ``Phi`` exactly (the binomial masses use Loader's
+    saddle-point form, accurate to rounding for any ``n``). For the
+    exponential case the continuous gap is maximized numerically on
+    ``[max(-sqrt(n) - 8, -40), 10]`` (1601-node grid, step at most
+    ``50/1600`` whatever ``n``, golden-section refinement). Below the window
+    the gap is below ``Phi(-9) = 1.2e-19`` (the exact law is zero below
+    ``-sqrt(n)``, and both laws underflow below ``-40``); above it the gap is
+    at most ``Q(n, n + 10 sqrt(n))``, which decreases in ``n`` from
+    ``exp(-11) = 1.7e-5`` at ``n = 1`` (against a supremum of ``0.159``) to
+    ``1.8e-15`` at ``n = 100``, far below the supremum for every ``n``. The
+    normal case is exactly zero.
 
     Args:
         summand: Summand law.
@@ -561,6 +709,21 @@ def kolmogorov_distance_to_normal(
             distance = max(distance, abs(min(cumulative, 1.0) - phi))
         return distance
     gamma = summand.skewness
+    root = math.sqrt(size)
+
+    def standardized(z: float) -> float:
+        """Return the standardized value of the rounded sum ``n + z sqrt(n)``.
+
+        For large ``n`` the sum is rounded to ``ulp(n)``, which moves the
+        exact law by up to ``phi(z) ulp(n) / (2 sqrt(n))`` (``1e-13`` at
+        ``n = 1e8``); both laws are therefore compared at the point the
+        rounded sum represents, so a maximizer cannot pick up that noise.
+
+        References:
+            [EQ-LIM-002].
+
+        """
+        return ((size + z * root) - size) / root
 
     def exact(z: float) -> float:
         """Return the exact standardized-mean CDF of the exponential sum.
@@ -569,7 +732,7 @@ def kolmogorov_distance_to_normal(
             [EQ-LIM-002].
 
         """
-        argument = size + z * math.sqrt(size)
+        argument = size + z * root
         return 0.0 if argument <= 0.0 else regularized_gamma_p(size, argument)
 
     def approximation(z: float) -> float:
@@ -579,12 +742,15 @@ def kolmogorov_distance_to_normal(
             [EQ-LIM-004].
 
         """
+        point = standardized(z)
         if edgeworth:
-            return edgeworth_cdf(z, size, gamma)
-        return standard_normal_cdf(z)
+            return edgeworth_cdf(point, size, gamma)
+        return standard_normal_cdf(point)
 
-    root = math.sqrt(size)
-    return _continuous_distance(exact, approximation, -root - 8.0, 10.0, -root)
+    # A fixed window keeps the grid step (at most 50/1600) independent of n;
+    # below -40 both distribution functions are zero in floating point.
+    low = max(-root - 8.0, -40.0)
+    return _continuous_distance(exact, approximation, low, 10.0, -root)
 
 
 @dataclass(frozen=True, slots=True)

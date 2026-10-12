@@ -31,9 +31,16 @@ def integrate(
     ``method="gauss-kronrod"`` runs adaptive G7-K15 (QAGI substitution on
     infinite ranges). ``method="auto"`` runs the double-exponential rule
     first and, only if it does not converge (typically an interior kink or
-    peak), also runs Gauss-Kronrod and returns whichever result has the
-    smaller error estimate, with the evaluations of both runs counted.
-    ``result.rule`` names the rule whose estimate is returned.
+    peak), also runs Gauss-Kronrod and returns the result whose error
+    estimate is the smaller multiple of its own target
+    ``max(abs_tol, rel_tol |value|)``, with the evaluations of both runs
+    counted. When neither rule converges and their values differ by more
+    than the sum of their error estimates, the double-exponential result is
+    returned, because Gauss-Kronrod can miss all of the mass of a narrow
+    peak far from the origin. If the double-exponential rule raises
+    ``ValueError`` (for example because ``upper - lower`` overflows), the
+    Gauss-Kronrod result is returned alone. ``result.rule`` names the rule
+    whose estimate is returned.
 
     Args:
         function: Integrand returning finite reals (see the rules for the
@@ -84,20 +91,61 @@ def integrate(
 
     if method == "gauss-kronrod":
         return run_gauss_kronrod()
-    if math.isfinite(a) and math.isfinite(b):
-        first = tanh_sinh_interval(
-            function, a, b, abs_tol=abs_tol, rel_tol=rel_tol, max_level=max_level
-        )
-    elif math.isfinite(a) or math.isfinite(b):
-        first = exp_sinh(
-            function, a, b, abs_tol=abs_tol, rel_tol=rel_tol, max_level=max_level
-        )
-    else:
-        first = sinh_sinh(
+
+    def run_double_exponential() -> IntegrationResult:
+        """Run the double-exponential rule that matches the limits.
+
+        References:
+            [REF-TAKAHASI-MORI-1974], [REF-MORI-SUGIHARA-2001].
+
+        """
+        if math.isfinite(a) and math.isfinite(b):
+            return tanh_sinh_interval(
+                function, a, b, abs_tol=abs_tol, rel_tol=rel_tol, max_level=max_level
+            )
+        if math.isfinite(a) or math.isfinite(b):
+            return exp_sinh(
+                function, a, b, abs_tol=abs_tol, rel_tol=rel_tol, max_level=max_level
+            )
+        return sinh_sinh(
             function, abs_tol=abs_tol, rel_tol=rel_tol, max_level=max_level
         )
-    if method == "double-exponential" or first.converged:
+
+    if method == "double-exponential":
+        return run_double_exponential()
+    try:
+        first = run_double_exponential()
+    except ValueError:
+        # For example a width that overflows (tanh-sinh needs a finite
+        # upper - lower) or a non-finite value at a node Gauss-Kronrod never
+        # samples; adaptive Gauss-Kronrod gets its own chance.
+        return run_gauss_kronrod()
+    if first.converged:
         return first
     second = run_gauss_kronrod()
-    chosen = second if second.error_estimate < first.error_estimate else first
+
+    def miss(result: IntegrationResult) -> float:
+        """Return the error estimate in units of the result's error target.
+
+        References:
+            [EQ-NUM-QAG-001].
+
+        """
+        target = max(abs_tol, rel_tol * abs(result.value))
+        if target > 0.0:
+            return result.error_estimate / target
+        return 0.0 if result.error_estimate == 0.0 else math.inf
+
+    disagree = abs(first.value - second.value) > (
+        first.error_estimate + second.error_estimate
+    )
+    if not second.converged and disagree:
+        # Neither rule converged and at least one error estimate is wrong.
+        # Gauss-Kronrod can miss all of the mass (nodes that never reach a
+        # narrow peak far from the origin give a value and an error estimate
+        # near zero); the double-exponential nodes span 600 orders of
+        # magnitude, so its value is kept.
+        chosen = first
+    else:
+        chosen = second if miss(second) < miss(first) else first
     return replace(chosen, evaluations=first.evaluations + second.evaluations)
