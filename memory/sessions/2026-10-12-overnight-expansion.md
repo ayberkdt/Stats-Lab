@@ -36,6 +36,10 @@ the designed theme, and keep developing until 06:00.
 - Figures for every new capability; the graphite accent moved from orange
   `#E8804A` to indigo `#9BA9F0` after the dataviz validator showed it sat
   9.5 OKLab dE from the amber model hue (floor 15).
+- Theme re-checked against sunumatik's `chart-aesthetics.md` at 05:30: dash
+  grammar, reference width ratio, marker rims, and band opacity matched
+  except nested inner bands (0.28, now capped at 0.18 everywhere);
+  Fritsch-Carlson smoothing and a single fading gradient area were added.
 - Tooling: generated API reference with a staleness test; API stability
   labels with a deprecation decorator (ADR-0048); benchmark suite in CI.
 
@@ -69,8 +73,8 @@ the designed theme, and keep developing until 06:00.
 
 ## Verification evidence
 
-Recorded in each merge commit message. Final state at 05:26:
-`1176 passed, 2351 subtests passed`, ruff clean, strict mypy clean on 220
+Recorded in each merge commit message. Final state at 05:40:
+`1178 passed, 2351 subtests passed`, ruff clean, strict mypy clean on 220
 files, all 31 example labs run, benchmark quick mode 188 runs with 0
 unexpected failures, UX auditor 0 HATA / 0 UYARI on the complete study
 report (no horizontal scroll at 375 px, 85% of the first screen is primary
