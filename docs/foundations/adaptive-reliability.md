@@ -50,6 +50,30 @@ mean-shift default never builds a covariance, so it gives the same numbers as
 before. At `N = 1000`, seeds 1-5 gave 3.357e-5, 3.175e-5, 2.954e-5, 3.313e-5,
 and 2.827e-5 both before and after the change.
 
+**Several failure regions.** One Gaussian proposal follows one failure
+region. The others get almost no samples, their weights are never observed,
+and the weight diagnostics above stay healthy. On the four-branch system
+(exact `4.457e-3`, mean-shift default, `N = 500`, integer seeds 1-10), seven
+runs converged on one region and returned `0.95e-3` to `1.76e-3` with
+`z = -7` to `-32` and failure ESS 21-126. Until ADR-0054 none of them warned.
+The first adaptation level is drawn from the starting density before any
+adaptation, so its elite points show where `G` is small in every direction.
+`uncovered_elite_fraction` is the share of them behind the origin as seen from
+the final proposal mean (`u . mu / ||mu|| <= 0`) [EQ-REL-CE-004]. Above
+`CE_MAX_UNCOVERED_ELITE_FRACTION = 0.1` a `UserWarning` recommends
+`find_design_points` with `mixture_importance_sampling`, or
+`subset_simulation`, and `multiple_failure_regions_suspected` is set. The
+seven runs gave 0.48-0.58. In the other three the mean stalled near the
+origin (`||mu|| < 1`, 20 levels without converging). The check is skipped
+there, and the existing failure-ESS warning fired (ESS 2-4). On the
+single-region benchmark problems (both linear cases, the parabola, the
+lognormal capacity-demand case; 10 seeds each) the fraction was 0.00 in 39 of
+40 runs and 0.02 in one, so none warned. With `adapt_covariance=True` and
+`N = 1000` the four-branch proposal stayed centred near the origin with a wide
+covariance and covered all four regions (`|z| <= 1.2`, check skipped). The
+check costs no model calls. It cannot see a region with no first-level elite
+point, and an `initial_mean` weakens it.
+
 ## 2. Line sampling
 
 `line_sampling` draws `u ~ N(0, I)`, removes its component along the
@@ -143,7 +167,23 @@ Implementation choices that are not part of the published method:
   `Phi^-1` (`design_bound=None`), seed 3 stopped at once: 12 points, all
   inside `abs(u) < 2`, gave a confidently wrong GP with `min U >= 2` and no
   predicted failure. It returned `P_f = 0` after enlarging the population to the 200 000 cap, where crude MC on the same points gave 4.175e-3.
-  Such a run is now reported as not converged.
+  Such a run is now reported as not converged. The GP regularization below
+  does not change this run.
+- GP hyperparameters are fitted with `GaussianProcessRegularization()` by
+  default (ADR-0054, [EQ-SUR-GP-006]). Length scales stay between a tenth of
+  the smallest coordinate gap and 20 times the extent of the training set,
+  and the diagonal keeps at least `1e-8 sigma_f^2`. `regularization=None`
+  restores plain maximum likelihood. Without it, `G = 3 + u1^2/4 - u2` gave
+  length scales `1e3`-`2e5`, a signal-to-noise ratio of about `1e18`, and
+  `min U` of 114-2320 right after the 12-point design (10 seeds,
+  `N = 2000`). With populations up to `5 * 10^4` (`target_cov = 0.1`, seeds
+  1-5) those surrogates misclassified 4 points in total although `min U` was
+  up to 639. Regularized, the same runs added 3-7 points, misclassified none,
+  and stopped at `min U` 2.05-4.6. On the four-branch function
+  (`N = 2000`, seeds 1-10), seeds 5 and 9 kept a white-noise optimum
+  (length scales `2e-3` and `5e-6`). They ran 198 and 128 additions and
+  misclassified 7 and 11 points; seed 9 predicted no failure at all.
+  Regularized, all ten runs used 20-31 calls and misclassified nothing.
 
 Four-branch system (`k = 6`), `N = 10^4`, `target_cov` not binding:
 
@@ -153,16 +193,24 @@ Four-branch system (`k = 6`), `N = 10^4`, `target_cov` not binding:
 | 2 | 34 | 22 | 3.7000e-3 | 3.7000e-3 | 0 |
 | 3 | 43 | 31 | 5.1000e-3 | 5.1000e-3 | 0 |
 | 4 | 37 | 25 | 4.8000e-3 | 4.8000e-3 | 0 |
-| 5 | 48 | 36 | 3.9000e-3 | 3.9000e-3 | 0 |
+| 5 | 41 | 29 | 3.8000e-3 | 3.9000e-3 | 1 |
 
 Starting from `N = 5000` with `target_cov = 0.15`, the population grew to
 10 000 and the run used 36 calls (`P_f = 4.5e-3`, the same as crude MC on the
 same points, c.o.v. 0.149).
 
-The kernel matters. With `squared_exponential` and `N = 5000`, seed 1
-exhausted `max_added = 200` without reaching `min U >= 2`. It ended with 24
-misclassified points (`P_f = 1.0e-3` against 5.8e-3), while seed 2 matched
-crude MC with 37 calls. Use the Matérn default.
+Seeds 1-4 and the growing-population run are identical to the unregularized
+fit. Seed 5 used 41 calls instead of 48 and misclassified one point
+(`min U = 2.19`). The `min U >= 2` rule bounds each point's sign error by
+about 2.3%, not the count over `10^4` points.
+
+The kernel matters. With `squared_exponential`, `N = 5000`, and the
+unregularized fit, seed 1 exhausted `max_added = 200` without reaching
+`min U >= 2`. It ended with 24 misclassified points (`P_f = 1.0e-3` against
+5.8e-3), while seed 2 matched crude MC with 37 calls. With the regularized
+default, seed 1 needed 34 calls and misclassified nothing. Seed 2 needed 35
+calls and misclassified 3 (`P_f = 3.6e-3` against 4.2e-3). Use the Matérn
+default.
 
 ## Limitations
 

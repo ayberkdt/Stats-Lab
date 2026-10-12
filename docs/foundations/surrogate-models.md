@@ -108,6 +108,33 @@ likelihood optima: a length scale shrinks so that each grid line is fitted
 independently. Use space-filling random designs, which
 `fit_gaussian_process_to_model` does by default with LHS.
 
+**Hyperparameter regularization (opt-in, ADR-0054).** Plain maximum
+likelihood has two failure modes on small designs. For a smooth, nearly
+polynomial response the likelihood keeps rising as the length scales grow and
+the signal variance grows with them: the kernel matrix becomes numerically
+singular and the posterior variance cancels to exactly 0 although the mean is
+not exact. For a rough response a white-noise optimum (length scales far below
+the spacing of the design) can win; the likelihood is flat there, so a
+warm-started refit never leaves it. `regularization=GaussianProcessRegularization()`
+bounds `log ell_i` to `[log(0.1 h_i), log(20 E_i)]` (`h_i` the smallest gap
+between coordinates of input `i`, `E_i` its extent), bounds `sigma_f^2` to
+`[1e-3, 1e3]` standardized units, adds the noise floor `1e-8 sigma_f^2` to the
+diagonal (signal-to-noise at most `1e8`), and can add a log-normal prior
+`log ell_i ~ N(log E_i, s^2)` [EQ-SUR-GP-006]. The result lists any parameter
+that ended on a bound in `at_bound`. On the 12-point AK-MCS design (LHS on
+`[-5, 5]^2`, seed 1) of `G = 3 + u1^2/4 - u2`:
+
+| fit | `ell_1`, `ell_2` | signal / noise | `mu(0.5, 2)` (true 1.0625) | predictive sd | `at_bound` |
+|---|---|---|---|---|---|
+| unregularized | 1502, 1.57e5 | 4.7e18 | 1.070 | 0 | none |
+| regularized | 38.8, 177 | 1.0e8 | 1.068 | 0.047 | `length_scale[1]:upper` |
+
+On the four-branch design of seed 5 the unregularized length scales were
+0.0017 and 0.0020 (smallest gap 0.33, a white-noise fit whose mean is the
+output mean everywhere); regularized they are 5.98 and 1.06. The default of
+`fit_gaussian_process` is still the unregularized fit, so existing results do
+not change; `reliability.ak_mcs` uses the regularized fit by default.
+
 ## 3. Surrogates inside the central model
 
 `surrogate_probabilistic_model(model, {"y": surrogate})` wraps any object with
@@ -133,7 +160,8 @@ computed on a surrogate.
   projection.
 - GP: constant (centered) mean only, no universal kriging trend, stationary
   kernels, dense `O(n^3)` algebra, and hyperparameters restricted to
-  `|log theta| <= 25`.
+  `|log theta| <= 25` (narrower, data-dependent bounds with `regularization`;
+  their factors are computational choices, not estimated).
 
 ## Sources
 

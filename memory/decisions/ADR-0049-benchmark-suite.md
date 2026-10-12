@@ -91,3 +91,5 @@ recorded cost.
   posterior variance falls below resolution and AK-MCS can stop after its
   initial design with `min U` in the hundreds; a bound or prior on the
   hyperparameters is a separate design decision.
+  Resolved by ADR-0054 (opt-in GP regularization, default in `ak_mcs`; and
+  a CE-IS coverage warning for several failure regions).

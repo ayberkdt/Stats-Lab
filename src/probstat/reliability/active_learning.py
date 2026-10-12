@@ -32,12 +32,20 @@ from probstat.foundations.validation import require_finite_real
 from probstat.linalg import Vector
 from probstat.modeling import standard_normal_quantile
 from probstat.propagation import make_design
-from probstat.surrogates import KERNELS, GaussianProcessRegression, kernel_value
+from probstat.surrogates import (
+    KERNELS,
+    GaussianProcessRegression,
+    GaussianProcessRegularization,
+    kernel_value,
+)
 from probstat.surrogates import fit_gaussian_process as _fit_gp
 
 from .model_based import ModelLimitState
 
 _DESIGNS = ("mc", "lhs", "halton", "sobol")
+
+AKMCS_GP_REGULARIZATION = GaussianProcessRegularization()
+"""Default GP hyperparameter regularization of :func:`ak_mcs` (ADR-0054)."""
 
 
 def _require_count(value: object, name: str, minimum: int) -> int:
@@ -112,9 +120,8 @@ class _IncrementalPosterior:
         self.kernel = surrogate.kernel
         # Standardized units, exactly as fit_gaussian_process factorized them.
         self.signal = math.exp(theta[0])
-        self.noise = surrogate.nugget + (
-            math.exp(theta[-1]) if surrogate.estimate_noise else 0.0
-        )
+        # nugget + tau sigma_f^2 [+ sigma_n^2], the fit's own diagonal noise.
+        self.noise = surrogate.standardized_noise_variance
         self.scales = surrogate.hyperparameters.length_scales
         self.mean = surrogate.output_mean
         self.scale = surrogate.output_scale
@@ -337,6 +344,7 @@ def ak_mcs(
     nugget: float = 1e-10,
     compare_with_monte_carlo: bool = False,
     seed: int | RandomStream | None = None,
+    regularization: GaussianProcessRegularization | None = AKMCS_GP_REGULARIZATION,
 ) -> AKMCSResult:
     """Estimate ``P_f`` by AK-MCS (GP active learning on a MC population).
 
@@ -368,6 +376,20 @@ def ak_mcs(
     A run that ends without predicting any failure is reported as not
     converged.
 
+    The GP hyperparameters are fitted with ``regularization`` (default
+    :data:`AKMCS_GP_REGULARIZATION`: length scales between a tenth of the
+    smallest coordinate gap and 20 times the extent of the training set,
+    signal variance in ``[1e-3, 1e3]`` standardized units, diagonal floor
+    ``1e-8 sigma_f^2``; ADR-0054). Unregularized maximum likelihood
+    (``regularization=None``, the behaviour before ADR-0054) can end at
+    near-singular hyperparameters: on ``G = 3 + u1^2/4 - u2`` length scales
+    ``1e3``-``1e5`` and signal-to-nugget ``~1e18`` gave ``min U`` of
+    ``1e2``-``2e3`` right after the 12-point initial design; on the
+    four-branch function with seed 5 a white-noise optimum (length scales
+    ``0.002``, far below the smallest design gap ``0.33``) was kept by every
+    warm-started refit and learning ran to 198 additions with 7 misclassified
+    population points.
+
     Args:
         limit_state: Model limit state (``G <= 0`` is failure).
         population: Initial Monte Carlo population size ``N`` (at least 10).
@@ -390,6 +412,8 @@ def ak_mcs(
             final population (crude Monte Carlo on the same points) and count
             misclassified signs; these calls are reported separately.
         seed: Integer seed, random stream, or ``None`` for fresh entropy.
+        regularization: GP hyperparameter regularization, or ``None`` for
+            unregularized maximum likelihood.
 
     Returns:
         Estimate, c.o.v., true-model call count, learning history, final
@@ -485,6 +509,7 @@ def ak_mcs(
                 restarts=starts if previous_theta is None else 1,
                 seed=root.child("ak-mcs", "fit", refits),
                 initial_log_parameters=previous_theta,
+                regularization=regularization,
             )
         except ValueError:
             if previous_theta is None:
@@ -496,6 +521,7 @@ def ak_mcs(
                 nugget=nugget,
                 restarts=starts,
                 seed=root.child("ak-mcs", "fit", refits),
+                regularization=regularization,
             )
         previous_theta = surrogate.log_parameters
         return surrogate

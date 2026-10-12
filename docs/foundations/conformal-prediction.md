@@ -149,7 +149,11 @@ very long length scales. Its predictive variance then cancelled to exactly 0
 at some calibration inputs. A normalized score is meaningless there, so
 `conformalize_surrogate` raises and asks for a `scale_offset`. That positive
 constant is added to the standard deviation and must be chosen before seeing
-the calibration data.
+the calibration data. A GP fitted with
+`regularization=GaussianProcessRegularization()` keeps a noise floor of
+`1e-8 sigma_f^2` and bounded length scales; on the test case above its variance
+stays positive and no offset is required (ADR-0054). The default fit is
+unchanged.
 
 ## 6. Coverage checks
 

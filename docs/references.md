@@ -2049,3 +2049,10 @@ Omiros Papaspiliopoulos, Gareth O. Roberts, and Martin Sköld. "A General
 Framework for the Parametrization of Hierarchical Models." *Statistical
 Science* 22(1), 59-73, 2007.
 DOI: [10.1214/088342307000000014](https://doi.org/10.1214/088342307000000014).
+
+## REF-ANDRIANAKIS-CHALLENOR-2012
+
+Ioannis Andrianakis and Peter G. Challenor. "The Effect of the Nugget on
+Gaussian Process Emulators of Computer Models." *Computational Statistics &
+Data Analysis* 56(12), 4215-4228, 2012.
+DOI: [10.1016/j.csda.2012.04.020](https://doi.org/10.1016/j.csda.2012.04.020).
