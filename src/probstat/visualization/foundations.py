@@ -684,7 +684,8 @@ def plot_characteristic_function(
     palette = active_palette()
     real = tuple(value.real for value in values)
     imaginary = tuple(value.imag for value in values)
-    axes.axhline(0.0, color=palette.muted, linewidth=0.8, zorder=1)
+    # The horizontal hairline grid already marks phi = 0; an extra zero line
+    # would strike through the direct labels at the right edge.
     line(axes, frequencies, real, color=palette.series[0])
     line(axes, frequencies, imaginary, color=palette.series[2])
     axes.set_ylim(-1.08, 1.08)
@@ -698,14 +699,13 @@ def plot_characteristic_function(
     )
     largest_imaginary = max(abs(v) for v in imaginary)
     verdict = (
-        "real, so the law is symmetric about 0"
+        "is symmetric: phi(t) is real"
         if largest_imaginary < 1e-12
-        else f"complex (|Im| up to {largest_imaginary:.2f}), so the law is not "
-        "symmetric about 0"
+        else f"is not symmetric: |Im phi(t)| reaches {largest_imaginary:.2f}"
     )
     title_block(
         axes,
-        f"{variable.name}: phi(t) is {verdict}",
+        f"{variable.name} {verdict}",
         "phi(t) = E[exp(itX)]; |phi(t)| <= 1 with phi(0) = 1",
     )
     return axes
