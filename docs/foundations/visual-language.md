@@ -157,3 +157,24 @@ The paired difference in `plot_score_comparison` is the right comparison
 when forecasters are scored on the same cases: case difficulty cancels, so
 its interval is much narrower than either whisker. Long computed titles are
 wrapped to the figure width by `visualization._layout.wrapped_title_block`.
+
+## Validation, missing-data, and contingency figures
+
+The last stages and packages without figures get them under the same rules
+(ADR-0052). Functions take result objects and never refit.
+
+| Module | Function | Shows | Lab |
+|---|---|---|---|
+| `scoring_plots` | `plot_validation_predictions` | per experiment, central 50% and 90% predictive bands (model hue) with the median tick, observations (observed hue), area metric per row (bold when over tolerance); coverage against nominal with the identity (accent); the title is the assessment's verdict | `uq_study_complete_lab.py` (validation stage of the HTML report) |
+| `missing_plots` | `plot_missing_pattern` | patterns x variables, missing cells in the observed hue, observed cells muted, row counts as direct labels | `missing_data_lab.py` |
+| `missing_plots` | `plot_imputation_diagnostic` | observed (observed hue) against imputed values of all `m` data sets (model hue) per incomplete variable, with 50%/90% ranges | `missing_data_lab.py` |
+| `missing_plots` | `plot_rubin_summary` | MI, complete-case, mean-imputation, and EM intervals; the MI row shows the `Ubar`-only interval inside Rubin's total [EQ-MISS-007]; truth (accent) | `missing_data_lab.py` |
+| `contingency_plots` | `plot_adjusted_residuals` | Haberman adjusted residuals on a diverging scale (`series[2]`, neutral `rule`, `series[0]`), cells beyond +/-2 labelled, `X^2` in the subtitle [EQ-INF-CT-003] | tests |
+| `contingency_plots` | `plot_effect_measures` | RD (linear) and RR, OR (log) with their intervals, no effect (accent) [EQ-INF-CT-001] | tests |
+| `hierarchical_plots` | `plot_pit_histogram` (changed) | adds a Bonferroni band that holds for all bins at once [EQ-VIZ-PITBAND-002]; evidence of miscalibration only when that band is exceeded | `forecast_calibration_lab.py`, `hierarchical_lab.py` |
+
+Diverging scales follow "two hues and a neutral midpoint": the residual
+heatmap uses the purple-green pair of each palette with the gridline grey at
+zero, never a hue for "no departure". A pointwise PIT band is exceeded
+somewhere by about half of all calibrated 20-bin histograms of 400 values;
+the simultaneous band by fewer than 5%.

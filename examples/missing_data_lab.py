@@ -1,6 +1,6 @@
 """Missing-data laboratory: complete cases, mean imputation, EM, and MI.
 
-Four seeded experiments, printed as numbers (no figures):
+Four seeded experiments, printed as numbers:
 
 1. Missingness pattern and Little's MCAR test on one MAR data set.
 2. Mean, standard error, variance, and correlation of the incomplete
@@ -13,16 +13,25 @@ Data: ``(x0, x1, x2) ~ N(mu, Sigma)`` with ``mu = (1, 2, -1)``; ``x0`` is
 always observed, ``x1`` is missing with probability
 ``logistic(-0.5 + 2 (x0 - 1))`` (missing at random given ``x0``), and ``x2``
 is missing completely at random with probability 0.2.
+
+With Matplotlib installed three figures of the first two experiments are
+written to ``examples/generated/``: the missingness pattern matrix, observed
+against imputed values, and the four interval estimates of ``E[x1]`` against
+the truth (ADR-0052).
 """
 
 from __future__ import annotations
 
+import importlib.util
 import math
 import random
 import time
+from pathlib import Path
 
 from probstat.foundations.random_streams import RandomStream
 from probstat.inference import (
+    MultipleImputation,
+    PooledEstimate,
     complete_cases,
     fit_incomplete_multivariate_normal,
     fit_linear_model,
@@ -38,6 +47,7 @@ from probstat.multivariate import MultivariateNormal
 TRUE_MEAN = (1.0, 2.0, -1.0)
 TRUE_COVARIANCE = ((1.0, 0.6, 0.3), (0.6, 1.5, 0.4), (0.3, 0.4, 0.8))
 TRUE_SLOPE = TRUE_COVARIANCE[0][1] / TRUE_COVARIANCE[1][1]  # x0 on x1: 0.4
+OUTPUT = Path(__file__).parent / "generated"
 
 
 def simulate(
@@ -113,7 +123,7 @@ def patterns_and_little(rows: tuple[tuple[float | None, ...], ...]) -> None:
 def compare_methods(
     full: tuple[tuple[float, ...], ...],
     rows: tuple[tuple[float | None, ...], ...],
-) -> tuple[float, float]:
+) -> tuple[MultipleImputation, PooledEstimate, dict[str, tuple[float, float, float]]]:
     """Experiment 2: five analyses of the incomplete variable x1.
 
     References:
@@ -126,8 +136,15 @@ def compare_methods(
     n = len(rows)
     row("full data (oracle)", str(n), moments(full))
     cases = tuple((r[0], r[1]) for r in complete_cases(rows))
-    row("complete cases*", str(len(cases)), moments(cases))
-    row("mean imputation*", str(n), moments(mean_impute(rows)))
+    others: dict[str, tuple[float, float, float]] = {}
+    for label, data in (
+        ("complete cases*", cases),
+        ("mean imputation*", mean_impute(rows)),
+    ):
+        values = moments(data)
+        row(label, str(len(data)), values)
+        half = student_t_quantile(0.975, len(data) - 1) * values[1]
+        others[label.rstrip("*")] = (values[0], values[0] - half, values[0] + half)
     fit = fit_incomplete_multivariate_normal(rows)
     assert fit.mean_standard_errors is not None
     em_corr = fit.covariance[0][1] / math.sqrt(
@@ -138,6 +155,8 @@ def compare_methods(
         str(n),
         (fit.mean[1], fit.mean_standard_errors[1], fit.covariance[1][1], em_corr),
     )
+    em_half = 1.959964 * fit.mean_standard_errors[1]
+    others["EM (Wald)"] = (fit.mean[1], fit.mean[1] - em_half, fit.mean[1] + em_half)
     imputed = impute_multivariate_normal(rows, 20, burn_in=50, start=fit, seed=31)
     per_set = [moments(dataset) for dataset in imputed.datasets]
     pooled = pool_estimates(
@@ -167,7 +186,7 @@ def compare_methods(
         f"FMI = {pooled.fraction_missing_information:.3f}, "
         f"df = {pooled.degrees_of_freedom:.1f}"
     )
-    return fit.mean[1], pooled.estimate
+    return imputed, pooled, others
 
 
 def pooled_regression(rows: tuple[tuple[float | None, ...], ...]) -> float:
@@ -262,6 +281,50 @@ def coverage(reps: int, n: int, m: int) -> tuple[float, float, float]:
     )
 
 
+def save_figures(
+    rows: tuple[tuple[float | None, ...], ...],
+    imputed: MultipleImputation,
+    pooled: PooledEstimate,
+    others: dict[str, tuple[float, float, float]],
+) -> None:
+    """Write the pattern, imputation, and Rubin's-rules figures.
+
+    References:
+        [EQ-MISS-007], [REF-LITTLE-RUBIN-2019], [REF-MATPLOTLIB].
+
+    """
+    if importlib.util.find_spec("matplotlib") is None:
+        print("\n(install matplotlib to write the figures)")
+        return
+    from probstat.visualization import save_figure
+    from probstat.visualization.missing_plots import (
+        plot_imputation_diagnostic,
+        plot_missing_pattern,
+        plot_rubin_summary,
+    )
+    from probstat.visualization.theme import pyplot
+
+    names = ("x0", "x1", "x2")
+    figures = {
+        "missing-pattern.png": plot_missing_pattern(imputed.pattern, names=names),
+        "missing-imputations.png": plot_imputation_diagnostic(
+            rows, imputed, names=names
+        ),
+        "missing-rubin.png": plot_rubin_summary(
+            pooled,
+            others=others,
+            truth=TRUE_MEAN[1],
+            quantity="Estimate of E[x1] with 95% interval",
+            label="MI (m = 20, Rubin)",
+        ),
+    }
+    print("\nFigures (examples/generated/):")
+    for name, figure in figures.items():
+        canvas = getattr(figure, "figure", figure)
+        print(f"   {save_figure(canvas, OUTPUT / name).name}")
+        pyplot().close(canvas)
+
+
 def main() -> None:
     """Run the four experiments and print a one-line conclusion.
 
@@ -272,9 +335,10 @@ def main() -> None:
     started = time.perf_counter()
     full, rows = simulate(400, 31)
     patterns_and_little(rows)
-    compare_methods(full, rows)
+    imputed, pooled, others = compare_methods(full, rows)
     pooled_regression(rows)
     cc_cov, em_cov, mi_cov = coverage(120, 80, 10)
+    save_figures(rows, imputed, pooled, others)
     print(
         f"\nDone in {time.perf_counter() - started:.1f} s: coverage complete cases "
         f"{cc_cov:.3f}, EM {em_cov:.3f}, MI {mi_cov:.3f} (nominal 0.95). "

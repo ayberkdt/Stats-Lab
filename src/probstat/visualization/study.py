@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import re
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from probstat.inference import ConfidenceInterval
+from probstat.validation import CoverageAtLevel
 from probstat.workflow import UQStudy
 
 from .calibration_plots import (
@@ -12,6 +16,7 @@ from .calibration_plots import (
     plot_discrepancy_predictions,
 )
 from .design_plots import plot_greedy_design
+from .scoring_plots import plot_validation_predictions
 from .stage_plots import (
     plot_active_learning,
     plot_design_path,
@@ -79,6 +84,53 @@ def _scalar_candidates(candidates: Any) -> tuple[str, list[float]] | None:
     if any(b <= a for a, b in zip(values, values[1:], strict=False)):
         return None
     return name, values
+
+
+_COVERAGE_KEY = re.compile(r"^coverage\[(\d+(?:\.\d+)?)%\]$")
+_COVERAGE_TEXT = re.compile(
+    r"^(\d+)/(\d+), \[(\d+(?:\.\d+)?), (\d+(?:\.\d+)?)\]$"
+)
+
+
+def _coverage_from_summary(summary: Mapping[str, object]) -> list[CoverageAtLevel]:
+    """Rebuild the coverage records that ``UQStudy.validate`` summarized.
+
+    The stage stores each nominal level as ``coverage[90%]`` (the rate) and
+    ``coverage[90%].interval`` (``"covered/size, [lower, upper]"`` with the
+    95% Clopper-Pearson limits); entries that do not parse are skipped.
+
+    Args:
+        summary: Stage summary of a validation record.
+
+    Returns:
+        Coverage records in summary order.
+
+    References:
+        [REF-CLOPPER-PEARSON-1934]. No equation is evaluated.
+
+    """
+    records: list[CoverageAtLevel] = []
+    for key, value in summary.items():
+        match = _COVERAGE_KEY.match(str(key))
+        if match is None:
+            continue
+        text = _COVERAGE_TEXT.match(str(summary.get(f"{key}.interval", "")))
+        if text is None or not isinstance(value, float | int):
+            continue
+        covered, size = int(text.group(1)), int(text.group(2))
+        lower, upper = float(text.group(3)), float(text.group(4))
+        if size < 1 or not 0.0 <= lower <= upper <= 1.0:
+            continue
+        records.append(
+            CoverageAtLevel(
+                float(match.group(1)) / 100.0,
+                covered,
+                size,
+                float(value),
+                ConfidenceInterval(lower, upper, 0.95, "Clopper-Pearson interval"),
+            )
+        )
+    return records
 
 
 def _figures_for(record: Any, study: UQStudy | None = None) -> list[tuple[str, Any]]:
@@ -219,6 +271,18 @@ def _figures_for(record: Any, study: UQStudy | None = None) -> list[tuple[str, A
                     result.grid, result.grid_input, level=result.level
                 ),
             ),
+        ]
+    if record.stage == "validation":
+        pit_mean = record.summary.get("pit.mean")
+        return [
+            (
+                result.quantity,
+                plot_validation_predictions(
+                    result,
+                    coverage=_coverage_from_summary(record.summary),
+                    pit_mean=float(pit_mean) if pit_mean is not None else None,
+                ),
+            )
         ]
     if record.stage == "risk":
         return [
