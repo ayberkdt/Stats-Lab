@@ -152,6 +152,7 @@ python -m pip install -e ".[dev,visualization]"
 python -m unittest discover -s tests -v
 python -m ruff check .
 python -m mypy src/probstat
+python benchmarks/run.py --quick     # accuracy, error calibration, and cost per method
 ```
 
 CI runs these checks and every example lab on Python 3.11 to 3.13. Before
