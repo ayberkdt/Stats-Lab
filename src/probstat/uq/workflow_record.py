@@ -134,8 +134,9 @@ WORKFLOW_GUIDE: Mapping[WorkflowStep, StepGuide] = MappingProxyType(
                 "probstat.uq.grid_convergence_index",
                 "probstat.uq.least_squares_convergence",
                 "probstat.validation.VerificationEvidence",
+                "probstat.workflow.UQStudy.verify",
             ),
-            (),
+            ("verification",),
         ),
         WorkflowStep.VALIDATION: StepGuide(
             WorkflowStep.VALIDATION,
@@ -493,7 +494,8 @@ class UQWorkflowRecord:
 
         Each stage kind is mapped through :data:`WORKFLOW_GUIDE`
         (``propagation``, ``sensitivity``, ``reliability``, ... to
-        propagation; ``calibration``; ``prediction``; ``validation``) and the
+        propagation; ``calibration``; ``prediction``; ``validation``;
+        ``verification``) and the
         step is marked complete with an evidence line naming the stage, its
         label, stream seed, and evaluation count.
 
