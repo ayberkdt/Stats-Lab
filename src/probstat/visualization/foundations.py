@@ -696,9 +696,16 @@ def plot_characteristic_function(
             (frequencies[-1], imaginary[-1], "Im phi(t)", palette.series[2]),
         ),
     )
+    largest_imaginary = max(abs(v) for v in imaginary)
+    verdict = (
+        "real, so the law is symmetric about 0"
+        if largest_imaginary < 1e-12
+        else f"complex (|Im| up to {largest_imaginary:.2f}), so the law is not "
+        "symmetric about 0"
+    )
     title_block(
         axes,
-        f"Characteristic function of {variable.name}",
+        f"{variable.name}: phi(t) is {verdict}",
         "phi(t) = E[exp(itX)]; |phi(t)| <= 1 with phi(0) = 1",
     )
     return axes
