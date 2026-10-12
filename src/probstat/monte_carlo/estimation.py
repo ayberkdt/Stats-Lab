@@ -20,6 +20,11 @@ from probstat.inference import (
     normal_mean_confidence_interval,
     wilson_score_interval,
 )
+from probstat.statistics.streaming import (
+    ExceedanceCounter,
+    RunningMoments,
+    run_until,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,6 +207,9 @@ def estimate_probability(
 ) -> ProbabilityEstimate:
     """Estimate an event probability from Bernoulli indicators.
 
+    The indicators are counted in one pass and never stored, so ``events``
+    may be a long generator.
+
     Args:
         events: Non-empty iterable containing exact Boolean indicators.
         confidence: Nominal Wilson-interval confidence in ``(0, 1)``.
@@ -220,15 +228,15 @@ def estimate_probability(
         [REF-ROBERT-CASELLA-2004, Chapter 3], [REF-WILSON-1927].
 
     """
-    materialized: list[bool] = []
+    counter = ExceedanceCounter()
     for index, event in enumerate(events):
         if not isinstance(event, bool):
             raise TypeError(f"events[{index}] must be Boolean")
-        materialized.append(event)
-    if not materialized:
+        counter.push(event)
+    if counter.trials == 0:
         raise ValueError("events must contain at least one indicator")
-    trials = len(materialized)
-    successes = sum(materialized)
+    trials = counter.trials
+    successes = counter.events
     probability = successes / trials
     standard_error = math.sqrt(probability * (1.0 - probability) / trials)
     return ProbabilityEstimate(
@@ -238,6 +246,95 @@ def estimate_probability(
         successes,
         trials,
         trials,
+    )
+
+
+def estimate_mean_streaming(
+    source: Iterable[float] | Callable[[], float],
+    *,
+    max_samples: int,
+    target_relative_error: float | None = None,
+    min_samples: int = 100,
+    check_every: int = 100,
+    confidence: float = 0.95,
+) -> MonteCarloEstimate:
+    """Estimate an expectation in one pass without storing the samples.
+
+    Draws from a zero-argument sampler or an iterable into a
+    :class:`probstat.statistics.RunningMoments` accumulator. Without a
+    target exactly ``max_samples`` draws are made (fewer if an iterable ends);
+    with ``target_relative_error`` sampling stops at the first check where
+    ``SE / |mean|`` meets the target (see :func:`probstat.statistics.run_until`
+    for the stopping rule and its slight optimism). The interval is the normal
+    approximation ``mean +- z SE``.
+
+    Args:
+        source: Zero-argument sampler or iterable of finite real samples.
+        max_samples: Maximum number of draws, at least ``min_samples``.
+        target_relative_error: Optional positive relative standard-error target.
+        min_samples: Draws before the first stopping check, at least two.
+        check_every: Positive number of draws between stopping checks.
+        confidence: Nominal normal-approximation confidence in ``(0, 1)``.
+
+    Returns:
+        Mean, unbiased variance, standard error, interval, and work count.
+
+    Raises:
+        TypeError: If arguments have invalid types.
+        ValueError: If arguments have invalid domains or fewer than two
+            samples were available.
+
+    Equation:
+        [EQ-MC-MEAN-001], [EQ-MC-SE-001], [EQ-STAT-STREAM-001],
+        [EQ-STAT-STREAM-007].
+
+    References:
+        [REF-ROBERT-CASELLA-2004, Chapters 3-4], [REF-WELFORD-1962].
+
+    """
+    checked_confidence = require_probability(confidence, name="confidence")
+    if checked_confidence in (0.0, 1.0):
+        raise ValueError("confidence must be strictly between zero and one")
+    if target_relative_error is None:
+        maximum = require_non_negative_integer(max_samples, name="max_samples")
+        if maximum < 2:
+            raise ValueError("max_samples must be at least two")
+        moments = RunningMoments()
+        if callable(source):
+            for _ in range(maximum):
+                moments.push(source())
+        else:
+            for value in source:
+                moments.push(value)
+                if moments.count >= maximum:
+                    break
+        if moments.count < 2:
+            raise ValueError("source yielded fewer than two samples")
+    else:
+        moments = run_until(
+            source,
+            target_relative_error=target_relative_error,
+            max_samples=max_samples,
+            min_samples=min_samples,
+            check_every=check_every,
+        ).moments
+    center = moments.mean
+    standard_error = moments.standard_error()
+    critical = statistics.NormalDist().inv_cdf(0.5 + 0.5 * checked_confidence)
+    half_width = critical * standard_error
+    interval = ConfidenceInterval(
+        center - half_width,
+        center + half_width,
+        checked_confidence,
+        "streaming normal approximation with estimated standard deviation",
+    )
+    return MonteCarloEstimate(
+        center,
+        moments.variance(ddof=1),
+        standard_error,
+        interval,
+        moments.count,
+        moments.count,
     )
 
 
