@@ -147,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"Done in {elapsed:.1f} s: {len(runs)} runs, {len(failed)} failed "
         f"({len(unexpected)} unexpected), {skipped} skipped. "
-        f"Wrote {' and '.join(written)}.",
+        f"Wrote {' and '.join(written)}. Next: read {written[-1]}.",
         flush=True,
     )
     if unexpected and not arguments.allow_failures:

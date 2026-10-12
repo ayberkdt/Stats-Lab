@@ -168,7 +168,7 @@ def run_benchmarks(
     if seeds:
         counts.update(seeds)
     records: list[Record] = []
-    for problem in problems:
+    for position, problem in enumerate(problems, start=1):
         start = time.perf_counter()
         chosen = [
             m for m in methods if m.category == problem.category and m.applies(problem)
@@ -181,7 +181,8 @@ def run_benchmarks(
                 records.extend(produced)
         if progress is not None:
             progress(
-                f"[{problem.category}] {problem.key}: {len(chosen)} methods, "
+                f"[{position}/{len(problems)} {problem.category}] {problem.key}: "
+                f"{len(chosen)} methods, "
                 f"{counts[problem.category]} seeds, {failed} failed run(s), "
                 f"{time.perf_counter() - start:.1f} s"
             )
