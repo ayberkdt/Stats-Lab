@@ -53,7 +53,8 @@ tested evidence.
 - [x] Covariance and Pearson correlation.
 - [~] Hyndman-Fan quantiles, MAD, skewness, kurtosis, ranks, Spearman
   correlation, contingency summaries (two-by-two effect measures, McNemar,
-  adjusted residuals); missing-data policies remain.
+  adjusted residuals), and missing-data methods (EM, multiple imputation,
+  ADR-0047).
 - [x] Histograms, Q-Q plots, ECDF bands, violin/box plots with kernel
   density, scatter diagnostics, uncertainty annotations, and accessible
   colour/label standards (CVD-validated light and dark palettes, ADR-0024).
@@ -84,8 +85,8 @@ tested evidence.
 - [x] Markov chains, Poisson processes, SDEs (Euler-Maruyama, Milstein),
   Gaussian-process regression, random fields, ARIMA and exponential smoothing
   (ADR-0031).
-- [~] Survival analysis and censored data (ADR-0033), optimal and Bayesian
-  experimental design (ADR-0035); general missing-data handling remains.
+- [x] Survival analysis and censored data (ADR-0033), optimal and Bayesian
+  experimental design (ADR-0035), missing data under MAR (ADR-0047).
 
 ## Phase 6 — Frontier systems
 

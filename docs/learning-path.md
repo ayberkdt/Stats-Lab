@@ -62,7 +62,8 @@ Statistical modelling and decision tools extend the same foundations:
 - [Regression and GLMs](foundations/regression-and-glms.md) and
   [hierarchical models](foundations/hierarchical-models.md): least squares,
   generalized linear models, regularization, EM and mixtures, partial
-  pooling, and posterior predictive checks.
+  pooling, and posterior predictive checks; [missing data](foundations/missing-data.md)
+  covers EM under MAR and multiple imputation.
 - [Time series](foundations/time-series.md) and
   [survival analysis](foundations/survival-analysis.md): ARIMA with exact
   likelihoods and forecasts; censored data, Kaplan-Meier, and Cox models.

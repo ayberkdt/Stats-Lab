@@ -68,9 +68,11 @@ defects that are now fixed with oracle-backed regression tests.
   (KSG mutual information per input), and `UQStudy.design` (greedy Bayesian
   design for the study's calibration, re-estimated on an independent stream),
   `UQStudy.design_points` (multiple design points with multi-point FORM and
-  mixture importance sampling), and `UQStudy.active_reliability` (AK-MCS);
-  the HTML report draws figures for the tail, information, and design
-  stages.
+  mixture importance sampling), `UQStudy.active_reliability` (AK-MCS), and
+  `UQStudy.calibrate_with_discrepancy` (Kennedy-O'Hagan; `predict` then
+  reports simulator-only and bias-corrected intervals); `validate` adds CRPS,
+  PIT, and interval coverage. The HTML report draws figures for every stage
+  except validation.
 - **Hierarchical models and EM** (`inference`): generic EM driver with a
   monotonicity check, Gaussian mixtures (full/diagonal covariance, k-means++
   starts, BIC/AIC selection), EM for censored normal data; exact gridded
@@ -92,13 +94,22 @@ defects that are now fixed with oracle-backed regression tests.
   Wasserstein distances and barycenters; closed-form and numerical Fisher
   information, Fisher-Rao distances, Hellinger, Bhattacharyya, total
   variation, Renyi, and alpha divergences.
+- **Missing data** (`inference`): missingness patterns and Little's MCAR
+  test; EM for the multivariate normal under MAR with observed-information
+  standard errors; proper multiple imputation by data augmentation with a
+  normal-inverse-Wishart posterior (Bartlett sampler); Rubin's rules with
+  Barnard-Rubin degrees of freedom; complete-case and mean-imputation
+  baselines labelled as biased.
 - **Contingency tables** (`inference`): risk difference (Newcombe hybrid
   score interval), risk ratio (Katz), and odds ratio (Woolf, with the
   Haldane-Anscombe correction); exact and asymptotic McNemar tests; Pearson
   and Haberman adjusted residuals.
 - **Kernel density** (`statistics.gaussian_kde`) with Silverman and
   normal-reference bandwidths.
-- **Figures**: discrepancy-corrected predictions and estimated
+- **Figures**: design-point maps, AK-MCS classification and convergence;
+  reliability diagrams, CRPS comparison, coverage, and distribution-shift
+  ECDFs; transport plans, Sinkhorn convergence, quantile W1 areas, and
+  displacement interpolation; discrepancy-corrected predictions and estimated
   discrepancy; eight-schools shrinkage, tau posterior, mixture fit and BIC
   selection, predictive-check and PIT histograms; return-level,
   mean-residual-life, and tail Q-Q plots;
@@ -123,6 +134,12 @@ defects that are now fixed with oracle-backed regression tests.
   proposal (eigenvalues near 5e-4, estimates biased low by up to 100% with
   small reported c.o.v.); adapted eigenvalues are now floored at 0.55 and a
   warning flags degenerate weights.
+- Sixth review round: tanh-sinh quadrature truncated 1e-15 from the ends,
+  losing up to 3.7% of heavy-tailed quantile Wasserstein distances with a
+  far too small error estimate (nodes now reach 1e-300; the routine moved to
+  `numerics`); Renyi and alpha divergences overflowed at large orders;
+  1-D energy distance lost digits under a large common offset; Fisher-Rao
+  categorical distance cancelled for nearby laws.
 - Fifth review round: censored-normal EM cancelled catastrophically far
   from zero (now centred moments, matching scipy at locations up to 1e8);
   hierarchical posteriors report infinite moments as `inf` instead of

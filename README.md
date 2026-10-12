@@ -61,7 +61,8 @@ write_study_html(study, "study.html")    # one page, every stage, light and dark
 
 The same study can also `calibrate` the inputs against experiments,
 `predict` with the posterior, `validate` against independent data, `emulate`
-the model with a polynomial-chaos or Gaussian-process surrogate, fit the
+the model with a polynomial-chaos or Gaussian-process surrogate, calibrate
+with an explicit model-discrepancy term (`calibrate_with_discrepancy`), fit the
 output tail (`extremes`), rank inputs by mutual information
 (`information_sensitivity`), choose the next experiment (`design`), and
 handle failure domains with several important regions (`design_points`,
@@ -83,7 +84,7 @@ figures.
 | Dynamics | `filtering`, `data_assimilation`, `processes` | Kalman/EKF/UKF, RTS smoother, particle filter, EnKF, 3D-Var; Markov chains, SDEs, random fields |
 | Emulators | `surrogates` | Polynomial chaos (Sobol from coefficients), Gaussian-process regression |
 | Statistics | `statistics`, `inference`, `distributions`, `information` | Tests, bootstrap (BCa), power, multiple testing, kernel density, 20+ distribution families, generic MLE and AIC/BIC selection, entropy, mutual information, optimal transport, Fisher-Rao geometry |
-| Modeling | `inference`, `timeseries`, `conformal` | Regression and GLMs, ridge/lasso, hierarchical models, EM and mixtures, ARIMA, Kaplan-Meier/Cox survival, conformal prediction |
+| Modeling | `inference`, `timeseries`, `conformal` | Regression and GLMs, ridge/lasso, hierarchical models, EM and mixtures, missing data and multiple imputation, contingency tables, ARIMA, Kaplan-Meier/Cox survival, conformal prediction |
 | Decisions | `causal`, `design` | Back-door/front-door identification, IPW/AIPW, E-values; D-optimal and Bayesian experimental design |
 | Foundations | `linalg`, `optimization`, `numerics`, `probability` | Cholesky/LU/Jacobi, BFGS/Levenberg-Marquardt/Brent, quadrature, exact finite probability |
 
