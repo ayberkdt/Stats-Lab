@@ -2115,3 +2115,9 @@ the ACM* 28(10), 1076-1085, 1985. Author copy:
 Jeffrey Scott Vitter. "Random Sampling with a Reservoir." *ACM Transactions
 on Mathematical Software* 11(1), 37-57, 1985.
 DOI: [10.1145/3147.3165](https://doi.org/10.1145/3147.3165).
+
+## REF-FRITSCH-CARLSON-1980
+
+F. N. Fritsch and R. E. Carlson. "Monotone Piecewise Cubic Interpolation."
+*SIAM Journal on Numerical Analysis* 17(2), 238-246, 1980.
+doi:10.1137/0717021.

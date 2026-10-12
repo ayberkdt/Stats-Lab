@@ -222,6 +222,46 @@ class ThemeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             plot_distribution_comparison({str(i): [0.0, 1.0] for i in range(7)})
 
+    def test_monotone_cubic_interpolates_without_overshoot(self) -> None:
+        """Fritsch-Carlson passes through the data and keeps monotone data monotone."""
+        from probstat.visualization.theme import monotone_cubic
+
+        x = [0.0, 1.0, 2.0, 3.0, 4.0]
+        y = [0.0, 0.1, 0.2, 5.0, 5.1]
+        xs, ys = monotone_cubic(x, y, samples=20)
+        for xi, yi in zip(x, y, strict=True):
+            self.assertIn(xi, xs)
+            self.assertAlmostEqual(ys[xs.index(xi)], yi, places=12)
+        self.assertTrue(all(b >= a - 1e-12 for a, b in zip(ys, ys[1:], strict=False)))
+        self.assertGreaterEqual(min(ys), 0.0)
+        self.assertLessEqual(max(ys), 5.1)
+        with self.assertRaises(ValueError):
+            monotone_cubic([0.0, 0.0], [1.0, 2.0])
+
+    def test_band_opacity_is_capped_and_area_fades(self) -> None:
+        """Bands never exceed 0.18 opacity; the gradient area is clipped."""
+        from probstat.visualization.theme import (
+            MAX_BAND_ALPHA,
+            band,
+            gradient_area,
+            new_axes,
+        )
+
+        axes = new_axes()
+        collection = band(
+            axes,
+            [0.0, 1.0, 2.0],
+            [0.0, 0.1, 0.2],
+            [1.0, 1.2, 1.1],
+            color="#178F6E",
+            alpha=0.5,
+            smooth=True,
+        )
+        self.assertLessEqual(collection.get_alpha(), MAX_BAND_ALPHA)
+        axes.set_ylim(-1.0, 2.0)
+        image = gradient_area(axes, [0.0, 1.0, 2.0], [1.0, 1.5, 0.5], color="#178F6E")
+        self.assertIsNotNone(image.get_clip_path())
+
     def test_dark_theme_changes_canvas(self) -> None:
         """The graphite context paints the dark canvas."""
         from matplotlib.colors import to_hex

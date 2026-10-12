@@ -14,6 +14,7 @@ from .theme import (
     axis_labels,
     band,
     direct_labels,
+    gradient_area,
     line,
     new_axes,
     points,
@@ -128,9 +129,23 @@ def plot_forecast(
     future = list(range(n, n + len(mean) + 1))
     line(axes, past, history, color=palette.observed, width=1.6)
     band(
-        axes, future, [history[-1], *lower], [history[-1], *upper], color=palette.model
+        axes,
+        future,
+        [history[-1], *lower],
+        [history[-1], *upper],
+        color=palette.model,
+        smooth=True,
     )
-    line(axes, future, [history[-1], *mean], color=palette.model, dashes=PROJECTED)
+    line(
+        axes,
+        future,
+        [history[-1], *mean],
+        color=palette.model,
+        dashes=PROJECTED,
+        smooth=True,
+    )
+    axes.autoscale_view()
+    gradient_area(axes, past, history, color=palette.observed)
     reference_line(axes, x=n + 0.5, label="forecast origin")
     axis_labels(axes, "Time index", name)
     direct_labels(

@@ -162,6 +162,11 @@ defects that are now fixed with oracle-backed regression tests.
 
 ### Changed
 
+- Figures follow the sunumatik chart-aesthetics rules more closely: every
+  uncertainty band (including nested inner bands, previously 0.28) is capped
+  at 0.18 opacity; Fritsch-Carlson monotone smoothing for continuous curves
+  and their bands; a fading gradient area for the primary observed series
+  (used in the forecast figure).
 - The graphite (dark) accent is indigo `#9BA9F0` instead of orange
   `#E8804A`, which sat below the normal-vision separation floor from the
   amber model hue.

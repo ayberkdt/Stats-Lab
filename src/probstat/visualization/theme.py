@@ -116,7 +116,11 @@ SOURCE_SIZE = 7.5
 LINE_WIDTH = 2.0
 REFERENCE_WIDTH = 1.2
 BAND_ALPHA = 0.16
-INNER_BAND_ALPHA = 0.28
+# sunumatik chart-aesthetics: every uncertainty band at most 0.18 opacity, so
+# a nested inner band is drawn at the cap over its outer band.
+MAX_BAND_ALPHA = 0.18
+INNER_BAND_ALPHA = MAX_BAND_ALPHA
+AREA_TOP_ALPHA = 0.26
 
 FITTED: tuple[float, tuple[float, ...]] = (0.0, (5.0, 3.5))
 PROJECTED: tuple[float, tuple[float, ...]] = (0.0, (1.0, 3.5))
@@ -483,8 +487,13 @@ def band(
     color: str,
     alpha: float = BAND_ALPHA,
     label: str | None = None,
+    smooth: bool = False,
 ) -> Any:
     """Draw an uncertainty band in its parent series hue with no stroke.
+
+    The opacity is capped at ``MAX_BAND_ALPHA = 0.18`` (a band in a stronger
+    fill reads as a third series). With ``smooth=True`` both edges use the
+    same monotone cubic interpolation as a smoothed parent line.
 
     Args:
         ax: Target axes.
@@ -492,8 +501,9 @@ def band(
         lower: Lower band edge.
         upper: Upper band edge.
         color: Parent series colour.
-        alpha: Fill opacity (at most about 0.3).
+        alpha: Fill opacity, capped at 0.18.
         label: Optional legend label.
+        smooth: Interpolate the edges with :func:`monotone_cubic`.
 
     Returns:
         The Matplotlib collection.
@@ -502,9 +512,155 @@ def band(
         [REF-MATPLOTLIB]. No equation is evaluated.
 
     """
+    if smooth:
+        xs, lower = monotone_cubic(x, lower)
+        _, upper = monotone_cubic(x, upper)
+        x = xs
     return ax.fill_between(
-        x, lower, upper, color=color, alpha=alpha, linewidth=0.0, label=label, zorder=1
+        x,
+        lower,
+        upper,
+        color=color,
+        alpha=min(alpha, MAX_BAND_ALPHA),
+        linewidth=0.0,
+        label=label,
+        zorder=1,
     )
+
+
+def monotone_cubic(
+    x: Sequence[float], y: Sequence[float], *, samples: int = 16
+) -> tuple[list[float], list[float]]:
+    """Return a dense Fritsch-Carlson monotone cubic interpolant of ``(x, y)``.
+
+    The curve passes through every point and never overshoots them: on each
+    interval the Hermite slopes are limited so that monotone data stay
+    monotone, which is why continuous phenomena can be drawn smooth without
+    inventing extrema.
+
+    Args:
+        x: Strictly increasing abscissae (at least two).
+        y: Ordinates.
+        samples: Points per interval in the returned curve.
+
+    Returns:
+        Dense abscissae and ordinates, including the original points.
+
+    Raises:
+        ValueError: If the lengths differ, fewer than two points are given,
+            ``x`` is not strictly increasing, or ``samples < 1``.
+
+    References:
+        [REF-FRITSCH-CARLSON-1980]. No equation of the registry is evaluated.
+
+    """
+    xs = [float(v) for v in x]
+    ys = [float(v) for v in y]
+    if len(xs) != len(ys) or len(xs) < 2:
+        raise ValueError("monotone_cubic needs at least two points of equal length")
+    if any(b <= a for a, b in zip(xs[:-1], xs[1:], strict=True)):
+        raise ValueError("x must be strictly increasing")
+    if samples < 1:
+        raise ValueError("samples must be positive")
+    n = len(xs)
+    widths = [xs[i + 1] - xs[i] for i in range(n - 1)]
+    secants = [(ys[i + 1] - ys[i]) / widths[i] for i in range(n - 1)]
+    slopes = [0.0] * n
+    slopes[0], slopes[-1] = secants[0], secants[-1]
+    for i in range(1, n - 1):
+        if secants[i - 1] * secants[i] <= 0.0:
+            slopes[i] = 0.0
+        else:
+            slopes[i] = 0.5 * (secants[i - 1] + secants[i])
+    for i, delta in enumerate(secants):
+        if delta == 0.0:
+            slopes[i] = slopes[i + 1] = 0.0
+            continue
+        a, b = slopes[i] / delta, slopes[i + 1] / delta
+        radius = a * a + b * b
+        if radius > 9.0:
+            scale = 3.0 / radius**0.5
+            slopes[i], slopes[i + 1] = scale * a * delta, scale * b * delta
+    out_x: list[float] = []
+    out_y: list[float] = []
+    for i in range(n - 1):
+        h = widths[i]
+        for k in range(samples):
+            t = k / samples
+            h00 = (1 + 2 * t) * (1 - t) ** 2
+            h10 = t * (1 - t) ** 2
+            h01 = t * t * (3 - 2 * t)
+            h11 = t * t * (t - 1)
+            out_x.append(xs[i] + t * h)
+            out_y.append(
+                h00 * ys[i]
+                + h10 * h * slopes[i]
+                + h01 * ys[i + 1]
+                + h11 * h * slopes[i + 1]
+            )
+    out_x.append(xs[-1])
+    out_y.append(ys[-1])
+    return out_x, out_y
+
+
+def gradient_area(
+    ax: Any,
+    x: Sequence[float],
+    y: Sequence[float],
+    *,
+    color: str,
+    top_alpha: float = AREA_TOP_ALPHA,
+) -> Any:
+    """Fill under the primary observed line with a fading gradient.
+
+    The fill is the series hue at ``top_alpha`` (at most 0.26) along the line,
+    fading to zero at the plot floor; use it for one series per chart only,
+    since two stacked gradients turn into mud.
+
+    Args:
+        ax: Target axes (set the y-limits first; the floor is the lower limit).
+        x: Abscissae of the line.
+        y: Ordinates of the line.
+        color: Series colour.
+        top_alpha: Opacity at the line, capped at 0.26.
+
+    Returns:
+        The Matplotlib image that carries the gradient.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    from matplotlib.colors import to_rgb
+    from matplotlib.patches import Polygon
+
+    xs, ys = [float(v) for v in x], [float(v) for v in y]
+    floor = ax.get_ylim()[0]
+    top = max(ys)
+    red, green, blue = to_rgb(color)
+    strength = min(top_alpha, AREA_TOP_ALPHA)
+    steps = 64
+    pixels = [
+        [[red, green, blue, strength * (k / (steps - 1))]] for k in range(steps)
+    ]
+    image = ax.imshow(
+        pixels,
+        aspect="auto",
+        extent=(min(xs), max(xs), floor, top),
+        origin="lower",
+        zorder=0.9,
+        interpolation="bilinear",
+    )
+    outline = Polygon(
+        [(xs[0], floor), *zip(xs, ys, strict=True), (xs[-1], floor)],
+        closed=True,
+        facecolor="none",
+        edgecolor="none",
+    )
+    ax.add_patch(outline)
+    image.set_clip_path(outline)
+    ax.set_ylim(floor, ax.get_ylim()[1])
+    return image
 
 
 def line(
@@ -517,8 +673,13 @@ def line(
     width: float = LINE_WIDTH,
     label: str | None = None,
     zorder: float = 3.0,
+    smooth: bool = False,
 ) -> Any:
     """Draw a data or model line with optional epistemic dash pattern.
+
+    With ``smooth=True`` the line is drawn through :func:`monotone_cubic`
+    (continuous phenomena are drawn smooth without overshoot; keep the
+    default for discrete steps).
 
     Args:
         ax: Target axes.
@@ -529,6 +690,7 @@ def line(
         width: Line width in points.
         label: Optional legend label.
         zorder: Drawing order.
+        smooth: Interpolate with :func:`monotone_cubic`.
 
     Returns:
         The Matplotlib line.
@@ -537,6 +699,8 @@ def line(
         [REF-MATPLOTLIB]. No equation is evaluated.
 
     """
+    if smooth:
+        x, y = monotone_cubic(x, y)
     return ax.plot(
         x,
         y,

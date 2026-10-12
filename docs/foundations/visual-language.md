@@ -22,6 +22,19 @@ own figures through `probstat.visualization.theme`.
 5. **Data ink dominates.** Horizontal hairline grid, no top or right spine, no
    shadows, glow, 3-D, or dual y-axes.
 
+The numbers follow the sunumatik chart-aesthetics reference
+(`skills/create-scientific-visuals/references/chart-aesthetics.md`):
+Matplotlib scales dash patterns by line width, so `FITTED (5, 3.5)`,
+`PROJECTED (1, 3.5)`, and `SIMULATED (8, 3, 1.5, 3)` at the 2 pt data line
+give exactly its 10-7, 2-7, and 16-6-3-6 grammar; reference lines are 0.6x
+the data width (its 2 px vs 3.5 px); every band is capped at 0.18 opacity
+(`MAX_BAND_ALPHA`, nested inner bands included); markers carry a
+canvas-colour rim. Continuous curves can be drawn with Fritsch-Carlson
+monotone cubic smoothing (`line(..., smooth=True)`, and `band(...,
+smooth=True)` so the band follows its line) [REF-FRITSCH-CARLSON-1980], and
+the primary observed series may carry one fading gradient area
+(`gradient_area`, at most 0.26 at the line).
+
 ## Palettes
 
 | Token | Porcelain (light, default) | Graphite (dark) |
