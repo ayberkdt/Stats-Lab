@@ -7,10 +7,11 @@ The functions take :class:`~probstat.inverse.DiscrepancyCalibration` and the
 * observations use the observed hue (``series[0]``);
 * the bias-corrected prediction ``eta + delta`` is the model's answer, so it
   takes the model hue (``series[1]``), solid line on its band;
-* the simulator-only prediction ``eta`` is a second model curve; it takes the
-  fourth categorical slot (``series[3]``, olive in porcelain, rose in
-  graphite) with the ``FITTED`` dash, so the two predictions never share a
-  hue and neither is confused with the indigo accent of the truth;
+* the simulator-only prediction ``eta`` is the baseline the correction is
+  measured against, so it is drawn in muted ink with the ``FITTED`` dash
+  (sunumatik chart-aesthetics: context and baseline series take muted ink,
+  not a new hue; an extra hue band reads as a third series, the "olive
+  blob" failure);
 * a supplied truth is a reference curve in the accent colour.
 """
 
@@ -248,7 +249,7 @@ def plot_discrepancy_predictions(
     corrected = [item.interval(level, kind="corrected") for item in predictions]
     axes = new_axes(ax)
     palette = active_palette()
-    simulator_colour = palette.series[3]
+    simulator_colour = palette.muted
     band(
         axes,
         xs,

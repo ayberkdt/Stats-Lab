@@ -185,7 +185,7 @@ class CalibrationFigureTests(unittest.TestCase):
         self.assertIn(f"of {len(self.xs)} points", title)
         colours = _line_colours(axes)
         self.assertIn(palette.model.upper(), colours)
-        self.assertIn(palette.series[3].upper(), colours)
+        self.assertIn(palette.muted.upper(), colours)
         self.assertIn(palette.accent.upper(), colours)
         scatter = axes.collections[-1]
         self.assertEqual(_hex(scatter.get_facecolor()[0]), palette.observed.upper())
