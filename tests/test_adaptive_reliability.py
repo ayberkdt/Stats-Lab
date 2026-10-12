@@ -361,6 +361,34 @@ class AKMCSTests(unittest.TestCase):
         ) / len(population)
         self.assertAlmostEqual(result.probability, fraction, places=15)
 
+    def test_population_posterior_matches_surrogate_on_near_singular_fit(
+        self,
+    ) -> None:
+        """The population means agree with the returned GP on a parabola.
+
+        Regression (benchmark suite, ADR-0049): on ``G = 3 + u1^2/4 - u2``
+        the likelihood fit ends at length scales ~1e3-1e5 and a signal to
+        nugget ratio near ``1/eps``. The incremental posterior re-derived the
+        Cholesky factor in original units, its last pivots collapsed to the
+        noise floor, and AK-MCS returned ``P_f = 0.641`` (1282 of 2000 points
+        failing) although the returned surrogate itself predicts about 0.001
+        (exact ``8.2e-4``).
+        """
+        from probstat.foundations.random_streams import resolve_stream
+
+        state = make_state(lambda u: 3.0 + 0.25 * u[0] ** 2 - u[1], 2)
+        result = ak_mcs(state, 2000, max_population=2000, target_cov=1.0, seed=2)
+        generator = resolve_stream(2).child("ak-mcs", "population").generator()
+        population = [
+            (generator.gauss(0.0, 1.0), generator.gauss(0.0, 1.0))
+            for _ in range(result.population)
+        ]
+        fraction = sum(
+            1 for point in population if result.surrogate.predict(point) <= 0.0
+        ) / len(population)
+        self.assertLessEqual(abs(result.probability - fraction), 1.0 / 2000)
+        self.assertLess(result.probability, 0.01)
+
     def test_population_enlargement_and_determinism(self) -> None:
         """A c.o.v. target enlarges the population; seeds reproduce runs."""
 

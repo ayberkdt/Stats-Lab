@@ -32,12 +32,11 @@ from probstat.foundations.validation import require_finite_real
 from probstat.linalg import Vector
 from probstat.modeling import standard_normal_quantile
 from probstat.propagation import make_design
-from probstat.surrogates import KERNELS, GaussianProcessRegression
+from probstat.surrogates import KERNELS, GaussianProcessRegression, kernel_value
 from probstat.surrogates import fit_gaussian_process as _fit_gp
 
 from .model_based import ModelLimitState
 
-_SQRT5 = math.sqrt(5.0)
 _DESIGNS = ("mc", "lhs", "halton", "sobol")
 
 
@@ -78,6 +77,20 @@ class _IncrementalPosterior:
     ``O(n^2)`` of a fresh prediction. The result equals the batch posterior
     at the same hyperparameters up to rounding.
 
+    The factorization reproduces :func:`probstat.surrogates.fit_gaussian_process`
+    exactly: standardized output units, the signal variance ``exp(theta_0)``
+    and nugget the fit used, :func:`~probstat.surrogates.kernel_value`, and
+    ``math.fsum`` in every Cholesky and triangular-solve sum, so the initial
+    factor is bit-identical to the batch factor; ``mu`` and ``sigma^2`` are
+    mapped back to original units. This matters because maximum likelihood can
+    end at hyperparameters whose kernel matrix is numerically singular
+    (signal-to-nugget ratio near ``1 / eps``), accepted only because the fit's
+    own factorization succeeded. Re-deriving the factor with different
+    rounding (original units, plain ``sum``) made the pivots collapse to the
+    noise floor and the population means meaningless (benchmark suite,
+    ADR-0049: ``|mu - mu_batch|`` up to ``1e9`` and ``P_f = 0.64`` for a true
+    ``8.2e-4`` on a parabolic limit state).
+
     References:
         [EQ-SUR-GP-003], [EQ-REL-AKMCS-001],
         [REF-RASMUSSEN-WILLIAMS-2006, Algorithm 2.1].
@@ -95,12 +108,16 @@ class _IncrementalPosterior:
             [EQ-SUR-GP-003], [REF-RASMUSSEN-WILLIAMS-2006, Algorithm 2.1].
 
         """
-        parameters = surrogate.hyperparameters
+        theta = surrogate.log_parameters
         self.kernel = surrogate.kernel
-        self.signal = parameters.signal_variance
-        self.noise = parameters.noise_variance
-        self.inverse_scales = tuple(1.0 / ell for ell in parameters.length_scales)
+        # Standardized units, exactly as fit_gaussian_process factorized them.
+        self.signal = math.exp(theta[0])
+        self.noise = surrogate.nugget + (
+            math.exp(theta[-1]) if surrogate.estimate_noise else 0.0
+        )
+        self.scales = surrogate.hyperparameters.length_scales
         self.mean = surrogate.output_mean
+        self.scale = surrogate.output_scale
         self.training: list[Vector] = []
         self.lower: list[list[float]] = []
         self.z: list[float] = []
@@ -112,34 +129,18 @@ class _IncrementalPosterior:
             self._extend_training(point, value)
         self.add_population(population)
 
-    def scaled(self, point: Vector) -> Vector:
-        """Return ``(x_i / ell_i)``, the coordinates in which ``r`` is Euclidean.
-
-        References:
-            [EQ-SUR-GP-001], [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
-
-        """
-        return tuple(
-            a * inverse for a, inverse in zip(point, self.inverse_scales, strict=True)
-        )
-
     def covariance(self, left: Vector, right: Vector) -> float:
-        """Return ``k`` between two points given in scaled coordinates.
+        """Return the standardized-unit kernel ``k`` between two inputs.
 
         References:
             [EQ-SUR-GP-001], [EQ-SUR-GP-002],
             [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
 
         """
-        r = math.dist(left, right)
-        if self.kernel == "squared_exponential":
-            return self.signal * math.exp(-0.5 * r * r)
-        return (
-            self.signal * (1.0 + _SQRT5 * r + 5.0 * r * r / 3.0) * math.exp(-_SQRT5 * r)
-        )
+        return kernel_value(self.kernel, left, right, self.scales, self.signal)
 
     def _solve(self, column: Sequence[float]) -> list[float]:
-        """Return ``L^-1 column`` by forward substitution.
+        """Return ``L^-1 column`` by forward substitution (``fsum`` sums).
 
         References:
             [REF-GOLUB-VANLOAN-2013, Section 3.1].
@@ -148,7 +149,9 @@ class _IncrementalPosterior:
         solution: list[float] = []
         for row, entry in zip(self.lower, column, strict=True):
             size = len(solution)
-            solution.append((entry - sum(map(operator.mul, row, solution))) / row[size])
+            solution.append(
+                (entry - math.fsum(map(operator.mul, row, solution))) / row[size]
+            )
         return solution
 
     def _extend_training(
@@ -160,14 +163,14 @@ class _IncrementalPosterior:
             [EQ-SUR-GP-003], [REF-GOLUB-VANLOAN-2013, Section 4.2].
 
         """
-        point = self.scaled(point)
+        point = tuple(point)
         cross = [self.covariance(point, known) for known in self.training]
         w = self._solve(cross)
-        pivot_square = self.signal + self.noise - sum(map(operator.mul, w, w))
+        pivot_square = (self.signal + self.noise) - math.fsum(map(operator.mul, w, w))
         pivot = math.sqrt(max(pivot_square, self.noise))
         self.lower.append([*w, pivot])
-        residual = value - self.mean - sum(map(operator.mul, w, self.z))
-        self.z.append(residual / pivot)
+        target = (value - self.mean) / self.scale
+        self.z.append((target - math.fsum(map(operator.mul, w, self.z))) / pivot)
         self.training.append(point)
         return w, pivot
 
@@ -182,11 +185,14 @@ class _IncrementalPosterior:
         row, pivot = self._extend_training(point, value)
         point = self.training[-1]
         z_new = self.z[-1]
+        scale = self.scale
         for index, (x, v) in enumerate(zip(self.population, self.v, strict=True)):
-            entry = (self.covariance(x, point) - sum(map(operator.mul, v, row))) / pivot
+            entry = (
+                self.covariance(x, point) - math.fsum(map(operator.mul, v, row))
+            ) / pivot
             v.append(entry)
-            self.mu[index] += entry * z_new
-            self.var[index] -= entry * entry
+            self.mu[index] += scale * entry * z_new
+            self.var[index] -= scale * scale * entry * entry
 
     def add_population(self, points: Sequence[Vector]) -> None:
         """Append population points with their full posterior state.
@@ -195,13 +201,16 @@ class _IncrementalPosterior:
             [EQ-SUR-GP-003], [REF-RASMUSSEN-WILLIAMS-2006, Algorithm 2.1].
 
         """
+        scale = self.scale
         for raw in points:
-            x = self.scaled(raw)
+            x = tuple(raw)
             v = self._solve([self.covariance(x, known) for known in self.training])
             self.population.append(x)
             self.v.append(v)
-            self.mu.append(self.mean + sum(map(operator.mul, v, self.z)))
-            self.var.append(self.signal - sum(map(operator.mul, v, v)))
+            self.mu.append(self.mean + scale * math.fsum(map(operator.mul, v, self.z)))
+            self.var.append(
+                scale * scale * (self.signal - math.fsum(map(operator.mul, v, v)))
+            )
 
     def learning(self, index: int) -> float:
         """Return ``U = |mu| / sigma`` at one population point.

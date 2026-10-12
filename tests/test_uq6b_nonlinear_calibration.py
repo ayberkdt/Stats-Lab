@@ -226,6 +226,26 @@ class MarkovChainMonteCarloTests(unittest.TestCase):
         mcse = monte_carlo_standard_error(chains)
         self.assertAlmostEqual(mcse, math.sqrt(1.0 / theory), delta=0.1 * mcse)
 
+    def test_ess_of_antithetic_chains_is_positive_and_capped(self) -> None:
+        """Strongly antithetic chains give the capped ESS, not a negative one.
+
+        Regression (benchmark suite, ADR-0049): a static-HMC calibration chain
+        had lag-one autocorrelation near -1, the truncated Geyer sum gave
+        ``tau = -0.16`` and ``ESS = -2471``, and ``summarize_draws`` crashed in
+        ``sqrt``. An alternating chain has ``rho_1 ~ -1``, so the first pair
+        sum is non-positive and the uncapped estimate was ``-M n``.
+        """
+        alternating = [1.0 if t % 2 == 0 else -1.0 for t in range(100)]
+        ess = effective_sample_size([alternating])
+        self.assertAlmostEqual(ess, 100.0 * math.log10(100.0))
+        jittered = [
+            value + 0.01 * math.sin(3.0 * t) for t, value in enumerate(alternating)
+        ]
+        summary = summarize_draws([alternating, jittered], name="anti")
+        self.assertGreater(summary.effective_sample_size, 0.0)
+        self.assertTrue(math.isfinite(summary.mcse_mean))
+        self.assertLessEqual(summary.effective_sample_size, 200.0 * math.log10(200.0))
+
     def test_summaries_and_degenerate_chains(self) -> None:
         """Summaries report quantiles; constant chains give undefined diagnostics."""
         summary = summarize_draws([[0.0, 1.0, 2.0, 3.0, 4.0]], name="z")

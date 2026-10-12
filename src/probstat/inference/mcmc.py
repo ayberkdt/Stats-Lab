@@ -1130,7 +1130,9 @@ def effective_sample_size(chains: Sequence[Sequence[float]]) -> float:
     to be non-increasing, and ``ESS = M n / (-1 + 2 sum_k Gamma_k)``.
 
     Chains are used as given (not split). Antithetic chains can give
-    ``ESS > M n``.
+    ``ESS > M n``; ``tau = -1 + 2 sum_k Gamma_k`` is bounded below by
+    ``1 / log10(M n)`` (the safety bound of the Vehtari et al. reference
+    code), so the ESS is always positive and at most ``M n log10(M n)``.
 
     Args:
         chains: One or more equal-length scalar chains, at least 4 draws each.
@@ -1199,6 +1201,11 @@ def effective_sample_size(chains: Sequence[Sequence[float]]) -> float:
         previous = pair
         k += 1
     tau = -1.0 + 2.0 * total
+    # Strongly antithetic chains (lag-one autocorrelation below -1/2, as static
+    # HMC can produce) make the truncated sum give tau <= 0 and a negative or
+    # infinite ESS. Following the reference implementation of Vehtari et al.
+    # (2021), tau is bounded below by 1 / log10(M n), i.e. ESS <= M n log10(M n).
+    tau = max(tau, 1.0 / math.log10(m * n))
     return m * n / tau
 
 
