@@ -8,6 +8,14 @@ from .estimation import (
     estimate_probability,
     estimate_uniform_integral,
 )
+from .limit_simulation import (
+    CLTSimulation,
+    RunningMeanPaths,
+    WeakLawPoint,
+    simulate_clt_distance,
+    simulate_running_means,
+    simulate_weak_law,
+)
 from .multilevel import (
     LevelSampler,
     LevelStatistics,
@@ -58,4 +66,10 @@ __all__ = [
     "estimate_probability",
     "estimate_stratified_uniform",
     "estimate_uniform_integral",
+    "CLTSimulation",
+    "RunningMeanPaths",
+    "WeakLawPoint",
+    "simulate_clt_distance",
+    "simulate_running_means",
+    "simulate_weak_law",
 ]

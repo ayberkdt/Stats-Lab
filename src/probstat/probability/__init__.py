@@ -2,6 +2,32 @@
 
 from .counting import combinations, factorial, multiplication_rule, permutations
 from .finite import FiniteEvent, FiniteProbabilityMeasure, FiniteSampleSpace
+from .limit_theorems import (
+    BERRY_ESSEEN_CONSTANT,
+    CLTErrorRow,
+    DeltaMethodComparison,
+    SummandLaw,
+    TailBoundComparison,
+    bernoulli_summand,
+    bernstein_bound,
+    berry_esseen_bound,
+    chebyshev_bound,
+    clt_error_profile,
+    compare_tail_bounds,
+    delta_method_bernoulli,
+    delta_method_exponential_reciprocal,
+    delta_method_normal_exp,
+    delta_method_normal_square,
+    delta_method_variance,
+    edgeworth_cdf,
+    exponential_summand,
+    hoeffding_bound,
+    kolmogorov_distance_to_normal,
+    normal_summand,
+    sample_mean_two_sided_tail,
+    sample_mean_upper_tail,
+    standardized_mean_cdf,
+)
 from .random_variables import FiniteJointDistribution, FiniteRandomVariable
 
 __all__ = [
@@ -14,5 +40,29 @@ __all__ = [
     "factorial",
     "multiplication_rule",
     "permutations",
+    "BERRY_ESSEEN_CONSTANT",
+    "CLTErrorRow",
+    "DeltaMethodComparison",
+    "SummandLaw",
+    "TailBoundComparison",
+    "bernoulli_summand",
+    "bernstein_bound",
+    "berry_esseen_bound",
+    "chebyshev_bound",
+    "clt_error_profile",
+    "compare_tail_bounds",
+    "delta_method_bernoulli",
+    "delta_method_exponential_reciprocal",
+    "delta_method_normal_exp",
+    "delta_method_normal_square",
+    "delta_method_variance",
+    "edgeworth_cdf",
+    "exponential_summand",
+    "hoeffding_bound",
+    "kolmogorov_distance_to_normal",
+    "normal_summand",
+    "sample_mean_two_sided_tail",
+    "sample_mean_upper_tail",
+    "standardized_mean_cdf",
 ]
 
