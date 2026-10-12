@@ -220,7 +220,10 @@ def plot_greedy_design(
     for step, scores in enumerate(result.candidate_scores):
         colour = palette.series[step % len(palette.series)]
         gains = [score - previous for score in scores]
-        line(axes, xs, gains, color=colour, width=1.8)
+        # Information gain varies continuously with the condition: draw it
+        # smooth (monotone cubic, no overshoot) when the grid is ordered.
+        ordered = len(xs) >= 3 and all(b > a for a, b in zip(xs, xs[1:], strict=False))
+        line(axes, xs, gains, color=colour, width=1.8, smooth=ordered)
         chosen = result.indices[step]
         points(axes, [xs[chosen]], [gains[chosen]], color=colour, size=48.0)
         labels.append(
