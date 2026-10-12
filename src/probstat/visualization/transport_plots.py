@@ -6,8 +6,11 @@ a transport problem, except that the ``W_1`` value in the quantile figure is
 computed by :func:`probstat.information.quantile_wasserstein`.
 
 Colour roles (ADR-0024, ADR-0046): the source measure (first law) takes the
-observed hue and the target measure (second law) ``series[3]``, the slot
-ADR-0044 gave to a second compared quantity; transported mass, plan entries,
+observed hue and the target measure (second law) the model hue, so a
+two-law comparison uses the same two colours as every observed-versus-model
+figure (sunumatik chart-aesthetics); only the displacement interpolation,
+whose geodesic already takes the model hue, keeps ``series[3]`` for its
+second end law; transported mass, plan entries,
 and Sinkhorn runs at decreasing ``eps`` use the single-hue sequential ramp
 of the active palette because they are magnitudes or an ordered family;
 displacement interpolants and the barycenter are model results (model hue);
@@ -180,7 +183,7 @@ def plot_transport_lines(
     """Draw a 1-D transport plan as weighted lines between two rows of atoms.
 
     Source atoms sit on the upper row (observed hue), target atoms on the
-    lower row (``series[3]``), each sized by its mass (the plan's row and
+    lower row (model hue), each sized by its mass (the plan's row and
     column sums). Every plan entry above 0.5% of the mass is a line from
     ``x_i`` to ``y_j`` whose width and colour depth (sequential ramp) grow
     with ``P_ij``. Crossing lines are counted for the title: optimal plans
@@ -236,7 +239,7 @@ def plot_transport_lines(
     span = max(*xs, *ys) - min(*xs, *ys) or 1.0
     for row_y, positions, masses, colour in (
         (1.0, xs, source_mass, palette.observed),
-        (0.0, ys, target_mass, palette.series[3]),
+        (0.0, ys, target_mass, palette.model),
     ):
         axes.scatter(
             positions, [row_y] * len(positions), color=colour,
@@ -255,7 +258,7 @@ def plot_transport_lines(
     axes.set_yticks([0.0, 1.0])
     axes.set_yticklabels([names[1], names[0]])
     for label, colour in zip(
-        axes.get_yticklabels(), (palette.series[3], palette.observed), strict=True
+        axes.get_yticklabels(), (palette.model, palette.observed), strict=True
     ):
         label.set_color(colour)
         label.set_fontweight("bold")
@@ -531,7 +534,7 @@ def plot_quantile_wasserstein(
 
     On the line ``W_1 = int_0^1 |Q_0(u) - Q_1(u)| du`` (EQ-OT-W1D-001). The
     two quantile functions are drawn on ``[clip, 1 - clip]`` (first law in
-    the observed hue, second in ``series[3]``) with the area between them
+    the observed hue, second in the model hue) with the area between them
     muted; the title's ``W_1`` comes from
     :func:`probstat.information.quantile_wasserstein` over the whole unit
     interval, and the subtitle reports the share of it that the drawn range
@@ -583,7 +586,7 @@ def plot_quantile_wasserstein(
         alpha=0.22,
     )  # fmt: skip
     line(axes, us, q0, color=palette.observed)
-    line(axes, us, q1, color=palette.series[3])
+    line(axes, us, q1, color=palette.model)
     crossings: list[float] = []
     last: tuple[float, float] | None = None
     scale = max(1e-300, max(abs(a) + abs(b) for a, b in zip(q0, q1, strict=True)))
@@ -598,7 +601,7 @@ def plot_quantile_wasserstein(
     direct_labels(
         axes,
         [(us[-1], q0[-1], names[0], palette.observed),
-         (us[-1], q1[-1], names[1], palette.series[3])],
+         (us[-1], q1[-1], names[1], palette.model)],
     )  # fmt: skip
     axis_labels(axes, "Probability level u", "Quantile Q(u)")
     if crossings:

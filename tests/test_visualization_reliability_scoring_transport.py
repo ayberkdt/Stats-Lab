@@ -417,7 +417,7 @@ class TransportFigureTests(unittest.TestCase):
         )
         self.assertTrue(_title(axes).startswith("W1 = 1.000"))
         self.assertIn("lies below", _title(axes))
-        self.assertIn(active_palette().series[3], _line_colours(axes))
+        self.assertIn(active_palette().model, _line_colours(axes))
         crossing = plot_quantile_wasserstein(Normal(0.0, 1.0), Normal(0.0, 2.0))
         self.assertIn("cross at u = 0.50", _title(crossing))
         with self.assertRaises(TypeError):
