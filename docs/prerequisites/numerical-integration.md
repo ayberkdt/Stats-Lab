@@ -158,11 +158,16 @@ safe, not sharp.
 - **Interior kinks or peaks** break the analyticity that tanh-sinh needs.
   `integrate` with the default `method="auto"` then also runs Gauss-Kronrod
   and returns the result whose error estimate is the smaller multiple of its
-  own target `max(abs_tol, rel_tol |value|)`. If neither converges and the
-  two values differ by more than their error estimates, the
-  double-exponential value is kept: Gauss-Kronrod can miss all of the mass
-  of a narrow peak far from the origin (`exp(-(x - 50)^2)` on the line gives
-  `3e-198` with an error estimate of the same size).
+  own target `max(abs_tol, rel_tol |value|)`. When the two values differ by
+  more than their error estimates, or Gauss-Kronrod saw (almost) no mass
+  where the double-exponential rule saw plenty, at least one estimate is
+  wrong: `auto` then reports `converged=False`, keeps the value with the
+  smaller relative miss (the double-exponential one when Gauss-Kronrod is
+  blind) and widens its error estimate to the disagreement. This is
+  deliberately conservative: for `|x - 0.3|` below the Gauss-Kronrod value
+  is exact to `1e-13` but is still flagged, while a peak at `x = 300` added
+  to `exp(-|x|)`, which Gauss-Kronrod misses entirely, is no longer reported
+  as a converged `2.0`. Call `gauss_kronrod` directly for kinks you know of.
 - **Mass beyond the outermost nodes** (`x^-1.025` at infinity, `x^-0.97` at
   zero) is estimated from the weighted integrand at the last node on each
   side and its decay rate; while it is not negligible the run reports
@@ -189,7 +194,7 @@ print(sinc.converged)
 ```
 
 ```text
-gauss-kronrod-15 True True
+gauss-kronrod-15 True False
 False error 2e-08 True
 True True
 False

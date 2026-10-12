@@ -719,6 +719,7 @@ class UQStudy:
         batch: int = 256,
         max_samples: int = 200_000,
         quantiles: Sequence[float] = (0.05, 0.5, 0.95),
+        min_samples: int = 100,
     ) -> TargetedPropagation:
         """Propagate plain Monte Carlo batches until a relative error is reached.
 
@@ -749,6 +750,9 @@ class UQStudy:
             batch: Draws between checks, at least two.
             max_samples: Draw budget, at least two.
             quantiles: Quantile levels strictly between zero and one.
+            min_samples: Draws before the target may be declared met (capped
+                at ``max_samples``); without it a tiny batch could stop at
+                two draws whose standard error happens to be small.
 
         Returns:
             Targeted propagation result; the stage charges ``sample_size``
@@ -783,6 +787,11 @@ class UQStudy:
             raise ValueError("max_samples must be at least two")
         if failure not in ("above", "below"):
             raise ValueError("failure must be 'above' or 'below'")
+        if isinstance(min_samples, bool) or not isinstance(min_samples, int):
+            raise TypeError("min_samples must be an integer")
+        if min_samples < 2:
+            raise ValueError("min_samples must be at least two")
+        minimum = min(min_samples, budget)
         levels = tuple(require_finite_real(p, name="quantile level") for p in quantiles)
         if any(not 0.0 < p < 1.0 for p in levels):
             raise ValueError("quantile levels must lie strictly between 0 and 1")
@@ -821,8 +830,12 @@ class UQStudy:
                 relative = math.inf
             else:
                 p = counter.proportion
+                if counter.events == counter.trials:
+                    # All draws failed: (1 - p) / (n p) would be exactly zero,
+                    # so use the half-count-adjusted proportion instead.
+                    p = (counter.events + 0.5) / (counter.trials + 1.0)
                 relative = math.sqrt((1.0 - p) / (counter.trials * p))
-            if relative <= target:
+            if relative <= target and moments.count >= minimum:
                 converged = True
                 break
 

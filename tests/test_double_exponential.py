@@ -198,3 +198,20 @@ class EleventhReviewRegressionTests(unittest.TestCase):
             warnings.simplefilter("ignore", RuntimeWarning)
             value = quantile_wasserstein(Poisson(2.0), Poisson(2.5), p=1.0)
         self.assertAlmostEqual(value, 0.5, delta=1e-3)
+
+
+class TwelfthReviewRegressionTests(unittest.TestCase):
+    """A converged Gauss-Kronrod that missed mass is not trusted."""
+
+    def test_missed_peak_and_tiny_floor_are_not_converged(self) -> None:
+        """exp(-|x|) + a far peak (exact 3.7725), and + 1e-30 on +/-1e10."""
+        from probstat.numerics import integrate
+
+        peak = integrate(
+            lambda x: math.exp(-abs(x)) + math.exp(-((x - 300.0) ** 2)),
+            -math.inf,
+            math.inf,
+        )
+        self.assertFalse(peak.converged)
+        floor = integrate(lambda x: math.exp(-abs(x)) + 1e-30, -1e10, 1e10)
+        self.assertFalse(floor.converged)

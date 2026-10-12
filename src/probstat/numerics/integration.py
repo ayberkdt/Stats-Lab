@@ -139,24 +139,24 @@ def integrate(
     disagree = abs(first.value - second.value) > (
         first.error_estimate + second.error_estimate
     )
-    # A Gauss-Kronrod run whose every node missed the mass returns exactly
-    # zero with a zero error estimate and calls itself converged; when the
-    # double-exponential run saw mass, that agreement is not evidence.
-    blind = (
-        second.value == 0.0 and second.error_estimate == 0.0 and first.value != 0.0
-    )
+    # A Gauss-Kronrod run whose nodes all missed the mass returns (nearly)
+    # zero with a tiny error estimate and calls itself converged; when the
+    # double-exponential run saw far more mass, that is not evidence.
+    blind = abs(second.value) + second.error_estimate < 1e-12 * abs(first.value)
     evaluations = first.evaluations + second.evaluations
     if disagree or blind:
         # The two rules contradict each other, so at least one error
-        # estimate is wrong. Gauss-Kronrod can miss all of the mass (narrow
-        # peaks far from its nodes); the double-exponential nodes span 600
-        # orders of magnitude, so its value is kept, flagged unconverged,
-        # unless Gauss-Kronrod converged on a non-zero value with the smaller
-        # relative miss.
-        if second.converged and not blind and miss(second) < miss(first):
-            # Gauss-Kronrod resolved what the double-exponential rule could
-            # not (an interior kink, say) and saw non-zero mass: keep it.
-            return replace(second, evaluations=evaluations)
-        return replace(first, converged=False, evaluations=evaluations)
+        # estimate is wrong and neither result may be called converged. The
+        # value of the rule with the smaller relative miss is returned (the
+        # double-exponential one when Gauss-Kronrod is blind), with the
+        # disagreement folded into its error estimate.
+        chosen = first if blind or miss(first) <= miss(second) else second
+        spread = abs(first.value - second.value)
+        return replace(
+            chosen,
+            converged=False,
+            error_estimate=max(chosen.error_estimate, spread),
+            evaluations=evaluations,
+        )
     chosen = second if miss(second) < miss(first) else first
     return replace(chosen, evaluations=evaluations)

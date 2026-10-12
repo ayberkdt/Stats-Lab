@@ -181,3 +181,21 @@ class PropagateUntilWorkflowTests(unittest.TestCase):
         self.assertIn("sequential_propagation: Monte Carlo of y", report)
         self.assertIn("| P[y >= 12] |", report)
         self.assertIn("| converged | yes |", report)
+
+
+class PropagateUntilMinimumSampleTests(unittest.TestCase):
+    """Tiny batches cannot stop before min_samples."""
+
+    def test_batch_of_two_waits_for_min_samples(self) -> None:
+        """Seed 24 used to stop at n = 2 with a claimed error 80x too small."""
+        study = UQStudy(sum_model(), seed=24)
+        result = study.propagate_until("y", target_relative_error=0.01, batch=2)
+        self.assertGreaterEqual(result.sample_size, 100)
+
+    def test_all_failures_do_not_claim_zero_error(self) -> None:
+        """An event seen in every draw keeps a positive relative error."""
+        study = UQStudy(sum_model(), seed=3)
+        result = study.propagate_until(
+            "y", threshold=-100.0, failure="above", max_samples=512
+        )
+        self.assertGreater(result.relative_error, 0.0)
