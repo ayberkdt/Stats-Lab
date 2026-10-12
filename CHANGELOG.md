@@ -180,10 +180,10 @@ defects that are now fixed with oracle-backed regression tests.
   antithetic chains (now bounded below as in stan-dev/posterior), and AK-MCS
   reported nonsense (Pf 0.641 vs 8.2e-4) on near-singular GP fits because its
   incremental posterior did not repeat the fit's arithmetic.
-- Tenth review round: PPL coordinate names stated the wrong transform for
+- Ninth review round: PPL coordinate names stated the wrong transform for
   shifted bounds and mixed list supports; CE-IS left its multi-region flag
   unset on stalled symmetric runs.
-- Ninth review round: `integrate(auto)` could return 3e-198 for an
+- Eighth review round: `integrate(auto)` could return 3e-198 for an
   integral of 1.77 (now chooses by relative miss and keeps the
   double-exponential result when Gauss-Kronrod misses the mass);
   Gauss-Kronrod reported an overflowing width as converged infinity;
