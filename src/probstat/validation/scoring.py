@@ -40,8 +40,7 @@ from probstat.foundations import (
     require_finite_real,
     require_probability,
 )
-
-from ._quadrature import tanh_sinh
+from probstat.numerics.double_exponential import tanh_sinh, warn_if_unreliable
 
 _INV_SQRT_PI = 1.0 / math.sqrt(math.pi)
 _INV_SQRT_TWO_PI = 1.0 / math.sqrt(2.0 * math.pi)
@@ -380,13 +379,22 @@ def crps_quadrature(
     split = require_probability(distribution.cdf(y), name="distribution.cdf(y)")
     total = 0.0
     if split > 0.0:
-        total += tanh_sinh(
-            lambda u, uc: u * (y - quantile(u, uc)), 0.0, split, tolerance=tolerance
-        ).value
+        total += warn_if_unreliable(
+            tanh_sinh(
+                lambda u, uc: u * (y - quantile(u, uc)), 0.0, split, tolerance=tolerance
+            ),
+            "CRPS lower part",
+        )
     if split < 1.0:
-        total += tanh_sinh(
-            lambda u, uc: uc * (quantile(u, uc) - y), split, 1.0, tolerance=tolerance
-        ).value
+        total += warn_if_unreliable(
+            tanh_sinh(
+                lambda u, uc: uc * (quantile(u, uc) - y),
+                split,
+                1.0,
+                tolerance=tolerance,
+            ),
+            "CRPS upper part",
+        )
     return max(0.0, 2.0 * total)
 
 

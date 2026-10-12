@@ -38,9 +38,12 @@ from probstat.foundations import (
     resolve_stream,
 )
 from probstat.foundations.validation import require_non_negative_integer
+from probstat.numerics.double_exponential import (
+    sign_change_points,
+    tanh_sinh_pieces,
+    warn_if_unreliable,
+)
 from probstat.statistics import median
-
-from ._quadrature import tanh_sinh
 
 Points = tuple[tuple[float, ...], ...]
 
@@ -786,13 +789,16 @@ def distribution_wasserstein_distance(
         return evaluate
 
     q1, q2 = quantile_of(first), quantile_of(second)
-    result = tanh_sinh(
+    # Put the kinks of |Q1 - Q2|^p (crossing quantiles) at piece boundaries.
+    breaks = sign_change_points(lambda u, uc: q1(u, uc) - q2(u, uc))
+    result = tanh_sinh_pieces(
         lambda u, uc: abs(q1(u, uc) - q2(u, uc)) ** p,
-        0.0,
-        1.0,
+        breaks,
         tolerance=tolerance,
         max_level=10,
+        absolute_tolerance=1e-30,
     )
+    warn_if_unreliable(result, "Wasserstein distance")
     return WassersteinEstimate(
         float(max(0.0, result.value) ** (1.0 / p)),
         p,

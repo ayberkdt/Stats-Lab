@@ -132,11 +132,14 @@ class ResidualTests(unittest.TestCase):
         self.assertAlmostEqual(total, test.statistic, places=12)
 
     def test_adjusted_residuals_match_haberman_formula(self) -> None:
-        """Largest adjusted residual 4.1833 in cell (row 1, column 0)."""
+        """Largest |adjusted residual| 4.1833, in column 0."""
         residuals = contingency_residuals([[10, 20, 30], [25, 15, 5]])
         row, column, value = residuals.largest_adjusted()
-        self.assertEqual((row, column), (1, 0))
-        self.assertAlmostEqual(value, 4.183300132670378, places=12)
+        # In a two-row table the two residuals of a column are exact
+        # opposites, so the first of the tied cells is reported.
+        self.assertEqual(column, 0)
+        self.assertAlmostEqual(abs(value), 4.183300132670378, places=12)
+        self.assertEqual(residuals.adjusted[0][0], -residuals.adjusted[1][0])
         for row_values in residuals.row_proportions:
             self.assertAlmostEqual(math.fsum(row_values), 1.0, places=14)
         self.assertAlmostEqual(residuals.expected[0][0], 60 * 35 / 105, places=14)
@@ -144,3 +147,19 @@ class ResidualTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LargeCountTests(unittest.TestCase):
+    """Huge counts keep exact integers and exact residual arithmetic."""
+
+    def test_adjusted_residuals_dominant_cell(self) -> None:
+        """[[1e15, 1], [1, 1]]: all four |residuals| equal 15811388.300841888."""
+        residuals = contingency_residuals([[1e15, 1], [1, 1]])
+        for row in residuals.adjusted:
+            for value in row:
+                self.assertAlmostEqual(abs(value) / 15811388.300841888, 1.0, places=12)
+
+    def test_counts_above_two_to_the_53_stay_exact(self) -> None:
+        """Integer counts are not rounded through float."""
+        result = two_by_two_measures([[2**53 + 1, 1], [1, 1]])
+        self.assertEqual(result.table[0], 2**53 + 1)

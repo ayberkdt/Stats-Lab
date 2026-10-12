@@ -57,6 +57,24 @@ class DeprecatedDecoratorTests(unittest.TestCase):
         self.assertEqual(old_square.__name__, "old_square")
         self.assertIn("Deprecated:", old_square.__doc__ or "")
 
+    def test_note_keeps_docstring_dedent(self) -> None:
+        """inspect.getdoc still removes the body indentation."""
+        import inspect
+
+        @deprecated(since="0.15", removal="0.17")
+        def documented(x: float) -> float:
+            """Return x.
+
+            Args:
+                x: Value.
+
+            """
+            return x
+
+        text = inspect.getdoc(documented) or ""
+        self.assertIn("\nArgs:\n    x: Value.", text)
+        self.assertTrue(text.rstrip().endswith("0.17."))
+
     def test_versions_are_required(self) -> None:
         """Empty version strings are rejected when the decorator is built."""
         with self.assertRaises(ValueError):

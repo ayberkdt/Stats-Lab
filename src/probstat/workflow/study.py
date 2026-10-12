@@ -1614,7 +1614,7 @@ class UQStudy:
         pit = ensemble_pit(ensembles, observations, seed=stream.child("pit"))
         summary["pit.mean"] = math.fsum(pit) / len(pit)
         for entry in pit_coverage(pit, coverage_levels):
-            key = f"coverage[{entry.nominal:.0%}]"
+            key = f"coverage[{100.0 * entry.nominal:.6g}%]"
             summary[key] = entry.rate
             summary[f"{key}.interval"] = (
                 f"{entry.covered}/{entry.size}, "

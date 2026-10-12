@@ -27,7 +27,11 @@ from probstat.linalg import (
     symmetric_eigen,
     symmetrize,
 )
-from probstat.numerics import tanh_sinh
+from probstat.numerics.double_exponential import (
+    sign_change_points,
+    tanh_sinh_pieces,
+    warn_if_unreliable,
+)
 
 from ._quantile_quadrature import quantile_at, quantile_expectation
 
@@ -303,7 +307,20 @@ def quantile_wasserstein(
             difference = quantile(law0, u, uc) - quantile(law1, u, uc)
             return float(abs(difference) ** exponent)
 
-        total = tanh_sinh(by_u, 0.0, 0.5).value + tanh_sinh(by_u, 0.5, 1.0).value
+        def signed(u: float, uc: float) -> float:
+            """Return ``Q0(u) - Q1(u)``, whose sign changes are kinks.
+
+            References:
+                [EQ-OT-W1D-001].
+
+            """
+            return quantile(law0, u, uc) - quantile(law1, u, uc)
+
+        breaks = (*sign_change_points(signed), 0.5)
+        total = warn_if_unreliable(
+            tanh_sinh_pieces(by_u, breaks, absolute_tolerance=1e-30),
+            "Wasserstein distance",
+        )
         return float(max(total, 0.0) ** (1.0 / exponent))
     if method != "simpson":
         raise ValueError("method must be 'tanh-sinh' or 'simpson'")

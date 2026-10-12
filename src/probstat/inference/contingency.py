@@ -15,8 +15,10 @@ only the discordant cells ``b`` and ``c`` carry information.
 from __future__ import annotations
 
 import math
+import numbers
 from collections.abc import Iterable
 from dataclasses import dataclass
+from fractions import Fraction
 from statistics import NormalDist
 
 from probstat.foundations.validation import require_probability
@@ -44,7 +46,19 @@ def _two_by_two(table: Iterable[Iterable[object]]) -> tuple[int, int, int, int]:
     counts: list[int] = []
     for i, row in enumerate(rows):
         for j, value in enumerate(row):
-            if isinstance(value, bool) or not isinstance(value, int | float):
+            if isinstance(value, bool):
+                raise TypeError(f"table[{i}][{j}] must be a real number")
+            if isinstance(value, numbers.Integral):
+                # Exact for any size (no float round trip above 2^53) and for
+                # integer types such as numpy.int64.
+                count = int(value)
+                if count < 0:
+                    raise ValueError(
+                        f"table[{i}][{j}] must be a non-negative integer"
+                    )
+                counts.append(count)
+                continue
+            if not isinstance(value, numbers.Real):
                 raise TypeError(f"table[{i}][{j}] must be a real number")
             number = float(value)
             if not (math.isfinite(number) and number >= 0.0 and number.is_integer()):
@@ -339,18 +353,28 @@ def contingency_residuals(table: Iterable[Iterable[object]]) -> ContingencyResid
     column_totals = [math.fsum(column) for column in zip(*rows, strict=True)]
     n = math.fsum(row_totals)
     expected = tuple(tuple(r * c / n for c in column_totals) for r in row_totals)
-    pearson = tuple(
-        tuple((o - e) / math.sqrt(e) for o, e in zip(row, row_e, strict=True))
-        for row, row_e in zip(rows, expected, strict=True)
-    )
-    adjusted = tuple(
-        tuple(
-            (o - e)
-            / math.sqrt(e * (1.0 - row_totals[i] / n) * (1.0 - column_totals[j] / n))
-            for j, (o, e) in enumerate(zip(row, row_e, strict=True))
-        )
-        for i, (row, row_e) in enumerate(zip(rows, expected, strict=True))
-    )
+    # Residuals in exact rational arithmetic (every float is a rational):
+    # O - E = (O n - R C) / n and 1 - R/n = (n - R)/n cancel badly in floating
+    # point when one cell dominates a huge table.
+    exact = [[Fraction(o) for o in row] for row in rows]
+    exact_rows = [sum(row, Fraction(0)) for row in exact]
+    exact_columns = [sum(column, Fraction(0)) for column in zip(*exact, strict=True)]
+    total = sum(exact_rows, Fraction(0))
+    pearson_rows: list[tuple[float, ...]] = []
+    adjusted_rows: list[tuple[float, ...]] = []
+    for i, row in enumerate(exact):
+        pearson_row: list[float] = []
+        adjusted_row: list[float] = []
+        for j, o in enumerate(row):
+            r, c = exact_rows[i], exact_columns[j]
+            difference = float((o * total - r * c) / total)
+            pearson_row.append(difference / math.sqrt(float(r * c / total)))
+            scale = r * c * (total - r) * (total - c) / total**3
+            adjusted_row.append(difference / math.sqrt(float(scale)))
+        pearson_rows.append(tuple(pearson_row))
+        adjusted_rows.append(tuple(adjusted_row))
+    pearson = tuple(pearson_rows)
+    adjusted = tuple(adjusted_rows)
     row_proportions = tuple(
         tuple(o / row_totals[i] for o in row) for i, row in enumerate(rows)
     )

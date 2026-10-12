@@ -15,6 +15,7 @@ versioning guarantee; the changelog records every breaking change.
 from __future__ import annotations
 
 import functools
+import inspect
 import warnings
 from collections.abc import Callable, Mapping
 from types import MappingProxyType
@@ -133,7 +134,9 @@ def deprecated(
             return function(*args, **kwargs)
 
         note = f"\n\nDeprecated:\n    {message}.\n"
-        wrapper.__doc__ = (function.__doc__ or "").rstrip() + note
+        # cleandoc first, so the unindented note does not stop inspect.getdoc
+        # from removing the body's indentation.
+        wrapper.__doc__ = inspect.cleandoc(function.__doc__ or "") + note
         return wrapper
 
     return decorate
