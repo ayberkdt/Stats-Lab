@@ -10,6 +10,7 @@ questions (what do the data say about the inputs?), and risk questions (how
 likely is failure and what does it cost?), with one seed tree and one report.
 Every formula carries an equation ID that resolves to a primary source.
 
+![Version 0.15.0](https://img.shields.io/badge/version-0.15.0-44599C)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB)
 ![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue)
 ![Runtime dependencies: 0](https://img.shields.io/badge/runtime%20dependencies-0-success)
@@ -59,45 +60,49 @@ from probstat.visualization.study import write_study_html
 write_study_html(study, "study.html")    # one page, every stage, light and dark figures
 ```
 
-The same study can also `calibrate` the inputs against experiments,
-`predict` with the posterior, `validate` against independent data, `emulate`
-the model with a polynomial-chaos or Gaussian-process surrogate, calibrate
-with an explicit model-discrepancy term (`calibrate_with_discrepancy`), fit the
-output tail (`extremes`), rank inputs by mutual information
-(`information_sensitivity`), choose the next experiment (`design`), and
-handle failure domains with several important regions (`design_points`,
-`active_reliability`).
 The core library has no runtime dependencies; Matplotlib is only needed for
 figures.
 
+## One study, every question
+
+Every stage of `UQStudy` reuses the same model, draws from its own named
+child stream of the root seed, counts model evaluations, and adds a section
+(with a figure) to the report.
+
+| Question | Stages |
+|---|---|
+| What does the output look like? | `propagate`, `propagate_until` (stops at a target accuracy), `emulate` (polynomial chaos or Gaussian process) |
+| Which inputs matter? | `sensitivity` (Sobol), `shapley` (dependent inputs), `screening` (Morris), `information_sensitivity` (mutual information) |
+| How likely is failure, and what does it cost? | `reliability`, `form`, `design_points`, `active_reliability` (AK-MCS), `extremes`, `risk` |
+| What do the data say about the inputs? | `calibrate`, `calibrate_with_discrepancy` (Kennedy-O'Hagan), `predict` |
+| Can the model be trusted, and what should be measured next? | `verify` (solution verification), `validate` (with CRPS, PIT, and coverage), `design` (Bayesian experimental design) |
+
 ## What's inside
 
-| Layer | Packages | Highlights |
+30 packages and 1,076 public names, all documented in the
+[API reference](docs/api-reference.md).
+
+| Area | Packages | Highlights |
 |---|---|---|
-| Central model | `modeling` | Named marginals + Gaussian copula, Nataf transform, random-field (KL) inputs, `ProbabilisticModel` |
-| Forward | `propagation`, `sampling`, `monte_carlo` | Monte Carlo, Latin hypercube, scrambled Halton and Sobol designs; variance reduction; quantiles and exceedance curves |
-| Sensitivity | `sensitivity` | Sobol first/total indices with bootstrap intervals, Morris screening, local derivatives |
-| Reliability | `reliability` | HL-RF FORM, SORM, multiple design points, importance and subset sampling, line sampling, AK-MCS active learning, system bounds, inverse FORM |
-| Risk | `risk` | VaR/CVaR, loss models, fault and event trees, fragility curves, EVPI/EVSI, GEV/GPD extremes and return levels |
-| Backward | `inverse`, `inference` | Nonlinear calibration, Kennedy-O'Hagan model discrepancy, a small probabilistic-programming interface, adaptive Metropolis, HMC/NUTS, ADVI, Laplace, posterior prediction |
-| Validation | `validation` | Area metric, u-pooling, ASME V&V 20 comparison, applicability domain, scoped verdicts, CRPS and proper scores, PIT and reliability diagrams, distribution-shift tests |
-| Dynamics | `filtering`, `data_assimilation`, `processes` | Kalman/EKF/UKF, RTS smoother, particle filter, EnKF, 3D-Var; Markov chains, SDEs, random fields |
-| Emulators | `surrogates` | Polynomial chaos (Sobol from coefficients), Gaussian-process regression |
-| Statistics | `statistics`, `inference`, `distributions`, `information` | Tests, bootstrap (BCa), power, multiple testing, kernel density, streaming summaries, limit theorems, 20+ distribution families, generic MLE and AIC/BIC selection, entropy, mutual information, optimal transport, Fisher-Rao geometry |
-| Modeling | `inference`, `timeseries`, `conformal` | Regression and GLMs, ridge/lasso, hierarchical models, EM and mixtures, missing data and multiple imputation, contingency tables, ARIMA, Kaplan-Meier/Cox survival, conformal prediction |
-| Decisions | `causal`, `design` | Back-door/front-door identification, IPW/AIPW, E-values; D-optimal and Bayesian experimental design |
-| Foundations | `linalg`, `optimization`, `numerics`, `probability` | Cholesky/LU/Jacobi, BFGS/Levenberg-Marquardt/Brent, quadrature, exact finite probability |
+| Central model and forward | `modeling`, `propagation`, `sampling`, `monte_carlo`, `sensitivity`, `surrogates` | Gaussian-copula inputs with the Nataf transform, random fields; Sobol, Halton, and LHS designs; Sobol, Shapley, and Morris indices; polynomial chaos and Gaussian processes |
+| Reliability and risk | `reliability`, `risk` | FORM/SORM, multiple design points, importance, subset, and line sampling, AK-MCS; VaR/CVaR, fault and event trees, fragility, GEV/GPD return levels, value of information |
+| Backward and validation | `inverse`, `inference`, `validation` | Nonlinear calibration, model discrepancy, adaptive Metropolis, HMC/NUTS, ADVI, a small probabilistic-programming interface; area metric, ASME V&V 20, CRPS and proper scores, PIT, distribution-shift tests |
+| Statistical modelling | `inference`, `timeseries`, `conformal` | Regression and GLMs, regularization, hierarchical models, EM and mixtures, missing data and multiple imputation, ARIMA, survival, conformal prediction |
+| Decisions | `causal`, `design` | Back-door and front-door identification, IPW/AIPW, E-values; D-optimal and Bayesian experimental design |
+| Probability and statistics | `probability`, `distributions`, `statistics`, `multivariate`, `processes`, `information` | 20+ distribution families, tests and bootstrap, kernel density, streaming summaries, limit theorems, contingency tables, stochastic processes, entropy, optimal transport |
+| Foundations and dynamics | `foundations`, `linalg`, `optimization`, `numerics`, `filtering`, `data_assimilation`, `uq`, `workflow`, `visualization` | Dense linear algebra, optimizers, adaptive quadrature; Kalman, particle, and ensemble filters; the `UQStudy` workflow and the themed figure library |
 
 The [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
 tracks all 110 topics of the ATHENS 2026 VV-UQ course; all 110 are
 implemented, each with source, tests, and documentation as evidence.
 
-## Example labs
+## Gallery
 
-Every lab in [`examples/`](examples) is seeded and reproducible and writes its
-figures to `examples/generated/`. All figures share one theme: colour follows
-meaning (data, model, reference), titles state the finding, and labels sit on
-the data.
+Every lab in [`examples/`](examples) (31 of them) is seeded and reproducible
+and writes its figures to `examples/generated/`. All figures share one theme:
+colour follows meaning (observed data, model, reference), titles state the
+finding, labels sit on the data, and every figure exists in a light and a dark
+palette.
 
 | | |
 |---|---|
@@ -112,8 +117,8 @@ the data.
 | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/adaptive-reliability-design-points-dark.png"><img alt="Multiple design points" src="docs/images/adaptive-reliability-design-points.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="docs/images/discrepancy-predictions-dark.png"><img alt="Model discrepancy" src="docs/images/discrepancy-predictions.png"></picture> |
 | **Rare events**: four design points carry four times the one-point FORM probability. | **Model error**: a discrepancy term restores coverage the simulator alone loses. |
 
-Start with [`examples/uq_study_lab.py`](examples/uq_study_lab.py) (one model
-through every stage) and
+Start with [`examples/uq_study_complete_lab.py`](examples/uq_study_complete_lab.py)
+(one study through every stage, written to an HTML report) or
 [`examples/central_model_lab.py`](examples/central_model_lab.py) (the same
 steps with the low-level APIs).
 
@@ -122,11 +127,16 @@ steps with the low-level APIs).
 - **One model, every question.** `ProbabilisticModel` is the only model
   contract; analyses never redefine the inputs or the simulator.
 - **Citation-first.** Docstrings cite equation IDs such as `EQ-REL-HLRF-001`;
-  each resolves in the [equation registry](docs/equation-registry.md) to a
-  [bibliography](docs/references.md) entry.
+  each of the 710 entries in the [equation registry](docs/equation-registry.md)
+  resolves to the [bibliography](docs/references.md).
 - **Honest boundaries.** Estimators report assumptions, model-evaluation cost,
-  and failure modes. Singular inputs raise instead of being jittered, and
-  validation results are scoped verdicts, never "validated".
+  and convergence; unconverged results are flagged, and validation results are
+  scoped verdicts, never "validated".
+- **Checked against oracles.** Independent numerical reviews compare results
+  with exact, high-precision, or reference implementations, and every
+  confirmed defect gets a regression test; the
+  [benchmark suite](docs/benchmarks.md) tracks accuracy, error calibration,
+  and cost per method.
 - **Reproducible randomness.** One root seed derives named child streams for
   every stage.
 - **Recorded decisions.** Architecture choices are ADRs in
@@ -135,19 +145,19 @@ steps with the low-level APIs).
 ## Documentation
 
 1. [Learning path](docs/learning-path.md): the suggested reading order
-2. [The central probabilistic model](docs/foundations/probabilistic-modeling.md)
+2. [The central probabilistic model and `UQStudy`](docs/foundations/probabilistic-modeling.md)
 3. [Uncertainty propagation](docs/foundations/uncertainty-propagation.md) and [sensitivity analysis](docs/foundations/sensitivity-analysis.md)
-4. [Model-based reliability](docs/foundations/advanced-reliability.md) and [risk analysis](docs/foundations/risk-analysis.md)
-5. [Nonlinear calibration and MCMC](docs/foundations/nonlinear-calibration-and-mcmc.md) and [model validation](docs/foundations/model-validation.md)
-6. [Filtering and data assimilation](docs/foundations/filtering-and-data-assimilation.md) and [surrogate models](docs/foundations/surrogate-models.md)
-7. [All foundation guides](docs/foundations)
+4. [Reliability](docs/foundations/advanced-reliability.md), [risk](docs/foundations/risk-analysis.md), and [extreme values](docs/foundations/extreme-value-analysis.md)
+5. [Calibration and MCMC](docs/foundations/nonlinear-calibration-and-mcmc.md), [model discrepancy](docs/foundations/model-discrepancy.md), and [validation](docs/foundations/model-validation.md)
+6. [Regression](docs/foundations/regression-and-glms.md), [hierarchical models](docs/foundations/hierarchical-models.md), [time series](docs/foundations/time-series.md), and [survival](docs/foundations/survival-analysis.md)
+7. [All 39 foundation guides](docs/foundations)
 
 Reference: [API reference](docs/api-reference.md) ·
-[Benchmarks](docs/benchmarks.md) ·
-[Architecture](docs/architecture.md) · [Roadmap](memory/ROADMAP.md) ·
-[Changelog](CHANGELOG.md)
+[Benchmarks](docs/benchmarks.md) · [Architecture](docs/architecture.md) ·
+[Visual language](docs/foundations/visual-language.md) ·
+[Roadmap](memory/ROADMAP.md) · [Changelog](CHANGELOG.md)
 
-## Development
+## Development and license
 
 ```bash
 python -m pip install -e ".[dev,visualization]"
@@ -161,7 +171,5 @@ CI runs these checks and every example lab on Python 3.11 to 3.13. Before
 opening a pull request, read the [contribution contract](CONTRIBUTING.md): new
 public functions need a docstring, an equation record, and a citation.
 
-## License
-
-[BSD 3-Clause](LICENSE). If you use this library in research, see
-[`CITATION.cff`](CITATION.cff).
+Released under the [BSD 3-Clause](LICENSE) license. If you use this library in
+research, see [`CITATION.cff`](CITATION.cff).
