@@ -8,6 +8,7 @@ from .study import (
     InformationSensitivity,
     StageRecord,
     TailAnalysis,
+    TargetedPropagation,
     UQStudy,
 )
 
@@ -19,5 +20,6 @@ __all__ = [
     "InformationSensitivity",
     "StageRecord",
     "TailAnalysis",
+    "TargetedPropagation",
     "UQStudy",
 ]
