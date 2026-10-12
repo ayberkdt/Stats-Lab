@@ -789,7 +789,9 @@ def distribution_wasserstein_distance(
             """
             if u > 0.5 and callable(isf):
                 return float(isf(complement))
-            return float(law.quantile(u))
+            # Without isf, u within 1e-15 of 1 rounds to 1 and Q(1) may be
+            # infinite (discrete laws); clamp to the last resolvable level.
+            return float(law.quantile(min(u, 1.0 - 1e-15)))
 
         return evaluate
 

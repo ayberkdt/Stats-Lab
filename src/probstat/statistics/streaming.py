@@ -376,7 +376,9 @@ class RunningMoments:
         center = abs(self.mean)
         error = self.standard_error()
         if center == 0.0:
-            return math.inf if error > 0.0 else 0.0
+            # A zero mean makes a relative error meaningless, even when every
+            # observation is zero.
+            return math.inf
         return error / center
 
     def skewness(self) -> float:
@@ -1618,7 +1620,8 @@ def run_until(
     if not trace or trace[-1][0] != moments.count:
         relative = moments.relative_standard_error()
         trace.append((moments.count, moments.mean, moments.standard_error()))
-        converged = relative <= target
+        # A stream that ended before min_samples never reached a check.
+        converged = relative <= target and moments.count >= minimum
     return StreamingRunResult(
         mean=moments.mean,
         standard_error=moments.standard_error(),

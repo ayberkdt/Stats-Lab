@@ -295,7 +295,11 @@ def quantile_wasserstein(
             if u <= 0.5:
                 return float(function(u))
             isf = getattr(law, "isf", None)
-            return float(isf(uc)) if callable(isf) else float(function(u))
+            if callable(isf):
+                return float(isf(uc))
+            # Without isf, u within 1e-15 of 1 rounds to 1 and Q(1) may be
+            # infinite (discrete laws); clamp to the last resolvable level.
+            return float(function(min(u, 1.0 - 1e-15)))
 
         def by_u(u: float, uc: float) -> float:
             """Return ``|Q0(u) - Q1(u)|^p``.

@@ -139,13 +139,24 @@ def integrate(
     disagree = abs(first.value - second.value) > (
         first.error_estimate + second.error_estimate
     )
-    if not second.converged and disagree:
-        # Neither rule converged and at least one error estimate is wrong.
-        # Gauss-Kronrod can miss all of the mass (nodes that never reach a
-        # narrow peak far from the origin give a value and an error estimate
-        # near zero); the double-exponential nodes span 600 orders of
-        # magnitude, so its value is kept.
-        chosen = first
-    else:
-        chosen = second if miss(second) < miss(first) else first
-    return replace(chosen, evaluations=first.evaluations + second.evaluations)
+    # A Gauss-Kronrod run whose every node missed the mass returns exactly
+    # zero with a zero error estimate and calls itself converged; when the
+    # double-exponential run saw mass, that agreement is not evidence.
+    blind = (
+        second.value == 0.0 and second.error_estimate == 0.0 and first.value != 0.0
+    )
+    evaluations = first.evaluations + second.evaluations
+    if disagree or blind:
+        # The two rules contradict each other, so at least one error
+        # estimate is wrong. Gauss-Kronrod can miss all of the mass (narrow
+        # peaks far from its nodes); the double-exponential nodes span 600
+        # orders of magnitude, so its value is kept, flagged unconverged,
+        # unless Gauss-Kronrod converged on a non-zero value with the smaller
+        # relative miss.
+        if second.converged and not blind and miss(second) < miss(first):
+            # Gauss-Kronrod resolved what the double-exponential rule could
+            # not (an interior kink, say) and saw non-zero mass: keep it.
+            return replace(second, evaluations=evaluations)
+        return replace(first, converged=False, evaluations=evaluations)
+    chosen = second if miss(second) < miss(first) else first
+    return replace(chosen, evaluations=evaluations)

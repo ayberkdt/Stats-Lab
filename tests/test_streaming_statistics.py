@@ -391,3 +391,23 @@ class ExceedanceAndStoppingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RunUntilHonestyTests(unittest.TestCase):
+    """run_until never claims convergence before min_samples or at zero mean."""
+
+    def test_short_stream_and_zero_mean(self) -> None:
+        """A 3-item stream and an all-zero stream do not converge."""
+        from probstat.statistics import run_until
+
+        short = run_until(
+            [1.0, 1.0001, 1.0002],
+            target_relative_error=0.5,
+            max_samples=1000,
+            min_samples=100,
+        )
+        self.assertFalse(short.converged)
+        zeros = run_until(
+            [0.0] * 200, target_relative_error=0.5, max_samples=1000, min_samples=100
+        )
+        self.assertFalse(zeros.converged)

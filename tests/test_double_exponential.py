@@ -177,3 +177,24 @@ class TanhSinhPiecesTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EleventhReviewRegressionTests(unittest.TestCase):
+    """Contradictory or blind quadrature results are never called converged."""
+
+    def test_auto_does_not_trust_a_blind_kronrod_zero(self) -> None:
+        """exp(-|x|) on +/-1e10: exact 2; neither rule resolves it, so flag it."""
+        from probstat.numerics import integrate
+
+        result = integrate(lambda x: math.exp(-abs(x)), -1e10, 1e10)
+        self.assertFalse(result.converged)
+
+    def test_discrete_law_without_isf(self) -> None:
+        """Poisson laws have no isf; W1 must stay finite (exact 0.5)."""
+        from probstat.distributions import Poisson
+        from probstat.information import quantile_wasserstein
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            value = quantile_wasserstein(Poisson(2.0), Poisson(2.5), p=1.0)
+        self.assertAlmostEqual(value, 0.5, delta=1e-3)
