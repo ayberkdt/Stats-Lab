@@ -51,7 +51,7 @@ tested evidence.
 
 - [x] Mean, variance, standard deviation, z-scores, ECDF.
 - [x] Covariance and Pearson correlation.
-- [~] Hyndman-Fan quantiles, MAD, skewness, kurtosis, ranks, Spearman
+- [x] Hyndman-Fan quantiles, MAD, skewness, kurtosis, ranks, Spearman
   correlation, contingency summaries (two-by-two effect measures, McNemar,
   adjusted residuals), and missing-data methods (EM, multiple imputation,
   ADR-0047).
