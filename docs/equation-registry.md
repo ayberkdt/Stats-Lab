@@ -8569,3 +8569,292 @@ toward zero.
   are too small.
 - Code: `inference.complete_cases`, `inference.mean_impute`.
 - Source: [REF-LITTLE-RUBIN-2019].
+
+## Limit theorems and estimator properties
+
+### EQ-LIM-001 — Berry-Esseen bound with Shevtsova's constant
+
+`sup_z |P(Z_n <= z) - Phi(z)| <= C rho / (sigma^3 sqrt(n))`, with
+`Z_n = sqrt(n) (Xbar_n - mu)/sigma`, `rho = E|X - mu|^3` and
+`C = 0.4748`.
+
+- Domain: i.i.d. summands with `sigma > 0` and `rho < inf`; `n >= 1`.
+- Meaning: a uniform, non-asymptotic bound on the CLT error. The value is
+  not capped at one, so for small `n` or very skewed summands it can be
+  vacuous.
+- Code: `probability.berry_esseen_bound`, `probability.clt_error_profile`.
+- Source: [REF-SHEVTSOVA-2011].
+
+### EQ-LIM-002 — Exact laws of the standardized mean
+
+Bernoulli: `P(Z_n <= z) = P(S <= floor(n p + z sqrt(n p q)))`,
+`S ~ Binomial(n, p)`. Exponential(`lambda`): `P(Z_n <= z) = P(n, n + z
+sqrt(n))` (regularized lower incomplete gamma, rate-free). Normal:
+`P(Z_n <= z) = Phi(z)`. Tails of `Xbar_n - mu` follow from the same laws:
+`Q(n, n (1 + lambda t))` and `P(n, n (1 - lambda t))` for the exponential.
+
+- Domain: `0 < p < 1`, `lambda > 0`, `sigma > 0`, `n >= 1`.
+- Meaning: closed forms that make CLT errors and tail probabilities exact
+  rather than simulated.
+- Code: `probability.standardized_mean_cdf`,
+  `probability.sample_mean_upper_tail`,
+  `probability.sample_mean_two_sided_tail`,
+  `probability.standard_normal_cdf`.
+- Source: [REF-CASELLA-BERGER-2002], [REF-NIST-DLMF-GAMMA].
+
+### EQ-LIM-003 — Kolmogorov distance to the normal law
+
+`K_n = sup_z |F_n(z) - A_n(z)|`, with `A_n = Phi` or the Edgeworth `G_n`.
+For a lattice `F_n` and monotone `Phi`, the supremum is attained at an
+atom `z_k`, so `K_n = max_k max(|F_n(z_k^-) - Phi(z_k)|, |F_n(z_k) -
+Phi(z_k)|)`.
+
+- Domain: any `n >= 1`. For continuous `F_n` the supremum is located on a
+  1601-node grid over `[-sqrt(n) - 8, 10]` (plus the support edge) and
+  refined by golden-section search.
+- Meaning: the exact uniform CLT error. The lattice formula is exact; the
+  continuous maximization is numerical, and it agrees with a 40001-point
+  scan to `1e-6` in the tests.
+- Code: `probability.kolmogorov_distance_to_normal`.
+- Source: [REF-CASELLA-BERGER-2002], [REF-BRENT-1973].
+
+### EQ-LIM-004 — One-term Edgeworth expansion
+
+`G_n(z) = Phi(z) - phi(z) gamma (z^2 - 1) / (6 sqrt(n))`, with
+`gamma = E(X - mu)^3 / sigma^3`.
+
+- Domain: non-lattice summands with a finite third moment. Lattice
+  summands need an additional discontinuous correction, which is not
+  implemented, so the code raises.
+- Meaning: `F_n - G_n = o(n^-1/2)` uniformly. It also gives
+  `sqrt(n) K_n -> |gamma| phi(0)/6`, which is `1/(3 sqrt(2 pi))` for
+  exponential summands.
+- Code: `probability.edgeworth_cdf`,
+  `probability.kolmogorov_distance_to_normal`.
+- Source: [REF-HALL-1992].
+
+### EQ-LIM-005 — Chebyshev bound for the sample mean
+
+`P(|Xbar_n - mu| >= t) <= sigma^2 / (n t^2)`.
+
+- Domain: finite variance, `t > 0`. The result is capped at one.
+- Meaning: the weakest bound; it uses only the variance.
+- Code: `probability.chebyshev_bound`, `probability.compare_tail_bounds`.
+- Source: [REF-CASELLA-BERGER-2002].
+
+### EQ-LIM-006 — Hoeffding bound
+
+`P(Xbar_n - mu >= t) <= exp(-2 n t^2 / (b - a)^2)` for independent
+`X_i in [a, b]`. The two-sided bound doubles this.
+
+- Domain: bounded support, `t > 0`.
+- Meaning: exponential concentration that uses only the range.
+- Code: `probability.hoeffding_bound`, `probability.compare_tail_bounds`.
+- Source: [REF-HOEFFDING-1963], [REF-WASSERMAN-2004].
+
+### EQ-LIM-007 — Bernstein bound
+
+`P(Xbar_n - mu >= t) <= exp(-n t^2 / (2 (sigma^2 + c t / 3)))` for
+independent summands with `|X_i - mu| <= c`. This is the bounded case of
+the sub-gamma inequality with `v = n sigma^2`, scale `c/3`, deviation
+`n t`.
+
+- Domain: `|X - mu| <= c` almost surely, `t > 0`.
+- Meaning: tighter than Hoeffding when `sigma^2` is small relative to the
+  range.
+- Code: `probability.bernstein_bound`, `probability.compare_tail_bounds`.
+- Source: [REF-BOUCHERON-LUGOSI-MASSART-2013].
+
+### EQ-LIM-008 — Delta method and exact small-sample variances
+
+Delta: `Var g(Xbar_n) ~ g'(mu)^2 sigma^2 / n`. Exact comparisons:
+
+- normal `Xbar^2`: `4 mu^2 sigma^2/n + 2 sigma^4/n^2`;
+- normal `exp(Xbar)`: `(e^{s^2} - 1) e^{2 mu + s^2}`, with
+  `s^2 = sigma^2/n`;
+- exponential `1/Xbar`: `(n lambda)^2 / ((n-1)^2 (n-2))`;
+- Bernoulli `g(Xbar)`: a finite binomial sum.
+
+- Domain: `g` differentiable at `mu`; `n >= 3` for `1/Xbar`.
+- Meaning: the first-order approximation's relative error at small `n`.
+  It fails completely when `g'(mu) = 0`.
+- Code: `probability.delta_method_variance`,
+  `probability.delta_method_normal_square`,
+  `probability.delta_method_normal_exp`,
+  `probability.delta_method_exponential_reciprocal`,
+  `probability.delta_method_bernoulli`.
+- Source: [REF-CASELLA-BERGER-2002].
+
+### EQ-LIM-009 — Simulation estimates of convergence
+
+There are three estimators:
+
+- weak law: `p_hat_n = R^-1 sum_r 1{|Xbar_n^(r) - mu| > eps}`, with standard
+  error `sqrt(p_hat (1 - p_hat)/R)`;
+- strong law, finite horizon: `R^-1 sum_r 1{max_{m <= k <= N}
+  |Xbar_k^(r) - mu| > eps}`;
+- distribution: `D_R = sup_z |F_R(z) - Phi(z)|` for `R` simulated
+  standardized means.
+
+- Domain: `R` independent replications on child streams.
+- Meaning: illustrations with Monte Carlo error. `D_R` adds noise of order
+  `R^-1/2` (DKW) to the true Kolmogorov distance. The finite-horizon
+  frequency lower-bounds the infinite-horizon probability.
+- Code: `monte_carlo.simulate_weak_law`,
+  `monte_carlo.simulate_running_means`,
+  `monte_carlo.simulate_clt_distance`.
+- Source: [REF-CASELLA-BERGER-2002], [REF-WASSERMAN-2004],
+  [REF-DVORETZKY-KIEFER-WOLFOWITZ-1956], [REF-MASSART-1990].
+
+### EQ-LIM-010 — Third central moments of the summands
+
+- Bernoulli: `E(X - p)^3 = p q (1 - 2p)` and `E|X - p|^3 = p q (p^2 +
+  q^2)`.
+- Exponential(`lambda`): `E(X - mu)^3 = 2/lambda^3` and
+  `E|X - mu|^3 = (12/e - 2)/lambda^3`.
+- Normal: `0` and `2 sqrt(2/pi) sigma^3`.
+
+- Domain: the parameter domains of the families.
+- Meaning: the inputs of the Berry-Esseen bound (`rho`) and of the
+  Edgeworth term (skewness).
+- Code: `probability.bernoulli_summand`, `probability.exponential_summand`,
+  `probability.normal_summand`.
+- Source: [REF-CASELLA-BERGER-2002].
+
+### EQ-EST-001 — Monte Carlo bias, variance, and MSE with standard errors
+
+From estimates `T_1..T_R`:
+
+- `bias = Tbar - theta`, with SE `s/sqrt(R)`;
+- variance `s^2`, with SE `sqrt((m4 - s^4 (R-3)/(R-1))/R)`;
+- `MSE = R^-1 sum (T_r - theta)^2`, with SE `sd((T - theta)^2)/sqrt(R)`.
+
+`MSE = bias^2 + Var` for exact risks.
+
+- Domain: `R >= 4` independent replications with finite estimates.
+- Meaning: each simulated risk component comes with its own sampling error.
+- Code: `inference.evaluate_estimator`, `inference.EstimatorRisk`.
+- Source: [REF-CASELLA-BERGER-2002], [REF-ROBERT-CASELLA-2004].
+
+### EQ-EST-002 — Paired relative efficiency
+
+`RE = MSE(reference)/MSE(T)` on the same data sets. The standard error is
+`sqrt((V_a - 2 RE C_ab + RE^2 V_b)/R) / MSE(T)`, where `a`, `b` are the
+squared errors of the reference and of `T`.
+
+- Domain: paired replications, `MSE(T) > 0`.
+- Meaning: values above one favour `T`. The delta-method SE accounts for
+  the positive correlation created by sharing data sets.
+- Code: `inference.evaluate_estimator`.
+- Source: [REF-CASELLA-BERGER-2002], [REF-ROBERT-CASELLA-2004].
+
+### EQ-EST-003 — Interval coverage
+
+`c = R^-1 sum 1{L_r <= theta <= U_r}`, with SE `sqrt(c (1 - c)/R)`.
+
+- Domain: an interval procedure that returns finite ordered bounds.
+- Meaning: the frequentist coverage of a procedure at one `theta`.
+- Code: `inference.evaluate_estimator`.
+- Source: [REF-CASELLA-BERGER-2002].
+
+### EQ-EST-004 — Cramer-Rao lower bound
+
+For an estimator with `E T = psi(theta)`, `Var T >= grad psi' I(theta)^-1
+grad psi / n`, with `I` the per-observation Fisher information. If `T` is
+unbiased for `tau(theta)`, `psi = tau`.
+
+- Domain: a regular family (differentiation under the integral), `I`
+  positive definite.
+- Meaning: an unbiased estimator cannot beat the bound, but a biased one
+  can beat the *unbiased* bound in MSE (normal-variance MLE). Efficiency is
+  reported as `crlb / MSE`.
+- Code: `inference.cramer_rao_bound`, `inference.mle_efficiency`.
+- Source: [REF-CASELLA-BERGER-2002], [REF-LEHMANN-CASELLA-1998].
+
+### EQ-EST-005 — Normal-variance divisor family
+
+`SS = sum (X_i - Xbar)^2 ~ sigma^2 chi^2_{n-1}`, so
+`MSE(SS/d) = sigma^4 (2 (n-1) + (n-1-d)^2)/d^2`. The minimum is at
+`d = n + 1`, with value `2 sigma^4/(n + 1)`.
+
+- Domain: i.i.d. normal data, `n >= 2`, `d > 0`.
+- Meaning: the unbiased `d = n - 1` is not the minimum-MSE choice.
+- Code: `inference.normal_variance_estimator_risk`,
+  `inference.minimum_mse_variance_divisor`.
+- Source: [REF-CASELLA-BERGER-2002].
+
+### EQ-EST-006 — Uniform(0, theta) maximum
+
+With `M = max X_i`: `E M = n theta/(n+1)` and
+`Var M = n theta^2/((n+1)^2 (n+2))`.
+
+- MLE `M`: `MSE = 2 theta^2/((n+1)(n+2))`.
+- UMVUE `(n+1) M/n`: variance `theta^2/(n (n+2))`.
+- `(n+2) M/(n+1)`: minimum MSE, `theta^2/(n+1)^2`.
+- `2 Xbar`: variance `theta^2/(3n)`.
+
+- Domain: `theta > 0`, `n >= 1`.
+- Meaning: the sufficient-statistic estimators converge at rate `1/n`
+  rather than `1/sqrt(n)`, and the unbiased choice is not the minimum-MSE
+  choice.
+- Code: `inference.uniform_maximum_risks`.
+- Source: [REF-CASELLA-BERGER-2002], [REF-LEHMANN-CASELLA-1998].
+
+### EQ-EST-007 — Rao-Blackwellization of the Poisson zero probability
+
+`E[1{X_1 = 0} | S] = ((n - 1)/n)^S`, with `S ~ Poisson(n lambda)`. Using
+`E a^S = exp(n lambda (a - 1))`:
+
+- the crude estimator has variance `e^{-lambda}(1 - e^{-lambda})`;
+- the Rao-Blackwellized estimator has variance
+  `e^{-2 lambda}(e^{lambda/n} - 1)`;
+- the plug-in `exp(-Xbar)` has mean `exp(n lambda (e^{-1/n} - 1))`.
+
+The bound is `lambda e^{-2 lambda}/n`.
+
+- Domain: `lambda > 0`, `n >= 1`.
+- Meaning: conditioning an unbiased estimator on a sufficient statistic
+  keeps it unbiased and cannot increase its variance.
+- Code: `inference.poisson_zero_indicator`,
+  `inference.poisson_zero_rao_blackwell`,
+  `inference.poisson_zero_probability_risks`.
+- Source: [REF-CASELLA-BERGER-2002], [REF-LEHMANN-CASELLA-1998].
+
+### EQ-EST-008 — Factorization check for sufficiency
+
+If `L(theta; x) = g(T(x), theta) h(x)`, then `T(a) = T(b)` implies that
+`log L(theta; a) - log L(theta; b)` is constant in `theta`. For an
+exponential family `h(x) exp(eta(theta)' T(x) - A(theta))`,
+`sum T(x_i)` is sufficient.
+
+- Domain: two samples with equal statistics and a grid of at least two
+  parameter values.
+- Meaning: a non-constant ratio refutes sufficiency. A constant ratio on a
+  finite grid is necessary evidence, not a proof.
+- Code: `inference.check_sufficiency`.
+- Source: [REF-CASELLA-BERGER-2002], [REF-LEHMANN-CASELLA-1998].
+
+### EQ-EST-009 — Consistency from vanishing MSE
+
+`P(|T_n - theta| >= eps) <= MSE(T_n)/eps^2`, by Markov's inequality on
+`(T_n - theta)^2`.
+
+- Domain: finite second moments, `eps > 0`.
+- Meaning: if bias and variance both tend to zero, `T_n` is consistent.
+- Code: `inference.consistency_profile`.
+- Source: [REF-CASELLA-BERGER-2002], [REF-WASSERMAN-2004].
+
+### EQ-EST-010 — Exact moments of the exponential-rate MLE
+
+`Xbar ~ Gamma(n, n lambda)`, so for `lambda_hat = 1/Xbar`:
+`E lambda_hat = n lambda/(n-1)` and
+`Var lambda_hat = n^2 lambda^2/((n-1)^2 (n-2))`. The biased-estimator
+bound is `n lambda^2/(n-1)^2`, and the efficiency is
+`crlb/MSE = (n-1)(n-2)/(n (n+2))`.
+
+- Domain: `n >= 3`.
+- Meaning: the MLE is biased and never attains the bound at finite `n`,
+  but its efficiency tends to one.
+- Code: `inference.mle_efficiency`,
+  `probability.delta_method_exponential_reciprocal`.
+- Source: [REF-CASELLA-BERGER-2002].

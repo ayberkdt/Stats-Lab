@@ -174,6 +174,12 @@ The ordered route is:
 8. causal inference, information geometry, diffusion/flow models, sequential
    Monte Carlo, and modern uncertainty-aware learning systems.
 
+Steps 3 and 4 start with
+[limit theorems and estimator properties](foundations/limit-theorems-and-estimators.md):
+exact CLT errors against the Berry-Esseen bound, Edgeworth corrections,
+concentration inequalities, the delta method, bias/variance/MSE, Cramer-Rao
+bounds, sufficiency, and Rao-Blackwellization.
+
 Completion and sequencing live in `memory/ROADMAP.md`. Topics remain on the
 roadmap even when their teaching material has not yet been written.
 

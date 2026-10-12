@@ -1967,3 +1967,34 @@ Association* 82(398), 528-540 (with discussion), 1987.
 W. B. Smith and R. R. Hocking. "Algorithm AS 53: Wishart Variate Generator."
 *Journal of the Royal Statistical Society: Series C (Applied Statistics)*
 21(3), 341-345, 1972. doi:10.2307/2346290.
+
+## REF-SHEVTSOVA-2011
+
+Irina Shevtsova. "On the absolute constants in the Berry-Esseen type
+inequalities for identically distributed summands." arXiv preprint
+arXiv:1111.6554 [math.PR], 2011. The abstract states the bound
+`C_0 < 0.4748` on the classical i.i.d. Berry-Esseen constant.
+[https://arxiv.org/abs/1111.6554](https://arxiv.org/abs/1111.6554).
+
+## REF-HOEFFDING-1963
+
+Wassily Hoeffding. "Probability Inequalities for Sums of Bounded Random
+Variables." *Journal of the American Statistical Association* 58(301),
+13-30, 1963. doi:10.1080/01621459.1963.10500830.
+
+## REF-BOUCHERON-LUGOSI-MASSART-2013
+
+Stéphane Boucheron, Gábor Lugosi, and Pascal Massart. *Concentration
+Inequalities: A Nonasymptotic Theory of Independence*. Oxford University
+Press, 2013.
+
+## REF-HALL-1992
+
+Peter Hall. *The Bootstrap and Edgeworth Expansion*. Springer Series in
+Statistics. Springer-Verlag, New York, 1992. ISBN 0-387-97720-1.
+
+## REF-LEHMANN-CASELLA-1998
+
+E. L. Lehmann and George Casella. *Theory of Point Estimation*. 2nd edition.
+Springer Texts in Statistics. Springer, New York, 1998. ISBN 0-387-98502-6.
+DOI: [10.1007/b98854](https://doi.org/10.1007/b98854).
