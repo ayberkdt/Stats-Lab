@@ -1,18 +1,25 @@
 """Adaptive reliability laboratory: CE guard, lines, design points, AK-MCS.
 
 Run with ``PYTHONPATH=src python examples/adaptive_reliability_lab.py``. All
-numbers are printed; no figures are produced. Every stochastic step is
-seeded, so repeated runs print identical values.
+numbers are printed. When Matplotlib is installed three figures are written
+to ``examples/generated/``: the four-branch design-point map, the AK-MCS
+population by predicted class, and the AK-MCS learning curve. Every
+stochastic step is seeded, so repeated runs print identical values.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import math
+import random
 import time
 import warnings
 from collections.abc import Callable, Mapping
+from pathlib import Path
+from typing import Any
 
 from probstat.distributions import Normal
+from probstat.foundations.random_streams import resolve_stream
 from probstat.modeling import (
     JointInput,
     ProbabilisticModel,
@@ -36,6 +43,47 @@ from probstat.uq import QuantityOfInterest
 
 SQRT2 = math.sqrt(2.0)
 Y = (QuantityOfInterest("y", "limit-state value"),)
+OUTPUT = Path(__file__).parent / "generated"
+
+
+def has_matplotlib() -> bool:
+    """Return whether the optional plotting dependency is installed.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    return importlib.util.find_spec("matplotlib") is not None
+
+
+def save(figure_or_axes: Any, name: str) -> str:
+    """Save and close one figure under ``examples/generated``.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    import matplotlib.pyplot as plt
+
+    from probstat.visualization import save_figure
+
+    figure = getattr(figure_or_axes, "figure", figure_or_axes)
+    path = save_figure(figure, OUTPUT / name)
+    plt.close(figure)
+    return path.name
+
+
+def limit_state_grid(
+    function: Callable[[tuple[float, ...]], float], extent: float, nodes: int
+) -> tuple[list[float], list[float], list[list[float]]]:
+    """Evaluate ``G`` on a square grid for the limit-state contour.
+
+    References:
+        [EQ-REL-MLS-001]. No further equation is evaluated.
+
+    """
+    axis = [-extent + 2.0 * extent * k / (nodes - 1) for k in range(nodes)]
+    return axis, axis, [[function((x, y)) for x in axis] for y in axis]
 
 
 def make_state(
@@ -213,6 +261,26 @@ def design_point_section() -> None:
         f"{mixture.probability:.4e} +- {mixture.standard_error:.1e}; "
         f"crude MC (2e5)={crude.probability:.4e} +- {crude.standard_error:.1e}"
     )
+    if has_matplotlib():
+        from probstat.visualization.reliability_plots import plot_design_points
+
+        rng = random.Random(3)
+        centres = mixture.centers
+        samples = []
+        for _ in range(2000):
+            cx, cy = centres[rng.randrange(len(centres))]
+            samples.append((rng.gauss(cx, 1.0), rng.gauss(cy, 1.0)))
+        failed = [four_branch(u) <= 0.0 for u in samples]
+        axes = plot_design_points(
+            points,
+            limit_state_grid=limit_state_grid(four_branch, 5.0, 161),
+            samples=samples,
+            failed=failed,
+            combined=combined,
+            mixture=mixture,
+            extent=5.0,
+        )
+        print(f"   figure: {save(axes, 'adaptive-reliability-design-points.png')}")
 
 
 def ak_mcs_section() -> None:
@@ -225,6 +293,7 @@ def ak_mcs_section() -> None:
     """
     print("\n4. AK-MCS on the four-branch system (k = 6)")
     print("   seed  N      calls  added  Pf_AK       Pf_MC(same)  wrong  c.o.v.")
+    first = None
     for seed in (1, 2):
         result = ak_mcs(
             make_state(four_branch, 2),
@@ -239,6 +308,9 @@ def ak_mcs_section() -> None:
             f"{result.reference_probability:.4e}   {result.misclassified:<5d}  "
             f"{result.coefficient_of_variation:.3f}"
         )
+        first = first or result
+    if has_matplotlib() and first is not None:
+        ak_mcs_figures(first, seed=1)
     result = ak_mcs(
         make_state(four_branch, 2),
         5000,
@@ -254,6 +326,44 @@ def ak_mcs_section() -> None:
         f"wrong={result.misclassified}, "
         f"c.o.v.={result.coefficient_of_variation:.3f} ({result.message})"
     )
+
+
+def ak_mcs_figures(result: Any, *, seed: int) -> None:
+    """Draw the AK-MCS population map and learning curve of one run.
+
+    ``ak_mcs`` does not store its population, so it is redrawn from the same
+    child stream (``"ak-mcs"``, ``"population"``) of the run's seed; the
+    number of points the final surrogate predicts as failed is printed next
+    to the run's own count as a check that the redraw is identical.
+
+    References:
+        [EQ-REL-AKMCS-001], [REF-ECHARD-GAYTON-LEMAIRE-2011].
+
+    """
+    from probstat.visualization.reliability_plots import (
+        plot_ak_mcs_classification,
+        plot_ak_mcs_convergence,
+    )
+
+    generator = resolve_stream(seed).child("ak-mcs", "population").generator()
+    population = [
+        (generator.gauss(0.0, 1.0), generator.gauss(0.0, 1.0))
+        for _ in range(result.population)
+    ]
+    redrawn = sum(1 for u in population if result.surrogate.predict(u) <= 0.0)
+    print(
+        f"   redrawn population: {redrawn} predicted failures "
+        f"(run reported {result.predicted_failures})"
+    )
+    axes = plot_ak_mcs_classification(
+        result,
+        population,
+        limit_state_grid=limit_state_grid(four_branch, 5.0, 121),
+        extent=5.0,
+    )
+    print(f"   figure: {save(axes, 'adaptive-reliability-ak-mcs-population.png')}")
+    figure = plot_ak_mcs_convergence(result)
+    print(f"   figure: {save(figure, 'adaptive-reliability-ak-mcs-convergence.png')}")
 
 
 def main() -> None:

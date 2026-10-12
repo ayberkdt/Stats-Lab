@@ -131,3 +131,29 @@ The `theta_j` and `delta(x)` intervals are exact quantiles of Gaussian
 mixtures over quadrature nodes or posterior draws [EQ-VIZ-MIXQ-001], not
 mean +/- 2 sd. `save_study_figures` and the HTML report now draw the
 extremes, information, and design stages as well.
+
+## Adaptive reliability, forecast scoring, and transport figures
+
+Three more modules follow the same rules (ADR-0046). Functions take result
+objects and never call a model or re-solve a problem; limit-state contours
+come from a grid the caller evaluates. The labs write every figure to
+`examples/generated/`.
+
+| Module | Function | Shows | Lab |
+|---|---|---|---|
+| `reliability_plots` | `plot_design_points` | design points and FORM tangents (model hue), exact `G = 0` (accent) over the failure domain, beta circle (muted), importance samples (failed: observed hue) | `adaptive_reliability_lab.py` |
+| `reliability_plots` | `plot_ak_mcs_classification` | AK-MCS population by predicted class, training points (model hue), true and surrogate `G = 0`, rings at the lowest learning values `U` | `adaptive_reliability_lab.py` |
+| `reliability_plots` | `plot_ak_mcs_convergence` | `Pf` with +/- 2 s.e. and `min U` against added points, two panels sharing x | `adaptive_reliability_lab.py` |
+| `scoring_plots` | `plot_reliability_diagram` | observed frequency vs forecast probability, consistency bars (muted), diagonal (accent), counts per bin below | `forecast_calibration_lab.py` |
+| `hierarchical_plots` | `plot_pit_histogram` (reused) | PIT counts of the ensemble and of an overconfident forecast with the binomial band | `forecast_calibration_lab.py` |
+| `scoring_plots` | `plot_score_comparison` | mean CRPS per forecaster with intervals; title quotes the paired difference | `forecast_calibration_lab.py` |
+| `scoring_plots` | `plot_coverage` | empirical vs nominal coverage with Clopper-Pearson or Wilson intervals, identity (accent) | `forecast_calibration_lab.py` |
+| `scoring_plots` | `plot_distribution_shift` | two ECDFs (reference muted, new observed hue) with the KS gap in ink | `forecast_calibration_lab.py` |
+| `transport_plots` | `plot_transport_lines`, `plot_plan_matrices` | a 1-D plan as weighted lines between two rows of atoms; exact and entropic plans as heatmaps on one sequential scale | `optimal_transport_lab.py` |
+| `transport_plots` | `plot_sinkhorn_convergence` | marginal error per iteration (log-log), one line per `eps` on the sequential ramp, tolerance (accent) | `optimal_transport_lab.py` |
+| `transport_plots` | `plot_quantile_wasserstein`, `plot_displacement_interpolation` | `W1` as the area between quantile functions [EQ-OT-W1D-001]; the `W2` geodesic of two normals against their 50/50 mixture [EQ-OT-BARY-001] | `optimal_transport_lab.py` |
+
+The paired difference in `plot_score_comparison` is the right comparison
+when forecasters are scored on the same cases: case difficulty cancels, so
+its interval is much narrower than either whisker. Long computed titles are
+wrapped to the figure width by `visualization._layout.wrapped_title_block`.

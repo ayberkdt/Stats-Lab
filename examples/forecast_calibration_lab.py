@@ -12,15 +12,20 @@ cases with proper scores, PIT diagnostics, interval coverage, and sharpness:
 
 The binary event ``Y > 0`` is then scored with the Brier decomposition and a
 reliability table, and a calibration period is compared with a deployment
-period without a shift and with two sizes of shift. Only numbers are
-printed; no figures are produced.
+period without a shift and with two sizes of shift. When Matplotlib is
+installed, six figures are written to ``examples/generated/``: a reliability
+diagram, two PIT histograms, a CRPS comparison, a coverage plot, and a
+distribution-shift plot.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import math
 import random
 import time
+from pathlib import Path
+from typing import Any
 
 from probstat.distributions import Normal
 from probstat.inference import kolmogorov_smirnov_two_sample_test
@@ -45,6 +50,34 @@ from probstat.validation import (
 CASES = 2000
 MEMBERS = 20
 SEED = 20261012
+OUTPUT = Path(__file__).parent / "generated"
+
+
+def has_matplotlib() -> bool:
+    """Return whether the optional plotting dependency is installed.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    return importlib.util.find_spec("matplotlib") is not None
+
+
+def save(figure_or_axes: Any, name: str) -> str:
+    """Save and close one figure under ``examples/generated``.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    import matplotlib.pyplot as plt
+
+    from probstat.visualization import save_figure
+
+    figure = getattr(figure_or_axes, "figure", figure_or_axes)
+    path = save_figure(figure, OUTPUT / name)
+    plt.close(figure)
+    return path.name
 
 
 def simulate(
@@ -82,6 +115,75 @@ def mean(values: list[float]) -> float:
     return math.fsum(values) / len(values)
 
 
+def figures(
+    laws: dict[str, list[Normal]],
+    events: list[bool],
+    table: list[tuple[str, float, float, float, list[float], list[float]]],
+    per_case: dict[str, list[float]],
+    calibration: list[float],
+    shifted: tuple[list[float], Any],
+) -> None:
+    """Write the six scoring and calibration figures.
+
+    References:
+        [REF-BROCKER-SMITH-2007], [REF-GNEITING-BALABDAOUI-RAFTERY-2007],
+        [REF-HODGES-1958].
+
+    """
+    from probstat.visualization.hierarchical_plots import plot_pit_histogram
+    from probstat.visualization.scoring_plots import (
+        plot_coverage,
+        plot_distribution_shift,
+        plot_reliability_diagram,
+        plot_score_comparison,
+    )
+
+    print("\nFigures (examples/generated/):")
+    diagram = reliability_diagram(
+        [f.sf(0.0) for f in laws["overconfident"]],
+        events,
+        bins=10,
+        consistency_level=0.95,
+        resamples=500,
+        seed=SEED,
+    )
+    written = [
+        save(
+            plot_reliability_diagram(diagram, event="Y > 0"),
+            "forecast-reliability-diagram.png",
+        )
+    ]
+    pit = {name: u for name, _, _, _, u, _ in table}
+    for name in ("ensemble", "overconfident"):
+        written.append(
+            save(plot_pit_histogram(pit[name]), f"forecast-pit-{name}.png")
+        )
+    written.append(
+        save(plot_score_comparison(per_case), "forecast-crps-comparison.png")
+    )
+    levels = (0.2, 0.4, 0.6, 0.8, 0.95)
+    coverage = {
+        name: pit_coverage(pit[name], levels=levels)
+        for name in ("ideal", "overconfident", "climatology")
+    }
+    written.append(save(plot_coverage(coverage), "forecast-coverage.png"))
+    deployment, ks = shifted
+    written.append(
+        save(
+            plot_distribution_shift(
+                calibration,
+                deployment,
+                names=("calibration", "deployment"),
+                result=ks,
+                variable="Outcome y",
+            ),
+            "forecast-distribution-shift.png",
+        )
+    )
+    for name in written:
+        print(f"  {name}")
+
+
 def main() -> None:
     """Score four forecasters, the event forecasts, and two shift scenarios.
 
@@ -109,13 +211,13 @@ def main() -> None:
 
     print(f"[1/4] Scoring four forecasters on {CASES} cases (seed {SEED}) ...")
     rows: list[tuple[str, float, float, float, list[float], list[float]]] = []
+    per_case: dict[str, list[float]] = {}
     for name, forecasts in laws.items():
-        crps = mean(
-            [
-                crps_normal(y, f.mu, f.sigma)
-                for f, y in zip(forecasts, outcomes, strict=True)
-            ]
-        )
+        per_case[name] = [
+            crps_normal(y, f.mu, f.sigma)
+            for f, y in zip(forecasts, outcomes, strict=True)
+        ]
+        crps = mean(per_case[name])
         logs = mean([log_score(f, y) for f, y in zip(forecasts, outcomes, strict=True)])
         dss = mean(
             [
@@ -126,9 +228,10 @@ def main() -> None:
         u = list(pit_values(forecasts, outcomes))
         widths = list(sharpness_summary(forecasts, levels=(0.9,)).mean_widths)
         rows.append((name, crps, logs, dss, u, widths))
-    ens_crps = mean(
-        [crps_ensemble(e, y) for e, y in zip(ensembles, outcomes, strict=True)]
-    )
+    per_case["ensemble"] = [
+        crps_ensemble(e, y) for e, y in zip(ensembles, outcomes, strict=True)
+    ]
+    ens_crps = mean(per_case["ensemble"])
     ens_fair = mean(
         [
             crps_ensemble(e, y, fair=True)
@@ -223,9 +326,12 @@ def main() -> None:
         f"  {'scenario':<12}{'KS p':>10}{'energy p':>10}{'MMD p':>8}{'W1':>7}{'W2':>7}"
     )
     detected: list[str] = []
+    shifted: tuple[list[float], Any] | None = None
     for label, shift in (("no shift", 0.0), ("+0.4", 0.4), ("+0.8", 0.8)):
         _, _, deployment = simulate(generator, 300, shift)
         ks = kolmogorov_smirnov_two_sample_test(calibration, deployment)
+        if shift == 0.8:
+            shifted = (deployment, ks)
         energy = energy_distance_test(
             calibration, deployment, permutations=499, seed=SEED
         )
@@ -238,6 +344,8 @@ def main() -> None:
         )
         if max(ks.p_value, energy.p_value, mmd.p_value) < 0.05:
             detected.append(label)
+    if has_matplotlib() and shifted is not None:
+        figures(laws, events, table, per_case, calibration, shifted)
     best = min(table, key=lambda row: row[1])[0]
     print(
         f"\nDone in {time.perf_counter() - start:.1f} s: lowest CRPS '{best}'; "

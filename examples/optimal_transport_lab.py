@@ -1,4 +1,4 @@
-"""Optimal-transport and information-geometry laboratory (printed numbers only).
+"""Optimal-transport and information-geometry laboratory.
 
 Five short sections, each a table that compares an algorithm with an
 independent answer:
@@ -10,15 +10,21 @@ independent answer:
 4. closed-form Fisher information against numerical expectations;
 5. Fisher-Rao distances and the Renyi-to-KL limit.
 
-Every random input is seeded, so the output is reproducible.
+Every random input is seeded, so the output is reproducible. When
+Matplotlib is installed, five figures of a 1-D transport problem, Sinkhorn
+convergence, the ``W_1`` quantile area, and a ``W_2`` geodesic are written
+to ``examples/generated/``.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import itertools
 import math
 import random
 import time
+from pathlib import Path
+from typing import Any
 
 from probstat.distributions import Bernoulli, Beta, Exponential, Gamma, Normal, Poisson
 from probstat.information import (
@@ -33,6 +39,7 @@ from probstat.information import (
     kl_divergence,
     normal_wasserstein,
     numerical_fisher_information,
+    power_cost_matrix,
     quantile_barycenter,
     quantile_wasserstein,
     renyi_divergence,
@@ -43,6 +50,105 @@ from probstat.information import (
 from probstat.numerics import composite_simpson
 
 SEED = 2026
+OUTPUT = Path(__file__).parent / "generated"
+
+
+def has_matplotlib() -> bool:
+    """Return whether the optional plotting dependency is installed.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    return importlib.util.find_spec("matplotlib") is not None
+
+
+def save(figure_or_axes: Any, name: str) -> str:
+    """Save and close one figure under ``examples/generated``.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    import matplotlib.pyplot as plt
+
+    from probstat.visualization import save_figure
+
+    figure = getattr(figure_or_axes, "figure", figure_or_axes)
+    path = save_figure(figure, OUTPUT / name)
+    plt.close(figure)
+    return path.name
+
+
+def figures(rng: random.Random) -> None:
+    """Solve a 1-D problem exactly and by Sinkhorn and draw five figures.
+
+    Seven source atoms on ``[0, 4]`` and six target atoms on ``[1, 6]`` with
+    random weights; the cost is ``|x - y|^2``, whose optimal plan on the
+    line is monotone.
+
+    References:
+        [EQ-OT-LP-001], [EQ-OT-SINK-001], [EQ-OT-W1D-001], [EQ-OT-BARY-001],
+        [REF-PEYRE-CUTURI-2019], [REF-VILLANI-2009].
+
+    """
+    from probstat.visualization.transport_plots import (
+        plot_displacement_interpolation,
+        plot_plan_matrices,
+        plot_quantile_wasserstein,
+        plot_sinkhorn_convergence,
+        plot_transport_lines,
+    )
+
+    print()
+    print("Figures (1-D problem: 7 source and 6 target atoms, cost |x - y|^2)")
+    xs = sorted(rng.uniform(0.0, 4.0) for _ in range(7))
+    ys = sorted(rng.uniform(1.0, 6.0) for _ in range(6))
+    a = [rng.uniform(0.5, 1.5) for _ in xs]
+    b = [rng.uniform(0.5, 1.5) for _ in ys]
+    a = [w / math.fsum(a) for w in a]
+    b = [w / math.fsum(b) for w in b]
+    cost = power_cost_matrix(xs, ys, p=2.0)
+    exact = exact_transport(a, b, cost)
+    runs = {
+        epsilon: sinkhorn(a, b, cost, epsilon=epsilon, max_iterations=50_000)
+        for epsilon in (2.0, 0.5, 0.1, 0.03)
+    }
+    for epsilon, run in runs.items():
+        print(
+            f"  eps {epsilon:<5g} iterations {run.iterations:>6d}  "
+            f"<P,C> - exact {run.transport_cost - exact.cost:.2e}"
+        )
+    written = [
+        save(
+            plot_transport_lines(exact, xs, ys, names=("source", "target")),
+            "transport-plan-lines.png",
+        ),
+        save(
+            plot_plan_matrices(
+                {"exact": exact, "eps = 0.5": runs[0.5], "eps = 2": runs[2.0]}
+            ),
+            "transport-plan-matrices.png",
+        ),
+        save(
+            plot_sinkhorn_convergence(list(runs.values()), tolerance=1e-9),
+            "transport-sinkhorn-convergence.png",
+        ),
+        save(
+            plot_quantile_wasserstein(
+                Gamma(2.0, 1.0), Exponential(0.8), names=("Gamma(2, 1)", "Exp(0.8)")
+            ),
+            "transport-quantile-w1.png",
+        ),
+        save(
+            plot_displacement_interpolation(
+                (-2.0, 0.7), (3.0, 1.4), names=("N(-2, 0.7^2)", "N(3, 1.4^2)")
+            ),
+            "transport-displacement-interpolation.png",
+        ),
+    ]
+    for name in written:
+        print(f"  {name}")
 
 
 def _section(number: int, title: str) -> None:
@@ -249,6 +355,8 @@ def main() -> None:
     wasserstein_section()
     fisher_section()
     geometry_section()
+    if has_matplotlib():
+        figures(random.Random(SEED + 1))
     elapsed = time.perf_counter() - started
     print()
     print(
