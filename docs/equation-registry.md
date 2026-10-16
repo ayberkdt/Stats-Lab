@@ -9172,3 +9172,321 @@ first check `n in {n_0, n_0 + h, n_0 + 2h, ...}` with `r_n <= epsilon`, or at
 - Code: `statistics.run_until`, `statistics.RunningMoments`,
   `monte_carlo.estimate_mean_streaming`.
 - Source: [REF-ROBERT-CASELLA-2004, Chapters 3-4] ([EQ-MC-SE-001]).
+
+## Exact system reliability: BDDs, importance, common-cause failures, phased missions
+
+### EQ-SYS-BDD-001 — Shannon expansion and BDD probability
+
+`f = (not x_v and f|_{x_v=0}) or (x_v and f|_{x_v=1})`;
+`P(f_n = 1) = (1 - p_v) P(f_low = 1) + p_v P(f_high = 1)` and the same
+recursion for `P(f_n = 0)`, with `P(TRUE = 1) = 1`, `P(FALSE = 1) = 0`.
+
+- Domain: reduced ordered BDD; independent variables with `P(x_v = 1) = p_v`.
+- Meaning: exact probability of a Boolean (structure) function; each value is
+  a convex combination of child values, so neither `R` nor `Q = 1 - R`
+  suffers cancellation when both `p_v` and `1 - p_v` are supplied.
+- Code: `systems.BDD.probability`, `systems.SystemStructure.reliability`,
+  `systems.SystemStructure.unreliability`, `systems.SystemModel.reliability`.
+- Source: [REF-BRYANT-1986], [REF-RAUZY-1993].
+
+### EQ-SYS-BDD-002 — Conditional probabilities and Birnbaum importance in one pass
+
+`r(root) = 1`, `r(child) += r(n) P(branch)`;
+`P(f = b | x_v = c) = sum_{label(n) = v} r(n) P(f_{child_c(n)} = b)
++ sum_{edges e over level v} w(e) P(f_{target(e)} = b)`;
+`I_B(v) = sum_{label(n) = v} r(n) [P(f_high = 1) - P(f_low = 1)]`.
+
+- Domain: as EQ-SYS-BDD-001; every root-to-terminal path crosses each level
+  once, at a node or along an edge that skips it.
+- Meaning: all conditional system probabilities and Birnbaum measures from
+  one top-down and one bottom-up pass; the skipping sums are accumulated
+  exactly.
+- Code: `systems.BDD.variable_effects`, `systems.importance_measures`.
+- Source: [REF-BIRNBAUM-1969], [REF-RAUZY-1993].
+
+### EQ-SYS-MINSOL-001 — Minimal solutions (Rauzy)
+
+For monotone `f = ite(x, f_1, f_0)`:
+`minsol(f) = {S + {x} : S in without(minsol(f_1), minsol(f_0))} union
+minsol(f_0)`; `without(F, G)` keeps the sets of `F` that contain no set of
+`G`. Minimal path sets are `minsol(phi)`; minimal cut sets are
+`minsol(phi^D)` with the dual `phi^D(y) = not phi(not y)`.
+
+- Domain: monotone Boolean functions in a BDD; families in zero-suppressed
+  set semantics.
+- Meaning: minimal path and cut sets without top-down expansion; the family
+  diagram also gives counts and, through `OR_S AND_{v in S} y_v`, exact
+  probabilities of unions of cut sets.
+- Code: `systems.BDD.minimal_solution_family`, `systems.BDD.dual`,
+  `systems.BDD.family_function`, `systems.SystemStructure.minimal_cut_sets`,
+  `systems.SystemStructure.minimal_path_sets`.
+- Source: [REF-RAUZY-1993], [REF-BARLOW-PROSCHAN-1975].
+
+### EQ-SYS-STRUCT-001 — Series and parallel structures
+
+`phi_series(x) = prod_i x_i`, `phi_parallel(x) = 1 - prod_i (1 - x_i)`;
+for independent disjoint items `R = prod R_i` and `R = 1 - prod (1 - R_i)`.
+
+- Domain: binary component states, `x_i = 1` means working.
+- Meaning: the two elementary coherent structures; with repeated components
+  the BDD composition (conjunction, disjunction) stays exact.
+- Code: `systems.series`, `systems.parallel`, `systems.compile_expression`.
+- Source: [REF-BARLOW-PROSCHAN-1975].
+
+### EQ-SYS-STRUCT-002 — k-out-of-n:G structure
+
+`phi(x) = [sum_i phi_i(x) >= k]`, built by
+`T(i, j) = (phi_i and T(i + 1, j - 1)) or T(i + 1, j)`, `T(., 0) = TRUE`,
+`T(n + 1, j > 0) = FALSE`; identical independent items give
+`R = sum_{j >= k} C(n, j) p^j (1 - p)^(n - j)`.
+
+- Domain: `1 <= k <= n`; items may be arbitrary monotone sub-structures.
+- Meaning: voting redundancy; `O(n k)` BDD operations.
+- Code: `systems.k_out_of_n`, `systems.compile_expression`.
+- Source: [REF-BARLOW-PROSCHAN-1975], [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-SYS-STRUCT-003 — Bridge network
+
+`R = R1 R4 + R2 R5 + R1 R3 R5 + R2 R3 R4 - R1 R2 R3 R4 - R1 R2 R3 R5
+- R1 R2 R4 R5 - R1 R3 R4 R5 - R2 R3 R4 R5 + 2 R1 R2 R3 R4 R5`
+for minimal paths `{1,4}, {2,5}, {1,3,5}, {2,3,4}`.
+
+- Domain: independent components.
+- Meaning: the smallest structure that is neither series-parallel nor
+  parallel-series; a standard test of exact methods.
+- Code: `systems.bridge`.
+- Source: [REF-RAUSAND-HOYLAND-2004], [REF-BARLOW-PROSCHAN-1975].
+
+### EQ-SYS-STRUCT-004 — Fault tree to success structure (duality)
+
+`not OR_i E_i = AND_i not E_i` (OR gate -> series), `not AND_i E_i =
+OR_i not E_i` (AND gate -> parallel), "at least `k` of `n` fail" -> "at least
+`n - k + 1` of `n` work".
+
+- Domain: static coherent fault trees (AND, OR, k-out-of-n gates).
+- Meaning: the top event is system failure and each basic event is a
+  component failure.
+- Code: `systems.from_fault_tree`.
+- Source: [REF-VESELY-ETAL-1981], [REF-BARLOW-PROSCHAN-1975].
+
+### EQ-SYS-BOUND-001 — Esary-Proschan bounds
+
+`prod_j [1 - prod_{i in K_j} q_i] <= R <= 1 - prod_r [1 - prod_{i in P_r} p_i]`
+over minimal cut sets `K_j` and minimal path sets `P_r`.
+
+- Domain: coherent structure, associated (in particular independent)
+  components.
+- Meaning: cut-set and path-set bounds; the lower bound is the fault-tree
+  min-cut upper bound on `Q`.
+- Code: `systems.SystemStructure.bounds`.
+- Source: [REF-ESARY-PROSCHAN-1963], [REF-BARLOW-PROSCHAN-1975],
+  [REF-ESARY-PROSCHAN-WALKUP-1967].
+
+### EQ-SYS-BOUND-002 — Min-path and min-cut bounds
+
+`max_r prod_{i in P_r} p_i <= R <= min_j [1 - prod_{i in K_j} q_i]`.
+
+- Domain: coherent structure, associated components.
+- Meaning: the reliability of the best single path and of the weakest
+  single cut bracket the system reliability.
+- Code: `systems.SystemStructure.bounds`.
+- Source: [REF-BARLOW-PROSCHAN-1975].
+
+### EQ-SYS-MOM-001 — Exact epistemic variance of the reliability polynomial
+
+`E[R] = R(m)`; `C(F, G) = (m^2 + s) C(F_1, G_1) + (m (1 - m) - s)
+[C(F_1, G_0) + C(F_0, G_1)] + ((1 - m)^2 + s) C(F_0, G_0) + s dF dG` with
+`dF = E[F_1] - E[F_0]`, `C(const, G) = 0`, and `Var[R] = C(phi, phi)`.
+
+- Domain: component reliabilities `p_v` independent random quantities in
+  `[0, 1]` with means `m_v` and variances `s_v <= m_v (1 - m_v)`.
+- Meaning: derived here from `E[p^2] = m^2 + s`, `E[p (1 - p)] = m (1 - m) -
+  s`, `E[(1 - p)^2] = (1 - m)^2 + s` and the multilinearity of `R`; all
+  coefficients are non-negative, and for monotone structures every term is
+  non-negative.
+- Code: `systems.BDD.moments`, `systems.SystemStructure.reliability_moments`.
+- Source: [REF-APOSTOLAKIS-KAPLAN-1981], [REF-RAUZY-1993].
+
+### EQ-SYS-MOM-002 — Moments with shared epistemic parameters
+
+For a block `B` of components that share one uncertain value `q_B`,
+node values inside the block are polynomials
+`sum c_jk q_B^j (1 - q_B)^k` (`c_jk >= 0`); children in deeper blocks enter
+as their expectations, and `E_B[q^j (1 - q)^k]` integrates a block out.
+`E[R^2]` uses the same scheme on node pairs; `Var[R] = E[g^2] - E[g]^2` for
+`g` the function or its complement with the smaller mean. Beta law:
+`E[q^j (1 - q)^k] = prod_{i<j} (a + i) prod_{i<k} (b + i) /
+prod_{i<j+k} (a + b + i)`; raw moments: `sum_i C(k, i) (-1)^i E[q^(j+i)]`.
+
+- Domain: blocks on consecutive BDD levels (the structure reorders
+  variables to make them so); blocks independent; raw moments up to twice
+  the block size.
+- Meaning: exact mean and variance under state-of-knowledge correlation of
+  identical components.
+- Code: `systems.BDD.grouped_moments`,
+  `systems.SystemStructure.reliability_moments`.
+- Source: [REF-APOSTOLAKIS-KAPLAN-1981].
+
+### EQ-SYS-IMP-001 — Birnbaum, criticality, and structural importance
+
+`I_B = Q(1_i) - Q(0_i) = dR/dp_i`; `I_CR = I_B q_i / Q = (Q - Q(0_i)) / Q`;
+`I_IP = I_B q_i`; structural importance `I_B` at `p_j = 1/2` for all `j`,
+i.e. the number of critical vectors for `i` over `2^(n-1)`.
+
+- Domain: independent components; `Q > 0` for ratios (else `inf` or
+  `None`).
+- Meaning: sensitivity of system reliability, probability that `i` caused a
+  system failure, and the gain from making `i` perfect.
+- Code: `systems.importance_measures`, `systems.structural_importance`,
+  `systems.ImportanceMeasures`.
+- Source: [REF-BIRNBAUM-1969], [REF-LAMBERT-1975], [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-SYS-IMP-002 — Fussell-Vesely, RAW, and RRW
+
+`I_FV = P(union_{K_j containing i} {all of K_j failed}) / Q`;
+`RAW = Q(1_i) / Q`; `RRW = Q / Q(0_i)`.
+
+- Domain: as EQ-SYS-IMP-001; the union is evaluated exactly on a BDD built
+  from the cut-set family containing `i`.
+- Meaning: share of the failure probability involving `i`; risk increase if
+  `i` is failed; risk decrease if `i` is perfect.
+- Code: `systems.importance_measures`, `systems.SystemModel.importance`.
+- Source: [REF-FUSSELL-1975], [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-SYS-COMP-001 — Non-repairable component reliability
+
+`R(t) = exp(-lambda t)` (exponential), `R(t) = exp(-(t / eta)^beta)`
+(Weibull), `R(t) = sf(t)` (any life law); unreliability by
+`-expm1(-lambda t)`, `-expm1(-(t / eta)^beta)`, `cdf(t)`.
+
+- Domain: `t >= 0`; rates, shape and scale as validated.
+- Meaning: mission reliability (no failure in `[0, t]`).
+- Code: `systems.ExponentialComponent`, `systems.WeibullComponent`,
+  `systems.LifeDistributionComponent`, `systems.RepairableComponent`,
+  `systems.PeriodicallyTestedComponent`.
+- Source: [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-SYS-COMP-002 — Two-state repairable component availability
+
+`A(t) = mu / (lambda + mu) + lambda / (lambda + mu) exp(-(lambda + mu) t)`,
+`U(t) = lambda / (lambda + mu) (1 - exp(-(lambda + mu) t))`,
+`A(inf) = mu / (lambda + mu)`.
+
+- Domain: exponential up and down times, component up at `t = 0`.
+- Meaning: point availability of a component with immediate repair start.
+- Code: `systems.RepairableComponent`, `systems.SystemModel.availability`.
+- Source: [REF-RAUSAND-HOYLAND-2004], [REF-BARLOW-PROSCHAN-1975].
+
+### EQ-SYS-COMP-003 — Periodically tested component
+
+`U(t) = 1 - exp(-lambda a(t))` with `a(t)` the time since the last test;
+`U_avg = 1 - (1 - exp(-lambda tau)) / (lambda tau) = sum_{k>=1}
+(-1)^(k+1) (lambda tau)^k / (k + 1)!` (series used for `lambda tau < 0.5`);
+approximation `lambda tau / 2`, which overstates by about
+`(lambda tau)^2 / 6`.
+
+- Domain: hidden failures, perfect instantaneous tests and repairs.
+- Meaning: probability of a hidden (dormant) failure; its interval average
+  is the probability of failure on demand of a standby unit.
+- Code: `systems.PeriodicallyTestedComponent`.
+- Source: [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-SYS-CCF-001 — Beta-factor model
+
+`Q_1 = (1 - beta) Q_t`, `Q_m = beta Q_t`, `Q_k = 0` for `1 < k < m`.
+
+- Domain: symmetric group of `m >= 2` members, `0 <= beta <= 1`.
+- Meaning: a fraction `beta` of each member's failure probability fails the
+  whole group.
+- Code: `systems.BetaFactorGroup`, `systems.order_probabilities`.
+- Source: [REF-MOSLEH-ETAL-1998], [REF-MOSLEH-ETAL-1988].
+
+### EQ-SYS-CCF-002 — Multiple Greek letter model
+
+`Q_k = (prod_{i=1}^k rho_i)(1 - rho_(k+1)) Q_t / C(m - 1, k - 1)` with
+`rho_1 = 1`, `rho_2 = beta`, `rho_3 = gamma`, ..., `rho_(m+1) = 0`.
+
+- Domain: symmetric group; factors in `[0, 1]`.
+- Meaning: conditional probabilities that a failure is shared by further
+  members.
+- Code: `systems.MultipleGreekLetterGroup`.
+- Source: [REF-MOSLEH-ETAL-1998], [REF-MOSLEH-ETAL-1988].
+
+### EQ-SYS-CCF-003 — Alpha-factor model
+
+Non-staggered testing:
+`Q_k = k / C(m - 1, k - 1) * alpha_k / alpha_t * Q_t`,
+`alpha_t = sum_k k alpha_k`; staggered testing:
+`Q_k = alpha_k Q_t / C(m - 1, k - 1)`.
+
+- Domain: `alpha_k >= 0`, `sum_k alpha_k = 1`.
+- Meaning: `alpha_k` is the fraction of failure events in the group that
+  involve exactly `k` members.
+- Code: `systems.AlphaFactorGroup`.
+- Source: [REF-MOSLEH-ETAL-1998], [REF-MOSLEH-ETAL-1988].
+
+### EQ-SYS-CCF-004 — CCF normalisation
+
+`Q_t = sum_{k=1}^m C(m - 1, k - 1) Q_k^(m)`.
+
+- Domain: every parametric model above.
+- Meaning: a member's total failure probability is the (rare-event) sum of
+  the probabilities of the basic events that fail it.
+- Code: `systems.normalisation`.
+- Source: [REF-MOSLEH-ETAL-1998].
+
+### EQ-SYS-CCF-005 — Exact CCF expansion
+
+Member `i` fails iff `IND[i]` or some `CCF[S]` with `i in S`, `|S| >= 2`,
+occurs; all events independent with `P(CCF[S]) = Q_|S|`; the member's
+marginal is `1 - prod_k (1 - Q_k)^C(m - 1, k - 1) <= Q_t`.
+
+- Domain: symmetric groups, disjoint, members share `Q_t`.
+- Meaning: the expanded structure over basic events is evaluated exactly by
+  the BDD.
+- Code: `systems.expand_common_cause`, `systems.SystemModel`.
+- Source: [REF-MOSLEH-ETAL-1998].
+
+### EQ-SYS-MTTF-001 — Mean time to failure
+
+`MTTF = int_0^inf R(t) dt`.
+
+- Domain: non-repairable mission reliability with `R(t) -> 0`.
+- Meaning: expected system life; evaluated by adaptive double-exponential
+  or Gauss-Kronrod quadrature with an error estimate. Closed forms used as
+  checks: series `1 / sum lambda_i`, parallel
+  `1/lambda_1 + 1/lambda_2 - 1/(lambda_1 + lambda_2)`.
+- Code: `systems.SystemModel.mttf`, `systems.MTTFResult`.
+- Source: [REF-RAUSAND-HOYLAND-2004], [REF-PIESSENS-QUADPACK-1983].
+
+### EQ-SYS-PMS-001 — Phased-mission reliability
+
+`R_mission = P(AND_j phi_j(x_{., j}) = 1)` with `x_{i,j} = [j < K_i]`;
+`P(K_i = j) = prod_{l<j} s_{i,l} (1 - s_{i,j})` (per-phase models,
+`s_{i,j} = R_{i,j}(d_j)`) or `R_i(T_{j-1}) - R_i(T_j)` (one model on the
+cumulative time `T_j`); `P(K_i = J + 1)` is the survival probability.
+
+- Domain: non-repairable components, monotone phase structures,
+  instantaneous phase changes, independent components.
+- Meaning: exact mission success probability; evaluated on a BDD with
+  component-major order by enumerating each component's phase of failure at
+  the first node of its variable block.
+- Code: `systems.PhasedMission`, `systems.Phase`,
+  `systems.PhasedMissionResult`.
+- Source: [REF-ZANG-SUN-TRIVEDI-1999].
+
+### EQ-SYS-CCF-006 — Time-dependent CCF split (hazard or probability basis)
+
+Probability basis: `Q_k(t) = c_k Q_t(t)`. Hazard basis: with the member's
+cumulative hazard `H(t) = -log(1 - Q_t(t))`, `Q_k(t) = 1 - exp(-c_k H(t))`,
+so that `1 - prod_k (1 - Q_k)^C(m - 1, k - 1) = Q_t(t)` exactly (by
+EQ-SYS-CCF-004); for exponential members this is the rate split
+`lambda_k = c_k lambda` (beta factor: `lambda_CCF = beta lambda`).
+
+- Domain: symmetric groups; the two bases agree to first order in `Q_t`.
+- Meaning: the hazard basis keeps each member's marginal failure probability
+  equal to `Q_t(t)` over long missions (default for mission reliability);
+  the probability basis is the NUREG/CR-5485 convention for demand and
+  unavailability probabilities (default for availability).
+- Code: `systems.SystemModel`, `systems.SystemModel.event_probabilities`.
+- Source: [REF-MOSLEH-ETAL-1998], [REF-RAUSAND-HOYLAND-2004].

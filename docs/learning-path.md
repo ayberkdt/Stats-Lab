@@ -49,6 +49,10 @@ With those foundations, switch to the integrated toolset built on one model:
   and inverse FORM.
 - [Risk analysis](foundations/risk-analysis.md): VaR/CVaR, loss models, fault
   and event trees, fragility curves, and decision value of information.
+- [Exact system reliability](foundations/system-reliability.md): structure
+  functions on binary decision diagrams, minimal cut sets, importance
+  measures, common-cause failures, epistemic moments, MTTF, availability, and
+  phased missions, all computed exactly rather than by sampling.
 - [Surrogate models](foundations/surrogate-models.md): polynomial chaos and
   Gaussian-process emulators that replace an expensive forward model.
 - [Filtering and data assimilation](foundations/filtering-and-data-assimilation.md):
