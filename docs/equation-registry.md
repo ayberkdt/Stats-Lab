@@ -10805,3 +10805,37 @@ with `h = 1 + p (m - 1)`, `k = floor(h)`; mean
   spread uniformly, so moments are exact sums of uniform-segment moments.
 - Code: `workflow.EmpiricalMarginal`, `workflow.posterior_joint_input`.
 - Source: [REF-HYNDMAN-FAN-1996].
+
+### EQ-WF-MISSION-001 — Expected mission-loss frequency
+
+`nu = n Q(T)`, with `n` missions per year and `Q(T) = 1 - R(T)` the exact
+mission unreliability.
+
+- Domain: missions statistically independent and identical; `Q(T)` per
+  mission from the exact system model.
+- Meaning: expected number of mission losses per year; the rate that drives
+  the expected cost of unreliability.
+- Code: `workflow.MissionAssessment.cost`, `workflow.MissionAssessment.register`.
+- Source: [REF-NASA-PRA-2011], [REF-RAUSAND-BARROS-HOYLAND-2021].
+
+### EQ-WF-MISSION-002 — Probability of at least one loss in a campaign
+
+`P(at least one loss in N missions) = 1 - R(T)^N = -expm1(N log1p(-Q(T)))`.
+
+- Domain: `N = n * horizon` independent identical missions.
+- Meaning: campaign-level loss probability, evaluated without cancellation
+  when `Q(T)` is small.
+- Code: `workflow.MissionAssessment.cost`.
+- Source: [REF-NASA-PRA-2011].
+
+### EQ-WF-MISSION-003 — Expected total life-cycle cost including losses
+
+`E[C_total] = PV(E[LCC]) + PV(nu c_loss over the horizon)`.
+
+- Domain: life-cycle totals linear in the cost elements; mission losses at the
+  constant expected frequency `nu`; one discount rate.
+- Meaning: expected present value of ownership plus the expected cost of
+  unreliability; uncertainty in the life-cycle part is shown by the cost-risk
+  S-curve, not by this expectation.
+- Code: `workflow.MissionAssessment.cost`.
+- Source: [REF-NASA-CEH-2015], [REF-RAUSAND-BARROS-HOYLAND-2021].

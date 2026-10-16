@@ -2524,3 +2524,11 @@ Series in Probability and Statistics. John Wiley & Sons, Hoboken, NJ, 2003.
 Charles Stein. "A Two-Sample Test for a Linear Hypothesis Whose Power is
 Independent of the Variance." *The Annals of Mathematical Statistics* 16(3),
 243-258, 1945.
+
+## REF-NASA-PRA-2011
+
+Michael Stamatelatos, Homayoon Dezfuli, George Apostolakis, Chester Everline,
+Sergio Guarro, Donovan Mathias, Ali Mosleh, Todd Paulos, David Riha, and
+Curtis Smith. *Probabilistic Risk Assessment
+Procedures Guide for NASA Managers and Practitioners*, 2nd edition.
+NASA/SP-2011-3421. NASA, Washington, DC, December 2011.
