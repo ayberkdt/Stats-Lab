@@ -69,6 +69,11 @@ GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         ("reliability", "risk"),
     ),
     (
+        "Cost analysis",
+        "Life-cycle cost, cost risk, learning curves, and maintenance economics.",
+        ("cost",),
+    ),
+    (
         "Orchestration and figures",
         "The `UQStudy` workflow and the themed figure library.",
         ("workflow", "visualization"),

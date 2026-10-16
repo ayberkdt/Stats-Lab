@@ -9172,3 +9172,470 @@ first check `n in {n_0, n_0 + h, n_0 + 2h, ...}` with `r_n <= epsilon`, or at
 - Code: `statistics.run_until`, `statistics.RunningMoments`,
   `monte_carlo.estimate_mean_streaming`.
 - Source: [REF-ROBERT-CASELLA-2004, Chapters 3-4] ([EQ-MC-SE-001]).
+
+## Cost analysis, risk register, FMECA, reliability data, and allocation (W5)
+
+### EQ-COST-DISC-001 — Discount factor
+
+`DF(t) = (1 + r)^-t` (discrete) or `DF(t) = exp(-r t)` (continuous); the
+conventions agree when `r_c = ln(1 + r)`.
+
+- Domain: `r > -1` (discrete), finite `t`.
+- Meaning: value today of one currency unit paid at time `t`.
+- Code: `cost.discount_factor`, `cost.present_value`, `cost.continuous_rate`.
+- Source: [REF-BLANK-TARQUIN-2012].
+
+### EQ-COST-DISC-002 — Net present value
+
+`NPV = sum_k CF_k DF(t_k)`, default `t_k = k` (first flow undiscounted).
+
+- Domain: finite flows and times.
+- Meaning: present value of a signed cash-flow stream.
+- Code: `cost.net_present_value`.
+- Source: [REF-BLANK-TARQUIN-2012].
+
+### EQ-COST-ANN-001 — Annuity, capital recovery, equivalent annual cost
+
+`(P/A, r, n) = (1 - (1 + r)^-n) / r` (`= n` at `r = 0`);
+`(A/P, r, n) = 1 / (P/A, r, n)`; `EAC = PV (A/P, r, n)`.
+
+- Domain: `r > -1`, integer `n >= 0` (`n >= 1` for `A/P`).
+- Meaning: present worth of `n` end-of-period unit payments and its inverse.
+- Code: `cost.annuity_factor`, `cost.capital_recovery_factor`,
+  `cost.equivalent_annual_cost`.
+- Source: [REF-BLANK-TARQUIN-2012], [REF-FABRYCKY-BLANCHARD-1991].
+
+### EQ-COST-FISHER-001 — Fisher relation
+
+`(1 + n) = (1 + r)(1 + i)`, so `r = (n - i) / (1 + i)`.
+
+- Domain: `n, r, i > -1`.
+- Meaning: exact conversion between nominal and real rates.
+- Code: `cost.real_rate`, `cost.nominal_rate`.
+- Source: [REF-FISHER-1930].
+
+### EQ-COST-ESC-001 — Escalation
+
+`A_t = A_0 (1 + e)^t`.
+
+- Domain: `e > -1`.
+- Meaning: then-year amount of a base-year amount.
+- Code: `cost.escalate`, `cost.CostElement.recurring`.
+- Source: [REF-BLANK-TARQUIN-2012], [REF-NASA-CEH-2015].
+
+### EQ-COST-LCC-001 — Linear life-cycle cost
+
+`LCC = sum_i a_i X_i`, `a_i = sum_k m_ik DF(t_ik)`.
+
+- Domain: element values `X_i`, profile multipliers `m_ik`.
+- Meaning: present value of a cost breakdown structure; linear in the
+  element values, so `E[LCC] = sum a_i E[X_i]`.
+- Code: `cost.CostElement.present_value_coefficient`,
+  `cost.LifeCycleCostModel.evaluate`, `cost.LifeCycleCostModel.coefficients`.
+- Source: [REF-FABRYCKY-BLANCHARD-1991].
+
+### EQ-COST-MOM-001 — Method-of-moments total cost
+
+`E[C] = c_0 + sum a_i mu_i`, `Var[C] = sum_i sum_j a_i a_j rho_ij sigma_i sigma_j`.
+
+- Domain: finite means and deviations; `rho` a Pearson correlation matrix
+  (positive semi-definite).
+- Meaning: exact first two moments of a weighted sum of correlated costs;
+  `rho = I` gives the (usually understated) independent variance.
+- Code: `cost.method_of_moments_total`, `cost.LifeCycleCostModel.moments`.
+- Source: [REF-GARVEY-2000], [REF-NASA-CEH-2015].
+
+### EQ-COST-MOM-002 — Moment-matched lognormal total
+
+`sigma^2 = ln(1 + s^2/m^2)`, `mu = ln m - sigma^2/2`; percentiles
+`exp(mu + sigma z_q)`.
+
+- Domain: `m > 0`, `s > 0`.
+- Meaning: assumed shape of the total; an approximation.
+- Code: `cost.fit_total_distribution`, `cost.CostRiskResult.analytic_cdf`.
+- Source: [REF-GARVEY-2000], [REF-JKB-1994].
+
+### EQ-COST-SCURVE-001 — Empirical S-curve and contingency
+
+`F_n(c) = #{C_k <= c} / n`; `q`-level cost `C_(ceil(n q))`;
+contingency `= C_q - point estimate`.
+
+- Domain: `n` Monte Carlo totals; `0 < q < 1`.
+- Meaning: cost confidence levels and reserve.
+- Code: `cost.cost_risk_analysis`, `cost.CostRiskResult.monte_carlo_cdf`.
+- Source: [REF-NASA-CEH-2015].
+
+### EQ-COST-JCL-001 — Joint cost-schedule confidence level
+
+`JCL(C, S) = #{c_k <= C and s_k <= S} / n`, standard error
+`sqrt(JCL (1 - JCL) / n)`.
+
+- Domain: paired joint samples.
+- Meaning: probability of meeting both cost and schedule targets.
+- Code: `cost.joint_confidence_level`, `cost.cost_for_joint_confidence`.
+- Source: [REF-NASA-CEH-2015].
+
+### EQ-COST-LEARN-001 — Learning-curve exponent
+
+`Y = T_1 x^b`, `b = log2(s)`.
+
+- Domain: `T_1 > 0`, slope `s > 0`.
+- Meaning: `Y` falls by the factor `s` per doubling of quantity.
+- Code: `cost.learning_exponent`, `cost.LearningCurve`.
+- Source: [REF-WRIGHT-1936], [REF-YELLE-1979].
+
+### EQ-COST-LEARN-002 — Unit and cumulative-average theories
+
+Unit (Crawford): `T_n = T_1 n^b`, lot `sum_{i=F}^{L} T_1 i^b`.
+Cumulative average (Wright): total `T_1 n^(b+1)`, unit
+`T_1 [n^(b+1) - (n-1)^(b+1)]`, lot `T_1 [L^(b+1) - (F-1)^(b+1)]`.
+
+- Domain: integer units `>= 1`.
+- Meaning: exact recurring costs under each theory.
+- Code: `cost.LearningCurve.unit_cost`, `cost.LearningCurve.cumulative_cost`,
+  `cost.LearningCurve.lot_cost`.
+- Source: [REF-WRIGHT-1936], [REF-YELLE-1979], [REF-NASA-CEH-2015].
+
+### EQ-COST-LEARN-003 — Lot-midpoint approximation (unit theory)
+
+`sum_{i=F}^{L} i^b ~ [(L + 1/2)^(b+1) - (F - 1/2)^(b+1)] / (b + 1)`;
+lot midpoint `x` with `x^b` equal to that integral divided by `L - F + 1`.
+
+- Domain: `b != -1` (logarithm otherwise).
+- Meaning: midpoint-rule approximation; error largest for the first lot.
+- Code: `cost.LearningCurve.lot_midpoint_approximation`.
+- Source: [REF-NASA-CEH-2015] (derived here as the midpoint rule).
+
+### EQ-COST-AGE-001 — Age-replacement cost rate
+
+`C(T) = (c_p R(T) + c_f F(T)) / int_0^T R(t) dt`, `C(inf) = c_f / MTTF`.
+
+- Domain: `0 < c_p < c_f`, `T > 0`.
+- Meaning: long-run cost per unit time (renewal-reward theorem); no finite
+  optimum for a non-increasing hazard.
+- Code: `cost.age_replacement_cost_rate`, `cost.optimize_age_replacement`.
+- Source: [REF-BARLOW-PROSCHAN-1965], [REF-RAUSAND-BARROS-HOYLAND-2021].
+
+### EQ-COST-BLOCK-001 — Block-replacement cost rate
+
+`C(T) = (c_p + c_f M(T)) / T`.
+
+- Domain: `0 < c_p < c_f`, renewal function `M`.
+- Meaning: periodic replacement at `T, 2T, ...` plus replacement at failures.
+- Code: `cost.optimize_block_replacement`.
+- Source: [REF-BARLOW-PROSCHAN-1965], [REF-RAUSAND-BARROS-HOYLAND-2021].
+
+### EQ-COST-RENEW-001 — Renewal equation (RS discretisation)
+
+`M(t) = F(t) + int_0^t M(t - x) dF(x)`; on a grid,
+`M_n (1 - dF_1/2) = F_n + M_{n-1} dF_1/2 + sum_{i=2}^{n} (M_{n-i+1} + M_{n-i}) dF_i / 2`.
+
+- Domain: uniform grid, `M_0 = 0`.
+- Meaning: trapezoidal Riemann-Stieltjes solution of the renewal equation;
+  checked against `M(t) = lambda t` and the Erlang-2 closed form
+  `t/2 - 1/4 + exp(-2t)/4` (rate 1).
+- Code: `cost.renewal_function`.
+- Source: [REF-XIE-1989], [REF-ROSS-1996].
+
+### EQ-COST-MINREP-001 — Minimal repair with periodic overhaul
+
+`C(T) = (c_p + c_m Lambda(T)) / T`; for `Lambda(t) = (t/eta)^beta`,
+`beta > 1`: `T* = eta (c_p / ((beta - 1) c_m))^(1/beta)`,
+`C(T*) = beta c_p / ((beta - 1) T*)`.
+
+- Domain: `c_p, c_m > 0`; no finite optimum for `beta <= 1`.
+- Meaning: overhaul interval of a deteriorating repairable system.
+- Code: `cost.minimal_repair_overhaul`, `cost.periodic_overhaul_cost_rate`,
+  `cost.optimize_periodic_overhaul`.
+- Source: [REF-BARLOW-PROSCHAN-1965], [REF-RAUSAND-BARROS-HOYLAND-2021].
+
+### EQ-COST-CORR-001 — Expected corrective cost from an intensity
+
+`E[N(H)] = int_0^H w(t) dt`; `PV = c int_0^H w(t) exp(-r t) dt`.
+
+- Domain: non-negative intensity `w`.
+- Meaning: expected number and discounted cost of failures.
+- Code: `cost.expected_corrective_cost`.
+- Source: [REF-RAUSAND-BARROS-HOYLAND-2021].
+
+### EQ-COST-BRENTMIN-001 — Brent's minimisation
+
+Golden-section steps `x + 0.381966 (b - x)` combined with parabolic
+interpolation through the three best points, accepted only inside the
+bracket and when shrinking faster than the golden step.
+
+- Domain: unimodal function on `[a, b]`.
+- Meaning: derivative-free 1-D minimisation used by the maintenance policies.
+- Code: `cost._scalar.brent_minimize`.
+- Source: [REF-BRENT-1973].
+
+### EQ-COST-SPARE-001 — Poisson spares protection level
+
+`D ~ Poisson(mu)`, `mu = lambda n T`; protection `P(D <= s)`; minimum
+stock `min{s : P(D <= s) >= target}`.
+
+- Domain: constant rates, no repair within the period.
+- Meaning: probability that `s` spares cover the period's demand.
+- Code: `cost.spare_demand_mean`, `cost.protection_level`,
+  `cost.minimum_spares`.
+- Source: [REF-SHERBROOKE-2004].
+
+### EQ-COST-SPARE-002 — Expected backorders
+
+`EBO(s) = E[(D - s)^+] = mu P(D >= s) - s P(D >= s + 1)`.
+
+- Domain: Poisson demand (uses `k p_k = mu p_{k-1}`).
+- Meaning: expected unfilled demands.
+- Code: `cost.expected_backorders`.
+- Source: [REF-SHERBROOKE-2004].
+
+### EQ-COST-SPARE-003 — Spare-plan cost and optimum
+
+`TC(s) = s c_u + c_b EBO(s)`; `EBO(s) - EBO(s+1) = P(D > s)`, so the
+optimum is the smallest `s` with `P(D <= s) >= 1 - c_u / c_b`.
+
+- Domain: `c_u > 0`, `c_b >= 0`.
+- Meaning: newsvendor-type stock decision.
+- Code: `cost.spare_plan_cost`, `cost.optimal_spares`.
+- Source: [REF-SHERBROOKE-2004].
+
+### EQ-COST-UNREL-001 — Cost of unreliability
+
+`sum_i p_i C_i` (missions); `sum_i lambda_i C_i (1 - exp(-r H)) / r`
+(present value over `[0, H]`, `= sum lambda_i C_i H` at `r = 0`).
+
+- Domain: homogeneous Poisson failures, continuous discounting.
+- Meaning: expected (discounted) failure cost (Campbell's theorem).
+- Code: `cost.expected_failure_cost`, `cost.cost_of_unreliability`,
+  `cost.discounted_rate_factor`, `cost.compare_alternatives`,
+  `cost.reliability_decision_problem`.
+- Source: [REF-RAUSAND-BARROS-HOYLAND-2021], [REF-KAPLAN-GARRICK-1981].
+
+### EQ-COST-CER-001 — Cost-effectiveness ratios
+
+`CER = C / E`; `ICER = (C_b - C_a) / (E_b - E_a)`.
+
+- Domain: `E > 0`; `E_b != E_a`.
+- Meaning: cost per unit effectiveness and incremental cost per extra unit.
+- Code: `cost.cost_effectiveness_ratio`, `cost.incremental_cost_effectiveness`.
+- Source: [REF-FABRYCKY-BLANCHARD-1991].
+
+### EQ-RISK-FMECA-001 — Failure-mode criticality number
+
+`C_m = beta alpha lambda_p t`.
+
+- Domain: `alpha, beta in [0, 1]`, `lambda_p, t >= 0`.
+- Meaning: expected occurrences (approximately the probability, when small)
+  of the mode with the stated effect per mission.
+- Code: `risk.FailureMode.criticality`, `risk.Fmeca.mode_criticality`.
+- Source: [REF-MIL-STD-1629A-1980].
+
+### EQ-RISK-FMECA-002 — Item criticality number
+
+`C_r = sum_{modes in severity class} C_m`.
+
+- Domain: modes of one item within one severity class.
+- Meaning: item criticality per class, plotted in the criticality matrix.
+- Code: `risk.Fmeca.item_criticality`, `risk.Fmeca.criticality_matrix`.
+- Source: [REF-MIL-STD-1629A-1980].
+
+### EQ-RISK-FMECA-003 — Risk priority number
+
+`RPN = S x O x D`, ranks in `1..10`.
+
+- Domain: ordinal ranks; only 120 distinct products exist.
+- Meaning: worksheet prioritisation index without a quantitative meaning.
+- Code: `risk.risk_priority_number`, `risk.FailureMode.rpn`,
+  `risk.Fmeca.rpn_ranking`.
+- Source: [REF-BOWLES-2003].
+
+### EQ-RISK-REG-001 — Bernoulli-impact exposure
+
+`X = B I`, `B ~ Bernoulli(p)` independent of `I`:
+`E[X] = p E[I]`, `Var[X] = p E[I^2] - p^2 E[I]^2`.
+
+- Domain: `p in [0, 1]`, `E[I^2] < inf`.
+- Meaning: exact moments of one register entry.
+- Code: `risk.Risk.expected_exposure`, `risk.Risk.exposure_variance`.
+- Source: [REF-ROSS-2019], [REF-KAPLAN-GARRICK-1981].
+
+### EQ-RISK-REG-002 — Total exposure of independent risks
+
+`E[T] = sum p_i E[I_i]`, `Var[T] = sum Var[X_i]`.
+
+- Domain: mutually independent risks.
+- Meaning: exact moments of the register total.
+- Code: `risk.RiskRegister.expected_exposure`,
+  `risk.RiskRegister.exposure_variance`, `risk.RiskRegister.totals_by`.
+- Source: [REF-ROSS-2019].
+
+### EQ-RISK-REG-003 — Risk reduction and mitigation ROI
+
+`Delta_i = E[X_i] - E[X_i | mitigated]`, `ROI_i = Delta_i / cost_i`; for
+independent risks the reductions add.
+
+- Domain: specified mitigated probability and/or impact.
+- Meaning: expected-exposure benefit per unit mitigation cost; waterfall.
+- Code: `risk.Risk.risk_reduction`, `risk.Risk.mitigation_roi`,
+  `risk.RiskRegister.mitigation_waterfall`.
+- Source: [REF-NASA-RMH-2011].
+
+### EQ-RISK-REG-004 — Exact total by convolution
+
+`P(T = t) = sum_{x + y = t} P(T' = x) P(X_i = y)`, applied risk by risk with
+`P(X_i = 0) = 1 - p_i + p_i P(I_i = 0)`, `P(X_i = v) = p_i P(I_i = v)`.
+
+- Domain: discrete impacts; exact rational addition of support values.
+- Meaning: full distribution of the register total.
+- Code: `risk.RiskRegister.exposure_distribution`, `risk.ExposureDistribution`.
+- Source: [REF-ROSS-2019].
+
+### EQ-RISK-FN-001 — F-N curve
+
+`F(N) = sum_{i : N_i >= N} f_i`.
+
+- Domain: `f_i >= 0`, `N_i > 0`.
+- Meaning: frequency of `N` or more fatalities (or other counts).
+- Code: `risk.fn_curve`, `risk.fn_curve_from_event_trees`,
+  `risk.FNCurve.frequency`.
+- Source: [REF-JONKMAN-VANGELDER-VRIJLING-2003].
+
+### EQ-RISK-FN-002 — F-N criterion line
+
+`F_c(N) = C (N_0 / N)^a`.
+
+- Domain: `C > 0`, `a >= 0`, `N_0 > 0`.
+- Meaning: tolerable societal-risk line; compliance checked at the step ends,
+  exact for a non-increasing criterion.
+- Code: `risk.FNCriterion`, `risk.fn_curve`.
+- Source: [REF-JONKMAN-VANGELDER-VRIJLING-2003].
+
+### EQ-REL-DATA-001 — Beta posterior for failure on demand
+
+`Beta(a, b)` prior, `x` failures in `n` demands: `Beta(a + x, b + n - x)`;
+Jeffreys `a = b = 1/2`.
+
+- Domain: `0 <= x <= n`, `n >= 1`.
+- Meaning: epistemic law of the demand failure probability.
+- Code: `reliability.demand_failure_probability`.
+- Source: [REF-ATWOOD-NUREG-6823-2003].
+
+### EQ-REL-DATA-002 — Gamma posterior for a failure rate
+
+`Gamma(alpha, beta)` prior (shape, rate), `r` failures in `T`:
+`Gamma(alpha + r, beta + T)`; Jeffreys `Gamma(r + 1/2, T)`.
+
+- Domain: `r >= 0`, `T > 0`.
+- Meaning: epistemic law of a Poisson failure rate.
+- Code: `reliability.failure_rate_estimate`.
+- Source: [REF-ATWOOD-NUREG-6823-2003].
+
+### EQ-REL-DATA-003 — Chi-square bounds on a failure rate
+
+`lambda_L = chi2_{alpha/2}(2r) / (2T)`;
+`lambda_U = chi2_{1-alpha/2}(2r + 2) / (2T)` (time-terminated) or
+`chi2_{1-alpha/2}(2r) / (2T)` (failure-terminated).
+
+- Domain: `r >= 0` (`r >= 1` failure-terminated); `lambda_L = 0` at `r = 0`.
+- Meaning: classical confidence bounds; one-sided bounds use `alpha`.
+- Code: `reliability.failure_rate_bounds`.
+- Source: [REF-ATWOOD-NUREG-6823-2003], [REF-RAUSAND-BARROS-HOYLAND-2021].
+
+### EQ-REL-DATA-004 — Demonstration testing
+
+Success run: `n = ceil(ln(1 - C) / ln R)`; with `r` allowed failures the
+smallest `n` with `P(Binomial(n, 1 - R) <= r) <= 1 - C`.
+Exponential: `T = chi2_C(2r + 2) / (2 lambda_0)` (`= -ln(1 - C)/lambda_0`
+for `r = 0`).
+
+- Domain: `0 < R, C < 1`, `lambda_0 > 0`.
+- Meaning: test size or time that demonstrates a reliability or rate.
+- Code: `reliability.success_run_sample_size`,
+  `reliability.demonstration_test_time`.
+- Source: [REF-RAUSAND-BARROS-HOYLAND-2021], [REF-ATWOOD-NUREG-6823-2003].
+
+### EQ-REL-DATA-005 — Crow-AMSAA maximum likelihood
+
+`E[N(t)] = lambda t^beta`; time-terminated
+`beta = n / sum_{i=1}^n ln(T / t_i)`; failure-terminated
+`beta = n / sum_{i=1}^{n-1} ln(t_n / t_i)`; `lambda = n / T^beta`;
+instantaneous MTBF `1 / (lambda beta T^(beta-1))`.
+
+- Domain: one system, strictly increasing failure times.
+- Meaning: reliability-growth fit of a power-law NHPP.
+- Code: `reliability.crow_amsaa_fit`, `reliability.CrowAMSAAFit`.
+- Source: [REF-CROW-1974], [REF-MIL-HDBK-189C-2011].
+
+### EQ-REL-DATA-006 — Crow-AMSAA unbiased shape and interval
+
+`2 n beta / beta_hat ~ chi2(2n)` (time) or `chi2(2n - 2)` (failure),
+conditional on `n`; unbiased `(n - 1)/n beta_hat` or `(n - 2)/n beta_hat`;
+interval `beta_hat chi2_{alpha/2}(nu)/(2n), beta_hat chi2_{1-alpha/2}(nu)/(2n)`.
+
+- Domain: `n >= 2` (time) or `n >= 3` (failure).
+- Meaning: exact conditional inference on the growth shape.
+- Code: `reliability.crow_amsaa_fit`.
+- Source: [REF-CROW-1974], [REF-MIL-HDBK-189C-2011].
+
+### EQ-REL-ALLOC-001 — Series budget and equal apportionment
+
+`R* = prod R_i`; `lambda* = -ln R* / t`; equal `R_i = R*^(1/n)`.
+
+- Domain: series system, constant failure rates.
+- Meaning: system failure-rate budget and its equal split.
+- Code: `reliability.equal_apportionment`, `reliability.allocation._from_rates`.
+- Source: [REF-EBELING-1997], [REF-MIL-HDBK-338B-1998].
+
+### EQ-REL-ALLOC-002 — Weighted (ARINC, feasibility) allocation
+
+`lambda_i* = w_i lambda* / sum_j w_j`, with `w_i = lambda_i` (ARINC) or the
+product of factor ratings (feasibility of objectives).
+
+- Domain: positive weights.
+- Meaning: proportional split of the failure-rate budget.
+- Code: `reliability.arinc_allocation`, `reliability.feasibility_of_objectives`.
+- Source: [REF-EBELING-1997], [REF-MIL-HDBK-338B-1998].
+
+### EQ-REL-ALLOC-003 — AGREE allocation
+
+Exact: `R_i(t_i) = 1 - (1 - R*^(n_i/N)) / E_i`, `lambda_i = -ln R_i / t_i`;
+approximate: `lambda_i = n_i (-ln R*) / (N E_i t_i)`; system
+`prod_i [1 - E_i (1 - R_i)]`.
+
+- Domain: `0 < E_i <= 1`, `E_i > 1 - R*^(n_i/N)` for the exact form.
+- Meaning: complexity- and importance-weighted allocation.
+- Code: `reliability.agree_allocation`.
+- Source: [REF-AGREE-1957], [REF-EBELING-1997].
+
+### EQ-REL-ALLOC-004 — Mettas cost of reliability
+
+`c(R) = s exp((1 - f)(R - R_min) / (R_max - R))`,
+`c'(R) = c(R)(1 - f)(R_max - R_min) / (R_max - R)^2`.
+
+- Domain: `0 <= f < 1`, `R_min <= R < R_max`.
+- Meaning: convex increasing effort to raise unit reliability.
+- Code: `reliability.MettasCost`.
+- Source: [REF-METTAS-2000].
+
+### EQ-REL-ALLOC-005 — Series cost-optimal allocation (KKT)
+
+Minimise `sum c_i(R_i)` s.t. `sum ln R_i >= ln R*`: `R_i c_i'(R_i) = mu`
+(interior) or `R_i = l_i` when `l_i c_i'(l_i) >= mu`; `mu` from
+`sum ln R_i(mu) = ln R*`.
+
+- Domain: convex increasing costs; solved in log space.
+- Meaning: exact optimum for series systems.
+- Code: `reliability.cost_optimal_series_allocation`.
+- Source: [REF-METTAS-2000], [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-REL-ALLOC-006 — Augmented Lagrangian allocation
+
+`L = f(R)/f_0 - mu h + rho h^2 / 2` if `h - mu/rho <= 0`, else
+`f(R)/f_0 - mu^2/(2 rho)`; `h = (R_sys(R) - R*)/(1 - R*)`;
+`mu <- max(0, mu - rho h)`; `R_i = l_i + (u_i - l_i) sigmoid(z_i)`.
+
+- Domain: any structure function; local optimum.
+- Meaning: constrained allocation for general systems, with a feasibility
+  repair towards the upper bounds.
+- Code: `reliability.cost_optimal_allocation`.
+- Source: [REF-NOCEDAL-WRIGHT-2006].

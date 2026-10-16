@@ -2121,3 +2121,128 @@ DOI: [10.1145/3147.3165](https://doi.org/10.1145/3147.3165).
 F. N. Fritsch and R. E. Carlson. "Monotone Piecewise Cubic Interpolation."
 *SIAM Journal on Numerical Analysis* 17(2), 238-246, 1980.
 doi:10.1137/0717021.
+
+## REF-AGREE-1957
+
+Advisory Group on Reliability of Electronic Equipment (AGREE). *Reliability of
+Military Electronic Equipment*. Office of the Assistant Secretary of Defense
+(Research and Engineering), Washington, DC, 1957.
+
+## REF-ATWOOD-NUREG-6823-2003
+
+C. L. Atwood, J. L. LaChance, H. F. Martz, et al. *Handbook of Parameter
+Estimation for Probabilistic Risk Assessment*. NUREG/CR-6823 (SAND2003-3348P).
+U.S. Nuclear Regulatory Commission, Washington, DC, 2003.
+
+## REF-BARLOW-PROSCHAN-1965
+
+Richard E. Barlow and Frank Proschan. *Mathematical Theory of Reliability*.
+Wiley, 1965. Reprinted as SIAM Classics in Applied Mathematics 17, 1996.
+
+## REF-BLANK-TARQUIN-2012
+
+Leland Blank and Anthony Tarquin. *Engineering Economy*. 7th edition.
+McGraw-Hill, 2012.
+
+## REF-BOWLES-2003
+
+John B. Bowles. "An Assessment of RPN Prioritization in a Failure Modes
+Effects and Criticality Analysis." *Proceedings of the Annual Reliability and
+Maintainability Symposium (RAMS)*, IEEE, 2003.
+
+## REF-CROW-1974
+
+Larry H. Crow. "Reliability Analysis for Complex, Repairable Systems." In
+F. Proschan and R. J. Serfling (eds.), *Reliability and Biometry: Statistical
+Analysis of Lifelength*, SIAM, Philadelphia, 1974.
+
+## REF-EBELING-1997
+
+Charles E. Ebeling. *An Introduction to Reliability and Maintainability
+Engineering*. McGraw-Hill, 1997.
+
+## REF-FABRYCKY-BLANCHARD-1991
+
+Wolter J. Fabrycky and Benjamin S. Blanchard. *Life-Cycle Cost and Economic
+Analysis*. Prentice Hall, 1991.
+
+## REF-FISHER-1930
+
+Irving Fisher. *The Theory of Interest*. Macmillan, New York, 1930.
+
+## REF-GARVEY-2000
+
+Paul R. Garvey. *Probability Methods for Cost Uncertainty Analysis: A Systems
+Engineering Perspective*. Marcel Dekker, New York, 2000.
+
+## REF-JONKMAN-VANGELDER-VRIJLING-2003
+
+S. N. Jonkman, P. H. A. J. M. van Gelder, and J. K. Vrijling. "An Overview of
+Quantitative Risk Measures for Loss of Life and Economic Damage." *Journal of
+Hazardous Materials* 99(1), 1-30, 2003.
+
+## REF-METTAS-2000
+
+Adamantios Mettas. "Reliability Allocation and Optimization for Complex
+Systems." *Proceedings of the Annual Reliability and Maintainability
+Symposium (RAMS)*, IEEE, 2000.
+
+## REF-MIL-HDBK-189C-2011
+
+U.S. Department of Defense. *MIL-HDBK-189C: Reliability Growth Management*.
+2011.
+
+## REF-MIL-HDBK-338B-1998
+
+U.S. Department of Defense. *MIL-HDBK-338B: Electronic Reliability Design
+Handbook*. 1998.
+
+## REF-MIL-STD-1629A-1980
+
+U.S. Department of Defense. *MIL-STD-1629A: Procedures for Performing a
+Failure Mode, Effects and Criticality Analysis*. 24 November 1980.
+
+## REF-MIL-STD-882E-2012
+
+U.S. Department of Defense. *MIL-STD-882E: Department of Defense Standard
+Practice, System Safety*. 11 May 2012.
+
+## REF-NASA-CEH-2015
+
+National Aeronautics and Space Administration. *NASA Cost Estimating
+Handbook*, Version 4.0. NASA, Washington, DC, February 2015.
+
+## REF-NASA-RMH-2011
+
+H. Dezfuli et al. *NASA Risk Management Handbook*, Version 1.0.
+NASA/SP-2011-3422. NASA, Washington, DC, 2011.
+
+## REF-RAUSAND-BARROS-HOYLAND-2021
+
+Marvin Rausand, Anne Barros, and Arnljot Høyland. *System Reliability Theory:
+Models, Statistical Methods, and Applications*. 3rd edition. Wiley, 2021.
+
+## REF-ROSS-1996
+
+Sheldon M. Ross. *Stochastic Processes*. 2nd edition. Wiley, 1996.
+
+## REF-SHERBROOKE-2004
+
+Craig C. Sherbrooke. *Optimal Inventory Modeling of Systems: Multi-Echelon
+Techniques*. 2nd edition. Kluwer Academic Publishers, 2004.
+
+## REF-WRIGHT-1936
+
+T. P. Wright. "Factors Affecting the Cost of Airplanes." *Journal of the
+Aeronautical Sciences* 3(4), 122-128, 1936.
+
+## REF-XIE-1989
+
+Min Xie. "On the Solution of Renewal-Type Integral Equations."
+*Communications in Statistics - Simulation and Computation* 18(1), 281-293,
+1989.
+
+## REF-YELLE-1979
+
+Louis E. Yelle. "The Learning Curve: Historical Review and Comprehensive
+Survey." *Decision Sciences* 10(2), 302-328, 1979.

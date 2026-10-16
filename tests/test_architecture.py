@@ -31,6 +31,7 @@ LAYER = {
     "probstat.sensitivity": 5,
     "probstat.validation": 5,
     "probstat.risk": 6,
+    "probstat.cost": 6,
     "probstat.surrogates": 5,
     "probstat.filtering": 6,
     "probstat.data_assimilation": 6,

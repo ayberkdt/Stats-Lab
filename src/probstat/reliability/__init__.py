@@ -8,7 +8,11 @@ importance sampling, subset simulation, cross-entropy importance sampling,
 line sampling, system reliability, and inverse design. ``design_points``
 finds multiple design points and combines them (multi-point FORM, mixture
 importance sampling); ``active_learning`` implements AK-MCS on a Gaussian
-process surrogate from :mod:`probstat.surrogates`.
+process surrogate from :mod:`probstat.surrogates`. ``data`` estimates
+component parameters from test and field data (Beta/Gamma posteriors,
+chi-square bounds, demonstration tests, Crow-AMSAA growth) and
+``allocation`` apportions a system reliability target to units, including
+cost-optimal allocation.
 """
 
 from .active_learning import (
@@ -27,6 +31,16 @@ from .adaptive import (
     cross_entropy_importance_sampling,
     line_sampling,
 )
+from .allocation import (
+    AllocationResult,
+    MettasCost,
+    agree_allocation,
+    arinc_allocation,
+    cost_optimal_allocation,
+    cost_optimal_series_allocation,
+    equal_apportionment,
+    feasibility_of_objectives,
+)
 from .analysis import (
     DirectionalSamplingResult,
     DirectReliabilityResult,
@@ -37,6 +51,20 @@ from .analysis import (
     estimate_failure_probability,
     estimate_weighted_failure_probability,
     linear_normal_form,
+)
+from .data import (
+    SIDES,
+    TERMINATIONS,
+    CrowAMSAAFit,
+    DemandFailureEstimate,
+    FailureRateBounds,
+    FailureRateEstimate,
+    crow_amsaa_fit,
+    demand_failure_probability,
+    demonstration_test_time,
+    failure_rate_bounds,
+    failure_rate_estimate,
+    success_run_sample_size,
 )
 from .design_points import (
     MixtureImportanceResult,
@@ -90,16 +118,21 @@ __all__ = [
     "AKMCSResult",
     "AKMCS_GP_REGULARIZATION",
     "AVAILABLE_METHODS",
+    "AllocationResult",
     "CE_COVARIANCE_FLOOR",
     "CE_MAX_UNCOVERED_ELITE_FRACTION",
     "CE_MIN_FAILURE_ESS_FRACTION",
     "CE_MIN_MEAN_NORM",
     "CrossEntropyResult",
+    "CrowAMSAAFit",
+    "DemandFailureEstimate",
     "DesignParameterResult",
     "DesignPointImportanceResult",
     "DirectReliabilityResult",
     "DirectionalSamplingResult",
     "FORMResult",
+    "FailureRateBounds",
+    "FailureRateEstimate",
     "InverseFORMResult",
     "LimitState",
     "LineSamplingResult",
@@ -107,28 +140,42 @@ __all__ = [
     "METHODS",
     "MethodComparison",
     "MethodComparisonRow",
+    "MettasCost",
     "MixtureImportanceResult",
     "ModelLimitState",
     "ModelMonteCarloResult",
     "MultiPointFORMResult",
     "MultipleDesignPointsResult",
     "OPTIONAL_METHODS",
+    "SIDES",
     "SORMResult",
     "SeriesSystemBounds",
     "SubsetSimulationResult",
     "SystemReliabilityResult",
+    "TERMINATIONS",
     "WeightedFailureResult",
+    "agree_allocation",
     "ak_mcs",
+    "arinc_allocation",
     "bivariate_normal_cdf",
     "bulge_value",
     "compare_reliability_methods",
     "correlated_importance",
+    "cost_optimal_allocation",
+    "cost_optimal_series_allocation",
     "cross_entropy_importance_sampling",
+    "crow_amsaa_fit",
+    "demand_failure_probability",
+    "demonstration_test_time",
     "design_for_target_beta",
     "design_point_importance_sampling",
+    "equal_apportionment",
     "estimate_directional_failure_probability",
     "estimate_failure_probability",
     "estimate_weighted_failure_probability",
+    "failure_rate_bounds",
+    "failure_rate_estimate",
+    "feasibility_of_objectives",
     "find_design_points",
     "form_hlrf",
     "gauss_legendre",
@@ -144,5 +191,6 @@ __all__ = [
     "series_system_bounds",
     "sorm",
     "subset_simulation",
+    "success_run_sample_size",
     "system_failure_probability",
 ]
