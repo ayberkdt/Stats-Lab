@@ -39,6 +39,7 @@ from probstat.foundations.validation import (
     require_non_negative_integer,
 )
 from probstat.linalg import Matrix, Vector, as_vector
+from probstat.numerics import GradientEvaluator
 from probstat.optimization import central_gradient
 
 from .mcmc import LogDensity, MarkovChain, MCMCResult
@@ -66,10 +67,15 @@ class VariationalResult:
         gradient_evaluations: Calls of ``grad log p`` (one per Monte Carlo
             gradient sample).
         log_density_evaluations: Calls of ``log p`` (ELBO estimates,
-            finite-difference gradients, and the returned draws).
+            gradients, and the returned draws); one dual-number (autodiff)
+            call returns value and gradient and counts once.
         samples: Independent draws from the fitted ``q``.
         log_density: Target ``log p`` at each draw.
         seed: Seed of the stream that drove the optimization.
+        gradient_method: ``"autodiff"``, ``"finite-difference"``, or
+            ``"analytic"``.
+        gradient_fallback_reason: Why ``gradient="auto"`` fell back to finite
+            differences (``None`` when it did not).
 
     References:
         [REF-KUCUKELBIR-ETAL-2017], [REF-BLEI-KUCUKELBIR-MCAULIFFE-2017].
@@ -89,6 +95,8 @@ class VariationalResult:
     samples: tuple[Vector, ...]
     log_density: tuple[float, ...]
     seed: int
+    gradient_method: str = "finite-difference"
+    gradient_fallback_reason: str | None = None
 
     @property
     def dimension(self) -> int:
@@ -319,7 +327,7 @@ def advi(
     initial: Sequence[float],
     *,
     family: str = "mean-field",
-    gradient: GradientFunction | None = None,
+    gradient: GradientFunction | str | None = "auto",
     gradient_samples: int = 1,
     learning_rate: float = 0.02,
     beta1: float = 0.9,
@@ -361,8 +369,11 @@ def advi(
             finite wherever ``q`` puts appreciable mass.
         initial: Initial mean (``L`` starts at ``initial_scale I``).
         family: ``"mean-field"`` or ``"full-rank"``.
-        gradient: ``grad log p(x)``; ``None`` uses central differences
-            (``2 d`` density evaluations per gradient sample).
+        gradient: ``"auto"`` (default; forward-mode autodiff, one call per
+            gradient sample, falling back to central differences with ``2 d``
+            extra calls when ``log p`` rejects dual numbers; ``None`` means
+            the same), ``"autodiff"``, ``"finite-difference"``, or an
+            analytic ``grad log p(x)``.
         gradient_samples: Monte Carlo draws per gradient estimate.
         learning_rate: Adam step size ``alpha``.
         beta1: Adam first-moment decay in ``[0, 1)``.
@@ -380,7 +391,7 @@ def advi(
 
     Returns:
         Variational mean, Cholesky factor, ELBO trace, convergence flag,
-        evaluation counts, and draws.
+        evaluation counts, gradient method, and draws.
 
     Raises:
         TypeError: If a callable argument is not callable.
@@ -389,17 +400,28 @@ def advi(
 
     Equation:
         [EQ-VI-ELBO-001], [EQ-VI-REPARAM-001], [EQ-VI-ADVI-001],
-        [EQ-OPT-ADAM-001].
+        [EQ-OPT-ADAM-001], [EQ-AD-DUAL-001].
 
     References:
         [REF-KUCUKELBIR-ETAL-2017], [REF-BLEI-KUCUKELBIR-MCAULIFFE-2017],
-        [REF-KINGMA-BA-2015], [REF-POLYAK-JUDITSKY-1992].
+        [REF-KINGMA-BA-2015], [REF-POLYAK-JUDITSKY-1992],
+        [REF-GRIEWANK-WALTHER-2008, Chapter 3].
 
     """
     if not callable(log_density):
         raise TypeError("log_density must be callable")
-    if gradient is not None and not callable(gradient):
-        raise TypeError("gradient must be callable or None")
+    option: GradientFunction | str = "auto" if gradient is None else gradient
+    if not callable(option) and option not in (
+        "auto",
+        "autodiff",
+        "finite-difference",
+    ):
+        if not isinstance(option, str):
+            raise TypeError("gradient must be a method name, a callable, or None")
+        raise ValueError(
+            "gradient must be 'auto', 'autodiff', 'finite-difference', a "
+            "callable, or None"
+        )
     if family not in ("mean-field", "full-rank"):
         raise ValueError("family must be 'mean-field' or 'full-rank'")
     start = as_vector(initial, name="initial")
@@ -466,20 +488,48 @@ def advi(
         density_calls += 1
         return float(log_density(point))
 
+    def counted(point: Sequence[object]) -> object:
+        """Call and count ``log p`` on floats or dual numbers.
+
+        References:
+            [EQ-VI-ELBO-001]. No new equation is introduced.
+
+        """
+        nonlocal density_calls
+        density_calls += 1
+        return log_density(point)  # type: ignore[arg-type]
+
+    def finite_difference(
+        function: Callable[[Vector], float], point: Vector
+    ) -> Sequence[float]:
+        """Return the central-difference gradient of ``function``.
+
+        References:
+            [EQ-OPT-FD-001], [REF-NOCEDAL-WRIGHT-2006, Section 8.1].
+
+        """
+        values, _ = central_gradient(function, point, relative_step=h)
+        return values
+
+    evaluator = GradientEvaluator(
+        counted, option, finite_difference=finite_difference
+    )
+
     def grad_log_p(point: Vector) -> Vector:
         """Return a finite ``grad log p`` or raise ``ValueError``.
 
         References:
-            [EQ-VI-REPARAM-001], [EQ-OPT-FD-001].
+            [EQ-VI-REPARAM-001], [EQ-OPT-FD-001], [EQ-AD-DUAL-001].
 
         """
         nonlocal gradient_calls
         gradient_calls += 1
-        if gradient is None:
-            values, _ = central_gradient(density, point, relative_step=h)
-        else:
-            values = tuple(float(g) for g in gradient(point))
-        if len(values) != d or not all(math.isfinite(g) for g in values):
+        _, values = evaluator.value_and_gradient(point)
+        if (
+            values is None
+            or len(values) != d
+            or not all(math.isfinite(g) for g in values)
+        ):
             raise ValueError("gradient of log p is not finite at a variational draw")
         return values
 
@@ -607,5 +657,7 @@ def advi(
         tuple(output),
         tuple(output_density),
         stream.seed,
+        evaluator.method,
+        evaluator.fallback_reason,
     )
 

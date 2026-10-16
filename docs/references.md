@@ -2121,3 +2121,42 @@ DOI: [10.1145/3147.3165](https://doi.org/10.1145/3147.3165).
 F. N. Fritsch and R. E. Carlson. "Monotone Piecewise Cubic Interpolation."
 *SIAM Journal on Numerical Analysis* 17(2), 238-246, 1980.
 doi:10.1137/0717021.
+
+## REF-GRIEWANK-WALTHER-2008
+
+Andreas Griewank and Andrea Walther. *Evaluating Derivatives: Principles and
+Techniques of Algorithmic Differentiation*. 2nd edition. Society for
+Industrial and Applied Mathematics (SIAM), Philadelphia, 2008.
+DOI: [10.1137/1.9780898717761](https://doi.org/10.1137/1.9780898717761).
+
+## REF-TALTS-ETAL-2018
+
+Sean Talts, Michael Betancourt, Daniel Simpson, Aki Vehtari, and Andrew
+Gelman. "Validating Bayesian Inference Algorithms with Simulation-Based
+Calibration." Preprint, 2018.
+[arXiv:1804.06788](https://arxiv.org/abs/1804.06788).
+
+## REF-SOBOL-KUCHERENKO-2009
+
+I. M. Sobol' and S. Kucherenko. "Derivative Based Global Sensitivity
+Measures and Their Link with Global Sensitivity Indices." *Mathematics and
+Computers in Simulation* 79(10), 3009-3017, 2009.
+
+## REF-LAMBONI-ETAL-2013
+
+Matieyendou Lamboni, Bertrand Iooss, Anne-Laure Popelin, and Fabrice
+Gamboa. "Derivative-Based Global Sensitivity Measures: General Links with
+Sobol' Indices and Numerical Tests." *Mathematics and Computers in
+Simulation* 87, 45-54, 2013.
+
+## REF-PLISCHKE-BORGONOVO-SMITH-2013
+
+Elmar Plischke, Emanuele Borgonovo, and Curtis L. Smith. "Global Sensitivity
+Measures from Given Data." *European Journal of Operational Research*
+226(3), 536-550, 2013.
+
+## REF-KELLEY-1935
+
+Truman L. Kelley. "An Unbiased Correlation Ratio Measure." *Proceedings of
+the National Academy of Sciences of the United States of America* 21(9),
+554-559, 1935.

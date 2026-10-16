@@ -335,10 +335,17 @@ class HamiltonianSamplerTests(unittest.TestCase):
         self.assertEqual(calm.divergences, 0)
 
     def test_finite_difference_gradient_cost_and_accuracy(self) -> None:
-        """Without a gradient each gradient costs 2d + 1 density evaluations."""
+        """Finite differences cost 2d + 1 density evaluations per gradient."""
         result = no_u_turn_sampler(
-            correlated_gaussian, (0.0, 0.0), draws=200, warmup=150, chains=2, seed=4
+            correlated_gaussian,
+            (0.0, 0.0),
+            gradient="finite-difference",
+            draws=200,
+            warmup=150,
+            chains=2,
+            seed=4,
         )
+        self.assertEqual(result.gradient_method, "finite-difference")
         for record in result.statistics:
             self.assertEqual(
                 record.log_density_evaluations, 5 * record.gradient_evaluations
@@ -490,10 +497,16 @@ class VariationalInferenceTests(unittest.TestCase):
         self.assertEqual(len(fit.log_density), 2000)
 
     def test_finite_difference_gradient_path(self) -> None:
-        """ADVI also works without an analytic gradient."""
+        """ADVI also works with finite-difference gradients."""
         fit = advi(
-            correlated_gaussian, (0.0, 0.0), family="full-rank", seed=4, draws=0
+            correlated_gaussian,
+            (0.0, 0.0),
+            family="full-rank",
+            seed=4,
+            draws=0,
+            gradient="finite-difference",
         )
+        self.assertEqual(fit.gradient_method, "finite-difference")
         for i in range(2):
             self.assertAlmostEqual(fit.mean[i], TARGET_MEAN[i], delta=0.2)
         self.assertGreater(fit.log_density_evaluations, 4 * fit.gradient_evaluations)
