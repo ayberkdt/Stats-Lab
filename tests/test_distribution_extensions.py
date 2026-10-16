@@ -57,6 +57,7 @@ from probstat.distributions import (
 from probstat.distributions._special import regularized_beta_pair
 from probstat.foundations import RandomStream
 from probstat.modeling import JointInput, RandomInput
+from probstat.multivariate import MultivariateNormal
 from probstat.sampling import latin_hypercube
 from probstat.statistics import gaussian_kde
 
@@ -1028,6 +1029,15 @@ class SeedTests(unittest.TestCase):
                     law.sample(5, seed=11), law.sample(5, seed=RandomStream(11))
                 )
                 self.assertEqual(len(law.sample(3)), 3)
+
+    def test_multivariate_normal_seeds(self) -> None:
+        """``MultivariateNormal.sample`` follows the same seed contract."""
+        law = MultivariateNormal((0.0, 1.0), ((1.0, 0.3), (0.3, 2.0)))
+        self.assertEqual(law.sample(4, seed=8), law.sample(4, seed=RandomStream(8)))
+        with self.assertRaises(ValueError):
+            law.sample(2, seed=-3)
+        with self.assertRaises(TypeError):
+            law.sample(2, seed=2.0)  # type: ignore[arg-type]
 
     def test_invalid_seeds_are_rejected(self) -> None:
         """Negative, boolean, float, and text seeds raise clear errors."""
