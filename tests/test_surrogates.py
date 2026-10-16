@@ -290,10 +290,15 @@ class GaussianProcessTests(unittest.TestCase):
             numeric, _ = central_gradient(objective, theta)
             for a, b in zip(analytic, numeric, strict=True):
                 self.assertAlmostEqual(a, b, 5)
+            # With the default nugget the squared-exponential kernel matrix has
+            # condition number ~5e12, so a stationary point cannot be verified
+            # (the fit warns); 1e-6 keeps the convergence check well posed.
             start = fit_gaussian_process(
-                self.POINTS, values, kernel=kernel, optimize=False
+                self.POINTS, values, kernel=kernel, nugget=1e-6, optimize=False
             )
-            fitted = fit_gaussian_process(self.POINTS, values, kernel=kernel, seed=1)
+            fitted = fit_gaussian_process(
+                self.POINTS, values, kernel=kernel, nugget=1e-6, seed=1
+            )
             self.assertGreater(
                 fitted.log_marginal_likelihood, start.log_marginal_likelihood
             )

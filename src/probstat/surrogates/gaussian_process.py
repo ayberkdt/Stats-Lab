@@ -47,6 +47,7 @@ _LOG_PARAMETER_BOUND = 25.0
 _BOUND_TOLERANCE = 0.01
 _CONDITION_WARNING = 1e12
 _MAX_ADAPTIVE_NUGGET = 1e-4
+_LIKELIHOOD_CACHE_SIZE = 64
 
 
 def _fsum_product(left: Sequence[float], right: Sequence[float]) -> float:
@@ -1167,7 +1168,9 @@ def fit_gaussian_process(
 
         The value and gradient come from one factorization and are cached
         per ``theta``, so the optimizer's separate value and gradient
-        requests at the same point cost a single factorization.
+        requests at the same point cost a single factorization. The cache
+        evicts its oldest entry, so a long line search that returns to an
+        earlier trial point does not factorize it again.
 
         References:
             [EQ-SUR-GP-004], [EQ-SUR-GP-006],
@@ -1193,8 +1196,8 @@ def fit_gaussian_process(
             -(value + prior),
             [-(g + p) for g, p in zip(gradient, prior_gradient, strict=True)],
         )
-        if len(cache) > 8:
-            cache.clear()
+        if len(cache) >= _LIKELIHOOD_CACHE_SIZE:
+            del cache[next(iter(cache))]
         cache[key] = result
         return result
 

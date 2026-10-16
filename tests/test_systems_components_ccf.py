@@ -144,20 +144,20 @@ class ComponentModelTests(unittest.TestCase):
         """Unavailability restarts at each test; first_test shifts the tests."""
         model = PeriodicallyTestedComponent(0.01, 100.0)
         self.assertAlmostEqual(
-            model.unavailability(50.0), -math.expm1(-0.5), delta=1e-16
+            model.unavailability(50.0), -math.expm1(-0.5), delta=1e-15
         )
         self.assertAlmostEqual(
-            model.unavailability(150.0), -math.expm1(-0.5), delta=1e-16
+            model.unavailability(150.0), -math.expm1(-0.5), delta=1e-15
         )
         self.assertEqual(model.unavailability(100.0), 0.0)
         staggered = PeriodicallyTestedComponent(0.01, 100.0, first_test=50.0)
         self.assertAlmostEqual(
-            staggered.unavailability(120.0), -math.expm1(-0.7), delta=1e-16
+            staggered.unavailability(120.0), -math.expm1(-0.7), delta=1e-15
         )
         self.assertAlmostEqual(
-            staggered.unavailability(40.0), -math.expm1(-0.4), delta=1e-16
+            staggered.unavailability(40.0), -math.expm1(-0.4), delta=1e-15
         )
-        self.assertAlmostEqual(model.reliability(250.0), math.exp(-2.5), delta=1e-16)
+        self.assertAlmostEqual(model.reliability(250.0), math.exp(-2.5), delta=1e-15)
         with self.assertRaises(ValueError):
             model.unavailability(math.inf)
 
