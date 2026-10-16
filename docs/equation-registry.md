@@ -10211,3 +10211,361 @@ EQ-SYS-CCF-004); for exponential members this is the rate split
   unavailability probabilities (default for availability).
 - Code: `systems.SystemModel`, `systems.SystemModel.event_probabilities`.
 - Source: [REF-MOSLEH-ETAL-1998], [REF-RAUSAND-HOYLAND-2004].
+
+## W7 — Input-law expressiveness: copulas, discrete inputs, epistemic separation (ADR-0064)
+
+### EQ-MOD-COP-SKLAR-001 — Sklar decomposition of a joint law
+
+`F(x) = C(F_1(x_1), ..., F_d(x_d))`, `f(x) = c(u) prod_i f_i(x_i)` with
+`u_i = F_i(x_i)` and `c = d^d C / du_1 ... du_d`.
+
+- Domain: continuous marginals (the copula is then unique); for discrete
+  marginals `C` is unique only on the range of `(F_1, ..., F_d)`.
+- Meaning: separates the marginal laws from the dependence structure; every
+  copula boundary condition `C(..., 0, ...) = 0` and `C(..., 1, ...)` = margin
+  is used by `Copula.cdf`.
+- Code: `modeling.Copula.cdf`, `modeling.Copula.log_density`,
+  `modeling.JointInput.log_pdf`.
+- Source: [REF-NELSEN-2006, Section 2.3].
+
+### EQ-MOD-COP-ROSEN-001 — Rosenblatt transformation
+
+`w_1 = u_1`, `w_k = C(u_k | u_1, ..., u_{k-1}) = P(U_k <= u_k | U_<k = u_<k)`;
+standard space `u'_k = Phi^-1(w_k)`. The inverse solves each conditional for
+`u_k` in turn (conditional-inverse construction).
+
+- Domain: `u` in `(0, 1)^d`; depends on the variable order. For the Gaussian
+  copula it equals the Nataf map `Phi(L^-1 Phi^-1(u))`, whose FORM results do
+  not depend on the order.
+- Meaning: an exact isoprobabilistic map to independent uniforms (normals);
+  FORM linearizes the limit state in this space, so FORM/SORM approximations
+  can change with the order for non-Gaussian copulas.
+- Code: `modeling.Copula.rosenblatt`, `modeling.Copula.inverse_rosenblatt`,
+  `modeling.JointInput.to_standard_normal`,
+  `modeling.JointInput.from_standard_normal`, `modeling.JointInput.from_unit`.
+- Source: [REF-ROSENBLATT-1952], [REF-HOHENBICHLER-RACKWITZ-1981],
+  [REF-LEBRUN-DUTFOY-2009].
+
+### EQ-MOD-COP-TAU-001 — Population Kendall's tau of a copula
+
+`tau = 4 E[C(U, V)] - 1`; elliptical copulas: `tau = (2/pi) arcsin(rho)`;
+Archimedean: `tau = 1 + 4 int_0^1 phi(t)/phi'(t) dt`.
+
+- Domain: bivariate margins of continuous laws.
+- Meaning: a margin-free concordance measure in closed form for every family
+  implemented here (the Archimedean integral is used as an independent check
+  in the tests).
+- Code: `modeling.Copula.kendall_tau`.
+- Source: [REF-NELSEN-2006, Chapter 5], [REF-MCNEIL-FREY-EMBRECHTS-2015].
+
+### EQ-MOD-COP-TAIL-001 — Tail-dependence coefficients
+
+`lambda_L = lim_{q->0+} C(q, q) / q`,
+`lambda_U = lim_{q->1-} (1 - 2q + C(q, q)) / (1 - q)`.
+
+- Domain: bivariate margins.
+- Meaning: probability of a joint extreme given one extreme; zero for the
+  Gaussian and Frank copulas.
+- Code: `modeling.Copula.tail_dependence`.
+- Source: [REF-NELSEN-2006, Chapter 5], [REF-JOE-2014].
+
+### EQ-MOD-COP-GAUSS-001 — Bivariate normal CDF by Plackett's identity
+
+`Phi_2(a, b; rho) = Phi(a) Phi(b) + int_0^rho phi_2(a, b; r) dr` with
+`phi_2(a, b; r) = exp(-(a^2 - 2abr + b^2) / (2(1 - r^2))) / (2 pi sqrt(1 - r^2))`.
+
+- Domain: `|rho| < 1`, finite `a, b`; the integral is evaluated by adaptive
+  Gauss-Kronrod quadrature (relative tolerance `1e-12`).
+- Meaning: the bivariate Gaussian-copula CDF `C(u, v) = Phi_2(Phi^-1(u),
+  Phi^-1(v); rho)`, derived from `d Phi_2 / d rho = phi_2`.
+- Code: `modeling.GaussianCopula.cdf`.
+- Source: [REF-PLACKETT-1954].
+
+### EQ-MOD-COP-T-001 — Student-t copula density and stochastic representation
+
+`log c(u) = lgamma((nu+d)/2) + (d-1) lgamma(nu/2) - d lgamma((nu+1)/2)
+- (1/2) log det R - ((nu+d)/2) log(1 + x'R^-1 x / nu)
++ ((nu+1)/2) sum_i log(1 + x_i^2 / nu)`, `x_i = T_nu^-1(u_i)`;
+samples `U = T_nu(L Z / sqrt(W / nu))`, `Z ~ N(0, I)`, `W ~ chi^2_nu`.
+
+- Domain: `nu > 0` (not necessarily integer), `R` positive-definite
+  correlation.
+- Meaning: elliptical copula with symmetric tail dependence.
+- Code: `modeling.StudentTCopula.log_density`, `modeling.StudentTCopula.sample`.
+- Source: [REF-DEMARTA-MCNEIL-2005], [REF-MCNEIL-FREY-EMBRECHTS-2015].
+
+### EQ-MOD-COP-T-002 — Sequential conditionals of the multivariate t
+
+With `x = L y`, `q_k = sum_{j<k} y_j^2`:
+`T_k = y_k sqrt((nu + k) / (nu + q_k)) ~ t_{nu+k}`, independent of
+`y_<k`, so `w_k = T_{nu+k}(T_k)` (0-based `k`).
+
+- Domain: as [EQ-MOD-COP-T-001].
+- Meaning: the conditional law of a multivariate t given earlier
+  coordinates is t with `nu + k` degrees of freedom and scale inflated by
+  `(nu + q_k)/(nu + k)`; this gives the t-copula Rosenblatt map in closed form.
+- Code: `modeling.StudentTCopula.rosenblatt`,
+  `modeling.StudentTCopula.inverse_rosenblatt`.
+- Source: [REF-DEMARTA-MCNEIL-2005], [REF-ROSENBLATT-1952].
+
+### EQ-MOD-COP-T-003 — t-copula tail dependence
+
+`lambda_L = lambda_U = 2 T_{nu+1}(-sqrt((nu + 1)(1 - rho)/(1 + rho)))`.
+
+- Domain: `|rho| < 1`, `nu > 0`.
+- Meaning: positive for every finite `nu` even when `rho = 0`.
+- Code: `modeling.StudentTCopula.tail_dependence`.
+- Source: [REF-DEMARTA-MCNEIL-2005].
+
+### EQ-MOD-COP-ARCH-001 — Archimedean copula, density
+
+`C(u) = psi(sum_i phi(u_i))`, `phi = psi^-1`,
+`c(u) = |psi^(d)(t)| prod_i |phi'(u_i)|` with `t = sum_i phi(u_i)`.
+
+- Domain: `psi` d-monotone (completely monotone for every `d`: Clayton
+  `theta > 0`, Gumbel `theta >= 1`, Frank `theta > 0`; bivariate Frank also
+  `theta < 0`).
+- Meaning: exchangeable dependence from one generator; the CDF is closed
+  form in every dimension.
+- Code: `modeling.ArchimedeanCopula.cdf`,
+  `modeling.ArchimedeanCopula.log_density`.
+- Source: [REF-NELSEN-2006, Chapter 4], [REF-MCNEIL-FREY-EMBRECHTS-2015].
+
+### EQ-MOD-COP-ARCH-002 — Archimedean conditional distributions
+
+`C(u_k | u_1, ..., u_{k-1}) = psi^(k-1)(t_k) / psi^(k-1)(t_{k-1})`,
+`t_k = sum_{i<=k} phi(u_i)`. The inverse solves
+`log|psi^(k-1)(t_{k-1} + s)| - log|psi^(k-1)(t_{k-1})| = log w` for
+`s = phi(u_k)` (closed form for Clayton, Brent's method on `log s` otherwise).
+
+- Domain: as [EQ-MOD-COP-ARCH-001]; the left side decreases from 0 to
+  `-inf` in `s`, so the root exists and is unique.
+- Meaning: the Archimedean Rosenblatt map; a conditional probability within
+  `epsilon` of one keeps only absolute accuracy `2^-53` in its complement.
+- Code: `modeling.ArchimedeanCopula.rosenblatt`,
+  `modeling.ArchimedeanCopula.inverse_rosenblatt`.
+- Source: [REF-HOFERT-2008], [REF-ROSENBLATT-1952], [REF-BRENT-1973, Chapter 4].
+
+### EQ-MOD-COP-ARCH-003 — Marshall-Olkin frailty sampling
+
+`V ~ F` with Laplace transform `psi`, `E_i ~ Exp(1)` independent,
+`U_i = psi(E_i / V)`.
+
+- Domain: `psi` a Laplace transform (completely monotone generator).
+- Meaning: an exact sampler using `d + 1` (or more) random numbers; used by
+  `sample` and as an independent check of the conditional-inverse sampler
+  that `JointInput.from_unit` uses.
+- Code: `modeling.ArchimedeanCopula.sample`.
+- Source: [REF-MARSHALL-OLKIN-1988], [REF-HOFERT-2008].
+
+### EQ-MOD-COP-CLAYTON-001 — Clayton generator and properties
+
+`psi(t) = (1 + t)^(-1/theta)`, `phi(u) = u^-theta - 1`,
+`|psi^(k)(t)| = prod_{j<k} (1/theta + j) (1 + t)^(-1/theta - k)`,
+conditional inverse `s = (1 + t_{k-1}) expm1(-log w / (1/theta + k - 1))`;
+`tau = theta / (theta + 2)`, `lambda_L = 2^(-1/theta)`, `lambda_U = 0`;
+frailty `V ~ Gamma(1/theta, 1)`.
+
+- Domain: `theta > 0`, any dimension.
+- Meaning: lower-tail dependence.
+- Code: `modeling.ClaytonCopula`.
+- Source: [REF-NELSEN-2006, Chapters 4-5], [REF-HOFERT-2008].
+
+### EQ-MOD-COP-GUMBEL-001 — Gumbel generator, derivatives, and properties
+
+`psi(t) = exp(-t^a)`, `a = 1/theta`, `phi(u) = (-log u)^theta`;
+`|psi^(k)(t)| = e^(-t^a) sum_m a_km t^(m a - k)` with `a_00 = 1`,
+`a_{k+1,m+1} += a a_km`, `a_{k+1,m} += (k - m a) a_km` (all terms
+non-negative for `a <= 1`); `tau = 1 - 1/theta`, `lambda_U = 2 - 2^(1/theta)`,
+`lambda_L = 0`.
+
+- Domain: `theta >= 1` (`theta = 1` is independence), any dimension.
+- Meaning: upper-tail dependence. The coefficient recursion follows from
+  differentiating `e^(-t^a) t^(m a - k)` (derived for this library and
+  verified against mpmath derivatives of the CDF).
+- Code: `modeling.GumbelCopula`.
+- Source: [REF-NELSEN-2006, Chapters 4-5], [REF-HOFERT-MACHLER-MCNEIL-2012].
+
+### EQ-MOD-COP-GUMBEL-002 — Positive stable frailty (Kanter's representation)
+
+`V = sin(a U) sin((1 - a) U)^((1-a)/a) / (sin(U)^(1/a) E^((1-a)/a))` with
+`U ~ Uniform(0, pi)`, `E ~ Exp(1)`, has `E[exp(-t V)] = exp(-t^a)`.
+
+- Domain: `0 < a < 1` (`a = 1` gives `V = 1`).
+- Meaning: the Gumbel frailty for [EQ-MOD-COP-ARCH-003].
+- Code: `modeling.GumbelCopula.sample`.
+- Source: [REF-KANTER-1975], [REF-CHAMBERS-MALLOWS-STUCK-1976],
+  [REF-HOFERT-2008].
+
+### EQ-MOD-COP-FRANK-001 — Frank generator, derivatives, and properties
+
+`psi(t) = -log(1 - (1 - e^-theta) e^-t) / theta`,
+`phi(u) = -log(expm1(-theta u) / expm1(-theta))`;
+`psi^(k)(t) = (-1)^k Li_{1-k}(x) / theta`, `x = (1 - e^-theta) e^-t`, with
+`Li_0(x) = x/(1-x)` and `Li_{-n}(x) = x P_n(x) / (1 - x)^(n+1)`, `P_n` the
+Eulerian polynomial `sum_j A(n, j) x^j`; `tau = 1 + 4 (D_1(theta) - 1)/theta`,
+no tail dependence.
+
+- Domain: `theta != 0` for `d = 2`, `theta > 0` for `d >= 3`; `|theta| <= 700`.
+- Meaning: symmetric, tail-independent dependence of either sign (bivariate).
+- Code: `modeling.FrankCopula`, `modeling.frank_tau`.
+- Source: [REF-NELSEN-2006, Chapters 4-5], [REF-NIST-DLMF, Sections 25.12
+  and 26.14].
+
+### EQ-MOD-COP-FRANK-002 — Logarithmic frailty (Kemp's algorithm LK)
+
+`P(V = k) = p^k / (-k log(1 - p))`, `p = 1 - e^-theta`; with `U, V'` uniform:
+return 1 if `V' >= p`; else `q = 1 - (1 - p)^U` and return
+`floor(1 + log V' / log q)` if `V' < q^2`, 1 if `V' > q`, else 2.
+
+- Domain: `0 < p < 1`.
+- Meaning: the Frank frailty for [EQ-MOD-COP-ARCH-003]
+  (`E[e^(-tV)] = psi(t)`).
+- Code: `modeling.FrankCopula.sample`.
+- Source: [REF-KEMP-1981], [REF-DEVROYE-1986, Chapter X].
+
+### EQ-MOD-COP-DEBYE-001 — First Debye function
+
+`D_1(x) = (1/x) int_0^x t / (e^t - 1) dt`; for `|x| < 2`
+`(D_1(x) - 1)/x = -1/4 + sum_{k>=1} B_2k x^(2k-1) / ((2k + 1)(2k)!)`;
+for `x >= 2` `int_0^x = pi^2/6 - sum_{k>=1} e^(-kx)(x/k + 1/k^2)`;
+`D_1(-x) = D_1(x) + x/2`.
+
+- Domain: real `x`; Bernoulli numbers `B_n` (with `B_1 = -1/2`) from
+  `sum_{j<=m} C(m+1, j) B_j = 0` in exact rational arithmetic.
+- Meaning: Kendall's tau of the Frank copula without cancellation near
+  `theta = 0` (`tau ~ theta/9`).
+- Code: `modeling.frank_tau`, `modeling.FrankCopula.kendall_tau`.
+- Source: [REF-NIST-DLMF, Sections 24.2 and 24.5], [REF-NELSEN-2006, Chapter 5].
+
+### EQ-MOD-COP-NCM-001 — Nearest correlation matrix (alternating projections)
+
+`Delta S_0 = 0`, `Y_0 = A`; repeat `R_k = Y_k - Delta S_k`,
+`X_k = P_S(R_k)`, `Delta S_{k+1} = X_k - R_k`, `Y_{k+1} = P_U(X_k)`, where
+`P_S` clips eigenvalues below `delta` and `P_U` sets the diagonal to one.
+
+- Domain: symmetric `A`; `delta` in `[0, 1)`; stop when
+  `||Y_{k+1} - Y_k||_F <= tol ||Y_{k+1}||_F`.
+- Meaning: Dykstra-corrected projections converge to the Frobenius-nearest
+  unit-diagonal matrix with eigenvalues at least `delta`; used to repair
+  pairwise latent correlations that are not jointly positive definite.
+- Code: `modeling.nearest_correlation_matrix`, `modeling.JointInput.from_pearson`,
+  `modeling.JointInput.from_spearman`, `modeling.JointInput.from_kendall`,
+  `modeling.fit_copula`.
+- Source: [REF-HIGHAM-NCM-2002].
+
+### EQ-MOD-COPULA-FIT-003 — Sample Kendall's tau-b
+
+`tau_b = (n_c - n_d) / sqrt((n_0 - n_1)(n_0 - n_2))`, `n_0 = n(n-1)/2`.
+
+- Domain: `n >= 2`, neither sample constant; direct `O(n^2)` pair count.
+- Meaning: rank concordance with a tie correction; equals tau-a without ties.
+- Code: `modeling.kendall_tau`.
+- Source: [REF-KENDALL-1938], [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 8].
+
+### EQ-MOD-COPULA-FIT-004 — Archimedean tau inversion
+
+Clayton `theta = 2 tau / (1 - tau)`; Gumbel `theta = 1 / (1 - tau)`; Frank
+solves `1 + 4 (D_1(theta) - 1)/theta = tau`; multivariate exchangeable fits
+use the average pairwise sample tau.
+
+- Domain: Clayton `tau > 0`, Gumbel `tau >= 0`, Frank `tau != 0`
+  (`tau > 0` for `d >= 3`).
+- Meaning: method-of-moments estimate of the dependence parameter from ranks.
+- Code: `modeling.archimedean_theta_from_tau`, `modeling.fit_copula`.
+- Source: [REF-GENEST-RIVEST-1993], [REF-NELSEN-2006, Chapter 5].
+
+### EQ-MOD-COPULA-FIT-005 — Kendall's tau to elliptical latent correlation
+
+`rho = sin(pi tau / 2)`.
+
+- Domain: `tau` in `[-1, 1]`; any elliptical copula (Gaussian, t).
+- Meaning: inverts `tau = (2/pi) arcsin(rho)`.
+- Code: `modeling.kendall_to_latent_correlation`, `modeling.JointInput.from_kendall`,
+  `modeling.fit_copula`.
+- Source: [REF-MCNEIL-FREY-EMBRECHTS-2015], [REF-DEMARTA-MCNEIL-2005].
+
+### EQ-MOD-COPULA-FIT-006 — Maximum pseudo-likelihood
+
+`theta_hat = argmax_theta sum_i log c(u_i; theta)`,
+`u_ij = rank_ij / (n + 1)`.
+
+- Domain: one-parameter families (Clayton, Gumbel, Frank; t-copula `nu`
+  with `R` fixed from tau); grid scan then golden-section search over a
+  bounded transformed range.
+- Meaning: the rank-based (canonical maximum likelihood) estimator, consistent
+  and asymptotically normal; the inverse pseudo-information understates its
+  variance, so no standard error is reported.
+- Code: `modeling.fit_copula`.
+- Source: [REF-GENEST-GHOUDI-RIVEST-1995], [REF-BRENT-1973, Chapter 5],
+  [REF-KIEFER-1953].
+
+### EQ-MOD-DISC-001 — Distributional transform of a discrete input
+
+`U = F(X-) + V (F(X) - F(X-))`, `V ~ Uniform(0, 1)` independent of `X`
+(`V = 1/2` without a seed); `U ~ Uniform(0, 1)` and `F^-1(U) = X` a.s.
+
+- Domain: integer-valued `X`; `F(X-) = F(X - 1)`.
+- Meaning: a randomized probability integral transform; the latent map is not
+  one-to-one (the whole interval `(F(x-), F(x)]` maps back to `x`), so
+  gradient-based reliability methods are refused for discrete inputs.
+- Code: `modeling.JointInput.to_latent`, `modeling.JointInput.to_standard_normal`.
+- Source: [REF-RUSCHENDORF-2009].
+
+### EQ-MOD-DISC-002 — Joint mass of discrete inputs under a copula
+
+`P(X = x) = sum_{e in {0,1}^d} (-1)^{|e|} C(F_1(x_1 - e_1), ..., F_d(x_d - e_d))`.
+
+- Domain: integer-valued margins, a copula CDF available (Archimedean any
+  `d`, Gaussian `d <= 2`, independence); at most 16 inputs.
+- Meaning: rectangle inclusion-exclusion over the copula CDF; mixed
+  discrete/continuous inputs under a dependent copula need partial
+  derivatives of `C` and are not implemented.
+- Code: `modeling.JointInput.log_pdf`.
+- Source: [REF-GENEST-NESLEHOVA-2007], [REF-NELSEN-2006, Section 2.10].
+
+### EQ-PROP-MIXED-001 — Nested (double-loop) propagation
+
+For outer epistemic values `e_j` (Latin hypercube over the epistemic
+dimensions, plus interval corners and optional compass-search points):
+`F_j(y) = (1/n) sum_i 1{g(x_i, e_j) <= y}` with `x_i` the aleatory inner
+sample (common to every `j` with common random numbers); statistics
+`s(e_j)` = mean, `P(Y > t)`, type-7 quantiles; bounds
+`[min_j s(e_j), max_j s(e_j)]`.
+
+- Domain: aleatory and epistemic inputs independent; at least one of each.
+- Meaning: separates variability (inner CDF) from lack of knowledge (outer
+  spread). The bounds over a finite design are inner approximations of the
+  true bounds (exact at the corners for responses monotone in each interval
+  input); cost `(outer points) x n` model evaluations.
+- Code: `propagation.nested_propagation`.
+- Source: [REF-ROY-OBERKAMPF-2011], [REF-OBERKAMPF-ROY-2010].
+
+### EQ-PROP-PBOX-001 — Probability box from a family of CDFs
+
+`F_low(y) = min_j F_j(y)`, `F_up(y) = max_j F_j(y)`;
+`P(Y > t)` in `[1 - F_up(t), 1 - F_low(t)]`.
+
+- Domain: the outer points of [EQ-PROP-MIXED-001].
+- Meaning: the pointwise envelope of the output CDFs (a p-box); for
+  `Y = X + E`, `E` in `[a, b]`, it is `[Phi(y - b), Phi(y - a)]`.
+- Code: `propagation.ProbabilityBox.bounds`,
+  `propagation.ProbabilityBox.exceedance_bounds`.
+- Source: [REF-FERSON-ET-AL-2003].
+
+## Integration: hierarchical systems and mission assessment
+
+### EQ-SYS-ADAPT-001 — Modular decomposition of a coherent system
+
+`phi(x) = psi(chi_1(x^{A_1}), ..., chi_m(x^{A_m}))` for disjoint modules
+`A_1, ..., A_m`; with independent modules,
+`R_sys = h_psi(R_{chi_1}, ..., R_{chi_m})`, where each module reliability
+(or availability) is computed by its own exact model (BDD structure or
+continuous-time Markov chain).
+
+- Domain: modules share no component; module states mutually independent
+  (no shared repair crews, loads, or common-cause groups across modules).
+- Meaning: a subsystem can be replaced by one block whose reliability is the
+  subsystem's exact reliability; the composed result is then exact.
+- Code: `systems.MarkovComponent`, `systems.SubsystemComponent`.
+- Source: [REF-BARLOW-PROSCHAN-1975], [REF-RAUSAND-HOYLAND-2004].

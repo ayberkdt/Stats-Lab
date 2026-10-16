@@ -12,6 +12,9 @@ time models, common-cause failure groups (beta factor, multiple Greek
 letter, alpha factor), MTTF, availability, and a bridge to
 :class:`~probstat.modeling.ProbabilisticModel`; :class:`PhasedMission`
 handles phased missions with non-repairable components.
+:class:`MarkovComponent` and :class:`SubsystemComponent` let a Markov model
+or a whole subsystem act as one block of a larger system (exact for
+independent modules).
 
 Repairable and standby systems are solved analytically with continuous-time
 Markov chains (:class:`MarkovReliabilityModel` and its builders), phased
@@ -20,6 +23,7 @@ missions with absorbing success or failure outcomes with
 :func:`discrete_mission_outcome` and :class:`MissionStageModel`.
 """
 
+from .adapters import MarkovComponent, SubsystemComponent
 from .bdd import BDD, PolynomialMoments, VariableEffect
 from .ccf import (
     AlphaFactorGroup,
@@ -98,6 +102,7 @@ __all__ = [
     "ImportanceMeasures",
     "KOutOfN",
     "LifeDistributionComponent",
+    "MarkovComponent",
     "MTTFResult",
     "MarkovPhasedMission",
     "MarkovPhasedMissionResult",
@@ -116,6 +121,7 @@ __all__ = [
     "ReliabilityMoments",
     "RepairableComponent",
     "Series",
+    "SubsystemComponent",
     "SystemModel",
     "SystemStructure",
     "VariableEffect",

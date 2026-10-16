@@ -543,8 +543,9 @@ def form_hlrf(
 
     Raises:
         TypeError: If ``limit_state`` has the wrong type.
-        ValueError: If options are invalid, ``start`` has the wrong length, or
-            the gradient vanishes so that no search direction exists.
+        ValueError: If options are invalid, ``start`` has the wrong length,
+            an input is discrete (the design point is undefined), or the
+            gradient vanishes so that no search direction exists.
 
     Equation:
         [EQ-REL-HLRF-001], [EQ-REL-HLRF-002], [EQ-REL-FORM-002].
@@ -555,6 +556,7 @@ def form_hlrf(
 
     """
     state = _require_limit_state(limit_state)
+    state.model.inputs.require_continuous("FORM")
     iterations_limit = _require_positive_int(max_iterations, "max_iterations")
     tol = _require_positive(tolerance, "tolerance")
     step_size = _require_positive(relative_step, "relative_step")
@@ -871,6 +873,7 @@ def sorm(
 
     """
     state = _require_limit_state(limit_state)
+    state.model.inputs.require_continuous("SORM")
     step_size = _require_positive(relative_step, "relative_step")
     if form_result is None:
         form_result = form_hlrf(state)
@@ -964,6 +967,7 @@ def inverse_form(
 
     """
     state = _require_limit_state(limit_state)
+    state.model.inputs.require_continuous("inverse FORM")
     radius = _require_positive(target_beta, "target_beta")
     iterations_limit = _require_positive_int(max_iterations, "max_iterations")
     tol = _require_positive(tolerance, "tolerance")

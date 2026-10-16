@@ -474,7 +474,11 @@ def study_html(study: UQStudy) -> str:
     extra = (
         f'<p class="meta">{more} further stage(s) follow below.</p>' if more > 0 else ""
     )
-    dependence = "independent" if model.inputs.is_independent else "Gaussian copula"
+    dependence = (
+        "independent"
+        if model.inputs.is_independent
+        else f"{model.inputs.copula_family.capitalize()} copula"
+    )
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'

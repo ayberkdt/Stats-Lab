@@ -2361,3 +2361,116 @@ Common-Cause Failures in Probabilistic Risk Assessment*. NUREG/CR-5485
 Xinyu Zang, Hairong Sun, and Kishor S. Trivedi. "A BDD-Based Algorithm for
 Reliability Analysis of Phased-Mission Systems." *IEEE Transactions on
 Reliability* 48(1), 50-60, 1999.
+
+## REF-CHAMBERS-MALLOWS-STUCK-1976
+
+J. M. Chambers, C. L. Mallows, and B. W. Stuck. "A Method for Simulating
+Stable Random Variables." *Journal of the American Statistical Association*
+71(354), 340-344, 1976.
+
+## REF-DEMARTA-MCNEIL-2005
+
+Stefano Demarta and Alexander J. McNeil. "The t Copula and Related Copulas."
+*International Statistical Review* 73(1), 111-129, 2005.
+
+## REF-FERSON-ET-AL-2003
+
+Scott Ferson, Vladik Kreinovich, Lev Ginzburg, Davis S. Myers, and Kari Sentz.
+*Constructing Probability Boxes and Dempster-Shafer Structures*. Sandia
+National Laboratories Report SAND2002-4015, 2003.
+
+## REF-GENEST-NESLEHOVA-2007
+
+Christian Genest and Johanna Nešlehová. "A Primer on Copulas for Count Data."
+*ASTIN Bulletin* 37(2), 475-515, 2007.
+
+## REF-GENEST-RIVEST-1993
+
+Christian Genest and Louis-Paul Rivest. "Statistical Inference Procedures for
+Bivariate Archimedean Copulas." *Journal of the American Statistical
+Association* 88(423), 1034-1043, 1993.
+
+## REF-HIGHAM-NCM-2002
+
+Nicholas J. Higham. "Computing the Nearest Correlation Matrix—A Problem from
+Finance." *IMA Journal of Numerical Analysis* 22(3), 329-343, 2002.
+
+## REF-HOFERT-2008
+
+Marius Hofert. "Sampling Archimedean Copulas." *Computational Statistics &
+Data Analysis* 52(12), 5163-5174, 2008.
+
+## REF-HOFERT-MACHLER-MCNEIL-2012
+
+Marius Hofert, Martin Mächler, and Alexander J. McNeil. "Likelihood Inference
+for Archimedean Copulas in High Dimensions Under Known Margins." *Journal of
+Multivariate Analysis* 110, 133-150, 2012.
+
+## REF-HOHENBICHLER-RACKWITZ-1981
+
+Michael Hohenbichler and Rüdiger Rackwitz. "Non-Normal Dependent Vectors in
+Structural Safety." *Journal of the Engineering Mechanics Division (ASCE)*
+107(6), 1227-1238, 1981.
+
+## REF-JOE-2014
+
+Harry Joe. *Dependence Modeling with Copulas*. Chapman & Hall/CRC, 2014.
+
+## REF-KANTER-1975
+
+Marek Kanter. "Stable Densities Under Change of Scale and Total Variation
+Inequalities." *The Annals of Probability* 3(4), 697-707, 1975.
+
+## REF-KEMP-1981
+
+A. W. Kemp. "Efficient Generation of Logarithmically Distributed
+Pseudo-Random Variables." *Journal of the Royal Statistical Society, Series C
+(Applied Statistics)* 30(3), 249-253, 1981.
+
+## REF-KENDALL-1938
+
+M. G. Kendall. "A New Measure of Rank Correlation." *Biometrika* 30(1/2),
+81-93, 1938.
+
+## REF-KIEFER-1953
+
+J. Kiefer. "Sequential Minimax Search for a Maximum." *Proceedings of the
+American Mathematical Society* 4(3), 502-506, 1953.
+
+## REF-KOLDA-LEWIS-TORCZON-2003
+
+Tamara G. Kolda, Robert Michael Lewis, and Virginia Torczon. "Optimization by
+Direct Search: New Perspectives on Some Classical and Modern Methods." *SIAM
+Review* 45(3), 385-482, 2003.
+
+## REF-LEBRUN-DUTFOY-2009
+
+Régis Lebrun and Anne Dutfoy. "Do Rosenblatt and Nataf Isoprobabilistic
+Transformations Really Differ?" *Probabilistic Engineering Mechanics* 24(4),
+577-584, 2009.
+
+## REF-MARSHALL-OLKIN-1988
+
+Albert W. Marshall and Ingram Olkin. "Families of Multivariate Distributions."
+*Journal of the American Statistical Association* 83(403), 834-841, 1988.
+
+## REF-OBERKAMPF-ROY-2010
+
+William L. Oberkampf and Christopher J. Roy. *Verification and Validation in
+Scientific Computing*. Cambridge University Press, 2010.
+
+## REF-PLACKETT-1954
+
+R. L. Plackett. "A Reduction Formula for Normal Multivariate Integrals."
+*Biometrika* 41(3/4), 351-360, 1954.
+
+## REF-ROSENBLATT-1952
+
+Murray Rosenblatt. "Remarks on a Multivariate Transformation." *The Annals of
+Mathematical Statistics* 23(3), 470-472, 1952.
+
+## REF-RUSCHENDORF-2009
+
+Ludger Rüschendorf. "On the Distributional Transform, Sklar's Theorem, and the
+Empirical Copula Process." *Journal of Statistical Planning and Inference*
+139(11), 3921-3927, 2009.
