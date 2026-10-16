@@ -23,7 +23,8 @@ it the fit is the plain type-II maximum likelihood estimate in the box
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+import warnings
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
@@ -32,8 +33,6 @@ from probstat.linalg import (
     Matrix,
     Vector,
     as_vector,
-    cholesky,
-    cholesky_solve,
     solve_lower,
 )
 from probstat.modeling import ProbabilisticModel
@@ -45,6 +44,47 @@ _SQRT5 = math.sqrt(5.0)
 _LOG_TWO_PI = math.log(2.0 * math.pi)
 _LOG_PARAMETER_BOUND = 25.0
 _BOUND_TOLERANCE = 0.01
+_CONDITION_WARNING = 1e12
+_MAX_ADAPTIVE_NUGGET = 1e-4
+
+
+def _fsum_product(left: Sequence[float], right: Sequence[float]) -> float:
+    """Return ``sum l_i r_i`` with ``math.fsum`` (fallback for Python 3.11).
+
+    References:
+        [REF-PYTHON-MATH]. No equation is evaluated.
+
+    """
+    return math.fsum(a * b for a, b in zip(left, right, strict=False))
+
+
+# Python 3.12+ ``math.sumprod`` accumulates in extended precision in C.
+_sumprod: Callable[[Sequence[float], Sequence[float]], float] = getattr(
+    math, "sumprod", _fsum_product
+)
+
+
+class GaussianProcessConditioningWarning(UserWarning):
+    """Warn that the fitted kernel matrix is ill-conditioned.
+
+    Raised when the 1-norm condition number of the final kernel matrix
+    exceeds ``1e12``: predictions and likelihood values then carry rounding
+    noise of relative size ``cond(K) eps``; a larger nugget or
+    :class:`GaussianProcessRegularization` bounds the condition number.
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 2.6].
+
+    """
+
+
+class GaussianProcessJitterWarning(UserWarning):
+    """Warn that the nugget was increased to obtain a positive-definite matrix.
+
+    References:
+        [REF-RASMUSSEN-WILLIAMS-2006, Section 2.2].
+
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -339,6 +379,177 @@ def _split_parameters(
     return signal, scales, extra
 
 
+def _fast_cholesky(matrix: list[list[float]]) -> list[list[float]]:
+    """Return the lower Cholesky factor as row lists (Cholesky-Banachiewicz).
+
+    Equivalent to :func:`probstat.linalg.cholesky` without its validation and
+    tuple conversions; the inner products use ``math.sumprod``.
+
+    Args:
+        matrix: Symmetric matrix as row lists (only the lower triangle is read).
+
+    Returns:
+        Row lists ``L[i][:i+1]`` of the lower factor.
+
+    Raises:
+        ValueError: If a pivot is not positive (matrix not positive definite).
+
+    Equation:
+        [EQ-LINALG-001].
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 4.2].
+
+    """
+    count = len(matrix)
+    lower: list[list[float]] = []
+    for i in range(count):
+        row_i = matrix[i]
+        current: list[float] = []
+        for j in range(i):
+            row_j = lower[j]
+            current.append((row_i[j] - _sumprod(current, row_j[:j])) / row_j[j])
+        pivot = row_i[i] - _sumprod(current, current)
+        if not pivot > 0.0:
+            raise ValueError("kernel matrix is not positive definite")
+        current.append(math.sqrt(pivot))
+        lower.append(current)
+    return lower
+
+
+def _inverse_factor_columns(lower: Sequence[Sequence[float]]) -> list[list[float]]:
+    """Return the columns of ``M = L^-1`` below the diagonal.
+
+    ``columns[j][k - j] = M[k][j]`` for ``k >= j``, built row by row from
+    ``M[i][j] = -(sum_(k=j..i-1) L[i][k] M[k][j]) / L[i][i]``: one
+    triangular inversion (``n^3/6`` multiply-adds) of the existing factor.
+
+    Equation:
+        [EQ-SUR-GP-007].
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 3.1].
+
+    """
+    count = len(lower)
+    columns: list[list[float]] = []
+    for i in range(count):
+        row = lower[i]
+        inverse_diagonal = 1.0 / row[i]
+        for j in range(i):
+            column = columns[j]
+            column.append(-_sumprod(row[j:i], column) * inverse_diagonal)
+        columns.append([inverse_diagonal])
+    return columns
+
+
+def _precision_entry(columns: Sequence[Sequence[float]], a: int, b: int) -> float:
+    """Return ``(K^-1)_ab = sum_(k >= max(a, b)) M[k][a] M[k][b]`` (``a <= b``).
+
+    Equation:
+        [EQ-SUR-GP-007].
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 3.1].
+
+    """
+    return _sumprod(columns[a][b - a :], columns[b])
+
+
+def _triangular_solve(
+    lower: Sequence[Sequence[float]], target: Sequence[float]
+) -> Vector:
+    """Solve ``L w = b`` then ``L' alpha = w`` and return ``alpha = K^-1 b``.
+
+    Equation:
+        [EQ-LINALG-002].
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 3.1].
+
+    """
+    count = len(lower)
+    forward: list[float] = []
+    for i in range(count):
+        row = lower[i]
+        forward.append((target[i] - _sumprod(row[:i], forward)) / row[i])
+    backward = [0.0] * count
+    for i in range(count - 1, -1, -1):
+        total = forward[i]
+        for k in range(i + 1, count):
+            total -= lower[k][i] * backward[k]
+        backward[i] = total / lower[i][i]
+    return tuple(backward)
+
+
+def _assemble(
+    points: Sequence[Sequence[float]],
+    scales: Sequence[float],
+    signal: float,
+    noise: float,
+    kernel: str,
+) -> tuple[
+    list[list[float]],
+    list[list[tuple[float, ...]]],
+    list[list[float]],
+    list[list[float]],
+]:
+    """Assemble the lower triangle of ``K`` and the pieces of its derivatives.
+
+    The squared scaled differences ``((x_ia - x_ja)/ell_a)^2`` are formed
+    exactly as in :func:`kernel_value`, so the fitted surrogate factorizes
+    bit-for-bit the matrix the likelihood saw.
+
+    Returns:
+        Lower-triangle rows of ``K``, per-pair scaled squared differences,
+        unit-variance correlations, and the length-scale derivative factors
+        of :func:`_length_scale_factor`.
+
+    Equation:
+        [EQ-SUR-GP-001], [EQ-SUR-GP-002], [EQ-SUR-GP-004].
+
+    References:
+        [REF-RASMUSSEN-WILLIAMS-2006, Sections 4.2 and 5.4].
+
+    """
+    count = len(points)
+    parts: list[list[tuple[float, ...]]] = []
+    correlation: list[list[float]] = []
+    factors: list[list[float]] = []
+    matrix: list[list[float]] = []
+    squared_exponential = kernel == "squared_exponential"
+    for i in range(count):
+        row_parts: list[tuple[float, ...]] = []
+        row_corr: list[float] = []
+        row_factor: list[float] = []
+        row_matrix: list[float] = []
+        xi = points[i]
+        for j in range(i):
+            difference = tuple(
+                ((a - b) / ell) ** 2
+                for a, b, ell in zip(xi, points[j], scales, strict=True)
+            )
+            squared = math.fsum(difference)
+            if squared_exponential:
+                value = math.exp(-0.5 * squared)
+                factor = value
+            else:
+                r = math.sqrt(squared)
+                decay = math.exp(-_SQRT5 * r)
+                value = (1.0 + _SQRT5 * r + 5.0 * squared / 3.0) * decay
+                factor = (5.0 / 3.0) * (1.0 + _SQRT5 * r) * decay
+            row_parts.append(difference)
+            row_corr.append(value)
+            row_factor.append(factor)
+            row_matrix.append(signal * value)
+        row_matrix.append(signal + noise)
+        parts.append(row_parts)
+        correlation.append(row_corr)
+        factors.append(row_factor)
+        matrix.append(row_matrix)
+    return matrix, parts, correlation, factors
+
+
 def gaussian_process_log_marginal_likelihood(
     points: Sequence[Sequence[float]],
     targets: Sequence[float],
@@ -359,6 +570,13 @@ def gaussian_process_log_marginal_likelihood(
     log ell_1..d[, log sigma_n^2])``; targets are used as given (callers
     standardize them).
 
+    Cost: one Cholesky factorization ``K = L L'`` per call, shared by the
+    value and the gradient. The traces need every entry of ``K^-1`` because
+    each ``dK/d theta_j`` is dense; they are formed as
+    ``(K^-1)_ab = sum_k M_ka M_kb`` from one triangular inversion
+    ``M = L^-1`` of the same factor [EQ-SUR-GP-007], over the upper
+    triangle only, instead of ``n`` unit-vector Cholesky solves.
+
     Args:
         points: Training inputs.
         targets: Training targets.
@@ -377,7 +595,7 @@ def gaussian_process_log_marginal_likelihood(
             parameters leave the documented box.
 
     Equation:
-        [EQ-SUR-GP-004].
+        [EQ-SUR-GP-004], [EQ-SUR-GP-007].
 
     References:
         [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
@@ -390,74 +608,49 @@ def gaussian_process_log_marginal_likelihood(
     tau = require_finite_real(relative_nugget, name="relative_nugget")
     if tau < 0.0:
         raise ValueError("relative_nugget must be non-negative")
+    if kernel not in KERNELS:
+        raise ValueError(f"kernel must be one of {KERNELS}")
     count = len(x)
     noise = nugget + extra
     if tau > 0.0:
         noise += tau * signal
-    scaled_sq: list[list[tuple[float, ...]]] = []
-    correlation = [[0.0] * count for _ in range(count)]
-    for i in range(count):
-        row: list[tuple[float, ...]] = []
-        for j in range(count):
-            parts = tuple(
-                ((a - b) / ell) ** 2
-                for a, b, ell in zip(x[i], x[j], scales, strict=True)
-            )
-            row.append(parts)
-            correlation[i][j] = _correlation(kernel, math.fsum(parts))
-        scaled_sq.append(row)
-    matrix = tuple(
-        tuple(
-            signal * correlation[i][j] + (noise if i == j else 0.0)
-            for j in range(count)
-        )
-        for i in range(count)
-    )
+    matrix, parts, correlation, factors = _assemble(x, scales, signal, noise, kernel)
     try:
-        lower = cholesky(matrix)
+        lower = _fast_cholesky(matrix)
     except ValueError as error:
         raise ValueError(
             "kernel matrix is not positive definite; increase the nugget"
         ) from error
-    alpha = cholesky_solve(lower, y)
+    alpha = _triangular_solve(lower, y)
     log_det = 2.0 * math.fsum(math.log(lower[i][i]) for i in range(count))
-    value = -0.5 * math.fsum(a * b for a, b in zip(y, alpha, strict=True))
+    value = -0.5 * _sumprod(y, alpha)
     value += -0.5 * log_det - 0.5 * count * _LOG_TWO_PI
-    inverse_columns = [
-        cholesky_solve(lower, tuple(1.0 if r == c else 0.0 for r in range(count)))
-        for c in range(count)
+    columns = _inverse_factor_columns(lower)
+    diagonal_weight = [
+        alpha[a] * alpha[a] - _sumprod(columns[a], columns[a]) for a in range(count)
     ]
-    weight = [
-        [alpha[i] * alpha[j] - inverse_columns[j][i] for j in range(count)]
-        for i in range(count)
-    ]
-    gradient = [
-        0.5
-        * math.fsum(
-            weight[i][j] * signal * correlation[i][j]
-            for i in range(count)
-            for j in range(count)
-        )
-    ]
+    trace_weight = math.fsum(diagonal_weight)
+    signal_sum = 0.0
+    axis_sums = [0.0] * dimension
+    for b in range(count):
+        alpha_b = alpha[b]
+        column_b = columns[b]
+        row_corr = correlation[b]
+        row_factor = factors[b]
+        row_parts = parts[b]
+        for a in range(b):
+            weight = alpha[a] * alpha_b - _sumprod(columns[a][b - a :], column_b)
+            signal_sum += weight * row_corr[a]
+            scaled_weight = weight * row_factor[a]
+            difference = row_parts[a]
+            for axis in range(dimension):
+                axis_sums[axis] += scaled_weight * difference[axis]
+    gradient = [0.5 * signal * trace_weight + signal * signal_sum]
     if tau > 0.0:
-        gradient[0] += 0.5 * tau * signal * math.fsum(
-            weight[i][i] for i in range(count)
-        )
-    for axis in range(dimension):
-        gradient.append(
-            0.5
-            * math.fsum(
-                weight[i][j]
-                * signal
-                * _length_scale_factor(kernel, math.fsum(scaled_sq[i][j]))
-                * scaled_sq[i][j][axis]
-                for i in range(count)
-                for j in range(count)
-                if i != j
-            )
-        )
+        gradient[0] += 0.5 * tau * signal * trace_weight
+    gradient.extend(signal * total for total in axis_sums)
     if estimate_noise:
-        gradient.append(0.5 * extra * math.fsum(weight[i][i] for i in range(count)))
+        gradient.append(0.5 * extra * trace_weight)
     return value, tuple(gradient)
 
 
@@ -500,7 +693,8 @@ class GaussianProcessRegression:
         log_marginal_likelihood: ``log p(y | theta)`` in original units.
         converged: Whether the best restart met the optimizer tolerance.
         restarts: Number of optimizer starts attempted.
-        evaluations: Total likelihood evaluations over all restarts.
+        evaluations: Total likelihood evaluations (kernel factorizations)
+            over all restarts.
         relative_nugget: Diagonal floor ``tau`` as a fraction of the
             standardized signal variance (``0`` without regularization).
         regularization: Settings used, or ``None`` for the unregularized
@@ -513,6 +707,8 @@ class GaussianProcessRegression:
             bound signals a nearly polynomial (or constant) trend, one on its
             lower bound a fit with almost no correlation between training
             points.
+        condition_number: 1-norm condition number of the standardized kernel
+            matrix (computed from the fit, not an argument).
 
     References:
         [REF-RASMUSSEN-WILLIAMS-2006, Chapters 2 and 5].
@@ -539,18 +735,41 @@ class GaussianProcessRegression:
     _factorization: tuple[float, Vector, float, Matrix, Vector] = field(
         init=False, repr=False, compare=False
     )
+    condition_number: float = field(init=False, compare=False, default=math.nan)
 
     def __post_init__(self) -> None:
         """Factorize the training kernel matrix once for all predictions.
+
+        Also records ``condition_number``, the 1-norm condition number
+        ``||K||_1 ||K^-1||_1`` of the standardized kernel matrix, with
+        ``K^-1`` formed from the inverse Cholesky factor [EQ-SUR-GP-007].
 
         Raises:
             ValueError: If the kernel matrix is not positive definite.
 
         References:
-            [REF-RASMUSSEN-WILLIAMS-2006, Algorithm 2.1]. No new equation.
+            [REF-RASMUSSEN-WILLIAMS-2006, Algorithm 2.1],
+            [REF-GOLUB-VANLOAN-2013, Section 2.6].
 
         """
-        object.__setattr__(self, "_factorization", self._standardized())
+        factorization = self._standardized()
+        object.__setattr__(self, "_factorization", factorization)
+        signal, scales, noise, lower, _ = factorization
+        count = len(self.points)
+        rows, _, _, _ = _assemble(self.points, scales, signal, noise, self.kernel)
+        norm_k = max(
+            math.fsum(abs(rows[max(a, b)][min(a, b)]) for b in range(count))
+            for a in range(count)
+        )
+        columns = _inverse_factor_columns(lower)
+        norm_inverse = max(
+            math.fsum(
+                abs(_precision_entry(columns, min(a, b), max(a, b)))
+                for b in range(count)
+            )
+            for a in range(count)
+        )
+        object.__setattr__(self, "condition_number", norm_k * norm_inverse)
 
     def _standardized(self) -> tuple[float, Vector, float, Matrix, Vector]:
         """Return signal, scales, noise, Cholesky factor, and ``alpha``.
@@ -567,21 +786,16 @@ class GaussianProcessRegression:
         if self.relative_nugget > 0.0:
             noise += self.relative_nugget * signal
         count = len(self.points)
-        matrix = tuple(
-            tuple(
-                kernel_value(
-                    self.kernel, self.points[i], self.points[j], scales, signal
-                )
-                + (noise if i == j else 0.0)
-                for j in range(count)
-            )
-            for i in range(count)
-        )
-        lower = cholesky(matrix)
+        rows, _, _, _ = _assemble(self.points, scales, signal, noise, self.kernel)
+        try:
+            factor = _fast_cholesky(rows)
+        except ValueError as error:
+            raise ValueError("matrix must be positive definite") from error
+        lower = tuple(tuple(factor[i]) + (0.0,) * (count - 1 - i) for i in range(count))
         targets = tuple(
             (value - self.output_mean) / self.output_scale for value in self.values
         )
-        return signal, scales, noise, lower, cholesky_solve(lower, targets)
+        return signal, scales, noise, lower, _triangular_solve(factor, targets)
 
     @property
     def standardized_noise_variance(self) -> float:
@@ -677,14 +891,12 @@ class GaussianProcessRegression:
         """
         _, _, _, lower, alpha = self._factorization
         count = len(self.points)
+        columns = _inverse_factor_columns(lower)
         means: list[float] = []
         variances: list[float] = []
         residuals: list[float] = []
         for i in range(count):
-            column = cholesky_solve(
-                lower, tuple(1.0 if r == i else 0.0 for r in range(count))
-            )
-            diagonal = column[i]
+            diagonal = _sumprod(columns[i], columns[i])
             standardized = (self.values[i] - self.output_mean) / self.output_scale
             loo_mean = standardized - alpha[i] / diagonal
             means.append(self.output_mean + self.output_scale * loo_mean)
@@ -700,6 +912,29 @@ class GaussianProcessRegression:
         )
 
 
+def _preferred(
+    candidate: tuple[float, Vector, bool], best: tuple[float, Vector, bool]
+) -> bool:
+    """Return whether a restart result should replace the current best.
+
+    A lower objective wins, except that a converged run is kept against a
+    non-converged one whose objective is lower by less than
+    ``1e-9 max(1, |f|)``: such a difference is within the rounding noise of
+    the likelihood, and the converged run carries a verified stationarity
+    certificate.
+
+    References:
+        [REF-NOCEDAL-WRIGHT-2006, Chapter 2]. No equation is evaluated.
+
+    """
+    margin = 1e-9 * max(1.0, abs(best[0]))
+    if candidate[2] and not best[2]:
+        return candidate[0] <= best[0] + margin
+    if best[2] and not candidate[2]:
+        return candidate[0] < best[0] - margin
+    return candidate[0] < best[0]
+
+
 def fit_gaussian_process(
     points: Sequence[Sequence[float]],
     values: Sequence[float],
@@ -712,6 +947,7 @@ def fit_gaussian_process(
     seed: int | RandomStream | None = None,
     initial_log_parameters: Sequence[float] | None = None,
     regularization: GaussianProcessRegularization | None = None,
+    adaptive_nugget: bool = True,
 ) -> GaussianProcessRegression:
     """Fit a zero-mean GP to standardized outputs by maximum marginal likelihood.
 
@@ -754,6 +990,21 @@ def fit_gaussian_process(
         regularization: Optional :class:`GaussianProcessRegularization`;
             ``None`` (default) gives the unregularized fit, unchanged from
             earlier releases (ADR-0054).
+        adaptive_nugget: When no start gives a positive-definite matrix,
+            retry with the nugget multiplied by ten (up to ``1e-4`` in
+            standardized units, or the given nugget if larger). An increase
+            is never silent: it emits :class:`GaussianProcessJitterWarning`
+            and the nugget actually used is the result's ``nugget``.
+
+    Among restarts the lowest objective wins, but a converged run is kept
+    against a non-converged one that is lower only within ``1e-9 max(1,
+    |f|)`` (likelihood rounding noise).
+
+    Each likelihood evaluation shares one Cholesky factorization between the
+    value and the gradient (cached per ``theta``); ``evaluations`` counts
+    those factorizations. A final kernel matrix with 1-norm condition number
+    above ``1e12`` emits :class:`GaussianProcessConditioningWarning`; the
+    number is the result's ``condition_number``.
 
     Returns:
         Fitted regression surrogate.
@@ -850,14 +1101,26 @@ def fit_gaussian_process(
             gradient[1 + axis] = -offset / prior_sd
         return value, gradient
 
+    cache: dict[Vector, tuple[float, list[float]]] = {}
+    factorizations = [0]
+
     def objective(theta: Vector) -> tuple[float, list[float]]:
         """Return ``-(log p(y | theta) + log prior)`` and its gradient.
+
+        The value and gradient come from one factorization and are cached
+        per ``theta``, so the optimizer's separate value and gradient
+        requests at the same point cost a single factorization.
 
         References:
             [EQ-SUR-GP-004], [EQ-SUR-GP-006],
             [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
 
         """
+        key = tuple(theta)
+        hit = cache.get(key)
+        if hit is not None:
+            return hit
+        factorizations[0] += 1
         value, gradient = gaussian_process_log_marginal_likelihood(
             x,
             targets,
@@ -868,9 +1131,14 @@ def fit_gaussian_process(
             relative_nugget=tau,
         )
         prior, prior_gradient = log_prior(theta)
-        return -(value + prior), [
-            -(g + p) for g, p in zip(gradient, prior_gradient, strict=True)
-        ]
+        result = (
+            -(value + prior),
+            [-(g + p) for g, p in zip(gradient, prior_gradient, strict=True)],
+        )
+        if len(cache) > 8:
+            cache.clear()
+        cache[key] = result
+        return result
 
     def to_theta(phi: Vector) -> Vector:
         """Map unconstrained ``phi`` to ``theta`` inside the box.
@@ -923,29 +1191,50 @@ def fit_gaussian_process(
         )
 
     best: tuple[float, Vector, bool] | None = None
-    evaluations = 0
-    for start in starts:
-        begin = start if regularization is None else to_phi(start)
-        try:
-            if optimize:
-                result = minimize_bfgs(
-                    negative,
-                    begin,
-                    gradient=negative_gradient,
-                    gradient_tolerance=1e-6 if regularization is None else 1e-5,
-                    max_iterations=200,
-                )
-                candidate = (result.value, result.x, result.converged)
-                evaluations += result.evaluations
-            else:
-                candidate = (negative(begin), begin, True)
-                evaluations += 1
-        except ValueError:
-            continue
-        if best is None or candidate[0] < best[0]:
-            best = candidate
+    initial_jitter = jitter
+    while True:
+        for start in starts:
+            begin = start if regularization is None else to_phi(start)
+            try:
+                if optimize:
+                    result = minimize_bfgs(
+                        negative,
+                        begin,
+                        gradient=negative_gradient,
+                        gradient_tolerance=1e-6 if regularization is None else 1e-5,
+                        max_iterations=200,
+                    )
+                    candidate = (result.value, result.x, result.converged)
+                else:
+                    candidate = (negative(begin), begin, True)
+            except ValueError:
+                continue
+            if best is None or _preferred(candidate, best):
+                best = candidate
+        if best is not None or not adaptive_nugget:
+            break
+        if jitter * 10.0 > max(_MAX_ADAPTIVE_NUGGET, initial_jitter):
+            break
+        jitter *= 10.0
+        cache.clear()
     if best is None:
-        raise ValueError("no start produced a positive-definite kernel matrix")
+        raise ValueError(
+            "no start produced a positive-definite kernel matrix"
+            + (
+                f" (nugget raised to {jitter:.3g})"
+                if adaptive_nugget and jitter > initial_jitter
+                else ""
+            )
+        )
+    if jitter > initial_jitter:
+        warnings.warn(
+            f"the nugget was increased from {initial_jitter:.3g} to {jitter:.3g} "
+            "(standardized units) to make the kernel matrix positive definite; "
+            "the fitted nugget is reported in GaussianProcessRegression.nugget",
+            GaussianProcessJitterWarning,
+            stacklevel=2,
+        )
+    evaluations = factorizations[0]
     value, optimum, converged = best
     theta = optimum if regularization is None else to_theta(optimum)
     if prior_sd is not None:
@@ -954,7 +1243,7 @@ def fit_gaussian_process(
     hyperparameters = GaussianProcessHyperparameters(
         signal * scale * scale, scales, (jitter + tau * signal + extra) * scale * scale
     )
-    return GaussianProcessRegression(
+    fitted = GaussianProcessRegression(
         kernel,
         x,
         y,
@@ -973,6 +1262,16 @@ def fit_gaussian_process(
         log_parameter_bounds=bounds,
         at_bound=_bound_hits(theta, bounds, dimension),
     )
+    if fitted.condition_number > _CONDITION_WARNING:
+        warnings.warn(
+            f"the fitted kernel matrix has 1-norm condition number "
+            f"{fitted.condition_number:.3g}; likelihood values and predictions "
+            "carry rounding noise of about cond(K) * 1e-16 relative. A larger "
+            "nugget or GaussianProcessRegularization bounds it.",
+            GaussianProcessConditioningWarning,
+            stacklevel=2,
+        )
+    return fitted
 
 
 def fit_gaussian_process_to_model(

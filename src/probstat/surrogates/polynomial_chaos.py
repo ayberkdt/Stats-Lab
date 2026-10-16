@@ -34,8 +34,8 @@ from probstat.linalg import (
     Matrix,
     Vector,
     as_vector,
-    cholesky,
-    cholesky_solve,
+    householder_qr,
+    solve_upper,
 )
 from probstat.modeling import JointInput, ProbabilisticModel
 from probstat.propagation import make_design
@@ -59,32 +59,6 @@ def _compensated_dot(left: Sequence[float], right: Sequence[float]) -> float:
 _dot: Callable[[Sequence[float], Sequence[float]], float] = getattr(
     math, "sumprod", _compensated_dot
 )
-
-
-def _forward_substitution(lower: Matrix, right_hand_side: Sequence[float]) -> Vector:
-    """Solve ``L w = b`` for a lower-triangular ``L`` with fast inner products.
-
-    Mathematically identical to :func:`probstat.linalg.solve_lower`; it is
-    used for the ``N`` hat-matrix solves, where call overhead dominates.
-
-    Args:
-        lower: Non-singular lower-triangular Cholesky factor.
-        right_hand_side: Vector of matching length.
-
-    Returns:
-        Solution ``w``.
-
-    Equation:
-        [EQ-LINALG-002].
-
-    References:
-        [REF-GOLUB-VANLOAN-2013, Section 3.1].
-
-    """
-    solution: list[float] = []
-    for row, target in enumerate(right_hand_side):
-        solution.append((target - _dot(lower[row][:row], solution)) / lower[row][row])
-    return tuple(solution)
 
 
 def multi_indices(
@@ -523,10 +497,12 @@ def polynomial_chaos_from_samples(
 ) -> PolynomialChaosExpansion:
     """Fit PCE coefficients by least squares on given input/output samples.
 
-    ``c = (Psi' Psi)^-1 Psi' y`` through a Cholesky factorization of the
-    information matrix. The LOO residual is
-    ``(y_i - y_hat_i) / (1 - h_i)`` with hat-matrix diagonal
-    ``h_i = psi_i' (Psi' Psi)^-1 psi_i``; no model is re-evaluated.
+    ``c = R^-1 Q' y`` from the Householder factorization ``Psi = Q R`` of
+    the design matrix, so the solve sees ``kappa(Psi)`` rather than the
+    ``kappa(Psi)^2`` of the normal equations ``Psi' Psi c = Psi' y`` used
+    before release 0.16 (which failed for high-degree Hermite fits). The
+    LOO residual is ``(y_i - y_hat_i) / (1 - h_i)`` with hat-matrix diagonal
+    ``h_i = ||q_i||^2`` (row ``i`` of ``Q``); no model is re-evaluated.
 
     Args:
         inputs: Joint input law of the samples.
@@ -541,15 +517,17 @@ def polynomial_chaos_from_samples(
         Fitted expansion with LOO and empirical errors.
 
     Raises:
-        ValueError: If there are fewer samples than basis terms, the
-            information matrix is singular, or responses are constant.
+        ValueError: If there are fewer samples than basis terms, the design
+            matrix is numerically rank deficient (the message names the
+            dependent multi-indices), or responses are constant.
 
     Equation:
         [EQ-SUR-PCE-001], [EQ-SUR-PCE-004], [EQ-SUR-PCE-005],
         [EQ-SUR-PCE-006].
 
     References:
-        [REF-BLATMAN-SUDRET-2011], [REF-SUDRET-2008].
+        [REF-BLATMAN-SUDRET-2011], [REF-SUDRET-2008],
+        [REF-GOLUB-VANLOAN-2013, Section 5.3].
 
     """
     _check_basis(inputs, basis)
@@ -569,32 +547,28 @@ def polynomial_chaos_from_samples(
         _basis_row(_standardize(inputs, basis, point), basis, indices, degree)
         for point in design
     ]
-    columns = list(zip(*rows, strict=True))
-    information = [[0.0] * terms for _ in range(terms)]
-    for i in range(terms):
-        for j in range(i + 1):
-            value = _dot(columns[i], columns[j])
-            information[i][j] = information[j][i] = value
-    try:
-        lower = cholesky(tuple(tuple(row) for row in information))
-    except ValueError as error:
+    factor = householder_qr(tuple(tuple(row) for row in rows))
+    if not factor.full_rank:
+        deficient = ", ".join(str(indices[j]) for j in factor.rank_deficient)
         raise ValueError(
-            "the experimental design does not identify the coefficients; "
-            "increase the design size or lower the degree"
-        ) from error
-    moments = tuple(_dot(column, responses) for column in columns)
-    coefficients = cholesky_solve(lower, moments)
+            "the experimental design does not identify the coefficients: the "
+            f"basis columns for multi-indices {deficient} are numerically "
+            "dependent on earlier columns (|R_jj| <= 1e-10 ||psi_j|| in the "
+            "Householder QR of Psi); increase the design size or lower the degree"
+        )
+    q_columns = list(zip(*factor.q, strict=True))
+    projected = tuple(_dot(column, responses) for column in q_columns)
+    coefficients = solve_upper(factor.r, projected)
     center = math.fsum(responses) / count
     output_variance = math.fsum((y - center) ** 2 for y in responses) / (count - 1)
     if output_variance <= 0.0:
         raise ValueError("responses are constant; nothing to approximate")
     squared_residuals: list[float] = []
     squared_loo: list[float] = []
-    for row, y in zip(rows, responses, strict=True):
+    for index, (row, y) in enumerate(zip(rows, responses, strict=True)):
         prediction = _dot(coefficients, row)
         residual = y - prediction
-        whitened = _forward_substitution(lower, row)
-        leverage = math.fsum(v * v for v in whitened)
+        leverage = math.fsum(v * v for v in factor.q[index])
         squared_residuals.append(residual * residual)
         if leverage >= 1.0 - 1e-12:
             squared_loo.append(math.inf)

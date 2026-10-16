@@ -10,7 +10,9 @@ inside :class:`probstat.modeling.ProbabilisticModel`.
 from .adapter import Surrogate, SurrogateModel, surrogate_probabilistic_model
 from .gaussian_process import (
     KERNELS,
+    GaussianProcessConditioningWarning,
     GaussianProcessHyperparameters,
+    GaussianProcessJitterWarning,
     GaussianProcessLOO,
     GaussianProcessRegression,
     GaussianProcessRegularization,
@@ -35,7 +37,9 @@ from .polynomial_chaos import (
 __all__ = [
     "BASES",
     "KERNELS",
+    "GaussianProcessConditioningWarning",
     "GaussianProcessHyperparameters",
+    "GaussianProcessJitterWarning",
     "GaussianProcessLOO",
     "GaussianProcessRegression",
     "GaussianProcessRegularization",
