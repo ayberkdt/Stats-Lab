@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import ContinuousDistribution
 from ._continuous import open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .gumbel import EULER_GAMMA
@@ -90,7 +91,7 @@ def _variance_ratio_series(shape: float) -> float:
 
 
 @dataclass(frozen=True, slots=True)
-class GeneralizedExtremeValue:
+class GeneralizedExtremeValue(ContinuousDistribution):
     """A GEV law ``F(x) = exp(-(1 + xi z)^(-1/xi))``, ``z = (x - mu)/sigma``.
 
     ``xi > 0`` is the heavy-tailed Frechet type with lower endpoint
@@ -425,8 +426,8 @@ class GeneralizedExtremeValue:
         Returns:
             Mean, or ``inf`` for ``xi >= 1``.
 
-        Raises:
-            OverflowError: If the mean exceeds float range.
+        A mean beyond the float range is returned as ``+-inf`` (properties
+        never raise).
 
         Equation:
             [EQ-DIST-GEV-003].
@@ -446,11 +447,11 @@ class GeneralizedExtremeValue:
         else:
             try:
                 factor = (math.gamma(1.0 - self.xi) - 1.0) / self.xi
-            except OverflowError as error:
-                raise OverflowError("GEV mean exceeds float range") from error
+            except OverflowError:
+                return -math.inf if self.xi < 0.0 else math.inf
         result = self.mu + self.sigma * factor
         if not math.isfinite(result):
-            raise OverflowError("GEV mean exceeds float range")
+            return -math.inf if self.xi < 0.0 else math.inf
         return result
 
     @property
@@ -463,8 +464,7 @@ class GeneralizedExtremeValue:
         Returns:
             Variance, or ``inf`` for ``xi >= 1/2``.
 
-        Raises:
-            OverflowError: If the variance exceeds float range.
+        A variance beyond the float range is returned as ``inf``.
 
         Equation:
             [EQ-DIST-GEV-003].
@@ -486,19 +486,22 @@ class GeneralizedExtremeValue:
                 first = math.gamma(1.0 - self.xi)
                 second = math.gamma(1.0 - 2.0 * self.xi)
                 factor = (second - first * first) / (self.xi * self.xi)
-            except OverflowError as error:
-                raise OverflowError("GEV variance exceeds float range") from error
+            except OverflowError:
+                return math.inf
         result = self.sigma * self.sigma * factor
         if not math.isfinite(result):
-            raise OverflowError("GEV variance exceeds float range")
+            return math.inf
         return max(result, 0.0)
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible GEV observations by inverse transform.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of pseudo-random observations.
@@ -516,7 +519,7 @@ class GeneralizedExtremeValue:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         observations: list[float] = []
         for _ in range(checked_size):
             u = open_unit(generator)

@@ -6,19 +6,21 @@ import math
 import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import DiscreteDistribution
 from ._special import regularized_gamma_p, regularized_gamma_q
 from .constraints import NON_NEGATIVE_FINITE
 from .support import IntegerSupport
 
 
 @dataclass(frozen=True, slots=True)
-class Poisson:
+class Poisson(DiscreteDistribution):
     """A Poisson count distribution with finite non-negative rate ``lam``.
 
     ``lam=0`` is supported as the degenerate distribution concentrated at zero.
@@ -231,7 +233,9 @@ class Poisson:
         """
         return self.lam
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[int, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[int, ...]:
         """Draw reproducible exact Poisson observations.
 
         Knuth's product method is used below rate 10; transformed rejection is
@@ -239,7 +243,8 @@ class Poisson:
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of non-negative event counts.
@@ -256,7 +261,7 @@ class Poisson:
         checked_size = require_non_negative_integer(size, name="size")
         if self.lam == 0.0:
             return (0,) * checked_size
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         sampler = _sample_knuth if self.lam < 10.0 else _sample_ptrs
         return tuple(sampler(self.lam, generator) for _ in range(checked_size))
 

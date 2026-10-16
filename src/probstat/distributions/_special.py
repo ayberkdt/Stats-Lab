@@ -463,9 +463,7 @@ def _gamma_temme(a: float, x: float) -> tuple[float, float]:
     for coefficient in reversed(_TEMME_C1):
         c1 = c1 * eta + coefficient
     remainder = (
-        math.exp(-a * half_square)
-        / math.sqrt(2.0 * math.pi * a)
-        * (c0 + c1 / a)
+        math.exp(-a * half_square) / math.sqrt(2.0 * math.pi * a) * (c0 + c1 / a)
     )
     argument = eta * math.sqrt(0.5 * a)
     lower = 0.5 * math.erfc(-argument) - remainder
@@ -641,6 +639,9 @@ def regularized_beta_pair(x: float, complement: float, a: float, b: float) -> fl
         return 0.0
     if other == 0.0:
         return 1.0
+    series = _beta_large_shape(first_shape, second_shape, point, other)
+    if series is not None:
+        return series
     log_front = log_beta_kernel(first_shape, second_shape, point, other)
     split = (first_shape + 1.0) / (first_shape + second_shape + 2.0)
     if point < split:
@@ -656,6 +657,191 @@ def regularized_beta_pair(x: float, complement: float, a: float, b: float) -> fl
         / second_shape
     )
     return _clamp_probability(1.0 - reflected)
+
+
+_LOG_SINHC_TERMS = 80
+_BETA_SERIES_MIN_SHAPE = 1e4
+# -log(1 - t) <= 1, the region where the sinh series converges quickly.
+_BETA_SERIES_MAX_POINT = -math.expm1(-1.0)
+_log_sinhc_cache: list[float] = []
+
+
+def _beta_large_shape(a: float, b: float, x: float, y: float) -> float | None:
+    """Return ``I_x(a, b)`` from the large-shape gamma series when it applies.
+
+    The series of :func:`_beta_gamma_series` is used when the larger shape is
+    at least ``1e4``, the point on the side of the smaller shape satisfies
+    ``-log(1 - t) <= 1``, and the first correction ratio
+    ``|s - 1| s (s + 1) / (24 N^2)`` is at most one (so for ``s`` up to about
+    ``(24 L^2)^(1/3)``; for example ``s <= 1.3e3`` at ``L = 1e4``). There the continued fraction converges slowly near
+    ``x ~ a/(a+b)`` and its local stopping test (``|delta - 1| <= 8 eps``)
+    is met while many factors ``1 + O(1/a)`` remain, which cost up to three
+    significant digits for ``a ~ 1e13``. Of the pair ``I_t(s, L)`` and its
+    complement the smaller one is computed and the other obtained by
+    subtraction from one.
+
+    Args:
+        a: Validated first shape.
+        b: Validated second shape.
+        x: Point strictly inside ``(0, 1)``.
+        y: ``1 - x`` formed without cancellation.
+
+    Returns:
+        ``I_x(a, b)``, or ``None`` when the series does not apply.
+
+    Equation:
+        [EQ-NUM-BETA-002].
+
+    References:
+        [REF-DIDONATO-MORRIS-1992], [REF-NIST-DLMF-BETA, Section 8.17].
+
+    """
+    if max(a, b) < _BETA_SERIES_MIN_SHAPE:
+        return None
+    if a >= b:
+        large, small, point, complement = a, b, y, x
+    else:
+        large, small, point, complement = b, a, x, y
+    if point > _BETA_SERIES_MAX_POINT:
+        return None
+    big_n = large + 0.5 * (small - 1.0)
+    if abs(small - 1.0) * small * (small + 1.0) > 24.0 * big_n * big_n:
+        # The first correction e_1 Gamma(s+2)/(Gamma(s) N^2) exceeds one:
+        # both shapes are large and the series would need too many terms.
+        return None
+    lower_side = _beta_gamma_series(large, small, point, complement, upper=True)
+    if lower_side is None:
+        return None
+    if lower_side > 0.5:
+        other = _beta_gamma_series(large, small, point, complement, upper=False)
+        if other is None:
+            return None
+        lower_side = 1.0 - other
+        upper_side = other
+    else:
+        upper_side = 1.0 - lower_side
+    # lower_side = I_t(small, large); upper_side = I_(1-t)(large, small).
+    return _clamp_probability(upper_side if a >= b else lower_side)
+
+
+def _log_sinhc_coefficients() -> list[float]:
+    """Return ``l_k = B_(2k) / (2k (2k)!)``, the series of ``log(sinh(v/2)/(v/2))``.
+
+    ``log(sinh(v/2)/(v/2)) = sum_(k>=1) l_k v^(2k)`` for ``|v| < 2 pi``. The
+    Bernoulli numbers are generated once in exact rational arithmetic
+    (Akiyama-Tanigawa recurrence) and cached as floats.
+
+    Returns:
+        Coefficients ``l_1, ..., l_80`` (``l_1 = 1/24``, ``l_2 = -1/2880``).
+
+    Equation:
+        [EQ-NUM-BETA-002].
+
+    References:
+        [REF-NIST-DLMF, Sections 4.19 and 24.2] (the hyperbolic form follows
+        from ``log(sin z / z)`` with ``z -> i z``).
+
+    """
+    if _log_sinhc_cache:
+        return _log_sinhc_cache
+    order = 2 * _LOG_SINHC_TERMS
+    row = [Fraction(0)] * (order + 1)
+    bernoulli = [Fraction(0)] * (order + 1)
+    for m in range(order + 1):
+        row[m] = Fraction(1, m + 1)
+        for j in range(m, 0, -1):
+            row[j - 1] = j * (row[j - 1] - row[j])
+        bernoulli[m] = row[0]
+    factorial = Fraction(1)
+    for k in range(1, _LOG_SINHC_TERMS + 1):
+        factorial *= (2 * k - 1) * (2 * k)
+        _log_sinhc_cache.append(float(bernoulli[2 * k] / (2 * k * factorial)))
+    return _log_sinhc_cache
+
+
+def _beta_gamma_series(
+    large: float, small: float, point: float, complement: float, *, upper: bool
+) -> float | None:
+    """Return ``I_t(s, L)`` or ``I_(1-t)(L, s)`` by a gamma-function series.
+
+    With ``v = -log(1 - u)`` the beta integral becomes
+    ``I_t(s, L) = Gamma(s+L)/(Gamma(s) Gamma(L)) int_0^w v^(s-1)
+    phi(v) exp(-N v) dv`` with ``w = -log(1 - t)``, ``N = L + (s-1)/2`` and
+    ``phi(v) = (sinh(v/2)/(v/2))^(s-1) = sum_n e_n v^(2n)`` (convergent for
+    ``|v| < 2 pi``). Integrating term by term gives the convergent series
+
+    ``I_t(s, L) = Gamma(s+L)/(Gamma(L) N^s) sum_n e_n [Gamma(s+2n)/Gamma(s)]
+    N^(-2n) P(s + 2n, N w)``,
+
+    and the same terms with ``Q`` in place of ``P`` give the complementary
+    integral over ``[w, inf)``, an asymptotic expansion in ``1/N`` that is
+    truncated before its terms grow (the large-``L`` expansion behind
+    DiDonato and Morris's ``BGRAT``). The ``P`` series has non-negative terms
+    for ``s >= 1``. The prefactor's logarithm ``L log1pmx(s/L) + (s - 1/2)
+    log(1 + s/L) - s log(1 + (s-1)/(2L)) + stirling(L+s) - stirling(L)``
+    is formed from small terms only, so no ``s log L``-sized cancellation
+    occurs. ``e_n`` follow from ``n e_n = (s - 1) sum_(k=1..n) k l_k
+    e_(n-k)`` with the coefficients of :func:`_log_sinhc_coefficients`.
+
+    Args:
+        large: Large shape ``L``.
+        small: Small shape ``s``.
+        point: Small-side point ``t`` with ``-log(1 - t) <= 1``.
+        complement: ``1 - t`` formed without cancellation.
+        upper: Return ``I_t(s, L)`` (``P`` series) when true, else
+            ``I_(1-t)(L, s)`` (``Q`` series).
+
+    Returns:
+        The requested value (accurate in relative terms when it is the
+        smaller of the pair), or ``None`` if the series does not settle within
+        80 terms.
+
+    Equation:
+        [EQ-NUM-BETA-002], [EQ-NUM-GAMMA-001], [EQ-NUM-STIRLING-001].
+
+    References:
+        [REF-DIDONATO-MORRIS-1992], [REF-NIST-DLMF-BETA, Section 8.17].
+
+    """
+    big_n = large + 0.5 * (small - 1.0)
+    w = -math.log1p(-point) if point <= 0.5 else -math.log(complement)
+    z = big_n * w
+    ratio = small / large
+    log_prefactor = (
+        large * log1pmx(ratio)
+        + (small - 0.5) * math.log1p(ratio)
+        - small * math.log1p(0.5 * (small - 1.0) / large)
+        + stirling_error(large + small)
+        - stirling_error(large)
+    )
+    coefficients = _log_sinhc_coefficients()
+    exponent = small - 1.0
+    e_values = [1.0]
+    weight = 1.0
+    total = 0.0
+    previous = math.inf
+    for n in range(_LOG_SINHC_TERMS):
+        shape = small + 2.0 * n
+        if n > 0:
+            following = math.fsum(
+                k * coefficients[k - 1] * e_values[n - k] for k in range(1, n + 1)
+            )
+            e_values.append(exponent * following / n)
+            weight *= (shape - 2.0) * (shape - 1.0) / (big_n * big_n)
+        factor = e_values[n] * weight
+        if upper:
+            term = factor * regularized_gamma_p(shape, z)
+        else:
+            term = factor * regularized_gamma_q(shape, z)
+            if n > 1 and abs(term) > abs(previous):
+                break
+            previous = term
+        total += term
+        if n > 0 and abs(term) <= 1e-17 * abs(total):
+            break
+    else:
+        return None
+    return _clamp_probability(math.exp(log_prefactor) * total)
 
 
 def _beta_continued_fraction(a: float, b: float, x: float) -> float:
@@ -691,10 +877,7 @@ def _beta_continued_fraction(a: float, b: float, x: float) -> float:
     for index in range(1, _MAX_ITERATIONS + 1):
         doubled = 2.0 * index
         coefficient = (
-            index
-            * (b - index)
-            * x
-            / ((a_minus_one + doubled) * (a + doubled))
+            index * (b - index) * x / ((a_minus_one + doubled) * (a + doubled))
         )
         d = 1.0 + coefficient * d
         if abs(d) < _FPMIN:
@@ -723,4 +906,3 @@ def _beta_continued_fraction(a: float, b: float, x: float) -> float:
         if abs(delta - 1.0) <= _EPSILON:
             return fraction
     raise ArithmeticError("regularized-beta continued fraction did not converge")
-

@@ -598,11 +598,9 @@ class MomentAndSamplingTests(unittest.TestCase):
                 law.sample(-1)
 
     def test_heavy_tail_moment_conventions(self) -> None:
-        """Undefined moments raise and infinite moments return ``inf``."""
-        with self.assertRaises(ValueError):
-            _ = StudentT(1.0).mean
-        with self.assertRaises(ValueError):
-            _ = StudentT(0.5).variance
+        """Undefined moments are ``nan`` and divergent moments return ``inf``."""
+        self.assertTrue(math.isnan(StudentT(1.0).mean))
+        self.assertTrue(math.isnan(StudentT(0.5).variance))
         self.assertEqual(StudentT(1.5).variance, math.inf)
         self.assertEqual(StudentT(3.0, 2.0, 1.0).variance, 3.0)
         self.assertEqual(FisherF(3.0, 2.0).mean, math.inf)
@@ -643,11 +641,16 @@ class InvalidParameterTests(unittest.TestCase):
             Gamma("2")  # type: ignore[arg-type]
 
     def test_arguments_and_probabilities_are_validated(self) -> None:
-        """Non-finite points and out-of-range probabilities raise."""
+        """NaN points and out-of-range probabilities raise; infinities are limits."""
         for label, law in catalog().items():
             with self.subTest(label):
                 with self.assertRaises(ValueError):
-                    law.cdf(math.inf)
+                    law.cdf(math.nan)
+                self.assertEqual(law.cdf(math.inf), 1.0)
+                self.assertEqual(law.cdf(-math.inf), 0.0)
+                self.assertEqual(law.sf(-math.inf), 1.0)
+                self.assertEqual(law.pdf(math.inf), 0.0)
+                self.assertEqual(law.log_pdf(-math.inf), -math.inf)
                 with self.assertRaises(ValueError):
                     law.quantile(1.5)
                 with self.assertRaises(ValueError):

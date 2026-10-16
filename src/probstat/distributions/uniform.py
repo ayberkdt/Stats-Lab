@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import ContinuousDistribution
 from .constraints import FINITE_REAL
 from .support import RealSupport
 
 
 @dataclass(frozen=True, slots=True)
-class Uniform:
+class Uniform(ContinuousDistribution):
     """A continuous uniform law on ``[lower, upper]``.
 
     Args:
@@ -276,12 +277,15 @@ class Uniform:
         """
         return self.width * self.width / 12.0
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible continuous uniform observations.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of observations in the support interval.
@@ -296,7 +300,7 @@ class Uniform:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         return tuple(
             self.lower + generator.random() * self.width
             for _ in range(checked_size)

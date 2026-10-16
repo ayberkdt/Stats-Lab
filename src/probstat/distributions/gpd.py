@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import ContinuousDistribution
 from ._continuous import open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
@@ -21,7 +22,7 @@ _EXP_LIMIT = 709.0
 
 
 @dataclass(frozen=True, slots=True)
-class GeneralizedPareto:
+class GeneralizedPareto(ContinuousDistribution):
     """A GPD law ``S(x) = (1 + xi z)^(-1/xi)``, ``z = (x - mu)/sigma >= 0``.
 
     The Pickands-Balkema-de Haan theorem makes this the limit law of
@@ -436,12 +437,15 @@ class GeneralizedPareto:
         """
         return math.log(self.sigma) + self.xi + 1.0
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible GPD observations by inverse survival transform.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of pseudo-random observations.
@@ -459,7 +463,7 @@ class GeneralizedPareto:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         return tuple(
             self._from_log_tail(-math.log(open_unit(generator)))
             for _ in range(checked_size)

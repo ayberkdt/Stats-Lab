@@ -3,22 +3,23 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import DiscreteDistribution
 from ._special import regularized_beta
 from .constraints import POSITIVE_FINITE, POSITIVE_INTEGER
 from .support import IntegerSupport
 
 
 @dataclass(frozen=True, slots=True)
-class NegativeBinomial:
+class NegativeBinomial(DiscreteDistribution):
     """Failures before the ``r``-th success in independent Bernoulli trials.
 
     Args:
@@ -239,12 +240,15 @@ class NegativeBinomial:
         """
         return self.r * (1.0 - self.p) / (self.p * self.p)
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[int, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[int, ...]:
         """Draw reproducible counts as sums of geometric waiting counts.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of failures before the ``r``-th success.
@@ -261,7 +265,7 @@ class NegativeBinomial:
         checked_size = require_non_negative_integer(size, name="size")
         if self.p == 1.0:
             return (0,) * checked_size
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         log_failure = math.log1p(-self.p)
         return tuple(
             sum(

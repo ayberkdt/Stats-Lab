@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import ContinuousDistribution
 from ._continuous import (
     LOG_MAX,
     LOG_MIN,
@@ -31,7 +32,7 @@ from .support import RealSupport
 
 
 @dataclass(frozen=True, slots=True)
-class Gamma:
+class Gamma(ContinuousDistribution):
     """A gamma law with shape ``k`` and rate ``lambda`` (scale ``1/lambda``).
 
     Density ``f(x) = lambda^k x^(k-1) exp(-lambda x) / Gamma(k)`` on ``x >= 0``.
@@ -362,12 +363,15 @@ class Gamma:
         """
         return self.shape / (self.rate * self.rate)
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible gamma observations by Marsaglia-Tsang.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of non-negative pseudo-random observations; for very small
@@ -385,7 +389,7 @@ class Gamma:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         log_scale = -math.log(self.rate)
         observations: list[float] = []
         for _ in range(checked_size):

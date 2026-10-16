@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import DiscreteDistribution
 from .constraints import PROBABILITY
 from .support import IntegerSupport
 
 
 @dataclass(frozen=True, slots=True)
-class Bernoulli:
+class Bernoulli(DiscreteDistribution):
     """A Bernoulli distribution with success probability ``p``.
 
     Args:
@@ -205,12 +206,15 @@ class Bernoulli:
         """
         return self.p * (1.0 - self.p)
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[int, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[int, ...]:
         """Draw reproducible pseudo-random Bernoulli observations.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             A tuple containing ``size`` zeros and ones.
@@ -225,6 +229,6 @@ class Bernoulli:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         return tuple(int(generator.random() < self.p) for _ in range(checked_size))
 

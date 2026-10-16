@@ -3,22 +3,23 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 from statistics import NormalDist
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import ContinuousDistribution
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
 
 
 @dataclass(frozen=True, slots=True)
-class Normal:
+class Normal(ContinuousDistribution):
     """A univariate normal distribution parameterized by mean and scale.
 
     Args:
@@ -240,12 +241,15 @@ class Normal:
         """
         return self.sigma**2
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible pseudo-random normal observations.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             A tuple of ``size`` pseudo-random observations.
@@ -260,6 +264,6 @@ class Normal:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         return tuple(generator.gauss(self.mu, self.sigma) for _ in range(checked_size))
 
