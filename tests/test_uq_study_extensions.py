@@ -84,7 +84,7 @@ class ExtremesStageTests(unittest.TestCase):
         """The stage fits the latest propagation sample exactly like fit_pot."""
         study = UQStudy(capacity_model(), seed=11)
         study.propagate(4096, design="mc")
-        result = study.extremes("g", tail="lower", level=0.0)
+        result = study.extremes("g", tail="lower", level=0.0, reuse=True)
         values = study.latest("propagation").result["g"].values
         oriented = tuple(-v for v in values)
         cut = quantile(oriented, 0.95)
@@ -142,18 +142,31 @@ class ExtremesStageTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             study.extremes("g", tail="sideways")  # type: ignore[arg-type]
         with self.assertRaisesRegex(ValueError, "inside the threshold"):
-            study.extremes("g", level=0.0)
+            study.extremes("g", level=0.0, reuse=True)
+        with self.assertRaisesRegex(ValueError, "independent draws"):
+            study.extremes("g", design="sobol")
+        with self.assertRaisesRegex(ValueError, "either size"):
+            study.extremes("g", size=100, reuse=True)
+        # No evaluation was spent, so no stage was recorded.
         self.assertEqual([r.stage for r in study.records], ["propagation"])
+        # A fresh sample that is spent before the error is still accounted.
+        with self.assertRaisesRegex(ValueError, "inside the threshold"):
+            study.extremes("g", level=0.0, size=600)
+        aborted = study.records[-1]
+        self.assertEqual(aborted.status, "aborted")
+        self.assertEqual(aborted.evaluations, 600)
+        self.assertIn("inside the threshold", aborted.error or "")
+        self.assertEqual(study.total_evaluations, 1112)
 
 
 class InformationStageTests(unittest.TestCase):
     """Mutual-information sensitivity inside the study."""
 
     def test_reproduces_ksg_on_propagation_prefix(self) -> None:
-        """The stage equals KSG on the first max_points propagated runs."""
+        """With reuse, the stage equals KSG on the first max_points MC runs."""
         study = UQStudy(capacity_model(), seed=11)
-        sample = study.propagate(1024, design="sobol")
-        result = study.information_sensitivity("g", max_points=300)
+        sample = study.propagate(1024, design="mc")
+        result = study.information_sensitivity("g", max_points=300, reuse=True)
         outputs = sample["g"].values[:300]
         for name, value in result.as_mapping().items():
             expected = ksg_mutual_information(

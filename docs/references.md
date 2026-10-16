@@ -2121,3 +2121,14 @@ DOI: [10.1145/3147.3165](https://doi.org/10.1145/3147.3165).
 F. N. Fritsch and R. E. Carlson. "Monotone Piecewise Cubic Interpolation."
 *SIAM Journal on Numerical Analysis* 17(2), 238-246, 1980.
 doi:10.1137/0717021.
+
+## REF-DAVID-NAGARAJA-2003
+
+H. A. David and H. N. Nagaraja. *Order Statistics*. Third edition. Wiley
+Series in Probability and Statistics. John Wiley & Sons, Hoboken, NJ, 2003.
+
+## REF-STEIN-1945
+
+Charles Stein. "A Two-Sample Test for a Linear Hypothesis Whose Power is
+Independent of the Variance." *The Annals of Mathematical Statistics* 16(3),
+243-258, 1945.

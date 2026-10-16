@@ -128,8 +128,9 @@ def plot_tail_analysis(
     zeta = fit.rate.probability
     periods = [item.return_period for item in tail.return_levels]
     longest = max([10.0 * count, *periods]) * 2.0
-    if tail.level is not None and tail.pot_probability > 0.0:
-        longest = max(longest, 2.0 / tail.pot_probability)
+    pot = tail.pot_probability
+    if tail.level is not None and pot is not None and pot > 0.0:
+        longest = max(longest, 2.0 / pot)
     bottom = 1.0 / longest
     grid = _log_grid(1.02 / zeta, longest * 3.0, 90)
     curve = [_oriented(fit.return_level(t, confidence=confidence), sign) for t in grid]
@@ -201,9 +202,9 @@ def plot_tail_analysis(
     labels = [(levels[anchor], probabilities[anchor], "fitted GPD tail", palette.model)]
     if tail.level is not None:
         reference_line(axes, x=tail.level, label=f"level {tail.level:g}")
-        if tail.pot_probability > 0.0:
+        if pot is not None and pot > 0.0:
             points(
-                axes, [tail.level], [tail.pot_probability], color=palette.model,
+                axes, [tail.level], [pot], color=palette.model,
                 size=46.0, zorder=5.0,
             )  # fmt: skip
         if tail.empirical is not None and tail.empirical.probability > 0.0:
@@ -243,16 +244,12 @@ def plot_tail_analysis(
         f"P(Y {relation} x) per run [log scale]",
     )
     direct_labels(axes, labels)
-    if tail.level is not None and tail.empirical is not None:
+    if tail.level is not None and tail.empirical is not None and pot is not None:
         interval = tail.empirical.confidence_interval
-        verdict = (
-            "inside"
-            if interval.lower <= tail.pot_probability <= interval.upper
-            else "outside"
-        )
+        verdict = "inside" if interval.lower <= pot <= interval.upper else "outside"
         title = (
             f"POT puts P({tail.quantity} {relation} {tail.level:g}) at "
-            f"{tail.pot_probability:.2e}, {verdict} the empirical "
+            f"{pot:.2e}, {verdict} the empirical "
             f"{interval.confidence:.0%} interval"
         )
     else:

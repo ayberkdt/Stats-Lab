@@ -20,14 +20,14 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from types import MappingProxyType
 from typing import Protocol
 
 from .taxonomy import QuantityOfInterest
 
 
-class WorkflowStep(str, Enum):
+class WorkflowStep(StrEnum):
     """The seven steps of a verification-validation-UQ workflow, in order.
 
     References:
@@ -44,7 +44,7 @@ class WorkflowStep(str, Enum):
     PREDICTION = "prediction"
 
 
-class StepStatus(str, Enum):
+class StepStatus(StrEnum):
     """Progress of one workflow step.
 
     References:
@@ -58,7 +58,7 @@ class StepStatus(str, Enum):
     NOT_APPLICABLE = "not_applicable"
 
 
-class ProblemDirection(str, Enum):
+class ProblemDirection(StrEnum):
     """Whether a step maps inputs to outputs, data to inputs, or neither.
 
     A forward problem pushes an input law through the model; an inverse
@@ -121,8 +121,10 @@ WORKFLOW_GUIDE: Mapping[WorkflowStep, StepGuide] = MappingProxyType(
                 "probstat.modeling.JointInput",
                 "probstat.modeling.fit_joint_input",
                 "probstat.workflow.UQStudy.from_data",
+                "probstat.workflow.UQStudy.with_inputs",
+                "probstat.workflow.UQStudy.adopt_posterior",
             ),
-            ("fitting",),
+            ("fitting", "input_law"),
         ),
         WorkflowStep.VERIFICATION: StepGuide(
             WorkflowStep.VERIFICATION,
@@ -497,7 +499,9 @@ class UQWorkflowRecord:
         propagation; ``calibration``; ``prediction``; ``validation``;
         ``verification``) and the
         step is marked complete with an evidence line naming the stage, its
-        label, stream seed, and evaluation count.
+        label, stream seed, and evaluation count. Stages whose ``status`` is
+        not ``"complete"`` (aborted or stopped by a budget) are not evidence
+        and are skipped.
 
         Args:
             stages: Objects with ``stage``, ``label``, ``seed``, and
@@ -524,6 +528,8 @@ class UQWorkflowRecord:
             for attribute in ("stage", "label", "seed", "evaluations"):
                 if not hasattr(item, attribute):
                     raise TypeError(f"stages[{index}] has no attribute {attribute!r}")
+            if getattr(item, "status", "complete") != "complete":
+                continue
             kind = str(item.stage)
             if kind not in stage_to_step:
                 raise ValueError(f"stage kind {kind!r} maps to no workflow step")

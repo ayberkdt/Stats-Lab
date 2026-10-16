@@ -148,6 +148,14 @@ def _default_palette() -> ChartPalette:
 _ACTIVE: list[ChartPalette] = [_default_palette()]
 
 
+MATPLOTLIB_MISSING = (
+    "probstat figures need the optional Matplotlib dependency: install it with "
+    "`pip install probstat-library[visualization]` (or `pip install -e "
+    ".[visualization]` from a checkout). HTML study reports still work without "
+    "it and omit the figures."
+)
+
+
 def active_palette() -> ChartPalette:
     """Return the palette of the innermost active theme context.
 
@@ -174,10 +182,22 @@ def pyplot() -> Any:
     try:
         import matplotlib.pyplot as plt
     except ImportError as error:
-        raise ImportError(
-            "Visualization requires `pip install -e .[visualization]`"
-        ) from error
+        raise ImportError(MATPLOTLIB_MISSING) from error
     return plt
+
+
+def matplotlib_available() -> bool:
+    """Return whether the optional Matplotlib dependency can be imported.
+
+    References:
+        [REF-MATPLOTLIB]. This dependency adapter evaluates no equation.
+
+    """
+    try:
+        import matplotlib  # noqa: F401
+    except ImportError:
+        return False
+    return True
 
 
 @functools.lru_cache(maxsize=1)
@@ -294,11 +314,17 @@ def chart_theme(palette: ChartPalette = PORCELAIN) -> Iterator[ChartPalette]:
     Yields:
         The active palette.
 
+    Raises:
+        ImportError: If Matplotlib is not installed (with install advice).
+
     References:
         [REF-MATPLOTLIB]. No equation is evaluated.
 
     """
-    import matplotlib
+    try:
+        import matplotlib
+    except ImportError as error:
+        raise ImportError(MATPLOTLIB_MISSING) from error
 
     _ACTIVE.append(palette)
     try:

@@ -9172,3 +9172,81 @@ first check `n in {n_0, n_0 + h, n_0 + 2h, ...}` with `r_n <= epsilon`, or at
 - Code: `statistics.run_until`, `statistics.RunningMoments`,
   `monte_carlo.estimate_mean_streaming`.
 - Source: [REF-ROBERT-CASELLA-2004, Chapters 3-4] ([EQ-MC-SE-001]).
+
+## Central model contract, evaluation engine, and study workflow (W1)
+
+### EQ-PROP-QCI-001 — Distribution-free order-statistic interval for a quantile
+
+`P(Y_(l) <= xi_p <= Y_(u)) = B(u - 1) - B(l - 1)` with `B` the
+`Binomial(n, p)` CDF; `l = max{k >= 1 : B(k - 1) <= alpha/2}`,
+`u = min{k <= n : B(k - 1) >= 1 - alpha/2}`.
+
+- Domain: `n` independent draws of a continuous law, `0 < p < 1`; undefined
+  (error) when no rank pair reaches the confidence.
+- Meaning: an exact, law-free confidence interval for the `p`-quantile whose
+  coverage is at least `1 - alpha`, with each tail at most `alpha/2`; for LHS
+  or quasi-random samples it is a conservative reference only.
+- Code: `propagation.order_statistic_interval`,
+  `propagation.OutputDistribution.quantile_interval`.
+- Source: [REF-DAVID-NAGARAJA-2003, Section 7.1].
+
+### EQ-PROP-RQMC-CI-001 — Student-t interval over randomized replicates
+
+`theta_hat = (1/r) sum_k theta_k`, `s_r^2 = sum_k (theta_k - theta_hat)^2 /
+(r - 1)`, interval `theta_hat +- t_{1 - alpha/2, r - 1} s_r / sqrt(r)`.
+
+- Domain: `r >= 2` independent randomizations (scrambles, shifts, or
+  independent Monte Carlo batches) of one design; `theta_k` the replicate
+  mean or exceedance fraction.
+- Meaning: the honest error statement of randomized quasi-Monte Carlo; the
+  replicate estimates are i.i.d. and unbiased, and the t quantile is accurate
+  when their distribution is near normal.
+- Code: `propagation.replicate_interval`,
+  `propagation.OutputDistribution.mean_interval`,
+  `propagation.OutputDistribution.exceedance_interval`.
+- Source: [REF-L-ECUYER-2018] and [REF-OWEN-2013, Chapter 17].
+
+### EQ-PROP-VARCI-001 — Chi-square interval for a normal variance
+
+`[(n - 1) s^2 / chi2_{1 - alpha/2, n - 1}, (n - 1) s^2 / chi2_{alpha/2, n - 1}]`.
+
+- Domain: `n >= 2` independent normal observations with sample variance
+  `s^2`.
+- Meaning: exact for normal data because `(n - 1) s^2 / sigma^2 ~
+  chi2_{n - 1}`; not robust: for non-normal data its coverage depends on the
+  kurtosis even as `n` grows, so the percentile bootstrap
+  ([EQ-INF-BOOT-002]) is offered as the alternative.
+- Code: `propagation.OutputDistribution.variance_interval`.
+- Source: [REF-CASELLA-BERGER-2002, Chapter 9].
+
+### EQ-WF-SEQ-FRESH-001 — Pilot-sized fresh-sample estimate
+
+A sequential pilot stops at `N = min{n in {n_0, n_0 + h, ...} : r_n <= epsilon}`
+(or `N_max`) with `r_n` from [EQ-STAT-STREAM-007] or [EQ-MC-PROB-001]; the
+reported estimate is `theta_hat = (1/N) sum_{i=1}^{N} g(X'_i)` with
+`X'_1, ..., X'_N` drawn independently of the pilot.
+
+- Domain: any integrable `g`; pilot and final draws on independent streams.
+- Meaning: given `N` the fresh sample is a fixed-size Monte Carlo sample, so
+  `E[theta_hat | N] = E[g(X)]` and fixed-`n` intervals keep their nominal
+  coverage; reusing the pilot instead biases the estimate because stopping
+  depends on the values observed (optional stopping). The two-stage idea of
+  sizing a sample from a first stage goes back to Stein.
+- Code: `workflow.UQStudy.propagate_until` (`final="fresh"`).
+- Source: [REF-STEIN-1945] and [REF-ROBERT-CASELLA-2004, Chapters 3-4].
+
+### EQ-WF-EMPIRICAL-001 — Interpolated empirical law of posterior draws
+
+For distinct sorted points `x_1 < ... < x_m`: `F(x) = (k - 1 + (x - x_k) /
+(x_{k+1} - x_k)) / (m - 1)` on `[x_k, x_{k+1}]`, density
+`1 / ((m - 1)(x_{k+1} - x_k))`, quantile `Q(p) = x_k + (h - k)(x_{k+1} - x_k)`
+with `h = 1 + p (m - 1)`, `k = floor(h)`; mean
+`sum_k (x_k + x_{k+1}) / (2 (m - 1))`, second moment
+`sum_k (x_k^2 + x_k x_{k+1} + x_{k+1}^2) / (3 (m - 1))`.
+
+- Domain: `m >= 2` distinct finite points; support `[x_1, x_m]`.
+- Meaning: the continuous law whose quantile function is the type-7 sample
+  quantile ([EQ-STAT-QUANT-001]); each gap carries probability `1/(m - 1)`
+  spread uniformly, so moments are exact sums of uniform-segment moments.
+- Code: `workflow.EmpiricalMarginal`, `workflow.posterior_joint_input`.
+- Source: [REF-HYNDMAN-FAN-1996].

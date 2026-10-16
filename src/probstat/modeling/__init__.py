@@ -24,11 +24,12 @@ from .inputs import (
     standard_normal_cdf,
     standard_normal_quantile,
 )
-from .model import EvaluationCounter, ProbabilisticModel
+from .model import EvaluationBatch, EvaluationCounter, ProbabilisticModel
 from .random_field import RandomFieldInput, karhunen_loeve_inputs
 
 __all__ = [
     "ContinuousMarginal",
+    "EvaluationBatch",
     "EvaluationCounter",
     "GaussianCopulaFit",
     "JointInput",

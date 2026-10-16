@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass
-from types import MappingProxyType
+from dataclasses import dataclass, field
 
 from probstat.foundations.validation import require_finite_real
 from probstat.monte_carlo import (
@@ -19,7 +18,16 @@ from probstat.numerics import (
     composite_simpson,
     composite_trapezoid,
 )
-from probstat.uq import ForwardModel, QuantityOfInterest, evaluate_model
+from probstat.uq import (
+    FailedEvaluation,
+    FailureLog,
+    FailurePolicy,
+    ForwardModel,
+    FrozenMapping,
+    QuantityOfInterest,
+    evaluate_model,
+)
+from probstat.uq.evaluation import require_failure_policy
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,9 +115,12 @@ class PropagationResult:
     """Immutable raw outputs, summaries, and forward-model evaluation cost.
 
     Args:
-        outputs: Read-only QoI-name mapping to ordered propagated observations.
+        outputs: Read-only QoI-name mapping to ordered propagated observations
+            of the successful runs.
         summaries: Read-only QoI-name mapping to statistical summaries.
         model_evaluations: Number of complete forward-model calls.
+        failures: Failed runs dropped under the ``"skip"``/``"record"``
+            policies (indices refer to the input samples).
 
     References:
         [REF-SMITH-UQ-2024, Chapters 3-4].
@@ -119,6 +130,7 @@ class PropagationResult:
     outputs: Mapping[str, tuple[float, ...]]
     summaries: Mapping[str, OutputSummary]
     model_evaluations: int
+    failures: tuple[FailedEvaluation, ...] = field(default=(), repr=False)
 
 
 def propagate_samples(
@@ -128,8 +140,13 @@ def propagate_samples(
     *,
     thresholds: Mapping[str, float] | None = None,
     confidence: float = 0.95,
+    on_failure: FailurePolicy = "raise",
 ) -> PropagationResult:
     """Propagate explicit input samples through a named forward model.
+
+    Under ``on_failure="skip"`` or ``"record"`` failed runs are dropped and
+    listed in the result; the summaries then describe the successful runs
+    only and are biased unless failures are unrelated to the output.
 
     Args:
         model: Deterministic named-input/named-output forward map.
@@ -137,6 +154,7 @@ def propagate_samples(
         quantities: Non-empty distinctly named quantities of interest.
         thresholds: Optional QoI-name mapping for strict exceedance ``Y>S``.
         confidence: Nominal confidence for mean and Wilson intervals.
+        on_failure: ``"raise"`` (default), ``"skip"``, or ``"record"``.
 
     Returns:
         Immutable raw outputs, summaries, threshold probabilities, and cost.
@@ -144,7 +162,8 @@ def propagate_samples(
     Raises:
         TypeError: If models, samples, quantities, thresholds, or values are invalid.
         ValueError: If collections are empty, samples are insufficient, names
-            disagree, or numerical domains are invalid.
+            disagree, numerical domains are invalid, or fewer than two runs
+            succeed.
 
     Equation:
         [EQ-UQ-001], [EQ-MC-MEAN-001], [EQ-MC-VAR-001],
@@ -178,11 +197,30 @@ def propagate_samples(
             for name, value in thresholds.items()
         }
 
+    policy = require_failure_policy(on_failure)
+    log = FailureLog(max_records=max(1, len(samples)))
+    failures: list[FailedEvaluation] = []
     collected: dict[str, list[float]] = {name: [] for name in names}
-    for parameters in samples:
-        outputs = evaluate_model(model, parameters, requested)
+    for index, parameters in enumerate(samples):
+        before = log.count
+        outputs = evaluate_model(
+            model, parameters, requested, on_failure=policy, failures=log
+        )
+        if outputs is None:
+            if log.count > before:
+                last = log.records[-1]
+                failures.append(
+                    FailedEvaluation(index, last.inputs, last.error_type, last.message)
+                )
+            continue
         for name in names:
             collected[name].append(outputs[name])
+    completed = len(samples) - log.count
+    if completed < 2:
+        raise ValueError(
+            f"only {completed} of {len(samples)} model runs succeeded; "
+            "propagation needs at least two"
+        )
 
     immutable_outputs = {
         name: tuple(values) for name, values in collected.items()
@@ -204,9 +242,10 @@ def propagate_samples(
         else:
             summaries[name] = OutputSummary(mean_estimate)
     return PropagationResult(
-        MappingProxyType(immutable_outputs),
-        MappingProxyType(summaries),
-        len(samples),
+        FrozenMapping(immutable_outputs),
+        FrozenMapping(summaries),
+        completed,
+        tuple(failures),
     )
 
 
