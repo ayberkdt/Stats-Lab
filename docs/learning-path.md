@@ -52,7 +52,6 @@ With those foundations, switch to the integrated toolset built on one model:
 - [Markov reliability and availability](foundations/markov-reliability.md):
   continuous-time Markov chains solved by uniformization with error bounds,
   repairable and standby systems, MTTF/MTBF, and phased missions.
-
 - [Risk registers, FMECA, and reliability data](foundations/risk-register-and-fmeca.md):
   quantitative risk registers with exact totals and mitigation waterfalls,
   MIL-STD-1629A criticality (and the flaws of RPN), the MIL-STD-882E matrix,
@@ -61,11 +60,14 @@ With those foundations, switch to the integrated toolset built on one model:
 - [Cost analysis](foundations/cost-analysis.md): discounting, life-cycle cost
   models, cost-risk S-curves with correlation, contingency and JCL, learning
   curves, maintenance optimisation, spares, and the cost of unreliability.
-
 - [Exact system reliability](foundations/system-reliability.md): structure
   functions on binary decision diagrams, minimal cut sets, importance
   measures, common-cause failures, epistemic moments, MTTF, availability, and
   phased missions, all computed exactly rather than by sampling.
+- [Systems engineering guide](foundations/systems-engineering-guide.md): the
+  whole chain from component test data through Markov subsystems, the exact
+  mission system, phases, and epistemic uncertainty to cost and risk, with a
+  method-selection table and the assumptions to state in every report.
 - [Surrogate models](foundations/surrogate-models.md): polynomial chaos and
   Gaussian-process emulators that replace an expensive forward model.
 - [Filtering and data assimilation](foundations/filtering-and-data-assimilation.md):
