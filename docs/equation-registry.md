@@ -10842,3 +10842,404 @@ mission unreliability.
   S-curve, not by this expectation.
 - Code: `workflow.MissionAssessment.cost`.
 - Source: [REF-NASA-CEH-2015], [REF-RAUSAND-BARROS-HOYLAND-2021].
+
+## Numerical core, distributions, sampling designs, and surrogate numerics (W2, ADR-0059)
+
+### EQ-OPT-FD-003 — Relative finite-difference steps
+
+`h_i = c max(|x_i|, typ_i)` with `c = sqrt(eps) ~ 1.5e-8` (forward) or
+`c = eps^(1/3) ~ 6.1e-6` (central), rounded so that `x_i + h_i` is exactly
+representable; `typ_i` is a typical magnitude (default 1, or `|x0_i|` inside
+BFGS). The rounding error of a central quotient is about `eps |f| / h_i`.
+
+- Domain: `f` smooth near `x`; supersedes the step quoted in
+  [EQ-OPT-FD-001] for the default; an explicit `relative_step` keeps
+  `h = c max(1, |x_i|)` and an explicit `step` is used as given.
+- Meaning: steps relative to the variable, balancing truncation
+  (`O(h)` forward, `O(h^2)` central) against rounding (`O(eps/h)`).
+- Code: `optimization.central_gradient`, `optimization.forward_gradient`,
+  `optimization.central_jacobian`.
+- Source: [REF-NOCEDAL-WRIGHT-2006, Section 8.1], [REF-DENNIS-SCHNABEL-1996,
+  Section 5.4].
+
+### EQ-OPT-FD-004 — One-sided second-order difference
+
+`f'(x) ~= s (-3 f(x) + 4 f(x + s h) - f(x + 2 s h)) / (2 h)`, `s = +-1`;
+first order `s (f(x + s h) - f(x)) / h` when `x + 2 s h` also fails.
+
+- Domain: `f` defined on the chosen side; used when `f(x -+ h)` raises or is
+  non-finite (domain boundaries); error `O(h^2)`.
+- Meaning: gradients next to a domain boundary without leaving the domain.
+- Code: `optimization.central_gradient`, `optimization.forward_gradient`.
+- Source: [REF-FORNBERG-1988], [REF-NOCEDAL-WRIGHT-2006, Section 8.1].
+
+### EQ-OPT-WOLFE-001 — Strong Wolfe conditions
+
+Accept `alpha` when `f(x + alpha p) <= f(x) + c1 alpha g'p` and
+`|grad f(x + alpha p)' p| <= c2 |g'p|`, `c1 = 1e-4`, `c2 = 0.9`; found by
+bracketing (doubling) and zoom with safeguarded cubic or quadratic
+interpolation.
+
+- Domain: descent direction `g'p < 0`, `f` bounded below along `p`.
+- Meaning: guarantees `y's > 0`, so the BFGS update stays positive definite.
+- Code: `optimization.minimize_bfgs`.
+- Source: [REF-NOCEDAL-WRIGHT-2006, Section 3.5, Algorithms 3.5-3.6].
+
+### EQ-OPT-BFGS-002 — Initial inverse-Hessian scaling and stopping rules
+
+Before the first update `H_0 = (s'y / y'y) I`. Stop when `||g||_2 <= tol`
+(absolute), or when `max_i |s_i| / max(|x_i|, typ_i) <= eps^(2/3)`, or when a
+line search fails with predicted decrease `-g'p/2 <= 16 eps |f|`; a
+finite-difference gradient also stops at `||g|| <= ||(eps |f| / h_i)_i||`
+when that resolution exceeds `tol`. Any other line-search failure, and the
+iteration limit, are reported as not converged.
+
+- Domain: smooth objectives; the tolerances do not depend on an additive
+  constant in `f`; only the two floating-point resolution limits involve
+  `eps |f|`.
+- Meaning: scale-aware first step and honest convergence reporting.
+- Code: `optimization.minimize_bfgs`.
+- Source: [REF-NOCEDAL-WRIGHT-2006, Equation 6.20], [REF-DENNIS-SCHNABEL-1996,
+  Section 7.2].
+
+### EQ-OPT-BOX-001 — Box-constraint transformations
+
+`x = l + (u - l)(1 + sin z)/2` (two bounds), `x = l - 1 + sqrt(z^2 + 1)`
+(lower only), `x = u + 1 - sqrt(z^2 + 1)` (upper only); the optimizer works
+in `z` with gradient `(dF/dx)(dx/dz)`.
+
+- Domain: `l < u`; start points on a bound are moved inward by `1e-3` of the
+  width (or of `max(1, |bound|)`) because `dx/dz = 0` there.
+- Meaning: unconstrained minimization whose every evaluation lies in the box;
+  a minimum on a bound is a stationary point in `z`.
+- Code: `optimization.BoxTransform`, `optimization.minimize_bfgs`,
+  `optimization.minimize_nelder_mead`, `optimization.multi_start`.
+- Source: [REF-JAMES-ROOS-1975].
+
+### EQ-NUM-BETA-002 — Large-shape gamma series for the incomplete beta
+
+With `w = -log(1 - t)`, `N = L + (s - 1)/2` and
+`(sinh(v/2)/(v/2))^(s-1) = sum_n e_n v^(2n)`, `n e_n = (s-1) sum_(k=1..n) k l_k e_(n-k)`,
+`l_k = B_(2k) / (2k (2k)!)`:
+`I_t(s, L) = Gamma(L+s)/(Gamma(L) N^s) sum_n e_n [Gamma(s+2n)/Gamma(s)] N^(-2n) P(s+2n, N w)`,
+and the same sum with `Q(s+2n, N w)` gives `I_(1-t)(L, s)` (asymptotic).
+
+- Domain: `L >= 1e4`, `w <= 1`, `|s-1| s (s+1) <= 24 N^2`; the series in
+  `v` converges for `|v| < 2 pi`.
+- Meaning: `I_x(a, b)` for a large first shape near `x = 1` (Student t with
+  huge degrees of freedom, F with a huge denominator) to about `1e-13`
+  relative, where the continued fraction stops early.
+- Code: `distributions._special.regularized_beta_pair`.
+- Source: [REF-DIDONATO-MORRIS-1992], [REF-NIST-DLMF-BETA, Section 8.17],
+  [REF-NIST-DLMF, Sections 4.19 and 24.2].
+
+### EQ-DIST-BASE-001 — Moments and entropy in probability space
+
+`E[h(X)] = int_0^1 h(Q(u)) du` (with `Q(u) = isf(1 - u)` above the median),
+used for `E[(X - mu)^k]` and `H = -E[log f(X)]` by tanh-sinh quadrature;
+`nan` when the quadrature does not converge.
+
+- Domain: continuous laws with a quantile function; divergent moments give
+  `nan` from the quadrature, so families with heavy tails supply closed
+  forms (`inf` for a divergent moment, `nan` for an undefined one).
+- Meaning: default `skewness`, excess `kurtosis`, `entropy`, and wrapper
+  means and variances.
+- Code: `distributions.ContinuousDistribution`, `distributions.Truncated`.
+- Source: [REF-TAKAHASI-MORI-1974], [REF-CASELLA-BERGER-2002, Chapter 2].
+
+### EQ-DIST-BASE-002 — Log tail probabilities
+
+`log F(x) = log1p(-S(x))` when `F(x) > 1/2`, else `log F(x)`; symmetrically
+for `log S(x)`.
+
+- Domain: any univariate law with `cdf` and `sf`; accuracy limited by the
+  smaller tail's own accuracy (underflow below `1e-308` unless overridden).
+- Meaning: default `log_cdf` and `log_sf`.
+- Code: `distributions.ContinuousDistribution`,
+  `distributions.DiscreteDistribution`.
+- Source: [REF-CASELLA-BERGER-2002, Chapter 1].
+
+### EQ-DIST-BASE-003 — Discrete inverse survival function
+
+`isf(q) = min{k : S(k) <= q}`, found by doubling then bisection on the
+integers using `S` directly; equals `quantile(1 - q)` in exact arithmetic.
+
+- Domain: integer support; `q in [0, 1]`.
+- Meaning: tail-accurate upper quantiles of count laws.
+- Code: `distributions.DiscreteDistribution.isf`.
+- Source: [REF-CASELLA-BERGER-2002, Chapter 2].
+
+### EQ-DIST-BASE-004 — Discrete entropy and central moments
+
+`H = -sum_k p_k log p_k`, `mu_r = sum_k (k - mu)^r p_k`, summed over
+`[quantile(1e-17), isf(1e-17)]`.
+
+- Domain: integer laws with finite moments; neglected mass below `2e-17`.
+- Meaning: default `entropy`, `skewness`, and excess `kurtosis` of count laws.
+- Code: `distributions.DiscreteDistribution`.
+- Source: [REF-COVER-THOMAS-2006, Chapter 2], [REF-JKB-2005, Chapter 1].
+
+### EQ-DIST-STT-005 — Student-t shape and entropy
+
+Skewness `0` (`nu > 3`), excess kurtosis `6/(nu - 4)` (`nu > 4`; `inf` for
+`2 < nu <= 4`), `H = (nu+1)/2 [psi((nu+1)/2) - psi(nu/2)] + log(sqrt(nu) B(nu/2, 1/2)) + log sigma`.
+
+- Domain: `nu > 0`; undefined moments are `nan` (`nu <= 1` for the mean and
+  variance, `nu <= 3` for the skewness, `nu <= 2` for the kurtosis).
+- Meaning: closed forms for the heavy-tailed conventions.
+- Code: `distributions.StudentT`.
+- Source: [REF-JKB-1995, Chapter 28], [REF-COVER-THOMAS-2006, Chapter 8].
+
+### EQ-DIST-TRI-005 — Triangular shape and entropy
+
+Skewness `sqrt 2 (a+b-2c)(2a-b-c)(a-2b+c) / (5 (a^2+b^2+c^2-ab-ac-bc)^(3/2))`
+(`a` lower, `b` upper, `c` mode), excess kurtosis `-3/5`,
+`H = 1/2 + log((b - a)/2)`.
+
+- Domain: `a < b`, `a <= c <= b`.
+- Meaning: closed forms that avoid quadrature across the kink at the mode.
+- Code: `distributions.Triangular`.
+- Source: [REF-KOTZ-VANDORP-2004, Chapter 1].
+
+### EQ-DIST-CAUCHY-001 — Cauchy law
+
+`f = 1/(pi s (1 + z^2))`, `F = atan2(1, -z)/pi`, `S = atan2(1, z)/pi`,
+`Q(p) = loc - s/tan(pi p)` (`p < 1/2`), `H = log(4 pi s)`.
+
+- Domain: `s > 0`; mean, variance, skewness, kurtosis undefined (`nan`).
+- Meaning: heavy-tailed input law with tail-accurate CDF and quantiles.
+- Code: `distributions.Cauchy`.
+- Source: [REF-JKB-1994, Chapter 16].
+
+### EQ-DIST-LAPLACE-001 — Laplace law
+
+`f = exp(-|z|)/(2b)`, `F = exp(z)/2` (`z <= 0`) else `1 - exp(-z)/2`,
+`Q(p) = loc + b log(2p)` (`p <= 1/2`), mean `loc`, variance `2 b^2`,
+excess kurtosis `3`, `H = 1 + log(2b)`.
+
+- Domain: `b > 0`.
+- Meaning: double-exponential input law.
+- Code: `distributions.Laplace`.
+- Source: [REF-JKB-1995, Chapter 24].
+
+### EQ-DIST-RAYLEIGH-001 — Rayleigh law
+
+`f = x/s^2 exp(-x^2/(2s^2))`, `S = exp(-x^2/(2s^2))`,
+`Q(p) = s sqrt(-2 log(1-p))`, mean `s sqrt(pi/2)`, variance
+`(4 - pi) s^2/2`, skewness `2 sqrt(pi)(pi-3)/(4-pi)^(3/2)`, excess kurtosis
+`-(6pi^2 - 24pi + 16)/(4-pi)^2`, `H = 1 + log(s/sqrt 2) + gamma_E/2`.
+
+- Domain: `s > 0`, `x >= 0`.
+- Meaning: magnitude of a bivariate isotropic normal vector.
+- Code: `distributions.Rayleigh`.
+- Source: [REF-JKB-1994, Chapter 18].
+
+### EQ-DIST-PARETO-001 — Pareto type I law
+
+`S(x) = (x_m/x)^alpha` on `x >= x_m`, `f = alpha x_m^alpha / x^(alpha+1)`,
+`Q(p) = x_m (1-p)^(-1/alpha)`, `isf(q) = x_m q^(-1/alpha)`.
+
+- Domain: `x_m > 0`, `alpha > 0`.
+- Meaning: power-law tail input law.
+- Code: `distributions.Pareto`.
+- Source: [REF-JKB-1994, Chapter 20].
+
+### EQ-DIST-PARETO-002 — Pareto moments and entropy
+
+Mean `alpha x_m/(alpha-1)` (`alpha > 1`), variance
+`x_m^2 alpha / ((alpha-1)^2 (alpha-2))` (`alpha > 2`), skewness
+`2(1+alpha)/(alpha-3) sqrt((alpha-2)/alpha)` (`alpha > 3`), excess kurtosis
+`6(alpha^3+alpha^2-6alpha-2)/(alpha(alpha-3)(alpha-4))` (`alpha > 4`),
+`H = log(x_m/alpha) + 1/alpha + 1`.
+
+- Domain: divergent moments on the positive support are `inf`; shape
+  ratios with an infinite variance are `nan`.
+- Meaning: closed forms with the library's moment conventions.
+- Code: `distributions.Pareto`.
+- Source: [REF-JKB-1994, Chapter 20].
+
+### EQ-DIST-PERT-001 — Beta-PERT law
+
+`X = low + (high - low) B`, `B ~ Beta(alpha, beta)`,
+`alpha = 1 + lam (mode - low)/(high - low)`,
+`beta = 1 + lam (high - mode)/(high - low)`, `lam = 4` by default.
+
+- Domain: `low < high`, `low <= mode <= high`, `lam > 0`.
+- Meaning: three-point (minimum, most likely, maximum) expert-judgement law.
+- Code: `distributions.PERT`.
+- Source: [REF-MALCOLM-1959], [REF-VOSE-2008].
+
+### EQ-DIST-PERT-002 — Beta-PERT moments and entropy
+
+Mean `(low + lam mode + high)/(lam + 2)`, variance
+`(mean - low)(high - mean)/(lam + 3)`, beta skewness and excess kurtosis of
+`Beta(alpha, beta)`, `H = log B(alpha, beta) - (alpha-1) psi(alpha) -
+(beta-1) psi(beta) + (alpha+beta-2) psi(alpha+beta) + log(high - low)`.
+
+- Domain: as [EQ-DIST-PERT-001].
+- Meaning: closed-form summaries of the PERT law.
+- Code: `distributions.PERT`.
+- Source: [REF-VOSE-2008], [REF-JKB-1995, Chapter 25].
+
+### EQ-DIST-DUNIF-001 — Discrete uniform law
+
+`p_k = 1/n` on `{low, ..., high}`, `n = high - low + 1`,
+`F(x) = (floor(x) - low + 1)/n`, mean `(low + high)/2`, variance
+`(n^2 - 1)/12`, excess kurtosis `-6(n^2+1)/(5(n^2-1))`, `H = log n`.
+
+- Domain: integers `low <= high`.
+- Meaning: equally likely integer outcomes.
+- Code: `distributions.DiscreteUniform`.
+- Source: [REF-JKB-2005].
+
+### EQ-DIST-HYPERGEOM-001 — Hypergeometric law
+
+`p_k = C(K, k) C(N-K, n-k) / C(N, n)` on `max(0, n+K-N) <= k <= min(n, K)`;
+exact rational masses for `N <= 5000`, `lgamma` otherwise; tails summed on
+the side of the mode `floor((n+1)(K+1)/(N+2))`.
+
+- Domain: integers `0 <= K, n <= N`.
+- Meaning: successes in draws without replacement.
+- Code: `distributions.Hypergeometric`.
+- Source: [REF-JKB-2005, Chapter 6].
+
+### EQ-DIST-HYPERGEOM-002 — Hypergeometric moments
+
+Mean `n K / N`, variance `n K (N-K)(N-n) / (N^2 (N-1))`.
+
+- Domain: `N >= 2` (variance `0` otherwise).
+- Meaning: closed-form moments.
+- Code: `distributions.Hypergeometric`.
+- Source: [REF-JKB-2005, Chapter 6].
+
+### EQ-DIST-AFFINE-001 — Affine transformation of a law
+
+`X = loc + s Y`: `f_X(x) = f_Y((x-loc)/s)/|s|`; `F_X = F_Y` (`s > 0`) or
+`S_Y` (`s < 0`) at `(x-loc)/s`; `Q_X(p) = loc + s Q_Y(p)` (`s > 0`) or
+`loc + s isf_Y(p)`; mean `loc + s mu_Y`, variance `s^2 sigma_Y^2`, skewness
+`sign(s)` times, kurtosis unchanged, `H_X = H_Y + log|s|`.
+
+- Domain: `s != 0`; any continuous base law.
+- Meaning: location-scale families from any law.
+- Code: `distributions.Affine`.
+- Source: [REF-CASELLA-BERGER-2002, Section 2.1].
+
+### EQ-DIST-TRUNC-001 — Truncated law
+
+`Z = F(u) - F(l)` (from survival probabilities when `F(l) > 1/2`),
+`f_T = f/Z` on `[l, u]`, `F_T(x) = (F(x) - F(l))/Z`,
+`Q_T(p) = Q(F(l) + p Z)` or `isf(S(l) - p Z)`.
+
+- Domain: `l < u` (one side may be infinite), `Z > 0`.
+- Meaning: conditioning any continuous law on an interval, with
+  upper-tail accuracy.
+- Code: `distributions.Truncated`.
+- Source: [REF-JKB-1994, Chapter 13].
+
+### EQ-DIST-MIXTURE-001 — Finite mixture
+
+`f = sum w_i f_i`, `F = sum w_i F_i`, `S = sum w_i S_i`; `Q(p)` solves
+`F(x) = p` (or `S(x) = 1 - p`) by Brent's method in
+`[min_i Q_i(p), max_i Q_i(p)]`; mean `sum w_i mu_i`, variance
+`sum w_i (sigma_i^2 + (mu_i - mu)^2)`.
+
+- Domain: positive weights summing to one; continuous components.
+- Meaning: multimodal or contaminated input laws.
+- Code: `distributions.Mixture`.
+- Source: [REF-MCLACHLAN-PEEL-2000, Chapter 1], [REF-BRENT-1973, Chapter 4].
+
+### EQ-DIST-EMPIRICAL-001 — Empirical law (step or interpolated)
+
+Step: `F_n(x) = #{x_i <= x}/n`, `Q(p) = x_(ceil(n p))`. Linear:
+`Q(p) = x_(j+1) + (h - j)(x_(j+2) - x_(j+1))`, `h = (n-1)p`, `j = floor(h)`
+(type 7), CDF linear between `(x_(i), (i-1)/(n-1))`, density
+`1/((n-1)(x_(i+1) - x_(i)))` on each gap.
+
+- Domain: at least two observations; ties create atoms (linear) whose mass
+  `pdf` does not report.
+- Meaning: data-defined input laws; the linear form is continuous.
+- Code: `distributions.Empirical`.
+- Source: [REF-HYNDMAN-FAN-1996], [REF-VAN-DER-VAART-1998, Chapter 19].
+
+### EQ-DIST-EMPIRICAL-002 — Moments of the interpolated empirical law
+
+Linear: mean `(sum x_i - (x_(1) + x_(n))/2)/(n - 1)`, variance
+`sum_gaps ((a-m)^2 + (a-m)(b-m) + (b-m)^2)/(3(n-1))`; step: sample mean and
+`sum (x_i - xbar)^2/n`.
+
+- Domain: as [EQ-DIST-EMPIRICAL-001].
+- Meaning: exact moments of a uniform mixture over the gaps.
+- Code: `distributions.Empirical`.
+- Source: [REF-HYNDMAN-FAN-1996].
+
+### EQ-STAT-KDE-002 — Gaussian KDE quantile and moments
+
+`F_h(x) = (1/n) sum Phi((x - x_i)/h)` is solved for `F_h(x) = p` by Brent's
+method in `[min x_i + h z_p, max x_i + h z_p]`; mean `xbar`, variance
+`sum (x_i - xbar)^2/n + h^2`; draws `x_J + h Z`.
+
+- Domain: `h > 0`, `0 < p < 1`.
+- Meaning: the KDE as a continuous model-input law.
+- Code: `statistics.KernelDensity.quantile`, `statistics.KernelDensity.draw`.
+- Source: [REF-SILVERMAN-1986, Sections 3.3 and 6.4].
+
+### EQ-SAMP-HALTON-002 — Randomized Halton by digit permutations
+
+`x = sum_(k=1..K) pi_(j,k)(d_k(i)) b_j^-k + U b_j^-K`, with independent uniform
+permutations `pi_(j,k)` of `{0, ..., b_j - 1}` for every axis `j` and digit
+position `k` (zero included), `b_j^-K <= 2^-53`, `U ~ U(0,1)`.
+
+- Domain: prime bases; leading zero digits are permuted too.
+- Meaning: every point is uniform on the unit cube (unbiased estimators)
+  while van der Corput strata are preserved.
+- Code: `sampling.halton`.
+- Source: [REF-MATOUSEK-1998], [REF-OWEN-1995].
+
+### EQ-SAMP-OWEN-001 — Owen nested uniform scrambling of a digital net
+
+Digit `k` of each coordinate is XORed with a random bit indexed by
+`(k, d_1 ... d_(k-1))`; below the first `m = ceil(log2 n)` digits all bits
+are independent uniform.
+
+- Domain: base-2 nets; bits drawn lazily from a seeded stream.
+- Meaning: randomized QMC that keeps the net property, makes each point
+  uniform, and reduces variance for smooth integrands.
+- Code: `sampling.sobol(scramble="owen")`.
+- Source: [REF-OWEN-1995].
+
+### EQ-SAMP-MAXIMIN-001 — Morris-Mitchell maximin criterion
+
+`phi_p = (sum_(i<j) d_ij^-p)^(1/p)`, minimized by random within-column swaps
+of a Latin hypercube (kept when `phi_p` decreases).
+
+- Domain: distinct points, `p >= 1` (default 15).
+- Meaning: space-filling Latin hypercubes with large minimum distances.
+- Code: `sampling.maximin_criterion`, `sampling.maximin_latin_hypercube`.
+- Source: [REF-MORRIS-MITCHELL-1995].
+
+### EQ-SAMP-IC-001 — Iman-Conover rank-correlation induction
+
+Scores `S` (columns: permuted `Phi^-1(i/(n+1))`), `corr(S) = Q Q'`,
+`C = P P'`, `T = S (Q^-1)' P'`; reorder each design column to the ranks of
+the matching column of `T`.
+
+- Domain: SPD target correlation with unit diagonal, `n >= d + 2`.
+- Meaning: rank correlation close to `C` while every marginal (Latin
+  stratum) is unchanged.
+- Code: `sampling.iman_conover`.
+- Source: [REF-IMAN-CONOVER-1982].
+
+### EQ-SUR-GP-007 — Precision entries from the inverse Cholesky factor
+
+`M = L^-1` by `M_ij = -(sum_(k=j..i-1) L_ik M_kj)/L_ii`; `(K^-1)_ab =
+sum_(k >= max(a,b)) M_ka M_kb`; the likelihood gradient uses
+`W = alpha alpha' - K^-1` over the upper triangle, and the 1-norm condition
+number is `||K||_1 ||K^-1||_1`.
+
+- Domain: `K = L L'` positive definite.
+- Meaning: value, gradient, LOO diagonal and conditioning from one
+  factorization per hyperparameter point.
+- Code: `surrogates.gaussian_process_log_marginal_likelihood`,
+  `surrogates.GaussianProcessRegression`.
+- Source: [REF-GOLUB-VANLOAN-2013, Sections 2.6 and 3.1],
+  [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].

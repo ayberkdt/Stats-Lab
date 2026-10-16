@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 from fractions import Fraction
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import ContinuousDistribution
 from ._continuous import (
     LOG_MAX,
     LOG_MIN,
@@ -32,7 +33,7 @@ from .support import RealSupport
 
 
 @dataclass(frozen=True, slots=True)
-class FisherF:
+class FisherF(ContinuousDistribution):
     """The F law of ``(V_1/nu1) / (V_2/nu2)`` for independent chi-squares.
 
     Args:
@@ -347,7 +348,9 @@ class FisherF:
             / (self.nu1 * shifted * shifted * (self.nu2 - 4.0))
         )
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible F observations as scaled chi-square ratios.
 
         ``X = (G_1 / (nu1/2)) / (G_2 / (nu2/2))`` with independent
@@ -355,7 +358,8 @@ class FisherF:
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of non-negative pseudo-random observations.
@@ -372,7 +376,7 @@ class FisherF:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         half1, half2 = 0.5 * self.nu1, 0.5 * self.nu2
         offset = math.log(half2) - math.log(half1)
         observations: list[float] = []

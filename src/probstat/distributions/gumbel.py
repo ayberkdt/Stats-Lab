@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 from typing import Literal
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import ContinuousDistribution
 from ._continuous import open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
@@ -38,7 +39,7 @@ def _exp_capped(value: float) -> float:
 
 
 @dataclass(frozen=True, slots=True)
-class Gumbel:
+class Gumbel(ContinuousDistribution):
     """A Gumbel law for maxima (``kind="max"``) or minima (``kind="min"``).
 
     Maximum: ``F(x) = exp(-exp(-z))``. Minimum: ``F(x) = 1 - exp(-exp(z))``,
@@ -354,12 +355,15 @@ class Gumbel:
         """
         return math.pi * math.pi * self.beta * self.beta / 6.0
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible Gumbel observations by inverse transform.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of pseudo-random observations.
@@ -376,7 +380,7 @@ class Gumbel:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         observations: list[float] = []
         for _ in range(checked_size):
             u = open_unit(generator)

@@ -180,7 +180,7 @@ class SamplingDesignTests(unittest.TestCase):
 
     def test_sobol_first_points(self) -> None:
         """Sobol first points."""
-        points = sobol(8, 2).points
+        points = sobol(8, 2, centered=False).points
         self.assertEqual(
             [round(p[1], 6) for p in points[1:]],
             [0.5, 0.25, 0.75, 0.375, 0.875, 0.125, 0.625],

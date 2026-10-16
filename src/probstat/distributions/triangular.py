@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import ContinuousDistribution
 from .constraints import FINITE_REAL
 from .support import RealSupport
 
 
 @dataclass(frozen=True, slots=True)
-class Triangular:
+class Triangular(ContinuousDistribution):
     """A triangular law with lower end ``a``, mode ``c``, and upper end ``b``.
 
     The density rises linearly from ``a`` to ``2/(b-a)`` at ``c`` and falls
@@ -297,12 +298,60 @@ class Triangular:
         a, c, b = self.lower, self.mode, self.upper
         return (self._width**2 - (c - a) * (b - c)) / 18.0
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    @property
+    def skewness(self) -> float:
+        """Return ``sqrt 2 (a+b-2c)(2a-b-c)(a-2b+c) / (5 (18 Var)^(3/2))``.
+
+        Here ``a`` is the lower bound, ``b`` the upper bound and ``c`` the
+        mode.
+
+        Equation:
+            [EQ-DIST-TRI-005].
+
+        References:
+            [REF-KOTZ-VANDORP-2004, Chapter 1].
+
+        """
+        a, c, b = self.lower, self.mode, self.upper
+        spread = 18.0 * self.variance
+        product = (a + b - 2.0 * c) * (2.0 * a - b - c) * (a - 2.0 * b + c)
+        return math.sqrt(2.0) * product / (5.0 * math.pow(spread, 1.5))
+
+    @property
+    def kurtosis(self) -> float:
+        """Return the excess kurtosis ``-3/5``.
+
+        Equation:
+            [EQ-DIST-TRI-005].
+
+        References:
+            [REF-KOTZ-VANDORP-2004, Chapter 1].
+
+        """
+        return -0.6
+
+    @property
+    def entropy(self) -> float:
+        """Return ``1/2 + log((b - a)/2)``.
+
+        Equation:
+            [EQ-DIST-TRI-005].
+
+        References:
+            [REF-KOTZ-VANDORP-2004, Chapter 1].
+
+        """
+        return 0.5 + math.log(0.5 * self._width)
+
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible triangular observations by inverse transform.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of observations in ``[a, b]``.
@@ -319,7 +368,7 @@ class Triangular:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         observations: list[float] = []
         for _ in range(checked_size):
             u = generator.random()

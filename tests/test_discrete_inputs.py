@@ -39,14 +39,14 @@ class InterfaceTests(unittest.TestCase):
     """Structural checks and the Cauchy regression."""
 
     def test_cauchy_input_constructs(self) -> None:
-        """``StudentT(1)`` is accepted although its ``mean`` property raises."""
+        """``StudentT(1)`` is accepted; its undefined mean is reported as NaN."""
         cauchy = RandomInput("x", StudentT(1.0))
         joint = JointInput.independent(cauchy, RandomInput("y", Normal(0.0, 1.0)))
         draws = joint.sample(50, seed=3)
         self.assertEqual(len(draws), 50)
         self.assertAlmostEqual(joint.from_unit((0.75, 0.5))[0], 1.0, delta=1e-12)
-        with self.assertRaises(ValueError):
-            _ = cauchy.mean
+        # Undefined moments follow the distribution contract (ADR-0059): NaN.
+        self.assertTrue(math.isnan(cauchy.mean))
 
     def test_missing_attribute_rejected(self) -> None:
         """A law without a CDF is rejected by name."""

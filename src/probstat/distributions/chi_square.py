@@ -4,13 +4,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from probstat.foundations.random_streams import RandomStream
+
+from ._base import ContinuousDistribution
 from .constraints import POSITIVE_FINITE
 from .gamma import Gamma
 from .support import RealSupport
 
 
 @dataclass(frozen=True, slots=True)
-class ChiSquare:
+class ChiSquare(ContinuousDistribution):
     """A chi-square law with ``nu`` degrees of freedom.
 
     ``X ~ chi2(nu)`` is ``Gamma(shape=nu/2, rate=1/2)``; for integer ``nu`` it
@@ -211,12 +214,15 @@ class ChiSquare:
         """
         return 2.0 * self.nu
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible chi-square observations as ``2 Gamma(nu/2, 1)``.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of non-negative pseudo-random observations.

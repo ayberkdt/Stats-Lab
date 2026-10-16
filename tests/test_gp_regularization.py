@@ -124,15 +124,20 @@ class GaussianProcessRegularizationTests(unittest.TestCase):
         """Length scales cannot fall far below the smallest design gap.
 
         Regression: on the four-branch AK-MCS design of seed 5 the
-        unregularized fit ends at length scales ``0.0017`` and ``0.0020``
-        (smallest coordinate gap ``0.33``), a white-noise fit whose mean is
-        the output mean everywhere; warm-started refits never left it.
+        unregularized fit with the Armijo BFGS of releases before 0.16 ended
+        at length scales ``0.0017`` and ``0.0020`` (smallest coordinate gap
+        ``0.33``), a white-noise fit whose mean is the output mean everywhere,
+        with ``log p = -20.678``. The strong-Wolfe BFGS (ADR-0059) leaves that
+        point and reaches a higher likelihood (``-18.80``, length scales near
+        ``6`` and ``1``); the regularized fit must exclude the white-noise
+        region by construction whatever the optimizer does.
         """
         points = akmcs_design(5)
         values = [four_branch(u) for u in points]
         stream = resolve_stream(5).child("ak-mcs", "fit", 1)
         legacy = fit_gaussian_process(points, values, seed=stream)
-        self.assertLess(max(legacy.hyperparameters.length_scales), 0.01)
+        self.assertGreater(legacy.log_marginal_likelihood, -20.677549199598904)
+        self.assertGreater(min(legacy.hyperparameters.length_scales), 0.5)
         settings = GaussianProcessRegularization()
         fitted = fit_gaussian_process(
             points, values, seed=stream, regularization=settings

@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import ContinuousDistribution
 from ._continuous import (
     LOGIT_LIMIT,
     expit,
@@ -30,7 +31,7 @@ from .support import RealSupport
 
 
 @dataclass(frozen=True, slots=True)
-class Beta:
+class Beta(ContinuousDistribution):
     """A beta law with shapes ``alpha`` and ``beta`` on ``[0, 1]``.
 
     Density ``f(x) = x^(alpha-1) (1-x)^(beta-1) / B(alpha, beta)``.
@@ -321,7 +322,9 @@ class Beta:
         total = self.alpha + self.beta
         return (self.alpha / total) * (self.beta / total) / (total + 1.0)
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible beta observations as gamma ratios.
 
         ``X = G_a / (G_a + G_b)`` with independent ``G_a ~ Gamma(alpha, 1)``
@@ -330,7 +333,8 @@ class Beta:
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of observations in ``[0, 1]``.
@@ -347,7 +351,7 @@ class Beta:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         observations: list[float] = []
         for _ in range(checked_size):
             first = log_standard_gamma_variate(self.alpha, generator)

@@ -6,7 +6,14 @@ import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+from probstat.distributions.normal import Normal
 from probstat.foundations import coerce_finite_sample
+from probstat.foundations.random_streams import RandomStream, resolve_stream
+from probstat.foundations.validation import (
+    require_non_negative_integer,
+    require_probability,
+)
+from probstat.optimization import brent_root
 
 from .order import quantile
 
@@ -100,6 +107,141 @@ class KernelDensity:
             0.5 * math.erfc(-(x - v) / (h * _SQRT2)) for v in self.sample
         ) / len(self.sample)
 
+    def sf(self, x: float) -> float:
+        """Return the estimated survival function ``1 - F_h(x)`` without cancellation.
+
+        Equation:
+            [EQ-STAT-KDE-001].
+
+        References:
+            [REF-SILVERMAN-1986, Section 3.3].
+
+        """
+        h = self.bandwidth
+        return math.fsum(
+            0.5 * math.erfc((x - v) / (h * _SQRT2)) for v in self.sample
+        ) / len(self.sample)
+
+    def quantile(self, probability: float) -> float:
+        """Return ``x`` with ``F_h(x) = p`` by Brent's method.
+
+        The root lies in ``[min x_i + h z_p, max x_i + h z_p]`` where
+        ``z_p`` is the standard normal quantile, because ``F_h`` is an average
+        of ``Phi((x - x_i)/h)``; in the upper half the residual ``q - S_h(x)``
+        is used so upper-tail quantiles keep their accuracy.
+
+        Args:
+            probability: Probability in ``[0, 1]``.
+
+        Returns:
+            Quantile (``-inf``/``inf`` at ``0``/``1``).
+
+        Raises:
+            ValueError: If ``probability`` lies outside ``[0, 1]``.
+
+        Equation:
+            [EQ-STAT-KDE-002].
+
+        References:
+            [REF-SILVERMAN-1986, Section 3.3], [REF-BRENT-1973, Chapter 4].
+
+        """
+        p = require_probability(probability, name="probability")
+        if p == 0.0:
+            return -math.inf
+        if p == 1.0:
+            return math.inf
+        standard = Normal()
+        h = self.bandwidth
+        if p <= 0.5:
+            z = standard.quantile(p)
+
+            def residual(t: float) -> float:
+                """Return ``F_h(t) - p``.
+
+                References:
+                    [EQ-STAT-KDE-002]. No new equation.
+
+                """
+                return self.cdf(t) - p
+
+        else:
+            q = 1.0 - p
+            z = standard.isf(q)
+
+            def residual(t: float) -> float:
+                """Return ``S_h(t) - q`` (decreasing in ``t``).
+
+                References:
+                    [EQ-STAT-KDE-002]. No new equation.
+
+                """
+                return self.sf(t) - q
+
+        low = self.sample[0] + h * z
+        high = self.sample[-1] + h * z
+        if low == high:
+            return low
+        tolerance = 1e-13 * max(1.0, abs(low))
+        return brent_root(residual, low, high, tolerance=tolerance).root
+
+    @property
+    def mean(self) -> float:
+        """Return the mean of the estimate, the sample mean.
+
+        Equation:
+            [EQ-STAT-KDE-002].
+
+        References:
+            [REF-SILVERMAN-1986, Section 3.3].
+
+        """
+        return math.fsum(self.sample) / len(self.sample)
+
+    @property
+    def variance(self) -> float:
+        """Return ``sum (x_i - xbar)^2 / n + h^2``, the variance of the estimate.
+
+        Equation:
+            [EQ-STAT-KDE-002].
+
+        References:
+            [REF-SILVERMAN-1986, Section 3.3].
+
+        """
+        centre = self.mean
+        spread = math.fsum((v - centre) ** 2 for v in self.sample) / len(self.sample)
+        return spread + self.bandwidth * self.bandwidth
+
+    def draw(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
+        """Draw from the estimate: a resampled observation plus ``h Z``.
+
+        (Named ``draw`` because ``sample`` is the data field.)
+
+        Args:
+            size: Number of draws, with ``size >= 0``.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
+
+        Returns:
+            Tuple of pseudo-random observations.
+
+        Equation:
+            [EQ-STAT-KDE-002].
+
+        References:
+            [REF-SILVERMAN-1986, Section 6.4].
+
+        """
+        count = require_non_negative_integer(size, name="size")
+        generator = resolve_stream(seed).generator()
+        return tuple(
+            generator.choice(self.sample) + self.bandwidth * generator.gauss(0.0, 1.0)
+            for _ in range(count)
+        )
+
     def grid(self, size: int = 128, *, extend: float = 3.0) -> tuple[float, ...]:
         """Return ``size`` equally spaced points covering the sample +/- ``extend h``.
 
@@ -131,7 +273,9 @@ def gaussian_kde(
             by :func:`kde_bandwidth`.
 
     Returns:
-        :class:`KernelDensity` with ``pdf``, ``cdf``, and ``grid``.
+        :class:`KernelDensity` with ``pdf``, ``cdf``, ``sf``, ``quantile``,
+        ``mean``, ``variance`` (so it can serve as a model input marginal),
+        ``draw``, and ``grid``.
 
     Raises:
         ValueError: For fewer than two observations, a constant sample with a

@@ -3,22 +3,23 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import ContinuousDistribution
 from ._continuous import expit, open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
 
 
 @dataclass(frozen=True, slots=True)
-class Logistic:
+class Logistic(ContinuousDistribution):
     """A logistic law with ``F(x) = 1 / (1 + exp(-(x - mu)/s))``.
 
     Args:
@@ -246,12 +247,15 @@ class Logistic:
         """
         return self.s * self.s * math.pi * math.pi / 3.0
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible logistic observations by inverse transform.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of pseudo-random observations.
@@ -268,7 +272,7 @@ class Logistic:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         observations: list[float] = []
         for _ in range(checked_size):
             u = open_unit(generator)

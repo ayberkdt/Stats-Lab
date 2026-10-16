@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass, field
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import ContinuousDistribution
 from ._continuous import (
     LOG_MAX,
     LOG_MIN,
@@ -110,7 +111,7 @@ def _short_interval_moments(centre: float, half_width: float) -> tuple[float, fl
 
 
 @dataclass(frozen=True, slots=True)
-class TruncatedNormal:
+class TruncatedNormal(ContinuousDistribution):
     """A ``Normal(mu, sigma)`` law conditioned on ``lower <= X <= upper``.
 
     ``None`` denotes an unbounded side, so one-sided truncations such as a
@@ -556,12 +557,15 @@ class TruncatedNormal:
         bracket = 1.0 + weighted_alpha - weighted_beta - shift * shift
         return self.sigma * self.sigma * max(bracket, 0.0)
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible truncated normal observations by inverse transform.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of observations inside the truncation interval.
@@ -578,7 +582,7 @@ class TruncatedNormal:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         observations: list[float] = []
         for _ in range(checked_size):
             u = open_unit(generator)

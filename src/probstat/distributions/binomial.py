@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import DiscreteDistribution
 from .constraints import NON_NEGATIVE_INTEGER, PROBABILITY
 from .support import IntegerSupport
 
 
 @dataclass(frozen=True, slots=True)
-class Binomial:
+class Binomial(DiscreteDistribution):
     """The number of successes in ``n`` independent Bernoulli trials.
 
     Args:
@@ -240,12 +241,15 @@ class Binomial:
         """
         return self.n * self.p * (1.0 - self.p)
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[int, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[int, ...]:
         """Draw reproducible binomial observations by Bernoulli aggregation.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of success counts.
@@ -260,7 +264,7 @@ class Binomial:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         return tuple(
             sum(generator.random() < self.p for _ in range(self.n))
             for _ in range(checked_size)

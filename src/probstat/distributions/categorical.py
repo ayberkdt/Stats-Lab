@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import math
-import random
 from collections.abc import Hashable, Iterable, Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Generic, TypeVar
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import require_non_negative_integer
 
 from .constraints import SIMPLEX
@@ -174,13 +174,14 @@ class Categorical(Generic[LabelT]):
         )
 
     def sample(
-        self, size: int = 1, *, seed: int | None = None
+        self, size: int = 1, *, seed: int | RandomStream | None = None
     ) -> tuple[LabelT, ...]:
         """Draw reproducible categorical observations.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of labels drawn according to their masses.
@@ -194,7 +195,7 @@ class Categorical(Generic[LabelT]):
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         return tuple(
             generator.choices(
                 self.support.values,

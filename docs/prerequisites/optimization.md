@@ -19,7 +19,11 @@ Background reading: [REF-NOCEDAL-WRIGHT-2006, Chapters 2, 3, 6, 8, 10],
 
 The central difference `(f(x+h) - f(x-h)) / 2h` [EQ-OPT-FD-001] has
 truncation error `O(h^2)` and rounding error `O(eps/h)`. The best step is near
-`eps^(1/3) ~ 6e-6`, which is why the default relative step is `1e-6`.
+`eps^(1/3) ~ 6e-6` relative to the variable, so the default step is
+`h = eps^(1/3) max(|x|, typ)` with a typical scale `typ` (default 1; pass
+`typical_scale` for parameters on other scales) [EQ-OPT-FD-003]. An explicit
+`relative_step` keeps the older rule `h = c max(1, |x|)`, and a side on which
+`f` fails falls back to a one-sided formula [EQ-OPT-FD-004].
 
 ```python
 import math
@@ -33,6 +37,8 @@ for step in (1e-2, 1e-4, 1e-6, 1e-8, 1e-10):
     gradient, calls = central_gradient(f, point, relative_step=step)
     error = max(abs(g - e) for g, e in zip(gradient, exact))
     print(f"h={step:.0e} error={error:.1e} calls={calls}")
+gradient, calls = central_gradient(f, point)
+print(f"default error={max(abs(g - e) for g, e in zip(gradient, exact)):.1e}")
 hessian, calls = central_hessian(f, point)
 print(tuple(tuple(round(v, 4) for v in row) for row in hessian), calls)
 ```
@@ -40,9 +46,10 @@ print(tuple(tuple(round(v, 4) for v in row) for row in hessian), calls)
 ```text
 h=1e-02 error=2.7e-04 calls=4
 h=1e-04 error=2.7e-08 calls=4
-h=1e-06 error=2.9e-10 calls=4
-h=1e-08 error=9.6e-08 calls=4
-h=1e-10 error=2.0e-06 calls=4
+h=1e-06 error=3.4e-10 calls=4
+h=1e-08 error=4.1e-08 calls=4
+h=1e-10 error=3.0e-06 calls=4
+default error=9.1e-11
 ((20.3704, 4.9722), (4.9722, 1.3333)) 9
 ```
 
@@ -54,9 +61,15 @@ dominates. The analytic Hessian is
 ## 2. BFGS on the Rosenbrock valley
 
 BFGS builds an inverse-Hessian approximation from gradient differences
-[EQ-OPT-BFGS-001] and accepts steps by the Armijo rule [EQ-OPT-ARMIJO-001].
-Without an analytic gradient it uses central differences, which costs more
-evaluations.
+[EQ-OPT-BFGS-001], scales the first one by `s'y / y'y`, and accepts steps that
+satisfy the strong Wolfe conditions [EQ-OPT-WOLFE-001] (sufficient decrease
+[EQ-OPT-ARMIJO-001] plus curvature). It stops on an absolute gradient
+tolerance or a relative step tolerance, neither of which depends on an
+additive constant in `f`; a stalled line search is reported as not
+converged [EQ-OPT-BFGS-002]. Without an analytic gradient it uses central
+differences, which costs more evaluations. Both minimizers accept box
+`bounds` [EQ-OPT-BOX-001], and `multi_start` runs either from seeded random
+starts in a box.
 
 ```python
 from probstat.optimization import minimize_bfgs, minimize_nelder_mead
@@ -78,8 +91,8 @@ print(tuple(round(v, 4) for v in simplex.x), simplex.converged, simplex.evaluati
 ```
 
 ```text
-(1.0, 1.0) True 91
-(1.0, 1.0) True 199
+(1.0, 1.0) True 99
+(1.0, 1.0) True 234
 (1.0, 1.0) True 218
 ```
 

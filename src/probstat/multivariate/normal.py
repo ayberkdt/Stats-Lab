@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import math
-import random
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from probstat.distributions import Normal
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import require_non_negative_integer
 from probstat.linalg import Matrix, Vector, as_vector, cholesky, dot, solve_lower
 
@@ -359,13 +359,15 @@ class MultivariateNormal:
         )
 
     def sample(
-        self, size: int = 1, *, seed: int | None = None
+        self, size: int = 1, *, seed: int | RandomStream | None = None
     ) -> tuple[Vector, ...]:
         """Draw reproducible pseudo-random multivariate normal observations.
 
         Args:
             size: Number of vector observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy. Negative, boolean,
+                float, and text seeds are rejected.
 
         Returns:
             Tuple of finite vector observations.
@@ -384,7 +386,7 @@ class MultivariateNormal:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         observations: list[Vector] = []
         for _ in range(checked_size):
             independent = tuple(generator.gauss(0.0, 1.0) for _ in self.mean)

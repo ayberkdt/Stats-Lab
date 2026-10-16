@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import DiscreteDistribution
 from .constraints import POSITIVE_FINITE
 from .support import IntegerSupport
 
 
 @dataclass(frozen=True, slots=True)
-class Geometric:
+class Geometric(DiscreteDistribution):
     """Failures before the first success in independent Bernoulli trials.
 
     This zero-based parameterization has support ``{0, 1, ...}``. It is not the
@@ -221,12 +222,15 @@ class Geometric:
         """
         return (1.0 - self.p) / (self.p * self.p)
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[int, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[int, ...]:
         """Draw reproducible failure counts by inverse transformation.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of non-negative failure counts.
@@ -243,7 +247,7 @@ class Geometric:
         checked_size = require_non_negative_integer(size, name="size")
         if self.p == 1.0:
             return (0,) * checked_size
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         log_failure = math.log1p(-self.p)
         return tuple(
             math.floor(math.log1p(-generator.random()) / log_failure)

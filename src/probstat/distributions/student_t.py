@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
+from probstat.numerics.special import digamma
 
+from ._base import ContinuousDistribution
 from ._continuous import (
     SINH_LIMIT,
     log_standard_gamma_variate,
@@ -29,7 +31,7 @@ from .support import RealSupport
 
 
 @dataclass(frozen=True, slots=True)
-class StudentT:
+class StudentT(ContinuousDistribution):
     """A Student-t law ``X = mu + sigma T`` with ``T ~ t(nu)``.
 
     The standard density is ``Gamma((nu+1)/2) / (sqrt(nu pi) Gamma(nu/2))
@@ -345,8 +347,9 @@ class StudentT:
     def mean(self) -> float:
         """Return ``E[X] = mu`` for ``nu > 1``.
 
-        Raises:
-            ValueError: If ``nu <= 1``, where the mean is undefined.
+        Returns:
+            ``mu``, or ``nan`` for ``nu <= 1`` where the mean is undefined
+            (the integral is of the form ``inf - inf``).
 
         Equation:
             [EQ-DIST-STT-003].
@@ -356,7 +359,7 @@ class StudentT:
 
         """
         if self.nu <= 1.0:
-            raise ValueError("Student-t mean is undefined for nu <= 1")
+            return math.nan
         return self.mu
 
     @property
@@ -364,10 +367,8 @@ class StudentT:
         """Return ``sigma^2 nu / (nu - 2)`` for ``nu > 2``.
 
         Returns:
-            Variance, or ``inf`` for ``1 < nu <= 2``.
-
-        Raises:
-            ValueError: If ``nu <= 1``, where the variance is undefined.
+            Variance, ``inf`` for ``1 < nu <= 2``, and ``nan`` for ``nu <= 1``
+            (a central moment about an undefined mean).
 
         Equation:
             [EQ-DIST-STT-003].
@@ -377,12 +378,70 @@ class StudentT:
 
         """
         if self.nu <= 1.0:
-            raise ValueError("Student-t variance is undefined for nu <= 1")
+            return math.nan
         if self.nu <= 2.0:
             return math.inf
         return self.sigma * self.sigma * self.nu / (self.nu - 2.0)
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    @property
+    def skewness(self) -> float:
+        """Return ``0`` for ``nu > 3`` and ``nan`` otherwise.
+
+        Equation:
+            [EQ-DIST-STT-005].
+
+        References:
+            [REF-JKB-1995, Chapter 28].
+
+        """
+        return 0.0 if self.nu > 3.0 else math.nan
+
+    @property
+    def kurtosis(self) -> float:
+        """Return the excess kurtosis ``6 / (nu - 4)`` for ``nu > 4``.
+
+        Returns:
+            ``6/(nu - 4)``; ``inf`` for ``2 < nu <= 4`` (divergent fourth
+            moment, finite variance); ``nan`` for ``nu <= 2``.
+
+        Equation:
+            [EQ-DIST-STT-005].
+
+        References:
+            [REF-JKB-1995, Chapter 28].
+
+        """
+        if self.nu > 4.0:
+            return 6.0 / (self.nu - 4.0)
+        return math.inf if self.nu > 2.0 else math.nan
+
+    @property
+    def entropy(self) -> float:
+        """Return the differential entropy of the location-scale t law.
+
+        ``H = (nu+1)/2 [psi((nu+1)/2) - psi(nu/2)] + log(sqrt(nu)
+        B(nu/2, 1/2)) + log sigma``.
+
+        Equation:
+            [EQ-DIST-STT-005].
+
+        References:
+            [REF-JKB-1995, Chapter 28], [REF-COVER-THOMAS-2006, Chapter 8].
+
+        """
+        half = 0.5 * self.nu
+        return (
+            0.5
+            * (self.nu + 1.0)
+            * (digamma(half + 0.5) - digamma(half))
+            + 0.5 * math.log(self.nu)
+            + log_beta_function(half, 0.5)
+            + math.log(self.sigma)
+        )
+
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible Student-t observations as normal/chi ratios.
 
         ``T = Z / sqrt(V / nu)`` with ``Z ~ N(0, 1)`` and
@@ -390,7 +449,8 @@ class StudentT:
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local random-number generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of pseudo-random observations.
@@ -407,7 +467,7 @@ class StudentT:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         log_half_nu = math.log(0.5 * self.nu)
         observations: list[float] = []
         for _ in range(checked_size):

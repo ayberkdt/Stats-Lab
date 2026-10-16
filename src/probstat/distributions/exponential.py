@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 import math
-import random
 from dataclasses import dataclass
 
+from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._base import ContinuousDistribution
 from .constraints import POSITIVE_FINITE
 from .support import RealSupport
 
 
 @dataclass(frozen=True, slots=True)
-class Exponential:
+class Exponential(ContinuousDistribution):
     """An exponential waiting-time law with positive rate ``rate``.
 
     Args:
@@ -255,12 +256,15 @@ class Exponential:
         """
         return 1.0 / (self.rate * self.rate)
 
-    def sample(self, size: int = 1, *, seed: int | None = None) -> tuple[float, ...]:
+    def sample(
+        self, size: int = 1, *, seed: int | RandomStream | None = None
+    ) -> tuple[float, ...]:
         """Draw reproducible observations by inverse transformation.
 
         Args:
             size: Number of observations, with ``size >= 0``.
-            seed: Optional seed for a call-local generator.
+            seed: Integer seed, :class:`~probstat.foundations.RandomStream`, or
+                ``None`` for fresh operating-system entropy.
 
         Returns:
             Tuple of non-negative waiting times.
@@ -275,7 +279,7 @@ class Exponential:
 
         """
         checked_size = require_non_negative_integer(size, name="size")
-        generator = random.Random(seed)
+        generator = resolve_stream(seed).generator()
         return tuple(
             -math.log1p(-generator.random()) / self.rate
             for _ in range(checked_size)
