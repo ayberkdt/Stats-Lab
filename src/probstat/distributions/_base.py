@@ -32,7 +32,7 @@ from collections.abc import Callable
 from typing import Any, cast
 
 from probstat.foundations.validation import require_probability
-from probstat.numerics.double_exponential import tanh_sinh
+from probstat.numerics.double_exponential import tanh_sinh, tanh_sinh_pieces
 
 from ._continuous import safe_log
 
@@ -189,14 +189,20 @@ def _wrap_methods(
 
 
 def _quantile_integral(
-    quantile: Callable[[float], float],
+    law: object,
     integrand: Callable[[float], float],
     scale: float = 1.0,
 ) -> float:
     """Return ``int_0^1 h(Q(u)) du`` by tanh-sinh quadrature, ``nan`` if unreliable.
 
+    Points above the median are taken from ``isf(1 - u)`` (when the law has
+    one) with the exact complement supplied by the quadrature, so heavy upper
+    tails are sampled to ``1 - u ~ 1e-300``. If the single-piece rule does
+    not converge (for example at an interior kink of ``Q``), the interval is
+    split into 32 equal pieces and integrated again.
+
     Args:
-        quantile: Quantile function ``Q``.
+        law: Object with ``quantile`` (and optionally ``isf``).
         integrand: Function ``h`` of a support point.
         scale: Magnitude of typical integrand values; the absolute stopping
             floor is ``1e-10 scale`` so integrals near zero (odd central
@@ -213,6 +219,8 @@ def _quantile_integral(
         [REF-TAKAHASI-MORI-1974], [REF-CASELLA-BERGER-2002, Chapter 2].
 
     """
+    quantile = _method(law, "quantile")
+    isf = getattr(law, "isf", None)
 
     def wrapped(u: float, complement: float) -> float:
         """Evaluate ``h(Q(u))`` from the smaller of ``u`` and ``1 - u``.
@@ -221,23 +229,28 @@ def _quantile_integral(
             [REF-TAKAHASI-MORI-1974]. No equation is evaluated.
 
         """
-        point = quantile(u)
-        value = integrand(point)
+        point = isf(complement) if (u > 0.5 and isf is not None) else quantile(u)
+        value = integrand(float(point))
         if not math.isfinite(value):
             raise ArithmeticError("non-finite integrand")
         return value
 
+    floor = _MOMENT_TOLERANCE * scale
     try:
         result = tanh_sinh(
+            wrapped, 0.0, 1.0, tolerance=_MOMENT_TOLERANCE, absolute_tolerance=floor
+        )
+        if result.converged:
+            return result.value
+        pieces = tanh_sinh_pieces(
             wrapped,
-            0.0,
-            1.0,
+            [k / 32.0 for k in range(1, 32)],
             tolerance=_MOMENT_TOLERANCE,
-            absolute_tolerance=_MOMENT_TOLERANCE * scale,
+            absolute_tolerance=floor,
         )
     except (ArithmeticError, ValueError):
         return math.nan
-    return result.value if result.converged else math.nan
+    return pieces.value if pieces.converged else math.nan
 
 
 class ContinuousDistribution:
@@ -376,8 +389,7 @@ class ContinuousDistribution:
             [REF-COVER-THOMAS-2006, Chapter 8].
 
         """
-        quantile = _method(self, "quantile")
-        return _quantile_integral(quantile, lambda x: -self._call("log_pdf", x))
+        return _quantile_integral(self, lambda x: -self._call("log_pdf", x))
 
     def _central_moment(self, order: int) -> float:
         """Return ``E[(X - mu)^order]`` numerically, ``nan`` when undefined.
@@ -389,10 +401,9 @@ class ContinuousDistribution:
         mean = _number(self, "mean")
         if not math.isfinite(mean):
             return math.nan
-        quantile = _method(self, "quantile")
         variance = _number(self, "variance")
         scale = variance ** (0.5 * order) if math.isfinite(variance) else 1.0
-        return _quantile_integral(quantile, lambda x: (x - mean) ** order, scale)
+        return _quantile_integral(self, lambda x: (x - mean) ** order, scale)
 
     @property
     def skewness(self) -> float:

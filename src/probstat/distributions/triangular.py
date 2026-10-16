@@ -298,6 +298,51 @@ class Triangular(ContinuousDistribution):
         a, c, b = self.lower, self.mode, self.upper
         return (self._width**2 - (c - a) * (b - c)) / 18.0
 
+    @property
+    def skewness(self) -> float:
+        """Return ``sqrt 2 (a+b-2c)(2a-b-c)(a-2b+c) / (5 (18 Var)^(3/2))``.
+
+        Here ``a`` is the lower bound, ``b`` the upper bound and ``c`` the
+        mode.
+
+        Equation:
+            [EQ-DIST-TRI-005].
+
+        References:
+            [REF-KOTZ-VANDORP-2004, Chapter 1].
+
+        """
+        a, c, b = self.lower, self.mode, self.upper
+        spread = 18.0 * self.variance
+        product = (a + b - 2.0 * c) * (2.0 * a - b - c) * (a - 2.0 * b + c)
+        return math.sqrt(2.0) * product / (5.0 * math.pow(spread, 1.5))
+
+    @property
+    def kurtosis(self) -> float:
+        """Return the excess kurtosis ``-3/5``.
+
+        Equation:
+            [EQ-DIST-TRI-005].
+
+        References:
+            [REF-KOTZ-VANDORP-2004, Chapter 1].
+
+        """
+        return -0.6
+
+    @property
+    def entropy(self) -> float:
+        """Return ``1/2 + log((b - a)/2)``.
+
+        Equation:
+            [EQ-DIST-TRI-005].
+
+        References:
+            [REF-KOTZ-VANDORP-2004, Chapter 1].
+
+        """
+        return 0.5 + math.log(0.5 * self._width)
+
     def sample(
         self, size: int = 1, *, seed: int | RandomStream | None = None
     ) -> tuple[float, ...]:

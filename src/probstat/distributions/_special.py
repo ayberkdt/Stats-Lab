@@ -673,12 +673,13 @@ def _beta_large_shape(a: float, b: float, x: float, y: float) -> float | None:
     at least ``1e4``, the point on the side of the smaller shape satisfies
     ``-log(1 - t) <= 1``, and the first correction ratio
     ``|s - 1| s (s + 1) / (24 N^2)`` is at most one (so for ``s`` up to about
-    ``(24 L^2)^(1/3)``; for example ``s <= 1.3e3`` at ``L = 1e4``). There the continued fraction converges slowly near
-    ``x ~ a/(a+b)`` and its local stopping test (``|delta - 1| <= 8 eps``)
-    is met while many factors ``1 + O(1/a)`` remain, which cost up to three
-    significant digits for ``a ~ 1e13``. Of the pair ``I_t(s, L)`` and its
-    complement the smaller one is computed and the other obtained by
-    subtraction from one.
+    ``(24 L^2)^(1/3)``; for example ``s <= 1.3e3`` at ``L = 1e4``). There
+    the continued fraction converges slowly near ``x ~ a/(a+b)`` and its
+    local stopping test (``|delta - 1| <= 8 eps``) is met while many
+    factors ``1 + O(1/a)`` remain, which cost up to three significant
+    digits for ``a ~ 1e13``. Of the pair ``I_t(s, L)`` and its complement
+    the smaller one is computed and the other obtained by subtraction from
+    one.
 
     Args:
         a: Validated first shape.
