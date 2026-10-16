@@ -36,12 +36,14 @@ from probstat.modeling import (
     standard_normal_cdf,
     standard_normal_quantile,
 )
+from probstat.numerics import AutodiffUnsupportedError, Dual
 from probstat.optimization import brent_root, central_gradient, central_hessian
 
 FailureSide = Literal["above", "below"]
 GradientFunction = Callable[[Vector], Sequence[float]]
 
 _INV_SQRT_TWO_PI = 1.0 / math.sqrt(2.0 * math.pi)
+GradientOption = GradientFunction | str | None
 _MAX_LINE_SEARCH = 30
 _ARMIJO = 1e-4
 
@@ -286,9 +288,16 @@ class FORMResult:
         limit_state_value: ``G(u*)``; near zero for a converged search.
         iterations: Completed HL-RF updates.
         evaluations: Model evaluations charged to the search.
-        gradient_evaluations: Calls of a user-supplied analytic gradient.
+        gradient_evaluations: Gradients computed by a user-supplied analytic
+            callable or by automatic differentiation (each autodiff gradient
+            is one model evaluation, already included in ``evaluations``);
+            zero for finite differences.
         converged: Whether both convergence criteria were met.
         message: Termination reason.
+        gradient_method: ``"autodiff"``, ``"finite-difference"``, or
+            ``"analytic"``.
+        gradient_fallback_reason: Why ``gradient="auto"`` fell back to finite
+            differences (``None`` when it did not).
 
     References:
         [REF-HASOFER-LIND-1974], [REF-RACKWITZ-FIESSLER-1978],
@@ -311,6 +320,8 @@ class FORMResult:
     gradient_evaluations: int
     converged: bool
     message: str
+    gradient_method: str = "finite-difference"
+    gradient_fallback_reason: str | None = None
 
 
 def _require_limit_state(limit_state: object) -> ModelLimitState:
@@ -371,6 +382,175 @@ def _gradient_at(
     if len(values) != len(point):
         raise ValueError("gradient length must equal the input dimension")
     return values
+
+
+def _dual_standard_gradient(
+    limit_state: ModelLimitState, point: Vector
+) -> tuple[float, Vector]:
+    """Return ``G(u)`` and ``grad_u G`` by forward-mode AD through the model.
+
+    The forward model is called once with dual inputs ``x_i + e_i eps`` at
+    ``x = T^-1(u)``, which gives ``grad_x g``. The Nataf map contributes the
+    exact Jacobian ``dx/du = D L`` with ``z = L u`` and
+    ``D_ii = phi(z_i) / f_i(x_i)`` (from ``F_i(x_i) = Phi(z_i)``), so
+    ``grad_u G = L' D grad_x g`` ([EQ-REL-FORM-AD-001]).
+
+    Raises:
+        AutodiffUnsupportedError: If the model does not accept duals or an
+            input density is zero at ``x``.
+
+    References:
+        [REF-LIU-DERKIUREGHIAN-1986], [REF-GRIEWANK-WALTHER-2008, Chapter 3].
+
+    """
+    model = limit_state.model
+    inputs = model.inputs
+    if inputs.uses_rosenblatt:
+        # The diagonal Nataf Jacobian below holds only for the independence
+        # and Gaussian copulas; a Rosenblatt map has a triangular Jacobian.
+        raise AutodiffUnsupportedError(
+            f"the {inputs.copula_family} copula uses the Rosenblatt map; the "
+            "Nataf Jacobian does not apply"
+        )
+    x = inputs.from_standard_normal(point)
+    size = len(x)
+    values: dict[str, object] = {
+        name: Dual(value, tuple(1.0 if j == i else 0.0 for j in range(size)))
+        for i, (name, value) in enumerate(zip(inputs.names, x, strict=True))
+    }
+    values.update(model.fixed)
+    outputs = model.model(values)  # type: ignore[arg-type]
+    if not isinstance(outputs, Mapping) or limit_state.quantity not in outputs:
+        raise ValueError(f"model output is missing QoI {limit_state.quantity!r}")
+    output = outputs[limit_state.quantity]
+    if isinstance(output, Dual):
+        if output.order != 1 or len(output.tangent) != size:
+            raise AutodiffUnsupportedError("model returned a Dual of unexpected shape")
+        y = float(output.value)
+        grad_x = tuple(float(t) for t in output.tangent)
+    else:
+        y = require_finite_real(output, name=f"output[{limit_state.quantity!r}]")
+        grad_x = (0.0,) * size
+    model.counter.add()
+    if not math.isfinite(y) or not all(math.isfinite(g) for g in grad_x):
+        raise ValueError("limit-state value or gradient is not finite")
+    sign = -1.0 if limit_state.failure == "above" else 1.0
+    margin = limit_state.margin(y)
+    if inputs.is_independent:
+        latent = tuple(point)
+        lower: Matrix | None = None
+    else:
+        assert inputs.correlation is not None
+        lower = cholesky(inputs.correlation)
+        latent = tuple(dot(row, point) for row in lower)
+    scaled: list[float] = []
+    for item, value, z, g in zip(inputs.inputs, x, latent, grad_x, strict=True):
+        pdf = getattr(item.distribution, "pdf", None)
+        if not callable(pdf):
+            raise AutodiffUnsupportedError(f"input {item.name} is not continuous")
+        density = float(pdf(value))
+        if not density > 0.0:
+            raise AutodiffUnsupportedError(
+                f"input density of {item.name} is zero at {value}; the Nataf "
+                "Jacobian is undefined there"
+            )
+        scaled.append(sign * g * _INV_SQRT_TWO_PI * math.exp(-0.5 * z * z) / density)
+    if lower is None:
+        return margin, tuple(scaled)
+    return margin, tuple(
+        math.fsum(lower[i][j] * scaled[i] for i in range(size)) for j in range(size)
+    )
+
+
+class _LimitStateGradient:
+    """Gradient of ``G(u)``: analytic, autodiff, or central differences.
+
+    ``"auto"`` tries :func:`_dual_standard_gradient` once and, if the model
+    rejects dual numbers (``TypeError``), uses central differences for the
+    rest of the search and records the reason. A failed dual probe is not
+    counted as a model evaluation.
+
+    References:
+        [EQ-OPT-FD-001], [EQ-REL-FORM-AD-001], [REF-GRIEWANK-WALTHER-2008,
+        Chapter 3].
+
+    """
+
+    __slots__ = (
+        "analytic",
+        "calls",
+        "fallback_reason",
+        "method",
+        "relative_step",
+        "requested",
+        "state",
+    )
+
+    def __init__(
+        self, state: ModelLimitState, option: GradientOption, relative_step: float
+    ) -> None:
+        """Validate the option.
+
+        Raises:
+            ValueError: For an unknown option.
+
+        References:
+            Project validation policy. No equation is evaluated.
+
+        """
+        self.state = state
+        self.relative_step = relative_step
+        self.calls = 0
+        self.fallback_reason: str | None = None
+        self.analytic: GradientFunction | None = None
+        if option is None:
+            option = "finite-difference"
+        if callable(option):
+            self.analytic = option
+            self.requested = self.method = "analytic"
+            return
+        if option not in ("auto", "autodiff", "finite-difference"):
+            raise ValueError(
+                "gradient must be 'auto', 'autodiff', 'finite-difference', a "
+                "callable, or None"
+            )
+        self.requested = option
+        self.method = (
+            "finite-difference" if option == "finite-difference" else "autodiff"
+        )
+
+    def __call__(self, point: Vector) -> Vector:
+        """Return ``grad G(point)``.
+
+        References:
+            [EQ-OPT-FD-001], [EQ-REL-FORM-AD-001].
+
+        """
+        if self.analytic is not None:
+            self.calls += 1
+            values = as_vector(self.analytic(point), name="gradient")
+            if len(values) != len(point):
+                raise ValueError("gradient length must equal the input dimension")
+            return values
+        if self.method == "autodiff":
+            try:
+                _, values = _dual_standard_gradient(self.state, point)
+            except TypeError as error:
+                if self.requested == "autodiff":
+                    if isinstance(error, AutodiffUnsupportedError):
+                        raise
+                    raise AutodiffUnsupportedError(
+                        f"model does not support Dual numbers: {error}"
+                    ) from error
+                self.method = "finite-difference"
+                self.fallback_reason = f"{type(error).__name__}: {error}"
+            else:
+                self.calls += 1
+                return values
+        values, _ = central_gradient(
+            self.state.standard, point, relative_step=self.relative_step
+        )
+        return values
 
 
 def correlated_importance(limit_state: ModelLimitState, alpha: Vector) -> Vector:
@@ -504,7 +684,7 @@ def form_hlrf(
     limit_state: ModelLimitState,
     *,
     start: Sequence[float] | None = None,
-    gradient: GradientFunction | None = None,
+    gradient: GradientOption = "finite-difference",
     line_search: bool = True,
     max_iterations: int = 100,
     tolerance: float = 1e-6,
@@ -529,8 +709,20 @@ def form_hlrf(
         limit_state: Model limit state with the ``g <= 0`` failure convention.
         start: Optional starting point in standard-normal space (default the
             origin, i.e. the median input).
-        gradient: Optional analytic gradient of ``G`` in standard-normal space;
-            central differences are used when omitted.
+        gradient: ``"finite-difference"`` (default; ``None`` means the
+            same): central differences, ``2 d`` model calls per gradient.
+            ``"auto"``: exact gradient by forward-mode autodiff through the
+            forward model and the Nataf Jacobian (one model call per
+            gradient) when the model accepts :class:`~probstat.numerics.Dual`
+            inputs, central differences otherwise (recorded in
+            ``gradient_method``). ``"autodiff"`` forces autodiff. A callable
+            is an analytic gradient of ``G`` in standard-normal space. The
+            default stays finite differences because the two differ at kinks
+            of ``g``: autodiff returns the derivative of the active branch of
+            ``min``/``max``/``abs`` (a one-sided derivative), whereas central
+            differences average the branches, which for a symmetric kink at
+            the start point makes the search stop with "gradient vanished"
+            instead of silently following one branch (ADR-0065).
         line_search: Whether to use the iHL-RF merit line search.
         max_iterations: Maximum number of HL-RF updates.
         tolerance: Relative feasibility and direction tolerance.
@@ -548,11 +740,13 @@ def form_hlrf(
             gradient vanishes so that no search direction exists.
 
     Equation:
-        [EQ-REL-HLRF-001], [EQ-REL-HLRF-002], [EQ-REL-FORM-002].
+        [EQ-REL-HLRF-001], [EQ-REL-HLRF-002], [EQ-REL-FORM-002],
+        [EQ-REL-FORM-AD-001].
 
     References:
         [REF-HASOFER-LIND-1974], [REF-RACKWITZ-FIESSLER-1978],
-        [REF-ZHANG-DERKIUREGHIAN-1995], [REF-DERKIUREGHIAN-2005].
+        [REF-ZHANG-DERKIUREGHIAN-1995], [REF-DERKIUREGHIAN-2005],
+        [REF-GRIEWANK-WALTHER-2008, Chapter 3].
 
     """
     state = _require_limit_state(limit_state)
@@ -568,25 +762,17 @@ def form_hlrf(
         if len(u) != dimension:
             raise ValueError("start length must equal the input dimension")
     before = state.model.evaluations
-    gradient_calls = 0
-
-    def gradient_of(point: Vector) -> Vector:
-        """Evaluate the gradient and count analytic-gradient calls.
-
-        References:
-            [EQ-OPT-FD-001], [REF-NOCEDAL-WRIGHT-2006, Section 8.1].
-
-        """
-        nonlocal gradient_calls
-        if gradient is not None:
-            gradient_calls += 1
-        return _gradient_at(state, point, gradient, step_size)
-
+    gradient_of = _LimitStateGradient(state, gradient, step_size)
     search = _hlrf_iterate(
         state.standard, u, gradient_of, line_search, iterations_limit, tol
     )
-    return _form_result(
-        state, search, state.model.evaluations - before, gradient_calls
+    result = _form_result(
+        state, search, state.model.evaluations - before, gradient_of.calls
+    )
+    return replace(
+        result,
+        gradient_method=gradient_of.method,
+        gradient_fallback_reason=gradient_of.fallback_reason,
     )
 
 

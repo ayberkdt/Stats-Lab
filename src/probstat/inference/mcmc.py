@@ -17,22 +17,32 @@ Samplers
 Diagnostics
     Split ``R-hat`` (Gelman and Rubin, 1992; BDA3 Section 11.4), the
     rank-normalized and folded ``R-hat`` of Vehtari et al. (2021), the effective
-    sample size from Geyer's initial monotone sequence, the Monte Carlo
-    standard error of the mean, and posterior summaries.
+    sample size from Geyer's initial monotone sequence computed on *split*
+    chains, the bulk and tail effective sample sizes of Vehtari et al. (2021),
+    the Monte Carlo standard errors of the mean and of quantiles, and
+    posterior summaries. The samplers check the recommendations of Vehtari et
+    al. (2021) after every run (rank-normalized ``R-hat <= 1.01``, bulk-ESS
+    and tail-ESS of at least 100 per chain) and report violations through
+    :class:`ConvergenceWarning` and the result's ``warnings`` tuple.
 
 Approximation
-    :func:`laplace_approximation` finds the mode by BFGS and uses the inverse of
-    a finite-difference Hessian of ``-log p`` as a Gaussian covariance.
+    :func:`laplace_approximation` finds the mode by BFGS and uses the inverse
+    Hessian of ``-log p`` as a Gaussian covariance; gradient and Hessian come
+    from forward-mode automatic differentiation when the log-density accepts
+    :class:`~probstat.numerics.Dual` numbers, and from finite differences
+    otherwise (recorded in ``gradient_method`` and ``hessian_method``).
 """
 
 from __future__ import annotations
 
 import math
 import operator
+import warnings
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from statistics import NormalDist
 
+from probstat.distributions import Beta
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
@@ -49,6 +59,12 @@ from probstat.linalg import (
     solve_lower,
     symmetrize,
 )
+from probstat.numerics import (
+    AutodiffUnsupportedError,
+    Dual,
+    value_and_gradient,
+    value_gradient_and_hessian,
+)
 from probstat.optimization import OptimizationResult, central_hessian, minimize_bfgs
 from probstat.statistics import median, quantile, ranks
 
@@ -57,6 +73,26 @@ LogDensity = Callable[[Vector], float]
 _STANDARD_NORMAL = NormalDist()
 _LOG_TWO_PI = math.log(2.0 * math.pi)
 DEFAULT_PROBABILITIES = (0.05, 0.5, 0.95)
+RHAT_THRESHOLD = 1.01
+ESS_PER_CHAIN_THRESHOLD = 100.0
+# Phi(-1) and Phi(1): the +-1 standard-deviation levels used by the quantile
+# MCSE of Vehtari et al. (2021, Section 4.4).
+_ONE_SIGMA_LEVELS = (_STANDARD_NORMAL.cdf(-1.0), _STANDARD_NORMAL.cdf(1.0))
+
+
+class ConvergenceWarning(UserWarning):
+    """A Markov chain Monte Carlo run failed a convergence diagnostic.
+
+    Emitted by the samplers (and listed in the result's ``warnings`` tuple)
+    when the rank-normalized ``R-hat`` exceeds 1.01, the bulk or tail
+    effective sample size is below 100 per chain, or, for Hamiltonian
+    samplers, when trajectories diverged, the energy Bayesian fraction of
+    missing information is below 0.3, or the tree depth saturated.
+
+    References:
+        [REF-VEHTARI-ETAL-2021], [REF-BETANCOURT-2017].
+
+    """
 
 
 # ---------------------------------------------------------------------------
@@ -126,6 +162,12 @@ class ParameterSummary:
         split_rhat: Classical split potential scale reduction factor.
         rank_normalized_rhat: Maximum of the bulk and folded (tail)
             rank-normalized split ``R-hat``.
+        bulk_effective_sample_size: ESS of the rank-normalized split chains
+            (``None`` when not computed).
+        tail_effective_sample_size: Minimum ESS of the 5 % and 95 % quantile
+            indicators (``None`` when not computed).
+        mcse_quantiles: ``(probability, MCSE)`` pairs for the summarized
+            quantiles.
 
     References:
         [REF-VEHTARI-ETAL-2021], [REF-GELMAN-ETAL-2013, Section 11.5].
@@ -140,6 +182,9 @@ class ParameterSummary:
     effective_sample_size: float
     split_rhat: float
     rank_normalized_rhat: float
+    bulk_effective_sample_size: float | None = None
+    tail_effective_sample_size: float | None = None
+    mcse_quantiles: tuple[tuple[float, float], ...] = ()
 
     def quantile(self, probability: float) -> float:
         """Return a stored quantile.
@@ -173,6 +218,8 @@ class MCMCResult:
         algorithm: Sampler label.
         warmup: Discarded warm-up iterations per chain.
         thin: Thinning interval applied after warm-up.
+        warnings: Convergence-diagnostic messages recorded by the sampler
+            (empty when every check passed or none was run).
 
     Raises:
         ValueError: If chains are empty or have inconsistent shapes, or names
@@ -188,6 +235,7 @@ class MCMCResult:
     algorithm: str
     warmup: int
     thin: int
+    warnings: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         """Validate chain shapes and coordinate names.
@@ -215,6 +263,7 @@ class MCMCResult:
             raise ValueError("names must be distinct")
         object.__setattr__(self, "chains", chains)
         object.__setattr__(self, "names", names)
+        object.__setattr__(self, "warnings", tuple(self.warnings))
 
     @property
     def dimension(self) -> int:
@@ -416,6 +465,7 @@ class MCMCResult:
             self.algorithm if algorithm is None else algorithm,
             self.warmup,
             self.thin,
+            self.warnings,
         )
 
 
@@ -429,8 +479,14 @@ class LaplaceApproximation:
         log_density_at_mode: ``log p(mode)``.
         log_normalizer: Laplace estimate of ``log integral exp(log p)``.
         converged: Whether the BFGS mode search met its tolerance.
-        evaluations: Log-density evaluations (search plus Hessian).
+        evaluations: Log-density evaluations (search, gradients, Hessian);
+            one dual-number evaluation counts as one.
         optimization: Raw BFGS result.
+        gradient_method: ``"autodiff"``, ``"analytic"``, or
+            ``"finite-difference"`` (gradient used by the mode search).
+        hessian_method: ``"autodiff"`` or ``"finite-difference"``.
+        fallback_reason: Why automatic differentiation was not used, if it
+            was requested and failed (``None`` otherwise).
 
     References:
         [REF-TIERNEY-KADANE-1986], [REF-GELMAN-ETAL-2013, Section 4.1].
@@ -444,6 +500,9 @@ class LaplaceApproximation:
     converged: bool
     evaluations: int
     optimization: OptimizationResult
+    gradient_method: str = "finite-difference"
+    hessian_method: str = "finite-difference"
+    fallback_reason: str | None = None
 
     @property
     def dimension(self) -> int:
@@ -798,6 +857,7 @@ def random_walk_metropolis(
     thin: int = 1,
     seed: int | RandomStream | None = None,
     names: Sequence[str] | None = None,
+    check_convergence: bool = True,
 ) -> MCMCResult:
     """Sample a log-density by random-walk Metropolis with a Gaussian proposal.
 
@@ -812,9 +872,12 @@ def random_walk_metropolis(
         thin: Keep every ``thin``-th post-warm-up state.
         seed: Integer seed or stream; ``None`` is not reproducible.
         names: Optional coordinate names.
+        check_convergence: Run :func:`convergence_warnings` on the draws and
+            emit each finding as a :class:`ConvergenceWarning`.
 
     Returns:
-        Multi-chain result with acceptance rates and evaluation counts.
+        Multi-chain result with acceptance rates, evaluation counts, and the
+        convergence ``warnings``.
 
     Raises:
         TypeError: If ``log_density`` is not callable.
@@ -852,9 +915,10 @@ def random_walk_metropolis(
         )
         for start, stream in zip(starts, streams, strict=True)
     )
-    return MCMCResult(
+    result = MCMCResult(
         results, _names(names, dimension), "random-walk Metropolis", warmup, thin
     )
+    return _with_convergence_check(result, check_convergence)
 
 
 def adaptive_metropolis(
@@ -872,6 +936,7 @@ def adaptive_metropolis(
     adaptation_interval: int = 10,
     seed: int | RandomStream | None = None,
     names: Sequence[str] | None = None,
+    check_convergence: bool = True,
 ) -> MCMCResult:
     """Sample by adaptive Metropolis with adaptation confined to warm-up.
 
@@ -899,6 +964,8 @@ def adaptive_metropolis(
         adaptation_interval: Recompute the covariance every this many steps.
         seed: Integer seed or stream.
         names: Optional coordinate names.
+        check_convergence: Run :func:`convergence_warnings` on the draws and
+            emit each finding as a :class:`ConvergenceWarning`.
 
     Returns:
         Multi-chain result; each chain records its frozen proposal covariance.
@@ -963,9 +1030,10 @@ def adaptive_metropolis(
         )
         for start, stream in zip(starts, streams, strict=True)
     )
-    return MCMCResult(
+    result = MCMCResult(
         results, _names(names, dimension), "adaptive Metropolis", warmup, thin
     )
+    return _with_convergence_check(result, check_convergence)
 
 
 # ---------------------------------------------------------------------------
@@ -1119,8 +1187,41 @@ def rank_normalized_rhat(chains: Sequence[Sequence[float]]) -> float:
     return max(bulk, tail)
 
 
-def effective_sample_size(chains: Sequence[Sequence[float]]) -> float:
+def effective_sample_size(
+    chains: Sequence[Sequence[float]], *, split: bool = True
+) -> float:
     """Return the multi-chain effective sample size of a scalar quantity.
+
+    By default every chain is first split into halves (the middle draw of an
+    odd-length chain is dropped), as in ``ess_basic`` of stan-dev/posterior
+    and Vehtari et al. (2021, Section 3.2): a chain whose first and second
+    halves differ (drift, slow mixing) then gets a smaller ESS. ``split=False``
+    reproduces the whole-chain estimate (``.ess`` applied to the raw chains).
+
+    Args:
+        chains: One or more equal-length scalar chains, at least 4 draws each.
+        split: Split each chain in half before estimating (default).
+
+    Returns:
+        Effective sample size; ``nan`` if every draw is identical.
+
+    Raises:
+        ValueError: If chains are empty, unequal, too short, or non-finite.
+
+    Equation:
+        [EQ-MCMC-ESS-001], [EQ-MCMC-ESS-002].
+
+    References:
+        [REF-GEYER-1992], [REF-VEHTARI-ETAL-2021],
+        [REF-BURKNER-ETAL-POSTERIOR, functions ``.ess`` and ``ess_basic``].
+
+    """
+    checked = _validated_chains(chains, minimum=4)
+    return _ess(_split_chains(checked) if split else checked)
+
+
+def _ess(checked: tuple[tuple[float, ...], ...]) -> float:
+    """Return the Geyer effective sample size of already validated chains.
 
     With within-chain autocovariances ``c_{t,m}`` (divisor ``n``), ``W`` the
     mean within-chain variance and ``var+ = (n-1)/n W + B/n``, the combined
@@ -1135,19 +1236,16 @@ def effective_sample_size(chains: Sequence[Sequence[float]]) -> float:
     algorithm of the ``.ess`` function of the stan-dev ``posterior``
     package, step for step; for ``n <= 5`` it gives ``tau = 2``.
 
-    Chains are used as given (not split). Antithetic chains can give
-    ``ESS > M n``; ``tau`` is bounded below by ``1 / log10(M n)`` (the
+    Chains are used as given (callers split them). Antithetic chains can
+    give ``ESS > M n``; ``tau`` is bounded below by ``1 / log10(M n)`` (the
     safety bound of the reference code), so the ESS is always positive and
     at most ``M n log10(M n)``.
 
     Args:
-        chains: One or more equal-length scalar chains, at least 4 draws each.
+        checked: Validated equal-length chains (at least two draws each).
 
     Returns:
         Effective sample size; ``nan`` if every draw is identical.
-
-    Raises:
-        ValueError: If chains are empty, unequal, too short, or non-finite.
 
     Equation:
         [EQ-MCMC-ESS-001].
@@ -1158,7 +1256,6 @@ def effective_sample_size(chains: Sequence[Sequence[float]]) -> float:
         [REF-GELMAN-ETAL-2013, Section 11.5].
 
     """
-    checked = _validated_chains(chains, minimum=4)
     m = len(checked)
     n = len(checked[0])
     means = [math.fsum(chain) / n for chain in checked]
@@ -1269,6 +1366,176 @@ def monte_carlo_standard_error(chains: Sequence[Sequence[float]]) -> float:
     return math.sqrt(variance / ess)
 
 
+def _z_scale(
+    chains: tuple[tuple[float, ...], ...],
+) -> tuple[tuple[float, ...], ...]:
+    """Return rank-normalized chains (alias of the R-hat normal scores).
+
+    References:
+        [EQ-MCMC-RHAT-002], [REF-VEHTARI-ETAL-2021].
+
+    """
+    return _rank_normalize(chains)
+
+
+def bulk_effective_sample_size(chains: Sequence[Sequence[float]]) -> float:
+    """Return the bulk effective sample size of Vehtari et al. (2021).
+
+    The chains are split in half, the pooled split draws are replaced by
+    the normal scores ``Phi^-1((r - 3/8) / (S + 1/4))`` of their average
+    ranks, and the Geyer ESS of the result is returned. Rank normalization
+    makes the estimate well defined for heavy-tailed draws (no finite
+    variance needed) and sensitive to location differences between chains.
+
+    Args:
+        chains: One or more equal-length scalar chains, at least 4 draws each.
+
+    Returns:
+        Bulk-ESS; ``nan`` if every draw is identical.
+
+    Raises:
+        ValueError: If chains are empty, unequal, too short, or non-finite.
+
+    Equation:
+        [EQ-MCMC-ESS-002].
+
+    References:
+        [REF-VEHTARI-ETAL-2021], [REF-BURKNER-ETAL-POSTERIOR, ``ess_bulk``].
+
+    """
+    checked = _split_chains(_validated_chains(chains, minimum=4))
+    pooled = [value for chain in checked for value in chain]
+    if min(pooled) == max(pooled):
+        return math.nan
+    return _ess(_z_scale(checked))
+
+
+def _sample_quantile(values: Sequence[float], probability: float) -> float:
+    """Return the type-7 quantile used by the quantile ESS and MCSE.
+
+    References:
+        [EQ-STAT-QUANT-001], [REF-HYNDMAN-FAN-1996].
+
+    """
+    return quantile(values, probability)
+
+
+def quantile_effective_sample_size(
+    chains: Sequence[Sequence[float]], probability: float
+) -> float:
+    """Return the ESS of the indicator ``I(x <= q_p)`` on split chains.
+
+    ``q_p`` is the type-7 sample quantile of all draws (a level of exactly
+    1 is replaced by ``(S - 1/2) / S`` as in the reference code). The ESS of
+    the indicator chain measures how precisely the quantile is estimated.
+
+    Args:
+        chains: One or more equal-length scalar chains, at least 4 draws each.
+        probability: Quantile level in ``[0, 1]``.
+
+    Returns:
+        ESS of the indicator; ``nan`` when the indicator is constant.
+
+    Raises:
+        ValueError: For invalid chains or a level outside ``[0, 1]``.
+
+    Equation:
+        [EQ-MCMC-ESS-002].
+
+    References:
+        [REF-VEHTARI-ETAL-2021], [REF-BURKNER-ETAL-POSTERIOR, ``ess_quantile``].
+
+    """
+    checked = _validated_chains(chains, minimum=4)
+    level = require_finite_real(probability, name="probability")
+    if not 0.0 <= level <= 1.0:
+        raise ValueError("probability must lie in [0, 1]")
+    pooled = [value for chain in checked for value in chain]
+    if level == 1.0:
+        level = (len(pooled) - 0.5) / len(pooled)
+    threshold = _sample_quantile(pooled, level)
+    indicators = tuple(
+        tuple(1.0 if value <= threshold else 0.0 for value in chain)
+        for chain in checked
+    )
+    split = _split_chains(indicators)
+    flat = [value for chain in split for value in chain]
+    if min(flat) == max(flat):
+        return math.nan
+    return _ess(split)
+
+
+def tail_effective_sample_size(chains: Sequence[Sequence[float]]) -> float:
+    """Return the tail effective sample size of Vehtari et al. (2021).
+
+    The minimum of the quantile ESS at the 5 % and 95 % levels, a measure of
+    how well the chains explore the tails (the precision of central 90 %
+    intervals).
+
+    Args:
+        chains: One or more equal-length scalar chains, at least 4 draws each.
+
+    Returns:
+        Tail-ESS; ``nan`` when undefined (constant draws).
+
+    Raises:
+        ValueError: If chains are empty, unequal, too short, or non-finite.
+
+    Equation:
+        [EQ-MCMC-ESS-002].
+
+    References:
+        [REF-VEHTARI-ETAL-2021], [REF-BURKNER-ETAL-POSTERIOR, ``ess_tail``].
+
+    """
+    lower = quantile_effective_sample_size(chains, 0.05)
+    upper = quantile_effective_sample_size(chains, 0.95)
+    if math.isnan(lower) or math.isnan(upper):
+        return math.nan
+    return min(lower, upper)
+
+
+def mcse_quantile(chains: Sequence[Sequence[float]], probability: float) -> float:
+    """Return the Monte Carlo standard error of a posterior quantile.
+
+    With ``S_eff`` the quantile ESS (:func:`quantile_effective_sample_size`),
+    ``a_1, a_2`` the ``Phi(-1)`` and ``Phi(1)`` quantiles of
+    ``Beta(S_eff p + 1, S_eff (1 - p) + 1)``, and ``x_(1) <= ... <= x_(S)``
+    the sorted draws, ``MCSE = (x_(ceil(a_2 S)) - x_(max(floor(a_1 S), 1))) / 2``
+    (Vehtari et al. 2021, Section 4.4): the half-width of a +-1 sd interval
+    for the quantile, mapped through the empirical distribution.
+
+    Args:
+        chains: One or more equal-length scalar chains, at least 4 draws each.
+        probability: Quantile level in ``[0, 1]``.
+
+    Returns:
+        Quantile MCSE; ``nan`` when the quantile ESS is undefined.
+
+    Raises:
+        ValueError: For invalid chains or a level outside ``[0, 1]``.
+
+    Equation:
+        [EQ-MCMC-MCSE-002].
+
+    References:
+        [REF-VEHTARI-ETAL-2021], [REF-BURKNER-ETAL-POSTERIOR, ``mcse_quantile``].
+
+    """
+    ess = quantile_effective_sample_size(chains, probability)
+    if math.isnan(ess):
+        return math.nan
+    level = float(probability)
+    law = Beta(ess * level + 1.0, ess * (1.0 - level) + 1.0)
+    lower_level = law.quantile(_ONE_SIGMA_LEVELS[0])
+    upper_level = law.quantile(_ONE_SIGMA_LEVELS[1])
+    ordered = sorted(value for chain in chains for value in chain)
+    size = len(ordered)
+    low_index = max(math.floor(lower_level * size), 1)
+    high_index = min(math.ceil(upper_level * size), size)
+    return (ordered[high_index - 1] - ordered[low_index - 1]) / 2.0
+
+
 def summarize_draws(
     chains: Sequence[Sequence[float]],
     *,
@@ -1283,7 +1550,8 @@ def summarize_draws(
         probabilities: Quantile levels in ``[0, 1]``.
 
     Returns:
-        Mean, standard deviation, quantiles, MCSE, ESS, and both ``R-hat``s.
+        Mean, standard deviation, quantiles with their MCSE, mean MCSE,
+        split ESS, bulk- and tail-ESS, and both ``R-hat``s.
 
     Raises:
         ValueError: If chains are invalid or a probability is outside
@@ -1291,7 +1559,8 @@ def summarize_draws(
 
     Equation:
         [EQ-MCMC-RHAT-001], [EQ-MCMC-RHAT-002], [EQ-MCMC-ESS-001],
-        [EQ-MCMC-MCSE-001], [EQ-STAT-QUANT-001].
+        [EQ-MCMC-ESS-002], [EQ-MCMC-MCSE-001], [EQ-MCMC-MCSE-002],
+        [EQ-STAT-QUANT-001].
 
     References:
         [REF-VEHTARI-ETAL-2021], [REF-GELMAN-ETAL-2013, Section 11.5].
@@ -1316,7 +1585,135 @@ def summarize_draws(
         ess,
         split_rhat(checked),
         rank_normalized_rhat(checked),
+        bulk_effective_sample_size(checked),
+        tail_effective_sample_size(checked),
+        tuple((p, mcse_quantile(checked, p)) for p in levels),
     )
+
+
+# ---------------------------------------------------------------------------
+# Automatic convergence checks
+# ---------------------------------------------------------------------------
+
+
+def _format_items(items: Sequence[tuple[str, float]], digits: int) -> str:
+    """Format ``name (value)`` pairs, listing at most five.
+
+    References:
+        Project API policy. No equation is evaluated.
+
+    """
+    shown = ", ".join(f"{name} ({value:.{digits}f})" for name, value in items[:5])
+    if len(items) > 5:
+        shown += f", and {len(items) - 5} more"
+    return shown
+
+
+def convergence_warnings(result: MCMCResult) -> tuple[str, ...]:
+    """Check multi-chain draws against the recommendations of Vehtari et al.
+
+    For every coordinate the rank-normalized split ``R-hat`` must not exceed
+    1.01, and the bulk-ESS and the tail-ESS must reach ``100 M`` for ``M``
+    chains (100 per chain; Vehtari et al. 2021, Section 4). A coordinate whose
+    draws never change has undefined diagnostics and is reported as stuck.
+
+    Args:
+        result: Multi-chain draws.
+
+    Returns:
+        One message per failed check (empty when everything passed). With
+        fewer than four draws per chain a single message says that the
+        diagnostics could not be computed.
+
+    Equation:
+        [EQ-MCMC-RHAT-002], [EQ-MCMC-ESS-002].
+
+    References:
+        [REF-VEHTARI-ETAL-2021].
+
+    """
+    if result.draws_per_chain < 4:
+        return (
+            "fewer than 4 draws per chain: convergence diagnostics were not "
+            "computed",
+        )
+    chain_count = len(result.chains)
+    threshold = ESS_PER_CHAIN_THRESHOLD * chain_count
+    high_rhat: list[tuple[str, float]] = []
+    stuck: list[str] = []
+    low_bulk: list[tuple[str, float]] = []
+    low_tail: list[tuple[str, float]] = []
+    for name in result.names:
+        columns = result.chain_columns(name)
+        rhat = rank_normalized_rhat(columns)
+        if math.isnan(rhat):
+            stuck.append(name)
+            continue
+        if rhat > RHAT_THRESHOLD:
+            high_rhat.append((name, rhat))
+        bulk = bulk_effective_sample_size(columns)
+        if not bulk >= threshold:
+            low_bulk.append((name, bulk))
+        tail = tail_effective_sample_size(columns)
+        if not tail >= threshold:
+            low_tail.append((name, tail))
+    messages: list[str] = []
+    if stuck:
+        messages.append(
+            "draws never changed for "
+            + ", ".join(stuck[:5])
+            + ("" if len(stuck) <= 5 else f", and {len(stuck) - 5} more")
+            + ": R-hat and ESS are undefined and the chains did not move"
+        )
+    if high_rhat:
+        messages.append(
+            f"rank-normalized R-hat > {RHAT_THRESHOLD} for "
+            + _format_items(high_rhat, 3)
+            + ": the chains have not mixed; run longer or reparameterize"
+        )
+    if low_bulk:
+        messages.append(
+            f"bulk-ESS below {threshold:.0f} (100 per chain) for "
+            + _format_items(low_bulk, 0)
+            + ": posterior means and medians are unreliable"
+        )
+    if low_tail:
+        messages.append(
+            f"tail-ESS below {threshold:.0f} (100 per chain) for "
+            + _format_items(low_tail, 0)
+            + ": 5 % and 95 % quantiles are unreliable"
+        )
+    return tuple(messages)
+
+
+def emit_convergence_warnings(messages: Sequence[str], *, stacklevel: int = 3) -> None:
+    """Emit each message as a :class:`ConvergenceWarning`.
+
+    Args:
+        messages: Messages returned by a convergence check.
+        stacklevel: ``warnings.warn`` stack level (3 points at the caller of
+            the sampler that calls this function).
+
+    References:
+        [REF-VEHTARI-ETAL-2021]. No equation is evaluated.
+
+    """
+    for message in messages:
+        warnings.warn(message, ConvergenceWarning, stacklevel=stacklevel)
+
+
+def _with_convergence_check(result: MCMCResult, enabled: bool) -> MCMCResult:
+    """Attach (and emit) the convergence messages of a sampler result.
+
+    References:
+        [REF-VEHTARI-ETAL-2021]. No equation is evaluated.
+
+    """
+    if not enabled:
+        return result
+    messages = convergence_warnings(result)
+    emit_convergence_warnings(messages, stacklevel=4)
+    return replace(result, warnings=messages)
 
 
 # ---------------------------------------------------------------------------
@@ -1328,41 +1725,57 @@ def laplace_approximation(
     log_density: LogDensity,
     initial: Sequence[float],
     *,
-    gradient: Callable[[Vector], Sequence[float]] | None = None,
+    gradient: Callable[[Vector], Sequence[float]] | str | None = "auto",
     relative_step: float = 1e-4,
     max_iterations: int = 500,
 ) -> LaplaceApproximation:
     """Approximate a log-density by a Gaussian at its mode.
 
-    The mode ``x*`` minimizes ``-log p`` by BFGS; ``H`` is the central
-    finite-difference Hessian of ``-log p`` at ``x*``; the approximation is
-    ``N(x*, H^-1)`` and
+    The mode ``x*`` minimizes ``-log p`` by BFGS; ``H`` is the Hessian of
+    ``-log p`` at ``x*``; the approximation is ``N(x*, H^-1)`` and
     ``log Z ~= log p(x*) + (d/2) log(2 pi) - (1/2) log det H``.
-    It is exact (up to finite-difference rounding) for Gaussian targets.
+    It is exact (up to rounding) for Gaussian targets.
+
+    Derivatives. With ``gradient="auto"`` (default) the log-density is first
+    evaluated on :class:`~probstat.numerics.Dual` numbers: if that works, BFGS
+    receives the exact forward-mode gradient and ``H`` is the exact
+    forward-over-forward Hessian (one call). If the log-density does not
+    accept duals (it calls ``math.*`` or validates with ``float``), BFGS uses
+    its own finite differences and ``H`` is the central finite-difference
+    Hessian; the result records the methods and the reason. ``"autodiff"``
+    raises instead of falling back, ``"finite-difference"`` never tries
+    duals, and a callable is used as the analytic gradient of ``log p`` (the
+    Hessian is then still taken by autodiff when possible).
 
     Args:
         log_density: Target ``log p(x)`` up to a constant.
         initial: Starting point with finite log-density.
-        gradient: Optional analytic gradient of ``log p``.
-        relative_step: Hessian finite-difference step relative to
+        gradient: ``"auto"``, ``"autodiff"``, ``"finite-difference"``, an
+            analytic gradient of ``log p``, or ``None`` (same as ``"auto"``).
+        relative_step: Finite-difference Hessian step relative to
             ``max(1, |x_i|)``.
         max_iterations: BFGS iteration limit.
 
     Returns:
-        Laplace approximation with mode, covariance, log normalizer, and
-        convergence flag.
+        Laplace approximation with mode, covariance, log normalizer,
+        convergence flag, and the derivative methods used.
 
     Raises:
         TypeError: If ``log_density`` is not callable.
-        ValueError: If the start has non-finite density, or the Hessian at the
-            located point is not positive definite (no strict local maximum).
+        ValueError: If the start has non-finite density, the option is
+            unknown, or the Hessian at the located point is not positive
+            definite (no strict local maximum).
+        AutodiffUnsupportedError: With ``gradient="autodiff"`` for a
+            log-density that does not accept duals.
 
     Equation:
-        [EQ-LAPLACE-001], [EQ-OPT-BFGS-001], [EQ-OPT-FD-002].
+        [EQ-LAPLACE-001], [EQ-OPT-BFGS-001], [EQ-OPT-FD-002], [EQ-AD-DUAL-001],
+        [EQ-AD-HESSIAN-001].
 
     References:
         [REF-TIERNEY-KADANE-1986], [REF-GELMAN-ETAL-2013, Section 4.1],
-        [REF-NOCEDAL-WRIGHT-2006, Chapter 6].
+        [REF-NOCEDAL-WRIGHT-2006, Chapter 6], [REF-GRIEWANK-WALTHER-2008,
+        Chapters 3 and 13].
 
     """
     checked = _checked_log_density(log_density)
@@ -1371,6 +1784,19 @@ def laplace_approximation(
         raise ValueError("initial must be non-empty")
     if not math.isfinite(checked(start)):
         raise ValueError("initial point must have a finite log-density")
+    option: Callable[[Vector], Sequence[float]] | str = (
+        "auto" if gradient is None else gradient
+    )
+    if not callable(option) and option not in (
+        "auto",
+        "autodiff",
+        "finite-difference",
+    ):
+        raise ValueError(
+            "gradient must be 'auto', 'autodiff', 'finite-difference', a "
+            "callable, or None"
+        )
+    dual_calls = 0
 
     def negative(point: Vector) -> float:
         """Return ``-log p``; ``+inf`` outside the support raises in BFGS.
@@ -1381,12 +1807,39 @@ def laplace_approximation(
         """
         return -checked(point)
 
+    def negative_dual(point: tuple[Dual, ...]) -> float | Dual:
+        """Return ``-log p`` on dual numbers (counted).
+
+        References:
+            [EQ-LAPLACE-001], [EQ-AD-DUAL-001]. No new equation is introduced.
+
+        """
+        nonlocal dual_calls
+        dual_calls += 1
+        return -log_density(point)  # type: ignore[arg-type]
+
+    gradient_method = "finite-difference"
+    fallback: str | None = None
+    try_duals = option in ("auto", "autodiff") or callable(option)
+    if option in ("auto", "autodiff"):
+        try:
+            value_and_gradient(negative_dual, start)
+        except TypeError as error:
+            if option == "autodiff":
+                raise AutodiffUnsupportedError(
+                    f"log_density does not support Dual numbers: {error}"
+                ) from error
+            fallback = f"{type(error).__name__}: {error}"
+            try_duals = False
+        else:
+            gradient_method = "autodiff"
     negative_gradient: Callable[[Vector], Sequence[float]] | None = None
-    if gradient is not None:
-        supplied = gradient
+    if callable(option):
+        supplied = option
+        gradient_method = "analytic"
 
         def negative_gradient(point: Vector) -> Sequence[float]:
-            """Return the gradient of ``-log p``.
+            """Return the gradient of ``-log p`` from the analytic gradient.
 
             References:
                 [EQ-LAPLACE-001]. No new equation is introduced.
@@ -1394,11 +1847,38 @@ def laplace_approximation(
             """
             return tuple(-value for value in supplied(point))
 
+    elif gradient_method == "autodiff":
+
+        def negative_gradient(point: Vector) -> Sequence[float]:
+            """Return the forward-mode gradient of ``-log p``.
+
+            References:
+                [EQ-LAPLACE-001], [EQ-AD-DUAL-001].
+
+            """
+            return value_and_gradient(negative_dual, point)[1]
+
     optimization = minimize_bfgs(
         negative, start, gradient=negative_gradient, max_iterations=max_iterations
     )
     mode = optimization.x
-    hessian, used = central_hessian(negative, mode, relative_step=relative_step)
+    hessian: Matrix | None = None
+    hessian_method = "finite-difference"
+    used = 0
+    if try_duals:
+        try:
+            value, _, exact = value_gradient_and_hessian(negative_dual, mode)
+        except (TypeError, ValueError, ArithmeticError) as error:
+            if fallback is None:
+                fallback = f"Hessian: {type(error).__name__}: {error}"
+        else:
+            if math.isfinite(value) and all(
+                math.isfinite(entry) for row in exact for entry in row
+            ):
+                hessian = exact
+                hessian_method = "autodiff"
+    if hessian is None:
+        hessian, used = central_hessian(negative, mode, relative_step=relative_step)
     try:
         covariance = _average_transpose(inverse_spd(hessian))
         log_det_hessian = log_det_spd(hessian)
@@ -1415,6 +1895,9 @@ def laplace_approximation(
         value,
         log_normalizer,
         optimization.converged,
-        optimization.evaluations + used + 1,
+        optimization.evaluations + used + dual_calls + 1,
         optimization,
+        gradient_method,
+        hessian_method,
+        fallback,
     )

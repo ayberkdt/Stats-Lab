@@ -10,13 +10,24 @@ costs efficiency, never correctness.
 
 Samplers
     :func:`hamiltonian_monte_carlo` runs a fixed number of leapfrog steps per
-    iteration (Neal, 2011). :func:`no_u_turn_sampler` is the efficient
-    recursive NUTS of Hoffman and Gelman (2014, Algorithms 3 and 6) with
-    **slice sampling**: a slice variable ``u ~ Uniform(0, exp(-H_0))`` is
-    drawn per iteration, the trajectory is doubled forwards or backwards until
-    a U-turn, a divergence, or the maximum tree depth, and the next state is
-    chosen by progressive (biased) sampling among the in-slice states. The
-    multinomial variant used by current Stan is *not* implemented.
+    iteration (Neal, 2011). :func:`no_u_turn_sampler` builds the trajectory
+    by the recursive doubling of Hoffman and Gelman (2014, Algorithm 3 and
+    6): it is doubled forwards or backwards until a U-turn of the whole
+    trajectory or of any subtree, a divergence, or the maximum tree depth.
+    Two ways of choosing the next state are offered:
+
+    * ``variant="multinomial"`` (default): every state ``z`` of the
+      trajectory gets the weight ``exp(-H(z))``; inside a subtree the
+      candidate is chosen by uniform progressive sampling (probability
+      ``w_new / (w_old + w_new)``) and at the top level by biased progressive
+      sampling (``min(1, w_new / w_old)``), as described by Betancourt (2017,
+      Appendix A.3) and used by Stan. Divergence: ``H - H_0 > Delta_max``.
+    * ``variant="slice"``: the original slice-sampling NUTS (a slice level
+      ``u ~ Uniform(0, exp(-H_0))``, progressive sampling among in-slice
+      states), kept for backward compatibility with releases <= 0.15.
+
+    Both variants use the U-turn criterion of Hoffman and Gelman on the end
+    positions (not Stan's generalized criterion on summed momenta).
 
 Warm-up adaptation (simplified Stan-style windows)
     Warm-up is split into an initial fast buffer (step size only), a sequence
@@ -40,12 +51,25 @@ Divergences
     indicate regions of high curvature that the chosen step size cannot
     resolve, so estimates may be biased even when ``R-hat`` looks fine.
 
-Cost
-    Each leapfrog step needs one gradient. With ``gradient=None`` the gradient
-    is approximated by central differences ([EQ-OPT-FD-001]) at a cost of
-    ``2 d`` extra log-density evaluations per step, so a NUTS iteration with
-    tree depth ``j`` costs about ``2^j (2 d + 1)`` evaluations. Supply an
-    analytic gradient whenever one is available.
+Gradients and cost
+    Each leapfrog step needs one gradient. ``gradient="auto"`` (default)
+    evaluates the log-density on :class:`~probstat.numerics.Dual` numbers,
+    which returns value and exact gradient from **one** call (forward-mode
+    automatic differentiation, [EQ-AD-DUAL-001]). If the log-density does not
+    accept duals (it calls ``math.*`` or converts to ``float``), the sampler
+    falls back to central differences ([EQ-OPT-FD-001]) at ``2 d`` extra
+    log-density calls per step, so a NUTS iteration with tree depth ``j``
+    costs about ``2^j (2 d + 1)`` calls; ``gradient_method`` in the result
+    records which method was used and why. ``"autodiff"`` and
+    ``"finite-difference"`` force one method; a callable is an analytic
+    gradient.
+
+Convergence checks
+    After sampling, :func:`~probstat.inference.convergence_warnings` checks
+    R-hat and the bulk and tail ESS of every coordinate, and the sampler adds
+    divergences, E-BFMI below 0.3 (Betancourt 2017) and saturated tree depth.
+    Each finding is emitted as a :class:`~probstat.inference.ConvergenceWarning`
+    and stored in ``HamiltonianResult.warnings``.
 """
 
 from __future__ import annotations
@@ -70,6 +94,7 @@ from probstat.linalg import (
     symmetrize,
     transpose,
 )
+from probstat.numerics import GradientEvaluator
 from probstat.optimization import central_gradient
 
 from .mcmc import (
@@ -78,12 +103,17 @@ from .mcmc import (
     MarkovChain,
     MCMCResult,
     ParameterSummary,
+    convergence_warnings,
+    emit_convergence_warnings,
 )
 
 GradientFunction = Callable[[Vector], Sequence[float]]
+GradientOption = GradientFunction | str | None
 MetricKind = Literal["diag", "dense", "unit"]
+NutsVariant = Literal["multinomial", "slice"]
 
 _DEFAULT_MAX_ENERGY_ERROR = 1000.0
+E_BFMI_THRESHOLD = 0.3
 _METRIC_SHRINKAGE_COUNT = 5.0
 _METRIC_SHRINKAGE_TARGET = 1e-3
 
@@ -113,8 +143,13 @@ class HamiltonianChainStatistics:
             (after momentum refresh).
         max_tree_depth: Tree-depth limit (``0`` for static HMC).
         gradient_evaluations: Gradient evaluations including warm-up.
-        log_density_evaluations: Log-density evaluations including warm-up and
-            finite-difference gradients.
+        log_density_evaluations: Calls of the log-density including warm-up
+            and finite-difference gradients; one dual-number (autodiff) call
+            returns value and gradient and counts once.
+        gradient_method: ``"autodiff"``, ``"finite-difference"``, or
+            ``"analytic"``.
+        gradient_fallback_reason: Why ``gradient="auto"`` fell back to finite
+            differences (``None`` when it did not).
 
     References:
         [REF-HOFFMAN-GELMAN-2014], [REF-BETANCOURT-2017], [REF-NEAL-2011].
@@ -133,6 +168,8 @@ class HamiltonianChainStatistics:
     max_tree_depth: int
     gradient_evaluations: int
     log_density_evaluations: int
+    gradient_method: str = "finite-difference"
+    gradient_fallback_reason: str | None = None
 
     @property
     def divergences(self) -> int:
@@ -247,6 +284,8 @@ class HamiltonianResult:
     Args:
         mcmc: Multi-chain draws.
         statistics: One diagnostics record per chain.
+        warnings: Convergence messages found after sampling (R-hat, ESS,
+            divergences, E-BFMI, tree depth); empty when all checks passed.
 
     Raises:
         ValueError: If the number of statistics differs from the chains.
@@ -258,6 +297,7 @@ class HamiltonianResult:
 
     mcmc: MCMCResult
     statistics: tuple[HamiltonianChainStatistics, ...]
+    warnings: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         """Validate that every chain has one statistics record.
@@ -270,6 +310,31 @@ class HamiltonianResult:
         if len(statistics) != len(self.mcmc.chains):
             raise ValueError("one statistics record per chain is required")
         object.__setattr__(self, "statistics", statistics)
+        object.__setattr__(self, "warnings", tuple(self.warnings))
+
+    @property
+    def gradient_method(self) -> str:
+        """Return the gradient method shared by all chains (or ``"mixed"``).
+
+        References:
+            [REF-GRIEWANK-WALTHER-2008, Chapter 3]. No equation is evaluated.
+
+        """
+        methods = {item.gradient_method for item in self.statistics}
+        return methods.pop() if len(methods) == 1 else "mixed"
+
+    @property
+    def gradient_fallback_reason(self) -> str | None:
+        """Return why automatic differentiation was abandoned, if it was.
+
+        References:
+            [REF-GRIEWANK-WALTHER-2008, Chapter 3]. No equation is evaluated.
+
+        """
+        for item in self.statistics:
+            if item.gradient_fallback_reason is not None:
+                return item.gradient_fallback_reason
+        return None
 
     @property
     def algorithm(self) -> str:
@@ -490,19 +555,21 @@ class _Metric:
 class _Target:
     """Log-density and gradient with evaluation counting and failure capture.
 
-    Non-finite values, ``ArithmeticError``, and ``ValueError`` raised by the
-    user callables at a *trajectory* point are mapped to ``log p = -inf`` so
-    that the sampler can flag a divergence instead of crashing.
+    The gradient comes from a :class:`~probstat.numerics.GradientEvaluator`
+    (autodiff, finite differences, or an analytic callable). Non-finite
+    values, ``ArithmeticError``, and ``ValueError`` raised by the user
+    callables at a *trajectory* point are mapped to ``log p = -inf`` so that
+    the sampler can flag a divergence instead of crashing. Every call of the
+    user log-density (float or dual) is counted once.
 
     References:
-        [REF-HOFFMAN-GELMAN-2014], [EQ-OPT-FD-001].
+        [REF-HOFFMAN-GELMAN-2014], [EQ-OPT-FD-001], [EQ-AD-DUAL-001].
 
     """
 
     __slots__ = (
         "log_density_function",
-        "gradient_function",
-        "relative_step",
+        "evaluator",
         "density_calls",
         "gradient_calls",
     )
@@ -510,20 +577,44 @@ class _Target:
     def __init__(
         self,
         log_density: LogDensity,
-        gradient: GradientFunction | None,
+        gradient: GradientFunction | str,
         relative_step: float,
     ) -> None:
-        """Store the callables and zero the counters.
+        """Store the callables, build the gradient oracle, zero the counters.
 
         References:
             Project API policy. No equation is evaluated.
 
         """
         self.log_density_function = log_density
-        self.gradient_function = gradient
-        self.relative_step = relative_step
         self.density_calls = 0
         self.gradient_calls = 0
+
+        def finite_difference(
+            function: Callable[[Vector], float], point: Vector
+        ) -> Sequence[float]:
+            """Return the central-difference gradient of ``function``.
+
+            References:
+                [EQ-OPT-FD-001], [REF-NOCEDAL-WRIGHT-2006, Section 8.1].
+
+            """
+            values, _ = central_gradient(function, point, relative_step=relative_step)
+            return values
+
+        self.evaluator = GradientEvaluator(
+            self._call, gradient, finite_difference=finite_difference
+        )
+
+    def _call(self, x: Sequence[object]) -> object:
+        """Call and count the user log-density (floats or duals).
+
+        References:
+            [REF-NEAL-2011]. No equation is evaluated.
+
+        """
+        self.density_calls += 1
+        return self.log_density_function(x)  # type: ignore[arg-type]
 
     def _density(self, x: Vector) -> float:
         """Evaluate and count one log-density value.
@@ -532,31 +623,23 @@ class _Target:
             [REF-NEAL-2011]. No equation is evaluated.
 
         """
-        self.density_calls += 1
-        return float(self.log_density_function(x))
+        return float(self._call(x))  # type: ignore[arg-type]
 
     def evaluate(self, x: Vector) -> tuple[float, Vector | None]:
         """Return ``(log p(x), grad log p(x))`` or ``(-inf, None)`` on failure.
 
         References:
-            [EQ-OPT-FD-001], [REF-NOCEDAL-WRIGHT-2006, Section 8.1].
+            [EQ-OPT-FD-001], [EQ-AD-DUAL-001],
+            [REF-NOCEDAL-WRIGHT-2006, Section 8.1].
 
         """
         try:
-            value = self._density(x)
-            if not math.isfinite(value):
-                return -math.inf, None
-            self.gradient_calls += 1
-            if self.gradient_function is None:
-                gradient, _ = central_gradient(
-                    self._density, x, relative_step=self.relative_step
-                )
-            else:
-                gradient = tuple(float(g) for g in self.gradient_function(x))
-                if len(gradient) != len(x):
-                    raise ValueError("gradient must match the state dimension")
+            value, gradient = self.evaluator.value_and_gradient(x)
         except (ArithmeticError, ValueError):
             return -math.inf, None
+        if gradient is None or not math.isfinite(value):
+            return -math.inf, None
+        self.gradient_calls += 1
         if not all(math.isfinite(g) for g in gradient):
             return -math.inf, None
         return value, gradient
@@ -736,6 +819,8 @@ def leapfrog(
         """
         return 0.0
 
+    if not callable(gradient):
+        raise TypeError("gradient must be callable")
     target = _Target(strict_density, gradient, 1e-6)
     _, start_gradient = target.evaluate(x)
     if start_gradient is None:
@@ -1159,6 +1244,151 @@ def _nuts_transition(
     return _Transition(chosen, acceptance, -joint0, steps, depth, divergent)
 
 
+def _log_add_exp(a: float, b: float) -> float:
+    """Return ``log(exp(a) + exp(b))`` without overflow.
+
+    References:
+        [REF-BETANCOURT-2017, Appendix A]. No new equation is introduced.
+
+    """
+    if a == -math.inf:
+        return b
+    if b == -math.inf:
+        return a
+    high, low = (a, b) if a >= b else (b, a)
+    return high + math.log1p(math.exp(low - high))
+
+
+@dataclass(slots=True)
+class _WeightedTree:
+    """Subtree summary of multinomial NUTS (log of the summed weights).
+
+    References:
+        [REF-BETANCOURT-2017, Appendix A.3]. No equation is evaluated.
+
+    """
+
+    minus: _Point
+    plus: _Point
+    proposal: _Point
+    log_weight: float
+    keep_going: bool
+    alpha: float
+    alpha_count: int
+    divergent: bool
+    steps: int
+
+
+def _multinomial_nuts_transition(
+    target: _Target,
+    metric: _Metric,
+    current: _Point,
+    step_size: float,
+    max_depth: int,
+    max_energy_error: float,
+    generator: Random,
+) -> _Transition:
+    """Run one NUTS iteration with multinomial sampling of the next state.
+
+    Each trajectory state ``z`` has weight ``w(z) = exp(-H(z) + H_0)``. A
+    subtree picks its candidate by uniform progressive sampling (the second
+    half's candidate replaces the first's with probability
+    ``W_2 / (W_1 + W_2)``); the top level uses biased progressive sampling
+    (the new subtree's candidate is taken with probability
+    ``min(1, W_new / W_old)``). Both keep the canonical distribution
+    invariant given the trajectory (Betancourt 2017, Appendix A.3.2). A
+    leaf with ``H - H_0 > max_energy_error`` (or a non-finite energy) is
+    divergent and ends the doubling.
+
+    References:
+        [EQ-NUTS-MULTINOMIAL-001], [EQ-NUTS-UTURN-001], [REF-BETANCOURT-2017],
+        [REF-HOFFMAN-GELMAN-2014].
+
+    """
+    momentum = metric.sample_momentum(generator)
+    start = _Point(current.x, momentum, current.log_density, current.gradient)
+    joint0 = _joint(metric, start)
+
+    def build(point: _Point, direction: int, depth: int) -> _WeightedTree:
+        """Build a balanced subtree of ``2^depth`` leapfrog steps.
+
+        References:
+            [EQ-NUTS-MULTINOMIAL-001], [REF-BETANCOURT-2017, Appendix A.3].
+
+        """
+        if depth == 0:
+            moved = _leapfrog_step(target, metric, point, direction * step_size)
+            joint = _joint(metric, moved)
+            if joint == -math.inf:
+                return _WeightedTree(
+                    moved, moved, moved, -math.inf, False, 0.0, 1, True, 1
+                )
+            difference = joint - joint0
+            divergent = -difference > max_energy_error
+            alpha = 1.0 if difference >= 0.0 else math.exp(difference)
+            return _WeightedTree(
+                moved, moved, moved, difference, not divergent, alpha, 1, divergent, 1
+            )
+        first = build(point, direction, depth - 1)
+        if not first.keep_going:
+            return first
+        if direction < 0:
+            second = build(first.minus, direction, depth - 1)
+            minus, plus = second.minus, first.plus
+        else:
+            second = build(first.plus, direction, depth - 1)
+            minus, plus = first.minus, second.plus
+        total = _log_add_exp(first.log_weight, second.log_weight)
+        proposal = first.proposal
+        if second.log_weight > -math.inf and generator.random() < math.exp(
+            second.log_weight - total
+        ):
+            proposal = second.proposal
+        keep = second.keep_going and _no_u_turn(metric, minus, plus)
+        return _WeightedTree(
+            minus,
+            plus,
+            proposal,
+            total,
+            keep,
+            first.alpha + second.alpha,
+            first.alpha_count + second.alpha_count,
+            first.divergent or second.divergent,
+            first.steps + second.steps,
+        )
+
+    minus = plus = start
+    chosen = current
+    log_weight = 0.0
+    keep_going = True
+    depth = 0
+    alpha_sum = 0.0
+    alpha_count = 0
+    steps = 0
+    divergent = False
+    while keep_going and depth < max_depth:
+        direction = -1 if generator.random() < 0.5 else 1
+        if direction < 0:
+            tree = build(minus, direction, depth)
+            minus = tree.minus
+        else:
+            tree = build(plus, direction, depth)
+            plus = tree.plus
+        alpha_sum += tree.alpha
+        alpha_count += tree.alpha_count
+        steps += tree.steps
+        divergent = divergent or tree.divergent
+        if tree.keep_going and generator.random() < math.exp(
+            min(0.0, tree.log_weight - log_weight)
+        ):
+            chosen = tree.proposal
+        log_weight = _log_add_exp(log_weight, tree.log_weight)
+        keep_going = tree.keep_going and _no_u_turn(metric, minus, plus)
+        depth += 1
+    acceptance = alpha_sum / alpha_count if alpha_count else 0.0
+    return _Transition(chosen, acceptance, -joint0, steps, depth, divergent)
+
+
 # ---------------------------------------------------------------------------
 # Chain driver
 # ---------------------------------------------------------------------------
@@ -1187,6 +1417,7 @@ class _Settings:
     step_size_jitter: float
     max_tree_depth: int
     max_energy_error: float
+    variant: NutsVariant = "multinomial"
 
 
 def _run_hamiltonian_chain(
@@ -1225,6 +1456,16 @@ def _run_hamiltonian_chain(
             [REF-HOFFMAN-GELMAN-2014], [REF-NEAL-2011].
 
         """
+        if settings.algorithm == "nuts" and settings.variant == "multinomial":
+            return _multinomial_nuts_transition(
+                target,
+                metric,
+                point,
+                eps,
+                settings.max_tree_depth,
+                settings.max_energy_error,
+                generator,
+            )
         if settings.algorithm == "nuts":
             return _nuts_transition(
                 target,
@@ -1321,6 +1562,8 @@ def _run_hamiltonian_chain(
         settings.max_tree_depth if settings.algorithm == "nuts" else 0,
         target.gradient_calls,
         target.density_calls,
+        target.evaluator.method,
+        target.evaluator.fallback_reason,
     )
     return chain, statistics
 
@@ -1359,7 +1602,7 @@ def _sample(
     log_density: LogDensity,
     initial: Sequence[float] | Sequence[Sequence[float]],
     *,
-    gradient: GradientFunction | None,
+    gradient: GradientOption,
     draws: int,
     warmup: int,
     chains: int,
@@ -1377,6 +1620,8 @@ def _sample(
     relative_step: float,
     seed: int | RandomStream | None,
     names: Sequence[str] | None,
+    variant: str = "multinomial",
+    check_convergence: bool = True,
 ) -> HamiltonianResult:
     """Validate arguments and run every chain of an HMC or NUTS sampler.
 
@@ -1386,8 +1631,21 @@ def _sample(
     """
     if not callable(log_density):
         raise TypeError("log_density must be callable")
-    if gradient is not None and not callable(gradient):
-        raise TypeError("gradient must be callable or None")
+    option: GradientFunction | str = "auto" if gradient is None else gradient
+    if not callable(option):
+        if not isinstance(option, str):
+            raise TypeError(
+                "gradient must be 'auto', 'autodiff', 'finite-difference', a "
+                "callable, or None"
+            )
+        if option not in ("auto", "autodiff", "finite-difference"):
+            raise ValueError(
+                "gradient must be 'auto', 'autodiff', 'finite-difference', a "
+                "callable, or None"
+            )
+    if variant not in ("multinomial", "slice"):
+        raise ValueError("variant must be 'multinomial' or 'slice'")
+    nuts_variant: NutsVariant = "slice" if variant == "slice" else "multinomial"
     checked_draws = require_non_negative_integer(draws, name="draws")
     checked_warmup = require_non_negative_integer(warmup, name="warmup")
     checked_chains = require_non_negative_integer(chains, name="chains")
@@ -1464,13 +1722,14 @@ def _sample(
         jitter,
         depth,
         threshold,
+        nuts_variant,
     )
     label = "nuts-chain" if algorithm == "nuts" else "hmc-chain"
     streams = resolve_stream(seed).spawn(checked_chains, label=label)
     chains_out: list[MarkovChain] = []
     statistics: list[HamiltonianChainStatistics] = []
     for start, stream in zip(starts, streams, strict=True):
-        target = _Target(log_density, gradient, h)
+        target = _Target(log_density, option, h)
         chain, record = _run_hamiltonian_chain(target, start, settings, stream)
         chains_out.append(chain)
         statistics.append(record)
@@ -1481,14 +1740,87 @@ def _sample(
     result = MCMCResult(
         tuple(chains_out), coordinate_names, title, checked_warmup, checked_thin
     )
-    return HamiltonianResult(result, tuple(statistics))
+    hamiltonian = HamiltonianResult(result, tuple(statistics))
+    if not check_convergence:
+        return hamiltonian
+    generic = convergence_warnings(result)
+    messages = generic + hamiltonian_warnings(hamiltonian)
+    emit_convergence_warnings(messages, stacklevel=4)
+    return HamiltonianResult(
+        MCMCResult(
+            result.chains,
+            result.names,
+            result.algorithm,
+            result.warmup,
+            result.thin,
+            generic,
+        ),
+        hamiltonian.statistics,
+        messages,
+    )
+
+
+def hamiltonian_warnings(result: HamiltonianResult) -> tuple[str, ...]:
+    """Return the sampler-specific convergence messages of an HMC/NUTS run.
+
+    Reported: any post-warm-up divergence (estimates may be biased even when
+    R-hat looks fine), an E-BFMI below 0.3 in any chain (Betancourt 2017),
+    and NUTS iterations that stopped at ``max_tree_depth`` (trajectories cut
+    short, so exploration is inefficient). The generic R-hat and ESS checks
+    are in :func:`~probstat.inference.convergence_warnings`.
+
+    Args:
+        result: Hamiltonian sampler result.
+
+    Returns:
+        One message per failed check.
+
+    Equation:
+        [EQ-HMC-BFMI-001].
+
+    References:
+        [REF-BETANCOURT-2017], [REF-HOFFMAN-GELMAN-2014].
+
+    """
+    messages: list[str] = []
+    divergent = result.divergences
+    if divergent:
+        total = sum(len(item.acceptance_statistics) for item in result.statistics)
+        messages.append(
+            f"{divergent} of {total} post-warm-up transitions diverged: the "
+            "posterior has regions of high curvature the step size cannot "
+            "resolve; estimates may be biased (increase target_acceptance or "
+            "reparameterize)"
+        )
+    low = [
+        (index, item.e_bfmi)
+        for index, item in enumerate(result.statistics)
+        if math.isfinite(item.e_bfmi) and item.e_bfmi < E_BFMI_THRESHOLD
+    ]
+    if low:
+        listed = ", ".join(f"chain {index} ({value:.2f})" for index, value in low)
+        messages.append(
+            f"E-BFMI below {E_BFMI_THRESHOLD} for {listed}: momentum "
+            "resampling explores the energy distribution poorly (heavy tails "
+            "or a funnel); reparameterize"
+        )
+    hits = sum(item.max_tree_depth_hits for item in result.statistics)
+    if hits:
+        total = sum(len(item.tree_depths) for item in result.statistics)
+        depth = result.statistics[0].max_tree_depth
+        messages.append(
+            f"{hits} of {total} iterations stopped at max_tree_depth={depth}: "
+            "trajectories were truncated; increase max_tree_depth or improve "
+            "the metric"
+        )
+    return tuple(messages)
 
 
 def hamiltonian_monte_carlo(
     log_density: LogDensity,
     initial: Sequence[float] | Sequence[Sequence[float]],
     *,
-    gradient: GradientFunction | None = None,
+    gradient: GradientOption = "auto",
     draws: int,
     warmup: int = 500,
     chains: int = 4,
@@ -1505,6 +1837,7 @@ def hamiltonian_monte_carlo(
     relative_step: float = 1e-6,
     seed: int | RandomStream | None = None,
     names: Sequence[str] | None = None,
+    check_convergence: bool = True,
 ) -> HamiltonianResult:
     """Sample a smooth log-density by static Hamiltonian Monte Carlo.
 
@@ -1522,8 +1855,11 @@ def hamiltonian_monte_carlo(
     Args:
         log_density: Target ``log p(x)`` up to a constant on ``R^d``.
         initial: One start shared by all chains, or one start per chain.
-        gradient: ``grad log p(x)``; ``None`` uses central differences
-            (``2 d`` extra density evaluations per leapfrog step).
+        gradient: ``"auto"`` (autodiff, falling back to central differences
+            when the log-density rejects dual numbers; ``None`` means the
+            same), ``"autodiff"``, ``"finite-difference"`` (``2 d`` extra
+            density evaluations per leapfrog step), or an analytic
+            ``grad log p(x)``.
         draws: Kept draws per chain.
         warmup: Adaptation and burn-in iterations per chain.
         chains: Number of independent chains (``RandomStream.spawn``).
@@ -1544,10 +1880,14 @@ def hamiltonian_monte_carlo(
         relative_step: Finite-difference step relative to ``max(1, |x_i|)``.
         seed: Integer seed or stream; ``None`` is not reproducible.
         names: Optional coordinate names.
+        check_convergence: Run the convergence checks after sampling and
+            emit :class:`~probstat.inference.ConvergenceWarning` for each
+            finding.
 
     Returns:
         Draws as an :class:`MCMCResult` plus per-chain divergence, step-size,
-        acceptance, and energy diagnostics.
+        acceptance, energy and gradient-method diagnostics and the
+        convergence ``warnings``.
 
     Raises:
         TypeError: If a callable argument is not callable.
@@ -1556,11 +1896,11 @@ def hamiltonian_monte_carlo(
 
     Equation:
         [EQ-HMC-H-001], [EQ-HMC-LEAPFROG-001], [EQ-HMC-ACCEPT-001],
-        [EQ-HMC-DA-001], [EQ-HMC-METRIC-001].
+        [EQ-HMC-DA-001], [EQ-HMC-METRIC-001], [EQ-AD-DUAL-001].
 
     References:
         [REF-NEAL-2011], [REF-HOFFMAN-GELMAN-2014], [REF-NESTEROV-2009],
-        [REF-BETANCOURT-2017].
+        [REF-BETANCOURT-2017], [REF-GRIEWANK-WALTHER-2008, Chapter 3].
 
     """
     return _sample(
@@ -1585,6 +1925,7 @@ def hamiltonian_monte_carlo(
         relative_step=relative_step,
         seed=seed,
         names=names,
+        check_convergence=check_convergence,
     )
 
 
@@ -1592,7 +1933,7 @@ def no_u_turn_sampler(
     log_density: LogDensity,
     initial: Sequence[float] | Sequence[Sequence[float]],
     *,
-    gradient: GradientFunction | None = None,
+    gradient: GradientOption = "auto",
     draws: int,
     warmup: int = 500,
     chains: int = 4,
@@ -1608,23 +1949,33 @@ def no_u_turn_sampler(
     relative_step: float = 1e-6,
     seed: int | RandomStream | None = None,
     names: Sequence[str] | None = None,
+    variant: str = "multinomial",
+    check_convergence: bool = True,
 ) -> HamiltonianResult:
-    """Sample a smooth log-density by the No-U-Turn Sampler (slice variant).
+    """Sample a smooth log-density by the No-U-Turn Sampler.
 
-    This is the efficient recursive NUTS of Hoffman and Gelman (2014,
-    Algorithm 6): a slice level ``log u = -H_0 + log U`` is drawn, the
-    trajectory is doubled in a random direction, each subtree selects a
-    candidate by progressive sampling among states with ``-H >= log u``, the
+    The trajectory is doubled in a random direction (Hoffman and Gelman
+    2014, Algorithm 6) until a U-turn of the whole trajectory or of any
+    subtree, a divergence, or ``max_tree_depth``. With
+    ``variant="multinomial"`` (default) the next state is drawn with
+    probability proportional to ``exp(-H)`` over the trajectory by uniform
+    progressive sampling inside subtrees and biased progressive sampling at
+    the top level (Betancourt 2017, Appendix A.3); a leaf is divergent when
+    ``H - H_0 > max_energy_error``. With ``variant="slice"`` (the behaviour
+    of releases <= 0.15) a slice level ``log u = -H_0 + log U`` is drawn,
+    each subtree selects a candidate among states with ``-H >= log u``, the
     new subtree's candidate replaces the current one with probability
-    ``min(1, n'/n)``, and doubling stops at a U-turn of the whole trajectory
-    or of any subtree, at a divergence (``-H < log u - max_energy_error``), or
-    at ``max_tree_depth``. The acceptance statistic used by dual averaging is
-    the mean of ``min(1, exp(H_0 - H))`` over all leapfrog states.
+    ``min(1, n'/n)``, and a leaf diverges when
+    ``-H < log u - max_energy_error``. In both variants the acceptance
+    statistic used by dual averaging is the mean of ``min(1, exp(H_0 - H))``
+    over all leapfrog states of the iteration.
 
     Args:
         log_density: Target ``log p(x)`` up to a constant on ``R^d``.
         initial: One start shared by all chains, or one start per chain.
-        gradient: ``grad log p(x)``; ``None`` uses central differences.
+        gradient: ``"auto"`` (autodiff with finite-difference fallback;
+            ``None`` means the same), ``"autodiff"``, ``"finite-difference"``,
+            or an analytic ``grad log p(x)``.
         draws: Kept draws per chain.
         warmup: Adaptation and burn-in iterations per chain.
         chains: Number of independent chains.
@@ -1641,10 +1992,15 @@ def no_u_turn_sampler(
         relative_step: Finite-difference step relative to ``max(1, |x_i|)``.
         seed: Integer seed or stream.
         names: Optional coordinate names.
+        variant: ``"multinomial"`` (default) or ``"slice"``.
+        check_convergence: Run the convergence checks after sampling and
+            emit :class:`~probstat.inference.ConvergenceWarning` for each
+            finding.
 
     Returns:
         Draws as an :class:`MCMCResult` plus per-chain tree-depth,
-        divergence, step-size, acceptance, and energy diagnostics.
+        divergence, step-size, acceptance, energy and gradient-method
+        diagnostics and the convergence ``warnings``.
 
     Raises:
         TypeError: If a callable argument is not callable.
@@ -1652,11 +2008,12 @@ def no_u_turn_sampler(
 
     Equation:
         [EQ-HMC-H-001], [EQ-HMC-LEAPFROG-001], [EQ-NUTS-SLICE-001],
-        [EQ-NUTS-UTURN-001], [EQ-HMC-DA-001], [EQ-HMC-METRIC-001].
+        [EQ-NUTS-MULTINOMIAL-001], [EQ-NUTS-UTURN-001], [EQ-HMC-DA-001],
+        [EQ-HMC-METRIC-001], [EQ-AD-DUAL-001].
 
     References:
         [REF-HOFFMAN-GELMAN-2014], [REF-NESTEROV-2009], [REF-BETANCOURT-2017],
-        [REF-NEAL-2011].
+        [REF-NEAL-2011], [REF-GRIEWANK-WALTHER-2008, Chapter 3].
 
     """
     return _sample(
@@ -1681,4 +2038,6 @@ def no_u_turn_sampler(
         relative_step=relative_step,
         seed=seed,
         names=names,
+        variant=variant,
+        check_convergence=check_convergence,
     )

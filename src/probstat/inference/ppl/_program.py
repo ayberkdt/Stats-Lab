@@ -21,6 +21,18 @@ is active *at that evaluation*, so bounds that depend on earlier latent
 values (``Uniform(0, theta)``) are handled; the map is lower triangular in
 site order, so the log-Jacobian is the sum of the per-site terms.
 
+Automatic differentiation: density mode is transparent to
+:class:`~probstat.numerics.Dual` numbers (bijections, log-Jacobians, the
+inlined normal density and non-centred sites use
+:class:`~probstat.numerics.admath`), so :meth:`ModelIR.log_density` returns an
+exact forward-mode gradient whenever the *model code and its distribution
+objects* accept duals. The distribution classes of
+:mod:`probstat.distributions` validate their parameters as floats, so a site
+such as ``Normal(mu, tau)`` with a latent ``mu`` rejects duals; the inference
+entry points then fall back to finite differences and record why
+(``gradient_method``). Duck-typed distributions whose ``log_pdf`` uses
+``admath`` are differentiated exactly.
+
 Floating-point limit: on an interval ``(a, b)`` the map
 ``x = a + (b - a) sigmoid(u)`` rounds to exactly ``b`` once ``u`` exceeds
 about 37, where the density is evaluated at the bound and treated as zero.
@@ -36,11 +48,12 @@ import math
 import random
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from probstat.distributions import Normal, RealSupport
 from probstat.foundations.random_streams import RandomStream
 from probstat.linalg import Vector, as_vector
+from probstat.numerics import Dual, GradientEvaluator, admath
 from probstat.optimization import central_gradient
 
 SiteKind = Literal["latent", "observed", "deterministic"]
@@ -70,26 +83,27 @@ class ModelSpecificationError(ValueError):
 
 
 def _softplus(t: float) -> float:
-    """Return ``log(1 + exp(t))`` without overflow.
+    """Return ``log(1 + exp(t))`` without overflow (dual-transparent).
 
     References:
         [EQ-PPL-TRANSFORM-002]. No new equation is introduced.
 
     """
-    return max(t, 0.0) + math.log1p(math.exp(-abs(t)))
+    positive = t if t > 0.0 else 0.0 * t
+    return cast(float, positive + admath.log1p(admath.exp(-abs(t))))
 
 
 def _sigmoid(t: float) -> float:
-    """Return ``1 / (1 + exp(-t))`` without overflow.
+    """Return ``1 / (1 + exp(-t))`` without overflow (dual-transparent).
 
     References:
         [EQ-PPL-TRANSFORM-002]. No new equation is introduced.
 
     """
     if t >= 0.0:
-        return 1.0 / (1.0 + math.exp(-t))
-    e = math.exp(t)
-    return e / (1.0 + e)
+        return cast(float, 1.0 / (1.0 + admath.exp(-t)))
+    e = admath.exp(t)
+    return cast(float, e / (1.0 + e))
 
 
 @dataclass(frozen=True, slots=True)
@@ -162,10 +176,10 @@ class Bijection:
             return u
         if self.kind == "lower":
             assert self.lower is not None
-            return self.lower + math.exp(u)
+            return cast(float, self.lower + admath.exp(u))
         if self.kind == "upper":
             assert self.upper is not None
-            return self.upper - math.exp(u)
+            return cast(float, self.upper - admath.exp(u))
         assert self.lower is not None and self.upper is not None
         return self.lower + (self.upper - self.lower) * _sigmoid(u)
 
@@ -364,7 +378,8 @@ def _log_density(distribution: Any, value: Any) -> float:
             f"distribution {type(distribution).__name__} has neither log_pdf "
             "nor log_pmf"
         )
-    return float(method(value))
+    result = method(value)
+    return result if isinstance(result, Dual) else float(result)  # type: ignore[return-value]
 
 
 def _draw(distribution: Any, generator: random.Random) -> Any:
@@ -866,9 +881,9 @@ class ModelHandle:
         if reparam is not None:
             values = [p.mu + p.sigma * u for p, u in zip(parts, u_values, strict=True)]
             if density:
-                self.log_prior += math.fsum(-0.5 * u * u for u in u_values) - (
-                    count * _LOG_SQRT_TWO_PI
-                )
+                self.log_prior += cast(
+                    float, admath.fsum(-0.5 * u * u for u in u_values)
+                ) - (count * _LOG_SQRT_TWO_PI)
             return values
         values = []
         prior = 0.0
@@ -1003,19 +1018,25 @@ class ModelHandle:
         """
         site = self._register(name)
         size: int | None
+        density = self._mode == "density"
         if isinstance(value, Sequence) and not isinstance(value, str):
             try:
-                elements = tuple(float(v) for v in value)
+                elements = tuple(
+                    v if density and isinstance(v, Dual) else float(v) for v in value
+                )
             except (TypeError, ValueError):
                 raise ModelSpecificationError(
                     f"deterministic site {site!r} must hold real numbers"
                 ) from None
-            packed: SiteValue = elements
+            packed: SiteValue = cast(tuple[float, ...], elements)
             size = len(elements)
             if size == 0:
                 raise ModelSpecificationError(
                     f"deterministic site {site!r} must be non-empty"
                 )
+        elif density and isinstance(value, Dual):
+            packed = value  # type: ignore[assignment]
+            size = None
         else:
             try:
                 packed = float(value)  # type: ignore[arg-type]
@@ -1317,10 +1338,13 @@ class ModelIR:
         or ``log_pdf`` (an invalid parameter value, an overflow) and
         non-finite results other than ``-inf`` are mapped to ``-inf``, which
         every sampler treats as "outside the support". Specification errors
-        still propagate.
+        still propagate, and so do ``TypeError``s (for example a distribution
+        that rejects :class:`~probstat.numerics.Dual` parameters), so that
+        automatic differentiation can fall back to finite differences.
 
         Args:
-            u: Unconstrained vector.
+            u: Unconstrained vector of floats, or of duals for forward-mode
+                differentiation (the result is then a dual).
 
         Returns:
             Finite log-density or ``-inf``.
@@ -1339,40 +1363,96 @@ class ModelIR:
         except _NUMERIC_ERRORS:
             return -math.inf
         total = handle.log_prior + handle.log_likelihood + handle.log_jacobian
-        if math.isnan(total) or total == math.inf:
+        if admath.isnan(total) or total == math.inf:
             return -math.inf
         return total
 
-    def gradient(self, u: Sequence[float], *, relative_step: float = 1e-6) -> Vector:
-        """Return the central finite-difference gradient of :meth:`log_density`.
+    def gradient(
+        self,
+        u: Sequence[float],
+        *,
+        relative_step: float = 1e-6,
+        method: str = "auto",
+    ) -> Vector:
+        """Return the gradient of :meth:`log_density`.
 
-        Each component costs two model executions with step
-        ``h_i = relative_step * max(1, |u_i|)``; the truncation error is
-        ``O(h^2)``. The samplers in :mod:`probstat.inference` compute the same
-        approximation internally when no gradient is supplied.
+        ``method="auto"`` (default) runs the model once on dual numbers
+        (exact forward-mode gradient) and falls back to central differences
+        when the model rejects duals; ``"autodiff"`` raises instead of
+        falling back; ``"finite-difference"`` uses central differences only,
+        two model executions per component with step
+        ``h_i = relative_step * max(1, |u_i|)`` and truncation error
+        ``O(h^2)``.
 
         Args:
             u: Unconstrained vector with finite log-density nearby.
             relative_step: Relative finite-difference step.
+            method: ``"auto"``, ``"autodiff"``, or ``"finite-difference"``.
 
         Returns:
-            Approximate gradient.
+            Gradient.
 
         Raises:
-            ValueError: If a perturbed point has a non-finite log-density.
+            ValueError: If the log-density (or a perturbed point) is not
+                finite, or the method is unknown.
+            AutodiffUnsupportedError: For ``"autodiff"`` on a model that does
+                not accept duals.
 
         Equation:
-            [EQ-OPT-FD-001].
+            [EQ-OPT-FD-001], [EQ-AD-DUAL-001].
 
         References:
-            [REF-NOCEDAL-WRIGHT-2006, Section 8.1].
+            [REF-NOCEDAL-WRIGHT-2006, Section 8.1],
+            [REF-GRIEWANK-WALTHER-2008, Chapter 3].
 
         """
         point = as_vector(u, name="u")
-        value, _ = central_gradient(
-            self.log_density, point, relative_step=relative_step
+        return self.gradient_evaluator(method, relative_step=relative_step).gradient(
+            point
         )
-        return value
+
+    def gradient_evaluator(
+        self, method: object = "auto", *, relative_step: float = 1e-6
+    ) -> GradientEvaluator:
+        """Return a gradient oracle for :meth:`log_density`.
+
+        Args:
+            method: ``"auto"``, ``"autodiff"``, ``"finite-difference"``, or a
+                callable gradient.
+            relative_step: Relative finite-difference step.
+
+        Returns:
+            Evaluator whose ``method`` and ``fallback_reason`` record what
+            was used.
+
+        Raises:
+            ValueError: If the method is unknown.
+
+        Equation:
+            [EQ-OPT-FD-001], [EQ-AD-DUAL-001].
+
+        References:
+            [REF-GRIEWANK-WALTHER-2008, Chapter 3].
+
+        """
+
+        def finite_difference(
+            function: Callable[[Vector], float], point: Vector
+        ) -> Sequence[float]:
+            """Return the central-difference gradient of ``function``.
+
+            References:
+                [EQ-OPT-FD-001], [REF-NOCEDAL-WRIGHT-2006, Section 8.1].
+
+            """
+            values, _ = central_gradient(function, point, relative_step=relative_step)
+            return values
+
+        return GradientEvaluator(
+            self.log_density,
+            method,  # type: ignore[arg-type]
+            finite_difference=finite_difference,
+        )
 
     def constrain(self, u: Sequence[float]) -> dict[str, SiteValue]:
         """Map an unconstrained vector to named latent and deterministic values.

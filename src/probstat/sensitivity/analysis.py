@@ -99,7 +99,9 @@ class SobolResult:
     """Pick-freeze Sobol indices, ranking, and evaluation cost.
 
     Monte Carlo estimates may lie slightly outside ``[0,1]`` and are retained
-    rather than silently clipped.
+    rather than silently clipped. ``second_order`` is ``None`` when the
+    estimator did not compute second-order indices (a matrix of zeros would
+    wrongly claim "no interaction").
 
     References:
         [REF-SOBOL-1993], [REF-SALTELLI-2010].
@@ -108,7 +110,7 @@ class SobolResult:
 
     first_order: tuple[float, ...]
     total_effect: tuple[float, ...]
-    second_order: tuple[tuple[float, ...], ...]
+    second_order: tuple[tuple[float, ...], ...] | None
     output_variance: float
     sample_size: int
     evaluations: int
@@ -129,14 +131,16 @@ class SobolResult:
             raise ValueError("first and total indices must align and be non-empty")
         first = _finite_tuple(self.first_order, "first_order")
         total = _finite_tuple(self.total_effect, "total_effect")
-        if len(self.second_order) != dimension or any(
-            len(row) != dimension for row in self.second_order
-        ):
-            raise ValueError("second_order must be a square matrix")
-        second = tuple(
-            _finite_tuple(row, f"second_order[{index}]")
-            for index, row in enumerate(self.second_order)
-        )
+        second: tuple[tuple[float, ...], ...] | None = None
+        if self.second_order is not None:
+            if len(self.second_order) != dimension or any(
+                len(row) != dimension for row in self.second_order
+            ):
+                raise ValueError("second_order must be a square matrix")
+            second = tuple(
+                _finite_tuple(row, f"second_order[{index}]")
+                for index, row in enumerate(self.second_order)
+            )
         variance = require_finite_real(self.output_variance, name="output_variance")
         if variance <= 0.0:
             raise ValueError("output_variance must be positive")

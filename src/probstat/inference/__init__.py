@@ -116,6 +116,7 @@ from .hamiltonian import (
     adaptation_windows,
     hamiltonian_energy,
     hamiltonian_monte_carlo,
+    hamiltonian_warnings,
     leapfrog,
     no_u_turn_sampler,
 )
@@ -161,19 +162,25 @@ from .linear_models import (
     variance_inflation_factors,
 )
 from .mcmc import (
+    ConvergenceWarning,
     LaplaceApproximation,
     LogDensity,
     MarkovChain,
     MCMCResult,
     ParameterSummary,
     adaptive_metropolis,
+    bulk_effective_sample_size,
+    convergence_warnings,
     effective_sample_size,
     laplace_approximation,
+    mcse_quantile,
     monte_carlo_standard_error,
+    quantile_effective_sample_size,
     random_walk_metropolis,
     rank_normalized_rhat,
     split_rhat,
     summarize_draws,
+    tail_effective_sample_size,
 )
 from .missing import (
     IncompleteNormalFit,
@@ -255,6 +262,7 @@ from .sampling_distributions import (
     student_t_sf,
     student_t_two_sided_p,
 )
+from .sbc import SBCResult, rank_statistic, simulation_based_calibration
 from .variational import VariationalResult, advi
 
 __all__ = [
@@ -473,4 +481,14 @@ __all__ = [
     "poisson_zero_probability_risks",
     "poisson_zero_rao_blackwell",
     "uniform_maximum_risks",
+    "ConvergenceWarning",
+    "SBCResult",
+    "bulk_effective_sample_size",
+    "convergence_warnings",
+    "hamiltonian_warnings",
+    "mcse_quantile",
+    "quantile_effective_sample_size",
+    "rank_statistic",
+    "simulation_based_calibration",
+    "tail_effective_sample_size",
 ]

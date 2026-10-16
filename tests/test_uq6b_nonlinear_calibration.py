@@ -269,7 +269,7 @@ class MarkovChainMonteCarloTests(unittest.TestCase):
             for _ in range(99):
                 x.append(-0.3 * x[-1] + generator.gauss(0.0, math.sqrt(1.0 - 0.09)))
             chains.append(x)
-        ess = effective_sample_size(chains)
+        ess = effective_sample_size(chains, split=False)
         self.assertLess(abs(ess / 825.6296706351059 - 1.0), 1e-12)
 
     def test_summaries_and_degenerate_chains(self) -> None:

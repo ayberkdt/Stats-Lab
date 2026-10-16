@@ -10569,3 +10569,161 @@ continuous-time Markov chain).
   subsystem's exact reliability; the composed result is then exact.
 - Code: `systems.MarkovComponent`, `systems.SubsystemComponent`.
 - Source: [REF-BARLOW-PROSCHAN-1975], [REF-RAUSAND-HOYLAND-2004].
+
+## W8: automatic differentiation, MCMC diagnostics, and sensitivity estimators (ADR-0065)
+
+### EQ-AD-DUAL-001 — Forward-mode dual-number chain rule
+
+`f(a + b.eps) = f(a) + f'(a) b.eps` with `eps_i eps_j = 0`; for binary
+operations `(a + b eps)(c + d eps) = ac + (bc + ad) eps` and
+`(a + b eps)/(c + d eps) = a/c + (b - (a/c) d)/c eps`. Seeding `x_i + e_i eps`
+gives `f(x) + grad f(x) . eps` from one evaluation (vector-tangent mode).
+
+- Domain: functions composed of `+ - * / **` and elementary functions that
+  are differentiable at the evaluation point; at kinks (`abs(0)`,
+  `hypot(0, 0)`) the derivative is defined as 0.
+- Meaning: exact (to rounding) gradients without a step size; one call of
+  the user function per gradient.
+- Code: `numerics.Dual`, `numerics.admath`, `numerics.value_and_gradient`,
+  `numerics.gradient`, `numerics.jacobian`, `numerics.GradientEvaluator`.
+- Source: [REF-GRIEWANK-WALTHER-2008, Chapter 3].
+
+### EQ-AD-HESSIAN-001 — Forward-over-forward Hessian
+
+Seed `x_i = (x_i + e_i eps1) + (e_i + 0 eps1) eps2`; then
+`f = (f + grad f . eps1) + sum_j (d_j f + grad d_j f . eps1) eps2_j`, so the
+eps1-tangent of the j-th eps2-tangent is column `j` of the Hessian. The
+result is symmetrized, `(H + H')/2`.
+
+- Domain: twice differentiable `f`; `trigamma` of a dual (third derivative
+  of `lgamma`) is not available.
+- Meaning: exact Hessian from one nested evaluation (cost `O(d^2)` per
+  operation).
+- Code: `numerics.hessian`, `numerics.value_gradient_and_hessian`,
+  `inference.laplace_approximation`.
+- Source: [REF-GRIEWANK-WALTHER-2008, Chapters 3 and 13].
+
+### EQ-MCMC-ESS-002 — Split, bulk, and tail effective sample size
+
+Split ESS: [EQ-MCMC-ESS-001] on the `2M` half chains. Bulk-ESS: the same on
+the rank-normalized split chains `z = Phi^-1((r - 3/8)/(S + 1/4))`.
+Quantile ESS at level `p`: [EQ-MCMC-ESS-001] on the split indicator chains
+`I(x <= q_p)`, `q_p` the type-7 sample quantile of all draws. Tail-ESS:
+`min(ESS_q(0.05), ESS_q(0.95))`.
+
+- Domain: at least four draws per chain; undefined (`nan`) for constant
+  draws or constant indicators.
+- Meaning: efficiency for the posterior bulk (location) and for central
+  90 % intervals; the recommended minimum is 100 per chain.
+- Code: `inference.effective_sample_size`, `inference.bulk_effective_sample_size`,
+  `inference.quantile_effective_sample_size`,
+  `inference.tail_effective_sample_size`, `inference.convergence_warnings`.
+- Source: [REF-VEHTARI-ETAL-2021] and [REF-BURKNER-ETAL-POSTERIOR].
+
+### EQ-MCMC-MCSE-002 — Monte Carlo standard error of a quantile
+
+With `S_eff = ESS_q(p)` ([EQ-MCMC-ESS-002]) and `a_1, a_2` the
+`Phi(-1)`, `Phi(1)` quantiles of `Beta(S_eff p + 1, S_eff (1-p) + 1)`:
+`MCSE(q_p) = (x_(ceil(a_2 S)) - x_(max(floor(a_1 S), 1))) / 2` over the
+sorted draws `x_(1) <= ... <= x_(S)`.
+
+- Domain: `0 <= p <= 1`, defined quantile ESS.
+- Meaning: half-width of a one-standard-deviation interval for the quantile
+  estimate, mapped through the empirical distribution of the draws.
+- Code: `inference.mcse_quantile`, `inference.summarize_draws`.
+- Source: [REF-VEHTARI-ETAL-2021, Section 4.4] and
+  [REF-BURKNER-ETAL-POSTERIOR].
+
+### EQ-NUTS-MULTINOMIAL-001 — Multinomial NUTS state selection
+
+Each trajectory state has weight `w(z) = exp(-H(z) + H_0)`. Merging subtrees
+inside the recursion takes the second candidate with probability
+`W_2 / (W_1 + W_2)`; at the top level the new subtree's candidate replaces
+the current state with probability `min(1, W_new / W_old)`. A leaf is
+divergent when `H - H_0 > Delta_max`.
+
+- Domain: trajectories built by the doubling of [EQ-NUTS-UTURN-001].
+- Meaning: samples the next state from the canonical distribution
+  restricted to the trajectory, favouring states far from the start.
+- Code: `inference.no_u_turn_sampler` (`variant="multinomial"`).
+- Source: [REF-BETANCOURT-2017, Appendix A.3] and [REF-HOFFMAN-GELMAN-2014].
+
+### EQ-SBC-RANK-001 — Simulation-based calibration rank statistic
+
+`theta~ ~ p(theta)`, `y~ ~ p(y | theta~)`, `theta_1..L ~ p(theta | y~)`:
+`r = #{l : theta_l < theta~}` is uniform on `{0, ..., L}` for every scalar
+parameter when the posterior draws are exact and independent. Bins
+`b = floor(r B / (L + 1))`; Pearson's statistic against the exact expected
+counts has `B - 1` degrees of freedom.
+
+- Domain: continuous parameters (ties broken uniformly at random);
+  posterior draws thinned to near independence.
+- Meaning: detects biased or mis-dispersed inference algorithms.
+- Code: `inference.simulation_based_calibration`, `inference.rank_statistic`.
+- Source: [REF-TALTS-ETAL-2018].
+
+### EQ-REL-FORM-AD-001 — Limit-state gradient through the Nataf map
+
+With `z = L u`, `x_i = F_i^-1(Phi(z_i))`: `dx_i/dz_i = phi(z_i)/f_i(x_i)`,
+so `grad_u G = L' D grad_x g` with `D = diag(phi(z_i)/f_i(x_i))`; `grad_x g`
+comes from one dual-number call of the forward model ([EQ-AD-DUAL-001]).
+
+- Domain: `f_i(x_i) > 0`; the tail clamping of the Nataf map (``Phi(z)``
+  rounded at about `|z| > 8`) makes both this and finite differences
+  inexact there.
+- Meaning: exact FORM gradient at one model evaluation instead of `2 d`.
+- Code: `reliability.form_hlrf`.
+- Source: [REF-LIU-DERKIUREGHIAN-1986] and [REF-GRIEWANK-WALTHER-2008,
+  Chapter 3].
+
+### EQ-SENS-RQMC-001 — Replicate (randomized QMC) intervals for Sobol indices
+
+Split the `N` rows into `R` independent randomizations of `m = N // R` rows,
+estimate the index on each (`S^(r)`), and report
+`Sbar = mean_r S^(r)` with `Sbar +- t_(R-1, (1+c)/2) s_R / sqrt(R)`.
+
+- Domain: `R >= 2`; any randomized design (scrambled Sobol, randomized
+  Halton, LHS, Monte Carlo); replicates must use independent
+  randomizations.
+- Meaning: honest error bars for quasi-random designs, whose rows are not
+  i.i.d. and must not be bootstrapped.
+- Code: `sensitivity.sobol_analysis`, `sensitivity.sobol_analysis_all`.
+- Source: [REF-L-ECUYER-2018] and [REF-OWEN-2013].
+
+### EQ-SENS-DGSM-001 — Derivative-based global sensitivity measure
+
+`nu_i = E[(d f / d x_i)^2]`, estimated by `mean_k (d f/d x_i)(x_k)^2` over
+points `x_k` of the input law.
+
+- Domain: `f` differentiable almost everywhere with square-integrable
+  partial derivatives.
+- Meaning: average squared local sensitivity of the output to input `i`.
+- Code: `sensitivity.dgsm`.
+- Source: [REF-SOBOL-KUCHERENKO-2009].
+
+### EQ-SENS-DGSM-002 — Poincare upper bound on the total Sobol index
+
+`S_Ti <= C(mu_i) nu_i / D`, `D = Var f(X)`, with `C = (b - a)^2 / pi^2`
+for `Uniform(a, b)` (`nu_i / (pi^2 D)` on `[0, 1]`) and `C = sigma^2` for
+`Normal(mu, sigma)`.
+
+- Domain: independent inputs; the constants are the optimal Poincare
+  constants of the two laws (equality for `cos(pi x)` on `[0, 1]` and for
+  linear functions of normal inputs).
+- Meaning: a small bound certifies an unimportant input; a large bound
+  proves nothing.
+- Code: `sensitivity.dgsm`, `sensitivity.poincare_constant`.
+- Source: [REF-SOBOL-KUCHERENKO-2009] and [REF-LAMBONI-ETAL-2013].
+
+### EQ-SENS-GIVEN-001 — Given-data first-order index by class partition
+
+Sort by `x_i`, cut into `M` equal-count classes; `SSB = sum_m n_m
+(ybar_m - ybar)^2`, `SST = sum (y_k - ybar)^2`, `SSW = SST - SSB`; raw
+`eta^2 = SSB/SST`; corrected `epsilon^2 = 1 - (n-1)/(n-M) SSW/SST`.
+
+- Domain: i.i.d. rows, `2 <= M <= n/2`; inputs may be dependent.
+- Meaning: `Var(E[Y|X_i])/Var(Y)` from existing runs; the raw ratio is
+  biased up by about `(M-1)(1-S_i)/(n-1)`, the class averaging biases it
+  down by `O(1/M^2)` for a smooth conditional mean.
+- Code: `sensitivity.given_data_first_order`.
+- Source: [REF-PLISCHKE-BORGONOVO-SMITH-2013] and [REF-KELLEY-1935].

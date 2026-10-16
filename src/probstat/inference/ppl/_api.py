@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import math
 import random
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -47,6 +47,7 @@ from ._program import (
 )
 
 Engine = HamiltonianResult | MCMCResult | VariationalResult | LaplaceApproximation
+GradientOption = Callable[[Vector], Sequence[float]] | str | None
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +133,43 @@ class PosteriorSamples:
 
         """
         return _site_draws(self.constrained, self.program, name)
+
+    @property
+    def gradient_method(self) -> str | None:
+        """Return the gradient method of the engine (``None`` for Metropolis).
+
+        ``"autodiff"`` when the model accepted dual numbers,
+        ``"finite-difference"`` otherwise (see :attr:`gradient_fallback_reason`).
+
+        References:
+            [REF-GRIEWANK-WALTHER-2008, Chapter 3]. No equation is evaluated.
+
+        """
+        return getattr(self.engine, "gradient_method", None)
+
+    @property
+    def gradient_fallback_reason(self) -> str | None:
+        """Return why automatic differentiation was not used, if requested.
+
+        References:
+            [REF-GRIEWANK-WALTHER-2008, Chapter 3]. No equation is evaluated.
+
+        """
+        for attribute in ("gradient_fallback_reason", "fallback_reason"):
+            value = getattr(self.engine, attribute, None)
+            if value is not None:
+                return str(value)
+        return None
+
+    @property
+    def warnings(self) -> tuple[str, ...]:
+        """Return the convergence warnings recorded by the engine.
+
+        References:
+            [REF-VEHTARI-ETAL-2021]. No equation is evaluated.
+
+        """
+        return tuple(getattr(self.engine, "warnings", ()))
 
     @property
     def names(self) -> tuple[str, ...]:
@@ -345,6 +383,8 @@ def sample(
     max_tree_depth: int = 10,
     leapfrog_steps: int = 16,
     step_size_jitter: float = 0.2,
+    gradient: GradientOption = "auto",
+    variant: Literal["multinomial", "slice"] = "multinomial",
 ) -> PosteriorSamples:
     """Draw posterior samples of a probabilistic program by MCMC.
 
@@ -352,8 +392,10 @@ def sample(
     ([EQ-PPL-JOINT-001]) is passed to :func:`no_u_turn_sampler`,
     :func:`hamiltonian_monte_carlo`, or :func:`adaptive_metropolis`, and every
     kept draw is mapped back to the constrained scale by re-running the
-    model. NUTS and HMC use central finite-difference gradients
-    (``2 d`` model executions per leapfrog step).
+    model. NUTS and HMC differentiate the model by forward-mode autodiff
+    when it accepts dual numbers (one model execution per leapfrog step);
+    otherwise they use central finite differences (``2 d + 1`` executions
+    per step). ``gradient_method`` of the result says which was used.
 
     Args:
         model: Model function ``model(m)``.
@@ -371,6 +413,9 @@ def sample(
         max_tree_depth: NUTS tree-depth limit.
         leapfrog_steps: Leapfrog steps per HMC iteration.
         step_size_jitter: HMC step-size jitter (breaks periodic trajectories).
+        gradient: ``"auto"``, ``"autodiff"``, ``"finite-difference"``, or an
+            analytic gradient on the unconstrained space (NUTS and HMC only).
+        variant: NUTS state selection, ``"multinomial"`` or ``"slice"``.
 
     Returns:
         Draws by site name with the engine result attached.
@@ -425,6 +470,8 @@ def sample(
             target_acceptance=target_acceptance,
             seed=sampler_stream,
             names=names,
+            gradient=gradient,
+            variant=variant,
         )
         unconstrained = engine.mcmc
     else:
@@ -440,6 +487,7 @@ def sample(
             target_acceptance=target_acceptance,
             seed=sampler_stream,
             names=names,
+            gradient=gradient,
         )
         unconstrained = engine.mcmc
     return _with_constrained(program, method, unconstrained, engine)
@@ -456,6 +504,7 @@ def fit_advi(
     tolerance: float = 1e-3,
     seed: int | RandomStream | None = None,
     init_radius: float = 0.0,
+    gradient: GradientOption = "auto",
 ) -> PosteriorSamples:
     """Fit a Gaussian ADVI approximation on the unconstrained space.
 
@@ -473,6 +522,8 @@ def fit_advi(
         tolerance: Relative ELBO change regarded as converged.
         seed: Integer seed or stream.
         init_radius: Radius of the starting mean (``0`` is the origin).
+        gradient: ``"auto"``, ``"autodiff"``, ``"finite-difference"``, or an
+            analytic gradient on the unconstrained space.
 
     Returns:
         Draws by site name; ``engine`` is the :class:`VariationalResult` and
@@ -502,6 +553,7 @@ def fit_advi(
         tolerance=tolerance,
         seed=stream.child("ppl-advi"),
         names=program.unconstrained_names,
+        gradient=gradient,
     )
     return _with_constrained(
         program,
@@ -518,20 +570,25 @@ def laplace(
     draws: int = 1000,
     seed: int | RandomStream | None = None,
     init_radius: float = 0.0,
+    gradient: GradientOption = "auto",
 ) -> PosteriorSamples:
     """Approximate the posterior by a Gaussian at the unconstrained mode.
 
     The mode of the unconstrained density (which includes the log-Jacobian)
-    is found by BFGS and the covariance is the inverse finite-difference
-    Hessian ([EQ-LAPLACE-001]). Because of the Jacobian, the reported
-    ``point`` is generally *not* the posterior mode on the natural scale
-    (for ``tau = exp(u)`` it is the mode of ``tau`` times ``p(tau)``).
+    is found by BFGS and the covariance is the inverse Hessian
+    ([EQ-LAPLACE-001]), both by forward-mode autodiff when the model accepts
+    dual numbers and by finite differences otherwise. Because of the
+    Jacobian, the reported ``point`` is generally *not* the posterior mode on
+    the natural scale (for ``tau = exp(u)`` it is the mode of ``tau`` times
+    ``p(tau)``).
 
     Args:
         model: Model function.
         draws: Draws from ``N(mode, H^-1)`` mapped to the natural scale.
         seed: Integer seed or stream.
         init_radius: Radius of the BFGS starting point (``0`` is the origin).
+        gradient: ``"auto"``, ``"autodiff"``, ``"finite-difference"``, or an
+            analytic gradient on the unconstrained space.
 
     Returns:
         Draws by site name; ``engine`` is the :class:`LaplaceApproximation`.
@@ -551,7 +608,7 @@ def laplace(
     program = _inference_program(model)
     stream = resolve_stream(seed)
     start = program.initial_point(stream.child("ppl-init"), radius=init_radius)
-    engine = laplace_approximation(program.log_density, start)
+    engine = laplace_approximation(program.log_density, start, gradient=gradient)
     sampler = stream.child("ppl-laplace")
     samples = engine.sample(draws, seed=sampler)
     if not samples:

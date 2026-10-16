@@ -1,4 +1,4 @@
-"""Local and global sensitivity analysis, including Shapley effects."""
+"""Local and global sensitivity: Sobol, Morris, DGSM, given-data, Shapley."""
 
 from .analysis import (
     LocalSensitivityResult,
@@ -7,12 +7,16 @@ from .analysis import (
     central_difference_gradient,
     estimate_sobol_indices,
 )
+from .derivative_based import DGSMResult, dgsm, poincare_constant
+from .given_data import GivenDataSensitivityResult, given_data_first_order
 from .model_based import (
     IndexInterval,
     ModelSobolResult,
     MorrisResult,
+    MultiQuantitySobolResult,
     morris_screening,
     sobol_analysis,
+    sobol_analysis_all,
 )
 from .shapley import (
     ShapleyResult,
@@ -36,4 +40,11 @@ __all__ = [
     "exact_shapley_values",
     "linear_gaussian_shapley",
     "shapley_effects",
+    "DGSMResult",
+    "GivenDataSensitivityResult",
+    "MultiQuantitySobolResult",
+    "dgsm",
+    "given_data_first_order",
+    "poincare_constant",
+    "sobol_analysis_all",
 ]
