@@ -52,6 +52,15 @@ With those foundations, switch to the integrated toolset built on one model:
 - [Markov reliability and availability](foundations/markov-reliability.md):
   continuous-time Markov chains solved by uniformization with error bounds,
   repairable and standby systems, MTTF/MTBF, and phased missions.
+
+- [Risk registers, FMECA, and reliability data](foundations/risk-register-and-fmeca.md):
+  quantitative risk registers with exact totals and mitigation waterfalls,
+  MIL-STD-1629A criticality (and the flaws of RPN), the MIL-STD-882E matrix,
+  F-N curves, Beta/Gamma posteriors and chi-square bounds for component data,
+  Crow-AMSAA growth, and reliability allocation.
+- [Cost analysis](foundations/cost-analysis.md): discounting, life-cycle cost
+  models, cost-risk S-curves with correlation, contingency and JCL, learning
+  curves, maintenance optimisation, spares, and the cost of unreliability.
 - [Surrogate models](foundations/surrogate-models.md): polynomial chaos and
   Gaussian-process emulators that replace an expensive forward model.
 - [Filtering and data assimilation](foundations/filtering-and-data-assimilation.md):

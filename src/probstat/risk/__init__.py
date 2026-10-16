@@ -8,6 +8,12 @@ analysis with value-of-information measures. A risk matrix is provided only
 as a communication aid with its documented limitations. Extreme value
 analysis (block maxima with the GEV, peaks over threshold with the GPD,
 declustering, and return levels with intervals) lives in :mod:`.extremes`.
+
+Engineering risk-management tools: FMECA with MIL-STD-1629A criticality
+numbers (and RPN with its documented caveats) in :mod:`.fmeca`, a
+quantitative risk register with exact totals and mitigation waterfalls in
+:mod:`.register`, the MIL-STD-882E risk assessment matrix in
+:mod:`.hazard_matrix`, and F-N curves in :mod:`.fn_curve`.
 """
 
 from .consequences import (
@@ -63,6 +69,15 @@ from .fault_tree import (
     k_of_n_gate,
     or_gate,
 )
+from .fmeca import (
+    SEVERITY_CLASSES,
+    CriticalityMatrix,
+    FailureMode,
+    Fmeca,
+    ItemCriticality,
+    risk_priority_number,
+)
+from .fn_curve import FNCriterion, FNCurve, FNPoint, fn_curve, fn_curve_from_event_trees
 from .fragility import (
     FragilityFit,
     HazardConvolution,
@@ -70,6 +85,15 @@ from .fragility import (
     annual_failure_frequency,
     fit_lognormal_fragility,
     power_law_failure_frequency,
+)
+from .hazard_matrix import (
+    MIL_STD_882E_TABLE,
+    PROBABILITY_LEVELS,
+    RISK_LEVELS,
+    SEVERITY_CATEGORIES,
+    hazard_risk_level,
+    mil_std_882e_risk_matrix,
+    risk_assessment_code,
 )
 from .measures import (
     MEASURES,
@@ -88,28 +112,54 @@ from .measures import (
     return_period,
     value_at_risk,
 )
+from .register import (
+    RANKING_KEYS,
+    DiscreteImpact,
+    ExposureDistribution,
+    ImpactLaw,
+    Risk,
+    RiskRegister,
+    WaterfallStep,
+    register_from_rows,
+)
 
 __all__ = [
     "GATE_KINDS",
     "GPD_FAMILY",
     "LOSS_KINDS",
     "MEASURES",
+    "MIL_STD_882E_TABLE",
+    "PROBABILITY_LEVELS",
+    "RANKING_KEYS",
+    "RISK_LEVELS",
+    "SEVERITY_CATEGORIES",
+    "SEVERITY_CLASSES",
     "BasicEvent",
     "BootstrapInterval",
     "Branch",
+    "CriticalityMatrix",
     "DecisionProblem",
     "DeclusteredExceedances",
+    "DiscreteImpact",
     "EventSequence",
     "EventTree",
     "ExceedanceRate",
+    "ExposureDistribution",
+    "FNCriterion",
+    "FNCurve",
+    "FNPoint",
+    "FailureMode",
     "FaultTree",
+    "Fmeca",
     "FragilityFit",
     "GEVFit",
     "GPDFit",
     "Gate",
     "HazardConvolution",
     "Heading",
+    "ImpactLaw",
     "ImportanceMeasures",
+    "ItemCriticality",
     "LognormalFragility",
     "LossFunction",
     "MeanResidualLifePoint",
@@ -117,9 +167,12 @@ __all__ = [
     "PeaksOverThresholdFit",
     "PreposteriorAnalysis",
     "ReturnLevel",
+    "Risk",
     "RiskAssessment",
     "RiskMatrix",
+    "RiskRegister",
     "ThresholdStabilityPoint",
+    "WaterfallStep",
     "and_gate",
     "annual_failure_frequency",
     "assess_risk",
@@ -137,14 +190,18 @@ __all__ = [
     "fit_gpd",
     "fit_lognormal_fragility",
     "fit_pot",
+    "fn_curve",
+    "fn_curve_from_event_trees",
     "gev_return_level",
     "gev_return_level_gradient",
+    "hazard_risk_level",
     "k_of_n_gate",
     "linear_loss",
     "lognormal_conditional_value_at_risk",
     "lognormal_value_at_risk",
     "loss_exceedance_curve",
     "mean_residual_life",
+    "mil_std_882e_risk_matrix",
     "normal_conditional_value_at_risk",
     "normal_value_at_risk",
     "or_gate",
@@ -152,7 +209,10 @@ __all__ = [
     "poisson_exceedance_probability",
     "pot_return_level",
     "power_law_failure_frequency",
+    "register_from_rows",
     "return_period",
+    "risk_assessment_code",
+    "risk_priority_number",
     "sample_l_moments",
     "step_loss",
     "threshold_excesses",
