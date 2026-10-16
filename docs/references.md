@@ -2304,3 +2304,60 @@ Min Xie. "On the Solution of Renewal-Type Integral Equations."
 
 Louis E. Yelle. "The Learning Curve: Historical Review and Comprehensive
 Survey." *Decision Sciences* 10(2), 302-328, 1979.
+
+## REF-BRYANT-1986
+
+Randal E. Bryant. "Graph-Based Algorithms for Boolean Function
+Manipulation." *IEEE Transactions on Computers* C-35(8), 677-691, 1986.
+doi:10.1109/TC.1986.1676819.
+
+## REF-RAUZY-1993
+
+Antoine Rauzy. "New Algorithms for Fault Trees Analysis." *Reliability
+Engineering & System Safety* 40(3), 203-211, 1993.
+
+## REF-BARLOW-PROSCHAN-1975
+
+Richard E. Barlow and Frank Proschan. *Statistical Theory of Reliability and
+Life Testing: Probability Models*. Holt, Rinehart and Winston, New York, 1975.
+
+## REF-ESARY-PROSCHAN-1963
+
+J. D. Esary and F. Proschan. "Coherent Structures of Non-Identical
+Components." *Technometrics* 5(2), 191-209, 1963.
+
+## REF-LAMBERT-1975
+
+Howard E. Lambert. "Measures of Importance of Events and Cut Sets in Fault
+Trees." In R. E. Barlow, J. B. Fussell, and N. D. Singpurwalla (eds.),
+*Reliability and Fault Tree Analysis*, Society for Industrial and Applied
+Mathematics (SIAM), Philadelphia, 1975.
+
+## REF-FUSSELL-1975
+
+J. B. Fussell. "How to Hand-Calculate System Reliability and Safety
+Characteristics." *IEEE Transactions on Reliability* R-24(3), 169-174, 1975.
+
+## REF-APOSTOLAKIS-KAPLAN-1981
+
+George Apostolakis and Stanley Kaplan. "Pitfalls in Risk Calculations."
+*Reliability Engineering* 2(2), 135-145, 1981.
+
+## REF-MOSLEH-ETAL-1988
+
+A. Mosleh, K. N. Fleming, G. W. Parry, H. M. Paula, D. H. Worledge, and
+D. M. Rasmuson. *Procedures for Treating Common Cause Failures in Safety and
+Reliability Studies*. NUREG/CR-4780 (EPRI NP-5613), Vol. 1, U.S. Nuclear
+Regulatory Commission, 1988.
+
+## REF-MOSLEH-ETAL-1998
+
+A. Mosleh, D. M. Rasmuson, and F. M. Marshall. *Guidelines on Modeling
+Common-Cause Failures in Probabilistic Risk Assessment*. NUREG/CR-5485
+(INEEL/EXT-97-01327), U.S. Nuclear Regulatory Commission, 1998.
+
+## REF-ZANG-SUN-TRIVEDI-1999
+
+Xinyu Zang, Hairong Sun, and Kishor S. Trivedi. "A BDD-Based Algorithm for
+Reliability Analysis of Phased-Mission Systems." *IEEE Transactions on
+Reliability* 48(1), 50-60, 1999.

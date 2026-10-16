@@ -65,9 +65,10 @@ GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ),
     (
         "Reliability and risk",
-        "Structural reliability, risk measures, fault trees, extremes, and "
-        "system reliability models.",
-        ("reliability", "risk", "systems"),
+        "Structural reliability, exact system reliability (BDDs, importance, "
+        "common-cause failures, phased missions), risk measures, fault trees, "
+        "and extremes.",
+        ("reliability", "systems", "risk"),
     ),
     (
         "Cost analysis",

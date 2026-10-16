@@ -15,7 +15,7 @@ cycles.
 | 3 | `monte_carlo`, `modeling`, `causal` | estimators and work accounting; **the central `ProbabilisticModel`**; causal graphs and effect estimation |
 | 4 | `propagation`, `inverse` | forward propagation; calibration (with model discrepancy) and posterior prediction |
 | 5 | `reliability`, `sensitivity`, `surrogates`, `validation`, `design` | failure probability, sensitivity indices, emulators, validation evidence, experimental design |
-| 6 | `risk`, `filtering`, `data_assimilation`, `conformal` | risk measures, extremes, and decision analysis; sequential state estimation; conformal prediction |
+| 6 | `risk`, `systems`, `filtering`, `data_assimilation`, `conformal` | risk measures, extremes, and decision analysis; exact system reliability on BDDs; sequential state estimation; conformal prediction |
 | 7 | `workflow`, `timeseries` | `UQStudy`: every analysis on one model, one seed tree, one report; ARIMA models on the Kalman filter |
 | 9 | `visualization` | optional themed figures (Matplotlib) |
 
@@ -95,6 +95,7 @@ Carlo, LHS, Halton, Sobol). See ADR-0014 and
 | `validation` | Discrepancy and validation evidence, proper scoring rules, forecast calibration, distribution-shift tests | Parameter inference |
 | `design` | Optimal and Bayesian experimental design | Calibration itself |
 | `risk` | Risk measures, losses, fault/event trees, fragility, extremes, decisions | Reliability algorithms |
+| `systems` | Structure functions on BDDs, cut sets, importance, CCF, component time models, MTTF, phased missions | Sampling-based reliability; nothing in `risk` imports it |
 | `conformal` | Distribution-free prediction intervals and coverage reports | Model fitting |
 | `filtering`, `data_assimilation` | State-space models, Kalman/EKF/UKF, particle filter, EnKF, 3D-Var | Plotting |
 | `workflow` | Orchestration, stage records, reports | New numerical methods |

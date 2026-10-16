@@ -109,7 +109,7 @@ class MissionPhase:
 
 
 @dataclass(frozen=True, slots=True)
-class PhasedMissionResult:
+class MarkovPhasedMissionResult:
     """Outcome of a phased-mission analysis.
 
     Args:
@@ -273,7 +273,7 @@ class MarkovPhasedMission:
         object.__setattr__(self, "initial", start)
         object.__setattr__(self, "_mappings", tuple(mappings))
 
-    def solve(self, tolerance: float = 1e-12) -> PhasedMissionResult:
+    def solve(self, tolerance: float = 1e-12) -> MarkovPhasedMissionResult:
         """Return the mission success probability and per-phase reliabilities.
 
         For each phase the entering sub-probability vector ``v`` (mass
@@ -330,7 +330,7 @@ class MarkovPhasedMission:
                 achieved / previous_mass if previous_mass > 0.0 else math.nan
             )
             previous_mass = achieved
-        return PhasedMissionResult(
+        return MarkovPhasedMissionResult(
             tuple(phase.name for phase in self.phases),
             tuple(conditional),
             tuple(cumulative),
