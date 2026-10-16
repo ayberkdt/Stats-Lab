@@ -295,9 +295,7 @@ def dgsm(
     errors: tuple[float, ...] | None = None
     if design == "mc":
         errors = tuple(
-            math.sqrt(
-                math.fsum((s - mean) ** 2 for s in column) / (count - 1) / count
-            )
+            math.sqrt(math.fsum((s - mean) ** 2 for s in column) / (count - 1) / count)
             for column, mean in zip(squares, nu, strict=True)
         )
     return DGSMResult(

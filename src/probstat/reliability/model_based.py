@@ -494,7 +494,7 @@ class _LimitStateGradient:
         self.fallback_reason: str | None = None
         self.analytic: GradientFunction | None = None
         if option is None:
-            option = "auto"
+            option = "finite-difference"
         if callable(option):
             self.analytic = option
             self.requested = self.method = "analytic"
@@ -674,7 +674,7 @@ def form_hlrf(
     limit_state: ModelLimitState,
     *,
     start: Sequence[float] | None = None,
-    gradient: GradientOption = "auto",
+    gradient: GradientOption = "finite-difference",
     line_search: bool = True,
     max_iterations: int = 100,
     tolerance: float = 1e-6,
@@ -699,13 +699,20 @@ def form_hlrf(
         limit_state: Model limit state with the ``g <= 0`` failure convention.
         start: Optional starting point in standard-normal space (default the
             origin, i.e. the median input).
-        gradient: ``"auto"`` (default; ``None`` means the same): exact
-            gradient by forward-mode autodiff through the forward model and
-            the Nataf Jacobian (one model call per gradient) when the model
-            accepts :class:`~probstat.numerics.Dual` inputs, central
-            differences (``2 d`` calls) otherwise; ``"autodiff"`` or
-            ``"finite-difference"`` to force one; or an analytic gradient of
-            ``G`` in standard-normal space.
+        gradient: ``"finite-difference"`` (default; ``None`` means the
+            same): central differences, ``2 d`` model calls per gradient.
+            ``"auto"``: exact gradient by forward-mode autodiff through the
+            forward model and the Nataf Jacobian (one model call per
+            gradient) when the model accepts :class:`~probstat.numerics.Dual`
+            inputs, central differences otherwise (recorded in
+            ``gradient_method``). ``"autodiff"`` forces autodiff. A callable
+            is an analytic gradient of ``G`` in standard-normal space. The
+            default stays finite differences because the two differ at kinks
+            of ``g``: autodiff returns the derivative of the active branch of
+            ``min``/``max``/``abs`` (a one-sided derivative), whereas central
+            differences average the branches, which for a symmetric kink at
+            the start point makes the search stop with "gradient vanished"
+            instead of silently following one branch (ADR-0065).
         line_search: Whether to use the iHL-RF merit line search.
         max_iterations: Maximum number of HL-RF updates.
         tolerance: Relative feasibility and direction tolerance.

@@ -378,7 +378,8 @@ def _log_density(distribution: Any, value: Any) -> float:
             f"distribution {type(distribution).__name__} has neither log_pdf "
             "nor log_pmf"
         )
-    return float(method(value))
+    result = method(value)
+    return result if isinstance(result, Dual) else float(result)  # type: ignore[return-value]
 
 
 def _draw(distribution: Any, generator: random.Random) -> Any:
