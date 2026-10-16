@@ -348,7 +348,9 @@ def shapley_effects(
 
     Raises:
         ValueError: If options are invalid, ``"exact"`` is requested for
-            ``d > 20``, or the estimated output variance is not positive.
+            ``d > 20``, the estimated output variance is not positive, or the
+            joint law is neither independent nor a Gaussian copula of
+            continuous inputs (the conditional sampler is Gaussian).
 
     Equation:
         [EQ-SENS-SHAPLEY-001], [EQ-SENS-SHAPLEY-002], [EQ-SENS-SHAPLEY-003].
@@ -357,6 +359,13 @@ def shapley_effects(
         [REF-SONG-NELSON-STAUM-2016], [REF-OWEN-2014], [REF-IOOSS-PRIEUR-2019].
 
     """
+    if model.inputs.uses_rosenblatt or (
+        model.inputs.has_discrete and not model.inputs.is_independent
+    ):
+        raise ValueError(
+            "Shapley effects need independent inputs or a Gaussian copula of "
+            "continuous inputs; the conditional sampler is Gaussian"
+        )
     model.quantity(quantity)
     dimension = model.dimension
     if method not in ("auto", "exact", "random"):
