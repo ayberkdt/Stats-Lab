@@ -3,6 +3,155 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.16.0] — 2026-10-16
+
+Systems engineering joins the central model. Mission reliability is exact
+(binary decision diagrams, continuous-time Markov chains); cost and risk
+analysis build on it; and the defects found by the 2026-10-16 core-mechanics
+audit are fixed with oracle-backed regression tests.
+
+### Added
+
+- **Exact system reliability** (`systems`, ADR-0060):
+  - a reduced ordered BDD engine;
+  - series, parallel, k-out-of-n and bridge structures, and conversion from
+    fault trees;
+  - minimal cut and path sets (Rauzy), Esary–Proschan and min-cut/min-path
+    bounds;
+  - Birnbaum, criticality, Fussell–Vesely, RAW, RRW, improvement-potential
+    and structural importance;
+  - exact epistemic mean and variance of `R`, including shared
+    (state-of-knowledge) groups;
+  - component time models: exponential, Weibull, any life law, demand,
+    repairable, and periodically tested;
+  - beta-factor, MGL and alpha-factor common-cause groups;
+  - MTTF with quadrature error;
+  - phased missions with non-repairable components (Zang–Sun–Trivedi).
+- **Markov reliability** (`processes.ContinuousTimeMarkovChain`,
+  `systems.markov`, ADR-0061):
+  - transient solution by uniformization with rigorous truncation bounds,
+    plus scaling and squaring for very stiff missions;
+  - GTH steady state, absorption analysis, accumulated rewards and
+    expected time in states;
+  - availability, reliability, MTTF, MTBF/MUT/MDT, failure frequency and
+    expected failures;
+  - builders for repairable k-out-of-n systems, redundant pairs,
+    cold/warm/hot standby with imperfect switching, and load sharing;
+  - `MarkovPhasedMission`, and discrete-time `MissionStageModel` with
+    absorbing success, abort and loss outcomes.
+- **Cost analysis** (`cost`, ADR-0062):
+  - discounting and NPV;
+  - life-cycle cost models convertible to a `ProbabilisticModel`;
+  - cost-risk S-curves by method of moments and by correlated Monte
+    Carlo, with contingency and joint cost–schedule confidence;
+  - learning curves;
+  - age, block and minimal-repair maintenance optimisation;
+  - spares provisioning;
+  - cost of unreliability, and design alternatives with EVPI.
+- **Risk and reliability data** (`risk`, `reliability`, ADR-0063):
+  - a quantitative risk register with exact totals and a mitigation
+    waterfall;
+  - MIL-STD-1629A FMECA criticality (RPN with its documented flaws), the
+    MIL-STD-882E matrix, and F–N curves;
+  - Beta/Gamma posteriors, Clopper–Pearson and chi-square bounds,
+    demonstration-test sizing, and Crow–AMSAA growth;
+  - equal, ARINC, AGREE and cost-optimal reliability allocation.
+- **Input laws** (`modeling`, `propagation`, ADR-0064):
+  - copulas: Student-t, Clayton, Gumbel and Frank, with Rosenblatt maps for
+    FORM, and copula fitting;
+  - Gaussian copulas built from Spearman or Kendall correlations, with a
+    nearest-correlation repair;
+  - discrete and categorical inputs, and an uncertainty nature on inputs;
+  - `IntervalInput`, and nested aleatory–epistemic propagation with
+    p-boxes.
+- **Automatic differentiation** (`numerics.autodiff`, ADR-0065): forward-mode
+  duals with exact gradients, Jacobians and Hessians.
+  - It is wired into HMC/NUTS, ADVI, Laplace and the PPL, with recorded
+    finite-difference fallback.
+  - NUTS now uses multinomial sampling by default.
+  - New MCMC diagnostics: split, bulk and tail ESS, quantile MCSE,
+    automatic convergence warnings, and simulation-based calibration.
+  - New sensitivity measures: DGSM and a given-data first-order index;
+    `sobol_analysis_all` serves every QoI from one design.
+- **Distributions** (ADR-0059):
+  - new families: Cauchy, Laplace, Rayleigh, Pareto, PERT, discrete
+    uniform, hypergeometric;
+  - wrappers: Affine, Truncated (one-sided), Mixture, Empirical; KDE
+    quantile;
+  - a common distribution contract (`log_cdf`, `log_sf`, `isf`, `median`,
+    `entropy`, `skewness`, `kurtosis`; undefined moments are NaN, divergent
+    ones inf).
+- **Sampling**:
+  - Joe–Kuo Sobol directions up to 1,024 dimensions, Owen scrambling and a
+    power-of-two warning;
+  - unbiased Halton scrambling;
+  - maximin LHS and Iman–Conover rank correlation.
+- **Optimization**: strong-Wolfe BFGS, box bounds, `multi_start`, and
+  relative finite-difference steps with a one-sided fallback.
+- **Model contract and workflow** (ADR-0058):
+  - simulator failure policies (`raise`/`skip`/`record`) and evaluation
+    budgets;
+  - parallel executors, batch hooks and an evaluation cache;
+  - picklable models and results;
+  - randomized-QMC replicate, quantile and variance intervals;
+  - `UQStudy.adopt_posterior` / `with_inputs` chaining;
+  - JSON export with provenance (versions, timestamp, root seed, input-law
+    hash).
+- **Integration** (ADR-0066):
+  - `MarkovComponent` and `SubsystemComponent` for hierarchical systems;
+  - `workflow.MissionAssessment` for exact mission reliability, importance,
+    epistemic uncertainty with Sobol ranking, life-cycle and mission-loss
+    cost, and the risk register in one seeded report;
+  - `examples/mission_systems_lab.py` and
+    `docs/foundations/systems-engineering-guide.md`.
+
+### Fixed
+
+- **Simulator failures:** one NaN or exception aborted a whole stage. Failed
+  calls were counted as completed evaluations, and the evaluations of an
+  aborted stage vanished from the study accounts.
+- **`calibrate()` had no effect on later stages.** They silently used the
+  prior.
+- **More than 16 inputs:** `UQStudy.propagate()` failed with its default
+  Sobol design.
+- **BFGS stopped too early:** its stopping rule scaled with |f| and could
+  return the start point marked converged. Finite-difference steps were
+  floored at 1e-6.
+- **`propagate_until` bias:** its stopping rule was biased by optional
+  stopping, and its exceedance event disagreed with `propagate`.
+- **Error bars under quasi-random designs:** Sobol-index bootstrap intervals
+  were invalid, and second-order indices were reported as 0.0 when not
+  computed.
+- **Reused quasi-random samples:** `information_sensitivity` and `extremes`
+  reused them and depended on stage order.
+- **The incomplete beta lost accuracy for a large first shape:**
+  `StudentT(1e14).sf(3)` had an error of 4.6e-4, now 3e-15.
+- **Interface faults:**
+  - Cauchy could not be a model input.
+  - Discrete `pmf` rejected the value its own `quantile` returned.
+  - Samplers rejected `RandomStream` seeds.
+- **PCE solved the normal equations.** It now uses QR. GP fits factorised
+  twice per point and are now about 7× faster.
+- **Sobol first-order estimates:** the raw Saltelli product made them depend
+  on the output mean, giving values near 5 for a reliability near 0.92. It
+  is now centred.
+- **Autodiff FORM** applied the Nataf Jacobian under non-Gaussian copulas.
+- **Python 3.13** equality failure caused by NaN sentinels; ruff UP042, a
+  mypy error, and the unguarded Matplotlib import.
+
+### Changed
+
+- **Outputs that differ from 0.15:**
+  - `extremes` and `information_sensitivity` draw a fresh Monte Carlo sample
+    by default (`reuse=True` reuses a plain Monte Carlo propagation).
+  - `propagate_until` reports a fresh final sample.
+  - `evaluate(mapping)` rejects unknown names.
+  - Default NUTS is multinomial and samplers emit convergence warnings.
+  - Unscrambled Sobol points are cell-centred.
+  - `cdf(±inf)` returns the limits.
+- **Tooling:** dev tools are pinned below the next major versions (ruff
+  < 0.17, mypy < 3).
+
 ## [0.15.0] — 2026-10-12
 
 Classical statistical modelling, causal questions, experiment planning, and

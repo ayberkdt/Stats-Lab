@@ -40,10 +40,13 @@ tested evidence.
 - [x] Binomial, categorical, and Poisson.
 - [x] Geometric and negative binomial with explicit failure-count convention.
 - [x] Continuous uniform and rate-parameterized exponential.
-- [ ] Gamma, beta, chi-square, Student-t, F, and logistic.
-- [~] Multivariate normal and Gaussian copula (Nataf) joint inputs; Dirichlet,
-  multinomial, and non-Gaussian copulas remain.
-- [~] Stable log-density, quantile, survival, hazard, and entropy interfaces.
+- [x] Gamma, beta, chi-square, Student-t, F, and logistic; Cauchy, Laplace,
+  Rayleigh, Pareto, PERT, discrete uniform, hypergeometric; affine,
+  truncated, mixture, and empirical wrappers (ADR-0059).
+- [~] Multivariate normal, Gaussian, Student-t, Clayton, Gumbel, and Frank
+  copulas (ADR-0064); Dirichlet, multinomial, and vine copulas remain.
+- [x] Stable log-density, quantile, survival, hazard, and entropy interfaces
+  through the common distribution contract (ADR-0059).
 - [x] Call-local deterministic sampling streams for implemented families.
 - [~] Stream splitting via SplitMix64 `RandomStream`; family-specific
   goodness-of-fit calibration remains.
@@ -79,8 +82,9 @@ tested evidence.
 
 - [x] Linear/nonlinear regression, GLMs, regularization (ADR-0030),
   hierarchical normal and beta-binomial models (ADR-0040).
-- [~] Numerical optimization (BFGS, Nelder-Mead, Levenberg-Marquardt, Brent)
-  and consolidated dense linear algebra; automatic differentiation remains.
+- [~] Numerical optimization (strong-Wolfe BFGS with bounds, Nelder-Mead,
+  Levenberg-Marquardt, Brent, multi-start) and forward-mode automatic
+  differentiation (ADR-0059, ADR-0065); reverse mode remains.
 - [~] Monte Carlo, importance sampling, adaptive MCMC with diagnostics, Laplace,
   particle filters, HMC/NUTS, Gaussian ADVI (ADR-0032); amortized inference
   remains.
@@ -157,8 +161,8 @@ dependency direction.
 - [x] Antithetic and control variates, conditional Monte Carlo, stratified
   sampling, importance sampling, and simulation-budget allocation.
 - [x] Latin hypercube and randomized quasi-Monte Carlo (scrambled Halton/Sobol).
-- [ ] Multilevel Monte Carlo, adaptive importance sampling, control
-  functionals, and unequal-cost optimal allocation.
+- [~] Multilevel Monte Carlo and cross-entropy adaptive importance sampling
+  (ADR-0029); control functionals remain.
 
 ### UQ-4 — Reliability and rare events
 
@@ -180,8 +184,8 @@ dependency direction.
 - [x] Input ranking, dimension reduction, and uncertainty-reduction strategy.
 - [x] Bootstrap intervals for Sobol indices on the central model; Morris
   screening.
-- [ ] Correlated-input and Shapley effects, replicated stochastic simulators,
-  and derivative-based global measures.
+- [~] Shapley effects (ADR-0029), DGSM and given-data indices (ADR-0065);
+  replicated stochastic simulators remain.
 
 ### UQ-6 — Inverse problems and Bayesian calibration
 
@@ -228,6 +232,24 @@ dependency direction.
 - [x] Semantic chart theme for every figure (ADR-0024).
 - [x] All 110 ATHENS curriculum rows implemented with evidence.
 - [ ] Numerical backend boundary for large dense problems (ADR-0008 follow-up).
+
+## Systems engineering track (0.16)
+
+- [x] Exact system reliability on binary decision diagrams, importance
+  measures, common-cause failures, phased missions (ADR-0060).
+- [x] Continuous-time Markov reliability and availability, standby and
+  repairable systems, Markov phased missions, absorbing mission-stage models
+  (ADR-0061).
+- [x] Cost analysis: life-cycle cost, cost-risk S-curves, maintenance,
+  spares, cost of unreliability (ADR-0062).
+- [x] Risk register, FMECA, MIL-STD-882E matrix, F-N curves, reliability data
+  estimation, and reliability allocation (ADR-0063).
+- [x] Epistemic/aleatory separation with interval inputs and p-boxes
+  (ADR-0064).
+- [x] Hierarchical subsystems and `MissionAssessment` (ADR-0066).
+- [ ] Dynamic fault-tree gates (PAND, FDEP, spare gates) beyond the standby
+  builder; semi-Markov sojourns; CCF parameters as epistemic inputs; BDD
+  variable reordering.
 
 ## Cross-cutting work (never “finished”)
 

@@ -23,7 +23,9 @@ teaching are co-equal goals.
 
 ## Current state
 
-- Current release: `0.13.0` UQ-6 inverse problems and Bayesian calibration.
+- Current release: `0.16.0` systems engineering (exact system reliability,
+  Markov reliability, cost and risk analysis, mission assessment) and the
+  core-mechanics audit fixes.
 - Python baseline: 3.11+.
 - Runtime dependency policy: standard library first; optional Matplotlib for
   plots. Add numerical dependencies only through an ADR.
@@ -50,7 +52,9 @@ teaching are co-equal goals.
   [ADR-0012](decisions/ADR-0012-sensitivity-estimator-boundaries.md)
 - Inverse-calibration boundaries:
   [ADR-0013](decisions/ADR-0013-linear-gaussian-calibration-boundaries.md)
-- Latest session: [2026-10-09 UQ-6 inverse calibration](sessions/2026-10-09-uq6-inverse-calibration.md)
+- Latest session: [2026-10-16 systems engineering 0.16](sessions/2026-10-16-systems-engineering-0-16.md)
+- Audit behind 0.16: [2026-10-16 core-mechanics gap audit](sessions/2026-10-16-core-mechanics-gap-audit.md)
+- Previous session: [2026-10-09 UQ-6 inverse calibration](sessions/2026-10-09-uq6-inverse-calibration.md)
 - Previous session: [2026-10-09 UQ-5 sensitivity](sessions/2026-10-09-uq5-sensitivity.md)
 - Previous session: [2026-10-09 UQ-4 reliability](sessions/2026-10-09-uq4-reliability.md)
 - Previous session: [2026-10-09 UQ-3 advanced Monte Carlo](sessions/2026-10-09-uq3-advanced-monte-carlo.md)
@@ -69,8 +73,12 @@ teaching are co-equal goals.
 
 ## Next safe step
 
-Build UQ-7 filtering and data assimilation: discrete-time state-space models,
-prediction and measurement updates, process/measurement noise, covariance
-propagation, sequential Bayes, filtering versus smoothing, and tested Kalman,
-extended/ensemble Kalman, and particle-filter foundations.
-
+Read [ADR-0066](decisions/ADR-0066-mission-assessment-integration.md) and the
+[systems engineering guide](../docs/foundations/systems-engineering-guide.md).
+Open items, in order: CCF parameters as epistemic inputs of
+`SystemModel.as_probabilistic_model`; dynamic fault-tree gates (PAND, FDEP,
+spare) by Markov conversion; BDD variable reordering (sifting) for very
+large systems; MLE for the new distribution families; stream seeds in
+`monte_carlo`, `inference/bayesian.py`, and `reliability/analysis.py`;
+confirm the Joe-Kuo licence text in `sampling/_joe_kuo.py` against the
+authors' site; decide whether the study default scrambling becomes Owen.
