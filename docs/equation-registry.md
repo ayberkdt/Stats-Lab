@@ -9172,3 +9172,257 @@ first check `n in {n_0, n_0 + h, n_0 + 2h, ...}` with `r_n <= epsilon`, or at
 - Code: `statistics.run_until`, `statistics.RunningMoments`,
   `monte_carlo.estimate_mean_streaming`.
 - Source: [REF-ROBERT-CASELLA-2004, Chapters 3-4] ([EQ-MC-SE-001]).
+
+## Continuous-time Markov chains and Markov reliability models
+
+### EQ-PROC-CTMC-001 — Generator and Kolmogorov forward equation
+
+`q_ij >= 0 (i != j)`, `q_ii = -sum_(j != i) q_ij`; `pi'(t) = pi(t) Q`, so
+`pi(t) = pi(0) exp(Q t)`.
+
+- Domain: finite state space; finite non-negative rates; rows of `Q` sum to
+  zero (validated to `1e-10` times the row's total rate, then the diagonal is
+  recomputed exactly as minus the row sum).
+- Meaning: exponential holding time in `i` with rate `-q_ii`, then a jump to
+  `j` with probability `q_ij / (-q_ii)`.
+- Code: `processes.ContinuousTimeMarkovChain`.
+- Source: [REF-NORRIS-1997, Sections 2.1-2.8] and [REF-STEWART-1994, Chapter 1].
+
+### EQ-PROC-CTMC-002 — Uniformization
+
+`q >= max_i |q_ii|`, `P = I + Q / q`;
+`pi(t) = sum_(k >= 0) exp(-q t) (q t)^k / k! * pi(0) P^k`.
+
+- Domain: `t >= 0`; `q t` finite. Every term is non-negative.
+- Meaning: the CTMC is a discrete chain `P` observed at the jumps of a
+  Poisson process of rate `q` (self-loops included).
+- Code: `processes.ContinuousTimeMarkovChain.transient`, `.transient_many`.
+- Source: [REF-JENSEN-1953], [REF-GRASSMANN-1977] and
+  [REF-REIBMAN-TRIVEDI-1988].
+
+### EQ-PROC-CTMC-003 — Poisson window and certified truncation bound
+
+For `N ~ Poisson(lambda)`, `lambda = q t`:
+`Pr(N >= k) <= exp(-lambda) (e lambda / k)^k` for `k >= lambda` and
+`Pr(N <= k) <= exp(-lambda) (e lambda / k)^k` for `k <= lambda`, evaluated as
+`log b(k) = (k - lambda) - k log1p((k - lambda) / lambda)`. Keep `[L, R]` with
+both tails `<= tol / 4`; weights `w_m = 1`, `w_(k+1) = w_k lambda / (k + 1)`,
+`w_(k-1) = w_k k / lambda` (mode `m`), normalized to sum one. L1 truncation
+error `<= 2 Pr(N outside [L, R]) <= tol`. Rounding bound (componentwise
+relative, first order): `u [m_prod (n + 3) + 2 span + (R - L) + 4]`,
+`u = 2^-53`.
+
+- Domain: `lambda > 0`; `tol` in `[1e-250, 0.5]`.
+- Meaning: rigorous truncation of the uniformization series without
+  underflow of `exp(-lambda)` for large `q t`.
+- Code: `processes.ContinuousTimeMarkovChain.transient`,
+  `processes.TransientSolution`.
+- Source: [REF-FOX-GLYNN-1988] (mode-centred weights) and
+  [REF-BOUCHERON-LUGOSI-MASSART-2013, Section 2.2] (Cramer-Chernoff bound).
+
+### EQ-PROC-CTMC-004 — Accumulated reward and occupancy
+
+`L(t) = int_0^t pi(s) ds = (1/q) sum_(k >= 0) Pr(N > k) pi(0) P^k`;
+`E[int_0^t r(X_s) ds] = L(t) . r`; expected number of `i -> j` transitions
+`= q_ij L_i(t)`. Truncation after `R` terms: L1 error
+`<= (1/q) [lambda Pr(N >= R) + L tau_L + (R - L)(tau / (1 - tau) + tau_U)]`,
+using `E[(N - R)^+] <= lambda Pr(N >= R)`.
+
+- Domain: `t >= 0`; finite rewards.
+- Meaning: expected time per state, mission cost, downtime and expected
+  transition counts over `[0, t]`.
+- Code: `processes.ContinuousTimeMarkovChain.expected_time_in_states`,
+  `.expected_accumulated_reward`, `.expected_transition_count`,
+  `processes.OccupancySolution`.
+- Source: [REF-REIBMAN-TRIVEDI-1988] and [REF-GRASSMANN-1977].
+
+### EQ-PROC-CTMC-005 — Stationary law by GTH state reduction
+
+`pi Q = 0`, `sum pi = 1`. For `k = n-1, ..., 1`:
+`s_k = sum_(j < k) a_kj`; `a_ik <- a_ik / s_k`; `a_ij <- a_ij + a_ik a_kj`
+(`i, j < k`, `i != j`); then `pi_0 = 1`, `pi_j = sum_(i < j) pi_i a_ij`,
+normalized.
+
+- Domain: an irreducible closed class (applied to the unique closed class;
+  transient states get zero mass).
+- Meaning: subtraction-free Gaussian elimination; small componentwise
+  relative error even for stiff rates.
+- Code: `processes.ContinuousTimeMarkovChain.steady_state`,
+  `.limiting_distribution`.
+- Source: [REF-GRASSMANN-TAKSAR-HEYMAN-1985] and [REF-STEWART-1994,
+  Section 2.7].
+
+### EQ-PROC-CTMC-006 — Absorption: fundamental matrix of a CTMC
+
+`N = (-Q_TT)^-1`, `B = N Q_TA`, `m = N 1`. Solved by eliminating state `k`
+with pivot `s_k = sum_(j < k) r_kj + d_k` (off-diagonal rates `r`, exit rate
+`d`), updates `r_ij += r_ik r_kj / s_k`, `d_i += r_ik d_k / s_k`,
+`b_i += r_ik b_k / s_k`, then back substitution.
+
+- Domain: every closed class is a single absorbing state, so absorption is
+  certain from every transient state.
+- Meaning: `N_ij` expected time in `j` from `i`; `B_ik` absorption
+  probability; `m_i` mean time to absorption (an MTTF when the absorbing
+  states are failures).
+- Code: `processes.ContinuousTimeMarkovChain.absorption`,
+  `processes.CTMCAbsorption`.
+- Source: [REF-NORRIS-1997, Section 3.3], [REF-KEMENY-SNELL-1976, Chapter III]
+  and [REF-GRASSMANN-TAKSAR-HEYMAN-1985].
+
+### EQ-PROC-CTMC-007 — Embedded jump chain
+
+`P_ij = q_ij / (-q_ii)` for `i != j`, `P_ii = 0`; `P_ii = 1` when `q_ii = 0`.
+
+- Domain: any finite generator.
+- Meaning: the sequence of visited states; holding times are exponential
+  with rate `-q_ii` (used by the seeded simulator).
+- Code: `processes.ContinuousTimeMarkovChain.embedded_chain`, `.simulate`.
+- Source: [REF-NORRIS-1997, Section 2.6].
+
+### EQ-PROC-CTMC-008 — Scaling and squaring of the uniformized transition matrix
+
+`tau = t / 2^s`; `E = exp(Q tau)`, `M = int_0^tau exp(Q u) du` row by row by
+uniformization; `s` times `M <- M + E M`, `E <- E E`. Row-L1 truncation
+bounds `d_E <- 2 d_E + d_E^2`, `d_M <- 2 d_M + d_E tau_k + d_E d_M`;
+relative rounding `rho_E <- 2 rho_E + rho_E^2 + n u`,
+`rho_M <- rho_E + rho_M + (n + 1) u`.
+
+- Domain: `s >= 1`; chosen when cheaper than the direct series (large `q t`,
+  few states).
+- Meaning: all factors are non-negative, so no cancellation occurs; rows of
+  `E` are rescaled to sum one (exact in real arithmetic, because the
+  truncated rows built from normalized Poisson weights are exactly
+  stochastic).
+- Code: `processes.ContinuousTimeMarkovChain.transient` (`method="squaring"`),
+  `.expected_time_in_states`.
+- Source: [REF-MOLER-VAN-LOAN-2003] and [REF-REIBMAN-TRIVEDI-1988].
+
+### EQ-SYS-MKV-001 — Availability and reliability from a Markov model
+
+`A(t) = sum_(i in U) pi_i(t)`; `A = lim A(t)`; `R(t) = sum_(i in U)
+pi~_i(t)` where `pi~` uses `Q` with the rows of the down states `D` set to
+zero (down states absorbing).
+
+- Domain: up set `U` and down set `D` non-empty; initial law on `U`.
+- Meaning: point availability, steady-state availability and reliability
+  (no failure in `[0, t]`).
+- Code: `systems.MarkovReliabilityModel.availability`, `.reliability`,
+  `.steady_state_availability`.
+- Source: [REF-TRIVEDI-2002] and [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-SYS-MKV-002 — Mean time to first failure
+
+`MTTF = alpha_U (-Q_UU)^-1 1`.
+
+- Domain: failure certain from every up state reachable from `alpha`
+  (otherwise `MTTF = inf`).
+- Meaning: mean of the first-passage time into `D`.
+- Code: `systems.MarkovReliabilityModel.mean_time_to_failure`.
+- Source: [REF-TRIVEDI-2002] and [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-SYS-MKV-003 — Failure frequency and mean up/down times
+
+`w(t) = sum_(i in U) pi_i(t) sum_(j in D) q_ij`; steady state
+`w = sum_(i in U) pi_i sum_(j in D) q_ij`, `MUT = A / w`,
+`MDT = (1 - A) / w`, `MTBF = MUT + MDT = 1 / w`.
+
+- Domain: `w > 0` for the mean times (repairable system).
+- Meaning: rate of up-to-down transitions; renewal-reward identities for
+  the mean duration of up and down periods.
+- Code: `systems.MarkovReliabilityModel.failure_frequency`,
+  `.steady_state_failure_frequency`, `.mean_up_time`, `.mean_down_time`,
+  `.mean_time_between_failures`, `.mean_time_to_repair`.
+- Source: [REF-BILLINTON-ALLAN-1992] and [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-SYS-MKV-004 — Interval availability, downtime and expected failures
+
+`A_av(t) = (1/t) sum_(i in U) L_i(t)`; `E[downtime] = sum_(i in D) L_i(t)`;
+`E[failures in [0, t]] = sum_(i in U, j in D) q_ij L_i(t)` with
+`L(t) = int_0^t pi(s) ds` ([EQ-PROC-CTMC-004]).
+
+- Domain: `t > 0` for the average.
+- Meaning: mission-level availability measures.
+- Code: `systems.MarkovReliabilityModel.interval_availability`,
+  `.expected_downtime`, `.expected_failures`.
+- Source: [REF-TRIVEDI-2002] and [REF-BILLINTON-ALLAN-1992].
+
+### EQ-SYS-MKV-005 — Single repairable unit
+
+`A(t) = mu / (lambda + mu) + lambda / (lambda + mu) exp(-(lambda + mu) t)`,
+`R(t) = exp(-lambda t)`, `MTTF = 1 / lambda`, `MDT = 1 / mu`.
+
+- Domain: `lambda > 0`, `mu >= 0`.
+- Meaning: two-state alternating renewal process with exponential times.
+- Code: `systems.single_repairable_unit`.
+- Source: [REF-TRIVEDI-2002] and [REF-BILLINTON-ALLAN-1992].
+
+### EQ-SYS-MKV-006 — Repairable k-out-of-n birth-death model
+
+State `j` = failed units; `j -> j + 1` at `(n - j) lambda`, `j -> j - 1` at
+`min(j, c) mu`; `pi_j ∝ prod_(i < j) (n - i) lambda / (min(i + 1, c) mu)`;
+up iff `n - j >= k`. With `c >= n`, `pi_j = C(n, j) (1 - a)^j a^(n - j)`,
+`a = mu / (lambda + mu)`. Without repair
+`R(t) = sum_(i >= k) C(n, i) r^i (1 - r)^(n - i)`, `r = exp(-lambda t)`.
+
+- Domain: `1 <= k <= n`, `c >= 1`; failures in down states optional.
+- Meaning: identical units, shared repair crews.
+- Code: `systems.repairable_k_out_of_n`.
+- Source: [REF-TRIVEDI-2002] and [REF-BILLINTON-ALLAN-1992].
+
+### EQ-SYS-MKV-007 — Standby and load-sharing closed forms
+
+One active unit, `s` spares, no repair, switch success `p`. Cold, `p = 1`:
+`R(t) = exp(-lambda t) sum_(k <= s) (lambda t)^k / k!`. One warm spare:
+`R(t) = exp(-lambda t) [1 + p (lambda / lambda_s)(1 - exp(-lambda_s t))]`
+(cold limit `exp(-lambda t)(1 + p lambda t)`; hot, `p = 1`:
+`2 exp(-lambda t) - exp(-2 lambda t)`), with
+`MTTF = 1 / lambda + p / (lambda + lambda_s)`. `s` warm spares, `p = 1`:
+`R(t) = exp(-lambda t) sum_(k <= s) (a)_k / k! (1 - exp(-lambda_s t))^k`,
+`a = lambda / lambda_s`, `(a)_k` the rising factorial, and
+`MTTF = sum_(j=0..s) 1 / (lambda + j lambda_s)`. Load-sharing pair:
+`R(t) = exp(-2 lambda t) + 2 lambda / (lambda_L - 2 lambda)
+(exp(-2 lambda t) - exp(-lambda_L t))`, `MTTF = 1 / (2 lambda) + 1 / lambda_L`.
+
+- Domain: `lambda > 0`, `lambda_s > 0` where divided by, `0 <= p <= 1`,
+  `lambda_L != 2 lambda`.
+- Meaning: reference values for the Markov builders (the multi-spare warm
+  formula was verified numerically against matrix exponentials, see
+  ADR-0061).
+- Code: `systems.standby_system`, `systems.load_sharing_pair`.
+- Source: [REF-RAUSAND-HOYLAND-2004] and [REF-TRIVEDI-2002].
+
+### EQ-SYS-MKV-008 — MTTF of a repairable 1-out-of-2 system
+
+`MTTF = (3 lambda + mu) / (2 lambda^2)` for identical units with failure rate
+`lambda` and repair rate `mu`.
+
+- Domain: `lambda > 0`, `mu >= 0`.
+- Meaning: first passage from "both up" to "both down".
+- Code: `systems.parallel_redundant_pair`, `systems.repairable_k_out_of_n`.
+- Source: [REF-TRIVEDI-2002] and [REF-BILLINTON-ALLAN-1992].
+
+### EQ-SYS-MKPM-001 — Phased mission by phase-wise Markov propagation
+
+`v_1 = alpha`; `w_i = v_i exp(Q~_i T_i)` with `Q~_i` the phase generator
+whose failure states are absorbing when the requirement is continuous;
+`S_i = sum_(j in G_i) w_ij`; `v_(i+1) = (w_i 1_(G_i)) H_(i+1)` with the
+sub-stochastic phase-change matrix `H`. `Pr(mission success) = S_last`.
+
+- Domain: finite phases with fixed durations; phase changes are
+  instantaneous.
+- Meaning: success requires meeting every phase requirement; the CTMC is
+  homogeneous within each phase.
+- Code: `systems.MarkovPhasedMission`, `systems.MissionPhase`.
+- Source: [REF-SMOTHERMAN-ZEMOUDEH-1989] and [REF-TRIVEDI-2002].
+
+### EQ-SYS-MKPM-002 — Discrete mission stages with absorbing outcomes
+
+Stage `i` succeeds (`s_i`), retries (`r_i`), aborts (`a_i`) or fails
+(`f_i`); `Pr(success) = prod_i s_i / (1 - r_i)`;
+`T_i = (1 + s_i T_(i+1)) / (1 - r_i)`, `T_(n+1) = 0`; in general
+`B = (I - Q)^-1 R` ([EQ-PROC-MC-005]).
+
+- Domain: `r_i < 1`; probabilities per stage sum to one.
+- Meaning: outcome probabilities and expected number of stage attempts.
+- Code: `systems.discrete_mission_outcome`, `systems.MissionStageModel`.
+- Source: [REF-KEMENY-SNELL-1976, Chapter III].

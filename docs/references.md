@@ -2121,3 +2121,61 @@ DOI: [10.1145/3147.3165](https://doi.org/10.1145/3147.3165).
 F. N. Fritsch and R. E. Carlson. "Monotone Piecewise Cubic Interpolation."
 *SIAM Journal on Numerical Analysis* 17(2), 238-246, 1980.
 doi:10.1137/0717021.
+
+## REF-JENSEN-1953
+
+Arne Jensen. "Markoff Chains as an Aid in the Study of Markoff Processes."
+*Skandinavisk Aktuarietidskrift* 36, 87-91, 1953.
+
+## REF-GRASSMANN-1977
+
+Winfried K. Grassmann. "Transient Solutions in Markovian Queueing Systems."
+*Computers & Operations Research* 4(1), 47-53, 1977.
+
+## REF-REIBMAN-TRIVEDI-1988
+
+Andrew Reibman and Kishor S. Trivedi. "Numerical Transient Analysis of Markov
+Models." *Computers & Operations Research* 15(1), 19-36, 1988.
+
+## REF-FOX-GLYNN-1988
+
+Bennett L. Fox and Peter W. Glynn. "Computing Poisson Probabilities."
+*Communications of the ACM* 31(4), 440-445, 1988.
+
+## REF-GRASSMANN-TAKSAR-HEYMAN-1985
+
+Winfried K. Grassmann, Michael I. Taksar, and Daniel P. Heyman. "Regenerative
+Analysis and Steady State Distributions for Markov Chains." *Operations
+Research* 33(5), 1107-1116, 1985.
+
+## REF-STEWART-1994
+
+William J. Stewart. *Introduction to the Numerical Solution of Markov Chains*.
+Princeton University Press, 1994.
+
+## REF-MOLER-VAN-LOAN-2003
+
+Cleve Moler and Charles Van Loan. "Nineteen Dubious Ways to Compute the
+Exponential of a Matrix, Twenty-Five Years Later." *SIAM Review* 45(1), 3-49,
+2003.
+
+## REF-HIGHAM-2002
+
+Nicholas J. Higham. *Accuracy and Stability of Numerical Algorithms*. 2nd
+edition. Society for Industrial and Applied Mathematics (SIAM), 2002.
+
+## REF-TRIVEDI-2002
+
+Kishor S. Trivedi. *Probability and Statistics with Reliability, Queuing, and
+Computer Science Applications*. 2nd edition. John Wiley & Sons, 2002.
+
+## REF-BILLINTON-ALLAN-1992
+
+Roy Billinton and Ronald N. Allan. *Reliability Evaluation of Engineering
+Systems: Concepts and Techniques*. 2nd edition. Plenum Press, 1992.
+
+## REF-SMOTHERMAN-ZEMOUDEH-1989
+
+Mark Smotherman and Kay Zemoudeh. "A Non-Homogeneous Markov Model for
+Phased-Mission Reliability Analysis." *IEEE Transactions on Reliability*
+38(5), 1989.

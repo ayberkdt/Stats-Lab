@@ -49,6 +49,9 @@ With those foundations, switch to the integrated toolset built on one model:
   and inverse FORM.
 - [Risk analysis](foundations/risk-analysis.md): VaR/CVaR, loss models, fault
   and event trees, fragility curves, and decision value of information.
+- [Markov reliability and availability](foundations/markov-reliability.md):
+  continuous-time Markov chains solved by uniformization with error bounds,
+  repairable and standby systems, MTTF/MTBF, and phased missions.
 - [Surrogate models](foundations/surrogate-models.md): polynomial chaos and
   Gaussian-process emulators that replace an expensive forward model.
 - [Filtering and data assimilation](foundations/filtering-and-data-assimilation.md):

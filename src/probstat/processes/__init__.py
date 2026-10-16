@@ -1,7 +1,9 @@
 """Stochastic processes and Gaussian random fields.
 
 ``markov`` owns finite discrete-time Markov chains (classification, stationary
-law, absorption, first passage, simulation); ``continuous`` owns exactly
+law, absorption, first passage, simulation); ``ctmc`` owns finite
+continuous-time Markov chains solved analytically (uniformization with error
+bounds, accumulated rewards, GTH steady state, absorption); ``continuous`` owns exactly
 simulated continuous-time processes (Poisson, compound Poisson, Brownian
 motion, geometric Brownian motion, Ornstein-Uhlenbeck); ``sde`` owns
 Euler-Maruyama and Milstein schemes with strong and weak convergence
@@ -20,6 +22,14 @@ from .continuous import (
     SamplePath,
     brownian_increments,
     uniform_grid,
+)
+from .ctmc import (
+    BoundedValue,
+    ContinuousTimeMarkovChain,
+    CTMCAbsorption,
+    CTMCPath,
+    OccupancySolution,
+    TransientSolution,
 )
 from .markov import AbsorptionAnalysis, MarkovChain
 from .random_fields import (
@@ -54,8 +64,12 @@ __all__ = [
     "QUADRATURE_RULES",
     "SCHEMES",
     "AbsorptionAnalysis",
+    "BoundedValue",
     "BrownianMotion",
+    "CTMCAbsorption",
+    "CTMCPath",
     "CompoundPoissonProcess",
+    "ContinuousTimeMarkovChain",
     "ConvergenceStudy",
     "CovarianceKernel",
     "ExponentialKLMode",
@@ -63,10 +77,12 @@ __all__ = [
     "JumpLaw",
     "KarhunenLoeveExpansion",
     "MarkovChain",
+    "OccupancySolution",
     "OrnsteinUhlenbeck",
     "PoissonProcess",
     "SamplePath",
     "ScalarSDE",
+    "TransientSolution",
     "as_points",
     "brownian_increments",
     "covariance_matrix",
