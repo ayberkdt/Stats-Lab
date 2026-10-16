@@ -7,6 +7,7 @@ import unittest
 from probstat.distributions import Normal
 from probstat.modeling import ClaytonCopula, JointInput, ProbabilisticModel, RandomInput
 from probstat.reliability import ModelLimitState, form_hlrf
+from probstat.sensitivity import sobol_analysis
 from probstat.uq import QuantityOfInterest
 
 
@@ -30,6 +31,35 @@ class FormAutodiffCopulaTests(unittest.TestCase):
         automatic = form_hlrf(state, gradient="auto")
         self.assertEqual(automatic.gradient_method, "finite-difference")
         self.assertAlmostEqual(automatic.beta, reference.beta, 10)
+
+
+def _offset_model(offset: float) -> ProbabilisticModel:
+    """Return ``offset + a + 0.3 b`` on independent normal inputs."""
+    inputs = JointInput.independent(
+        RandomInput("a", Normal(0.0, 1.0)), RandomInput("b", Normal(0.0, 1.0))
+    )
+
+    def function(point):
+        """Return the shifted linear output."""
+        return {"y": offset + point["a"] + 0.3 * point["b"]}
+
+    return ProbabilisticModel(inputs, function, (QuantityOfInterest("y", "y"),))
+
+
+class SobolOffsetInvarianceTests(unittest.TestCase):
+    """First-order Sobol estimates must not depend on the output mean."""
+
+    def test_large_offset_leaves_indices_unchanged(self) -> None:
+        """A constant 1e6 offset changes nothing beyond rounding."""
+        base = sobol_analysis(_offset_model(0.0), "y", 512, design="mc", seed=4)
+        shifted = sobol_analysis(_offset_model(1e6), "y", 512, design="mc", seed=4)
+        for name in ("a", "b"):
+            first_base, total_base = base.as_mapping()[name]
+            first_shift, total_shift = shifted.as_mapping()[name]
+            self.assertAlmostEqual(first_base, first_shift, 6)
+            self.assertAlmostEqual(total_base, total_shift, 6)
+        # Exact indices: 1 / 1.09 and 0.09 / 1.09.
+        self.assertLess(abs(shifted.as_mapping()["a"][0] - 1.0 / 1.09), 0.08)
 
 
 if __name__ == "__main__":

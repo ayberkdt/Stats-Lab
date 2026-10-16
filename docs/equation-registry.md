@@ -277,7 +277,10 @@ finite variance `sigma^2`.
 - Domain: [EQ-SENS-ANOVA-001] with positive output variance.
 - Meaning: fraction of output variance explained by input `i` alone.
 - Code: `sensitivity.estimate_sobol_indices` uses a Saltelli pick-freeze
-  estimator and retains finite-sample values without clipping.
+  estimator `V_i = (1/N) sum (f_B - mean_f)(f_ABi - f_A)` with `f_B` centred
+  on the pooled sample mean (the raw product's variance grows with the
+  square of the output mean), and retains finite-sample values without
+  clipping.
 - Source: [REF-SOBOL-1993], [REF-SALTELLI-2010].
 
 ### EQ-SENS-SECOND-001 — Second-order Sobol interaction

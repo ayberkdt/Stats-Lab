@@ -235,7 +235,9 @@ def _indices(
     total: list[float] = []
     for column in yab:
         first.append(
-            math.fsum(yb[k] * (column[k] - ya[k]) for k in rows) / n / variance
+            math.fsum((yb[k] - mean) * (column[k] - ya[k]) for k in rows)
+            / n
+            / variance
         )
         total.append(
             0.5 * math.fsum((ya[k] - column[k]) ** 2 for k in rows) / n / variance

@@ -283,6 +283,10 @@ def estimate_sobol_indices(
     ya = tuple(_evaluate(model, row) for row in a)
     yb = tuple(_evaluate(model, row) for row in b)
     variance = statistics.pvariance(ya + yb)
+    # Centre f_B before the Saltelli product: adding a constant c to the
+    # model adds c * mean(f_ABi - f_A) to the raw estimator, whose variance
+    # grows like c^2; centring removes that dependence on the output mean.
+    centre = statistics.fmean(ya + yb)
     if variance == 0.0:
         raise ValueError("Sobol indices require positive output variance")
     first: list[float] = []
@@ -293,7 +297,9 @@ def estimate_sobol_indices(
             for a_row, b_row in zip(a, b, strict=True)
         )
         first.append(
-            math.fsum(yb[k] * (values[k] - ya[k]) for k in range(n)) / n / variance
+            math.fsum((yb[k] - centre) * (values[k] - ya[k]) for k in range(n))
+            / n
+            / variance
         )
         total.append(
             0.5 * math.fsum((ya[k] - values[k]) ** 2 for k in range(n)) / n / variance
@@ -312,7 +318,9 @@ def estimate_sobol_indices(
                 for a_row, b_row in zip(a, b, strict=True)
             )
             closed = (
-                math.fsum(yb[k] * (values[k] - ya[k]) for k in range(n)) / n / variance
+                math.fsum((yb[k] - centre) * (values[k] - ya[k]) for k in range(n))
+                / n
+                / variance
             )
             second[i][j] = second[j][i] = closed - first[i] - first[j]
             pair_evaluations += n
