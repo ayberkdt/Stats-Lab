@@ -2121,3 +2121,61 @@ DOI: [10.1145/3147.3165](https://doi.org/10.1145/3147.3165).
 F. N. Fritsch and R. E. Carlson. "Monotone Piecewise Cubic Interpolation."
 *SIAM Journal on Numerical Analysis* 17(2), 238-246, 1980.
 doi:10.1137/0717021.
+
+## REF-DENNIS-SCHNABEL-1996
+
+J. E. Dennis, Jr. and Robert B. Schnabel. *Numerical Methods for
+Unconstrained Optimization and Nonlinear Equations*. Classics in Applied
+Mathematics 16, SIAM, Philadelphia, 1996 (unabridged republication of the
+1983 Prentice-Hall edition).
+
+## REF-IMAN-CONOVER-1982
+
+Ronald L. Iman and W. J. Conover. "A Distribution-Free Approach to Inducing
+Rank Correlation Among Input Variables." *Communications in Statistics -
+Simulation and Computation* 11(3), 311-334, 1982.
+
+## REF-JAMES-ROOS-1975
+
+F. James and M. Roos. "Minuit - A System for Function Minimization and
+Analysis of the Parameter Errors and Correlations." *Computer Physics
+Communications* 10(6), 343-367, 1975.
+
+## REF-JKB-2005
+
+Norman L. Johnson, Adrienne W. Kemp, and Samuel Kotz. *Univariate Discrete
+Distributions*. 3rd edition, Wiley, Hoboken, 2005.
+
+## REF-MALCOLM-1959
+
+D. G. Malcolm, J. H. Roseboom, C. E. Clark, and W. Fazar. "Application of a
+Technique for Research and Development Program Evaluation." *Operations
+Research* 7(5), 646-669, 1959.
+
+## REF-MATOUSEK-1998
+
+Jiří Matoušek. "On the L2-Discrepancy for Anchored Boxes." *Journal of
+Complexity* 14(4), 527-556, 1998.
+
+## REF-MORRIS-MITCHELL-1995
+
+Max D. Morris and Toby J. Mitchell. "Exploratory Designs for Computational
+Experiments." *Journal of Statistical Planning and Inference* 43(3),
+381-402, 1995.
+
+## REF-OWEN-1995
+
+Art B. Owen. "Randomly Permuted (t,m,s)-Nets and (t,s)-Sequences." In
+H. Niederreiter and P. J.-S. Shiue (editors), *Monte Carlo and Quasi-Monte
+Carlo Methods in Scientific Computing*, Lecture Notes in Statistics 106,
+Springer, New York, 1995, 299-317.
+
+## REF-VAN-DER-VAART-1998
+
+A. W. van der Vaart. *Asymptotic Statistics*. Cambridge University Press,
+Cambridge, 1998.
+
+## REF-VOSE-2008
+
+David Vose. *Risk Analysis: A Quantitative Guide*. 3rd edition, Wiley,
+Chichester, 2008.

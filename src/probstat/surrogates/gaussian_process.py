@@ -26,6 +26,7 @@ import math
 import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from operator import mul
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import require_finite_real
@@ -382,8 +383,12 @@ def _split_parameters(
 def _fast_cholesky(matrix: list[list[float]]) -> list[list[float]]:
     """Return the lower Cholesky factor as row lists (Cholesky-Banachiewicz).
 
-    Equivalent to :func:`probstat.linalg.cholesky` without its validation and
-    tuple conversions; the inner products use ``math.sumprod``.
+    Bit-identical to :func:`probstat.linalg.cholesky` (each inner product is
+    the correctly rounded ``math.fsum`` of the same rounded products) without
+    its validation and tuple conversions. The identity matters: the
+    likelihood, the fitted surrogate, and AK-MCS's incremental posterior
+    (``reliability.active_learning``) must accept or reject the same
+    near-singular kernel matrices and produce the same factor.
 
     Args:
         matrix: Symmetric matrix as row lists (only the lower triangle is read).
@@ -408,8 +413,8 @@ def _fast_cholesky(matrix: list[list[float]]) -> list[list[float]]:
         current: list[float] = []
         for j in range(i):
             row_j = lower[j]
-            current.append((row_i[j] - _sumprod(current, row_j[:j])) / row_j[j])
-        pivot = row_i[i] - _sumprod(current, current)
+            current.append((row_i[j] - math.fsum(map(mul, current, row_j))) / row_j[j])
+        pivot = row_i[i] - math.fsum(map(mul, current, current))
         if not pivot > 0.0:
             raise ValueError("kernel matrix is not positive definite")
         current.append(math.sqrt(pivot))
@@ -755,21 +760,8 @@ class GaussianProcessRegression:
         factorization = self._standardized()
         object.__setattr__(self, "_factorization", factorization)
         signal, scales, noise, lower, _ = factorization
-        count = len(self.points)
         rows, _, _, _ = _assemble(self.points, scales, signal, noise, self.kernel)
-        norm_k = max(
-            math.fsum(abs(rows[max(a, b)][min(a, b)]) for b in range(count))
-            for a in range(count)
-        )
-        columns = _inverse_factor_columns(lower)
-        norm_inverse = max(
-            math.fsum(
-                abs(_precision_entry(columns, min(a, b), max(a, b)))
-                for b in range(count)
-            )
-            for a in range(count)
-        )
-        object.__setattr__(self, "condition_number", norm_k * norm_inverse)
+        object.__setattr__(self, "condition_number", _condition_number(rows, lower))
 
     def _standardized(self) -> tuple[float, Vector, float, Matrix, Vector]:
         """Return signal, scales, noise, Cholesky factor, and ``alpha``.
@@ -912,27 +904,91 @@ class GaussianProcessRegression:
         )
 
 
-def _preferred(
-    candidate: tuple[float, Vector, bool], best: tuple[float, Vector, bool]
-) -> bool:
-    """Return whether a restart result should replace the current best.
+def _select_restart(
+    candidates: Sequence[tuple[float, Vector, bool]], noise: float
+) -> tuple[float, Vector, bool]:
+    """Return the restart result to keep.
 
-    A lower objective wins, except that a converged run is kept against a
-    non-converged one whose objective is lower by less than
-    ``1e-9 max(1, |f|)``: such a difference is within the rounding noise of
-    the likelihood, and the converged run carries a verified stationarity
-    certificate.
+    The lowest objective wins, except that the lowest converged run is kept
+    when the best overall run did not converge and is lower only by at most
+    ``noise`` (the estimated rounding noise of the objective): such a
+    difference cannot be resolved, and the converged run carries a verified
+    stationarity certificate.
 
     References:
         [REF-NOCEDAL-WRIGHT-2006, Chapter 2]. No equation is evaluated.
 
     """
-    margin = 1e-9 * max(1.0, abs(best[0]))
-    if candidate[2] and not best[2]:
-        return candidate[0] <= best[0] + margin
-    if best[2] and not candidate[2]:
-        return candidate[0] < best[0] - margin
-    return candidate[0] < best[0]
+    best = min(candidates, key=lambda item: item[0])
+    if best[2]:
+        return best
+    converged = [item for item in candidates if item[2]]
+    if converged:
+        alternative = min(converged, key=lambda item: item[0])
+        if alternative[0] <= best[0] + noise:
+            return alternative
+    return best
+
+
+def _objective_noise(
+    points: Sequence[Vector],
+    theta: Vector,
+    dimension: int,
+    estimate_noise: bool,
+    nugget: float,
+    tau: float,
+    kernel: str,
+    value: float,
+) -> float:
+    """Estimate the rounding noise of ``-log p`` as ``kappa eps (n + |f|)``.
+
+    ``kappa = ||K||_1 ||K^-1||_1`` is the 1-norm condition number at
+    ``theta``; perturbation theory for the quadratic form and the
+    log-determinant gives errors of order ``kappa eps`` relative to their
+    magnitudes. The floor is ``1e-9 max(1, |f|)``.
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 2.6]. No equation is evaluated.
+
+    """
+    floor = 1e-9 * max(1.0, abs(value))
+    try:
+        signal, scales, extra = _split_parameters(theta, dimension, estimate_noise)
+        rows, _, _, _ = _assemble(
+            points, scales, signal, nugget + extra + tau * signal, kernel
+        )
+        lower = _fast_cholesky(rows)
+    except ValueError:
+        return floor
+    kappa = _condition_number(rows, lower)
+    return max(floor, kappa * 2.0**-52 * (len(points) + abs(value)))
+
+
+def _condition_number(
+    rows: Sequence[Sequence[float]], lower: Sequence[Sequence[float]]
+) -> float:
+    """Return ``||K||_1 ||K^-1||_1`` from the lower triangle and its factor.
+
+    Equation:
+        [EQ-SUR-GP-007].
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Sections 2.6 and 3.1].
+
+    """
+    count = len(rows)
+    norm_k = max(
+        math.fsum(abs(rows[max(a, b)][min(a, b)]) for b in range(count))
+        for a in range(count)
+    )
+    columns = _inverse_factor_columns(lower)
+    norm_inverse = max(
+        math.fsum(
+            abs(_precision_entry(columns, min(a, b), max(a, b))) for b in range(count)
+        )
+        for a in range(count)
+    )
+    return norm_k * norm_inverse
 
 
 def fit_gaussian_process(
@@ -997,8 +1053,10 @@ def fit_gaussian_process(
             and the nugget actually used is the result's ``nugget``.
 
     Among restarts the lowest objective wins, but a converged run is kept
-    against a non-converged one that is lower only within ``1e-9 max(1,
-    |f|)`` (likelihood rounding noise).
+    against a non-converged one that is lower only within the estimated
+    rounding noise of the objective, ``max(1e-9 max(1, |f|), kappa eps
+    (n + |f|))`` with ``kappa`` the 1-norm condition number of ``K`` at the
+    lowest objective.
 
     Each likelihood evaluation shares one Cholesky factorization between the
     value and the gradient (cached per ``theta``); ``evaluations`` counts
@@ -1191,6 +1249,7 @@ def fit_gaussian_process(
         )
 
     best: tuple[float, Vector, bool] | None = None
+    candidates: list[tuple[float, Vector, bool]] = []
     initial_jitter = jitter
     while True:
         for start in starts:
@@ -1209,8 +1268,14 @@ def fit_gaussian_process(
                     candidate = (negative(begin), begin, True)
             except ValueError:
                 continue
-            if best is None or _preferred(candidate, best):
-                best = candidate
+            candidates.append(candidate)
+        if candidates:
+            lowest = min(candidates, key=lambda item: item[0])
+            point = lowest[1] if regularization is None else to_theta(lowest[1])
+            noise = _objective_noise(
+                x, point, dimension, estimate_noise, jitter, tau, kernel, lowest[0]
+            )
+            best = _select_restart(candidates, noise)
         if best is not None or not adaptive_nugget:
             break
         if jitter * 10.0 > max(_MAX_ADAPTIVE_NUGGET, initial_jitter):

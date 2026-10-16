@@ -44,7 +44,7 @@ class PERT(ContinuousDistribution):
         lam: Positive shape weight ``lam`` (default 4).
 
     References:
-        [REF-MALCOLM-1959], [REF-VOSE-2008, Chapter 10].
+        [REF-MALCOLM-1959], [REF-VOSE-2008].
 
     """
 
@@ -95,7 +95,7 @@ class PERT(ContinuousDistribution):
             [EQ-DIST-PERT-001].
 
         References:
-            [REF-VOSE-2008, Chapter 10].
+            [REF-VOSE-2008].
 
         """
         return 1.0 + self.lam * (self.mode - self.low) / self.width
@@ -108,7 +108,7 @@ class PERT(ContinuousDistribution):
             [EQ-DIST-PERT-001].
 
         References:
-            [REF-VOSE-2008, Chapter 10].
+            [REF-VOSE-2008].
 
         """
         return 1.0 + self.lam * (self.high - self.mode) / self.width
@@ -150,7 +150,7 @@ class PERT(ContinuousDistribution):
             [EQ-DIST-PERT-001].
 
         References:
-            [REF-VOSE-2008, Chapter 10].
+            [REF-VOSE-2008].
 
         """
         point = require_finite_real(x, name="x")
@@ -165,7 +165,7 @@ class PERT(ContinuousDistribution):
             [EQ-DIST-PERT-001].
 
         References:
-            [REF-VOSE-2008, Chapter 10].
+            [REF-VOSE-2008].
 
         """
         value = self.log_pdf(x)
@@ -178,7 +178,7 @@ class PERT(ContinuousDistribution):
             [EQ-DIST-PERT-001].
 
         References:
-            [REF-VOSE-2008, Chapter 10].
+            [REF-VOSE-2008].
 
         """
         return self.standard.cdf(self._unit(x))
@@ -190,7 +190,7 @@ class PERT(ContinuousDistribution):
             [EQ-DIST-PERT-001].
 
         References:
-            [REF-VOSE-2008, Chapter 10].
+            [REF-VOSE-2008].
 
         """
         return self.standard.sf(self._unit(x))
@@ -202,7 +202,7 @@ class PERT(ContinuousDistribution):
             [EQ-DIST-PERT-001].
 
         References:
-            [REF-VOSE-2008, Chapter 10].
+            [REF-VOSE-2008].
 
         """
         return self.low + self.width * self.standard.quantile(probability)
@@ -214,7 +214,7 @@ class PERT(ContinuousDistribution):
             [EQ-DIST-PERT-001], [EQ-DIST-ISF-001].
 
         References:
-            [REF-VOSE-2008, Chapter 10].
+            [REF-VOSE-2008].
 
         """
         return self.low + self.width * self.standard.isf(probability)
@@ -227,7 +227,7 @@ class PERT(ContinuousDistribution):
             [EQ-DIST-PERT-002].
 
         References:
-            [REF-VOSE-2008, Chapter 10].
+            [REF-VOSE-2008].
 
         """
         return (self.low + self.lam * self.mode + self.high) / (self.lam + 2.0)
@@ -240,7 +240,7 @@ class PERT(ContinuousDistribution):
             [EQ-DIST-PERT-002].
 
         References:
-            [REF-VOSE-2008, Chapter 10].
+            [REF-VOSE-2008].
 
         """
         mean = self.mean
@@ -327,7 +327,7 @@ class PERT(ContinuousDistribution):
             [EQ-DIST-PERT-001].
 
         References:
-            [REF-VOSE-2008, Chapter 10].
+            [REF-VOSE-2008].
 
         """
         draws = self.standard.sample(size, seed=resolve_stream(seed))
