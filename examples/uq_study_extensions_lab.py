@@ -171,6 +171,7 @@ def run(seed: int = 2026) -> LabResults:
         threshold_quantile=0.95,
         level=LIMIT,
         return_periods=(100.0, 1000.0, 10_000.0),
+        reuse=True,
     )
 
     uniform = Uniform(-math.pi, math.pi)

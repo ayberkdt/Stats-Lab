@@ -1,13 +1,25 @@
 """Verification and uncertainty-quantification foundations.
 
 The package holds the UQ vocabulary (QoIs, uncertainty sources, forward-model
-contract), solution verification (error budgets, observed order, Richardson
-extrapolation, Grid Convergence Index, least-squares order, and the
+contract, simulator-run failure policy, evaluation cache, budget errors),
+solution verification (error budgets, observed order, Richardson extrapolation,
+Grid Convergence Index, least-squares order, and the
 :class:`SolutionVerification` numerical-uncertainty statement), simulations
 recorded as computational experiments, and the auditable
 :class:`UQWorkflowRecord` of a complete study.
 """
 
+from .evaluation import (
+    FAILURE_POLICIES,
+    EvaluationBudgetExceeded,
+    EvaluationCache,
+    FailedEvaluation,
+    FailureLog,
+    FailurePolicy,
+    FrozenMapping,
+    ModelEvaluationError,
+    json_safe,
+)
 from .experiment import (
     ComputationalExperiment,
     RefinementStudy,
@@ -21,6 +33,7 @@ from .taxonomy import (
     UncertaintySource,
     UncertaintySourceKind,
     evaluate_model,
+    select_outputs,
 )
 from .verification import (
     DEFAULT_SAFETY_FACTOR,
@@ -52,13 +65,21 @@ from .workflow_record import (
 
 __all__ = [
     "DEFAULT_SAFETY_FACTOR",
+    "FAILURE_POLICIES",
     "UNRELIABLE_SAFETY_FACTOR",
     "WORKFLOW_GUIDE",
     "ComputationalExperiment",
     "ConvergenceType",
+    "EvaluationBudgetExceeded",
+    "EvaluationCache",
+    "FailedEvaluation",
+    "FailureLog",
+    "FailurePolicy",
     "ForwardModel",
+    "FrozenMapping",
     "GridConvergenceResult",
     "LeastSquaresConvergence",
+    "ModelEvaluationError",
     "NumericalErrorBudget",
     "NumericalErrorDistribution",
     "ProblemDirection",
@@ -77,11 +98,13 @@ __all__ = [
     "classify_convergence",
     "evaluate_model",
     "grid_convergence_index",
+    "json_safe",
     "least_squares_convergence",
     "observed_order_of_accuracy",
     "refinement_study",
     "representative_spacing",
     "richardson_extrapolation",
     "run_computational_experiment",
+    "select_outputs",
     "verify_solution",
 ]

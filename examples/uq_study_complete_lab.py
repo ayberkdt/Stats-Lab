@@ -145,7 +145,9 @@ def run(seed: int = 2026) -> UQStudy:
     """
     study = UQStudy(model(), seed=seed)
     study.propagate(4096, design="mc")
-    study.extremes("y", threshold_quantile=0.95, return_periods=(100.0, 1000.0))
+    study.extremes(
+        "y", threshold_quantile=0.95, return_periods=(100.0, 1000.0), reuse=True
+    )
     study.design_points(
         "deviation",
         0.9,

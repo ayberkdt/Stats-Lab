@@ -21,9 +21,12 @@ from .study import (
     DESIGNS,
     OutputDistribution,
     PropagationStudy,
+    QuantileInterval,
     compare_designs,
     make_design,
+    order_statistic_interval,
     propagate,
+    replicate_interval,
     summarize,
 )
 
@@ -36,11 +39,14 @@ __all__ = [
     "ProbabilityBox",
     "PropagationResult",
     "PropagationStudy",
+    "QuantileInterval",
     "compare_designs",
     "expectation_by_quadrature",
     "make_design",
     "nested_propagation",
+    "order_statistic_interval",
     "propagate",
     "propagate_samples",
+    "replicate_interval",
     "summarize",
 ]

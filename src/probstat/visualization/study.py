@@ -149,6 +149,8 @@ def _figures_for(record: Any, study: UQStudy | None = None) -> list[tuple[str, A
 
     """
     result = record.result
+    if result is None or not getattr(record, "complete", True):
+        return []
     if record.stage == "propagation":
         return [
             (name, plot_output_distribution(output.values, name=name))
@@ -202,12 +204,11 @@ def _figures_for(record: Any, study: UQStudy | None = None) -> list[tuple[str, A
     if record.stage == "reliability":
         return [("methods", plot_reliability_comparison(result.rows))]
     if record.stage == "extremes":
-        empirical = {
-            item.return_period: float(
-                record.summary.get(f"empirical x[T={item.return_period:g}]", "nan")
-            )
-            for item in result.return_levels
-        }
+        empirical: dict[float, float] = {}
+        for item in result.return_levels:
+            value = record.summary.get(f"empirical x[T={item.return_period:g}]")
+            if isinstance(value, float | int):
+                empirical[item.return_period] = float(value)
         return [
             (
                 result.quantity,
@@ -378,6 +379,9 @@ table { border-collapse: collapse; width: 100%; font-size: 14px;
 th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--rule); }
 th { color: var(--muted); font-weight: 600; }
 td.value { text-align: right; }
+.warning { color: var(--ink); background: var(--surface); border-left: 3px solid
+  var(--accent); padding: 4px 8px; font-size: 14px; }
+section.child { border-top: 2px solid var(--accent); }
 footer { color: var(--muted); font-size: 12px; margin-top: 32px; }
 """
 
@@ -412,13 +416,131 @@ def _encode_figure(axes: Any) -> str:
     return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
 
 
+def _stage_sections(
+    study: UQStudy, prefix: str, figures_enabled: bool, level: int
+) -> tuple[list[str], list[str]]:
+    """Return the HTML sections and navigation entries of a study's stages.
+
+    Args:
+        study: Study whose records are rendered.
+        prefix: Anchor and number prefix (``""`` for the top-level study).
+        figures_enabled: Whether Matplotlib figures are drawn.
+        level: Heading level of the stage titles.
+
+    Returns:
+        ``(sections, navigation)``.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    import html
+
+    surrogate = study.evaluation_kind == "surrogate"
+    noun = "surrogate evaluations" if surrogate else "model evaluations"
+    children: dict[int, list[UQStudy]] = {}
+    for index, child in study.children:
+        children.setdefault(index, []).append(child)
+    sections: list[str] = []
+    navigation: list[str] = []
+    for index, record in enumerate(study.records, start=1):
+        number = f"{prefix}{index}"
+        anchor = f"stage-{number.replace('.', '-')}"
+        navigation.append(
+            f'<li><a href="#{anchor}">{number}. {html.escape(record.stage)}</a></li>'
+        )
+        figures = _stage_figures(record, study) if figures_enabled else []
+        rows = "".join(
+            f"<tr><td>{html.escape(str(key))}</td>"
+            f'<td class="value">{html.escape(_format_value(value))}</td></tr>'
+            for key, value in record.summary.items()
+        )
+        meta = [f"{record.evaluations:,} {noun}"]
+        if record.failed_evaluations:
+            meta.append(f"{record.failed_evaluations:,} failed")
+        if record.cache_hits:
+            meta.append(f"{record.cache_hits:,} cache hits")
+        meta.append(f"stream seed {record.seed}")
+        meta.append(
+            f"input law {html.escape(record.input_law)} "
+            f"({html.escape(record.input_law_hash)})"
+        )
+        if not record.complete:
+            meta.append(f"<strong>status: {html.escape(record.status)}</strong>")
+        extra = ""
+        if record.error:
+            extra += f'<p class="stage-meta">Error: {html.escape(record.error)}</p>'
+        if record.settings:
+            text = "; ".join(
+                f"{key}={_format_value(value)}"
+                for key, value in record.settings.items()
+            )
+            extra += f'<p class="stage-meta">Settings: {html.escape(text)}</p>'
+        for message in record.warnings:
+            extra += f'<p class="warning">Warning: {html.escape(message)}</p>'
+        sections.append(
+            f'<section id="{anchor}">'
+            f"<h{level}>{number}. {html.escape(record.stage)}: "
+            f"{html.escape(record.label)}</h{level}>"
+            f'<p class="stage-meta">{" · ".join(meta)}</p>'
+            + extra
+            + "".join(figures)
+            + "<table><thead><tr><th>Quantity</th><th>Value</th></tr></thead>"
+            f"<tbody>{rows}</tbody></table></section>"
+        )
+        for child in children.get(index, []):
+            child_sections, _ = _stage_sections(
+                child, f"{number}.", figures_enabled, min(level + 1, 6)
+            )
+            sections.append(
+                '<section class="child">'
+                f"<h{level}>Surrogate study from stage {number}: "
+                f"{html.escape(child.name)}</h{level}>"
+                f'<p class="stage-meta">{child.total_evaluations:,} surrogate '
+                "evaluations (not forward-model evaluations)</p></section>"
+            )
+            sections.extend(child_sections)
+    return sections, navigation
+
+
+def _stage_figures(record: Any, study: UQStudy) -> list[str]:
+    """Return light/dark ``<figure>`` elements for one stage record.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    import html
+
+    from .theme import GRAPHITE, PORCELAIN, chart_theme
+
+    with chart_theme(PORCELAIN):
+        light = [_encode_figure(axes) for _, axes in _figures_for(record, study)]
+    with chart_theme(GRAPHITE):
+        dark = [_encode_figure(axes) for _, axes in _figures_for(record, study)]
+    return [
+        "<figure><picture>"
+        f'<source media="(prefers-color-scheme: dark)" srcset="{dark_uri}">'
+        f'<img alt="{html.escape(record.label)}" src="{light_uri}">'
+        "</picture></figure>"
+        for light_uri, dark_uri in zip(light, dark, strict=True)
+    ]
+
+
 def study_html(study: UQStudy) -> str:
     """Return a self-contained HTML report of every stage of a study.
 
-    Each stage becomes one section with its headline numbers, cost, stream
-    seed, and (where supported) its figure in light and dark variants that
-    follow the reader's colour scheme. Figures are embedded as data URIs, so
-    the file has no external dependencies.
+    Each stage becomes one section with its headline numbers, cost, failed
+    runs, cache hits, stream seed, input law, settings, warnings, and (where
+    supported) its figure in light and dark variants that follow the
+    reader's colour scheme. Figures are embedded as data URIs, so the file
+    has no external dependencies. Surrogate studies created by
+    ``UQStudy.emulate`` follow their emulation stage. The header states the
+    library, Python, and platform versions, the UTC creation time, and the
+    root seed; the footer repeats the root seed.
+
+    Without Matplotlib the report is still written, without figures, and
+    says so (figures need the optional ``visualization`` extra).
 
     Args:
         study: Study to render.
@@ -432,52 +554,36 @@ def study_html(study: UQStudy) -> str:
     """
     import html
 
-    from .theme import GRAPHITE, PORCELAIN, chart_theme
+    from .theme import matplotlib_available
 
     model = study.model
-    sections: list[str] = []
-    navigation: list[str] = []
-    for index, record in enumerate(study.records, start=1):
-        anchor = f"stage-{index}"
-        if index <= 7:
-            navigation.append(
-                f'<li><a href="#{anchor}">{index}. {html.escape(record.stage)}</a></li>'
-            )
-        figures = []
-        with chart_theme(PORCELAIN):
-            light = [_encode_figure(axes) for _, axes in _figures_for(record, study)]
-        with chart_theme(GRAPHITE):
-            dark = [_encode_figure(axes) for _, axes in _figures_for(record, study)]
-        for light_uri, dark_uri in zip(light, dark, strict=True):
-            figures.append(
-                "<figure><picture>"
-                f'<source media="(prefers-color-scheme: dark)" srcset="{dark_uri}">'
-                f'<img alt="{html.escape(record.label)}" src="{light_uri}">'
-                "</picture></figure>"
-            )
-        rows = "".join(
-            f"<tr><td>{html.escape(str(key))}</td>"
-            f'<td class="value">{html.escape(_format_value(value))}</td></tr>'
-            for key, value in record.summary.items()
-        )
-        sections.append(
-            f'<section id="{anchor}">'
-            f"<h2>{index}. {html.escape(record.stage)}: "
-            f"{html.escape(record.label)}</h2>"
-            f'<p class="stage-meta">{record.evaluations:,} model evaluations · '
-            f"stream seed {record.seed}</p>"
-            + "".join(figures)
-            + "<table><thead><tr><th>Quantity</th><th>Value</th></tr></thead>"
-            f"<tbody>{rows}</tbody></table></section>"
-        )
-    more = len(study.records) - 7
+    figures_enabled = matplotlib_available()
+    sections, navigation = _stage_sections(study, "", figures_enabled, 2)
+    shown = navigation[:7]
+    more = len(navigation) - len(shown)
     extra = (
         f'<p class="meta">{more} further stage(s) follow below.</p>' if more > 0 else ""
     )
+    if not figures_enabled:
+        extra += (
+            '<p class="warning">Figures omitted: Matplotlib is not installed '
+            "(pip install probstat-library[visualization]).</p>"
+        )
     dependence = (
         "independent"
         if model.inputs.is_independent
         else f"{model.inputs.copula_family.capitalize()} copula"
+    )
+    info = study.provenance()
+    label, law_hash = study.input_law
+    failed = study.total_failed_evaluations
+    failed_text = f" · <strong>{failed:,} failed runs</strong>" if failed else ""
+    budget = study.evaluation_budget
+    remaining = study.remaining_budget
+    budget_text = (
+        ""
+        if budget is None
+        else f" · budget {budget:,} ({remaining or 0:,} left)"
     )
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
@@ -487,11 +593,17 @@ def study_html(study: UQStudy) -> str:
         f"<h1>UQ study: {html.escape(study.name)}</h1>"
         f'<p class="meta">Inputs: {html.escape(", ".join(model.inputs.names))} · '
         f"QoIs: {html.escape(', '.join(model.quantity_names))} · {dependence} · "
-        f"{study.total_evaluations:,} model evaluations</p>"
-        f'<nav aria-label="Stages"><ol>{"".join(navigation)}</ol></nav>{extra}'
+        f"{study.total_evaluations:,} model evaluations{failed_text}{budget_text}"
+        f"<br>Input law: {html.escape(label)} ({html.escape(law_hash)}) · root seed "
+        f"{study.root_seed}<br>probstat {html.escape(str(info['library_version']))}"
+        f" · Python {html.escape(str(info['python_version']))} · "
+        f"{html.escape(str(info['platform']))} · created "
+        f"{html.escape(str(info['created_utc']))} UTC</p>"
+        f'<nav aria-label="Stages"><ol>{"".join(shown)}</ol></nav>{extra}'
         + "".join(sections)
         + "<footer>Generated by probstat.workflow.UQStudy. Every number is "
-        "reproducible from the root seed and the stream seeds shown.</footer>"
+        f"reproducible from the root seed {study.root_seed} and the stream seeds "
+        "shown.</footer>"
         "</main></body></html>"
     )
 

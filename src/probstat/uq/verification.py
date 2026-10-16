@@ -20,7 +20,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from probstat.foundations.validation import (
@@ -187,7 +187,7 @@ _ORDER_EXPONENT_LIMIT = 700.0
 _NORMAL_95 = 1.959963984540054
 
 
-class ConvergenceType(str, Enum):
+class ConvergenceType(StrEnum):
     """Qualitative behaviour of a QoI under systematic grid refinement.
 
     With grids ordered fine (1), medium (2), coarse (3) and differences

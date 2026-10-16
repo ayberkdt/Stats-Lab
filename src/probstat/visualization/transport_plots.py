@@ -98,7 +98,7 @@ def _ramp_word() -> str:
 
         """
         r, g, b = to_rgb(colour)
-        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+        return float(0.2126 * r + 0.7152 * g + 0.0722 * b)
 
     ramp = active_palette().sequential
     return "darker" if luminance(ramp[-1]) < luminance(ramp[0]) else "brighter"

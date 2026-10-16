@@ -120,18 +120,26 @@ target_relative_error=0.01, threshold=None, batch=256, max_samples=200_000)`
 (stage kind `sequential_propagation`, ADR-0056) draws plain Monte Carlo
 batches and stops at the first batch whose relative standard error meets the
 target [EQ-STAT-STREAM-007]: `s / (sqrt(n) |mean|)` for the mean, or
-`sqrt((1 - p) / (n p))` for `P[Y >= t]` (or `P[Y <= t]` with
-`failure="below"`) when a threshold is given [EQ-MC-PROB-001]. Mean,
-variance, P² quantiles, and the exceedance count with its Wilson interval are
-streaming accumulators, so memory does not grow with `n`. For `Y ~ N(10, 2)`
+`sqrt((1 - p) / (n p))` for `P[Y > t]` (the same strict event as
+`OutputDistribution.exceedance`; `failure="below"` counts the complement
+`Y <= t`) when a threshold is given [EQ-MC-PROB-001]. Mean, variance, P²
+quantiles, and the exceedance count with its Wilson interval are streaming
+accumulators, so memory does not grow with `n`. For `Y ~ N(10, 2)`
 (coefficient of variation 0.2) the theory `n = (cv / target)^2` gives 400 runs
 at a 1% target; seeds 1, 2, 3 with `batch=50` stopped at 500, 400, and 400.
-For `P[Y >= 12] = 0.1587` at a 5% target (theory 2121 runs), seed 2 stopped at
-2200 runs with `p = 0.1559`, Wilson interval (0.1414, 0.1717); seed 1 stopped
-at 1800 runs with an interval (0.1667, 0.2025) that misses the truth, as a
-95% interval sometimes does. Stopping on the data makes the reported error
-slightly optimistic. If `max_samples` is reached first the stage reports
-`converged = no`.
+
+Stopping when the running estimate looks precise is data-dependent, so the
+estimates of the sequential sample itself are biased and their intervals
+under-cover (optional stopping). Since ADR-0058 the sequential run is only a
+pilot that chooses `n`; with `final="fresh"` (default) every reported number
+comes from a fresh, independent sample of size `n` [EQ-WF-SEQ-FRESH-001],
+which is an ordinary fixed-size sample given `n`. In 300 seeded runs of
+`Y ~ N(1, 0.5)` reusing the pilot over-estimated `P(Y > 1.64) = 0.100` by
+4.9% (4 standard errors) and the mean by 1.0%; the fresh estimates were
+unbiased within one standard error. `final="reuse"` keeps the old,
+cheaper behaviour with a warning. `confidence=` sets the level of the
+Student-t mean interval and the Wilson interval. If `max_samples` is reached
+first the stage reports `converged = no`.
 
 Numerical (discretization) uncertainty enters the study through
 `UQStudy.verify(q, grid_values, refinement_ratio)` (or `grid_sizes=`; stage
@@ -165,9 +173,46 @@ accident. Hand-picked seeds such as `310` and `311` are no longer necessary.
 
 ## Cost accounting
 
-`ProbabilisticModel.evaluations` counts every forward-model call made through
-the model, and each workflow reports the calls it charged. For expensive
-simulators this number, not wall time, is the honest measure of cost.
+`ProbabilisticModel.evaluations` counts every *completed* forward-model call
+made through the model, and each workflow reports the calls it charged. For
+expensive simulators this number, not wall time, is the honest measure of
+cost. Failed attempts (`model.failed_evaluations`) and cache hits
+(`model.cache_hits`) are counted separately; `dataclasses.replace(model,
+...)` gives the new model its own counter, linked to the source counter so the
+source still accounts for every run of the shared simulator.
+
+## Failed runs, batch evaluation, and study provenance (ADR-0058)
+
+- **Failure policy.** `ProbabilisticModel(..., on_failure="raise")` keeps the
+  original behaviour; `"skip"` drops a failed run (exception, missing QoI,
+  NaN or infinity) and logs its error text; `"record"` also keeps its
+  inputs. `propagate` and the study stages keep the successful runs, list the
+  failures, and report the failure fraction. Dropping failures conditions
+  every estimate on success: it is unbiased only when failing is unrelated to
+  the output.
+- **Strict inputs.** `model.evaluate(mapping)` rejects missing, unknown, and
+  fixed-parameter names. `fixed=` may hold strings, integers, Booleans, and
+  tuples; they reach the model unchanged.
+- **Engine.** `model.evaluate_many(points, executor=..., batch=...,
+  cache=...)` runs in a `concurrent.futures` executor (results keep input
+  order), calls a model's `evaluate_batch(list_of_mappings)` hook when it
+  has one, and reuses runs from an `EvaluationCache`. `UQStudy(...,
+  executor=..., cache=True)` installs both for every stage.
+- **Accuracy.** `propagate(..., replicates=r)` gives Student-t intervals over
+  `r` independent randomizations [EQ-PROP-RQMC-CI-001], the honest error bar
+  for LHS and QMC; `quantile_interval` is the distribution-free
+  order-statistic interval [EQ-PROP-QCI-001]; `variance_interval` is the
+  chi-square interval (normal outputs only) or a bootstrap
+  [EQ-PROP-VARCI-001].
+- **Chaining.** `study.adopt_posterior()` replaces the input law by a
+  marginals-plus-Gaussian-copula approximation of the latest calibration
+  posterior; `study.with_inputs(law)` sets any law. Every stage record states
+  the law it used (label and hash).
+- **Budget, persistence.** `UQStudy(..., evaluation_budget=N)` refuses
+  stages with a known cost above the remainder and stops the others at the
+  limit. `study.to_json()` and `study.save_json(path)` write every stage with
+  its settings, warnings, cost, and the library, Python, platform, time, and
+  root-seed provenance; models, results, and studies pickle.
 
 ## Tails, information, and design inside one `UQStudy`
 
@@ -179,8 +224,8 @@ from its own child stream `root.child(stage, k)`.
 
 | Stage method | Stage kind | Delegates to | New runs |
 |---|---|---|---|
-| `extremes(q, tail=..., level=..., return_periods=...)` | `extremes` | `risk.fit_pot`, `PeaksOverThresholdFit.return_level` | 0 if it reuses the latest propagation |
-| `information_sensitivity(q, max_points=512)` | `information` | `information.ksg_mutual_information` per input | 0 if it reuses the latest propagation |
+| `extremes(q, tail=..., level=..., return_periods=...)` | `extremes` | `risk.fit_pot`, `PeaksOverThresholdFit.return_level` | `size` (default 4096) fresh Monte Carlo runs; 0 with `reuse=True` after a plain Monte Carlo propagation |
+| `information_sensitivity(q, max_points=512)` | `information` | `information.ksg_mutual_information` per input | `size` (default `max_points`) fresh Monte Carlo runs; 0 with `reuse=True` after a plain Monte Carlo propagation |
 | `design(candidates, size, noise=None)` | `design` | `design.greedy_design`, `design.expected_information_gain` | EIG cost |
 
 - **`extremes`** fits a peaks-over-threshold (POT) model to the propagated
@@ -190,8 +235,9 @@ from its own child stream `root.child(stage, k)`.
   - `tail="lower"` analyzes `-Y`, then maps results back to QoI units.
   - Given a `level`, the summary puts the POT tail probability next to the
     empirical fraction and its Wilson interval.
-  - The binomial rate model assumes independent runs. For a Sobol or LHS
-    sample, treat its intervals as references only.
+  - The binomial rate model assumes independent runs, so the stage never
+    reuses a Sobol or LHS sample (ADR-0058): results do not depend on
+    which stages ran before.
 - **`information_sensitivity`** estimates `I(X_i; Y)` in nats with the KSG
   estimator [EQ-INFO-KSG-001].
   - It is zero only under independence and does not change under monotone

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import pickle
 import unittest
 
 from probstat.systems import (
@@ -97,6 +98,13 @@ class SubsystemComponentTests(unittest.TestCase):
         """Only system models are wrapped."""
         with self.assertRaises(TypeError):
             SubsystemComponent(ExponentialComponent(1.0))  # type: ignore[arg-type]
+
+
+    def test_markov_block_is_picklable(self) -> None:
+        """Adapters survive pickling for parallel workers."""
+        block = MarkovComponent(single_repairable_unit(1e-3, 1e-1))
+        restored = pickle.loads(pickle.dumps(block))
+        self.assertAlmostEqual(restored.availability(10.0), block.availability(10.0))
 
 
 if __name__ == "__main__":
