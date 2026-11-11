@@ -141,13 +141,42 @@ class Hypergeometric(DiscreteDistribution):
     def _tail(self, first: int, last: int) -> float:
         """Return ``sum_(k=first..last) p_k`` (empty sums are zero).
 
+        The callers pass a range on one side of the mode. The masses are
+        summed from the end nearest the mode outwards; the hypergeometric
+        law is log-concave, so once the ratio of consecutive masses is at
+        most ``1/2`` the remainder is below the last mass, and the sum stops
+        when that mass is under ``1e-20`` of the total. The cost is then
+        ``O(sd)`` mass evaluations instead of ``O(N)``.
+
         References:
-            [EQ-DIST-HYPERGEOM-001]. No new equation.
+            [EQ-DIST-HYPERGEOM-001], [REF-JKB-2005, Chapter 6].
+            No new equation.
 
         """
         if last < first:
             return 0.0
-        return math.fsum(self.pmf(k) for k in range(first, last + 1))
+        mode = self._mode()
+        if last <= mode:
+            points = range(last, first - 1, -1)
+        elif first >= mode:
+            points = range(first, last + 1)
+        else:
+            return math.fsum(self.pmf(k) for k in range(first, last + 1))
+        terms: list[float] = []
+        total = 0.0
+        previous = 0.0
+        for k in points:
+            mass = self.pmf(k)
+            terms.append(mass)
+            total += mass
+            # Masses only decrease away from the mode, so a zero (underflowed)
+            # mass ends the sum.
+            if mass == 0.0 or (
+                mass <= 0.5 * previous and mass <= 1e-20 * total
+            ):
+                break
+            previous = mass
+        return math.fsum(terms)
 
     def _mode(self) -> int:
         """Return ``floor((n + 1)(K + 1) / (N + 2))``, the mode.
@@ -203,6 +232,10 @@ class Hypergeometric(DiscreteDistribution):
     def quantile(self, probability: float) -> float:
         """Return the smallest ``k`` with ``F(k) >= p`` by bisection.
 
+        At ``p = 1`` the result is the upper end of the support (every point
+        of the support carries positive mass), even where the floating-point
+        CDF rounds to one at a smaller count.
+
         Equation:
             [EQ-DIST-HYPERGEOM-001].
 
@@ -214,6 +247,8 @@ class Hypergeometric(DiscreteDistribution):
         support = self.support
         low = support.lower
         high = support.upper if support.upper is not None else low
+        if p == 1.0:
+            return float(high)
         if self.cdf(low) >= p:
             return float(low)
         while high - low > 1:

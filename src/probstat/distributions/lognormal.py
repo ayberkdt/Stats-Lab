@@ -14,6 +14,7 @@ from probstat.foundations.validation import (
 )
 
 from ._base import ContinuousDistribution
+from ._continuous import density_from_log
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
 
@@ -113,7 +114,7 @@ class LogNormal(ContinuousDistribution):
 
         """
         log_density = self.log_pdf(x)
-        return 0.0 if log_density == -math.inf else math.exp(log_density)
+        return density_from_log(log_density)
 
     def cdf(self, x: float) -> float:
         """Evaluate the lognormal cumulative distribution function.

@@ -13,6 +13,7 @@ from probstat.foundations.validation import (
 )
 
 from ._base import ContinuousDistribution
+from ._continuous import density_from_log
 from .constraints import FINITE_REAL
 from .support import RealSupport
 
@@ -119,7 +120,7 @@ class Uniform(ContinuousDistribution):
 
         """
         log_density = self.log_pdf(x)
-        return 0.0 if log_density == -math.inf else math.exp(log_density)
+        return density_from_log(log_density)
 
     def cdf(self, x: float) -> float:
         """Evaluate the continuous uniform cumulative distribution.
@@ -196,7 +197,10 @@ class Uniform(ContinuousDistribution):
 
         """
         target = require_probability(probability, name="probability")
-        return self.lower + target * self.width
+        if target == 1.0:
+            # ``lower + width`` need not round to ``upper``.
+            return self.upper
+        return min(self.lower + target * self.width, self.upper)
 
     def hazard(self, x: float) -> float:
         """Return uniform hazard where survival probability is positive.
@@ -249,7 +253,10 @@ class Uniform(ContinuousDistribution):
 
         """
         q = require_probability(probability, name="probability")
-        return self.upper - q * (self.upper - self.lower)
+        if q == 1.0:
+            # ``upper - (upper - lower)`` need not round to ``lower``.
+            return self.lower
+        return max(self.upper - q * (self.upper - self.lower), self.lower)
 
     @property
     def mean(self) -> float:

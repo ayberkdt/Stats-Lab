@@ -13,7 +13,7 @@ from probstat.foundations.validation import (
 )
 
 from ._base import ContinuousDistribution
-from ._continuous import open_unit
+from ._continuous import density_from_log, open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .gumbel import EULER_GAMMA
 from .support import RealSupport
@@ -191,8 +191,19 @@ class GeneralizedExtremeValue(ContinuousDistribution):
             [REF-COLES-2001, Section 3.1].
 
         """
-        z = (require_finite_real(x, name="x") - self.mu) / self.sigma
+        point = require_finite_real(x, name="x")
+        z = (point - self.mu) / self.sigma
         w = self.xi * z
+        # The reported support endpoint ``mu - sigma/xi`` and ``1 + xi z``
+        # are rounded separately, so at the endpoint itself ``1 + xi z`` can
+        # be a tiny positive number; compare with the endpoint so that the
+        # closed end of ``support`` has ``F = 0`` (``xi > 0``) or ``F = 1``
+        # (``xi < 0``) exactly.
+        end = self.endpoint
+        if end is not None and (
+            (self.xi > 0.0 and point <= end) or (self.xi < 0.0 and point >= end)
+        ):
+            w = min(w, -1.0)
         if w <= -1.0:
             return w, (-math.inf if self.xi > 0.0 else math.inf)
         if abs(w) < _TINY_PRODUCT:
@@ -277,7 +288,7 @@ class GeneralizedExtremeValue(ContinuousDistribution):
         log_density = self.log_pdf(x)
         if log_density == math.inf:
             return math.inf
-        return math.exp(log_density) if log_density > -745.2 else 0.0
+        return density_from_log(log_density)
 
     def cdf(self, x: float) -> float:
         """Evaluate ``F(x) = exp(-exp(-y))``.

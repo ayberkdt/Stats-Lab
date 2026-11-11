@@ -14,7 +14,7 @@ from probstat.foundations.validation import (
 )
 
 from ._base import ContinuousDistribution
-from ._continuous import open_unit
+from ._continuous import density_from_log, open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
 
@@ -158,7 +158,7 @@ class Gumbel(ContinuousDistribution):
 
         """
         log_density = self.log_pdf(x)
-        return math.exp(log_density) if log_density > -745.2 else 0.0
+        return density_from_log(log_density)
 
     def _maximum_lower(self, w: float) -> float:
         """Return ``exp(-exp(-w))``.

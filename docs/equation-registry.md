@@ -1198,14 +1198,18 @@ before exponentiation, with explicit `p=0` and `p=1` limits.
 
 ### EQ-DIST-BIN-002 — Binomial CDF
 
-`F(x) = sum_{k=0}^{floor(x)} C(n,k) p^k (1-p)^(n-k)` with support clipping.
+`F(x) = sum_{k=0}^{floor(x)} C(n,k) p^k (1-p)^(n-k) = I_(1-p)(n-k, k+1)`
+with `k = floor(x)` and support clipping; `S(x) = I_p(k+1, n-k)`.
 
 - Domain: [EQ-DIST-BIN-001] and finite real `x`.
-- Meaning: probability of at most `floor(x)` successes. The implementation
-  sums the lower tail below the mean and the complementary upper tail above it
-  to reduce cancellation in small-tail regimes.
-- Code: `distributions.Binomial.cdf`.
-- Source: [REF-ROSS-2019, Section 4.3].
+- Meaning: probability of at most `floor(x)` successes. For `n <= 256` the
+  implementation sums the lower tail below the mean and the complementary
+  upper tail above it to reduce cancellation in small-tail regimes; for larger
+  `n` it evaluates the regularized incomplete beta form [EQ-NUM-BETA-001],
+  whose cost does not grow with `n` (a direct sum costs `O(n)` mass
+  evaluations per call and made `quantile` impractical for `n ~ 10^7`).
+- Code: `distributions.Binomial.cdf`, `distributions.Binomial.sf`.
+- Source: [REF-ROSS-2019, Section 4.3], [REF-NIST-DLMF-BETA, Section 8.17].
 
 ### EQ-DIST-BIN-003 — Binomial mean
 
@@ -7104,7 +7108,9 @@ nats.
 - Domain: positive shapes and rate; `psi` is the digamma function.
 - Meaning: from `E[log X] = psi(k) - log lambda` (gamma) and
   `E[log X] = psi(a) - psi(a+b)` (beta).
-- Code: `information.gamma_entropy`, `information.beta_entropy`.
+- Code: `information.gamma_entropy`, `information.beta_entropy`,
+  `distributions.Beta.entropy` (both through
+  `distributions._special.beta_entropy_nats`).
 - Source: [REF-COVER-THOMAS-2006, Chapter 8], [REF-NIST-DLMF-GAMMA,
   Section 5.2].
 
@@ -10965,6 +10971,8 @@ for `log S(x)`.
 
 `isf(q) = min{k : S(k) <= q}`, found by doubling then bisection on the
 integers using `S` directly; equals `quantile(1 - q)` in exact arithmetic.
+At `q = 0` it is `quantile(1)`, the largest point with positive mass, so a
+degenerate law returns its atom rather than the end of its nominal support.
 
 - Domain: integer support; `q in [0, 1]`.
 - Meaning: tail-accurate upper quantiles of count laws.
@@ -13750,3 +13758,52 @@ the posterior under the uniform `Beta(1, 1)` prior.
   large.
 - Code: `visualization.interactive.bayesian_updating_explainer`.
 - Source: [REF-GELMAN-ETAL-2013, Chapter 2].
+
+### EQ-DIST-BASE-005 — Density from its logarithm with saturation
+
+`f(x) = exp(log f(x))`, returned as `inf` when `log f(x) > log(DBL_MAX)
+~ 709.78` and as `0` when `log f(x) < -745.2` (below the smallest
+subnormal).
+
+- Domain: any log density, including `+-inf`; NaN propagates.
+- Meaning: a density above the largest float (an integrable singularity
+  approached closely, such as `Gamma` with shape below one near zero, or a
+  scale near the smallest normal float) saturates to `inf` instead of raising
+  `OverflowError`, while `log_pdf` keeps the finite logarithm.
+- Code: `distributions._continuous.density_from_log`, the `pdf` methods of the
+  continuous families.
+- Source: [REF-HIGHAM-2002, Section 2.1], [REF-PYTHON-MATH].
+
+### EQ-DIST-EMPIRICAL-003 — Entropy of the interpolated empirical law
+
+`H = (1/(n-1)) sum_(i=1)^(n-1) log((n-1)(x_(i+1) - x_(i)))` for the linear
+(type-7) empirical law, which is uniform with mass `1/(n-1)` on each gap; a
+tied pair is an atom and gives `H = -inf`; the step law has no differential
+entropy (`nan`).
+
+- Domain: [EQ-DIST-EMPIRICAL-001] with `n >= 2` and a non-constant sample.
+- Meaning: exact differential entropy of the interpolated law, replacing a
+  probability-space quadrature that returned `nan` for samples with very
+  unequal gaps.
+- Code: `distributions.Empirical.entropy`.
+- Source: [REF-COVER-THOMAS-2006, Chapter 8], [REF-HYNDMAN-FAN-1996].
+
+### EQ-DIST-MIXTURE-002 — Higher central moments and entropy of a mixture
+
+With `mu = sum w_i mu_i`, `d_i = mu_i - mu` and component central moments
+`m_ik`:
+`E[(X - mu)^3] = sum w_i (m_i3 + 3 d_i m_i2 + d_i^3)` and
+`E[(X - mu)^4] = sum w_i (m_i4 + 4 d_i m_i3 + 6 d_i^2 m_i2 + d_i^4)`.
+The entropy `H = -int f log f` is integrated adaptively in `x` over pieces
+split at every finite support end and median of the components.
+
+- Domain: [EQ-DIST-MIXTURE-001]; the moment form needs component skewness and
+  kurtosis, otherwise the probability-space quadrature of [EQ-DIST-BASE-001]
+  is used.
+- Meaning: skewness and kurtosis cost a few component evaluations instead of
+  a quadrature over the mixture quantile (each point a root solve), and the
+  entropy converges when a component density is singular or kinked inside
+  the mixture support.
+- Code: `distributions.Mixture._central_moment`, `distributions.Mixture.entropy`.
+- Source: [REF-MCLACHLAN-PEEL-2000, Chapter 1], [REF-COVER-THOMAS-2006,
+  Chapter 8], [REF-PIESSENS-QUADPACK-1983].

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import math
 import random
+import sys
 from collections.abc import Callable
 
 _EPSILON = math.ulp(1.0)
@@ -302,6 +303,37 @@ def solve_tail_quantile(
             return target - log_sf(point)
 
     return to_x(invert_increasing(residual, start, minimum, maximum))
+
+
+_LOG_FLOAT_MAX = math.log(sys.float_info.max)
+_LOG_DENSITY_UNDERFLOW = -745.2
+
+
+def density_from_log(log_density: float) -> float:
+    """Return ``exp(log f)`` saturating at the ends of the float range.
+
+    A density above the largest float (an integrable singularity approached
+    closely, or a scale near the smallest normal float) is ``inf`` rather than
+    an ``OverflowError``; one below the smallest subnormal is ``0``.
+
+    Args:
+        log_density: Natural logarithm of a density, possibly ``+-inf``.
+
+    Returns:
+        Non-negative density value (NaN propagates unchanged).
+
+    Equation:
+        [EQ-DIST-BASE-005].
+
+    References:
+        [REF-HIGHAM-2002, Section 2.1], [REF-PYTHON-MATH].
+
+    """
+    if log_density > _LOG_FLOAT_MAX:
+        return math.inf
+    if log_density < _LOG_DENSITY_UNDERFLOW:
+        return 0.0
+    return math.exp(log_density)
 
 
 def bounded_exp(t: float) -> float:

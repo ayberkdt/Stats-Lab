@@ -13,7 +13,7 @@ from probstat.foundations.validation import (
 )
 
 from ._base import ContinuousDistribution
-from ._continuous import open_unit
+from ._continuous import density_from_log, open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
 
@@ -121,11 +121,16 @@ class GeneralizedPareto(ContinuousDistribution):
             [REF-COLES-2001, Section 4.2].
 
         """
-        z = (require_finite_real(x, name="x") - self.mu) / self.sigma
+        point = require_finite_real(x, name="x")
+        z = (point - self.mu) / self.sigma
         if z < 0.0:
             return -math.inf
         w = self.xi * z
-        if w <= -1.0:
+        # ``1 + xi z`` and the reported endpoint ``mu - sigma/xi`` are rounded
+        # separately; compare with the endpoint so that ``S = 0`` and ``F = 1``
+        # hold exactly at the closed upper end of ``support``.
+        end = self.upper_endpoint
+        if w <= -1.0 or (end is not None and point >= end):
             return math.inf
         if abs(w) < _TINY_PRODUCT:
             return z
@@ -191,7 +196,7 @@ class GeneralizedPareto(ContinuousDistribution):
         log_density = self.log_pdf(x)
         if log_density == math.inf:
             return math.inf
-        return math.exp(log_density) if log_density > -745.2 else 0.0
+        return density_from_log(log_density)
 
     def log_sf(self, x: float) -> float:
         """Evaluate ``log S(x) = -y`` without forming ``S``.

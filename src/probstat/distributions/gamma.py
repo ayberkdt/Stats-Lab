@@ -17,6 +17,7 @@ from ._continuous import (
     LOG_MAX,
     LOG_MIN,
     bounded_exp,
+    density_from_log,
     log_standard_gamma_variate,
     safe_log,
     solve_tail_quantile,
@@ -197,7 +198,7 @@ class Gamma(ContinuousDistribution):
         log_density = self.log_pdf(x)
         if log_density == math.inf:
             return math.inf
-        return math.exp(log_density) if log_density > -745.2 else 0.0
+        return density_from_log(log_density)
 
     def cdf(self, x: float) -> float:
         """Evaluate the gamma CDF as ``P(k, lambda x)``.

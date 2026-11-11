@@ -16,6 +16,7 @@ from probstat.numerics.special import digamma
 from ._base import ContinuousDistribution
 from ._continuous import (
     SINH_LIMIT,
+    density_from_log,
     log_standard_gamma_variate,
     safe_log,
     solve_tail_quantile,
@@ -207,7 +208,7 @@ class StudentT(ContinuousDistribution):
 
         """
         log_density = self.log_pdf(x)
-        return math.exp(log_density) if log_density > -745.2 else 0.0
+        return density_from_log(log_density)
 
     def cdf(self, x: float) -> float:
         """Evaluate the Student-t CDF through the incomplete beta function.

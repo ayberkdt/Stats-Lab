@@ -14,7 +14,11 @@ from probstat.foundations.validation import (
 )
 
 from ._base import ContinuousDistribution
-from ._continuous import log_standard_normal_cdf, log_standard_normal_sf
+from ._continuous import (
+    density_from_log,
+    log_standard_normal_cdf,
+    log_standard_normal_sf,
+)
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
 
@@ -107,7 +111,7 @@ class Normal(ContinuousDistribution):
             [REF-CASELLA-BERGER-2002, Section 3.3].
 
         """
-        return math.exp(self.log_pdf(x))
+        return density_from_log(self.log_pdf(x))
 
     def cdf(self, x: float) -> float:
         """Evaluate the normal cumulative distribution function at ``x``.

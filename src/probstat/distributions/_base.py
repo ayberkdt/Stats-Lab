@@ -536,7 +536,10 @@ class DiscreteDistribution:
             probability: Upper-tail probability ``q`` in ``[0, 1]``.
 
         Returns:
-            Integer-valued float; ``inf`` at ``q = 0`` for unbounded support.
+            Integer-valued float. At ``q = 0`` it is ``quantile(1)``, the
+            largest point with positive mass (``inf`` when the mass is
+            unbounded), so a degenerate law such as ``Poisson(0)`` gives its
+            atom rather than the end of its nominal support.
 
         Equation:
             [EQ-DIST-BASE-003].
@@ -548,7 +551,7 @@ class DiscreteDistribution:
         q = require_probability(probability, name="probability")
         lower, upper = self._bounds()
         if q == 0.0:
-            return math.inf if upper is None else float(upper)
+            return self._call("quantile", 1.0)
         if self._call("sf", float(lower)) <= q:
             return float(lower)
         low = lower
