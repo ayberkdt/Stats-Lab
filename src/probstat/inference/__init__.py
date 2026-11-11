@@ -208,6 +208,13 @@ from .mixtures import (
     select_gaussian_mixture,
 )
 from .multiple_testing import MultipleTestingResult, adjust_p_values
+from .normality import (
+    EDFNormalityTest,
+    NormalityTests,
+    cramer_von_mises_statistic,
+    lilliefors_p_value,
+    normality_tests,
+)
 from .power import (
     SampleSizeResult,
     cohens_d,
@@ -266,6 +273,11 @@ from .sbc import SBCResult, rank_statistic, simulation_based_calibration
 from .variational import VariationalResult, advi
 
 __all__ = [
+    "EDFNormalityTest",
+    "NormalityTests",
+    "cramer_von_mises_statistic",
+    "lilliefors_p_value",
+    "normality_tests",
     "AndersonDarlingResult",
     "AnovaResult",
     "BETA_FAMILY",

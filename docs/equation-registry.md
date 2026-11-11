@@ -12265,3 +12265,68 @@ fraction of the iterations.
   reduces the noise a constant step leaves around the optimum.
 - Code: `optimization.adam_minimize`.
 - Source: [REF-KINGMA-BA-2015, Algorithm 1] and [REF-POLYAK-JUDITSKY-1992].
+
+## Roadmap evidence audit additions (ADR-0079)
+
+### EQ-INF-GOF-CVM-001 — Cramer-von Mises statistic
+
+`W^2 = 1/(12 n) + sum_(i=1..n) (F(x_(i)) - (2i - 1)/(2n))^2`.
+
+- Domain: ordered finite sample `x_(1) <= ... <= x_(n)` and a continuous
+  null CDF `F`.
+- Meaning: `n` times the integrated squared distance between the empirical
+  and null CDFs, weighted by the null law; its null distribution depends on
+  whether parameters were estimated from the data.
+- Code: `inference.cramer_von_mises_statistic`, `inference.normality_tests`.
+- Source: [REF-STEPHENS-1974] and [REF-STEPHENS-1986].
+
+### EQ-INF-GOF-NORM-001 — Lilliefors p-value for the fitted-normal KS distance
+
+With `D` the KS distance to `N(x_bar, s^2)` (divisor `n - 1`), `K = D`,
+`m = n` for `n <= 100`, and `K = D (n/100)^0.49`, `m = 100` otherwise:
+`p = exp(-7.01256 K^2 (m + 2.78019) + 2.99587 K sqrt(m + 2.78019) -
+0.122119 + 0.974598/sqrt(m) + 1.67997/m)`. When this exceeds `0.1`,
+`Z = D (sqrt(n) - 0.01 + 0.85/sqrt(n))` and `p = 1` for `Z <= 0.302`, a
+quartic polynomial in `Z` on `(0.302, 0.5]`, `(0.5, 0.9]`, and `(0.9, 1.31]`,
+and `p = 0` above `1.31`.
+
+- Domain: `n >= 5`; normal null with both parameters estimated.
+- Meaning: calibrated tail probability of the Lilliefors statistic; the
+  analytic part is reliable for `p <= 0.1`, the polynomial covers the bulk.
+- Code: `inference.lilliefors_p_value`, `inference.normality_tests`.
+- Source: [REF-DALLAL-WILKINSON-1986] (analytic approximation),
+  [REF-STEPHENS-1974] (modified statistic `Z`), and
+  [REF-GROSS-LIGGES-2015, function `lillie.test`] (polynomial coefficients
+  fitted by simulation).
+
+### EQ-INF-GOF-NORM-002 — Fitted-normal Cramer-von Mises p-value
+
+`W* = W^2 (1 + 0.5/n)`;
+`p = 1 - exp(-13.953 + 775.5 W* - 12542.61 W*^2)` for `W* < 0.0275`,
+`1 - exp(-5.903 + 179.546 W* - 1515.29 W*^2)` for `W* < 0.051`,
+`exp(0.886 - 31.62 W* + 10.897 W*^2)` for `W* < 0.092`,
+`exp(1.111 - 34.242 W* + 12.832 W*^2)` for `W* < 1.1`, and `7.37e-10`
+beyond.
+
+- Domain: normal null with mean and `n - 1` standard deviation estimated;
+  `n >= 8`.
+- Meaning: tabulated null law of the fitted statistic, valid for every
+  `n` after the modification.
+- Code: `inference.normality_tests`.
+- Source: [REF-STEPHENS-1986, Table 4.9] as implemented in
+  [REF-GROSS-LIGGES-2015, function `cvm.test`].
+
+### EQ-INF-GOF-NORM-003 — Fitted-normal Anderson-Darling p-value
+
+`A* = A^2 (1 + 0.75/n + 2.25/n^2)`;
+`p = 1 - exp(-13.436 + 101.14 A* - 223.73 A*^2)` for `A* < 0.2`,
+`1 - exp(-8.318 + 42.796 A* - 59.938 A*^2)` for `A* < 0.34`,
+`exp(0.9177 - 4.279 A* - 1.38 A*^2)` for `A* < 0.6`,
+`exp(1.2937 - 5.709 A* + 0.0186 A*^2)` for `A* < 10`, and `3.7e-24` beyond.
+
+- Domain: normal null with mean and `n - 1` standard deviation estimated;
+  `n >= 8`.
+- Meaning: tabulated null law of the fitted Anderson-Darling statistic.
+- Code: `inference.normality_tests`.
+- Source: [REF-STEPHENS-1986, Table 4.9] as implemented in
+  [REF-GROSS-LIGGES-2015, function `ad.test`].

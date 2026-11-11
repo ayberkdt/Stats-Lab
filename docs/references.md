@@ -2792,3 +2792,23 @@ Deep Feedforward Neural Networks." In *Proceedings of the Thirteenth
 International Conference on Artificial Intelligence and Statistics
 (AISTATS)*, Proceedings of Machine Learning Research 9, 249-256, 2010.
 [https://proceedings.mlr.press/v9/glorot10a.html](https://proceedings.mlr.press/v9/glorot10a.html).
+
+## REF-STEPHENS-1986
+
+Michael A. Stephens. "Tests Based on EDF Statistics." In Ralph B.
+D'Agostino and Michael A. Stephens (eds.), *Goodness-of-Fit Techniques*.
+Marcel Dekker, New York, 1986. Reissued by Routledge, 2017, pages 97-194,
+DOI: [10.1201/9780203753064-4](https://doi.org/10.1201/9780203753064-4).
+
+## REF-DALLAL-WILKINSON-1986
+
+Gerard E. Dallal and Leland Wilkinson. "An Analytic Approximation to the
+Distribution of Lilliefors's Test Statistic for Normality." *The American
+Statistician* 40(4), 294-296, 1986.
+DOI: [10.1080/00031305.1986.10475419](https://doi.org/10.1080/00031305.1986.10475419).
+
+## REF-GROSS-LIGGES-2015
+
+Juergen Gross and Uwe Ligges. *nortest: Tests for Normality*. R package
+version 1.0-4, 2015.
+[https://CRAN.R-project.org/package=nortest](https://CRAN.R-project.org/package=nortest).
