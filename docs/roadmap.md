@@ -51,8 +51,10 @@ tested evidence.
 - [x] Stable log-density, quantile, survival, hazard, and entropy interfaces
   through the common distribution contract (ADR-0059).
 - [x] Call-local deterministic sampling streams for implemented families.
-- [~] Stream splitting via SplitMix64 `RandomStream`; family-specific
-  goodness-of-fit calibration remains.
+- [x] Stream splitting via SplitMix64 `RandomStream`; parametric-bootstrap
+  fitted-null calibration of KS/AD for every fitting family and closed-form
+  Lilliefors, Cramer-von Mises, and Anderson-Darling calibration for the
+  normal family (ADR-0079).
 
 ## Phase 3 — Descriptive statistics and data diagnostics
 
@@ -89,9 +91,10 @@ tested evidence.
 - [x] Numerical optimization (strong-Wolfe BFGS with bounds, Nelder-Mead,
   Levenberg-Marquardt, Brent, multi-start) and forward-mode automatic
   differentiation (ADR-0059, ADR-0065), and reverse mode (ADR-0069).
-- [~] Monte Carlo, importance sampling, adaptive MCMC with diagnostics, Laplace,
-  particle filters, HMC/NUTS, Gaussian ADVI (ADR-0032); amortized inference
-  remains.
+- [x] Monte Carlo, importance sampling, adaptive MCMC with diagnostics, Laplace,
+  particle filters, HMC/NUTS, Gaussian ADVI (ADR-0032); amortized Gaussian
+  neural posterior estimation (ADR-0079). Non-Gaussian amortized posteriors
+  (conditional flows) remain.
 - [x] Markov chains, Poisson processes, SDEs (Euler-Maruyama, Milstein),
   Gaussian-process regression, random fields, ARIMA and exponential smoothing
   (ADR-0031).
@@ -101,17 +104,22 @@ tested evidence.
 ## Phase 6 — Frontier systems
 
 - [~] Probabilistic programming intermediate representation and inference API
-  (ADR-0053) with reverse-mode gradients (ADR-0069); static flat-vector sites
-  only.
+  (ADR-0053) with reverse-mode gradients (ADR-0069); static flat-vector
+  continuous sites only. Discrete latent sites, dynamic site structure, and
+  structured (simplex, covariance) latent supports remain.
 - [x] Causal graphs, interventions, identification, sensitivity analysis
   (ADR-0034).
 - [x] Information measures and estimators (ADR-0036), information geometry
   and optimal transport (ADR-0043).
-- [ ] Normalizing flows, energy-based models, diffusion/score systems,
-  neural stochastic differential equations.
-- [~] Conformal prediction (ADR-0033), distribution-shift tests and forecast
-  calibration with proper scoring rules (ADR-0042); robustness and
-  sequential decision systems remain.
+- [x] Normalizing flows and energy-based models with score matching and
+  Langevin sampling (ADR-0074); score-based diffusion and neural stochastic
+  differential equations (ADR-0075). Small, low-dimensional models in pure
+  Python; large-scale training is out of scope.
+- [x] Conformal prediction (ADR-0033), distribution-shift tests and forecast
+  calibration with proper scoring rules (ADR-0042); adaptive conformal
+  inference under distribution shift and a Beta-Bernoulli Thompson-sampling
+  bandit for sequential decisions (ADR-0079). Contextual bandits and Markov
+  decision processes are not implemented.
 - [x] Reproducible benchmark suites that compare correctness, calibration,
   numerical stability, and computational cost—not accuracy alone (ADR-0049).
 
@@ -136,12 +144,12 @@ dependency direction.
   Uniform, Lognormal, and Weibull foundations.
 - [x] Positive-definite multivariate Normal density, marginals, correlation,
   Mahalanobis distance, and Cholesky sampling.
-- [~] Normal/Lognormal maximum likelihood, generic KS/AD statistics, z and
+- [x] Normal/Lognormal maximum likelihood, generic KS/AD statistics, z and
   Wilson confidence intervals, fitted-CDF visualization, and seeded lab.
-- [~] Nataf transformations and correlated joint inputs delivered; general
-  multivariate protocols, Weibull estimation,
-  exact/bootstrapped fitted-null calibration, Student-t intervals, sampling
-  stream splitting, and real-data fitting case studies.
+- [~] Nataf transformations, correlated joint inputs, multivariate structural
+  protocols (ADR-0079), Weibull estimation, bootstrapped and normal-family
+  closed-form fitted-null calibration, Student-t intervals, and sampling
+  stream splitting delivered; real-data fitting case studies remain.
 
 ### UQ-2 — Forward propagation
 
@@ -153,10 +161,11 @@ dependency direction.
   summaries, strict threshold probabilities, and a seeded teaching lab.
 - [x] Correlated-input sampling, vector QoIs, quasi-random designs, quantiles,
   exceedance curves, and design comparison on `ProbabilisticModel`.
-- [~] Unbounded-domain quadrature transformations and adaptive error
+- [x] Unbounded-domain quadrature transformations and adaptive error
   estimates (ADR-0050), streaming accumulation (ADR-0055), numerical
   uncertainty carried from solution verification into validation (ADR-0057);
-  model-form uncertainty beyond the discrepancy term remains.
+  model-form uncertainty across competing models by stacking and pseudo-BMA
+  with a between-model variance component (ADR-0079).
 
 ### UQ-3 — Advanced Monte Carlo
 
@@ -190,8 +199,9 @@ dependency direction.
 - [x] Input ranking, dimension reduction, and uncertainty-reduction strategy.
 - [x] Bootstrap intervals for Sobol indices on the central model; Morris
   screening.
-- [~] Shapley effects (ADR-0029), DGSM and given-data indices (ADR-0065);
-  replicated stochastic simulators remain.
+- [x] Shapley effects (ADR-0029), DGSM and given-data indices (ADR-0065);
+  Sobol indices of replicated stochastic simulators with an intrinsic-noise
+  index (ADR-0079).
 
 ### UQ-6 — Inverse problems and Bayesian calibration
 
@@ -240,7 +250,7 @@ dependency direction.
 - [x] All 110 ATHENS curriculum rows implemented with evidence.
 - [ ] Numerical backend boundary for large dense problems (ADR-0008 follow-up).
 
-## Systems engineering track (0.16, 0.17)
+## Systems engineering track (0.16 to 0.18)
 
 - [x] Exact system reliability on binary decision diagrams, importance
   measures, common-cause failures, phased missions (ADR-0060).
@@ -256,7 +266,9 @@ dependency direction.
 - [x] Hierarchical subsystems and `MissionAssessment` (ADR-0066).
 - [x] Dynamic fault-tree gates (PAND, SPARE, FDEP, SEQ) and BDD variable
   reordering by sifting (ADR-0070).
-- [ ] Semi-Markov sojourns; CCF parameters as epistemic inputs.
+- [x] Semi-Markov sojourns and repairable units with general repair laws;
+  CCF parameters as epistemic inputs with exact moments and interval bounds
+  (ADR-0076).
 
 ## Cross-cutting work (never “finished”)
 
@@ -266,5 +278,6 @@ dependency direction.
 - [~] Generated API reference (`tools/generate_api_reference.py`); generated
   mathematical documentation remains.
 - [ ] Accessibility, localization-ready prose, and interactive explanations.
-- [ ] Performance profiles and multiple-precision/reference backends.
+- [x] Performance and data profiles in the benchmark report, and a
+  multiple-precision reference backend with enforced ULP budgets (ADR-0077).
 
