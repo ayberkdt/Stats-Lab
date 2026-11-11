@@ -2657,3 +2657,46 @@ Richard Rudell. "Dynamic Variable Ordering for Ordered Binary Decision
 Diagrams." In *Proceedings of the 1993 IEEE/ACM International Conference on
 Computer-Aided Design (ICCAD-93)*, Santa Clara, CA, 42-47, 1993.
 doi:10.1109/ICCAD.1993.580029.
+
+## REF-KOTZ-BALAKRISHNAN-JOHNSON-2000
+
+Samuel Kotz, N. Balakrishnan, and Norman L. Johnson. *Continuous
+Multivariate Distributions, Volume 1: Models and Applications*. 2nd edition.
+Wiley, New York, 2000. ISBN 978-0-471-18387-7.
+
+## REF-JOHNSON-KOTZ-BALAKRISHNAN-1997
+
+Norman L. Johnson, Samuel Kotz, and N. Balakrishnan. *Discrete Multivariate
+Distributions*. Wiley, New York, 1997. ISBN 978-0-471-12844-1.
+
+## REF-MOSIMANN-1962
+
+James E. Mosimann. "On the Compound Multinomial Distribution, the
+Multivariate beta-Distribution, and Correlations Among Proportions."
+*Biometrika* 49(1/2), 65-82, 1962.
+DOI: [10.1093/biomet/49.1-2.65](https://doi.org/10.1093/biomet/49.1-2.65).
+
+## REF-KOTZ-NADARAJAH-2004
+
+Samuel Kotz and Saralees Nadarajah. *Multivariate t Distributions and Their
+Applications*. Cambridge University Press, Cambridge, 2004.
+ISBN 978-0-521-82654-9.
+
+## REF-ANDERSON-2003
+
+T. W. Anderson. *An Introduction to Multivariate Statistical Analysis*. 3rd
+edition. Wiley, Hoboken, New Jersey, 2003. ISBN 978-0-471-36091-9.
+
+## REF-NIST-DLMF-MATRIX-ARGUMENT
+
+NIST Digital Library of Mathematical Functions, Chapter 35, "Functions of
+Matrix Argument," Section 35.3, "Multivariate Gamma and Beta Functions."
+National Institute of Standards and Technology.
+[https://dlmf.nist.gov/35.3](https://dlmf.nist.gov/35.3).
+
+## REF-MURPHY-2007
+
+Kevin P. Murphy. "Conjugate Bayesian Analysis of the Gaussian
+Distribution." Technical report, Department of Computer Science, University
+of British Columbia, 2007.
+[https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf](https://www.cs.ubc.ca/~murphyk/Papers/bayesGauss.pdf).

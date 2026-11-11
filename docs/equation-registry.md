@@ -11493,3 +11493,413 @@ F_A F_B)`.
 - Code: `systems.dynamic` (module documentation; used as test oracles in
   `tests/test_dynamic_fault_trees.py`).
 - Source: [REF-NASA-FTH-2002, Chapter 8], [REF-DUGAN-BAVUSO-BOYD-1992].
+
+### EQ-DIST-DIR-001 — Dirichlet density on the simplex
+
+`f(x) = prod_i x_i^(alpha_i - 1) / B(alpha)`,
+`log B(alpha) = sum_i log Gamma(alpha_i) - log Gamma(alpha_0)`,
+`alpha_0 = sum_i alpha_i`, on `{x : x_i >= 0, sum_i x_i = 1}`.
+
+- Domain: `K >= 2`, every `alpha_i > 0`; density with respect to Lebesgue
+  measure on the first `K - 1` coordinates. On a face (`x_i = 0`) the
+  limiting value is reported (`+inf` for `alpha_i < 1`, factor 1 for
+  `alpha_i = 1`, 0 for `alpha_i > 1`; `nan` when zero and infinite factors
+  meet); a negative component gives `-inf`; a vector off the hyperplane
+  `sum x_i = 1` (tolerance `1e-10`) is rejected.
+- Meaning: the conjugate prior for categorical probabilities; `K = 2` is the
+  beta law.
+- Code: `multivariate.Dirichlet.log_pdf`, `multivariate.Dirichlet.pdf`,
+  `multivariate.dirichlet.log_multivariate_beta`.
+- Source: [REF-BISHOP-2006, Appendix B],
+  [REF-KOTZ-BALAKRISHNAN-JOHNSON-2000, Chapter 49].
+
+### EQ-DIST-DIR-002 — Dirichlet mean and covariance
+
+`E[X] = m = alpha / alpha_0`,
+`Cov[X] = (diag(m) - m m') / (alpha_0 + 1)`.
+
+- Domain: [EQ-DIST-DIR-001].
+- Meaning: every pair of coordinates is negatively correlated because the
+  coordinates share a fixed total; larger `alpha_0` concentrates the law at
+  `m`.
+- Code: `multivariate.Dirichlet.mean`, `multivariate.Dirichlet.covariance`.
+- Source: [REF-BISHOP-2006, Appendix B].
+
+### EQ-DIST-DIR-003 — Dirichlet mode
+
+`mode_i = (alpha_i - 1) / (alpha_0 - K)`.
+
+- Domain: every `alpha_i > 1`; otherwise the density is unbounded or is
+  maximized on a face and the library returns a vector of `nan`.
+- Meaning: the most probable interior composition.
+- Code: `multivariate.Dirichlet.mode`.
+- Source: [REF-BISHOP-2006, Appendix B].
+
+### EQ-DIST-DIR-004 — Dirichlet differential entropy
+
+`H = log B(alpha) + (alpha_0 - K) psi(alpha_0)
+- sum_i (alpha_i - 1) psi(alpha_i)`.
+
+- Domain: [EQ-DIST-DIR-001]; `psi` is the digamma function
+  ([EQ-NUM-DIGAMMA-001]).
+- Meaning: entropy in nats with respect to Lebesgue measure on the simplex
+  coordinates; it is negative for concentrated laws.
+- Code: `multivariate.Dirichlet.entropy`.
+- Source: [REF-BISHOP-2006, Appendix B].
+
+### EQ-DIST-DIR-005 — Beta marginals and aggregation of a Dirichlet
+
+`X_i ~ Beta(alpha_i, alpha_0 - alpha_i)`; for a partition `G_1, ..., G_m`
+of the categories,
+`(sum_(i in G_1) X_i, ..., sum_(i in G_m) X_i) ~
+Dirichlet(sum_(i in G_1) alpha_i, ..., sum_(i in G_m) alpha_i)`.
+
+- Domain: [EQ-DIST-DIR-001]; `m >= 2` non-empty groups covering every index
+  exactly once.
+- Meaning: merging categories keeps the Dirichlet family; a single
+  coordinate against the rest is the two-group case.
+- Code: `multivariate.Dirichlet.marginal`, `multivariate.Dirichlet.aggregate`.
+- Source: [REF-KOTZ-BALAKRISHNAN-JOHNSON-2000, Chapter 49],
+  [REF-BISHOP-2006, Appendix B].
+
+### EQ-DIST-DIR-006 — Dirichlet variates from normalized gamma variates
+
+`G_i ~ Gamma(alpha_i, 1)` independent, `X_i = G_i / sum_j G_j`. In log space,
+`log G_a = log G_(a+1) + log(U) / a` for `a < 1` with `U ~ Uniform(0, 1]`,
+and `X_i = exp(log G_i - max_j log G_j) / sum_k exp(log G_k - max_j log G_j)`.
+
+- Domain: [EQ-DIST-DIR-001].
+- Meaning: an exact sampler; the log-space boost keeps very small
+  concentrations (for example `1e-3`) from producing `0 / 0`.
+- Code: `multivariate.Dirichlet.sample`, `multivariate.DirichletMultinomial.sample`,
+  `multivariate._support.log_gamma_variate`.
+- Source: [REF-DEVROYE-1986, Chapter XI], [REF-MARSAGLIA-TSANG-2000].
+
+### EQ-DIST-MULT-001 — Multinomial mass function
+
+`P(X = x) = n! / prod_i x_i! * prod_i p_i^(x_i)` for non-negative integer
+`x` with `sum_i x_i = n`, and `0^0 = 1`.
+
+- Domain: `n >= 0`, `K >= 2`, `p` a probability vector (sum within
+  `1e-10`, then normalized). The coefficient is formed as the exact integer
+  `prod_i C(n - x_1 - ... - x_(i-1), x_i)` for `n <= 1000` and as
+  `log Gamma(n + 1) - sum_i log Gamma(x_i + 1)` above.
+- Meaning: the law of category counts in `n` independent categorical trials.
+- Code: `multivariate.Multinomial.log_pmf`, `multivariate.Multinomial.pmf`,
+  `multivariate.multinomial.log_multinomial_coefficient`.
+- Source: [REF-JOHNSON-KOTZ-BALAKRISHNAN-1997, Chapter 35].
+
+### EQ-DIST-MULT-002 — Multinomial mean and covariance
+
+`E[X] = n p`, `Cov[X] = n (diag(p) - p p')`.
+
+- Domain: [EQ-DIST-MULT-001].
+- Meaning: counts are negatively correlated because they share the total
+  `n`; the covariance matrix is singular (`Cov[X] 1 = 0`).
+- Code: `multivariate.Multinomial.mean`, `multivariate.Multinomial.covariance`.
+- Source: [REF-JOHNSON-KOTZ-BALAKRISHNAN-1997, Chapter 35].
+
+### EQ-DIST-MULT-003 — Binomial marginals of a multinomial
+
+`X_i ~ Binomial(n, p_i)`.
+
+- Domain: [EQ-DIST-MULT-001].
+- Meaning: one category against all others is a binomial count.
+- Code: `multivariate.Multinomial.marginal`.
+- Source: [REF-JOHNSON-KOTZ-BALAKRISHNAN-1997, Chapter 35].
+
+### EQ-DIST-MULT-004 — Sequential conditional binomial sampling
+
+`X_1 ~ Bin(n, p_1)`; for `i = 2..K-1`,
+`X_i | X_1..X_(i-1) ~ Bin(n - sum_(j<i) X_j, p_i / (1 - sum_(j<i) p_j))`;
+`X_K = n - sum_(j<K) X_j`.
+
+- Domain: [EQ-DIST-MULT-001]; ratios above 1 from rounding are clipped to 1.
+- Meaning: the chain rule of the multinomial law written as binomial
+  factors; each binomial is drawn as a Bernoulli sum, so the cost is `O(n)`.
+- Code: `multivariate.Multinomial.sample`,
+  `multivariate.DirichletMultinomial.sample`.
+- Source: [REF-DEVROYE-1986, Chapter XI].
+
+### EQ-DIST-DIRMULT-001 — Dirichlet-multinomial mass function
+
+`P(X = x) = n! / prod_i x_i! * Gamma(A) / Gamma(n + A)
+* prod_i Gamma(x_i + alpha_i) / Gamma(alpha_i)`, `A = sum_i alpha_i`.
+
+- Domain: `n >= 0`, `K >= 2`, every `alpha_i > 0`; non-negative integer `x`
+  with `sum_i x_i = n`. Each gamma ratio uses the Stirling-series form of
+  [EQ-NUM-STIRLING-001] above argument 100.
+- Meaning: `X | p ~ Mult(n, p)` with `p ~ Dirichlet(alpha)` integrated out;
+  for integer `alpha` it is the Polya urn law
+  `n!/prod x_i! prod_i alpha_i^(x_i rising) / A^(n rising)`.
+- Code: `multivariate.DirichletMultinomial.log_pmf`,
+  `multivariate.DirichletMultinomial.pmf`.
+- Source: [REF-MOSIMANN-1962], [REF-JOHNSON-KOTZ-BALAKRISHNAN-1997, Chapter 35].
+
+### EQ-DIST-DIRMULT-002 — Dirichlet-multinomial moments and overdispersion
+
+`E[X] = n q`, `q = alpha / A`;
+`Cov[X] = n (n + A) / (1 + A) (diag(q) - q q')`.
+
+- Domain: [EQ-DIST-DIRMULT-001].
+- Meaning: the multinomial covariance with mean probabilities `q`, inflated
+  by `(n + A) / (1 + A) >= 1`; the factor tends to 1 as `A -> inf` and to
+  `n` as `A -> 0`.
+- Code: `multivariate.DirichletMultinomial.mean`,
+  `multivariate.DirichletMultinomial.covariance`,
+  `multivariate.DirichletMultinomial.overdispersion`.
+- Source: [REF-MOSIMANN-1962].
+
+### EQ-DIST-DIRMULT-003 — Dirichlet-multinomial sampling by composition
+
+`p ~ Dirichlet(alpha)` by [EQ-DIST-DIR-006], then `X | p ~ Mult(n, p)` by
+[EQ-DIST-MULT-004].
+
+- Domain: [EQ-DIST-DIRMULT-001].
+- Meaning: the hierarchical definition of the compound law, simulated
+  directly.
+- Code: `multivariate.DirichletMultinomial.sample`.
+- Source: [REF-MOSIMANN-1962], [REF-DEVROYE-1986, Chapter XI].
+
+### EQ-NUM-MVLGAMMA-001 — Multivariate log-gamma function
+
+`log Gamma_p(a) = (p (p - 1) / 4) log pi + sum_(j=1..p) log Gamma(a - (j - 1)/2)`.
+
+- Domain: integer `p >= 1`, real `a > (p - 1)/2`.
+- Meaning: the normalizing integral `int_(X > 0) etr(-X) |X|^(a - (p+1)/2) dX`
+  of the Wishart family; `p = 1` is `log Gamma(a)`.
+- Code: `multivariate.multivariate_log_gamma`.
+- Source: [REF-NIST-DLMF-MATRIX-ARGUMENT, Section 35.3],
+  [REF-ANDERSON-2003, Section 7.2].
+
+### EQ-DIST-MVT-001 — Multivariate Student-t density
+
+`log f(x) = log Gamma((nu + p)/2) - log Gamma(nu/2) - (p/2) log(nu pi)
+- (1/2) log|Sigma| - ((nu + p)/2) log(1 + delta/nu)`,
+`delta = (x - mu)' Sigma^-1 (x - mu)` as in [EQ-DIST-MVN-002].
+
+- Domain: `p >= 1`, `Sigma` symmetric positive definite, real `nu > 0`.
+  The gamma ratio uses the Stirling-series form of [EQ-NUM-STIRLING-001]
+  for large `nu`, so the density tends to [EQ-DIST-MVN-001] without loss
+  of digits.
+- Meaning: an elliptical law with polynomial tails; `p = 1` is the
+  location-scale Student t.
+- Code: `multivariate.MultivariateStudentT.log_pdf`,
+  `multivariate.MultivariateStudentT.pdf`,
+  `multivariate.MultivariateStudentT.mahalanobis_squared`.
+- Source: [REF-KOTZ-NADARAJAH-2004, Chapter 1],
+  [REF-GELMAN-ETAL-2013, Appendix A].
+
+### EQ-DIST-MVT-002 — Multivariate Student-t moments
+
+`E[X] = mu` for `nu > 1`; `Cov[X] = nu / (nu - 2) Sigma` for `nu > 2`.
+
+- Domain: [EQ-DIST-MVT-001]. For `nu <= 1` the mean and covariance are
+  reported as `nan`; for `1 < nu <= 2` the covariance has `inf` diagonal and
+  `nan` off-diagonal entries (ADR-0059 moment convention).
+- Meaning: `Sigma` is a scale matrix, not the covariance.
+- Code: `multivariate.MultivariateStudentT.mean`,
+  `multivariate.MultivariateStudentT.covariance`.
+- Source: [REF-KOTZ-NADARAJAH-2004, Chapter 1].
+
+### EQ-DIST-MVT-003 — Marginals of a multivariate Student t
+
+`X_S ~ t_nu(mu_S, Sigma_SS)` for any index subset `S`; in particular
+`X_i ~ t_nu(mu_i, sqrt(Sigma_ii))`.
+
+- Domain: [EQ-DIST-MVT-001].
+- Meaning: marginalization keeps the degrees of freedom (unlike
+  conditioning, which changes them).
+- Code: `multivariate.MultivariateStudentT.marginal_subset`,
+  `multivariate.MultivariateStudentT.marginal`.
+- Source: [REF-KOTZ-NADARAJAH-2004, Chapter 1].
+
+### EQ-DIST-MVT-004 — Multivariate Student-t sampling
+
+`X = mu + L z / sqrt(W / nu)`, `L L' = Sigma`, `z ~ N(0, I_p)`,
+`W ~ chi^2(nu)` independent of `z`.
+
+- Domain: [EQ-DIST-MVT-001].
+- Meaning: a normal scale mixture with an inverse-gamma mixing variance.
+- Code: `multivariate.MultivariateStudentT.sample`.
+- Source: [REF-KOTZ-NADARAJAH-2004, Chapter 1], [REF-DEVROYE-1986, Chapter XI].
+
+### EQ-DIST-WISH-001 — Wishart density
+
+`log f(X) = ((nu - p - 1)/2) log|X| - tr(S^-1 X)/2 - (nu p / 2) log 2
+- (nu/2) log|S| - log Gamma_p(nu/2)` ([EQ-NUM-MVLGAMMA-001]).
+
+- Domain: `S` symmetric positive definite, real `nu > p - 1`, `X` symmetric
+  positive definite (otherwise the density is 0). Density with respect to
+  Lebesgue measure on the `p (p + 1)/2` free entries; `p = 1` is
+  `Gamma(nu/2, rate 1/(2 s))`.
+- Meaning: the law of `sum_(k=1..nu) z_k z_k'`, `z_k ~ N(0, S)`, for
+  integer `nu`.
+- Code: `multivariate.Wishart.log_pdf`, `multivariate.Wishart.pdf`.
+- Source: [REF-ANDERSON-2003, Section 7.2],
+  [REF-MARDIA-KENT-BIBBY-1979, Chapter 3], [REF-GELMAN-ETAL-2013, Appendix A].
+
+### EQ-DIST-WISH-002 — Wishart mean and mode
+
+`E[W] = nu S`; `mode = (nu - p - 1) S` for `nu >= p + 1`.
+
+- Domain: [EQ-DIST-WISH-001]. The mode follows from [EQ-DIST-WISH-001] by
+  setting the matrix gradient `((nu - p - 1)/2) X^-1 - S^-1 / 2` to zero;
+  for `nu < p + 1` the density is unbounded at the boundary of the cone and
+  the library reports `nan`.
+- Meaning: `S` is the scale per degree of freedom.
+- Code: `multivariate.Wishart.mean`, `multivariate.Wishart.mode`.
+- Source: [REF-GELMAN-ETAL-2013, Appendix A], [REF-ANDERSON-2003, Section 7.2].
+
+### EQ-DIST-WISH-003 — Bartlett decomposition
+
+`A` lower triangular with independent `A_ii^2 ~ chi^2(nu - i + 1)`
+(`i = 1..p`) and `A_ij ~ N(0, 1)` (`i > j`) has `A A' ~ Wishart_p(I, nu)`;
+with `L L' = S`, `W = (L A)(L A)' ~ Wishart_p(S, nu)`.
+
+- Domain: [EQ-DIST-WISH-001]; real `nu > p - 1` keeps every chi-square
+  degree positive.
+- Meaning: a Wishart sampler using `p` chi-square and `p (p - 1)/2` normal
+  variates and no factorization per draw.
+- Code: `multivariate.Wishart.sample`, `multivariate.wishart._bartlett_factor`.
+- Source: [REF-SMITH-HOCKING-1972], [REF-ANDERSON-2003, Section 7.2].
+
+### EQ-DIST-IWISH-001 — Inverse-Wishart density
+
+`log f(X) = (nu/2) log|Psi| - (nu p / 2) log 2 - log Gamma_p(nu/2)
+- ((nu + p + 1)/2) log|X| - tr(Psi X^-1)/2`.
+
+- Domain: `Psi` symmetric positive definite, real `nu > p - 1`, `X`
+  symmetric positive definite (otherwise the density is 0).
+  `X ~ InverseWishart_p(Psi, nu)` if and only if
+  `X^-1 ~ Wishart_p(Psi^-1, nu)`; the Jacobian of `X -> X^-1` is
+  `|X|^-(p+1)`.
+- Meaning: the conjugate prior for a normal covariance matrix.
+- Code: `multivariate.InverseWishart.log_pdf`, `multivariate.InverseWishart.pdf`.
+- Source: [REF-ANDERSON-2003, Section 7.7], [REF-GELMAN-ETAL-2013, Appendix A].
+
+### EQ-DIST-IWISH-002 — Inverse-Wishart mean and mode
+
+`E[X] = Psi / (nu - p - 1)` for `nu > p + 1`; `mode = Psi / (nu + p + 1)`.
+
+- Domain: [EQ-DIST-IWISH-001]. The mode follows from [EQ-DIST-IWISH-001] by
+  setting the gradient `-((nu + p + 1)/2) X^-1 + X^-1 Psi X^-1 / 2` to zero.
+  For `p - 1 < nu <= p + 1` the diagonal means diverge and the library
+  reports `inf` diagonal and `nan` off-diagonal entries.
+- Meaning: `Psi` acts as a prior scatter matrix.
+- Code: `multivariate.InverseWishart.mean`, `multivariate.InverseWishart.mode`.
+- Source: [REF-GELMAN-ETAL-2013, Appendix A], [REF-ANDERSON-2003, Section 7.7].
+
+### EQ-DIST-IWISH-003 — Inverse-Wishart sampling by an inverted Bartlett factor
+
+With `Psi = C C'` and `A` as in [EQ-DIST-WISH-003],
+`Sigma = (C A^-T)(C A^-T)'`; then `Sigma^-1 = C^-T A A' C^-1 ~
+Wishart_p(Psi^-1, nu)`.
+
+- Domain: [EQ-DIST-IWISH-001].
+- Meaning: one triangular inverse of `A` per draw; no inverse of a full
+  matrix is formed. The same construction is used by
+  `inference.sample_inverse_wishart` ([EQ-MISS-005]).
+- Code: `multivariate.InverseWishart.sample`.
+- Source: [REF-SMITH-HOCKING-1972], [REF-ANDERSON-2003, Section 7.7].
+
+### EQ-CONJ-DIR-001 — Dirichlet-categorical posterior and evidence
+
+`p | x ~ Dirichlet(alpha + x)` for counts `x` of `n = sum_i x_i`
+categorical trials. The prior predictive probability of one observed
+sequence with these counts is
+`log p(sequence) = log Gamma(A) - log Gamma(A + n)
++ sum_i [log Gamma(alpha_i + x_i) - log Gamma(alpha_i)]`, `A = sum_i alpha_i`;
+adding `log(n! / prod_i x_i!)` gives the Dirichlet-multinomial mass
+[EQ-DIST-DIRMULT-001] of the unordered counts.
+
+- Domain: [EQ-DIST-DIR-001]; non-negative integer counts. Gamma ratios use
+  [EQ-NUM-STIRLING-001] above argument 100.
+- Meaning: conjugacy turns the update into addition of counts to
+  pseudo-counts; the evidence equals the product of the sequential
+  predictive probabilities `(alpha_i + x_i^(<t)) / (A + t - 1)`.
+- Code: `multivariate.dirichlet_posterior`, `multivariate.DirichletPosterior`.
+- Source: [REF-GELMAN-ETAL-2013, Section 3.4], [REF-MURPHY-2012, Sections 3.4
+  and 5.3.2].
+
+### EQ-CONJ-DIR-002 — Dirichlet-categorical posterior predictive
+
+`P(next = i | x) = (alpha_i + x_i) / (A + n)`; the counts `y` of `m` future
+trials satisfy `y | x ~ DirichletMultinomial(m, alpha + x)`.
+
+- Domain: [EQ-CONJ-DIR-001].
+- Meaning: predictions average the multinomial over the Dirichlet
+  posterior, so they are overdispersed by [EQ-DIST-DIRMULT-002].
+- Code: `multivariate.DirichletPosterior.predictive`,
+  `multivariate.DirichletPosterior.predictive_probabilities`.
+- Source: [REF-MURPHY-2012, Section 3.4], [REF-MOSIMANN-1962].
+
+### EQ-CONJ-NIW-001 — Normal-inverse-Wishart density
+
+`Sigma ~ InverseWishart_p(Psi, nu)`, `mu | Sigma ~ N(m, Sigma / kappa)`;
+`log p(mu, Sigma) = log N(mu | m, Sigma / kappa) + log IW(Sigma | Psi, nu)`
+([EQ-DIST-MVN-001], [EQ-DIST-IWISH-001]).
+
+- Domain: `kappa > 0`, `Psi` symmetric positive definite, real
+  `nu > p - 1`.
+- Meaning: the conjugate prior for a multivariate normal with unknown mean
+  and covariance; `kappa` and `nu` act as prior sample sizes for the mean
+  and the covariance.
+- Code: `multivariate.NormalInverseWishart.log_pdf`,
+  `multivariate.NormalInverseWishart.sample`,
+  `multivariate.NormalInverseWishart.covariance_marginal`.
+- Source: [REF-MURPHY-2007, Section "Normal-inverse-Wishart prior"],
+  [REF-GELMAN-ETAL-2013, Section 3.6].
+
+### EQ-CONJ-NIW-002 — Normal-inverse-Wishart posterior update
+
+With `n` observations, `xbar` their mean and
+`S = sum_i (x_i - xbar)(x_i - xbar)'`:
+`kappa_n = kappa_0 + n`, `nu_n = nu_0 + n`,
+`m_n = (kappa_0 m_0 + n xbar) / kappa_n`,
+`Psi_n = Psi_0 + S + (kappa_0 n / kappa_n)(xbar - m_0)(xbar - m_0)'`.
+
+- Domain: [EQ-CONJ-NIW-001]; `n >= 1` finite observations of dimension `p`.
+  Equivalent raw-moment form:
+  `Psi_n = Psi_0 + sum_i x_i x_i' + kappa_0 m_0 m_0' - kappa_n m_n m_n'`.
+- Meaning: the posterior is again normal-inverse-Wishart; the mean is a
+  precision-weighted average and the scale accumulates the scatter plus the
+  prior-data disagreement.
+- Code: `multivariate.normal_inverse_wishart_posterior`,
+  `multivariate.NormalInverseWishartPosterior`.
+- Source: [REF-GELMAN-ETAL-2013, Section 3.6],
+  [REF-MURPHY-2007, Section "Normal-inverse-Wishart prior"],
+  [REF-MURPHY-2012, Section 4.6.3].
+
+### EQ-CONJ-NIW-003 — Normal-inverse-Wishart marginal and predictive laws
+
+`mu ~ t_(nu-p+1)(m, Psi / (kappa (nu - p + 1)))`;
+one new observation `x ~ t_(nu-p+1)(m, Psi (kappa + 1) / (kappa (nu - p + 1)))`
+([EQ-DIST-MVT-001]).
+
+- Domain: [EQ-CONJ-NIW-001]; `nu - p + 1 > 0` holds because `nu > p - 1`.
+  Applied to the posterior parameters these are the posterior marginal of
+  `mu` and the posterior predictive law.
+- Meaning: integrating out the covariance turns Gaussian uncertainty into
+  Student-t uncertainty with `nu - p + 1` degrees of freedom.
+- Code: `multivariate.NormalInverseWishart.mean_marginal`,
+  `multivariate.NormalInverseWishart.predictive`,
+  `multivariate.NormalInverseWishartPosterior.predictive`.
+- Source: [REF-GELMAN-ETAL-2013, Section 3.6],
+  [REF-MURPHY-2007, Section "Normal-inverse-Wishart prior"],
+  [REF-MURPHY-2012, Section 4.6.3].
+
+### EQ-CONJ-NIW-004 — Normal-inverse-Wishart marginal likelihood
+
+`log p(x_1..x_n) = -(n p / 2) log pi + log Gamma_p(nu_n / 2)
+- log Gamma_p(nu_0 / 2) + (nu_0 / 2) log|Psi_0| - (nu_n / 2) log|Psi_n|
++ (p / 2)(log kappa_0 - log kappa_n)` ([EQ-NUM-MVLGAMMA-001]).
+
+- Domain: [EQ-CONJ-NIW-002].
+- Meaning: the prior predictive density of the data, used for model
+  comparison; for `n = 1` it equals the predictive density of
+  [EQ-CONJ-NIW-003], and it factorizes into sequential predictive densities.
+- Code: `multivariate.normal_inverse_wishart_posterior`
+  (`log_marginal_likelihood`).
+- Source: [REF-MURPHY-2007, Section "Normal-inverse-Wishart prior"],
+  [REF-MURPHY-2012, Section 4.6.3].
