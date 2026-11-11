@@ -359,7 +359,7 @@ def nan_matrix(size: int) -> Matrix:
         Matrix whose every entry is ``nan``.
 
     References:
-        Project moment convention (ADR-0059). No equation is evaluated.
+        Project moment convention [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     return tuple(tuple(math.nan for _ in range(size)) for _ in range(size))
