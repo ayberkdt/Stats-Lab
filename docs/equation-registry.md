@@ -12374,3 +12374,38 @@ for every `T`, since `alpha_t` stays in `[-gamma, 1 + gamma]`.
 - Code: `conformal.AdaptiveConformalPredictor.long_run_bound`,
   `conformal.AdaptiveConformalResult`.
 - Source: [REF-GIBBS-CANDES-2021, Lemma 4.1 and Proposition 4.1].
+
+### EQ-RISK-BANDIT-001 — Beta-Bernoulli posterior update
+
+`(alpha_k, beta_k) <- (alpha_k, beta_k) + (r_t, 1 - r_t)` if `x_t = k`,
+unchanged otherwise; posterior mean `alpha_k / (alpha_k + beta_k)`.
+
+- Domain: independent `Beta(alpha_k, beta_k)` priors, `alpha_k, beta_k > 0`;
+  rewards `r_t` in `{0, 1}`.
+- Meaning: conjugate updating of each action's success probability with
+  pseudo-counts; only the played action learns.
+- Code: `risk.bernoulli_bandit`, `risk.BanditRun.posterior_means`.
+- Source: [REF-RUSSO-ETAL-2018, Example 3.1].
+
+### EQ-RISK-BANDIT-002 — Thompson sampling action choice
+
+`theta_hat_k ~ Beta(alpha_k, beta_k)` independently, `x_t = argmax_k theta_hat_k`,
+so `P(x_t = k | history) = P(theta_k = max_j theta_j | history)`.
+
+- Domain: the Beta posteriors of [EQ-RISK-BANDIT-001].
+- Meaning: probability matching; each action is played with its posterior
+  probability of being optimal, which balances exploration and
+  exploitation. The greedy rule replaces the draw by the posterior mean.
+- Code: `risk.bernoulli_bandit`, `risk.BanditRun.probability_optimal`.
+- Source: [REF-RUSSO-ETAL-2018, Algorithms 3.1 and 3.2] and
+  [REF-THOMPSON-1933].
+
+### EQ-RISK-BANDIT-003 — Cumulative pseudo-regret
+
+`Regret(T) = sum_(t=1..T) (max_k theta_k - theta_(x_t))`.
+
+- Domain: known success probabilities (simulation studies only).
+- Meaning: expected reward lost against always playing the best action;
+  uniform random play has regret linear in `T`.
+- Code: `risk.bernoulli_bandit` (`BanditRun.cumulative_regret`).
+- Source: [REF-RUSSO-ETAL-2018, Chapter 3].

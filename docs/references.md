@@ -2819,3 +2819,18 @@ Isaac Gibbs and Emmanuel J. Candès. "Adaptive Conformal Inference Under
 Distribution Shift." In *Advances in Neural Information Processing Systems
 34* (NeurIPS 2021), 2021. Preprint arXiv:2106.00170v3, 2021.
 [https://arxiv.org/abs/2106.00170](https://arxiv.org/abs/2106.00170).
+
+## REF-RUSSO-ETAL-2018
+
+Daniel J. Russo, Benjamin Van Roy, Abbas Kazerouni, Ian Osband, and Zheng
+Wen. "A Tutorial on Thompson Sampling." *Foundations and Trends in Machine
+Learning* 11(1), 1-96, 2018.
+DOI: [10.1561/2200000070](https://doi.org/10.1561/2200000070).
+Preprint arXiv:1707.02038.
+
+## REF-THOMPSON-1933
+
+William R. Thompson. "On the Likelihood that One Unknown Probability Exceeds
+Another in View of the Evidence of Two Samples." *Biometrika* 25(3-4),
+285-294, 1933.
+DOI: [10.1093/biomet/25.3-4.285](https://doi.org/10.1093/biomet/25.3-4.285).
