@@ -2916,3 +2916,66 @@ ISBN 978-0-89871-198-1.
 DOI: [10.1137/1.9781611970852](https://doi.org/10.1137/1.9781611970852).
 Chapter 7 (numerical solution of equations of the second kind,
 pp. 95-128) and Chapter 8 (product integration methods, pp. 129-141).
+
+## REF-DOLAN-MORE-2002
+
+Elizabeth D. Dolan and Jorge J. Moré. "Benchmarking Optimization Software
+with Performance Profiles." *Mathematical Programming* 91(2), 201-213, 2002.
+DOI: [10.1007/s101070100263](https://doi.org/10.1007/s101070100263).
+Preprint: arXiv:cs/0102001. Section 2 defines the performance ratio, the
+performance profile, the meaning of `rho_s(1)` (wins), and Theorem 2.1.
+
+## REF-MORE-WILD-2009
+
+Jorge J. Moré and Stefan M. Wild. "Benchmarking Derivative-Free Optimization
+Algorithms." *SIAM Journal on Optimization* 20(1), 172-191, 2009.
+DOI: [10.1137/080724083](https://doi.org/10.1137/080724083). Introduces data
+profiles and the convergence test used to define them.
+
+## REF-LENTZ-1976
+
+William J. Lentz. "Generating Bessel Functions in Mie Scattering Calculations
+Using Continued Fractions." *Applied Optics* 15(3), 668-671, 1976.
+DOI: [10.1364/AO.15.000668](https://doi.org/10.1364/AO.15.000668).
+
+## REF-THOMPSON-BARNETT-1986
+
+I. J. Thompson and A. R. Barnett. "Coulomb and Bessel Functions of Complex
+Arguments and Order." *Journal of Computational Physics* 64(2), 490-509, 1986.
+DOI: [10.1016/0021-9991(86)90046-X](https://doi.org/10.1016/0021-9991(86)90046-X).
+Source of the modified Lentz method (tiny-number replacement of vanishing
+denominators).
+
+## REF-GOLDBERG-1991
+
+David Goldberg. "What Every Computer Scientist Should Know About
+Floating-Point Arithmetic." *ACM Computing Surveys* 23(1), 5-48, 1991.
+DOI: [10.1145/103162.103163](https://doi.org/10.1145/103162.103163).
+Section 1.2, "Relative Error and Ulps".
+
+## REF-PYTHON-DECIMAL
+
+Python Software Foundation. "decimal — Decimal fixed-point and floating-point
+arithmetic," including contexts, the correctly rounded `exp`, `ln`, and
+`sqrt`, and the `pi` recipe. *Python 3 documentation*.
+[https://docs.python.org/3/library/decimal.html](https://docs.python.org/3/library/decimal.html).
+
+## REF-PYTHON-FRACTIONS
+
+Python Software Foundation. "fractions — Rational numbers." *Python 3
+documentation*.
+[https://docs.python.org/3/library/fractions.html](https://docs.python.org/3/library/fractions.html).
+
+## REF-NIST-DLMF-ELEMENTARY
+
+NIST Digital Library of Mathematical Functions, Chapter 4, "Elementary
+Functions"; Section 4.24, "Inverse Trigonometric Functions: Further
+Properties." National Institute of Standards and Technology.
+[https://dlmf.nist.gov/4.24](https://dlmf.nist.gov/4.24).
+
+## REF-NIST-DLMF-BERNOULLI
+
+NIST Digital Library of Mathematical Functions, Chapter 24, "Bernoulli and
+Euler Polynomials"; Section 24.5, "Recurrence Relations." National Institute
+of Standards and Technology.
+[https://dlmf.nist.gov/24.5](https://dlmf.nist.gov/24.5).

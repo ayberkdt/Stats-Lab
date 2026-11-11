@@ -84,6 +84,8 @@ recorded cost.
 - New methods should get an adapter in `benchmarks/methods.py`; new problems
   need a reference computed in `references.py` and a second check in the test.
 - Wall times are indicative only; evaluation counts are the portable cost.
+  ADR-0077 aggregates them across the problems of each category into
+  performance and data profiles at the end of every category section.
 - Quick-mode |z| and coverage statistics rest on few seeds; conclusions about
   calibration need the full mode.
 - Open issue (not fixed, reported): the unbounded GP likelihood fit still
