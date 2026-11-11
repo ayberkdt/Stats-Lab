@@ -2792,3 +2792,45 @@ Deep Feedforward Neural Networks." In *Proceedings of the Thirteenth
 International Conference on Artificial Intelligence and Statistics
 (AISTATS)*, Proceedings of Machine Learning Research 9, 249-256, 2010.
 [https://proceedings.mlr.press/v9/glorot10a.html](https://proceedings.mlr.press/v9/glorot10a.html).
+
+## REF-SONG-ETAL-2021
+
+Yang Song, Jascha Sohl-Dickstein, Diederik P. Kingma, Abhishek Kumar, Stefano
+Ermon, and Ben Poole. "Score-Based Generative Modeling through Stochastic
+Differential Equations." In *International Conference on Learning
+Representations (ICLR)*, 2021. Equation, section, appendix, and algorithm
+numbers follow arXiv:2011.13456v2.
+
+## REF-HO-JAIN-ABBEEL-2020
+
+Jonathan Ho, Ajay Jain, and Pieter Abbeel. "Denoising Diffusion Probabilistic
+Models." In *Advances in Neural Information Processing Systems 33
+(NeurIPS 2020)*, 2020. Equation numbers follow arXiv:2006.11239v2.
+
+## REF-ANDERSON-1982
+
+Brian D. O. Anderson. "Reverse-Time Diffusion Equation Models." *Stochastic
+Processes and their Applications* 12(3), 313-326, 1982.
+DOI: [10.1016/0304-4149(82)90051-5](https://doi.org/10.1016/0304-4149(82)90051-5).
+
+## REF-VINCENT-2011
+
+Pascal Vincent. "A Connection Between Score Matching and Denoising
+Autoencoders." *Neural Computation* 23(7), 1661-1674, 2011.
+DOI: [10.1162/NECO_a_00142](https://doi.org/10.1162/NECO_a_00142).
+
+## REF-HAIRER-NORSETT-WANNER-1993
+
+Ernst Hairer, Syvert P. Nørsett, and Gerhard Wanner. *Solving Ordinary
+Differential Equations I: Nonstiff Problems*. Second revised edition.
+Springer Series in Computational Mathematics 8. Springer, Berlin,
+Heidelberg, 1993. ISBN 978-3-540-56670-0.
+DOI: [10.1007/978-3-540-78862-1](https://doi.org/10.1007/978-3-540-78862-1).
+
+## REF-IACUS-2008
+
+Stefano M. Iacus. *Simulation and Inference for Stochastic Differential
+Equations: With R Examples*. Springer Series in Statistics. Springer, New
+York, 2008. ISBN 978-0-387-75838-1.
+DOI: [10.1007/978-0-387-75839-8](https://doi.org/10.1007/978-0-387-75839-8).
+Chapter 3 is "Parametric Estimation".

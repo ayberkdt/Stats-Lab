@@ -12265,3 +12265,148 @@ fraction of the iterations.
   reduces the noise a constant step leaves around the optimum.
 - Code: `optimization.adam_minimize`.
 - Source: [REF-KINGMA-BA-2015, Algorithm 1] and [REF-POLYAK-JUDITSKY-1992].
+
+## Score-based diffusion and neural SDEs (ADR-0075)
+
+### EQ-PROC-DIFF-001 — Variance-preserving forward SDE and perturbation kernel
+
+`dx = -beta(t) x / 2 dt + sqrt(beta(t)) dw` on `[0, 1]` with
+`beta(t) = beta_min + t (beta_max - beta_min)`;
+`B(t) = beta_min t + (beta_max - beta_min) t^2 / 2`;
+`x_t | x_0 ~ N(exp(-B(t)/2) x_0, (1 - exp(-B(t))) I)`; prior `N(0, I)`.
+
+- Domain: `0 < beta_min <= beta_max`; defaults `0.1` and `20`; `x` in any
+  dimension, coordinates independent given `x_0`.
+- Meaning: the continuous limit of the DDPM noising chain; the kernel mean
+  and variance solve `m' = -beta m / 2` and `v' = -beta v + beta`, and
+  `m(t)^2 + v(t) = 1` for unit-variance data.
+- Code: `processes.VariancePreservingSDE`, `processes.perturbation_moments`,
+  `processes.perturb`.
+- Source: [REF-SONG-ETAL-2021, Equations 11, 32, and 33] and
+  [REF-HO-JAIN-ABBEEL-2020, Equation 4].
+
+### EQ-PROC-DIFF-002 — Variance-exploding forward SDE and perturbation kernel
+
+`sigma(t) = sigma_min (sigma_max / sigma_min)^t`,
+`dx = sigma(t) sqrt(2 log(sigma_max / sigma_min)) dw`;
+`x_t | x_0 ~ N(x_0, (sigma(t)^2 - sigma_min^2) I)`; prior
+`N(0, sigma_max^2 I)`.
+
+- Domain: `0 < sigma_min < sigma_max`; defaults `0.01` and `50`.
+- Meaning: Brownian motion with a geometric noise schedule; the variance is
+  the exact solution of `v' = g(t)^2` from `v(0) = 0`. The source writes
+  the kernel variance as `sigma(t)^2`, which differs by the constant
+  `sigma_min^2`.
+- Code: `processes.VarianceExplodingSDE`, `processes.perturbation_moments`,
+  `processes.perturb`.
+- Source: [REF-SONG-ETAL-2021, Equations 9, 30, and 31].
+
+### EQ-PROC-DIFF-003 — Diffused Gaussian marginal and its score
+
+For data `N(mu, diag(s^2))` and a kernel `N(m(t) x_0, v(t) I)`:
+`p_t = N(m(t) mu, diag(m(t)^2 s^2 + v(t)))` and
+`grad log p_t(x)_j = -(x_j - m(t) mu_j) / (m(t)^2 s_j^2 + v(t))`.
+
+- Domain: `s_j^2 > 0`; any affine Gaussian kernel of [EQ-PROC-DIFF-001]
+  or [EQ-PROC-DIFF-002].
+- Meaning: the exact score of the marginal law (a Gaussian convolved with a
+  Gaussian kernel); it lets every sampler be verified against a known
+  target without a trained network.
+- Code: `processes.GaussianScore`.
+- Source: [REF-SONG-ETAL-2021, Section 3.3] and
+  [REF-HO-JAIN-ABBEEL-2020, Equation 4].
+
+### EQ-PROC-DIFF-004 — Denoising score matching with weighting and noise parameterization
+
+`theta* = argmin E_t { lambda(t) E_(x_0) E_(z) ||s_theta(x_t, t) + z / sqrt(v(t))||^2 }`,
+`x_t = m(t) x_0 + sqrt(v(t)) z`, `z ~ N(0, I)`, `t ~ U(t_floor, 1)`;
+`s_theta(x, t) = N_theta(c(t) x, 2 tau(t) - 1) / sqrt(v(t))` with
+`c(t) = 1 / sqrt(m^2 + v)` and `tau(t) = sqrt(v / (m^2 + v))`. With the
+default `lambda(t) = v(t)` the objective is `E ||N_theta + z||^2`.
+
+- Domain: `0 < t_floor < 1` (default `1e-5`); `lambda(t) > 0`;
+  `N_theta` an MLP of [EQ-NN-MLP-001] with `d + 1` inputs and `d` outputs.
+- Meaning: `-z / sqrt(v)` is the score of the kernel, and the least-squares
+  regression onto it has the marginal score as minimizer;
+  `lambda proportional to 1 / E||grad log p_0t||^2 = v` equalizes the scales
+  of all times, and the noise parameterization makes the loss the
+  noise-prediction loss of DDPM.
+- Code: `processes.train_score_network`, `processes.ScoreNetwork`,
+  `processes.TrainedScore`.
+- Source: [REF-SONG-ETAL-2021, Equation 7 and Section 3.3],
+  [REF-VINCENT-2011], and [REF-HO-JAIN-ABBEEL-2020, Equation 14].
+
+### EQ-PROC-DIFF-005 — Reverse-time SDE and its Euler-Maruyama step
+
+`dx = [f(x, t) - g(t)^2 grad log p_t(x)] dt + g(t) dw_bar` run from `t = 1`
+to `t = epsilon`; with step `h`:
+`x <- x - [f(x, t) - g(t)^2 s(x, t)] h + g(t) sqrt(h) z`, `z ~ N(0, I)`.
+
+- Domain: a forward SDE whose marginals `p_t` have a score; uniform grid
+  `h = (1 - epsilon) / N`; default `epsilon = 1e-3` (VP) and `1e-5` (VE).
+- Meaning: the time reversal of the forward diffusion has the same
+  marginals; started from the prior it generates approximate data draws.
+  The step is [EQ-PROC-SDE-001] applied to the reversed equation.
+- Code: `processes.reverse_sde_sample`,
+  `processes.predictor_corrector_sample` (predictor).
+- Source: [REF-ANDERSON-1982], [REF-SONG-ETAL-2021, Equation 6], and
+  [REF-KLOEDEN-PLATEN-1992, Section 10.2].
+
+### EQ-PROC-DIFF-006 — Langevin corrector with signal-to-noise step size
+
+`x <- x + eps s(x, t) + sqrt(2 eps) z`,
+`eps = 2 alpha (r ||z|| / ||s||)^2`, with `alpha = 1` (VE) and
+`alpha = 1 - beta(t) h` (VP); the norms are averaged over the sample batch.
+
+- Domain: `r > 0` (default `0.16`); `beta(t) h < 1`.
+- Meaning: an unadjusted Langevin move that leaves `p_t` approximately
+  invariant and corrects the error of the predictor at each time.
+- Code: `processes.predictor_corrector_sample`,
+  `processes.VariancePreservingSDE.corrector_scale`,
+  `processes.VarianceExplodingSDE.corrector_scale`.
+- Source: [REF-SONG-ETAL-2021, Section 4.2 and Appendix G, Algorithms 4
+  and 5].
+
+### EQ-PROC-DIFF-007 — Probability-flow ODE with Runge-Kutta and Heun steps
+
+`dx/dt = f(x, t) - g(t)^2 grad log p_t(x) / 2`; classical Runge-Kutta
+`x <- x + h (k1 + 2 k2 + 2 k3 + k4) / 6` and Heun
+`x <- x + h (k1 + k2) / 2` with signed step `h`.
+
+- Domain: as [EQ-PROC-DIFF-005]; integration in either time direction.
+- Meaning: a deterministic flow with the same marginals as the SDE; it maps
+  prior draws to data draws and back. For Gaussian data and the exact score
+  the map is affine, `x_e = m_e + (x_1 - m_1) sqrt(V_e / V_1)`.
+- Code: `processes.probability_flow_map`, `processes.probability_flow_sample`.
+- Source: [REF-SONG-ETAL-2021, Equation 13 and Section 4.3] and
+  [REF-HAIRER-NORSETT-WANNER-1993, Section II.1].
+
+### EQ-PROC-NSDE-001 — Euler-Maruyama Gaussian pseudo-likelihood
+
+`-log L(theta) = sum_k sum_j [ log(2 pi b_j(x_k)^2 h_k) / 2
++ (x_(k+1),j - x_k,j - a_j(x_k) h_k)^2 / (2 b_j(x_k)^2 h_k) ]`.
+
+- Domain: autonomous diagonal-noise SDE `dX_j = a_j(X) dt + b_j(X) dW_j`,
+  `b_j > 0`, observations at increasing times with steps `h_k`.
+- Meaning: the exact likelihood of the Euler-Maruyama chain
+  [EQ-PROC-SDE-001]; it approximates the true transition likelihood with an
+  `O(h)` bias, so densely observed paths are required.
+- Code: `processes.NeuralSDE.transition_negative_log_likelihood`,
+  `processes.fit_neural_sde`, `processes.NeuralSDEFit`.
+- Source: [REF-IACUS-2008, Chapter 3] and
+  [REF-KLOEDEN-PLATEN-1992, Section 10.2].
+
+### EQ-PROC-NSDE-002 — Neural drift and diffusion parameterization
+
+`u = (x - c) / r`; `a_j(x) = r_j N_j(u)`; `b_j = exp(rho_j)` (constant) or
+`b_j(x) = b_min + softplus(M_j(u))` (network).
+
+- Domain: `r_j > 0`, `b_min > 0`; `N` and `M` are MLPs of
+  [EQ-NN-MLP-001] with `d` inputs and `d` outputs.
+- Meaning: inputs standardized by the data mean `c` and spread `r`; the
+  diffusion stays positive by construction; the starting diffusion is set
+  to the quadratic-variation level `sqrt(mean(dx^2 / h))`.
+- Code: `processes.NeuralSDE`, `processes.NeuralSDE.initial_parameters`,
+  `processes.NeuralSDEFit.drift_on_grid`.
+- Source: [REF-GOODFELLOW-BENGIO-COURVILLE-2016, Sections 6.1 and 6.3] and
+  [REF-KLOEDEN-PLATEN-1992, Section 10.2].
