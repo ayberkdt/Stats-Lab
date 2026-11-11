@@ -40,6 +40,14 @@ integrates to one, so the marginal of every configuration is unchanged
 ([EQ-PPL-DYNAMIC-001]). Plates nest, and a discrete site may be a vector
 with a finite joint support.
 
+ADR-0088: :meth:`ModelHandle.markov` eliminates the discrete sites of a
+first-order chain by the forward algorithm in log space
+([EQ-PPL-MARKOV-001]). :func:`trace` runs every branch of every plate
+iteration, so the branches may declare different continuous and observed
+sites; a branch that lacks a continuous site of its iteration pads it with
+its pseudo-prior ([EQ-PPL-LOCAL-001]). Pseudo-priors may be replaced by
+tuned normal densities (:class:`PseudoPrior`, [EQ-PPL-PSEUDO-001]).
+
 Automatic differentiation: density mode is transparent to
 :class:`~probstat.numerics.Dual` numbers and to reverse-mode
 :class:`~probstat.numerics.ReverseVariable` values (bijections,
@@ -84,9 +92,13 @@ from ._discrete import (
     ENUMERATION_LIMIT,
     DiscreteConditional,
     EnumerationGroup,
+    Group,
     LocalEnumeration,
+    MarkovGroup,
     finite_support_values,
+    forward_log,
     log_sum_exp,
+    most_probable,
     multinomial_support,
     primal,
     product_support,
@@ -97,6 +109,11 @@ from ._structured import StructuredSupport, structure_for, structured_log_densit
 SiteKind = Literal["latent", "observed", "deterministic", "discrete"]
 SiteValue = float | tuple[float, ...] | tuple[tuple[float, ...], ...]
 Model = Callable[["ModelHandle"], object]
+BranchPath = tuple[tuple[str, tuple[int, ...] | None], ...]
+"""Path of a plate branch: ``(first discrete site, assignment)`` per level.
+
+The assignment is ``None`` for the first branch of an iteration.
+"""
 
 _LOG_SQRT_TWO_PI = 0.5 * math.log(2.0 * math.pi)
 _DIFFERENTIABLE = (Dual, ReverseVariable)
@@ -488,6 +505,19 @@ def _pack(values: Sequence[Any], size: int | None) -> Any:
     return values[0] if size is None else tuple(values)
 
 
+def _step_value(values: Sequence[Any]) -> Any:
+    """Return the ``previous`` value of a Markov step from its site values.
+
+    The single value of a step with one discrete site, else the tuple of the
+    values in declaration order (empty for a step without discrete sites).
+
+    References:
+        [EQ-PPL-MARKOV-001]. No new equation is introduced.
+
+    """
+    return values[0] if len(values) == 1 else tuple(values)
+
+
 def elementwise(factory: Callable[..., object], *arguments: object) -> tuple[Any, ...]:
     """Build one distribution per element by broadcasting arguments.
 
@@ -556,8 +586,12 @@ class SiteInfo:
             covariance site, else ``None``.
         enumeration: Support values of a discrete site (tuples for a
             vector-valued discrete site), else ``()``.
-        plate: Name of the innermost enclosing plate, else ``None``.
-        plates: Names of every enclosing plate, outermost first.
+        plate: Name of the innermost enclosing plate or Markov chain, else
+            ``None``.
+        plates: Names of every enclosing plate and Markov chain, outermost
+            first.
+        markov: Name of the enclosing Markov chain (:meth:`ModelHandle.markov`)
+            of a discrete site, else ``None``.
 
     References:
         [REF-BINGHAM-ETAL-2019], [REF-CARPENTER-ETAL-2017].
@@ -577,6 +611,7 @@ class SiteInfo:
     enumeration: tuple[Any, ...] = ()
     plate: str | None = None
     plates: tuple[str, ...] = ()
+    markov: str | None = None
 
     @property
     def length(self) -> int:
@@ -663,6 +698,74 @@ def _describe(parts: tuple[Any, ...], size: int | None) -> str:
     return label if size is None else f"{label} x {size}"
 
 
+@dataclass(frozen=True, slots=True)
+class PseudoPrior:
+    """An independent normal pseudo-prior on a site's unconstrained coordinates.
+
+    ``q(u) = prod_k N(u_k; mean_k, scale_k^2)``. When a configuration (or a
+    plate branch) does not declare the site, ``q`` replaces the site's prior
+    and log-Jacobian as its padding density. Any proper density leaves the
+    posterior probability of every structure unchanged; one close to the
+    site's conditional posterior given that it exists lets the sampler move
+    between structures more easily ([REF-CARLIN-CHIB-1995], Section 2).
+
+    Args:
+        mean: Mean of every unconstrained coordinate.
+        scale: Positive standard deviation of every coordinate.
+
+    Raises:
+        ValueError: If the lengths differ, a value is not finite, or a scale
+            is not positive.
+
+    References:
+        [EQ-PPL-PSEUDO-001], [REF-CARLIN-CHIB-1995].
+
+    """
+
+    mean: tuple[float, ...]
+    scale: tuple[float, ...]
+
+    def __post_init__(self) -> None:
+        """Validate the moments.
+
+        References:
+            Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is
+            evaluated.
+
+        """
+        mean = tuple(float(v) for v in self.mean)
+        scale = tuple(float(v) for v in self.scale)
+        if not mean or len(mean) != len(scale):
+            raise ValueError("mean and scale must be non-empty and of one length")
+        if not all(math.isfinite(v) for v in mean):
+            raise ValueError("pseudo-prior means must be finite")
+        if not all(math.isfinite(v) and v > 0.0 for v in scale):
+            raise ValueError("pseudo-prior scales must be finite and positive")
+        object.__setattr__(self, "mean", mean)
+        object.__setattr__(self, "scale", scale)
+
+    def log_density(self, u: Sequence[Any]) -> Any:
+        """Return ``log q(u)`` (dual-transparent).
+
+        Raises:
+            ValueError: If ``u`` has the wrong length.
+
+        Equation:
+            [EQ-PPL-PSEUDO-001], [EQ-DIST-NORM-001].
+
+        References:
+            [REF-CARLIN-CHIB-1995].
+
+        """
+        if len(u) != len(self.mean):
+            raise ValueError("pseudo-prior evaluated at a point of the wrong length")
+        total: Any = 0.0
+        for value, mean, scale in zip(u, self.mean, self.scale, strict=True):
+            z = (value - mean) / scale
+            total = total + (-0.5 * z * z - math.log(scale) - _LOG_SQRT_TWO_PI)
+        return total
+
+
 # ---------------------------------------------------------------------------
 # The handle passed to model functions
 # ---------------------------------------------------------------------------
@@ -679,9 +782,17 @@ class _PlateFrame:
         sink: Sum of the terms after the iteration's first discrete site in
             the current branch (``None`` before it).
         seen: Whether the current iteration has declared a discrete site.
+        markov: Whether the frame is a Markov chain (:meth:`ModelHandle.markov`)
+            rather than a plate.
+        terms: Prior and log-Jacobian of the continuous latent sites the
+            current branch declares after its first discrete site, by name
+            (``density`` mode), including the sites of nested iterations.
+        step: Values of the discrete sites the current Markov step has
+            declared (``trace`` and ``generate`` mode).
 
     References:
-        [EQ-PPL-ENUM-001], [REF-OBERMEYER-ETAL-2019].
+        [EQ-PPL-ENUM-001], [EQ-PPL-LOCAL-001], [EQ-PPL-MARKOV-001],
+        [REF-OBERMEYER-ETAL-2019].
 
     """
 
@@ -689,6 +800,9 @@ class _PlateFrame:
     enum: LocalEnumeration | None = None
     sink: Any = None
     seen: bool = False
+    markov: bool = False
+    terms: dict[str, tuple[Any, Any]] = field(default_factory=dict)
+    step: list[Any] = field(default_factory=list)
 
 
 class ModelHandle:
@@ -716,6 +830,11 @@ class ModelHandle:
         offsets: Start of every continuous latent site in ``unconstrained``
             by name (``density`` mode under per-configuration evaluation);
             ``None`` reads the coordinates in execution order.
+        branch_layouts: Traced site sequences of the plate branches whose
+            sites differ from the first branch of their iteration, by branch
+            path (``density`` mode; see :attr:`branch_layouts`).
+        pseudo_priors: Tuned pseudo-priors by site name; a padded site
+            without one takes its own prior and log-Jacobian.
 
     References:
         [REF-BINGHAM-ETAL-2019], [REF-CARPENTER-ETAL-2017].
@@ -723,6 +842,7 @@ class ModelHandle:
     """
 
     __slots__ = (
+        "_branch_input",
         "_conditioned",
         "_cursor",
         "_fixed",
@@ -738,9 +858,13 @@ class ModelHandle:
         "_names",
         "_offset",
         "_offsets",
+        "_pseudo_priors",
         "_require_fixed",
         "_unconstrained",
+        "_union",
+        "branch_layouts",
         "discrete_term",
+        "enumerated",
         "enumeration_log",
         "global_choices",
         "late_continuous",
@@ -749,6 +873,7 @@ class ModelHandle:
         "log_prior",
         "records",
         "site_terms",
+        "union_records",
         "values",
     )
 
@@ -765,6 +890,8 @@ class ModelHandle:
         global_assignment: tuple[int, ...] = (),
         record_enumeration: bool = False,
         offsets: Mapping[str, int] | None = None,
+        branch_layouts: Mapping[BranchPath, tuple[SiteInfo, ...]] | None = None,
+        pseudo_priors: Mapping[str, PseudoPrior] | None = None,
     ) -> None:
         """Initialize an empty execution record.
 
@@ -772,6 +899,12 @@ class ModelHandle:
             Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
+        self._branch_input = branch_layouts or {}
+        self._pseudo_priors = pseudo_priors or {}
+        self._union: dict[str, SiteInfo] = {}
+        self.union_records: list[SiteInfo] = []
+        self.branch_layouts: dict[BranchPath, tuple[SiteInfo, ...]] = {}
+        self.enumerated: list[str] = []
         self._mode = mode
         self._unconstrained = unconstrained
         self._layout = layout
@@ -794,10 +927,10 @@ class ModelHandle:
         self._global_seen = False
         self._frames: list[_PlateFrame] = []
         self.discrete_term: Any = None
-        self.enumeration_log: list[EnumerationGroup] | None = (
+        self.enumeration_log: list[Group] | None = (
             [] if record_enumeration else None
         )
-        self._log_stack: list[list[EnumerationGroup]] | None = (
+        self._log_stack: list[list[Group]] | None = (
             None if self.enumeration_log is None else [self.enumeration_log]
         )
         self.site_terms: dict[str, tuple[Any, Any]] | None = (
@@ -825,6 +958,78 @@ class ModelHandle:
 
         """
         return self._frames[-1].name if self._frames else None
+
+    @property
+    def unconstrained(self) -> Vector:
+        """Return the unconstrained vector of a ``density`` execution.
+
+        References:
+            [REF-CARPENTER-ETAL-2017]. No equation is evaluated.
+
+        """
+        return self._unconstrained
+
+    @property
+    def _markov_name(self) -> str | None:
+        """Return the name of the enclosing Markov chain, or ``None``.
+
+        References:
+            [EQ-PPL-MARKOV-001]. No new equation is introduced.
+
+        """
+        for frame in reversed(self._frames):
+            if frame.markov:
+                return frame.name
+        return None
+
+    def _branch_path(self) -> BranchPath:
+        """Return the branch path of the current plate branches.
+
+        One ``(first discrete site, assignment)`` entry per enclosing plate
+        iteration that has declared a discrete site (Markov steps are not
+        part of the path: their structure may not vary).
+
+        References:
+            [EQ-PPL-LOCAL-001]. No new equation is introduced.
+
+        """
+        return tuple(
+            (frame.enum.sites[0][0], frame.enum.assignment)
+            for frame in self._frames
+            if not frame.markov and frame.enum is not None and frame.enum.sites
+        )
+
+    def _record(self, info: SiteInfo) -> None:
+        """Append a site record and add it to the union of the traced sites.
+
+        The first record of a name enters :attr:`union_records`; a later
+        record of the same name (another branch of a plate iteration) must
+        agree with it in kind, size, support, and bijection.
+
+        Raises:
+            ModelSpecificationError: If two branches declare one name with
+                different kinds, sizes, supports, or bijections.
+
+        References:
+            [EQ-PPL-LOCAL-001]. No new equation is introduced.
+
+        """
+        self.records.append(info)
+        known = self._union.get(info.name)
+        if known is None:
+            self._union[info.name] = info
+            self.union_records.append(info)
+            return
+        same_map = (known.bijection, known.element_bijections) == (
+            info.bijection,
+            info.element_bijections,
+        )
+        if not _compatible(known, info) or not same_map:
+            raise ModelSpecificationError(
+                f"site {info.name!r} has a different kind, size, or support in "
+                "different branches of a plate iteration; give the variants "
+                "different names"
+            )
 
     # -- bookkeeping -------------------------------------------------------
 
@@ -857,30 +1062,79 @@ class ModelHandle:
         return name
 
     def _check_order(self, site: str, kind: str) -> None:
-        """Reject a continuous latent or deterministic site after a local discrete one.
+        """Check where a continuous latent or deterministic site is declared.
 
-        Inside a plate iteration (including the iterations of plates nested
-        in it), every discrete site must follow the continuous latent and
-        deterministic sites; only observed sites, discrete sites, and nested
-        plates may come after it. This keeps the unconstrained coordinates
-        and the reported values the same in every enumerated branch of the
-        iteration. Outside plates a continuous site may follow a discrete
-        one (ADR-0084): the model is then evaluated configuration by
+        Inside the steps of :meth:`markov`, continuous latent and
+        deterministic sites are refused. Inside a plate iteration, a
+        deterministic site must precede the iteration's discrete sites. A
+        continuous latent site may follow them (ADR-0088): its prior and
+        log-Jacobian then enter the enumerated terms of the branch, and the
+        branches that do not declare it pad it with its pseudo-prior
+        ([EQ-PPL-LOCAL-001]); its name is recorded in :attr:`enumerated`.
+        Outside plates a continuous site may follow a discrete one
+        (ADR-0084): the model is then evaluated configuration by
         configuration, which is recorded in :attr:`late_continuous`.
 
         References:
-            [EQ-PPL-ENUM-001], [EQ-PPL-DYNAMIC-001], [REF-STAN-USERS-GUIDE-2-36].
+            [EQ-PPL-ENUM-001], [EQ-PPL-DYNAMIC-001], [EQ-PPL-LOCAL-001],
+            [REF-STAN-USERS-GUIDE-2-36].
 
         """
-        if any(frame.seen for frame in self._frames):
+        if any(frame.markov for frame in self._frames):
             raise ModelSpecificationError(
-                f"{kind} site {site!r} follows a discrete latent site in its scope; "
-                "inside a plate iteration, declare continuous latent and "
-                "deterministic sites before the discrete sites (only observed "
-                "and discrete sites may follow them)"
+                f"{kind} site {site!r} is declared inside a step of Markov chain "
+                f"{self._markov_name!r}; a Markov step may declare only discrete, "
+                "observed, and nested plate sites (declare continuous parameters "
+                "before m.markov)"
             )
+        if any(frame.seen for frame in self._frames):
+            if kind == "deterministic":
+                raise ModelSpecificationError(
+                    f"{kind} site {site!r} follows a discrete latent site in its "
+                    "scope; inside a plate iteration, declare deterministic sites "
+                    "before the discrete sites"
+                )
+            if self._mode == "trace" and site not in self.enumerated:
+                self.enumerated.append(site)
         if self._global_seen:
             self.late_continuous = True
+
+    def _branch_frame(self) -> _PlateFrame | None:
+        """Return the frame whose enumerated terms receive the current terms.
+
+        The innermost active frame that has started a sink (declared a
+        discrete site in the current branch), as in :meth:`_add_likelihood`.
+
+        References:
+            [EQ-PPL-LOCAL-001]. No new equation is introduced.
+
+        """
+        for frame in reversed(self._frames):
+            if frame.sink is not None:
+                return frame
+        return None
+
+    def _add_prior_terms(self, site: str, prior: Any, jacobian: Any) -> None:
+        """Add a latent site's prior and log-Jacobian to the right accumulator.
+
+        Outside an enumerated branch they enter :attr:`log_prior` and
+        :attr:`log_jacobian`; inside one (a continuous site after a local
+        discrete site) they enter the branch's enumerated terms and are kept
+        by name for the padding of the branches that lack the site.
+
+        References:
+            [EQ-PPL-JOINT-001], [EQ-PPL-LOCAL-001].
+
+        """
+        frame = self._branch_frame()
+        if frame is None:
+            self.log_prior += prior
+            self.log_jacobian += jacobian
+        else:
+            frame.sink = frame.sink + prior + jacobian
+            frame.terms[site] = (prior, jacobian)
+        if self.site_terms is not None:
+            self.site_terms[site] = (prior, jacobian)
 
     def _add_likelihood(self, value: Any) -> None:
         """Add a likelihood term to the innermost active sink or the total.
@@ -917,11 +1171,19 @@ class ModelHandle:
             [EQ-PPL-DYNAMIC-001], [REF-OBERMEYER-ETAL-2019].
 
         """
+        if any(frame.markov for frame in self._frames):
+            return ModelSpecificationError(
+                f"model structure changed at site {name!r} inside Markov chain "
+                f"{self._markov_name!r}: the sites of a Markov step, including "
+                "those of the plates nested in it, must be the same for every "
+                "value of its discrete sites"
+            )
         return ModelSpecificationError(
             f"model structure changed at site {name!r} inside plate "
-            f"{self._plate_name!r}: the sites of a plate iteration must be the "
-            "same for every value of its discrete sites; structure controlled by "
-            "a discrete site is supported only for discrete sites outside plates"
+            f"{self._plate_name!r}: the sites of this branch of a plate "
+            "iteration differ from the traced ones; the structure of a branch may "
+            "depend on the iteration's discrete sites but not on continuous "
+            "parameter values"
         )
 
     def _check_layout(self, name: str, kind: SiteKind, size: int | None) -> None:
@@ -1011,7 +1273,10 @@ class ModelHandle:
           :class:`~probstat.multivariate.Multinomial` count vector.
 
         Outside plates, the sites that follow a discrete site may depend on
-        its value (dynamic site structure, ADR-0084).
+        its value (dynamic site structure, ADR-0084); inside a plate
+        iteration, the continuous and observed sites that follow a local
+        discrete site may depend on its value too (ADR-0088,
+        [EQ-PPL-LOCAL-001]).
 
         Args:
             name: Unique site name.
@@ -1036,8 +1301,8 @@ class ModelHandle:
         Raises:
             ModelSpecificationError: For duplicate names, bad shapes, an
                 unsupported or unbounded support, an invalid ``reparam``, or a
-                continuous latent site declared after a discrete one in a
-                plate iteration.
+                continuous latent site declared inside a step of
+                :meth:`markov`.
 
         Equation:
             [EQ-PPL-JOINT-001], [EQ-PPL-NONCENTERED-001],
@@ -1082,7 +1347,7 @@ class ModelHandle:
         self.values[site] = packed
         if self._mode == "density":
             return packed
-        self.records.append(
+        self._record(
             SiteInfo(
                 site,
                 "latent",
@@ -1154,6 +1419,9 @@ class ModelHandle:
                 term = cast(
                     float, admath.fsum(-0.5 * u * u for u in u_values)
                 ) - (count * _LOG_SQRT_TWO_PI)
+                if self._branch_frame() is not None:
+                    self._add_prior_terms(site, term, 0.0)
+                    return values
                 self.log_prior += term
                 if self.site_terms is not None:
                     self.site_terms[site] = (term, 0.0)
@@ -1167,6 +1435,9 @@ class ModelHandle:
                 jacobian += bijection.log_abs_det_jacobian(u)
                 prior += _log_density(part, value)
             values.append(value)
+        if density and self._branch_frame() is not None:
+            self._add_prior_terms(site, prior, jacobian)
+            return values
         self.log_prior += prior
         self.log_jacobian += jacobian
         if density and self.site_terms is not None:
@@ -1229,15 +1500,18 @@ class ModelHandle:
             point = structure.forward(self._unconstrained[start:stop])
             self._offset = stop
             prior = structured_log_density(distribution, structure, point, _log_density)
-            self.log_jacobian += point.log_jacobian
-            self.log_prior += prior
-            if self.site_terms is not None:
-                self.site_terms[site] = (prior, point.log_jacobian)
+            if self._branch_frame() is not None:
+                self._add_prior_terms(site, prior, point.log_jacobian)
+            else:
+                self.log_jacobian += point.log_jacobian
+                self.log_prior += prior
+                if self.site_terms is not None:
+                    self.site_terms[site] = (prior, point.log_jacobian)
             value = point.value
         self.values[site] = value
         if self._mode == "density":
             return value
-        self.records.append(
+        self._record(
             SiteInfo(
                 site,
                 "latent",
@@ -1391,14 +1665,19 @@ class ModelHandle:
             self._global_position += 1
             self.global_choices.append((site, values, index))
             value = values[index]
+        elif frame.enum is not None:
+            # Trace mode: every branch of the plate iteration is traced.
+            value = values[frame.enum.index_for(site, values)]
         else:
             value = values[0]
         if frame is not None:
             frame.seen = True
+            if frame.markov:
+                frame.step.append(value)
         else:
             self._global_seen = True
         law = parts if parts is not None else (distribution,)
-        self.records.append(
+        self._record(
             SiteInfo(
                 site,
                 "discrete",
@@ -1411,6 +1690,7 @@ class ModelHandle:
                 enumeration=values,
                 plate=self._plate_name,
                 plates=self._plate_path,
+                markov=self._markov_name,
             )
         )
         return value
@@ -1419,9 +1699,10 @@ class ModelHandle:
         """Iterate over ``size`` conditionally independent replicates.
 
         ``for i in m.plate("data", n): ...`` runs the loop body once per
-        index in ``trace`` and ``generate`` mode. In ``density`` mode, an
-        iteration that declares discrete sites with ``marginalize=True`` is
-        re-run once per joint configuration of those sites and contributes
+        index in ``generate`` mode. In ``density`` mode (and in ``trace``
+        mode, to record every branch), an iteration that declares discrete
+        sites with ``marginalize=True`` is re-run once per joint
+        configuration of those sites and contributes
         ``log sum_z exp(terms after the first discrete site)``, so ``n``
         binary indicators cost ``2 n`` executions of the body instead of the
         ``2^n`` of joint enumeration. The declaration asserts that iteration
@@ -1434,6 +1715,12 @@ class ModelHandle:
         discrete sites, and the log-sum-exp it contributes enters every
         branch of the enclosing iteration ([EQ-PPL-ENUM-004]). The size of
         an inner plate may depend on data and on the enclosing indices.
+
+        The branches of an iteration may declare different observed and
+        continuous latent sites (ADR-0088); a continuous site that a branch
+        lacks is padded in that branch with its pseudo-prior
+        ([EQ-PPL-LOCAL-001]). The discrete sites of an iteration and their
+        supports must be the same in every branch.
 
         Args:
             name: Plate name (used in error messages and site records); it
@@ -1448,26 +1735,96 @@ class ModelHandle:
                 nested in a plate of the same name.
 
         Equation:
-            [EQ-PPL-ENUM-001], [EQ-PPL-ENUM-004].
+            [EQ-PPL-ENUM-001], [EQ-PPL-ENUM-004], [EQ-PPL-LOCAL-001].
 
         References:
             [REF-OBERMEYER-ETAL-2019], [REF-BINGHAM-ETAL-2019].
 
         """
+        self._check_scope_name(name, size, "plate")
+        return self._plate_iterations(name, size)
+
+    def markov(self, name: str, size: int) -> Iterator[tuple[int, Any]]:
+        """Iterate over the steps of a first-order Markov chain of discrete sites.
+
+        ``for t, previous in m.markov("chain", n): ...`` yields the step
+        index and the value of the previous step's discrete sites
+        (``None`` at ``t = 0``; the value of the single discrete site of
+        step ``t - 1``, or a tuple of the values of its discrete sites in
+        declaration order). The discrete sites of step ``t``
+        (``marginalize=True``) may depend on ``previous``, and so may the
+        observations of the step::
+
+            for t, previous in m.markov("chain", len(y)):
+                law = initial if previous is None else transition[previous]
+                z = m.sample(f"z[{t}]", law, marginalize=True)
+                m.observe(f"y[{t}]", Normal(mu[z], 1.0), y[t])
+
+        In ``density`` mode the discrete sites are eliminated by the forward
+        algorithm in log space ([EQ-PPL-MARKOV-001]): step ``t`` is executed
+        once per pair (state of step ``t - 1``, state of step ``t``), so a
+        chain of ``n`` steps with ``K`` states per step costs about
+        ``n K^2`` executions of the body instead of the ``K^n`` of joint
+        enumeration. Each step may enumerate at most 4096 states. The loop
+        body may declare discrete sites, observed sites, and nested plates
+        (whose own discrete sites are enumerated per step and pair); it must
+        not read the values of steps before ``t - 1``, must not declare
+        continuous latent or deterministic sites, and its site structure
+        must not depend on the step's discrete values. Recovery draws the
+        path by forward filtering and backward sampling
+        ([EQ-PPL-MARKOV-002]); :meth:`ModelIR.most_probable_discrete` gives
+        the Viterbi path ([EQ-PPL-MARKOV-003]).
+
+        Args:
+            name: Chain name; it must differ from the names of the enclosing
+                plates.
+            size: Positive number of steps.
+
+        Returns:
+            Iterator over ``(t, previous)``.
+
+        Raises:
+            ModelSpecificationError: For an invalid name or size, a chain
+                nested in another chain, or (during execution) a step whose
+                structure differs between states.
+
+        Equation:
+            [EQ-PPL-MARKOV-001], [EQ-PPL-MARKOV-002].
+
+        References:
+            [REF-RABINER-1989], [REF-BAUM-ETAL-1970], [REF-CHIB-1996].
+
+        """
+        self._check_scope_name(name, size, "Markov chain")
+        if any(frame.markov for frame in self._frames):
+            raise ModelSpecificationError(
+                f"Markov chain {name!r} is nested in Markov chain "
+                f"{self._markov_name!r}; chains cannot nest (write the joint "
+                "state of both chains as the state of one chain)"
+            )
+        return self._markov_steps(name, size)
+
+    def _check_scope_name(self, name: object, size: object, kind: str) -> None:
+        """Validate the name and size of a plate or a Markov chain.
+
+        References:
+            Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is
+            evaluated.
+
+        """
         if not isinstance(name, str) or not name:
-            raise ModelSpecificationError("plate names must be non-empty strings")
+            raise ModelSpecificationError(f"{kind} names must be non-empty strings")
         if isinstance(size, bool) or not isinstance(size, int) or size < 1:
             raise ModelSpecificationError(
-                f"plate {name!r}: size must be a positive integer"
+                f"{kind} {name!r}: size must be a positive integer"
             )
         if name in self._plate_path:
             raise ModelSpecificationError(
-                f"plate {name!r} is nested in a plate of the same name"
+                f"{kind} {name!r} is nested in a plate of the same name"
             )
-        return self._plate_iterations(name, size)
 
     def _plate_iterations(self, name: str, size: int) -> Iterator[int]:
-        """Yield plate indices, enumerating local discrete sites in density mode.
+        """Yield plate indices, enumerating local discrete sites when needed.
 
         References:
             [EQ-PPL-ENUM-001], [EQ-PPL-ENUM-004], [REF-OBERMEYER-ETAL-2019].
@@ -1478,10 +1835,12 @@ class ModelHandle:
         try:
             for index in range(size):
                 frame.seen = False
-                if self._mode != "density":
+                if self._mode == "density":
+                    yield from self._enumerated_iteration(frame, index)
+                elif self._mode == "trace":
+                    yield from self._traced_iteration(frame, index)
+                else:
                     yield index
-                    continue
-                yield from self._enumerated_iteration(frame, index)
         finally:
             if frame in self._frames:
                 self._frames.remove(frame)
@@ -1531,25 +1890,146 @@ class ModelHandle:
             self._names.discard(registered)
         del self._name_log[names:]
 
+    def _traced_iteration(self, frame: _PlateFrame, index: int) -> Iterator[int]:
+        """Trace every branch of one plate iteration.
+
+        The first branch (every local discrete site at its first support
+        value) is recorded in :attr:`records`; every further branch is run
+        on a fresh record list, its new sites enter :attr:`union_records`,
+        and its site sequence is kept in :attr:`branch_layouts` when it
+        differs from the first branch.
+
+        Raises:
+            ModelSpecificationError: If a branch declares other discrete
+                sites than the first branch, or (inside a Markov step) other
+                sites at all.
+
+        References:
+            [EQ-PPL-LOCAL-001], [EQ-PPL-ENUM-001].
+
+        """
+        checkpoint = self._checkpoint()
+        state = LocalEnumeration()
+        frame.enum = state
+        start = len(self.records)
+        yield index
+        if not state.sites:
+            frame.enum = None
+            return
+        first = _signature(self.records[start:])
+        configurations = tuple(
+            itertools.product(*(range(len(values)) for _, values in state.sites))
+        )
+        inside_chain = any(other.markov for other in self._frames)
+        for configuration in configurations[1:]:
+            self._restore(checkpoint)
+            state.assignment = configuration
+            state.position = 0
+            frame.seen = False
+            saved = self.records
+            self.records = []
+            try:
+                yield index
+                branch = tuple(self.records)
+            finally:
+                self.records = saved
+            if state.position != len(state.sites):
+                raise ModelSpecificationError(
+                    "model structure changed: a plate iteration declared a different "
+                    "number of discrete sites in another enumerated branch"
+                )
+            if _signature(branch) != first:
+                if inside_chain:
+                    raise self._local_structure_error(state.sites[-1][0])
+                self.branch_layouts[self._branch_path()] = branch
+        frame.enum = None
+        frame.seen = False
+
+    def _branch_layout(self) -> tuple[SiteInfo, ...] | None:
+        """Return the traced site sequence of the current branch, if recorded.
+
+        References:
+            [EQ-PPL-LOCAL-001]. No new equation is introduced.
+
+        """
+        if not self._branch_input:
+            return None
+        return self._branch_input.get(self._branch_path())
+
+    def _pad_branches(
+        self,
+        totals: list[Any],
+        terms: list[dict[str, tuple[Any, Any]]],
+    ) -> tuple[list[Any], tuple[frozenset[str], ...], dict[str, tuple[Any, Any]]]:
+        """Pad every branch of an iteration with the sites it lacks.
+
+        The union of the continuous sites the branches declare after their
+        first discrete site is taken in order of first appearance; a branch
+        that lacks site ``s`` adds ``log q_s(u_s)``: the tuned pseudo-prior
+        of ``s`` if one is set, else the prior and log-Jacobian ``s`` has in
+        the first branch that declares it ([EQ-PPL-LOCAL-001]).
+
+        Returns:
+            The padded totals, the sites each branch lacks (empty when no
+            branch lacks one), and the reference terms of the union.
+
+        References:
+            [EQ-PPL-LOCAL-001], [REF-CARLIN-CHIB-1995].
+
+        """
+        reference: dict[str, tuple[Any, Any]] = {}
+        for branch in terms:
+            for name, value in branch.items():
+                reference.setdefault(name, value)
+        if all(len(branch) == len(reference) for branch in terms):
+            return totals, (), reference
+        padded: list[Any] = []
+        absent: list[frozenset[str]] = []
+        for total, branch in zip(totals, terms, strict=True):
+            missing = [name for name in reference if name not in branch]
+            for name in missing:
+                total = total + self._pseudo_prior_term(name, reference[name])
+            padded.append(total)
+            absent.append(frozenset(missing))
+        return padded, tuple(absent), reference
+
+    def _pseudo_prior_term(self, name: str, reference: tuple[Any, Any]) -> Any:
+        """Return ``log q_s(u_s)`` of a padded site.
+
+        References:
+            [EQ-PPL-LOCAL-001], [EQ-PPL-PSEUDO-001], [REF-CARLIN-CHIB-1995].
+
+        """
+        tuned = self._pseudo_priors.get(name)
+        if tuned is None:
+            return reference[0] + reference[1]
+        assert self._offsets is not None
+        start = self._offsets[name]
+        return tuned.log_density(self._unconstrained[start : start + len(tuned.mean)])
+
     def _enumerated_iteration(self, frame: _PlateFrame, index: int) -> Iterator[int]:
         """Run one plate iteration once per configuration of its discrete sites.
 
         The first pass discovers the discrete sites (all at support index
         ``0``); every further configuration rewinds the handle to the
-        iteration start and re-runs the body. The terms after the first
-        discrete site of each pass are combined by a log-sum-exp; nested
-        plate iterations add their own log-sum-exp to that pass. When
-        enumeration is recorded, the groups of the nested iterations are
-        kept per branch.
+        iteration start and re-runs the body, following its traced site
+        sequence when that differs from the first branch. The terms after
+        the first discrete site of each pass, padded with the pseudo-priors
+        of the continuous sites the branch lacks ([EQ-PPL-LOCAL-001]), are
+        combined by a log-sum-exp; nested plate iterations add their own
+        log-sum-exp to that pass. When enumeration is recorded, the groups
+        of the nested iterations are kept per branch.
 
         References:
-            [EQ-PPL-ENUM-001], [EQ-PPL-ENUM-004], [REF-OBERMEYER-ETAL-2019].
+            [EQ-PPL-ENUM-001], [EQ-PPL-ENUM-004], [EQ-PPL-LOCAL-001],
+            [REF-OBERMEYER-ETAL-2019].
 
         """
         checkpoint = self._checkpoint()
         state = LocalEnumeration()
         frame.enum = state
         frame.sink = None
+        frame.terms = {}
         logs = self._log_stack
         if logs is not None:
             logs.append([])
@@ -1562,6 +2042,7 @@ class ModelHandle:
             return
         end = self._cursor
         totals = [frame.sink]
+        terms = [frame.terms]
         children = [tuple(first)]
         configurations = tuple(
             itertools.product(*(range(len(values)) for _, values in state.sites))
@@ -1572,6 +2053,12 @@ class ModelHandle:
             state.position = 0
             frame.sink = None
             frame.seen = False
+            frame.terms = {}
+            layout = self._branch_layout()
+            outer = self._layout
+            if layout is not None:
+                self._layout = layout
+                self._cursor = 0
             if logs is not None:
                 logs.append([])
             yield index
@@ -1581,13 +2068,21 @@ class ModelHandle:
                     "model structure changed: a plate iteration declared a different "
                     "number of discrete sites in another enumerated branch"
                 )
-            if self._cursor != end:
+            if layout is not None:
+                if self._cursor != len(layout):
+                    raise self._local_structure_error(state.sites[-1][0])
+                self._layout = outer
+                self._cursor = end
+            elif self._cursor != end:
                 raise self._local_structure_error(state.sites[-1][0])
             totals.append(frame.sink)
+            terms.append(frame.terms)
             children.append(tuple(branch))
         frame.enum = None
         frame.sink = None
         frame.seen = False
+        frame.terms = {}
+        totals, absent, reference = self._pad_branches(totals, terms)
         if logs is not None:
             nested = any(children)
             logs[-1].append(
@@ -1597,9 +2092,148 @@ class ModelHandle:
                     configurations,
                     tuple(primal(total) for total in totals),
                     tuple(children) if nested else (),
+                    absent,
                 )
             )
         self._add_likelihood(log_sum_exp(totals))
+        enclosing = self._branch_frame()
+        if enclosing is not None:
+            for name, value in reference.items():
+                enclosing.terms.setdefault(name, value)
+
+    def _markov_steps(self, name: str, size: int) -> Iterator[tuple[int, Any]]:
+        """Yield the steps of a Markov chain, eliminating them in density mode.
+
+        References:
+            [EQ-PPL-MARKOV-001], [REF-RABINER-1989].
+
+        """
+        frame = _PlateFrame(name, markov=True)
+        self._frames.append(frame)
+        try:
+            if self._mode == "density":
+                yield from self._eliminated_chain(frame, size)
+                return
+            previous: Any = None
+            for step in range(size):
+                frame.seen = False
+                frame.step = []
+                yield step, previous
+                previous = _step_value(frame.step)
+        finally:
+            if frame in self._frames:
+                self._frames.remove(frame)
+
+    def _eliminated_chain(
+        self, frame: _PlateFrame, size: int
+    ) -> Iterator[tuple[int, Any]]:
+        """Eliminate a chain's discrete sites by the forward algorithm.
+
+        For step ``t`` and every pair ``(i, j)`` of a state ``i`` of step
+        ``t - 1`` and a configuration ``j`` of the discrete sites of step
+        ``t``, the body is re-run with ``previous`` set to the value of
+        state ``i``; the sum of all terms of that run is ``l_t(i, j)``. The
+        forward variables
+        ``alpha_t(j) = log sum_i exp(alpha_(t-1)(i) + l_t(i, j))`` are carried
+        from step to step and ``log sum_j exp(alpha_(n-1)(j))`` enters the
+        enclosing scope ([EQ-PPL-MARKOV-001]).
+
+        Raises:
+            ModelSpecificationError: If a step declares different sites for
+                different states.
+
+        References:
+            [EQ-PPL-MARKOV-001], [REF-RABINER-1989], [REF-BAUM-ETAL-1970].
+
+        """
+        logs = self._log_stack
+        alpha: list[Any] = []
+        previous_values: tuple[Any, ...] = (None,)
+        step_names: list[tuple[str, ...]] = []
+        step_supports: list[tuple[tuple[Any, ...], ...]] = []
+        step_configurations: list[tuple[tuple[int, ...], ...]] = []
+        initial: tuple[float, ...] = ()
+        transitions: list[tuple[tuple[float, ...], ...]] = []
+        step_children: list[tuple[tuple[Any, ...], ...]] = []
+        for step in range(size):
+            checkpoint = self._checkpoint()
+            state = LocalEnumeration()
+            frame.enum = state
+            frame.sink = 0.0
+            frame.seen = False
+            if logs is not None:
+                logs.append([])
+            yield step, previous_values[0]
+            first = tuple(logs.pop()) if logs is not None else ()
+            end = self._cursor
+            configurations = tuple(
+                itertools.product(*(range(len(values)) for _, values in state.sites))
+            )
+            width = len(configurations)
+            table: list[list[Any]] = [[None] * width for _ in previous_values]
+            children: list[tuple[Any, ...]] = [()] * (len(previous_values) * width)
+            table[0][0] = frame.sink
+            children[0] = first
+            for i, previous in enumerate(previous_values):
+                for j, configuration in enumerate(configurations):
+                    if i == 0 and j == 0:
+                        continue
+                    self._restore(checkpoint)
+                    state.assignment = configuration
+                    state.position = 0
+                    frame.sink = 0.0
+                    frame.seen = False
+                    if logs is not None:
+                        logs.append([])
+                    yield step, previous
+                    branch = tuple(logs.pop()) if logs is not None else ()
+                    if state.position != len(state.sites) or self._cursor != end:
+                        raise ModelSpecificationError(
+                            f"model structure changed in step {step} of Markov chain "
+                            f"{frame.name!r}: the sites of a step must be the same "
+                            "for every state of the step and of the previous step"
+                        )
+                    table[i][j] = frame.sink
+                    children[i * width + j] = branch
+            if step == 0:
+                alpha = list(table[0])
+                initial = tuple(primal(value) for value in alpha)
+            else:
+                alpha = forward_log(alpha, (table,))[-1]
+                transitions.append(
+                    tuple(tuple(primal(value) for value in row) for row in table)
+                )
+            step_names.append(tuple(name for name, _ in state.sites))
+            step_supports.append(tuple(values for _, values in state.sites))
+            step_configurations.append(configurations)
+            step_children.append(tuple(children) if any(children) else ())
+            previous_values = tuple(
+                _step_value(
+                    [
+                        values[index]
+                        for (_, values), index in zip(
+                            state.sites, configuration, strict=True
+                        )
+                    ]
+                )
+                for configuration in configurations
+            )
+        frame.enum = None
+        frame.sink = None
+        frame.seen = False
+        if logs is not None:
+            logs[-1].append(
+                MarkovGroup(
+                    frame.name,
+                    tuple(step_names),
+                    tuple(step_supports),
+                    tuple(step_configurations),
+                    initial,
+                    tuple(transitions),
+                    tuple(step_children) if any(step_children) else (),
+                )
+            )
+        self._add_likelihood(log_sum_exp(alpha))
 
     def _observe_joint(
         self, site: str, distribution: Any, value: object, shape: object
@@ -1651,7 +2285,7 @@ class ModelHandle:
                 self._add_likelihood(_log_density(distribution, data))
                 return data
             result = data
-        self.records.append(
+        self._record(
             SiteInfo(
                 site,
                 "observed",
@@ -1762,7 +2396,7 @@ class ModelHandle:
                 self._add_likelihood(total)
                 return data
             result = data
-        self.records.append(
+        self._record(
             SiteInfo(
                 site,
                 "observed",
@@ -1828,7 +2462,7 @@ class ModelHandle:
         self.values[site] = packed
         if self._mode == "density":
             return packed
-        self.records.append(
+        self._record(
             SiteInfo(site, "deterministic", size, "", None, None, None, packed)
         )
         return packed
@@ -1924,15 +2558,26 @@ class TracedStructure:
         choices: ``(name, value)`` of every global discrete site the
             configuration declares, in execution order.
         assignment: Their support indices.
-        sites: The sites declared in that configuration, in execution order
-            (local discrete sites at their first support value).
+        sites: The sites declared in that configuration, in order of first
+            appearance (local discrete sites at their first support value;
+            the sites of every branch of every plate iteration included).
         padded: Continuous latent sites of the model that this configuration
             does not declare; each contributes its pseudo-prior, the prior
             and log-Jacobian it has in the first configuration declaring it
             ([EQ-PPL-DYNAMIC-001]).
+        layout: The site sequence of the first branch of every plate
+            iteration, against which executions are checked, when it differs
+            from ``sites`` (empty otherwise).
+        branches: ``(branch path, site sequence)`` of every further plate
+            branch whose sites differ from the first branch of its iteration
+            (ADR-0088).
+        enumerated: Continuous latent sites declared after a local discrete
+            site of their plate iteration; their prior and log-Jacobian are
+            part of the enumerated terms ([EQ-PPL-LOCAL-001]).
 
     References:
-        [EQ-PPL-DYNAMIC-001], [REF-CARLIN-CHIB-1995], [REF-GODSILL-2001].
+        [EQ-PPL-DYNAMIC-001], [EQ-PPL-LOCAL-001], [REF-CARLIN-CHIB-1995],
+        [REF-GODSILL-2001].
 
     """
 
@@ -1940,6 +2585,9 @@ class TracedStructure:
     assignment: tuple[int, ...]
     sites: tuple[SiteInfo, ...]
     padded: tuple[str, ...] = ()
+    layout: tuple[SiteInfo, ...] = ()
+    branches: tuple[tuple[BranchPath, tuple[SiteInfo, ...]], ...] = ()
+    enumerated: tuple[str, ...] = ()
 
     @property
     def names(self) -> tuple[str, ...]:
@@ -2003,6 +2651,9 @@ class ModelIR:
         structures: The traced configurations of the discrete sites outside
             plates; derived from ``sites`` (one static structure per joint
             configuration) when empty.
+        pseudo_priors: ``(site name, PseudoPrior)`` pairs that replace the
+            default pseudo-prior (the site's own prior and log-Jacobian) of
+            padded sites; see :meth:`with_pseudo_priors`.
 
     References:
         [REF-CARPENTER-ETAL-2017], [REF-BINGHAM-ETAL-2019], [REF-CARLIN-CHIB-1995].
@@ -2012,6 +2663,11 @@ class ModelIR:
     model: Model
     sites: tuple[SiteInfo, ...]
     structures: tuple[TracedStructure, ...] = ()
+    pseudo_priors: tuple[tuple[str, PseudoPrior], ...] = ()
+    _tuned: dict[str, PseudoPrior] = field(init=False, repr=False, compare=False)
+    _branch_maps: tuple[dict[BranchPath, tuple[SiteInfo, ...]], ...] = field(
+        init=False, repr=False, compare=False
+    )
     _global_sizes: tuple[int, ...] = field(init=False, repr=False, compare=False)
     _general: bool = field(init=False, repr=False, compare=False)
     _dynamic: bool = field(init=False, repr=False, compare=False)
@@ -2062,8 +2718,12 @@ class ModelIR:
                     seen = True
                 elif seen and site.kind in ("latent", "deterministic"):
                     late = True
+        local = any(s.enumerated or s.branches for s in structures)
         object.__setattr__(self, "_dynamic", dynamic)
-        object.__setattr__(self, "_general", dynamic or late)
+        object.__setattr__(self, "_general", dynamic or late or local)
+        object.__setattr__(
+            self, "_branch_maps", tuple(dict(s.branches) for s in structures)
+        )
         offsets: dict[str, int] = {}
         start = 0
         for site in self.sites:
@@ -2071,6 +2731,22 @@ class ModelIR:
                 offsets[site.name] = start
                 start += site.free_length
         object.__setattr__(self, "_offsets", offsets)
+        tuned = dict(self.pseudo_priors)
+        for name, prior in tuned.items():
+            target = next(
+                (s for s in self.sites if s.name == name and s.kind == "latent"), None
+            )
+            if target is None:
+                raise ModelSpecificationError(
+                    f"pseudo-prior given for {name!r}, which is not a continuous "
+                    "latent site of the model"
+                )
+            if len(prior.mean) != target.free_length:
+                raise ModelSpecificationError(
+                    f"pseudo-prior of {name!r} has {len(prior.mean)} coordinates; "
+                    f"the site has {target.free_length}"
+                )
+        object.__setattr__(self, "_tuned", tuned)
         reference: dict[str, int] = {}
         presence: dict[str, set[int]] = {}
         for index, structure in enumerate(structures):
@@ -2313,10 +2989,12 @@ class ModelIR:
         handle = ModelHandle(
             "density",
             unconstrained=point,
-            layout=structure.sites,
+            layout=structure.layout or structure.sites,
             global_assignment=structure.assignment,
             record_enumeration=record,
             offsets=self._offsets if self._general else None,
+            branch_layouts=self._branch_maps[configuration],
+            pseudo_priors=self._tuned,
         )
         self.model(handle)
         handle.finish()
@@ -2376,15 +3054,27 @@ class ModelIR:
 
         The sum, over the continuous latent sites that configuration ``c``
         does not declare, of the prior and log-Jacobian each has in its
-        reference configuration (``None`` if that run failed).
+        reference configuration (``None`` if that run failed), or of the
+        tuned pseudo-prior of the site when one is set
+        ([EQ-PPL-PSEUDO-001]; its log-Jacobian part is zero).
 
         References:
-            [EQ-PPL-DYNAMIC-001], [REF-CARLIN-CHIB-1995].
+            [EQ-PPL-DYNAMIC-001], [EQ-PPL-PSEUDO-001], [REF-CARLIN-CHIB-1995].
 
         """
         prior: Any = 0.0
         jacobian: Any = 0.0
         for name in self.structures[configuration].padded:
+            tuned = self._tuned.get(name)
+            if tuned is not None:
+                handle = handles[configuration]
+                if handle is None:
+                    return None
+                start = self._offsets[name]
+                prior = prior + tuned.log_density(
+                    handle.unconstrained[start : start + len(tuned.mean)]
+                )
+                continue
             source = handles[self._reference[name]]
             if source is None:
                 return None
@@ -2548,6 +3238,66 @@ class ModelIR:
             weights.append(0.0 if term is None else primal(term))
             handles_.append(handle)
         return self._conditional_from(handles_, weights)
+
+    def most_probable_discrete(self, u: Sequence[float]) -> dict[str, Any]:
+        """Return the jointly most probable values of the discrete sites at ``u``.
+
+        Max-product elimination over the enumeration record: the global
+        configuration, every plate branch, and the Viterbi path of every
+        Markov chain that together maximize
+        ``p(c, z | theta, y)`` ([EQ-PPL-MARKOV-003]). Sites that the chosen
+        configuration does not declare are omitted.
+
+        Args:
+            u: Unconstrained vector of floats.
+
+        Returns:
+            ``{discrete site name: value}``.
+
+        Raises:
+            ModelSpecificationError: If the model has no discrete sites.
+            ValueError: If every configuration has zero probability.
+
+        Equation:
+            [EQ-PPL-MARKOV-003].
+
+        References:
+            [REF-VITERBI-1967], [REF-RABINER-1989].
+
+        """
+        return most_probable(self.discrete_conditional(u))
+
+    def with_pseudo_priors(self, pseudo_priors: Mapping[str, PseudoPrior]) -> ModelIR:
+        """Return the same program with tuned pseudo-priors for padded sites.
+
+        Every configuration (and every plate branch) that does not declare a
+        named site pads it with the given normal density on its
+        unconstrained coordinates instead of its prior and log-Jacobian
+        ([EQ-PPL-PSEUDO-001]). Each pseudo-prior is proper, so the posterior
+        of every structure is unchanged; only the mixing of the samplers
+        changes.
+
+        Args:
+            pseudo_priors: ``{continuous latent site name: PseudoPrior}``,
+                for example from :func:`tune_pseudo_priors`.
+
+        Returns:
+            A new :class:`ModelIR`.
+
+        Raises:
+            ModelSpecificationError: If a name is not a continuous latent
+                site or a pseudo-prior has the wrong number of coordinates.
+
+        References:
+            [REF-CARLIN-CHIB-1995], [REF-GODSILL-2001].
+
+        """
+        return ModelIR(
+            self.model,
+            self.sites,
+            self.structures,
+            tuple((name, pseudo_priors[name]) for name in sorted(pseudo_priors)),
+        )
 
     def _best_configuration(self, totals: Sequence[Any]) -> int:
         """Return the index of the configuration with the largest weight.
@@ -2962,13 +3712,18 @@ def trace(model: Model) -> ModelIR:
     so that tracing is deterministic. The model is executed once per
     configuration of the discrete sites outside plates, in lexicographic
     order, and the sites of each configuration are recorded
-    (:attr:`ModelIR.structures`). The site structure may depend on data and
-    on those discrete sites (ADR-0084); it must not depend on continuous
-    parameter values, and inside a plate iteration it must not depend on the
-    iteration's own discrete sites. Later executions are checked against the
+    (:attr:`ModelIR.structures`). Every branch of every plate iteration is
+    traced as well (ADR-0088); a branch whose sites differ from the first
+    branch of its iteration is recorded in
+    :attr:`TracedStructure.branches`. The site structure may depend on data,
+    on those discrete sites (ADR-0084), and inside a plate iteration on the
+    iteration's own discrete sites (except for the discrete sites
+    themselves); it must not depend on continuous parameter values, nor on
+    the states of a Markov step. Later executions are checked against the
     traced structure. When the model has discrete sites inside plates and
     every observed site has data, one log-density evaluation at ``u = 0``
-    checks the enumerated branches of every plate iteration.
+    checks the enumerated branches of every plate iteration and Markov
+    step.
 
     Args:
         model: Function ``model(m)`` using :class:`ModelHandle`.
@@ -2988,7 +3743,8 @@ def trace(model: Model) -> ModelIR:
 
     References:
         [REF-BINGHAM-ETAL-2019], [REF-CARPENTER-ETAL-2017],
-        [REF-CARLIN-CHIB-1995]. Equation [EQ-PPL-DYNAMIC-001].
+        [REF-CARLIN-CHIB-1995]. Equations [EQ-PPL-DYNAMIC-001],
+        [EQ-PPL-LOCAL-001].
 
     """
     if not callable(model):
@@ -3007,7 +3763,7 @@ def trace(model: Model) -> ModelIR:
         model(handle)
         runs.append(handle)
         prefix = _next_prefix(handle.global_choices)
-    seen = {record.name for handle in runs for record in handle.records}
+    seen = {record.name for handle in runs for record in handle.union_records}
     unknown = sorted(runs[0].conditioned_names - seen)
     if unknown:
         raise ModelSpecificationError(
@@ -3015,7 +3771,7 @@ def trace(model: Model) -> ModelIR:
         )
     union: dict[str, SiteInfo] = {}
     for handle in runs:
-        for record in handle.records:
+        for record in handle.union_records:
             known = union.get(record.name)
             if known is None:
                 union[record.name] = record
@@ -3027,16 +3783,17 @@ def trace(model: Model) -> ModelIR:
                 )
     sites = tuple(union.values())
     latent = tuple(site.name for site in sites if site.kind == "latent")
-    first = _signature(runs[0].records)
+    first = _signature(runs[0].union_records)
     layouts: dict[tuple[Any, ...], tuple[SiteInfo, ...]] = {}
     structures: list[TracedStructure] = []
     for handle in runs:
-        records = tuple(handle.records)
+        records = tuple(handle.union_records)
         signature = _signature(records)
         if signature == first and len(sites) == len(records):
             layout = sites
         else:
             layout = layouts.setdefault(signature, records)
+        linear = tuple(handle.records)
         declared = {record.name for record in records}
         structures.append(
             TracedStructure(
@@ -3045,6 +3802,9 @@ def trace(model: Model) -> ModelIR:
                 tuple(index for _, _, index in handle.global_choices),
                 layout,
                 tuple(name for name in latent if name not in declared),
+                () if len(linear) == len(records) else linear,
+                tuple(handle.branch_layouts.items()),
+                tuple(handle.enumerated),
             )
         )
     program = ModelIR(model, sites, tuple(structures))

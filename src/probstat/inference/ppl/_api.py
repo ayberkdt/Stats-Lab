@@ -40,6 +40,7 @@ from ._program import (
     Model,
     ModelHandle,
     ModelIR,
+    PseudoPrior,
     SiteKind,
     SiteValue,
     flatten,
@@ -171,13 +172,16 @@ class PosteriorSamples:
         return tuple(masked)
 
     def _always_present(self, name: str) -> bool:
-        """Return whether every traced configuration declares a site.
+        """Return whether every traced configuration and plate branch declares a site.
 
         References:
-            [EQ-PPL-DYNAMIC-001]. No new equation is introduced.
+            [EQ-PPL-DYNAMIC-001], [EQ-PPL-LOCAL-001]. No new equation is
+            introduced.
 
         """
         program = self.program
+        if self.discrete is not None and name in self.discrete.absence:
+            return False
         return not program.dynamic or len(program.presence(name)) == len(
             program.structures
         )
@@ -185,44 +189,80 @@ class PosteriorSamples:
     def present(self, name: str) -> tuple[bool, ...]:
         """Return, per draw, whether the recovered configuration declares a site.
 
-        Always true for a model with a static site structure.
+        A site is present in a draw when the drawn global configuration
+        declares it and, for a site declared inside a plate iteration, the
+        drawn branch of that iteration declares it (ADR-0088). Always true
+        for a model with a static site structure.
 
         Raises:
             KeyError: If no traced configuration declares ``name``.
 
         References:
-            [EQ-PPL-DYNAMIC-001], [REF-CARLIN-CHIB-1995].
+            [EQ-PPL-DYNAMIC-001], [EQ-PPL-LOCAL-001], [REF-CARLIN-CHIB-1995].
 
         """
         indices = self.program.presence(name)
         if self._always_present(name) or self.discrete is None:
             return (True,) * self.draw_count
-        return tuple(chosen in indices for chosen in self.discrete.structures)
+        discrete = self.discrete
+        mask = [chosen in indices for chosen in discrete.structures]
+        if not mask:
+            mask = [True] * self.draw_count
+        if discrete.absent:
+            mask = [
+                keep and name not in missing
+                for keep, missing in zip(mask, discrete.absent, strict=True)
+            ]
+        return tuple(mask)
+
+    def _presence_rows(self, name: str) -> tuple[float, ...]:
+        """Return, per draw, the conditional probability that a site is declared.
+
+        ``sum_(c declares the site) p(c | theta^(s), y)`` minus the
+        probability that a drawn plate branch lacks it.
+
+        References:
+            [EQ-PPL-DYNAMIC-001], [EQ-PPL-LOCAL-001]. No new equation is
+            introduced.
+
+        """
+        indices = self.program.presence(name)
+        discrete = self.discrete
+        if self._always_present(name) or discrete is None:
+            return (1.0,) * self.draw_count
+        rows = discrete.structure_probabilities
+        globally = (
+            [math.fsum(row[c] for c in indices) for row in rows]
+            if rows
+            else [1.0] * self.draw_count
+        )
+        absence = discrete.absence.get(name, (0.0,) * len(globally))
+        return tuple(
+            max(0.0, g - a) for g, a in zip(globally, absence, strict=True)
+        )
 
     def presence_probability(self, name: str) -> float:
         """Return the posterior probability that a site is declared.
 
-        ``(1/S) sum_s sum_(c declares the site) p(c | theta^(s), y)``, the
-        Rao-Blackwellized estimate of the posterior probability of the
-        structures that contain the site (``1`` under a static structure).
+        ``(1/S) sum_s P(site declared | theta^(s), y)``: the sum over the
+        global configurations that declare the site of ``p(c | theta^(s),
+        y)``, less the conditional probability that a drawn plate branch
+        lacks it (ADR-0088). This is the Rao-Blackwellized estimate of the
+        posterior probability of the structures that contain the site
+        (``1`` under a static structure).
 
         Raises:
             KeyError: If no traced configuration declares ``name``.
 
         Equation:
-            [EQ-PPL-ENUM-002], [EQ-PPL-DYNAMIC-001].
+            [EQ-PPL-ENUM-002], [EQ-PPL-DYNAMIC-001], [EQ-PPL-LOCAL-001].
 
         References:
             [REF-CARLIN-CHIB-1995], [REF-STAN-USERS-GUIDE-2-36].
 
         """
-        indices = self.program.presence(name)
-        if self._always_present(name) or self.discrete is None:
-            return 1.0
-        rows = self.discrete.structure_probabilities
-        return math.fsum(math.fsum(row[c] for c in indices) for row in rows) / len(
-            rows
-        )
+        rows = self._presence_rows(name)
+        return math.fsum(rows) / len(rows)
 
     def discrete_probabilities(self, name: str) -> dict[object, float]:
         """Return the posterior probability of each value of a discrete site.
@@ -366,7 +406,8 @@ class PosteriorSamples:
 
         Recovered discrete values are included when the model has
         marginalized discrete sites. Under dynamic site structure, each draw
-        holds only the sites its recovered configuration declares.
+        holds only the sites its recovered configuration and its recovered
+        plate branches declare.
 
         References:
             Project API policy [REF-PROBSTAT-API]. Equation [EQ-PPL-DYNAMIC-001].
@@ -376,6 +417,11 @@ class PosteriorSamples:
         if self.discrete is None:
             return values
         discrete = self.discrete
+        if discrete.absent:
+            values = tuple(
+                {k: v for k, v in draw.items() if k not in missing}
+                for draw, missing in zip(values, discrete.absent, strict=True)
+            )
         if self.program.dynamic:
             structures = self.program.structures
             declared = [frozenset(s.names) for s in structures]
@@ -650,6 +696,7 @@ def sample(
     step_size_jitter: float = 0.2,
     gradient: GradientOption = "auto",
     variant: Literal["multinomial", "slice"] = "multinomial",
+    pseudo_priors: Mapping[str, PseudoPrior] | None = None,
 ) -> PosteriorSamples:
     """Draw posterior samples of a probabilistic program by MCMC.
 
@@ -685,6 +732,10 @@ def sample(
             ``"finite-difference"``/``"finite"``, or an analytic gradient
             on the unconstrained space (NUTS and HMC only).
         variant: NUTS state selection, ``"multinomial"`` or ``"slice"``.
+        pseudo_priors: Optional ``{site name: PseudoPrior}`` that pad the
+            sites a configuration or plate branch lacks instead of their
+            priors ([EQ-PPL-PSEUDO-001]), for example from
+            :func:`tune_pseudo_priors`; ``None`` (default) keeps the priors.
 
     Returns:
         Draws by site name with the engine result attached.
@@ -694,7 +745,8 @@ def sample(
         ValueError: For an unknown method or invalid run settings.
 
     Equation:
-        [EQ-PPL-JOINT-001], [EQ-PPL-TRANSFORM-001], [EQ-PPL-TRANSFORM-002].
+        [EQ-PPL-JOINT-001], [EQ-PPL-TRANSFORM-001], [EQ-PPL-TRANSFORM-002],
+        [EQ-PPL-PSEUDO-001].
 
     References:
         [REF-CARPENTER-ETAL-2017], [REF-HOFFMAN-GELMAN-2014], [REF-NEAL-2011],
@@ -707,6 +759,8 @@ def sample(
     if count == 0:
         raise ValueError("chains must be positive")
     program = _inference_program(model)
+    if pseudo_priors:
+        program = program.with_pseudo_priors(pseudo_priors)
     stream = resolve_stream(seed)
     starts = [
         program.initial_point(child, radius=init_radius)
@@ -904,6 +958,94 @@ def laplace(
         program.constrain(engine.mode),
         stream,
     )
+
+
+# ---------------------------------------------------------------------------
+# Pseudo-prior tuning
+# ---------------------------------------------------------------------------
+
+
+def tune_pseudo_priors(
+    posterior: PosteriorSamples, *, names: Sequence[str] | None = None
+) -> dict[str, PseudoPrior]:
+    """Moment-match normal pseudo-priors to a pilot run's conditional draws.
+
+    For every continuous latent site that some configuration or plate
+    branch lacks, the mean and standard deviation of each unconstrained
+    coordinate given that the site exists are estimated from the pilot
+    draws ``u^(s)`` with the Rao-Blackwellized weights
+    ``w_s = P(site declared | u^(s), y)``:
+    ``m = sum_s w_s u^(s) / sum_s w_s`` and
+    ``v = sum_s w_s (u^(s) - m)^2 / sum_s w_s`` ([EQ-PPL-PSEUDO-001]). Since
+    ``E[u 1(declared)] = E[u P(declared | u, y)]``, these are consistent
+    estimates of the moments of the conditional posterior, which
+    [REF-CARLIN-CHIB-1995] recommend as pseudo-priors. Pass the result to
+    :func:`sample` (``pseudo_priors=``) or :meth:`ModelIR.with_pseudo_priors`.
+
+    Args:
+        posterior: Pilot run of the same model (any engine).
+        names: Sites to tune; default every site that some configuration
+            or plate branch lacks.
+
+    Returns:
+        ``{site name: PseudoPrior}`` (empty when no site is ever absent).
+
+    Raises:
+        KeyError: If a name is not a continuous latent site.
+        ValueError: If a site has fewer than two effective conditional draws
+            or a coordinate does not vary.
+
+    Equation:
+        [EQ-PPL-PSEUDO-001].
+
+    References:
+        [REF-CARLIN-CHIB-1995], [REF-GODSILL-2001].
+
+    """
+    program = posterior.program
+    offsets: dict[str, tuple[int, int]] = {}
+    start = 0
+    for site in program.latent_sites:
+        offsets[site.name] = (start, start + site.free_length)
+        start += site.free_length
+    if names is None:
+        selected = [
+            name for name in offsets if not posterior._always_present(name)
+        ]
+    else:
+        selected = list(names)
+        for name in selected:
+            if name not in offsets:
+                raise KeyError(f"{name!r} is not a continuous latent site")
+    draws = posterior.unconstrained.pooled()
+    tuned: dict[str, PseudoPrior] = {}
+    for name in selected:
+        weights = posterior._presence_rows(name)
+        total = math.fsum(weights)
+        squares = math.fsum(w * w for w in weights)
+        if total <= 0.0 or total * total < 2.0 * squares:
+            raise ValueError(
+                f"site {name!r} has fewer than two effective pilot draws in which "
+                "it exists; run a longer pilot"
+            )
+        low, high = offsets[name]
+        means: list[float] = []
+        scales: list[float] = []
+        for k in range(low, high):
+            mean = math.fsum(w * d[k] for w, d in zip(weights, draws, strict=True))
+            mean /= total
+            variance = math.fsum(
+                w * (d[k] - mean) ** 2 for w, d in zip(weights, draws, strict=True)
+            )
+            variance /= total
+            if not variance > 0.0:
+                raise ValueError(
+                    f"coordinate {k} of site {name!r} does not vary in the pilot draws"
+                )
+            means.append(mean)
+            scales.append(math.sqrt(variance))
+        tuned[name] = PseudoPrior(tuple(means), tuple(scales))
+    return tuned
 
 
 # ---------------------------------------------------------------------------

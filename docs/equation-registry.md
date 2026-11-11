@@ -13735,3 +13735,137 @@ proportional to the summand of `c`.
   models not in use that leave the posterior model probabilities
   unchanged), [REF-GODSILL-2001] (pp. 230-248: the composite model space
   that contains the Carlin-Chib method).
+
+### EQ-PPL-MARKOV-001 — Forward algorithm for a Markov chain of discrete sites
+
+For a chain of steps `t = 0, ..., n - 1` whose discrete sites take the joint
+states `j in {1, ..., K_t}`, let `l_0(j)` collect the log-terms of step `0`
+in state `j` and `l_t(i, j)` those of step `t` when step `t - 1` is in state
+`i` (discrete log-masses, observations, and the log-sum-exp of nested plate
+iterations). Then `alpha_0(j) = l_0(j)`,
+`alpha_t(j) = log sum_i exp(alpha_(t-1)(i) + l_t(i, j))`, and
+`log sum_(z_0..z_(n-1)) exp(l_0(z_0) + sum_t l_t(z_(t-1), z_t))
+= log sum_j exp(alpha_(n-1)(j))`, evaluated with a shifted log-sum-exp.
+
+- Domain: first-order dependence (the terms of step `t` depend on the
+  discrete sites of steps `t - 1` and `t` only); at most 4096 states per
+  step; the sites of a step do not change with its discrete values.
+- Meaning: the chain is summed out in `K_0 + sum_(t >= 1) K_(t-1) K_t`
+  executions of the step body instead of `prod_t K_t`, so the
+  gradient-based engines sample the marginal density of the continuous
+  parameters of a hidden Markov model; the recursion is transparent to dual
+  numbers and reverse-mode variables.
+- Code: `inference.ppl.ModelHandle.markov`,
+  `inference.ppl._discrete.forward_log`, `inference.ppl.ModelIR.log_density`.
+- Source: [REF-RABINER-1989] (pp. 257-286: the forward procedure, an
+  induction over time on the forward variables at `O(n K^2)` cost),
+  [REF-BAUM-ETAL-1970] (pp. 164-171: the forward and backward recursions
+  for probabilistic functions of Markov chains).
+
+### EQ-PPL-MARKOV-002 — Smoothed marginals and forward filtering, backward sampling
+
+With the forward variables of [EQ-PPL-MARKOV-001], the backward variables
+`beta_(n-1)(j) = 0`, `beta_t(i) = log sum_j exp(l_(t+1)(i, j) +
+beta_(t+1)(j))`, and `log L = log sum_j exp(alpha_(n-1)(j))`:
+`p(z_t = j | theta, y) = exp(alpha_t(j) + beta_t(j) - log L)` and
+`p(z_(t-1) = i, z_t = j | theta, y) = exp(alpha_(t-1)(i) + l_t(i, j) +
+beta_t(j) - log L)`. A joint draw of the path takes
+`z_(n-1) ~ exp(alpha_(n-1)(j) - log L)` and, for `t = n - 2, ..., 0`,
+`z_t | z_(t+1) = k ~ exp(alpha_t(i) + l_(t+1)(i, k))` normalized over `i`.
+
+- Domain: as [EQ-PPL-MARKOV-001]; `theta` fixed (one continuous draw).
+- Meaning: the exact conditional law of the path given the continuous
+  parameters; posterior draws of the discrete states, Rao-Blackwellized
+  posterior state probabilities (the average of the smoothed marginals
+  over continuous draws), and the weights of the plate iterations nested in
+  a step.
+- Code: `inference.ppl._discrete.backward_log`,
+  `inference.ppl._discrete.recover_discrete`, `inference.ppl.DiscreteDraws`.
+- Source: [REF-RABINER-1989] (pp. 257-286: the backward variables, the
+  state probabilities from the product of forward and backward variables,
+  and the pairwise state probabilities), [REF-CHIB-1996] (pp. 79-97: the
+  joint draw of the hidden states of a Markov mixture model by a forward
+  pass of filtered probabilities and a backward pass of conditional
+  draws).
+
+### EQ-PPL-MARKOV-003 — Viterbi recursion and joint max-product elimination
+
+`delta_0(j) = l_0(j)`, `delta_t(j) = max_i delta_(t-1)(i) + l_t(i, j)` with
+back-pointers `psi_t(j) = argmax_i (delta_(t-1)(i) + l_t(i, j))`; the most
+probable path ends in `argmax_j delta_(n-1)(j)` and is read back through
+`psi`. Across the whole enumeration record, each plate iteration or chain
+`g` with log-sum-exp `S_g` and maximum `M_g` contributes the gain
+`M_g - S_g` to the log-weight that contains `S_g`, so the jointly most
+probable configuration maximizes `l_c + sum_g (M_g - S_g)` over the global
+configurations `c`, with nested gains added to the branch and pair weights.
+
+- Domain: as [EQ-PPL-MARKOV-001] and [EQ-PPL-ENUM-004]; ties go to the
+  smallest index.
+- Meaning: the maximum a posteriori values of every discrete site given the
+  continuous parameters, at the cost of the forward pass.
+- Code: `inference.ppl._discrete.viterbi`,
+  `inference.ppl._discrete.most_probable`,
+  `inference.ppl.ModelIR.most_probable_discrete`.
+- Source: [REF-VITERBI-1967] (pp. 260-269: the maximum-likelihood decoding
+  recursion), [REF-RABINER-1989] (pp. 257-286: the Viterbi algorithm for the
+  single best state sequence, with back-pointers).
+
+### EQ-PPL-LOCAL-001 — Per-iteration padding of plate branches
+
+Let the branches `z` of plate iteration `i` declare, after its first
+discrete site, the continuous latent sites `S_i(z)`, and let
+`S_i = union_z S_i(z)`. For `s` in `S_i` but not in `S_i(z)`, let
+`q_s(u_s | u_<s)` be the prior times Jacobian of `s` in the first branch
+that declares it (or a tuned pseudo-prior, [EQ-PPL-PSEUDO-001]). Then the
+iteration contributes
+`log sum_z exp(l_i(z, u) + sum_(s in S_i, s not in S_i(z)) log q_s(u_s))`
+to the log-density, where `l_i(z, u)` holds the terms of branch `z` after
+its first discrete site (the priors and log-Jacobians of `S_i(z)`
+included). Nested iterations pad their own branches, and their union of
+sites is declared by the enclosing branch.
+
+- Domain: the discrete sites of an iteration and their supports are the same
+  in every branch; a site declared in several branches has the same support
+  and transform in each; at most 4096 branches per iteration; the structure
+  of a branch depends on the iteration's discrete values, data, and the
+  enclosing sites, not on continuous values; every padding density is
+  proper.
+- Meaning: each `q_s` integrates to one, so integrating `u_(S_i)` out of the
+  summand of `z` gives `p(z, y_i | theta)` for every branch: the product-space
+  construction of [EQ-PPL-DYNAMIC-001] applied inside each conditionally
+  independent iteration. Recovery reports a site of `S_i` only in the draws
+  whose drawn branch declares it.
+- Code: `inference.ppl.ModelHandle.plate`, `inference.ppl.TracedStructure`,
+  `inference.ppl.PosteriorSamples.present`,
+  `inference.ppl.PosteriorSamples.presence_probability`.
+- Source: [REF-CARLIN-CHIB-1995] (pp. 473-484: pseudo-priors for the
+  parameters of the models not in use leave the posterior model
+  probabilities unchanged), [REF-OBERMEYER-ETAL-2019] (plated variable
+  elimination: each iteration is summed out on its own).
+
+### EQ-PPL-PSEUDO-001 — Moment-matched normal pseudo-priors from a pilot run
+
+For a continuous site `s` that some structure lacks, with pilot draws
+`u^(1..S)` and `w_r = P(s declared | u^(r), y)` (the sum of the
+configuration and branch probabilities that declare `s`), the pseudo-prior
+is `q_s(u_s) = prod_k N(u_(s,k); m_k, v_k)` with
+`m_k = sum_r w_r u_(s,k)^(r) / sum_r w_r` and
+`v_k = sum_r w_r (u_(s,k)^(r) - m_k)^2 / sum_r w_r`. Because
+`E[u 1(s declared) | y] = E[u P(s declared | u, y) | y]`, `m` and `v` are
+consistent estimates of the conditional posterior moments of `u_s` given
+that `s` exists.
+
+- Domain: at least two effective pilot draws (`(sum w)^2 >= 2 sum w^2`)
+  and positive `v_k`; unconstrained coordinates of the site.
+- Meaning: any proper `q_s` leaves the posterior probability of every
+  structure unchanged; a `q_s` close to the conditional posterior makes the
+  summands of different structures overlap on `u_s`, so the sampled density
+  has less separated components and the structure probability mixes faster.
+  The default (no tuning) keeps the site's prior.
+- Code: `inference.ppl.tune_pseudo_priors`, `inference.ppl.PseudoPrior`,
+  `inference.ppl.ModelIR.with_pseudo_priors`.
+- Source: [REF-CARLIN-CHIB-1995] (pp. 473-484: the pseudo-priors do not
+  affect the model probabilities, and pseudo-priors close to the
+  conditional posteriors make the sampler efficient),
+  [REF-GODSILL-2001] (pp. 230-248: the composite-space sampler and its
+  pseudo-priors).
