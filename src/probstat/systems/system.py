@@ -247,6 +247,29 @@ class SystemModel:
         return self._structure.components
 
     @property
+    def ccf_groups(self) -> tuple[CCFGroup, ...]:
+        """Return the common-cause groups in input order.
+
+        References:
+            [REF-MOSLEH-ETAL-1998]. No equation is evaluated.
+
+        """
+        return self._groups
+
+    @property
+    def ccf_basis(self) -> CCFBasis:
+        """Return the CCF split basis (``"auto"``, ``"hazard"``, ``"probability"``).
+
+        Equation:
+            [EQ-SYS-CCF-006].
+
+        References:
+            [REF-MOSLEH-ETAL-1998].
+
+        """
+        return self._ccf_basis
+
+    @property
     def ccf_expansion(self) -> CommonCauseExpansion | None:
         """Return the CCF expansion, or ``None`` without groups.
 

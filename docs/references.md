@@ -2883,3 +2883,36 @@ Gareth O. Roberts and Richard L. Tweedie. "Exponential Convergence of
 Langevin Distributions and Their Discrete Approximations." *Bernoulli* 2(4),
 341-363, 1996.
 DOI: [10.2307/3318418](https://doi.org/10.2307/3318418).
+
+## REF-LIMNIOS-OPRISAN-2001
+
+Nikolaos Limnios and Gheorghe Oprişan. *Semi-Markov Processes and
+Reliability*. Birkhäuser, Boston, 2001. ISBN 978-1-4612-6640-2 (print),
+978-1-4612-0161-8 (online).
+DOI: [10.1007/978-1-4612-0161-8](https://doi.org/10.1007/978-1-4612-0161-8).
+Chapter 2 (Markov renewal processes, pp. 31-49), Chapter 3 (semi-Markov
+processes, pp. 51-83), Chapter 5 (reliability of semi-Markov systems,
+pp. 121-151).
+
+## REF-CINLAR-1969
+
+Erhan Çinlar. "Markov Renewal Theory." *Advances in Applied Probability*
+1(2), 123-187, 1969.
+DOI: [10.2307/1426216](https://doi.org/10.2307/1426216).
+
+## REF-CORRADI-JANSSEN-MANCA-2004
+
+Gianfranco Corradi, Jacques Janssen, and Raimondo Manca. "Numerical
+Treatment of Homogeneous Semi-Markov Processes in Transient Case - a
+Straightforward Approach." *Methodology and Computing in Applied
+Probability* 6(2), 233-246, 2004.
+DOI: [10.1023/B:MCAP.0000017715.28371.85](https://doi.org/10.1023/B:MCAP.0000017715.28371.85).
+
+## REF-LINZ-1985
+
+Peter Linz. *Analytical and Numerical Methods for Volterra Equations*.
+Society for Industrial and Applied Mathematics, Philadelphia, 1985.
+ISBN 978-0-89871-198-1.
+DOI: [10.1137/1.9781611970852](https://doi.org/10.1137/1.9781611970852).
+Chapter 7 (numerical solution of equations of the second kind,
+pp. 95-128) and Chapter 8 (product integration methods, pp. 129-141).

@@ -402,3 +402,50 @@ Every method is tested against an independent oracle (`tests/test_systems_*.py`)
 - **BDD size.** Exact methods are limited by the size of the BDD, and some
   structures are exponential under every variable order. The node guard
   then raises an error instead of returning an approximation.
+
+## 13. CCF parameters and semi-Markov blocks
+
+**CCF parameters as epistemic inputs.** Beta factors and alpha factors are
+estimated from few events and are uncertain (Mosleh et al. 1998
+[REF-MOSLEH-ETAL-1998]). `ccf_parameter_uncertainty(system, t,
+{(group, name): law})` treats them, and optionally the members' shared
+total failure probability `(group, "total")`, as independent epistemic
+quantities with laws on `[0, 1]`. Under the probability split
+`Q_k = c_k Q_t` (Section 7) the beta-factor and MGL coefficients are
+products of `theta` and `1 - theta`. The Shannon recursion on the BDD of the
+expanded structure then yields `R(theta)` as an exact polynomial with
+non-negative coefficients in the mixed-moment basis of Section 5, and the
+mean and variance follow without sampling [EQ-SYS-ECCF-001]. The share of
+`Var[R]` explained by a set of parameters, `Var(E[R | theta_S]) / Var[R]`,
+uses the cross moment of two copies that share only `theta_S`
+[EQ-SYS-ECCF-002] (Sobol 1993 [REF-SOBOL-1993]); `ccf_contribution` is the
+share of all CCF parameters together, which answers how much the CCF data
+matter compared with the component data (state-of-knowledge correlation,
+Apostolakis and Kaplan 1981 [REF-APOSTOLAKIS-KAPLAN-1981]). For a 2-out-of-3
+group with `Q_t = 0.01` and `beta ~ Beta(2, 18)`,
+`E[R] = 0.99875742` and `Var[R] = 3.855e-7`, equal to quadrature over the
+beta law; adding `Q_t ~ Beta(2, 198)` gives the shares `0.18` (beta) and
+`0.74` (total). Under the hazard split, and for alpha-factor parameters,
+the coefficients are not polynomial and the same quantities are estimated
+by seeded Monte Carlo with the centred Saltelli estimator [EQ-SYS-ECCF-003]
+(Saltelli et al. 2010 [REF-SALTELLI-2010]).
+
+**Interval parameters.** When a parameter is known only to lie in an
+interval, `ccf_interval_bounds` scans the unreliability along each
+parameter, classifies it as increasing, decreasing, constant or
+non-monotone, and bounds it over the corners of the box; parameters with
+distributions are sampled with common random numbers at every corner, and
+the envelope of the corner distributions is a probability box
+[EQ-SYS-ECCF-004] (Ferson et al. 2003 [REF-FERSON-ET-AL-2003]). For
+`beta in [0.02, 0.2]` the 2-out-of-3 unreliability increases with `beta`
+and lies in `[4.86e-4, 2.19e-3]`; for a series system it decreases, since
+a common cause then replaces several independent failures by one event.
+
+**Semi-Markov blocks.** `SemiMarkovComponent` wraps a
+`SemiMarkovReliabilityModel` (general failure and repair laws, see the
+Markov-reliability guide, Section 7) as a component, exactly as
+`MarkovComponent` wraps a CTMC; the block's measures come from the Markov
+renewal equation [EQ-SYS-SMP-001] (Limnios and Oprişan 2001, Chapter 5
+[REF-LIMNIOS-OPRISAN-2001]) and its largest error estimate is kept in
+`last_error_estimate`. The composition is exact for independent modules
+[EQ-SYS-ADAPT-001]. ADR-0076 records the design and its verification.
