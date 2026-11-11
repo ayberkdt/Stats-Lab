@@ -12458,3 +12458,46 @@ With design matrices `A`, `B`, `A_B^(i)` of `N` rows and `c` the mean of
 - Source: [REF-SALTELLI-2010] and [REF-JANSEN-1999] (pick-freeze
   estimators), applied to replicate means with the noise correction of
   [EQ-SENS-STOCH-002].
+
+### EQ-VAL-STACK-001 — Log-score stacking of predictive distributions
+
+`w* = argmax_(w in simplex) (1/n) sum_(i=1..n) log sum_(k=1..K) w_k p_k,-i(y_i)`,
+computed by `w_k <- w_k g_k`, `g_k = (1/n) sum_i p_ik / sum_j w_j p_ij`,
+stopped when `max_k g_k - 1 <= tol`, which bounds `f(w*) - f(w)` by
+concavity.
+
+- Domain: pointwise out-of-sample (leave-one-out or held-out validation)
+  predictive densities `p_ik >= 0`, each row positive for some model.
+- Meaning: the weighted mixture of the models' predictive distributions
+  with the best expected log score; it keeps several models when each is
+  right on part of the data, unlike Bayesian model averaging.
+- Code: `validation.stacking_weights`.
+- Source: [REF-YAO-ETAL-2018, Section 2.1, Equation 2.2] (objective),
+  [REF-MCLACHLAN-PEEL-2000] (EM update of mixing proportions), and
+  [REF-NOCEDAL-WRIGHT-2006, Chapter 12] (optimality conditions).
+
+### EQ-VAL-STACK-002 — Pseudo-BMA and pseudo-BMA+ weights
+
+`w_k = exp(elpd_k) / sum_j exp(elpd_j)`, `elpd_k = sum_i log p_k,-i(y_i)`;
+pseudo-BMA+: `a ~ Dirichlet(1, ..., 1)`, `z_k = n sum_i a_i log p_k,-i(y_i)`,
+`w_k = mean over B draws of exp(z_k) / sum_j exp(z_j)`.
+
+- Domain: as [EQ-VAL-STACK-001]; `B >= 1` Bayesian-bootstrap draws.
+- Meaning: AIC-type weights from the estimated expected log predictive
+  density; the Bayesian bootstrap accounts for the uncertainty of the elpd
+  estimate and moves weights away from 0 and 1.
+- Code: `validation.pseudo_bma_weights`.
+- Source: [REF-YAO-ETAL-2018, Section 2.4, Equations 2.5 and 2.6].
+
+### EQ-VAL-STACK-003 — Variance of a model-averaged prediction
+
+`mu = sum_k w_k mu_k`,
+`Var = sum_k w_k sigma_k^2 + sum_k w_k (mu_k - mu)^2`.
+
+- Domain: simplex weights; per-model predictive means `mu_k` and variances
+  `sigma_k^2`.
+- Meaning: law of total variance for the mixture `sum_k w_k p_k`; the second
+  term is the between-model (model-form) component.
+- Code: `validation.model_averaged_prediction`.
+- Source: [REF-YAO-ETAL-2018, Equation 2.3] (mixture predictive) and
+  [REF-MCLACHLAN-PEEL-2000] (mixture moments).

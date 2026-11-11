@@ -2849,3 +2849,11 @@ Amandine Marrel, Bertrand Iooss, Sébastien Da Veiga, and Mathieu Ribatet.
 Metamodels." *Statistics and Computing* 22(3), 833-847, 2012. Published
 version of [REF-IOOSS-RIBATET-MARREL-2009].
 DOI: [10.1007/s11222-011-9274-8](https://doi.org/10.1007/s11222-011-9274-8).
+
+## REF-YAO-ETAL-2018
+
+Yuling Yao, Aki Vehtari, Daniel Simpson, and Andrew Gelman. "Using Stacking
+to Average Bayesian Predictive Distributions (with Discussion)." *Bayesian
+Analysis* 13(3), 917-1007, 2018.
+DOI: [10.1214/17-BA1091](https://doi.org/10.1214/17-BA1091).
+Preprint arXiv:1704.02030.
