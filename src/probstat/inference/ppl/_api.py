@@ -34,11 +34,12 @@ from ..predictive_checks import (
     posterior_predictive_pvalues,
 )
 from ..variational import VariationalResult, advi
+from ._discrete import DiscreteDraws, recover_discrete
+from ._errors import ModelSpecificationError
 from ._program import (
     Model,
     ModelHandle,
     ModelIR,
-    ModelSpecificationError,
     SiteKind,
     SiteValue,
     flatten,
@@ -70,13 +71,18 @@ def _site_draws(
         raise KeyError(f"{name!r} is not a latent or deterministic site")
     indices = [result.index(label) for label in site.flat_names()]
     pooled = result.pooled()
+    if site.structure is not None:
+        structure = site.structure
+        return tuple(
+            structure.unflatten([draw[i] for i in indices]) for draw in pooled
+        )
     if site.size is None:
         return tuple(draw[indices[0]] for draw in pooled)
     return tuple(tuple(draw[i] for i in indices) for draw in pooled)
 
 
 def _mean(draws: Sequence[SiteValue]) -> SiteValue:
-    """Return the elementwise mean of scalar or vector draws.
+    """Return the elementwise mean of scalar, vector, or matrix draws.
 
     References:
         [EQ-MC-MEAN-001], [REF-ROBERT-CASELLA-2004, Chapter 3].
@@ -85,9 +91,18 @@ def _mean(draws: Sequence[SiteValue]) -> SiteValue:
     first = draws[0]
     if isinstance(first, tuple):
         width = len(first)
+        if width and isinstance(first[0], tuple):
+            matrices = cast(Sequence[tuple[tuple[float, ...], ...]], draws)
+            return tuple(
+                tuple(
+                    math.fsum(m[i][j] for m in matrices) / len(draws)
+                    for j in range(len(first[0]))
+                )
+                for i in range(width)
+            )
+        vectors = cast(Sequence[tuple[float, ...]], draws)
         return tuple(
-            math.fsum(d[i] for d in draws if isinstance(d, tuple)) / len(draws)
-            for i in range(width)
+            math.fsum(d[i] for d in vectors) / len(draws) for i in range(width)
         )
     return math.fsum(float(d) for d in draws if not isinstance(d, tuple)) / len(draws)
 
@@ -110,6 +125,8 @@ class PosteriorSamples:
             or :class:`LaplaceApproximation`).
         point: Constrained values at the Laplace mode or the variational mean
             (both located on the unconstrained scale), else ``None``.
+        discrete: Recovered draws and exact conditional probabilities of the
+            marginalized discrete sites (``None`` if the model has none).
 
     References:
         [REF-CARPENTER-ETAL-2017], [REF-GELMAN-ETAL-2013, Chapter 11].
@@ -122,18 +139,51 @@ class PosteriorSamples:
     unconstrained: MCMCResult
     engine: Engine
     point: dict[str, SiteValue] | None = None
+    discrete: DiscreteDraws | None = None
 
     def __getitem__(self, name: str) -> tuple[SiteValue, ...]:
-        """Return pooled draws of a site (floats, or tuples for vector sites).
+        """Return pooled draws of a site.
+
+        Floats for scalar sites, tuples for vector sites, tuples of rows for
+        matrix sites, and support values for discrete sites.
 
         Raises:
-            KeyError: If ``name`` is not a latent or deterministic site.
+            KeyError: If ``name`` is not a latent, deterministic, or
+                discrete site.
 
         References:
             Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
+        if self.discrete is not None and name in self.discrete.draws:
+            return self.discrete.draws[name]
         return _site_draws(self.constrained, self.program, name)
+
+    def discrete_probabilities(self, name: str) -> dict[object, float]:
+        """Return the posterior probability of each value of a discrete site.
+
+        The average over draws of the exact conditional probabilities
+        ``p(z = v | theta^(s), y)`` (a Rao-Blackwellized estimate).
+
+        Raises:
+            KeyError: If ``name`` is not a marginalized discrete site.
+
+        Equation:
+            [EQ-PPL-ENUM-002].
+
+        References:
+            [REF-STAN-USERS-GUIDE-2-36].
+
+        """
+        if self.discrete is None or name not in self.discrete.supports:
+            raise KeyError(f"{name!r} is not a marginalized discrete site")
+        return dict(
+            zip(
+                self.discrete.supports[name],
+                self.discrete.marginal(name),
+                strict=True,
+            )
+        )
 
     @property
     def gradient_method(self) -> str | None:
@@ -176,13 +226,16 @@ class PosteriorSamples:
 
     @property
     def names(self) -> tuple[str, ...]:
-        """Return latent and deterministic site names.
+        """Return latent and deterministic site names, then discrete ones.
 
         References:
             Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
-        return tuple(site.name for site in self.program.value_sites)
+        names = tuple(site.name for site in self.program.value_sites)
+        if self.discrete is not None:
+            names += self.discrete.names
+        return names
 
     @property
     def draw_count(self) -> int:
@@ -197,23 +250,41 @@ class PosteriorSamples:
     def mean(self, name: str) -> SiteValue:
         """Return the posterior mean of a site.
 
+        For a discrete site with numeric values this is the Rao-Blackwellized
+        mean ``sum_v v p(z = v | y)`` from :meth:`discrete_probabilities`.
+
         Equation:
-            [EQ-MC-MEAN-001].
+            [EQ-MC-MEAN-001], [EQ-PPL-ENUM-002].
 
         References:
-            [REF-ROBERT-CASELLA-2004, Chapter 3].
+            [REF-ROBERT-CASELLA-2004, Chapter 3], [REF-STAN-USERS-GUIDE-2-36].
 
         """
+        if self.discrete is not None and name in self.discrete.supports:
+            probabilities = self.discrete_probabilities(name)
+            return math.fsum(
+                float(cast(float, value)) * p for value, p in probabilities.items()
+            )
         return _mean(self[name])
 
     def draws(self) -> tuple[dict[str, SiteValue], ...]:
         """Return every pooled draw as ``{site name: value}`` (chain after chain).
 
+        Recovered discrete values are included when the model has
+        marginalized discrete sites.
+
         References:
             Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
-        return tuple(self.program.unflatten(d) for d in self.constrained.pooled())
+        values = tuple(self.program.unflatten(d) for d in self.constrained.pooled())
+        if self.discrete is None:
+            return values
+        discrete = self.discrete
+        return tuple(
+            {**draw, **{name: discrete.draws[name][s] for name in discrete.draws}}
+            for s, draw in enumerate(values)
+        )
 
     def summary(
         self, probabilities: Sequence[float] = (0.05, 0.5, 0.95)
@@ -328,17 +399,32 @@ def _with_constrained(
     unconstrained: MCMCResult,
     engine: Engine,
     point: dict[str, SiteValue] | None = None,
+    stream: RandomStream | None = None,
 ) -> PosteriorSamples:
     """Map unconstrained draws to the constrained scale and wrap them.
 
+    When the model has marginalized discrete sites, they are recovered draw
+    by draw from their exact conditional law with the child stream
+    ``"ppl-discrete"`` of ``stream``.
+
     References:
-        [REF-CARPENTER-ETAL-2017]. Equation [EQ-PPL-TRANSFORM-001].
+        [REF-CARPENTER-ETAL-2017], [REF-STAN-USERS-GUIDE-2-36]. Equations
+        [EQ-PPL-TRANSFORM-001], [EQ-PPL-ENUM-002].
 
     """
     constrained = unconstrained.transformed(
         program.flat_constrained, program.constrained_names
     )
-    return PosteriorSamples(program, method, constrained, unconstrained, engine, point)
+    discrete = None
+    if program.discrete_sites:
+        source = stream if stream is not None else resolve_stream(0)
+        discrete = recover_discrete(
+            (program.discrete_conditional(u) for u in unconstrained.pooled()),
+            source.child("ppl-discrete"),
+        )
+    return PosteriorSamples(
+        program, method, constrained, unconstrained, engine, point, discrete
+    )
 
 
 def _independent_result(
@@ -498,7 +584,7 @@ def sample(
             gradient=engine_gradient,
         )
         unconstrained = engine.mcmc
-    return _with_constrained(program, method, unconstrained, engine)
+    return _with_constrained(program, method, unconstrained, engine, stream=stream)
 
 
 def fit_advi(
@@ -571,6 +657,7 @@ def fit_advi(
         engine.as_mcmc_result(),
         engine,
         program.constrain(engine.mean),
+        stream,
     )
 
 
@@ -634,7 +721,12 @@ def laplace(
         program, samples, engine.covariance, "Laplace", sampler.seed
     )
     return _with_constrained(
-        program, "laplace", unconstrained, engine, program.constrain(engine.mode)
+        program,
+        "laplace",
+        unconstrained,
+        engine,
+        program.constrain(engine.mode),
+        stream,
     )
 
 
@@ -644,13 +736,15 @@ def laplace(
 
 
 def _as_float(value: object) -> SiteValue:
-    """Convert a simulated site value to a float or a tuple of floats.
+    """Convert a simulated site value to floats (nested for matrices).
 
     References:
         Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     if isinstance(value, tuple):
+        if value and isinstance(value[0], tuple | list):
+            return tuple(tuple(float(v) for v in row) for row in value)
         return tuple(float(v) for v in value)
     return float(value)  # type: ignore[arg-type]
 
@@ -692,7 +786,9 @@ def _simulate(
                 "model structure changed between predictive draws"
             )
         for record in handle.records:
-            sites[record.name].append(_as_float(record.value))
+            sites[record.name].append(
+                record.value if record.kind == "discrete" else _as_float(record.value)
+            )
         count += 1
     return PredictiveSamples(
         {name: tuple(values) for name, values in sites.items()}, kinds, count

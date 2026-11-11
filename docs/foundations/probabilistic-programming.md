@@ -91,7 +91,8 @@ case against a hand-derived log-density to ten digits.
 
 - a site name used twice;
 - a latent site whose support is not a continuous `RealSupport` (for
-  example `Binomial`; discrete latents must be marginalized by hand);
+  example `Binomial`), unless it is declared with `marginalize=True`
+  (section 5) or its law has a structured support;
 - a distribution without `support`;
 - `reparam="noncentered"` on a non-normal site;
 - an observed site without data;
@@ -265,16 +266,170 @@ For eight schools (lab, half-Cauchy prior):
 - The posterior predictive p-values are 0.327 for `max` (MCSE 0.020),
   0.088 for `min` (0.011), and 0.750 for `sd` (0.019).
 
-## 5. Limitations
+## 5. Structured and discrete latent sites
+
+ADR-0082 adds two kinds of latent site. Every number in this section was
+printed by `tests/test_ppl_structured_sites.py` or by a script with the
+same models and seeds.
+
+### Structured supports
+
+A site whose law lives on a simplex or on a set of matrices is mapped from
+`R^m` by the transforms of the Stan Reference Manual 2.36, chapter
+"Constraint Transforms" ([REF-STAN-REFERENCE-MANUAL-2-36]). The law is
+recognized by its type; a user law can also set its `support` to a
+`ppl.StructuredSupport`.
+
+| Law | Value | `m` | Transform |
+|---|---|---|---|
+| `multivariate.Dirichlet(alpha)` | point of the `K`-simplex | `K - 1` | stick-breaking, [EQ-PPL-TRANSFORM-003] |
+| `ppl.OrderedVector(base, n)` | increasing vector | `n` | cumulative exponentials, [EQ-PPL-TRANSFORM-004] |
+| `multivariate.LKJCholesky(d, eta)` | Cholesky factor of a correlation matrix | `d(d-1)/2` | tanh of partial correlations, [EQ-PPL-TRANSFORM-005] |
+| `multivariate.LKJCorrelation(d, eta)` | correlation matrix | `d(d-1)/2` | the same, then `L L'` |
+| `multivariate.Wishart`, `InverseWishart` | covariance matrix | `d(d+1)/2` | Cholesky with log diagonal, [EQ-PPL-TRANSFORM-006] |
+
+The stick-breaking simplex map is the one of Stan 2.36; from 2.37 Stan
+uses a softmax of a sum-to-zero vector instead. Values are tuples (vectors)
+or tuples of rows (matrices); the reported names are `p[0]`, `Sigma[1,0]`,
+and so on, and `posterior.mean("Sigma")` is a matrix.
+
+The densities of these laws are evaluated inside the PPL from the
+quantities the transform already holds (the logarithms of the simplex
+entries and of the Cholesky diagonal), with `admath`. So a prior with
+constant parameters is traceable and reverse mode applies; a likelihood
+built from library classes with latent parameters (for example
+`Multinomial(n, p)` with a latent `p`) still falls back to central
+differences. `m.observe(name, law, value)` with a law that has a
+`dimension` attribute (`Multinomial`, `MultivariateNormal`, ...) adds one
+joint `log_pdf` or `log_pmf` term for the whole vector.
+
+The LKJ law ([REF-LEWANDOWSKI-KUROWICKA-JOE-2009]) has density
+`det(Omega)^(eta - 1) / c_d(eta)` ([EQ-DIST-LKJ-001]); on the Cholesky
+factor it is `prod_k L_kk^(d - k + 2 eta - 2) / c_d(eta)`
+([EQ-DIST-LKJ-002], [REF-STAN-FUNCTIONS-REFERENCE-2-36]). Draws use
+independent Beta partial correlations ([EQ-DIST-LKJ-003]).
+
+Checks:
+
+- The log-Jacobian of every transform (simplex `K = 4`, ordered with and
+  without a bound, Cholesky correlation `d = 3`, correlation `d = 3, 4`,
+  covariance `d = 3`) agrees with the log-determinant of a central-difference
+  Jacobian to within `1e-10`; inverse and forward maps round-trip to `1e-12`.
+- `c_3(eta)` from the closed form against nested Gauss-Kronrod quadrature of
+  `det^(eta - 1)` over the 3 x 3 correlation matrices: 4.934802200544679
+  against 4.93480220054468 (`eta = 1`, which is `pi^2 / 2`), 1.8505508252042595
+  against 1.8505508252042546 (`eta = 2`), 1.0280837917801355 against
+  1.0280837917801415 (`eta = 3`). For `d = 2` the constant matches the
+  quadrature for `eta = 0.5, 1, 2, 3.7` to ten decimal places.
+- LKJ(1) on 2 x 2 matrices gives `log f = log(1/2)` for every `r`, and an
+  HMC run on that site alone gives a mean of `r` within 4 MCSE of zero.
+- The PPL log-density of an `LKJCholesky(4, 1.7)` site equals the sum of the
+  log-densities of independent `2 Beta(b_j, b_j) - 1` partial correlations
+  plus `log(1 - tanh^2)` to eleven digits, which checks the constant, the
+  Cholesky density, and the Jacobian together.
+- Dirichlet(2, 1.5, 1) with multinomial counts (12, 5, 3), NUTS (seed 3, two
+  chains of 300 + 400 draws, finite differences because `Multinomial` takes
+  float parameters):
+
+  | | NUTS (MCSE) | conjugate |
+  |---|---|---|
+  | p[0] | 0.5766 (0.0034) | 0.5714 |
+  | p[1] | 0.2579 (0.0033) | 0.2653 |
+  | p[2] | 0.1655 (0.0025) | 0.1633 |
+
+- An inverse-Wishart(nu = 6) covariance with twelve bivariate normal
+  observations (NUTS, seed 4, two chains of 250 + 250 draws): posterior
+  means 1.2458, 0.8585, 0.9645 (MCSE 0.043, 0.033, 0.031) against the
+  conjugate `(Psi + S) / (nu + n - 3)` = 1.1695, 0.8114, 0.9209.
+- Reverse mode, forward mode, and central differences agree on the gradient
+  of a model with all six structured laws.
+
+### Discrete sites
+
+`m.sample(name, law, marginalize=True)` declares a scalar discrete site
+with a finite support (an `IntegerSupport` with both bounds, or the
+`FiniteSupport` of a `Categorical`). It has no unconstrained coordinate:
+the density handed to the engines is the marginal over the discrete sites
+([EQ-PPL-ENUM-001]), evaluated by a log-sum-exp
+([REF-STAN-USERS-GUIDE-2-36]). An unbounded support such as `Poisson(3)` is
+refused with a message that points to `ppl.TruncatedDiscrete(base, lower,
+upper)`, which renormalizes a law on `{lower, ..., upper}`.
+
+```python
+def mixture(m):
+    w = m.sample("w", Dirichlet((2.0, 2.0)))
+    mu = m.sample("mu", ppl.OrderedVector(Normal(0.0, 5.0), 2))
+    for i in m.plate("data", len(y)):
+        z = m.sample(f"z[{i}]", Indicator(w[1]), marginalize=True)
+        m.observe(f"y[{i}]", UnitNormal(mu[z]), y[i])
+```
+
+- **Global sites** (outside any plate) are enumerated jointly: the model is
+  re-run once per configuration, at most 4096 configurations.
+- **Local sites** (inside an iteration of `m.plate(name, n)`) are enumerated
+  with their iteration only: the loop body is re-run once per configuration
+  of that iteration's discrete sites, so `n` binary indicators cost `2n`
+  body executions instead of `2^n`. A plate declares that its iterations are
+  conditionally independent given what comes before it
+  ([REF-OBERMEYER-ETAL-2019]); the loop body must have no side effects other
+  than site declarations, because it is repeated. Plates do not nest.
+- In each scope, the discrete sites come after every continuous latent and
+  deterministic site; only observed and further discrete sites may follow.
+  Then the unconstrained coordinates and the reported values are the same
+  in every configuration. A violation raises `ModelSpecificationError`.
+
+After sampling, each continuous draw `theta^(s)` is re-run with the
+enumeration recorded, which gives the exact conditional law of the discrete
+sites ([EQ-PPL-ENUM-002]). `posterior["z[3]"]` holds one joint draw per
+continuous draw (global configuration first, then each plate iteration),
+`posterior.discrete_probabilities("z[3]")` averages the exact conditional
+probabilities over the draws (a Rao-Blackwellized estimate), and
+`posterior.draws()` and `posterior_predictive` include the recovered
+values. `predictive_pvalues` redraws discrete sites from their laws, which
+simulates new units.
+
+Checks:
+
+- The marginalized log-density of the two-component mixture (30
+  observations) equals the hand-written mixture density to ten digits, and
+  its reverse-mode gradient agrees with central differences.
+- At a fixed `theta`, the recovered `P(z_i = 1 | theta, y_i)` equals
+  `w phi(y_i - mu_1) / ((1 - w) phi(y_i - mu_0) + w phi(y_i - mu_1))` to
+  twelve digits for all 30 observations.
+- NUTS on the mixture (seed 5, two chains of 200 + 200 draws, reverse mode,
+  about 17 s) against a 31^3 Simpson grid of the exact posterior:
+
+  | | NUTS (MCSE) | exact |
+  |---|---|---|
+  | w[1] | 0.5960 (0.0067) | 0.6059 |
+  | mu[0] | -1.9921 (0.0262) | -1.9873 |
+  | mu[1] | 1.9493 (0.0116) | 1.9408 |
+
+  One reverse-mode gradient of this model took about 2.1 ms and one
+  log-density about 0.9 ms (60 enumerated branches).
+- A truncated Poisson(6) number of trials on `{0, ..., 20}` with a binomial
+  count of 4 and a Beta(2, 2) success probability: the log-density matches
+  the explicit sum over `n` to eleven digits, and the Rao-Blackwellized
+  posterior mean of `n` from NUTS (seed 6) is 6.438 against the closed form
+  6.451 (`sum_n n TP(n) C(n, 4) B(6, n - 2)`, standard error about 0.07).
+
+## 6. Limitations
 
 - Programs built from the library distribution classes with latent
   parameters are not traceable; their gradients come from finite
   differences, so each gradient costs `2d + 1` model executions and such
   models suit up to a few tens of parameters. Traceable programs take one
   reverse-mode execution per gradient.
-- Sites are scalars or flat vectors. There are no matrix-shaped sites,
-  plates, discrete-latent enumeration, or mixture marginalization.
-- The site structure must be static.
+- There are no nested plates, no vector-valued discrete sites, and no
+  variable elimination across plate iterations (a hidden Markov chain must
+  be enumerated jointly, which the 4096-configuration limit allows only for
+  short chains). Discrete sites must come after the continuous sites of
+  their scope.
+- Structured supports are limited to the simplex, ordered vectors (base law
+  on `R` or `(a, inf)`), Cholesky factors of correlation matrices,
+  correlation matrices, and covariance matrices.
+- The site structure must be static: dynamic site structure (stochastic
+  control flow that adds or removes sites) is not supported.
 - `reparam="noncentered"` applies to `Normal` sites only.
 - Starting values cannot be supplied on the natural scale, because the
   inverse of a non-centred site depends on its parents.
@@ -296,3 +451,11 @@ For eight schools (lab, half-Cauchy prior):
 - [REF-PEARLMUTTER-1994] Exact Hessian-vector products.
 - [REF-GELMAN-ETAL-2013] BDA3, Chapters 5 (eight schools) and 6 (predictive
   checks).
+- [REF-STAN-REFERENCE-MANUAL-2-36] Constraint transforms: stick-breaking
+  simplex, ordered vectors, correlation Cholesky factors, covariance matrices.
+- [REF-STAN-FUNCTIONS-REFERENCE-2-36] LKJ and Cholesky LKJ densities.
+- [REF-LEWANDOWSKI-KUROWICKA-JOE-2009] The LKJ law and its generation from
+  partial correlations.
+- [REF-STAN-USERS-GUIDE-2-36] Marginalizing latent discrete parameters and
+  recovering them.
+- [REF-OBERMEYER-ETAL-2019] Variable elimination in plated models.

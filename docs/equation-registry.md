@@ -13487,3 +13487,172 @@ bar spans `[sqrt(E_k) - sqrt(O_k), sqrt(E_k)]`; the curve joins the points
 - Code: `visualization.fit_plots.hanging_rootogram_bars`,
   `visualization.fit_plots.plot_rootogram`.
 - Source: [REF-KLEIBER-ZEILEIS-2016].
+
+### EQ-PPL-TRANSFORM-003 — Stick-breaking bijection onto the simplex
+
+For `y` in `R^(K-1)` and one-based `k = 1..K-1`:
+`z_k = logistic(y_k - log(K - k))`, `x_k = r_(k-1) z_k`,
+`r_k = r_(k-1) (1 - z_k)` with `r_0 = 1`, and `x_K = r_(K-1)`. The absolute
+Jacobian determinant of `y -> (x_1, ..., x_(K-1))` is
+`prod_k z_k (1 - z_k) r_(k-1)`. Logarithms are carried through the map
+(`log z_k = -softplus(-t)`, `log(1 - z_k) = -softplus(t)`), so
+`log x_k = log r_(k-1) + log z_k` is exact even when `x_k` underflows.
+
+- Domain: `K >= 2`; `y = 0` maps to the centre `x = (1/K, ..., 1/K)`.
+- Meaning: a smooth bijection from `R^(K-1)` onto the open simplex; a
+  density on the first `K - 1` coordinates (the Dirichlet convention of
+  [EQ-DIST-DIR-001]) becomes a density on `y` after adding the log-Jacobian.
+- Code: `inference.ppl.StructuredSupport` (kind `"simplex"`), used for
+  `multivariate.Dirichlet` sites.
+- Source: [REF-STAN-REFERENCE-MANUAL-2-36] (section "Unit simplex").
+
+### EQ-PPL-TRANSFORM-004 — Ordered-vector bijection and the order-statistics density
+
+`x_1 = y_1` (or `x_1 = a + exp(y_1)` on `(a, inf)`),
+`x_k = x_(k-1) + exp(y_k)` for `k >= 2`;
+`log |det J| = sum_(k>=2) y_k` (plus `y_1` with the lower bound). The law of
+the sorted vector of `n` i.i.d. draws from a density `f` has density
+`n! prod_i f(x_i)` on `x_1 < ... < x_n`.
+
+- Domain: `n >= 2`; the base law has support `R` or `(a, inf)`.
+- Meaning: maps `R^n` onto strictly increasing vectors; the order-statistics
+  density gives a proper prior that removes the label symmetry of mixture
+  components.
+- Code: `inference.ppl.StructuredSupport` (kind `"ordered"`),
+  `inference.ppl.OrderedVector`.
+- Source: [REF-STAN-REFERENCE-MANUAL-2-36] (section "Ordered vector") and
+  [REF-DAVID-NAGARAJA-2003, Chapter 2] (joint density of order statistics).
+
+### EQ-PPL-TRANSFORM-005 — Tanh canonical-partial-correlation bijection onto correlation factors
+
+The `d (d - 1) / 2` coordinates `y_ij` (`i > j`, row by row) give
+`z_ij = tanh(y_ij)`; row `i` of the lower-triangular factor is
+`L_ij = z_ij sqrt(r_ij)` with `r_ij = 1 - sum_(j'<j) L_ij'^2` (computed as
+`prod_(j'<j) (1 - z_ij'^2)`) and `L_ii = sqrt(r_ii)`. The log absolute
+Jacobian onto the strictly lower entries of `L` is
+`sum log(1 - z_ij^2) + (1/2) sum_(i>j) log r_ij`, with
+`log(1 - tanh(y)^2) = 2 log 2 - 2|y| - 2 log1p(exp(-2|y|))`. For the
+correlation matrix `Omega = L L'` the map from the strictly lower entries of
+`L` to those of `Omega` adds `sum_(k=2..d) (d - k) log L_kk`.
+
+- Domain: `d >= 2`; `L L'` has a unit diagonal and is positive definite.
+- Meaning: the `z_ij` are canonical partial correlations; a smooth bijection
+  from `R^(d(d-1)/2)` onto Cholesky factors of correlation matrices and onto
+  correlation matrices.
+- Code: `inference.ppl.StructuredSupport` (kinds `"cholesky_correlation"`
+  and `"correlation"`), `multivariate.LKJCholesky.sample`.
+- Source: [REF-STAN-REFERENCE-MANUAL-2-36] (section "Cholesky factors of
+  correlation matrices"); the `L -> L L'` factor is the ratio of the two
+  densities in [REF-STAN-FUNCTIONS-REFERENCE-2-36] ([EQ-DIST-LKJ-002]).
+
+### EQ-PPL-TRANSFORM-006 — Cholesky bijection with a log diagonal onto covariance matrices
+
+The `d (d + 1) / 2` coordinates (row by row, `j <= i`) give
+`L_ii = exp(y_ii)`, `L_ij = y_ij` for `i > j`, and `Sigma = L L'`. The
+absolute Jacobian determinant onto the lower entries of `Sigma` is
+`2^d prod_(k=1..d) L_kk^(d - k + 2)` (one-based `k`).
+
+- Domain: `d >= 2`; `Sigma` is symmetric positive definite.
+- Meaning: a smooth bijection from `R^(d(d+1)/2)` onto covariance matrices;
+  Wishart and inverse-Wishart densities ([EQ-DIST-WISH-001],
+  [EQ-DIST-IWISH-001]) on the lower entries become densities on `y`.
+- Code: `inference.ppl.StructuredSupport` (kind `"covariance"`).
+- Source: [REF-STAN-REFERENCE-MANUAL-2-36] (section "Covariance matrices").
+
+### EQ-DIST-LKJ-001 — LKJ density on correlation matrices and its normalizing constant
+
+`f(Omega | eta) = det(Omega)^(eta - 1) / c_d(eta)` on `d x d` correlation
+matrices (Lebesgue measure on the strictly lower entries), with
+`c_d(eta) = prod_(k=1..d-1) [2^(2 b_k - 1) B(b_k, b_k)]^(d - k)`,
+`b_k = eta + (d - 1 - k) / 2`, equivalently
+`2^(sum_k (2 eta - 2 + d - k)(d - k)) prod_k B(b_k, b_k)^(d - k)`.
+
+- Domain: `d >= 2`, `eta > 0`; `eta = 1` is uniform, `c_2(1) = 2` and
+  `c_3(1) = pi^2 / 2`.
+- Meaning: a one-parameter prior on correlation matrices that concentrates
+  on the identity as `eta` grows. The constant is the product of the Beta
+  normalizers of the independent partial correlations of
+  [EQ-DIST-LKJ-003]; `tests/test_ppl_structured_sites.py` checks it against
+  quadrature of `det^(eta - 1)` for `d = 2` (four `eta`) and `d = 3`
+  (`eta = 1, 2, 3`).
+- Code: `multivariate.lkj_log_normalizer`, `multivariate.LKJCorrelation`.
+- Source: [REF-LEWANDOWSKI-KUROWICKA-JOE-2009];
+  [REF-STAN-FUNCTIONS-REFERENCE-2-36] (section "LKJ correlation
+  distribution").
+
+### EQ-DIST-LKJ-002 — LKJ density of the Cholesky factor
+
+With `Omega = L L'`,
+`f(L | eta) = prod_(k=2..d) L_kk^(d - k + 2 eta - 2) / c_d(eta)` on the
+strictly lower entries of `L` (one-based `k`); the factor
+`prod_k L_kk^(d - k)` is the Jacobian of `L -> Omega`.
+
+- Domain: as [EQ-DIST-LKJ-001]; `L` lower triangular with unit rows and a
+  positive diagonal.
+- Meaning: the LKJ law expressed on the Cholesky factor, which avoids the
+  determinant and the factorization of `Omega` inside a model.
+- Code: `multivariate.LKJCholesky.log_pdf`,
+  `inference.ppl` structured sites of `LKJCholesky`.
+- Source: [REF-STAN-FUNCTIONS-REFERENCE-2-36] (section "Cholesky LKJ
+  correlation distribution"), with the constant of [EQ-DIST-LKJ-001].
+
+### EQ-DIST-LKJ-003 — LKJ sampling by independent Beta partial correlations
+
+The canonical partial correlations of column `j` (zero-based) are
+independent with `z_ij = 2 B - 1`, `B ~ Beta(b_j, b_j)`,
+`b_j = eta + (d - 2 - j) / 2`; the factor is built by
+[EQ-PPL-TRANSFORM-005]. Hence each `r_ij` with `j = 0` has variance
+`1 / (2 eta + d - 1)`, and by exchangeability so has every off-diagonal
+entry.
+
+- Domain: `d >= 2`, `eta > 0`.
+- Meaning: exact draws from LKJ(eta) from `d (d - 1) / 2` Beta variates; the
+  product of their densities times the Jacobian of [EQ-PPL-TRANSFORM-005]
+  equals [EQ-DIST-LKJ-002], which the tests check to eleven digits.
+- Code: `multivariate.LKJCholesky.sample`, `multivariate.LKJCorrelation.sample`,
+  `multivariate.lkj.cpc_shape`.
+- Source: [REF-LEWANDOWSKI-KUROWICKA-JOE-2009] (vine method).
+
+### EQ-PPL-ENUM-001 — Marginalization of finite discrete sites by enumeration
+
+For discrete sites `z` with finite supports and continuous parameters
+`theta`, `log p(theta, y) = log sum_z exp(log p(theta, z, y))`, evaluated as
+`m + log sum_z exp(l_z - m)` with `m = max_z l_z` held constant. Global
+sites are enumerated jointly (`prod_k |Z_k|` executions of the model); the
+sites of plate iteration `i` are enumerated with that iteration only:
+`log p(theta, y) = l_0(theta) + sum_i log sum_(z_i) exp(l_i(theta, z_i))`,
+exact when the iterations are conditionally independent given `theta` and
+the global sites.
+
+- Domain: every discrete site follows the continuous latent and
+  deterministic sites of its scope; at most 4096 configurations per scope.
+- Meaning: the density that the gradient-based engines sample is the
+  marginal of the continuous parameters, so HMC, NUTS, ADVI, and Laplace
+  apply unchanged; per-iteration enumeration costs `sum_i |Z_i|` instead of
+  `prod_i |Z_i|` executions.
+- Code: `inference.ppl.ModelHandle.sample` (`marginalize=True`),
+  `inference.ppl.ModelHandle.plate`, `inference.ppl.ModelIR.log_density`.
+- Source: [REF-STAN-USERS-GUIDE-2-36] (section "The benefits of
+  marginalization"), [REF-OBERMEYER-ETAL-2019] (plated variable
+  elimination).
+
+### EQ-PPL-ENUM-002 — Recovery of marginalized discrete sites
+
+For a draw `theta^(s)`:
+`p(c | theta^(s), y) = exp(l_c - logsumexp_c' l_c')` over global
+configurations `c`, and
+`p(z_i | theta^(s), c, y) = exp(l_i(z_i) - logsumexp l_i)` for plate
+iteration `i`. A joint draw takes `c^(s)` and then each `z_i^(s)`. The
+posterior probability of a value is estimated by
+`(1/S) sum_s p(z = v | theta^(s), y)` (local sites averaged over `c`), the
+Rao-Blackwellized form of the indicator average.
+
+- Domain: as [EQ-PPL-ENUM-001]; `theta^(s)` from any engine.
+- Meaning: the exact conditional law gives posterior draws of the discrete
+  sites for predictive simulation and lower-variance estimates of their
+  posterior probabilities.
+- Code: `inference.ppl.ModelIR.discrete_conditional`,
+  `inference.ppl.DiscreteDraws`, `inference.ppl.PosteriorSamples.discrete_probabilities`.
+- Source: [REF-STAN-USERS-GUIDE-2-36] (sections "Posterior distribution of
+  the discrete change point" and "The mathematics of recovering marginalized
+  parameters").

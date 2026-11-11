@@ -10,6 +10,7 @@ from .conjugate import (
     normal_inverse_wishart_posterior,
 )
 from .dirichlet import Dirichlet
+from .lkj import LKJCholesky, LKJCorrelation, lkj_log_normalizer
 from .multinomial import DirichletMultinomial, Multinomial
 from .normal import MultivariateNormal
 from .student_t import MultivariateStudentT
@@ -27,6 +28,8 @@ __all__ = [
     "DirichletMultinomial",
     "DirichletPosterior",
     "InverseWishart",
+    "LKJCholesky",
+    "LKJCorrelation",
     "Matrix",
     "Multinomial",
     "MultivariateNormal",
@@ -38,6 +41,7 @@ __all__ = [
     "Wishart",
     "delta_method",
     "dirichlet_posterior",
+    "lkj_log_normalizer",
     "multivariate_log_gamma",
     "normal_inverse_wishart_posterior",
     "transformed_density",
