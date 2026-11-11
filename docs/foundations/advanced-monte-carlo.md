@@ -110,9 +110,10 @@ experiment contrasts raw-indicator and conditional Monte Carlo estimators.
 - Stratification is presently one-dimensional with equal-width strata.
 - Importance sampling is ordinary rather than self-normalized; adaptive and
   multiple importance sampling are not yet implemented.
-- Randomized quasi-Monte Carlo, Latin hypercube sampling, control
-  functionals, and rare-event proposal design remain roadmap work here;
-  multilevel Monte Carlo is covered in the section below.
+- Randomized quasi-Monte Carlo, Latin hypercube sampling, and rare-event
+  proposal design remain roadmap work here; multilevel Monte Carlo and
+  Stein control variates and control functionals are covered in the
+  sections below.
 
 The next ATHENS slice builds reliability and rare-event analysis on these
 auditable probability, cost, and importance-weight foundations.
@@ -207,3 +208,101 @@ seed=1)` (the sampler is `GeometricBrownianMotion` in
 - Multi-index MC, randomized (unbiased) MLMC, and MLQMC are not implemented.
 
 Sources: [REF-GILES-2008], [REF-GILES-2015].
+
+## Stein control variates and control functionals
+
+A classical control variate needs a control with a known mean. When the
+target density `pi` is known up to a constant, as in Bayesian computation,
+the score `u = grad log pi` manufactures such controls. The Langevin-Stein
+operator `(A phi) = Laplacian phi + grad phi . u` turns any smooth trial
+function `phi` into a function with `E_pi[A phi] = 0`, provided `phi pi`
+vanishes at infinity [EQ-MC-STEIN-001]. Samples may come from independent
+draws or from a Markov chain; `monte_carlo.stein` evaluates the integrand
+and the score once per point and reports the two counts separately.
+
+### Zero-variance control variates
+
+`estimate_zero_variance(samples, f, score, degree=2)` applies `A` to the
+monomials of degree one (`A x_j = u_j`) or up to two, then fits the
+coefficients by least squares with an unpenalized intercept and an optional
+ridge penalty [EQ-MC-STEIN-002]. This is the zero-variance principle of
+Assaraf and Caffarel as adapted to MCMC by Mira, Solgi and Imparato. For a
+Gaussian target the degree-2 controls span every centred quadratic, so a
+quadratic integrand is integrated exactly.
+
+- `method="same-sample"` fits and averages on the same points; its bias is
+  `O(1/n)` and its standard error is a plug-in value with `n - p - 1`
+  residual degrees of freedom.
+- `method="split-sample"` cross-fits over `folds` contiguous blocks: each
+  block's contributions use coefficients fitted without it, so every
+  contribution of an independent sample has expectation `E_pi[f]` exactly
+  [EQ-MC-STEIN-003].
+- `standard_error="mcmc"` replaces `sqrt(s^2/n)` by the
+  effective-sample-size standard error of the contribution series
+  [EQ-MCMC-MCSE-001].
+
+### Control functionals
+
+Replacing polynomials by a reproducing-kernel Hilbert space gives the Stein
+kernel `k0(x, y)` [EQ-MC-STEIN-004], built here from a Gaussian or an
+inverse multiquadric (IMQ) base kernel. Fitting `f ~ c + psi` with
+`psi = sum_j a_j k0(., x_j)` [EQ-MC-STEIN-005] gives two estimators:
+
+- `estimate_control_functional` (split sample): held-out contributions
+  `f(x_i) - psi(x_i)`, unbiased for independent draws, with a standard error.
+- `estimate_control_functional_weights` (kernel quadrature): the constant
+  `c = sum_i w_i f(x_i)` fitted on all points. The weights sum to one and may
+  be negative. There is no sampling standard error; `stein_discrepancy`,
+  `sqrt(w' K0 w)`, is the worst-case error over the unit ball of the Stein
+  Hilbert space.
+
+The Gram matrix is factorized by Cholesky with a relative diagonal shift
+that starts at `1e-8` and grows by powers of ten when needed; the applied
+value is reported. The length-scale is chosen by five-fold cross-validation
+on the training points over the median heuristic times `1/4 ... 4`
+(`length_scale="cv"`, the default), by the median heuristic alone, or fixed
+by the caller [EQ-MC-STEIN-006].
+
+### Kernel Stein discrepancy
+
+`kernel_stein_discrepancy(samples, score)` returns the V-statistic
+`n^-2 sum_(i,j) k0(x_i, x_j)`, its square root, and the unbiased
+U-statistic [EQ-MC-STEIN-007]. The default IMQ kernel
+`(1 + ||x - y||^2)^(-1/2)` detects non-convergence for distantly dissipative
+targets. The value is a diagnostic for comparing samples or sampler
+settings against one target, not a calibrated test.
+
+### Worked numbers (seeded, from `tests/test_stein_control_variates.py`)
+
+- Quadratic `x^2 + 3xy - y^2 + 2x - y + 4` under a correlated bivariate
+  Gaussian, `n = 40`, degree 2: error `-1.8e-15` with either method, and the
+  adjusted-to-raw variance ratio is `1.3e-31`.
+- `exp(x/2)` under `N(0, 1)`, `n = 200`: variance-reduction factor `6.3`
+  (degree 1) and `81.7` (degree 2) same-sample; `6.1` and `64.6`
+  split-sample.
+- Bias at `n = 12` for `exp(x)` under `N(0, 1)`, 400 seeds, degree 2: the
+  split-sample mean is `-1.8` standard errors from `e^(1/2)`, the
+  same-sample mean `-6.1`.
+- `cos(x)` under `N(0, 1)`, 8 seeds: plain Monte Carlo RMSE `0.112`
+  (`n = 16`) and `0.056` (`n = 64`); split-sample control functional
+  `1.8e-2` and `1.4e-4`; kernel-quadrature weights `3.1e-4` and `3.7e-5`.
+- An AR(1) chain with coefficient `0.8` targeting `N(0, 1)`, `n = 500`,
+  integrand `exp(x)`: the MCMC standard error is `0.039` against the IID
+  formula's `0.026`.
+- IMQ discrepancy of 200 standard-normal draws: `0.122`; the same draws
+  shifted by one: `0.799`.
+
+### Limits
+
+- Integration by parts needs tails of `pi` that dominate the trial
+  functions; heavy-tailed targets can make polynomial controls invalid.
+- Kernel computations cost `O(n^2 d)` kernel evaluations and `O(n^3)` for
+  each Cholesky factorization in pure Python, which limits the control
+  functional estimators to a few hundred points.
+- The split-sample standard error ignores the dependence that the fitted
+  functions create between folds, and unbiasedness for Markov-chain input is
+  only asymptotic.
+
+Sources: [REF-ASSARAF-CAFFAREL-1999], [REF-MIRA-SOLGI-IMPARATO-2013],
+[REF-OATES-GIROLAMI-CHOPIN-2017], [REF-LIU-LEE-JORDAN-2016],
+[REF-GORHAM-MACKEY-2017], [REF-GARREAU-JITKRITTUM-KANAGAWA-2017].

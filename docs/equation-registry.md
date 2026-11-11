@@ -11243,3 +11243,151 @@ number is `||K||_1 ||K^-1||_1`.
   `surrogates.GaussianProcessRegression`.
 - Source: [REF-GOLUB-VANLOAN-2013, Sections 2.6 and 3.1],
   [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
+
+### EQ-MC-STEIN-001 — Langevin-Stein operator and polynomial zero-variance controls
+
+`(A phi)(x) = Laplacian phi(x) + grad phi(x) . u(x)` with
+`u = grad log pi`; for `phi = x_j`: `A phi = u_j`; for `phi = x_j^2`:
+`A phi = 2 + 2 x_j u_j`; for `phi = x_j x_k` (`j < k`):
+`A phi = x_k u_j + x_j u_k`. Degree 1 gives `p = d` controls and degree 2
+gives `p = d + d(d+1)/2`.
+
+- Domain: `pi` continuously differentiable and positive, `phi pi` and
+  `grad phi pi` vanishing at infinity so that integration by parts gives
+  `E_pi[A phi] = 0`; only the score is needed, not the normalizing constant.
+- Meaning: zero-mean controls built from the target alone. Mira, Solgi and
+  Imparato write the renormalized integrand as
+  `f - (1/2) Laplacian P + grad P . z` with `z = -(1/2) grad log pi`, which is
+  `f - (1/2) A P`; the factor `-1/2` is absorbed into the fitted
+  coefficients. For a Gaussian target the degree-2 controls span every
+  centred polynomial of degree at most two, so such integrands are
+  integrated exactly.
+- Code: `monte_carlo.stein_polynomial_controls`,
+  `monte_carlo.estimate_zero_variance`.
+- Source: [REF-ASSARAF-CAFFAREL-1999], [REF-MIRA-SOLGI-IMPARATO-2013,
+  Section 4, Eq. (8)], [REF-OATES-GIROLAMI-CHOPIN-2017, Section 2.2.2].
+
+### EQ-MC-STEIN-002 — Least-squares zero-variance estimator and variance-reduction factor
+
+`(b, theta) = argmin sum_i (f_i - b - theta' h_i)^2 + lambda ||theta||^2`,
+`mu_hat = n^-1 sum_i (f_i - theta' h_i)`,
+`s_adj^2 = sum_i (c_i - mu_hat)^2 / (n - p - 1)` with
+`c_i = f_i - theta' h_i`, `SE = sqrt(s_adj^2 / n)`, and
+`VRF = s_f^2 / s_adj^2`.
+
+- Domain: `n >= p + 2` points and a full-rank design `[1, H]` when
+  `lambda = 0`; `lambda >= 0` penalizes `theta` only.
+- Meaning: the ordinary least-squares `theta` equals the sample version of
+  `Cov(h)^-1 Cov(h, f)`, the multivariate form of the optimal coefficient
+  `a = -Sigma_zz^-1 sigma(z, f)` of the source. Fitting on the same sample
+  introduces an `O(1/n)` bias, and the reported standard error is a plug-in
+  value. With `standard_error="mcmc"` the IID formula is replaced by the
+  effective-sample-size standard error of the contribution series
+  [EQ-MCMC-MCSE-001], scaled by `sqrt(s_adj^2 / s_c^2)`.
+- Code: `monte_carlo.estimate_zero_variance(method="same-sample")`.
+- Source: [REF-MIRA-SOLGI-IMPARATO-2013, Sections 4 and 5],
+  [REF-GOLUB-VANLOAN-2013, Section 5.3].
+
+### EQ-MC-STEIN-003 — Cross-fitted (split-sample) Stein estimator
+
+Indices are cut into `K` contiguous folds `F_1, ..., F_K`; for `i` in `F_k`,
+`c_i = f_i - g_(-k)(x_i)`, where `g_(-k)` is fitted without `F_k`
+(`theta_(-k)' h` for zero-variance controls, `psi_(-k)` for control
+functionals); `mu_hat = n^-1 sum_i c_i` and `SE = sqrt(s_c^2 / n)`.
+
+- Domain: independent draws for exact unbiasedness, `K >= 2`, and enough
+  training points per fold for the fit.
+- Meaning: since `g_(-k)` has zero mean under `pi` and is independent of the
+  held-out point, `E[c_i] = E_pi[f]` exactly. With `K = 2` it is the
+  symmetrized form of the source's split estimator on `D_0` and `D_1`. The
+  standard error ignores the weak dependence between folds through the
+  fitted functions. For Markov-chain input the contiguous folds keep
+  training and held-out blocks nearly independent, but unbiasedness then
+  holds only asymptotically.
+- Code: `monte_carlo.estimate_zero_variance(method="split-sample")`,
+  `monte_carlo.estimate_control_functional`.
+- Source: [REF-OATES-GIROLAMI-CHOPIN-2017, Sections 2.2.1 and 2.3.2,
+  Lemma 3, Eq. (3)].
+
+### EQ-MC-STEIN-004 — Stein reproducing kernel of a radial base kernel
+
+`k0(x, y) = div_x div_y k + u(x) . grad_y k + u(y) . grad_x k +
+u(x) . u(y) k`. For `k(x, y) = g(z)`, `z = ||x - y||^2`, `r = x - y`:
+`k0 = -4 g''(z) z - 2 d g'(z) - 2 g'(z) (u(x) - u(y)) . r + (u(x) . u(y)) g(z)`;
+Gaussian `g(z) = exp(-z / (2 l^2))`; inverse multiquadric
+`g(z) = (c^2 + z)^beta`, `c > 0`, `beta` in `(-1, 0)`.
+
+- Domain: twice continuously differentiable base kernel and a score `u`;
+  `E_pi[k0(X, y)] = 0` for every `y` under the integration-by-parts
+  conditions of the sources.
+- Meaning: `k0` is the reproducing kernel of the image of the base-kernel
+  Hilbert space under the Langevin-Stein operator, so every function
+  `sum_j a_j k0(., x_j)` is a zero-mean control functional. The radial
+  expansion follows from `grad_x k = 2 g' r`, `grad_y k = -2 g' r` and
+  `div_x div_y k = -4 g'' z - 2 d g'`.
+- Code: `monte_carlo.stein_kernel`, `monte_carlo.estimate_control_functional`,
+  `monte_carlo.estimate_control_functional_weights`,
+  `monte_carlo.kernel_stein_discrepancy`.
+- Source: [REF-OATES-GIROLAMI-CHOPIN-2017, Section 2.3.1, Theorem 1],
+  [REF-LIU-LEE-JORDAN-2016, Theorem 3.6], [REF-GORHAM-MACKEY-2017,
+  Section 3.1, Proposition 2, Eq. (3)].
+
+### EQ-MC-STEIN-005 — Control-functional fit and kernel-quadrature weights
+
+`A = K0 + lambda mean(diag K0) I`, `c = 1' A^-1 f / 1' A^-1 1`,
+`a = A^-1 (f - c 1)`, `psi(x) = sum_j a_j k0(x, x_j)`; on all `n` points the
+estimate is `c = w' f` with `w = A^-1 1 / (1' A^-1 1)`, `sum_i w_i = 1`.
+
+- Domain: `K0` from [EQ-MC-STEIN-004]; `lambda` starts at the requested
+  relative value (default `1e-8`) and is raised by powers of ten until the
+  Cholesky factorization of `A` succeeds, up to `1e-2`.
+- Meaning: least-squares fit of `f` by a constant plus a control functional;
+  `psi` evaluated on held-out points gives the split estimator
+  [EQ-MC-STEIN-003], and the constant fitted on all points is the
+  simplified estimator, a quadrature rule with possibly negative weights. The
+  source picks the smallest power of ten giving condition number below
+  `1e10`; the implementation uses Cholesky success instead, which avoids an
+  `O(n^3)` condition estimate.
+- Code: `monte_carlo.estimate_control_functional`,
+  `monte_carlo.estimate_control_functional_weights`.
+- Source: [REF-OATES-GIROLAMI-CHOPIN-2017, Sections 2.3.2 and 2.3.4],
+  [REF-GOLUB-VANLOAN-2013, Section 4.2].
+
+### EQ-MC-STEIN-006 — Length-scale selection by median heuristic and cross-validation
+
+`l_med = sqrt(H_n / 2)`, `H_n = median_(i<j) ||x_i - x_j||^2`; the
+cross-validated choice minimizes
+`sum_k sum_(i in F_k) (f_i - c_(-k) - psi_(-k)(x_i))^2` over the grid
+`l_med * {1/4, 1/2, 1, 2, 4}` with five contiguous folds of the training
+points.
+
+- Domain: at least two distinct points; selection uses only the training
+  points of the fit it serves, so the split estimator stays unbiased.
+- Meaning: the median heuristic fixes the scale of the grid;
+  cross-validation, used by the source for the kernel hyperparameters,
+  chooses within it. For an `N(0, 1)` target and `f = cos`, the selected
+  value was four times the median heuristic in most seeds.
+- Code: `monte_carlo.median_heuristic_length_scale`,
+  `monte_carlo.estimate_control_functional(length_scale="cv")`,
+  `monte_carlo.estimate_control_functional_weights(length_scale="cv")`.
+- Source: [REF-GARREAU-JITKRITTUM-KANAGAWA-2017, Section 2.2, Eq. (2)],
+  [REF-OATES-GIROLAMI-CHOPIN-2017, Section 2.3.4].
+
+### EQ-MC-STEIN-007 — Kernel Stein discrepancy V- and U-statistics
+
+`KSD^2_V = n^-2 sum_(i,j) k0(x_i, x_j)`, `KSD = sqrt(KSD^2_V)`,
+`KSD^2_U = (n(n-1))^-1 sum_(i != j) k0(x_i, x_j)`; for a weighted sample,
+`KSD_w = sqrt(w' K0 w)`.
+
+- Domain: [EQ-MC-STEIN-004] with the default inverse multiquadric kernel
+  `c = 1`, `beta = -1/2`; samples from any source.
+- Meaning: the V-statistic is the squared discrepancy of the empirical
+  measure, the supremum of `|E_Q[div g + g . u]|` over vector fields `g` in
+  the unit ball of the `d`-fold product of the base Hilbert space; the U-statistic is unbiased for independent draws and may
+  be negative. With `beta` in `(-1, 0)` the IMQ discrepancy detects
+  non-convergence for distantly dissipative targets. `KSD_w` is the
+  worst-case integration error of the control-functional weights.
+- Code: `monte_carlo.kernel_stein_discrepancy`,
+  `monte_carlo.estimate_control_functional_weights`.
+- Source: [REF-GORHAM-MACKEY-2017, Proposition 2 and Theorem 8],
+  [REF-LIU-LEE-JORDAN-2016, Theorem 3.6, Eq. (9), and Section 4, Eq. (14)].

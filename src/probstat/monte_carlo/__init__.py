@@ -1,4 +1,4 @@
-"""Monte Carlo estimators, convergence diagnostics, cost accounting, and MLMC."""
+"""Monte Carlo estimators, diagnostics, cost accounting, MLMC, and Stein methods."""
 
 from .estimation import (
     MonteCarloEstimate,
@@ -25,6 +25,19 @@ from .multilevel import (
     convergence_rates,
     multilevel_monte_carlo,
     optimal_level_allocation,
+)
+from .stein import (
+    ControlFunctionalResult,
+    ControlFunctionalWeightsResult,
+    KernelSteinDiscrepancy,
+    ZeroVarianceResult,
+    estimate_control_functional,
+    estimate_control_functional_weights,
+    estimate_zero_variance,
+    kernel_stein_discrepancy,
+    median_heuristic_length_scale,
+    stein_kernel,
+    stein_polynomial_controls,
 )
 from .variance_reduction import (
     ControlVariateResult,
@@ -74,4 +87,15 @@ __all__ = [
     "simulate_clt_distance",
     "simulate_running_means",
     "simulate_weak_law",
+    "ControlFunctionalResult",
+    "ControlFunctionalWeightsResult",
+    "KernelSteinDiscrepancy",
+    "ZeroVarianceResult",
+    "estimate_control_functional",
+    "estimate_control_functional_weights",
+    "estimate_zero_variance",
+    "kernel_stein_discrepancy",
+    "median_heuristic_length_scale",
+    "stein_kernel",
+    "stein_polynomial_controls",
 ]

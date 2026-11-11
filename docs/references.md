@@ -2617,3 +2617,43 @@ Cambridge, 1998.
 
 David Vose. *Risk Analysis: A Quantitative Guide*. 3rd edition, Wiley,
 Chichester, 2008.
+
+## REF-ASSARAF-CAFFAREL-1999
+
+Roland Assaraf and Michel Caffarel. "Zero-Variance Principle for Monte Carlo
+Algorithms." *Physical Review Letters* 83(23), 4682-4685, 1999.
+doi:10.1103/PhysRevLett.83.4682.
+
+## REF-MIRA-SOLGI-IMPARATO-2013
+
+Antonietta Mira, Reza Solgi, and Daniele Imparato. "Zero Variance Markov
+Chain Monte Carlo for Bayesian Estimators." *Statistics and Computing*
+23(5), 653-662, 2013. doi:10.1007/s11222-012-9344-6. Section and equation
+numbers follow arXiv:1012.2983.
+
+## REF-OATES-GIROLAMI-CHOPIN-2017
+
+Chris J. Oates, Mark Girolami, and Nicolas Chopin. "Control Functionals for
+Monte Carlo Integration." *Journal of the Royal Statistical Society: Series B
+(Statistical Methodology)* 79(3), 695-718, 2017. doi:10.1111/rssb.12185.
+Section numbers and equation numbers follow arXiv:1410.2392v5.
+
+## REF-LIU-LEE-JORDAN-2016
+
+Qiang Liu, Jason D. Lee, and Michael I. Jordan. "A Kernelized Stein
+Discrepancy for Goodness-of-fit Tests." In *Proceedings of the 33rd
+International Conference on Machine Learning*, Proceedings of Machine Learning
+Research 48, 276-284, 2016. Theorem and equation numbers follow the extended
+version, arXiv:1602.03253v2.
+
+## REF-GORHAM-MACKEY-2017
+
+Jackson Gorham and Lester Mackey. "Measuring Sample Quality with Kernels." In
+*Proceedings of the 34th International Conference on Machine Learning*,
+Proceedings of Machine Learning Research 70, 1292-1301, 2017. Section,
+proposition, and theorem numbers follow arXiv:1703.01717.
+
+## REF-GARREAU-JITKRITTUM-KANAGAWA-2017
+
+Damien Garreau, Wittawat Jitkrittum, and Motonobu Kanagawa. "Large Sample
+Analysis of the Median Heuristic." arXiv:1707.07269, 2017.
