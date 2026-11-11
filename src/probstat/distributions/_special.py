@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 from fractions import Fraction
 
+from probstat.numerics.special import digamma, log_minus_digamma
+
 from .constraints import NON_NEGATIVE_FINITE, POSITIVE_FINITE, PROBABILITY
 
 _EPSILON = 8.0 * math.ulp(1.0)
@@ -907,3 +909,73 @@ def _beta_continued_fraction(a: float, b: float, x: float) -> float:
         if abs(delta - 1.0) <= _EPSILON:
             return fraction
     raise ArithmeticError("regularized-beta continued fraction did not converge")
+
+
+_ENTROPY_ASYMPTOTIC_SHAPE = 15.0
+
+
+def beta_entropy_nats(a: float, b: float) -> float:
+    """Return the ``Beta(a, b)`` differential entropy in nats.
+
+    ``h = log B(a, b) - (a - 1) psi(a) - (b - 1) psi(b) + (a + b - 2) psi(a + b)``.
+    When ``max(a, b) >= 15`` each large argument ``x`` is expanded as
+    ``log Gamma(x) = (x - 1/2) log x - x + log sqrt(2 pi) + e(x)`` and
+    ``psi(x) = log x - L(x)`` (Stirling remainder ``e``, ``L = log - psi``),
+    so the terms of size ``x log x`` and ``x`` cancel analytically; the direct
+    sum loses all digits for shapes near ``1e15``.
+
+    Args:
+        a: Positive first shape.
+        b: Positive second shape.
+
+    Returns:
+        Differential entropy (``<= 0``, zero for the uniform ``a = b = 1``).
+
+    Raises:
+        TypeError: If a shape is not real.
+        ValueError: If a shape is not positive and finite.
+
+    Equation:
+        [EQ-INFO-DH-003], [EQ-NUM-STIRLING-001], [EQ-NUM-DIGAMMA-001].
+
+    References:
+        [REF-COVER-THOMAS-2006, Chapter 8], [REF-NIST-DLMF-GAMMA, Sections
+        5.2 and 5.11].
+
+    """
+    first = POSITIVE_FINITE.validate(a, name="alpha")
+    second = POSITIVE_FINITE.validate(b, name="beta")
+    small, large = min(first, second), max(first, second)
+    if large < _ENTROPY_ASYMPTOTIC_SHAPE:
+        log_beta = (
+            math.lgamma(first) + math.lgamma(second) - math.lgamma(first + second)
+        )
+        return (
+            log_beta
+            - (first - 1.0) * digamma(first)
+            - (second - 1.0) * digamma(second)
+            + (first + second - 2.0) * digamma(first + second)
+        )
+    total = small + large
+    # Large-argument part: (log x)/2 + e(x) + (x - 1) L(x) for the larger
+    # shape, minus 3 (log s)/2 + e(s) + (s - 2) L(s) for the sum.
+    value = (
+        0.5 * math.log(large)
+        - 1.5 * math.log(total)
+        + stirling_error(large)
+        - stirling_error(total)
+        + (large - 1.0) * log_minus_digamma(large)
+        - (total - 2.0) * log_minus_digamma(total)
+    )
+    if small >= _ENTROPY_ASYMPTOTIC_SHAPE:
+        # The linear terms -a - b + s cancel exactly; one log sqrt(2 pi) stays.
+        value += (
+            _LOG_SQRT_TWO_PI
+            + 0.5 * math.log(small)
+            + stirling_error(small)
+            + (small - 1.0) * log_minus_digamma(small)
+        )
+    else:
+        # The linear terms -large + s equal the small shape exactly.
+        value += math.lgamma(small) - (small - 1.0) * digamma(small) + small
+    return value

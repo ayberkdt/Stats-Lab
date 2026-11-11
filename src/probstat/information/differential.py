@@ -23,7 +23,11 @@ from probstat.distributions import (
     Normal,
     Uniform,
 )
-from probstat.distributions._special import log1pmx, stirling_error
+from probstat.distributions._special import (
+    beta_entropy_nats,
+    log1pmx,
+    stirling_error,
+)
 from probstat.foundations import require_finite_real
 from probstat.linalg import (
     Matrix,
@@ -312,39 +316,7 @@ def beta_entropy(alpha: float, beta: float, *, unit: InformationUnit = "nats") -
     factor = unit_factor(unit)
     a = _positive(alpha, name="alpha")
     b = _positive(beta, name="beta")
-    small, large = min(a, b), max(a, b)
-    if large < _ASYMPTOTIC_SHAPE:
-        log_beta = math.lgamma(a) + math.lgamma(b) - math.lgamma(a + b)
-        value = (
-            log_beta
-            - (a - 1.0) * digamma(a)
-            - (b - 1.0) * digamma(b)
-            + (a + b - 2.0) * digamma(a + b)
-        )
-        return value * factor
-    total = small + large
-    # Large-argument part: (log x)/2 + e(x) + (x - 1) L(x) for the larger
-    # shape, minus 3 (log s)/2 + e(s) + (s - 2) L(s) for the sum.
-    value = (
-        0.5 * math.log(large)
-        - 1.5 * math.log(total)
-        + stirling_error(large)
-        - stirling_error(total)
-        + (large - 1.0) * log_minus_digamma(large)
-        - (total - 2.0) * log_minus_digamma(total)
-    )
-    if small >= _ASYMPTOTIC_SHAPE:
-        # The linear terms -a - b + s cancel exactly; one log sqrt(2 pi) stays.
-        value += (
-            _LOG_SQRT_TWO_PI
-            + 0.5 * math.log(small)
-            + stirling_error(small)
-            + (small - 1.0) * log_minus_digamma(small)
-        )
-    else:
-        # The linear terms -large + s equal the small shape exactly.
-        value += math.lgamma(small) - (small - 1.0) * digamma(small) + small
-    return value * factor
+    return beta_entropy_nats(a, b) * factor
 
 
 def lognormal_entropy(

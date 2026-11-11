@@ -22,6 +22,7 @@ from probstat.foundations.validation import (
     require_non_negative_integer,
     require_probability,
 )
+from probstat.numerics.integration import integrate
 
 from ._base import ContinuousDistribution, _quantile_integral
 from ._continuous import brent_increasing, open_unit, safe_log
@@ -869,6 +870,107 @@ class Mixture(ContinuousDistribution):
             w * (float(c.variance) + (float(c.mean) - mean) ** 2)
             for w, c in self._pairs()
         )
+
+    def _central_moment(self, order: int) -> float:
+        """Return ``E[(X - mu)^order]`` from the component moments (orders 3, 4).
+
+        With ``d_i = mu_i - mu`` and component central moments ``m_ik``,
+        ``E[(X - mu)^3] = sum w_i (m_i3 + 3 d_i m_i2 + d_i^3)`` and
+        ``E[(X - mu)^4] = sum w_i (m_i4 + 4 d_i m_i3 + 6 d_i^2 m_i2 + d_i^4)``.
+        Components without ``skewness``/``kurtosis`` fall back to the generic
+        quadrature of the mixin; a component with an infinite moment of the
+        requested order makes the mixture moment infinite.
+
+        Equation:
+            [EQ-DIST-MIXTURE-002].
+
+        References:
+            [REF-MCLACHLAN-PEEL-2000, Chapter 1].
+
+        """
+        mean = self.mean
+        if not math.isfinite(mean) or order not in (3, 4):
+            return ContinuousDistribution._central_moment(self, order)
+        terms: list[float] = []
+        for weight, component in self._pairs():
+            if not (hasattr(component, "skewness") and hasattr(component, "kurtosis")):
+                return ContinuousDistribution._central_moment(self, order)
+            variance = float(component.variance)
+            skewness = float(component.skewness)
+            d = float(component.mean) - mean
+            if variance == 0.0:
+                m3 = m4 = 0.0
+            else:
+                m3 = skewness * variance**1.5
+                m4 = (
+                    (float(component.kurtosis) + 3.0) * variance * variance
+                    if order == 4
+                    else 0.0
+                )
+            if order == 3:
+                value = m3 + 3.0 * d * variance + d**3
+            else:
+                value = m4 + 4.0 * d * m3 + 6.0 * d * d * variance + d**4
+            if math.isnan(value):
+                return ContinuousDistribution._central_moment(self, order)
+            terms.append(weight * value)
+        return math.fsum(terms)
+
+    @property
+    def entropy(self) -> float:
+        """Return ``-int f log f`` by adaptive quadrature in ``x``.
+
+        The support is split at every finite support end and median of the
+        components (where a component density may be singular or kinked) and
+        each piece is integrated by :func:`probstat.numerics.integrate` to a
+        relative ``1e-10`` (an error estimate below ``1e-8`` is accepted); a
+        node that rounds onto a singular point (density ``inf``) is a
+        measure-zero event and contributes nothing. If a piece fails, the
+        generic probability-space quadrature of the mixin is used, and
+        ``nan`` signals that neither converged.
+
+        Equation:
+            [EQ-DIST-MIXTURE-002], [EQ-DIST-BASE-001].
+
+        References:
+            [REF-COVER-THOMAS-2006, Chapter 8], [REF-PIESSENS-QUADPACK-1983].
+
+        """
+        lows = [float(c.quantile(0.0)) for c in self.components]
+        highs = [float(c.quantile(1.0)) for c in self.components]
+        lower, upper = min(lows), max(highs)
+        inner = {v for v in lows + highs if math.isfinite(v)}
+        inner.update(float(c.quantile(0.5)) for c in self.components)
+        edges = [lower, *sorted(v for v in inner if lower < v < upper), upper]
+
+        def integrand(x: float) -> float:
+            """Return ``-f log f`` (zero where ``f`` is zero or infinite).
+
+            References:
+                [REF-COVER-THOMAS-2006, Chapter 8].
+
+            """
+            density = self.pdf(x)
+            if not (density > 0.0 and math.isfinite(density)):
+                return 0.0
+            return -density * math.log(density)
+
+        pieces: list[float] = []
+        for a, b in zip(edges, edges[1:], strict=False):
+            try:
+                result = integrate(integrand, a, b, rel_tol=1e-10, abs_tol=1e-13)
+            except (ArithmeticError, ValueError):
+                return _quantile_integral(self, lambda x: -self.log_pdf(x))
+            # Next to a singular end away from zero the nodes round onto the
+            # end, so a piece may stop just short of its 1e-10 target; an
+            # error estimate below 1e-8 is still accepted.
+            if not (
+                result.converged
+                or result.error_estimate <= 1e-8 * max(1.0, abs(result.value))
+            ):
+                return _quantile_integral(self, lambda x: -self.log_pdf(x))
+            pieces.append(result.value)
+        return math.fsum(pieces)
 
     def sample(
         self, size: int = 1, *, seed: int | RandomStream | None = None

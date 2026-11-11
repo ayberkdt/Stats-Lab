@@ -23,6 +23,7 @@ from ._continuous import (
 )
 from ._special import (
     LARGE_SHAPE,
+    beta_entropy_nats,
     log_beta_function,
     log_beta_kernel,
     regularized_beta_pair,
@@ -322,6 +323,24 @@ class Beta(ContinuousDistribution):
         """
         total = self.alpha + self.beta
         return (self.alpha / total) * (self.beta / total) / (total + 1.0)
+
+    @property
+    def entropy(self) -> float:
+        """Return the differential entropy in closed form (nats).
+
+        ``h = log B(a, b) - (a - 1) psi(a) - (b - 1) psi(b) + (a + b - 2)
+        psi(a + b)``, with the large-shape cancellation done analytically.
+        The generic probability-space quadrature returned ``nan`` for shapes
+        below one combined with a large second shape.
+
+        Equation:
+            [EQ-INFO-DH-003].
+
+        References:
+            [REF-COVER-THOMAS-2006, Chapter 8], [REF-NIST-DLMF-GAMMA, Section 5.2].
+
+        """
+        return beta_entropy_nats(self.alpha, self.beta)
 
     def sample(
         self, size: int = 1, *, seed: int | RandomStream | None = None

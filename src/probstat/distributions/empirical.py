@@ -245,6 +245,36 @@ class Empirical(ContinuousDistribution):
         )
         return total / (n - 1)
 
+    @property
+    def entropy(self) -> float:
+        """Return the differential entropy of the interpolated law in closed form.
+
+        Linear: the law is uniform with mass ``1/(n-1)`` on each gap
+        ``[x_(i), x_(i+1)]``, so ``H = (1/(n-1)) sum_i log((n-1) d_i)`` with
+        ``d_i = x_(i+1) - x_(i)``. A tied pair (``d_i = 0``) is an atom, which
+        makes the differential entropy ``-inf``. The step law is discrete and
+        has no differential entropy (``nan``).
+
+        Equation:
+            [EQ-DIST-EMPIRICAL-003].
+
+        References:
+            [REF-COVER-THOMAS-2006, Chapter 8], [REF-HYNDMAN-FAN-1996].
+
+        """
+        if self.method == "step":
+            return math.nan
+        values = self.values
+        intervals = len(values) - 1
+        log_count = math.log(intervals)
+        terms: list[float] = []
+        for low, high in zip(values, values[1:], strict=False):
+            gap = high - low
+            if gap == 0.0:
+                return -math.inf
+            terms.append(log_count + math.log(gap))
+        return math.fsum(terms) / intervals
+
     def sample(
         self, size: int = 1, *, seed: int | RandomStream | None = None
     ) -> tuple[float, ...]:

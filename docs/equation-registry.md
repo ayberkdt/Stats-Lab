@@ -7106,7 +7106,9 @@ nats.
 - Domain: positive shapes and rate; `psi` is the digamma function.
 - Meaning: from `E[log X] = psi(k) - log lambda` (gamma) and
   `E[log X] = psi(a) - psi(a+b)` (beta).
-- Code: `information.gamma_entropy`, `information.beta_entropy`.
+- Code: `information.gamma_entropy`, `information.beta_entropy`,
+  `distributions.Beta.entropy` (both through
+  `distributions._special.beta_entropy_nats`).
 - Source: [REF-COVER-THOMAS-2006, Chapter 8], [REF-NIST-DLMF-GAMMA,
   Section 5.2].
 
