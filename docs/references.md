@@ -2792,3 +2792,28 @@ Deep Feedforward Neural Networks." In *Proceedings of the Thirteenth
 International Conference on Artificial Intelligence and Statistics
 (AISTATS)*, Proceedings of Machine Learning Research 9, 249-256, 2010.
 [https://proceedings.mlr.press/v9/glorot10a.html](https://proceedings.mlr.press/v9/glorot10a.html).
+
+## REF-W3C-WCAG21-2018
+
+World Wide Web Consortium (W3C). *Web Content Accessibility Guidelines
+(WCAG) 2.1*. W3C Recommendation, 5 June 2018. Andrew Kirkpatrick, Joshue
+O Connor, Alastair Campbell, and Michael Cooper (editors).
+[https://www.w3.org/TR/2018/REC-WCAG21-20180605/](https://www.w3.org/TR/2018/REC-WCAG21-20180605/).
+Definitions of relative luminance and contrast ratio; success criteria
+1.1.1 (non-text content), 1.4.3 (contrast, minimum), 1.4.11 (non-text
+contrast), 2.4.1 (bypass blocks), and 3.1.1 (language of page).
+
+## REF-WHATWG-HTML
+
+WHATWG. *HTML Living Standard*, endorsed by the W3C as the HTML
+Recommendation. Sections on the `lang` attribute, the `alt` attribute of
+`img`, and the sectioning elements `header`, `nav`, `main`, and `footer`.
+[https://html.spec.whatwg.org/multipage/](https://html.spec.whatwg.org/multipage/).
+
+## REF-PNG-SPEC-2003
+
+World Wide Web Consortium (W3C). *Portable Network Graphics (PNG)
+Specification (Second Edition)*. W3C Recommendation, 10 November 2003;
+also ISO/IEC 15948:2003. Section 11.3.4 on textual information and the
+predefined keywords `Title` and `Description`.
+[https://www.w3.org/TR/2003/REC-PNG-20031110/](https://www.w3.org/TR/2003/REC-PNG-20031110/).

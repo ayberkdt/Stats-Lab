@@ -968,28 +968,49 @@ def sequential_colormap(palette: ChartPalette | None = None) -> Any:
     return LinearSegmentedColormap.from_list("probstat-sequential", list(ramp))
 
 
-def save_figure(figure: Any, path: str | Path, *, dpi: int = 200) -> Path:
+def save_figure(
+    figure: Any,
+    path: str | Path,
+    *,
+    dpi: int = 200,
+    description: str | None = None,
+) -> Path:
     """Save a figure with the theme canvas, tight bounds, and padding.
+
+    The file carries a text alternative (ADR-0078): PNG and SVG files get
+    ``Title`` and ``Description`` metadata, PDF files ``Title`` and
+    ``Subject``. The text is generated from the figure's titles, subtitle,
+    and axes by :func:`probstat.visualization.accessibility.describe_figure`
+    unless ``description`` is given.
 
     Args:
         figure: Matplotlib figure.
         path: Destination file path; parent directories are created.
         dpi: Output resolution.
+        description: Text alternative to store instead of the generated one.
 
     Returns:
         The written path.
 
     References:
-        [REF-MATPLOTLIB]. No equation is evaluated.
+        [REF-MATPLOTLIB], [REF-PNG-SPEC-2003], [REF-W3C-WCAG21-2018].
+        No equation is evaluated.
 
     """
+    from .accessibility import image_metadata
+
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
+    metadata = image_metadata(figure, destination)
+    if metadata is not None and description is not None:
+        key = "Subject" if "Subject" in metadata else "Description"
+        metadata[key] = " ".join(description.split())
     figure.savefig(
         destination,
         dpi=dpi,
         facecolor=figure.get_facecolor(),
         bbox_inches="tight",
         pad_inches=0.25,
+        metadata=metadata,
     )
     return destination
