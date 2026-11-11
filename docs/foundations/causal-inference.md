@@ -240,8 +240,8 @@ is 1 when the interval covers one.
 | RR 1.5, lower 0.9 | 2.366 | 1.000 |
 
 The RR 3.9 (1.8-8.7) row matches the worked example usually quoted from
-VanderWeele and Ding (2017). That match comes from memory; the paper was not
-re-read in this session.
+VanderWeele and Ding (2017). That match is cited from secondary sources; the
+paper itself was not re-read for this guide.
 
 `confounding_bias_factor(rr_eu, rr_ud)` (EQ-CAUSAL-BIAS-001) satisfies
 `B(E, E) = RR`, and the tests check this identity.

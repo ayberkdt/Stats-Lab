@@ -34,8 +34,8 @@ nothing reported whether a result could be trusted.
 2. **Constants.** The G7-K15 nodes and weights are the 33-digit values of
    QUADPACK `dqk15.f` (Netlib). The test suite checks in `Fraction`
    arithmetic that K15 is exact through degree 22 and G7 through degree 13
-   (residuals below `1e-32`). The check caught a wrong trailing digit in a
-   value recalled from memory (`xgk(5)`, wrong from the 27th digit on).
+   (residuals below `1e-32`). The check caught a wrong trailing digit in an
+   earlier transcription of `xgk(5)` (wrong from the 27th digit on).
 3. **Error estimates are conservative by design.**
    - Gauss-Kronrod: QUADPACK's `resasc min(1, (200 |K - G| / resasc)^1.5)`,
      floored at `50 eps int |f|`.

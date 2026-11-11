@@ -1,25 +1,23 @@
 # ADR-0059: Numerical core, distribution contract, sampling designs, surrogate numerics
 
-- Status: Accepted (workstream W2 of the 2026-10-16 core-mechanics programme)
+- Status: Accepted
 - Date: 2026-10-16
 
 ## Context
 
-The 2026-10-16 core-mechanics gap audit
-(`memory/sessions/2026-10-16-core-mechanics-gap-audit.md`) found defects in
-the numerical layer every analysis depends on: a BFGS stopping rule that
-scales with `|f|` (0.7), finite-difference steps floored at `1e-6` with no
-fallback at domain boundaries (0.8), no bounds or multi-start (P1.11), an
-incomplete beta that loses up to three digits for a large first shape near
-`x = 1` (0.13), no common distribution contract (P1.8, 0.14), samplers that
-call `random.Random(seed)` directly and accept any seed type, Sobol points
-limited to 16 dimensions (0.6), a biased Halton randomization, PCE fitted by
-normal equations (0.15), and a GP likelihood that factorizes twice and forms
-`K^-1` column by column (P2).
+A review of the core numerical mechanics (2026-10-16) found defects in the
+numerical layer every analysis depends on: a BFGS stopping rule that scales
+with `|f|`, finite-difference steps floored at `1e-6` with no fallback at
+domain boundaries, no bounds or multi-start, an incomplete beta that loses
+up to three digits for a large first shape near `x = 1`, no common
+distribution contract, samplers that call `random.Random(seed)` directly and
+accept any seed type, Sobol points limited to 16 dimensions, a biased Halton
+randomization, PCE fitted by normal equations, and a GP likelihood that
+factorizes twice and forms `K^-1` column by column.
 
 ## Decision
 
-1. **BFGS (0.7).** `minimize_bfgs` keeps its signature (new keyword-only
+1. **BFGS.** `minimize_bfgs` keeps its signature (new keyword-only
    `step_tolerance`, `bounds`, `typical_scale`). Stopping: absolute
    `||g||_2 <= gradient_tolerance`; relative step
    `max |s_i| / max(|x_i|, typ_i) <= eps^(2/3)` (Dennis and Schnabel);
@@ -34,7 +32,7 @@ normal equations (0.15), and a GP likelihood that factorizes twice and forms
    evaluated only where sufficient decrease holds), the identity is scaled by
    `s'y / y'y` before the first update (eq. 6.20), and the first trial step
    is `min(1, 1/||g||)`.
-2. **Finite differences (0.8).** Default step `h_i = c max(|x_i|, typ_i)`,
+2. **Finite differences.** Default step `h_i = c max(|x_i|, typ_i)`,
    `c = eps^(1/3)` (central) or `sqrt(eps)` (new `forward_gradient`), rounded
    so `x + h` is representable. `typ_i` defaults to 1 for the standalone
    functions (Dennis and Schnabel's default; a pure `|x|` rule gives rounding
@@ -47,14 +45,14 @@ normal equations (0.15), and a GP likelihood that factorizes twice and forms
    side that raises `ValueError`/`ArithmeticError` or is non-finite falls
    back to the second-order one-sided formula (first order if `x + 2h` also
    fails); both sides failing raises.
-3. **Bounds and multi-start (P1.11).** `BoxTransform` implements the MINUIT
+3. **Bounds and multi-start.** `BoxTransform` implements the MINUIT
    maps (`sin` for two bounds, `sqrt(z^2 + 1)` for one), used by
    `minimize_bfgs(bounds=)` and `minimize_nelder_mead(bounds=)`; objective
    evaluations never leave the box. Start points on a bound move inward by
    `1e-3` of the width because `dx/dz = 0` there. `multi_start` draws
    uniform starts from `resolve_stream(seed).child("multi-start")` and keeps
    the best converged run (`MultiStartResult`).
-4. **Incomplete beta (0.13).** For `max(a, b) >= 1e4`, `-log(1 - t) <= 1`
+4. **Incomplete beta.** For `max(a, b) >= 1e4`, `-log(1 - t) <= 1`
    on the small-shape side and `|s - 1| s (s + 1) <= 24 N^2`, a new
    convergent series in regularized incomplete gamma functions is used
    (EQ-NUM-BETA-002; derived here from the substitution `v = -log(1 - u)`
@@ -65,7 +63,7 @@ normal equations (0.15), and a GP likelihood that factorizes twice and forms
    unchanged elsewhere. Diagnosis: near the split point the Lentz test
    `|delta - 1| <= 8 eps` is met while ~`sqrt(a)` factors `1 + O(1/a)`
    remain.
-5. **Distribution contract (P1.8, 0.14).** New mixins
+5. **Distribution contract.** New mixins
    `ContinuousDistribution` and `DiscreteDistribution`
    (`distributions/_base.py`), inherited by every family. They wrap the
    family's `cdf/sf/pdf/log_pdf/log_cdf/log_sf` (and `pmf/log_pmf`) once at
@@ -83,7 +81,7 @@ normal equations (0.15), and a GP likelihood that factorizes twice and forms
    Student t (skewness, kurtosis, entropy), Triangular, and the Normal log
    tails. `RandomInput("x", StudentT(1))` and every new family work as model
    inputs.
-6. **New families (P2).** `Cauchy`, `Laplace`, `Rayleigh`, `Pareto` (type I),
+6. **New families.** `Cauchy`, `Laplace`, `Rayleigh`, `Pareto` (type I),
    `PERT` (beta-PERT with `lam = 4` default, `alpha = 1 + lam (m - a)/(b - a)`,
    mean `(a + lam m + b)/(lam + 2)`), `DiscreteUniform`, `Hypergeometric`
    (exact rational masses for `N <= 5000`), and wrappers `Affine` (negative
@@ -117,11 +115,11 @@ normal equations (0.15), and a GP likelihood that factorizes twice and forms
    `1e12` emits `GaussianProcessConditioningWarning`. Among restarts a
    converged run is preferred to a lower non-converged one when the gap is
    below the estimated objective noise `kappa eps (n + |f|)`.
-9. **Sampling (0.6, P2).** The Joe-Kuo `new-joe-kuo-6.21201` initial
+9. **Sampling.** The Joe-Kuo `new-joe-kuo-6.21201` initial
    direction numbers for dimensions 2-1024 were extracted from SciPy's
    copy and embedded in `sampling/_joe_kuo.py` (48 KB, with the citation and
-   the authors' BSD-style licence notice; the notice was reproduced from
-   memory of the authors' licence text and should be checked against the
+   the authors' BSD-style licence notice; the notice has not been compared
+   word for word with the authors' original and should be checked against the
    file at https://web.maths.unsw.edu.au/~fkuo/sobol/ before a release).
    `SOBOL_MAX_DIMENSION = 1024`, so `sobol_analysis` no longer falls back to
    Halton silently for 9-512 inputs. A size that is not a power of two warns
@@ -174,9 +172,9 @@ normal equations (0.15), and a GP likelihood that factorizes twice and forms
 - Halton: mean of the first scrambled point over 2000 seeds 0.4956
   (standard error 0.0065; 0.445 with the old zero-fixing permutation).
 - PCE: degree-20 Hermite fit of `exp(x/2)` with 60 LHS points succeeds for
-  all 40 seeds (33/40 failed with normal equations per the audit); mean and
+  all 40 seeds (33/40 failed with normal equations before the change); mean and
   variance within 1e-6 and 1e-5 of the lognormal closed forms.
-- GP (`d = 2`, Matern 5/2, one value+gradient evaluation, this container):
+- GP (`d = 2`, Matern 5/2, one value+gradient evaluation, one machine):
   n = 100: 0.128 s -> 0.017 s (7.4x); n = 200: 0.738 s -> 0.108 s (6.8x).
   The old fit evaluated twice per BFGS point, so per point 14.8x and 13.7x.
   A full single-start fit at n = 100: 12.0 s -> 2.2 s with the same
@@ -207,6 +205,6 @@ normal equations (0.15), and a GP likelihood that factorizes twice and forms
   sums; `Empirical(method="step")` has no density.
 - Deferred: MLE for the new families; `Categorical` CDF/quantile/mean;
   stream seeds in `monte_carlo`, `inference/bayesian.py` and
-  `reliability/analysis.py` (outside W2 ownership); LMS (Matoušek) Sobol
-  scrambling; switching the study default from digital shift to Owen
-  scrambling (changes README numbers, integrator's decision).
+  `reliability/analysis.py`; LMS (Matoušek) Sobol scrambling; switching the
+  study default from digital shift to Owen scrambling (a separate decision,
+  because it changes the README numbers).

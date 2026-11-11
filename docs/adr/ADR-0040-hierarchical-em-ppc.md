@@ -88,7 +88,7 @@ predictive check that works with sampler output.
 
 ## Evidence
 
-All values come from runs in this session:
+All values are outputs of seeded library runs:
 
 | Area | Result |
 |---|---|

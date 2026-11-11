@@ -19,7 +19,7 @@ that is `False` whenever a limit stopped the run.
 
 Every snippet below was executed; the block after it is its exact output, and
 `tests/test_prerequisite_guides.py` re-runs all of them. Snippets share one
-session, top to bottom. Errors are printed as bounds rather than as digits,
+Python namespace and run top to bottom. Errors are printed as bounds rather than as digits,
 because the last bit of `exp` and `log` can differ between C libraries.
 
 Background reading: [REF-DAVIS-RABINOWITZ-1984, Chapters 2, 5, 6],

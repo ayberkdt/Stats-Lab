@@ -49,7 +49,7 @@ def rosenbrock_gradient(x):
 
 
 class StoppingRuleTests(unittest.TestCase):
-    """Defect 0.7: the stopping rule must not scale with ``|f|``."""
+    """The stopping rule must not scale with ``|f|``."""
 
     def test_additive_constant_does_not_stop_early(self) -> None:
         """With ``f + 1e9`` the minimizer still reaches ``(1, -2)``."""
@@ -144,7 +144,7 @@ class WolfeSearchTests(unittest.TestCase):
 
 
 class FiniteDifferenceTests(unittest.TestCase):
-    """Defect 0.8: relative steps, one-sided fallback, step override."""
+    """Finite differences: relative steps, one-sided fallback, step override."""
 
     def test_small_scale_parameters(self) -> None:
         """A parameter on a 1e-6 scale is differentiated accurately."""
@@ -201,7 +201,7 @@ class FiniteDifferenceTests(unittest.TestCase):
 
 
 class BoundsAndMultiStartTests(unittest.TestCase):
-    """Defect P1.11: box bounds and seeded multi-start."""
+    """Box bounds and seeded multi-start."""
 
     def test_bfgs_and_nelder_mead_respect_bounds(self) -> None:
         """Constrained Rosenbrock minimum ``(1/2, 1/4)`` with ``f = 1/4``."""

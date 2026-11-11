@@ -38,8 +38,8 @@ noise.
      refinement of the five largest local maxima, with the support edge as a
      node. It agrees with a 40001-point scan to `1e-6`.
 4. **Berry-Esseen constant.**
-   - `C = 0.4748` (Shevtsova 2011, arXiv:1111.6554). The arXiv abstract was
-     read in this session.
+   - `C = 0.4748` (Shevtsova 2011, arXiv:1111.6554). The constant is taken
+     from the arXiv abstract.
    - The bound is not capped at one, so its vacuity for skewed summands is
      visible.
 5. **Edgeworth.** One term, non-lattice only. For a Bernoulli summand the
@@ -97,7 +97,7 @@ noise.
   Boucheron-Lugosi-Massart 2013, Hall 1992, and Lehmann-Casella 1998.
 - The section numbers cited inside Casella-Berger and Lehmann-Casella come
   from the books' standard tables of contents and were not checked against
-  the books in this session. Hall 1992 and Boucheron et al. are cited at
+  the books themselves. Hall 1992 and Boucheron et al. are cited at
   chapter or corollary level for that reason.
 - The two new test files run in about 3 s and 5 s. The lab runs in about
   2 s and prints numbers only, because no existing visualization helper

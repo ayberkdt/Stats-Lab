@@ -9,8 +9,8 @@ Figures used Matplotlib defaults with ad hoc colours per function (Tableau
 blue/orange/red), legends boxed over data, topic-label titles ("Reliability
 method comparison"), full box spines, a dual y-axis for PDF and CDF, and bar
 charts for point estimates with error bars. They read as classroom output and
-did not share any visual grammar. The owner asked for figures designed with
-the techniques of the `sunumatik` presentation system.
+did not share any visual grammar. The figures are redesigned with the
+techniques of the `sunumatik` presentation system.
 
 ## Decision
 

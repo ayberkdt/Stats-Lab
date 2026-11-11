@@ -7,7 +7,7 @@ guide that explains it in depth.
 
 Every snippet below was executed; the block after it is its exact output, and
 `tests/test_prerequisite_guides.py` re-runs all of them. Snippets share one
-session, top to bottom.
+Python namespace and run top to bottom.
 
 Background reading: [REF-CASELLA-BERGER-2002], [REF-WASSERMAN-2004],
 [REF-ROSS-2019].

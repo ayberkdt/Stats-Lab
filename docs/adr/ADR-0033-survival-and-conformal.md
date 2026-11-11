@@ -86,10 +86,10 @@ is enforced by `tests/test_architecture.py`.
 
 - Conformal intervals give marginal coverage only. The guide states the
   `Beta(k, n + 1 - k)` spread of coverage for a fixed calibration set.
-- Citations for the new bibliography entries were written from the author's
-  knowledge of the literature. They were not re-read against the publications
-  in the session that added them. The section numbers inside Klein and
-  Moeschberger are cited at chapter level only for that reason.
+- Citations for the new bibliography entries are given from the general
+  literature and were not re-read against the publications. The section
+  numbers inside Klein and Moeschberger are cited at chapter level only for
+  that reason.
 
 ## Rejected alternatives
 

@@ -1,6 +1,6 @@
 # ADR-0063: Risk register, FMECA, MIL-STD-882E matrix, F-N curves, reliability data and allocation
 
-- Status: Accepted (proposed during the 2026-10-16 session, workstream W5)
+- Status: Accepted
 - Date: 2026-10-16
 
 ## Context
@@ -16,8 +16,8 @@ from test and field data or allocation of targets to subsystems.
    numbers `C_m = beta alpha lambda_p t` and `C_r` per severity class. The
    criticality matrix uses bin edges that the user supplies. The 1629A
    qualitative probability levels and `beta` guidance are **not encoded**:
-   I could not verify every threshold, and the protocol forbids fabricated
-   tables. RPN is provided with a documented caveat (Bowles 2003). The
+   not every threshold could be verified, and unverified tables are not
+   shipped. RPN is provided with a documented caveat (Bowles 2003). The
    test enumerates all 1000 triples and confirms that only 120 distinct
    values occur. The AIAG-VDA Action Priority tables are described in the
    documentation only and not encoded.
@@ -29,12 +29,12 @@ from test and field data or allocation of targets to subsystems.
    risk always consumes two uniforms). Ranking keys, ROI, and the ROI-ordered
    waterfall are included.
 3. **`risk.hazard_matrix`.** `mil_std_882e_risk_matrix()` encodes MIL-STD-882E
-   Table III (risk levels per RAC). I am confident of every cell: High = 1A,
+   Table III (risk levels per RAC). The encoded cells are: High = 1A,
    1B, 1C, 2A, 2B; Serious = 1D, 2C, 3A, 3B; Medium = 1E, 2D, 2E, 3C, 3D,
    3E, 4A, 4B; Low = 4C, 4D, 4E; Eliminated = F. A tailored table can be
    passed instead. The numeric definitions in Tables I and II are not
-   encoded. The integrator should still compare the table with the standard
-   before the API is promoted.
+   encoded. The table should still be compared with the standard before
+   the API is promoted.
 4. **`risk.fn_curve`.** `F(N) = sum_{N_i >= N} f_i` from scenarios or event
    trees, and a criterion line `C (N_0/N)^a`. The check at step ends is
    exact for non-increasing criteria.
@@ -61,7 +61,7 @@ from test and field data or allocation of targets to subsystems.
    docstrings. Their packages stay *provisional*, because labels are per
    package (ADR-0048).
 
-## Derivations I made myself (verified numerically)
+## Derivations made here (verified numerically)
 
 - Crow-AMSAA unbiased factors: `(n - 1)/n` (time) and `(n - 2)/n`
   (failure). They follow from `2 n beta / beta_hat ~ chi2(2n)` or

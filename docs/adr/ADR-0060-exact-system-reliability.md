@@ -1,6 +1,6 @@
 # ADR-0060: Exact system reliability engine `probstat.systems`
 
-- Status: Accepted (proposed during the 2026-10-16 session, workstream W3)
+- Status: Accepted
 - Date: 2026-10-16
 
 ## Context
@@ -55,7 +55,7 @@ missions, and the epistemic uncertainty of the answer.
    potential, and structural importance. The "fractional" FV
    `(Q - Q(0_i))/Q` is *identical* to criticality, because `Q` is linear in
    `q_i`, so it is documented and not duplicated. Undefined ratios are
-   `None` and not NaN (audit item 0.17).
+   `None` and not NaN (dataclass equality stays well defined).
 5. **Epistemic moments: derivation, stated because no source was
    available.** For independent `p_v` with mean `m` and variance `s`, `R`
    is multilinear, so `E[R] = R(m)`. Expanding `F G` at the top variable

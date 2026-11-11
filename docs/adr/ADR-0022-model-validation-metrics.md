@@ -28,8 +28,8 @@ that the model is "valid".
 3. `ValidationDomain` decides bounding-box and exact convex-hull membership.
    Hull membership uses a phase-one simplex with Bland's rule in range-scaled
    coordinates. Extrapolation is flagged outside the hull or beyond a scaled
-   nearest-point distance. We chose an exact LP over an iterative min-norm
-   method because Frank-Wolfe-type methods converge too slowly to decide
+   nearest-point distance. An exact LP is used rather than an iterative
+   min-norm method because Frank-Wolfe-type methods converge too slowly to decide
    boundary cases.
 4. The metrics are separate functions with separate result types: the area
    metric (exact for step CDFs), u-pooling (PIT area and KS), Gaussian

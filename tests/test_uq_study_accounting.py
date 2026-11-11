@@ -91,7 +91,7 @@ POSTERIOR_SD = 1.0 / math.sqrt(POSTERIOR_PRECISION)
 
 
 class FailureAccountingTests(unittest.TestCase):
-    """0.1, 0.3, P1.1: failures in stages are reported and charged."""
+    """Failures in stages are reported and charged."""
 
     def test_skip_policy_stage_reports_failure_fraction(self) -> None:
         """The propagation stage keeps good runs and reports the failures."""
@@ -112,7 +112,7 @@ class FailureAccountingTests(unittest.TestCase):
         self.assertEqual(study.total_failed_evaluations, record.failed_evaluations)
 
     def test_stage_that_raises_is_recorded_with_its_cost(self) -> None:
-        """0.3: evaluations of an aborted stage stay in the study accounts."""
+        """Evaluations of an aborted stage stay in the study accounts."""
         model = capacity_model(brittle_margin)
         study = UQStudy(model, seed=4)
         study.propagate(8, design="mc")
@@ -172,7 +172,7 @@ class BudgetTests(unittest.TestCase):
 
 
 class ChainingTests(unittest.TestCase):
-    """0.4, P1.2: the posterior becomes the input law of later stages."""
+    """The posterior becomes the input law of later stages."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -285,7 +285,7 @@ class SurrogateStudyTests(unittest.TestCase):
 
 
 class PersistenceTests(unittest.TestCase):
-    """P1.3: JSON export, provenance, and pickling."""
+    """JSON export, provenance, and pickling."""
 
     def test_json_record_is_complete_and_strict(self) -> None:
         """No NaN tokens; provenance, settings, and the law hash are present."""
@@ -332,7 +332,7 @@ class PersistenceTests(unittest.TestCase):
 
 
 class FormFlagTests(unittest.TestCase):
-    """0.12: FORM convergence is recorded and unconverged runs warn."""
+    """FORM convergence is recorded and unconverged runs warn."""
 
     def test_flags_are_recorded_when_converged(self) -> None:
         """form, reliability, and design_points state 'converged: yes'."""
@@ -378,7 +378,7 @@ class FormFlagTests(unittest.TestCase):
 
 
 class StageOrderTests(unittest.TestCase):
-    """0.11: sample-based stages do not reuse quasi-random samples."""
+    """Sample-based stages do not reuse quasi-random samples."""
 
     def test_extremes_and_information_do_not_depend_on_stage_order(self) -> None:
         """With or without an earlier Sobol propagation the results agree."""
@@ -417,7 +417,7 @@ class StageOrderTests(unittest.TestCase):
 
 
 class EngineIntegrationTests(unittest.TestCase):
-    """P1.5 inside the study: executor and shared cache."""
+    """Evaluation engine inside the study: executor and shared cache."""
 
     def test_executor_does_not_change_results(self) -> None:
         """A thread pool gives the same propagation as sequential runs."""
@@ -441,7 +441,7 @@ class EngineIntegrationTests(unittest.TestCase):
 
 
 class HtmlReportTests(unittest.TestCase):
-    """0.19 and P1.3: HTML without Matplotlib and with provenance."""
+    """HTML without Matplotlib and with provenance."""
 
     def test_html_degrades_without_matplotlib_and_shows_root_seed(self) -> None:
         """The page is written without figures and says why."""

@@ -28,7 +28,7 @@ from probstat.surrogates import gaussian_process as gp_module
 
 
 class PolynomialChaosQRTests(unittest.TestCase):
-    """Defect 0.15: degree-20 Hermite fits by QR, rank deficiency reported."""
+    """Degree-20 Hermite fits by QR, rank deficiency reported."""
 
     def test_degree_twenty_hermite_fit_succeeds_for_every_seed(self) -> None:
         """40 seeds, 60 LHS points: all fits succeed; moments match closed forms."""
@@ -128,7 +128,7 @@ def dense_reference(points, targets, theta, kernel, nugget):
 
 
 class GaussianProcessNumericsTests(unittest.TestCase):
-    """Defect P2: one factorization, adaptive nugget, conditioning warning."""
+    """GP likelihood: one factorization, adaptive nugget, conditioning warning."""
 
     POINTS = tuple((0.13 * i % 1.0, (0.37 * i * i) % 1.0) for i in range(1, 16))
 

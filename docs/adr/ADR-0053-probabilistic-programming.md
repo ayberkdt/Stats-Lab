@@ -109,7 +109,7 @@ representation and an inference API on top of it.
 
 ## Rejected alternatives
 
-- **A new top-level `probstat.ppl` package.** The task asks for an
+- **A new top-level `probstat.ppl` package.** The feature is an
   inference module, and nothing above layer 2 is needed.
 - **Dual numbers threaded through the model.** Distribution validation
   converts parameters to `float`, so the derivatives would be lost silently.

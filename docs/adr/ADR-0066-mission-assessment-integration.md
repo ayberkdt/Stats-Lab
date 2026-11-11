@@ -5,7 +5,7 @@
 
 ## Context
 
-The 0.16 work added, in parallel workstreams, an exact BDD system engine
+Release 0.16 added, as separate packages, an exact BDD system engine
 (ADR-0060), analytic continuous-time Markov reliability models (ADR-0061),
 cost analysis (ADR-0062), risk registers, FMECA and reliability data
 (ADR-0063), richer input laws including epistemic inputs (ADR-0064), and
@@ -57,7 +57,7 @@ risk, with one seed and one report.
   with a 1e6 offset). One documented output in `docs/prerequisites/r-bridge.md`
   moved from `(0.33, 0.44, 0.01)` to `(0.31, 0.44, 0.02)`, which is closer
   to the analytic `(0.31, 0.44, 0.00)`.
-- Two workstreams defined `PhasedMissionResult`; the Markov one is now
+- Two packages defined `PhasedMissionResult`; the Markov one is now
   `MarkovPhasedMissionResult`. Two different Higham (2002) works shared
   one citation key; the nearest-correlation paper is now
   `REF-HIGHAM-NCM-2002`.

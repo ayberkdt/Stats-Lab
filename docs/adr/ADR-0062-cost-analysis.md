@@ -1,6 +1,6 @@
 # ADR-0062: Cost-analysis package `probstat.cost`
 
-- Status: Accepted (proposed during the 2026-10-16 session, workstream W5)
+- Status: Accepted
 - Date: 2026-10-16
 
 ## Context

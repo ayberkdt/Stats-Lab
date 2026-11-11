@@ -81,8 +81,8 @@ enforced by `tests/test_architecture.py`.
    - Eigenvalues above `-1e-10 * scale` are clipped, so the Bures distance
      accepts PSD covariances.
    - Negative powers require PD.
-   - No `sqrtm` was added to `linalg`, which is owned by other work. The
-     helper is private to `wasserstein`.
+   - No `sqrtm` was added to the public `linalg` API. The helper is
+     private to `wasserstein`.
 
 7. **Fisher information as functions.**
    - Closed forms return matrices (`1 x 1` for scalar families) in the
@@ -127,14 +127,14 @@ enforced by `tests/test_architecture.py`.
   relative to the cost spread; Fisher information for regular families only
   (support independent of `theta`); no Fisher-Rao for the full MVN; no
   Gaussian TV beyond 1-D or a shared covariance.
-- Citation status. Bibliographic details were checked by web search in this
-  session for all new references. The formula content was read directly
+- Citation status. Bibliographic details of all new references were
+  checked against online records. The formula content was read directly
   for:
   - Miyamoto et al. 2024 (arXiv v3);
   - Cichocki-Cruces-Amari 2011 (eq. 25);
   - Peyré-Cuturi 2019 (section list, Remarks 2.30-2.31, Section 3.3).
 
-  Content not read in this session: Atkinson-Mitchell 1981, Kailath 1967,
+  Content not read directly: Atkinson-Mitchell 1981, Kailath 1967,
   Gil-Alajaji-Linder 2013 (only the abstract was seen), Tsybakov 2009, and
   Dowson-Landau / Olkin-Pukelsheim (only the abstracts were seen). The
   formulas attributed to them are verified numerically in the tests.
