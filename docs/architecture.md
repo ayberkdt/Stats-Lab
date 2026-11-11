@@ -116,6 +116,42 @@ justified case so far: `reliability.active_learning` (AK-MCS) imports
 must therefore never import `reliability`.
 Cross-cutting code moves down only when it is truly domain-independent.
 
+## Module layout
+
+Within a package, one module holds one coherent concept, and its name says
+which (ADR-0073). Modules whose name starts with an underscore are private;
+the public names are the ones a package re-exports.
+
+- `distributions` has one module per family: `bernoulli`, `beta`,
+  `binomial`, `categorical`, `cauchy`, `chi_square`, `discrete_uniform`,
+  `empirical`, `exponential`, `fisher_f`, `gamma`, `geometric`, `gev`,
+  `gpd`, `gumbel`, `hypergeometric`, `laplace`, `logistic`, `lognormal`,
+  `negative_binomial`, `normal`, `pareto`, `pert`, `poisson`, `rayleigh`,
+  `student_t`, `triangular`, `truncated_normal`, `uniform`, `weibull`. The
+  composite constructions `Affine`, `Mixture`, and `Truncated` live in
+  `wrappers`; supports and parameter constraints in `support` and
+  `constraints`; shared numerical kernels in the private `_base`,
+  `_continuous`, and `_special`.
+- `workflow.study` is a subpackage that composes `UQStudy` from one mixin
+  per stage domain:
+
+  | Module | Contents |
+  |---|---|
+  | `_records` | `STAGE_STATUSES`, `StageRecord`, and the stage result records |
+  | `_context` | `_StageContext`, `_Accumulators`, shared formatting and validation helpers |
+  | `_base` | `_StudyBase` (declared state, streams, budget, stage records) and the `_stage` decorator |
+  | `_propagation` | `propagate`, `propagate_until` |
+  | `_sensitivity` | `sensitivity`, `shapley`, `screening`, `information_sensitivity` |
+  | `_reliability` | `limit_state`, `reliability`, `design_points`, `active_reliability`, `form`, `risk`, `extremes` |
+  | `_calibration` | `calibrate`, `calibrate_with_discrepancy`, `predict`, `emulate`, `adopt_posterior` |
+  | `_validation` | `verify`, `numerical_uncertainty`, `validate` |
+  | `_design` | `design` |
+  | `_reporting` | `provenance`, `to_dict`, `to_json`, `save_json`, `report` |
+  | `_core` | `UQStudy`: constructor, `from_data`, properties, `latest`, `with_inputs` |
+
+  Every mixin derives from `_StudyBase`, so each one type-checks on its own;
+  no mixin imports `_core`.
+
 ## Enforcement
 
 `tests/test_architecture.py` builds the module import graph from Python's AST
