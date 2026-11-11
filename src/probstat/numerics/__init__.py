@@ -18,7 +18,32 @@ from .gradient_oracle import GRADIENT_OPTIONS, GradientEvaluator
 from .integration import integrate
 from .integration_result import IntegrationResult
 from .networks import ACTIVATIONS, MLP
+from .profiles import (
+    DataProfile,
+    PerformanceProfile,
+    data_profile,
+    first_converged_evaluation,
+    performance_profile,
+    performance_ratios,
+)
 from .quadrature import QuadratureResult, composite_simpson, composite_trapezoid
+from .reference import (
+    ReferenceComparison,
+    compare_to_reference,
+    exact_regularized_beta,
+    reference_erf,
+    reference_erfc,
+    reference_exp,
+    reference_log,
+    reference_log_gamma,
+    reference_normal_cdf,
+    reference_normal_quantile,
+    reference_pi,
+    reference_regularized_beta,
+    reference_regularized_gamma_p,
+    reference_regularized_gamma_q,
+    ulp_error,
+)
 from .reverse_autodiff import (
     NonDifferentiableError,
     ReverseVariable,
@@ -69,4 +94,25 @@ __all__ = [
     "value_and_gradient",
     "value_gradient_and_hessian",
     "vector_jacobian_product",
+    "DataProfile",
+    "PerformanceProfile",
+    "ReferenceComparison",
+    "compare_to_reference",
+    "data_profile",
+    "exact_regularized_beta",
+    "first_converged_evaluation",
+    "performance_profile",
+    "performance_ratios",
+    "reference_erf",
+    "reference_erfc",
+    "reference_exp",
+    "reference_log",
+    "reference_log_gamma",
+    "reference_normal_cdf",
+    "reference_normal_quantile",
+    "reference_pi",
+    "reference_regularized_beta",
+    "reference_regularized_gamma_p",
+    "reference_regularized_gamma_q",
+    "ulp_error",
 ]

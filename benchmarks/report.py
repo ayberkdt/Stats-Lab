@@ -10,10 +10,17 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from benchmarks.harness import SE_FLOOR_RELATIVE
 from benchmarks.problems import Problem
+from probstat.numerics import (
+    DataProfile,
+    PerformanceProfile,
+    data_profile,
+    performance_profile,
+)
 
 Row = Mapping[str, Any]
 
@@ -30,6 +37,13 @@ CATEGORY_TITLES = {
     "calibration": "Bayesian calibration",
 }
 DASH = "-"
+#: Error at or below which a method "solves" a problem instance in the
+#: performance profiles: the *accurate* thresholds of "What the numbers say".
+SOLVED_ERROR = {"relative": ACCURATE_REL, "absolute": 0.02, "scaled": 0.05}
+#: Ratios at which the performance-profile table reports rho(tau).
+PROFILE_TAUS = (4.0, 16.0)
+#: Budgets (simplex gradients, n + 1 evaluations each) of the data profile.
+DATA_BUDGETS = (10.0, 100.0, 1000.0, 10000.0)
 
 
 def problem_meta(problem: Problem) -> dict[str, Any]:
@@ -307,6 +321,185 @@ def _unique(values: Iterable[str]) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Performance and data profiles
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CategoryProfiles:
+    """Performance and data profiles of the methods of one category.
+
+    ``instances`` are the scored (problem, quantity group) pairs; a method
+    solves an instance when its median error meets :data:`SOLVED_ERROR`, at
+    a cost of its mean model evaluations. ``excluded`` lists methods that
+    record no model evaluations, whose cost cannot enter a ratio.
+    """
+
+    category: str
+    instances: tuple[str, ...]
+    performance: PerformanceProfile
+    data: DataProfile
+    excluded: tuple[str, ...]
+
+
+def _instances(problem: Problem) -> list[tuple[str, str]]:
+    """Return the (group, error kind) pairs of a problem that are scored."""
+    return [
+        (group, kind)
+        for group, kind in problem.error_kinds.items()
+        if problem.category != "calibration" or group == "mean"
+    ]
+
+
+def category_profiles(
+    problems: Sequence[Problem], summary: Sequence[Row], category: str
+) -> CategoryProfiles | None:
+    """Return the profiles of one category, or ``None`` with < 2 methods.
+
+    Cost ``t_(p,s)``: mean model evaluations of method ``s`` on instance
+    ``p`` when its median error is at most :data:`SOLVED_ERROR`; otherwise
+    (inaccurate, failed, skipped, or not run) the instance counts as a
+    failure with ratio infinity (Dolan and Moré 2002). The data profile
+    divides the same counts by ``n_p + 1`` (Moré and Wild 2009).
+    """
+    chosen = [p for p in problems if p.category == category]
+    rows = [
+        r for r in summary if r["category"] == category and r["kind"] != "reference"
+    ]
+    methods = _unique(r["method"] for r in rows)
+    evaluated = {r["method"] for r in rows if (r.get("evaluations") or 0) > 0}
+    excluded = tuple(m for m in methods if m not in evaluated)
+    methods = [m for m in methods if m in evaluated]
+    labels: list[str] = []
+    dimensions: list[int] = []
+    costs: dict[str, list[float | None]] = {m: [] for m in methods}
+    for problem in chosen:
+        groups = _instances(problem)
+        for group, kind in groups:
+            scored = {
+                r["method"]: r
+                for r in rows
+                if r["problem"] == problem.key and r.get("group") == group
+            }
+            if not scored:
+                continue
+            labels.append(problem.key if len(groups) == 1 else f"{problem.key} {group}")
+            dimensions.append(problem.dimension)
+            for method in methods:
+                costs[method].append(_solved_cost(scored.get(method), kind))
+    if len(methods) < 2 or not labels:
+        return None
+    return CategoryProfiles(
+        category=category,
+        instances=tuple(labels),
+        performance=performance_profile(costs),
+        data=data_profile(costs, dimensions),
+        excluded=excluded,
+    )
+
+
+def _solved_cost(row: Row | None, kind: str) -> float | None:
+    """Return a row's mean evaluations if its error solves the instance."""
+    if row is None or row.get("error") is None or not row.get("evaluations"):
+        return None
+    if row["error"] > SOLVED_ERROR[kind]:
+        return None
+    return float(row["evaluations"])
+
+
+def _share(value: float, total: int) -> str:
+    """Format a profile value ``k / total`` as the fraction ``k/total``."""
+    return f"{round(value * total)}/{total}"
+
+
+def _ratio(value: float) -> str:
+    """Format a performance ratio or budget (``never`` for infinity)."""
+    if not math.isfinite(value):
+        return "never"
+    if value >= 1000.0:
+        return f"{round(value):,}"
+    return "1" if value == 1.0 else f"{value:.3g}"
+
+
+def profile_section(
+    profiles: CategoryProfiles, figure: tuple[str, str] | None = None
+) -> list[str]:
+    """Return the "Performance profiles" subsection of one category.
+
+    ``figure`` holds the light and dark figure paths; the dark one is shown
+    to readers whose system prefers a dark colour scheme.
+    """
+    performance, data = profiles.performance, profiles.data
+    total = performance.problems
+    order = sorted(
+        performance.solvers,
+        key=lambda m: (-performance.area(m), -performance.wins(m)),
+    )
+    lines = [
+        "### Performance profiles",
+        "",
+        f"{total} problem instance(s): {', '.join(profiles.instances)}. Largest "
+        f"finite ratio tau_max = {_ratio(performance.max_ratio)}; rows are sorted "
+        "by area.",
+        "",
+    ]
+    if figure:
+        light, dark = figure
+        lines.extend(
+            [
+                "<picture>",
+                f'  <source media="(prefers-color-scheme: dark)" srcset="{dark}">',
+                f'  <img alt="Performance profile, {profiles.category}" src="{light}">',
+                "</picture>",
+                "",
+            ]
+        )
+    header = (
+        "Method",
+        "Accurate on",
+        "Wins rho(1)",
+        *(f"rho({tau:g})" for tau in PROFILE_TAUS),
+        "tau for 50 %",
+        "Area",
+    )
+    body = [
+        [
+            method,
+            _share(performance.solved_fraction(method), total),
+            _share(performance.wins(method), total),
+            *(_share(performance.value(method, tau), total) for tau in PROFILE_TAUS),
+            _ratio(performance.tau_at(method, 0.5)),
+            f"{performance.area(method):.2f}",
+        ]
+        for method in order
+    ]
+    lines.extend(table(header, body))
+    lines.append("")
+    data_header = (
+        "Method",
+        *(f"d({kappa:g})" for kappa in DATA_BUDGETS),
+        "kappa for 50 %",
+    )
+    data_body = [
+        [
+            method,
+            *(_share(data.value(method, kappa), total) for kappa in DATA_BUDGETS),
+            _ratio(data.kappa_at(method, 0.5)),
+        ]
+        for method in order
+    ]
+    lines.extend(table(data_header, data_body))
+    lines.append("")
+    if profiles.excluded:
+        lines.append(
+            "- Not profiled (no model evaluations recorded, so no cost ratio): "
+            + ", ".join(profiles.excluded)
+        )
+        lines.append("")
+    return lines
+
+
+# ---------------------------------------------------------------------------
 # Findings
 # ---------------------------------------------------------------------------
 
@@ -347,8 +540,7 @@ def findings(problems: Sequence[Problem], summary: Sequence[Row]) -> list[str]:
             good = [
                 r
                 for r in scored
-                if r["error"]
-                <= {"relative": ACCURATE_REL, "absolute": 0.02, "scaled": 0.05}[kind]
+                if r["error"] <= SOLVED_ERROR[kind]
                 and r["evaluations"]
                 and not _under_reports(r)
             ]
@@ -458,9 +650,16 @@ def _under_reports(row: Row) -> bool:
 
 
 def render(
-    meta: Mapping[str, Any], problems: Sequence[Problem], summary: Sequence[Row]
+    meta: Mapping[str, Any],
+    problems: Sequence[Problem],
+    summary: Sequence[Row],
+    figures: Mapping[str, tuple[str, str]] | None = None,
 ) -> str:
-    """Return the complete Markdown report."""
+    """Return the complete Markdown report.
+
+    ``figures`` optionally maps a category to the light and dark paths
+    (relative to the report) of its performance-profile figure.
+    """
     seeds = meta["seeds"]
     lines = [
         "# Benchmarks",
@@ -491,6 +690,23 @@ def render(
         "error bar, so only their error is shown. Failures are caught and listed "
         "under each table, never dropped.",
         "",
+        "**Profiles** (ADR-0077). Each category ends with performance profiles "
+        "(Dolan and "
+        "Moré 2002) and data profiles (Moré and Wild 2009) over its problem "
+        "instances (a problem and quantity group). A method *solves* an instance "
+        "when its median error meets the *accurate* threshold of 'What the "
+        "numbers say'; its cost t is then its mean model evaluations, and its "
+        "ratio is r = t / (smallest t of any method on that instance). An "
+        "inaccurate, failed, skipped, or inapplicable method has r = infinity. "
+        "*Accurate on*: instances solved at any cost. *rho(tau)*: instances "
+        "solved with r <= tau; *Wins rho(1)* counts a tie for every tied method. "
+        "*tau for 50 %*: smallest ratio at which half the instances are solved. "
+        "*Area*: mean of rho over log2 tau in [0, log2 tau_max], 1 when a method "
+        "is the cheapest accurate one everywhere. *d(kappa)*: instances solved "
+        "within kappa (n + 1) evaluations, n the input dimension; *kappa for "
+        "50 %*: that budget for half of them. With quick-mode budgets and a "
+        "handful of instances per category the profiles are coarse.",
+        "",
     ]
     for category in ("reliability", "sensitivity", "propagation", "calibration"):
         chosen = [p for p in problems if p.category == category]
@@ -514,6 +730,9 @@ def render(
             if notes:
                 lines.extend(notes)
                 lines.append("")
+        profiles = category_profiles(chosen, summary, category)
+        if profiles is not None:
+            lines.extend(profile_section(profiles, (figures or {}).get(category)))
     lines.append("## What the numbers say")
     lines.append("")
     lines.extend(findings(problems, summary))

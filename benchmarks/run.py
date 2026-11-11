@@ -4,6 +4,8 @@ Usage (from the repository root)::
 
     python benchmarks/run.py --quick      # CI-sized, under a minute
     python benchmarks/run.py              # full sizes and seed counts
+    python benchmarks/run.py --quick --figures docs/figures/benchmarks
+                                          # also performance-profile PNGs
 
 The exit status is 1 when a method run failed unexpectedly (every failure is
 recorded in both outputs; known limitations are listed in
@@ -14,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import sys
 import time
@@ -61,6 +64,12 @@ def parse_arguments(argv: list[str]) -> argparse.Namespace:
         help="Markdown report path, or '-' to skip the report",
     )
     parser.add_argument(
+        "--figures",
+        default=None,
+        help="directory for optional performance-profile figures (light and "
+        "dark PNG per category; needs Matplotlib, skipped without it)",
+    )
+    parser.add_argument(
         "--allow-failures",
         action="store_true",
         help="exit 0 even if a method run failed unexpectedly",
@@ -81,6 +90,53 @@ def select(problems: tuple[Any, ...], only: str) -> tuple[Any, ...]:
     if not chosen:
         raise SystemExit(f"--only matched no problem: {sorted(wanted)}")
     return chosen
+
+
+def write_figures(
+    chosen: tuple[Any, ...],
+    summary: list[dict[str, Any]],
+    folder: Path,
+    relative_to: Path,
+) -> dict[str, tuple[str, str]]:
+    """Write light and dark performance-profile PNGs per category.
+
+    Returns, per category, the light and dark paths relative to
+    ``relative_to``; an empty mapping when Matplotlib is not installed.
+    """
+    from benchmarks import problems, report
+    from probstat.visualization.theme import matplotlib_available
+
+    if not matplotlib_available():
+        print("--figures: Matplotlib is not installed; figures skipped", flush=True)
+        return {}
+    import matplotlib
+
+    matplotlib.use("Agg")
+    from probstat.visualization.profile_plots import plot_performance_profile
+    from probstat.visualization.theme import (
+        GRAPHITE,
+        PORCELAIN,
+        chart_theme,
+        pyplot,
+        save_figure,
+    )
+
+    written: dict[str, tuple[str, str]] = {}
+    for category in problems.CATEGORIES:
+        profiles = report.category_profiles(chosen, summary, category)
+        if profiles is None:
+            continue
+        paths: list[str] = []
+        for palette, suffix in ((PORCELAIN, ""), (GRAPHITE, "-dark")):
+            with chart_theme(palette):
+                axes = plot_performance_profile(profiles.performance)
+                path = save_figure(
+                    axes.figure, folder / f"profile-{category}{suffix}.png"
+                )
+                pyplot().close(axes.figure)
+            paths.append(Path(os.path.relpath(path, relative_to)).as_posix())
+        written[category] = (paths[0], paths[1])
+    return written
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -138,7 +194,12 @@ def main(argv: list[str] | None = None) -> int:
     if arguments.report != "-":
         report_path = Path(arguments.report)
         report_path.parent.mkdir(parents=True, exist_ok=True)
-        report_path.write_text(report.render(meta, chosen, summary), "utf-8")
+        figures = (
+            write_figures(chosen, summary, Path(arguments.figures), report_path.parent)
+            if arguments.figures
+            else None
+        )
+        report_path.write_text(report.render(meta, chosen, summary, figures), "utf-8")
         written.append(str(report_path))
     runs = {(r["problem"], r["method"], r["seed"]): r for r in records}
     failed = [r for r in runs.values() if r["status"] == "failed"]

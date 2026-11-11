@@ -12265,3 +12265,185 @@ fraction of the iterations.
   reduces the noise a constant step leaves around the optimum.
 - Code: `optimization.adam_minimize`.
 - Source: [REF-KINGMA-BA-2015, Algorithm 1] and [REF-POLYAK-JUDITSKY-1992].
+
+## Performance profiles and multiple-precision references (ADR-0077)
+
+### EQ-NUM-PROFILE-001 — Performance ratio
+
+`r_(p,s) = t_(p,s) / min{t_(p,u) : u in S}`, with `r_(p,s) = inf` when solver
+`s` does not solve problem `p`.
+
+- Domain: a set `S` of solvers and `P` of `n_p` problems; positive costs
+  `t_(p,s)` (time, evaluations, or any performance measure).
+- Meaning: how many times more expensive solver `s` is on problem `p` than
+  the best solver on that problem. Sending the failure value `r_M` of the
+  source to infinity changes no profile value for `tau < r_M`.
+- Code: `numerics.performance_ratios`, `numerics.performance_profile`.
+- Source: [REF-DOLAN-MORE-2002, Section 2].
+
+### EQ-NUM-PROFILE-002 — Performance profile
+
+`rho_s(tau) = |{p in P : r_(p,s) <= tau}| / n_p`; `rho_s(1)` is the fraction
+of wins (ties count for every tied solver) and
+`rho_s* = lim_(tau -> inf) rho_s(tau)` the fraction of problems solved.
+
+- Domain: ratios of [EQ-NUM-PROFILE-001]; `tau` real.
+- Meaning: the distribution function of a solver's performance ratio; a
+  nondecreasing, right-continuous step function. `tau_s(f)`, the smallest
+  `tau` with `rho_s(tau) >= f`, is the ratio at which the solver solves a
+  fraction `f` of the problems.
+- Code: `numerics.PerformanceProfile.value`, `wins`, `solved_fraction`,
+  `tau_at`, `breakpoints`; `visualization.profile_plots.plot_performance_profile`.
+- Source: [REF-DOLAN-MORE-2002, Section 2].
+
+### EQ-NUM-PROFILE-003 — Normalized log2 area of a performance profile
+
+`A_s = (1/L) int_0^L rho_s(2^t) dt = (1/(n_p L)) sum_(p : r_(p,s) <= tau_max)
+(L - log2 r_(p,s))`, `L = log2 tau_max`; `A_s = rho_s(1)` when `tau_max = 1`.
+
+- Domain: a profile of [EQ-NUM-PROFILE-002]; `tau_max >= 1`, by default the
+  largest finite ratio of any solver so that all solvers share the axis.
+- Meaning: a one-number summary of a profile on the logarithmic ratio axis:
+  1 for a solver that is best on every problem, 0 for one that solves
+  nothing within `tau_max`. It is a summary chosen by this library, not a
+  quantity of the source; by Theorem 2.1 of the source, ratio changes of at
+  most `epsilon` move the area under `rho_s` on a linear axis by at most
+  `epsilon`.
+- Code: `numerics.PerformanceProfile.area`.
+- Source: [REF-DOLAN-MORE-2002, Section 2].
+
+### EQ-NUM-PROFILE-004 — Data profile and convergence test
+
+`d_s(kappa) = |{p in P : t_(p,s) / (n_p + 1) <= kappa}| / |P|`, where
+`t_(p,s)` is the number of function evaluations solver `s` needs to pass the
+convergence test `f(x_0) - f(x) >= (1 - tau)(f(x_0) - f_L)` on problem `p`
+(`f_L`: best value any solver found; `tau`: accuracy level).
+
+- Domain: problems of dimension `n_p`; `t_(p,s) = inf` when the test is never
+  passed; `kappa >= 0` in simplex gradients (`n_p + 1` evaluations each).
+- Meaning: the fraction of problems a solver solves within a computational
+  budget, independent of the other solvers.
+- Code: `numerics.data_profile`, `numerics.DataProfile`,
+  `numerics.first_converged_evaluation`; the benchmark report
+  (`benchmarks/report.py`) uses an error threshold as the test.
+- Source: [REF-MORE-WILD-2009].
+
+### EQ-NUM-REFERENCE-001 — pi from the arcsine series
+
+`pi = 6 arcsin(1/2) = 6 sum_(n >= 0) (2n)! / (4^n (n!)^2 (2n + 1)) (1/2)^(2n+1)`.
+
+- Domain: the series converges for `|z| <= 1`; at `z = 1/2` consecutive terms
+  have ratio below `1/4`, so the tail after a term `t` is below `t/3`.
+- Meaning: a positive-term series for `pi` with a rigorous truncation bound,
+  evaluated in decimal arithmetic at any precision.
+- Code: `numerics.reference_pi` (private `_pi` in `numerics.reference`).
+- Source: [REF-NIST-DLMF-ELEMENTARY, Equation 4.24.1] and
+  [REF-PYTHON-DECIMAL, Recipes].
+
+### EQ-NUM-REFERENCE-002 — Error function series and Laplace continued fraction
+
+`erf x = (2/sqrt pi) exp(-x^2) sum_(n >= 0) 2^n x^(2n+1) / (1 3 ... (2n+1))`;
+`sqrt(pi) exp(x^2) erfc x = x/(x^2 + (1/2)/(1 + 1/(x^2 + (3/2)/(1 + 2/(x^2 + ...)))))`;
+`Phi(x) = erfc(-x/sqrt 2)/2`.
+
+- Domain: real `x`; the fraction is used for `x >= max(3, sqrt(w)/2)` with `w`
+  working digits, the series below.
+- Meaning: the series has positive terms with ratio `2x^2/(2n+3)`, so once the
+  ratio is at most `1/2` the tail is below the last term; the fraction has
+  positive elements, so its convergents bracket the value and the difference
+  of successive convergents bounds the truncation error. `erfc` of moderate
+  arguments is `1 - erf` recomputed with the digits the cancellation removes;
+  `Phi` carries `log10(1 + x^2)` extra digits for the rounding of `x/sqrt 2`.
+- Code: `numerics.reference_erf`, `numerics.reference_erfc`,
+  `numerics.reference_normal_cdf`.
+- Source: [REF-NIST-DLMF, Equations 7.2.2, 7.6.2, and 7.9.1].
+
+### EQ-NUM-REFERENCE-003 — Modified Lentz evaluation and complements
+
+`f_j = f_(j-1) C_j D_j` with `D_j = 1/(b_j + a_j D_(j-1))`,
+`C_j = b_j + a_j / C_(j-1)` (zero denominators replaced by a tiny number),
+stopped when `|C_j D_j - 1| <= 10^-w`; a complement `1 - v` is accepted when
+`-log10(1 - v)`, the number of digits lost to cancellation, is at most the
+extra digits carried in `v`.
+
+- Domain: continued fractions `b_0 + a_1/(b_1 + a_2/(b_2 + ...))` with
+  `b_0 != 0`; values `v` with relative error `10^-w`.
+- Meaning: forward evaluation of a continued fraction without choosing the
+  depth in advance; the stopping test compares successive convergents. The
+  complement rule turns a relative accuracy of `v` into one of `1 - v`.
+- Code: `numerics.reference` (`_lentz`, `_complement`).
+- Source: [REF-LENTZ-1976], [REF-THOMPSON-BARNETT-1986], and
+  [REF-HIGHAM-2002, Section 1.7].
+
+### EQ-NUM-REFERENCE-004 — Normal quantile by Newton steps on log Phi
+
+`x_(k+1) = x_k - (log Phi(x_k) - log p) Phi(x_k) / phi(x_k)`,
+`phi(x) = exp(-x^2/2)/sqrt(2 pi)`, for `0 < p < 1/2`; `Phi^-1(p) = -Phi^-1(1 - p)`
+for `p > 1/2`.
+
+- Domain: `0 < p < 1`; the start is the double-precision quantile or, below
+  the float range, `x_0 = -sqrt(2L - log(4 pi L))`, `L = -log p`.
+- Meaning: Newton's method on the concave function `log Phi`, which converges
+  quadratically; iteration stops when a step is below `10^-w |x|`, after
+  which the remaining error is of the order of the squared step.
+- Code: `numerics.reference_normal_quantile`.
+- Source: [REF-NIST-DLMF, Sections 7.2 and 7.17].
+
+### EQ-NUM-REFERENCE-005 — Shifted Stirling series for log Gamma
+
+`log Gamma(x) = log Gamma(x + m) - log(x (x + 1) ... (x + m - 1))` and
+`log Gamma(z) ~ (z - 1/2) log z - z + log(2 pi)/2 + sum_(k >= 1) B_(2k) / (2k (2k - 1) z^(2k-1))`,
+with Bernoulli numbers from `sum_(k=0..n-1) C(n, k) B_k = 0` (`n >= 2`).
+
+- Domain: `x > 0`; `z = x + m >= 0.37 w + 10` for `w` working digits.
+- Meaning: for real `z > 0` the remainder after any number of terms is
+  bounded in magnitude by the first neglected term (and has its sign), so the
+  truncation error is known; near the zeros `x = 1, 2` the evaluation is
+  repeated with `log10(|log Gamma(z)| / |log Gamma(x)|)` extra digits.
+- Code: `numerics.reference_log_gamma`.
+- Source: [REF-NIST-DLMF-GAMMA, Equations 5.5.1 and 5.11.1, Section 5.11(ii)]
+  and [REF-NIST-DLMF-BERNOULLI, Equation 24.5.3].
+
+### EQ-NUM-REFERENCE-006 — Incomplete gamma series and continued fraction
+
+`P(a, x) = x^a e^-x sum_(k >= 0) x^k / Gamma(a + k + 1)` for `x < a + 1`;
+`Q(a, x) = (x^a e^-x / Gamma(a)) (1/x)/(1 + ((1-a)/x)/(1 + (1/x)/(1 + ((2-a)/x)/(1 + (2/x)/(1 + ...)))))`
+for `x >= a + 1`.
+
+- Domain: `a > 0`, `x >= 0`.
+- Meaning: the series has positive terms with ratio `x/(a + k + 1)`, so its
+  tail is bounded once the ratio is at most `1/2`; the fraction is evaluated
+  by [EQ-NUM-REFERENCE-003] and terminates for integer `a`. The prefactor
+  `exp(a log x - x - log Gamma(a))` is formed with `log10` of its exponent in
+  extra digits; the other ratio is a complement with full relative accuracy.
+- Code: `numerics.reference_regularized_gamma_p`,
+  `numerics.reference_regularized_gamma_q`.
+- Source: [REF-NIST-DLMF-GAMMA, Equations 8.7.1 and 8.9.2].
+
+### EQ-NUM-REFERENCE-007 — Incomplete beta continued fraction and integer case
+
+`I_x(a, b) = (x^a (1-x)^b / (a B(a, b))) / (1 + d_1/(1 + d_2/(1 + ...)))`,
+`d_(2m) = m(b-m)x / ((a+2m-1)(a+2m))`, `d_(2m+1) = -(a+m)(a+b+m)x / ((a+2m)(a+2m+1))`,
+for `x < (a + 1)/(a + b + 2)`, otherwise `I_x(a, b) = 1 - I_(1-x)(b, a)`; for
+positive integers `I_x(m, n - m + 1) = sum_(j=m..n) C(n, j) x^j (1-x)^(n-j)`.
+
+- Domain: `0 <= x <= 1`, `a, b > 0` (integers for the binomial sum).
+- Meaning: the fraction converges fastest below the switch point; the
+  binomial sum gives the integer case exactly in rational arithmetic.
+- Code: `numerics.reference_regularized_beta`,
+  `numerics.exact_regularized_beta`.
+- Source: [REF-NIST-DLMF-BETA, Equations 8.17.4, 8.17.5, 8.17.22, and
+  8.17.23].
+
+### EQ-NUM-REFERENCE-008 — Error in units in the last place
+
+`ulp_err(y) = |y - v| / ulp(fl(v))`, with `v` the high-precision reference,
+`fl(v)` its nearest double, and `ulp` the spacing of doubles at `fl(v)`.
+
+- Domain: finite `v` within the double range; `y` the double result under
+  test (`inf` error when `y` is not finite).
+- Meaning: a correctly rounded result scores at most `0.5`; a budget of `k`
+  ULPs bounds the relative error by about `k 2^-52`.
+- Code: `numerics.ulp_error`, `numerics.compare_to_reference`,
+  `numerics.ReferenceComparison`.
+- Source: [REF-GOLDBERG-1991, Section 1.2] and [REF-PYTHON-MATH].
