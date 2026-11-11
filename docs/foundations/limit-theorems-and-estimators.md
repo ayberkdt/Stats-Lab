@@ -285,5 +285,8 @@ vanish, the bound goes to zero and the estimator is consistent.
 - The Edgeworth expansion is one term and non-lattice only.
 - Hoeffding and Bernstein are given in their bounded-support forms only.
 - `check_sufficiency` can refute sufficiency but cannot prove it.
-- Completeness is discussed but not checked numerically.
+- Completeness is not checked for continuous families. For finite families
+  over a finite sample space `probability.check_completeness` decides it
+  exactly; see [measure-theoretic probability](measure-theoretic-probability.md),
+  Section 8.
 - `mle_efficiency` covers five family/estimand pairs with exact moments.

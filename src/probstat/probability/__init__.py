@@ -1,4 +1,4 @@
-"""Finite sample spaces, probability measures, and exact counting tools."""
+"""Finite sample spaces, probability and general finite measures, and counting."""
 
 from .counting import combinations, factorial, multiplication_rule, permutations
 from .finite import FiniteEvent, FiniteProbabilityMeasure, FiniteSampleSpace
@@ -27,6 +27,15 @@ from .limit_theorems import (
     sample_mean_two_sided_tail,
     sample_mean_upper_tail,
     standardized_mean_cdf,
+)
+from .measure import (
+    CompletenessCheck,
+    FiniteMeasurableSpace,
+    FiniteMeasure,
+    FubiniCheck,
+    check_completeness,
+    is_complete_statistic,
+    is_sigma_algebra,
 )
 from .random_variables import FiniteJointDistribution, FiniteRandomVariable
 
@@ -64,5 +73,12 @@ __all__ = [
     "sample_mean_two_sided_tail",
     "sample_mean_upper_tail",
     "standardized_mean_cdf",
+    "CompletenessCheck",
+    "FiniteMeasurableSpace",
+    "FiniteMeasure",
+    "FubiniCheck",
+    "check_completeness",
+    "is_complete_statistic",
+    "is_sigma_algebra",
 ]
 
