@@ -12,7 +12,7 @@ import math
 import random
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import require_non_negative_integer
@@ -145,19 +145,84 @@ class PosteriorSamples:
         """Return pooled draws of a site.
 
         Floats for scalar sites, tuples for vector sites, tuples of rows for
-        matrix sites, and support values for discrete sites.
+        matrix sites, and support values for discrete sites. Under dynamic
+        site structure, a draw whose recovered configuration does not
+        declare the site holds ``None`` (``posterior.constrained`` keeps its
+        pseudo-prior value there).
 
         Raises:
             KeyError: If ``name`` is not a latent, deterministic, or
                 discrete site.
 
         References:
-            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. Equation
+            [EQ-PPL-DYNAMIC-001].
 
         """
         if self.discrete is not None and name in self.discrete.draws:
             return self.discrete.draws[name]
-        return _site_draws(self.constrained, self.program, name)
+        draws = _site_draws(self.constrained, self.program, name)
+        if self._always_present(name):
+            return draws
+        mask = self.present(name)
+        masked: list[Any] = [
+            draw if keep else None for draw, keep in zip(draws, mask, strict=True)
+        ]
+        return tuple(masked)
+
+    def _always_present(self, name: str) -> bool:
+        """Return whether every traced configuration declares a site.
+
+        References:
+            [EQ-PPL-DYNAMIC-001]. No new equation is introduced.
+
+        """
+        program = self.program
+        return not program.dynamic or len(program.presence(name)) == len(
+            program.structures
+        )
+
+    def present(self, name: str) -> tuple[bool, ...]:
+        """Return, per draw, whether the recovered configuration declares a site.
+
+        Always true for a model with a static site structure.
+
+        Raises:
+            KeyError: If no traced configuration declares ``name``.
+
+        References:
+            [EQ-PPL-DYNAMIC-001], [REF-CARLIN-CHIB-1995].
+
+        """
+        indices = self.program.presence(name)
+        if self._always_present(name) or self.discrete is None:
+            return (True,) * self.draw_count
+        return tuple(chosen in indices for chosen in self.discrete.structures)
+
+    def presence_probability(self, name: str) -> float:
+        """Return the posterior probability that a site is declared.
+
+        ``(1/S) sum_s sum_(c declares the site) p(c | theta^(s), y)``, the
+        Rao-Blackwellized estimate of the posterior probability of the
+        structures that contain the site (``1`` under a static structure).
+
+        Raises:
+            KeyError: If no traced configuration declares ``name``.
+
+        Equation:
+            [EQ-PPL-ENUM-002], [EQ-PPL-DYNAMIC-001].
+
+        References:
+            [REF-CARLIN-CHIB-1995], [REF-STAN-USERS-GUIDE-2-36].
+
+        """
+        indices = self.program.presence(name)
+        if self._always_present(name) or self.discrete is None:
+            return 1.0
+        rows = self.discrete.structure_probabilities
+        return math.fsum(math.fsum(row[c] for c in indices) for row in rows) / len(
+            rows
+        )
 
     def discrete_probabilities(self, name: str) -> dict[object, float]:
         """Return the posterior probability of each value of a discrete site.
@@ -251,7 +316,16 @@ class PosteriorSamples:
         """Return the posterior mean of a site.
 
         For a discrete site with numeric values this is the Rao-Blackwellized
-        mean ``sum_v v p(z = v | y)`` from :meth:`discrete_probabilities`.
+        mean ``sum_v v p(z = v | y)`` from :meth:`discrete_probabilities`
+        (elementwise for a vector site). Under dynamic site structure, it is
+        the posterior mean given that the site is declared: for a continuous
+        site, the mean over the draws whose recovered configuration declares
+        it; for a discrete site, the Rao-Blackwellized mean divided by the
+        probability that it is declared.
+
+        Raises:
+            KeyError: If ``name`` is not a site.
+            ValueError: If no draw declares the site.
 
         Equation:
             [EQ-MC-MEAN-001], [EQ-PPL-ENUM-002].
@@ -262,25 +336,62 @@ class PosteriorSamples:
         """
         if self.discrete is not None and name in self.discrete.supports:
             probabilities = self.discrete_probabilities(name)
-            return math.fsum(
+            mass = 1.0
+            if not self._always_present(name):
+                mass = math.fsum(probabilities.values())
+            if mass == 0.0:
+                raise ValueError(f"no draw declares the site {name!r}")
+            first = next(iter(probabilities))
+            if isinstance(first, tuple):
+                width = len(first)
+                return tuple(
+                    math.fsum(
+                        float(cast(tuple[float, ...], value)[k]) * p
+                        for value, p in probabilities.items()
+                    )
+                    / mass
+                    for k in range(width)
+                )
+            total = math.fsum(
                 float(cast(float, value)) * p for value, p in probabilities.items()
             )
-        return _mean(self[name])
+            return total / mass if mass != 1.0 else total
+        draws = [draw for draw in self[name] if draw is not None]
+        if not draws:
+            raise ValueError(f"no draw declares the site {name!r}")
+        return _mean(draws)
 
     def draws(self) -> tuple[dict[str, SiteValue], ...]:
         """Return every pooled draw as ``{site name: value}`` (chain after chain).
 
         Recovered discrete values are included when the model has
-        marginalized discrete sites.
+        marginalized discrete sites. Under dynamic site structure, each draw
+        holds only the sites its recovered configuration declares.
 
         References:
-            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. Equation [EQ-PPL-DYNAMIC-001].
 
         """
         values = tuple(self.program.unflatten(d) for d in self.constrained.pooled())
         if self.discrete is None:
             return values
         discrete = self.discrete
+        if self.program.dynamic:
+            structures = self.program.structures
+            declared = [frozenset(s.names) for s in structures]
+            return tuple(
+                {
+                    **{k: v for k, v in draw.items() if k in declared[chosen]},
+                    **{
+                        name: discrete.draws[name][s]
+                        for name in discrete.draws
+                        if discrete.draws[name][s] is not None
+                    },
+                }
+                for s, (draw, chosen) in enumerate(
+                    zip(values, discrete.structures, strict=True)
+                )
+            )
         return tuple(
             {**draw, **{name: discrete.draws[name][s] for name in discrete.draws}}
             for s, draw in enumerate(values)
@@ -321,6 +432,9 @@ class PosteriorSamples:
 class PredictiveSamples:
     """Simulated values of every site of a model, keyed by site name.
 
+    Under dynamic site structure a site that a simulated configuration does
+    not declare holds ``None`` in that draw.
+
     Args:
         sites: ``{name: draws}``; a draw is a float or a tuple of floats.
         kinds: ``{name: "latent" | "observed" | "deterministic"}``.
@@ -360,7 +474,10 @@ class PredictiveSamples:
         return tuple(self.sites)
 
     def mean(self, name: str) -> SiteValue:
-        """Return the Monte Carlo mean of a site.
+        """Return the Monte Carlo mean of a site over the draws that declare it.
+
+        Raises:
+            ValueError: If no draw declares the site.
 
         Equation:
             [EQ-MC-MEAN-001].
@@ -369,7 +486,10 @@ class PredictiveSamples:
             [REF-ROBERT-CASELLA-2004, Chapter 3].
 
         """
-        return _mean(self[name])
+        draws = [draw for draw in self[name] if draw is not None]
+        if not draws:
+            raise ValueError(f"no draw declares the site {name!r}")
+        return _mean(draws)
 
 
 # ---------------------------------------------------------------------------
@@ -412,6 +532,10 @@ def _with_constrained(
         [EQ-PPL-TRANSFORM-001], [EQ-PPL-ENUM-002].
 
     """
+    if program.per_configuration:
+        return _with_configurations(
+            program, method, unconstrained, engine, point, stream
+        )
     constrained = unconstrained.transformed(
         program.flat_constrained, program.constrained_names
     )
@@ -422,6 +546,58 @@ def _with_constrained(
             (program.discrete_conditional(u) for u in unconstrained.pooled()),
             source.child("ppl-discrete"),
         )
+    return PosteriorSamples(
+        program, method, constrained, unconstrained, engine, point, discrete
+    )
+
+
+def _with_configurations(
+    program: ModelIR,
+    method: str,
+    unconstrained: MCMCResult,
+    engine: Engine,
+    point: dict[str, SiteValue] | None,
+    stream: RandomStream | None,
+) -> PosteriorSamples:
+    """Recover the configuration of every draw, then report values under it.
+
+    For a model evaluated configuration by configuration (dynamic site
+    structure, or continuous sites after a global discrete site), the
+    global configuration ``c^(s) ~ p(c | theta^(s), y)`` is drawn first and
+    the constrained values of draw ``s`` are those of configuration
+    ``c^(s)``; sites it does not declare keep their pseudo-prior values.
+
+    References:
+        [EQ-PPL-DYNAMIC-001], [EQ-PPL-ENUM-002], [REF-CARLIN-CHIB-1995].
+
+    """
+    records = [program.recovery_record(u) for u in unconstrained.pooled()]
+    source = stream if stream is not None else resolve_stream(0)
+    discrete = recover_discrete(
+        (conditional for conditional, _ in records),
+        source.child("ppl-discrete"),
+        keep_structures=True,
+    )
+    flat = iter(
+        [
+            flatten(values[chosen], program.value_sites)
+            for (_, values), chosen in zip(records, discrete.structures, strict=True)
+        ]
+    )
+
+    def next_draw(_: Vector) -> Vector:
+        """Return the precomputed constrained values of the next draw.
+
+        ``MCMCResult.transformed`` visits the draws chain after chain, the
+        order of ``pooled``.
+
+        References:
+            [EQ-PPL-DYNAMIC-001]. No new equation is introduced.
+
+        """
+        return next(flat)
+
+    constrained = unconstrained.transformed(next_draw, program.constrained_names)
     return PosteriorSamples(
         program, method, constrained, unconstrained, engine, point, discrete
     )
@@ -763,9 +939,8 @@ def _simulate(
     if not callable(model):
         raise TypeError("model must be callable")
     generator = stream.generator()
-    sites: dict[str, list[SiteValue]] = {}
+    sites: dict[str, list[SiteValue | None]] = {}
     kinds: dict[str, SiteKind] = {}
-    layout: tuple[str, ...] | None = None
     count = 0
     for fixed in fixed_draws:
         handle = ModelHandle(
@@ -775,23 +950,30 @@ def _simulate(
             generator=generator,
         )
         model(handle)
-        names = tuple(record.name for record in handle.records)
-        if layout is None:
-            layout = names
-            for record in handle.records:
-                sites[record.name] = []
-                kinds[record.name] = record.kind
-        elif names != layout:
-            raise ModelSpecificationError(
-                "model structure changed between predictive draws"
-            )
         for record in handle.records:
+            if record.name not in sites:
+                # Dynamic site structure: a site first met in a later draw is
+                # absent (None) in the earlier ones.
+                sites[record.name] = [None] * count
+                kinds[record.name] = record.kind
+            elif kinds[record.name] != record.kind:
+                raise ModelSpecificationError(
+                    f"site {record.name!r} changed kind between predictive draws"
+                )
             sites[record.name].append(
                 record.value if record.kind == "discrete" else _as_float(record.value)
             )
         count += 1
+        for values in sites.values():
+            if len(values) < count:
+                values.append(None)
     return PredictiveSamples(
-        {name: tuple(values) for name, values in sites.items()}, kinds, count
+        cast(
+            dict[str, tuple[SiteValue, ...]],
+            {name: tuple(values) for name, values in sites.items()},
+        ),
+        kinds,
+        count,
     )
 
 

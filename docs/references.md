@@ -3247,3 +3247,22 @@ on Machine Learning*, Proceedings of Machine Learning Research 97,
 4871-4880, 2019. Exact inference in discrete latent-variable models with
 repeated (plated) structure by variable elimination.
 [https://proceedings.mlr.press/v97/obermeyer19a.html](https://proceedings.mlr.press/v97/obermeyer19a.html).
+
+## REF-CARLIN-CHIB-1995
+
+Bradley P. Carlin and Siddhartha Chib. "Bayesian Model Choice via Markov
+Chain Monte Carlo Methods." *Journal of the Royal Statistical Society,
+Series B (Methodological)* 57(3), 473-484, 1995. Model choice on the
+product space of the parameters of all candidate models, with pseudo-prior
+densities for the parameters of the models not in use, which do not change
+the posterior model probabilities.
+DOI: [10.1111/j.2517-6161.1995.tb02042.x](https://doi.org/10.1111/j.2517-6161.1995.tb02042.x).
+
+## REF-GODSILL-2001
+
+Simon J. Godsill. "On the Relationship Between Markov Chain Monte Carlo
+Methods for Model Uncertainty." *Journal of Computational and Graphical
+Statistics* 10(2), 230-248, 2001. A composite model space that holds the
+parameters of every model and relates the product-space method of Carlin
+and Chib to reversible-jump samplers.
+DOI: [10.1198/10618600152627924](https://doi.org/10.1198/10618600152627924).
