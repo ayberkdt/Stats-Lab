@@ -13658,3 +13658,80 @@ Rao-Blackwellized form of the indicator average.
 - Source: [REF-STAN-USERS-GUIDE-2-36] (sections "Posterior distribution of
   the discrete change point" and "The mathematics of recovering marginalized
   parameters").
+
+### EQ-PPL-ENUM-003 — Joint support of a vector-valued discrete site
+
+A discrete site `z = (z_1, ..., z_n)` of independent elements with finite
+supports `Z_k` has the joint support `Z_1 x ... x Z_n` (enumerated in
+lexicographic order) and log-mass `log p(z) = sum_k log p_k(z_k)`. A
+multinomial count vector `n ~ Mult(N, p)` with `K` cells has the joint
+support `{n in N^K : sum_k n_k = N}` of `C(N + K - 1, K - 1)` vectors and the
+log-mass of [EQ-DIST-MULT-001]. The site is enumerated as one site with
+these joint values in [EQ-PPL-ENUM-001].
+
+- Domain: at most 4096 joint values per site and per scope.
+- Meaning: indicators that act on one observation together (a sum, a
+  pattern) are written as one vector site; the exact joint conditional law
+  of the vector is recovered by [EQ-PPL-ENUM-002].
+- Code: `inference.ppl.ModelHandle.sample` (`marginalize=True` with
+  `shape`, a list of laws, or `multivariate.Multinomial`),
+  `inference.ppl._discrete.product_support`,
+  `inference.ppl._discrete.multinomial_support`.
+- Source: [REF-STAN-USERS-GUIDE-2-36] (chapter "Latent Discrete
+  Parameters": the marginal is a sum over every value of the discrete
+  parameters), [REF-JOHNSON-KOTZ-BALAKRISHNAN-1997, Chapter 35]
+  (multinomial support and mass).
+
+### EQ-PPL-ENUM-004 — Enumeration in nested plates
+
+For outer plate iterations `g` with local discrete sites `c_g` and inner
+iterations `j` with local discrete sites `z_gj`, conditionally independent
+given the sites declared before them,
+`log p(theta, y) = l_0(theta) + sum_g log sum_(c_g) exp(l_g(theta, c_g)
++ sum_j log sum_(z_gj) exp(l_gj(theta, c_g, z_gj)))`,
+where `l_g` collects the terms of iteration `g` after its first discrete
+site and `l_gj` those of inner iteration `j`. The recovery of
+[EQ-PPL-ENUM-002] draws `c_g` from `p(c_g | theta, y)` and then each `z_gj`
+from `p(z_gj | theta, c_g, y)`; the marginal probability of `z_gj` is
+`sum_(c_g) p(c_g | theta, y) p(z_gj | theta, c_g, y)`.
+
+- Domain: as [EQ-PPL-ENUM-001] in every scope; the sites of an iteration do
+  not depend on the values of its own discrete sites.
+- Meaning: the cost is `sum_g |C_g| (1 + sum_j |Z_gj|)` body executions
+  instead of the product over all discrete sites, and the result equals the
+  sum over every joint configuration.
+- Code: `inference.ppl.ModelHandle.plate`,
+  `inference.ppl.ModelIR.discrete_conditional`,
+  `inference.ppl.DiscreteDraws`.
+- Source: [REF-OBERMEYER-ETAL-2019] (variable elimination in plated factor
+  graphs, which allows nested plates).
+
+### EQ-PPL-DYNAMIC-001 — Padded density under dynamic site structure
+
+Let the configurations `c` of the discrete sites outside plates declare the
+continuous latent sites `S_c`, and let `u` hold the union `S` of all `S_c`.
+For a site `s` in `S` but not in `S_c`, let `q_s(u_s | u_<s)` be the density
+on `R^(d_s)` of site `s` (prior times Jacobian) in the first configuration
+`r(s)` that declares it. Then
+`log p(u) = log sum_c exp(log p(c, T_c(u_(S_c)), y) + log |J_c(u)|
++ sum_(s not in S_c) log q_s(u_s | u_<s))`.
+Each `q_s` integrates to one over `u_s`, so `int p_c(u) du = p(c, y)` for
+every `c`: the marginal of the configurations and the conditional law of
+the sites `S_c` given `c` are those of the model, and `p(c | u, y)` is
+proportional to the summand of `c`.
+
+- Domain: every prior of a continuous site is proper; at most 4096
+  configurations; the structure depends on data and on discrete sites
+  outside plates, not on continuous values.
+- Meaning: the product-space (composite-space) construction with each
+  site's own prior as its pseudo-prior; the engines sample a fixed-dimension
+  density, and the posterior probability of a structure is the average of
+  `p(c | u^(s), y)` over the draws.
+- Code: `inference.ppl.trace`, `inference.ppl.TracedStructure`,
+  `inference.ppl.ModelIR.log_density`,
+  `inference.ppl.PosteriorSamples.presence_probability`.
+- Source: [REF-CARLIN-CHIB-1995] (pp. 473-484: the product space of the
+  parameters of all models, with pseudo-priors for the parameters of the
+  models not in use that leave the posterior model probabilities
+  unchanged), [REF-GODSILL-2001] (pp. 230-248: the composite model space
+  that contains the Carlin-Chib method).

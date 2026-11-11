@@ -9,10 +9,19 @@ are *local* and are enumerated inside that iteration only, which is exact
 when iterations are conditionally independent given the sites declared
 before the plate. Given continuous draws, the discrete sites are recovered
 from their exact conditional law ([EQ-PPL-ENUM-002]).
+
+Plates nest (ADR-0084): the enumeration record of a plate iteration holds,
+for each of its branches, the records of the iterations of the plates
+nested in it, and recovery descends that tree. A vector-valued discrete
+site enumerates its joint support: the Cartesian product of independent
+element supports ([EQ-PPL-ENUM-003]) or the count vectors of a multinomial
+law. Under dynamic site structure a global configuration may lack some
+discrete sites; their recovered value is ``None`` in that draw.
 """
 
 from __future__ import annotations
 
+import itertools
 import math
 import random
 from collections.abc import Iterable, Sequence
@@ -61,6 +70,87 @@ def log_sum_exp(values: Sequence[Any]) -> Any:
     if shift == math.inf:
         return math.inf
     return shift + admath.log(admath.fsum(admath.exp(v - shift) for v, _ in finite))
+
+
+def _limit_message(site: str, count: int) -> str:
+    """Return the error message for a joint support that is too large.
+
+    References:
+        [EQ-PPL-ENUM-001]. No new equation is introduced.
+
+    """
+    return (
+        f"discrete latent site {site!r} has {count} joint support values; at most "
+        f"{ENUMERATION_LIMIT} can be enumerated"
+    )
+
+
+def product_support(
+    element_values: Sequence[tuple[Any, ...]], site: str
+) -> tuple[tuple[Any, ...], ...]:
+    """Return the joint support of a vector of independent finite elements.
+
+    The Cartesian product in lexicographic order (the last element varies
+    fastest), the support of a vector of independent discrete elements
+    ([EQ-PPL-ENUM-003]).
+
+    Args:
+        element_values: Support values of each element.
+        site: Site name for error messages.
+
+    Returns:
+        Tuples of element values.
+
+    Raises:
+        ModelSpecificationError: For more than :data:`ENUMERATION_LIMIT`
+            joint values.
+
+    References:
+        [EQ-PPL-ENUM-003], [REF-STAN-USERS-GUIDE-2-36].
+
+    """
+    count = math.prod(len(values) for values in element_values)
+    if count > ENUMERATION_LIMIT:
+        raise ModelSpecificationError(_limit_message(site, count))
+    return tuple(itertools.product(*element_values))
+
+
+def multinomial_support(
+    trials: int, categories: int, site: str
+) -> tuple[tuple[int, ...], ...]:
+    """Return every count vector of ``trials`` trials in ``categories`` cells.
+
+    The ``C(n + K - 1, K - 1)`` compositions of ``n`` into ``K``
+    non-negative parts in lexicographic order: the support of
+    ``Multinomial(n, p)`` ([EQ-DIST-MULT-001]).
+
+    Args:
+        trials: Number of trials ``n >= 0``.
+        categories: Number of cells ``K >= 2``.
+        site: Site name for error messages.
+
+    Returns:
+        Count vectors summing to ``trials``.
+
+    Raises:
+        ModelSpecificationError: For more than :data:`ENUMERATION_LIMIT`
+            count vectors.
+
+    References:
+        [EQ-DIST-MULT-001], [REF-JOHNSON-KOTZ-BALAKRISHNAN-1997, Chapter 35].
+
+    """
+    count = math.comb(trials + categories - 1, categories - 1)
+    if count > ENUMERATION_LIMIT:
+        raise ModelSpecificationError(_limit_message(site, count))
+    vectors: list[tuple[int, ...]] = [()]
+    for _ in range(categories - 1):
+        grown: list[tuple[int, ...]] = []
+        for prefix in vectors:
+            remaining = trials - sum(prefix)
+            grown.extend((*prefix, k) for k in range(remaining + 1))
+        vectors = grown
+    return tuple((*counts, trials - sum(counts)) for counts in vectors)
 
 
 def finite_support_values(support: object, site: str) -> tuple[Any, ...] | None:
@@ -295,9 +385,12 @@ class EnumerationGroup:
         supports: Support values of each site.
         configurations: Index tuples, one per enumerated branch.
         log_weights: Unnormalized log-probabilities of the branches.
+        children: For each branch, the groups of the iterations of the
+            plates nested in this iteration (empty without nesting).
 
     References:
-        [EQ-PPL-ENUM-002], [REF-STAN-USERS-GUIDE-2-36].
+        [EQ-PPL-ENUM-002], [REF-STAN-USERS-GUIDE-2-36],
+        [REF-OBERMEYER-ETAL-2019].
 
     """
 
@@ -305,6 +398,7 @@ class EnumerationGroup:
     supports: tuple[tuple[Any, ...], ...]
     configurations: tuple[tuple[int, ...], ...]
     log_weights: tuple[float, ...]
+    children: tuple[tuple[EnumerationGroup, ...], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -312,12 +406,15 @@ class DiscreteConditional:
     """Exact conditional law of every discrete site given continuous values.
 
     Args:
-        names: Global discrete site names.
+        names: Global discrete site names (the union over the traced
+            structures, in order of first appearance).
         supports: Their support values.
-        configurations: Joint global configurations (index tuples).
+        configurations: Joint global configurations (index tuples aligned
+            with ``names``; ``-1`` marks a site that the configuration does
+            not declare).
         log_weights: Unnormalized log-probabilities of the configurations.
-        groups: For each global configuration, the local groups of the
-            plate iterations (same order in every configuration).
+        groups: For each global configuration, the groups of its top-level
+            plate iterations.
 
     References:
         [EQ-PPL-ENUM-002], [REF-STAN-USERS-GUIDE-2-36].
@@ -342,10 +439,18 @@ class DiscreteDraws:
     Averages of the probabilities over ``s`` are Rao-Blackwellized estimates
     of the posterior probabilities.
 
+    A site that the drawn global configuration does not declare (dynamic
+    site structure, ADR-0084) has the value ``None`` in that draw, and its
+    conditional probabilities sum to the probability that it is declared.
+
     Args:
         supports: Support values by site name.
         draws: Drawn values by site name (chain after chain).
         probabilities: Conditional probabilities by site name and draw.
+        structures: Index of the drawn global configuration per draw (into
+            ``ModelIR.structures``); empty unless requested.
+        structure_probabilities: ``p(c | theta^(s), y)`` of every global
+            configuration ``c`` per draw; empty unless requested.
 
     References:
         [EQ-PPL-ENUM-002], [REF-STAN-USERS-GUIDE-2-36].
@@ -355,6 +460,8 @@ class DiscreteDraws:
     supports: dict[str, tuple[Any, ...]]
     draws: dict[str, tuple[Any, ...]]
     probabilities: dict[str, tuple[tuple[float, ...], ...]]
+    structures: tuple[int, ...] = ()
+    structure_probabilities: tuple[tuple[float, ...], ...] = ()
 
     @property
     def names(self) -> tuple[str, ...]:
@@ -388,12 +495,39 @@ class DiscreteDraws:
         )
 
 
+
+
+def _accumulate_groups(
+    groups: Sequence[EnumerationGroup],
+    weight: float,
+    result: dict[str, list[float]],
+) -> None:
+    """Add ``weight * p(z = v | ...)`` of every group, recursing into nests.
+
+    References:
+        [EQ-PPL-ENUM-002], [REF-OBERMEYER-ETAL-2019].
+
+    """
+    for group in groups:
+        local = normalized(group.log_weights)
+        for position, name in enumerate(group.names):
+            row = result.setdefault(name, [0.0] * len(group.supports[position]))
+            for configuration, probability in zip(
+                group.configurations, local, strict=True
+            ):
+                row[configuration[position]] += weight * probability
+        for branch, probability in zip(group.children, local, strict=False):
+            if probability > 0.0 and branch:
+                _accumulate_groups(branch, weight * probability, result)
+
+
 def _site_probabilities(
     conditional: DiscreteConditional, global_weights: Sequence[float]
 ) -> dict[str, list[float]]:
     """Return ``p(z = v | theta, y)`` for every discrete site.
 
-    Local probabilities are averaged over the global configurations.
+    Local probabilities are averaged over the global configurations and, in
+    nested plates, over the branches of the enclosing iterations.
 
     References:
         [EQ-PPL-ENUM-002]. No new equation is introduced.
@@ -405,33 +539,75 @@ def _site_probabilities(
         for configuration, weight in zip(
             conditional.configurations, global_weights, strict=True
         ):
-            row[configuration[position]] += weight
+            if configuration[position] >= 0:
+                row[configuration[position]] += weight
         result[name] = row
     for groups, weight in zip(conditional.groups, global_weights, strict=True):
         if weight == 0.0:
             continue
-        for group in groups:
-            local = normalized(group.log_weights)
-            for position, name in enumerate(group.names):
-                row = result.setdefault(name, [0.0] * len(group.supports[position]))
-                for configuration, probability in zip(
-                    group.configurations, local, strict=True
-                ):
-                    row[configuration[position]] += weight * probability
+        _accumulate_groups(groups, weight, result)
     return result
 
 
+def _draw_groups(
+    groups: Sequence[EnumerationGroup],
+    generator: random.Random,
+    values: dict[str, Any],
+    supports: dict[str, tuple[Any, ...]],
+) -> None:
+    """Draw each group's branch, then the groups nested in the drawn branch.
+
+    References:
+        [EQ-PPL-ENUM-002], [REF-OBERMEYER-ETAL-2019].
+
+    """
+    for group in groups:
+        local = normalized(group.log_weights)
+        chosen = _categorical(local, generator)
+        branch = group.configurations[chosen]
+        for position, name in enumerate(group.names):
+            supports.setdefault(name, group.supports[position])
+            values[name] = group.supports[position][branch[position]]
+        if group.children and group.children[chosen]:
+            _draw_groups(group.children[chosen], generator, values, supports)
+
+
+def _group_support(conditional: DiscreteConditional, name: str) -> tuple[Any, ...]:
+    """Return the support of a local site from the enumeration tree.
+
+    Raises:
+        KeyError: If no group declares ``name``.
+
+    References:
+        [EQ-PPL-ENUM-002]. No new equation is introduced.
+
+    """
+    pending = [group for groups in conditional.groups for group in groups]
+    while pending:
+        group = pending.pop()
+        if name in group.names:
+            return group.supports[group.names.index(name)]
+        pending.extend(child for branch in group.children for child in branch)
+    raise KeyError(name)
+
+
 def recover_discrete(
-    conditionals: Iterable[DiscreteConditional], seed: int | RandomStream | None
+    conditionals: Iterable[DiscreteConditional],
+    seed: int | RandomStream | None,
+    *,
+    keep_structures: bool = False,
 ) -> DiscreteDraws:
     """Draw discrete sites from their exact conditional laws, draw by draw.
 
     For each conditional: a global configuration ``c ~ p(c | theta, y)``, then
-    each plate iteration's configuration from ``p(z_i | theta, c, y)``.
+    each plate iteration's configuration from ``p(z_i | theta, c, y)`` and,
+    inside it, each nested iteration's configuration given the drawn branch.
 
     Args:
         conditionals: One :class:`DiscreteConditional` per continuous draw.
         seed: Integer seed or stream.
+        keep_structures: Whether to keep the drawn global configuration and
+            the configuration probabilities of every draw.
 
     Returns:
         Drawn values and conditional probabilities.
@@ -448,8 +624,10 @@ def recover_discrete(
     """
     generator = resolve_stream(seed).generator()
     supports: dict[str, tuple[Any, ...]] = {}
-    draws: dict[str, list[Any]] = {}
-    probabilities: dict[str, list[tuple[float, ...]]] = {}
+    per_draw: list[dict[str, Any]] = []
+    per_rows: list[dict[str, list[float]]] = []
+    structures: list[int] = []
+    structure_probabilities: list[tuple[float, ...]] = []
     for conditional in conditionals:
         weights = normalized(conditional.log_weights)
         chosen = _categorical(weights, generator)
@@ -457,19 +635,28 @@ def recover_discrete(
         for position, name in enumerate(conditional.names):
             support = conditional.supports[position]
             supports.setdefault(name, support)
-            values[name] = support[conditional.configurations[chosen][position]]
-        for group in conditional.groups[chosen]:
-            local = normalized(group.log_weights)
-            branch = group.configurations[_categorical(local, generator)]
-            for position, name in enumerate(group.names):
-                supports.setdefault(name, group.supports[position])
-                values[name] = group.supports[position][branch[position]]
-        for name, row in _site_probabilities(conditional, weights).items():
-            probabilities.setdefault(name, []).append(tuple(row))
-        for name, value in values.items():
-            draws.setdefault(name, []).append(value)
+            index = conditional.configurations[chosen][position]
+            if index >= 0:
+                values[name] = support[index]
+        _draw_groups(conditional.groups[chosen], generator, values, supports)
+        rows = _site_probabilities(conditional, weights)
+        for name in rows:
+            if name not in supports:
+                supports[name] = _group_support(conditional, name)
+        per_draw.append(values)
+        per_rows.append(rows)
+        if keep_structures:
+            structures.append(chosen)
+            structure_probabilities.append(weights)
+    draws = {name: tuple(values.get(name) for values in per_draw) for name in supports}
+    probabilities = {
+        name: tuple(tuple(rows.get(name, [0.0] * len(support))) for rows in per_rows)
+        for name, support in supports.items()
+    }
     return DiscreteDraws(
         supports,
-        {name: tuple(values) for name, values in draws.items()},
-        {name: tuple(rows) for name, rows in probabilities.items()},
+        draws,
+        probabilities,
+        tuple(structures),
+        tuple(structure_probabilities),
     )

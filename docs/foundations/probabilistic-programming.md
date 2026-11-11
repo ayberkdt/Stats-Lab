@@ -97,8 +97,9 @@ case against a hand-derived log-density to ten digits.
 - `reparam="noncentered"` on a non-normal site;
 - an observed site without data;
 - a `condition` name that matches no site;
-- a site structure that changes with the parameter values. Every later
-  execution is checked against the trace.
+- a site structure that changes with the continuous parameter values.
+  Every later execution is checked against the trace. Structure may depend
+  on the data and on marginalized discrete sites outside plates (section 6).
 
 Numerical failures inside the model, such as `Normal(0, 0)` built from a
 latent value, are mapped to `-inf`. Every sampler reads `-inf` as "outside
@@ -372,11 +373,13 @@ def mixture(m):
   body executions instead of `2^n`. A plate declares that its iterations are
   conditionally independent given what comes before it
   ([REF-OBERMEYER-ETAL-2019]); the loop body must have no side effects other
-  than site declarations, because it is repeated. Plates do not nest.
-- In each scope, the discrete sites come after every continuous latent and
-  deterministic site; only observed and further discrete sites may follow.
-  Then the unconstrained coordinates and the reported values are the same
-  in every configuration. A violation raises `ModelSpecificationError`.
+  than site declarations, because it is repeated. Plates nest (section 6).
+- Inside a plate iteration, the discrete sites come after every continuous
+  latent and deterministic site; only observed sites, further discrete
+  sites, and nested plates may follow. Then the unconstrained coordinates
+  and the reported values are the same in every branch. A violation raises
+  `ModelSpecificationError`. Outside plates ADR-0084 lifted this rule
+  (section 6).
 
 After sampling, each continuous draw `theta^(s)` is re-run with the
 enumeration recorded, which gives the exact conditional law of the discrete
@@ -413,23 +416,134 @@ Checks:
   posterior mean of `n` from NUTS (seed 6) is 6.438 against the closed form
   6.451 (`sum_n n TP(n) C(n, 4) B(6, n - 2)`, standard error about 0.07).
 
-## 6. Limitations
+## 6. Dynamic structure, nested plates, and vector discrete sites
+
+ADR-0084 lets the sites of a model depend on marginalized discrete sites,
+lets plates nest, and lets a discrete site be a vector. Every number in this
+section was printed by `tests/test_ppl_dynamic_structure.py` or by a script
+with the same models and seeds.
+
+### Dynamic site structure
+
+```python
+def components(m):
+    k = m.sample("k", Categorical({1: 0.5, 2: 0.5}), marginalize=True)
+    mu0 = m.sample("mu[0]", Normal(0.0, 2.0))
+    mu1 = m.sample("mu[1]", Normal(3.0, 1.0)) if k == 2 else 0.0
+    for i in m.plate("data", len(y)):
+        if k == 1:
+            m.observe(f"y[{i}]", Gaussian(mu0), y[i])
+        else:
+            z = m.sample(f"z[{i}]", Indicator(0.2), marginalize=True)
+            m.observe(f"y[{i}]", Gaussian(mu1 if z == 1 else mu0), y[i])
+```
+
+`ppl.trace` runs the model once per configuration of the discrete sites
+outside plates and records what each one declares in `program.structures`
+(`ppl.TracedStructure`). Here `k = 1` declares `mu[0]` and the
+observations; `k = 2` also declares `mu[1]` and fifteen indicators. The
+unconstrained vector holds every continuous site that some configuration
+declares (`mu[0], mu[1]`).
+
+In a configuration that lacks a site, the site contributes the prior and
+log-Jacobian it has where it is declared. That pseudo-prior integrates to
+one, so the marginal probability of every configuration is unchanged
+([EQ-PPL-DYNAMIC-001]). This is the product-space method of
+[REF-CARLIN-CHIB-1995] with the prior as pseudo-prior; [REF-GODSILL-2001]
+places it in a composite model space. The engines then sample one
+fixed-dimension density.
+
+After sampling, each draw gets a configuration from `p(c | u^(s), y)`, and
+its values are reported under that configuration:
+
+- `posterior["mu[1]"]` is `None` in the draws with `k = 1`;
+- `posterior.present("mu[1]")` is the per-draw mask;
+- `posterior.presence_probability("mu[1]")` and
+  `posterior.discrete_probabilities("k")[2]` are the Rao-Blackwellized
+  `p(k = 2 | y)`;
+- `posterior.mean("mu[1]")` is the mean given that `mu[1]` exists.
+
+`posterior.constrained` keeps the pseudo-prior values of absent sites, so
+its summary rows for such sites mix two laws.
+
+Checks (15 observations):
+
+- The marginal likelihoods by quadrature are `p(y | k = 1) = 2.3476e-12`
+  and `p(y | k = 2) = 6.2786e-12`, so the exact `p(k = 2 | y)` is 0.727853.
+- Integrating the PPL configuration weights over an 81 x 81 Simpson grid
+  in `u` gives the evidence within a relative `2.1e-5` and
+  `p(k = 2 | y) = 0.727865`: the pseudo-prior integrates out.
+- NUTS (seed 7, two chains of 300 + 300 draws, reverse mode, about 11 s)
+  gives 0.7196 with a standard error of 0.0129.
+
+A continuous site may also follow a global discrete site without changing
+the structure (`x ~ N(2 z, 1)`). The model is then evaluated configuration
+by configuration (`program.per_configuration`). For `y = 1.4 ~ N(x, 0.5^2)`
+and `z ~ Bernoulli(0.3)`, NUTS gives `p(z = 1 | y) = 0.4454` (standard error
+0.0122) against the closed form 0.4484.
+
+Structure that depends on the data needs no special handling, because the
+data are fixed when the model is traced. A loop over the groups of the data,
+or a plate whose size is a group length, gives a static structure.
+
+Each of these raises `ModelSpecificationError`:
+
+- structure that depends on continuous values;
+- inside a plate iteration, sites that depend on the iteration's own
+  discrete sites;
+- unbounded discrete supports;
+- more than 4096 traced configurations;
+- more than 64 discrete sites outside plates in one execution;
+- a name whose kind or size differs between configurations.
+
+### Nested plates
+
+`m.plate` inside `m.plate` declares that the inner iterations are
+conditionally independent given the enclosing iteration's sites. Each inner
+iteration enumerates its own discrete sites, and its log-sum-exp enters
+every branch of the enclosing iteration ([EQ-PPL-ENUM-004],
+[REF-OBERMEYER-ETAL-2019]). Recovery first draws the outer label, then the
+inner indicators given it.
+
+Check: three groups of sizes 2, 3, and 4, a per-group label, and a
+per-observation outlier indicator. The log-likelihood equals the
+brute-force sum over all 4096 joint configurations within `3.6e-15`. The
+recovered label and indicator probabilities equal exact Bayes to twelve
+digits.
+
+### Vector-valued discrete sites
+
+`m.sample("z", law, shape=3, marginalize=True)`, a list of laws, or
+`multivariate.Multinomial(n, p)` declares one discrete site with a tuple
+value. Its joint support is the Cartesian product of the element supports,
+or the count vectors of the multinomial, at most 4096 values
+([EQ-PPL-ENUM-003]). `discrete_probabilities("z")` is keyed by the joint
+value, and `mean("z")` is elementwise.
+
+Check: three indicators (8 values) and a `Multinomial(3, p)` (10 values),
+80 joint configurations. The log-density matches the hand-written sum
+within `9e-16`, and the recovered joint probabilities equal exact Bayes to
+twelve digits.
+
+## 7. Limitations
 
 - Programs built from the library distribution classes with latent
   parameters are not traceable; their gradients come from finite
   differences, so each gradient costs `2d + 1` model executions and such
   models suit up to a few tens of parameters. Traceable programs take one
   reverse-mode execution per gradient.
-- There are no nested plates, no vector-valued discrete sites, and no
-  variable elimination across plate iterations (a hidden Markov chain must
-  be enumerated jointly, which the 4096-configuration limit allows only for
-  short chains). Discrete sites must come after the continuous sites of
-  their scope.
+- There is no variable elimination across plate iterations (a hidden
+  Markov chain must be enumerated jointly, which the 4096-configuration
+  limit allows only for short chains). Inside a plate iteration, discrete
+  sites must come after the continuous sites and may not change the
+  iteration's structure.
 - Structured supports are limited to the simplex, ordered vectors (base law
   on `R` or `(a, inf)`), Cholesky factors of correlation matrices,
   correlation matrices, and covariance matrices.
-- The site structure must be static: dynamic site structure (stochastic
-  control flow that adds or removes sites) is not supported.
+- Site structure may depend on data and on discrete sites outside plates
+  only. The pseudo-priors of padded sites are their priors and are not
+  tuned, so a structure whose posterior is far from those priors mixes
+  slowly; there are no reversible-jump moves.
 - `reparam="noncentered"` applies to `Normal` sites only.
 - Starting values cannot be supplied on the natural scale, because the
   inverse of a non-centred site depends on its parents.
@@ -459,3 +573,6 @@ Checks:
 - [REF-STAN-USERS-GUIDE-2-36] Marginalizing latent discrete parameters and
   recovering them.
 - [REF-OBERMEYER-ETAL-2019] Variable elimination in plated models.
+- [REF-CARLIN-CHIB-1995] Model choice on a product space with
+  pseudo-priors.
+- [REF-GODSILL-2001] Composite model spaces for model uncertainty.

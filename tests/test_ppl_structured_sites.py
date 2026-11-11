@@ -728,7 +728,12 @@ class DiscreteSiteTests(unittest.TestCase):
         self.assertTrue(set(posterior["regime"]) <= {"low", "high"})
 
     def test_invalid_models_raise(self) -> None:
-        """Unbounded, misplaced, nested, and malformed sites are rejected."""
+        """Unbounded, misplaced, and malformed sites are rejected.
+
+        Nested plates, vector-valued discrete sites, and continuous sites after
+        a global discrete site are supported since ADR-0084
+        (tests/test_ppl_dynamic_structure.py).
+        """
 
         def unbounded(m: ModelHandle) -> None:
             """Declare a Poisson latent count without truncation."""
@@ -739,33 +744,17 @@ class DiscreteSiteTests(unittest.TestCase):
             """``marginalize`` on a continuous site."""
             m.sample("x", Normal(0.0, 1.0), marginalize=True)
 
-        def latent_after_discrete(m: ModelHandle) -> None:
-            """Declare a continuous latent site after a discrete one."""
-            m.sample("z", Bernoulli(0.5), marginalize=True)
-            m.sample("x", Normal(0.0, 1.0))
-
         def local_latent_after_discrete(m: ModelHandle) -> None:
             """Declare a deterministic site after a discrete one in a plate."""
             for i in m.plate("data", 2):
                 m.sample(f"z[{i}]", Bernoulli(0.5), marginalize=True)
                 m.deterministic(f"d[{i}]", 1.0)
 
-        def nested(m: ModelHandle) -> None:
-            """Nest a plate inside a plate."""
-            m.sample("x", Normal(0.0, 1.0))
-            for _ in m.plate("outer", 2):
-                for _ in m.plate("inner", 2):
-                    pass
-
         def too_many(m: ModelHandle) -> None:
             """Thirteen global binary sites (8192 configurations)."""
             m.sample("x", Normal(0.0, 1.0))
             for i in range(13):
                 m.sample(f"z{i}", Bernoulli(0.5), marginalize=True)
-
-        def vector_discrete(m: ModelHandle) -> None:
-            """Declare a vector of discrete sites."""
-            m.sample("z", Bernoulli(0.5), shape=3, marginalize=True)
 
         def structured_shape(m: ModelHandle) -> None:
             """Give a structured site a shape."""
@@ -782,11 +771,8 @@ class DiscreteSiteTests(unittest.TestCase):
         cases = (
             (unbounded, "unbounded"),
             (continuous_marginalized, "finite discrete support"),
-            (latent_after_discrete, "follows a discrete latent site"),
             (local_latent_after_discrete, "follows a discrete latent site"),
-            (nested, "nested"),
             (too_many, "at most 4096"),
-            (vector_discrete, "only scalar sites"),
             (structured_shape, "do not apply"),
             (interval_ordered, "OrderedVector needs"),
             (unmarked, "marginalize=True"),

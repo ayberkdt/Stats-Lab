@@ -27,6 +27,16 @@ matrices (Wishart, inverse Wishart), through the transforms of
 summed out by enumeration with ``m.sample(..., marginalize=True)``, locally
 inside the iterations of ``m.plate`` and jointly elsewhere, and are
 recovered from their exact conditional law (:class:`DiscreteDraws`).
+
+ADR-0084 adds dynamic site structure, nested plates, and vector-valued
+discrete sites. The sites that follow a discrete site outside plates may
+depend on its value: :func:`trace` records the sites of every configuration
+(:class:`TracedStructure`), the unconstrained vector holds the union of the
+continuous sites, and a configuration that lacks a site gives it its prior
+as a pseudo-prior, which leaves the marginal of every configuration
+unchanged. ``m.plate`` nests, with the discrete sites of each inner
+iteration enumerated per iteration, and a discrete site may be a vector of
+independent elements or a multinomial count vector.
 """
 
 from ._api import (
@@ -47,6 +57,7 @@ from ._program import (
     ModelHandle,
     ModelIR,
     SiteInfo,
+    TracedStructure,
     bijection_for,
     condition,
     elementwise,
@@ -66,6 +77,7 @@ __all__ = [
     "PredictiveSamples",
     "SiteInfo",
     "StructuredSupport",
+    "TracedStructure",
     "TruncatedDiscrete",
     "bijection_for",
     "condition",
