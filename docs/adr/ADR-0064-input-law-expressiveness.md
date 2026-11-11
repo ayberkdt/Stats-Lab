@@ -215,7 +215,7 @@ in the tests as literals.
     sampling noise widens the envelopes. Refinement moves only the interval
     coordinates.
   - (g) `UQStudy` has no mixed-uncertainty stage yet, and its
-    report label `"Gaussian copula"` (`workflow/study.py`)
+    report label `"Gaussian copula"` (`workflow/study/`)
     should use `JointInput.copula_family`; `visualization/study.py` already
     does.
 - Citation note: the citation "Oberkampf & Roy (2010) A Comprehensive

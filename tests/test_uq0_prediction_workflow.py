@@ -311,13 +311,11 @@ class WorkflowRecordTests(unittest.TestCase):
         """Each stage kind that UQStudy records is accepted by record_stages."""
         import re
 
-        source = (
-            Path(__file__).resolve().parents[1]
-            / "src"
-            / "probstat"
-            / "workflow"
-            / "study.py"
-        ).read_text(encoding="utf-8")
+        root = Path(__file__).resolve().parents[1]
+        package = root / "src" / "probstat" / "workflow" / "study"
+        source = "\n".join(
+            path.read_text(encoding="utf-8") for path in sorted(package.glob("*.py"))
+        )
         kinds = set(re.findall(r'_record\(\s*"([a-z_]+)"', source))
         self.assertIn("fitting", kinds)
         self.assertIn("shapley", kinds)
