@@ -11243,3 +11243,133 @@ number is `||K||_1 ||K^-1||_1`.
   `surrogates.GaussianProcessRegression`.
 - Source: [REF-GOLUB-VANLOAN-2013, Sections 2.6 and 3.1],
   [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
+
+### EQ-MOD-VINE-001 — Rotated pair copulas and their h-functions
+
+With `(V_1, V_2)` from an exchangeable base copula `C` with density `c` and
+`H(a | b) = P(V_2 <= a | V_1 = b)`, the rotated pair is `U_1 = r_1(V_1)`,
+`U_2 = r_2(V_2)`, where `r_i(x) = 1 - x` for a reflected coordinate and `x`
+otherwise (90 degrees: first reflected; 180: both; 270: second).
+
+`c_rot(u_1, u_2) = c(r_1(u_1), r_2(u_2))`;
+`C_90 = u_2 - C(1 - u_1, u_2)`, `C_180 = u_1 + u_2 - 1 + C(1 - u_1, 1 - u_2)`,
+`C_270 = u_1 - C(u_1, 1 - u_2)`;
+`h_given_first(u_1, u_2) = dC_rot/du_1 = g_2(H(r_2(u_2) | r_1(u_1)))`,
+`h_given_second(u_1, u_2) = dC_rot/du_2 = g_1(H(r_1(u_1) | r_2(u_2)))`, with
+`g_i(p) = 1 - p` for a reflected coordinate and `p` otherwise; the inverses are
+`h_inverse_given_first(u_1, w) = r_2(H^-1(g_2(w) | r_1(u_1)))` and
+`h_inverse_given_second(w, u_2) = r_1(H^-1(g_1(w) | r_2(u_2)))`. Kendall's tau
+changes sign for 90 and 270 degrees; 180 degrees swaps `lambda_L` and
+`lambda_U`.
+
+- Domain: `u` in `(0, 1)^2`; rotations only for the Clayton and Gumbel
+  copulas (the other families are radially symmetric); `H` and `H^-1` are the
+  second Rosenblatt coordinate and its inverse of the base copula
+  ([EQ-MOD-COP-ROSEN-001]).
+- Meaning: the Aas et al. h-function `h(u_1 | u_2)` is `h_given_second`; the
+  rotations give negative dependence (90, 270) and the opposite tail (180).
+- Code: `modeling.PairCopula`.
+- Source: [REF-NELSEN-2006, Section 2.4], [REF-AAS-CZADO-FRIGESSI-BAKKEN-2009],
+  [REF-JOE-2014].
+
+### EQ-MOD-VINE-002 — Conditional distributions by the h-function recursion
+
+`F(x | v) = dC_{x, v_j | v_-j}(F(x | v_-j), F(v_j | v_-j)) / dF(v_j | v_-j)`,
+where `v_j` is one conditioning variable and `v_-j` the others; for one
+conditioning variable `F(x | v) = h(x | v)`.
+
+- Domain: absolutely continuous copula; the pair copula of `(x, v_j)` given
+  `v_-j` does not depend on the value of `v_-j` (simplified vine).
+- Meaning: each tree's pair-copula arguments are the h-function outputs of
+  the previous tree.
+- Code: `modeling.CVineCopula`, `modeling.DVineCopula`,
+  `modeling.fit_vine_copula`.
+- Source: [REF-AAS-CZADO-FRIGESSI-BAKKEN-2009], [REF-BEDFORD-COOKE-2002].
+
+### EQ-MOD-VINE-003 — C-vine density
+
+`c(u) = prod_{j=1}^{d-1} prod_{i=1}^{d-j} c_{j, j+i | 1, ..., j-1}(F(u_j | u_1,
+..., u_{j-1}), F(u_{j+i} | u_1, ..., u_{j-1}))` in vine positions `1, ..., d`.
+
+- Domain: `u` in `(0, 1)^d`, `d >= 2`; tree `j` is a star with root `j`.
+- Meaning: `d (d - 1) / 2` bivariate densities; the first tree couples the
+  first root with every other variable.
+- Code: `modeling.CVineCopula.log_density`.
+- Source: [REF-AAS-CZADO-FRIGESSI-BAKKEN-2009, Algorithms 1-4].
+
+### EQ-MOD-VINE-004 — D-vine density
+
+`c(u) = prod_{j=1}^{d-1} prod_{i=1}^{d-j} c_{i, i+j | i+1, ..., i+j-1}(F(u_i |
+u_{i+1}, ..., u_{i+j-1}), F(u_{i+j} | u_{i+1}, ..., u_{i+j-1}))`.
+
+- Domain: `u` in `(0, 1)^d`, `d >= 2`; every tree is a path along the vine
+  order.
+- Meaning: pairs are conditioned on the variables between them in the path.
+  A Gaussian D-vine whose pair copulas are Gaussian with the partial
+  correlations of `R` is the Gaussian copula with correlation `R`.
+- Code: `modeling.DVineCopula.log_density`.
+- Source: [REF-AAS-CZADO-FRIGESSI-BAKKEN-2009, Algorithms 1-4],
+  [REF-KUROWICKA-COOKE-2006].
+
+### EQ-MOD-VINE-005 — Vine Rosenblatt transform and its inverse
+
+`w_{p_1} = u_{p_1}`, `w_{p_k} = F(u_{p_k} | u_{p_1}, ..., u_{p_{k-1}})` with
+`(p_1, ..., p_d)` the vine order. C-vine: `w_k` is the working value of
+position `k` when it becomes the root; inverse
+`u_k = h_1^-1(... h_{k-1}^-1(w_k | w_{k-1}) ... | w_1)` along the edges
+joining roots `k-1, ..., 1` to `k`. D-vine: `w_k = h_given_first` of the
+first edge of tree `k - 1`; the inverse runs the edges ending at `k` from the
+top tree down.
+
+- Domain: `u`, `w` in `(0, 1)^d`; values are clamped into
+  `[1e-300, 1 - 2^-53]`.
+- Meaning: the exact isoprobabilistic map of [EQ-MOD-COP-ROSEN-001] in the
+  vine order; the inverse is the vine sampler.
+- Code: `modeling.CVineCopula.rosenblatt`,
+  `modeling.CVineCopula.inverse_rosenblatt`, `modeling.DVineCopula.rosenblatt`,
+  `modeling.DVineCopula.inverse_rosenblatt`.
+- Source: [REF-AAS-CZADO-FRIGESSI-BAKKEN-2009, Algorithms 1-4],
+  [REF-ROSENBLATT-1952].
+
+### EQ-MOD-VINE-006 — Kendall's tau test of independence
+
+`z = tau_n / sqrt(2 (2n + 5) / (9 n (n - 1)))`, `p = 2 Phi(-|z|)`.
+
+- Domain: `n >= 2` continuous observations; asymptotic normal null law.
+- Meaning: an edge is set to the independence copula when `p >= level`.
+- Code: `modeling.kendall_independence_p_value`, `modeling.fit_vine_copula`.
+- Source: [REF-KENDALL-1938], [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 8],
+  [REF-DISSMANN-BRECHMANN-CZADO-KUROWICKA-2013].
+
+### EQ-MOD-VINE-007 — Sequential edge-wise maximum likelihood and selection
+
+`theta_hat_e = argmax_theta sum_i log c_e(a_i, b_i; theta)` for the
+pseudo-observations `(a_i, b_i)` of edge `e`, started from Kendall's tau
+inversion; `AIC_e = 2 k_e - 2 l_e` selects the family per edge; the vine
+totals are `l = sum_e l_e`, `AIC = 2 k - 2 l`, `BIC = k log n - 2 l` with
+`k = sum_e k_e`.
+
+- Domain: ranks `u_ij = rank_ij / (n + 1)`; bounded search ranges per family;
+  the t pair copula is maximized by profile likelihood over `nu`.
+- Meaning: tree-by-tree estimation; the total equals the vine
+  log-likelihood of the pseudo-observations at the sequential estimates,
+  which are consistent but not the joint maximum-likelihood estimates.
+- Code: `modeling.fit_vine_copula`, `modeling.VineCopulaFit`.
+- Source: [REF-AAS-CZADO-FRIGESSI-BAKKEN-2009],
+  [REF-DISSMANN-BRECHMANN-CZADO-KUROWICKA-2013], [REF-AKAIKE-1974],
+  [REF-SCHWARZ-1978].
+
+### EQ-MOD-VINE-008 — Vine structure from absolute Kendall's tau
+
+C-vine: the root of tree `j` maximizes `sum_{k != r} |tau(r, k)|` over the
+remaining variables, using that tree's conditional pseudo-observations.
+D-vine: a greedy path starts from `argmax |tau(i, j)|` and attaches, at
+either end, the unused variable with the largest `|tau|` to that end.
+
+- Domain: pairwise sample Kendall's tau ([EQ-MOD-COPULA-FIT-003]); ties are
+  broken by the lower index.
+- Meaning: strong dependence is placed in the first trees, where it is
+  modelled unconditionally; the greedy path is a heuristic for the
+  maximum-weight Hamiltonian path.
+- Code: `modeling.fit_vine_copula`.
+- Source: [REF-DISSMANN-BRECHMANN-CZADO-KUROWICKA-2013].

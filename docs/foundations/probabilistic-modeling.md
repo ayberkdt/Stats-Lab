@@ -67,6 +67,123 @@ Some targets are unattainable for skewed marginals (for example a strong
 negative correlation between two heavy lognormals); the solver reports that
 instead of returning a wrong matrix.
 
+## Vine copulas: dependence built from pairs
+
+A single parametric copula imposes one kind of dependence on every pair of
+inputs: the Gaussian copula has no tail dependence, and an exchangeable
+Archimedean copula gives every pair the same strength. A **vine copula**
+(pair-copula construction) removes both limits
+[REF-BEDFORD-COOKE-2002], [REF-AAS-CZADO-FRIGESSI-BAKKEN-2009]. The density of
+`d` inputs is a product of `d (d - 1) / 2` bivariate copula densities arranged
+in `d - 1` trees. The first tree couples pairs of inputs directly; tree `t`
+couples two inputs *given* `t - 1` others. The arguments of each pair copula
+are conditional distribution functions, computed from the previous tree by
+*h-functions*, the partial derivatives of a bivariate copula CDF
+[EQ-MOD-VINE-002].
+
+`probstat.modeling.vines` provides two vine classes:
+
+- `CVineCopula` (canonical vine): each tree is a star around one root, so
+  tree `t` conditions on the first `t - 1` roots [EQ-MOD-VINE-003]. It suits
+  data with one dominant driver.
+- `DVineCopula` (drawable vine): each tree is a path, so a pair is
+  conditioned on the inputs between its ends in the path order
+  [EQ-MOD-VINE-004]. It suits inputs with a natural sequence, such as
+  neighbouring stations or consecutive stages.
+
+Each edge holds a `PairCopula`: a bivariate independence, Gaussian, Student-t,
+Clayton, Gumbel or Frank copula. The Clayton and Gumbel copulas may also be
+rotated by 90, 180 or 270 degrees [EQ-MOD-VINE-001], [REF-NELSEN-2006,
+Section 2.4]. The 90 and 270 degree rotations give negative dependence. The
+180 degree rotation (the survival copula) moves the Clayton lower tail to the
+upper tail. A vine implements the full `Copula` interface: density,
+Rosenblatt transform and inverse in the vine order [EQ-MOD-VINE-005],
+sampling, first-tree Kendall's tau and tail dependence, and margins that are
+sub-vines. It is therefore a valid dependence law for `JointInput`:
+
+```python
+from probstat.distributions import LogNormal, Normal
+from probstat.modeling import (
+    CVineCopula,
+    JointInput,
+    PairCopula,
+    RandomInput,
+    fit_vine_copula,
+)
+
+P = PairCopula.from_parameters
+vine = CVineCopula(
+    (
+        (P("gumbel", (2.0,)), P("clayton", (1.5,), 270)),
+        (P("frank", (2.0,)),),
+    )
+)
+joint = JointInput(
+    (
+        RandomInput("load", LogNormal(0.0, 0.3)),
+        RandomInput("strength", Normal(5.0, 0.5)),
+        RandomInput("cover", Normal(1.0, 0.1)),
+    ),
+    copula=vine,
+)
+fit = fit_vine_copula(
+    vine.sample(500, seed=1),
+    "c",
+    ("independence", "gaussian", "clayton", "gumbel", "frank"),
+)
+```
+
+Here `load` and `strength` share upper-tail dependence (Gumbel, `theta = 2`),
+`load` and `cover` are negatively dependent (Clayton rotated by 270 degrees),
+and `strength` and `cover` are coupled given `load` (Frank). Every model
+method then receives this law through `joint`; `joint.copula_family` is
+`"c-vine"`.
+
+**Fitting.** `fit_vine_copula` follows the sequential method of Dissmann et
+al. [REF-DISSMANN-BRECHMANN-CZADO-KUROWICKA-2013]:
+
+1. Columns become rank pseudo-observations `rank / (n + 1)`.
+2. The structure is chosen from absolute Kendall's tau [EQ-MOD-VINE-008]:
+   for a C-vine, each root has the largest sum of `|tau|` to the remaining
+   inputs; a D-vine order is a greedy maximum-`|tau|` path.
+3. Each edge is tested for independence with the asymptotic Kendall's tau
+   test [EQ-MOD-VINE-006]. Otherwise every candidate family is fitted by
+   maximum likelihood from its Kendall's tau inversion, and the smallest AIC
+   wins [EQ-MOD-VINE-007].
+4. The h-functions of the chosen pair copulas give the pseudo-observations of
+   the next tree.
+
+For the 500 draws above (seed 1), the fit recovers the structure and the
+families:
+
+- tree 1: `(load, strength)` Gumbel `theta = 1.95`;
+- tree 1: `(load, cover)` Clayton-270 `theta = 1.25`;
+- tree 2: `(strength, cover | load)` Frank `theta = 2.42`.
+
+The total AIC is −670.7 and the total BIC is −658.0. `VineCopulaFit.edges`
+reports each edge's family, rotation, parameters, log-likelihood, AIC,
+independence p-value and the AIC of every candidate.
+
+**Checks in the test suite.** A Gaussian vine whose pair copulas carry the
+partial correlations of a matrix `R` equals the Gaussian copula with `R` to
+`1e-12`, in density and in both Rosenblatt maps. This holds for C- and
+D-vines and for permuted orders [REF-KUROWICKA-COOKE-2006]. Bounded 2-D and
+3-D vine densities integrate to one to `1e-12`. Integrating a tail-dependent
+D-vine density over an end variable returns the remaining pair copula to
+`1e-11`.
+
+**Limits.**
+
+- Sequential estimates are consistent but are not the joint
+  maximum-likelihood estimates, and no standard errors are reported. Family
+  selection is itself uncertain: in twenty replicate fits of a 3-D D-vine
+  with `n = 500`, the second-tree Frank copula was selected 15 times.
+- Kendall's tau and tail dependence are available in closed form only for
+  first-tree pairs. The CDF exists only for bivariate vines.
+- The Rosenblatt transform conditions in the vine order. FORM results
+  therefore depend on that order, as for every non-Gaussian copula.
+- Only C- and D-vines are provided; general regular vines are not.
+
 ## Designs: how inputs are sampled
 
 `probstat.sampling` produces points in the open unit cube `(0,1)^d`:

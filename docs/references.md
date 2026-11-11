@@ -2590,3 +2590,29 @@ Cambridge, 1998.
 
 David Vose. *Risk Analysis: A Quantitative Guide*. 3rd edition, Wiley,
 Chichester, 2008.
+
+## REF-AAS-CZADO-FRIGESSI-BAKKEN-2009
+
+Kjersti Aas, Claudia Czado, Arnoldo Frigessi, and Henrik Bakken.
+"Pair-Copula Constructions of Multiple Dependence." *Insurance: Mathematics
+and Economics* 44(2), 182-198, 2009.
+DOI: [10.1016/j.insmatheco.2007.02.001](https://doi.org/10.1016/j.insmatheco.2007.02.001).
+
+## REF-BEDFORD-COOKE-2002
+
+Tim Bedford and Roger M. Cooke. "Vines—A New Graphical Model for Dependent
+Random Variables." *The Annals of Statistics* 30(4), 1031-1068, 2002.
+DOI: [10.1214/aos/1031689016](https://doi.org/10.1214/aos/1031689016).
+
+## REF-DISSMANN-BRECHMANN-CZADO-KUROWICKA-2013
+
+J. Dißmann, E. C. Brechmann, C. Czado, and D. Kurowicka.
+"Selecting and Estimating Regular Vine Copulae and Application to Financial
+Returns." *Computational Statistics & Data Analysis* 59, 52-69, 2013.
+DOI: [10.1016/j.csda.2012.08.010](https://doi.org/10.1016/j.csda.2012.08.010).
+
+## REF-KUROWICKA-COOKE-2006
+
+Dorota Kurowicka and Roger Cooke. *Uncertainty Analysis with High Dimensional
+Dependence Modelling*. Wiley, 2006. ISBN 978-0-470-86306-0.
+DOI: [10.1002/0470863072](https://doi.org/10.1002/0470863072).
