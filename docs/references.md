@@ -3247,3 +3247,50 @@ on Machine Learning*, Proceedings of Machine Learning Research 97,
 4871-4880, 2019. Exact inference in discrete latent-variable models with
 repeated (plated) structure by variable elimination.
 [https://proceedings.mlr.press/v97/obermeyer19a.html](https://proceedings.mlr.press/v97/obermeyer19a.html).
+
+## REF-UNICODE-CLDR
+
+Unicode Consortium. *Unicode Common Locale Data Repository (CLDR)*. Locale
+data for number symbols (the Turkish decimal separator `,` and group
+separator `.`) and the plural categories of each language (`one` and
+`other` for English and Turkish).
+[https://cldr.unicode.org/](https://cldr.unicode.org/).
+
+## REF-UNICODE-TR35
+
+Unicode Consortium. *Unicode Technical Standard #35: Unicode Locale Data
+Markup Language (LDML)*, Part 3 "Numbers": number symbols, number patterns,
+and the language plural rules (`i = 1 and v = 0` for English `one`, `n = 1`
+for Turkish `one`).
+[https://www.unicode.org/reports/tr35/tr35-numbers.html](https://www.unicode.org/reports/tr35/tr35-numbers.html).
+
+## REF-PYTHON-FORMAT-SPEC
+
+Python Software Foundation. "Format Specification Mini-Language." *Python 3
+documentation*, section of the `string` module: the `,` grouping option and
+the `g`, `f`, and `%` presentation types used by catalogue entries.
+[https://docs.python.org/3/library/string.html#format-specification-mini-language](https://docs.python.org/3/library/string.html#format-specification-mini-language).
+
+## REF-W3C-WAI-ARIA-12-2023
+
+World Wide Web Consortium (W3C). *Accessible Rich Internet Applications
+(WAI-ARIA) 1.2*. W3C Recommendation, 6 June 2023. James Nurthen, Peter
+Krautzberger, Scott O'Hara, Joanmarie Diggs, and Michael Cooper (editors).
+The `aria-live`, `aria-pressed`, `aria-labelledby`, and `aria-valuetext`
+attributes and the `img` and `group` roles.
+[https://www.w3.org/TR/wai-aria-1.2/](https://www.w3.org/TR/wai-aria-1.2/).
+
+## REF-W3C-SVG2-2018
+
+World Wide Web Consortium (W3C). *Scalable Vector Graphics (SVG) 2*. W3C
+Candidate Recommendation, 4 October 2018. The `viewBox` coordinate system
+and the `title` and `desc` elements that give a graphic its accessible name
+and description.
+[https://www.w3.org/TR/2018/CR-SVG2-20181004/](https://www.w3.org/TR/2018/CR-SVG2-20181004/).
+
+## REF-W3C-MEDIAQUERIES-5
+
+World Wide Web Consortium (W3C). *Media Queries Level 5*. W3C Working
+Draft. The `prefers-color-scheme` media feature that selects the light or
+dark palette tokens of a page.
+[https://www.w3.org/TR/mediaqueries-5/](https://www.w3.org/TR/mediaqueries-5/).

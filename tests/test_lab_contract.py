@@ -92,6 +92,7 @@ LAB_REGRESSION_TESTS: dict[str, tuple[str, str]] = {
         "hierarchical_normal_posterior",
     ),
     "information_lab": ("test_information_theory.py", "ksg_mutual_information"),
+    "interactive_explainers_lab": ("test_interactive_explainers.py", "clt_explainer"),
     "limit_theorems_lab": ("test_limit_theorems.py", "simulate_clt_distance"),
     "missing_data_lab": ("test_missing_data.py", "fit_incomplete_multivariate_normal"),
     "mission_systems_lab": ("test_mission_assessment.py", "LifeCycleCostModel"),

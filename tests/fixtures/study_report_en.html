@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>UQ study: report &lt;fixture&gt;</title><style>
+:root {
+  --canvas: #F6F4EF; --surface: #FFFFFF; --ink: #23262B; --muted: #656A73;
+  --rule: #DCD8CF; --accent: #44599C;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --canvas: #141519; --surface: #1E2026; --ink: #F1F0EB; --muted: #A6A9B1;
+    --rule: #303339; --accent: #9BA9F0;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--canvas); color: var(--ink);
+  font: 16px/1.55 "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+header, nav, main, footer { max-width: 920px; margin: 0 auto; padding: 0 16px; }
+header { padding-top: 32px; }
+footer { padding-bottom: 64px; }
+main:focus { outline: none; }
+.skip-link { position: absolute; left: 16px; top: -64px; padding: 12px 16px;
+  background: var(--surface); color: var(--accent); font-size: 14px;
+  border: 1px solid var(--accent); border-radius: 6px; z-index: 1; }
+.skip-link:focus { top: 8px; }
+h1 { font-size: 24px; margin: 0 0 8px; }
+h2 { font-size: 16px; margin: 0 0 4px; }
+.meta, .stage-meta { color: var(--muted); font-size: 14px; margin: 0; }
+.meta { margin-bottom: 24px; }
+nav ol { list-style: none; padding: 0; margin: 0 0 32px; display: flex;
+  flex-wrap: wrap; gap: 8px 24px; font-size: 14px; }
+nav a { color: var(--accent); text-decoration: none; display: inline-block;
+  padding: 6px 0; }
+section { border-top: 1px solid var(--rule); padding: 24px 0; }
+figure { margin: 16px 0; }
+figure img { width: 100%; height: auto; border-radius: 6px; display: block; }
+table { border-collapse: collapse; width: 100%; font-size: 14px;
+  font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--rule); }
+th { color: var(--muted); font-weight: 600; }
+td.value { text-align: right; }
+.warning { color: var(--ink); background: var(--surface); border-left: 3px solid
+  var(--accent); padding: 4px 8px; font-size: 14px; }
+section.child { border-top: 2px solid var(--accent); }
+footer { color: var(--muted); font-size: 12px; margin-top: 32px; }
+</style></head><body><a class="skip-link" href="#content">Skip to the stage results</a><header><h1>UQ study: report &lt;fixture&gt;</h1><p class="meta">Inputs: R, S · QoIs: g · Gaussian copula · 9,309 model evaluations · <strong>17 failed runs</strong> · budget 50,000 (40,674 left)<br>Input law: prior (59be118b643e) · root seed 20261111<br>probstat 0.0.test · Python 3.12.0 · TestOS-1.0 · created 2026-11-11T09:30:00+00:00 UTC</p></header><nav aria-label="Stages"><ol><li><a href="#stage-1">1. propagation</a></li><li><a href="#stage-2">2. sensitivity</a></li><li><a href="#stage-3">3. reliability</a></li><li><a href="#stage-4">4. risk</a></li><li><a href="#stage-5">5. screening</a></li><li><a href="#stage-6">6. validation</a></li><li><a href="#stage-7">7. extremes</a></li></ol></nav><main id="content" tabindex="-1"><p class="meta">2 further stage(s) follow below.</p><p class="warning">Figures omitted: Matplotlib is not installed (pip install probstat-library[visualization]).</p><section id="stage-1"><h2>1. propagation: Monte Carlo propagation of g</h2><p class="stage-meta">4,096 model evaluations · stream seed 4242 · input law prior (a1b2c3d4)</p><p class="stage-meta">Settings: size=4096; design=sobol; level=0.95</p><table><thead><tr><th>Quantity</th><th>Value</th></tr></thead><tbody><tr><td>g.mean</td><td class="value">1.97531</td></tr><tr><td>g.sd</td><td class="value">0.876</td></tr><tr><td>P(g &lt; 0)</td><td class="value">0.0123</td></tr></tbody></table></section><section id="stage-2"><h2>2. sensitivity: Sobol indices of g</h2><p class="stage-meta">1,000 model evaluations · 17 failed · 256 cache hits · stream seed 4242 · input law prior (a1b2c3d4)</p><p class="stage-meta">Settings: names=(&#x27;R&#x27;, &#x27;S&#x27;); bootstrap=40</p><p class="warning">Warning: bootstrap interval of S_R crosses zero</p><table><thead><tr><th>Quantity</th><th>Value</th></tr></thead><tbody><tr><td>mean</td><td class="value">1.23457</td></tr><tr><td>count</td><td class="value">12/20, [0.4, 0.8]</td></tr></tbody></table></section><section id="stage-3"><h2>3. reliability: FORM &amp; MC for g &lt; 0</h2><p class="stage-meta">33 model evaluations · stream seed 4242 · input law prior (a1b2c3d4) · <strong>status: aborted</strong></p><p class="stage-meta">Error: RuntimeError: FORM did not converge</p><table><thead><tr><th>Quantity</th><th>Value</th></tr></thead><tbody></tbody></table></section><section id="stage-4"><h2>4. risk: Expected loss</h2><p class="stage-meta">1,000 model evaluations · stream seed 4242 · input law posterior #1 (gaussian_copula) (ffee0011)</p><table><thead><tr><th>Quantity</th><th>Value</th></tr></thead><tbody><tr><td>loss</td><td class="value">inf</td></tr><tr><td>VaR[95%]</td><td class="value">12345.7</td></tr><tr><td>label</td><td class="value">a&lt;b</td></tr></tbody></table></section><section id="stage-5"><h2>5. screening: Morris screening</h2><p class="stage-meta">60 model evaluations · stream seed 4242 · input law prior (a1b2c3d4)</p><table><thead><tr><th>Quantity</th><th>Value</th></tr></thead><tbody><tr><td>mean</td><td class="value">1.23457</td></tr><tr><td>count</td><td class="value">12/20, [0.4, 0.8]</td></tr></tbody></table></section><section id="stage-6"><h2>6. validation: Coverage check</h2><p class="stage-meta">1,000 model evaluations · 1 cache hits · stream seed 4242 · input law prior (a1b2c3d4)</p><table><thead><tr><th>Quantity</th><th>Value</th></tr></thead><tbody><tr><td>mean</td><td class="value">1.23457</td></tr><tr><td>count</td><td class="value">12/20, [0.4, 0.8]</td></tr></tbody></table></section><section id="stage-7"><h2>7. extremes: Peaks over threshold</h2><p class="stage-meta">1,000 model evaluations · stream seed 4242 · input law prior (a1b2c3d4)</p><table><thead><tr><th>Quantity</th><th>Value</th></tr></thead><tbody><tr><td>mean</td><td class="value">1.23457</td></tr><tr><td>count</td><td class="value">12/20, [0.4, 0.8]</td></tr></tbody></table></section><section id="stage-8"><h2>8. design: Expected information gain</h2><p class="stage-meta">1,000 model evaluations · stream seed 4242 · input law prior (a1b2c3d4)</p><table><thead><tr><th>Quantity</th><th>Value</th></tr></thead><tbody><tr><td>mean</td><td class="value">1.23457</td></tr><tr><td>count</td><td class="value">12/20, [0.4, 0.8]</td></tr></tbody></table></section><section id="stage-9"><h2>9. emulation: PCE surrogate of g</h2><p class="stage-meta">120 model evaluations · stream seed 4242 · input law prior (a1b2c3d4)</p><table><thead><tr><th>Quantity</th><th>Value</th></tr></thead><tbody><tr><td>mean</td><td class="value">1.23457</td></tr><tr><td>count</td><td class="value">12/20, [0.4, 0.8]</td></tr></tbody></table></section><section class="child"><h2>Surrogate study from stage 9: capacity surrogate</h2><p class="stage-meta">1,001,000 surrogate evaluations (not forward-model evaluations)</p></section><section id="stage-9-1"><h3>9.1. propagation: Surrogate propagation</h3><p class="stage-meta">1,000,000 surrogate evaluations · stream seed 4242 · input law prior (a1b2c3d4)</p><table><thead><tr><th>Quantity</th><th>Value</th></tr></thead><tbody><tr><td>mean</td><td class="value">1.23457</td></tr><tr><td>count</td><td class="value">12/20, [0.4, 0.8]</td></tr></tbody></table></section><section id="stage-9-2"><h3>9.2. reliability: Surrogate MC</h3><p class="stage-meta">1,000 surrogate evaluations · 2 failed · stream seed 4242 · input law prior (a1b2c3d4)</p><table><thead><tr><th>Quantity</th><th>Value</th></tr></thead><tbody><tr><td>mean</td><td class="value">1.23457</td></tr><tr><td>count</td><td class="value">12/20, [0.4, 0.8]</td></tr></tbody></table></section></main><footer>Generated by probstat.workflow.UQStudy. Every number is reproducible from the root seed 20261111 and the stream seeds shown.</footer></body></html>

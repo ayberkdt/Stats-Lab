@@ -13656,3 +13656,18 @@ Rao-Blackwellized form of the indicator average.
 - Source: [REF-STAN-USERS-GUIDE-2-36] (sections "Posterior distribution of
   the discrete change point" and "The mathematics of recovering marginalized
   parameters").
+
+### EQ-VIZ-LIK-001 — Binomial likelihood scaled to unit area
+
+`L(p) = p^x (1 - p)^(n - x)` divided by `B(x + 1, n - x + 1)` integrates to
+one on `[0, 1]` and equals the `Beta(x + 1, n - x + 1)` density; it is also
+the posterior under the uniform `Beta(1, 1)` prior.
+
+- Domain: `0 <= x <= n`, `n >= 0` (for `n = 0` the scaled likelihood is the
+  uniform density).
+- Meaning: draws the likelihood on the same density axis as the prior and
+  the posterior, so the three curves of a Beta-Binomial update can be
+  compared directly; the scaling does not change where the likelihood is
+  large.
+- Code: `visualization.interactive.bayesian_updating_explainer`.
+- Source: [REF-GELMAN-ETAL-2013, Chapter 2].
