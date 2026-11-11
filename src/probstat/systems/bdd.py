@@ -21,7 +21,10 @@ system reliability needs (Rauzy 1993):
 * the exact mean and variance of the multilinear reliability polynomial
   when the variable probabilities are themselves independent uncertain
   quantities, and an exact grouped variant in which several variables share
-  one uncertain probability (state-of-knowledge correlation).
+  one uncertain probability (state-of-knowledge correlation);
+* variable reordering, either to a prescribed order or by Rudell's (1993)
+  sifting with reference-counted adjacent level swaps on a private copy;
+  both return a new manager, so existing node ids stay valid.
 
 The engine is iterative (no Python recursion limit) and keeps every node it
 creates (no garbage collection); ``max_nodes`` guards memory.
@@ -195,6 +198,32 @@ class PolynomialMoments:
     mean: float
     complement_mean: float
     variance: float
+
+
+@dataclass(frozen=True, slots=True)
+class ReorderResult:
+    """Functions transferred to a manager with a new variable order.
+
+    Args:
+        manager: New manager declaring every variable in ``order``.
+        roots: Node ids in ``manager``, one per transferred root.
+        order: Variable order of ``manager``.
+        nodes_before: Shared internal node count of the roots before.
+        nodes_after: Shared internal node count of ``roots`` in ``manager``.
+        swaps: Number of adjacent level swaps performed (``0`` for a
+            prescribed reorder).
+
+    References:
+        [REF-RUDELL-1993], [REF-BRYANT-1986].
+
+    """
+
+    manager: BDD
+    roots: tuple[int, ...]
+    order: tuple[str, ...]
+    nodes_before: int
+    nodes_after: int
+    swaps: int
 
 
 class BDD:
@@ -1430,6 +1459,191 @@ class BDD:
         return _postorder(("famfun", family), leaf, children, combine, self._cache)
 
     # ------------------------------------------------------------------
+    # variable reordering
+    # ------------------------------------------------------------------
+    def _roots(self, roots: int | Iterable[int]) -> tuple[int, ...]:
+        """Validate one root or several roots.
+
+        Args:
+            roots: Node id or iterable of node ids.
+
+        Returns:
+            The validated roots in the given order.
+
+        Raises:
+            ValueError: If no root is given.
+
+        References:
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
+
+        """
+        if isinstance(roots, int):
+            chosen: tuple[int, ...] = (roots,)
+        else:
+            chosen = tuple(roots)
+        if not chosen:
+            raise ValueError("at least one root is required")
+        return tuple(self._check(root) for root in chosen)
+
+    def shared_node_count(self, roots: int | Iterable[int]) -> int:
+        """Return the number of distinct internal nodes reachable from roots.
+
+        Args:
+            roots: Node id or iterable of node ids.
+
+        Returns:
+            Shared internal node count (terminals excluded).
+
+        References:
+            [REF-BRYANT-1986]. No equation is evaluated.
+
+        """
+        seen: set[int] = set()
+        for root in self._roots(roots):
+            seen.update(self._reachable(root))
+        return len(seen)
+
+    def _resolve_order(self, order: Sequence[str]) -> tuple[str, ...]:
+        """Complete a partial variable order with the current order.
+
+        Raises:
+            ValueError: If ``order`` repeats or names an unknown variable.
+
+        References:
+            [REF-BRYANT-1986]. No equation is evaluated.
+
+        """
+        chosen: list[str] = []
+        for name in order:
+            if name not in self._levels:
+                raise ValueError(f"order names unknown variable {name!r}")
+            if name in chosen:
+                raise ValueError(f"order repeats variable {name!r}")
+            chosen.append(name)
+        seen = set(chosen)
+        chosen.extend(name for name in self._names if name not in seen)
+        return tuple(chosen)
+
+    def reorder(
+        self, roots: int | Iterable[int], order: Sequence[str]
+    ) -> ReorderResult:
+        """Rebuild functions in a new manager with a prescribed variable order.
+
+        Every internal node ``(v, low, high)`` is rebuilt bottom-up as
+        ``ite(x_v, high', low')`` in the new manager, so the represented
+        functions are unchanged and the new diagrams are canonical for the
+        new order.
+
+        Args:
+            roots: Node id or iterable of node ids to transfer.
+            order: Variables placed first, in this order; the remaining
+                declared variables follow in their current order.
+
+        Returns:
+            New manager, mapped roots, the order, and node counts before
+            and after.
+
+        Raises:
+            ValueError: If a root is invalid or ``order`` is invalid.
+
+        Equation:
+            [EQ-SYS-BDD-001].
+
+        References:
+            [REF-BRYANT-1986].
+
+        """
+        chosen = self._roots(roots)
+        target_order = self._resolve_order(order)
+        target = BDD(target_order, max_nodes=self._max_nodes)
+        nodes: set[int] = set()
+        for root in chosen:
+            nodes.update(self._reachable(root))
+        mapping: dict[int, int] = {0: 0, 1: 1}
+        for node in sorted(nodes, key=lambda n: self._level[n], reverse=True):
+            variable = target.variable(self._names[self._level[node]])
+            mapping[node] = target.ite(
+                variable, mapping[self._high[node]], mapping[self._low[node]]
+            )
+        new_roots = tuple(mapping[root] for root in chosen)
+        return ReorderResult(
+            target,
+            new_roots,
+            target_order,
+            len(nodes),
+            target.shared_node_count(new_roots),
+            0,
+        )
+
+    def sift(
+        self,
+        roots: int | Iterable[int],
+        *,
+        max_growth: float | None = 1.2,
+        converge: bool = False,
+    ) -> ReorderResult:
+        """Reduce the shared size of diagrams by Rudell's sifting.
+
+        Variables are taken in decreasing order of the number of nodes that
+        test them. Each one is moved through every position of the order by
+        adjacent level swaps (EQ-SYS-SIFT-001), first towards the nearer
+        end, and is left at the position with the smallest diagram. A
+        direction is abandoned once the size exceeds ``max_growth`` times
+        the size at the start of that variable's sift. The swaps act in
+        place on a private copy of the reachable nodes, so the manager and
+        its node ids are not changed; the result is a new manager with the
+        sifted order. The final position of each variable is the best one
+        seen, so the size never increases.
+
+        Args:
+            roots: Node id or iterable of node ids whose shared size is
+                minimised.
+            max_growth: Abort factor ``>= 1`` for one direction, or ``None``
+                for exhaustive movement.
+            converge: Repeat whole passes while a pass reduces the size.
+
+        Returns:
+            New manager, mapped roots, the sifted order, node counts before
+            and after, and the number of adjacent swaps.
+
+        Raises:
+            TypeError: If ``converge`` is not a bool.
+            ValueError: If a root is invalid or ``max_growth < 1``.
+
+        Equation:
+            [EQ-SYS-SIFT-001].
+
+        References:
+            [REF-RUDELL-1993], [REF-BRYANT-1986].
+
+        """
+        chosen = self._roots(roots)
+        if not isinstance(converge, bool):
+            raise TypeError("converge must be a bool")
+        growth = math.inf
+        if max_growth is not None:
+            growth = require_non_negative_finite_real(max_growth, name="max_growth")
+            if growth < 1.0:
+                raise ValueError("max_growth must be at least one")
+        table = _SwapTable(self, chosen)
+        before = table.live
+        while True:
+            start = table.live
+            table.sift_pass(growth)
+            if not converge or table.live >= start:
+                break
+        target, new_roots, order = table.materialize(self._names, self._max_nodes)
+        return ReorderResult(
+            target,
+            new_roots,
+            order,
+            before,
+            target.shared_node_count(new_roots),
+            table.swaps,
+        )
+
+    # ------------------------------------------------------------------
     # epistemic moments
     # ------------------------------------------------------------------
     def moments(
@@ -1759,6 +1973,228 @@ class BDD:
         else:
             variance = square_zero - mean_zero * mean_zero
         return PolynomialMoments(_clip(mean_one), _clip(mean_zero), max(0.0, variance))
+
+
+class _SwapTable:
+    """Mutable copy of shared diagrams for in-place adjacent level swaps.
+
+    Nodes carry reference counts (parent edges plus root references); a node
+    whose count reaches zero is removed from the per-variable unique table
+    at once, so ``live`` is always the exact shared size. Node ids keep
+    their identity across swaps, so roots and parents stay valid.
+
+    References:
+        [EQ-SYS-SIFT-001], [REF-RUDELL-1993].
+
+    """
+
+    def __init__(self, source: BDD, roots: Sequence[int]) -> None:
+        """Copy the nodes reachable from ``roots`` out of ``source``.
+
+        References:
+            [REF-RUDELL-1993]. No equation is evaluated.
+
+        """
+        count = len(source._names)
+        self.var_at: list[int] = list(range(count))
+        self.pos_of: list[int] = list(range(count))
+        self.var: list[int] = [-1, -1]
+        self.low: list[int] = [0, 1]
+        self.high: list[int] = [0, 1]
+        self.ref: list[int] = [0, 0]
+        self.free: list[int] = []
+        self.unique: list[dict[tuple[int, int], int]] = [{} for _ in range(count)]
+        self.live = 0
+        self.swaps = 0
+        nodes: set[int] = set()
+        for root in roots:
+            nodes.update(source._reachable(root))
+        mapping: dict[int, int] = {0: 0, 1: 1}
+        for node in sorted(nodes, key=lambda n: source._level[n], reverse=True):
+            mapping[node] = self._find_or_add(
+                source._level[node],
+                mapping[source._low[node]],
+                mapping[source._high[node]],
+            )
+        self.roots = tuple(mapping[root] for root in roots)
+        for root in self.roots:
+            self._incref(root)
+
+    def _incref(self, node: int) -> None:
+        """Add one reference to an internal node.
+
+        References:
+            [REF-RUDELL-1993]. No equation is evaluated.
+
+        """
+        if node >= 2:
+            self.ref[node] += 1
+
+    def _deref(self, node: int) -> None:
+        """Remove one reference and free nodes that become unreferenced.
+
+        References:
+            [REF-RUDELL-1993]. No equation is evaluated.
+
+        """
+        stack = [node]
+        while stack:
+            current = stack.pop()
+            if current < 2:
+                continue
+            self.ref[current] -= 1
+            if self.ref[current] == 0:
+                key = (self.low[current], self.high[current])
+                del self.unique[self.var[current]][key]
+                self.free.append(current)
+                self.live -= 1
+                stack.append(self.low[current])
+                stack.append(self.high[current])
+
+    def _find_or_add(self, variable: int, low: int, high: int) -> int:
+        """Return the node ``(variable, low, high)``, creating it if new.
+
+        The returned node's own count is not changed; a new node adds one
+        reference to each child.
+
+        References:
+            [EQ-SYS-BDD-001], [REF-BRYANT-1986].
+
+        """
+        if low == high:
+            return low
+        table = self.unique[variable]
+        found = table.get((low, high))
+        if found is not None:
+            return found
+        if self.free:
+            node = self.free.pop()
+            self.var[node] = variable
+            self.low[node] = low
+            self.high[node] = high
+            self.ref[node] = 0
+        else:
+            node = len(self.var)
+            self.var.append(variable)
+            self.low.append(low)
+            self.high.append(high)
+            self.ref.append(0)
+        table[(low, high)] = node
+        self._incref(low)
+        self._incref(high)
+        self.live += 1
+        return node
+
+    def swap(self, position: int) -> None:
+        """Exchange the variables at ``position`` and ``position + 1``.
+
+        With ``x`` above ``y``, a node ``f`` testing ``x`` whose children do
+        not test ``y`` simply moves below ``y``. Otherwise ``f`` is
+        relabelled with ``y`` and children ``ite(x, f10, f00)`` and
+        ``ite(x, f11, f01)``, which is the identity EQ-SYS-SIFT-001; such a
+        node cannot collide with an existing ``y`` node because it depends
+        on ``x``.
+
+        References:
+            [EQ-SYS-SIFT-001], [REF-RUDELL-1993].
+
+        """
+        x = self.var_at[position]
+        y = self.var_at[position + 1]
+        self.swaps += 1
+        for (low, high), node in list(self.unique[x].items()):
+            low_y = low >= 2 and self.var[low] == y
+            high_y = high >= 2 and self.var[high] == y
+            if not (low_y or high_y):
+                continue
+            f00, f01 = (self.low[low], self.high[low]) if low_y else (low, low)
+            f10, f11 = (self.low[high], self.high[high]) if high_y else (high, high)
+            del self.unique[x][(low, high)]
+            new_low = self._find_or_add(x, f00, f10)
+            self._incref(new_low)
+            new_high = self._find_or_add(x, f01, f11)
+            self._incref(new_high)
+            self._deref(low)
+            self._deref(high)
+            self.var[node] = y
+            self.low[node] = new_low
+            self.high[node] = new_high
+            self.unique[y][(new_low, new_high)] = node
+        self.var_at[position], self.var_at[position + 1] = y, x
+        self.pos_of[x] = position + 1
+        self.pos_of[y] = position
+
+    def _sift_variable(self, variable: int, growth: float) -> None:
+        """Move one variable to the position with the smallest diagram.
+
+        References:
+            [REF-RUDELL-1993]. No equation is evaluated.
+
+        """
+        last = len(self.var_at) - 1
+        position = self.pos_of[variable]
+        best_size = self.live
+        best_position = position
+        limit = growth * self.live
+        directions = (1, -1) if last - position < position else (-1, 1)
+        for step in directions:
+            while 0 <= position + step <= last:
+                self.swap(position if step > 0 else position - 1)
+                position += step
+                if self.live < best_size:
+                    best_size = self.live
+                    best_position = position
+                if self.live > limit:
+                    break
+        while position < best_position:
+            self.swap(position)
+            position += 1
+        while position > best_position:
+            self.swap(position - 1)
+            position -= 1
+
+    def sift_pass(self, growth: float) -> None:
+        """Sift every variable once, largest levels first.
+
+        References:
+            [REF-RUDELL-1993]. No equation is evaluated.
+
+        """
+        sizes = [(len(table), variable) for variable, table in enumerate(self.unique)]
+        for size, variable in sorted(sizes, key=lambda item: (-item[0], item[1])):
+            if size:
+                self._sift_variable(variable, growth)
+
+    def materialize(
+        self, names: Sequence[str], max_nodes: int
+    ) -> tuple[BDD, tuple[int, ...], tuple[str, ...]]:
+        """Return a new manager in the current order holding the roots.
+
+        References:
+            [EQ-SYS-BDD-001], [REF-BRYANT-1986].
+
+        """
+        order = tuple(names[variable] for variable in self.var_at)
+        target = BDD(order, max_nodes=max_nodes)
+        nodes: set[int] = set()
+        stack = list(self.roots)
+        while stack:
+            node = stack.pop()
+            if node < 2 or node in nodes:
+                continue
+            nodes.add(node)
+            stack.append(self.low[node])
+            stack.append(self.high[node])
+        mapping: dict[int, int] = {0: 0, 1: 1}
+        for node in sorted(
+            nodes, key=lambda n: self.pos_of[self.var[n]], reverse=True
+        ):
+            mapping[node] = target._mk(
+                self.pos_of[self.var[node]],
+                mapping[self.low[node]],
+                mapping[self.high[node]],
+            )
+        return target, tuple(mapping[root] for root in self.roots), order
 
 
 def _pair(a: int, b: int) -> tuple[int, int]:
