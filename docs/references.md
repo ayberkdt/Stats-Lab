@@ -3331,3 +3331,38 @@ Opportunities." *ACM Computing Surveys* 51(1), 1-27, 2018. Relations
 between the outputs of transformed inputs as test oracles when the exact
 output is unknown.
 DOI: [10.1145/3143561](https://doi.org/10.1145/3143561).
+
+## REF-RABINER-1989
+
+Lawrence R. Rabiner. "A Tutorial on Hidden Markov Models and Selected
+Applications in Speech Recognition." *Proceedings of the IEEE* 77(2),
+257-286, 1989. The forward and backward procedures, the state and pairwise
+state probabilities, the Viterbi algorithm, and scaling for hidden Markov
+models.
+DOI: [10.1109/5.18626](https://doi.org/10.1109/5.18626).
+
+## REF-BAUM-ETAL-1970
+
+Leonard E. Baum, Ted Petrie, George Soules, and Norman Weiss. "A
+Maximization Technique Occurring in the Statistical Analysis of
+Probabilistic Functions of Markov Chains." *The Annals of Mathematical
+Statistics* 41(1), 164-171, 1970. The forward and backward recursions for
+the likelihood of a hidden Markov chain and the re-estimation procedure
+built on them.
+DOI: [10.1214/aoms/1177697196](https://doi.org/10.1214/aoms/1177697196).
+
+## REF-CHIB-1996
+
+Siddhartha Chib. "Calculating Posterior Distributions and Modal Estimates
+in Markov Mixture Models." *Journal of Econometrics* 75(1), 79-97, 1996.
+Gibbs sampling of the hidden states of a Markov mixture model as one block,
+by forward filtered probabilities and backward conditional draws.
+DOI: [10.1016/0304-4076(95)01770-4](https://doi.org/10.1016/0304-4076(95)01770-4).
+
+## REF-VITERBI-1967
+
+Andrew J. Viterbi. "Error Bounds for Convolutional Codes and an
+Asymptotically Optimum Decoding Algorithm." *IEEE Transactions on
+Information Theory* 13(2), 260-269, 1967. The dynamic-programming
+recursion for the most probable state sequence.
+DOI: [10.1109/TIT.1967.1054010](https://doi.org/10.1109/TIT.1967.1054010).

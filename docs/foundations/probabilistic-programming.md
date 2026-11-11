@@ -489,8 +489,8 @@ or a plate whose size is a group length, gives a static structure.
 Each of these raises `ModelSpecificationError`:
 
 - structure that depends on continuous values;
-- inside a plate iteration, sites that depend on the iteration's own
-  discrete sites;
+- inside a plate iteration, discrete sites that depend on the iteration's
+  own discrete sites (other sites may, since ADR-0088; see section 7);
 - unbounded discrete supports;
 - more than 4096 traced configurations;
 - more than 64 discrete sites outside plates in one execution;
@@ -525,25 +525,151 @@ Check: three indicators (8 values) and a `Multinomial(3, p)` (10 values),
 within `9e-16`, and the recovered joint probabilities equal exact Bayes to
 twelve digits.
 
-## 7. Limitations
+## 7. Markov chains, structure inside plates, and tuned pseudo-priors
+
+ADR-0088 adds a Markov-chain scope, lets the branches of a plate iteration
+declare different sites, and lets the pseudo-priors be tuned. Every number
+in this section was printed by `tests/test_ppl_markov.py`,
+`tests/test_ppl_dynamic_structure.py`, or a script with the same models and
+seeds.
+
+### Markov chains
+
+```python
+def hmm(m):
+    mu = m.sample("mu", ppl.OrderedVector(Normal(0.0, 3.0), 2))
+    for t, previous in m.markov("chain", len(y)):
+        p = 0.4 if previous is None else transition[previous][1]
+        z = m.sample(f"z[{t}]", Indicator(p), marginalize=True)
+        m.observe(f"y[{t}]", Gaussian(mu[z]), y[t])
+```
+
+`m.markov` yields the step index and `previous`, the value of the previous
+step's discrete site (`None` at the first step). The step is run once per
+pair of a previous state and a current state, and the forward variables
+
+`alpha_t(j) = log sum_i exp(alpha_(t-1)(i) + l_t(i, j))`
+
+are carried in log space ([EQ-PPL-MARKOV-001], [REF-RABINER-1989],
+[REF-BAUM-ETAL-1970]). A chain of `n` steps with `K` states costs about
+`n K^2` executions of the body instead of `K^n`; for the 40-step two-state
+chain of the tests that is 158 executions and about 2.6 ms per
+log-density. The marginal is differentiable, so NUTS samples the emission
+means directly.
+
+After sampling, the path of every draw comes from forward filtering and
+backward sampling, and the reported state probabilities are the exact
+smoothed marginals averaged over the draws ([EQ-PPL-MARKOV-002],
+[REF-CHIB-1996]). `program.most_probable_discrete(u)` returns the Viterbi
+path, and more generally the jointly most probable value of every discrete
+site at `u` ([EQ-PPL-MARKOV-003], [REF-VITERBI-1967]).
+
+Checks:
+
+- For `n` up to 10 the log-likelihood equals the sum over all `2^n` paths
+  within `3.6e-15`, and an independent scaled forward recursion within
+  `1e-12`.
+- At fixed means the recovered marginals equal the exact smoothed
+  probabilities to twelve digits, and 4000 sampled paths match them within
+  five binomial standard errors. The Viterbi path is the most probable of
+  the 1024 paths.
+- NUTS (seed 3, two chains of 250 + 250, about 32 s) gives posterior means
+  `-0.6850` and `1.8186` (Monte Carlo standard errors 0.0146 and 0.0143)
+  against `-0.6805` and `1.8132` by quadrature.
+
+The prior on the means is ordered. With two separate normal priors, both
+chains of the same run settled in the label-swapped local mode; at the
+mirrored point its log-density is about 8.5 lower.
+
+A chain may sit inside a plate (one chain per sequence), and a step may
+contain a plate with its own indicators. A step must not declare
+continuous or deterministic sites or change its sites with its state, and
+chains do not nest.
+
+### Structure inside plate iterations
+
+```python
+for i in m.plate("data", len(y)):
+    z = m.sample(f"z[{i}]", Indicator(0.4), marginalize=True)
+    if z == 1:
+        theta = m.sample(f"theta[{i}]", Gaussian(mu, 1.5))
+        m.observe(f"y[{i}]", Gaussian(theta, 0.5), y[i])
+    else:
+        m.observe(f"y[{i}]", Gaussian(mu), y[i])
+```
+
+`trace` now runs every branch of every plate iteration. A branch that
+lacks `theta[i]` adds its pseudo-prior, the prior it has in the branch that
+declares it, so integrating `theta[i]` out of each branch weight gives
+`p(z_i, y_i | mu)` ([EQ-PPL-LOCAL-001]). This is the product-space method
+applied inside each iteration. `posterior["theta[1]"]` is `None` in the
+draws whose recovered `z[1]` is 0, and `presence_probability("theta[1]")`
+equals the Rao-Blackwellized `p(z[1] = 1 | y)`.
+
+Checks (three observations):
+
+- The log-density equals the hand-written padded sum within `1e-12`.
+- The integral of each branch weight over `theta_i` matches the closed form
+  to nine digits.
+- NUTS (seed 11) gives `p(z_i = 1 | y) = 0.3114, 0.5826, 0.3835` (standard
+  errors 0.0164, 0.0368, 0.0213) against `0.3215, 0.5864, 0.3808` by
+  quadrature.
+
+The discrete sites of an iteration must be the same in every branch, a
+name must keep its support in every branch, and deterministic sites must
+come before the iteration's discrete sites.
+
+### Tuned pseudo-priors
+
+Any proper pseudo-prior leaves the structure probabilities unchanged. One
+close to the conditional posterior makes the sampler move between
+structures more easily [REF-CARLIN-CHIB-1995].
+
+```python
+pilot = ppl.sample(components, draws=300, warmup=300, chains=2, seed=1)
+tuned = ppl.tune_pseudo_priors(pilot)    # {"mu[1]": PseudoPrior(...)}
+posterior = ppl.sample(components, ..., pseudo_priors=tuned)
+```
+
+`tune_pseudo_priors` fits a normal to each optional site's unconstrained
+coordinates. Each pilot draw is weighted by the probability that the site
+exists at that draw ([EQ-PPL-PSEUDO-001]). For the one-or-two-component
+model it gives `N(2.786, 0.626^2)` for `mu[1]`, whose prior is `N(3, 1)`.
+Quadrature with the tuned pseudo-prior still gives `p(k = 2 | y) =
+0.727852` (exact 0.727853).
+
+Over seeds 7 to 10 (600 draws each), the effective sample size of the
+per-draw `p(k = 2 | u)` rises from 296-424 to 484-524. The standard error
+of the estimate falls from 0.0114-0.0129 to 0.0093-0.0103. The default is
+unchanged: without `pseudo_priors` each site keeps its prior.
+
+There are no reversible-jump moves. The traced structures form a finite
+set with a fixed union of sites, so the product-space method is exact and
+suits the gradient-based engines [REF-GODSILL-2001].
+
+## 8. Limitations
 
 - Programs built from the library distribution classes with latent
   parameters are not traceable; their gradients come from finite
   differences, so each gradient costs `2d + 1` model executions and such
   models suit up to a few tens of parameters. Traceable programs take one
   reverse-mode execution per gradient.
-- There is no variable elimination across plate iterations (a hidden
-  Markov chain must be enumerated jointly, which the 4096-configuration
-  limit allows only for short chains). Inside a plate iteration, discrete
-  sites must come after the continuous sites and may not change the
-  iteration's structure.
+- Variable elimination is provided along plates and first-order Markov
+  chains only, not for general discrete graphs. A Markov step may not
+  declare continuous latent or deterministic sites, may not change its
+  sites with its state, and holds at most 4096 joint states; coupled chains
+  must be written as one chain on the joint state, and chains do not nest.
+- Inside a plate iteration the discrete sites must be the same in every
+  branch, a name must keep its support and transform in every branch, and
+  deterministic sites must come before the discrete sites.
 - Structured supports are limited to the simplex, ordered vectors (base law
   on `R` or `(a, inf)`), Cholesky factors of correlation matrices,
   correlation matrices, and covariance matrices.
-- Site structure may depend on data and on discrete sites outside plates
-  only. The pseudo-priors of padded sites are their priors and are not
-  tuned, so a structure whose posterior is far from those priors mixes
-  slowly; there are no reversible-jump moves.
+- Site structure may depend on data and on discrete sites, not on
+  continuous values. The pseudo-priors of padded sites are their priors
+  unless tuned; tuned pseudo-priors are independent normals on the
+  unconstrained coordinates, fitted from a separate pilot run rather than
+  adapted during sampling. There are no reversible-jump moves.
 - `reparam="noncentered"` applies to `Normal` sites only.
 - Starting values cannot be supplied on the natural scale, because the
   inverse of a non-centred site depends on its parents.
@@ -576,3 +702,11 @@ twelve digits.
 - [REF-CARLIN-CHIB-1995] Model choice on a product space with
   pseudo-priors.
 - [REF-GODSILL-2001] Composite model spaces for model uncertainty.
+- [REF-RABINER-1989] Forward and backward procedures and the Viterbi
+  algorithm for hidden Markov models.
+- [REF-BAUM-ETAL-1970] Forward and backward recursions for probabilistic
+  functions of Markov chains.
+- [REF-CHIB-1996] Drawing the hidden states of a Markov mixture model by
+  forward filtering and backward sampling.
+- [REF-VITERBI-1967] The most probable state sequence by dynamic
+  programming.

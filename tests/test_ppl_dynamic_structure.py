@@ -14,9 +14,11 @@ from probstat.distributions import (
     Normal,
     Poisson,
     RealSupport,
+    Uniform,
 )
 from probstat.inference import effective_sample_size, ppl
 from probstat.inference.ppl import ModelHandle, ModelSpecificationError
+from probstat.inference.ppl._discrete import recover_discrete
 from probstat.multivariate import Multinomial
 from probstat.numerics import admath
 
@@ -627,6 +629,330 @@ class VectorDiscreteTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Structure controlled by discrete sites inside plate iterations (ADR-0088)
+# ---------------------------------------------------------------------------
+
+LOCAL_Y = (0.3, 2.4, -0.5)
+SPIKE = 0.4
+
+
+def local_model(m: ModelHandle) -> None:
+    """Give each observation an optional offset ``theta[i]`` chosen by ``z[i]``."""
+    mu = m.sample("mu", Normal(0.0, 1.0))
+    for i in m.plate("data", len(LOCAL_Y)):
+        z = m.sample(f"z[{i}]", Indicator(SPIKE), marginalize=True)
+        if z == 1:
+            theta = m.sample(f"theta[{i}]", Gaussian(mu, 1.5))
+            m.observe(f"y[{i}]", Gaussian(theta, 0.5), LOCAL_Y[i])
+        else:
+            m.observe(f"y[{i}]", Gaussian(mu), LOCAL_Y[i])
+
+
+def local_branch_terms(mu: float, theta: float, y: float) -> tuple[float, float]:
+    """Return the padded log-weights of ``z = 0`` and ``z = 1`` of one iteration."""
+    pad = log_phi(theta, mu, 1.5)
+    return (
+        math.log(1.0 - SPIKE) + log_phi(y, mu) + pad,
+        math.log(SPIKE) + pad + log_phi(y, theta, 0.5),
+    )
+
+
+def local_exact_spike_probabilities() -> list[float]:
+    """Return ``p(z_i = 1 | y)`` by Simpson quadrature over ``mu``.
+
+    Given ``mu``, ``y_i | z_i = 0 ~ N(mu, 1)`` and
+    ``y_i | z_i = 1 ~ N(mu, 1.5^2 + 0.5^2)``.
+    """
+    spread = math.sqrt(1.5**2 + 0.5**2)
+    nodes, weights = simpson(-8.0, 8.0, 1601)
+    evidence = 0.0
+    spikes = [0.0] * len(LOCAL_Y)
+    for mu, w in zip(nodes, weights, strict=True):
+        parts = [
+            (
+                (1.0 - SPIKE) * math.exp(log_phi(y, mu)),
+                SPIKE * math.exp(log_phi(y, mu, spread)),
+            )
+            for y in LOCAL_Y
+        ]
+        joint = w * math.exp(log_phi(mu)) * math.prod(a + b for a, b in parts)
+        evidence += joint
+        for i, (a, b) in enumerate(parts):
+            spikes[i] += joint * b / (a + b)
+    return [s / evidence for s in spikes]
+
+
+NESTED_Y = ((0.4, 3.1), (-0.2, 0.6))
+
+
+def nested_local(m: ModelHandle) -> None:
+    """Let an outer label decide whether inner indicators and offsets exist."""
+    mu = m.sample("mu", Normal(0.0, 1.0))
+    for g in m.plate("groups", len(NESTED_Y)):
+        c = m.sample(f"c[{g}]", Indicator(0.5), marginalize=True)
+        for j in m.plate(f"inner{g}", 2):
+            y = NESTED_Y[g][j]
+            if c == 0:
+                m.observe(f"y[{g},{j}]", Gaussian(mu, 3.0), y)
+                continue
+            o = m.sample(f"o[{g},{j}]", Indicator(0.3), marginalize=True)
+            if o == 1:
+                w = m.sample(f"w[{g},{j}]", Gaussian(0.0, 2.0))
+                m.observe(f"y[{g},{j}]", Gaussian(mu + w), y)
+            else:
+                m.observe(f"y[{g},{j}]", Gaussian(mu), y)
+
+
+class LocalStructureTests(unittest.TestCase):
+    """Plate branches that declare different continuous sites."""
+
+    def test_traced_branches_and_padded_density(self) -> None:
+        """Every branch is traced; the density is the per-iteration padded sum."""
+        program = ppl.trace(local_model)
+        self.assertTrue(program.per_configuration)
+        self.assertFalse(program.dynamic)
+        self.assertEqual(
+            program.unconstrained_names, ("mu", "theta[0]", "theta[1]", "theta[2]")
+        )
+        (structure,) = program.structures
+        self.assertEqual(structure.enumerated, ("theta[0]", "theta[1]", "theta[2]"))
+        self.assertEqual(len(structure.branches), len(LOCAL_Y))
+        self.assertNotIn("theta[0]", [s.name for s in structure.layout])
+        for u in ((0.2, 0.7, 1.9, -0.3), (-0.6, 1.5, 2.8, 0.0)):
+            mu, thetas = u[0], u[1:]
+            expected = log_phi(mu) + math.fsum(
+                log_sum_exp(list(local_branch_terms(mu, theta, y)))
+                for theta, y in zip(thetas, LOCAL_Y, strict=True)
+            )
+            self.assertLess(abs(program.log_density(u) - expected), 1e-12)
+            conditional = program.discrete_conditional(u)
+            for group, theta, y in zip(
+                conditional.groups[0], thetas, LOCAL_Y, strict=True
+            ):
+                site = "theta" + group.names[0][1:]
+                self.assertEqual(group.absent, (frozenset({site}), frozenset()))
+                terms = local_branch_terms(mu, theta, y)
+                for got, want in zip(group.log_weights, terms, strict=True):
+                    self.assertAlmostEqual(got, want, places=12)
+        u = (0.2, 0.7, 1.9, -0.3)
+        reverse = program.gradient(u, method="reverse")
+        finite = program.gradient(u, method="finite-difference")
+        for a, b in zip(reverse, finite, strict=True):
+            self.assertAlmostEqual(a, b, delta=1e-5)
+
+    def test_pseudo_prior_integrates_out_per_iteration(self) -> None:
+        """Integrate ``theta[i]`` out of each branch: ``p(z_i, y_i | mu)``."""
+        program = ppl.trace(local_model)
+        mu = 0.4
+        spread = math.sqrt(1.5**2 + 0.5**2)
+        nodes, weights = simpson(-14.0, 14.0, 2001)
+        for i, y in enumerate(LOCAL_Y):
+            totals = [0.0, 0.0]
+            for theta, w in zip(nodes, weights, strict=True):
+                u = [mu, 0.0, 0.0, 0.0]
+                u[1 + i] = theta
+                group = program.discrete_conditional(u).groups[0][i]
+                for z in (0, 1):
+                    totals[z] += w * math.exp(group.log_weights[z])
+            self.assertAlmostEqual(
+                totals[0] / ((1.0 - SPIKE) * math.exp(log_phi(y, mu))), 1.0, places=9
+            )
+            self.assertAlmostEqual(
+                totals[1] / (SPIKE * math.exp(log_phi(y, mu, spread))), 1.0, places=9
+            )
+
+    def test_posterior_spike_probabilities_and_presence(self) -> None:
+        """NUTS recovers ``p(z_i = 1 | y)``; ``theta[i]`` exists exactly when drawn."""
+        exact = local_exact_spike_probabilities()
+        posterior = ppl.sample(local_model, draws=300, warmup=300, chains=2, seed=11)
+        self.assertEqual(posterior.gradient_method, "reverse")
+        assert posterior.discrete is not None
+        for i in range(len(LOCAL_Y)):
+            rows = [row[1] for row in posterior.discrete.probabilities[f"z[{i}]"]]
+            half = len(rows) // 2
+            ess = effective_sample_size((rows[:half], rows[half:]))
+            mean = math.fsum(rows) / len(rows)
+            spread = math.sqrt(
+                math.fsum((p - mean) ** 2 for p in rows) / len(rows) / ess
+            )
+            estimate = posterior.discrete_probabilities(f"z[{i}]")[1]
+            self.assertLess(abs(estimate - exact[i]), 4.0 * spread + 1e-3)
+            name = f"theta[{i}]"
+            self.assertAlmostEqual(
+                posterior.presence_probability(name), estimate, places=12
+            )
+            present = posterior.present(name)
+            self.assertEqual(
+                present, tuple(z == 1 for z in posterior[f"z[{i}]"])
+            )
+            draws = posterior[name]
+            self.assertTrue(
+                all((d is None) == (not p) for d, p in zip(draws, present, strict=True))
+            )
+            if any(present):
+                self.assertTrue(math.isfinite(posterior.mean(name)))  # type: ignore[arg-type]
+        for draw in posterior.draws():
+            for i in range(len(LOCAL_Y)):
+                self.assertEqual(f"theta[{i}]" in draw, draw[f"z[{i}]"] == 1)
+        replicated = ppl.posterior_predictive(
+            local_model, posterior, seed=3, max_draws=20
+        )
+        self.assertEqual(len(replicated["y[0]"]), 20)
+
+    def test_nested_branches_pad_at_every_level(self) -> None:
+        """An outer branch lacking an inner iteration pads its offsets too."""
+        program = ppl.trace(nested_local)
+        self.assertEqual(program.dimension, 5)
+        u = (0.3, 1.2, -0.4, 0.8, 2.1)
+        mu = u[0]
+        offsets = {
+            (g, j): u[1 + 2 * g + j] for g in range(len(NESTED_Y)) for j in (0, 1)
+        }
+        expected = log_phi(mu)
+        brute: list[float] = []
+        for g, ys in enumerate(NESTED_Y):
+            pads = [log_phi(offsets[(g, j)], 0.0, 2.0) for j in (0, 1)]
+            absent = math.log(0.5) + math.fsum(
+                log_phi(y, mu, 3.0) + pad for y, pad in zip(ys, pads, strict=True)
+            )
+            present = math.log(0.5) + math.fsum(
+                log_sum_exp(
+                    [
+                        math.log(0.7) + log_phi(y, mu) + pad,
+                        math.log(0.3) + pad + log_phi(y, mu + offsets[(g, j)]),
+                    ]
+                )
+                for j, (y, pad) in enumerate(zip(ys, pads, strict=True))
+            )
+            expected += log_sum_exp([absent, present])
+            brute.append(math.exp(present - log_sum_exp([absent, present])))
+        self.assertLess(abs(program.log_density(u) - expected), 1e-12)
+        conditional = program.discrete_conditional(u)
+        recovered = recover_discrete([conditional], 1)
+        for g in range(len(NESTED_Y)):
+            self.assertAlmostEqual(
+                recovered.probabilities[f"c[{g}]"][0][1], brute[g], places=12
+            )
+            for j in (0, 1):
+                y = NESTED_Y[g][j]
+                one = math.log(0.3) + log_phi(y, mu + offsets[(g, j)])
+                zero = math.log(0.7) + log_phi(y, mu)
+                inner = math.exp(one - log_sum_exp([zero, one]))
+                absence = recovered.absence[f"w[{g},{j}]"][0]
+                self.assertAlmostEqual(1.0 - absence, brute[g] * inner, places=12)
+        reverse = program.gradient(u, method="reverse")
+        finite = program.gradient(u, method="finite-difference")
+        for a, b in zip(reverse, finite, strict=True):
+            self.assertAlmostEqual(a, b, delta=1e-5)
+
+    def test_refused_local_structures(self) -> None:
+        """Extra discrete sites, changing supports, and value-dependent branches."""
+
+        def extra_discrete(m: ModelHandle) -> None:
+            """Declare a further discrete site in one branch only."""
+            for i in m.plate("data", 2):
+                z = m.sample(f"z[{i}]", Indicator(0.5), marginalize=True)
+                if z == 1:
+                    m.sample(f"w[{i}]", Indicator(0.5), marginalize=True)
+
+        def changing_support(m: ModelHandle) -> None:
+            """Give one name a different support in each branch."""
+            for i in m.plate("data", 2):
+                z = m.sample(f"z[{i}]", Indicator(0.5), marginalize=True)
+                m.sample(f"x[{i}]", Uniform(0.0, 1.0 + z))
+
+        def value_branch(m: ModelHandle) -> None:
+            """Declare a site in a branch only for some continuous values."""
+            mu = m.sample("mu", Normal(0.0, 1.0))
+            for i in m.plate("data", 2):
+                z = m.sample(f"z[{i}]", Indicator(0.5), marginalize=True)
+                if z == 1 and mu > 0.5:
+                    m.observe(f"y[{i}]", Gaussian(mu), 0.2)
+
+        with self.assertRaisesRegex(ModelSpecificationError, "discrete site"):
+            ppl.trace(extra_discrete)
+        with self.assertRaisesRegex(ModelSpecificationError, "different branches"):
+            ppl.trace(changing_support)
+        program = ppl.trace(value_branch)
+        with self.assertRaisesRegex(ModelSpecificationError, "differ from the traced"):
+            program.log_density((1.0,))
+
+
+class PseudoPriorTuningTests(unittest.TestCase):
+    """Pseudo-priors moment-matched to a pilot run (Carlin and Chib 1995)."""
+
+    def test_tuned_pseudo_prior_keeps_the_model_probability_and_mixes_better(
+        self,
+    ) -> None:
+        """Quadrature is unchanged; the indicator ESS of NUTS rises."""
+        one, two = component_marginal_likelihoods()
+        exact_two = two / (one + two)
+        pilot = ppl.sample(components, draws=300, warmup=300, chains=2, seed=1)
+        tuned = ppl.tune_pseudo_priors(pilot)
+        self.assertEqual(set(tuned), {"mu[1]"})
+        prior = tuned["mu[1]"]
+        # The weighted moments of the pilot draws given k = 2.
+        weights = [row[1] for row in pilot.discrete.probabilities["k"]]  # type: ignore[union-attr]
+        values = [draw[1] for draw in pilot.unconstrained.pooled()]
+        mean = math.fsum(w * v for w, v in zip(weights, values, strict=True))
+        mean /= math.fsum(weights)
+        self.assertAlmostEqual(prior.mean[0], mean, places=12)
+        self.assertLess(prior.scale[0], 1.0)
+        program = ppl.trace(components).with_pseudo_priors(tuned)
+        a, wa = simpson(-1.5, 2.5, 81)
+        b, wb = simpson(-1.0, 7.0, 81)
+        total = 0.0
+        mass_two = 0.0
+        for x0, w0 in zip(a, wa, strict=True):
+            for x1, w1 in zip(b, wb, strict=True):
+                log_weights = program.discrete_conditional((x0, x1)).log_weights
+                mass = [math.exp(v) for v in log_weights]
+                total += w0 * w1 * (mass[0] + mass[1])
+                mass_two += w0 * w1 * mass[1]
+        self.assertAlmostEqual(total / (0.5 * (one + two)), 1.0, places=4)
+        self.assertAlmostEqual(mass_two / total, exact_two, places=4)
+
+        def indicator_ess(posterior: ppl.PosteriorSamples) -> tuple[float, float]:
+            """Return the ESS of ``p(k = 2 | u)`` and the estimate."""
+            assert posterior.discrete is not None
+            rows = [row[1] for row in posterior.discrete.probabilities["k"]]
+            half = len(rows) // 2
+            return effective_sample_size((rows[:half], rows[half:])), math.fsum(
+                rows
+            ) / len(rows)
+
+        default = ppl.sample(components, draws=300, warmup=300, chains=2, seed=7)
+        better = ppl.sample(
+            components, draws=300, warmup=300, chains=2, seed=7, pseudo_priors=tuned
+        )
+        default_ess, default_estimate = indicator_ess(default)
+        tuned_ess, estimate = indicator_ess(better)
+        # The default (prior as pseudo-prior) reproduces the ADR-0084 run.
+        self.assertAlmostEqual(default_estimate, 0.719644886043826, places=12)
+        self.assertGreater(tuned_ess, default_ess)
+        assert better.discrete is not None
+        rows = [row[1] for row in better.discrete.probabilities["k"]]
+        spread = math.sqrt(
+            math.fsum((p - estimate) ** 2 for p in rows) / len(rows) / tuned_ess
+        )
+        self.assertLess(abs(estimate - exact_two), 4.0 * spread + 1e-3)
+
+    def test_invalid_pseudo_priors(self) -> None:
+        """Bad moments and names are refused."""
+        with self.assertRaises(ValueError):
+            ppl.PseudoPrior((0.0,), (0.0,))
+        with self.assertRaises(ValueError):
+            ppl.PseudoPrior((0.0, 1.0), (1.0,))
+        program = ppl.trace(components)
+        with self.assertRaisesRegex(ModelSpecificationError, "not a continuous"):
+            program.with_pseudo_priors({"k": ppl.PseudoPrior((0.0,), (1.0,))})
+        with self.assertRaisesRegex(ModelSpecificationError, "coordinates"):
+            program.with_pseudo_priors(
+                {"mu[1]": ppl.PseudoPrior((0.0, 0.0), (1.0, 1.0))}
+            )
+
+
+# ---------------------------------------------------------------------------
 # Data-dependent structure and refused structures
 # ---------------------------------------------------------------------------
 
@@ -669,20 +995,6 @@ class StructureBoundaryTests(unittest.TestCase):
             mu = m.sample("mu", Normal(0.0, 1.0))
             if mu > 0.5:
                 m.sample("extra", Normal(0.0, 1.0))
-
-        def local_branch(m: ModelHandle) -> None:
-            """Declare an observation only for one value of a local site."""
-            mu = m.sample("mu", Normal(0.0, 1.0))
-            for i in m.plate("data", 2):
-                z = m.sample(f"z[{i}]", Bernoulli(0.5), marginalize=True)
-                if z == 1:
-                    m.observe(f"y[{i}]", Gaussian(mu), 0.3)
-
-        def local_continuous(m: ModelHandle) -> None:
-            """Declare a continuous site after a local discrete site."""
-            for i in m.plate("data", 2):
-                z = m.sample(f"z[{i}]", Bernoulli(0.5), marginalize=True)
-                m.sample(f"x[{i}]", Normal(float(z), 1.0))
 
         def unbounded_count(m: ModelHandle) -> None:
             """Draw a Poisson number of components."""
@@ -728,8 +1040,6 @@ class StructureBoundaryTests(unittest.TestCase):
         with self.assertRaisesRegex(ModelSpecificationError, "continuous parameter"):
             ppl.trace(continuous_branch).log_density((1.0,))
         cases = (
-            (local_branch, "same for every value of its discrete sites"),
-            (local_continuous, "follows a discrete latent site"),
             (unbounded_count, "unbounded"),
             (geometric, "unbounded"),
             (endless, "unbounded"),

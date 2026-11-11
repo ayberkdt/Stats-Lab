@@ -37,6 +37,15 @@ as a pseudo-prior, which leaves the marginal of every configuration
 unchanged. ``m.plate`` nests, with the discrete sites of each inner
 iteration enumerated per iteration, and a discrete site may be a vector of
 independent elements or a multinomial count vector.
+
+ADR-0088 adds ``m.markov``: the discrete sites of the steps of a first-order
+Markov chain are eliminated by the forward algorithm (cost ``O(n K^2)``),
+recovered by forward filtering and backward sampling, and their most
+probable path is given by the Viterbi recursion
+(:meth:`ModelIR.most_probable_discrete`). The branches of a plate iteration
+may declare different continuous sites, each padded with its pseudo-prior
+in the branches that lack it, and the pseudo-priors can be tuned from a
+pilot run (:func:`tune_pseudo_priors`, :class:`PseudoPrior`).
 """
 
 from ._api import (
@@ -48,6 +57,7 @@ from ._api import (
     predictive_pvalues,
     prior_predictive,
     sample,
+    tune_pseudo_priors,
 )
 from ._discrete import DiscreteDraws, TruncatedDiscrete
 from ._errors import ModelSpecificationError
@@ -56,6 +66,7 @@ from ._program import (
     LogDensityTerms,
     ModelHandle,
     ModelIR,
+    PseudoPrior,
     SiteInfo,
     TracedStructure,
     bijection_for,
@@ -75,6 +86,7 @@ __all__ = [
     "OrderedVector",
     "PosteriorSamples",
     "PredictiveSamples",
+    "PseudoPrior",
     "SiteInfo",
     "StructuredSupport",
     "TracedStructure",
@@ -89,4 +101,5 @@ __all__ = [
     "prior_predictive",
     "sample",
     "trace",
+    "tune_pseudo_priors",
 ]
