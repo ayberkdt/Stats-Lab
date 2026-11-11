@@ -9430,7 +9430,7 @@ Stage `i` succeeds (`s_i`), retries (`r_i`), aborts (`a_i`) or fails
 - Code: `systems.discrete_mission_outcome`, `systems.MissionStageModel`.
 - Source: [REF-KEMENY-SNELL-1976, Chapter III].
 
-## Cost analysis, risk register, FMECA, reliability data, and allocation (W5)
+## Cost analysis, risk register, FMECA, reliability data, and allocation
 
 ### EQ-COST-DISC-001 — Discount factor
 
@@ -10215,7 +10215,7 @@ EQ-SYS-CCF-004); for exponential members this is the rate split
 - Code: `systems.SystemModel`, `systems.SystemModel.event_probabilities`.
 - Source: [REF-MOSLEH-ETAL-1998], [REF-RAUSAND-HOYLAND-2004].
 
-## W7 — Input-law expressiveness: copulas, discrete inputs, epistemic separation (ADR-0064)
+## Input-law expressiveness: copulas, discrete inputs, epistemic separation (ADR-0064)
 
 ### EQ-MOD-COP-SKLAR-001 — Sklar decomposition of a joint law
 
@@ -10573,7 +10573,7 @@ continuous-time Markov chain).
 - Code: `systems.MarkovComponent`, `systems.SubsystemComponent`.
 - Source: [REF-BARLOW-PROSCHAN-1975], [REF-RAUSAND-HOYLAND-2004].
 
-## W8: automatic differentiation, MCMC diagnostics, and sensitivity estimators (ADR-0065)
+## Automatic differentiation, MCMC diagnostics, and sensitivity estimators (ADR-0065)
 
 ### EQ-AD-DUAL-001 — Forward-mode dual-number chain rule
 
@@ -10731,7 +10731,7 @@ Sort by `x_i`, cut into `M` equal-count classes; `SSB = sum_m n_m
 - Code: `sensitivity.given_data_first_order`.
 - Source: [REF-PLISCHKE-BORGONOVO-SMITH-2013] and [REF-KELLEY-1935].
 
-## Central model contract, evaluation engine, and study workflow (W1)
+## Central model contract, evaluation engine, and study workflow
 
 ### EQ-PROP-QCI-001 — Distribution-free order-statistic interval for a quantile
 
@@ -10843,7 +10843,7 @@ mission unreliability.
 - Code: `workflow.MissionAssessment.cost`.
 - Source: [REF-NASA-CEH-2015], [REF-RAUSAND-BARROS-HOYLAND-2021].
 
-## Numerical core, distributions, sampling designs, and surrogate numerics (W2, ADR-0059)
+## Numerical core, distributions, sampling designs, and surrogate numerics (ADR-0059)
 
 ### EQ-OPT-FD-003 — Relative finite-difference steps
 

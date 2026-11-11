@@ -74,7 +74,7 @@ the chi-square tail, and the Kalman machinery instead of re-implementing them.
    It concentrates the initial level and trend by exact linear least squares,
    because the one-step errors are affine in them. This is a project choice;
    it removes heuristic starting values. Only point forecasts are returned.
-8. **STL was not implemented.** The brief allowed it only if correct. A
+8. **STL was not implemented.** It was to be included only if verified. A
    faithful STL needs loess inner and outer loops, low-pass filtering, and
    robustness weights. No independent reference implementation (R or
    statsmodels) was available to verify it, so it was left out rather than

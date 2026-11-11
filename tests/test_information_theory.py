@@ -345,7 +345,7 @@ class NumericalStabilityRegressionTests(unittest.TestCase):
     Oracle values were computed with mpmath at 250 (entropies) or 60
     (divergences) significant digits from the closed forms of the equation
     registry, with every float input converted exactly (``mp.mpf(x)``);
-    ``k = 1e300`` used 700 digits. The scratch scripts are not shipped.
+    ``k = 1e300`` used 700 digits. The oracle scripts are not shipped.
     """
 
     def test_gamma_entropy_large_shape(self) -> None:

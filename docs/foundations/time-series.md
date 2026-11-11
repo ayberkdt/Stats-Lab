@@ -3,7 +3,7 @@
 A time series is a set of observations whose order matters: today's value
 carries information about tomorrow's. This guide covers `probstat.timeseries`.
 Every number below was computed by the library with the seed shown, and the
-cross-checks named in each section were run against NumPy/SciPy in a scratch
+cross-checks named in each section were run against NumPy/SciPy in a separate
 script (those packages are not dependencies of the library).
 
 ## 1. Correlograms

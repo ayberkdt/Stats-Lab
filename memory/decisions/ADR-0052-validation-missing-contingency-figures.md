@@ -43,7 +43,7 @@ forecast falls outside it by chance, yet the title then said
 2. **Missing data** (new module `missing_plots`).
    - `plot_missing_pattern` draws patterns against variables.
      - Missing cells take the observed hue: the holes are the data
-       property under study, and the task brief suggested this role.
+       property under study.
      - Observed cells are muted at 22% opacity, separated by 2 pt canvas
        gaps.
      - Row counts are direct labels, and column labels state each missing

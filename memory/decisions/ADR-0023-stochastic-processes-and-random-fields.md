@@ -99,6 +99,5 @@ serve as references for filtering and MCMC.
 
 The section and chapter numbers cited for Norris (1997), Kloeden-Platen
 (1992), Glasserman (2003), Davis-Rabinowitz (1984), and Rasmussen-Williams
-(2006, Section 4.3) were recalled from memory. They were not checked against
-the books in this session. The bibliographic records themselves are standard
-and, to the best of our knowledge, correct.
+(2006, Section 4.3) have not been checked against the books themselves. The
+bibliographic records are standard and are believed to be correct.

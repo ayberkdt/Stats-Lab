@@ -1,4 +1,4 @@
-"""Model contract and evaluation engine (ADR-0058, workstream W1).
+"""Model contract and evaluation engine (ADR-0058).
 
 Covers the failure policy, exact counting, strict input names, non-float fixed
 parameters, picklability, counters of derived models, batch/parallel/cached
@@ -191,7 +191,7 @@ class FailurePolicyTests(unittest.TestCase):
 
 
 class StrictNameTests(unittest.TestCase):
-    """0.16: a mapping must name exactly the random inputs."""
+    """A mapping must name exactly the random inputs."""
 
     def test_missing_unknown_and_fixed_names_are_rejected(self) -> None:
         """Each problem is named in the error message."""
@@ -223,7 +223,7 @@ class StrictNameTests(unittest.TestCase):
 
 
 class PicklabilityAndCounterTests(unittest.TestCase):
-    """P1.3: models and batches pickle; derived models get fresh counters."""
+    """Models and batches pickle; derived models get fresh counters."""
 
     def test_model_and_batch_round_trip_through_pickle(self) -> None:
         """A module-level forward model makes the whole model picklable."""
@@ -272,7 +272,7 @@ class PicklabilityAndCounterTests(unittest.TestCase):
         self.assertEqual(derived.evaluations, 2)
 
     def test_counter_increments_only_after_success(self) -> None:
-        """0.2: the counter does not move for a run that raised."""
+        """The counter does not move for a run that raised."""
         model = uniform_model()
         with self.assertRaises(ZeroDivisionError):
             model.evaluate((0.99,))
@@ -280,7 +280,7 @@ class PicklabilityAndCounterTests(unittest.TestCase):
 
 
 class EvaluationEngineTests(unittest.TestCase):
-    """P1.5: executors, the batch hook, and the cache."""
+    """Executors, the batch hook, and the cache."""
 
     POINTS = tuple((k / 40.0,) for k in range(40))
 
@@ -414,7 +414,7 @@ class EvaluationLimitTests(unittest.TestCase):
 
 
 class StrEnumTests(unittest.TestCase):
-    """0.18: StrEnum keeps str(), format(), and value text identical."""
+    """StrEnum keeps str(), format(), and value text identical."""
 
     def test_text_of_every_member_is_its_value(self) -> None:
         """Reports interpolate members directly; the text must be the value."""

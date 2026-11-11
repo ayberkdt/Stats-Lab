@@ -1,18 +1,18 @@
 # ADR-0064: Input-law expressiveness — copulas, discrete inputs, epistemic separation
 
-- Status: Accepted (proposed during the 2026-10-16 session, workstream W7)
+- Status: Accepted
 - Date: 2026-10-16
 
 ## Context
 
-The 2026-10-16 core-mechanics audit found three gaps in the input law that
-every stage consumes. `JointInput` supported only a Gaussian copula (P1.9),
-so no tail dependence could be modelled. Discrete and categorical inputs
-were rejected; a duck-typed shim got a wrong copula mapping (P1.4). The Cauchy
+A review of the core numerical mechanics (2026-10-16) found three gaps in the
+input law that every stage consumes. `JointInput` supported only a Gaussian
+copula, so no tail dependence could be modelled. Discrete and categorical
+inputs were rejected; a duck-typed shim got a wrong copula mapping. The Cauchy
 law could not be an input, because `RandomInput.__post_init__` used `hasattr`
-and `StudentT(1).mean` raises (P0.14). Finally, `UncertaintyNature` existed
-but was descriptive only. There was no interval input, no p-box and no nested
-propagation (P1.6).
+and `StudentT(1).mean` raises. Finally, `UncertaintyNature` existed but was
+descriptive only. There was no interval input, no p-box and no nested
+propagation.
 
 ## Decision
 
@@ -27,8 +27,8 @@ propagation (P1.6).
    - Archimedean conditionals are `psi^(k-1)(t_k)/psi^(k-1)(t_{k-1})`. They
      are computed in log form. Clayton uses closed-form derivatives and
      inverse. Gumbel derivatives use a coefficient recursion whose terms are
-     all non-negative, so there is no cancellation; I derived it for this
-     work and the tests check it against mpmath derivatives. Frank
+     all non-negative, so there is no cancellation; it is derived here, and
+     the tests check it against mpmath derivatives. Frank
      derivatives are polylogarithms of negative order, built from Eulerian
      polynomials. Gumbel and Frank conditionals are inverted by Brent's
      method on `log s`.
@@ -46,8 +46,8 @@ propagation (P1.6).
      There is no cancellation near theta = 0.
 2. **JointInput integration, backward compatible.** There is a new third
    field, `copula`. `JointInput(inputs, correlation)` is unchanged, and so is
-   its Gaussian code path. A scratch script compared it with the committed
-   version on 2,000 random points for `from_unit`, `from_standard_normal`,
+   its Gaussian code path. A comparison with the previous implementation
+   on 2,000 random points for `from_unit`, `from_standard_normal`,
    `to_standard_normal`, `to_latent`, `log_pdf` and `sample`, with zero
    mismatches. A `GaussianCopula` passed as `copula` is stored as
    `correlation`, and an `IndependenceCopula` as `None`. So `copula` is
@@ -150,8 +150,8 @@ propagation (P1.6).
 ## Evidence
 
 Each item was checked against an independent oracle. The reference values
-were computed in a scratch environment (mpmath 1.4, scipy 1.18) and pasted
-into the tests as literals.
+were computed in a separate environment (mpmath 1.4, scipy 1.18) and stored
+in the tests as literals.
 
 - Archimedean density, CDF and Rosenblatt conditionals (d = 2, 3) agree to
   ≤ 1e-12 with mixed partial derivatives of the closed-form CDF (mpmath, 50
@@ -215,11 +215,11 @@ into the tests as literals.
     sampling noise widens the envelopes. Refinement moves only the interval
     coordinates.
   - (g) `UQStudy` has no mixed-uncertainty stage yet, and its
-    report label `"Gaussian copula"` (`workflow/study.py`, owned by W1)
+    report label `"Gaussian copula"` (`workflow/study.py`)
     should use `JointInput.copula_family`; `visualization/study.py` already
     does.
-- Citation note: the brief cited "Oberkampf & Roy (2010) A Comprehensive
-  Framework for VV&UQ…, Cambridge UP". That conflates two works. The 2010
+- Citation note: the citation "Oberkampf & Roy (2010) A Comprehensive
+  Framework for VV&UQ…, Cambridge UP" conflates two works. The 2010
   Cambridge book is *Verification and Validation in Scientific Computing*
   (now REF-OBERKAMPF-ROY-2010). The "Comprehensive Framework" paper is Roy &
   Oberkampf 2011, CMAME (REF-ROY-OBERKAMPF-2011, already present). Both are

@@ -1,25 +1,23 @@
 # ADR-0058: Central model contract, evaluation engine, and study accounting
 
-- Status: Accepted (proposed during the 2026-10-16 session, workstream W1)
+- Status: Accepted
 - Date: 2026-10-16
 
 ## Context
 
-The core-mechanics audit (`memory/sessions/2026-10-16-core-mechanics-gap-audit.md`)
-found that one bad simulator run aborted a whole stage and lost its good runs
-(0.1), that `EvaluationCounter.add()` ran before the simulator call (0.2),
-that a stage that raised vanished from the study accounts (0.3), that
-`calibrate()` did not change the input law of later stages (0.4), that
-`evaluate(Mapping)` did not check names (0.16), that NaN "not applicable"
-sentinels broke dataclass equality on Python 3.13 (0.17), that
-`propagate_until` had optional-stopping bias, a fixed 95% level, and the
-event `Y >= t` while `propagate` uses `Y > t` (0.9), that the information and
-extremes stages reused quasi-random samples and depended on stage order
-(0.11), that unconverged FORM was reported without a flag (0.12), that the
-lint/type gates drifted (0.18), and that the HTML report crashed without
-Matplotlib (0.19). It also listed missing mechanics: a failure policy (P1.1),
-stage chaining (P1.2), persistence and provenance (P1.3), an evaluation
-engine (P1.5), and honest accuracy statements (P1.10).
+A review of the core numerical mechanics (2026-10-16) found that one bad
+simulator run aborted a whole stage and lost its good runs, that
+`EvaluationCounter.add()` ran before the simulator call, that a stage that
+raised vanished from the study accounts, that `calibrate()` did not change
+the input law of later stages, that `evaluate(Mapping)` did not check names,
+that NaN "not applicable" sentinels broke dataclass equality on Python
+3.13, that `propagate_until` had optional-stopping bias, a fixed 95% level,
+and the event `Y >= t` while `propagate` uses `Y > t`, that the information
+and extremes stages reused quasi-random samples and depended on stage order,
+that unconverged FORM was reported without a flag, that the lint/type gates
+drifted, and that the HTML report crashed without Matplotlib. It also listed
+missing mechanics: a failure policy, stage chaining, persistence and
+provenance, an evaluation engine, and honest accuracy statements.
 
 ## Decision
 
@@ -82,7 +80,7 @@ engine (P1.5), and honest accuracy statements (P1.10).
    Sensitivity (`sobol_analysis`, `shapley_effects`, `morris_screening`)
    evaluates point by point through `scalar_function`, so it uses the cache
    but not the executor; parallel pick-freeze designs need a change in
-   `probstat.sensitivity` (not owned by W1).
+   `probstat.sensitivity`.
 6. **NaN sentinels.** `TargetedPropagation.probability`,
    `probability_standard_error`, `probability_interval` and
    `TailAnalysis.pot_probability` are `None` when not applicable; the

@@ -1,6 +1,6 @@
 # ADR-0061: Continuous-time Markov chains and analytic Markov reliability
 
-- Status: Accepted (proposed during the 2026-10-16 session, workstream W4)
+- Status: Accepted
 - Date: 2026-10-16
 
 ## Context
@@ -105,15 +105,14 @@ Carlo. The two practical obstacles are these:
    - Standby failures are revealed at once.
    - No unit fails while the system is down.
    - With repair, a completed repair returns the system to `"j-1 failed"`.
-9. **Coordination with W3.** W3 creates the rest of `probstat.systems`
-   (bdd, structure, importance, components, ccf, system, phased) in
-   parallel. This branch adds only `markov.py`, `phased_markov.py` and an
-   `__init__.py` that exports W4 names; the integrator merges the two
-   `__init__.py` files. `"probstat.systems": 6` (LAYER), the GROUPS entry
-   ("Reliability and risk") and `PACKAGE_STABILITY["systems"] =
-   "experimental"` are added here as well; W3 may add the same lines, and
-   the conflict is expected. The equation ids use the `EQ-SYS-MKV-*` and
-   `EQ-SYS-MKPM-*` prefixes to avoid colliding with W3's ids.
+9. **Module layout.** The Markov models live in `probstat.systems.markov`
+   and `probstat.systems.phased_markov`, beside the BDD engine of ADR-0060
+   (bdd, structure, importance, components, ccf, system, phased), and are
+   exported from `probstat.systems`. The package is registered as
+   `"probstat.systems": 6` (LAYER), in the GROUPS entry ("Reliability and
+   risk"), and as `PACKAGE_STABILITY["systems"] = "experimental"`. The
+   equation ids use the `EQ-SYS-MKV-*` and `EQ-SYS-MKPM-*` prefixes, distinct
+   from the ids of the BDD engine.
 
 ## Evidence (`tests/test_ctmc.py`, `tests/test_markov_reliability.py`)
 
@@ -122,7 +121,7 @@ Carlo. The two practical obstacles are these:
   forms agree to `1e-14` up to `t = 300`.
 - **Stiff chain.** Rates from `1e-6` to `1e3` with `q t` up to `1e5`, against
   60-digit mpmath `expm`. The tiny components (`8.5e-16` to `4e-9`) agree to
-  `< 1e-11` relative error by both methods. In scratch runs every L1 error
+  `< 1e-11` relative error by both methods. In additional runs every L1 error
   was below the reported bound by a factor of `2e-3` to `1e-7`.
 - **Large `q t`.** For the 1-out-of-2 system with `lambda = 1e-6`,
   `mu = 1e3`:

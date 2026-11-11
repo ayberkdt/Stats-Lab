@@ -1,6 +1,6 @@
 """Sobol intervals, shared designs, DGSM, given-data indices, FORM autodiff.
 
-Workstream W8 (ADR-0065).
+See ADR-0065.
 """
 
 from __future__ import annotations
@@ -96,7 +96,7 @@ class SobolIntervalTests(unittest.TestCase):
         the analytic values in at least 85 % of the cases, and their mean
         half-width must be within a factor 2.5 of 1.96 times the observed
         seed-to-seed standard deviation of the estimates (the row bootstrap
-        under QMC that this replaces was off by about 30x, audit item 0.10).
+        under QMC that this replaces was off by about 30x).
         """
         model = ishigami(False)
         truths = ISHIGAMI_FIRST + ISHIGAMI_TOTAL

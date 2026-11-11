@@ -96,15 +96,15 @@ Effect estimation needs logistic regression and least squares
 
 - The only identification routes are backdoor and frontdoor. A
   do-calculus or complete-ID engine (Shpitser-Pearl 2006) is future work.
-- The following citations were written from the author's knowledge and
-  were not re-read in this session: Pearl 2009, Hernán-Robins 2020,
+- The following citations are given from the general literature and were
+  not re-read against the publications: Pearl 2009, Hernán-Robins 2020,
   Rosenbaum-Rubin 1983, Robins-Rotnitzky-Zhao 1994, Imbens-Rubin 2015,
   Shpitser-Pearl 2006, VanderWeele-Ding 2017, and Lauritzen et al. 1990.
   - Pearl's definition and theorem numbers (3.3.1-3.3.4) are cited because
     they are widely reproduced.
   - Other locators are given at section or chapter level only.
   - The `exp(0.91 d)` and `sqrt(OR)` conversions are attributed to
-    VanderWeele-Ding 2017 from memory.
+    VanderWeele-Ding 2017 without a checked page or equation locator.
 
 ## Rejected alternatives
 

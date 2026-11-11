@@ -8,7 +8,7 @@ biased. The Kennedy-O'Hagan formulation adds an explicit, correlated
 **model discrepancy** term to the calibration. This guide also covers
 observation noise whose size varies across experiments.
 
-Every number below was computed in this session with
+Every number below was computed with
 `examples/discrepancy_calibration_lab.py` (seeded; wall time 11-15 s over two runs) or with
 the seeds in `tests/test_discrepancy_calibration.py`.
 

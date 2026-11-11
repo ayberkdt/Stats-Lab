@@ -1,20 +1,20 @@
 # ADR-0065: Forward-mode autodiff, MCMC diagnostics, and honest sensitivity error bars
 
-- Status: Accepted (workstream W8 of the 2026-10-16 core-mechanics audit)
+- Status: Accepted
 - Date: 2026-10-16
 
 ## Context
 
-The 2026-10-16 gap audit found that every gradient in the library is a
-central difference (P1.7: NUTS/HMC, ADVI, the PPL, FORM, Laplace), that the
-MCMC diagnostics lack the split/bulk/tail ESS, quantile MCSE and automatic
-warnings of Vehtari et al. (2021) (P2), and that the Sobol error bars are
-wrong under quasi-random designs (0.10: the row bootstrap of a scrambled
-Sobol design gave coverage 1.00), that second-order indices that were never
-computed were reported as 0.0 (P1.10), that every QoI re-ran a full
-pick-freeze design (P1.5), and that there was no DGSM or given-data
-estimator (P2). `probstat.optimization` was being changed in parallel by W2
-and was not touched.
+A review of the core numerical mechanics (2026-10-16) found that every
+gradient in the library is a central difference (NUTS/HMC, ADVI, the PPL,
+FORM, Laplace), that the MCMC diagnostics lack the split/bulk/tail ESS,
+quantile MCSE and automatic warnings of Vehtari et al. (2021), that the
+Sobol error bars are wrong under quasi-random designs (the row bootstrap of
+a scrambled Sobol design gave coverage 1.00), that second-order indices that
+were never computed were reported as 0.0, that every QoI re-ran a full
+pick-freeze design, and that there was no DGSM or given-data estimator.
+`probstat.optimization` is not changed by this decision (its numerical core
+is covered by ADR-0059).
 
 ## Decision
 
@@ -79,7 +79,7 @@ and was not touched.
    back to finite differences (recorded, reason "mu must be a real
    number"). Models built from dual-aware duck-typed distributions are
    differentiated exactly. Making the distribution constructors accept
-   duals is a follow-up for the distributions owner.
+   duals is future work in `probstat.distributions`.
 6. **MCMC diagnostics** (`inference.mcmc`): `effective_sample_size` splits
    chains by default (`split=False` gives the old whole-chain value);
    new `bulk_effective_sample_size`, `quantile_effective_sample_size`,
@@ -143,8 +143,8 @@ Autodiff (`tests/test_autodiff.py`): value, gradient and Hessian of a
 equals the complex-step derivative (h = 1e-30); closed-form derivatives of
 each function; quadratic-form Hessian exact; failure modes raise.
 
-Evaluation savings (`tests/test_mcmc_diagnostics_autodiff.py`, scratch
-benchmark): NUTS on a 10-D Gaussian with scales 0.5..2.75, 4 chains,
+Evaluation savings (`tests/test_mcmc_diagnostics_autodiff.py`, separate
+benchmark run): NUTS on a 10-D Gaussian with scales 0.5..2.75, 4 chains,
 1000 warm-up + 1000 draws, seed 11:
 
 | gradient | variant | gradient evals | log-density calls | wall time |
@@ -172,7 +172,7 @@ i.i.d. normal draws averages 1.08 (p = 0.5) and 0.93 (p = 0.9) times
 Multinomial NUTS: one-transition invariance test — 2000 exact draws of
 `log Gamma(3)`, one transition each at a fixed step 0.9 (with divergences),
 Pearson statistic on 20 CDF bins below the 0.1 % point for both variants
-(scratch values 11.7 / 6.9 at step 1.2 and 19.9 / 9.1 at 0.3 with 4000
+(additional runs: 11.7 / 6.9 at step 1.2 and 19.9 / 9.1 at 0.3 with 4000
 draws); 10-D Gaussian moments within 4 MCSE and sd within 12 % for both
 variants; z-scores of `E[x^2]` across seeds 1-3 were all within +-2.2.
 
@@ -208,7 +208,7 @@ recover the Ishigami first-order indices within 0.02 (n = 20000) and
   conservative under drift).
 - The workflow (`UQStudy.sensitivity`) still passes `bootstrap=200` with the
   Sobol design; it now gets 8 replicate intervals at the same cost.
-  Switching it to `sobol_analysis_all` is left to the workflow owner.
+  Switching it to `sobol_analysis_all` is future work in `probstat.workflow`.
 - Stability: `numerics` is labelled stable package-wide (ADR-0048); the
   autodiff module states in its docstring that it is experimental within
   that package until the next minor release.

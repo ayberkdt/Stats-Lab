@@ -58,8 +58,8 @@ marked as such.
 ## 4. Memory contract
 
 Update `memory/ROADMAP.md` when scope changes. Record architectural choices as
-ADRs under `memory/decisions/`. Add a short session note for meaningful work,
-including decisions, verification results, and the next safe step.
+ADRs under `memory/decisions/`. Describe meaningful changes in the pull
+request, including decisions, verification results, and the next safe step.
 
 ## Definition of done
 

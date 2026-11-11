@@ -118,5 +118,3 @@ Wilson intervals (`inference.confidence`), Pearson's chi-square test
 - The closed-form CRPS expressions for the log-normal, logistic,
   exponential, and uniform laws were checked numerically, not against the
   printed papers.
-- `README.md`, `CHANGELOG.md`, `memory/ROADMAP.md`, and
-  `docs/architecture.md` are left for the integrating change.

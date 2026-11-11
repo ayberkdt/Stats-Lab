@@ -12,7 +12,7 @@ tested evidence.
 - [x] Layered acyclic package layout.
 - [x] Citation and equation-ID contract.
 - [x] Automated architecture and documentation checks.
-- [x] Durable project memory, ADRs, and session notes.
+- [x] Durable decision records (ADRs) and roadmap.
 - [x] Optional visualization layer separated from mathematics.
 - [x] Continuous integration across supported Python versions (3.11-3.13).
 - [x] API stability labels and deprecation policy (ADR-0048).

@@ -1,7 +1,6 @@
 # ADR-0048: API stability labels and deprecation policy
 
-- Status: Accepted (proposed during the 2026-10-12 overnight session; the
-  owner may relabel packages at any time)
+- Status: Accepted (maintainers may relabel packages at any time)
 - Date: 2026-10-12
 
 ## Context

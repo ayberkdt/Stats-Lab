@@ -1,6 +1,6 @@
 # ADR-0054: GP hyperparameter regularization and a CE-IS coverage check
 
-- Status: Accepted (proposed during the 2026-10-12 session)
+- Status: Accepted
 - Date: 2026-10-12
 
 ## Context
@@ -30,8 +30,8 @@ The benchmark suite (ADR-0049) left two open issues:
    `fit_gaussian_process_to_model`) [EQ-SUR-GP-006]:
    - `log ell_i in [log(a h_i), log(b E_i)]`, where `h_i` is the smallest
      positive gap between coordinates of input `i` and `E_i` its extent.
-     Defaults: `a = 0.1` (the task suggested "min spacing / 10") and
-     `b = 20` (within the suggested 10-100 x extent).
+     Defaults: `a = 0.1` (one tenth of the minimum spacing) and
+     `b = 20` (within a 10-100 x extent range).
    - `sigma_f^2 in [1e-3, 1e3]` in standardized output units.
    - A minimum relative nugget `tau = 1e-8`: the diagonal is
      `sigma_f^2 (1 + tau) + nugget [+ sigma_n^2]`, so the condition number of
@@ -86,7 +86,7 @@ The benchmark suite (ADR-0049) left two open issues:
    proposal itself, so they cannot reveal unsampled regions), and a
    multi-start or mixture refit (extra model calls on every run).
 
-## Evidence (all numbers from runs in this session)
+## Evidence (all numbers from seeded library runs)
 
 AK-MCS, quick-benchmark configuration (N = 2000, `target_cov = 1`):
 

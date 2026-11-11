@@ -1,6 +1,6 @@
 # ADR-0055: Streaming (one-pass, constant-memory) accumulators
 
-- Status: Accepted (proposed during the 2026-10-12 session)
+- Status: Accepted
 - Date: 2026-10-12
 
 ## Context

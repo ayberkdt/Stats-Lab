@@ -568,7 +568,7 @@ def relative_error(got: float, expected: float) -> float:
 
 
 class IncompleteBetaLargeShapeTests(unittest.TestCase):
-    """Defect 0.13: ``I_x(a, b)`` for a large first shape near ``x = 1``."""
+    """Regression: ``I_x(a, b)`` for a large first shape near ``x = 1``."""
 
     def test_grid_matches_mpmath_to_1e_12(self) -> None:
         """Both tails match 40-digit references for ``a`` up to ``5e13``."""
@@ -586,7 +586,7 @@ class IncompleteBetaLargeShapeTests(unittest.TestCase):
         for nu, t, expected in STUDENT_T:
             with self.subTest(nu=nu, t=t):
                 self.assertLess(relative_error(StudentT(nu).sf(t), expected), 1e-12)
-        # The audit's example: 1.34928e-3 before the fix, 1.34990e-3 exact.
+        # Regression example: 1.34928e-3 before the fix, 1.34990e-3 exact.
         self.assertAlmostEqual(StudentT(1e14).sf(3.0) / 1.3498980316304269e-3, 1.0, 12)
 
     def test_fisher_f_with_huge_denominator(self) -> None:
@@ -599,7 +599,7 @@ class IncompleteBetaLargeShapeTests(unittest.TestCase):
 
 
 class ContractTests(unittest.TestCase):
-    """Defect P1.8: one contract for every univariate family."""
+    """One contract for every univariate family."""
 
     LAWS = (
         Normal(1.0, 2.0),
@@ -1002,7 +1002,7 @@ class WrapperTests(unittest.TestCase):
 
 
 class SeedTests(unittest.TestCase):
-    """Defect P1.8 (seeds): ``int | RandomStream | None`` and strict validation."""
+    """Seeds: ``int | RandomStream | None`` and strict validation."""
 
     SAMPLERS = (
         Normal(),

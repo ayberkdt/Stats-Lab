@@ -10,7 +10,7 @@ This guide covers four modules in `probstat.inference`:
 
 Every number below was printed by `examples/hierarchical_lab.py`, by the
 tests `tests/test_em_and_mixtures.py` and `tests/test_hierarchical_and_ppc.py`,
-or by short scripts run in the same session with the seeds stated. They are
+or by short scripts with the seeds stated. They are
 the library's own outputs. None is copied from the literature.
 
 ## 1. The EM driver (EQ-EM-001)
@@ -90,7 +90,7 @@ means, and 0.25 in the covariance entries
 
 ## 3. EM for censored normal data (EQ-EM-CENS-001..002)
 
-We implemented censored normal data rather than missing-at-random
+The library implements censored normal data rather than missing-at-random
 multivariate normal data, for three reasons:
 
 1. **Use in UQ.** Detection limits, gauge saturation and type-I censored
@@ -132,8 +132,8 @@ The model is
 - by default, flat priors on `mu` and on `tau >= 0`.
 
 The data are the classic `y = (28, 8, -3, 7, -1, 1, 18, 12)` and
-`s = (15, 10, 16, 11, 9, 11, 10, 18)`. The values were checked in this
-session against the PINTS toy-model source, which cites BDA3.
+`s = (15, 10, 16, 11, 9, 11, 10, 18)`. The values were checked
+against the PINTS toy-model source, which cites BDA3.
 
 **Exact route.** `hierarchical_normal_posterior` integrates `theta` and `mu`
 analytically. The marginal posterior `p(tau | y)` (EQ-HIER-002) is then

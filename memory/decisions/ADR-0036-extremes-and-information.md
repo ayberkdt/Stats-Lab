@@ -50,8 +50,8 @@ enforced by `tests/test_architecture.py`.
    algebraically. One implementation serves both, and `sample_l_moments`
    exposes `l1..l4`.
    - PWM fits report no covariance. The Hosking-Wallis asymptotic
-     covariance was not implemented because its coefficients were not
-     verified in this session.
+     covariance was not implemented because its coefficients could not be
+     verified.
    - A POT return level from a PWM fit therefore has `method="point"` and
      `nan` limits.
 6. **POT rate model.** Exceedances are binomial in `zeta_u = k/n` with
@@ -64,8 +64,8 @@ enforced by `tests/test_architecture.py`.
    layer-2 sibling `multivariate`: the multivariate functions take a mean
    vector and a covariance matrix directly.
 8. **Entropy as functions, not as properties on existing classes.**
-   - Adding `entropy` to eight existing distribution modules would edit
-     files owned by other work for a small convenience. Instead,
+   - Adding `entropy` to eight existing distribution modules would change
+     eight stable modules for a small convenience. Instead,
      `information.differential_entropy(law)` dispatches by type.
    - The new `GeneralizedPareto` carries an `entropy` property because it is
      new code.

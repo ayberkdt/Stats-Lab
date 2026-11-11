@@ -7,8 +7,8 @@ while the public API remains pre-1.0 and experimental.
 
 Systems engineering joins the central model. Mission reliability is exact
 (binary decision diagrams, continuous-time Markov chains); cost and risk
-analysis build on it; and the defects found by the 2026-10-16 core-mechanics
-audit are fixed with oracle-backed regression tests.
+analysis build on it; and the defects found by a review of the core numerical
+mechanics are fixed with oracle-backed regression tests.
 
 ### Added
 
@@ -515,8 +515,8 @@ one report.
 - General multivariate linear-Gaussian conditioning, seeded posterior sampling,
   predictive covariance decomposition, and posterior-predictive checks.
 - An applicability-scoped discrepancy record, cited calibration guide, seeded
-  practical lab, explanatory uncertainty-band plot, regression tests,
-  ADR-0013, and session memory.
+  practical lab, explanatory uncertainty-band plot, regression tests, and
+  ADR-0013.
 
 ### Changed
 
@@ -539,7 +539,7 @@ one report.
 - A seeded Ishigami interaction laboratory and first-versus-total sensitivity
   visualization demonstrating why main-effect-only ranking can fail.
 - Six equation records, four primary references, UQ-5 guide, regression tests,
-  ADR-0012, and session memory.
+  and ADR-0012.
 
 ### Changed
 

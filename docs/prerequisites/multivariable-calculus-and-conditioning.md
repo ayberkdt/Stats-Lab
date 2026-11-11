@@ -14,7 +14,7 @@ a regression and a covariance given by a Schur complement.
 
 Every snippet below was executed; the block after it is its exact output, and
 `tests/test_prerequisite_guides.py` re-runs all of them. Snippets share one
-session, top to bottom. Unit tests for the same code live in
+Python namespace and run top to bottom. Unit tests for the same code live in
 `tests/test_prerequisite_bridges.py`.
 
 Background reading: [REF-CASELLA-BERGER-2002, Sections 2.1, 4.3, 4.6, and

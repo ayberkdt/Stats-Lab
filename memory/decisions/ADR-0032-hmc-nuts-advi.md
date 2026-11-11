@@ -43,8 +43,8 @@ keep reusing the existing `MCMCResult` diagnostics.
      `delta = 0.8`).
 
    The shrinkage constants follow the defaults commonly used in Stan. They
-   were **not** checked against Stan's source in this session and are
-   recorded as a project choice. Both the step size and the metric freeze at
+   were **not** checked against Stan's source and are recorded as a
+   project choice. Both the step size and the metric freeze at
    the end of warm-up, as in ADR-0017, so retained draws come from one
    time-homogeneous kernel.
 5. **Divergences are energy-error events.** A trajectory diverges when

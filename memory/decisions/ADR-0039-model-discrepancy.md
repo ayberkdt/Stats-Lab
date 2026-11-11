@@ -77,5 +77,3 @@ in `surrogates` (layer 5). `inverse` is layer 4, so it cannot import
   tens of field observations.
 - New references: `REF-HIGDON-ETAL-2004` and `REF-HARVEY-1976`, both checked
   against Crossref. New equations: `EQ-KOH-*` (seven records).
-- `README.md`, `CHANGELOG.md`, `memory/ROADMAP.md`, and
-  `docs/architecture.md` are left for the integrating change.

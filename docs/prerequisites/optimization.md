@@ -10,7 +10,7 @@ last iterate.
 
 Every snippet below was executed; the block after it is its exact output, and
 `tests/test_prerequisite_guides.py` re-runs all of them. Snippets share one
-session, top to bottom.
+Python namespace and run top to bottom.
 
 Background reading: [REF-NOCEDAL-WRIGHT-2006, Chapters 2, 3, 6, 8, 10],
 [REF-MORE-1978], and [REF-BRENT-1973, Chapter 4].

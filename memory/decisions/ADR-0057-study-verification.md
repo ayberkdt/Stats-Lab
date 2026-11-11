@@ -1,6 +1,6 @@
 # ADR-0057: Solution-verification stage `UQStudy.verify`
 
-- Status: Accepted (proposed during the 2026-10-12 session)
+- Status: Accepted
 - Date: 2026-10-12
 
 ## Context

@@ -1,4 +1,4 @@
-"""Accuracy statements of forward propagation (ADR-0058, workstream W1).
+"""Accuracy statements of forward propagation (ADR-0058).
 
 Oracles: rank pairs and coverages of the order-statistic interval, chi-square
 and Student-t quantiles were computed with SciPy 1.18

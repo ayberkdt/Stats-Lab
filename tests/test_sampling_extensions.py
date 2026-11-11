@@ -72,7 +72,7 @@ def spearman(first: list[float], second: list[float]) -> float:
 
 
 class JoeKuoSobolTests(unittest.TestCase):
-    """Defect 0.6: Sobol points beyond 16 dimensions."""
+    """Sobol points beyond 16 dimensions."""
 
     def test_matches_scipy_unscrambled_points(self) -> None:
         """Raw points agree exactly with SciPy for d = 50 and d = 1024."""
@@ -159,7 +159,7 @@ class JoeKuoSobolTests(unittest.TestCase):
 
 
 class HaltonRandomizationTests(unittest.TestCase):
-    """Defect P2: randomized Halton points were biased towards zero."""
+    """Regression: randomized Halton points were biased towards zero."""
 
     def test_scrambled_points_are_uniform(self) -> None:
         """Over seeds, the first point's coordinates average to one half."""

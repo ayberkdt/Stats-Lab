@@ -8,7 +8,7 @@ dense layer whose matrices are tuples of row tuples.
 
 Every snippet below was executed; the block after it is its exact output, and
 `tests/test_prerequisite_guides.py` re-runs all of them. Snippets share one
-session, top to bottom.
+Python namespace and run top to bottom.
 
 Background reading: [REF-STRANG-2016, Chapters 2, 5, 6] for the concepts and
 [REF-GOLUB-VANLOAN-2013, Chapters 3, 4, 8] for the algorithms.
