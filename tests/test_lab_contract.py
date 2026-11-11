@@ -103,6 +103,7 @@ LAB_REGRESSION_TESTS: dict[str, tuple[str, str]] = {
     "optimal_transport_lab": ("test_transport_and_geometry.py", "sinkhorn"),
     "ppl_lab": ("test_probabilistic_programming.py", "Beta"),
     "random_field_lab": ("test_stochastic_processes.py", "karhunen_loeve_inputs"),
+    "real_data_fitting_lab": ("test_real_data_case_studies.py", "fit_poisson_counts"),
     "reliability_lab": (
         "test_uq4_reliability.py",
         "estimate_directional_failure_probability",

@@ -1,5 +1,16 @@
-"""Descriptive statistics for finite samples and one-pass streaming summaries."""
+"""Descriptive statistics, one-pass streaming summaries, and historical data sets."""
 
+from .datasets import (
+    BORTKIEWICZ_HORSE_KICKS,
+    DATASETS,
+    LIEBLEIN_ZELEN_BALL_BEARINGS,
+    NEWCOMB_PASSAGE_TIMES,
+    RUTHERFORD_GEIGER_SCINTILLATIONS,
+    STUDENT_SLEEP,
+    DataColumn,
+    DataSet,
+    dataset_by_key,
+)
 from .density import KernelDensity, gaussian_kde, kde_bandwidth
 from .descriptive import (
     covariance,
@@ -20,6 +31,7 @@ from .order import (
     ranks,
     skewness,
     spearman_correlation,
+    trimmed_mean,
 )
 from .streaming import (
     ExceedanceCounter,
@@ -33,6 +45,16 @@ from .streaming import (
 )
 
 __all__ = [
+    "BORTKIEWICZ_HORSE_KICKS",
+    "DATASETS",
+    "DataColumn",
+    "DataSet",
+    "dataset_by_key",
+    "LIEBLEIN_ZELEN_BALL_BEARINGS",
+    "NEWCOMB_PASSAGE_TIMES",
+    "RUTHERFORD_GEIGER_SCINTILLATIONS",
+    "STUDENT_SLEEP",
+    "trimmed_mean",
     "covariance",
     "empirical_cdf",
     "ExceedanceCounter",

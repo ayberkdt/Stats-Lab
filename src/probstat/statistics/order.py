@@ -132,6 +132,41 @@ def interquartile_range(values: Iterable[float]) -> float:
     return upper - lower
 
 
+def trimmed_mean(values: Iterable[float], proportion: float = 0.1) -> float:
+    """Return the symmetric trimmed mean.
+
+    With ``g = floor(proportion * n)``, the ``g`` smallest and ``g`` largest
+    observations are removed and the remaining ``n - 2g`` are averaged.
+    ``proportion = 0`` gives the arithmetic mean.
+
+    Args:
+        values: Non-empty finite sample.
+        proportion: Fraction trimmed from each end, in ``[0, 0.5)``.
+
+    Returns:
+        Trimmed mean.
+
+    Raises:
+        TypeError: If ``proportion`` is not real.
+        ValueError: If the sample is empty or ``proportion`` is outside
+            ``[0, 0.5)``.
+
+    Equation:
+        [EQ-STAT-TRIM-001].
+
+    References:
+        [REF-STIGLER-1977].
+
+    """
+    ordered = _sorted_sample(values)
+    fraction = require_probability(proportion, name="proportion")
+    if fraction >= 0.5:
+        raise ValueError("proportion must be below one half")
+    trimmed = math.floor(fraction * len(ordered))
+    kept = ordered[trimmed : len(ordered) - trimmed]
+    return math.fsum(kept) / len(kept)
+
+
 def median_absolute_deviation(
     values: Iterable[float], *, normal_consistent: bool = True
 ) -> float:

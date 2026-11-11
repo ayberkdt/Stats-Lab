@@ -33,6 +33,14 @@ from .contingency import (
     mcnemar_test,
     two_by_two_measures,
 )
+from .count_models import (
+    CountFit,
+    CountGoodnessOfFit,
+    count_goodness_of_fit,
+    fit_negative_binomial_counts,
+    fit_poisson_counts,
+    poisson_mean_interval,
+)
 from .em import (
     CensoredNormalFit,
     EMMonotonicityWarning,
@@ -277,6 +285,12 @@ from .sbc import SBCResult, rank_statistic, simulation_based_calibration
 from .variational import VariationalResult, advi
 
 __all__ = [
+    "CountFit",
+    "CountGoodnessOfFit",
+    "count_goodness_of_fit",
+    "fit_negative_binomial_counts",
+    "fit_poisson_counts",
+    "poisson_mean_interval",
     "AmortizedGaussianPosterior",
     "fit_amortized_gaussian_posterior",
     "EDFNormalityTest",
