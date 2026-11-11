@@ -211,5 +211,7 @@ CI runs these checks and every example lab on Python 3.11 to 3.13. Before
 opening a pull request, read the [contribution contract](CONTRIBUTING.md): new
 public functions need a docstring, an equation record, and a citation.
 
-Released under the [BSD 3-Clause](LICENSE) license. If you use this library in
-research, see [`CITATION.cff`](CITATION.cff).
+Released under the [BSD 3-Clause](LICENSE) license. The embedded Joe–Kuo Sobol
+direction numbers keep their authors' BSD-style licence
+([`LICENSES/JOE-KUO-SOBOL.txt`](LICENSES/JOE-KUO-SOBOL.txt)). If you use this
+library in research, see [`CITATION.cff`](CITATION.cff).

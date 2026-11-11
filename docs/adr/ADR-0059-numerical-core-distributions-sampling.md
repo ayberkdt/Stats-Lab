@@ -118,9 +118,9 @@ factorizes twice and forms `K^-1` column by column.
 9. **Sampling.** The Joe-Kuo `new-joe-kuo-6.21201` initial
    direction numbers for dimensions 2-1024 were extracted from SciPy's
    copy and embedded in `sampling/_joe_kuo.py` (48 KB, with the citation and
-   the authors' BSD-style licence notice; the notice has not been compared
-   word for word with the authors' original and should be checked against the
-   file at https://web.maths.unsw.edu.au/~fkuo/sobol/ before a release).
+   the authors' BSD-style licence reproduced verbatim from
+   https://web.maths.unsw.edu.au/~fkuo/sobol/licence; the same text ships as
+   `LICENSES/JOE-KUO-SOBOL.txt`).
    `SOBOL_MAX_DIMENSION = 1024`, so `sobol_analysis` no longer falls back to
    Halton silently for 9-512 inputs. A size that is not a power of two warns
    (`SobolBalanceWarning`). Unscrambled points are centred in their finest
