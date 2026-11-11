@@ -365,7 +365,7 @@ class FormFlagTests(unittest.TestCase):
             )
 
         study = UQStudy(capacity_model(), seed=2)
-        with mock.patch("probstat.workflow.study.form_hlrf", stalled):
+        with mock.patch("probstat.workflow.study._reliability.form_hlrf", stalled):
             with self.assertWarnsRegex(UserWarning, "did not converge"):
                 study.form("g", 0.0)
             with self.assertWarnsRegex(UserWarning, "unconverged design point"):
