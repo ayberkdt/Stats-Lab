@@ -13656,3 +13656,52 @@ Rao-Blackwellized form of the indicator average.
 - Source: [REF-STAN-USERS-GUIDE-2-36] (sections "Posterior distribution of
   the discrete change point" and "The mathematics of recovering marginalized
   parameters").
+
+### EQ-DIST-BASE-005 — Density from its logarithm with saturation
+
+`f(x) = exp(log f(x))`, returned as `inf` when `log f(x) > log(DBL_MAX)
+~ 709.78` and as `0` when `log f(x) < -745.2` (below the smallest
+subnormal).
+
+- Domain: any log density, including `+-inf`; NaN propagates.
+- Meaning: a density above the largest float (an integrable singularity
+  approached closely, such as `Gamma` with shape below one near zero, or a
+  scale near the smallest normal float) saturates to `inf` instead of raising
+  `OverflowError`, while `log_pdf` keeps the finite logarithm.
+- Code: `distributions._continuous.density_from_log`, the `pdf` methods of the
+  continuous families.
+- Source: [REF-HIGHAM-2002, Section 2.1], [REF-PYTHON-MATH].
+
+### EQ-DIST-EMPIRICAL-003 — Entropy of the interpolated empirical law
+
+`H = (1/(n-1)) sum_(i=1)^(n-1) log((n-1)(x_(i+1) - x_(i)))` for the linear
+(type-7) empirical law, which is uniform with mass `1/(n-1)` on each gap; a
+tied pair is an atom and gives `H = -inf`; the step law has no differential
+entropy (`nan`).
+
+- Domain: [EQ-DIST-EMPIRICAL-001] with `n >= 2` and a non-constant sample.
+- Meaning: exact differential entropy of the interpolated law, replacing a
+  probability-space quadrature that returned `nan` for samples with very
+  unequal gaps.
+- Code: `distributions.Empirical.entropy`.
+- Source: [REF-COVER-THOMAS-2006, Chapter 8], [REF-HYNDMAN-FAN-1996].
+
+### EQ-DIST-MIXTURE-002 — Higher central moments and entropy of a mixture
+
+With `mu = sum w_i mu_i`, `d_i = mu_i - mu` and component central moments
+`m_ik`:
+`E[(X - mu)^3] = sum w_i (m_i3 + 3 d_i m_i2 + d_i^3)` and
+`E[(X - mu)^4] = sum w_i (m_i4 + 4 d_i m_i3 + 6 d_i^2 m_i2 + d_i^4)`.
+The entropy `H = -int f log f` is integrated adaptively in `x` over pieces
+split at every finite support end and median of the components.
+
+- Domain: [EQ-DIST-MIXTURE-001]; the moment form needs component skewness and
+  kurtosis, otherwise the probability-space quadrature of [EQ-DIST-BASE-001]
+  is used.
+- Meaning: skewness and kurtosis cost a few component evaluations instead of
+  a quadrature over the mixture quantile (each point a root solve), and the
+  entropy converges when a component density is singular or kinked inside
+  the mixture support.
+- Code: `distributions.Mixture._central_moment`, `distributions.Mixture.entropy`.
+- Source: [REF-MCLACHLAN-PEEL-2000, Chapter 1], [REF-COVER-THOMAS-2006,
+  Chapter 8], [REF-PIESSENS-QUADPACK-1983].

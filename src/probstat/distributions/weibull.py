@@ -13,6 +13,7 @@ from probstat.foundations.validation import (
 )
 
 from ._base import ContinuousDistribution
+from ._continuous import density_from_log
 from .constraints import POSITIVE_FINITE
 from .support import RealSupport
 
@@ -137,11 +138,7 @@ class Weibull(ContinuousDistribution):
 
         """
         log_density = self.log_pdf(x)
-        if log_density == -math.inf:
-            return 0.0
-        if log_density == math.inf:
-            return math.inf
-        return math.exp(log_density)
+        return density_from_log(log_density)
 
     def cdf(self, x: float) -> float:
         """Evaluate the Weibull CDF with stable near-zero subtraction.

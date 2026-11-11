@@ -19,6 +19,7 @@ from ._continuous import (
     LOGIT_LIMIT,
     SINH_LIMIT,
     bounded_exp,
+    density_from_log,
     expit,
     log_normal_interval_mass,
     log_normal_short_mass,
@@ -248,7 +249,7 @@ class TruncatedNormal(ContinuousDistribution):
 
         """
         log_density = self.log_pdf(x)
-        return math.exp(log_density) if log_density > -745.2 else 0.0
+        return density_from_log(log_density)
 
     def _log_cdf(self, point: float) -> float:
         """Return ``log F(point)`` for a physical point (may be infinite).

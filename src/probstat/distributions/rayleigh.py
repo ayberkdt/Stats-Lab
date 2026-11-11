@@ -23,7 +23,7 @@ from probstat.foundations.validation import (
 )
 
 from ._base import ContinuousDistribution
-from ._continuous import open_unit
+from ._continuous import density_from_log, open_unit
 from .constraints import POSITIVE_FINITE
 from .support import RealSupport
 
@@ -108,7 +108,7 @@ class Rayleigh(ContinuousDistribution):
 
         """
         value = self.log_pdf(x)
-        return math.exp(value) if value > -745.2 else 0.0
+        return density_from_log(value)
 
     def cdf(self, x: float) -> float:
         """Return ``-expm1(-x^2/(2 s^2))``.

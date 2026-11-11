@@ -15,6 +15,7 @@ from probstat.foundations.validation import (
 from ._base import ContinuousDistribution
 from ._continuous import (
     LOGIT_LIMIT,
+    density_from_log,
     expit,
     log_standard_gamma_variate,
     safe_log,
@@ -156,7 +157,7 @@ class Beta(ContinuousDistribution):
         log_density = self.log_pdf(x)
         if log_density == math.inf:
             return math.inf
-        return math.exp(log_density) if log_density > -745.2 else 0.0
+        return density_from_log(log_density)
 
     def cdf(self, x: float) -> float:
         """Evaluate the beta CDF ``I_x(alpha, beta)``.

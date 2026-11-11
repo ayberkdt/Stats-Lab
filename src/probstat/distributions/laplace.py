@@ -23,7 +23,7 @@ from probstat.foundations.validation import (
 )
 
 from ._base import ContinuousDistribution
-from ._continuous import open_unit
+from ._continuous import density_from_log, open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
 
@@ -101,7 +101,7 @@ class Laplace(ContinuousDistribution):
             [REF-JKB-1995, Chapter 24].
 
         """
-        return math.exp(self.log_pdf(x))
+        return density_from_log(self.log_pdf(x))
 
     def log_cdf(self, x: float) -> float:
         """Return ``log F``: ``z - log 2`` below the median.

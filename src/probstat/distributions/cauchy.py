@@ -24,7 +24,7 @@ from probstat.foundations.validation import (
 )
 
 from ._base import ContinuousDistribution
-from ._continuous import open_unit
+from ._continuous import density_from_log, open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
 
@@ -112,7 +112,7 @@ class Cauchy(ContinuousDistribution):
             [REF-JKB-1994, Chapter 16].
 
         """
-        return math.exp(self.log_pdf(x))
+        return density_from_log(self.log_pdf(x))
 
     def cdf(self, x: float) -> float:
         """Return ``F(x) = atan2(1, -z) / pi`` (accurate in the lower tail).
