@@ -84,7 +84,7 @@ def _require_time(value: object, *, name: str = "t") -> float:
         ValueError: If it is negative or not finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -109,7 +109,7 @@ def _default_builder(
         TypeError: For a model type without a default parameter.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     if isinstance(model, FixedProbability):
@@ -645,7 +645,7 @@ def _measure(value: object) -> Measure:
         ValueError: If the measure is unknown.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if value == "reliability":

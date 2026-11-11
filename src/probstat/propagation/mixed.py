@@ -244,7 +244,7 @@ def _require_count(value: object, name: str, minimum: int) -> int:
         ValueError: If it is below ``minimum``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     count = require_non_negative_integer(value, name=name)
@@ -291,7 +291,7 @@ def _statistic_names(
     """Return labels of the requested statistics.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     return (

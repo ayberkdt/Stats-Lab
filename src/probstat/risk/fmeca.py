@@ -65,7 +65,7 @@ def _text(value: object, *, name: str) -> str:
         ValueError: If it is blank.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not isinstance(value, str):
@@ -293,7 +293,8 @@ class Fmeca:
             ValueError: If it is empty or an ``(item, mode)`` pair repeats.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         modes = tuple(self.modes)

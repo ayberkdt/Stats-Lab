@@ -39,7 +39,7 @@ def _require_label(value: object, *, name: str) -> str:
         ValueError: If the label is empty.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not isinstance(value, str):
@@ -73,7 +73,8 @@ class Outcome:
             ValueError: If the label is empty or the consequence non-finite.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         _require_label(self.name, name="name")
@@ -261,7 +262,8 @@ class EventTree:
             ValueError: If the label is empty or the frequency negative.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         _require_label(self.initiating_event, name="initiating_event")

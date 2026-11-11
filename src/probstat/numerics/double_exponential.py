@@ -401,7 +401,7 @@ def sign_change_points(
         """Return the bisection point, on the complement in the upper half.
 
         References:
-            Bisection; no equation is evaluated.
+            Bisection [REF-BRENT-1973], Chapter 4; no equation is evaluated.
 
         """
         if low[0] > 0.5:

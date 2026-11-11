@@ -49,7 +49,7 @@ def _coefficients(values: Sequence[float], name: str) -> Vector:
         ValueError: If a coefficient is non-finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     items = tuple(values)
@@ -209,7 +209,7 @@ def _sorted_roots(roots: Sequence[complex]) -> tuple[complex, ...]:
         Sorted tuple.
 
     References:
-        Project presentation policy. No equation is evaluated.
+        Project presentation policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
     """
     return tuple(sorted(roots, key=lambda z: (round(abs(z), 12), cmath.phase(z))))

@@ -1,6 +1,6 @@
 """Sobol intervals, shared designs, DGSM, given-data indices, FORM autodiff.
 
-Workstream W8 (ADR-0065).
+Decision record: ADR-0065.
 """
 
 from __future__ import annotations

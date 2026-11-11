@@ -121,7 +121,7 @@ class PosteriorPredictivePValues:
             KeyError: If no check has that name.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         for check in self.checks:
@@ -143,7 +143,7 @@ def _draw_chains(draws: DrawSource) -> tuple[tuple[tuple[Vector, ...], ...], boo
     """Return draws grouped by chain and whether they form Markov chains.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     if isinstance(draws, HamiltonianResult):

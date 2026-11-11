@@ -71,7 +71,7 @@ def _binary_treatment(treatment: Iterable[object], size: int) -> tuple[int, ...]
             arm is empty.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     values = as_vector(
@@ -107,7 +107,7 @@ def _prepare(
         ValueError: If shapes disagree or the treatment is invalid.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     rows = as_matrix(covariates, name="covariates")
@@ -456,7 +456,7 @@ def _kept(
         Filtered columns.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     return tuple(

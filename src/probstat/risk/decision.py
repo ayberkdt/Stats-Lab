@@ -41,7 +41,7 @@ def _labels(values: Iterable[object], *, name: str) -> tuple[str, ...]:
         ValueError: If labels are empty, blank, or repeated.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     labels = tuple(values)
@@ -462,7 +462,7 @@ def _labels_allow_repeats(values: Sequence[object]) -> None:
         ValueError: If a label is blank.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     for value in values:

@@ -2,7 +2,7 @@
 
 Status markers: `[x]` complete, `[~]` in progress, `[ ]` planned.
 
-The [ATHENS 2026 coverage matrix](../docs/curriculum/athens-2026-coverage.md)
+The [ATHENS 2026 coverage matrix](curriculum/athens-2026-coverage.md)
 is the authoritative 110-topic ledger. A checked roadmap phase does not override
 the matrix: curriculum completion requires 110/110 `Implemented` rows with
 tested evidence.
@@ -12,7 +12,7 @@ tested evidence.
 - [x] Layered acyclic package layout.
 - [x] Citation and equation-ID contract.
 - [x] Automated architecture and documentation checks.
-- [x] Durable project memory, ADRs, and session notes.
+- [x] Architecture decision records (`docs/adr/`).
 - [x] Optional visualization layer separated from mathematics.
 - [x] Continuous integration across supported Python versions (3.11-3.13).
 - [x] API stability labels and deprecation policy (ADR-0048).

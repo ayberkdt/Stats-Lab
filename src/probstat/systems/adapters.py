@@ -31,7 +31,7 @@ def _require_time(t: object) -> float:
         ValueError: If ``t`` is negative or not finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(t, bool) or not isinstance(t, int | float):
@@ -46,7 +46,7 @@ def _clip(value: float) -> float:
     """Clamp a probability computed with rounding error into ``[0, 1]``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     return min(1.0, max(0.0, value))
@@ -89,7 +89,8 @@ class MarkovComponent:
             ValueError: If the tolerance is not in ``(0, 1e-3]``.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not isinstance(self.model, MarkovReliabilityModel):
@@ -115,7 +116,8 @@ class MarkovComponent:
         """Store the error bound of a bounded value and return its value.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         bound = float(getattr(value, "error_bound", 0.0))
@@ -236,7 +238,8 @@ class SubsystemComponent:
             TypeError: If ``system`` is not a :class:`SystemModel`.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not isinstance(self.system, SystemModel):

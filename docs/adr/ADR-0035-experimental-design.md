@@ -5,7 +5,7 @@
 
 ## Context
 
-`memory/ROADMAP.md` lists "optimal experiment design" as an open UQ-6 item.
+`docs/roadmap.md` lists "optimal experiment design" as an open UQ-6 item.
 Calibration (`probstat.inverse.CalibrationProblem`) already declares a prior
 through `ProbabilisticModel.inputs`, experimental conditions, and
 `NoiseModel`s. Design means choosing those conditions *before* the data

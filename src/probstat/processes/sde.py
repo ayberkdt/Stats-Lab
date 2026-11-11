@@ -51,7 +51,8 @@ class ScalarSDE:
             TypeError: If a coefficient is not callable.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not callable(self.drift) or not callable(self.diffusion):

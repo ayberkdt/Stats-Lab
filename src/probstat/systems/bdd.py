@@ -363,7 +363,8 @@ class BDD:
             ValueError: If ``node`` is not a stored node.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if isinstance(node, bool) or not isinstance(node, int):

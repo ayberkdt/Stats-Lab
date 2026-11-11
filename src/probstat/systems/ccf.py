@@ -175,7 +175,8 @@ class BetaFactorGroup:
         """Validate members and ``beta``.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         object.__setattr__(self, "components", _members(self.components))
@@ -221,7 +222,8 @@ class MultipleGreekLetterGroup:
         """Validate members and factors.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         members = _members(self.components)
@@ -280,7 +282,8 @@ class AlphaFactorGroup:
         """Validate members, alphas, and the testing scheme.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         members = _members(self.components)

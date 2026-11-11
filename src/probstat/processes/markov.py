@@ -215,7 +215,8 @@ class MarkovChain:
             ValueError: If the state is unknown.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if isinstance(state, str):

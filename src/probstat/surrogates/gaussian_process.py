@@ -158,7 +158,8 @@ class GaussianProcessRegularization:
             ValueError: If a field is out of range.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         for name in ("lower_spacing_factor", "upper_extent_factor"):

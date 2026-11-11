@@ -48,7 +48,7 @@ def _require_name(value: object, *, name: str) -> str:
         ValueError: If the name is empty.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not isinstance(value, str):

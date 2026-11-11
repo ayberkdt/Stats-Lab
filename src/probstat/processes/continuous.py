@@ -36,7 +36,7 @@ def _positive(value: object, *, name: str) -> float:
         ValueError: If the value is non-finite or not positive.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     number = require_finite_real(value, name=name)
@@ -60,7 +60,7 @@ def _non_negative(value: object, *, name: str) -> float:
         ValueError: If the value is non-finite or negative.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     number = require_finite_real(value, name=name)
@@ -84,7 +84,7 @@ def _positive_integer(value: object, *, name: str) -> int:
         ValueError: If the value is not positive.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     number = require_non_negative_integer(value, name=name)
@@ -349,7 +349,8 @@ class CompoundPoissonProcess:
             ValueError: If the rate is not positive.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         object.__setattr__(self, "rate", _positive(self.rate, name="rate"))
@@ -515,7 +516,8 @@ class BrownianMotion:
             ValueError: If the volatility is not positive.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         object.__setattr__(self, "drift", require_finite_real(self.drift, name="drift"))
@@ -646,7 +648,8 @@ class GeometricBrownianMotion:
             ValueError: If the volatility is not positive.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         object.__setattr__(self, "drift", require_finite_real(self.drift, name="drift"))
@@ -817,7 +820,8 @@ class OrnsteinUhlenbeck:
             ValueError: If the reversion rate or volatility is not positive.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         object.__setattr__(

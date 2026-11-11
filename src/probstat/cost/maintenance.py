@@ -92,7 +92,7 @@ def _positive(value: object, *, name: str) -> float:
         ValueError: If it is not positive.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     result = require_finite_real(value, name=name)

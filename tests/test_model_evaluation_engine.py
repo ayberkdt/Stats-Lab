@@ -1,4 +1,4 @@
-"""Model contract and evaluation engine (ADR-0058, workstream W1).
+"""Model contract and evaluation engine (ADR-0058).
 
 Covers the failure policy, exact counting, strict input names, non-float fixed
 parameters, picklability, counters of derived models, batch/parallel/cached

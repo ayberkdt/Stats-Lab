@@ -106,7 +106,7 @@ def _checked_data(
     """Validate group estimates and their known standard errors.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     y = coerce_finite_sample(estimates, name="estimates")
@@ -126,7 +126,7 @@ def _checked_mu_prior(
     """Validate an optional ``(mean, sd)`` normal prior on ``mu``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if mu_prior is None:
@@ -237,7 +237,7 @@ class HierarchicalNormalPosterior:
         """Return draw coordinate names ``mu, tau, theta_1..theta_J``.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return ("mu", "tau") + tuple(f"theta_{j + 1}" for j in range(self.groups))

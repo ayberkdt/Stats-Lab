@@ -46,7 +46,7 @@ def _points(samples: Iterable[object], *, name: str) -> Points:
         ValueError: If the sample is empty, ragged, or non-finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     points: list[tuple[float, ...]] = []

@@ -303,7 +303,7 @@ class HamiltonianResult:
         """Validate that every chain has one statistics record.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         statistics = tuple(self.statistics)
@@ -341,7 +341,7 @@ class HamiltonianResult:
         """Return the sampler label.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return self.mcmc.algorithm
@@ -351,7 +351,7 @@ class HamiltonianResult:
         """Return the coordinate names.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return self.mcmc.names
@@ -583,7 +583,7 @@ class _Target:
         """Store the callables, build the gradient oracle, zero the counters.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         self.log_density_function = log_density
@@ -648,7 +648,8 @@ class _Target:
         """Evaluate a starting point, raising if it is not usable.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         value = self._density(x)
@@ -1399,7 +1400,7 @@ class _Settings:
     """Validated sampler settings shared by all chains.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
 

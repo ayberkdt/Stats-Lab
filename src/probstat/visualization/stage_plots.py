@@ -426,7 +426,7 @@ def _format_condition(condition: Mapping[str, float]) -> str:
     """Render a condition mapping as ``name=value`` pairs.
 
     References:
-        Project reporting policy. No equation is evaluated.
+        Project reporting policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
     """
     return ", ".join(f"{key}={value:g}" for key, value in condition.items())

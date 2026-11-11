@@ -737,7 +737,8 @@ class IntervalInput:
             ValueError: If the name is empty or ``upper < lower``.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not isinstance(self.name, str):
@@ -766,7 +767,8 @@ class IntervalInput:
         """Return ``upper - lower``.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return self.upper - self.lower
@@ -784,7 +786,8 @@ class IntervalInput:
             ValueError: If ``value`` is outside ``[0, 1]``.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         t = require_finite_real(value, name="value")
@@ -915,7 +918,7 @@ def _validated_names(inputs: tuple[RandomInput, ...]) -> None:
         ValueError: If there are no inputs or names repeat.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not inputs:
@@ -1965,7 +1968,7 @@ def _continuous(law: Marginal) -> ContinuousMarginal:
         TypeError: If the law is discrete.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if is_discrete_law(law):

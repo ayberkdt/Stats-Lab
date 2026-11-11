@@ -102,7 +102,7 @@ def _open(probability: float) -> float:
     """Clamp a probability into ``[1e-300, 1 - 2^-53]``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     return min(max(probability, _TINY), _ONE_MINUS)
@@ -116,7 +116,7 @@ def _require_dimension(value: object, *, minimum: int) -> int:
         ValueError: If it is below ``minimum``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     size = require_non_negative_integer(value, name="dimension")
@@ -132,7 +132,7 @@ def _unit_point(u: Sequence[float], dimension: int, *, closed: bool = False) -> 
         ValueError: If the length is wrong or a coordinate is outside.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     point = as_vector(u, name="u")
@@ -153,7 +153,7 @@ def _pair(i: int, j: int, dimension: int) -> tuple[int, int]:
         ValueError: If an index is out of range or the indices coincide.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     first = require_non_negative_integer(i, name="i")
@@ -170,7 +170,7 @@ def _indices(indices: Sequence[int], dimension: int) -> tuple[int, ...]:
         ValueError: If it is empty, repeats, or leaves the range.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     chosen = tuple(require_non_negative_integer(i, name="index") for i in indices)
@@ -506,7 +506,8 @@ class IndependenceCopula(Copula):
             ValueError: If the dimension is not positive.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         object.__setattr__(

@@ -180,7 +180,7 @@ steps with the low-level APIs).
 - **Reproducible randomness.** One root seed derives named child streams for
   every stage.
 - **Recorded decisions.** Architecture choices are ADRs in
-  [`memory/decisions/`](memory/decisions).
+  [`docs/adr/`](docs/adr).
 
 ## Documentation
 
@@ -195,7 +195,7 @@ steps with the low-level APIs).
 Reference: [API reference](docs/api-reference.md) ·
 [Benchmarks](docs/benchmarks.md) · [Architecture](docs/architecture.md) ·
 [Visual language](docs/foundations/visual-language.md) ·
-[Roadmap](memory/ROADMAP.md) · [Changelog](CHANGELOG.md)
+[Roadmap](docs/roadmap.md) · [Changelog](CHANGELOG.md)
 
 ## Development and license
 

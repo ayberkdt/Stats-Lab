@@ -61,7 +61,7 @@ def _site_draws(
     """Return the pooled draws of one latent or deterministic site.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     site = next((s for s in program.value_sites if s.name == name), None)
@@ -129,7 +129,7 @@ class PosteriorSamples:
             KeyError: If ``name`` is not a latent or deterministic site.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return _site_draws(self.constrained, self.program, name)
@@ -176,7 +176,7 @@ class PosteriorSamples:
         """Return latent and deterministic site names.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return tuple(site.name for site in self.program.value_sites)
@@ -186,7 +186,7 @@ class PosteriorSamples:
         """Return the number of pooled draws.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return len(self.constrained.chains) * self.constrained.draws_per_chain
@@ -207,7 +207,7 @@ class PosteriorSamples:
         """Return every pooled draw as ``{site name: value}`` (chain after chain).
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return tuple(self.program.unflatten(d) for d in self.constrained.pooled())
@@ -268,7 +268,7 @@ class PredictiveSamples:
             KeyError: If no site has that name.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         if name not in self.sites:
@@ -280,7 +280,7 @@ class PredictiveSamples:
         """Return site names in execution order.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return tuple(self.sites)
@@ -307,7 +307,7 @@ def _inference_program(model: Model) -> ModelIR:
     """Trace a model and check that it is ready for inference.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     program = trace(model)
@@ -630,7 +630,7 @@ def _as_float(value: object) -> SiteValue:
     """Convert a simulated site value to a float or a tuple of floats.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     if isinstance(value, tuple):
@@ -722,7 +722,7 @@ def _posterior_draws(
     """Return posterior draws as name-value mappings, thinned to a cap.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     values = (

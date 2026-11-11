@@ -99,7 +99,7 @@ def _coefficients(values: Sequence[float], name: str) -> Vector:
         ValueError: If a coefficient is non-finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     items = tuple(values)
@@ -121,7 +121,7 @@ def _positive(value: object, name: str) -> float:
         ValueError: If the value is not finite and positive.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     result = require_finite_real(value, name=name)
@@ -992,7 +992,7 @@ def _clipped_atanh(value: float, limit: float = 0.95) -> float:
         Unconstrained starting value.
 
     References:
-        Project numerical policy. No equation is evaluated.
+        Project numerical policy [REF-HIGHAM-2002]. No equation is evaluated.
 
     """
     return math.atanh(max(-limit, min(limit, value)))

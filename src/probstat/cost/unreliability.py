@@ -43,7 +43,7 @@ def _non_negative(value: object, *, name: str) -> float:
         ValueError: If it is negative.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     result = require_finite_real(value, name=name)
@@ -131,7 +131,8 @@ class FailureCostItem:
             ValueError: If the name is blank or the frequency negative.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not isinstance(self.name, str) or not self.name.strip():
@@ -304,7 +305,8 @@ class DesignAlternative:
             ValueError: If the name is blank or a value is invalid.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not isinstance(self.name, str) or not self.name.strip():

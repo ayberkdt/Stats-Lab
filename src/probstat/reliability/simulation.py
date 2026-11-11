@@ -43,7 +43,7 @@ def _require_limit_state(limit_state: object) -> ModelLimitState:
     """Return the argument when it is a :class:`ModelLimitState`.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not isinstance(limit_state, ModelLimitState):
@@ -55,7 +55,7 @@ def _require_samples(value: object, name: str, minimum: int = 2) -> int:
     """Validate an integer sample count with a lower limit.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(value, bool) or not isinstance(value, int) or value < minimum:

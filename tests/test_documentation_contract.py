@@ -67,6 +67,55 @@ class DocumentationContractTests(unittest.TestCase):
             "Callable docstrings without references: " + ", ".join(missing),
         )
 
+    def test_reference_sections_cite_a_registered_key(self) -> None:
+        """Every references section names at least one ``REF-*`` or ``EQ-*`` key.
+
+        A section that only describes a policy in prose cannot be traced to a
+        source, so each one must resolve to a bibliography entry or an
+        equation record.
+        """
+        uncited: list[str] = []
+        documented_definitions = ast.FunctionDef | ast.AsyncFunctionDef
+        for path, tree in source_trees():
+            relative = path.relative_to(REPOSITORY_ROOT)
+            for node in ast.walk(tree):
+                if isinstance(node, documented_definitions):
+                    docstring = ast.get_docstring(node) or ""
+                    _, _, section = docstring.partition("References:")
+                    if not (
+                        EQUATION_PATTERN.search(section)
+                        or REFERENCE_PATTERN.search(section)
+                    ):
+                        uncited.append(f"{relative}:{node.lineno}:{node.name}")
+        self.assertEqual(
+            uncited,
+            [],
+            "References sections without a citation key: " + ", ".join(uncited),
+        )
+
+    def test_bibliography_keys_are_unique_and_used(self) -> None:
+        """Bibliography headings are unique and each one is cited somewhere."""
+        text = BIBLIOGRAPHY.read_text(encoding="utf-8")
+        headings = re.findall(r"^## (REF-[A-Z0-9-]+)\s*$", text, flags=re.MULTILINE)
+        duplicates = sorted({key for key in headings if headings.count(key) > 1})
+        self.assertEqual(
+            duplicates, [], "Duplicate references: " + ", ".join(duplicates)
+        )
+        cited: set[str] = set()
+        for root in ("src", "docs", "tests", "benchmarks", "examples"):
+            for path in (REPOSITORY_ROOT / root).rglob("*"):
+                if path.suffix in {".py", ".md"} and path != BIBLIOGRAPHY:
+                    cited.update(
+                        REFERENCE_PATTERN.findall(path.read_text(encoding="utf-8"))
+                    )
+        cited.update(
+            key
+            for block in re.split(r"^## ", text, flags=re.MULTILINE)
+            for key in REFERENCE_PATTERN.findall(block.partition("\n")[2])
+        )
+        unused = sorted(set(headings) - cited)
+        self.assertEqual(unused, [], "Uncited references: " + ", ".join(unused))
+
     def test_source_equation_ids_exist_in_registry(self) -> None:
         """Every equation ID cited by source exists in the central registry."""
         registry_text = EQUATION_REGISTRY.read_text(encoding="utf-8")

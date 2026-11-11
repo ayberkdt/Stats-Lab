@@ -230,7 +230,7 @@ def _require_state(state: GaussianState, size: int) -> GaussianState:
         ValueError: If the dimension differs.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not isinstance(state, GaussianState):
@@ -254,7 +254,7 @@ def _observation_vector(observation: Sequence[float], size: int) -> Vector:
         ValueError: If the length differs.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     vector = as_vector(observation, name="observation")

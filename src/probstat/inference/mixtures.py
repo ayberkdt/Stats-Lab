@@ -55,7 +55,7 @@ def _as_points(data: Iterable[object]) -> tuple[Vector, ...]:
     """Convert univariate or multivariate data to a tuple of finite vectors.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     points: list[Vector] = []
@@ -206,7 +206,8 @@ class GaussianMixture:
         """Validate shapes and normalize containers.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         weights = tuple(float(w) for w in self.weights)
@@ -290,7 +291,8 @@ class GaussianMixture:
         """Validate one evaluation point.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         point = _as_points([x])[0]

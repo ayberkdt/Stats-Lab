@@ -43,7 +43,7 @@ def _positive_integer(value: object, *, name: str) -> int:
         ValueError: If the value is not a positive integer.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     number = require_non_negative_integer(value, name=name)
@@ -65,7 +65,7 @@ def _sizes(values: Iterable[int]) -> tuple[int, ...]:
         ValueError: If no size is supplied.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     sizes = tuple(sorted({_positive_integer(v, name="n") for v in values}))

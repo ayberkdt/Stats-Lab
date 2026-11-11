@@ -52,7 +52,7 @@ def _require_count(value: object, name: str, minimum: int) -> int:
     """Validate an integer option with a lower limit.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
@@ -64,7 +64,7 @@ def _require_positive(value: object, name: str) -> float:
     """Validate a strictly positive finite real option.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     checked = require_finite_real(value, name=name)

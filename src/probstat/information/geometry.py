@@ -66,7 +66,7 @@ def _positive(value: float, *, name: str) -> float:
         ValueError: If it is not positive and finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     number = require_finite_real(value, name=name)
@@ -89,7 +89,7 @@ def _open_probability(value: float, *, name: str) -> float:
         ValueError: If it is not in the open unit interval.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     probability = require_probability(value, name=name)
@@ -412,7 +412,7 @@ def _log_density(law: object) -> Callable[[float], float]:
         TypeError: If neither method exists.
 
     References:
-        Project protocol policy. No equation is evaluated.
+        Project protocol policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     for attribute in ("log_pdf", "log_pmf"):

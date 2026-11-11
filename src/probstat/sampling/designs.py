@@ -126,7 +126,7 @@ def _check_size_dimension(size: int, dimension: int) -> None:
         ValueError: If either value is not positive.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     for value, name in ((size, "size"), (dimension, "dimension")):

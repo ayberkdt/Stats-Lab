@@ -95,7 +95,7 @@ def check_limit(value: float) -> float:
         ValueError: If the limit is NaN.
 
     References:
-        Project numerical validation policy. No equation is evaluated.
+        Project numerical validation policy [REF-HIGHAM-2002]. No equation is evaluated.
 
     """
     if isinstance(value, bool) or not isinstance(value, Real):

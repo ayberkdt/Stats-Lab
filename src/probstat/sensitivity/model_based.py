@@ -182,7 +182,7 @@ class MultiQuantitySobolResult:
             KeyError: If the QoI was not analysed.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return self.results[quantity]
@@ -192,7 +192,7 @@ class MultiQuantitySobolResult:
         """Return the analysed QoI names in order.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return tuple(self.results)
@@ -378,7 +378,7 @@ def _validated_settings(
     """Validate shared Sobol settings; return the interval method and ``R``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not model.inputs.is_independent:

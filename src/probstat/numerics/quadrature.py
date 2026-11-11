@@ -232,7 +232,7 @@ def _evaluate(
         ValueError: If the result is non-finite.
 
     References:
-        Project numerical validation policy. No equation is evaluated.
+        Project numerical validation policy [REF-HIGHAM-2002]. No equation is evaluated.
 
     """
     return require_finite_real(function(point), name=f"function(node {index})")

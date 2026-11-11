@@ -41,7 +41,7 @@ def _positive_integer(value: object, *, name: str) -> int:
         ValueError: If it is below one.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(value, bool) or not isinstance(value, int):
@@ -103,7 +103,8 @@ class LearningCurve:
                 theory is unknown.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         t1 = require_finite_real(self.first_unit_cost, name="first_unit_cost")

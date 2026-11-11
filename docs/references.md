@@ -223,6 +223,33 @@ Python Software Foundation. "Mathematical statistics functions," including
 Python Software Foundation. "Abstract Syntax Trees." *Python 3 documentation*.
 [https://docs.python.org/3/library/ast.html](https://docs.python.org/3/library/ast.html).
 
+## REF-PROBSTAT-VALIDATION
+
+Probability and Statistics Library. "Argument validation contract": parameter
+constraints and supports ([ADR-0005](adr/ADR-0005-support-log-probability-and-categorical-semantics.md)),
+tail and parameterization contracts ([ADR-0006](adr/ADR-0006-tail-quantile-and-parameterization-contracts.md)),
+and the rule that invalid input raises `ValueError` or `TypeError` before any
+computation, following the Python exception hierarchy [REF-PYTHON-EXCEPTIONS].
+
+## REF-PROBSTAT-API
+
+Probability and Statistics Library. "Public API contract": stability labels,
+deprecation policy, immutable result records, and read-only accessors
+([ADR-0048](adr/ADR-0048-api-stability.md)), with structural protocols for
+probability laws ([ADR-0004](adr/ADR-0004-dependency-neutral-law-protocols.md)).
+
+## REF-PROBSTAT-REPORTING
+
+Probability and Statistics Library. "Reporting contract": every report states
+its assumptions, cost, error, seed tree, and sources
+([ADR-0025](adr/ADR-0025-uq-study-workflow.md)), and every figure follows the
+semantic chart theme ([ADR-0024](adr/ADR-0024-semantic-chart-theme.md)).
+
+## REF-PYTHON-EXCEPTIONS
+
+Python Software Foundation. "Built-in Exceptions." *Python 3 documentation*.
+[https://docs.python.org/3/library/exceptions.html](https://docs.python.org/3/library/exceptions.html).
+
 ## REF-PYTHON-CMATH
 
 Python Software Foundation. "Mathematical functions for complex numbers."

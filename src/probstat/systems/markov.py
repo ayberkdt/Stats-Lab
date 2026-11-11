@@ -65,7 +65,7 @@ def _rate(value: object, *, name: str) -> float:
         ValueError: If it is negative or non-finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     rate = require_finite_real(value, name=name)
@@ -89,7 +89,7 @@ def _positive_rate(value: object, *, name: str) -> float:
         ValueError: If it is not positive or non-finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     rate = _rate(value, name=name)
@@ -113,7 +113,7 @@ def _crews(value: object, units: int) -> int:
         ValueError: If it is not positive.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if value is None:
@@ -163,7 +163,8 @@ class MarkovReliabilityModel:
             ValueError: If the partition or initial law is invalid.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not isinstance(self.chain, ContinuousTimeMarkovChain):
@@ -199,7 +200,8 @@ class MarkovReliabilityModel:
         """Return the initial law as a probability vector in state order.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return cast(tuple[float, ...], self.initial)
@@ -911,7 +913,8 @@ def standby_system(
         """Return the label of the state with ``j`` failed units.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return f"{j} failed"
@@ -920,7 +923,8 @@ def standby_system(
         """Return the label of the switching-failure state.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return f"switch failure ({j} failed)"
@@ -931,7 +935,8 @@ def standby_system(
         """Accumulate a positive rate.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if value > 0.0:

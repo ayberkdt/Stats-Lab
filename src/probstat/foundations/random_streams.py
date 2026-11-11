@@ -128,7 +128,8 @@ class RandomStream:
             ValueError: If the seed is negative.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if isinstance(self.seed, bool) or not isinstance(self.seed, int):

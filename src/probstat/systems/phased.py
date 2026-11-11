@@ -105,7 +105,8 @@ class Phase:
             ValueError: If the name is empty or the duration not positive.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not isinstance(self.name, str) or not self.name.strip():

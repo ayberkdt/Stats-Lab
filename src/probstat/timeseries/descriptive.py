@@ -47,7 +47,7 @@ def _series(
         ValueError: If the series is too short or non-finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     data = coerce_finite_sample(values, name=name)
@@ -95,7 +95,7 @@ def _level(level: float) -> float:
         ValueError: If the level is not strictly inside ``(0, 1)``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     value = require_finite_real(level, name="level")

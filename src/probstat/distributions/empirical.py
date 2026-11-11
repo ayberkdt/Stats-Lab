@@ -65,7 +65,8 @@ class Empirical(ContinuousDistribution):
                 is unknown, or (linear) all observations are equal.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         values = tuple(sorted(coerce_finite_sample(sample, name="sample")))
@@ -84,7 +85,8 @@ class Empirical(ContinuousDistribution):
         """Return the sample size ``n``.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return len(self.values)

@@ -298,7 +298,7 @@ def _check_common(
         ValueError: If a tolerance or the level limit is invalid.
 
     References:
-        Project numerical validation policy. No equation is evaluated.
+        Project numerical validation policy [REF-HIGHAM-2002]. No equation is evaluated.
 
     """
     if not callable(function):

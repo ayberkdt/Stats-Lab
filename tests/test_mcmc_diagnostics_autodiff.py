@@ -1,6 +1,6 @@
 """MCMC diagnostics, convergence warnings, NUTS variants, autodiff, SBC.
 
-Workstream W8 (ADR-0065).
+Decision record: ADR-0065.
 """
 
 from __future__ import annotations
@@ -73,8 +73,7 @@ class EffectiveSampleSizeOracleTests(unittest.TestCase):
     Oracle values: a numpy/scipy port of posterior's ``.ess``,
     ``split_chains``, ``z_scale``, ``ess_bulk``, ``ess_quantile``,
     ``ess_tail`` and ``mcse_quantile`` (scipy.stats.beta.ppf, numpy type-7
-    quantiles), run in the verification venv on the same chains (scratch
-    script oracle_ess.py of W8). The port reproduces the earlier unsplit
+    quantiles), run on the same chains. The port reproduces the earlier unsplit
     oracle 825.6296706351059 exactly.
     """
 

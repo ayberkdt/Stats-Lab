@@ -49,7 +49,7 @@ def _check_size(size: int) -> int:
     """Validate a positive calibration-set size.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(size, bool) or not isinstance(size, int):

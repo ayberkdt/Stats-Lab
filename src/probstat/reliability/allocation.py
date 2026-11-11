@@ -62,7 +62,7 @@ def _target(value: object) -> float:
         ValueError: If it is 0 or 1.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     target = require_probability(value, name="target")
@@ -85,7 +85,7 @@ def _names(names: Sequence[str] | None, size: int) -> tuple[str, ...]:
         ValueError: If the count is wrong or names repeat.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if names is None:
@@ -622,7 +622,7 @@ def _bounds(
             ``lower >= upper``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     size = len(costs)

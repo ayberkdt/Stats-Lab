@@ -32,7 +32,7 @@ def _require_time(t: object) -> float:
         ValueError: If ``t`` is negative or NaN.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(t, bool) or not isinstance(t, int | float):
@@ -50,7 +50,7 @@ def _require_positive(value: object, *, name: str) -> float:
         ValueError: If the value is not positive.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     checked = require_non_negative_finite_real(value, name=name)
@@ -317,7 +317,8 @@ class ExponentialComponent:
         """Validate the rate.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         object.__setattr__(
@@ -413,7 +414,8 @@ class WeibullComponent:
         """Validate the parameters.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         object.__setattr__(self, "shape", _require_positive(self.shape, name="shape"))
@@ -518,7 +520,8 @@ class LifeDistributionComponent:
         """Check the structural interface.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not callable(getattr(self.distribution, "sf", None)):
@@ -627,7 +630,8 @@ class RepairableComponent:
         """Validate the rates.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         object.__setattr__(
@@ -786,7 +790,8 @@ class PeriodicallyTestedComponent:
         """Validate the parameters.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         object.__setattr__(

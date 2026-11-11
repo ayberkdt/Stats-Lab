@@ -119,7 +119,7 @@ def _finite_value(value: object, name: str) -> float:
     """Validate one finite objective or residual value.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     return require_finite_real(value, name=name)
@@ -159,7 +159,7 @@ def _per_coordinate(
         ValueError: If a value is not positive and finite or the length differs.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if value is None:
@@ -276,7 +276,7 @@ def _moved(point: Vector, index: int, delta: float) -> Vector:
     """Return ``point`` with coordinate ``index`` shifted by ``delta``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     moved = list(point)
@@ -728,7 +728,8 @@ class BoxTransform:
             ValueError: If the length differs or a pair has ``low >= high``.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         pairs = tuple(bounds)
@@ -1574,7 +1575,8 @@ class MultiStartResult:
         """Return the number of runs that met a stopping tolerance.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return sum(run.converged for run in self.runs)
@@ -1584,7 +1586,8 @@ class MultiStartResult:
         """Return the total number of objective evaluations of all runs.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return sum(run.evaluations for run in self.runs)

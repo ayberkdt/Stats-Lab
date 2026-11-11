@@ -31,7 +31,8 @@ def as_vector(values: Iterable[object], *, name: str = "vector") -> Vector:
         ValueError: If a component is non-finite.
 
     References:
-        Project validation policy. No mathematical equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION].
+        No mathematical equation is evaluated.
 
     """
     try:

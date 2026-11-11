@@ -278,7 +278,7 @@ class BayesianDesignProblem:
         """Return the names of the uncertain parameters.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return self.model.inputs.names
@@ -288,7 +288,7 @@ class BayesianDesignProblem:
         """Return the number of uncertain parameters.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return self.model.dimension

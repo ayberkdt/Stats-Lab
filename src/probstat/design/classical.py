@@ -56,7 +56,7 @@ def _as_point(value: object) -> Vector:
     """Normalize a scalar or a sequence into a design-point vector.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     if isinstance(value, Real) and not isinstance(value, bool):
@@ -73,7 +73,7 @@ def _as_points(values: Sequence[object], *, name: str) -> tuple[Vector, ...]:
     """Normalize a non-empty collection of design points of equal dimension.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     points = tuple(_as_point(value) for value in values)
@@ -211,7 +211,7 @@ class ApproximateDesign:
         """Return the number of design variables per point.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return len(self.points[0])
@@ -350,7 +350,7 @@ class ExactDesign:
         """Return every run, with replicates listed consecutively.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return tuple(

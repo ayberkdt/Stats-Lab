@@ -474,7 +474,7 @@ def _paired(
         ValueError: If they are empty or of different lengths.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     c = tuple(require_finite_real(v, name="cost") for v in costs)

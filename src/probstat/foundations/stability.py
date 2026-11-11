@@ -77,7 +77,7 @@ def package_stability(name: str) -> Stability:
         KeyError: If the package has no label.
 
     References:
-        Project API policy (ADR-0048). No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     key = name.removeprefix("probstat.").split(".")[0]
@@ -105,7 +105,7 @@ def deprecated(
         ValueError: If ``since`` or ``removal`` is empty.
 
     References:
-        Project API policy (ADR-0048). No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     if not since.strip() or not removal.strip():
@@ -115,7 +115,7 @@ def deprecated(
         """Wrap ``function`` so that each call warns.
 
         References:
-            Project API policy (ADR-0048). No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         message = (
@@ -129,7 +129,7 @@ def deprecated(
             """Warn, then call the deprecated function.
 
             References:
-                Project API policy (ADR-0048). No equation is evaluated.
+                Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
             """
             warnings.warn(message, DeprecationWarning, stacklevel=2)

@@ -41,7 +41,7 @@ def _freeze(values: Mapping[str, float], *, name: str) -> Mapping[str, float]:
         ValueError: If a name is empty or a value is non-finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not isinstance(values, Mapping):
@@ -126,7 +126,8 @@ class ComputationalExperiment:
                 Comma-separated text, or ``"none"``.
 
             References:
-                Project reporting policy. No equation is evaluated.
+                Project reporting policy [REF-PROBSTAT-REPORTING].
+                No equation is evaluated.
 
             """
             if not values:

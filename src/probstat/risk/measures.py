@@ -561,7 +561,7 @@ def _require_scale(sigma: float) -> float:
         ValueError: If ``sigma`` is not positive.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     scale = require_finite_real(sigma, name="sigma")

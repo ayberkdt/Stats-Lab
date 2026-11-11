@@ -137,7 +137,8 @@ class Bijection:
         """Check that the bounds agree with the bijection family.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         needs_lower = self.kind in ("lower", "interval")
@@ -247,7 +248,7 @@ class Bijection:
         """Return the name of the unconstrained coordinate of site ``name``.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         if self.kind == "identity":
@@ -332,7 +333,7 @@ def _support_of(distribution: object, site: str) -> object:
     """Return ``distribution.support`` or raise a clear error.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     try:
@@ -407,7 +408,7 @@ def _elements(
     one distribution per element.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     if isinstance(distribution, list | tuple):
@@ -429,7 +430,7 @@ def _checked_shape(shape: object, site: str) -> int | None:
     """Validate a ``shape`` argument (``None`` or a positive integer).
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if shape is None:
@@ -447,7 +448,7 @@ def _pack(values: Sequence[Any], size: int | None) -> Any:
     """Return a scalar for scalar sites and a tuple for vector sites.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     return values[0] if size is None else tuple(values)
@@ -535,7 +536,7 @@ class SiteInfo:
         """Return the number of scalar elements (``1`` for a scalar site).
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return 1 if self.size is None else self.size
@@ -544,7 +545,7 @@ class SiteInfo:
         """Return element names ``name`` or ``name[0], name[1], ...``.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         label = self.name if base is None else base
@@ -557,7 +558,7 @@ def missing_data_message(site: str) -> str:
     """Return the error message for an observed site without data.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     return (
@@ -570,7 +571,7 @@ def _check_data(site: str, values: Sequence[object]) -> None:
     """Reject observed data that are not finite real numbers.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     for value in values:
@@ -588,7 +589,7 @@ def _describe(parts: tuple[Any, ...], size: int | None) -> str:
     """Return a short description of a site's distribution(s).
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     names = {type(p).__name__ for p in parts}
@@ -654,7 +655,7 @@ class ModelHandle:
         """Initialize an empty execution record.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         self._mode = mode
@@ -692,7 +693,7 @@ class ModelHandle:
         """Reject non-string and duplicate site names.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         if not isinstance(name, str) or not name:
@@ -706,7 +707,7 @@ class ModelHandle:
         """Compare a site with the traced structure.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         if self._layout is None:
@@ -730,7 +731,7 @@ class ModelHandle:
         """Check that every traced site was visited.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         if self._layout is not None and self._cursor != len(self._layout):
@@ -1160,7 +1161,7 @@ class ModelIR:
         """Return the sites of one kind in execution order.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return tuple(site for site in self.sites if site.kind == kind)
@@ -1170,7 +1171,7 @@ class ModelIR:
         """Return latent sites in execution order.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return self._of_kind("latent")
@@ -1180,7 +1181,7 @@ class ModelIR:
         """Return observed sites in execution order.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return self._of_kind("observed")
@@ -1190,7 +1191,7 @@ class ModelIR:
         """Return deterministic sites in execution order.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return self._of_kind("deterministic")
@@ -1202,7 +1203,7 @@ class ModelIR:
             KeyError: If no site has that name.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         for site in self.sites:
@@ -1225,7 +1226,7 @@ class ModelIR:
         """Return coordinate names such as ``mu``, ``log(tau)``, ``theta_z[0]``.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         names: list[str] = []
@@ -1249,7 +1250,7 @@ class ModelIR:
         """Return latent and deterministic sites (the reported quantities).
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return tuple(s for s in self.sites if s.kind in ("latent", "deterministic"))
@@ -1259,7 +1260,7 @@ class ModelIR:
         """Return flat names of latent and deterministic elements.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return tuple(name for s in self.value_sites for name in s.flat_names())
@@ -1271,7 +1272,7 @@ class ModelIR:
             KeyError: If ``name`` is not an observed site.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         site = self.site(name)
@@ -1473,7 +1474,7 @@ class ModelIR:
         """Return constrained values flattened in :attr:`constrained_names` order.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return flatten(self.constrain(u), self.value_sites)
@@ -1491,7 +1492,7 @@ class ModelIR:
             ValueError: If the length does not match.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         values = tuple(flat)
@@ -1551,7 +1552,7 @@ def flatten(values: Mapping[str, SiteValue], sites: Sequence[SiteInfo]) -> Vecto
     """Flatten named site values in the order of ``sites``.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     flat: list[float] = []

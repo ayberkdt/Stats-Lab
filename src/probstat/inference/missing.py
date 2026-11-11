@@ -77,7 +77,7 @@ def _coerce_incomplete(rows: Iterable[Iterable[object]]) -> _IncompleteRows:
     """Validate rows and encode missing entries as ``nan``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     try:
@@ -354,7 +354,7 @@ def _checked_parameters(
     """Validate a mean vector and a positive-definite covariance.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     law = MultivariateNormal(
@@ -905,7 +905,7 @@ def _checked_scale(scale: Iterable[Iterable[object]]) -> Matrix:
     """Validate a symmetric positive-definite scale matrix.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     rows = tuple(as_vector(row, name="scale row") for row in scale)
@@ -992,7 +992,8 @@ class NormalInverseWishartPrior:
             ValueError: For a negative ``kappa`` or a missing ``mean``.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         kappa = require_finite_real(self.kappa, name="kappa")

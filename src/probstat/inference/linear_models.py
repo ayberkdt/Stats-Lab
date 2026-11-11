@@ -144,7 +144,7 @@ def _column_length(data: Mapping[str, Sequence[object]], names: Iterable[str]) -
     """Return the common length of the named columns.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     lengths = {len(data[name]) for name in names}
@@ -286,7 +286,7 @@ def _coerce_design(
     """Return validated rows, column names, and whether a ones column exists.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(design, DesignMatrix):
@@ -382,7 +382,7 @@ def _validate_level(level: object) -> float:
     """Validate a two-sided confidence level in ``(0, 1)``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     checked = require_finite_real(level, name="level")
@@ -573,7 +573,8 @@ class LinearModelResult:
         """Validate new design rows against the fitted column count.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         checked = as_matrix(rows, name="rows")

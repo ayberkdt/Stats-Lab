@@ -49,7 +49,7 @@ def _check_name(node: object) -> str:
         ValueError: If the name is empty.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not isinstance(node, str):
@@ -164,7 +164,8 @@ class CausalGraph:
             KeyError: If a node is not in the graph.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         members = frozenset((nodes,) if isinstance(nodes, str) else nodes)
@@ -417,7 +418,7 @@ def _single(graph: CausalGraph, node: str, *, name: str) -> str:
         KeyError: If the node is unknown.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not isinstance(node, str):
@@ -445,7 +446,7 @@ def _treatment_outcome(
         ValueError: If a set is empty or the sets overlap.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     xs = graph._node_set(treatment, name="treatment")

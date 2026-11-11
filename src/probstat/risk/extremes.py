@@ -122,7 +122,7 @@ def _require_confidence(confidence: float) -> float:
         ValueError: If the level is not strictly inside ``(0, 1)``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     level = require_finite_real(confidence, name="confidence")
@@ -1287,7 +1287,8 @@ class ExceedanceRate:
             ValueError: If ``0 < k <= n`` or ``n_y > 0`` fails.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         for name in ("exceedances", "observations"):

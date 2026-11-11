@@ -156,7 +156,7 @@ def clamp_probability(value: float) -> float:
         ``value`` restricted to the unit interval.
 
     References:
-        Project numerical policy. No equation is evaluated.
+        Project numerical policy [REF-HIGHAM-2002]. No equation is evaluated.
 
     """
     return max(0.0, min(1.0, value))

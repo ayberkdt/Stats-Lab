@@ -93,7 +93,7 @@ def _require_length(vector: Vector, size: int, name: str) -> Vector:
         ValueError: If the length differs.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if len(vector) != size:
@@ -119,7 +119,7 @@ def _fast_vector(values: Sequence[float], size: int, name: str) -> Vector:
         ValueError: If the length differs or a component is non-finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     vector = tuple(map(float, values))

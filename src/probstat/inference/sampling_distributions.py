@@ -196,7 +196,7 @@ def _positive_df(value: float, name: str) -> float:
         ValueError: If ``value`` is not finite and positive.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     checked = require_finite_real(value, name=name)

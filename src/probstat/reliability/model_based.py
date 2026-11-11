@@ -328,7 +328,7 @@ def _require_limit_state(limit_state: object) -> ModelLimitState:
     """Return the argument when it is a :class:`ModelLimitState`.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not isinstance(limit_state, ModelLimitState):
@@ -340,7 +340,7 @@ def _require_positive_int(value: object, name: str) -> int:
     """Validate a strictly positive integer option.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
@@ -352,7 +352,7 @@ def _require_positive(value: object, name: str) -> float:
     """Validate a strictly positive finite real option.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     checked = require_finite_real(value, name=name)
@@ -495,7 +495,8 @@ class _LimitStateGradient:
             ValueError: For an unknown option.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         self.state = state

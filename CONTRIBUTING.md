@@ -55,11 +55,11 @@ The equation must appear in `docs/equation-registry.md` with:
 IDs are never recycled. A superseded equation remains in the registry and is
 marked as such.
 
-## 4. Memory contract
+## 4. Decision records
 
-Update `memory/ROADMAP.md` when scope changes. Record architectural choices as
-ADRs under `memory/decisions/`. Add a short session note for meaningful work,
-including decisions, verification results, and the next safe step.
+Update [`docs/roadmap.md`](docs/roadmap.md) when scope changes. Record
+architectural choices as numbered ADRs under [`docs/adr/`](docs/adr), with
+context, decision, consequences, and the verification evidence behind them.
 
 ## Definition of done
 

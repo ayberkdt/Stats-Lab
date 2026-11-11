@@ -167,7 +167,7 @@ class PosteriorPrediction:
             KeyError: If the pair was not predicted.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         matches = [p for p in self.predictions if p.quantity == quantity]

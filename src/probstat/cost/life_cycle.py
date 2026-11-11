@@ -72,7 +72,7 @@ def _require_text(value: object, *, name: str) -> str:
         ValueError: If it is blank.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not isinstance(value, str):
@@ -92,7 +92,7 @@ def _is_law(value: object) -> bool:
         ``True`` when every method of ``ContinuousMarginal`` is present.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     return all(
@@ -134,7 +134,8 @@ class CostElement:
                 category is unknown.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         _require_text(self.name, name="name")
@@ -291,7 +292,8 @@ class CostElement:
         """Return whether the element value is uncertain.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return _is_law(self.cost)
@@ -432,7 +434,8 @@ class LifeCycleCostModel:
                 is invalid.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         elements = tuple(self.elements)
@@ -458,7 +461,8 @@ class LifeCycleCostModel:
         """Return element names in declaration order.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return tuple(element.name for element in self.elements)
@@ -468,7 +472,8 @@ class LifeCycleCostModel:
         """Return the elements with an uncertain value.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return tuple(element for element in self.elements if element.is_random)
@@ -478,7 +483,8 @@ class LifeCycleCostModel:
         """Return the categories used, in :data:`COST_CATEGORIES` order.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         used = {element.category for element in self.elements}
@@ -497,7 +503,8 @@ class LifeCycleCostModel:
             KeyError: If no element has that name.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         for element in self.elements:

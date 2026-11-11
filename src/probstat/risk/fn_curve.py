@@ -57,7 +57,8 @@ class FNCriterion:
             ValueError: If a parameter is outside its domain.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         c = require_finite_real(self.anchor_frequency, name="anchor_frequency")

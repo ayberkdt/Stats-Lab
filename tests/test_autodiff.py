@@ -43,7 +43,7 @@ def kitchen_sink(v):
 
 
 # mpmath 1.4 at 50 digits, mpmath.diff of the same expression at
-# (0.3, -0.7, 1.1) (scratch script oracle_ad.py of workstream W8).
+# (0.3, -0.7, 1.1).
 SINK_VALUE = 3.1577982041359346021
 SINK_GRADIENT = (
     -0.52472702713205756797,

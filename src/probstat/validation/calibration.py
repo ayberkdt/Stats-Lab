@@ -316,7 +316,7 @@ def _level(value: object) -> float:
     """Validate a nominal coverage strictly inside ``(0, 1)``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     level = require_finite_real(value, name="level")

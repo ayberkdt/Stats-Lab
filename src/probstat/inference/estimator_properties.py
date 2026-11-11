@@ -61,7 +61,7 @@ def _positive(value: object, *, name: str) -> float:
         ValueError: If the value is not positive.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     number = require_finite_real(value, name=name)
@@ -85,7 +85,7 @@ def _count(value: object, *, name: str, minimum: int = 1) -> int:
         ValueError: If the value is below ``minimum``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     number = require_non_negative_integer(value, name=name)
@@ -774,7 +774,8 @@ def check_sufficiency(
         """Normalize a scalar or sequence statistic to a tuple.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if isinstance(value, int | float):

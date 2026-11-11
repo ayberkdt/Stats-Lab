@@ -48,7 +48,7 @@ risk, with one seed and one report.
 - Autodiff FORM applied the diagonal Nataf Jacobian even when the joint
   input used a non-Gaussian copula (Rosenblatt map). It now raises
   `AutodiffUnsupportedError`, so `gradient="auto"` falls back to finite
-  differences (`tests/test_integration_cross_workstream.py`).
+  differences (`tests/test_integration_systems.py`).
 - The Saltelli (2010) first-order estimator used the raw product
   `f_B (f_ABi - f_A)`, whose variance grows with the square of the output
   mean. A system reliability near 0.92 with spread 0.003 gave a first-order

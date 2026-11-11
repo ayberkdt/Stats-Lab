@@ -266,7 +266,7 @@ class DiscrepancyProcess:
         """Return vector names of the free (log-scale) hyperparameters.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         names: tuple[str, ...] = ()
@@ -397,7 +397,7 @@ class LogLinearNoise:
         """Return vector names ``noise_a`` and ``noise_b[name]``.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         assert self.covariate_names is not None
@@ -505,7 +505,7 @@ class DiscrepancyFit:
         """Return the estimate keyed by vector name.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return MappingProxyType(dict(zip(self.names, self.estimate, strict=True)))
@@ -1031,7 +1031,7 @@ class DiscrepancyCalibration:
         """Return names of ``(theta, log psi, a, b)``.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return self.parameter_names + self.hyperparameter_names + self.noise_names
@@ -1041,7 +1041,7 @@ class DiscrepancyCalibration:
         """Return names of ``(theta, sigma_delta, ell, a, b)``.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         hyper = tuple(
@@ -1055,7 +1055,7 @@ class DiscrepancyCalibration:
         """Return the parameter-vector length.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return len(self.vector_names)

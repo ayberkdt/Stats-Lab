@@ -76,7 +76,8 @@ class CovarianceKernel:
                 positive.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if self.family not in KERNEL_FAMILIES:
@@ -162,7 +163,7 @@ def _as_point(item: object, *, name: str) -> Point:
         ValueError: If a coordinate is non-finite or the point is empty.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(item, Iterable):
@@ -187,7 +188,7 @@ def as_points(points: Sequence[float] | Sequence[Sequence[float]]) -> tuple[Poin
         ValueError: If the set is empty or dimensions differ.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     materialized: list[object] = list(points)
@@ -483,7 +484,8 @@ class KarhunenLoeveExpansion:
             ValueError: If the length is wrong.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         values = tuple(

@@ -52,7 +52,7 @@ def _points(values: Sequence[float] | Sequence[Sequence[float]], name: str) -> P
     """Normalize a 1-D sample or a sample of vectors to a tuple of points.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     items = tuple(values)
@@ -75,7 +75,7 @@ def _paired_points(
     """Validate two samples of the same dimension.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     a = _points(first, "first")

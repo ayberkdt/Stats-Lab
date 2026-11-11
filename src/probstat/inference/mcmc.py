@@ -319,7 +319,7 @@ class MCMCResult:
             IndexError: If the index is out of range.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         if isinstance(parameter, str):
@@ -818,7 +818,7 @@ def _validate_run(
     """Validate run-length arguments.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     checked_draws = require_non_negative_integer(draws, name="draws")
@@ -838,7 +838,7 @@ def _names(names: Sequence[str] | None, dimension: int) -> tuple[str, ...]:
     """Return coordinate names, defaulting to ``x0, x1, ...``.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     if names is None:
@@ -1600,7 +1600,7 @@ def _format_items(items: Sequence[tuple[str, float]], digits: int) -> str:
     """Format ``name (value)`` pairs, listing at most five.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     shown = ", ".join(f"{name} ({value:.{digits}f})" for name, value in items[:5])

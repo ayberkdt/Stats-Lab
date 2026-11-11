@@ -53,7 +53,7 @@ def _predictor_rows(
     """Return predictor rows without any intercept column, and their names.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(predictors, DesignMatrix):
@@ -125,7 +125,7 @@ def _non_negative(value: object, name: str) -> float:
     """Validate a finite non-negative penalty.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     checked = require_finite_real(value, name=name)
@@ -494,7 +494,7 @@ def _validate_iterations(
     """Validate the iteration limit and tolerance.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(max_iterations, bool) or not isinstance(max_iterations, int):

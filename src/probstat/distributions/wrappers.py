@@ -36,7 +36,7 @@ def _check_law(law: object, name: str) -> None:
         TypeError: If a required attribute is missing.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     for attribute in _REQUIRED:
@@ -101,7 +101,7 @@ def _finite_point(x: float) -> float:
     """Validate a real point, allowing infinities (handled by the guards).
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     return require_finite_real(x, name="x")
@@ -452,7 +452,8 @@ class Truncated(ContinuousDistribution):
         """Validate ``x`` and return it.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return _finite_point(x)

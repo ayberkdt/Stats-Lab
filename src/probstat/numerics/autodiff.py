@@ -1173,7 +1173,7 @@ def _point(x: Sequence[float], name: str = "x") -> tuple[float, ...]:
     """Validate a non-empty finite evaluation point.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(x, str | bytes) or not isinstance(x, Sequence):
@@ -1492,7 +1492,8 @@ class GradientEvaluator:
         """Validate the option and choose the initial method.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not callable(function):
@@ -1523,7 +1524,7 @@ class GradientEvaluator:
         """Evaluate the function on plain floats.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return float(cast(float, self._function(x)))

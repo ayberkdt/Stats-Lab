@@ -58,7 +58,7 @@ def _member(instance: object, name: str) -> Any:
     """Return an attribute that the concrete family is required to define.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     return getattr(instance, name)
@@ -68,7 +68,7 @@ def _number(instance: object, name: str) -> float:
     """Return a numeric property (such as ``mean``) of the concrete family.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     return float(_member(instance, name))
@@ -78,7 +78,7 @@ def _method(instance: object, name: str) -> Callable[[float], float]:
     """Return a one-argument method (such as ``quantile``) of the family.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     return cast(Callable[[float], float], _member(instance, name))
@@ -283,7 +283,8 @@ class ContinuousDistribution:
         """Call a family method by name (used by the generic defaults).
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return float(_method(self, name)(x))
@@ -476,7 +477,8 @@ class DiscreteDistribution:
         """Call a family method by name (used by the generic defaults).
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return float(_method(self, name)(x))

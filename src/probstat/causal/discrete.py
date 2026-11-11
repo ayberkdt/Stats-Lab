@@ -49,7 +49,7 @@ def _validate_domains(
             repeated values.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     checked: dict[str, tuple[Hashable, ...]] = {}
@@ -196,7 +196,8 @@ class JointTable:
             KeyError: If a name is unknown.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         positions: list[int] = []
@@ -220,7 +221,8 @@ class JointTable:
             ValueError: If a value is outside its domain.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         pairs: list[tuple[int, Hashable]] = []
@@ -436,7 +438,8 @@ class DiscreteCausalModel:
             ValueError: If a value is outside its domain.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         checked: dict[str, Hashable] = {}
@@ -614,7 +617,7 @@ def _adjustment_names(
         ValueError: If names overlap.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(adjustment, str):

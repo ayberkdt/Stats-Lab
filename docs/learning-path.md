@@ -205,6 +205,6 @@ exact CLT errors against the Berry-Esseen bound, Edgeworth corrections,
 concentration inequalities, the delta method, bias/variance/MSE, Cramer-Rao
 bounds, sufficiency, and Rao-Blackwellization.
 
-Completion and sequencing live in `memory/ROADMAP.md`. Topics remain on the
+Completion and sequencing live in the [roadmap](roadmap.md). Topics remain on the
 roadmap even when their teaching material has not yet been written.
 

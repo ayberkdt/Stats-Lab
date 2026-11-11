@@ -174,7 +174,8 @@ class DistributionFamily:
                 kind or domain label is unknown.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not isinstance(self.name, str) or not self.name.strip():
@@ -221,7 +222,7 @@ class DistributionFamily:
             Finite positive bound or ``None``.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         if self.upper_bounds is None:
@@ -238,7 +239,8 @@ class DistributionFamily:
             ``True`` when the domain condition holds for all observations.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if self.domain == "positive":
@@ -459,7 +461,7 @@ class ModelSelectionResult:
             KeyError: If the family was not successfully fitted.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         for candidate in self.candidates:
@@ -824,7 +826,7 @@ def family_by_name(name: str) -> DistributionFamily:
         KeyError: If no ready-made family has that label.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     if not isinstance(name, str):
@@ -915,7 +917,7 @@ def _check_anchor(family: DistributionFamily, anchor: Vector) -> Vector:
             strictly positive.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     values = tuple(float(value) for value in anchor)
@@ -1185,7 +1187,7 @@ def _validated_fit_sample(
             family domain, or it has fewer than two distinct values.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not isinstance(family, DistributionFamily):
@@ -1486,7 +1488,7 @@ def _resolve_candidates(
     """Resolve candidate families and record domain exclusions.
 
     References:
-        Project API policy. No equation is evaluated.
+        Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
     """
     if candidates is None:

@@ -43,7 +43,7 @@ def _logistic(value: float) -> float:
         Value in ``(0, 1)``.
 
     References:
-        Project numerical policy. No named equation is needed.
+        Project numerical policy [REF-HIGHAM-2002]. No named equation is needed.
 
     """
     if value >= 0.0:
@@ -62,7 +62,7 @@ def _logit(probability: float) -> float:
         Unconstrained value.
 
     References:
-        Project numerical policy. No named equation is needed.
+        Project numerical policy [REF-HIGHAM-2002]. No named equation is needed.
 
     """
     return math.log(probability / (1.0 - probability))
@@ -228,7 +228,7 @@ def _parameter(value: float | None, name: str) -> float | None:
         ValueError: If the value is outside ``(0, 1)``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if value is None:
@@ -274,7 +274,7 @@ def _fit(
         """Return ``(alpha, beta)`` from free unconstrained values.
 
         References:
-            Project numerical policy. No equation is evaluated.
+            Project numerical policy [REF-HIGHAM-2002]. No equation is evaluated.
 
         """
         values = dict(zip(free, (_logistic(x) for x in u), strict=True))

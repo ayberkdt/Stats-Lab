@@ -224,7 +224,7 @@ class StageRecord:
         its type only; nothing needs pickle.
 
         References:
-            Project reporting policy. No equation is evaluated.
+            Project reporting policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
         """
         return {
@@ -253,7 +253,7 @@ class StageRecord:
             indent: JSON indentation (``None`` for one line).
 
         References:
-            Project reporting policy. No equation is evaluated.
+            Project reporting policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
         """
         return json.dumps(self.to_dict(), indent=indent, allow_nan=False)
@@ -609,7 +609,7 @@ def _format_settings(settings: Mapping[str, object]) -> str:
     """Render stage settings as ``name=value`` pairs.
 
     References:
-        Project reporting policy. No equation is evaluated.
+        Project reporting policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
     """
     parts = []
@@ -638,7 +638,7 @@ def _format_condition(condition: Condition) -> str:
     """Render a condition mapping as ``name=value`` pairs.
 
     References:
-        Project reporting policy. No equation is evaluated.
+        Project reporting policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
     """
     if not condition:
@@ -653,7 +653,7 @@ def _sized(value: object) -> Sequence[Any]:
     method receives it; an unsized argument simply gives no up-front cost.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     return value if isinstance(value, tuple | list) else ()
@@ -666,7 +666,7 @@ def _setting_value(value: object) -> object:
     type (and length for collections), so settings never embed large data.
 
     References:
-        Project reporting policy. No equation is evaluated.
+        Project reporting policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
     """
     if value is None or isinstance(value, bool | int | float | str):
@@ -1268,7 +1268,7 @@ class UQStudy:
         """Attach a warning to the running stage and emit it.
 
         References:
-            Project reporting policy. No equation is evaluated.
+            Project reporting policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
         """
         if self._contexts:
@@ -3649,7 +3649,7 @@ class UQStudy:
         """Return library, Python, platform, time, and seed provenance.
 
         References:
-            Project reporting policy. No equation is evaluated.
+            Project reporting policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
         """
         return {
@@ -3671,7 +3671,7 @@ class UQStudy:
         of :meth:`emulate`. Domain result objects are named, not serialized.
 
         References:
-            Project reporting policy. No equation is evaluated.
+            Project reporting policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
         """
         model = self._model
@@ -3722,7 +3722,7 @@ class UQStudy:
             indent: JSON indentation (``None`` for one line).
 
         References:
-            Project reporting policy. No equation is evaluated.
+            Project reporting policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
         """
         return json.dumps(self.to_dict(), indent=indent, allow_nan=False)
@@ -3737,7 +3737,7 @@ class UQStudy:
             The written path.
 
         References:
-            Project reporting policy. No equation is evaluated.
+            Project reporting policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
         """
         destination = Path(path)

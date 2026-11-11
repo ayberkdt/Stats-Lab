@@ -196,7 +196,7 @@ def _impact(value: object, *, name: str) -> float | DiscreteImpact | ImpactLaw:
         TypeError: If it is none of the three kinds.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(value, DiscreteImpact):
@@ -270,7 +270,8 @@ class Risk:
             ValueError: If a value is outside its domain.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not isinstance(self.name, str) or not self.name.strip():
@@ -308,7 +309,8 @@ class Risk:
         """Return whether a mitigated state is specified.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return (
@@ -327,7 +329,8 @@ class Risk:
             Probability and impact in effect.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not mitigated:
@@ -548,7 +551,8 @@ class RiskRegister:
             ValueError: If it is empty or names repeat.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         risks = tuple(self.risks)
@@ -830,7 +834,7 @@ def register_from_rows(rows: Iterable[Mapping[str, object]]) -> RiskRegister:
         Validated register.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     return RiskRegister(tuple(Risk(**dict(row)) for row in rows))  # type: ignore[arg-type]

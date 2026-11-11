@@ -83,7 +83,8 @@ class BoundedValue:
         """Return the computed value.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return self.value
@@ -207,7 +208,8 @@ class TransientSolution:
             ValueError: If the label is unknown.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if state not in self.states:
@@ -803,7 +805,7 @@ def _require_tolerance(value: object) -> float:
         ValueError: If it is outside ``[1e-250, 0.5]``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     tolerance = require_finite_real(value, name="tolerance")
@@ -827,7 +829,7 @@ def _require_time(value: object, *, name: str = "t") -> float:
         ValueError: If it is negative or non-finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     moment = require_finite_real(value, name=name)
@@ -1000,7 +1002,8 @@ class ContinuousTimeMarkovChain:
             ValueError: If the label is unknown.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         try:
@@ -1196,7 +1199,8 @@ class ContinuousTimeMarkovChain:
                 one within ``1e-10``.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         try:
@@ -1243,7 +1247,8 @@ class ContinuousTimeMarkovChain:
             TypeError: If a value is not real.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if isinstance(values, Mapping):

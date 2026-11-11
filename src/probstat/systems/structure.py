@@ -47,7 +47,7 @@ def _require_name(value: object) -> str:
         ValueError: If the name is blank.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not isinstance(value, str):
@@ -75,7 +75,8 @@ class Component:
         """Validate the name.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         _require_name(self.name)
@@ -99,7 +100,8 @@ class Series:
         """Validate the items, converting names to components.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         object.__setattr__(self, "items", _items(tuple(self.items)))
@@ -123,7 +125,8 @@ class Parallel:
         """Validate the items, converting names to components.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         object.__setattr__(self, "items", _items(tuple(self.items)))
@@ -153,7 +156,8 @@ class KOutOfN:
             ValueError: If ``k`` is outside ``1..n``.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         items = _items(tuple(self.items))
@@ -175,7 +179,7 @@ def _items(raw: Sequence[object]) -> tuple[Expression, ...]:
         ValueError: If no item is given.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not raw:

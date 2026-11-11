@@ -321,7 +321,7 @@ class LeastSquaresCalibration:
         """Return the estimate keyed by parameter name.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return MappingProxyType(dict(zip(self.names, self.estimate, strict=True)))
@@ -646,7 +646,7 @@ class CalibrationProblem:
         """Return names of the full vector ``(theta, log sigma)``.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return self.parameter_names + tuple(f"log_sigma[{q}]" for q in self._unknown)
@@ -656,7 +656,7 @@ class CalibrationProblem:
         """Return the length of the full parameter vector.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return self.model.dimension + len(self._unknown)

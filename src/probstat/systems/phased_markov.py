@@ -80,7 +80,8 @@ class MissionPhase:
             ValueError: If the duration or success states are invalid.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not isinstance(self.chain, ContinuousTimeMarkovChain):
@@ -248,7 +249,8 @@ class MarkovPhasedMission:
             ValueError: If the definition is invalid.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         phases = tuple(self.phases)
@@ -483,7 +485,8 @@ class MissionStage:
             ValueError: If the probabilities are invalid.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         success = require_probability(self.success, name="success")
@@ -546,7 +549,8 @@ class MissionStageModel:
             ValueError: If there are no stages or names repeat.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         stages = tuple(self.stages)

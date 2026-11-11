@@ -72,7 +72,7 @@ def _positive(value: object, *, name: str) -> float:
     """Validate a finite, strictly positive real parameter.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     checked = require_finite_real(value, name=name)
@@ -539,7 +539,7 @@ def _vectors(
     """Validate an ensemble of equal-length vectors and the observed vector.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     y = coerce_finite_sample(observation, name="observation")
@@ -710,7 +710,7 @@ def _alpha(value: object) -> float:
     """Validate a miscoverage level strictly inside ``(0, 1)``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     alpha = require_finite_real(value, name="alpha")
@@ -854,7 +854,7 @@ def _binary(values: Sequence[object]) -> tuple[float, ...]:
     """Validate binary outcomes given as bools or the numbers 0 and 1.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     result: list[float] = []
@@ -876,7 +876,7 @@ def _probability_forecasts(
     """Validate paired probability forecasts and binary outcomes.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     forecasts = tuple(
@@ -976,7 +976,7 @@ def _bin_index(value: float, edges: Sequence[float]) -> int:
     """Return the bin of ``value`` for half-open bins, the last one closed.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     last = len(edges) - 2

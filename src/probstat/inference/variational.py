@@ -271,7 +271,7 @@ class _Parameters:
         """Record the layout of the strictly-lower entries.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         self.dimension = dimension
@@ -287,7 +287,7 @@ class _Parameters:
         """Return the number of unconstrained parameters.
 
         References:
-            Project API policy. No equation is evaluated.
+            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         return 2 * self.dimension + len(self.pairs)

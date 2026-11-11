@@ -37,7 +37,7 @@ def _require_positive(value: float, *, name: str) -> float:
         ValueError: If the value is not positive.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     result = require_finite_real(value, name=name)
@@ -323,7 +323,7 @@ def _count(value: object, name: str, *, minimum: int = 0) -> int:
         ValueError: If the value is not an integer of at least ``minimum``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(value, bool) or not isinstance(value, int) or value < minimum:

@@ -206,7 +206,7 @@ def _require_refinement(value: object) -> int:
     """Validate an integer refinement factor of at least two.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(value, bool) or not isinstance(value, int) or value < 2:

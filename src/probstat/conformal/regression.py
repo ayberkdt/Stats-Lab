@@ -63,7 +63,7 @@ def _evaluate(function: PointPredictor, x: Sequence[float], name: str) -> float:
     """Evaluate a user function and require a finite real result.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     return require_finite_real(function(x), name=name)
@@ -75,7 +75,7 @@ def _calibration(
     """Validate a calibration set of input vectors and responses.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     design = tuple(as_vector(point, name="x") for point in points)

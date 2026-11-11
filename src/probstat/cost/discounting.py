@@ -40,7 +40,7 @@ def _rate(value: object, *, name: str, compounding: str) -> float:
             above ``-1``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if compounding not in COMPOUNDING:

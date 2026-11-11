@@ -55,7 +55,7 @@ def _positive(value: object, *, name: str) -> float:
         ValueError: If ``value`` is not positive and finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -74,7 +74,7 @@ def _non_negative(value: object, *, name: str) -> float:
         ValueError: If ``value`` is negative or not finite.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -259,7 +259,8 @@ class MissionAssessment:
             ValueError: If a numeric argument is out of range.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         if not isinstance(system, SystemModel):
@@ -291,7 +292,8 @@ class MissionAssessment:
         """Return the mission label.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         return self._name
@@ -595,7 +597,7 @@ def _fmt(value: float | None, digits: int = 6) -> str:
     """Format a number compactly for a report table.
 
     References:
-        Project documentation policy. No equation is evaluated.
+        Project documentation policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
     """
     if value is None:

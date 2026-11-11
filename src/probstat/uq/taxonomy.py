@@ -343,7 +343,8 @@ def _require_non_empty_text(value: object, *, name: str) -> str:
         ValueError: If it contains only whitespace.
 
     References:
-        Project validation policy. No mathematical equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION].
+        No mathematical equation is evaluated.
 
     """
     if not isinstance(value, str):

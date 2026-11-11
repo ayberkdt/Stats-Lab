@@ -202,7 +202,8 @@ def gauss_kronrod(
         """Evaluate the user integrand and require a finite real value.
 
         References:
-            Project numerical validation policy. No equation is evaluated.
+            Project numerical validation policy [REF-HIGHAM-2002].
+            No equation is evaluated.
 
         """
         nonlocal evaluations

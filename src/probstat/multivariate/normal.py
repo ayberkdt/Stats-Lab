@@ -213,7 +213,8 @@ class MultivariateNormal:
             IndexError: If an index is outside the vector dimension.
 
         References:
-            Project validation policy. No equation is evaluated.
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
 
         """
         try:

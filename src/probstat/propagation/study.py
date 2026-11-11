@@ -209,7 +209,7 @@ def _check_confidence(confidence: float) -> float:
     """Return a validated confidence level strictly inside ``(0, 1)``.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     level = require_finite_real(confidence, name="confidence")

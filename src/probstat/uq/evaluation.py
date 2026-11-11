@@ -57,7 +57,7 @@ def require_failure_policy(policy: object) -> FailurePolicy:
         ValueError: If ``policy`` is not one of :data:`FAILURE_POLICIES`.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if policy == "raise":
@@ -219,7 +219,7 @@ class FailedEvaluation:
         """Return a JSON-safe dictionary of the failure.
 
         References:
-            Project reporting policy. No equation is evaluated.
+            Project reporting policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
         """
         return {
@@ -461,7 +461,7 @@ def describe_error(error: BaseException) -> tuple[str, str]:
         ``(error_type, message)``.
 
     References:
-        Project reporting policy. No equation is evaluated.
+        Project reporting policy [REF-PROBSTAT-REPORTING]. No equation is evaluated.
 
     """
     return type(error).__name__, str(error)

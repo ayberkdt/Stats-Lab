@@ -262,7 +262,7 @@ def _columns(
             fewer than three rows.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     if not isinstance(data, Mapping):

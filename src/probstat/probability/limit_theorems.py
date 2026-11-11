@@ -61,7 +61,7 @@ def _positive(value: object, *, name: str) -> float:
         ValueError: If the value is not positive.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     number = require_finite_real(value, name=name)
@@ -83,7 +83,7 @@ def _sample_size(value: object) -> int:
         ValueError: If the size is not a positive integer.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     n = require_non_negative_integer(value, name="n")

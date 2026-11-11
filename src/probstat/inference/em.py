@@ -194,7 +194,7 @@ def _finite_objective(value: float) -> float:
     """Validate the E-step objective.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     objective = float(value)
@@ -295,7 +295,7 @@ def _checked_intervals(
     """Validate censoring intervals.
 
     References:
-        Project validation policy. No equation is evaluated.
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
     checked: list[tuple[float, float]] = []
