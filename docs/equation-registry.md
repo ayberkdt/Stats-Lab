@@ -12410,3 +12410,266 @@ to `t = epsilon`; with step `h`:
   `processes.NeuralSDEFit.drift_on_grid`.
 - Source: [REF-GOODFELLOW-BENGIO-COURVILLE-2016, Sections 6.1 and 6.3] and
   [REF-KLOEDEN-PLATEN-1992, Section 10.2].
+
+## Generative models: normalizing flows and energy-based models
+
+### EQ-GEN-FLOW-001 — Change of variables for a composed flow
+
+`x = T(z) = T_K(... T_1(z))`, `z ~ N(0, I)`;
+`log p(x) = log N(T^{-1}(x); 0, I) + sum_k log |det J_{T_k^{-1}}(x_k)|`,
+where `x_K = x` and `x_{k-1} = T_k^{-1}(x_k)`; equivalently
+`log p(T(z)) = log N(z) - sum_k log |det J_{T_k}(z_{k-1})|`. A permutation
+layer has `|det| = 1`.
+
+- Domain: every `T_k` is a diffeomorphism of `R^d`.
+- Meaning: the exact density of the pushed-forward base law; the inverse
+  direction evaluates the density of data, the forward direction samples
+  with the density of each draw.
+- Code: `generative.NormalizingFlow.log_density`, `forward`, `inverse`,
+  `sample_with_log_density`, `generative.Permutation`.
+- Source: [REF-PAPAMAKARIOS-ETAL-2021, Equations 2-6 and 25-28].
+
+### EQ-GEN-FLOW-002 — Planar flow with the invertibility reparameterization
+
+`x = z + u_hat tanh(w'z + b)`,
+`u_hat = u + (m(w'u) - w'u) w / |w|^2`, `m(a) = -1 + log(1 + e^a)`, so
+`w'u_hat = m(w'u) > -1`;
+`log |det dx/dz| = log(1 + (1 - tanh^2(w'z + b)) w'u_hat)`. For `w = 0`
+the map is the translation `z + u tanh(b)`.
+
+- Domain: `u, w in R^d`, `b in R`.
+- Meaning: a contraction or expansion perpendicular to the hyperplane
+  `w'z + b = 0`; `w'u_hat > -1` makes the map strictly monotone along `w`
+  and hence invertible.
+- Code: `generative.PlanarFlow.forward`.
+- Source: [REF-REZENDE-MOHAMED-2015, Equations 10-12 and Appendix A.1].
+
+### EQ-GEN-FLOW-003 — Planar inverse by a scalar root and one Newton step
+
+With `a = w'z`, `c = w'u_hat` and `y = w'x`, the inverse solves
+`g(a) = a + c tanh(a + b) - y = 0` (strictly increasing for `c > -1`,
+root within `|c|` of `y`) and sets `z = x - u_hat tanh(a + b)`. The root
+`a*` is found in floating point; then `a = a* - g(a*) / g'(a*)` is evaluated
+on the parameters, whose derivative at the root is `-g_theta / g_a`, the
+implicit-function derivative.
+
+- Domain: `c > -1` (guaranteed by EQ-GEN-FLOW-002).
+- Meaning: exact inverse to rounding, differentiable in the parameters, so
+  planar layers can be fitted by maximum likelihood.
+- Code: `generative.PlanarFlow.inverse`.
+- Source: [REF-REZENDE-MOHAMED-2015, Equations 21-23],
+  [REF-GRIEWANK-WALTHER-2008, Chapter 15].
+
+### EQ-GEN-FLOW-004 — Radial flow and its closed-form inverse
+
+`x = z + beta h (z - z0)`, `h = 1 / (alpha + r)`, `r = |z - z0|`, with
+`alpha = log(1 + e^a)` and `beta = -alpha + log(1 + e^c)` for raw
+parameters `a, c`;
+`log |det dx/dz| = (d - 1) log(1 + beta h) + log(1 + beta alpha h^2)`.
+Inverse: `rho = |x - z0| = r (1 + beta / (alpha + r))`, i.e.
+`r^2 + (alpha + beta - rho) r - rho alpha = 0`, positive root
+`r = (sqrt(B^2 + 4 rho alpha) - B) / 2` (computed as
+`2 rho alpha / (B + sqrt(...))` when `B = alpha + beta - rho > 0`), and
+`z = z0 + (x - z0) / (1 + beta / (alpha + r))`.
+
+- Domain: `alpha > 0`, `beta > -alpha` (guaranteed by the
+  reparameterization).
+- Meaning: radial contraction or expansion about `z0`; the determinant
+  identity `1 + beta h + beta h' r = 1 + beta alpha h^2` uses
+  `h' = -h^2`.
+- Code: `generative.RadialFlow.forward`, `generative.RadialFlow.inverse`.
+- Source: [REF-REZENDE-MOHAMED-2015, Equation 14 and Appendix A.2
+  (Equations 24-26)].
+
+### EQ-GEN-FLOW-005 — Affine coupling layer with bounded log-scale
+
+`x_{1:k} = z_{1:k}`, `x_{k+1:d} = z_{k+1:d} * exp(s) + t`, with
+`(r, t) = N_theta(z_{1:k})` and `s = c tanh(r / c)`;
+`log |det dx/dz| = sum_j s_j`; inverse
+`z_{k+1:d} = (x_{k+1:d} - t(x_{1:k})) * exp(-s(x_{1:k}))`.
+
+- Domain: `1 <= k < d`, any conditioner network `N_theta`
+  (EQ-NN-MLP-001), `c > 0`.
+- Meaning: a triangular Jacobian whose determinant needs no derivative of
+  the network; the bound `|s_j| < c` keeps every scale in
+  `(e^{-c}, e^{c})`. Alternating with a permutation updates every
+  coordinate.
+- Code: `generative.AffineCoupling`, `generative.real_nvp_flow`.
+- Source: [REF-DINH-SOHL-DICKSTEIN-BENGIO-2017, Equations 4-8 and
+  Section 3.5]; the tanh bound is a design choice of this library.
+
+### EQ-GEN-FLOW-006 — Activation normalization (element-wise affine)
+
+`x_i = b_i + exp(l_i) z_i`, `log |det| = sum_i l_i`, inverse
+`z_i = (x_i - b_i) exp(-l_i)`. Data-dependent initialization sets `b_i` to
+the mean and `exp(l_i)` to the (`1/n`) standard deviation of coordinate `i`
+of the data reaching the layer from the data side.
+
+- Domain: real `b`, `l`; a non-zero spread for the initialization.
+- Meaning: the points reaching the layer leave it with zero mean and unit
+  variance at the start of training.
+- Code: `generative.ActNorm`, `generative.NormalizingFlow.data_initialization`.
+- Source: [REF-KINGMA-DHARIWAL-2018, Section 3.1 and Table 1].
+
+### EQ-GEN-FLOW-007 — Maximum-likelihood objective of a flow
+
+`L(theta) = -(1/B) sum_{x in batch} log p_theta(x)` on mini-batches of
+size `B` drawn without replacement; minimizing the full-data version
+minimizes the forward Kullback-Leibler divergence from the empirical law up
+to a constant.
+
+- Domain: training points in `R^d`, EQ-GEN-FLOW-001 for `log p_theta`.
+- Meaning: unbiased mini-batch gradients of the negative mean
+  log-likelihood, minimized by Adam (EQ-OPT-ADAM-002).
+- Code: `generative.fit_flow`.
+- Source: [REF-PAPAMAKARIOS-ETAL-2021, Equations 13-15].
+
+### EQ-GEN-EBM-001 — Energy model with a quadratic-plus-network energy
+
+`p(x) = exp(-E(x)) / Z`, `Z = int exp(-E(x)) dx`,
+`E(x) = |L'(x - mu)|^2 / 2 + N_theta(x)` with `L` lower triangular and
+`L_ii = exp(l_ii)`, so `A = L L'` is positive definite.
+
+- Domain: `x in R^d`; `N_theta` an MLP (EQ-NN-MLP-001) with tanh or sigmoid
+  hidden units (bounded slope) or softplus units (linear growth), so the
+  quadratic dominates and `Z < inf`.
+- Meaning: an unnormalized density whose score `-grad E` needs no `Z`;
+  without a network it is `N(mu, A^{-1})`.
+- Code: `generative.EnergyModel`, `generative.EnergyFit`.
+- Source: [REF-HYVARINEN-2005, Section 2].
+
+### EQ-GEN-EBM-002 — Implicit score-matching objective
+
+With the model score `psi(x) = grad log q(x) = -grad E(x)`,
+`J(theta) = int p_x(x) sum_i [d_i psi_i(x) + psi_i(x)^2 / 2] dx + const`,
+estimated by
+`J_hat = (1/T) sum_t [ |grad E(x_t)|^2 / 2 - Laplacian E(x_t) ]`.
+
+- Domain: differentiable `psi`; `p_x(x) psi(x) -> 0` at infinity; finite
+  second moments of `p_x` and `psi`.
+- Meaning: equals the expected squared distance between model and data
+  scores up to a constant, without the data score or `Z`.
+- Code: `generative.score_matching_objective` (Laplacian by
+  forward-over-reverse Hessian, EQ-AD-FOR-001),
+  `generative.fit_score_matching` (Laplacian by EQ-GEN-EBM-005),
+  `generative.EnergyModel.energy_laplacian`, `generative.EnergyModel.score`.
+- Source: [REF-HYVARINEN-2005, Equations 1-4 and Theorem 1].
+
+### EQ-GEN-EBM-003 — Score-matching estimate of a Gaussian precision
+
+For `q(x) = exp(-(x - mu)' M (x - mu) / 2)`, `J_hat` is minimized by `mu`
+equal to the sample mean and `M = S^{-1}`,
+`S = (1/T) sum_t (x_t - mu)(x_t - mu)'`, with minimum value
+`-trace(M) / 2`; the estimate coincides with maximum likelihood for every
+sample.
+
+- Domain: a positive-definite sample covariance.
+- Meaning: the closed-form oracle against which the score-matching fit of a
+  quadratic energy is verified.
+- Code: `generative.EnergyModel.precision`; verified in
+  `tests/test_generative_flows_energy.py`.
+- Source: [REF-HYVARINEN-2005, Section 3.1.1, Equations 5-6].
+
+### EQ-GEN-EBM-004 — Denoising score-matching objective (Gaussian kernel)
+
+`J_DSM(theta) = E_{x, x_tilde} [ |psi(x_tilde) - grad log q_s(x_tilde | x)|^2 / 2 ]`,
+`q_s(x_tilde | x) = N(x_tilde; x, s^2 I)`, so the gradient with respect to
+`x_tilde` is `(x - x_tilde) / s^2 = -xi / s` for `x_tilde = x + s xi`.
+
+- Domain: `s > 0`; first input derivatives of `E` only.
+- Meaning: matches the score of the data smoothed by `N(0, s^2 I)`; for a
+  quadratic energy and data with `1/n` covariance `S`, the minimizer over
+  the noise distribution has precision `(S + s^2 I)^{-1}`.
+- Code: `generative.fit_denoising_score_matching`,
+  `generative.denoising_score_matching_objective`.
+- Source: [REF-VINCENT-2011, Section 4.2, Equations 9-10].
+
+### EQ-GEN-EBM-005 — Forward propagation of value, gradient, and Laplacian
+
+For an intermediate `u` carried as `(u, grad u, Lap u)`: sums and constant
+multiples are linear;
+`uv -> (uv, u grad v + v grad u, u Lap v + v Lap u + 2 grad u . grad v)`;
+`phi(u) -> (phi(u), phi'(u) grad u, phi''(u) |grad u|^2 + phi'(u) Lap u)`
+with `tanh' = 1 - t^2`, `tanh'' = -2 t (1 - t^2)`, `exp'' = exp`,
+`log1p' = 1 / (1 + u)`, `log1p'' = -1 / (1 + u)^2`. Inputs are seeded as
+`(x_i, e_i, 0)`.
+
+- Domain: programs built from these operations (every `MLP` with tanh,
+  sigmoid, or softplus units); components may be reverse-mode variables of
+  the parameters.
+- Meaning: the input gradient and Laplacian of the energy at `O(d)` times
+  the cost of one evaluation, as tape variables, so one backward sweep
+  returns the exact parameter gradient of EQ-GEN-EBM-002.
+- Code: `generative.EnergyModel.jet` (private module `generative._jet`).
+- Source: [REF-GRIEWANK-WALTHER-2008, Chapter 13].
+
+### EQ-GEN-LANG-001 — Unadjusted Langevin algorithm
+
+`x_{n+1} = x_n + (h/2) grad log pi(x_n) + sqrt(h) xi_n`,
+`xi_n ~ N(0, I)`: the Euler-Maruyama step of
+`dX = grad log pi(X) dt / 2 + dW`. For `pi = N(0, sigma^2)` the chain is
+AR(1) with coefficient `1 - h / (2 sigma^2)` and stationary variance
+`sigma^2 / (1 - h / (4 sigma^2))`.
+
+- Domain: `h > 0`, differentiable `log pi`.
+- Meaning: samples `pi` up to an `O(h)` bias without `Z`; it may fail to
+  converge for light-tailed targets.
+- Code: `generative.sample_langevin` (`adjusted=False`).
+- Source: [REF-ROBERTS-TWEEDIE-1996].
+
+### EQ-GEN-LANG-002 — Metropolis-adjusted Langevin acceptance
+
+Proposal `y = x + (h/2) g(x) + sqrt(h) xi`, `g = grad log pi`,
+`q(y | x) = N(y; x + (h/2) g(x), h I)`; accept with probability
+`min(1, pi(y) q(x | y) / (pi(x) q(y | x)))`, where
+`-log q(y | x) = |xi|^2 / 2 + const` and
+`-log q(x | y) = |x - y - (h/2) g(y)|^2 / (2h) + const`.
+
+- Domain: `h > 0`; proposals outside the support are rejected.
+- Meaning: a reversible Markov chain with stationary law exactly `pi`.
+- Code: `generative.sample_langevin` (`adjusted=True`),
+  `generative.EnergyFit.sample_langevin`.
+- Source: [REF-ROBERTS-TWEEDIE-1996].
+
+### EQ-GEN-DIAG-001 — Normalizing constant by quadrature or importance sampling
+
+Quadrature: `log Z = c + log int exp(log f(x) - c) dx`, `c` the maximum of
+`log f` on a coarse grid, the integral by adaptive Gauss-Kronrod (nested in
+two dimensions). Importance sampling:
+`Z_hat = (1/n) sum_i f(y_i) / q(y_i)`, `y_i ~ q`, with reported error
+`SE(Z_hat) / Z_hat` and weight effective sample size `(sum w)^2 / sum w^2`
+(EQ-MC-ESS-001).
+
+- Domain: `f >= 0` integrable; for quadrature, a box holding the mass; for
+  importance sampling, a normalized `q > 0` where `f > 0` (EQ-MC-IS-001).
+- Meaning: turns an energy model into a normalized density, and checks
+  that a flow density integrates to one.
+- Code: `generative.quadrature_normalizing_constant`,
+  `generative.importance_normalizing_constant`.
+- Source: [REF-PIESSENS-QUADPACK-1983], [REF-OWEN-2013, Chapter 9].
+
+### EQ-GEN-DIAG-002 — Mean log-likelihood and its standard error
+
+`l_bar = (1/n) sum_t log p(x_t)`, `SE = s / sqrt(n)` with `s` the sample
+standard deviation of the terms.
+
+- Domain: a normalized density finite at every point.
+- Meaning: the out-of-sample comparison score of fitted densities; the
+  difference of two values estimates a difference of cross-entropies.
+- Code: `generative.mean_log_likelihood`, `generative.FlowFit`,
+  `generative.LangevinResult.mean`.
+- Source: [REF-OWEN-2013, Chapter 2],
+  [REF-PAPAMAKARIOS-ETAL-2021, Section 2.3.1].
+
+### EQ-GEN-DIAG-003 — Monte Carlo Kullback-Leibler estimate
+
+`KL(p || q) = E_p[log p(X) - log q(X)]`, estimated by
+`(1/n) sum_i [log p(x_i) - log q(x_i)]`, `x_i ~ p`, with standard error
+`s / sqrt(n)`.
+
+- Domain: normalized `p` and `q`, `q > 0` where `p > 0`.
+- Meaning: unbiased for the divergence of a fitted density `q` from a known
+  truth `p`; a single estimate can be negative.
+- Code: `generative.kl_divergence_estimate`.
+- Source: [REF-COVER-THOMAS-2006, Section 2.3],
+  [REF-PAPAMAKARIOS-ETAL-2021, Section 2.3.1].

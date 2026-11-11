@@ -211,6 +211,13 @@ Two guides cover steps 4 and 6 directly:
   conditional expectation given a sub-sigma-algebra, and completeness of a
   statistic, all exact on finite spaces.
 
+Step 8 starts with
+[generative models](foundations/generative-models.md): normalizing flows
+(planar, radial, affine coupling, actnorm) with exact change-of-variables
+densities and maximum-likelihood fitting, energy-based models fitted by
+implicit and denoising score matching, Langevin sampling, and
+normalizing-constant and divergence diagnostics against a known truth.
+
 Steps 3 and 4 start with
 [limit theorems and estimator properties](foundations/limit-theorems-and-estimators.md):
 exact CLT errors against the Berry-Esseen bound, Edgeworth corrections,
