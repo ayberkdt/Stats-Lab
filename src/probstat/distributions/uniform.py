@@ -197,7 +197,10 @@ class Uniform(ContinuousDistribution):
 
         """
         target = require_probability(probability, name="probability")
-        return self.lower + target * self.width
+        if target == 1.0:
+            # ``lower + width`` need not round to ``upper``.
+            return self.upper
+        return min(self.lower + target * self.width, self.upper)
 
     def hazard(self, x: float) -> float:
         """Return uniform hazard where survival probability is positive.
@@ -250,7 +253,10 @@ class Uniform(ContinuousDistribution):
 
         """
         q = require_probability(probability, name="probability")
-        return self.upper - q * (self.upper - self.lower)
+        if q == 1.0:
+            # ``upper - (upper - lower)`` need not round to ``lower``.
+            return self.lower
+        return max(self.upper - q * (self.upper - self.lower), self.lower)
 
     @property
     def mean(self) -> float:

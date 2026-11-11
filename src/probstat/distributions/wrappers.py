@@ -129,6 +129,9 @@ class Affine(ContinuousDistribution):
     base: Any
     loc: float = 0.0
     scale: float = 1.0
+    _ends: tuple[float, float] = field(
+        init=False, repr=False, compare=False, default=(-math.inf, math.inf)
+    )
 
     def __post_init__(self) -> None:
         """Validate the base law, shift, and scale.
@@ -147,6 +150,13 @@ class Affine(ContinuousDistribution):
         if scale == 0.0:
             raise ValueError("scale must be non-zero")
         object.__setattr__(self, "scale", scale)
+        # Support ends in x. ``(end - loc) / scale`` need not round back to
+        # the base end, so cdf and sf compare with these ends directly.
+        try:
+            ends = (float(self.quantile(0.0)), float(self.quantile(1.0)))
+        except (ArithmeticError, ValueError):
+            ends = (-math.inf, math.inf)
+        object.__setattr__(self, "_ends", ends)
 
     def _y(self, x: float) -> float:
         """Return ``(x - loc) / scale``.
@@ -191,7 +201,12 @@ class Affine(ContinuousDistribution):
             [REF-CASELLA-BERGER-2002, Section 2.1].
 
         """
-        y = self._y(x)
+        point = _finite_point(x)
+        if point <= self._ends[0]:
+            return 0.0
+        if point >= self._ends[1]:
+            return 1.0
+        y = (point - self.loc) / self.scale
         return float(self.base.cdf(y)) if self.scale > 0.0 else _sf(self.base, y)
 
     def sf(self, x: float) -> float:
@@ -204,7 +219,12 @@ class Affine(ContinuousDistribution):
             [REF-CASELLA-BERGER-2002, Section 2.1].
 
         """
-        y = self._y(x)
+        point = _finite_point(x)
+        if point <= self._ends[0]:
+            return 1.0
+        if point >= self._ends[1]:
+            return 0.0
+        y = (point - self.loc) / self.scale
         return _sf(self.base, y) if self.scale > 0.0 else float(self.base.cdf(y))
 
     def quantile(self, probability: float) -> float:
@@ -568,6 +588,9 @@ class Truncated(ContinuousDistribution):
 
         """
         q = require_probability(probability, name="probability")
+        if q == 1.0:
+            # ``isf(S(lower))`` of the base need not round back to ``lower``.
+            return self.quantile(0.0)
         if self._upper_side:
             if q == 0.0:
                 return self.quantile(1.0)

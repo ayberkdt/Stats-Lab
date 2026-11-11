@@ -121,11 +121,16 @@ class GeneralizedPareto(ContinuousDistribution):
             [REF-COLES-2001, Section 4.2].
 
         """
-        z = (require_finite_real(x, name="x") - self.mu) / self.sigma
+        point = require_finite_real(x, name="x")
+        z = (point - self.mu) / self.sigma
         if z < 0.0:
             return -math.inf
         w = self.xi * z
-        if w <= -1.0:
+        # ``1 + xi z`` and the reported endpoint ``mu - sigma/xi`` are rounded
+        # separately; compare with the endpoint so that ``S = 0`` and ``F = 1``
+        # hold exactly at the closed upper end of ``support``.
+        end = self.upper_endpoint
+        if w <= -1.0 or (end is not None and point >= end):
             return math.inf
         if abs(w) < _TINY_PRODUCT:
             return z

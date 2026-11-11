@@ -191,8 +191,19 @@ class GeneralizedExtremeValue(ContinuousDistribution):
             [REF-COLES-2001, Section 3.1].
 
         """
-        z = (require_finite_real(x, name="x") - self.mu) / self.sigma
+        point = require_finite_real(x, name="x")
+        z = (point - self.mu) / self.sigma
         w = self.xi * z
+        # The reported support endpoint ``mu - sigma/xi`` and ``1 + xi z``
+        # are rounded separately, so at the endpoint itself ``1 + xi z`` can
+        # be a tiny positive number; compare with the endpoint so that the
+        # closed end of ``support`` has ``F = 0`` (``xi > 0``) or ``F = 1``
+        # (``xi < 0``) exactly.
+        end = self.endpoint
+        if end is not None and (
+            (self.xi > 0.0 and point <= end) or (self.xi < 0.0 and point >= end)
+        ):
+            w = min(w, -1.0)
         if w <= -1.0:
             return w, (-math.inf if self.xi > 0.0 else math.inf)
         if abs(w) < _TINY_PRODUCT:
