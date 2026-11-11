@@ -13,8 +13,13 @@ from probstat.foundations.validation import (
 )
 
 from ._base import DiscreteDistribution
+from ._special import regularized_beta_pair
 from .constraints import NON_NEGATIVE_INTEGER, PROBABILITY
 from .support import IntegerSupport
+
+# Largest trial count whose distribution function is a direct mass sum;
+# above it the regularized incomplete beta function is used.
+_DIRECT_SUM_MAX_TRIALS = 256
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,9 +125,12 @@ class Binomial(DiscreteDistribution):
     def cdf(self, x: float) -> float:
         """Evaluate the binomial cumulative distribution function.
 
-        The lower tail is summed directly below the mean; above it, the upper
-        tail is summed and complemented. ``math.fsum`` reduces accumulation
-        error while the branch avoids subtracting a near-one tail.
+        For ``n <= 256`` the lower tail is summed below the mean and the
+        complementary upper tail above it (``math.fsum``, near-exact). For
+        larger ``n`` the identity ``F(k) = I_(1-p)(n - k, k + 1)`` is used:
+        the regularized incomplete beta function selects the smaller tail
+        before any complement and needs a bounded number of
+        continued-fraction terms instead of the ``O(n)`` terms of a sum.
 
         Args:
             x: Finite real evaluation point.
@@ -135,10 +143,10 @@ class Binomial(DiscreteDistribution):
             ValueError: If ``x`` is non-finite.
 
         Equation:
-            [EQ-DIST-BIN-002].
+            [EQ-DIST-BIN-002], [EQ-NUM-BETA-001].
 
         References:
-            [REF-ROSS-2019, Section 4.3].
+            [REF-ROSS-2019, Section 4.3], [REF-NIST-DLMF-BETA, Section 8.17].
 
         """
         point = require_finite_real(x, name="x")
@@ -147,33 +155,46 @@ class Binomial(DiscreteDistribution):
             return 0.0
         if cutoff >= self.n:
             return 1.0
-        if cutoff < self.mean:
-            result = math.fsum(self.pmf(k) for k in range(cutoff + 1))
-        else:
-            upper_tail = math.fsum(
-                self.pmf(k) for k in range(cutoff + 1, self.n + 1)
-            )
-            result = 1.0 - upper_tail
-        return max(0.0, min(1.0, result))
+        if self.n <= _DIRECT_SUM_MAX_TRIALS:
+            if cutoff < self.mean:
+                result = math.fsum(self.pmf(k) for k in range(cutoff + 1))
+            else:
+                upper_tail = math.fsum(
+                    self.pmf(k) for k in range(cutoff + 1, self.n + 1)
+                )
+                result = 1.0 - upper_tail
+            return max(0.0, min(1.0, result))
+        if self.p == 0.0:
+            return 1.0
+        if self.p == 1.0:
+            return 0.0
+        return regularized_beta_pair(
+            1.0 - self.p, self.p, float(self.n - cutoff), cutoff + 1.0
+        )
 
     def sf(self, x: float) -> float:
         """Evaluate the direct binomial survival probability ``P(X>x)``.
+
+        The upper-tail masses are summed for ``n <= 256``; for larger ``n``
+        ``S(k) = I_p(k + 1, n - k)`` is evaluated directly. Neither form
+        subtracts the CDF from one, so small upper tails keep their relative
+        accuracy.
 
         Args:
             x: Finite real evaluation point.
 
         Returns:
-            Upper-tail probability summed without CDF subtraction.
+            Upper-tail probability without CDF subtraction.
 
         Raises:
             TypeError: If ``x`` is not real.
             ValueError: If ``x`` is non-finite.
 
         Equation:
-            [EQ-DIST-BIN-002].
+            [EQ-DIST-BIN-002], [EQ-NUM-BETA-001].
 
         References:
-            [REF-ROSS-2019, Section 4.3].
+            [REF-ROSS-2019, Section 4.3], [REF-NIST-DLMF-BETA, Section 8.17].
 
         """
         point = require_finite_real(x, name="x")
@@ -182,7 +203,19 @@ class Binomial(DiscreteDistribution):
             return 1.0
         if cutoff >= self.n:
             return 0.0
-        return math.fsum(self.pmf(k) for k in range(cutoff + 1, self.n + 1))
+        if self.n <= _DIRECT_SUM_MAX_TRIALS:
+            # Each mass carries the rounding of exp(log mass), so the sum can
+            # exceed one by a few units in the last place; clamp it as the
+            # CDF is clamped (an unclamped S(0) > 1 made isf(1) wrong).
+            upper_tail = math.fsum(self.pmf(k) for k in range(cutoff + 1, self.n + 1))
+            return max(0.0, min(1.0, upper_tail))
+        if self.p == 0.0:
+            return 0.0
+        if self.p == 1.0:
+            return 1.0
+        return regularized_beta_pair(
+            self.p, 1.0 - self.p, cutoff + 1.0, float(self.n - cutoff)
+        )
 
     def quantile(self, probability: float) -> float:
         """Return the binomial generalized inverse CDF by binary search.
@@ -191,7 +224,10 @@ class Binomial(DiscreteDistribution):
             probability: Cumulative probability in ``[0, 1]``.
 
         Returns:
-            Smallest supported count whose CDF reaches the target.
+            Smallest supported count whose CDF reaches the target; at
+            probability one the largest count with positive mass (``n``, or
+            ``0`` when ``p = 0``), even where the floating-point CDF rounds
+            to one at a smaller count.
 
         Raises:
             TypeError: If ``probability`` is not real.
@@ -205,6 +241,8 @@ class Binomial(DiscreteDistribution):
 
         """
         target = require_probability(probability, name="probability")
+        if target == 1.0:
+            return 0.0 if self.p == 0.0 else float(self.n)
         lower = 0
         upper = self.n
         while lower < upper:

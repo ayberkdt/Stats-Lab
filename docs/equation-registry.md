@@ -1198,14 +1198,18 @@ before exponentiation, with explicit `p=0` and `p=1` limits.
 
 ### EQ-DIST-BIN-002 — Binomial CDF
 
-`F(x) = sum_{k=0}^{floor(x)} C(n,k) p^k (1-p)^(n-k)` with support clipping.
+`F(x) = sum_{k=0}^{floor(x)} C(n,k) p^k (1-p)^(n-k) = I_(1-p)(n-k, k+1)`
+with `k = floor(x)` and support clipping; `S(x) = I_p(k+1, n-k)`.
 
 - Domain: [EQ-DIST-BIN-001] and finite real `x`.
-- Meaning: probability of at most `floor(x)` successes. The implementation
-  sums the lower tail below the mean and the complementary upper tail above it
-  to reduce cancellation in small-tail regimes.
-- Code: `distributions.Binomial.cdf`.
-- Source: [REF-ROSS-2019, Section 4.3].
+- Meaning: probability of at most `floor(x)` successes. For `n <= 256` the
+  implementation sums the lower tail below the mean and the complementary
+  upper tail above it to reduce cancellation in small-tail regimes; for larger
+  `n` it evaluates the regularized incomplete beta form [EQ-NUM-BETA-001],
+  whose cost does not grow with `n` (a direct sum costs `O(n)` mass
+  evaluations per call and made `quantile` impractical for `n ~ 10^7`).
+- Code: `distributions.Binomial.cdf`, `distributions.Binomial.sf`.
+- Source: [REF-ROSS-2019, Section 4.3], [REF-NIST-DLMF-BETA, Section 8.17].
 
 ### EQ-DIST-BIN-003 — Binomial mean
 
@@ -10963,6 +10967,8 @@ for `log S(x)`.
 
 `isf(q) = min{k : S(k) <= q}`, found by doubling then bisection on the
 integers using `S` directly; equals `quantile(1 - q)` in exact arithmetic.
+At `q = 0` it is `quantile(1)`, the largest point with positive mass, so a
+degenerate law returns its atom rather than the end of its nominal support.
 
 - Domain: integer support; `q in [0, 1]`.
 - Meaning: tail-accurate upper quantiles of count laws.
