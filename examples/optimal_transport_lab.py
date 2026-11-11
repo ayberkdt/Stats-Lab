@@ -14,6 +14,93 @@ Every random input is seeded, so the output is reproducible. When
 Matplotlib is installed, five figures of a 1-D transport problem, Sinkhorn
 convergence, the ``W_1`` quantile area, and a ``W_2`` geodesic are written
 to ``examples/generated/``.
+
+Definitions:
+    ``a``, ``b``: source and target weights; ``C_ij = |x_i - y_j|^p`` the
+        cost matrix; ``P`` a transport plan with marginals ``a`` and ``b``.
+    ``W_p``: Wasserstein distance, ``(min_P <P, C>)^(1/p)``.
+    ``OT_eps``: entropically regularized cost with strength ``eps``;
+        ``S_eps`` the debiased Sinkhorn divergence.
+    duality gap, complementary slackness, dual violation: the optimality
+        certificate of an exact plan.
+    ``I(theta)``: Fisher information matrix of a parametric family.
+    Fisher-Rao distance: geodesic distance of the Fisher metric;
+        ``D_alpha``: Renyi divergence of order ``alpha``.
+
+Assumptions:
+    - Discrete problems have unit total mass on both sides; costs are
+      finite.
+    - Sinkhorn runs until its marginal error falls below the default
+      tolerance or 50 000 iterations; smaller ``eps`` needs more
+      iterations.
+    - Quantile quadrature assumes laws with finite ``p``-th moments; the
+      Fisher information comparisons assume the regularity conditions that
+      make the score and Hessian forms equal.
+
+Equations:
+    EQ-OT-LP-001: transport linear program and its dual certificate.
+    EQ-OT-SIMPLEX-001: transportation simplex behind the exact plan.
+    EQ-OT-COST-001: squared Euclidean and power cost matrices.
+    EQ-OT-SINK-001: log-domain Sinkhorn iterations.
+    EQ-OT-SINK-002: debiased Sinkhorn divergence.
+    EQ-OT-GAUSS-001: Gaussian (Bures) Wasserstein closed form.
+    EQ-OT-W1D-001: one-dimensional Wasserstein distance by quantile
+        quadrature.
+    EQ-OT-BARY-001: one-dimensional Wasserstein barycenter.
+    EQ-OT-BARY-002: Gaussian barycenter fixed point.
+    EQ-NUM-SIMP-001: Simpson integral of ``|F0 - F1|`` as the ``W1``
+        reference.
+    EQ-IG-FISHER-001: numerical Fisher information (score and Hessian).
+    EQ-IG-FISHER-002: closed-form Fisher information.
+    EQ-IG-FR-001: Fisher-Rao distance between normals.
+    EQ-IG-FR-002: Fisher-Rao distance between categorical laws.
+    EQ-IG-FR-003: Fisher-Rao distance between Poisson laws.
+    EQ-DIV-GAUSS-001: Gaussian alpha-integral behind the Hellinger
+        distance.
+    EQ-DIV-RENYI-001: Renyi divergence.
+    EQ-INFO-KL-001: Kullback-Leibler divergence, the ``alpha -> 1`` limit.
+
+Diagnostics:
+    - The simplex cost must equal the brute-force minimum over 720
+      permutations; the certificate reports a zero duality gap and dual
+      violations at rounding level.
+    - Sinkhorn costs approach the exact cost as ``eps`` shrinks; the row
+      error is the marginal violation, and ``S_eps(alpha, alpha)`` must be
+      zero up to rounding.
+    - Closed forms against quadrature agree to ten digits; barycenter
+      residuals and the ``W2`` gap to the known barycenter are near zero.
+    - Score and Hessian relative errors of the numerical Fisher
+      information; Renyi minus KL changes sign at ``alpha = 1`` and
+      shrinks linearly in ``alpha - 1``.
+
+Cost and error:
+    - Exact transport takes the printed number of simplex pivots; Sinkhorn
+      takes the printed number of iterations per ``eps`` and carries an
+      ``eps``-dependent bias in ``<P, C> - exact``.
+    - Quantile quadrature and Simpson integration (32 000 intervals) are
+      deterministic with errors below the printed digits; numerical Fisher
+      information uses central differences whose relative error is
+      printed.
+    - The final line prints the elapsed wall-clock time, which varies
+      between runs; every other number is fixed by ``SEED``.
+
+References:
+    REF-PEYRE-CUTURI-2019: computational optimal transport.
+    REF-DANTZIG-1951: the transportation simplex.
+    REF-BLAND-1977: anti-cycling pivot rule.
+    REF-CUTURI-2013: Sinkhorn distances.
+    REF-FEYDY-ETAL-2019: Sinkhorn divergences.
+    REF-VILLANI-2009: optimal transport theory.
+    REF-DOWSON-LANDAU-1982: Gaussian Wasserstein distance.
+    REF-ALVAREZ-ESTEBAN-ETAL-2016: Wasserstein barycenters.
+    REF-DAVIS-RABINOWITZ-1984: numerical integration.
+    REF-AMARI-2016: information geometry.
+    REF-MIYAMOTO-ETAL-2024: closed-form Fisher-Rao distances.
+    REF-ATKINSON-MITCHELL-1981: Rao distance of normal laws.
+    REF-KAILATH-1967: Hellinger and related distances.
+    REF-VAN-ERVEN-HARREMOES-2014: Renyi divergence.
+    REF-COVER-THOMAS-2006: Kullback-Leibler divergence.
+
 """
 
 from __future__ import annotations
@@ -49,6 +136,7 @@ from probstat.information import (
 )
 from probstat.numerics import composite_simpson
 
+# Seed of the transport problems; the figure problem uses SEED + 1.
 SEED = 2026
 OUTPUT = Path(__file__).parent / "generated"
 
@@ -348,7 +436,7 @@ def main() -> None:
 
     """
     started = time.perf_counter()
-    print("Optimal transport and information geometry lab (seed 2026)")
+    print(f"Optimal transport and information geometry lab (seed {SEED})")
     rng = random.Random(SEED)
     xs, ys, weights, exact = exact_transport_section(rng)
     sinkhorn_section(xs, ys, weights, exact)

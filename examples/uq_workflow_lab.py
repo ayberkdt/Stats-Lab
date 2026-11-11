@@ -15,6 +15,91 @@ genuine model-form error. The script
    numerical, and model-form uncertainty reported separately,
 
 recording every step in a :class:`~probstat.uq.UQWorkflowRecord`.
+
+Run with ``PYTHONPATH=src python examples/uq_workflow_lab.py``. With
+Matplotlib installed the propagation and calibration stages of
+the underlying ``UQStudy`` are drawn to ``examples/generated/``.
+
+Definitions:
+    QoI ``y(t)``: decaying amount at ``t = 10`` computed by Heun's method
+        with step ``h = 0.25``.
+    reality: ``5 exp(-0.3 t) + 0.1``; the offset is the model-form error.
+    forward problem: push the prior law of ``(A, k)`` through the model.
+    inverse problem: calibrate ``(A, k)`` from seven noisy measurements.
+    GCI: grid convergence index, a numerical-uncertainty statement from
+        three step sizes.
+    area metric and u-pooling: validation distances between predicted and
+        observed distributions.
+    discrepancy ``sigma_delta``: standard deviation of the model-form error,
+        estimated from validation comparisons and extrapolated in distance.
+
+Assumptions:
+    - Measurement noise is Gaussian with known standard deviation 0.05.
+    - The prior of ``(A, k)`` is uniform on ``[3, 7] x [0.1, 0.6]``.
+    - The three grids are close to the asymptotic range; the printed
+      verification warning states when the observed order departs from 2.
+    - Validation data at ``t = 7, 8, 9`` are independent of the calibration
+      data; the discrepancy grows linearly with scaled distance outside that
+      domain (assumed growth rate ``kappa = 1``).
+    - Numerical uncertainty is an interval, not a distribution.
+
+Equations:
+    EQ-UQ-001: named forward-model map.
+    EQ-VV-GCI-004: fine-grid grid convergence index.
+    EQ-VV-LSQ-002: simplified least-squares numerical uncertainty.
+    EQ-VV-UNUM-001: numerical-uncertainty statement.
+    EQ-RNG-SPLITMIX-001: child streams of the root seed.
+    EQ-SAMP-RQMC-001: randomized Sobol propagation of the prior.
+    EQ-CAL-NL-001: nonlinear observation model with conditions.
+    EQ-MCMC-AM-001: adaptive Metropolis sampling of the posterior.
+    EQ-MCMC-RHAT-002: rank-normalized split R-hat.
+    EQ-MCMC-ESS-001: effective sample size.
+    EQ-CAL-PRED-001: posterior push-forward prediction.
+    EQ-VAL-AREA-001: area validation metric.
+    EQ-VAL-UPOOL-001: u-pooling transform.
+    EQ-VAL-UPOOL-002: pooled area metric.
+    EQ-VAL-ASME-001: V&V 20 comparison error and validation uncertainty.
+    EQ-VAL-DOM-001: validation domain and scaled distance.
+    EQ-VAL-DISC-001: distance-based discrepancy extrapolation.
+    EQ-VAL-DISC-002: moment estimate of the discrepancy variance.
+    EQ-VAL-PRED-001: combination of prediction components.
+    EQ-VAL-PRED-002: interval treatment of numerical uncertainty.
+    EQ-STAT-QUANT-001: sample quantiles of the forward and combined laws.
+
+Diagnostics:
+    - The verification statement reports the observed order and the
+      asymptotic-range check.
+    - Posterior R-hat (printed) and the convergence warnings of the short
+      two-chain calibration say whether the posterior means are reliable.
+    - The validation verdict is conditional on the data, tolerance, and
+      domain, and states it.
+    - The component prediction prints variance shares and whether the
+      combined 95% interval covers the known truth.
+
+Cost and error:
+    - One three-grid refinement study (3 model runs), 1,024 Sobol samples
+      for the forward problem, an adaptive Metropolis calibration with
+      2 chains x (600 warm-up + 600 draws), 400 posterior draws for the
+      validation predictions, and 1,000 for the final prediction; the
+      workflow record lists the evaluation count of every stage.
+    - Posterior means carry Monte Carlo error that the low ESS warnings
+      flag; the numerical uncertainty ``U_num`` is about 0.0008 and is
+      negligible against the model-form term.
+
+References:
+    REF-ROY-OBERKAMPF-2011: the VV-UQ prediction framework.
+    REF-OBERKAMPF-ROY-2025: verification and validation in scientific
+        computing.
+    REF-CELIK-ETAL-2008: the three-grid GCI procedure.
+    REF-ECA-HOEKSTRA-2014: least-squares numerical uncertainty.
+    REF-ASME-VV20-2009: validation comparison error.
+    REF-FERSON-OBERKAMPF-GINZBURG-2008: area metric and u-pooling.
+    REF-KENNEDY-OHAGAN-2001: calibration with model discrepancy.
+    REF-HAARIO-SAKSMAN-TAMMINEN-2001: adaptive Metropolis.
+    REF-VEHTARI-ETAL-2021: rank-normalized R-hat.
+    REF-SMITH-UQ-2024: forward and inverse UQ.
+    REF-MATPLOTLIB: rendering.
+
 """
 
 from __future__ import annotations
@@ -22,6 +107,7 @@ from __future__ import annotations
 import math
 from collections.abc import Mapping
 from dataclasses import dataclass
+from pathlib import Path
 
 from probstat.distributions import Uniform
 from probstat.foundations.random_streams import RandomStream
@@ -55,8 +141,12 @@ from probstat.validation import (
     estimate_discrepancy,
     predict_with_uncertainty_components,
 )
+from probstat.visualization.theme import matplotlib_available
 from probstat.workflow import UQStudy
 
+# Root seed of every random draw in the workflow.
+SEED = 2026
+OUTPUT = Path(__file__).parent / "generated"
 TRUE_A = 5.0
 TRUE_K = 0.3
 OFFSET = 0.1
@@ -147,7 +237,7 @@ class WorkflowResults:
     study: UQStudy
 
 
-def run(seed: int = 2026, *, draws: int = 600) -> WorkflowResults:
+def run(seed: int = SEED, *, draws: int = 600) -> WorkflowResults:
     """Run the complete workflow and return its key results.
 
     Args:
@@ -307,6 +397,23 @@ def run(seed: int = 2026, *, draws: int = 600) -> WorkflowResults:
     )
 
 
+def write_figures(results: WorkflowResults) -> None:
+    """Write one themed figure per supported stage of the workflow's study.
+
+    Args:
+        results: Completed workflow.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    if not matplotlib_available():
+        return
+    from probstat.visualization.study import save_study_figures
+
+    save_study_figures(results.study, OUTPUT)
+
+
 def main() -> None:
     """Print the numbers quoted in the VV-UQ foundations guide.
 
@@ -349,6 +456,7 @@ def main() -> None:
         f"{len(results.record.gaps)}. Next step: add validation data nearer "
         f"t={PREDICTION_TIME:g} to replace the assumed growth rate kappa."
     )
+    write_figures(results)
 
 
 if __name__ == "__main__":

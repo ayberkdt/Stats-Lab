@@ -5,6 +5,77 @@ numbers are printed. When Matplotlib is installed three figures are written
 to ``examples/generated/``: the four-branch design-point map, the AK-MCS
 population by predicted class, and the AK-MCS learning curve. Every
 stochastic step is seeded, so repeated runs print identical values.
+
+Definitions:
+    ``u``: independent standard-normal input vector; every limit state here
+    is written directly in this space.
+    ``G(u)``: limit-state function; failure is ``G(u) <= 0`` and
+    ``Pf = P(G(U) <= 0)``.
+    ``beta``: reliability index, the distance from the origin to a design
+    point ``u*`` (a locally most probable failure point).
+    Four-branch system: the series benchmark ``min`` of four branches with
+    ``k = 6``; it has four design points with ``beta = 3``.
+    ``U(u)``: AK-MCS learning function ``|mu_G(u)| / sigma_G(u)`` of the
+    Gaussian-process surrogate of ``G``.
+
+Assumptions:
+    - Inputs are independent standard normals, so no Nataf transformation is
+      involved and every reference value is exact or quadrature-accurate.
+    - The cross-entropy importance density is Gaussian; its weights have
+      finite variance only while every covariance eigenvalue exceeds 1/2,
+      which the covariance floor 0.55 enforces.
+    - Line sampling uses an important direction close to the true one; lines
+      without a root contribute zero, which is exact for the safe band.
+    - The AK-MCS figure redraws its population from the run's child stream;
+      the printed predicted-failure count confirms the redraw is identical.
+
+Equations:
+    EQ-REL-MLS-001: model limit state ``G = y - 0`` on the standard-normal
+    inputs.
+    EQ-REL-CE-001: cross-entropy level update of the importance density.
+    EQ-REL-CE-002: CE importance-sampling estimate of ``Pf`` and its c.o.v.
+    EQ-REL-CE-003: finite-variance condition behind the eigenvalue flag.
+    EQ-REL-LINE-001: line-sampling estimate ``mean Phi(-c_k)``.
+    EQ-MOD-GH-001: Gauss-Hermite reference value for the parabola.
+    EQ-REL-HLRF-001: HL-RF iteration of every FORM search.
+    EQ-REL-FORM-002: FORM probability ``Phi(-beta)`` at each design point.
+    EQ-REL-MDP-001: bulge deflation that finds further design points.
+    EQ-REL-MDP-002: multi-point FORM union probability.
+    EQ-REL-BVN-001: bivariate normal CDF of the exact two-plane answer.
+    EQ-REL-MVN-001: Genz separation of variables for four design points.
+    EQ-REL-MDP-003: mixture importance sampling centred at the design points.
+    EQ-REL-PF-001: crude Monte Carlo failure probability.
+    EQ-REL-AKMCS-001: AK-MCS learning function and stopping rule.
+    EQ-REL-AKMCS-002: AK-MCS estimate on the population and its c.o.v.
+
+Diagnostics:
+    - Every estimate is printed beside an exact value, a quadrature value, or
+      a Monte Carlo reference, with ``z = (estimate - reference) / SE``.
+    - CE prints the smallest covariance eigenvalue and the weight-degeneracy
+      flag; the unfloored runs that collapse are flagged.
+    - Line sampling reports the number of rootless lines.
+    - AK-MCS prints the number of misclassified population points against
+      Monte Carlo on the same population and the final ``min U`` message.
+
+Cost and error:
+    - CE: 1000 samples per level; line sampling: 30, 200, and 400 lines plus
+      the FORM search; the printed ``calls`` count every evaluation of ``G``.
+    - Mixture importance sampling uses 2000 and 4000 samples and crude Monte
+      Carlo 200 000; each carries its printed standard error.
+    - AK-MCS uses 34 to 36 evaluations of ``G`` on a 10 000-point population;
+      its c.o.v. ``sqrt((1 - Pf) / (N Pf))`` is the population sampling error,
+      not surrogate error, which the misclassification count bounds.
+    - Multi-point FORM keeps the first-order (linearization) error of FORM;
+      its Genz estimate adds a negligible integration error.
+
+References:
+    REF-ECHARD-GAYTON-LEMAIRE-2011: AK-MCS and the four-branch benchmark.
+    REF-RUBINSTEIN-KROESE-2004: the cross-entropy method.
+    REF-KOUTSOURELAKIS-PRADLWARTER-SCHUELLER-2004: line sampling.
+    REF-DERKIUREGHIAN-DAKESSIAN-1998: multiple design points.
+    REF-GENZ-BRETZ-2009: multivariate normal probabilities.
+    REF-MELCHERS-BECK-2018: structural reliability background.
+
 """
 
 from __future__ import annotations
@@ -41,6 +112,8 @@ from probstat.reliability import (
 )
 from probstat.uq import QuantityOfInterest
 
+# Root seed of the AK-MCS runs and of the redrawn AK-MCS population.
+SEED = 1
 SQRT2 = math.sqrt(2.0)
 Y = (QuantityOfInterest("y", "limit-state value"),)
 OUTPUT = Path(__file__).parent / "generated"
@@ -294,7 +367,7 @@ def ak_mcs_section() -> None:
     print("\n4. AK-MCS on the four-branch system (k = 6)")
     print("   seed  N      calls  added  Pf_AK       Pf_MC(same)  wrong  c.o.v.")
     first = None
-    for seed in (1, 2):
+    for seed in (SEED, SEED + 1):
         result = ak_mcs(
             make_state(four_branch, 2),
             10_000,
@@ -310,14 +383,14 @@ def ak_mcs_section() -> None:
         )
         first = first or result
     if has_matplotlib() and first is not None:
-        ak_mcs_figures(first, seed=1)
+        ak_mcs_figures(first, seed=SEED)
     result = ak_mcs(
         make_state(four_branch, 2),
         5000,
         target_cov=0.15,
         population_growth=5000,
         compare_with_monte_carlo=True,
-        seed=1,
+        seed=SEED,
     )
     print(
         f"   start N=5000, c.o.v. target 0.15: N grew to {result.population}, "

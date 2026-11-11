@@ -69,5 +69,9 @@ context, decision, consequences, and the verification evidence behind them.
   ID, or unknown reference key.
 - The API reference is current (`tests/test_api_reference.py`).
 - Numerical edge cases and error behavior are tested.
-- User-facing examples remain executable.
+- User-facing examples remain executable, and every lab in `examples/`
+  satisfies the lab contract of `tests/test_lab_contract.py` (ADR-0078):
+  definitions, assumptions, registered equations, diagnostics, cost and
+  error, references, a `SEED` constant, themed figures, and a linked
+  regression test.
 

@@ -191,3 +191,41 @@ heatmap uses the purple-green pair of each palette with the gridline grey at
 zero, never a hue for "no departure". A pointwise PIT band is exceeded
 somewhere by about half of all calibrated 20-bin histograms of 400 values;
 the simultaneous band by fewer than 5%.
+
+## Accessibility
+
+Every figure written by `save_figure` carries a text alternative (ADR-0078).
+`probstat.visualization.accessibility.describe_figure` composes it from what
+the figure already states: the assertion title, the subtitle naming the
+marks, and each axis with its label, displayed range, and log scale. It is
+stored in the file itself (PNG and SVG `Title` and `Description`, PDF
+`Title` and `Subject`) [REF-PNG-SPEC-2003], and the HTML study report uses
+the same text as each image's `alt` attribute. Pass `description=` to
+`save_figure` to replace it. A clear assertion title therefore also makes a
+clear description.
+
+```python
+from probstat.visualization.accessibility import describe_figure
+print(describe_figure(ax.figure))
+# Error halves per decade. Line: absolute error. Horizontal axis Samples n,
+# 0.7943 to 125.9 (log scale); vertical axis Error, 0.1062 to 0.5188.
+```
+
+Contrast is measured with the WCAG 2.1 relative luminance and contrast
+ratio [EQ-VIZ-WCAG-001], [EQ-VIZ-WCAG-002], [REF-W3C-WCAG21-2018]:
+
+| Token on the canvas | Porcelain | Graphite | Level AA |
+|---|---|---|---|
+| ink | 13.81 | 15.99 | 4.5 (text) |
+| muted | 4.95 | 7.76 | 4.5 (text) |
+| accent | 6.06 | 8.10 | 4.5 (text) |
+| series hues | 3.31 to 4.59 | 4.72 to 5.49 | 3 (graphics) |
+
+`tests/test_visualization_accessibility.py` enforces these thresholds. The
+series hues meet the 3:1 level for lines and markers in both palettes; as
+text (direct labels at 8.5 pt) the light palette's hues fall below 4.5:1, a
+known gap recorded in ADR-0078.
+
+The HTML study report declares `lang="en"`, starts with a skip link to the
+stage results, and uses `header`, `nav`, `main`, and `footer` landmarks
+[REF-WHATWG-HTML].

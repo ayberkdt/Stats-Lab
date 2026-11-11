@@ -4,6 +4,61 @@ The log-stiffness is a Gaussian random field with a Matern-5/2 covariance.
 A truncated Karhunen-Loeve expansion turns the field into a handful of
 independent standard-normal coefficients, which become ordinary inputs of a
 ProbabilisticModel; propagation and FORM then run unchanged.
+
+Definitions:
+    ``H(x)``: log-stiffness fluctuation along the bar, ``x in [0, 1]``, a
+        zero-mean Gaussian field with Matern-5/2 covariance (standard
+        deviation 0.3, length scale 0.3).
+    ``lambda_k, phi_k``: eigenpairs of the covariance operator, approximated
+        on a 40-node quadrature grid.
+    ``xi_k``: independent standard-normal KL coefficients, the model inputs
+        ``xi_1 .. xi_M``.
+    ``tip``: tip displacement ``int_0^1 P / E(x) dx`` with
+        ``E(x) = 200 exp(H(x))`` and unit load ``P``.
+
+Assumptions:
+    - The field is Gaussian, so the KL coefficients are independent normals.
+    - Truncating at 97% of the variance (four terms) represents the field
+      well enough for the tip displacement; the discarded modes are ignored.
+    - The quadrature grid used for the eigenproblem and the displacement
+      integral resolves the Matern-5/2 eigenfunctions.
+
+Equations:
+    EQ-PROC-KL-001: truncated Karhunen-Loeve expansion of the field, used for
+        the realizations drawn in the figure.
+    EQ-PROC-KL-002: Nystrom discretization of the KL eigenproblem.
+    EQ-PROC-QUAD-001: interval quadrature rule behind the Nystrom nodes and
+        weights.
+    EQ-MOD-RF-001: map from the model inputs ``xi`` to the field values.
+    EQ-MC-MEAN-001: sample mean of the propagated tip displacement.
+    EQ-REL-HLRF-001: HL-RF recursion for the design point.
+    EQ-REL-FORM-002: FORM index, probability, and importance factors.
+
+Diagnostics:
+    - The explained variance fraction of the retained KL terms (0.9755).
+    - The FORM probability against its target of ``1e-3``, since the limit is
+      the empirical 0.999 quantile of the propagated sample.
+    - Importance factors that show which KL modes drive the tail.
+    - Figures: field realizations against the pointwise standard deviation,
+      the KL spectrum with the truncation, and the tip distribution.
+
+Cost and error:
+    - 4096 Sobol-design model evaluations for the propagation; the mean and
+      standard deviation carry quasi-Monte Carlo error that is not reported
+      here (no randomized replicates).
+    - FORM adds a few gradient evaluations; its probability is an
+      approximation whose error depends on the curvature of the limit state,
+      and the 0.999 quantile used as the limit carries sampling error of its
+      own.
+    - KL truncation removes 2.45% of the field variance.
+
+References:
+    REF-GHANEM-SPANOS-1991: Karhunen-Loeve representation of random fields.
+    REF-SUDRET-DERKIUREGHIAN-2000: random fields in stochastic finite elements.
+    REF-RASMUSSEN-WILLIAMS-2006: Matern covariance kernels.
+    REF-HASOFER-LIND-1974: reliability index.
+    REF-RACKWITZ-FIESSLER-1978: HL-RF design-point iteration.
+
 """
 
 from __future__ import annotations
@@ -27,6 +82,8 @@ from probstat.workflow import UQStudy
 
 MEAN_LOG_STIFFNESS = math.log(200.0)
 LOAD = 1.0
+# Root seed of the study and of the plotted field realizations.
+SEED = 2026
 
 
 def main() -> None:
@@ -80,7 +137,7 @@ def main() -> None:
         (QuantityOfInterest("tip", "tip displacement", "mm"),),
         name="random-bar",
     )
-    study = UQStudy(model, seed=2026)
+    study = UQStudy(model, seed=SEED)
     forward = study.propagate(4096, design="sobol")
     tip = forward["tip"]
     print(f"tip mean={tip.mean * 1e3:.4f}e-3, sd={tip.standard_deviation * 1e3:.4f}e-3")
@@ -92,7 +149,7 @@ def main() -> None:
 
     output = Path(__file__).parent / "generated"
     grid = [k / 199 for k in range(200)]
-    generator = random.Random(2026)
+    generator = random.Random(SEED)
     realizations = []
     for _ in range(30):
         xi = [generator.gauss(0.0, 1.0) for _ in range(expansion.terms)]

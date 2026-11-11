@@ -12,6 +12,86 @@ With Matplotlib installed the lab also writes seven figures to
 ``examples/generated/``: a one-dimensional mixture fit and its BIC curve, the
 eight-schools shrinkage plot, the posterior of tau with the NUTS draws, two
 predictive checks, and the PIT histogram.
+
+Definitions:
+    ``w_k``, ``m_k``, ``S_k``: weight, mean, and covariance of mixture
+        component ``k``; ``r_ik`` the responsibility of ``k`` for point ``i``.
+    BIC: ``p log n - 2 l`` with ``p`` free parameters and maximized
+        log-likelihood ``l``; smaller is better.
+    censored observation: a value known only to lie below 8 or above 13.
+    ``y_j``, ``s_j``: eight-schools estimate and its known standard error;
+        ``theta_j`` the school effect, ``mu`` the population mean, ``tau``
+        the between-school standard deviation.
+    ``B_j = s_j^2 / (s_j^2 + tau^2)``: shrinkage factor towards ``mu``.
+    posterior predictive p-value: probability that a replicated test
+        quantity exceeds the observed one.
+
+Assumptions:
+    - Mixture data are independent draws from a three-component Gaussian
+      mixture; EM starts from seeded initializations and may stop at a
+      local maximum (the 150-iteration cap is reached for K = 4 and 5).
+    - Censoring is non-informative and the latent values are normal.
+    - Eight schools: ``y_j ~ N(theta_j, s_j^2)`` with known ``s_j``,
+      ``theta_j ~ N(mu, tau^2)``, uniform priors on ``mu`` and ``tau``.
+    - Beta-binomial groups are exchangeable, with success probabilities
+      drawn from one beta law.
+
+Equations:
+    EQ-GMM-001: mixture log-likelihood and responsibilities.
+    EQ-GMM-002: EM M-step for the mixture parameters.
+    EQ-GMM-004: parameter count and BIC used for selection.
+    EQ-INF-IC-003: Bayesian information criterion.
+    EQ-EM-001: EM ascent property reported as ``monotone``.
+    EQ-EM-CENS-001: censored-normal log-likelihood.
+    EQ-EM-CENS-002: censored-normal E- and M-steps.
+    EQ-DIST-TN-003: truncated-normal moments in the E-step.
+    EQ-HIER-001: conditional posterior of ``mu`` and ``theta_j`` given tau.
+    EQ-HIER-002: marginal posterior of tau on the grid.
+    EQ-HIER-003: non-centered parameterization sampled by NUTS.
+    EQ-HIER-004: expected shrinkage factors ``E[B_j | y]``.
+    EQ-NUTS-UTURN-001: no-U-turn stopping rule.
+    EQ-MCMC-MCSE-001: Monte Carlo standard errors of the NUTS means.
+    EQ-PPC-001: posterior predictive p-values and their MCSE.
+    EQ-PPC-002: predictive PIT values of the eight estimates.
+    EQ-HIER-BB-001: beta-binomial marginal likelihood and posterior means.
+    EQ-VIZ-MIXQ-001: exact mixture quantiles of the shrinkage intervals.
+
+Diagnostics:
+    - BIC over K = 1..5 with EM iteration counts and the monotone flag of
+      each fit; the selected K is compared with the true value 3.
+    - Censored EM against dropping or substituting censored values, with
+      the true mean 10 and standard deviation 2 as reference.
+    - Grid against NUTS: the ``z`` column is the difference of means in
+      units of the NUTS MCSE (values within about +/-2 agree); the
+      divergence count of the sampler is printed.
+    - Posterior predictive p-values near 0 or 1 and PIT values near the
+      ends of ``[0, 1]`` indicate misfit; the PIT histogram carries
+      binomial bands.
+
+Cost and error:
+    - Mixture fits: 400 two-dimensional and 300 one-dimensional points,
+      five values of K each.
+    - NUTS: 4 chains of 500 warm-up and 1000 kept draws; posterior means
+      carry the printed MCSE. The grid posterior has 2001 tau points and is
+      exact up to quadrature error.
+    - Predictive checks use the 4000 NUTS draws; each p-value has the
+      printed MCSE.
+    - Printed elapsed times vary between runs; every other number is fixed
+      by ``SEED`` and the per-experiment seeds.
+
+References:
+    REF-MCLACHLAN-PEEL-2000: finite mixture models.
+    REF-SCHWARZ-1978: the Bayesian information criterion.
+    REF-DEMPSTER-LAIRD-RUBIN-1977: the EM algorithm.
+    REF-MCLACHLAN-KRISHNAN-2008: EM extensions and censored data.
+    REF-GELMAN-ETAL-2013: hierarchical models and eight schools.
+    REF-RUBIN-1981: the eight-schools data.
+    REF-HOFFMAN-GELMAN-2014: the no-U-turn sampler.
+    REF-BETANCOURT-GIROLAMI-2013: non-centered parameterizations.
+    REF-GELMAN-MENG-STERN-1996: posterior predictive checks.
+    REF-DAWID-1984: probability integral transform.
+    REF-MORRIS-1983: parametric empirical Bayes.
+
 """
 
 from __future__ import annotations
@@ -42,6 +122,8 @@ SCHOOLS_Y = (28.0, 8.0, -3.0, 7.0, -1.0, 1.0, 18.0, 12.0)
 SCHOOLS_S = (15.0, 10.0, 16.0, 11.0, 9.0, 11.0, 10.0, 18.0)
 SCHOOLS = ("A", "B", "C", "D", "E", "F", "G", "H")
 OUTPUT = Path(__file__).parent / "generated"
+# Seed of the eight-schools NUTS run; the other experiments keep their own.
+SEED = 2026
 
 
 def has_matplotlib() -> bool:
@@ -228,7 +310,7 @@ def eight_schools() -> float:
     grid = hierarchical_normal_posterior(SCHOOLS_Y, SCHOOLS_S)
     started = time.perf_counter()
     samples = sample_hierarchical_normal(
-        SCHOOLS_Y, SCHOOLS_S, draws=1000, warmup=500, chains=4, seed=2026
+        SCHOOLS_Y, SCHOOLS_S, draws=1000, warmup=500, chains=4, seed=SEED
     )
     elapsed = time.perf_counter() - started
     summaries = {s.name: s for s in samples.draws.summary()}

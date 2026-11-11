@@ -18,12 +18,106 @@ without Monte Carlo:
    S-curve, the cost of mission losses, and the risk register.
 
 Every number is reproducible from the root seed. The Markdown report is
-written to ``examples/generated/mission_systems_report.md``.
+written to ``examples/generated/mission_systems_report.md``; with Matplotlib
+installed, the Sobol indices of the epistemic analysis are drawn to
+``examples/generated/mission-systems-sobol.png``.
+
+Definitions:
+    ``R(T)``: probability that the lander structure function is 1 over the
+        mission time ``T = 720`` h.
+    structure function: series of the pump pair, a 2-out-of-3 computer
+        group, a parallel battery pair, the transponder, and the igniter.
+    failure rate ``lambda`` and demand probability ``p``: component
+        parameters with Jeffreys posteriors from test counts.
+    beta factor: share of a component's failure rate that fails the whole
+        common-cause group at once.
+    phase: an interval of the mission with its own structure function;
+        components age across phases.
+    importance: Birnbaum, criticality, Fussell-Vesely, RAW, and RRW
+        measures of each block.
+    epistemic uncertainty: the spread of ``R(T)`` induced by the posterior
+        laws of the uncertain rates.
+    FMECA criticality ``C_r``: MIL-STD-1629A item criticality number.
+
+Assumptions:
+    - Components fail independently except through the beta-factor group;
+      the three computers share one uncertain rate (state-of-knowledge
+      correlation).
+    - Components are non-repairable within the mission; the warm-standby
+      pump pair is a continuous-time Markov chain with 99% switching.
+    - Exponential lives have constant hazards; batteries are Weibull with
+      shape 1.5.
+    - Mission stages succeed, retry, or abort with fixed probabilities and
+      are independent of the hardware model.
+    - Costs follow the declared triangular and recurring elements,
+      discounted at 3% per year; missions are independent.
+
+Equations:
+    EQ-REL-DATA-001: Beta posterior for failure on demand.
+    EQ-REL-DATA-002: Gamma (Jeffreys) posterior for a failure rate.
+    EQ-REL-DATA-003: chi-square bounds on a failure rate.
+    EQ-INF-CI-CP-001: Clopper-Pearson interval for the igniter.
+    EQ-SYS-COMP-001: non-repairable component reliability.
+    EQ-SYS-MKV-001: reliability from a Markov model.
+    EQ-SYS-MKV-007: standby closed forms.
+    EQ-SYS-STRUCT-001: series and parallel structures.
+    EQ-SYS-STRUCT-002: k-out-of-n structure.
+    EQ-SYS-CCF-001: beta-factor common-cause model.
+    EQ-SYS-BDD-001: exact system probability by Shannon expansion on a BDD.
+    EQ-SYS-MINSOL-001: minimal cut sets.
+    EQ-SYS-IMP-001: Birnbaum and criticality importance.
+    EQ-SYS-IMP-002: Fussell-Vesely, RAW, and RRW.
+    EQ-SYS-PMS-001: phased-mission reliability.
+    EQ-SYS-MKPM-002: discrete mission stages with absorbing outcomes.
+    EQ-REL-ALLOC-002: ARINC reliability allocation.
+    EQ-RISK-FMECA-002: item criticality number.
+    EQ-SENS-FIRST-001: first-order Sobol index of the uncertain data.
+    EQ-SENS-TOTAL-001: total-effect Sobol index of the uncertain data.
+    EQ-COST-DISC-001: discount factor.
+    EQ-COST-LCC-001: linear life-cycle cost.
+    EQ-WF-MISSION-001: expected mission-loss frequency.
+
+Diagnostics:
+    - Classical chi-square bounds and Clopper-Pearson intervals are printed
+      beside the Bayesian posterior means, so a reader sees how much the
+      data constrain each parameter.
+    - Phase-by-phase cumulative and conditional reliabilities localize where
+      the mission is lost (cruise dominates).
+    - The timeline probabilities of success, abort, and loss sum to one.
+    - The 5-95% epistemic band of ``R(T)`` and the Sobol ranking say whether
+      more computer test hours or more igniter firings would sharpen the
+      estimate.
+
+Cost and error:
+    - Reliability, MTTF, phased-mission, timeline, allocation, and FMECA
+      numbers are exact (no sampling error).
+    - The epistemic analysis propagates 2,048 parameter realizations and
+      estimates Sobol indices from a base sample of 512 through the exact
+      system model; its percentiles and indices carry Monte Carlo error of
+      order ``N^(-1/2)``.
+
+References:
+    REF-ATWOOD-NUREG-6823-2003: reliability data and posteriors.
+    REF-CLOPPER-PEARSON-1934: exact binomial interval.
+    REF-RAUSAND-HOYLAND-2004: system reliability theory.
+    REF-BARLOW-PROSCHAN-1975: structure functions.
+    REF-MOSLEH-ETAL-1998: common-cause failure models.
+    REF-RAUZY-1993: binary decision diagrams and minimal solutions.
+    REF-BIRNBAUM-1969: component importance.
+    REF-ZANG-SUN-TRIVEDI-1999: phased-mission systems.
+    REF-KEMENY-SNELL-1976: absorbing Markov chains.
+    REF-MIL-HDBK-338B-1998: reliability allocation.
+    REF-MIL-STD-1629A-1980: FMECA.
+    REF-SALTELLI-2010: Sobol indices.
+    REF-NASA-CEH-2015: life-cycle cost.
+    REF-NASA-PRA-2011: probabilistic risk assessment.
+
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from probstat.cost import CostElement, LifeCycleCostModel
 from probstat.distributions import Triangular
@@ -50,10 +144,15 @@ from probstat.systems import (
     series,
     standby_system,
 )
-from probstat.workflow import MissionAssessment
+from probstat.visualization import save_figure
+from probstat.visualization.theme import matplotlib_available
+from probstat.visualization.uq import plot_sobol_indices
+from probstat.workflow import MissionAssessment, MissionAssessmentResult
 
 OUTPUT = Path(__file__).parent / "generated"
 MISSION_HOURS = 720.0
+# Root seed of the epistemic propagation and Sobol analysis.
+SEED = 2026
 
 
 def component_data() -> dict[str, object]:
@@ -234,6 +333,47 @@ def allocation_and_fmeca() -> None:
         )
 
 
+def sobol_figure(result: MissionAssessmentResult) -> Any | None:
+    """Draw which uncertain data drive the epistemic spread of ``R(T)``.
+
+    Args:
+        result: Completed mission assessment.
+
+    Returns:
+        Axes of the Sobol dumbbell chart, or ``None`` without uncertainty.
+
+    """
+    uncertainty = result.uncertainty
+    if uncertainty is None:
+        return None
+    names = tuple(uncertainty.ranking)
+    totals = [uncertainty.total_effect[name] for name in names]
+    return plot_sobol_indices(
+        names,
+        [uncertainty.first_order[name] for name in names],
+        totals,
+        title=f"Input {names[0]} drives the spread of R(T) (S_T = {totals[0]:.2f})",
+        subtitle="Sobol indices of R(T) under the posterior laws of the uncertain data",
+    )
+
+
+def write_figures(result: MissionAssessmentResult) -> None:
+    """Write the Sobol figure when Matplotlib is installed.
+
+    Args:
+        result: Completed mission assessment.
+
+    """
+    if not matplotlib_available():
+        return
+    import matplotlib.pyplot as plt
+
+    axes = sobol_figure(result)
+    if axes is not None:
+        save_figure(axes.figure, OUTPUT / "mission-systems-sobol.png")
+        plt.close(axes.figure)
+
+
 def main() -> None:
     """Run the mission laboratory and write the Markdown report."""
     data = component_data()
@@ -279,7 +419,7 @@ def main() -> None:
         system,
         MISSION_HOURS,
         name="lunar lander",
-        seed=2026,
+        seed=SEED,
         uncertain=uncertain,
         missions_per_year=1.0,
         horizon=5.0,
@@ -293,6 +433,7 @@ def main() -> None:
     OUTPUT.mkdir(exist_ok=True)
     path = OUTPUT / "mission_systems_report.md"
     path.write_text(report, encoding="utf-8")
+    write_figures(result)
     print(f"\nMission reliability R(T) = {result.reliability.reliability:.6f}")
     print(f"Most important block: {result.importance[0].component}")
     if result.uncertainty is not None:

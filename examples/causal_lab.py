@@ -5,6 +5,67 @@ analysed by the naive contrast, regression adjustment, stabilized IPW, and
 AIPW; covariate balance is compared before and after weighting; and the
 AIPW estimate is mapped to an approximate risk ratio whose E-value says how
 strong unmeasured confounding would have to be to explain it away.
+
+Run with ``PYTHONPATH=src python examples/causal_lab.py``; three figures are
+written to ``examples/generated/``.
+
+Definitions:
+    ``T``: binary treatment; ``X = (X1, X2, X3)``: measured confounders;
+    ``Y``: continuous outcome.
+    ATE: average treatment effect ``E[Y(1) - Y(0)]``, equal to 2 by
+    construction.
+    ``e(x)``: propensity score ``P(T = 1 | X = x)``, fitted by logistic
+    regression.
+    SMD: standardized mean difference of a covariate between arms.
+    E-value: the minimum strength of association, on the risk-ratio scale,
+    that an unmeasured confounder would need with both treatment and outcome
+    to explain the estimate away.
+
+Assumptions:
+    - Conditional exchangeability given ``X`` (no unmeasured confounding in
+      the simulated data), positivity, and consistency.
+    - The outcome regression is linear within each arm and the propensity
+      model is logistic, both correctly specified for the simulated law, so
+      regression, IPW, and AIPW are all consistent.
+    - The risk-ratio conversion ``RR ~ exp(0.91 d)`` is an approximation used
+      only to report an E-value for a continuous outcome.
+
+Equations:
+    EQ-CAUSAL-PS-001: logistic propensity score.
+    EQ-CAUSAL-REG-001: regression-adjustment estimator.
+    EQ-CAUSAL-IPW-001: inverse-probability-weighted estimators.
+    EQ-CAUSAL-SW-001: stabilized weights.
+    EQ-CAUSAL-AIPW-001: augmented IPW estimator and its standard error.
+    EQ-INF-BOOT-001: nonparametric bootstrap replicates.
+    EQ-INF-BOOT-002: percentile bootstrap interval for regression.
+    EQ-CAUSAL-SMD-001: standardized mean differences, raw and weighted.
+    EQ-CAUSAL-RRAPPROX-001: risk-ratio approximation from ``d``.
+    EQ-CAUSAL-EVALUE-001: E-value of the point estimate and interval limit.
+    EQ-CAUSAL-BIAS-001: bounding factor drawn as the E-value contour.
+    EQ-RNG-SPLITMIX-001: seeded child streams for data and bootstrap.
+
+Diagnostics:
+    - Each estimator is printed with its interval against the true ATE.
+    - Covariate balance: weighted SMDs near zero show that the propensity
+      weights balance the confounders the naive contrast ignores.
+    - The E-value and its confidence limit state how robust the AIPW result
+      is to unmeasured confounding.
+
+Cost and error:
+    - 1200 simulated units; the regression interval uses 100 bootstrap
+      replicates, so its limits carry resampling error.
+    - IPW and AIPW intervals are large-sample Wald intervals from the
+      estimated influence values; the naive standard error ignores
+      confounding and the naive estimate is biased.
+
+References:
+    REF-HERNAN-ROBINS-2020: causal inference with observational data.
+    REF-IMBENS-RUBIN-2015: propensity scores and balance.
+    REF-ROSENBAUM-RUBIN-1983: the propensity score.
+    REF-ROBINS-ROTNITZKY-ZHAO-1994: augmented inverse-probability weighting.
+    REF-VANDERWEELE-DING-2017: the E-value.
+    REF-EFRON-TIBSHIRANI-1993: the bootstrap.
+
 """
 
 from __future__ import annotations
@@ -31,6 +92,8 @@ from probstat.visualization.causal_plots import (
     plot_effect_estimates,
 )
 
+# Root seed; the data and bootstrap draw from named child streams of it.
+SEED = 2026
 TRUE_EFFECT = 2.0
 
 
@@ -80,7 +143,7 @@ def main() -> None:
 
     started = time.perf_counter()
     output = Path(__file__).parent / "generated"
-    root = RandomStream(2026)
+    root = RandomStream(SEED)
     rows, treatment, outcome = simulate(1200, root.child("data"))
     treated = [y for y, t in zip(outcome, treatment, strict=True) if t]
     control = [y for y, t in zip(outcome, treatment, strict=True) if not t]

@@ -5,6 +5,57 @@ regression on ``[-1, 1]`` and certifies it with the Kiefer-Wolfowitz
 equivalence theorem, against a uniform grid design for context. The Bayesian
 half plans three runs of an exponential-decay experiment ``A exp(-k t)`` with
 an uncertain rate by greedy maximization of the expected information gain.
+Run with ``PYTHONPATH=src python examples/experimental_design_lab.py``; two
+figures are written to ``examples/generated/``.
+
+Definitions:
+    Approximate design ``xi``: support points ``x_i`` with weights ``w_i``
+    summing to one.
+    ``M(xi)``: information matrix ``sum_i w_i f(x_i) f(x_i)'`` of the basis
+    ``f(x) = (1, x, x^2)``.
+    ``d(x, xi)``: standardized prediction variance ``f(x)' M^-1 f(x)``.
+    D-efficiency: ``(det M(xi) / det M(xi*))^(1/p)`` against the optimum.
+    EIG: expected information gain, the mutual information between the
+    parameters ``(A, k)`` and the data of a design.
+
+Assumptions:
+    - The quadratic model is linear in its parameters with homoscedastic
+      errors, so the D-optimal design does not depend on the parameters.
+    - The candidate set is the 21-point grid on ``[-1, 1]``.
+    - The decay experiment has priors ``A ~ Normal(3, 0.3)`` and
+      ``k ~ LogNormal(log 0.5, 0.2)`` and Gaussian noise with standard
+      deviation 0.1; the Laplace EIG linearizes the model in prior standard
+      space, which is accurate when the posterior is close to Gaussian.
+
+Equations:
+    EQ-OED-INFO-001: information matrix of an approximate design.
+    EQ-OED-MULT-001: multiplicative algorithm for D-optimal weights.
+    EQ-OED-KW-001: Kiefer-Wolfowitz equivalence certificate ``max d = p``.
+    EQ-OED-CRIT-001: D-efficiency of the uniform grid.
+    EQ-OED-EIG-001: expected information gain.
+    EQ-OED-LAP-001: Laplace (Gauss-Newton) EIG approximation.
+    EQ-OED-GREEDY-001: greedy sequential selection by EIG.
+
+Diagnostics:
+    - ``max d`` against ``p = 3`` and the efficiency lower bound certify the
+      D-optimal design; the figure draws ``d(x, xi)`` over the region.
+    - The EIG path shows the diminishing gain of each added run.
+
+Cost and error:
+    - The multiplicative algorithm stops at its equivalence tolerance; the
+      printed efficiency bound states how far from optimal it can be.
+    - The greedy design spends the printed number of model evaluations
+      (Laplace EIG with 8 prior samples per candidate); its EIG values carry
+      both the Laplace approximation error and the sampling error of the 8
+      samples.
+
+References:
+    REF-KIEFER-WOLFOWITZ-1960: the equivalence theorem.
+    REF-ATKINSON-DONEV-TOBIAS-2007: optimum experimental designs.
+    REF-SILVEY-TITTERINGTON-TORSNEY-1978: the multiplicative algorithm.
+    REF-CHALONER-VERDINELLI-1995: Bayesian experimental design.
+    REF-HUAN-MARZOUK-2013: expected information gain.
+
 """
 
 from __future__ import annotations
@@ -30,6 +81,9 @@ from probstat.visualization.design_plots import (
     plot_greedy_design,
     plot_optimal_design,
 )
+
+# Seed of the prior samples behind the greedy Bayesian design.
+SEED = 2026
 
 
 def decay_model(parameters: dict[str, float]) -> dict[str, float]:
@@ -85,7 +139,7 @@ def main() -> None:
     problem = BayesianDesignProblem(model, (NoiseModel("y", standard_deviation=0.1),))
     times = [0.25 * i for i in range(25)]
     greedy = greedy_design(
-        problem, [{"t": t} for t in times], 3, method="laplace", samples=8, seed=2026
+        problem, [{"t": t} for t in times], 3, method="laplace", samples=8, seed=SEED
     )
     print(
         f"Greedy Laplace design: t = {[c['t'] for c in greedy.selected]}, "

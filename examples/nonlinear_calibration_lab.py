@@ -4,6 +4,62 @@ Synthetic measurements of an exponential decay are generated from known
 parameters. ``UQStudy.calibrate`` samples the posterior by adaptive MCMC in
 the prior's standard-normal space; ``UQStudy.predict`` pushes the posterior
 through the same model to forecast beyond the measured time window.
+
+Definitions:
+    ``y(t) = A exp(-k t)``: forward model with amplitude ``A`` and rate
+        ``k``; nine measurements at ``t`` from 0 to 6.
+    prior: independent ``A ~ Uniform(1, 10)`` and ``k ~ Uniform(0.01,
+        1.5)``, mapped to standard-normal space by the Nataf transformation.
+    posterior: ``p(A, k | y)`` sampled by adaptive Metropolis.
+    R-hat and ESS: rank-normalized split potential scale reduction and
+        effective sample size of each parameter.
+    latent and observed predictions: ``y*`` from posterior draws without
+        and with measurement noise.
+
+Assumptions:
+    - Measurement errors are independent ``N(0, 0.12^2)`` with known
+      standard deviation; the model has no discrepancy term, which is
+      correct here because the data come from the model itself.
+    - The chains have converged when R-hat is close to 1 and ESS is
+      several hundred; the posterior is then summarized by its draws.
+    - Forecasts beyond ``t = 6`` extrapolate the same model form.
+
+Equations:
+    EQ-CAL-NL-001: nonlinear calibration observation model.
+    EQ-CAL-LIK-001: Gaussian measurement log-likelihood.
+    EQ-CAL-POST-001: log posterior of the calibration problem.
+    EQ-CAL-STD-001: posterior in the prior's standard-normal space.
+    EQ-MOD-NATAF-001: Nataf map between the prior and standard normals.
+    EQ-MCMC-AM-001: adaptive Metropolis proposal covariance.
+    EQ-MCMC-MH-001: Metropolis-Hastings acceptance.
+    EQ-MCMC-RHAT-002: rank-normalized split R-hat in the summary and trace.
+    EQ-MCMC-ESS-001: effective sample size in the summary.
+    EQ-CAL-PRED-001: posterior predictive draws and quantile intervals.
+    EQ-STAT-QUANT-001: sample quantiles of the marginals and predictions.
+
+Diagnostics:
+    - Posterior means against the true ``A = 5`` and ``k = 0.3``, with R-hat
+      and ESS per parameter.
+    - The trace figure of ``k`` shows mixing of the chains and the truth;
+      the marginal figure overlays the true values on the posterior
+      histograms.
+    - The forecast figure separates latent (model) and observed (model plus
+      noise) bands and marks the end of the calibration window.
+
+Cost and error:
+    - Four chains of 1000 warm-up and 1500 kept draws, plus 800 posterior
+      draws pushed through 49 prediction times; the study prints its total
+      forward-model evaluations.
+    - Posterior means carry Monte Carlo error of about ``sd / sqrt(ESS)``;
+      prediction quantiles carry the error of 800 draws.
+
+References:
+    REF-SEBER-WILD-2003: nonlinear regression.
+    REF-KENNEDY-OHAGAN-2001: Bayesian calibration of computer models.
+    REF-HAARIO-SAKSMAN-TAMMINEN-2001: adaptive Metropolis.
+    REF-VEHTARI-ETAL-2021: rank-normalized R-hat and ESS.
+    REF-GELMAN-ETAL-2013: posterior predictive distributions.
+
 """
 
 from __future__ import annotations
@@ -28,6 +84,8 @@ from probstat.workflow import UQStudy
 TRUE_AMPLITUDE = 5.0
 TRUE_RATE = 0.3
 NOISE = 0.12
+# Seed of the synthetic measurements and root seed of the study.
+SEED = 2026
 
 
 def decay(parameters: Mapping[str, float]) -> Mapping[str, float]:
@@ -65,7 +123,7 @@ def main() -> None:
     model = ProbabilisticModel(
         prior, decay, (QuantityOfInterest("y", "decayed amplitude"),), fixed={"t": 0.0}
     )
-    generator = random.Random(2026)
+    generator = random.Random(SEED)
     times = (0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0)
     measured = tuple(
         TRUE_AMPLITUDE * math.exp(-TRUE_RATE * t) + generator.gauss(0.0, NOISE)
@@ -74,7 +132,7 @@ def main() -> None:
     experiments = tuple(
         Experiment({"y": y}, {"t": t}) for y, t in zip(measured, times, strict=True)
     )
-    study = UQStudy(model, seed=2026, name="decay")
+    study = UQStudy(model, seed=SEED, name="decay")
     posterior = study.calibrate(
         experiments, (NoiseModel("y", standard_deviation=NOISE),), draws=1500
     )

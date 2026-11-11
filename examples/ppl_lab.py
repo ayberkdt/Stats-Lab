@@ -12,7 +12,86 @@ Four seeded experiments, printed as numbers:
 4. Prior and posterior predictive simulation and posterior predictive
    p-values for eight schools.
 
-No figures are written.
+With Matplotlib installed one figure is written to ``examples/generated/``:
+the non-centred NUTS draws of ``tau`` over the exact grid posterior.
+
+Definitions:
+    model function: a Python function that declares latent sites with
+        ``m.sample`` and observed sites with ``m.observe``; tracing it gives
+        the joint log-density.
+    unconstrained space: coordinates obtained by a log bijection for
+        ``tau > 0`` and a logit bijection for ``0 < p < 1``, with the
+        log-Jacobian added to the density.
+    eight schools: ``y_j ~ N(theta_j, s_j)``, ``theta_j ~ N(mu, tau)``,
+        ``mu ~ N(0, 5)``, ``tau ~ half-Cauchy(5)``.
+    non-centred form: ``theta_j = mu + tau z_j`` with ``z_j ~ N(0, 1)``.
+    MCSE, ESS, R-hat: Monte Carlo standard error, effective sample size,
+        and rank-normalized split R-hat of a posterior summary.
+    posterior predictive p-value: share of replicated data sets whose test
+        statistic is at least the observed one.
+
+Assumptions:
+    - The exact references are trustworthy: the eight-schools grid posterior
+      integrates ``tau`` numerically, and the normal-normal and
+      beta-binomial posteriors are conjugate closed forms.
+    - Chains are long enough for their MCSE to describe the remaining error;
+      the convergence warnings printed for the short centred run say when
+      this fails.
+    - Laplace and ADVI are Gaussian approximations; they are exact only for
+      the normal-normal model.
+
+Equations:
+    EQ-PPL-JOINT-001: joint log-density on the unconstrained space.
+    EQ-PPL-TRANSFORM-001: log bijection for ``tau``.
+    EQ-PPL-TRANSFORM-002: logit bijection for ``p``.
+    EQ-PPL-NONCENTERED-001: non-centred reparameterization of ``theta``.
+    EQ-PPL-PREDICTIVE-001: prior and posterior predictive simulation.
+    EQ-HIER-001: conditional posteriors of the hierarchical normal model.
+    EQ-HIER-002: exact marginal posterior of ``tau`` on a grid.
+    EQ-HMC-H-001: Hamiltonian with a Gaussian momentum.
+    EQ-HMC-LEAPFROG-001: leapfrog integrator.
+    EQ-NUTS-UTURN-001: no-U-turn termination.
+    EQ-HMC-BFMI-001: energy Bayesian fraction of missing information.
+    EQ-MCMC-AM-001: adaptive Metropolis proposal.
+    EQ-LAPLACE-001: Laplace approximation.
+    EQ-VI-ELBO-001: evidence lower bound maximized by ADVI.
+    EQ-MCMC-RHAT-002: rank-normalized split R-hat.
+    EQ-MCMC-ESS-001: effective sample size.
+    EQ-MCMC-MCSE-001: Monte Carlo standard error of a posterior mean.
+    EQ-PPC-001: posterior predictive p-value.
+
+Diagnostics:
+    - Every sampled mean is printed beside its exact value and its MCSE;
+      a gap larger than about two MCSE signals a sampler or model error.
+    - Divergences, R-hat, ESS, E-BFMI, and tree-depth hits contrast the
+      non-centred and centred eight-schools posteriors (the funnel).
+    - The integral of the unconstrained beta-binomial density equals the
+      exact evidence, which checks the logit Jacobian.
+    - Predictive p-values near 0 or 1 flag a test statistic the model cannot
+      reproduce; the figure compares the sampled ``tau`` with its exact law.
+
+Cost and error:
+    - Non-centred NUTS: 2 chains x (300 warm-up + 300 draws); centred:
+      2 x (150 + 150) with tree depth at most 6.
+    - Normal-normal: Laplace 2,000 draws, NUTS and HMC 2 x (500 + 1,000),
+      adaptive Metropolis 2 x (1,000 + 4,000), ADVI 4,000 draws.
+    - Beta-binomial: a 6,001-point trapezoid on ``[-30, 30]`` and NUTS
+      2 x (300 + 1,000).
+    - Predictive: 2,000 prior and 600 posterior predictive data sets; each
+      p-value carries the printed MCSE.
+    - The NUTS timing and the final line print wall-clock times.
+
+References:
+    REF-GELMAN-ETAL-2013: hierarchical models and predictive checks.
+    REF-GELMAN-2006: half-Cauchy priors for variance parameters.
+    REF-HOFFMAN-GELMAN-2014: the no-U-turn sampler.
+    REF-PAPASPILIOPOULOS-ROBERTS-SKOLD-2007: centred and non-centred forms.
+    REF-CARPENTER-ETAL-2017: constrained-space transforms in Stan.
+    REF-BINGHAM-ETAL-2019: models as programs (Pyro).
+    REF-VEHTARI-ETAL-2021: rank-normalized R-hat and ESS.
+    REF-GELMAN-MENG-STERN-1996: posterior predictive p-values.
+    REF-MATPLOTLIB: rendering.
+
 """
 
 from __future__ import annotations
@@ -21,10 +100,19 @@ import math
 import statistics
 import time
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 from probstat.distributions import Beta, Binomial, Exponential, Normal, RealSupport
 from probstat.inference import half_cauchy_log_prior, hierarchical_normal_posterior, ppl
 from probstat.inference.ppl import ModelHandle
+from probstat.visualization import save_figure
+from probstat.visualization.hierarchical_plots import plot_tau_posterior
+from probstat.visualization.theme import matplotlib_available
+
+# Seed of both eight-schools NUTS runs.
+SEED = 2026
+OUTPUT = Path(__file__).parent / "generated"
 
 SCHOOLS_Y = (28.0, 8.0, -3.0, 7.0, -1.0, 1.0, 18.0, 12.0)
 SCHOOLS_S = (15.0, 10.0, 16.0, 11.0, 9.0, 11.0, 10.0, 18.0)
@@ -135,6 +223,57 @@ def beta_binomial(m: ModelHandle) -> None:
     m.observe("k", Binomial(TRIALS, p), SUCCESSES)
 
 
+def exact_schools_posterior() -> Any:
+    """Return the exact grid posterior of eight schools with a half-Cauchy prior.
+
+    References:
+        [EQ-HIER-002], [REF-GELMAN-ETAL-2013, Chapter 5], [REF-GELMAN-2006].
+
+    """
+    return hierarchical_normal_posterior(
+        SCHOOLS_Y,
+        SCHOOLS_S,
+        mu_prior=MU_PRIOR,
+        log_tau_prior=half_cauchy_log_prior(CAUCHY_SCALE),
+    )
+
+
+def tau_figure(posterior: ppl.PosteriorSamples) -> Any:
+    """Draw the sampled ``tau`` over its exact grid posterior.
+
+    Args:
+        posterior: Non-centred NUTS draws of eight schools.
+
+    Returns:
+        Populated Matplotlib axes.
+
+    References:
+        [EQ-HIER-002], [REF-GELMAN-2006], [REF-MATPLOTLIB].
+
+    """
+    draws = [float(value) for value in posterior["tau"]]  # type: ignore[arg-type]
+    return plot_tau_posterior(exact_schools_posterior(), draws=draws)
+
+
+def write_figures(posterior: ppl.PosteriorSamples) -> None:
+    """Write the ``tau`` figure when Matplotlib is installed.
+
+    Args:
+        posterior: Non-centred NUTS draws of eight schools.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    if not matplotlib_available():
+        return
+    import matplotlib.pyplot as plt
+
+    axes = tau_figure(posterior)
+    save_figure(axes.figure, OUTPUT / "ppl-eight-schools-tau.png")
+    plt.close(axes.figure)
+
+
 def experiment_eight_schools() -> ppl.PosteriorSamples:
     """Compare the PPL posterior of eight schools with the exact grid.
 
@@ -143,12 +282,7 @@ def experiment_eight_schools() -> ppl.PosteriorSamples:
 
     """
     print("1. Eight schools, half-Cauchy(5) prior on tau, normal(0, 5) on mu")
-    exact = hierarchical_normal_posterior(
-        SCHOOLS_Y,
-        SCHOOLS_S,
-        mu_prior=MU_PRIOR,
-        log_tau_prior=half_cauchy_log_prior(CAUCHY_SCALE),
-    )
+    exact = exact_schools_posterior()
     program = ppl.trace(schools)
     print(
         f"   unconstrained coordinates: {', '.join(program.unconstrained_names[:3])}"
@@ -156,7 +290,7 @@ def experiment_eight_schools() -> ppl.PosteriorSamples:
     )
     print("   running non-centred NUTS: 2 chains x 600 iterations ...", flush=True)
     start = time.perf_counter()
-    result = ppl.sample(schools, draws=300, warmup=300, chains=2, seed=2026)
+    result = ppl.sample(schools, draws=300, warmup=300, chains=2, seed=SEED)
     elapsed = time.perf_counter() - start
     summaries = {s.name: s for s in result.summary()}
     mu_mean, mu_sd = exact.mu_moments()
@@ -190,7 +324,7 @@ def experiment_eight_schools() -> ppl.PosteriorSamples:
         draws=150,
         warmup=150,
         chains=2,
-        seed=2026,
+        seed=SEED,
         max_tree_depth=6,
     )
     centered_h = centered.hamiltonian
@@ -331,6 +465,7 @@ def main() -> None:
     experiment_normal()
     experiment_beta_binomial()
     experiment_predictive(posterior)
+    write_figures(posterior)
     print(
         f"\nDone in {time.perf_counter() - start:.1f} s: compare each exact value "
         "with its PPL estimate and MCSE above. Next: read "

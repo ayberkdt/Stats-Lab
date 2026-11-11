@@ -363,14 +363,22 @@ body {
   margin: 0; background: var(--canvas); color: var(--ink);
   font: 16px/1.55 "Source Sans 3", "Segoe UI", system-ui, sans-serif;
 }
-main { max-width: 920px; margin: 0 auto; padding: 32px 16px 64px; }
+header, nav, main, footer { max-width: 920px; margin: 0 auto; padding: 0 16px; }
+header { padding-top: 32px; }
+footer { padding-bottom: 64px; }
+main:focus { outline: none; }
+.skip-link { position: absolute; left: 16px; top: -64px; padding: 12px 16px;
+  background: var(--surface); color: var(--accent); font-size: 14px;
+  border: 1px solid var(--accent); border-radius: 6px; z-index: 1; }
+.skip-link:focus { top: 8px; }
 h1 { font-size: 24px; margin: 0 0 8px; }
 h2 { font-size: 16px; margin: 0 0 4px; }
 .meta, .stage-meta { color: var(--muted); font-size: 14px; margin: 0; }
 .meta { margin-bottom: 24px; }
 nav ol { list-style: none; padding: 0; margin: 0 0 32px; display: flex;
   flex-wrap: wrap; gap: 8px 24px; font-size: 14px; }
-nav a { color: var(--accent); text-decoration: none; }
+nav a { color: var(--accent); text-decoration: none; display: inline-block;
+  padding: 6px 0; }
 section { border-top: 1px solid var(--rule); padding: 24px 0; }
 figure { margin: 16px 0; }
 figure img { width: 100%; height: auto; border-radius: 6px; display: block; }
@@ -386,23 +394,31 @@ footer { color: var(--muted); font-size: 12px; margin-top: 32px; }
 """
 
 
-def _encode_figure(axes: Any) -> str:
-    """Return a PNG data URI for an axes' figure and close it.
+def _encode_figure(axes: Any) -> tuple[str, str]:
+    """Return a PNG data URI and text alternative for a figure, then close it.
+
+    The description comes from the figure's titles, subtitle, and axes
+    (:func:`~probstat.visualization.accessibility.describe_figure`); it is
+    also written into the PNG ``Title`` and ``Description`` text chunks.
 
     Args:
         axes: Matplotlib axes or figure.
 
     Returns:
-        ``data:image/png;base64,...`` string.
+        ``("data:image/png;base64,...", description)``.
 
     References:
-        [REF-MATPLOTLIB]. No equation is evaluated.
+        [REF-MATPLOTLIB], [REF-PNG-SPEC-2003], [REF-W3C-WCAG21-2018].
+        No equation is evaluated.
 
     """
     import base64
     import io
 
+    from .accessibility import describe_figure, figure_title
+
     figure = getattr(axes, "figure", axes)
+    description = describe_figure(figure)
     buffer = io.BytesIO()
     figure.savefig(
         buffer,
@@ -411,9 +427,14 @@ def _encode_figure(axes: Any) -> str:
         facecolor=figure.get_facecolor(),
         bbox_inches="tight",
         pad_inches=0.2,
+        metadata={
+            "Title": figure_title(figure) or description,
+            "Description": description,
+        },
     )
     pyplot().close(figure)
-    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+    uri = "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+    return uri, description
 
 
 def _stage_sections(
@@ -506,8 +527,12 @@ def _stage_sections(
 def _stage_figures(record: Any, study: UQStudy) -> list[str]:
     """Return light/dark ``<figure>`` elements for one stage record.
 
+    Each image's ``alt`` text is the generated description of its light
+    variant; both variants show the same marks, so one text serves both.
+
     References:
-        [REF-MATPLOTLIB]. No equation is evaluated.
+        [REF-MATPLOTLIB], [REF-W3C-WCAG21-2018], [REF-WHATWG-HTML].
+        No equation is evaluated.
 
     """
     import html
@@ -517,13 +542,13 @@ def _stage_figures(record: Any, study: UQStudy) -> list[str]:
     with chart_theme(PORCELAIN):
         light = [_encode_figure(axes) for _, axes in _figures_for(record, study)]
     with chart_theme(GRAPHITE):
-        dark = [_encode_figure(axes) for _, axes in _figures_for(record, study)]
+        dark = [_encode_figure(axes)[0] for _, axes in _figures_for(record, study)]
     return [
         "<figure><picture>"
         f'<source media="(prefers-color-scheme: dark)" srcset="{dark_uri}">'
-        f'<img alt="{html.escape(record.label)}" src="{light_uri}">'
+        f'<img alt="{html.escape(description)}" src="{light_uri}">'
         "</picture></figure>"
-        for light_uri, dark_uri in zip(light, dark, strict=True)
+        for (light_uri, description), dark_uri in zip(light, dark, strict=True)
     ]
 
 
@@ -542,6 +567,11 @@ def study_html(study: UQStudy) -> str:
     Without Matplotlib the report is still written, without figures, and
     says so (figures need the optional ``visualization`` extra).
 
+    The page is navigable without sight (ADR-0078): it declares its
+    language, opens with a skip link to the stage results, uses ``header``,
+    ``nav``, ``main``, and ``footer`` landmarks, and gives every figure a
+    text alternative generated from its titles and axes.
+
     Args:
         study: Study to render.
 
@@ -549,7 +579,8 @@ def study_html(study: UQStudy) -> str:
         HTML document text.
 
     References:
-        [REF-MATPLOTLIB]. No equation is evaluated.
+        [REF-MATPLOTLIB], [REF-W3C-WCAG21-2018], [REF-WHATWG-HTML].
+        No equation is evaluated.
 
     """
     import html
@@ -589,8 +620,9 @@ def study_html(study: UQStudy) -> str:
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
         f"<title>UQ study: {html.escape(study.name)}</title>"
-        f"<style>{_HTML_STYLE}</style></head><body><main>"
-        f"<h1>UQ study: {html.escape(study.name)}</h1>"
+        f"<style>{_HTML_STYLE}</style></head><body>"
+        '<a class="skip-link" href="#content">Skip to the stage results</a>'
+        f"<header><h1>UQ study: {html.escape(study.name)}</h1>"
         f'<p class="meta">Inputs: {html.escape(", ".join(model.inputs.names))} · '
         f"QoIs: {html.escape(', '.join(model.quantity_names))} · {dependence} · "
         f"{study.total_evaluations:,} model evaluations{failed_text}{budget_text}"
@@ -598,13 +630,13 @@ def study_html(study: UQStudy) -> str:
         f"{study.root_seed}<br>probstat {html.escape(str(info['library_version']))}"
         f" · Python {html.escape(str(info['python_version']))} · "
         f"{html.escape(str(info['platform']))} · created "
-        f"{html.escape(str(info['created_utc']))} UTC</p>"
-        f'<nav aria-label="Stages"><ol>{"".join(shown)}</ol></nav>{extra}'
+        f"{html.escape(str(info['created_utc']))} UTC</p></header>"
+        f'<nav aria-label="Stages"><ol>{"".join(shown)}</ol></nav>'
+        f'<main id="content" tabindex="-1">{extra}'
         + "".join(sections)
-        + "<footer>Generated by probstat.workflow.UQStudy. Every number is "
-        f"reproducible from the root seed {study.root_seed} and the stream seeds "
-        "shown.</footer>"
-        "</main></body></html>"
+        + "</main><footer>Generated by probstat.workflow.UQStudy. Every number "
+        f"is reproducible from the root seed {study.root_seed} and the stream "
+        "seeds shown.</footer></body></html>"
     )
 
 

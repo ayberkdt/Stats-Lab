@@ -3,7 +3,57 @@
 A degree-8 Legendre PCE is trained on a Latin-hypercube design, validated on
 unseen points, and its coefficients give Sobol indices analytically. The same
 emulator is then plugged back into a ProbabilisticModel and a UQStudy, so
-every forward analysis can run on it.
+every forward analysis can run on it. Run with
+``PYTHONPATH=src python examples/surrogate_lab.py``; the parity and Sobol
+figures are written to ``examples/generated/``.
+
+Definitions:
+    ``y = f(x1, x2, x3)``: Ishigami output with ``a = 7`` and ``b = 0.1``.
+    ``Psi_alpha``: tensor products of orthonormal Legendre polynomials in the
+        inputs mapped to ``[-1, 1]``, total degree at most 8 (165 terms).
+    ``c_alpha``: PCE coefficients fitted by least squares on 600 design
+        points.
+    ``epsilon_LOO``: leave-one-out error relative to the output variance.
+
+Assumptions:
+    - The inputs are independent and uniform on ``[-pi, pi]``, so the
+      Legendre basis is orthonormal under the input law and the coefficient
+      sums give the moments and Sobol indices exactly for the emulator.
+    - A degree-8 polynomial approximates the smooth Ishigami function well;
+      the indices are those of the emulator, not of the function.
+
+Equations:
+    EQ-UQ-001: the named forward model ``y = f(x)``.
+    EQ-SAMP-INV-001: unit-cube design mapped through the input quantiles.
+    EQ-SUR-PCE-001: polynomial chaos expansion of the output.
+    EQ-SUR-PCE-003: orthonormal Legendre recurrence.
+    EQ-SUR-PCE-004: total-degree truncation of the multi-index set.
+    EQ-SUR-PCE-005: least-squares coefficients.
+    EQ-SUR-PCE-006: closed-form leave-one-out error.
+    EQ-SUR-PCE-007: mean and variance from the coefficients.
+    EQ-SUR-PCE-008: Sobol indices from the coefficients.
+
+Diagnostics:
+    - The leave-one-out error (about ``1e-3``) estimates the generalization
+      error without extra runs.
+    - The parity plot on 400 independent validation points.
+    - Moments and indices printed next to the exact values (mean 3.5,
+      variance 13.8446, analytic Sobol indices).
+
+Cost and error:
+    - 600 true-model runs train the emulator; 400 more validate it. The
+      ``UQStudy.emulate`` stage spends another 600 true-model runs, and its
+      16 384-point Sobol propagation runs on the emulator only.
+    - The emulator error shows in the PCE variance, which is 0.3% below the
+      exact value; the exceedance probability ``P(y > 10)`` inherits both
+      emulator error and quasi-Monte Carlo error.
+
+References:
+    REF-SUDRET-2008: Sobol indices from polynomial chaos.
+    REF-BLATMAN-SUDRET-2011: least-squares and sparse PCE with LOO error.
+    REF-SALTELLI-2008: the Ishigami benchmark.
+    REF-SUDRET-2007: surrogates in uncertainty propagation.
+
 """
 
 from __future__ import annotations
@@ -23,6 +73,8 @@ from probstat.workflow import UQStudy
 
 ANALYTIC_FIRST = (0.3139, 0.4424, 0.0)
 ANALYTIC_TOTAL = (0.5576, 0.4424, 0.2437)
+# Seed of the PCE training design and root seed of the study.
+SEED = 2026
 
 
 def ishigami(parameters: Mapping[str, float]) -> Mapping[str, float]:
@@ -61,7 +113,7 @@ def main() -> None:
         inputs, ishigami, (QuantityOfInterest("y", "Ishigami output"),), name="ishigami"
     )
     expansion = fit_polynomial_chaos(
-        model, "y", degree=8, basis="legendre", size=600, seed=2026
+        model, "y", degree=8, basis="legendre", size=600, seed=SEED
     )
     print(f"terms={expansion.size}, training runs={len(expansion.design)}")
     print(f"leave-one-out error={expansion.loo_error:.3e}")
@@ -90,7 +142,7 @@ def main() -> None:
     save_figure(axes.figure, output / "surrogate-sobol.png")
     plt.close(axes.figure)
 
-    study = UQStudy(model, seed=2026, name="ishigami")
+    study = UQStudy(model, seed=SEED, name="ishigami")
     emulated = study.emulate("y", method="pce", degree=8, size=600)
     forward = emulated.propagate(16_384, design="sobol")
     print(

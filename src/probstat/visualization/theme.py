@@ -110,8 +110,11 @@ TITLE_SIZE = 13.0
 SUBTITLE_SIZE = 10.0
 LABEL_SIZE = 9.5
 TICK_SIZE = 9.0
-ANNOTATION_SIZE = 8.5
-SOURCE_SIZE = 7.5
+# Smallest text on any figure: 9 pt, the floor for figures read on screen
+# (ADR-0083); direct labels and source notes use it.
+ANNOTATION_SIZE = 9.0
+SOURCE_SIZE = 9.0
+CANVAS_MARGIN_INCHES = 0.08
 
 LINE_WIDTH = 2.0
 REFERENCE_WIDTH = 1.2
@@ -968,28 +971,142 @@ def sequential_colormap(palette: ChartPalette | None = None) -> Any:
     return LinearSegmentedColormap.from_list("probstat-sequential", list(ramp))
 
 
-def save_figure(figure: Any, path: str | Path, *, dpi: int = 200) -> Path:
+def _wrap_wide_titles(figure: Any, renderer: Any) -> None:
+    """Break axes titles that are wider than the figure into several lines.
+
+    A title keeps its words in order; the line length in characters is the
+    title length scaled by the ratio of the available width to the measured
+    width, so the wrapped title fits the canvas.
+
+    Args:
+        figure: Matplotlib figure, drawn once so text extents are known.
+        renderer: Renderer used to measure text.
+
+    References:
+        [REF-PROBSTAT-REPORTING], [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    import textwrap
+
+    width = figure.bbox.width
+    for ax in figure.axes:
+        for name in ("_left_title", "title", "_right_title"):
+            text = getattr(ax, name, None)
+            if text is None or not text.get_text() or not text.get_visible():
+                continue
+            extent = text.get_window_extent(renderer)
+            available = width - max(0.0, extent.x0) - 4.0
+            if extent.width <= available or available <= 0.0:
+                continue
+            content = " ".join(text.get_text().split())
+            characters = max(12, int(len(content) * available / extent.width) - 1)
+            text.set_text(textwrap.fill(content, width=characters))
+
+
+def fit_text_to_canvas(figure: Any) -> None:
+    """Enlarge the canvas so every visible artist lies inside the figure box.
+
+    Saving with tight bounds keeps text that sticks out of the figure, but the
+    figure itself still reports text outside its box, and a later save with
+    other bounds would cut it. Titles wider than the figure are wrapped first;
+    any remaining overflow grows the canvas by the overflow plus a small
+    margin while every axes, figure text, and figure legend keeps its size
+    and its position relative to the plotted data.
+
+    Args:
+        figure: Matplotlib figure; modified in place.
+
+    References:
+        [REF-PROBSTAT-REPORTING], [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    figure.canvas.draw()
+    renderer = figure.canvas.get_renderer()
+    _wrap_wide_titles(figure, renderer)
+    figure.canvas.draw()
+    if figure.get_layout_engine() is not None:
+        # Freeze the computed layout so the moves below are not undone.
+        figure.set_layout_engine("none")
+    tight = figure.get_tightbbox(renderer)
+    if tight is None:
+        return
+    width, height = (float(value) for value in figure.get_size_inches())
+    margin = CANVAS_MARGIN_INCHES
+    left = max(0.0, margin - tight.x0)
+    bottom = max(0.0, margin - tight.y0)
+    right = max(0.0, tight.x1 + margin - width)
+    top = max(0.0, tight.y1 + margin - height)
+    if left == bottom == right == top == 0.0:
+        return
+    new_width = width + left + right
+    new_height = height + bottom + top
+
+    def moved(x: float, y: float) -> tuple[float, float]:
+        """Map a figure fraction on the old canvas to the new canvas.
+
+        References:
+            [REF-MATPLOTLIB]. No equation is evaluated.
+
+        """
+        return (x * width + left) / new_width, (y * height + bottom) / new_height
+
+    for ax in figure.axes:
+        box = ax.get_position()
+        x0, y0 = moved(box.x0, box.y0)
+        ax.set_position(
+            (x0, y0, box.width * width / new_width, box.height * height / new_height)
+        )
+    for text in figure.texts:
+        if text.get_transform() == figure.transFigure:
+            text.set_position(moved(*text.get_position()))
+    figure.set_size_inches(new_width, new_height, forward=True)
+    figure.canvas.draw()
+
+
+def save_figure(
+    figure: Any,
+    path: str | Path,
+    *,
+    dpi: int = 200,
+    description: str | None = None,
+) -> Path:
     """Save a figure with the theme canvas, tight bounds, and padding.
+
+    The file carries a text alternative (ADR-0078): PNG and SVG files get
+    ``Title`` and ``Description`` metadata, PDF files ``Title`` and
+    ``Subject``. The text is generated from the figure's titles, subtitle,
+    and axes by :func:`probstat.visualization.accessibility.describe_figure`
+    unless ``description`` is given.
 
     Args:
         figure: Matplotlib figure.
         path: Destination file path; parent directories are created.
         dpi: Output resolution.
+        description: Text alternative to store instead of the generated one.
 
     Returns:
         The written path.
 
     References:
-        [REF-MATPLOTLIB]. No equation is evaluated.
+        [REF-MATPLOTLIB], [REF-PNG-SPEC-2003], [REF-W3C-WCAG21-2018].
+        No equation is evaluated.
 
     """
+    from .accessibility import image_metadata
+
+    fit_text_to_canvas(figure)
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
+    metadata = image_metadata(figure, destination)
+    if metadata is not None and description is not None:
+        key = "Subject" if "Subject" in metadata else "Description"
+        metadata[key] = " ".join(description.split())
     figure.savefig(
         destination,
         dpi=dpi,
         facecolor=figure.get_facecolor(),
         bbox_inches="tight",
         pad_inches=0.25,
+        metadata=metadata,
     )
     return destination

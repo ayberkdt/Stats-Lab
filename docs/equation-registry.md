@@ -13312,3 +13312,33 @@ pseudo-BMA+: `a ~ Dirichlet(1, ..., 1)`, `z_k = n sum_i a_i log p_k,-i(y_i)`,
   `inference.AmortizedGaussianPosterior`.
 - Source: [REF-PAPAMAKARIOS-MURRAY-2016, Proposition 1, Section 2.3, and
   Algorithm 2], trained with [EQ-OPT-ADAM-002].
+
+## Accessibility of figures and reports
+
+### EQ-VIZ-WCAG-001 — Relative luminance of an sRGB colour
+
+`L = 0.2126 R + 0.7152 G + 0.0722 B`, where each channel `C` in
+`{R, G, B}` is linearized from its 8-bit value `C8` by `c = C8 / 255` and
+`C = c / 12.92` if `c <= 0.03928`, otherwise `C = ((c + 0.055) / 1.055)^2.4`.
+
+- Domain: sRGB colours given as `#RRGGBB` tokens; `0 <= L <= 1`, black 0,
+  white 1.
+- Meaning: the luminance weight of a colour under the sRGB primaries. The
+  threshold `0.03928` is the value written in WCAG 2.1; the sRGB standard
+  uses `0.04045`, and no 8-bit channel value lies between the two, so both
+  give the same result.
+- Code: `visualization.accessibility.relative_luminance`.
+- Source: [REF-W3C-WCAG21-2018, definition "relative luminance"].
+
+### EQ-VIZ-WCAG-002 — Contrast ratio of two colours
+
+`CR = (L1 + 0.05) / (L2 + 0.05)`, with `L1` the larger and `L2` the smaller
+relative luminance [EQ-VIZ-WCAG-001] of the two colours.
+
+- Domain: two sRGB colours; `1 <= CR <= 21`, symmetric in its arguments.
+- Meaning: legibility of text or marks on a background. Level AA requires
+  at least 4.5 for body text (success criterion 1.4.3), 3 for large text,
+  and 3 for graphical objects such as plotted lines (criterion 1.4.11).
+- Code: `visualization.accessibility.contrast_ratio`,
+  `visualization.accessibility.palette_contrast`.
+- Source: [REF-W3C-WCAG21-2018, definition "contrast ratio"].

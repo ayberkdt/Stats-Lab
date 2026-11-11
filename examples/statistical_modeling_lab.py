@@ -4,7 +4,77 @@ Four classical tasks on seeded synthetic data, each with its diagnostic
 figure: three suppliers' strength distributions compared as violins with
 box plots, a multiple regression with residual diagnostics, an AR(2) series
 identified from its correlogram and forecast with exact intervals, and two
-Kaplan-Meier survival curves compared by the log-rank test.
+Kaplan-Meier survival curves compared by the log-rank test. Run with
+``PYTHONPATH=src python examples/statistical_modeling_lab.py``; the figures
+are written to ``examples/generated/``.
+
+Definitions:
+    supplier strengths: 150 tensile strengths per supplier (normal, shifted
+        lognormal, and a 70/30 normal mixture), checked against a 49 MPa
+        lower specification limit.
+    ``y = b0 + b1 x1 + b2 x2 + e``: the regression model, true coefficients
+        ``(2, 0.8, -1.5)`` and unit noise standard deviation.
+    AR(2): ``x_t = 0.6 x_(t-1) - 0.3 x_(t-2) + e_t``, 300 observations.
+    ``S(t)``: survival function of Weibull lifetimes (shape 1.5, scales 5
+        and 8) under uniform censoring on ``[2, 12]``.
+
+Assumptions:
+    - Regression errors are independent, homoscedastic, and normal, as the
+      t-based standard errors require.
+    - The simulated series is stationary and Gaussian, so the exact Kalman
+      likelihood and the Gaussian forecast intervals apply.
+    - Censoring is independent of the lifetimes (non-informative), as
+      Kaplan-Meier and the log-rank test require.
+    - Each task uses its own child stream of the root seed, so the tasks do
+      not share random numbers.
+
+Equations:
+    EQ-RNG-SPLITMIX-001: derivation of the four child streams.
+    EQ-STAT-KDE-001: kernel density of the violins.
+    EQ-STAT-QUANT-001: quartiles of the box plots.
+    EQ-LM-OLS-001: least-squares coefficients.
+    EQ-LM-INF-001: coefficient standard errors.
+    EQ-LM-DIAG-002: studentized residuals in the diagnostics figure.
+    EQ-TS-SIM-001: ARMA simulation recursion.
+    EQ-TS-ACF-001: sample autocorrelation.
+    EQ-TS-PACF-001: partial autocorrelation by Durbin-Levinson.
+    EQ-TS-BAND-001: white-noise correlogram band.
+    EQ-TS-LIK-001: exact ARMA likelihood maximized by ``fit_arima``.
+    EQ-INF-IC-001: AIC of the AR(2) fit.
+    EQ-TS-FC-001: exact multi-step forecast and interval.
+    EQ-SURV-KM-001: Kaplan-Meier product-limit estimator.
+    EQ-SURV-KM-002: Greenwood variance.
+    EQ-SURV-KM-003: log-log pointwise interval of the survival curves.
+    EQ-SURV-LR-001: log-rank statistic.
+
+Diagnostics:
+    - Counts below the specification limit per supplier, read with the
+      violin shapes (the mixture of Supplier C has the heaviest lower tail).
+    - Studentized residuals against fitted values for the regression; the
+      estimates can be compared with the true coefficients.
+    - The PACF cutting off after lag 2 identifies the AR order; the fitted
+      coefficients can be compared with ``(0.6, -0.3)``.
+    - The log-rank statistic and the separated survival curves with their
+      pointwise intervals.
+
+Cost and error:
+    - No model evaluations beyond the fits; all error is sampling error of
+      the synthetic data. Regression and AR coefficients are printed with
+      their standard errors; the survival intervals are pointwise 95%.
+    - The white-noise band is pointwise, so about one lag in twenty crosses
+      it by chance.
+
+References:
+    REF-HINTZE-NELSON-1998: violin plots.
+    REF-SILVERMAN-1986: kernel density estimation.
+    REF-MONTGOMERY-PECK-VINING-2021: linear regression analysis.
+    REF-BROCKWELL-DAVIS-2016: time series and forecasting.
+    REF-BOX-JENKINS-2015: ARIMA identification and estimation.
+    REF-KAPLAN-MEIER-1958: product-limit estimator.
+    REF-GREENWOOD-1926: Greenwood variance.
+    REF-MANTEL-1966: log-rank test.
+    REF-KLEIN-MOESCHBERGER-2003: survival analysis.
+
 """
 
 from __future__ import annotations
@@ -32,6 +102,9 @@ from probstat.visualization.statistics_plots import (
     plot_survival_curves,
 )
 
+# Root seed; each task draws from its own child stream.
+SEED = 2026
+
 
 def main() -> None:
     """Fit the three models and write their figures.
@@ -45,7 +118,7 @@ def main() -> None:
     import matplotlib.pyplot as plt
 
     output = Path(__file__).parent / "generated"
-    root = RandomStream(2026)
+    root = RandomStream(SEED)
 
     rng = root.child("suppliers").generator()
     strengths = {
