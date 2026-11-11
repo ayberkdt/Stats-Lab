@@ -17,6 +17,7 @@ from .gauss_kronrod import gauss_kronrod
 from .gradient_oracle import GRADIENT_OPTIONS, GradientEvaluator
 from .integration import integrate
 from .integration_result import IntegrationResult
+from .networks import ACTIVATIONS, MLP
 from .quadrature import QuadratureResult, composite_simpson, composite_trapezoid
 from .reverse_autodiff import (
     NonDifferentiableError,
@@ -42,6 +43,8 @@ __all__ = [
     "QuadratureResult",
     "ReverseVariable",
     "admath",
+    "ACTIVATIONS",
+    "MLP",
     "composite_simpson",
     "composite_trapezoid",
     "derivative",

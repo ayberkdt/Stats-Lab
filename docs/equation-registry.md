@@ -12224,3 +12224,44 @@ symmetrized, `(H + H')/2`.
   `numerics.reverse_value_gradient_and_hessian`,
   `numerics.hessian_vector_product`, `inference.laplace_approximation`.
 - Source: [REF-GRIEWANK-WALTHER-2008, Chapter 5], [REF-PEARLMUTTER-1994].
+
+## Neural building blocks and stochastic optimization
+
+### EQ-NN-MLP-001 — Multilayer perceptron
+
+`h_0 = x`, `h_l = sigma_l(W_l h_{l-1} + b_l)` for `l = 1, ..., L`, with
+`sigma_L` the output activation (identity by default); the network output is
+`h_L`. Parameters `(W_1, b_1, ..., W_L, b_L)` are stored as one flat vector.
+
+- Domain: real inputs of the declared width; activations `tanh`, logistic
+  sigmoid `(1 + tanh(z/2))/2`, softplus `max(z, 0) + log1p(exp(-|z|))`, or
+  identity.
+- Meaning: a smooth parametric function class; with reverse-mode
+  differentiation of a scalar loss its gradient costs a small multiple of one
+  evaluation.
+- Code: `numerics.MLP`.
+- Source: [REF-GOODFELLOW-BENGIO-COURVILLE-2016, Sections 6.1 and 6.3].
+
+### EQ-NN-GLOROT-001 — Normalized (Glorot) uniform initialization
+
+`W_ij ~ U[-r, r]`, `r = sqrt(6 / (n_in + n_out))`, biases zero.
+
+- Domain: a layer with `n_in` inputs and `n_out` outputs.
+- Meaning: keeps the variance of activations and back-propagated gradients
+  roughly constant across layers at initialization.
+- Code: `numerics.MLP.initial_parameters`.
+- Source: [REF-GLOROT-BENGIO-2010, Equation 16].
+
+### EQ-OPT-ADAM-002 — Adam descent step
+
+`m_t = b1 m_{t-1} + (1 - b1) g_t`, `v_t = b2 v_{t-1} + (1 - b2) g_t^2`,
+`theta_t = theta_{t-1} - alpha (m_t / (1 - b1^t)) / (sqrt(v_t / (1 - b2^t)) + eps)`;
+optionally the reported parameters average the iterates of the final
+fraction of the iterations.
+
+- Domain: stochastic gradients `g_t` of the objective to minimize;
+  `0 <= b1, b2 < 1`, `alpha, eps > 0`.
+- Meaning: the minimization form of [EQ-OPT-ADAM-001]; tail averaging
+  reduces the noise a constant step leaves around the optimum.
+- Code: `optimization.adam_minimize`.
+- Source: [REF-KINGMA-BA-2015, Algorithm 1] and [REF-POLYAK-JUDITSKY-1992].

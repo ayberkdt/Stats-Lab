@@ -2778,3 +2778,17 @@ Survey." *Journal of Machine Learning Research* 18(153), 1-43, 2018.
 Barak A. Pearlmutter. "Fast Exact Multiplication by the Hessian." *Neural
 Computation* 6(1), 147-160, 1994.
 DOI: [10.1162/neco.1994.6.1.147](https://doi.org/10.1162/neco.1994.6.1.147).
+
+## REF-GOODFELLOW-BENGIO-COURVILLE-2016
+
+Ian Goodfellow, Yoshua Bengio, and Aaron Courville. *Deep Learning*. MIT
+Press, 2016. ISBN 978-0-262-03561-3.
+[https://www.deeplearningbook.org](https://www.deeplearningbook.org).
+
+## REF-GLOROT-BENGIO-2010
+
+Xavier Glorot and Yoshua Bengio. "Understanding the Difficulty of Training
+Deep Feedforward Neural Networks." In *Proceedings of the Thirteenth
+International Conference on Artificial Intelligence and Statistics
+(AISTATS)*, Proceedings of Machine Learning Research 9, 249-256, 2010.
+[https://proceedings.mlr.press/v9/glorot10a.html](https://proceedings.mlr.press/v9/glorot10a.html).

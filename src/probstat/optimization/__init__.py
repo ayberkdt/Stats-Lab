@@ -17,13 +17,16 @@ from .solvers import (
     minimize_nelder_mead,
     multi_start,
 )
+from .stochastic import AdamResult, adam_minimize
 
 __all__ = [
+    "AdamResult",
     "BoxTransform",
     "MultiStartResult",
     "LeastSquaresResult",
     "OptimizationResult",
     "RootResult",
+    "adam_minimize",
     "brent_root",
     "central_gradient",
     "central_hessian",
