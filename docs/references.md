@@ -2766,3 +2766,15 @@ proposition, and theorem numbers follow arXiv:1703.01717.
 
 Damien Garreau, Wittawat Jitkrittum, and Motonobu Kanagawa. "Large Sample
 Analysis of the Median Heuristic." arXiv:1707.07269, 2017.
+
+## REF-BAYDIN-ETAL-2018
+
+Atılım Güneş Baydin, Barak A. Pearlmutter, Alexey Andreyevich Radul, and
+Jeffrey Mark Siskind. "Automatic Differentiation in Machine Learning: a
+Survey." *Journal of Machine Learning Research* 18(153), 1-43, 2018.
+
+## REF-PEARLMUTTER-1994
+
+Barak A. Pearlmutter. "Fast Exact Multiplication by the Hessian." *Neural
+Computation* 6(1), 147-160, 1994.
+DOI: [10.1162/neco.1994.6.1.147](https://doi.org/10.1162/neco.1994.6.1.147).

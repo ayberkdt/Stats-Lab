@@ -103,18 +103,47 @@ Numerical failures inside the model, such as `Normal(0, 0)` built from a
 latent value, are mapped to `-inf`. Every sampler reads `-inf` as "outside
 the support". `terms(u)` lets the exception through, for debugging.
 
-**Gradients.** `ModelIR.gradient(u)` uses central differences
-([EQ-OPT-FD-001]): two model executions per coordinate. NUTS and HMC compute
-the same approximation internally.
+**Gradients.** NUTS, HMC, ADVI and the Laplace mode search need
+`grad log p(u)`. The PPL takes it by automatic differentiation whenever the
+program is *traceable*, and by central differences ([EQ-OPT-FD-001], two
+model executions per coordinate) otherwise. The method and the reason for a
+fallback are recorded in `posterior.gradient_method` and
+`posterior.gradient_fallback_reason`.
 
-Exact gradients would need dual numbers to survive the distribution
-constructors, which convert parameters to `float`. So exact gradients are
-not offered (ADR-0053). Leapfrog stays volume-preserving and reversible
-with an approximate force, so the approximation costs efficiency, not
-correctness. Cost is the practical limit. The eight-schools test run
-(two chains of 150 warm-up and 150 kept draws) needed 5 610 gradients,
-which is 117 810 model executions. That took 7-11 s on the development
-machine, at about 75 µs per execution.
+*Reverse mode* (ADR-0069, the PPL default). The model is executed once on
+`probstat.numerics.ReverseVariable` inputs. Every arithmetic operation and
+every `probstat.numerics.admath` function appends a node to a tape: the
+indices of its operands and its local partial derivatives `c_ij`. One
+backward sweep from `ubar = 1` then accumulates `vbar_j += vbar_i c_ij` in
+reverse order ([EQ-AD-REVERSE-001]); the adjoints of the inputs are the
+gradient, exact up to rounding. The work of the sweep is a small multiple of
+the work of one evaluation, whatever the dimension
+([REF-GRIEWANK-WALTHER-2008, Chapters 3 and 4], [REF-BAYDIN-ETAL-2018,
+Section 3.2]). Recording the tape on dual numbers and sweeping once gives the
+Hessian used by `laplace` (forward over reverse, [EQ-AD-FOR-001],
+[REF-PEARLMUTTER-1994]).
+
+*Forward mode* (`gradient="autodiff"` or `"forward"`, ADR-0065) carries a
+length-`d` tangent through every operation ([EQ-AD-DUAL-001]). It also needs
+one model execution per gradient, but its arithmetic grows with `d`. For a
+100-coordinate Gaussian log-density one reverse gradient cost 34-61 float
+evaluations against 246-422 for forward mode and 152-262 for central
+differences (200 model executions); at `d = 10` the three were 56-57, 80-87
+and 50-55 (ADR-0069, Verification). The saving that does not depend on the
+machine is the number of model executions: one instead of `2 d + 1`.
+
+*Traceable programs.* Model code and distribution objects must use
+operators and `admath` rather than `math` or `float()`. The distribution
+classes of `probstat.distributions` validate their parameters as floats, so
+`Normal(mu, 1.0)` with a latent `mu` is not traceable and the run falls back
+to central differences (reason "mu must be a real number"). Constant-
+parameter priors such as `Normal(0.0, 10.0)` are traceable (their density is
+inlined), and so are duck-typed distributions whose `log_pdf` uses
+`admath`. Leapfrog stays volume-preserving and reversible with an
+approximate force, so a fallback costs efficiency, not correctness. The
+eight-schools test run (two chains of 150 warm-up and 150 kept draws) falls
+back and needed 5 610 gradients, which is 117 810 model executions. That
+took 7-11 s on the development machine, at about 75 µs per execution.
 
 ## 3. Inference
 
@@ -238,9 +267,11 @@ For eight schools (lab, half-Cauchy prior):
 
 ## 5. Limitations
 
-- Gradients come from finite differences, so each gradient costs `2d + 1`
-  model executions. The interface suits models with up to a few tens of
-  parameters.
+- Programs built from the library distribution classes with latent
+  parameters are not traceable; their gradients come from finite
+  differences, so each gradient costs `2d + 1` model executions and such
+  models suit up to a few tens of parameters. Traceable programs take one
+  reverse-mode execution per gradient.
 - Sites are scalars or flat vectors. There are no matrix-shaped sites,
   plates, discrete-latent enumeration, or mixture marginalization.
 - The site structure must be static.
@@ -259,5 +290,9 @@ For eight schools (lab, half-Cauchy prior):
 - [REF-PAPASPILIOPOULOS-ROBERTS-SKOLD-2007] Centred and non-centred
   parameterizations.
 - [REF-KUCUKELBIR-ETAL-2017] ADVI on the unconstrained space.
+- [REF-GRIEWANK-WALTHER-2008] Forward and reverse mode (Chapters 3 and 4),
+  second-order adjoints (Chapter 5).
+- [REF-BAYDIN-ETAL-2018] Survey of forward and reverse mode (Section 3).
+- [REF-PEARLMUTTER-1994] Exact Hessian-vector products.
 - [REF-GELMAN-ETAL-2013] BDA3, Chapters 5 (eight schools) and 6 (predictive
   checks).

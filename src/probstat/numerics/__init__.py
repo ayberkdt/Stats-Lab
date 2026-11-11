@@ -3,7 +3,6 @@
 from .autodiff import (
     AutodiffUnsupportedError,
     Dual,
-    GradientEvaluator,
     admath,
     derivative,
     gradient,
@@ -15,18 +14,33 @@ from .autodiff import (
 from .de_transforms import exp_sinh, sinh_sinh, tanh_sinh_interval
 from .double_exponential import DEQuadrature, tanh_sinh
 from .gauss_kronrod import gauss_kronrod
+from .gradient_oracle import GRADIENT_OPTIONS, GradientEvaluator
 from .integration import integrate
 from .integration_result import IntegrationResult
 from .quadrature import QuadratureResult, composite_simpson, composite_trapezoid
+from .reverse_autodiff import (
+    NonDifferentiableError,
+    ReverseVariable,
+    hessian_vector_product,
+    reverse_gradient,
+    reverse_hessian,
+    reverse_jacobian,
+    reverse_value_and_gradient,
+    reverse_value_gradient_and_hessian,
+    vector_jacobian_product,
+)
 from .special import digamma, log_minus_digamma, trigamma
 
 __all__ = [
     "AutodiffUnsupportedError",
     "DEQuadrature",
     "Dual",
+    "GRADIENT_OPTIONS",
     "GradientEvaluator",
     "IntegrationResult",
+    "NonDifferentiableError",
     "QuadratureResult",
+    "ReverseVariable",
     "admath",
     "composite_simpson",
     "composite_trapezoid",
@@ -36,13 +50,20 @@ __all__ = [
     "gauss_kronrod",
     "gradient",
     "hessian",
+    "hessian_vector_product",
     "integrate",
     "jacobian",
     "log_minus_digamma",
+    "reverse_gradient",
+    "reverse_hessian",
+    "reverse_jacobian",
+    "reverse_value_and_gradient",
+    "reverse_value_gradient_and_hessian",
     "sinh_sinh",
     "tanh_sinh",
     "tanh_sinh_interval",
     "trigamma",
     "value_and_gradient",
     "value_gradient_and_hessian",
+    "vector_jacobian_product",
 ]

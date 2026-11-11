@@ -29,8 +29,10 @@ Approximation
     :func:`laplace_approximation` finds the mode by BFGS and uses the inverse
     Hessian of ``-log p`` as a Gaussian covariance; gradient and Hessian come
     from forward-mode automatic differentiation when the log-density accepts
-    :class:`~probstat.numerics.Dual` numbers, and from finite differences
-    otherwise (recorded in ``gradient_method`` and ``hessian_method``).
+    :class:`~probstat.numerics.Dual` numbers (or from reverse mode and the
+    forward-over-reverse Hessian with ``gradient="reverse"`` or
+    ``"auto-reverse"``), and from finite differences otherwise (recorded in
+    ``gradient_method`` and ``hessian_method``).
 """
 
 from __future__ import annotations
@@ -60,8 +62,12 @@ from probstat.linalg import (
     symmetrize,
 )
 from probstat.numerics import (
+    GRADIENT_OPTIONS,
     AutodiffUnsupportedError,
     Dual,
+    ReverseVariable,
+    reverse_value_and_gradient,
+    reverse_value_gradient_and_hessian,
     value_and_gradient,
     value_gradient_and_hessian,
 )
@@ -480,11 +486,13 @@ class LaplaceApproximation:
         log_normalizer: Laplace estimate of ``log integral exp(log p)``.
         converged: Whether the BFGS mode search met its tolerance.
         evaluations: Log-density evaluations (search, gradients, Hessian);
-            one dual-number evaluation counts as one.
+            one dual-number or reverse-mode evaluation counts as one.
         optimization: Raw BFGS result.
-        gradient_method: ``"autodiff"``, ``"analytic"``, or
-            ``"finite-difference"`` (gradient used by the mode search).
-        hessian_method: ``"autodiff"`` or ``"finite-difference"``.
+        gradient_method: ``"autodiff"`` (forward mode), ``"reverse"``,
+            ``"analytic"``, or ``"finite-difference"`` (gradient used by the
+            mode search).
+        hessian_method: ``"autodiff"`` (forward over forward), ``"reverse"``
+            (forward over reverse), or ``"finite-difference"``.
         fallback_reason: Why automatic differentiation was not used, if it
             was requested and failed (``None`` otherwise).
 
@@ -1745,13 +1753,18 @@ def laplace_approximation(
     Hessian; the result records the methods and the reason. ``"autodiff"``
     raises instead of falling back, ``"finite-difference"`` never tries
     duals, and a callable is used as the analytic gradient of ``log p`` (the
-    Hessian is then still taken by autodiff when possible).
+    Hessian is then still taken by autodiff when possible). ``"reverse"`` and
+    ``"auto-reverse"`` (with fallback) use the reverse-mode gradient
+    ([EQ-AD-REVERSE-001]) and the forward-over-reverse Hessian
+    ([EQ-AD-FOR-001]), whose cost is about ``d`` gradients instead of the
+    ``d^2`` float evaluations of forward over forward.
 
     Args:
         log_density: Target ``log p(x)`` up to a constant.
         initial: Starting point with finite log-density.
-        gradient: ``"auto"``, ``"autodiff"``, ``"finite-difference"``, an
-            analytic gradient of ``log p``, or ``None`` (same as ``"auto"``).
+        gradient: ``"auto"``, ``"auto-reverse"``, ``"autodiff"``/``"forward"``,
+            ``"reverse"``, ``"finite-difference"``/``"finite"``, an analytic
+            gradient of ``log p``, or ``None`` (same as ``"auto"``).
         relative_step: Finite-difference Hessian step relative to
             ``max(1, |x_i|)``.
         max_iterations: BFGS iteration limit.
@@ -1765,12 +1778,13 @@ def laplace_approximation(
         ValueError: If the start has non-finite density, the option is
             unknown, or the Hessian at the located point is not positive
             definite (no strict local maximum).
-        AutodiffUnsupportedError: With ``gradient="autodiff"`` for a
-            log-density that does not accept duals.
+        AutodiffUnsupportedError: With ``gradient="autodiff"`` (or
+            ``"reverse"``) for a log-density that does not accept duals (or
+            reverse-mode variables).
 
     Equation:
         [EQ-LAPLACE-001], [EQ-OPT-BFGS-001], [EQ-OPT-FD-002], [EQ-AD-DUAL-001],
-        [EQ-AD-HESSIAN-001].
+        [EQ-AD-HESSIAN-001], [EQ-AD-REVERSE-001], [EQ-AD-FOR-001].
 
     References:
         [REF-TIERNEY-KADANE-1986], [REF-GELMAN-ETAL-2013, Section 4.1],
@@ -1787,15 +1801,19 @@ def laplace_approximation(
     option: Callable[[Vector], Sequence[float]] | str = (
         "auto" if gradient is None else gradient
     )
-    if not callable(option) and option not in (
-        "auto",
-        "autodiff",
-        "finite-difference",
-    ):
+    if not callable(option) and option not in GRADIENT_OPTIONS:
         raise ValueError(
-            "gradient must be 'auto', 'autodiff', 'finite-difference', a "
-            "callable, or None"
+            "gradient must be one of "
+            + ", ".join(map(repr, GRADIENT_OPTIONS))
+            + ", a callable, or None"
         )
+    if option == "forward":
+        option = "autodiff"
+    elif option == "finite":
+        option = "finite-difference"
+    reverse = option in ("reverse", "auto-reverse")
+    strict = option in ("autodiff", "reverse")
+    automatic_label = "reverse" if reverse else "autodiff"
     dual_calls = 0
 
     def negative(point: Vector) -> float:
@@ -1818,21 +1836,38 @@ def laplace_approximation(
         dual_calls += 1
         return -log_density(point)  # type: ignore[arg-type]
 
+    def negative_tape(point: tuple[ReverseVariable, ...]) -> object:
+        """Return ``-log p`` on reverse-mode variables (counted).
+
+        References:
+            [EQ-LAPLACE-001], [EQ-AD-REVERSE-001]. No new equation is
+            introduced.
+
+        """
+        nonlocal dual_calls
+        dual_calls += 1
+        return -log_density(point)  # type: ignore[arg-type]
+
     gradient_method = "finite-difference"
     fallback: str | None = None
-    try_duals = option in ("auto", "autodiff") or callable(option)
-    if option in ("auto", "autodiff"):
+    automatic = option in ("auto", "autodiff", "auto-reverse", "reverse")
+    try_duals = automatic or callable(option)
+    if automatic:
         try:
-            value_and_gradient(negative_dual, start)
+            if reverse:
+                reverse_value_and_gradient(negative_tape, start)
+            else:
+                value_and_gradient(negative_dual, start)
         except TypeError as error:
-            if option == "autodiff":
+            if strict:
+                kind = "reverse-mode variables" if reverse else "Dual numbers"
                 raise AutodiffUnsupportedError(
-                    f"log_density does not support Dual numbers: {error}"
+                    f"log_density does not support {kind}: {error}"
                 ) from error
             fallback = f"{type(error).__name__}: {error}"
             try_duals = False
         else:
-            gradient_method = "autodiff"
+            gradient_method = automatic_label
     negative_gradient: Callable[[Vector], Sequence[float]] | None = None
     if callable(option):
         supplied = option
@@ -1858,6 +1893,17 @@ def laplace_approximation(
             """
             return value_and_gradient(negative_dual, point)[1]
 
+    elif gradient_method == "reverse":
+
+        def negative_gradient(point: Vector) -> Sequence[float]:
+            """Return the reverse-mode gradient of ``-log p``.
+
+            References:
+                [EQ-LAPLACE-001], [EQ-AD-REVERSE-001].
+
+            """
+            return reverse_value_and_gradient(negative_tape, point)[1]
+
     optimization = minimize_bfgs(
         negative, start, gradient=negative_gradient, max_iterations=max_iterations
     )
@@ -1867,7 +1913,12 @@ def laplace_approximation(
     used = 0
     if try_duals:
         try:
-            value, _, exact = value_gradient_and_hessian(negative_dual, mode)
+            if reverse:
+                value, _, exact = reverse_value_gradient_and_hessian(
+                    negative_tape, mode
+                )
+            else:
+                value, _, exact = value_gradient_and_hessian(negative_dual, mode)
         except (TypeError, ValueError, ArithmeticError) as error:
             if fallback is None:
                 fallback = f"Hessian: {type(error).__name__}: {error}"
@@ -1876,7 +1927,7 @@ def laplace_approximation(
                 math.isfinite(entry) for row in exact for entry in row
             ):
                 hessian = exact
-                hessian_method = "autodiff"
+                hessian_method = automatic_label
     if hessian is None:
         hessian, used = central_hessian(negative, mode, relative_step=relative_step)
     try:

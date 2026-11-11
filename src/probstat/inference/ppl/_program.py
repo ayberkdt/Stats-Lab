@@ -22,16 +22,19 @@ values (``Uniform(0, theta)``) are handled; the map is lower triangular in
 site order, so the log-Jacobian is the sum of the per-site terms.
 
 Automatic differentiation: density mode is transparent to
-:class:`~probstat.numerics.Dual` numbers (bijections, log-Jacobians, the
-inlined normal density and non-centred sites use
-:class:`~probstat.numerics.admath`), so :meth:`ModelIR.log_density` returns an
-exact forward-mode gradient whenever the *model code and its distribution
-objects* accept duals. The distribution classes of
+:class:`~probstat.numerics.Dual` numbers and to reverse-mode
+:class:`~probstat.numerics.ReverseVariable` values (bijections,
+log-Jacobians, the inlined normal density and non-centred sites use
+:class:`~probstat.numerics.admath`). Whenever the *model code and its
+distribution objects* accept them (the program is traceable), the
+inference entry points take the exact reverse-mode gradient of
+:meth:`ModelIR.log_density`: one model execution recorded on a tape and one
+backward sweep ([EQ-AD-REVERSE-001], ADR-0069). The distribution classes of
 :mod:`probstat.distributions` validate their parameters as floats, so a site
-such as ``Normal(mu, tau)`` with a latent ``mu`` rejects duals; the inference
+such as ``Normal(mu, tau)`` with a latent ``mu`` is not traceable; the
 entry points then fall back to finite differences and record why
-(``gradient_method``). Duck-typed distributions whose ``log_pdf`` uses
-``admath`` are differentiated exactly.
+(``gradient_method``, ``gradient_fallback_reason``). Duck-typed
+distributions whose ``log_pdf`` uses ``admath`` are differentiated exactly.
 
 Floating-point limit: on an interval ``(a, b)`` the map
 ``x = a + (b - a) sigmoid(u)`` rounds to exactly ``b`` once ``u`` exceeds
@@ -53,7 +56,7 @@ from typing import Any, Literal, cast
 from probstat.distributions import Normal, RealSupport
 from probstat.foundations.random_streams import RandomStream
 from probstat.linalg import Vector, as_vector
-from probstat.numerics import Dual, GradientEvaluator, admath
+from probstat.numerics import Dual, GradientEvaluator, ReverseVariable, admath
 from probstat.optimization import central_gradient
 
 SiteKind = Literal["latent", "observed", "deterministic"]
@@ -61,6 +64,7 @@ SiteValue = float | tuple[float, ...]
 Model = Callable[["ModelHandle"], object]
 
 _LOG_SQRT_TWO_PI = 0.5 * math.log(2.0 * math.pi)
+_DIFFERENTIABLE = (Dual, ReverseVariable)
 _NUMERIC_ERRORS = (ValueError, ArithmeticError)
 
 
@@ -380,7 +384,9 @@ def _log_density(distribution: Any, value: Any) -> float:
             "nor log_pmf"
         )
     result = method(value)
-    return result if isinstance(result, Dual) else float(result)  # type: ignore[return-value]
+    if isinstance(result, _DIFFERENTIABLE):
+        return result  # type: ignore[return-value]
+    return float(result)
 
 
 def _draw(distribution: Any, generator: random.Random) -> Any:
@@ -1023,7 +1029,8 @@ class ModelHandle:
         if isinstance(value, Sequence) and not isinstance(value, str):
             try:
                 elements = tuple(
-                    v if density and isinstance(v, Dual) else float(v) for v in value
+                    v if density and isinstance(v, _DIFFERENTIABLE) else float(v)
+                    for v in value
                 )
             except (TypeError, ValueError):
                 raise ModelSpecificationError(
@@ -1035,7 +1042,7 @@ class ModelHandle:
                 raise ModelSpecificationError(
                     f"deterministic site {site!r} must be non-empty"
                 )
-        elif density and isinstance(value, Dual):
+        elif density and isinstance(value, _DIFFERENTIABLE):
             packed = value  # type: ignore[assignment]
             size = None
         else:
@@ -1344,8 +1351,9 @@ class ModelIR:
         automatic differentiation can fall back to finite differences.
 
         Args:
-            u: Unconstrained vector of floats, or of duals for forward-mode
-                differentiation (the result is then a dual).
+            u: Unconstrained vector of floats, or of duals (forward mode) or
+                reverse-mode variables (the result is then of the same
+                kind).
 
         Returns:
             Finite log-density or ``-inf``.
@@ -1377,10 +1385,12 @@ class ModelIR:
     ) -> Vector:
         """Return the gradient of :meth:`log_density`.
 
-        ``method="auto"`` (default) runs the model once on dual numbers
-        (exact forward-mode gradient) and falls back to central differences
-        when the model rejects duals; ``"autodiff"`` raises instead of
-        falling back; ``"finite-difference"`` uses central differences only,
+        ``method="auto"`` (default) records the model once on a
+        reverse-mode tape (exact gradient from one backward sweep) and
+        falls back to central differences when the program is not
+        traceable; ``"reverse"`` raises instead of falling back;
+        ``"autodiff"``/``"forward"`` uses forward-mode dual numbers (no
+        fallback); ``"finite-difference"`` uses central differences only,
         two model executions per component with step
         ``h_i = relative_step * max(1, |u_i|)`` and truncation error
         ``O(h^2)``.
@@ -1388,7 +1398,8 @@ class ModelIR:
         Args:
             u: Unconstrained vector with finite log-density nearby.
             relative_step: Relative finite-difference step.
-            method: ``"auto"``, ``"autodiff"``, or ``"finite-difference"``.
+            method: ``"auto"`` (reverse mode with fallback), any other
+                :data:`~probstat.numerics.GRADIENT_OPTIONS` entry.
 
         Returns:
             Gradient.
@@ -1396,11 +1407,11 @@ class ModelIR:
         Raises:
             ValueError: If the log-density (or a perturbed point) is not
                 finite, or the method is unknown.
-            AutodiffUnsupportedError: For ``"autodiff"`` on a model that does
-                not accept duals.
+            AutodiffUnsupportedError: For ``"autodiff"`` or ``"reverse"`` on a
+                model that is not traceable.
 
         Equation:
-            [EQ-OPT-FD-001], [EQ-AD-DUAL-001].
+            [EQ-OPT-FD-001], [EQ-AD-DUAL-001], [EQ-AD-REVERSE-001].
 
         References:
             [REF-NOCEDAL-WRIGHT-2006, Section 8.1],
@@ -1417,8 +1428,13 @@ class ModelIR:
     ) -> GradientEvaluator:
         """Return a gradient oracle for :meth:`log_density`.
 
+        ``"auto"`` (and ``None``) mean reverse mode with a
+        finite-difference fallback (``"auto-reverse"`` of
+        :class:`~probstat.numerics.GradientEvaluator`).
+
         Args:
-            method: ``"auto"``, ``"autodiff"``, ``"finite-difference"``, or a
+            method: ``"auto"``, a
+                :data:`~probstat.numerics.GRADIENT_OPTIONS` entry, or a
                 callable gradient.
             relative_step: Relative finite-difference step.
 
@@ -1430,7 +1446,7 @@ class ModelIR:
             ValueError: If the method is unknown.
 
         Equation:
-            [EQ-OPT-FD-001], [EQ-AD-DUAL-001].
+            [EQ-OPT-FD-001], [EQ-AD-DUAL-001], [EQ-AD-REVERSE-001].
 
         References:
             [REF-GRIEWANK-WALTHER-2008, Chapter 3].
@@ -1451,7 +1467,7 @@ class ModelIR:
 
         return GradientEvaluator(
             self.log_density,
-            method,  # type: ignore[arg-type]
+            ppl_gradient_option(method),  # type: ignore[arg-type]
             finite_difference=finite_difference,
         )
 
@@ -1546,6 +1562,28 @@ class ModelIR:
             "could not find a starting point with finite log-density; check the "
             "data and the priors (ModelIR.terms shows the failing term)"
         )
+
+
+def ppl_gradient_option(option: object) -> object:
+    """Map the PPL gradient option to the engine option.
+
+    ``"auto"`` and ``None`` become ``"auto-reverse"`` (reverse mode with a
+    finite-difference fallback); every other value is passed on unchanged.
+
+    Args:
+        option: Gradient option given to a PPL entry point.
+
+    Returns:
+        The option for :class:`~probstat.numerics.GradientEvaluator` and
+        the samplers.
+
+    References:
+        [REF-GRIEWANK-WALTHER-2008, Chapter 3]. No equation is evaluated.
+
+    """
+    if option is None or option == "auto":
+        return "auto-reverse"
+    return option
 
 
 def flatten(values: Mapping[str, SiteValue], sites: Sequence[SiteInfo]) -> Vector:

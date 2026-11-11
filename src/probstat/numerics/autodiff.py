@@ -35,6 +35,14 @@ Status and limits (ADR-0065, experimental inside a stable package)
       evaluation in this pure-Python implementation, but makes a *single* call
       of the user function. The Hessian costs about ``d^2`` times a float
       evaluation.
+
+Reverse mode (ADR-0069)
+    :mod:`probstat.numerics.reverse_autodiff` records the same programs on a
+    tape and returns the gradient from one backward sweep, at a cost that
+    does not grow with ``d``. Its variables subclass :class:`_TapeOperand`,
+    so every :class:`admath` function accepts them as well; the value-and-
+    gradient oracle that chooses between the modes is
+    :class:`~probstat.numerics.GradientEvaluator`.
 """
 
 from __future__ import annotations
@@ -43,18 +51,12 @@ import math
 import operator
 from collections.abc import Callable, Iterable, Sequence
 from numbers import Real
-from typing import Literal, cast
+from typing import cast
 
 from probstat.foundations.validation import require_finite_real
 
 from .special import digamma as _float_digamma
 from .special import trigamma as _float_trigamma
-
-GradientMethod = Literal["auto", "autodiff", "finite-difference"]
-GradientCallable = Callable[[tuple[float, ...]], Sequence[float]]
-FiniteDifference = Callable[
-    [Callable[[tuple[float, ...]], float], tuple[float, ...]], Sequence[float]
-]
 
 _TWO_OVER_SQRT_PI = 2.0 / math.sqrt(math.pi)
 _LOG_TWO = math.log(2.0)
@@ -91,14 +93,60 @@ def _unsupported(operation: str) -> AutodiffUnsupportedError:
     )
 
 
-def _primal(value: object) -> object:
-    """Return the innermost (non-dual) value of a possibly nested dual.
+class _TapeOperand:
+    """Base class of operands that evaluate the :class:`admath` functions.
+
+    :class:`~probstat.numerics.ReverseVariable` (reverse mode, ADR-0069)
+    subclasses it. Every :class:`admath` function hands such an operand to
+    its ``_admath`` method instead of calling :mod:`math` (which would call
+    ``float`` and discard the derivative); comparisons and the ``is*``
+    predicates read the innermost value through ``value``. Defining the hook
+    here keeps this module free of imports from the reverse-mode module.
+
+    References:
+        [REF-GRIEWANK-WALTHER-2008, Chapter 3], [REF-BAYDIN-ETAL-2018,
+        Section 3.2].
+
+    """
+
+    __slots__ = ()
+
+    value: float | Dual
+
+    def _admath(self, name: str, arguments: tuple[object, ...]) -> float | Dual:
+        """Evaluate ``admath.<name>(*arguments)``; subclasses override this.
+
+        Raises:
+            AutodiffUnsupportedError: Always, for the base class.
+
+        References:
+            [REF-GRIEWANK-WALTHER-2008, Chapter 3]. No equation is evaluated.
+
+        """
+        raise _unsupported(f"admath.{name}")
+
+
+def _tape_owner(arguments: Iterable[object]) -> _TapeOperand | None:
+    """Return the first tape operand among ``arguments`` (``None`` if absent).
 
     References:
         [REF-GRIEWANK-WALTHER-2008, Chapter 3]. No equation is evaluated.
 
     """
-    while isinstance(value, Dual):
+    for argument in arguments:
+        if isinstance(argument, _TapeOperand):
+            return argument
+    return None
+
+
+def _primal(value: object) -> object:
+    """Return the innermost real value of a possibly nested dual or tape operand.
+
+    References:
+        [REF-GRIEWANK-WALTHER-2008, Chapter 3]. No equation is evaluated.
+
+    """
+    while isinstance(value, Dual | _TapeOperand):
         value = value.value
     return value
 
@@ -692,6 +740,8 @@ def _exp(x: float | Dual) -> float | Dual:
     if isinstance(x, Dual):
         value = _exp(x.value)
         return _new(value, _scaled(x.tangent, value), x.order)
+    if isinstance(x, _TapeOperand):
+        return x._admath("exp", (x,))
     return math.exp(x)
 
 
@@ -704,6 +754,8 @@ def _expm1(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _expm1, _exp)
+    if isinstance(x, _TapeOperand):
+        return x._admath("expm1", (x,))
     return math.expm1(x)
 
 
@@ -718,6 +770,8 @@ def _log(x: float | Dual, base: float | Dual | None = None) -> float | Dual:
         return _log(x) / _log(base)
     if isinstance(x, Dual):
         return _unary(x, _log, lambda v: 1.0 / v)
+    if isinstance(x, _TapeOperand):
+        return x._admath("log", (x,))
     return math.log(x)
 
 
@@ -730,6 +784,8 @@ def _log1p(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _log1p, lambda v: 1.0 / (1.0 + v))
+    if isinstance(x, _TapeOperand):
+        return x._admath("log1p", (x,))
     return math.log1p(x)
 
 
@@ -742,6 +798,8 @@ def _log2(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _log2, lambda v: 1.0 / (v * _LOG_TWO))
+    if isinstance(x, _TapeOperand):
+        return x._admath("log2", (x,))
     return math.log2(x)
 
 
@@ -754,6 +812,8 @@ def _log10(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _log10, lambda v: 1.0 / (v * _LOG_TEN))
+    if isinstance(x, _TapeOperand):
+        return x._admath("log10", (x,))
     return math.log10(x)
 
 
@@ -767,6 +827,8 @@ def _sqrt(x: float | Dual) -> float | Dual:
     if isinstance(x, Dual):
         root = _sqrt(x.value)
         return _new(root, _scaled(x.tangent, 0.5 / root), x.order)
+    if isinstance(x, _TapeOperand):
+        return x._admath("sqrt", (x,))
     return math.sqrt(x)
 
 
@@ -779,6 +841,8 @@ def _sin(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _sin, _cos)
+    if isinstance(x, _TapeOperand):
+        return x._admath("sin", (x,))
     return math.sin(x)
 
 
@@ -791,6 +855,8 @@ def _cos(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _cos, lambda v: -_sin(v))
+    if isinstance(x, _TapeOperand):
+        return x._admath("cos", (x,))
     return math.cos(x)
 
 
@@ -804,6 +870,8 @@ def _tan(x: float | Dual) -> float | Dual:
     if isinstance(x, Dual):
         value = _tan(x.value)
         return _new(value, _scaled(x.tangent, 1.0 + value * value), x.order)
+    if isinstance(x, _TapeOperand):
+        return x._admath("tan", (x,))
     return math.tan(x)
 
 
@@ -816,6 +884,8 @@ def _asin(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _asin, lambda v: 1.0 / _sqrt(1.0 - v * v))
+    if isinstance(x, _TapeOperand):
+        return x._admath("asin", (x,))
     return math.asin(x)
 
 
@@ -828,6 +898,8 @@ def _acos(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _acos, lambda v: -1.0 / _sqrt(1.0 - v * v))
+    if isinstance(x, _TapeOperand):
+        return x._admath("acos", (x,))
     return math.acos(x)
 
 
@@ -840,6 +912,8 @@ def _atan(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _atan, lambda v: 1.0 / (1.0 + v * v))
+    if isinstance(x, _TapeOperand):
+        return x._admath("atan", (x,))
     return math.atan(x)
 
 
@@ -874,6 +948,9 @@ def _atan2(y: float | Dual, x: float | Dual) -> float | Dual:
         [EQ-AD-DUAL-001], [REF-PYTHON-MATH].
 
     """
+    owner = _tape_owner((y, x))
+    if owner is not None:
+        return owner._admath("atan2", (y, x))
     order = max(_order(y), _order(x))
     if order == 0:
         return math.atan2(cast(float, y), cast(float, x))
@@ -902,6 +979,8 @@ def _sinh(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _sinh, _cosh)
+    if isinstance(x, _TapeOperand):
+        return x._admath("sinh", (x,))
     return math.sinh(x)
 
 
@@ -914,6 +993,8 @@ def _cosh(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _cosh, _sinh)
+    if isinstance(x, _TapeOperand):
+        return x._admath("cosh", (x,))
     return math.cosh(x)
 
 
@@ -927,6 +1008,8 @@ def _tanh(x: float | Dual) -> float | Dual:
     if isinstance(x, Dual):
         value = _tanh(x.value)
         return _new(value, _scaled(x.tangent, 1.0 - value * value), x.order)
+    if isinstance(x, _TapeOperand):
+        return x._admath("tanh", (x,))
     return math.tanh(x)
 
 
@@ -939,6 +1022,8 @@ def _erf(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _erf, lambda v: _TWO_OVER_SQRT_PI * _exp(-v * v))
+    if isinstance(x, _TapeOperand):
+        return x._admath("erf", (x,))
     return math.erf(x)
 
 
@@ -951,6 +1036,8 @@ def _erfc(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _erfc, lambda v: -_TWO_OVER_SQRT_PI * _exp(-v * v))
+    if isinstance(x, _TapeOperand):
+        return x._admath("erfc", (x,))
     return math.erfc(x)
 
 
@@ -963,6 +1050,8 @@ def _lgamma(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _lgamma, _digamma)
+    if isinstance(x, _TapeOperand):
+        return x._admath("lgamma", (x,))
     return math.lgamma(x)
 
 
@@ -975,6 +1064,8 @@ def _digamma(x: float | Dual) -> float | Dual:
     """
     if isinstance(x, Dual):
         return _unary(x, _digamma, _trigamma)
+    if isinstance(x, _TapeOperand):
+        return x._admath("digamma", (x,))
     return _float_digamma(x)
 
 
@@ -993,6 +1084,8 @@ def _trigamma(x: float | Dual) -> float | Dual:
         raise AutodiffUnsupportedError(
             "trigamma of a Dual (third derivative of lgamma) is not implemented"
         )
+    if isinstance(x, _TapeOperand):
+        return x._admath("trigamma", (x,))
     return _float_trigamma(x)
 
 
@@ -1003,6 +1096,9 @@ def _hypot(*coordinates: float | Dual) -> float | Dual:
         [EQ-AD-DUAL-001], [REF-PYTHON-MATH].
 
     """
+    owner = _tape_owner(coordinates)
+    if owner is not None:
+        return owner._admath("hypot", coordinates)
     order = max((_order(c) for c in coordinates), default=0)
     if order == 0:
         return math.hypot(*cast(tuple[float, ...], coordinates))
@@ -1032,6 +1128,9 @@ def _fsum(values: Iterable[float | Dual]) -> float | Dual:
 
     """
     items = list(values)
+    owner = _tape_owner(items)
+    if owner is not None:
+        return owner._admath("fsum", tuple(items))
     order = max((_order(v) for v in items), default=0)
     if order == 0:
         return math.fsum(cast(list[float], items))
@@ -1052,7 +1151,7 @@ def _pow(x: float | Dual, y: float | Dual) -> float | Dual:
         [EQ-AD-DUAL-001], [REF-PYTHON-MATH].
 
     """
-    if isinstance(x, Dual) or isinstance(y, Dual):
+    if isinstance(x, Dual | _TapeOperand) or isinstance(y, Dual | _TapeOperand):
         return x**y
     return math.pow(x, y)
 
@@ -1064,7 +1163,7 @@ def _fabs(x: float | Dual) -> float | Dual:
         [EQ-AD-DUAL-001], [REF-PYTHON-MATH].
 
     """
-    if isinstance(x, Dual):
+    if isinstance(x, Dual | _TapeOperand):
         return abs(x)
     return math.fabs(x)
 
@@ -1431,191 +1530,3 @@ def hessian(
 
     """
     return value_gradient_and_hessian(function, x)[2]
-
-
-# ---------------------------------------------------------------------------
-# Gradient oracle with recorded fallback
-# ---------------------------------------------------------------------------
-
-
-class GradientEvaluator:
-    """Value-and-gradient oracle: analytic, autodiff, or finite differences.
-
-    ``option`` selects the gradient:
-
-    * ``"auto"`` (default): try forward-mode autodiff; if evaluating the
-      function on duals raises a ``TypeError`` (including
-      :class:`AutodiffUnsupportedError`) while the plain float evaluation
-      succeeds, switch permanently to ``finite_difference`` and record the
-      reason. Errors that also occur for floats propagate unchanged.
-    * ``"autodiff"``: forward mode only; unsupported functions raise
-      :class:`AutodiffUnsupportedError`.
-    * ``"finite-difference"``: always use ``finite_difference``.
-    * a callable: an analytic gradient ``x -> grad f(x)``.
-
-    The evaluator never counts function calls itself; wrap ``function`` in a
-    counter to account for them (one dual evaluation is one call).
-
-    Args:
-        function: Scalar function of a tuple of numbers.
-        option: Gradient choice (see above).
-        finite_difference: ``(f, x) -> grad`` used by the finite-difference
-            modes (required for ``"auto"`` and ``"finite-difference"``).
-
-    Raises:
-        TypeError: If ``function`` or a callable ``option`` is not callable.
-        ValueError: For an unknown option or a missing ``finite_difference``.
-
-    References:
-        [REF-GRIEWANK-WALTHER-2008, Chapter 3], [REF-NOCEDAL-WRIGHT-2006,
-        Section 8.1].
-
-    """
-
-    __slots__ = (
-        "_analytic",
-        "_finite_difference",
-        "_function",
-        "fallback_reason",
-        "gradient_evaluations",
-        "method",
-        "requested",
-    )
-
-    def __init__(
-        self,
-        function: Callable[..., object],
-        option: str | GradientCallable = "auto",
-        *,
-        finite_difference: FiniteDifference | None = None,
-    ) -> None:
-        """Validate the option and choose the initial method.
-
-        References:
-            Project validation policy [REF-PROBSTAT-VALIDATION].
-            No equation is evaluated.
-
-        """
-        if not callable(function):
-            raise TypeError("function must be callable")
-        self._function = function
-        self._finite_difference = finite_difference
-        self._analytic: GradientCallable | None = None
-        self.fallback_reason: str | None = None
-        self.gradient_evaluations = 0
-        if callable(option):
-            self._analytic = option
-            self.requested = "analytic"
-            self.method = "analytic"
-            return
-        if option not in ("auto", "autodiff", "finite-difference"):
-            raise ValueError(
-                "gradient must be 'auto', 'autodiff', 'finite-difference', or a "
-                "callable"
-            )
-        if option != "autodiff" and finite_difference is None:
-            raise ValueError("finite_difference is required for this option")
-        self.requested = option
-        self.method = (
-            "finite-difference" if option == "finite-difference" else ("autodiff")
-        )
-
-    def _float_value(self, x: tuple[float, ...]) -> float:
-        """Evaluate the function on plain floats.
-
-        References:
-            Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
-
-        """
-        return float(cast(float, self._function(x)))
-
-    def _dual(self, x: tuple[float, ...]) -> tuple[float, tuple[float, ...]]:
-        """Evaluate value and gradient on first-order seeds.
-
-        References:
-            [EQ-AD-DUAL-001], [REF-GRIEWANK-WALTHER-2008, Chapter 3].
-
-        """
-        return _first_order(self._function(_seeds(x)), len(x))
-
-    def value_and_gradient(
-        self, x: Sequence[float]
-    ) -> tuple[float, tuple[float, ...] | None]:
-        """Return ``(f(x), grad f(x))``, with ``None`` for a non-finite ``f(x)``.
-
-        Args:
-            x: Evaluation point.
-
-        Returns:
-            Value and gradient (``None`` when the value is not finite, so no
-            finite-difference work is wasted outside the support).
-
-        Raises:
-            AutodiffUnsupportedError: In ``"autodiff"`` mode for a function
-                that does not support duals.
-            ValueError: If an analytic gradient has the wrong length.
-
-        Equation:
-            [EQ-AD-DUAL-001], [EQ-OPT-FD-001].
-
-        References:
-            [REF-GRIEWANK-WALTHER-2008, Chapter 3],
-            [REF-NOCEDAL-WRIGHT-2006, Section 8.1].
-
-        """
-        point = tuple(float(v) for v in x)
-        if self.method == "autodiff":
-            try:
-                value, grad = self._dual(point)
-            except TypeError as error:
-                if self.requested == "autodiff":
-                    if isinstance(error, AutodiffUnsupportedError):
-                        raise
-                    raise AutodiffUnsupportedError(
-                        f"function does not support Dual numbers: {error}"
-                    ) from error
-                value = self._float_value(point)
-                self.method = "finite-difference"
-                self.fallback_reason = f"{type(error).__name__}: {error}"
-            else:
-                if not math.isfinite(value):
-                    return value, None
-                self.gradient_evaluations += 1
-                return value, grad
-        else:
-            value = self._float_value(point)
-        if not math.isfinite(value):
-            return value, None
-        self.gradient_evaluations += 1
-        if self._analytic is not None:
-            grad = tuple(float(g) for g in self._analytic(point))
-            if len(grad) != len(point):
-                raise ValueError("gradient must match the state dimension")
-            return value, grad
-        assert self._finite_difference is not None
-        evaluate = cast(Callable[[tuple[float, ...]], float], self._float_value)
-        return value, tuple(float(g) for g in self._finite_difference(evaluate, point))
-
-    def gradient(self, x: Sequence[float]) -> tuple[float, ...]:
-        """Return ``grad f(x)``.
-
-        Args:
-            x: Evaluation point with a finite value.
-
-        Returns:
-            Gradient.
-
-        Raises:
-            ValueError: If ``f(x)`` is not finite.
-
-        Equation:
-            [EQ-AD-DUAL-001], [EQ-OPT-FD-001].
-
-        References:
-            [REF-GRIEWANK-WALTHER-2008, Chapter 3].
-
-        """
-        value, grad = self.value_and_gradient(x)
-        if grad is None:
-            raise ValueError(f"function value {value} is not finite")
-        return grad
