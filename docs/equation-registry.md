@@ -12330,3 +12330,47 @@ beyond.
 - Code: `inference.normality_tests`.
 - Source: [REF-STEPHENS-1986, Table 4.9] as implemented in
   [REF-GROSS-LIGGES-2015, function `ad.test`].
+
+### EQ-CONF-ACI-001 — Adaptive conformal level update
+
+`err_t = 1{S_t(X_t, Y_t) > Q_t(1 - alpha_t)}`,
+`alpha_(t+1) = alpha_t + gamma (alpha - err_t)`, with `alpha_1` in `[0, 1]`.
+
+- Domain: target miscoverage `alpha` in `(0, 1)`, step `gamma >= 0`, any
+  sequence of scores (no exchangeability assumption).
+- Meaning: an online step on the single parameter that absorbs distribution
+  shift; a miss lowers `alpha_t` (wider sets), a cover raises it.
+- Code: `conformal.AdaptiveConformalPredictor.update`,
+  `conformal.adaptive_conformal_intervals`.
+- Source: [REF-GIBBS-CANDES-2021, Equation 2].
+
+### EQ-CONF-ACI-002 — Adaptive conformal score threshold and interval
+
+For a score history `H` of size `m`: `Q_t(1 - alpha_t) = -inf` if
+`alpha_t >= 1`; `+inf` if `alpha_t <= 0`, `m = 0`, or
+`k = ceil((1 - alpha_t)(m + 1)) > m`; otherwise the `k`-th smallest score.
+The interval is `yhat_t +/- Q_t(1 - alpha_t) s_t`, with score
+`S_t = |y_t - yhat_t| / s_t`.
+
+- Domain: non-negative scores; positive spreads `s_t` (`s_t = 1` for
+  absolute residuals); optional sliding window over `H`.
+- Meaning: the split conformal quantile at the adapted level; the infinite
+  thresholds at the boundary levels are what keep `alpha_t` inside
+  `[-gamma, 1 + gamma]`.
+- Code: `conformal.AdaptiveConformalPredictor.radius`,
+  `conformal.AdaptiveConformalPredictor.interval`.
+- Source: [REF-GIBBS-CANDES-2021, Equation 1 and Section 4.1] with the
+  finite-sample index of [EQ-CONF-001].
+
+### EQ-CONF-ACI-003 — Long-run miscoverage bound
+
+`|(1/T) sum_(t=1..T) err_t - alpha| <= (max(alpha_1, 1 - alpha_1) + gamma) / (gamma T)`
+for every `T`, since `alpha_t` stays in `[-gamma, 1 + gamma]`.
+
+- Domain: `gamma > 0`; holds deterministically for every data sequence.
+- Meaning: the empirical miscoverage frequency converges to `alpha` at rate
+  `1/T` without any assumption on the data-generating process; it says
+  nothing about conditional coverage at a given time.
+- Code: `conformal.AdaptiveConformalPredictor.long_run_bound`,
+  `conformal.AdaptiveConformalResult`.
+- Source: [REF-GIBBS-CANDES-2021, Lemma 4.1 and Proposition 4.1].

@@ -2812,3 +2812,10 @@ DOI: [10.1080/00031305.1986.10475419](https://doi.org/10.1080/00031305.1986.1047
 Juergen Gross and Uwe Ligges. *nortest: Tests for Normality*. R package
 version 1.0-4, 2015.
 [https://CRAN.R-project.org/package=nortest](https://CRAN.R-project.org/package=nortest).
+
+## REF-GIBBS-CANDES-2021
+
+Isaac Gibbs and Emmanuel J. Candès. "Adaptive Conformal Inference Under
+Distribution Shift." In *Advances in Neural Information Processing Systems
+34* (NeurIPS 2021), 2021. Preprint arXiv:2106.00170v3, 2021.
+[https://arxiv.org/abs/2106.00170](https://arxiv.org/abs/2106.00170).
