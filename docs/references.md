@@ -2979,3 +2979,76 @@ NIST Digital Library of Mathematical Functions, Chapter 24, "Bernoulli and
 Euler Polynomials"; Section 24.5, "Recurrence Relations." National Institute
 of Standards and Technology.
 [https://dlmf.nist.gov/24.5](https://dlmf.nist.gov/24.5).
+
+## REF-STEPHENS-1986
+
+Michael A. Stephens. "Tests Based on EDF Statistics." In Ralph B.
+D'Agostino and Michael A. Stephens (eds.), *Goodness-of-Fit Techniques*.
+Marcel Dekker, New York, 1986. Reissued by Routledge, 2017, pages 97-194,
+DOI: [10.1201/9780203753064-4](https://doi.org/10.1201/9780203753064-4).
+
+## REF-DALLAL-WILKINSON-1986
+
+Gerard E. Dallal and Leland Wilkinson. "An Analytic Approximation to the
+Distribution of Lilliefors's Test Statistic for Normality." *The American
+Statistician* 40(4), 294-296, 1986.
+DOI: [10.1080/00031305.1986.10475419](https://doi.org/10.1080/00031305.1986.10475419).
+
+## REF-GROSS-LIGGES-2015
+
+Juergen Gross and Uwe Ligges. *nortest: Tests for Normality*. R package
+version 1.0-4, 2015.
+[https://CRAN.R-project.org/package=nortest](https://CRAN.R-project.org/package=nortest).
+
+## REF-GIBBS-CANDES-2021
+
+Isaac Gibbs and Emmanuel J. Candès. "Adaptive Conformal Inference Under
+Distribution Shift." In *Advances in Neural Information Processing Systems
+34* (NeurIPS 2021), 2021. Preprint arXiv:2106.00170v3, 2021.
+[https://arxiv.org/abs/2106.00170](https://arxiv.org/abs/2106.00170).
+
+## REF-RUSSO-ETAL-2018
+
+Daniel J. Russo, Benjamin Van Roy, Abbas Kazerouni, Ian Osband, and Zheng
+Wen. "A Tutorial on Thompson Sampling." *Foundations and Trends in Machine
+Learning* 11(1), 1-96, 2018.
+DOI: [10.1561/2200000070](https://doi.org/10.1561/2200000070).
+Preprint arXiv:1707.02038.
+
+## REF-THOMPSON-1933
+
+William R. Thompson. "On the Likelihood that One Unknown Probability Exceeds
+Another in View of the Evidence of Two Samples." *Biometrika* 25(3-4),
+285-294, 1933.
+DOI: [10.1093/biomet/25.3-4.285](https://doi.org/10.1093/biomet/25.3-4.285).
+
+## REF-IOOSS-RIBATET-MARREL-2009
+
+Bertrand Iooss, Mathieu Ribatet, and Amandine Marrel. "Global Sensitivity
+Analysis of Stochastic Computer Models with Joint Metamodels." Preprint
+arXiv:0802.0443v3, 2009.
+[https://arxiv.org/abs/0802.0443](https://arxiv.org/abs/0802.0443).
+
+## REF-MARREL-ETAL-2012
+
+Amandine Marrel, Bertrand Iooss, Sébastien Da Veiga, and Mathieu Ribatet.
+"Global Sensitivity Analysis of Stochastic Computer Models with Joint
+Metamodels." *Statistics and Computing* 22(3), 833-847, 2012. Published
+version of [REF-IOOSS-RIBATET-MARREL-2009].
+DOI: [10.1007/s11222-011-9274-8](https://doi.org/10.1007/s11222-011-9274-8).
+
+## REF-YAO-ETAL-2018
+
+Yuling Yao, Aki Vehtari, Daniel Simpson, and Andrew Gelman. "Using Stacking
+to Average Bayesian Predictive Distributions (with Discussion)." *Bayesian
+Analysis* 13(3), 917-1007, 2018.
+DOI: [10.1214/17-BA1091](https://doi.org/10.1214/17-BA1091).
+Preprint arXiv:1704.02030.
+
+## REF-PAPAMAKARIOS-MURRAY-2016
+
+George Papamakarios and Iain Murray. "Fast epsilon-free Inference of
+Simulation Models with Bayesian Conditional Density Estimation." In
+*Advances in Neural Information Processing Systems 29* (NeurIPS 2016), 2016.
+Preprint arXiv:1605.06376v4.
+[https://arxiv.org/abs/1605.06376](https://arxiv.org/abs/1605.06376).

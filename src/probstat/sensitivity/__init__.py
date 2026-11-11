@@ -1,4 +1,8 @@
-"""Local and global sensitivity: Sobol, Morris, DGSM, given-data, Shapley."""
+"""Local and global sensitivity: Sobol, Morris, DGSM, given-data, Shapley.
+
+``stochastic`` decomposes the output variance of a stochastic simulator into
+Sobol indices of its mean response and an intrinsic-noise index.
+"""
 
 from .analysis import (
     LocalSensitivityResult,
@@ -24,8 +28,11 @@ from .shapley import (
     linear_gaussian_shapley,
     shapley_effects,
 )
+from .stochastic import StochasticSobolResult, stochastic_sobol_indices
 
 __all__ = [
+    "StochasticSobolResult",
+    "stochastic_sobol_indices",
     "IndexInterval",
     "ModelSobolResult",
     "MorrisResult",

@@ -15,6 +15,11 @@ variogram, interval, weighted interval, pinball, and Brier scores),
 coverage, reliability diagrams, sharpness), and
 :mod:`~probstat.validation.shift` (energy-distance and kernel-MMD permutation
 tests and Wasserstein distances for distribution shift).
+
+Model-form uncertainty across competing models (stacking and pseudo-BMA
+weights of predictive distributions, and the within/between-model variance
+split of the averaged prediction) lives in
+:mod:`~probstat.validation.model_averaging`.
 """
 
 from .assessment import (
@@ -59,6 +64,13 @@ from .metrics import (
     u_pooling,
     uniform_area,
     validation_bayes_factor,
+)
+from .model_averaging import (
+    ModelAveragedPrediction,
+    ModelWeights,
+    model_averaged_prediction,
+    pseudo_bma_weights,
+    stacking_weights,
 )
 from .prediction import (
     ComponentPrediction,
@@ -106,6 +118,11 @@ from .shift import (
 )
 
 __all__ = [
+    "ModelAveragedPrediction",
+    "ModelWeights",
+    "model_averaged_prediction",
+    "pseudo_bma_weights",
+    "stacking_weights",
     "AdditiveGaussianDiscrepancy",
     "AsmeComparison",
     "BayesFactorResult",

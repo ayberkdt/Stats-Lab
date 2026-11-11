@@ -13056,3 +13056,259 @@ positive integers `I_x(m, n - m + 1) = sum_(j=m..n) C(n, j) x^j (1-x)^(n-j)`.
 - Code: `numerics.ulp_error`, `numerics.compare_to_reference`,
   `numerics.ReferenceComparison`.
 - Source: [REF-GOLDBERG-1991, Section 1.2] and [REF-PYTHON-MATH].
+
+## Roadmap evidence audit additions (ADR-0079)
+
+### EQ-INF-GOF-CVM-001 — Cramer-von Mises statistic
+
+`W^2 = 1/(12 n) + sum_(i=1..n) (F(x_(i)) - (2i - 1)/(2n))^2`.
+
+- Domain: ordered finite sample `x_(1) <= ... <= x_(n)` and a continuous
+  null CDF `F`.
+- Meaning: `n` times the integrated squared distance between the empirical
+  and null CDFs, weighted by the null law; its null distribution depends on
+  whether parameters were estimated from the data.
+- Code: `inference.cramer_von_mises_statistic`, `inference.normality_tests`.
+- Source: [REF-STEPHENS-1974] and [REF-STEPHENS-1986].
+
+### EQ-INF-GOF-NORM-001 — Lilliefors p-value for the fitted-normal KS distance
+
+With `D` the KS distance to `N(x_bar, s^2)` (divisor `n - 1`), `K = D`,
+`m = n` for `n <= 100`, and `K = D (n/100)^0.49`, `m = 100` otherwise:
+`p = exp(-7.01256 K^2 (m + 2.78019) + 2.99587 K sqrt(m + 2.78019) -
+0.122119 + 0.974598/sqrt(m) + 1.67997/m)`. When this exceeds `0.1`,
+`Z = D (sqrt(n) - 0.01 + 0.85/sqrt(n))` and `p = 1` for `Z <= 0.302`, a
+quartic polynomial in `Z` on `(0.302, 0.5]`, `(0.5, 0.9]`, and `(0.9, 1.31]`,
+and `p = 0` above `1.31`.
+
+- Domain: `n >= 5`; normal null with both parameters estimated.
+- Meaning: calibrated tail probability of the Lilliefors statistic; the
+  analytic part is reliable for `p <= 0.1`, the polynomial covers the bulk.
+- Code: `inference.lilliefors_p_value`, `inference.normality_tests`.
+- Source: [REF-DALLAL-WILKINSON-1986] (analytic approximation),
+  [REF-STEPHENS-1974] (modified statistic `Z`), and
+  [REF-GROSS-LIGGES-2015, function `lillie.test`] (polynomial coefficients
+  fitted by simulation).
+
+### EQ-INF-GOF-NORM-002 — Fitted-normal Cramer-von Mises p-value
+
+`W* = W^2 (1 + 0.5/n)`;
+`p = 1 - exp(-13.953 + 775.5 W* - 12542.61 W*^2)` for `W* < 0.0275`,
+`1 - exp(-5.903 + 179.546 W* - 1515.29 W*^2)` for `W* < 0.051`,
+`exp(0.886 - 31.62 W* + 10.897 W*^2)` for `W* < 0.092`,
+`exp(1.111 - 34.242 W* + 12.832 W*^2)` for `W* < 1.1`, and `7.37e-10`
+beyond.
+
+- Domain: normal null with mean and `n - 1` standard deviation estimated;
+  `n >= 8`.
+- Meaning: tabulated null law of the fitted statistic, valid for every
+  `n` after the modification.
+- Code: `inference.normality_tests`.
+- Source: [REF-STEPHENS-1986, Table 4.9] as implemented in
+  [REF-GROSS-LIGGES-2015, function `cvm.test`].
+
+### EQ-INF-GOF-NORM-003 — Fitted-normal Anderson-Darling p-value
+
+`A* = A^2 (1 + 0.75/n + 2.25/n^2)`;
+`p = 1 - exp(-13.436 + 101.14 A* - 223.73 A*^2)` for `A* < 0.2`,
+`1 - exp(-8.318 + 42.796 A* - 59.938 A*^2)` for `A* < 0.34`,
+`exp(0.9177 - 4.279 A* - 1.38 A*^2)` for `A* < 0.6`,
+`exp(1.2937 - 5.709 A* + 0.0186 A*^2)` for `A* < 10`, and `3.7e-24` beyond.
+
+- Domain: normal null with mean and `n - 1` standard deviation estimated;
+  `n >= 8`.
+- Meaning: tabulated null law of the fitted Anderson-Darling statistic.
+- Code: `inference.normality_tests`.
+- Source: [REF-STEPHENS-1986, Table 4.9] as implemented in
+  [REF-GROSS-LIGGES-2015, function `ad.test`].
+
+### EQ-CONF-ACI-001 — Adaptive conformal level update
+
+`err_t = 1{S_t(X_t, Y_t) > Q_t(1 - alpha_t)}`,
+`alpha_(t+1) = alpha_t + gamma (alpha - err_t)`, with `alpha_1` in `[0, 1]`.
+
+- Domain: target miscoverage `alpha` in `(0, 1)`, step `gamma >= 0`, any
+  sequence of scores (no exchangeability assumption).
+- Meaning: an online step on the single parameter that absorbs distribution
+  shift; a miss lowers `alpha_t` (wider sets), a cover raises it.
+- Code: `conformal.AdaptiveConformalPredictor.update`,
+  `conformal.adaptive_conformal_intervals`.
+- Source: [REF-GIBBS-CANDES-2021, Equation 2].
+
+### EQ-CONF-ACI-002 — Adaptive conformal score threshold and interval
+
+For a score history `H` of size `m`: `Q_t(1 - alpha_t) = -inf` if
+`alpha_t >= 1`; `+inf` if `alpha_t <= 0`, `m = 0`, or
+`k = ceil((1 - alpha_t)(m + 1)) > m`; otherwise the `k`-th smallest score.
+The interval is `yhat_t +/- Q_t(1 - alpha_t) s_t`, with score
+`S_t = |y_t - yhat_t| / s_t`.
+
+- Domain: non-negative scores; positive spreads `s_t` (`s_t = 1` for
+  absolute residuals); optional sliding window over `H`.
+- Meaning: the split conformal quantile at the adapted level; the infinite
+  thresholds at the boundary levels are what keep `alpha_t` inside
+  `[-gamma, 1 + gamma]`.
+- Code: `conformal.AdaptiveConformalPredictor.radius`,
+  `conformal.AdaptiveConformalPredictor.interval`.
+- Source: [REF-GIBBS-CANDES-2021, Equation 1 and Section 4.1] with the
+  finite-sample index of [EQ-CONF-001].
+
+### EQ-CONF-ACI-003 — Long-run miscoverage bound
+
+`|(1/T) sum_(t=1..T) err_t - alpha| <= (max(alpha_1, 1 - alpha_1) + gamma) / (gamma T)`
+for every `T`, since `alpha_t` stays in `[-gamma, 1 + gamma]`.
+
+- Domain: `gamma > 0`; holds deterministically for every data sequence.
+- Meaning: the empirical miscoverage frequency converges to `alpha` at rate
+  `1/T` without any assumption on the data-generating process; it says
+  nothing about conditional coverage at a given time.
+- Code: `conformal.AdaptiveConformalPredictor.long_run_bound`,
+  `conformal.AdaptiveConformalResult`.
+- Source: [REF-GIBBS-CANDES-2021, Lemma 4.1 and Proposition 4.1].
+
+### EQ-RISK-BANDIT-001 — Beta-Bernoulli posterior update
+
+`(alpha_k, beta_k) <- (alpha_k, beta_k) + (r_t, 1 - r_t)` if `x_t = k`,
+unchanged otherwise; posterior mean `alpha_k / (alpha_k + beta_k)`.
+
+- Domain: independent `Beta(alpha_k, beta_k)` priors, `alpha_k, beta_k > 0`;
+  rewards `r_t` in `{0, 1}`.
+- Meaning: conjugate updating of each action's success probability with
+  pseudo-counts; only the played action learns.
+- Code: `risk.bernoulli_bandit`, `risk.BanditRun.posterior_means`.
+- Source: [REF-RUSSO-ETAL-2018, Example 3.1].
+
+### EQ-RISK-BANDIT-002 — Thompson sampling action choice
+
+`theta_hat_k ~ Beta(alpha_k, beta_k)` independently, `x_t = argmax_k theta_hat_k`,
+so `P(x_t = k | history) = P(theta_k = max_j theta_j | history)`.
+
+- Domain: the Beta posteriors of [EQ-RISK-BANDIT-001].
+- Meaning: probability matching; each action is played with its posterior
+  probability of being optimal, which balances exploration and
+  exploitation. The greedy rule replaces the draw by the posterior mean.
+- Code: `risk.bernoulli_bandit`, `risk.BanditRun.probability_optimal`.
+- Source: [REF-RUSSO-ETAL-2018, Algorithms 3.1 and 3.2] and
+  [REF-THOMPSON-1933].
+
+### EQ-RISK-BANDIT-003 — Cumulative pseudo-regret
+
+`Regret(T) = sum_(t=1..T) (max_k theta_k - theta_(x_t))`.
+
+- Domain: known success probabilities (simulation studies only).
+- Meaning: expected reward lost against always playing the best action;
+  uniform random play has regret linear in `T`.
+- Code: `risk.bernoulli_bandit` (`BanditRun.cumulative_regret`).
+- Source: [REF-RUSSO-ETAL-2018, Chapter 3].
+
+### EQ-SENS-STOCH-001 — Variance decomposition of a stochastic simulator
+
+`Var(Y) = Var(m(X)) + E[Var(Y | X)]`, `m(x) = E[Y | X = x]`;
+`S_i = V_i / Var(m)`, `ST_i = T_i / Var(m)` with `V_i = Var(E[m(X) | X_i])`,
+`T_i = E[Var(m(X) | X_(~i))]`; output shares `V_i / Var(Y)` and the
+intrinsic-noise index `S_omega = E[Var(Y | X)] / Var(Y)`.
+
+- Domain: `Y = g(X, omega)` with independent inputs `X` and intrinsic
+  randomness `omega` independent of `X`; finite `Var(Y)`, `Var(m) > 0`.
+- Meaning: `V_i / Var(Y)` is the first-order index of `Y` when `omega` is
+  treated as an extra input, and `S_omega` is the total effect of `omega`;
+  indices of `m` describe the controllable part alone.
+- Code: `sensitivity.stochastic_sobol_indices`,
+  `sensitivity.StochasticSobolResult`.
+- Source: [REF-IOOSS-RIBATET-MARREL-2009, Equations 15, 19, 20, and 21] and
+  [REF-MARREL-ETAL-2012].
+
+### EQ-SENS-STOCH-002 — Replicate mean and within-point variance
+
+At design point `x` with `R >= 2` independent runs `y_1..y_R`:
+`ybar(x) = (1/R) sum_r y_r`, `s^2(x) = (1/(R-1)) sum_r (y_r - ybar)^2`, so
+`E[s^2(x)] = Var(Y | X = x)` and `Var(ybar(x) | x) = Var(Y | X = x) / R`.
+
+- Domain: runs at one point use independent seeds; runs at different
+  points are independent.
+- Meaning: the within-point variance estimates the intrinsic noise without
+  bias, which the estimators of [EQ-SENS-STOCH-003] subtract.
+- Code: `sensitivity.stochastic._replicate`.
+- Source: [REF-IOOSS-RIBATET-MARREL-2009, Section 3.2] (dispersion
+  component `Var(Y | X)`).
+
+### EQ-SENS-STOCH-003 — Noise-corrected pick-freeze estimators
+
+With design matrices `A`, `B`, `A_B^(i)` of `N` rows and `c` the mean of
+`ybar` over `A` and `B`:
+`Vhat_i = (1/N) sum_k (ybar_B,k - c)(ybar_ABi,k - ybar_A,k)`,
+`That_i = (1/(2N)) sum_k [(ybar_A,k - ybar_ABi,k)^2 - (s^2_A,k + s^2_ABi,k)/R]`,
+`noise = mean(s^2)` over all design points,
+`Var(m)hat = var(ybar over A and B) - noise / R`.
+
+- Domain: as [EQ-SENS-STOCH-001]; noise independent across design points.
+- Meaning: independent noise cancels in the expectation of the first-order
+  product, and the subtracted terms remove the noise inflation of the Jansen
+  total-effect estimator and of the variance of replicate means.
+- Code: `sensitivity.stochastic_sobol_indices`.
+- Source: [REF-SALTELLI-2010] and [REF-JANSEN-1999] (pick-freeze
+  estimators), applied to replicate means with the noise correction of
+  [EQ-SENS-STOCH-002].
+
+### EQ-VAL-STACK-001 — Log-score stacking of predictive distributions
+
+`w* = argmax_(w in simplex) (1/n) sum_(i=1..n) log sum_(k=1..K) w_k p_k,-i(y_i)`,
+computed by `w_k <- w_k g_k`, `g_k = (1/n) sum_i p_ik / sum_j w_j p_ij`,
+stopped when `max_k g_k - 1 <= tol`, which bounds `f(w*) - f(w)` by
+concavity.
+
+- Domain: pointwise out-of-sample (leave-one-out or held-out validation)
+  predictive densities `p_ik >= 0`, each row positive for some model.
+- Meaning: the weighted mixture of the models' predictive distributions
+  with the best expected log score; it keeps several models when each is
+  right on part of the data, unlike Bayesian model averaging.
+- Code: `validation.stacking_weights`.
+- Source: [REF-YAO-ETAL-2018, Section 2.1, Equation 2.2] (objective),
+  [REF-MCLACHLAN-PEEL-2000] (EM update of mixing proportions), and
+  [REF-NOCEDAL-WRIGHT-2006, Chapter 12] (optimality conditions).
+
+### EQ-VAL-STACK-002 — Pseudo-BMA and pseudo-BMA+ weights
+
+`w_k = exp(elpd_k) / sum_j exp(elpd_j)`, `elpd_k = sum_i log p_k,-i(y_i)`;
+pseudo-BMA+: `a ~ Dirichlet(1, ..., 1)`, `z_k = n sum_i a_i log p_k,-i(y_i)`,
+`w_k = mean over B draws of exp(z_k) / sum_j exp(z_j)`.
+
+- Domain: as [EQ-VAL-STACK-001]; `B >= 1` Bayesian-bootstrap draws.
+- Meaning: AIC-type weights from the estimated expected log predictive
+  density; the Bayesian bootstrap accounts for the uncertainty of the elpd
+  estimate and moves weights away from 0 and 1.
+- Code: `validation.pseudo_bma_weights`.
+- Source: [REF-YAO-ETAL-2018, Section 2.4, Equations 2.5 and 2.6].
+
+### EQ-VAL-STACK-003 — Variance of a model-averaged prediction
+
+`mu = sum_k w_k mu_k`,
+`Var = sum_k w_k sigma_k^2 + sum_k w_k (mu_k - mu)^2`.
+
+- Domain: simplex weights; per-model predictive means `mu_k` and variances
+  `sigma_k^2`.
+- Meaning: law of total variance for the mixture `sum_k w_k p_k`; the second
+  term is the between-model (model-form) component.
+- Code: `validation.model_averaged_prediction`.
+- Source: [REF-YAO-ETAL-2018, Equation 2.3] (mixture predictive) and
+  [REF-MCLACHLAN-PEEL-2000] (mixture moments).
+
+### EQ-INF-NPE-001 — Gaussian neural posterior estimation
+
+`theta_n ~ p(theta)`, `x_n ~ p(x | theta_n)`, `n = 1..N`;
+`q_phi(theta | x) = prod_j N(theta_j; mu_j(x; phi), sigma_j(x; phi)^2)` with
+`(mu, log sigma) = MLP_phi(x)` on standardized coordinates;
+`phi_hat = argmax_phi sum_n log q_phi(theta_n | x_n)`.
+
+- Domain: a prior that can be sampled and a simulator returning a
+  fixed-width vector of finite summaries; the likelihood need not be
+  available.
+- Meaning: as `N -> infinity`, maximum likelihood over a family that
+  contains the posterior recovers `p(theta | x)` for every `x` when the
+  proposal is the prior, so one trained network gives the posterior for any
+  new observation (amortization). With a diagonal Gaussian family the result
+  is exact only for Gaussian posteriors with independent coordinates.
+- Code: `inference.fit_amortized_gaussian_posterior`,
+  `inference.AmortizedGaussianPosterior`.
+- Source: [REF-PAPAMAKARIOS-MURRAY-2016, Proposition 1, Section 2.3, and
+  Algorithm 2], trained with [EQ-OPT-ADAM-002].

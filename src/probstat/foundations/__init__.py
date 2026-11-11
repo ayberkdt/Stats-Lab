@@ -4,10 +4,15 @@ from .protocols import (
     ContinuousProbabilityLaw,
     CumulativeDistribution,
     DiscreteProbabilityLaw,
+    HasDimension,
     HasMeanAndVariance,
     HazardFunction,
     LogProbabilityDensity,
     LogProbabilityMassFunction,
+    MultivariateLogDensity,
+    MultivariateLogMass,
+    MultivariateMoments,
+    MultivariateSampler,
     ProbabilityDensity,
     ProbabilityMassFunction,
     QuantileFunction,
@@ -24,6 +29,11 @@ from .validation import (
 )
 
 __all__ = [
+    "HasDimension",
+    "MultivariateLogDensity",
+    "MultivariateLogMass",
+    "MultivariateMoments",
+    "MultivariateSampler",
     "ContinuousProbabilityLaw",
     "CumulativeDistribution",
     "DiscreteProbabilityLaw",

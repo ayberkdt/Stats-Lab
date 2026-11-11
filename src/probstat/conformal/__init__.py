@@ -4,9 +4,16 @@
 guarantee; ``regression`` provides split conformal (absolute and normalized
 scores), conformalized quantile regression, and jackknife+; ``coverage``
 measures empirical coverage on test data; ``surrogate`` calibrates error bars
-for a PCE or GP emulator against its true probabilistic model.
+for a PCE or GP emulator against its true probabilistic model; ``adaptive``
+provides adaptive conformal inference for sequential prediction under
+distribution shift.
 """
 
+from .adaptive import (
+    AdaptiveConformalPredictor,
+    AdaptiveConformalResult,
+    adaptive_conformal_intervals,
+)
 from .coverage import CoverageReport, empirical_coverage
 from .quantile import (
     conformal_quantile,
@@ -31,6 +38,9 @@ from .surrogate import (
 )
 
 __all__ = [
+    "AdaptiveConformalPredictor",
+    "AdaptiveConformalResult",
+    "adaptive_conformal_intervals",
     "ConformalizedQuantileRegressor",
     "CoverageReport",
     "JackknifePlusRegressor",

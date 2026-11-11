@@ -13,9 +13,12 @@ Engineering risk-management tools: FMECA with MIL-STD-1629A criticality
 numbers (and RPN with its documented caveats) in :mod:`.fmeca`, a
 quantitative risk register with exact totals and mitigation waterfalls in
 :mod:`.register`, the MIL-STD-882E risk assessment matrix in
-:mod:`.hazard_matrix`, and F-N curves in :mod:`.fn_curve`.
+:mod:`.hazard_matrix`, and F-N curves in :mod:`.fn_curve`. Sequential decisions
+under uncertainty (the Beta-Bernoulli bandit with Thompson sampling) live in
+:mod:`.bandits`.
 """
 
+from .bandits import BanditRun, bernoulli_bandit
 from .consequences import (
     LOSS_KINDS,
     LossFunction,
@@ -124,6 +127,8 @@ from .register import (
 )
 
 __all__ = [
+    "BanditRun",
+    "bernoulli_bandit",
     "GATE_KINDS",
     "GPD_FAMILY",
     "LOSS_KINDS",
