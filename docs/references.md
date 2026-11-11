@@ -2590,3 +2590,23 @@ Cambridge, 1998.
 
 David Vose. *Risk Analysis: A Quantitative Guide*. 3rd edition, Wiley,
 Chichester, 2008.
+
+## REF-DUGAN-BAVUSO-BOYD-1992
+
+Joanne Bechta Dugan, Salvatore J. Bavuso, and Mark A. Boyd. "Dynamic
+Fault-Tree Models for Fault-Tolerant Computer Systems." *IEEE Transactions on
+Reliability* 41(3), 363-377, 1992. doi:10.1109/24.159800.
+
+## REF-NASA-FTH-2002
+
+Michael Stamatelatos, William Vesely, Joanne Dugan, Joseph Fragola, Joseph
+Minarick III, and Jan Railsback. *Fault Tree Handbook with Aerospace
+Applications*, Version 1.1. NASA Office of Safety and Mission Assurance,
+Washington, DC, August 2002. Chapter 8, "Dynamic Fault Tree Analysis".
+
+## REF-RUDELL-1993
+
+Richard Rudell. "Dynamic Variable Ordering for Ordered Binary Decision
+Diagrams." In *Proceedings of the 1993 IEEE/ACM International Conference on
+Computer-Aided Design (ICCAD-93)*, Santa Clara, CA, 42-47, 1993.
+doi:10.1109/ICCAD.1993.580029.

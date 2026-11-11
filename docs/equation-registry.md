@@ -11243,3 +11243,99 @@ number is `||K||_1 ||K^-1||_1`.
   `surrogates.GaussianProcessRegression`.
 - Source: [REF-GOLUB-VANLOAN-2013, Sections 2.6 and 3.1],
   [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
+
+### EQ-SYS-SIFT-001 — Adjacent variable swap and sifting
+
+With `x` directly above `y`,
+`f = not x (not y f00 + y f01) + x (not y f10 + y f11)
+= not y (not x f00 + x f10) + y (not x f01 + x f11)`,
+so a node testing `x` with a child testing `y` is relabelled `y` with
+children `ite(x, f10, f00)` and `ite(x, f11, f01)`; a node whose children
+do not test `y` keeps its label and moves below `y`. Sifting moves each
+variable (largest levels first) through every position by such swaps and
+leaves it where the shared size is smallest.
+
+- Domain: reduced ordered BDDs; reference-counted nodes so that the live
+  size is exact after every swap.
+- Meaning: the swap changes two levels only and preserves every
+  represented function, hence every probability; the chosen position is
+  the best one seen, so the size never increases. The interleaved function
+  `x1 x2 + ... + x(2n-1) x(2n)` drops from `2^(n+1) - 2` to `2n` nodes.
+- Code: `systems.BDD.sift`, `systems.BDD.reorder`, `systems.ReorderResult`.
+- Source: [REF-RUDELL-1993], [REF-BRYANT-1986].
+
+### EQ-SYS-DFT-001 — Dynamic fault tree as an absorbing Markov chain
+
+State `s = (D, u, V)`: failed basic events `D`, unit in use per spare gate
+`u`, PAND gates with an out-of-order failure `V`. A working event `e` fails
+at rate `lambda_e` when active, `alpha_e lambda_e` when it is an unused
+spare, and `0` when it follows an unfailed SEQ input; after each failure
+spare claims and FDEP cascades are resolved at the same instant. Gate
+outputs: AND all, OR any, vote at least `k`, PAND all with `g not in V`,
+SPARE no unit left, SEQ all. Every state with the top event is merged into
+one absorbing state `FAIL`, and `F(t) = Pr(X_t = FAIL)` with
+`pi(t) = pi(0) exp(Q t)`.
+
+- Domain: non-repairable basic events with exponential lifetimes;
+  dormancy `alpha` in `[0, 1]` (cold `0`, warm, hot `1`); simultaneous
+  failures count as in order for PAND; simultaneous spare demands are
+  served in gate declaration order.
+- Meaning: exact quantification of order- and use-dependent failure
+  logic; the transient law carries the uniformization error bound.
+- Code: `systems.DynamicFaultTree.state_space`,
+  `systems.DynamicFaultTree.unreliability`,
+  `systems.DynamicFaultTree.reliability`, `systems.DFTStateSpace`.
+- Source: [REF-DUGAN-BAVUSO-BOYD-1992], [REF-NASA-FTH-2002, Chapter 8],
+  [REF-NORRIS-1997, Sections 2.1-2.8].
+
+### EQ-SYS-DFT-002 — Mean time to the top event
+
+`MTTF = m(s0)` with `m = (-Q_TT)^-1 1` over the working states; `MTTF = inf`
+when a working state without outgoing transitions is reachable (the top
+event is then avoided forever with positive probability).
+
+- Domain: the generated chain of EQ-SYS-DFT-001 (acyclic, because failures
+  only accumulate).
+- Meaning: expected time to system failure, solved by the
+  subtraction-free elimination of EQ-PROC-CTMC-006.
+- Code: `systems.DynamicFaultTree.mttf`.
+- Source: [REF-NORRIS-1997, Section 3.3], [REF-DUGAN-BAVUSO-BOYD-1992].
+
+### EQ-SYS-DFT-003 — Event-time simulation of the gate semantics
+
+Each working event carries a pending failure time: `Exp(lambda)` when
+active, `Exp(alpha lambda)` while dormant, and `s + Exp(lambda)` when it is
+put into use (or released by its SEQ predecessor) at time `s`, by
+memorylessness. Gate times: AND `max`, OR `min`, vote the `k`-th smallest,
+PAND `t_m` if `t_1 <= ... <= t_m` else `inf`, SEQ `max`, SPARE the instant
+no unit is left. With `K` of `n` histories failing by `t`,
+`F_hat(t) = K / n` and the Clopper-Pearson interval of EQ-INF-CI-CP-001.
+
+- Domain: as EQ-SYS-DFT-001; seeded streams.
+- Meaning: an independent statistical cross-check of the exact chain; it
+  evaluates the gates from failure times instead of chain states.
+- Code: `systems.monte_carlo_unreliability`, `systems.DFTMonteCarloEstimate`.
+- Source: [REF-DUGAN-BAVUSO-BOYD-1992], [REF-CLOPPER-PEARSON-1934],
+  [REF-DEVROYE-1986, Chapter II].
+
+### EQ-SYS-DFT-004 — Closed forms for elementary dynamic gates
+
+For rates `a`, `b`, `lambda`:
+`F_PAND(A,B)(t) = int_0^t a e^{-a s} (e^{-b s} - e^{-b t}) ds
+= a/(a+b) (1 - e^{-(a+b) t}) - e^{-b t} (1 - e^{-a t})`;
+cold spare pair `F = 1 - e^{-lambda t} (1 + lambda t)` (Erlang(2, lambda));
+hot spare pair `F = (1 - e^{-lambda t})^2`;
+warm spare (primary `a`, spare `b`, dormancy `alpha`, `c = a + alpha b - b`)
+`R(t) = e^{-a t} + a e^{-b t} (1 - e^{-c t}) / c`, with mean
+`1/(a + alpha b) + a/((a + alpha b) b) + alpha b/((a + alpha b) a)`;
+`SEQ(A, B)` with rates `a != b`: `F = 1 - (b e^{-a t} - a e^{-b t})/(b - a)`;
+FDEP with trigger `T` on the inputs of `AND(A, B)`: `F = 1 - (1 - F_T)(1 -
+F_A F_B)`.
+
+- Domain: independent exponential basic events.
+- Meaning: oracles for the state-space quantification; the warm spare is a
+  hypoexponential law, and the cold and hot cases are its limits
+  `alpha = 0` and `alpha = 1` when `a = b`.
+- Code: `systems.dynamic` (module documentation; used as test oracles in
+  `tests/test_dynamic_fault_trees.py`).
+- Source: [REF-NASA-FTH-2002, Chapter 8], [REF-DUGAN-BAVUSO-BOYD-1992].

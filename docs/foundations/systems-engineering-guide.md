@@ -92,6 +92,53 @@ Two choices matter for mission reliability:
   `{CCF[cpu1,cpu2,cpu3]}` is a single point of failure even though the
   computers are 2-out-of-3.
 
+### Dynamic fault trees: order and state of use
+
+Static gates cannot express that a failure matters only in a certain
+order, that a spare ages slowly until it is switched in, or that one
+failure disables others. `DynamicFaultTree` adds the dynamic gates of
+Dugan, Bavuso and Boyd (1992) and of the NASA Fault Tree Handbook
+(Stamatelatos et al. 2002, Chapter 8) [REF-DUGAN-BAVUSO-BOYD-1992],
+[REF-NASA-FTH-2002]:
+
+| Gate | Builder | Fails when |
+|---|---|---|
+| Priority AND | `pand_gate` | all inputs fail, left to right (simultaneous counts as in order) |
+| Spare | `spare_gate` | the unit in use fails and no listed spare is free; a spare runs at `alpha lambda` until claimed (`alpha = 0` cold, `1` hot); spares may be shared between gates |
+| Functional dependency | `fdep_gate` | (no output) the trigger fails its dependent basic events at once |
+| Sequence enforcing | `seq_gate` | all inputs fail; each later input can fail only after its predecessor |
+
+Basic events (`DynamicBasicEvent(name, rate, dormancy)`) are exponential and
+non-repairable. The tree is converted into a continuous-time Markov chain
+whose state records the failed events, the unit each spare gate uses and
+the PAND gates whose order was violated [EQ-SYS-DFT-001]. `unreliability`
+and `reliability` come from uniformization with an error bound, and `mttf`
+from the absorption solve [EQ-SYS-DFT-002]; `state_space().size` reports
+the chain size and `max_states` stops a state explosion with a clear error.
+A tree with static gates only is evaluated on the BDD, and the two paths
+agree to `1e-14`. `monte_carlo_unreliability` simulates the same semantics
+from failure times, with Clopper-Pearson intervals, as an independent check
+[EQ-SYS-DFT-003]. Useful sanity checks: a cold pair of identical units is
+Erlang(2, `lambda`), a hot pair is active parallel, and PAND(A, B) equals
+`int_0^t a e^{-a s}(e^{-b s} - e^{-b t}) ds` [EQ-SYS-DFT-004].
+
+The Markov path does not modularize: every relevant basic event enters the
+state, so the state space grows exponentially with their number. Keep
+dynamic gates where the dependence actually lives, and solve independent
+static parts separately on the BDD.
+
+### BDD variable order
+
+The size of a BDD depends on the variable order, sometimes exponentially:
+`x1 x2 + x3 x4 + ... ` has `2n` nodes when each pair is adjacent and
+`2^(n+1) - 2` when all odd variables come first [REF-BRYANT-1986].
+`BDD.sift(roots)` applies Rudell's sifting [REF-RUDELL-1993]: each variable
+is moved through every position by adjacent level swaps and left where the
+diagram is smallest [EQ-SYS-SIFT-001]. It returns a new manager, the mapped
+roots and the node counts before and after; the represented functions, and
+therefore all probabilities, are unchanged, and the size never increases.
+`BDD.reorder(roots, order)` applies a prescribed order instead.
+
 ## 4. Phases and timelines
 
 - **Phased missions with non-repairable components:**
@@ -161,6 +208,7 @@ Other tools in the same packages:
 |---|---|---|
 | Static structure, independent components, any size of logic with shared events | BDD (`SystemModel`) | Yes |
 | Repair, standby, switching, load sharing inside a block | CTMC (`systems.markov`) | Yes, up to a stated truncation bound |
+| Failure order, spares (shared pools), functional dependencies, non-repairable | `DynamicFaultTree` (state space into a CTMC) | Yes, up to a stated truncation bound |
 | Mission phases, non-repairable | `PhasedMission` | Yes |
 | Mission phases with repair | `MarkovPhasedMission` | Yes, up to a stated bound |
 | Discrete mission timeline with retries/aborts | `MissionStageModel` | Yes |

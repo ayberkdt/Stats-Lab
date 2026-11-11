@@ -21,10 +21,16 @@ Markov chains (:class:`MarkovReliabilityModel` and its builders), phased
 missions with repair with :class:`MarkovPhasedMission`, and discrete-time
 missions with absorbing success or failure outcomes with
 :func:`discrete_mission_outcome` and :class:`MissionStageModel`.
+
+Dynamic fault trees (:class:`DynamicFaultTree` with PAND, spare, FDEP and
+SEQ gates) are quantified exactly by state-space generation into a
+continuous-time Markov chain and cross-checked by
+:func:`monte_carlo_unreliability`. :meth:`BDD.sift` reduces diagram sizes
+by Rudell's sifting without changing the represented functions.
 """
 
 from .adapters import MarkovComponent, SubsystemComponent
-from .bdd import BDD, PolynomialMoments, VariableEffect
+from .bdd import BDD, PolynomialMoments, ReorderResult, VariableEffect
 from .ccf import (
     AlphaFactorGroup,
     BetaFactorGroup,
@@ -45,6 +51,21 @@ from .components import (
     PeriodicallyTestedComponent,
     RepairableComponent,
     WeibullComponent,
+)
+from .dynamic import (
+    DFTMonteCarloEstimate,
+    DFTStateSpace,
+    DynamicBasicEvent,
+    DynamicFaultTree,
+    DynamicGate,
+    and_gate,
+    fdep_gate,
+    monte_carlo_unreliability,
+    or_gate,
+    pand_gate,
+    seq_gate,
+    spare_gate,
+    vote_gate,
 )
 from .importance import ImportanceMeasures, importance_measures, structural_importance
 from .markov import (
@@ -94,8 +115,13 @@ __all__ = [
     "CommonCauseExpansion",
     "Component",
     "ComponentModel",
+    "DFTMonteCarloEstimate",
+    "DFTStateSpace",
     "DemandComponent",
     "DiscreteMissionOutcome",
+    "DynamicBasicEvent",
+    "DynamicFaultTree",
+    "DynamicGate",
     "ExponentialComponent",
     "Expression",
     "FixedProbability",
@@ -119,6 +145,7 @@ __all__ = [
     "PolynomialMoments",
     "ReliabilityBounds",
     "ReliabilityMoments",
+    "ReorderResult",
     "RepairableComponent",
     "Series",
     "SubsystemComponent",
@@ -126,23 +153,31 @@ __all__ = [
     "SystemStructure",
     "VariableEffect",
     "WeibullComponent",
+    "and_gate",
     "bridge",
     "compile_expression",
     "discrete_mission_outcome",
     "expand_common_cause",
     "expression_components",
+    "fdep_gate",
     "from_fault_tree",
     "from_states",
     "importance_measures",
     "k_out_of_n",
     "load_sharing_pair",
+    "monte_carlo_unreliability",
     "normalisation",
+    "or_gate",
     "order_probabilities",
+    "pand_gate",
     "parallel",
     "parallel_redundant_pair",
     "repairable_k_out_of_n",
+    "seq_gate",
     "series",
     "single_repairable_unit",
+    "spare_gate",
     "standby_system",
     "structural_importance",
+    "vote_gate",
 ]
