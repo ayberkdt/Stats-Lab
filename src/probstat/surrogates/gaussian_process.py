@@ -18,6 +18,16 @@ signal variance, optionally adds a log-normal prior on the length scales, and
 keeps the diagonal at least a fixed fraction of the signal variance. Without
 it the fit is the plain type-II maximum likelihood estimate in the box
 ``|theta| <= 25``. Both report which parameters ended on a bound.
+
+Dense kernels follow the active :func:`probstat.linalg.get_backend`
+(ADR-0081). Under the default ``"python"`` backend the specialized
+pure-Python kernels of this module run unchanged (ragged lower triangles,
+one triangular inversion for the gradient traces). Under any other backend
+the full kernel matrix is factorized once per evaluation through
+:meth:`~probstat.linalg.DenseBackend.factorize`, and the solves, the
+log-determinant, and ``K^-1`` come from that factorization; the kernel
+assembly and the ``O(n^2 d)`` gradient contraction stay in Python. A fitted
+surrogate keeps the factorization of the backend that built it.
 """
 
 from __future__ import annotations
@@ -31,9 +41,13 @@ from operator import mul
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import require_finite_real
 from probstat.linalg import (
+    CholeskyFactorization,
+    DenseBackend,
     Matrix,
+    PythonBackend,
     Vector,
     as_vector,
+    get_backend,
     solve_lower,
 )
 from probstat.modeling import ProbabilisticModel
@@ -489,6 +503,134 @@ def _triangular_solve(
     return tuple(backward)
 
 
+def _accelerated_backend() -> DenseBackend | None:
+    """Return the active dense backend, or ``None`` for the reference backend.
+
+    The reference :class:`~probstat.linalg.PythonBackend` keeps this
+    module's specialized kernels, whose results the test suite pins
+    bit-for-bit; every other backend receives full matrices.
+
+    References:
+        [REF-HARRIS-ETAL-2020], [REF-GOLUB-VANLOAN-2013, Section 4.2].
+        No equation is evaluated.
+
+    """
+    backend = get_backend()
+    return None if isinstance(backend, PythonBackend) else backend
+
+
+def _full_matrix(rows: Sequence[Sequence[float]]) -> Matrix:
+    """Mirror lower-triangle rows ``K[i][:i+1]`` into a full symmetric matrix.
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 1.1]. No equation is evaluated.
+
+    """
+    count = len(rows)
+    return tuple(
+        tuple(rows[i][j] if j <= i else rows[j][i] for j in range(count))
+        for i in range(count)
+    )
+
+
+def _factorize_dense(
+    backend: DenseBackend, rows: Sequence[Sequence[float]]
+) -> CholeskyFactorization:
+    """Factorize the full kernel matrix with a non-reference backend.
+
+    Raises:
+        ValueError: If the kernel matrix is not positive definite.
+
+    Equation:
+        [EQ-LINALG-001].
+
+    References:
+        [REF-LAPACK-1999, Chapter 2], [REF-HIGHAM-2002, Chapter 10].
+
+    """
+    try:
+        return backend.factorize(_full_matrix(rows))
+    except ValueError as error:
+        raise ValueError("kernel matrix is not positive definite") from error
+
+
+def _gradient(
+    signal: float,
+    trace_weight: float,
+    signal_sum: float,
+    axis_sums: Sequence[float],
+    tau: float,
+    extra: float,
+    estimate_noise: bool,
+) -> Vector:
+    """Assemble ``d log p / d theta`` from the trace contractions.
+
+    Equation:
+        [EQ-SUR-GP-004].
+
+    References:
+        [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
+
+    """
+    gradient = [0.5 * signal * trace_weight + signal * signal_sum]
+    if tau > 0.0:
+        gradient[0] += 0.5 * tau * signal * trace_weight
+    gradient.extend(signal * total for total in axis_sums)
+    if estimate_noise:
+        gradient.append(0.5 * extra * trace_weight)
+    return tuple(gradient)
+
+
+def _dense_likelihood(
+    factor: CholeskyFactorization,
+    y: Vector,
+    parts: Sequence[Sequence[tuple[float, ...]]],
+    correlation: Sequence[Sequence[float]],
+    factors: Sequence[Sequence[float]],
+    dimension: int,
+) -> tuple[float, float, float, list[float]]:
+    """Return value and trace contractions from a backend factorization.
+
+    ``alpha = K^-1 y``, ``log det K``, and every ``(K^-1)_ab`` come from the
+    factorization; the weights ``W_ab = alpha_a alpha_b - (K^-1)_ab`` are
+    contracted with ``dK/d theta`` exactly as on the reference path.
+
+    Returns:
+        ``(log p, tr W, sum_(a<b) W_ab R_ab, per-axis sums)``.
+
+    Equation:
+        [EQ-SUR-GP-004], [EQ-LINALG-006], [EQ-LINALG-011].
+
+    References:
+        [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
+
+    """
+    count = len(y)
+    alpha = factor.solve(y)
+    value = -0.5 * _sumprod(y, alpha)
+    value += -0.5 * factor.log_det() - 0.5 * count * _LOG_TWO_PI
+    precision = factor.inverse()
+    trace_weight = math.fsum(
+        alpha[a] * alpha[a] - precision[a][a] for a in range(count)
+    )
+    signal_sum = 0.0
+    axis_sums = [0.0] * dimension
+    for b in range(count):
+        alpha_b = alpha[b]
+        row_precision = precision[b]
+        row_corr = correlation[b]
+        row_factor = factors[b]
+        row_parts = parts[b]
+        for a in range(b):
+            weight = alpha[a] * alpha_b - row_precision[a]
+            signal_sum += weight * row_corr[a]
+            scaled_weight = weight * row_factor[a]
+            difference = row_parts[a]
+            for axis in range(dimension):
+                axis_sums[axis] += scaled_weight * difference[axis]
+    return value, trace_weight, signal_sum, axis_sums
+
+
 def _assemble(
     points: Sequence[Sequence[float]],
     scales: Sequence[float],
@@ -622,6 +764,20 @@ def gaussian_process_log_marginal_likelihood(
     if tau > 0.0:
         noise += tau * signal
     matrix, parts, correlation, factors = _assemble(x, scales, signal, noise, kernel)
+    backend = _accelerated_backend()
+    if backend is not None:
+        try:
+            factor = _factorize_dense(backend, matrix)
+        except ValueError as error:
+            raise ValueError(
+                "kernel matrix is not positive definite; increase the nugget"
+            ) from error
+        value, trace_weight, signal_sum, dense_sums = _dense_likelihood(
+            factor, y, parts, correlation, factors, dimension
+        )
+        return value, _gradient(
+            signal, trace_weight, signal_sum, dense_sums, tau, extra, estimate_noise
+        )
     try:
         lower = _fast_cholesky(matrix)
     except ValueError as error:
@@ -652,13 +808,9 @@ def gaussian_process_log_marginal_likelihood(
             difference = row_parts[a]
             for axis in range(dimension):
                 axis_sums[axis] += scaled_weight * difference[axis]
-    gradient = [0.5 * signal * trace_weight + signal * signal_sum]
-    if tau > 0.0:
-        gradient[0] += 0.5 * tau * signal * trace_weight
-    gradient.extend(signal * total for total in axis_sums)
-    if estimate_noise:
-        gradient.append(0.5 * extra * trace_weight)
-    return value, tuple(gradient)
+    return value, _gradient(
+        signal, trace_weight, signal_sum, axis_sums, tau, extra, estimate_noise
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -742,6 +894,9 @@ class GaussianProcessRegression:
     _factorization: tuple[float, Vector, float, Matrix, Vector] = field(
         init=False, repr=False, compare=False
     )
+    _dense_factor: CholeskyFactorization | None = field(
+        init=False, repr=False, compare=False, default=None
+    )
     condition_number: float = field(init=False, compare=False, default=math.nan)
 
     def __post_init__(self) -> None:
@@ -759,14 +914,26 @@ class GaussianProcessRegression:
             [REF-GOLUB-VANLOAN-2013, Section 2.6].
 
         """
-        factorization = self._standardized()
+        factorization, dense_factor = self._standardized()
         object.__setattr__(self, "_factorization", factorization)
+        object.__setattr__(self, "_dense_factor", dense_factor)
         signal, scales, noise, lower, _ = factorization
         rows, _, _, _ = _assemble(self.points, scales, signal, noise, self.kernel)
-        object.__setattr__(self, "condition_number", _condition_number(rows, lower))
+        if dense_factor is None:
+            condition = _condition_number(rows, lower)
+        else:
+            condition = _condition_number_from_precision(rows, dense_factor.inverse())
+        object.__setattr__(self, "condition_number", condition)
 
-    def _standardized(self) -> tuple[float, Vector, float, Matrix, Vector]:
-        """Return signal, scales, noise, Cholesky factor, and ``alpha``.
+    def _standardized(
+        self,
+    ) -> tuple[
+        tuple[float, Vector, float, Matrix, Vector], CholeskyFactorization | None
+    ]:
+        """Return (signal, scales, noise, factor, ``alpha``) and a backend factor.
+
+        The second item is the retained backend factorization when a
+        non-reference dense backend is active, otherwise ``None``.
 
         References:
             [REF-RASMUSSEN-WILLIAMS-2006, Algorithm 2.1]. No new equation.
@@ -781,15 +948,34 @@ class GaussianProcessRegression:
             noise += self.relative_nugget * signal
         count = len(self.points)
         rows, _, _, _ = _assemble(self.points, scales, signal, noise, self.kernel)
+        targets = tuple(
+            (value - self.output_mean) / self.output_scale for value in self.values
+        )
+        backend = _accelerated_backend()
+        if backend is not None:
+            try:
+                dense_factor = _factorize_dense(backend, rows)
+            except ValueError as error:
+                raise ValueError("matrix must be positive definite") from error
+            return (
+                signal,
+                scales,
+                noise,
+                dense_factor.lower,
+                dense_factor.solve(targets),
+            ), dense_factor
         try:
             factor = _fast_cholesky(rows)
         except ValueError as error:
             raise ValueError("matrix must be positive definite") from error
         lower = tuple(tuple(factor[i]) + (0.0,) * (count - 1 - i) for i in range(count))
-        targets = tuple(
-            (value - self.output_mean) / self.output_scale for value in self.values
-        )
-        return signal, scales, noise, lower, _triangular_solve(factor, targets)
+        return (
+            signal,
+            scales,
+            noise,
+            lower,
+            _triangular_solve(factor, targets),
+        ), None
 
     @property
     def standardized_noise_variance(self) -> float:
@@ -840,7 +1026,10 @@ class GaussianProcessRegression:
             for train in self.points
         )
         mean = math.fsum(a * b for a, b in zip(cross, alpha, strict=True))
-        whitened = solve_lower(lower, cross)
+        if self._dense_factor is None:
+            whitened = solve_lower(lower, cross)
+        else:
+            whitened = self._dense_factor.solve_lower(cross)
         variance = signal - math.fsum(v * v for v in whitened)
         if include_noise:
             variance += noise
@@ -885,12 +1074,17 @@ class GaussianProcessRegression:
         """
         _, _, _, lower, alpha = self._factorization
         count = len(self.points)
-        columns = _inverse_factor_columns(lower)
+        if self._dense_factor is None:
+            columns = _inverse_factor_columns(lower)
+            diagonals = [_sumprod(columns[i], columns[i]) for i in range(count)]
+        else:
+            precision = self._dense_factor.inverse()
+            diagonals = [precision[i][i] for i in range(count)]
         means: list[float] = []
         variances: list[float] = []
         residuals: list[float] = []
         for i in range(count):
-            diagonal = _sumprod(columns[i], columns[i])
+            diagonal = diagonals[i]
             standardized = (self.values[i] - self.output_mean) / self.output_scale
             loo_mean = standardized - alpha[i] / diagonal
             means.append(self.output_mean + self.output_scale * loo_mean)
@@ -959,11 +1153,39 @@ def _objective_noise(
         rows, _, _, _ = _assemble(
             points, scales, signal, nugget + extra + tau * signal, kernel
         )
-        lower = _fast_cholesky(rows)
+        backend = _accelerated_backend()
+        if backend is None:
+            lower = _fast_cholesky(rows)
+        else:
+            precision = _factorize_dense(backend, rows).inverse()
     except ValueError:
         return floor
-    kappa = _condition_number(rows, lower)
+    if backend is None:
+        kappa = _condition_number(rows, lower)
+    else:
+        kappa = _condition_number_from_precision(rows, precision)
     return max(floor, kappa * 2.0**-52 * (len(points) + abs(value)))
+
+
+def _condition_number_from_precision(
+    rows: Sequence[Sequence[float]], precision: Matrix
+) -> float:
+    """Return ``||K||_1 ||K^-1||_1`` from the lower triangle and a full inverse.
+
+    Equation:
+        [EQ-SUR-GP-007], [EQ-LINALG-011].
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 2.6].
+
+    """
+    count = len(rows)
+    norm_k = max(
+        math.fsum(abs(rows[max(a, b)][min(a, b)]) for b in range(count))
+        for a in range(count)
+    )
+    norm_inverse = max(math.fsum(abs(value) for value in row) for row in precision)
+    return norm_k * norm_inverse
 
 
 def _condition_number(

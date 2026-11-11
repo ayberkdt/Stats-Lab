@@ -1,5 +1,21 @@
-"""Dependency-free dense linear algebra shared by every higher layer."""
+"""Dependency-free dense linear algebra shared by every higher layer.
 
+The dense kernels of the ``n^3`` consumers are reached through a selectable
+:class:`DenseBackend` (ADR-0081): the default ``"python"`` backend wraps the
+routines below unchanged, and an optional ``"numpy"`` backend is loaded only
+on explicit selection with :func:`set_backend` or :func:`use_backend`.
+"""
+
+from .backend import (
+    CholeskyFactorization,
+    DenseBackend,
+    NumPyBackend,
+    PythonBackend,
+    available_backends,
+    get_backend,
+    set_backend,
+    use_backend,
+)
 from .dense import (
     Matrix,
     Vector,
@@ -34,17 +50,23 @@ from .qr import DEFAULT_RANK_TOLERANCE, HouseholderQR, householder_qr
 
 __all__ = [
     "DEFAULT_RANK_TOLERANCE",
+    "CholeskyFactorization",
+    "DenseBackend",
     "HouseholderQR",
     "Matrix",
+    "NumPyBackend",
+    "PythonBackend",
     "Vector",
     "add",
     "as_matrix",
     "as_vector",
+    "available_backends",
     "cholesky",
     "cholesky_semidefinite",
     "cholesky_solve",
     "determinant",
     "dot",
+    "get_backend",
     "householder_qr",
     "identity",
     "inverse_spd",
@@ -58,10 +80,12 @@ __all__ = [
     "quadratic_form",
     "sandwich",
     "scale_matrix",
+    "set_backend",
     "solve_lower",
     "solve_spd",
     "solve_upper",
     "symmetric_eigen",
     "symmetrize",
     "transpose",
+    "use_backend",
 ]

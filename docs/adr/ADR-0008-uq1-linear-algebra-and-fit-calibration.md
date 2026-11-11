@@ -37,7 +37,7 @@ interval.
 - Base installation remains dependency free.
 - Covariance errors fail explicitly rather than being silently regularized.
 - Larger dense problems will eventually require a numerical backend ADR and
-  reference comparisons.
+  reference comparisons. See ADR-0081.
 - Family-specific fitted-null corrections and parametric bootstrap remain
   required before the goodness-of-fit curriculum row can be complete.
 - Presentation remains above inference; fitted-CDF plots cannot define or

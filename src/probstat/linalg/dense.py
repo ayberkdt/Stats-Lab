@@ -530,14 +530,36 @@ def inverse_spd(matrix: Matrix) -> Matrix:
         ValueError: If the matrix is not positive definite.
 
     Equation:
-        [EQ-LINALG-001], [EQ-LINALG-002], [EQ-LINALG-003].
+        [EQ-LINALG-001], [EQ-LINALG-002], [EQ-LINALG-003], [EQ-LINALG-011].
 
     References:
         [REF-GOLUB-VANLOAN-2013, Sections 3.1 and 4.2].
 
     """
-    lower = cholesky(matrix)
-    size = len(matrix)
+    return _inverse_from_cholesky(cholesky(matrix))
+
+
+def _inverse_from_cholesky(lower: Matrix) -> Matrix:
+    """Return ``(L L')^-1`` from a lower Cholesky factor by unit-vector solves.
+
+    Column ``j`` of the inverse solves ``L L' x = e_j``; the result is
+    symmetrized to remove rounding asymmetry. :func:`inverse_spd` is this
+    function applied to ``cholesky(A)``.
+
+    Args:
+        lower: Lower Cholesky factor with a positive diagonal.
+
+    Returns:
+        Symmetrized inverse of ``L L'``.
+
+    Equation:
+        [EQ-LINALG-002], [EQ-LINALG-003], [EQ-LINALG-011].
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Sections 3.1 and 4.2].
+
+    """
+    size = len(lower)
     columns = tuple(
         cholesky_solve(lower, tuple(1.0 if row == j else 0.0 for row in range(size)))
         for j in range(size)
