@@ -506,7 +506,8 @@ class ProbabilisticProgrammingGradientTests(unittest.TestCase):
             program.gradient((0.3,), method="autodiff")[0], exact, delta=1e-12
         )
         posterior = quiet(ppl.sample, model, draws=600, warmup=400, chains=2, seed=4)
-        self.assertEqual(posterior.gradient_method, "autodiff")
+        # Traceable programs are differentiated in reverse mode (ADR-0069).
+        self.assertEqual(posterior.gradient_method, "reverse")
         summary = posterior.summary()[0]
         self.assertLess(abs(summary.mean - POST_MEAN), 4.0 * summary.mcse_mean)
         laplace = ppl.laplace(model, draws=10, seed=1)

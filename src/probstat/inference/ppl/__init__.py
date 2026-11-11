@@ -11,8 +11,9 @@ A model is a plain Python function of a handle ``m``::
 :func:`trace` runs the model once and returns a :class:`ModelIR`: the ordered
 latent sites, their supports and bijections to ``R`` (identity, shifted log,
 negated shifted log, scaled logit), and the joint log-density on the
-unconstrained vector (prior + likelihood + log-Jacobian) with a central
-finite-difference gradient. :func:`sample` (NUTS, HMC, or adaptive
+unconstrained vector (prior + likelihood + log-Jacobian) with a reverse-mode
+gradient when the program is traceable and a central finite-difference
+gradient otherwise (ADR-0069). :func:`sample` (NUTS, HMC, or adaptive
 Metropolis), :func:`fit_advi`, and :func:`laplace` hand that density to the
 existing engines and return draws keyed by site name on the natural scale;
 :func:`prior_predictive`, :func:`posterior_predictive`, and

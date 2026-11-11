@@ -2590,3 +2590,15 @@ Cambridge, 1998.
 
 David Vose. *Risk Analysis: A Quantitative Guide*. 3rd edition, Wiley,
 Chichester, 2008.
+
+## REF-BAYDIN-ETAL-2018
+
+Atılım Güneş Baydin, Barak A. Pearlmutter, Alexey Andreyevich Radul, and
+Jeffrey Mark Siskind. "Automatic Differentiation in Machine Learning: a
+Survey." *Journal of Machine Learning Research* 18(153), 1-43, 2018.
+
+## REF-PEARLMUTTER-1994
+
+Barak A. Pearlmutter. "Fast Exact Multiplication by the Hessian." *Neural
+Computation* 6(1), 147-160, 1994.
+DOI: [10.1162/neco.1994.6.1.147](https://doi.org/10.1162/neco.1994.6.1.147).

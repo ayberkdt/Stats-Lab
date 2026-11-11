@@ -60,9 +60,17 @@ Gradients and cost
     falls back to central differences ([EQ-OPT-FD-001]) at ``2 d`` extra
     log-density calls per step, so a NUTS iteration with tree depth ``j``
     costs about ``2^j (2 d + 1)`` calls; ``gradient_method`` in the result
-    records which method was used and why. ``"autodiff"`` and
-    ``"finite-difference"`` force one method; a callable is an analytic
-    gradient.
+    records which method was used and why. ``"reverse"`` records one call on
+    a tape and returns the exact gradient from one backward sweep
+    ([EQ-AD-REVERSE-001]); it is also one call per gradient, and its
+    arithmetic cost does not grow with ``d`` (forward mode costs about ``d``
+    float evaluations per gradient), so it is the faster choice from a few
+    dimensions upward. ``"auto-reverse"`` is reverse mode with the same
+    finite-difference fallback. ``"autodiff"`` (alias ``"forward"``),
+    ``"reverse"`` and ``"finite-difference"`` (alias ``"finite"``) force one
+    method; a callable is an analytic gradient. The default stays
+    ``"auto"`` (ADR-0069): for one or two coordinates forward mode is as fast,
+    and the draws of seeded runs do not change.
 
 Convergence checks
     After sampling, :func:`~probstat.inference.convergence_warnings` checks
@@ -94,7 +102,7 @@ from probstat.linalg import (
     symmetrize,
     transpose,
 )
-from probstat.numerics import GradientEvaluator
+from probstat.numerics import GRADIENT_OPTIONS, GradientEvaluator
 from probstat.optimization import central_gradient
 
 from .mcmc import (
@@ -144,10 +152,11 @@ class HamiltonianChainStatistics:
         max_tree_depth: Tree-depth limit (``0`` for static HMC).
         gradient_evaluations: Gradient evaluations including warm-up.
         log_density_evaluations: Calls of the log-density including warm-up
-            and finite-difference gradients; one dual-number (autodiff) call
-            returns value and gradient and counts once.
-        gradient_method: ``"autodiff"``, ``"finite-difference"``, or
-            ``"analytic"``.
+            and finite-difference gradients; one dual-number (autodiff) or
+            reverse-mode call returns value and gradient and counts once
+            (the backward sweep does not call the log-density).
+        gradient_method: ``"autodiff"`` (forward mode), ``"reverse"``,
+            ``"finite-difference"``, or ``"analytic"``.
         gradient_fallback_reason: Why ``gradient="auto"`` fell back to finite
             differences (``None`` when it did not).
 
@@ -1633,16 +1642,15 @@ def _sample(
         raise TypeError("log_density must be callable")
     option: GradientFunction | str = "auto" if gradient is None else gradient
     if not callable(option):
+        message = (
+            "gradient must be one of "
+            + ", ".join(map(repr, GRADIENT_OPTIONS))
+            + ", a callable, or None"
+        )
         if not isinstance(option, str):
-            raise TypeError(
-                "gradient must be 'auto', 'autodiff', 'finite-difference', a "
-                "callable, or None"
-            )
-        if option not in ("auto", "autodiff", "finite-difference"):
-            raise ValueError(
-                "gradient must be 'auto', 'autodiff', 'finite-difference', a "
-                "callable, or None"
-            )
+            raise TypeError(message)
+        if option not in GRADIENT_OPTIONS:
+            raise ValueError(message)
     if variant not in ("multinomial", "slice"):
         raise ValueError("variant must be 'multinomial' or 'slice'")
     nuts_variant: NutsVariant = "slice" if variant == "slice" else "multinomial"
@@ -1855,11 +1863,12 @@ def hamiltonian_monte_carlo(
     Args:
         log_density: Target ``log p(x)`` up to a constant on ``R^d``.
         initial: One start shared by all chains, or one start per chain.
-        gradient: ``"auto"`` (autodiff, falling back to central differences
-            when the log-density rejects dual numbers; ``None`` means the
-            same), ``"autodiff"``, ``"finite-difference"`` (``2 d`` extra
-            density evaluations per leapfrog step), or an analytic
-            ``grad log p(x)``.
+        gradient: ``"auto"`` (forward-mode autodiff, falling back to central
+            differences when the log-density rejects dual numbers; ``None``
+            means the same), ``"auto-reverse"`` (reverse mode with the same
+            fallback), ``"autodiff"``/``"forward"``, ``"reverse"``,
+            ``"finite-difference"``/``"finite"`` (``2 d`` extra density
+            evaluations per leapfrog step), or an analytic ``grad log p(x)``.
         draws: Kept draws per chain.
         warmup: Adaptation and burn-in iterations per chain.
         chains: Number of independent chains (``RandomStream.spawn``).
@@ -1973,9 +1982,11 @@ def no_u_turn_sampler(
     Args:
         log_density: Target ``log p(x)`` up to a constant on ``R^d``.
         initial: One start shared by all chains, or one start per chain.
-        gradient: ``"auto"`` (autodiff with finite-difference fallback;
-            ``None`` means the same), ``"autodiff"``, ``"finite-difference"``,
-            or an analytic ``grad log p(x)``.
+        gradient: ``"auto"`` (forward-mode autodiff with finite-difference
+            fallback; ``None`` means the same), ``"auto-reverse"`` (reverse
+            mode with fallback), ``"autodiff"``/``"forward"``, ``"reverse"``,
+            ``"finite-difference"``/``"finite"``, or an analytic
+            ``grad log p(x)``.
         draws: Kept draws per chain.
         warmup: Adaptation and burn-in iterations per chain.
         chains: Number of independent chains.

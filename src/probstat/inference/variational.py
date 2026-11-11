@@ -39,7 +39,7 @@ from probstat.foundations.validation import (
     require_non_negative_integer,
 )
 from probstat.linalg import Matrix, Vector, as_vector
-from probstat.numerics import GradientEvaluator
+from probstat.numerics import GRADIENT_OPTIONS, GradientEvaluator
 from probstat.optimization import central_gradient
 
 from .mcmc import LogDensity, MarkovChain, MCMCResult
@@ -72,8 +72,8 @@ class VariationalResult:
         samples: Independent draws from the fitted ``q``.
         log_density: Target ``log p`` at each draw.
         seed: Seed of the stream that drove the optimization.
-        gradient_method: ``"autodiff"``, ``"finite-difference"``, or
-            ``"analytic"``.
+        gradient_method: ``"autodiff"`` (forward mode), ``"reverse"``,
+            ``"finite-difference"``, or ``"analytic"``.
         gradient_fallback_reason: Why ``gradient="auto"`` fell back to finite
             differences (``None`` when it did not).
 
@@ -372,8 +372,10 @@ def advi(
         gradient: ``"auto"`` (default; forward-mode autodiff, one call per
             gradient sample, falling back to central differences with ``2 d``
             extra calls when ``log p`` rejects dual numbers; ``None`` means
-            the same), ``"autodiff"``, ``"finite-difference"``, or an
-            analytic ``grad log p(x)``.
+            the same), ``"auto-reverse"`` (reverse mode with the same
+            fallback), ``"autodiff"``/``"forward"``, ``"reverse"``,
+            ``"finite-difference"``/``"finite"``, or an analytic
+            ``grad log p(x)``.
         gradient_samples: Monte Carlo draws per gradient estimate.
         learning_rate: Adam step size ``alpha``.
         beta1: Adam first-moment decay in ``[0, 1)``.
@@ -411,16 +413,13 @@ def advi(
     if not callable(log_density):
         raise TypeError("log_density must be callable")
     option: GradientFunction | str = "auto" if gradient is None else gradient
-    if not callable(option) and option not in (
-        "auto",
-        "autodiff",
-        "finite-difference",
-    ):
+    if not callable(option) and option not in GRADIENT_OPTIONS:
         if not isinstance(option, str):
             raise TypeError("gradient must be a method name, a callable, or None")
         raise ValueError(
-            "gradient must be 'auto', 'autodiff', 'finite-difference', a "
-            "callable, or None"
+            "gradient must be one of "
+            + ", ".join(map(repr, GRADIENT_OPTIONS))
+            + ", a callable, or None"
         )
     if family not in ("mean-field", "full-rank"):
         raise ValueError("family must be 'mean-field' or 'full-rank'")

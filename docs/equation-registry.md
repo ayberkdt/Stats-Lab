@@ -11243,3 +11243,46 @@ number is `||K||_1 ||K^-1||_1`.
   `surrogates.GaussianProcessRegression`.
 - Source: [REF-GOLUB-VANLOAN-2013, Sections 2.6 and 3.1],
   [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
+
+### EQ-AD-REVERSE-001 — Reverse-mode (adjoint) sweep
+
+For an evaluation recorded as elementary operations `v_i = phi_i(v_j, j < i)`
+with local partials `c_ij = d phi_i / d v_j`, seed `vbar_y = 1` (or
+`vbar_(y_k) = w_k` for a vector function) and all other adjoints 0, then for
+`i = N, N-1, ..., 1` set `vbar_j <- vbar_j + vbar_i c_ij` for every parent
+`j` of node `i`. The input adjoints are `grad f(x)` (or `w' J(x)`).
+
+- Domain: functions composed of `+ - * / **` and elementary functions that
+  are differentiable at the evaluation point; unbounded derivatives
+  (`sqrt` at 0, `asin`/`acos` at +-1, `0 ** c` with `c < 1`, `atan2` at the
+  origin) are rejected; at the kinks `abs(0)` and `hypot(0, ..., 0)` the
+  derivative is defined as 0.
+- Meaning: exact (to rounding) gradient from one recorded evaluation and
+  one backward sweep; the operation count is a small multiple of that of
+  `f`, independent of the number of inputs.
+- Code: `numerics.ReverseVariable`, `numerics.reverse_value_and_gradient`,
+  `numerics.reverse_gradient`, `numerics.vector_jacobian_product`,
+  `numerics.reverse_jacobian`, `numerics.GradientEvaluator`,
+  `inference.no_u_turn_sampler`, `inference.hamiltonian_monte_carlo`,
+  `inference.laplace_approximation`, `inference.ppl.ModelIR.gradient`.
+- Source: [REF-GRIEWANK-WALTHER-2008, Chapters 3 and 4],
+  [REF-BAYDIN-ETAL-2018, Section 3.2].
+
+### EQ-AD-FOR-001 — Forward-over-reverse Hessian and Hessian-vector product
+
+Record the tape of EQ-AD-REVERSE-001 on the dual inputs `x_i + t_i eps`;
+every value and partial is then a dual, and so is every adjoint. With
+`t = e_1, ..., e_d` (vector tangent) the adjoint of input `i` is
+`d f / d x_i + sum_j H_ij eps_j`, so its tangent is row `i` of the Hessian;
+with a single tangent `t = v` its tangent is `(H v)_i`. The full Hessian is
+symmetrized, `(H + H')/2`.
+
+- Domain: twice differentiable `f`; the Hessian of `digamma` (a dual
+  `trigamma`) is not available.
+- Meaning: exact Hessian at about `d` times the cost of one gradient, and
+  an exact Hessian-vector product at a small multiple of one gradient
+  without forming `H`.
+- Code: `numerics.reverse_hessian`,
+  `numerics.reverse_value_gradient_and_hessian`,
+  `numerics.hessian_vector_product`, `inference.laplace_approximation`.
+- Source: [REF-GRIEWANK-WALTHER-2008, Chapter 5], [REF-PEARLMUTTER-1994].
