@@ -13312,3 +13312,66 @@ pseudo-BMA+: `a ~ Dirichlet(1, ..., 1)`, `z_k = n sum_i a_i log p_k,-i(y_i)`,
   `inference.AmortizedGaussianPosterior`.
 - Source: [REF-PAPAMAKARIOS-MURRAY-2016, Proposition 1, Section 2.3, and
   Algorithm 2], trained with [EQ-OPT-ADAM-002].
+
+## Dense backend boundary (ADR-0081)
+
+### EQ-LINALG-010 — Explicitly shifted Cholesky factorization
+
+`A + delta I = L L'` with a caller-supplied shift `delta >= 0`; `delta = 0`
+is the plain factorization [EQ-LINALG-001].
+
+- Domain: finite symmetric `A` whose shift `A + delta I` is positive
+  definite, i.e. `delta > -lambda_min(A)`; otherwise the factorization fails
+  and the failure is reported, never repaired by enlarging `delta`.
+- Meaning: the jitter policy of every dense backend. The shift is part of
+  the caller's model (a nugget or noise variance), so it is always visible
+  in the arguments and recorded on the factorization.
+- Code: `linalg.DenseBackend.cholesky`, `linalg.DenseBackend.factorize`,
+  `linalg.CholeskyFactorization.jitter`.
+- Source: [REF-GOLUB-VANLOAN-2013, Section 4.2] and
+  [REF-HIGHAM-2002, Chapter 10].
+
+### EQ-LINALG-011 — Inverse from a Cholesky factor
+
+`A^-1 = L^-T L^-1` for `A = L L'`, with `L^-1` obtained by forward
+substitution [EQ-LINALG-002] on the columns of `I` (equivalently, column
+`j` of `A^-1` solves `L L' x = e_j`); the result is symmetrized as
+`(X + X') / 2`.
+
+- Domain: `L` lower triangular with a positive diagonal.
+- Meaning: every entry of `A^-1` from one existing factorization, as needed
+  by the Gaussian-process likelihood gradient, leave-one-out diagonal, and
+  condition number.
+- Code: `linalg.inverse_spd`, `linalg.CholeskyFactorization.inverse`,
+  `linalg.DenseBackend.inverse_spd`.
+- Source: [REF-GOLUB-VANLOAN-2013, Sections 3.1 and 4.2] and
+  [REF-HIGHAM-2002, Chapter 14].
+
+### EQ-LINALG-012 — Agreement bound between backward-stable backends
+
+With unit roundoff `u = 2^-53` and `gamma_k = k u / (1 - k u)`:
+
+- Cholesky residual, componentwise: `|A - L L'| <= gamma_(n+1) |L||L'|`.
+- Factor agreement: `||L_1 - L_2||_F / ||L||_2 <= 2 kappa_2(A) gamma_(n+1)
+  tr(A) / ||A||_2`.
+- SPD solve agreement: `||x_1 - x_2|| / ||x|| <= 2 kappa_2(A)
+  gamma_(3n+1) tr(A) / ||A||_2`.
+- Log-determinant agreement: `|log det_1 - log det_2| <= n` times the
+  factor bound.
+- Products, componentwise: `|fl_1(AB) - fl_2(AB)| <= (gamma_k + 2u) |A||B|`
+  for inner dimension `k`.
+- Eigenvalues (Weyl): `|lambda_i,1 - lambda_i,2| <= ||E_1||_2 + ||E_2||_2`,
+  each `||E||` bounded by the method's backward error.
+
+- Domain: two implementations that are each backward stable in the sense
+  of the cited analyses; first order in `u`.
+- Meaning: each result is exact for a matrix within `gamma_k |L||L'|` of
+  `A`, so `|| |L||L'| ||_F <= ||L||_F^2 = tr(A)` converts the componentwise
+  backward error to `gamma_k tr(A)`; perturbation theory multiplies it by at
+  most `kappa_2(A)` in the forward error, and two results differ by at most
+  the sum of their errors. The bound is a test tolerance, not an error
+  estimate: observed differences are many orders of magnitude smaller.
+- Code: `tests/test_linalg_backend.py` (reference comparisons of
+  `linalg.NumPyBackend` against `linalg.PythonBackend`).
+- Source: [REF-HIGHAM-2002, Chapters 3, 7, 8, and 10] and
+  [REF-GOLUB-VANLOAN-2013, Section 8.1].

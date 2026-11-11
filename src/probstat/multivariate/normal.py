@@ -1,4 +1,11 @@
-"""Multivariate normal distribution using the shared Cholesky algebra."""
+"""Multivariate normal distribution using the shared Cholesky algebra.
+
+The covariance factorization, whitening solves, and sampling transform go
+through the active dense backend (:func:`probstat.linalg.get_backend`,
+ADR-0081). A law keeps the factorization of the backend that was active when
+it was constructed; under the default ``"python"`` backend every result is
+bit-identical to the direct :mod:`probstat.linalg` routines.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +16,14 @@ from dataclasses import dataclass, field
 from probstat.distributions import Normal
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import require_non_negative_integer
-from probstat.linalg import Matrix, Vector, as_vector, cholesky, dot, solve_lower
+from probstat.linalg import (
+    CholeskyFactorization,
+    Matrix,
+    Vector,
+    as_vector,
+    dot,
+    get_backend,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +46,7 @@ class MultivariateNormal:
     mean: Vector
     covariance: Matrix
     _cholesky: Matrix = field(init=False, repr=False, compare=False)
+    _factor: CholeskyFactorization = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         """Normalize vectors and validate covariance through Cholesky factorization.
@@ -72,12 +87,13 @@ class MultivariateNormal:
             symmetric_rows.append(tuple(symmetric_row))
         covariance = tuple(symmetric_rows)
         try:
-            factor = cholesky(covariance)
+            factor = get_backend().factorize(covariance)
         except ValueError as error:
             raise ValueError("covariance must be positive definite") from error
         object.__setattr__(self, "mean", mean)
         object.__setattr__(self, "covariance", covariance)
-        object.__setattr__(self, "_cholesky", factor)
+        object.__setattr__(self, "_cholesky", factor.lower)
+        object.__setattr__(self, "_factor", factor)
 
     @property
     def dimension(self) -> int:
@@ -116,7 +132,7 @@ class MultivariateNormal:
             coordinate - location
             for coordinate, location in zip(point, self.mean, strict=True)
         )
-        solved = solve_lower(self._cholesky, centered)
+        solved = self._factor.solve_lower(centered)
         return math.fsum(component * component for component in solved)
 
     def log_pdf(self, value: Iterable[float]) -> float:
@@ -140,10 +156,7 @@ class MultivariateNormal:
 
         """
         quadratic = self.mahalanobis_squared(value)
-        log_determinant = 2.0 * math.fsum(
-            math.log(self._cholesky[index][index])
-            for index in range(self.dimension)
-        )
+        log_determinant = self._factor.log_det()
         return -0.5 * (
             self.dimension * math.log(2.0 * math.pi)
             + log_determinant
@@ -305,18 +318,17 @@ class MultivariateNormal:
         free = tuple(i for i in range(self.dimension) if i not in observed_set)
         if not free:
             raise ValueError("conditioning on every component leaves no free law")
-        lower = cholesky(
+        factor = get_backend().factorize(
             tuple(tuple(self.covariance[i][j] for j in observed) for i in observed)
         )
-        whitened = solve_lower(
-            lower,
+        whitened = factor.solve_lower(
             tuple(
                 value - self.mean[index]
                 for index, value in zip(observed, point, strict=True)
             ),
         )
         weights = tuple(
-            solve_lower(lower, tuple(self.covariance[b][a] for b in observed))
+            factor.solve_lower(tuple(self.covariance[b][a] for b in observed))
             for a in free
         )
         mean = tuple(
@@ -392,12 +404,10 @@ class MultivariateNormal:
         for _ in range(checked_size):
             independent = tuple(generator.gauss(0.0, 1.0) for _ in self.mean)
             observation = tuple(
-                self.mean[row]
-                + math.fsum(
-                    self._cholesky[row][column] * independent[column]
-                    for column in range(row + 1)
+                location + offset
+                for location, offset in zip(
+                    self.mean, self._factor.multiply_lower(independent), strict=True
                 )
-                for row in range(self.dimension)
             )
             if not all(math.isfinite(component) for component in observation):
                 raise OverflowError("multivariate normal sample is not finite")

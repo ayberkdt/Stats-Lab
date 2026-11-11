@@ -73,7 +73,7 @@ Carlo, LHS, Halton, Sobol). See ADR-0014 and
 |---|---|---|
 | `foundations` | Validation, structural protocols, SplitMix64 random streams | Domain distributions or estimators |
 | `numerics` | Deterministic quadrature and numerical diagnostics | Probability models |
-| `linalg` | Dense Cholesky, triangular, LU, Jacobi eigen, log-determinants | Statistical meaning |
+| `linalg` | Dense Cholesky, triangular, LU, Jacobi eigen, log-determinants; the dense-backend boundary | Statistical meaning |
 | `optimization` | BFGS, Nelder-Mead, Levenberg-Marquardt, Brent, finite differences | Likelihoods or limit states |
 | `sampling` | MC, Latin hypercube, Halton, Sobol designs on the unit cube | Marginal transformations |
 | `probability` | Sets, counting, probability rules, random-variable algebra | Inference or plotting |
@@ -152,6 +152,27 @@ the public names are the ones a package re-exports.
 
   Every mixin derives from `_StudyBase`, so each one type-checks on its own;
   no mixin imports `_core`.
+
+## Dense backend boundary
+
+The `n^3` consumers reach their dense kernels through
+`linalg.DenseBackend` (ADR-0081). The protocol covers Cholesky with an
+explicit jitter argument, triangular and SPD solves, log-determinants, SPD
+inverses, matrix products, and symmetric eigendecomposition; `factorize`
+returns a `CholeskyFactorization` that keeps the backend's native factor for
+repeated solves. Every method takes and returns tuples.
+
+| Backend | Selection | Implementation |
+|---|---|---|
+| `PythonBackend` (`"python"`) | default | the `linalg.dense` routines; bit-identical results |
+| `NumPyBackend` (`"numpy"`) | `set_backend("numpy")` or `with use_backend("numpy"):` | LAPACK Cholesky and `eigh`, BLAS products; NumPy imported on selection only (optional extra `numerics`) |
+
+`multivariate.MultivariateNormal` and `surrogates.gaussian_process` use the
+active backend; an object built under a backend keeps that backend's
+factorization. The Gaussian-process module keeps its specialized
+pure-Python kernels under the reference backend. Other packages call
+`linalg.dense` directly. Selection is process-wide state owned by
+`linalg`; no other package stores or switches it.
 
 ## Enforcement
 

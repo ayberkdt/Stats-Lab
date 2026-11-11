@@ -3052,3 +3052,22 @@ Simulation Models with Bayesian Conditional Density Estimation." In
 *Advances in Neural Information Processing Systems 29* (NeurIPS 2016), 2016.
 Preprint arXiv:1605.06376v4.
 [https://arxiv.org/abs/1605.06376](https://arxiv.org/abs/1605.06376).
+
+## REF-HARRIS-ETAL-2020
+
+Charles R. Harris, K. Jarrod Millman, Stéfan J. van der Walt, Ralf Gommers,
+Pauli Virtanen, David Cournapeau, Eric Wieser, Julian Taylor, Sebastian Berg,
+Nathaniel J. Smith, Robert Kern, Matti Picus, Stephan Hoyer, Marten H. van
+Kerkwijk, Matthew Brett, Allan Haldane, Jaime Fernández del Río, Mark Wiebe,
+Pearu Peterson, Pierre Gérard-Marchant, Kevin Sheppard, Tyler Reddy, Warren
+Weckesser, Hameer Abbasi, Christoph Gohlke, and Travis E. Oliphant. "Array
+Programming with NumPy." *Nature* 585(7825), 357-362, 2020.
+DOI: [10.1038/s41586-020-2649-2](https://doi.org/10.1038/s41586-020-2649-2).
+
+## REF-LAPACK-1999
+
+E. Anderson, Z. Bai, C. Bischof, L. S. Blackford, J. Demmel, J. Dongarra,
+J. Du Croz, A. Greenbaum, S. Hammarling, A. McKenney, and D. Sorensen.
+*LAPACK Users' Guide*. 3rd edition. Society for Industrial and Applied
+Mathematics (SIAM), 1999.
+DOI: [10.1137/1.9780898719604](https://doi.org/10.1137/1.9780898719604).
