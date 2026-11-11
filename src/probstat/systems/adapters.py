@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from .markov import MarkovReliabilityModel
+from .semi_markov import SemiMarkovReliabilityModel
 from .system import SystemModel
 
 
@@ -316,3 +317,156 @@ class SubsystemComponent:
 
         """
         return self.system.unavailability(_require_time(t))
+
+
+@dataclass(frozen=True)
+class SemiMarkovComponent:
+    """A semi-Markov subsystem used as one block of a system.
+
+    ``reliability(t)`` is the probability that the subsystem has not entered
+    a down state in ``[0, t]`` and ``availability(t)`` the probability that it
+    is up at ``t``; both are solved from the Markov renewal equation of
+    :class:`SemiMarkovReliabilityModel`, and complements are solved directly.
+    Results are cached per time, and the largest Richardson error estimate
+    seen is kept in :attr:`last_error_estimate`.
+
+    Args:
+        model: Semi-Markov reliability model of the subsystem.
+        steps: Coarse grid steps of the renewal solver.
+
+    Equation:
+        [EQ-SYS-SMP-001], [EQ-SYS-ADAPT-001].
+
+    References:
+        [REF-LIMNIOS-OPRISAN-2001, Chapter 5], [REF-BARLOW-PROSCHAN-1975].
+
+    """
+
+    model: SemiMarkovReliabilityModel
+    steps: int = 256
+    _errors: dict[str, float] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
+    _cache: dict[tuple[str, float], float] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
+
+    def __post_init__(self) -> None:
+        """Validate the wrapped model and the step count.
+
+        Raises:
+            TypeError: If ``model`` is not a :class:`SemiMarkovReliabilityModel`
+                or ``steps`` is not an integer.
+            ValueError: If ``steps`` is outside ``[2, 20000]``.
+
+        References:
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+            No equation is evaluated.
+
+        """
+        if not isinstance(self.model, SemiMarkovReliabilityModel):
+            raise TypeError("model must be a SemiMarkovReliabilityModel")
+        if isinstance(self.steps, bool) or not isinstance(self.steps, int):
+            raise TypeError("steps must be an integer")
+        if not 2 <= self.steps <= 20_000:
+            raise ValueError("steps must lie in [2, 20000]")
+
+    @property
+    def last_error_estimate(self) -> float:
+        """Return the largest renewal-solver error estimate seen so far.
+
+        References:
+            [EQ-PROC-SMP-003]. No further equation is evaluated.
+
+        """
+        return max(self._errors.values(), default=0.0)
+
+    def _measure(self, key: str, t: float) -> float:
+        """Evaluate one measure at ``t`` with caching and error bookkeeping.
+
+        References:
+            [EQ-SYS-SMP-001], [REF-LIMNIOS-OPRISAN-2001, Chapter 5].
+
+        """
+        time = _require_time(t)
+        cached = self._cache.get((key, time))
+        if cached is not None:
+            return cached
+        method = getattr(self.model, key)
+        result = method(time, steps=self.steps)
+        self._errors[key] = max(self._errors.get(key, 0.0), result.error_estimate)
+        value = _clip(result.value)
+        self._cache[(key, time)] = value
+        return value
+
+    def reliability(self, t: float) -> float:
+        """Return ``P(no subsystem failure in [0, t])``.
+
+        Args:
+            t: Non-negative time.
+
+        Returns:
+            Subsystem reliability.
+
+        Equation:
+            [EQ-SYS-SMP-001].
+
+        References:
+            [REF-LIMNIOS-OPRISAN-2001, Chapter 5].
+
+        """
+        return self._measure("reliability", t)
+
+    def unreliability(self, t: float) -> float:
+        """Return ``1 - reliability(t)`` solved directly.
+
+        Args:
+            t: Non-negative time.
+
+        Returns:
+            Subsystem unreliability.
+
+        Equation:
+            [EQ-SYS-SMP-001].
+
+        References:
+            [REF-LIMNIOS-OPRISAN-2001, Chapter 5].
+
+        """
+        return self._measure("unreliability", t)
+
+    def availability(self, t: float) -> float:
+        """Return ``P(subsystem up at t)``.
+
+        Args:
+            t: Non-negative time.
+
+        Returns:
+            Point availability.
+
+        Equation:
+            [EQ-SYS-SMP-001].
+
+        References:
+            [REF-LIMNIOS-OPRISAN-2001, Chapter 5].
+
+        """
+        return self._measure("availability", t)
+
+    def unavailability(self, t: float) -> float:
+        """Return ``1 - availability(t)`` solved directly.
+
+        Args:
+            t: Non-negative time.
+
+        Returns:
+            Point unavailability.
+
+        Equation:
+            [EQ-SYS-SMP-001].
+
+        References:
+            [REF-LIMNIOS-OPRISAN-2001, Chapter 5].
+
+        """
+        return self._measure("unavailability", t)

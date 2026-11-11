@@ -12265,3 +12265,204 @@ fraction of the iterations.
   reduces the noise a constant step leaves around the optimum.
 - Code: `optimization.adam_minimize`.
 - Source: [REF-KINGMA-BA-2015, Algorithm 1] and [REF-POLYAK-JUDITSKY-1992].
+
+## Semi-Markov processes and epistemic common-cause parameters (ADR-0076)
+
+### EQ-PROC-SMP-001 — Semi-Markov kernel and mean sojourn times
+
+`Q_ij(t) = P(J_(n+1) = j, X_(n+1) <= t | J_n = i) = p_ij F_ij(t)`, with the
+embedded jump matrix `P = [p_ij]` and sojourn laws `F_ij` on `(0, inf)`;
+`H_i(t) = sum_j Q_ij(t)` is the sojourn-time CDF of state `i` and
+`tau_i = sum_j p_ij E[T_ij]` its mean. Exponential sojourns
+`F_ij = Exp(q_i)` with `p_ij = q_ij / q_i` give the CTMC with generator `Q`.
+
+- Domain: finite state space; rows of `P` sum to one for non-absorbing
+  states; `F_ij(0) = 0`; finite positive means.
+- Meaning: the next state is chosen by the jump chain, the holding time may
+  depend on both the current and the next state and follow any law.
+- Code: `processes.SemiMarkovProcess`, `processes.SemiMarkovProcess.kernel`,
+  `processes.SemiMarkovProcess.from_ctmc`,
+  `processes.SemiMarkovProcess.mean_sojourn_times`.
+- Source: [REF-LIMNIOS-OPRISAN-2001, Chapters 2-3], [REF-CINLAR-1969].
+
+### EQ-PROC-SMP-002 — Markov renewal equation for interval transition probabilities and rewards
+
+`phi_ij(t) = delta_ij (1 - H_i(t)) + sum_k int_0^t phi_kj(t - s) dQ_ik(s)`;
+for a reward vector `r`, `u_i(t) = E_i[r(Z_t)]` solves
+`u(t) = (1 - H(t)) r + int_0^t dQ(s) u(t - s)`. Availability, reliability
+(down states absorbing) and first-passage distributions (targets absorbing)
+are rewards with indicator vectors.
+
+- Domain: as EQ-PROC-SMP-001; finitely many jumps in finite time.
+- Meaning: condition on the first jump: either the process is still in its
+  initial state at `t`, or it jumped to `k` at time `s` and restarts there.
+- Code: `processes.SemiMarkovProcess.transition_matrix`,
+  `processes.SemiMarkovProcess.transient`,
+  `processes.SemiMarkovProcess.expected_reward_curve`,
+  `processes.SemiMarkovProcess.probability_curve`,
+  `processes.SemiMarkovProcess.first_passage_curve`,
+  `systems.SemiMarkovReliabilityModel`.
+- Source: [REF-LIMNIOS-OPRISAN-2001, Chapters 3 and 5], [REF-CINLAR-1969].
+
+### EQ-PROC-SMP-003 — Trapezoidal discretisation and Richardson extrapolation
+
+On `t_n = n h` with exact kernel increments `A_l = (Q(t_l) - Q(t_(l-1)))/2`
+and `B_l = A_l + A_(l+1)`:
+`(I - A_1) u_n = (1 - H(t_n)) r + A_n u_0 + sum_(l=1)^(n-1) B_l u_(n-l)`,
+which is the trapezoidal rule `int_(t_(l-1))^(t_l) u(t_n - s) dQ(s) ~
+(u_(n-l) + u_(n-l+1)) A_l`. With `u^(N)` and `u^(2N)` the solutions on `N`
+and `2N` steps, the reported value is `(4 u^(2N) - u^(N)) / 3` and the error
+estimate is `|u^(2N) - u^(N)| / 3`.
+
+- Domain: second-order accuracy and the `h^2` error expansion behind the
+  extrapolation require smooth kernel densities; increments use `sf` when
+  `F > 1/2` to avoid cancellation.
+- Meaning: an implicit, positivity-friendly scheme of cost `O(N^2)` per
+  reward column. The error estimate measures the finer trapezoidal
+  solution, so it is conservative for the extrapolated value when the
+  expansion holds; it is not a rigorous bound.
+- Code: `processes.SemiMarkovProcess` (`_grid_solution`, `_extrapolated`),
+  `processes.SemiMarkovEstimate`, `processes.RenewalCurve`.
+- Source: [REF-CORRADI-JANSSEN-MANCA-2004], [REF-LINZ-1985, Chapters 7-8].
+
+### EQ-PROC-SMP-004 — Absorption and mean time to absorption
+
+With transient states `T` and absorbing states `A`:
+`N = (I - P_TT)^(-1)` (expected visits), `B = N P_TA` (absorption
+probabilities) and `m = N tau_T` (mean times to absorption); the mean
+first-passage time to a set `S` is `m` of the process with `S` absorbing,
+and `inf` when a closed class outside `S` is reachable.
+
+- Domain: every closed class of the jump chain is a single absorbing state.
+- Meaning: each visit to `j` lasts `tau_j` on average and visits and
+  sojourns enter linearly, so only the sojourn means matter; for
+  exponential sojourns `m = (-Q_TT)^(-1) 1`.
+- Code: `processes.SemiMarkovProcess.absorption`,
+  `processes.SemiMarkovProcess.mean_first_passage_time`,
+  `processes.SemiMarkovAbsorption`,
+  `systems.SemiMarkovReliabilityModel.mean_time_to_failure`.
+- Source: [REF-LIMNIOS-OPRISAN-2001, Chapter 5], [REF-KEMENY-SNELL-1976, Chapter III].
+
+### EQ-PROC-SMP-005 — Limiting law of a semi-Markov process
+
+`pi_j = nu_j tau_j / sum_k nu_k tau_k`, where `nu` is the stationary law of
+the jump chain (`nu P = nu`) on its unique closed class, computed by GTH
+reduction.
+
+- Domain: one closed class; non-lattice sojourn laws; finite means.
+- Meaning: the long-run fraction of time in `j` is the visit frequency times
+  the mean stay. For an alternating renewal unit (`up -> down -> up`):
+  `A_inf = E[U] / (E[U] + E[D])`.
+- Code: `processes.SemiMarkovProcess.steady_state`,
+  `systems.SemiMarkovReliabilityModel.steady_state_availability`.
+- Source: [REF-LIMNIOS-OPRISAN-2001, Chapter 3], [REF-CINLAR-1969].
+
+### EQ-PROC-SMP-006 — Simulation of a semi-Markov path
+
+Draw `J_0 ~ alpha`; given `J_n = i`, draw `J_(n+1) = j` with probability
+`p_ij` and `X_(n+1) = F_ij^(-1)(U)` with `U ~ U(0, 1)`. The Monte Carlo
+estimate of `P(Z_t in S)` is the fraction `h / n` of `n` paths in `S` at `t`,
+with standard error `sqrt(p (1 - p) / n)`.
+
+- Domain: sojourn laws with a quantile function.
+- Meaning: an independent cross-check of EQ-PROC-SMP-002 to EQ-PROC-SMP-005.
+- Code: `processes.SemiMarkovProcess.simulate`,
+  `processes.SemiMarkovProcess.monte_carlo_probabilities`,
+  `processes.SemiMarkovMonteCarlo`.
+- Source: [REF-LIMNIOS-OPRISAN-2001, Chapter 3], [REF-DEVROYE-1986, Chapter II].
+
+### EQ-SYS-SMP-001 — Semi-Markov reliability measures
+
+With up states `U`, down states `D` and initial law `alpha` on `U`:
+`A(t) = sum_(j in U) (alpha phi(t))_j`, `1 - A(t) = sum_(j in D) (alpha
+phi(t))_j` (solved separately), `R(t) = sum_(j in U) (alpha phi^D(t))_j`
+with `phi^D` the process with `D` absorbing, `MTTF = alpha N tau` on that
+process, and `A_inf = sum_(j in U) pi_j`.
+
+- Domain: as EQ-PROC-SMP-001 to EQ-PROC-SMP-005; independence from other
+  blocks when used as a component (EQ-SYS-ADAPT-001).
+- Meaning: repairable units with general failure and repair laws (Weibull
+  wear-out, lognormal repair), reducing to EQ-SYS-MKV-001 for exponential
+  sojourns.
+- Code: `systems.SemiMarkovReliabilityModel`,
+  `systems.alternating_renewal_unit`, `systems.SemiMarkovComponent`.
+- Source: [REF-LIMNIOS-OPRISAN-2001, Chapter 5], [REF-BARLOW-PROSCHAN-1975].
+
+### EQ-SYS-ECCF-001 — Exact reliability polynomial in uncertain CCF parameters
+
+Under the probability split `Q_k = c_k Q_t` the beta-factor coefficients
+`c_1 = 1 - beta`, `c_m = beta` and the MGL coefficients
+`c_k = (prod_(i=2)^k rho_i)(1 - rho_(k+1)) / C(m-1, k-1)` are products of
+uncertain factors `theta` or `1 - theta` and a constant
+`a = Q_t prod(fixed factors) / C(m-1, k-1)`; `Q_t` may itself be an
+uncertain factor. Each CCF event probability is then a monomial
+`a prod_l lit_l` in the basis `prod_i theta_i^(j_i) (1 - theta_i)^(k_i)`,
+and its complement `1 - a prod_l lit_l` is written with non-negative
+coefficients by expanding `1 = prod_l (lit_l + (1 - lit_l))`. The Shannon
+recursion `P(f) = p_x P(f_1) + q_x P(f_0)` on the BDD of the expanded
+structure yields `R(theta)` and `1 - R(theta)` as exact polynomials with
+non-negative coefficients, and
+`E[R] = sum_alpha c_alpha prod_i E[theta_i^(j_i) (1 - theta_i)^(k_i)]`
+with the mixed moments of EQ-SYS-MOM-002. Equivalently, given the
+parameters every event occurs when independent indicators (one constant
+indicator and one Bernoulli(`theta`) indicator per factor) all fire, which
+is the shared-block model of EQ-SYS-MOM-002.
+
+- Domain: probability split; independent parameters with laws on `[0, 1]`
+  (beta laws in closed form, other laws by quadrature of
+  `q^j (1 - q)^k f(q)`); alpha-factor parameters and the hazard split are
+  not polynomial and use EQ-SYS-ECCF-003.
+- Meaning: epistemic CCF parameters are propagated exactly, without
+  sampling and without cancellation in the means.
+- Code: `systems.ccf_parameter_uncertainty`, `systems.EpistemicCCFResult`.
+- Source: [REF-MOSLEH-ETAL-1998], [REF-APOSTOLAKIS-KAPLAN-1981],
+  [REF-RAUZY-1993].
+
+### EQ-SYS-ECCF-002 — Exact first-order variance shares
+
+`S_theta = Var(E[R | theta_S]) / Var[R]` with
+`Var(E[R | theta_S]) = E[g(theta_S, theta) g(theta_S, theta')] - E[g]^2`,
+where `theta'` is an independent copy of the parameters outside `S` and `g`
+is the reliability polynomial of EQ-SYS-ECCF-001 or its complement,
+whichever has the smaller mean. Grouping the terms of `g` by their
+exponents in `theta_S`, the cross moment is
+`sum_(s, s') w_s w_s' prod_(i in S) E[theta_i^(j_s + j_s')
+(1 - theta_i)^(k_s + k_s')]` with `w_s` the coefficients integrated over the
+other parameters. `S` = all parameters gives `Var[R]`; `S` = all CCF
+parameters gives the CCF share.
+
+- Domain: as EQ-SYS-ECCF-001.
+- Meaning: the fraction of the epistemic variance of `R` explained by
+  CCF-parameter uncertainty (one when only CCF parameters are uncertain).
+- Code: `systems.ccf_parameter_uncertainty`.
+- Source: [REF-SOBOL-1993], [REF-APOSTOLAKIS-KAPLAN-1981].
+
+### EQ-SYS-ECCF-003 — Monte Carlo moments and centred Saltelli first-order estimator
+
+With independent parameter samples `A`, `B` (`N` rows each) and `A_B^S`
+(columns in `S` from `B`): `E[R] ~ mean f`, `Var[R] ~` the unbiased sample
+variance over `A` and `B`, and
+`V_S ~ (1/N) sum_j (f(B)_j - f_bar)(f(A_B^S)_j - f(A)_j)`.
+
+- Domain: any CCF model and either split; parameters independent.
+- Meaning: consistent estimates where EQ-SYS-ECCF-001 does not apply;
+  centring removes the noise term proportional to `E[R]`.
+- Code: `systems.ccf_parameter_uncertainty` (`method="monte-carlo"`).
+- Source: [REF-SALTELLI-2010], [REF-SOBOL-1993].
+
+### EQ-SYS-ECCF-004 — Interval CCF parameters: monotone bounds and probability box
+
+For interval parameters `theta in [a, b]` (a box), the unreliability is
+scanned along each coordinate and classified as increasing, decreasing,
+constant or non-monotone; if it is monotone in every coordinate its range
+over the box is attained at corners, `[min_c U(c), max_c U(c)]`. With
+further parameters distributed, each corner gives an empirical CDF `F_c` of
+`U` from common samples, and the probability box is
+`[min_c F_c(y), max_c F_c(y)]`.
+
+- Domain: at most 10 interval parameters; monotonicity checked on a grid
+  through the box midpoint (otherwise the bounds are inner approximations).
+- Meaning: bounds on the system unreliability that use no distribution
+  inside the intervals.
+- Code: `systems.ccf_interval_bounds`, `systems.CCFIntervalBounds`.
+- Source: [REF-FERSON-ET-AL-2003], [REF-MOSLEH-ETAL-1998].

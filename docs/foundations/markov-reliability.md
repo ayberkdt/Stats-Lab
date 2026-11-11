@@ -224,3 +224,53 @@ stage attempts. These match exact rational arithmetic.
 - The state space must be finite and explicit. For many components the size
   grows as `2^n`. Use `k`-out-of-`n` lumping, or the combinatorial methods
   when the components are independent.
+
+## 7. Semi-Markov sojourns
+
+The exponential assumption of Sections 1-6 fails for wear-out failures and
+for repairs, whose durations are typically lognormal. A semi-Markov process
+keeps the jump chain `P = [p_ij]` but lets the sojourn in `i` before a jump
+to `j` follow any law `F_ij`, so the kernel is `Q_ij(t) = p_ij F_ij(t)`
+[EQ-PROC-SMP-001] (Limnios and Oprişan 2001, Chapters 2-3
+[REF-LIMNIOS-OPRISAN-2001]; Çinlar 1969 [REF-CINLAR-1969]). The future then
+depends on the time already spent in the current state, which a CTMC cannot
+express.
+
+**Transient measures.** Conditioning on the first jump gives the Markov
+renewal equation `u(t) = (1 - H(t)) r + int_0^t dQ(s) u(t - s)` for the
+expected reward `u_i(t) = E_i[r(Z_t)]` [EQ-PROC-SMP-002]; indicator rewards
+give availability, and making states absorbing gives reliability and
+first-passage distributions. `SemiMarkovProcess` solves it with the
+implicit trapezoidal rule on a uniform grid with exact kernel increments
+(Corradi, Janssen and Manca 2004 [REF-CORRADI-JANSSEN-MANCA-2004]; Linz
+1985, Chapters 7-8 [REF-LINZ-1985]), on `n` and `2n` steps, and reports the
+Richardson value `(4 u_2n - u_n) / 3` [EQ-PROC-SMP-003]. The reported error
+estimate `|u_2n - u_n| / 3` belongs to the finer trapezoidal solution, so
+it is conservative for the extrapolated value when the kernel densities are
+smooth. It is an estimate, not a bound like the uniformization bounds of
+Section 2. With exponential sojourns (`SemiMarkovProcess.from_ctmc`) the
+state law of the 4-state test chain agrees with uniformization to `1e-13`
+at `t = 0.5` and `3e-10` at `t = 3` on 256 steps.
+
+**Exact measures.** Only the sojourn means enter the mean time to
+absorption, `m = (I - P_TT)^-1 tau` with `tau_i = sum_j p_ij E[T_ij]`
+[EQ-PROC-SMP-004], and the limiting law,
+`pi_j = nu_j tau_j / sum_k nu_k tau_k` with `nu` the stationary law of the
+jump chain [EQ-PROC-SMP-005]. Both are solved with the subtraction-free
+CTMC routines applied to a chain with rates `p_ij`.
+
+**Reliability models.** `SemiMarkovReliabilityModel` splits the states into
+up and down sets [EQ-SYS-SMP-001]; `alternating_renewal_unit(up_time,
+down_time)` is the repairable unit with general laws. For Weibull(1.5, 10)
+up times and LogNormal(0, 0.5) repairs, `A_inf = E[U] / (E[U] + E[D]) =
+0.888476`, the MTTF is `E[U] = 9.0275`, and `A(9) = 0.89229` agrees with
+6000 simulated histories (`0.8897 +- 0.0040`). `SemiMarkovComponent` places
+such a model in a `SystemModel` (see the system-reliability guide).
+`simulate` and `monte_carlo_probabilities` exist as seeded cross-checks
+[EQ-PROC-SMP-006].
+
+**Limits.** The solver costs `O(n^2)` per transition and reward column on a
+uniform grid, so horizons much longer than the sojourn scales need many
+steps; kernels with singular or discontinuous densities converge more
+slowly, and the error estimate may then be optimistic. Sojourn laws may not
+have an atom at zero. ADR-0076 records the design.

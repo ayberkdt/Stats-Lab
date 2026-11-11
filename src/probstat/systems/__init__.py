@@ -27,9 +27,18 @@ SEQ gates) are quantified exactly by state-space generation into a
 continuous-time Markov chain and cross-checked by
 :func:`monte_carlo_unreliability`. :meth:`BDD.sift` reduces diagram sizes
 by Rudell's sifting without changing the represented functions.
+
+Repairable units and subsystems with general (non-exponential) sojourn laws
+are semi-Markov models (:class:`SemiMarkovReliabilityModel`,
+:func:`alternating_renewal_unit`, :class:`SemiMarkovComponent`). CCF
+parameters can be epistemic inputs: :func:`ccf_parameter_uncertainty` gives
+the exact (or Monte Carlo) mean and variance of the reliability and the
+share of its variance due to CCF-parameter uncertainty, and
+:func:`ccf_interval_bounds` bounds it over interval parameters with a
+probability box.
 """
 
-from .adapters import MarkovComponent, SubsystemComponent
+from .adapters import MarkovComponent, SemiMarkovComponent, SubsystemComponent
 from .bdd import BDD, PolynomialMoments, ReorderResult, VariableEffect
 from .ccf import (
     AlphaFactorGroup,
@@ -67,6 +76,12 @@ from .dynamic import (
     spare_gate,
     vote_gate,
 )
+from .epistemic_ccf import (
+    CCFIntervalBounds,
+    EpistemicCCFResult,
+    ccf_interval_bounds,
+    ccf_parameter_uncertainty,
+)
 from .importance import ImportanceMeasures, importance_measures, structural_importance
 from .markov import (
     MarkovReliabilityModel,
@@ -87,6 +102,7 @@ from .phased_markov import (
     MissionStageModel,
     discrete_mission_outcome,
 )
+from .semi_markov import SemiMarkovReliabilityModel, alternating_renewal_unit
 from .structure import (
     Component,
     Expression,
@@ -112,6 +128,7 @@ __all__ = [
     "BetaFactorGroup",
     "CCFEvent",
     "CCFGroup",
+    "CCFIntervalBounds",
     "CommonCauseExpansion",
     "Component",
     "ComponentModel",
@@ -122,6 +139,7 @@ __all__ = [
     "DynamicBasicEvent",
     "DynamicFaultTree",
     "DynamicGate",
+    "EpistemicCCFResult",
     "ExponentialComponent",
     "Expression",
     "FixedProbability",
@@ -147,6 +165,8 @@ __all__ = [
     "ReliabilityMoments",
     "ReorderResult",
     "RepairableComponent",
+    "SemiMarkovComponent",
+    "SemiMarkovReliabilityModel",
     "Series",
     "SubsystemComponent",
     "SystemModel",
@@ -154,7 +174,10 @@ __all__ = [
     "VariableEffect",
     "WeibullComponent",
     "and_gate",
+    "alternating_renewal_unit",
     "bridge",
+    "ccf_interval_bounds",
+    "ccf_parameter_uncertainty",
     "compile_expression",
     "discrete_mission_outcome",
     "expand_common_cause",

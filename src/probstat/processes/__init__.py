@@ -7,7 +7,9 @@ bounds, accumulated rewards, GTH steady state, absorption); ``continuous`` owns 
 simulated continuous-time processes (Poisson, compound Poisson, Brownian
 motion, geometric Brownian motion, Ornstein-Uhlenbeck); ``sde`` owns
 Euler-Maruyama and Milstein schemes with strong and weak convergence
-studies; ``random_fields`` owns covariance kernels and Karhunen-Loeve
+studies; ``semi_markov`` owns finite semi-Markov processes with arbitrary
+sojourn laws (Markov renewal equation, exact absorption and limiting law,
+simulation); ``random_fields`` owns covariance kernels and Karhunen-Loeve
 expansions that turn a random field into a finite set of standard-normal
 inputs (see :mod:`probstat.modeling.random_field`).
 """
@@ -58,6 +60,15 @@ from .sde import (
     strong_convergence_study,
     weak_convergence_study,
 )
+from .semi_markov import (
+    RenewalCurve,
+    SemiMarkovAbsorption,
+    SemiMarkovEstimate,
+    SemiMarkovMonteCarlo,
+    SemiMarkovProcess,
+    SemiMarkovTransient,
+    SemiMarkovTransitionMatrix,
+)
 
 __all__ = [
     "KERNEL_FAMILIES",
@@ -80,8 +91,15 @@ __all__ = [
     "OccupancySolution",
     "OrnsteinUhlenbeck",
     "PoissonProcess",
+    "RenewalCurve",
     "SamplePath",
     "ScalarSDE",
+    "SemiMarkovAbsorption",
+    "SemiMarkovEstimate",
+    "SemiMarkovMonteCarlo",
+    "SemiMarkovProcess",
+    "SemiMarkovTransient",
+    "SemiMarkovTransitionMatrix",
     "TransientSolution",
     "as_points",
     "brownian_increments",
