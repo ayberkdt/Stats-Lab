@@ -182,7 +182,8 @@ def plot_quantile_dots(
     Each dot is one ``1/dots`` probability slice (the ``(k - 1/2)/dots``
     quantile), stacked into bins, so a reader can count outcomes ("4 in 50")
     instead of judging areas. With a threshold, exceeding dots use the data
-    hue and the rest stay muted; bin edges are aligned with the threshold.
+    hue and the rest stay muted (light fill, muted outline); bin edges are
+    aligned with the threshold.
 
     Args:
         values: Sample from the predictive distribution.
@@ -224,8 +225,10 @@ def plot_quantile_dots(
             [low + (slot + 0.5) * width],
             [level + 0.5],
             s=90.0,
+            # Context dots keep a light fill but get a muted outline, so they
+            # stay visible against the canvas (3:1 for graphical objects).
             color=palette.observed if hot or threshold is None else palette.rule,
-            edgecolors=palette.canvas,
+            edgecolors=palette.canvas if hot or threshold is None else palette.muted,
             linewidths=1.0,
             zorder=3,
         )

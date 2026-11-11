@@ -314,6 +314,10 @@ def plot_waiting_count_pmfs(
 ) -> Any:
     """Compare two failures-before-success PMFs on one integer window.
 
+    Geometric masses are circles and negative binomial masses squares, both
+    translucent, so the near-zero tail masses of the two laws stay visible
+    where they coincide.
+
     Args:
         geometric: First-success waiting-count law.
         negative_binomial: Target-success waiting-count law.
@@ -341,10 +345,14 @@ def plot_waiting_count_pmfs(
     axes = new_axes(ax)
     palette = active_palette()
     first, second = palette.series[0], palette.series[2]
+    # Both masses tend to zero, so the two marker sets meet in the tail:
+    # distinct shapes and translucent fills keep both visible there.
     line(axes, counts, geometric_masses, color=first, width=1.6)
-    points(axes, counts, geometric_masses, color=first, size=22.0)
+    points(axes, counts, geometric_masses, color=first, size=22.0, alpha=0.75)
     line(axes, counts, negative_masses, color=second, width=1.6)
-    points(axes, counts, negative_masses, color=second, size=22.0)
+    points(
+        axes, counts, negative_masses, color=second, size=20.0, marker="s", alpha=0.75
+    )
     axes.set_xlim(-0.5, checked_upper + 0.5)
     axes.xaxis.set_major_locator(_integer_locator())
     axes.set_ylim(0.0, 1.12 * max((*geometric_masses, *negative_masses)))

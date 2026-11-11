@@ -15,6 +15,7 @@ from typing import Any
 
 from probstat.causal import BalanceTable, EValue
 
+from ._layout import halo
 from .theme import (
     ANNOTATION_SIZE,
     BAND_ALPHA,
@@ -326,6 +327,8 @@ def plot_e_value_contour(
         fontsize=ANNOTATION_SIZE,
         fontweight="bold",
         color=palette.ink,
+        path_effects=halo(),
+        zorder=6,
     )
     axes.plot(
         [1.0, top], [1.0, top], color=palette.rule, linewidth=0.9, zorder=1

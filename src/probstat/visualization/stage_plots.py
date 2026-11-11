@@ -308,9 +308,10 @@ def plot_information_sensitivity(
     Inputs are rows sorted by mutual information (largest on top), drawn as
     observed-hue lollipops. With Sobol indices of the same QoI a second
     panel on the same rows shows first-order (observed hue, the variance
-    analogue of a one-input dependence measure) and total-effect (model hue)
-    indices, so moment-independent and variance-based rankings can be read
-    side by side without a dual axis.
+    analogue of a one-input dependence measure, just below the row) and
+    total-effect (model hue, just above it) indices, so moment-independent
+    and variance-based rankings can be read side by side without a dual
+    axis, and equal indices do not hide each other.
 
     Args:
         result: Result of ``UQStudy.information_sensitivity``.
@@ -383,9 +384,14 @@ def plot_information_sensitivity(
                 row, min(first[name], total[name]), max(first[name], total[name]),
                 color=palette.rule, linewidth=5.0, zorder=1,
             )  # fmt: skip
-        points(right, [first[n] for n in order], list(range(len(order))),
+        # S sits just below the row and S_T just above it, so equal indices
+        # (no interaction) show both dots instead of one hiding the other.
+        dodge = 0.09
+        points(right, [first[n] for n in order],
+               [row - dodge for row in range(len(order))],
                color=palette.observed, size=54.0)  # fmt: skip
-        points(right, [total[n] for n in order], list(range(len(order))),
+        points(right, [total[n] for n in order],
+               [row + dodge for row in range(len(order))],
                color=palette.model, size=54.0)  # fmt: skip
         right.set_xlim(min(0.0, *first.values()) - 0.02, 1.0)
         right.grid(axis="y", visible=False)

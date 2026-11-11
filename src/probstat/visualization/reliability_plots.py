@@ -133,6 +133,45 @@ def _square_map(axes: Any, extent: float, names: tuple[str, str]) -> None:
     axis_labels(axes, f"Standard normal {names[0]}", f"Standard normal {names[1]}")
 
 
+def _tangent_in_square(
+    point: tuple[float, float], direction: tuple[float, float], extent: float
+) -> tuple[tuple[float, float], tuple[float, float]] | None:
+    """Return the part of a line that lies inside the shown square.
+
+    The line ``point + t * direction`` is clipped to ``|x|, |y| <= extent``
+    (Liang-Barsky parameter clipping), so a FORM tangent ends at the frame
+    instead of running under the title and the source note.
+
+    Args:
+        point: A point of the line (the design point).
+        direction: Direction of the line (need not be normalized).
+        extent: Half-width of the shown square.
+
+    Returns:
+        The two end points inside the square, or ``None`` when the line
+        misses it.
+
+    References:
+        [EQ-REL-FORM-001], [REF-MATPLOTLIB].
+
+    """
+    low, high = -math.inf, math.inf
+    for origin, step in zip(point, direction, strict=True):
+        if abs(step) < 1e-15:
+            if abs(origin) > extent:
+                return None
+            continue
+        first, second = (-extent - origin) / step, (extent - origin) / step
+        low = max(low, min(first, second))
+        high = min(high, max(first, second))
+    if not low < high:
+        return None
+    return (
+        (point[0] + low * direction[0], point[1] + low * direction[1]),
+        (point[0] + high * direction[0], point[1] + high * direction[1]),
+    )
+
+
 def _forms(
     design_points: MultipleDesignPointsResult | Sequence[FORMResult],
 ) -> tuple[FORMResult, ...]:
@@ -297,18 +336,18 @@ def plot_design_points(
         fontsize=ANNOTATION_SIZE, color=palette.muted, fontweight="semibold",
         path_effects=halo(), zorder=6,
     )  # fmt: skip
-    reach = 3.0 * half
     for index, form in enumerate(forms):
         u1, u2 = form.design_point_u
         norm = math.hypot(u1, u2)
         n1, n2 = u1 / norm, u2 / norm
         axes.plot([0.0, u1], [0.0, u2], color=palette.muted, linewidth=0.7, zorder=2)
-        line(
-            axes,
-            [u1 - reach * n2, u1 + reach * n2],
-            [u2 + reach * n1, u2 - reach * n1],
-            color=palette.model, dashes=FITTED, width=1.4, zorder=3.0,
-        )  # fmt: skip
+        tangent = _tangent_in_square((u1, u2), (-n2, n1), half)
+        if tangent is not None:
+            (x0, y0), (x1, y1) = tangent
+            line(
+                axes, [x0, x1], [y0, y1],
+                color=palette.model, dashes=FITTED, width=1.4, zorder=3.0,
+            )  # fmt: skip
         points(axes, [u1], [u2], color=palette.model, size=70.0, zorder=5.0)
         d1, d2 = (n1 - n2) / math.sqrt(2.0), (n2 + n1) / math.sqrt(2.0)
         axes.annotate(
