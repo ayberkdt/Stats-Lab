@@ -2,8 +2,9 @@
 
 `probstat.processes` covers random quantities that evolve in time or vary in
 space: finite Markov chains, Poisson and compound Poisson processes, Brownian
-diffusions with exact samplers, discretization schemes for scalar SDEs, and
-Gaussian random fields represented by Karhunen-Loeve (KL) expansions.
+diffusions with exact samplers, discretization schemes for scalar SDEs,
+Gaussian random fields represented by Karhunen-Loeve (KL) expansions,
+score-based diffusion samplers, and neural SDEs.
 `probstat.modeling.RandomFieldInput` turns a truncated KL expansion into
 ordinary model inputs, so a forward model driven by a random field runs
 through propagation, reliability, and sensitivity like any other
@@ -233,6 +234,92 @@ Because the result is an ordinary `ProbabilisticModel`, FORM, subset
 simulation, Sobol indices, and surrogates all apply unchanged. Sobol indices
 then rank the KL modes, not physical locations.
 
+## 6. Score-based diffusion and neural SDEs
+
+**Forward SDEs.** `VariancePreservingSDE(beta_min, beta_max)` and
+`VarianceExplodingSDE(sigma_min, sigma_max)` describe
+`dx = f(x, t) dt + g(t) dw` on `[0, 1]` with Gaussian perturbation kernels
+`x_t | x_0 ~ N(m(t) x_0, v(t) I)` [EQ-PROC-DIFF-001], [EQ-PROC-DIFF-002]
+[REF-SONG-ETAL-2021]. The VP SDE is the continuous limit of the DDPM noising
+chain [REF-HO-JAIN-ABBEEL-2020] and has prior `N(0, I)`; the VE SDE adds
+Brownian noise with a geometric scale and has prior `N(0, sigma_max^2 I)`.
+`perturbation_moments` returns `(m(t) x_0, v(t))` and `perturb` draws from
+the kernel. The VE variance is the exact `sigma(t)^2 - sigma_min^2`.
+
+**Reverse time.** Anderson's reverse-time SDE
+`dx = [f - g^2 grad log p_t] dt + g dw_bar` [REF-ANDERSON-1982] and the
+probability-flow ODE `dx/dt = f - g^2 grad log p_t / 2` have the marginals of
+the forward SDE, so either carries prior draws back to the data law. Three
+samplers are provided:
+
+| sampler | method | equation |
+|---|---|---|
+| `reverse_sde_sample` | Euler-Maruyama in reversed time | [EQ-PROC-DIFF-005] |
+| `predictor_corrector_sample` | reverse-SDE predictor + Langevin corrector, step `2 alpha (r ||z|| / ||s||)^2` | [EQ-PROC-DIFF-006] |
+| `probability_flow_sample`, `probability_flow_map` | probability-flow ODE, classical RK4 or Heun | [EQ-PROC-DIFF-007] |
+
+A sampler only needs a callable `score(x, t)`. `GaussianScore(sde, mean,
+variance)` is the exact score of diffused Gaussian data [EQ-PROC-DIFF-003],
+which separates the samplers from training. With data `N(1, 0.25)`, 400
+points, and the default schedules:
+
+| SDE | sampler (steps, seed) | mean (z) | variance (z) |
+|---|---|---|---|
+| VP | reverse SDE (300, 11) | 1.0198 (0.79) | 0.2464 (-0.20) |
+| VP | predictor-corrector (200, 12) | 1.0145 (0.58) | 0.2630 (0.74) |
+| VP | probability flow, RK4 (50, 13) | 1.0279 (1.11) | 0.2563 (0.36) |
+| VE | reverse SDE (300, 11) | 1.0093 (0.37) | 0.2304 (-1.11) |
+| VE | predictor-corrector (200, 12) | 0.9983 (-0.07) | 0.2700 (1.13) |
+| VE | probability flow, RK4 (50, 13) | 1.0212 (0.85) | 0.2562 (0.35) |
+
+`z` is the deviation in standard errors (`sqrt(s^2/n)` for the mean,
+`s^2 sqrt(2/(n-1))` for the variance). For Gaussian data the flow map is
+affine, `x_e = m_e + (x_1 - m_1) sqrt(V_e / V_1)`; four prior points mapped
+with 60 RK4 steps match it to `1.8e-7` (200 Heun steps: `8.3e-5`), and the
+encode-decode round trip returns the points to `4.4e-8`.
+
+**Denoising score matching.** `train_score_network(sde, data, ...)` fits
+`s_theta(x, t) = N_theta(c(t) x, 2 tau(t) - 1) / sqrt(v(t))`, a
+`numerics.MLP` conditioned on the noise level `tau = sqrt(v / (m^2 + v))`, by
+minimizing `lambda(t) ||s_theta(x_t, t) + z / sqrt(v)||^2` over mini-batches
+[EQ-PROC-DIFF-004] [REF-VINCENT-2011]. The default `lambda(t) = v(t)` turns
+the objective into the noise-prediction loss of DDPM. Gradients come from
+`numerics.reverse_value_and_gradient`, updates from
+`optimization.adam_minimize`. On 300 draws of `N(1, 0.25)` (VP, width 16,
+800 iterations, batch 32, seed 2; about 6 s) the relative grid error of the
+score (nine points within two marginal standard deviations) is:
+
+| `t` | 0.02 | 0.1 | 0.3 | 0.7 |
+|---|---|---|---|---|
+| trained | 1.46 | 0.070 | 0.091 | 0.029 |
+| initial network | 3.07 | 1.28 | 1.16 | 1.20 |
+
+At small `t` the weighting gives the score little influence on the loss
+and 300 points determine it poorly; reverse-SDE samples from the trained
+score have mean 1.000 and variance 0.206, against 1.002 and 0.260 for the
+training data. The small-noise score, not the samplers, limits sample
+quality.
+
+**Neural SDEs.** `NeuralSDE(dimension, hidden, diffusion="constant" |
+"mlp")` has drift `a(x) = r N((x - c) / r)` and a constant or softplus
+network diffusion [EQ-PROC-NSDE-002]. `fit_neural_sde` maximizes the Euler
+pseudo-likelihood of observed transitions [EQ-PROC-NSDE-001]
+[REF-IACUS-2008]; it is biased by `O(h)` and needs dense observations. The
+fit reports `drift_on_grid`, converts a one-dimensional model to a
+`ScalarSDE` for `euler_maruyama` and `milstein` [REF-KLOEDEN-PLATEN-1992],
+and simulates several dimensions componentwise. For 40 exact OU paths
+(`theta = 1`, `mu = 0`, `sigma = 0.5`, `h = 0.02`, 250 steps, seeds
+100-139) and a width-8 drift network (400 iterations, batch 100, seed 1;
+about 6 s):
+
+| quantity | neural SDE | linear Euler least squares | truth |
+|---|---|---|---|
+| drift slope on `[-0.6, 0.6]` | -0.969 | -0.996 | -1 |
+| drift intercept | 0.029 | 0.040 | 0 |
+| diffusion | 0.491 | 0.494 (quadratic variation) | 0.5 |
+
+The fitted drift stays within 0.056 of `-x` on the grid.
+
 ## Limitations
 
 - Eigen-decomposition uses the dependency-free Jacobi method, which scales
@@ -245,3 +332,7 @@ then rank the KL modes, not physical locations.
   covariance differ from those of the underlying Gaussian field.
 - The SDE schemes are scalar with uniform steps; there is no adaptive step
   control or multilevel Monte Carlo.
+- Score networks and neural SDEs are scalar-Python MLPs differentiated on a
+  tape: practical for one or two dimensions, widths up to about 16, and a
+  few hundred to a few thousand data points. Samplers use uniform time grids
+  without adaptive step control.
