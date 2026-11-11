@@ -3,6 +3,87 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.18.0] — 2026-11-11
+
+Generative models and neural SDEs, semi-Markov reliability, performance
+profiles and a multiple-precision reference, real-data case studies, an
+optional dense backend, structured and discrete latent sites, and a tested
+contract for every laboratory and figure.
+
+### Added
+
+- **Normalizing flows and energy-based models** (new package
+  `generative`, ADR-0074): planar, radial, affine-coupling, actnorm and
+  permutation layers composed by `NormalizingFlow` with exact
+  change-of-variables densities and maximum-likelihood fitting
+  (`fit_flow`, `real_nvp_flow`); `EnergyModel` fitted by implicit or
+  denoising score matching; `sample_langevin` (ULA and MALA); quadrature and
+  importance-sampling normalizing constants and KL estimates.
+- **Score-based diffusion and neural SDEs** (`processes`, ADR-0075):
+  variance-preserving and variance-exploding forward SDEs with closed-form
+  perturbation kernels, denoising score matching of a time-conditioned
+  network, reverse-SDE, predictor-corrector and probability-flow ODE
+  samplers, and `NeuralSDE` fitted by Euler-Maruyama pseudo-likelihood.
+- **Semi-Markov reliability and epistemic common-cause parameters**
+  (`processes`, `systems`, ADR-0076): `SemiMarkovProcess` with any sojourn
+  law (Markov renewal equation with Richardson-extrapolated error estimate,
+  exact absorption times and limiting law), `SemiMarkovComponent` for
+  `SystemModel`, and `ccf_parameter_uncertainty` / `ccf_interval_bounds`
+  for beta-factor, MGL and alpha-factor parameters as epistemic inputs.
+- **Performance profiles and a reference backend** (`numerics`,
+  ADR-0077): Dolan-Moré performance profiles and Moré-Wild data profiles in
+  every benchmark category; a `decimal`-based reference for erf, the normal
+  CDF and quantile, log-gamma and the incomplete gamma and beta functions,
+  with ULP budgets enforced on the double-precision implementations.
+- **Laboratory contract and accessibility** (ADR-0078): every lab documents
+  definitions, assumptions, reachable registered equations, diagnostics,
+  cost and error, and references, exposes a `SEED`, saves themed figures,
+  and maps to a regression test; saved figures embed a text alternative;
+  the study report has alt text, landmarks and a skip link; palette
+  contrast is tested against WCAG 2.1.
+- **Roadmap gap closure** (ADR-0079): fitted-normal Lilliefors, Cramér-von
+  Mises and Anderson-Darling calibration; adaptive conformal inference under
+  distribution shift; a Beta-Bernoulli Thompson-sampling bandit; Sobol
+  indices for stochastic simulators; stacking and pseudo-BMA model weights;
+  amortized Gaussian posterior estimation; structural protocols for
+  multivariate laws.
+- **Real-data case studies** (`statistics.datasets`, ADR-0080): Bortkiewicz
+  horse kicks, Rutherford-Geiger alpha counts, Newcomb light passage times,
+  Lieblein-Zelen ball bearings and Student's sleep data with page-level
+  provenance; Poisson and negative-binomial count fits, Garwood intervals,
+  bootstrap-calibrated count goodness of fit, rootograms, and
+  `examples/real_data_fitting_lab.py`.
+- **Dense backend boundary** (`linalg`, ADR-0081): `DenseBackend` with a
+  bit-identical default and an optional `NumPyBackend` (`numerics` extra)
+  used by Gaussian processes and the multivariate normal; a 400-point
+  Cholesky solve runs about 70 times faster under NumPy.
+- **Structured and discrete latent sites** (`inference.ppl`, ADR-0082):
+  simplex, ordered, correlation-Cholesky, correlation and covariance
+  supports through the Stan constraint transforms; `LKJCholesky` and
+  `LKJCorrelation`; finite discrete sites summed out by enumeration (per
+  iteration inside `plate`) and recovered from their exact conditional law.
+- `numerics.MLP` and `optimization.adam_minimize`, the shared building
+  blocks of the generative and neural-SDE models.
+- 88 equation records, 61 references, 241 new tests (2,011 in total), and
+  1,551 public names in 33 packages.
+
+### Changed
+
+- Figures (ADR-0083): direct labels and source notes are 9 pt, and
+  `save_figure` wraps titles wider than the figure and grows the canvas
+  until every artist fits; all lab figures pass the figure audit with no
+  error, in the light and the dark theme.
+- The Q-Q plot accepts a unit-bearing axis title and headline unit.
+- `docs/benchmarks.md` was regenerated with the profile tables (Windows,
+  Python 3.12); a few last-digit values of the MCMC rows differ from the
+  0.17 report for that reason.
+
+### Fixed
+
+- Continuous integration type-checks against Matplotlib 3.10 and later,
+  whose typed `rc_context` keys had failed strict mypy before any test ran;
+  the workflow actions run on Node 24.
+
 ## [0.17.0] — 2026-11-11
 
 Closes the open distribution, dependence, differentiation, Monte Carlo,

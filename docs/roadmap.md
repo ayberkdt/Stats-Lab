@@ -104,9 +104,10 @@ tested evidence.
 ## Phase 6 — Frontier systems
 
 - [~] Probabilistic programming intermediate representation and inference API
-  (ADR-0053) with reverse-mode gradients (ADR-0069); static flat-vector
-  continuous sites only. Discrete latent sites, dynamic site structure, and
-  structured (simplex, covariance) latent supports remain.
+  (ADR-0053) with reverse-mode gradients (ADR-0069), structured (simplex,
+  ordered, correlation, covariance) latent supports and marginalized finite
+  discrete sites (ADR-0082). Dynamic site structure, nested plates, and
+  vector-valued discrete sites remain.
 - [x] Causal graphs, interventions, identification, sensitivity analysis
   (ADR-0034).
 - [x] Information measures and estimators (ADR-0036), information geometry
@@ -146,10 +147,11 @@ dependency direction.
   Mahalanobis distance, and Cholesky sampling.
 - [x] Normal/Lognormal maximum likelihood, generic KS/AD statistics, z and
   Wilson confidence intervals, fitted-CDF visualization, and seeded lab.
-- [~] Nataf transformations, correlated joint inputs, multivariate structural
+- [x] Nataf transformations, correlated joint inputs, multivariate structural
   protocols (ADR-0079), Weibull estimation, bootstrapped and normal-family
-  closed-form fitted-null calibration, Student-t intervals, and sampling
-  stream splitting delivered; real-data fitting case studies remain.
+  closed-form fitted-null calibration, Student-t intervals, sampling stream
+  splitting, and real-data fitting case studies on five historical data sets
+  (ADR-0080).
 
 ### UQ-2 — Forward propagation
 
@@ -226,11 +228,14 @@ dependency direction.
 ### LAB-1 through LAB-6 — Reproducible practical work
 
 - [x] Basic Monte Carlo and advanced variance-reduction laboratories.
-- [~] Statistical-fitting and uncertainty-visualization laboratories.
+- [x] Statistical-fitting and uncertainty-visualization laboratories, with
+  bootstrap-calibrated goodness of fit and Monte Carlo error reporting
+  (ADR-0078).
 - [x] Reliability laboratory with FORM and directional sampling.
 - [x] Bayesian-calibration laboratory.
-- [ ] Every lab includes definitions, assumptions, equations, seeded examples,
-  plots, diagnostics, cost/error discussion, citations, and regression tests.
+- [x] Every lab includes definitions, assumptions, equations, seeded examples,
+  plots, diagnostics, cost/error discussion, citations, and regression tests,
+  enforced by `tests/test_lab_contract.py` (ADR-0078).
 
 ### PRE-1 — Prerequisite bridges
 
@@ -248,7 +253,8 @@ dependency direction.
 - [x] `UQStudy` orchestration with one seed tree and one report (ADR-0025).
 - [x] Semantic chart theme for every figure (ADR-0024).
 - [x] All 110 ATHENS curriculum rows implemented with evidence.
-- [ ] Numerical backend boundary for large dense problems (ADR-0008 follow-up).
+- [x] Numerical backend boundary for large dense problems, with an optional
+  NumPy backend (ADR-0081).
 
 ## Systems engineering track (0.16 to 0.18)
 
@@ -277,7 +283,9 @@ dependency direction.
 - [~] Boundary/property/metamorphic testing.
 - [~] Generated API reference (`tools/generate_api_reference.py`); generated
   mathematical documentation remains.
-- [ ] Accessibility, localization-ready prose, and interactive explanations.
+- [~] Accessibility (text alternatives in every saved figure, WCAG contrast
+  tests, an accessible study report; ADR-0078) and localization-ready prose
+  policy; interactive explanations remain.
 - [x] Performance and data profiles in the benchmark report, and a
   multiple-precision reference backend with enforced ULP budgets (ADR-0077).
 

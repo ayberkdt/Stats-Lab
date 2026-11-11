@@ -10,7 +10,7 @@ questions (what do the data say about the inputs?), and risk questions (how
 likely is failure and what does it cost?), with one seed tree and one report.
 Every formula carries an equation ID that resolves to a primary source.
 
-![Version 0.17.0](https://img.shields.io/badge/version-0.17.0-44599C)
+![Version 0.18.0](https://img.shields.io/badge/version-0.18.0-44599C)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB)
 ![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue)
 ![Runtime dependencies: 0](https://img.shields.io/badge/runtime%20dependencies-0-success)
@@ -118,19 +118,20 @@ and run [`examples/mission_systems_lab.py`](examples/mission_systems_lab.py).
 
 ## What's inside
 
-32 packages and 1,413 public names, all documented in the
+33 packages and 1,551 public names, all documented in the
 [API reference](docs/api-reference.md).
 
 | Area | Packages | Highlights |
 |---|---|---|
-| Central model and forward | `modeling`, `propagation`, `sampling`, `monte_carlo`, `sensitivity`, `surrogates` | Gaussian, Student-t, Clayton, Gumbel, and Frank copulas, C- and D-vine copulas with sequential fitting, discrete and interval (epistemic) inputs, random fields; nested aleatory-epistemic propagation and p-boxes; Sobol (to 1,024 dimensions, Owen scrambling), Halton, maximin and Iman-Conover LHS; zero-variance control variates, control functionals, and kernel Stein discrepancy; Sobol, Shapley, Morris, DGSM, and given-data indices; polynomial chaos and Gaussian processes |
-| Reliability and risk | `reliability`, `risk`, `systems` | FORM/SORM, multiple design points, importance, subset, and line sampling, AK-MCS; exact system reliability on BDDs with sifting, dynamic fault trees (PAND, SPARE, FDEP, SEQ), CCF, phased missions, Markov availability; VaR/CVaR, fault and event trees, fragility, GEV/GPD return levels, risk registers, FMECA, value of information |
+| Central model and forward | `modeling`, `propagation`, `sampling`, `monte_carlo`, `sensitivity`, `surrogates` | Gaussian, Student-t, Clayton, Gumbel, and Frank copulas, C- and D-vine copulas with sequential fitting, discrete and interval (epistemic) inputs, random fields; nested aleatory-epistemic propagation and p-boxes; Sobol (to 1,024 dimensions, Owen scrambling), Halton, maximin and Iman-Conover LHS; zero-variance control variates, control functionals, and kernel Stein discrepancy; Sobol (including stochastic simulators), Shapley, Morris, DGSM, and given-data indices; polynomial chaos and Gaussian processes |
+| Reliability and risk | `reliability`, `risk`, `systems` | FORM/SORM, multiple design points, importance, subset, and line sampling, AK-MCS; exact system reliability on BDDs with sifting, dynamic fault trees (PAND, SPARE, FDEP, SEQ), CCF with epistemic parameters, phased missions, Markov and semi-Markov availability; VaR/CVaR, fault and event trees, fragility, GEV/GPD return levels, risk registers, FMECA, value of information |
 | Cost | `cost` | Discounting, life-cycle cost models, cost-risk S-curves and JCL, learning curves, maintenance optimisation, spares, cost of unreliability |
-| Backward and validation | `inverse`, `inference`, `validation` | Nonlinear calibration, model discrepancy, adaptive Metropolis, HMC/NUTS, ADVI, a small probabilistic-programming interface with reverse-mode gradients; area metric, ASME V&V 20, CRPS and proper scores, PIT, distribution-shift tests |
-| Statistical modelling | `inference`, `timeseries`, `conformal` | Regression and GLMs, regularization, hierarchical models, EM and mixtures, missing data and multiple imputation, ARIMA, survival, conformal prediction |
+| Backward and validation | `inverse`, `inference`, `validation` | Nonlinear calibration, model discrepancy, adaptive Metropolis, HMC/NUTS, ADVI, a probabilistic-programming interface with reverse-mode gradients, structured (simplex, correlation, covariance) and marginalized discrete latent sites, amortized posteriors; stacking and pseudo-BMA model weights; area metric, ASME V&V 20, CRPS and proper scores, PIT, distribution-shift tests |
+| Statistical modelling | `inference`, `timeseries`, `conformal` | Regression and GLMs, regularization, hierarchical models, EM and mixtures, missing data and multiple imputation, ARIMA, survival, conformal prediction (split and adaptive under shift), Thompson-sampling bandits |
+| Generative models | `generative` | Planar, radial, and affine-coupling normalizing flows; energy-based models by score matching; Langevin (ULA, MALA) sampling; normalizing-constant and KL diagnostics |
 | Decisions | `causal`, `design` | Back-door and front-door identification, IPW/AIPW, E-values; D-optimal and Bayesian experimental design |
-| Probability and statistics | `probability`, `distributions`, `statistics`, `multivariate`, `processes`, `information` | 29 distribution families plus affine, truncated, mixture, and empirical wrappers; Dirichlet, multinomial, Dirichlet-multinomial, multivariate Student-t, Wishart, and inverse-Wishart laws with conjugate updates; finite measure spaces, Radon-Nikodym derivatives, conditional expectation, and completeness checks; tests and bootstrap, kernel density, streaming summaries, limit theorems, contingency tables, stochastic processes, entropy, optimal transport |
-| Foundations and dynamics | `foundations`, `linalg`, `optimization`, `numerics`, `filtering`, `data_assimilation`, `uq`, `workflow`, `visualization` | Dense linear algebra, optimizers with bounds and multi-start, forward- and reverse-mode automatic differentiation, adaptive quadrature; Kalman, particle, and ensemble filters; the `UQStudy` workflow and the themed figure library |
+| Probability and statistics | `probability`, `distributions`, `statistics`, `multivariate`, `processes`, `information` | 29 distribution families plus affine, truncated, mixture, and empirical wrappers; Dirichlet, multinomial, Dirichlet-multinomial, multivariate Student-t, Wishart, and inverse-Wishart laws with conjugate updates; LKJ correlation laws; finite measure spaces, Radon-Nikodym derivatives, conditional expectation, and completeness checks; calibrated goodness of fit and count models with five historical real-data case studies; tests and bootstrap, kernel density, streaming summaries, limit theorems, contingency tables, stochastic and semi-Markov processes, score-based diffusion and neural SDEs, entropy, optimal transport |
+| Foundations and dynamics | `foundations`, `linalg`, `optimization`, `numerics`, `filtering`, `data_assimilation`, `uq`, `workflow`, `visualization` | Dense linear algebra, optimizers with bounds and multi-start, forward- and reverse-mode automatic differentiation, adaptive quadrature; an optional NumPy dense backend; a multiple-precision reference backend and performance profiles; Kalman, particle, and ensemble filters; the `UQStudy` workflow and the accessible themed figure library |
 
 The [ATHENS 2026 coverage matrix](docs/curriculum/athens-2026-coverage.md)
 tracks all 110 topics of the ATHENS 2026 VV-UQ course; all 110 are
@@ -138,7 +139,7 @@ implemented, each with source, tests, and documentation as evidence.
 
 ## Gallery
 
-Every lab in [`examples/`](examples) (32 of them) is seeded and reproducible
+Every lab in [`examples/`](examples) (33 of them) is seeded and reproducible
 and writes its figures to `examples/generated/`. All figures share one theme:
 colour follows meaning (observed data, model, reference), titles state the
 finding, labels sit on the data, and every figure exists in a light and a dark
@@ -167,7 +168,7 @@ steps with the low-level APIs).
 - **One model, every question.** `ProbabilisticModel` is the only model
   contract; analyses never redefine the inputs or the simulator.
 - **Citation-first.** Docstrings cite equation IDs such as `EQ-REL-HLRF-001`;
-  each of the 938 entries in the [equation registry](docs/equation-registry.md)
+  each of the 1,026 entries in the [equation registry](docs/equation-registry.md)
   resolves to the [bibliography](docs/references.md).
 - **Honest boundaries.** Estimators report assumptions, model-evaluation cost,
   and convergence; unconverged results are flagged, and validation results are
