@@ -3,6 +3,93 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.17.0] — 2026-11-11
+
+Closes the open distribution, dependence, differentiation, Monte Carlo,
+systems, and measure-theory items of the roadmap, splits the two largest
+catch-all modules, and makes every citation traceable to a registered key.
+
+### Added
+
+- **Multivariate laws and conjugacy** (`multivariate`, ADR-0067):
+  `Dirichlet`, `Multinomial`, `DirichletMultinomial`,
+  `MultivariateStudentT`, `Wishart`, `InverseWishart` and
+  `multivariate_log_gamma`, with densities, moments, marginals and
+  reproducible sampling (Bartlett decomposition for the Wishart family);
+  `dirichlet_posterior` and `normal_inverse_wishart_posterior` return frozen
+  records with the log marginal likelihood and the posterior predictive law.
+- **Vine copulas** (`modeling`, ADR-0068): `CVineCopula` and `DVineCopula`
+  built from `PairCopula` blocks (independence, Gaussian, Student-t, Frank,
+  and rotated Clayton and Gumbel) with h-functions and their inverses; both
+  satisfy the `Copula` interface and serve as the dependence law of
+  `JointInput`. `fit_vine_copula` fits tree by tree on rank
+  pseudo-observations with per-edge AIC family selection and Dissmann
+  structure selection.
+- **Reverse-mode automatic differentiation** (`numerics`, ADR-0069):
+  `reverse_gradient`, `reverse_value_and_gradient`,
+  `vector_jacobian_product`, `reverse_jacobian`, and forward-over-reverse
+  `reverse_hessian` and `hessian_vector_product`, with an iterative backward
+  sweep and `NonDifferentiableError` at points with unbounded derivatives.
+  HMC, NUTS, ADVI and the Laplace approximation accept
+  `gradient="reverse"`.
+- **Dynamic fault trees** (`systems`, ADR-0070): `DynamicFaultTree` with
+  PAND, SPARE (cold, warm, hot; shared pools), FDEP and SEQ gates, solved
+  exactly through `ContinuousTimeMarkovChain` with a state-count guard and
+  cross-checked by `monte_carlo_unreliability`. `BDD.sift` and
+  `BDD.reorder` implement Rudell's sifting; probabilities are preserved
+  exactly and the diagram never grows.
+- **Measure-theoretic bridge** (`probability`, ADR-0071):
+  `FiniteMeasurableSpace` and `FiniteMeasure` with generated
+  sigma-algebras, measurable maps and pushforward, Lebesgue integrals,
+  product measures with a Fubini check, Radon-Nikodym derivatives,
+  conditional expectation given a sub-sigma-algebra, and total variation;
+  `check_completeness` decides completeness of a statistic on a finite
+  family exactly.
+- **Stein control variates** (`monte_carlo`, ADR-0072):
+  `estimate_zero_variance` (degree 1 and 2, same-sample or cross-fitted),
+  `estimate_control_functional` and `estimate_control_functional_weights`
+  with Gaussian or IMQ Stein kernels, and `kernel_stein_discrepancy` as a
+  sample-quality diagnostic.
+- Guides: measure-theoretic probability, frequentist versus Bayesian
+  interpretation (every quoted number is reproduced by the tests),
+  multivariate laws, and new sections on vines, dynamic fault trees, Stein
+  control variates and reverse-mode gradients.
+- 62 equation records, 29 references, and 189 new tests (1,770 in total).
+
+### Changed
+
+- **Module layout** (ADR-0073): `workflow/study.py` is now the
+  `workflow.study` subpackage (records, context, and one mixin per stage
+  domain composed into `UQStudy`); `distributions/simple_families.py` and
+  `more_families.py` are split into one module per family. Every public
+  import path through `probstat.workflow` and `probstat.distributions` is
+  unchanged.
+- The probabilistic-programming layer differentiates traceable programs in
+  reverse mode by default and records `gradient_method="reverse"` (it read
+  `"autodiff"`); untraceable programs fall back to finite differences with
+  the reason recorded. The HMC/NUTS default stays forward mode.
+- `GradientEvaluator` moved to `numerics.gradient_oracle`;
+  `probstat.numerics.GradientEvaluator` still resolves.
+- Decision records moved to `docs/adr/` and the roadmap to
+  `docs/roadmap.md`.
+- Every `References:` section must name a `REF-*` or `EQ-*` key; policy-only
+  helpers cite `REF-PROBSTAT-VALIDATION`, `REF-PROBSTAT-API` or
+  `REF-PROBSTAT-REPORTING`. The bibliography is checked for duplicate and
+  uncited keys.
+
+### Removed
+
+- The module paths `probstat.distributions.simple_families` and
+  `probstat.distributions.more_families` (their classes are still exported
+  from `probstat.distributions`). Objects of those seven families pickled by
+  0.16 do not unpickle.
+
+### Fixed
+
+- The Joe-Kuo Sobol direction-number licence is reproduced verbatim (the
+  embedded notice was a paraphrase) and ships as
+  `LICENSES/JOE-KUO-SOBOL.txt`.
+
 ## [0.16.0] — 2026-10-16
 
 Systems engineering joins the central model. Mission reliability is exact

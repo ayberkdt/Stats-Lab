@@ -28,8 +28,9 @@ tested evidence.
 - [x] Finite probability-, moment-, and characteristic-function evaluation.
 - [x] Modes of convergence, laws of large numbers, and central limit theorems
   (exact Berry-Esseen/Edgeworth/tail-bound comparisons, ADR-0051).
-- [ ] Measure/integration bridge: sigma-algebras, measurable maps, Lebesgue
-  expectation, Radon-Nikodym derivatives, and product measures.
+- [x] Measure/integration bridge on finite spaces: sigma-algebras, measurable
+  maps, Lebesgue expectation, Radon-Nikodym derivatives, product measures,
+  and conditional expectation (ADR-0071).
 
 ## Phase 2 — Distribution system
 
@@ -43,8 +44,10 @@ tested evidence.
 - [x] Gamma, beta, chi-square, Student-t, F, and logistic; Cauchy, Laplace,
   Rayleigh, Pareto, PERT, discrete uniform, hypergeometric; affine,
   truncated, mixture, and empirical wrappers (ADR-0059).
-- [~] Multivariate normal, Gaussian, Student-t, Clayton, Gumbel, and Frank
-  copulas (ADR-0064); Dirichlet, multinomial, and vine copulas remain.
+- [x] Multivariate normal, Dirichlet, multinomial, Dirichlet-multinomial,
+  multivariate Student-t, Wishart, and inverse-Wishart laws (ADR-0067);
+  Gaussian, Student-t, Clayton, Gumbel, and Frank copulas (ADR-0064); C- and
+  D-vine copulas (ADR-0068).
 - [x] Stable log-density, quantile, survival, hazard, and entropy interfaces
   through the common distribution contract (ADR-0059).
 - [x] Call-local deterministic sampling streams for implemented families.
@@ -65,8 +68,8 @@ tested evidence.
 
 ## Phase 4 — Statistical inference
 
-- [~] Estimands, estimators, bias, risk, consistency, sufficiency (ADR-0051);
-  completeness is discussed but not computed.
+- [x] Estimands, estimators, bias, risk, consistency, sufficiency (ADR-0051),
+  and exact completeness checks on finite families (ADR-0071).
 - [x] Likelihood, score, Fisher information, MLE/MAP (generic MLE with
   observed-information SEs, Laplace/MAP), EM and Gaussian mixtures
   (ADR-0040).
@@ -76,15 +79,16 @@ tested evidence.
 - [x] Bayesian priors/posteriors, conjugacy, decision theory (EVPI/EVSI),
   model comparison (AIC/BIC, Bayes factors), calibration, posterior
   predictive checks (ADR-0040).
-- [ ] Frequentist/Bayesian interpretations kept explicit and separate.
+- [x] Frequentist/Bayesian interpretations kept explicit and separate
+  (ADR-0071).
 
 ## Phase 5 — Modeling and computation
 
 - [x] Linear/nonlinear regression, GLMs, regularization (ADR-0030),
   hierarchical normal and beta-binomial models (ADR-0040).
-- [~] Numerical optimization (strong-Wolfe BFGS with bounds, Nelder-Mead,
+- [x] Numerical optimization (strong-Wolfe BFGS with bounds, Nelder-Mead,
   Levenberg-Marquardt, Brent, multi-start) and forward-mode automatic
-  differentiation (ADR-0059, ADR-0065); reverse mode remains.
+  differentiation (ADR-0059, ADR-0065), and reverse mode (ADR-0069).
 - [~] Monte Carlo, importance sampling, adaptive MCMC with diagnostics, Laplace,
   particle filters, HMC/NUTS, Gaussian ADVI (ADR-0032); amortized inference
   remains.
@@ -97,7 +101,8 @@ tested evidence.
 ## Phase 6 — Frontier systems
 
 - [~] Probabilistic programming intermediate representation and inference API
-  (ADR-0053; finite-difference gradients, static flat-vector sites).
+  (ADR-0053) with reverse-mode gradients (ADR-0069); static flat-vector sites
+  only.
 - [x] Causal graphs, interventions, identification, sensitivity analysis
   (ADR-0034).
 - [x] Information measures and estimators (ADR-0036), information geometry
@@ -161,8 +166,9 @@ dependency direction.
 - [x] Antithetic and control variates, conditional Monte Carlo, stratified
   sampling, importance sampling, and simulation-budget allocation.
 - [x] Latin hypercube and randomized quasi-Monte Carlo (scrambled Halton/Sobol).
-- [~] Multilevel Monte Carlo and cross-entropy adaptive importance sampling
-  (ADR-0029); control functionals remain.
+- [x] Multilevel Monte Carlo and cross-entropy adaptive importance sampling
+  (ADR-0029); zero-variance control variates and control functionals
+  (ADR-0072).
 
 ### UQ-4 — Reliability and rare events
 
@@ -219,9 +225,10 @@ dependency direction.
 ### PRE-1 — Prerequisite bridges
 
 - [~] Probability and statistics learning paths.
-- [ ] Linear algebra; numerical integration, convergence, and error;
+- [x] Linear algebra; numerical integration, convergence, and error;
   optimization; multivariable calculus, Jacobians, conditional distributions;
-  and an R programming interoperability guide.
+  and an R programming interoperability guide (`docs/prerequisites/`,
+  ADR-0028).
 
 ## Integration track (0.14)
 
@@ -233,7 +240,7 @@ dependency direction.
 - [x] All 110 ATHENS curriculum rows implemented with evidence.
 - [ ] Numerical backend boundary for large dense problems (ADR-0008 follow-up).
 
-## Systems engineering track (0.16)
+## Systems engineering track (0.16, 0.17)
 
 - [x] Exact system reliability on binary decision diagrams, importance
   measures, common-cause failures, phased missions (ADR-0060).
@@ -247,9 +254,9 @@ dependency direction.
 - [x] Epistemic/aleatory separation with interval inputs and p-boxes
   (ADR-0064).
 - [x] Hierarchical subsystems and `MissionAssessment` (ADR-0066).
-- [ ] Dynamic fault-tree gates (PAND, FDEP, spare gates) beyond the standby
-  builder; semi-Markov sojourns; CCF parameters as epistemic inputs; BDD
-  variable reordering.
+- [x] Dynamic fault-tree gates (PAND, SPARE, FDEP, SEQ) and BDD variable
+  reordering by sifting (ADR-0070).
+- [ ] Semi-Markov sojourns; CCF parameters as epistemic inputs.
 
 ## Cross-cutting work (never “finished”)
 

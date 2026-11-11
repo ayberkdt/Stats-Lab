@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use this software, cite the repository release and the primary sources linked by the relevant equation records."
 title: "Probability and Statistics Library"
 type: software
-version: 0.16.0
-date-released: 2026-10-16
+version: 0.17.0
+date-released: 2026-11-11
 license: BSD-3-Clause
 authors:
   - name: "Probability and Statistics Library contributors"
