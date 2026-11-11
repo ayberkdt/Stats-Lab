@@ -42,8 +42,9 @@ GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     (
         "Inference and modelling",
         "Estimation, Bayesian computation, regression, survival, time series, "
-        "causal effects, conformal prediction, and experimental design.",
-        ("inference", "timeseries", "causal", "conformal", "design"),
+        "causal effects, conformal prediction, experimental design, and "
+        "generative models (normalizing flows, energy-based models).",
+        ("inference", "timeseries", "causal", "conformal", "design", "generative"),
     ),
     (
         "Forward uncertainty quantification",

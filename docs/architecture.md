@@ -12,7 +12,7 @@ cycles.
 | 0 | `foundations`, `numerics`, `linalg` | validation, protocols, random streams, quadrature, dense linear algebra |
 | 1 | `probability`, `statistics`, `distributions`, `optimization`, `sampling` | probability rules, descriptive and order statistics, distribution families, solvers, space-filling designs |
 | 2 | `inference`, `multivariate`, `uq`, `processes`, `information` | estimation, regression, survival, Bayesian computation, multivariate laws, stochastic processes, information measures, UQ vocabulary and verification |
-| 3 | `monte_carlo`, `modeling`, `causal` | estimators and work accounting; **the central `ProbabilisticModel`**; causal graphs and effect estimation |
+| 3 | `monte_carlo`, `modeling`, `causal`, `generative` | estimators and work accounting; **the central `ProbabilisticModel`**; causal graphs and effect estimation; normalizing flows and energy-based models |
 | 4 | `propagation`, `inverse` | forward propagation; calibration (with model discrepancy) and posterior prediction |
 | 5 | `reliability`, `sensitivity`, `surrogates`, `validation`, `design` | failure probability, sensitivity indices, emulators, validation evidence, experimental design |
 | 6 | `risk`, `systems`, `filtering`, `data_assimilation`, `conformal` | risk measures, extremes, and decision analysis; exact system reliability on BDDs; sequential state estimation; conformal prediction |
@@ -87,6 +87,7 @@ Carlo, LHS, Halton, Sobol). See ADR-0014 and
 | `monte_carlo` | Sample estimators, variance reduction, work accounting | Forward-model semantics |
 | `modeling` | Joint input laws, Nataf, `ProbabilisticModel`, evaluation counting | Analysis methods |
 | `causal` | Causal graphs, identification, discrete interventions, IPW/AIPW, E-values | Simulator-based analyses |
+| `generative` | Normalizing flows, energy-based models, score matching, Langevin sampling, normalizing-constant diagnostics | Shared networks, derivatives, and optimizers (`numerics`, `optimization`) |
 | `propagation` | Design-based propagation, output distributions | Distribution implementations |
 | `inverse` | Observation/noise models, calibration problems, Kennedy-O'Hagan discrepancy, posterior prediction | Validation claims |
 | `reliability` | Limit states, FORM/SORM, multiple design points, IS, subset and line sampling, AK-MCS, systems | Generic probability foundations |

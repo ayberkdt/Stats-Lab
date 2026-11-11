@@ -2792,3 +2792,57 @@ Deep Feedforward Neural Networks." In *Proceedings of the Thirteenth
 International Conference on Artificial Intelligence and Statistics
 (AISTATS)*, Proceedings of Machine Learning Research 9, 249-256, 2010.
 [https://proceedings.mlr.press/v9/glorot10a.html](https://proceedings.mlr.press/v9/glorot10a.html).
+
+## REF-REZENDE-MOHAMED-2015
+
+Danilo Jimenez Rezende and Shakir Mohamed. "Variational Inference with
+Normalizing Flows." In *Proceedings of the 32nd International Conference on
+Machine Learning*, Proceedings of Machine Learning Research 37, 1530-1538,
+2015.
+[https://proceedings.mlr.press/v37/rezende15.html](https://proceedings.mlr.press/v37/rezende15.html).
+Equation and appendix numbers follow arXiv:1505.05770.
+
+## REF-DINH-SOHL-DICKSTEIN-BENGIO-2017
+
+Laurent Dinh, Jascha Sohl-Dickstein, and Samy Bengio. "Density Estimation
+Using Real NVP." In *5th International Conference on Learning
+Representations (ICLR)*, 2017.
+[https://arxiv.org/abs/1605.08803](https://arxiv.org/abs/1605.08803).
+
+## REF-PAPAMAKARIOS-ETAL-2021
+
+George Papamakarios, Eric Nalisnick, Danilo Jimenez Rezende, Shakir
+Mohamed, and Balaji Lakshminarayanan. "Normalizing Flows for Probabilistic
+Modeling and Inference." *Journal of Machine Learning Research* 22(57),
+1-64, 2021.
+[https://jmlr.org/papers/v22/19-1028.html](https://jmlr.org/papers/v22/19-1028.html).
+
+## REF-KINGMA-DHARIWAL-2018
+
+Diederik P. Kingma and Prafulla Dhariwal. "Glow: Generative Flow with
+Invertible 1x1 Convolutions." In *Advances in Neural Information Processing
+Systems 31 (NeurIPS 2018)*, 2018.
+[https://papers.nips.cc/paper_files/paper/2018/hash/d139db6a236200b21cc7f752979132d0-Abstract.html](https://papers.nips.cc/paper_files/paper/2018/hash/d139db6a236200b21cc7f752979132d0-Abstract.html).
+Section numbers follow arXiv:1807.03039.
+
+## REF-HYVARINEN-2005
+
+Aapo Hyvärinen. "Estimation of Non-Normalized Statistical Models by Score
+Matching." *Journal of Machine Learning Research* 6, 695-709, 2005.
+[https://jmlr.org/papers/v6/hyvarinen05a.html](https://jmlr.org/papers/v6/hyvarinen05a.html).
+
+## REF-VINCENT-2011
+
+Pascal Vincent. "A Connection Between Score Matching and Denoising
+Autoencoders." *Neural Computation* 23(7), 1661-1674, 2011.
+DOI: [10.1162/NECO_a_00142](https://doi.org/10.1162/NECO_a_00142).
+Section and equation numbers follow the preprint, Technical Report 1358,
+Département d'Informatique et de Recherche Opérationnelle, Université de
+Montréal, 2010.
+
+## REF-ROBERTS-TWEEDIE-1996
+
+Gareth O. Roberts and Richard L. Tweedie. "Exponential Convergence of
+Langevin Distributions and Their Discrete Approximations." *Bernoulli* 2(4),
+341-363, 1996.
+DOI: [10.2307/3318418](https://doi.org/10.2307/3318418).
