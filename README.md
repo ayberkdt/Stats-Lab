@@ -10,7 +10,7 @@ questions (what do the data say about the inputs?), and risk questions (how
 likely is failure and what does it cost?), with one seed tree and one report.
 Every formula carries an equation ID that resolves to a primary source.
 
-![Version 0.18.0](https://img.shields.io/badge/version-0.18.0-44599C)
+![Version 0.19.0](https://img.shields.io/badge/version-0.19.0-44599C)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB)
 ![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue)
 ![Runtime dependencies: 0](https://img.shields.io/badge/runtime%20dependencies-0-success)
@@ -118,7 +118,7 @@ and run [`examples/mission_systems_lab.py`](examples/mission_systems_lab.py).
 
 ## What's inside
 
-33 packages and 1,551 public names, all documented in the
+33 packages and 1,554 public names, all documented in the
 [API reference](docs/api-reference.md).
 
 | Area | Packages | Highlights |
@@ -126,7 +126,7 @@ and run [`examples/mission_systems_lab.py`](examples/mission_systems_lab.py).
 | Central model and forward | `modeling`, `propagation`, `sampling`, `monte_carlo`, `sensitivity`, `surrogates` | Gaussian, Student-t, Clayton, Gumbel, and Frank copulas, C- and D-vine copulas with sequential fitting, discrete and interval (epistemic) inputs, random fields; nested aleatory-epistemic propagation and p-boxes; Sobol (to 1,024 dimensions, Owen scrambling), Halton, maximin and Iman-Conover LHS; zero-variance control variates, control functionals, and kernel Stein discrepancy; Sobol (including stochastic simulators), Shapley, Morris, DGSM, and given-data indices; polynomial chaos and Gaussian processes |
 | Reliability and risk | `reliability`, `risk`, `systems` | FORM/SORM, multiple design points, importance, subset, and line sampling, AK-MCS; exact system reliability on BDDs with sifting, dynamic fault trees (PAND, SPARE, FDEP, SEQ), CCF with epistemic parameters, phased missions, Markov and semi-Markov availability; VaR/CVaR, fault and event trees, fragility, GEV/GPD return levels, risk registers, FMECA, value of information |
 | Cost | `cost` | Discounting, life-cycle cost models, cost-risk S-curves and JCL, learning curves, maintenance optimisation, spares, cost of unreliability |
-| Backward and validation | `inverse`, `inference`, `validation` | Nonlinear calibration, model discrepancy, adaptive Metropolis, HMC/NUTS, ADVI, a probabilistic-programming interface with reverse-mode gradients, structured (simplex, correlation, covariance) and marginalized discrete latent sites, amortized posteriors; stacking and pseudo-BMA model weights; area metric, ASME V&V 20, CRPS and proper scores, PIT, distribution-shift tests |
+| Backward and validation | `inverse`, `inference`, `validation` | Nonlinear calibration, model discrepancy, adaptive Metropolis, HMC/NUTS, ADVI, a probabilistic-programming interface with reverse-mode gradients, structured (simplex, correlation, covariance) latent sites, marginalized discrete sites, Markov-chain elimination, and dynamic structure, amortized posteriors; stacking and pseudo-BMA model weights; area metric, ASME V&V 20, CRPS and proper scores, PIT, distribution-shift tests |
 | Statistical modelling | `inference`, `timeseries`, `conformal` | Regression and GLMs, regularization, hierarchical models, EM and mixtures, missing data and multiple imputation, ARIMA, survival, conformal prediction (split and adaptive under shift), Thompson-sampling bandits |
 | Generative models | `generative` | Planar, radial, and affine-coupling normalizing flows; energy-based models by score matching; Langevin (ULA, MALA) sampling; normalizing-constant and KL diagnostics |
 | Decisions | `causal`, `design` | Back-door and front-door identification, IPW/AIPW, E-values; D-optimal and Bayesian experimental design |
@@ -139,7 +139,7 @@ implemented, each with source, tests, and documentation as evidence.
 
 ## Gallery
 
-Every lab in [`examples/`](examples) (33 of them) is seeded and reproducible
+Every lab in [`examples/`](examples) (34 of them) is seeded and reproducible
 and writes its figures to `examples/generated/`. All figures share one theme:
 colour follows meaning (observed data, model, reference), titles state the
 finding, labels sit on the data, and every figure exists in a light and a dark
@@ -168,7 +168,7 @@ steps with the low-level APIs).
 - **One model, every question.** `ProbabilisticModel` is the only model
   contract; analyses never redefine the inputs or the simulator.
 - **Citation-first.** Docstrings cite equation IDs such as `EQ-REL-HLRF-001`;
-  each of the 1,026 entries in the [equation registry](docs/equation-registry.md)
+  each of the 1,038 entries in the [equation registry](docs/equation-registry.md)
   resolves to the [bibliography](docs/references.md).
 - **Honest boundaries.** Estimators report assumptions, model-evaluation cost,
   and convergence; unconverged results are flagged, and validation results are
@@ -185,16 +185,18 @@ steps with the low-level APIs).
 
 ## Documentation
 
-1. [Learning path](docs/learning-path.md): the suggested reading order
+1. [Learning paths](docs/learning-path.md): six ordered tracks with prerequisites, laboratories, and decision records
 2. [The central probabilistic model and `UQStudy`](docs/foundations/probabilistic-modeling.md)
 3. [Uncertainty propagation](docs/foundations/uncertainty-propagation.md) and [sensitivity analysis](docs/foundations/sensitivity-analysis.md)
 4. [Reliability](docs/foundations/advanced-reliability.md), [risk](docs/foundations/risk-analysis.md), and [extreme values](docs/foundations/extreme-value-analysis.md)
 5. [Calibration and MCMC](docs/foundations/nonlinear-calibration-and-mcmc.md), [model discrepancy](docs/foundations/model-discrepancy.md), and [validation](docs/foundations/model-validation.md)
 6. [Regression](docs/foundations/regression-and-glms.md), [hierarchical models](docs/foundations/hierarchical-models.md), [time series](docs/foundations/time-series.md), and [survival](docs/foundations/survival-analysis.md)
 7. [Measure-theoretic probability](docs/foundations/measure-theoretic-probability.md) and [frequentist versus Bayesian interpretation](docs/foundations/frequentist-and-bayesian-interpretation.md)
-8. [All foundation guides](docs/foundations)
+8. [Interactive explainers](examples/interactive_explainers_lab.py): the central limit theorem, Bayesian updating, and Monte Carlo error as offline pages (English and Turkish)
+9. [All foundation guides](docs/foundations)
 
 Reference: [API reference](docs/api-reference.md) ·
+[Mathematical reference](docs/math-reference/index.md) ·
 [Benchmarks](docs/benchmarks.md) · [Architecture](docs/architecture.md) ·
 [Visual language](docs/foundations/visual-language.md) ·
 [Roadmap](docs/roadmap.md) · [Changelog](CHANGELOG.md)

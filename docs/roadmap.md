@@ -103,11 +103,13 @@ tested evidence.
 
 ## Phase 6 — Frontier systems
 
-- [~] Probabilistic programming intermediate representation and inference API
+- [x] Probabilistic programming intermediate representation and inference API
   (ADR-0053) with reverse-mode gradients (ADR-0069), structured (simplex,
   ordered, correlation, covariance) latent supports and marginalized finite
-  discrete sites (ADR-0082). Dynamic site structure, nested plates, and
-  vector-valued discrete sites remain.
+  discrete sites (ADR-0082), dynamic site structure, nested plates and
+  vector-valued discrete sites (ADR-0084), Markov-chain elimination with
+  forward filtering, backward sampling and Viterbi paths, structure inside
+  plate iterations, and pilot-tuned pseudo-priors (ADR-0088).
 - [x] Causal graphs, interventions, identification, sensitivity analysis
   (ADR-0034).
 - [x] Information measures and estimators (ADR-0036), information geometry
@@ -239,7 +241,9 @@ dependency direction.
 
 ### PRE-1 — Prerequisite bridges
 
-- [~] Probability and statistics learning paths.
+- [x] Probability and statistics learning paths: six ordered tracks, each step
+  with prerequisites, laboratory, and decision record, guarded by
+  `tests/test_learning_paths.py` (ADR-0086).
 - [x] Linear algebra; numerical integration, convergence, and error;
   optimization; multivariable calculus, Jacobians, conditional distributions;
   and an R programming interoperability guide (`docs/prerequisites/`,
@@ -276,16 +280,41 @@ dependency direction.
   CCF parameters as epistemic inputs with exact moments and interval bounds
   (ADR-0076).
 
-## Cross-cutting work (never “finished”)
+## Cross-cutting work (maintained by tests)
 
-- [~] Definitions, assumptions, examples, counterexamples, plots, and sources.
-- [~] Equation registry and reference integrity.
-- [~] Boundary/property/metamorphic testing.
-- [~] Generated API reference (`tools/generate_api_reference.py`); generated
-  mathematical documentation remains.
-- [~] Accessibility (text alternatives in every saved figure, WCAG contrast
-  tests, an accessible study report; ADR-0078) and localization-ready prose
-  policy; interactive explanations remain.
+Each item is a standing rule; the named test fails when a change breaks it.
+
+- [x] Definitions, assumptions, examples, counterexamples, plots, and sources:
+  every callable cites a registered source (`tests/test_documentation_contract.py`),
+  every laboratory documents definitions, assumptions, equations,
+  diagnostics, cost and error (`tests/test_lab_contract.py`, ADR-0078).
+- [x] Equation registry and reference integrity: unique, resolvable, and cited
+  keys (`tests/test_documentation_contract.py`) and importable code targets for
+  every equation (`tests/test_math_reference.py`, ADR-0086).
+- [x] Boundary, property, and metamorphic testing: every exported distribution
+  checked by the property harness (`tests/_properties.py`, 347 property ×
+  family pairs) and 20 metamorphic relations across fitting, inference,
+  uncertainty quantification, and systems (ADR-0087).
+- [x] Generated API reference (`tools/generate_api_reference.py`) and
+  generated mathematical documentation (`tools/generate_math_reference.py`,
+  `docs/math-reference/`), both checked for currency by tests (ADR-0086).
+- [x] Accessibility (text alternatives in every saved figure, WCAG contrast
+  tests, an accessible study report; ADR-0078), localization-ready prose with
+  an English and Turkish message catalogue, and offline interactive
+  explanations (ADR-0085); every figure passes the figure audit (ADR-0083).
 - [x] Performance and data profiles in the benchmark report, and a
   multiple-precision reference backend with enforced ULP budgets (ADR-0077).
 
+## Beyond the current scope
+
+Extensions recorded in the decision records as possible future work. They
+are not commitments of the roadmap above.
+
+- Probabilistic programming: elimination on general discrete graphs,
+  higher-order or coupled Markov chains other than through a joint state,
+  pseudo-priors adapted during sampling, and reversible-jump moves
+  (ADR-0088).
+- Amortized inference with non-Gaussian conditional density estimators
+  (ADR-0079).
+- Contextual bandits and Markov decision processes (ADR-0079).
+- Translation of the text inside Matplotlib figures (ADR-0085).

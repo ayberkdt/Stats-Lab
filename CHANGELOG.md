@@ -3,6 +3,62 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.19.0] — 2026-11-12
+
+Completes the probabilistic-programming layer, adds offline interactive
+explanations and a Turkish message catalogue, orders the documentation into
+learning paths with a generated mathematical reference, and checks the whole
+distribution catalogue with property-based and metamorphic tests.
+
+### Added
+
+- **Dynamic structure in probabilistic programs** (ADR-0084, ADR-0088): the
+  sites that follow a discrete site may depend on its value (padded
+  product-space density with priors or pilot-tuned pseudo-priors,
+  `tune_pseudo_priors`), nested `plate`s, vector-valued discrete sites,
+  `markov` chains of discrete sites summed out by the forward algorithm in
+  log space with forward-filtering backward-sampling recovery and Viterbi
+  paths (`ModelIR.most_probable_discrete`), and branch-dependent sites inside
+  plate iterations; `TracedStructure` and `presence_probability` report the
+  structure posterior.
+- **Interactive explanations and localization** (ADR-0085):
+  `visualization.interactive` writes offline HTML explainers for the central
+  limit theorem, Beta-Binomial updating and Monte Carlo error, with numbers
+  computed in Python and embedded as JSON, labelled native controls, an
+  `aria-live` readout and light and dark palettes;
+  `foundations.messages` is an English and Turkish catalogue with CLDR number
+  symbols and plural categories, and `UQStudy.report`, `study_html` and
+  `write_study_html` take `locale=` (English output unchanged byte for byte).
+- **Learning paths and mathematical reference** (ADR-0086): six ordered
+  tracks covering all guides with prerequisites, laboratories and decision
+  records; `tools/generate_math_reference.py` writes `docs/math-reference/`,
+  every registry equation by package and module with its resolved source.
+- **Property-based and metamorphic testing** (ADR-0087): a standard-library
+  harness checks every exported distribution (347 property × family pairs,
+  about 10,900 deterministic cases) and 20 metamorphic relations across
+  fitting, inference, uncertainty quantification and systems.
+- 12 equation records, 14 references, 140 new tests (2,151 in total), one new
+  laboratory, and 1,554 public names in 33 packages.
+
+### Fixed
+
+- Fourteen defects found by the property harness (ADR-0087): `pdf` no longer
+  overflows where `log_pdf` is finite; GEV, GPD, affine, uniform and truncated
+  laws return exact probabilities and quantiles at their support ends;
+  `Binomial` and `Hypergeometric` distribution functions are fast for large
+  populations, `quantile(1)` and `isf(0)` return the largest mass point, and
+  the binomial survival function stays in [0, 1]; beta, empirical and mixture
+  entropies and mixture skewness and kurtosis are finite closed forms or
+  x-space quadratures.
+- Thirty-five equation records name importable code targets.
+
+### Changed
+
+- `Binomial` values for n > 256 come from the regularized incomplete beta
+  function and differ from exact rational sums by less than 1e-12 relative.
+- Continuous sites may follow a discrete site outside plates, and inside plate
+  iterations branches may declare different continuous and observed sites.
+
 ## [0.18.0] — 2026-11-11
 
 Generative models and neural SDEs, semi-Markov reliability, performance
