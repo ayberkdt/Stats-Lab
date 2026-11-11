@@ -45,7 +45,9 @@ assert fair.probability(even) == 0.5
 ```
 
 The full power set is used as the event sigma-algebra in this finite module.
-The later measure-theory layer will make measurable-space selection explicit.
+`probstat.probability.FiniteMeasurableSpace` makes the choice of
+sigma-algebra explicit; see
+[measure-theoretic probability](measure-theoretic-probability.md).
 
 ## Finite equally likely models
 

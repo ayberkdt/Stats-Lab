@@ -2617,3 +2617,23 @@ Cambridge, 1998.
 
 David Vose. *Risk Analysis: A Quantitative Guide*. 3rd edition, Wiley,
 Chichester, 2008.
+
+## REF-BILLINGSLEY-1995
+
+Patrick Billingsley. *Probability and Measure*. 3rd edition. Wiley Series in
+Probability and Mathematical Statistics. John Wiley & Sons, New York, 1995.
+ISBN 0-471-00710-2.
+
+## REF-DURRETT-2019
+
+Rick Durrett. *Probability: Theory and Examples*. 5th edition. Cambridge
+Series in Statistical and Probabilistic Mathematics 49. Cambridge University
+Press, Cambridge, 2019. ISBN 978-1-108-47368-2.
+DOI: [10.1017/9781108591034](https://doi.org/10.1017/9781108591034).
+
+## REF-BERGER-SELLKE-1987
+
+James O. Berger and Thomas Sellke. "Testing a Point Null Hypothesis: The
+Irreconcilability of P Values and Evidence." *Journal of the American
+Statistical Association* 82(397), 112-122, 1987.
+DOI: [10.1080/01621459.1987.10478397](https://doi.org/10.1080/01621459.1987.10478397).

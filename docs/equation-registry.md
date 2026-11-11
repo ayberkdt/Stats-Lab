@@ -11243,3 +11243,157 @@ number is `||K||_1 ||K^-1||_1`.
   `surrogates.GaussianProcessRegression`.
 - Source: [REF-GOLUB-VANLOAN-2013, Sections 2.6 and 3.1],
   [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
+
+## Measure-theoretic bridge and completeness (ADR-0071)
+
+### EQ-MEAS-001 — Generated sigma-algebra on a finite set
+
+`sigma(G) = { union of atoms in S : S subset of atoms }`, where outcomes
+`omega ~ omega'` share an atom iff `1_C(omega) = 1_C(omega')` for every
+generator `C in G`; with `k` atoms, `|sigma(G)| = 2^k`. A family `F` is a
+sigma-algebra iff `Omega in F`, `A in F => Omega \ A in F`, and
+`A, B in F => A union B in F` (finite unions suffice on a finite set). `G` is
+a sub-sigma-algebra of `F` iff every atom of `G` is a union of atoms of `F`.
+
+- Domain: non-empty finite `Omega`; any finite collection `G` of subsets
+  (empty `G` gives `{empty, Omega}`, no `G` gives the power set).
+- Meaning: the events an observer can distinguish; atoms are the finest
+  distinguishable outcomes.
+- Code: `probability.FiniteMeasurableSpace`, `probability.is_sigma_algebra`,
+  `FiniteMeasurableSpace.is_measurable`,
+  `FiniteMeasurableSpace.is_sub_sigma_algebra_of`.
+- Source: [REF-BILLINGSLEY-1995, Section 2], [REF-DURRETT-2019, Section 1.1].
+
+### EQ-MEAS-002 — Measure from atom masses
+
+`mu(A) = sum_(a atom, a subset of A) m(a)` with `m(a) >= 0`; `mu` is a
+probability measure iff `mu(Omega) = 1`. The restriction to a
+sub-sigma-algebra `G` assigns each `G`-atom the `mu`-measure of that atom.
+
+- Domain: `A` measurable; masses exact fractions or finite floats.
+- Meaning: non-negativity and countable additivity hold by construction;
+  subsets that split an atom have no measure.
+- Code: `probability.FiniteMeasure`, `FiniteMeasure.measure_of`,
+  `FiniteMeasure.from_point_masses`, `FiniteMeasure.restrict`,
+  `FiniteMeasure.counting`.
+- Source: [REF-BILLINGSLEY-1995, Section 10], [REF-DURRETT-2019, Section 1.1].
+
+### EQ-MEAS-003 — Measurable maps and pushforward measures
+
+`f : (Omega, F) -> (Omega', F')` is measurable iff `f^-1(B) in F` for every
+atom `B` of `F'`; a finite-valued function into its power-set codomain is
+measurable iff it is constant on every atom of `F`. The image measure is
+`(mu o f^-1)(B) = mu(f^-1(B))`; `sigma(f)` has the level sets
+`f^-1({y})` as atoms.
+
+- Domain: finite codomain; values must be target outcomes.
+- Meaning: the law of a random element is the pushforward of the
+  underlying measure.
+- Code: `FiniteMeasurableSpace.is_measurable_map`,
+  `FiniteMeasurableSpace.is_measurable_function`,
+  `FiniteMeasurableSpace.generated_by_map`, `FiniteMeasure.pushforward`.
+- Source: [REF-BILLINGSLEY-1995, Section 13], [REF-DURRETT-2019,
+  Sections 1.2-1.3].
+
+### EQ-MEAS-004 — Lebesgue integral of simple and measurable functions
+
+`integral (sum_i c_i 1_(A_i)) dmu = sum_i c_i mu(A_i)`; a measurable `f` on
+a finite space is simple on the atom partition, so
+`integral f dmu = sum_a f(a) mu(a)` and
+`integral_A f dmu = integral f 1_A dmu`.
+
+- Domain: measurable `A_i` (not necessarily disjoint) and measurable real
+  `f`.
+- Meaning: expectation is integration against the measure; it is the
+  finite case of the Lebesgue integral.
+- Code: `FiniteMeasure.simple_integral`, `FiniteMeasure.integrate`,
+  `FiniteMeasure.integrate_over`.
+- Source: [REF-BILLINGSLEY-1995, Sections 15-16], [REF-DURRETT-2019,
+  Sections 1.4-1.6].
+
+### EQ-MEAS-005 — Product measure and Fubini-Tonelli
+
+`(mu x nu)(a x b) = mu(a) nu(b)` on the atoms `a x b` of the product
+sigma-algebra, and
+`integral f d(mu x nu) = integral [integral f(x, y) nu(dy)] mu(dx)
+= integral [integral f(x, y) mu(dx)] nu(dy)`.
+
+- Domain: finite factors; `f` measurable for the product sigma-algebra
+  (hence integrable).
+- Meaning: independent coordinates and the interchange of the order of
+  integration.
+- Code: `FiniteMeasurableSpace.product`, `FiniteMeasure.product`,
+  `FiniteMeasure.fubini_check`, `probability.FubiniCheck`.
+- Source: [REF-BILLINGSLEY-1995, Section 18], [REF-DURRETT-2019, Section 1.7].
+
+### EQ-MEAS-006 — Absolute continuity and the Radon-Nikodym derivative
+
+`nu << mu` iff `mu(a) = 0 => nu(a) = 0` for every atom; then
+`(d nu / d mu)(a) = nu(a) / mu(a)` on `mu(a) > 0` (any value, here `0`, on
+`mu`-null atoms) and `nu(A) = integral_A (d nu / d mu) dmu`. Conversely a
+non-negative measurable `g` defines `nu(A) = integral_A g dmu`.
+
+- Domain: both measures on the same finite measurable space.
+- Meaning: densities, likelihood ratios, and change of measure; the
+  derivative is unique only `mu`-almost everywhere.
+- Code: `FiniteMeasure.is_absolutely_continuous_wrt`,
+  `FiniteMeasure.radon_nikodym_derivative`, `FiniteMeasure.with_density`.
+- Source: [REF-BILLINGSLEY-1995, Sections 16 and 32].
+
+### EQ-MEAS-007 — Chain rule for Radon-Nikodym derivatives
+
+If `lambda << nu << mu`, then `d lambda / d mu = (d lambda / d nu)
+(d nu / d mu)` `mu`-almost everywhere.
+
+- Domain: three measures on one finite measurable space.
+- Meaning: likelihood ratios compose; importance weights for a two-step
+  change of measure multiply.
+- Code: verified with `FiniteMeasure.radon_nikodym_derivative` in
+  `tests/test_measure_theory.py`.
+- Source: [REF-BILLINGSLEY-1995, Section 32].
+
+### EQ-MEAS-008 — Conditional expectation given a sub-sigma-algebra
+
+For a sub-sigma-algebra `G` with atom `A`, `mu(A) > 0`:
+`E[X | G](omega) = integral_A X dmu / mu(A)` for `omega in A` (any value on
+null atoms). It is `G`-measurable with `integral_B E[X | G] dmu =
+integral_B X dmu` for all `B in G`; tower property
+`E[E[X | G] | H] = E[X | H]` for `H subset G`; and
+`E[Z X | G] = Z E[X | G]` for `G`-measurable `Z`.
+
+- Domain: measurable real `X`, `Z`; `H subset G subset F`.
+- Meaning: the best `G`-measurable prediction of `X`, unique almost
+  everywhere.
+- Code: `FiniteMeasure.conditional_expectation`,
+  `FiniteMeasure.verify_tower_property`,
+  `FiniteMeasure.verify_taking_out_what_is_known`.
+- Source: [REF-BILLINGSLEY-1995, Section 34], [REF-DURRETT-2019, Section 4.1].
+
+### EQ-MEAS-009 — Total-variation distance on a finite space
+
+`TV(P, Q) = sup_(A in F) |P(A) - Q(A)| = (1/2) sum_a |P(a) - Q(a)|`, the
+supremum attained at the union of atoms where `P(a) > Q(a)`.
+
+- Domain: probability measures on the same finite measurable space.
+- Meaning: the largest disagreement in probability over all events.
+- Code: `FiniteMeasure.total_variation_distance`.
+- Source: [REF-TSYBAKOV-2009, Chapter 2].
+
+### EQ-MEAS-010 — Completeness of a statistic on a finite family
+
+With parameters `theta_1, ..., theta_m` and statistic values `t_1, ..., t_k`
+charged by some `P_theta`, let `A[i, j] = P_(theta_i)(T = t_j)`. `T` is
+complete iff `E_theta[g(T)] = sum_j A[i, j] g(t_j) = 0` for all `i` forces
+`g = 0`, that is, iff `rank A = k`. A non-zero null vector of `A` is an
+unbiased estimator of zero.
+
+- Domain: finite sample space and finite parameter set; exact rank for
+  fractions, tolerance-based rank with partial pivoting for floats.
+- Meaning: for the binomial count with `n` trials completeness holds iff at
+  least `n + 1` distinct `p` in `(0, 1)` are included; the full sample is
+  never complete for `n >= 2`.
+- Code: `probability.check_completeness`,
+  `probability.is_complete_statistic`, `probability.CompletenessCheck`.
+- Source: [REF-LEHMANN-CASELLA-1998, Section 1.6],
+  [REF-CASELLA-BERGER-2002, Section 6.2.4], [REF-GOLUB-VANLOAN-2013,
+  Section 3.2].
