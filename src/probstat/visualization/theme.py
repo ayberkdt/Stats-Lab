@@ -326,9 +326,12 @@ def chart_theme(palette: ChartPalette = PORCELAIN) -> Iterator[ChartPalette]:
     except ImportError as error:
         raise ImportError(MATPLOTLIB_MISSING) from error
 
+    # Matplotlib >= 3.10 types rc_context keys as a Literal of known rcParams;
+    # the mapping is built from those names, so it is passed through as Any.
+    parameters: Any = rc_parameters(palette)
     _ACTIVE.append(palette)
     try:
-        with matplotlib.rc_context(rc_parameters(palette)):
+        with matplotlib.rc_context(parameters):
             yield palette
     finally:
         _ACTIVE.pop()
