@@ -753,8 +753,14 @@ def points(
     size: float = 30.0,
     label: str | None = None,
     zorder: float = 4.0,
+    marker: str = "o",
+    alpha: float | None = None,
 ) -> Any:
     """Draw markers with a canvas-colour rim so they separate from lines.
+
+    Two series that share positions (for example two probability mass
+    functions that both tend to zero) stay visible together when they use
+    different ``marker`` shapes and a translucent ``alpha``.
 
     Args:
         ax: Target axes.
@@ -764,6 +770,8 @@ def points(
         size: Marker area in points squared.
         label: Optional legend label.
         zorder: Drawing order.
+        marker: Matplotlib marker code (default a filled circle).
+        alpha: Optional marker opacity in ``(0, 1]``.
 
     Returns:
         The Matplotlib path collection.
@@ -777,6 +785,8 @@ def points(
         y,
         s=size,
         color=color,
+        marker=marker,
+        alpha=alpha,
         edgecolors=active_palette().canvas,
         linewidths=1.2,
         label=label,

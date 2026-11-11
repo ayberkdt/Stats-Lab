@@ -83,3 +83,29 @@ def halo() -> list[Any]:
     from matplotlib import patheffects
 
     return [patheffects.withStroke(linewidth=3.0, foreground=active_palette().canvas)]
+
+
+def keep_inside_axes(axes: Any, texts: Sequence[Any]) -> None:
+    """Re-anchor labels that stick out of the plotting area sideways.
+
+    A centred label near the left or right edge of the axes would run over
+    the tick labels or past the canvas; it is left-aligned (or right-aligned)
+    at its anchor instead, so it starts (or ends) where it points. Call this
+    after the axis limits are final.
+
+    Args:
+        axes: Axes that holds the labels.
+        texts: Text or annotation artists drawn in ``axes``.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    renderer = axes.figure.canvas.get_renderer()
+    frame = axes.get_window_extent(renderer)
+    for text in texts:
+        box = text.get_window_extent(renderer)
+        if box.x0 < frame.x0:
+            text.set_horizontalalignment("left")
+        elif box.x1 > frame.x1:
+            text.set_horizontalalignment("right")

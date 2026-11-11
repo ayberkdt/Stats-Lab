@@ -31,6 +31,7 @@ from probstat.information import (
 )
 
 from ._layout import halo, wrapped_title_block
+from .accessibility import legible_colour
 from .theme import (
     ANNOTATION_SIZE,
     active_palette,
@@ -76,6 +77,37 @@ def _matrix(plan: PlanLike) -> list[list[float]]:
     if not sum(map(sum, matrix)) > 0.0:
         raise ValueError("the plan must carry positive mass")
     return matrix
+
+
+def _decade_ticks_in_view(axis: Any, low: float, high: float) -> None:
+    """Put log-axis major ticks on decades inside ``[low, high]`` only.
+
+    Matplotlib's log locator also returns one decade beyond each limit; such
+    a tick is not drawn, but its label still sits outside the axes and can
+    lie outside the canvas. At most eight decades are labelled, every
+    ``stride``-th one counted from ``10^0`` so the labels stay aligned.
+
+    Args:
+        axis: Matplotlib axis on a logarithmic scale.
+        low: Lower view limit (positive).
+        high: Upper view limit (greater than ``low``).
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    from matplotlib.ticker import FixedLocator, NullLocator
+
+    first = math.ceil(math.log10(low) - 1e-9)
+    last = math.floor(math.log10(high) + 1e-9)
+    if last < first:
+        return
+    stride = max(1, math.ceil((last - first + 1) / 8))
+    exponents = [k for k in range(first, last + 1) if k % stride == 0]
+    if not exponents:
+        exponents = [first]
+    axis.set_major_locator(FixedLocator([10.0**k for k in exponents]))
+    axis.set_minor_locator(NullLocator())
 
 
 def _ramp_word() -> str:
@@ -432,7 +464,8 @@ def plot_sinkhorn_convergence(
     Each run's ``trace`` (row-marginal error after every ``(g, f)`` pair) is
     a line; runs are ordered by ``eps`` and drawn from light to dark in the
     sequential ramp so smaller ``eps`` has more contrast. The optional tolerance is
-    the accent reference.
+    the accent reference. Each end label takes its line's ramp colour,
+    mixed toward the ink until it reaches the 4.5:1 text contrast.
 
     Args:
         results: Sinkhorn results, or a mapping from label to result
@@ -465,6 +498,7 @@ def plot_sinkhorn_convergence(
         raise ValueError("every result needs a non-empty trace")
     order = sorted(named, key=lambda name: -named[name].epsilon)
     axes = new_axes(ax)
+    palette = active_palette()
     ramp = sequential_colormap()
     labels = []
     for index, name in enumerate(order):
@@ -488,11 +522,16 @@ def plot_sinkhorn_convergence(
     if tolerance is not None:
         floor = min(floor, tolerance)
     axes.set_ylim(floor / 300.0, 3.0 * ceiling)
+    _decade_ticks_in_view(axes.yaxis, floor / 300.0, 3.0 * ceiling)
+    from matplotlib.colors import to_hex
+
     for steps, trace, text, colour in labels:
+        # Light ramp steps are fine as lines but too faint as text.
+        ink = legible_colour(to_hex(colour), palette.canvas, palette.ink)
         axes.annotate(
             text, (float(steps[-1]), trace[-1]), xytext=(0.0, -8.0),
             textcoords="offset points", ha="center", va="top",
-            fontsize=ANNOTATION_SIZE, fontweight="bold", color=colour,
+            fontsize=ANNOTATION_SIZE, fontweight="bold", color=ink,
             linespacing=1.1, path_effects=halo(),
         )  # fmt: skip
     axis_labels(axes, "Iteration", "Row-marginal error")

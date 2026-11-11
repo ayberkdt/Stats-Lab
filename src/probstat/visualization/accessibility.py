@@ -123,6 +123,46 @@ def contrast_ratio(foreground: str, background: str) -> float:
     return (lighter + 0.05) / (darker + 0.05)
 
 
+def legible_colour(
+    colour: str, background: str, toward: str, minimum: float = 4.5
+) -> str:
+    """Return ``colour`` mixed toward ``toward`` until it is legible as text.
+
+    The colour is blended with ``toward`` (normally the palette ink) in
+    sRGB steps of 5% until its contrast ratio with ``background`` reaches
+    ``minimum`` [EQ-VIZ-WCAG-002]; a colour that already passes is returned
+    unchanged. The hue family is kept, so a label still reads as belonging
+    to its series while meeting the WCAG text level.
+
+    Args:
+        colour: ``#RRGGBB`` series or mark colour.
+        background: ``#RRGGBB`` colour behind the text.
+        toward: ``#RRGGBB`` colour to blend toward (higher contrast end).
+        minimum: Required contrast ratio (4.5 for small text).
+
+    Returns:
+        A ``#RRGGBB`` colour with at least ``minimum`` contrast, or
+        ``toward`` when no blend reaches it.
+
+    Raises:
+        ValueError: If a colour is not a ``#RRGGBB`` token.
+
+    References:
+        [EQ-VIZ-WCAG-002], [EQ-VIZ-WCAG-001], [REF-W3C-WCAG21-2018].
+
+    """
+    start, end = _rgb(colour), _rgb(toward)
+    _rgb(background)
+    for step in range(21):
+        share = step / 20.0
+        mixed = "#" + "".join(
+            f"{round(a + (b - a) * share):02X}" for a, b in zip(start, end, strict=True)
+        )
+        if contrast_ratio(mixed, background) >= minimum:
+            return mixed if step else colour
+    return toward
+
+
 def palette_contrast(palette: ChartPalette) -> dict[str, float]:
     """Return the contrast of every text and mark token against the canvas.
 

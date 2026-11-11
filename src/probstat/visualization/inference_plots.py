@@ -8,6 +8,7 @@ from typing import Any
 
 from probstat.statistics import quantile
 
+from ._layout import halo
 from .theme import (
     ANNOTATION_SIZE,
     BAND_ALPHA,
@@ -39,7 +40,10 @@ def plot_chain_traces(
     """Plot MCMC traces of one parameter, one line per chain.
 
     Well-mixed chains overlap into one band; separated levels or slow drifts
-    signal non-convergence, which the reported R-hat quantifies.
+    signal non-convergence, which the reported R-hat quantifies. With more
+    than one chain each line carries a direct label (``chain 1``, ...) at
+    its end, a second cue beside the hue for readers who cannot tell two
+    series hues apart.
 
     Args:
         chains: Draws of the parameter, one sequence per chain.
@@ -62,12 +66,28 @@ def plot_chain_traces(
         raise ValueError("at least one chain is required")
     axes = new_axes(ax, figsize=(7.2, 3.4))
     palette = active_palette()
+    ends: list[tuple[float, float, str, str]] = []
     for index, chain in enumerate(chains):
         colour = palette.series[index % len(palette.series)]
-        axes.plot(range(len(chain)), chain, color=colour, linewidth=0.7, alpha=0.75)
-    if truth is not None:
+        label = f"chain {index + 1}"
+        axes.plot(
+            range(len(chain)), chain, color=colour, linewidth=0.7, alpha=0.75,
+            label=label,
+        )  # fmt: skip
+        if len(chains) > 1 and len(chain) > 0:
+            ends.append((float(len(chain) - 1), float(chain[-1]), label, colour))
+    if ends:
+        # Labels sit right of the frame, clear of the traces and of the
+        # reference line; the reference label joins them so none collide.
+        last = max(len(chain) for chain in chains) - 1.0
+        axes.set_xlim(0.0, max(last, 1.0))
+        if truth is not None:
+            reference_line(axes, y=truth)
+            ends.append((last, float(truth), "true value", palette.accent))
+    elif truth is not None:
         reference_line(axes, y=truth, label="true value")
     axis_labels(axes, "Iteration (after warm-up)", name)
+    direct_labels(axes, ends)
     verdict = ""
     if rhat is not None:
         verdict = (
@@ -147,10 +167,14 @@ def plot_posterior_marginals(
                 "edgecolor": "none",
                 "alpha": 0.92,
             },
+            path_effects=halo(),
             zorder=6,
         )
         if truth and name in truth:
-            reference_line(axes, x=truth[name], label=None)
+            # The truth line spans the histogram only, so it stops below the
+            # interval bar and its label instead of running through them.
+            marker = reference_line(axes, x=truth[name], label=None)
+            marker.set_ydata([0.0, 1.0 / 1.25])
             axes.annotate(
                 f"true {truth[name]:.4g}",
                 xy=(truth[name], 0.0),

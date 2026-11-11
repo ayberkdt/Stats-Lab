@@ -14,6 +14,7 @@ from typing import Any
 from probstat.foundations.validation import coerce_finite_sample, require_finite_real
 from probstat.statistics import quantile
 
+from ._layout import halo, keep_inside_axes
 from .theme import (
     ANNOTATION_SIZE,
     BAND_ALPHA,
@@ -128,6 +129,8 @@ def plot_method_comparison(
             va="center",
             fontsize=ANNOTATION_SIZE,
             color=palette.ink,
+            path_effects=halo(),
+            zorder=6,
         )
     axes.set(yticks=positions, yticklabels=tuple(entry[0] for entry in entries))
     axes.set_ylim(-0.7, len(entries) - 0.2)
@@ -451,13 +454,14 @@ def plot_output_distribution(
         zorder=2,
     )
     top = axes.get_ylim()[1]
+    quantile_labels = []
     for row, p in enumerate(probabilities):
         q = quantile(sample, p)
         height = top * (0.95 - 0.09 * (row % 3))
         axes.vlines(
             q, 0.0, height, color=palette.ink, linewidth=0.9, alpha=0.55, zorder=3
         )
-        axes.annotate(
+        label = axes.annotate(
             f"q{p:g} = {q:.3g}",
             (q, height),
             xytext=(0.0, 3.0),
@@ -472,8 +476,10 @@ def plot_output_distribution(
                 "edgecolor": "none",
                 "alpha": 0.9,
             },
+            path_effects=halo(),
             zorder=6,
         )
+        quantile_labels.append(label)
     axes.set_ylim(0.0, top * 1.12)
     subtitle = f"{len(sample)} propagated samples; ticks mark the stated quantiles"
     headline = (
@@ -489,18 +495,33 @@ def plot_output_distribution(
             fraction = sum(value > limit for value in sample) / len(sample)
             text = f"limit {limit:g}: P(Y > limit) = {fraction:.3g}"
         reference_line(axes, x=limit, label=None)
+        # The note goes in the top corner away from the limit line.
+        left_edge, right_edge = axes.get_xlim()
+        on_left = (limit - left_edge) / (right_edge - left_edge) < 0.5
         axes.annotate(
             text,
-            xy=(0.0, 1.0),
+            xy=(1.0 if on_left else 0.0, 1.0),
             xycoords="axes fraction",
             xytext=(0.0, -2.0),
             textcoords="offset points",
-            ha="left",
+            ha="right" if on_left else "left",
             va="top",
             fontsize=ANNOTATION_SIZE,
             fontweight="semibold",
             color=palette.accent,
+            path_effects=halo(),
+            zorder=6,
         )
+        # A quantile label that straddles the limit line moves to its side.
+        renderer = axes.figure.canvas.get_renderer()
+        line_x = axes.transData.transform((limit, 0.0))[0]
+        for label in quantile_labels:
+            box = label.get_window_extent(renderer)
+            if box.x0 < line_x < box.x1:
+                label.set_horizontalalignment(
+                    "right" if label.xy[0] < limit else "left"
+                )
+    keep_inside_axes(axes, quantile_labels)
     axis_labels(axes, name, "Density", x_unit=unit)
     title_block(axes, headline, subtitle)
     return axes
@@ -839,14 +860,25 @@ def plot_form_geometry(
         zorder=6,
     )
     points(axes, [0.0], [0.0], color=palette.ink, size=24.0, zorder=6)
+    # The label sits outward along the radius, off the beta circle.
+    radius = math.hypot(design_point[0], design_point[1])
+    out_x, out_y = (
+        (design_point[0] / radius, design_point[1] / radius)
+        if radius > 0.0
+        else (0.7071, 0.7071)
+    )
     axes.annotate(
         f"design point u*  (beta = {beta:.3f})",
         (design_point[0], design_point[1]),
-        xytext=(10.0, 10.0),
+        xytext=(12.0 * out_x, 12.0 * out_y),
         textcoords="offset points",
+        ha="left" if out_x >= 0.0 else "right",
+        va="bottom" if out_y >= 0.0 else "top",
         fontsize=ANNOTATION_SIZE,
         fontweight="bold",
         color=palette.observed,
+        path_effects=halo(),
+        zorder=7,
     )
     axes.annotate(
         "failure region g <= 0",
