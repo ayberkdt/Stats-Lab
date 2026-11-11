@@ -182,4 +182,8 @@ requires docstrings with references on every definition and resolves every
 `EQ-*` and `REF-*` identifier against the registry and bibliography.
 `tests/test_athens_coverage.py` keeps the 110-topic curriculum ledger honest.
 CI (`.github/workflows/ci.yml`) runs ruff, strict mypy, the test suite, and
-every example lab on Python 3.11-3.13.
+every example lab on Python 3.11-3.13. The test step runs
+`tools/ci_test_report.py`, which uses the same `unittest` discovery as
+`python -m unittest discover -s tests` [REF-PYTHON-UNITTEST] and reports each
+failing test as a run annotation, so a failure is readable without the full
+log.

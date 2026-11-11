@@ -245,6 +245,12 @@ its assumptions, cost, error, seed tree, and sources
 ([ADR-0025](adr/ADR-0025-uq-study-workflow.md)), and every figure follows the
 semantic chart theme ([ADR-0024](adr/ADR-0024-semantic-chart-theme.md)).
 
+## REF-PYTHON-UNITTEST
+
+Python Software Foundation. "unittest — Unit testing framework." *Python 3
+documentation*.
+[https://docs.python.org/3/library/unittest.html](https://docs.python.org/3/library/unittest.html).
+
 ## REF-PYTHON-EXCEPTIONS
 
 Python Software Foundation. "Built-in Exceptions." *Python 3 documentation*.
