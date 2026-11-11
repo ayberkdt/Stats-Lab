@@ -5,7 +5,9 @@ from .bernoulli import Bernoulli
 from .beta import Beta
 from .binomial import Binomial
 from .categorical import Categorical
+from .cauchy import Cauchy
 from .chi_square import ChiSquare
+from .discrete_uniform import DiscreteUniform
 from .empirical import Empirical
 from .exponential import Exponential
 from .fisher_f import FisherF
@@ -14,13 +16,16 @@ from .geometric import Geometric
 from .gev import GeneralizedExtremeValue
 from .gpd import GeneralizedPareto
 from .gumbel import Gumbel
+from .hypergeometric import Hypergeometric
+from .laplace import Laplace
 from .logistic import Logistic
 from .lognormal import LogNormal
-from .more_families import PERT, DiscreteUniform, Hypergeometric
 from .negative_binomial import NegativeBinomial
 from .normal import Normal
+from .pareto import Pareto
+from .pert import PERT
 from .poisson import Poisson
-from .simple_families import Cauchy, Laplace, Pareto, Rayleigh
+from .rayleigh import Rayleigh
 from .student_t import StudentT
 from .support import FiniteSupport, IntegerSupport, RealSupport
 from .triangular import Triangular
