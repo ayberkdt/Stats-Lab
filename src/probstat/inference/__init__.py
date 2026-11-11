@@ -1,5 +1,9 @@
 """Statistical estimation, testing, resampling, Bayesian updating, and diagnostics."""
 
+from .amortized import (
+    AmortizedGaussianPosterior,
+    fit_amortized_gaussian_posterior,
+)
 from .bayesian import (
     GaussianLinearPosterior,
     NormalInverseGamma,
@@ -273,6 +277,8 @@ from .sbc import SBCResult, rank_statistic, simulation_based_calibration
 from .variational import VariationalResult, advi
 
 __all__ = [
+    "AmortizedGaussianPosterior",
+    "fit_amortized_gaussian_posterior",
     "EDFNormalityTest",
     "NormalityTests",
     "cramer_von_mises_statistic",

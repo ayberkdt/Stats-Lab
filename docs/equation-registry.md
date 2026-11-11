@@ -12501,3 +12501,23 @@ pseudo-BMA+: `a ~ Dirichlet(1, ..., 1)`, `z_k = n sum_i a_i log p_k,-i(y_i)`,
 - Code: `validation.model_averaged_prediction`.
 - Source: [REF-YAO-ETAL-2018, Equation 2.3] (mixture predictive) and
   [REF-MCLACHLAN-PEEL-2000] (mixture moments).
+
+### EQ-INF-NPE-001 — Gaussian neural posterior estimation
+
+`theta_n ~ p(theta)`, `x_n ~ p(x | theta_n)`, `n = 1..N`;
+`q_phi(theta | x) = prod_j N(theta_j; mu_j(x; phi), sigma_j(x; phi)^2)` with
+`(mu, log sigma) = MLP_phi(x)` on standardized coordinates;
+`phi_hat = argmax_phi sum_n log q_phi(theta_n | x_n)`.
+
+- Domain: a prior that can be sampled and a simulator returning a
+  fixed-width vector of finite summaries; the likelihood need not be
+  available.
+- Meaning: as `N -> infinity`, maximum likelihood over a family that
+  contains the posterior recovers `p(theta | x)` for every `x` when the
+  proposal is the prior, so one trained network gives the posterior for any
+  new observation (amortization). With a diagonal Gaussian family the result
+  is exact only for Gaussian posteriors with independent coordinates.
+- Code: `inference.fit_amortized_gaussian_posterior`,
+  `inference.AmortizedGaussianPosterior`.
+- Source: [REF-PAPAMAKARIOS-MURRAY-2016, Proposition 1, Section 2.3, and
+  Algorithm 2], trained with [EQ-OPT-ADAM-002].

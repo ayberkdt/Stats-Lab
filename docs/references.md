@@ -2857,3 +2857,11 @@ to Average Bayesian Predictive Distributions (with Discussion)." *Bayesian
 Analysis* 13(3), 917-1007, 2018.
 DOI: [10.1214/17-BA1091](https://doi.org/10.1214/17-BA1091).
 Preprint arXiv:1704.02030.
+
+## REF-PAPAMAKARIOS-MURRAY-2016
+
+George Papamakarios and Iain Murray. "Fast epsilon-free Inference of
+Simulation Models with Bayesian Conditional Density Estimation." In
+*Advances in Neural Information Processing Systems 29* (NeurIPS 2016), 2016.
+Preprint arXiv:1605.06376v4.
+[https://arxiv.org/abs/1605.06376](https://arxiv.org/abs/1605.06376).
