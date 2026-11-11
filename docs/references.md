@@ -3247,3 +3247,21 @@ on Machine Learning*, Proceedings of Machine Learning Research 97,
 4871-4880, 2019. Exact inference in discrete latent-variable models with
 repeated (plated) structure by variable elimination.
 [https://proceedings.mlr.press/v97/obermeyer19a.html](https://proceedings.mlr.press/v97/obermeyer19a.html).
+
+## REF-CLAESSEN-HUGHES-2000
+
+Koen Claessen and John Hughes. "QuickCheck: A Lightweight Tool for Random
+Testing of Haskell Programs." In *Proceedings of the Fifth ACM SIGPLAN
+International Conference on Functional Programming (ICFP '00)*, 268-279,
+2000. Properties stated as executable predicates and checked on randomly
+generated inputs.
+DOI: [10.1145/351240.351266](https://doi.org/10.1145/351240.351266).
+
+## REF-CHEN-ETAL-2018
+
+Tsong Yueh Chen, Fei-Ching Kuo, Huai Liu, Pak-Lok Poon, Dave Towey, T. H.
+Tse, and Zhi Quan Zhou. "Metamorphic Testing: A Review of Challenges and
+Opportunities." *ACM Computing Surveys* 51(1), 1-27, 2018. Relations
+between the outputs of transformed inputs as test oracles when the exact
+output is unknown.
+DOI: [10.1145/3143561](https://doi.org/10.1145/3143561).
