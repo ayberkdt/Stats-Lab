@@ -13312,3 +13312,85 @@ pseudo-BMA+: `a ~ Dirichlet(1, ..., 1)`, `z_k = n sum_i a_i log p_k,-i(y_i)`,
   `inference.AmortizedGaussianPosterior`.
 - Source: [REF-PAPAMAKARIOS-MURRAY-2016, Proposition 1, Section 2.3, and
   Algorithm 2], trained with [EQ-OPT-ADAM-002].
+
+### EQ-INF-COUNT-001 — Poisson maximum likelihood from counts
+
+`l(lambda) = sum_i (x_i log lambda - lambda - log x_i!)`,
+`lambda_hat = x_bar = sum_i x_i / n`, `SE(lambda_hat) = sqrt(lambda_hat / n)`;
+for a frequency table `f_k`, `l = sum_k f_k (k log lambda - lambda - log k!)`.
+
+- Domain: `n >= 2` independent non-negative integer counts with a positive
+  total.
+- Meaning: the sample mean maximizes the Poisson likelihood; the standard
+  error is the inverse square root of the observed information
+  `n / lambda_hat`. The fitted frequencies are `n p(k; lambda_hat)`.
+- Code: `inference.fit_poisson_counts`, `inference.CountFit`.
+- Source: [REF-CASELLA-BERGER-2002, Section 7.2] and [EQ-DIST-POIS-001].
+
+### EQ-INF-COUNT-002 — Negative binomial profile likelihood and its Poisson boundary
+
+`p(k; r, mu) = Gamma(k + r) / (Gamma(r) k!) (r/(r+mu))^r (mu/(r+mu))^k`,
+mean `mu`, variance `mu + mu^2 / r`; for fixed `r` the likelihood is
+maximized at `mu = x_bar`; the profile score is
+`S(r) = sum_k f_k sum_{j=0}^{k-1} 1/(r+j) + n log(r / (r + x_bar))`, and
+`d^2 l / dr^2 = -sum_k f_k sum_{j<k} 1/(r+j)^2 + n (1/r - 1/(r+x_bar))`.
+As `r -> infinity`,
+`l_prof(r) = l_Poisson(x_bar) + n (s_n^2 - x_bar) / (2r) + O(r^-2)` with the
+divisor-`n` variance `s_n^2`.
+
+- Domain: real size `r > 0`, `mu > 0`, non-negative integer counts.
+- Meaning: the expansion shows that the profile likelihood rises towards the
+  Poisson limit when `s_n^2 < x_bar`; the fit then reports `r = inf`
+  (Poisson boundary) and the Poisson log-likelihood, counting two
+  parameters in AIC and BIC. When `s_n^2 > x_bar`, `S(r) > 0` for small `r`
+  and `S(r) < 0` for large `r`, and Brent's method finds the root. The size
+  and mean are orthogonal at `mu = x_bar`, so `SE(r_hat)` is
+  `(-d^2 l / dr^2)^(-1/2)` and `SE(mu_hat) = sqrt((mu + mu^2/r)/n)`.
+- Code: `inference.fit_negative_binomial_counts`, `inference.CountFit`.
+- Source: unimodality of the negative binomial likelihood
+  [REF-LEVIN-REEDS-1977]; the expansion follows from
+  `log Gamma(k + r) - log Gamma(r) = k log r + k(k-1)/(2r) + O(r^-2)` and
+  `r log(1 + mu/r) = mu - mu^2/(2r) + O(r^-2)`; the pmf with integer size is
+  [EQ-DIST-NBIN-001].
+
+### EQ-INF-COUNT-003 — Garwood exact interval for a Poisson mean
+
+With total `S = sum_i x_i` over `n` units and `alpha = 1 - confidence`:
+`lower = chi2_{alpha/2}(2S) / (2n)` (`0` when `S = 0`),
+`upper = chi2_{1-alpha/2}(2S + 2) / (2n)`, where `chi2_q(nu)` is the
+`q`-quantile of the chi-square law with `nu` degrees of freedom.
+
+- Domain: independent Poisson counts with common mean; `0 < confidence < 1`.
+- Meaning: inverts the two one-sided Poisson tail tests through the
+  Poisson-gamma identity; the coverage is at least the nominal level.
+- Code: `inference.poisson_mean_interval`.
+- Source: [REF-GARWOOD-1936].
+
+### EQ-STAT-TRIM-001 — Symmetric trimmed mean
+
+`g = floor(alpha n)`, `T_alpha = (1 / (n - 2g)) sum_{i=g+1}^{n-g} x_(i)` with
+order statistics `x_(1) <= ... <= x_(n)`.
+
+- Domain: `0 <= alpha < 1/2`, `n >= 1` finite observations.
+- Meaning: removes the `g` smallest and `g` largest observations before
+  averaging; `alpha = 0` is the mean and `alpha -> 1/2` approaches the median.
+  On real measurement series, light trimming improved somewhat on the
+  sample mean [REF-STIGLER-1977, abstract].
+- Code: `statistics.trimmed_mean`.
+- Source: [REF-STIGLER-1977] (comparison of trimmed means and other location
+  estimators on historical measurement series).
+
+### EQ-VIZ-ROOT-001 — Hanging rootogram
+
+For count `k` with observed frequency `O_k` and fitted frequency `E_k`, the
+bar spans `[sqrt(E_k) - sqrt(O_k), sqrt(E_k)]`; the curve joins the points
+`(k, sqrt(E_k))`.
+
+- Domain: non-negative observed and fitted frequencies.
+- Meaning: the square root roughly stabilizes the variance of counts, and
+  hanging the bars from the fitted curve moves every comparison to the
+  horizontal line at zero, where departures are judged by length rather
+  than against a sloping curve.
+- Code: `visualization.fit_plots.hanging_rootogram_bars`,
+  `visualization.fit_plots.plot_rootogram`.
+- Source: [REF-KLEIBER-ZEILEIS-2016].

@@ -3052,3 +3052,106 @@ Simulation Models with Bayesian Conditional Density Estimation." In
 *Advances in Neural Information Processing Systems 29* (NeurIPS 2016), 2016.
 Preprint arXiv:1605.06376v4.
 [https://arxiv.org/abs/1605.06376](https://arxiv.org/abs/1605.06376).
+
+## REF-BORTKIEWICZ-1898
+
+L. von Bortkewitsch (Ladislaus von Bortkiewicz). *Das Gesetz der kleinen
+Zahlen*. B. G. Teubner, Leipzig, 1898. Chapter 2, Section 12 ("4. Beispiel:
+Die durch Schlag eines Pferdes im preussischen Heere Getöteten"), pages
+24-25; the table for the ten pooled corps (200 corps-years) is on page 25.
+Scan: Internet Archive item `dasgesetzderklei00bortrich`,
+[https://archive.org/details/dasgesetzderklei00bortrich](https://archive.org/details/dasgesetzderklei00bortrich).
+
+## REF-YORK-BORTKIEWICZ-TRANSCRIPTION
+
+University of York, Department of Mathematics, history of statistics pages.
+Transcription of Section 12 of Bortkiewicz (1898) on deaths from horse kicks.
+[https://www.york.ac.uk/depts/maths/histstat/bortkiewicz.htm](https://www.york.ac.uk/depts/maths/histstat/bortkiewicz.htm).
+Consulted for the observed frequencies of the 200-element series.
+
+## REF-RUTHERFORD-GEIGER-1910
+
+E. Rutherford and H. Geiger, with a note by H. Bateman. "The Probability
+Variations in the Distribution of alpha Particles." *The London, Edinburgh,
+and Dublin Philosophical Magazine and Journal of Science*, Series 6, 20(118),
+698-707, 1910. Frequency table on page 701.
+DOI: [10.1080/14786441008636955](https://doi.org/10.1080/14786441008636955).
+
+## REF-HANLEY-RUTHERFORD-GEIGER
+
+James A. Hanley. Teaching material on the Rutherford-Geiger-Bateman
+experiment, McGill University, with a scan of the 1910 paper and its table.
+[https://jhanley.biostat.mcgill.ca/Rutherford](https://jhanley.biostat.mcgill.ca/Rutherford).
+Consulted for the scan of page 701 and the quoted totals.
+
+## REF-NEWCOMB-VELOCITY-OF-LIGHT
+
+Simon Newcomb. "Measures of the Velocity of Light Made under the Direction
+of the Secretary of the Navy during the Years 1880-1882." *Astronomical
+Papers Prepared for the Use of the American Ephemeris and Nautical Almanac*,
+Vol. II, Part III. Washington. The third
+series of passage times is used here as reproduced in [REF-STIGLER-1977,
+Table 5].
+
+## REF-STIGLER-1977
+
+Stephen M. Stigler. "Do Robust Estimators Work with Real Data?" *The Annals
+of Statistics* 5(6), 1055-1098, 1977. Table 5 lists Newcomb's third series.
+DOI: [10.1214/aos/1176343997](https://doi.org/10.1214/aos/1176343997).
+
+## REF-R-MASS-NEWCOMB
+
+W. N. Venables and B. D. Ripley. Documentation of the data set `newcomb`
+("Newcomb's Measurements of the Passage Time of Light") in the R package
+MASS. Lists Stigler's Table 5 order, the conversion to passage time, and the
+true value 33.02.
+[https://vincentarelbundock.github.io/Rdatasets/doc/MASS/newcomb.html](https://vincentarelbundock.github.io/Rdatasets/doc/MASS/newcomb.html).
+
+## REF-LIEBLEIN-ZELEN-1956
+
+J. Lieblein and M. Zelen. "Statistical Investigation of the Fatigue Life of
+Deep-Groove Ball Bearings." *Journal of Research of the National Bureau of
+Standards* 57(5), 273-316, 1956. Research Paper 2719. The specimen worksheet
+with the 23 endurance values is on page 286.
+DOI: [10.6028/jres.057.033](https://doi.org/10.6028/jres.057.033).
+
+## REF-SMRD-LZBEARING
+
+Documentation of the data set `lzbearing` ("Ball bearing fatigue test
+data") in the R package SMRD: 23 rows, accumulated cycles at failure in
+millions, citing J. F. Lawless, *Statistical Models and Methods for Lifetime
+Data* (Wiley, 1982).
+[https://rdrr.io/github/Auburngrads/SMRD/man/lzbearing.html](https://rdrr.io/github/Auburngrads/SMRD/man/lzbearing.html).
+
+## REF-CUSHNY-PEEBLES-1905
+
+Arthur R. Cushny and A. Roy Peebles. "The Action of Optical Isomers. II.
+Hyoscines." *The Journal of Physiology* 32(5-6), 501-510, 1905.
+DOI: [10.1113/jphysiol.1905.sp001097](https://doi.org/10.1113/jphysiol.1905.sp001097).
+
+## REF-R-DATASETS-SLEEP
+
+R Core Team. Documentation of the data set `sleep` ("Student's Sleep
+Data") in the R package datasets: 20 observations of `extra`, `group`, and
+`ID`, citing Cushny and Peebles (1905) and Student (1908, page 20).
+[https://vincentarelbundock.github.io/Rdatasets/doc/datasets/sleep.html](https://vincentarelbundock.github.io/Rdatasets/doc/datasets/sleep.html).
+
+## REF-GARWOOD-1936
+
+F. Garwood. "Fiducial Limits for the Poisson Distribution." *Biometrika*
+28(3-4), 437-442, 1936.
+DOI: [10.1093/biomet/28.3-4.437](https://doi.org/10.1093/biomet/28.3-4.437).
+
+## REF-LEVIN-REEDS-1977
+
+Bruce Levin and James Reeds. "Compound Multinomial Likelihood Functions are
+Unimodal: Proof of a Conjecture of I. J. Good." *The Annals of Statistics*
+5(1), 79-87, 1977. The abstract states that the technique also yields
+unimodality for the negative binomial likelihood.
+DOI: [10.1214/aos/1176343741](https://doi.org/10.1214/aos/1176343741).
+
+## REF-KLEIBER-ZEILEIS-2016
+
+Christian Kleiber and Achim Zeileis. "Visualizing Count Data Regressions
+Using Rootograms." *The American Statistician* 70(3), 296-303, 2016.
+DOI: [10.1080/00031305.2016.1173590](https://doi.org/10.1080/00031305.2016.1173590).
