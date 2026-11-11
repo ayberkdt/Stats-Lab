@@ -18,6 +18,72 @@ With Matplotlib installed, Part 1 also writes two figures to
 bias-corrected predictive bands, and the estimated discrepancy ``delta(x)``.
 
 Run with ``PYTHONPATH=src python examples/discrepancy_calibration_lab.py``.
+
+Definitions:
+    ``eta(x, k) = 4 exp(-k x)``: the simulator; ``k`` is the calibration
+    parameter with prior ``LogNormal(log 0.5, 0.5)``.
+    ``delta(x)``: model discrepancy, a zero-mean Gaussian process with
+    squared-exponential covariance whose standard deviation and length scale
+    ``psi = (sigma_delta, ell)`` have log-normal priors.
+    Simulator-only prediction: ``eta(x, k)`` under the posterior of ``k``;
+    bias-corrected prediction: ``eta(x, k) + delta(x)``.
+    Identifiability report: posterior correlation between ``k`` and
+    ``log psi`` and the posterior-to-prior standard-deviation ratio of ``k``.
+    Log-linear noise: ``sigma(x) = exp(a + b x)``.
+
+Assumptions:
+    - Observation noise is Gaussian and independent of ``delta``; it is
+      known (0.03) in Parts 1 and 2 and modelled as log-linear in Part 3.
+    - The discrepancy is smooth, so a stationary Gaussian process represents
+      it; in Part 2 its drift is confounded with ``k``, and the posterior of
+      ``k`` then reflects the discrepancy prior rather than the truth.
+    - MCMC chains of 1000 (Part 1) and 800 (Part 2) draws per chain after
+      warm-up are long enough for the reported summaries; the convergence
+      warnings printed by the sampler state where they are not.
+
+Equations:
+    EQ-KOH-MODEL-001: Kennedy-O'Hagan observation model.
+    EQ-KOH-MARG-001: Gaussian marginal likelihood with ``delta`` integrated.
+    EQ-KOH-POST-001: log posterior over ``k`` and the hyperparameters.
+    EQ-OPT-BFGS-001: quasi-Newton search for the MAP and the MLE.
+    EQ-LAPLACE-001: Laplace approximation and its standard errors.
+    EQ-MCMC-AM-001: adaptive Metropolis proposal covariance.
+    EQ-MCMC-RHAT-002: rank-normalized split R-hat of the summaries.
+    EQ-MCMC-ESS-001: effective sample size of the summaries.
+    EQ-KOH-PRED-001: simulator-only and bias-corrected predictions.
+    EQ-VIZ-MIXQ-001: mixture-quantile intervals of the figures.
+    EQ-KOH-IDENT-001: identifiability correlations and ratios.
+    EQ-CAL-POST-001: posterior of the plain (no-discrepancy) calibration.
+    EQ-KOH-HET-001: log-linear heteroscedastic noise model.
+    EQ-CAL-WLS-001: constant-noise least squares for comparison.
+
+Diagnostics:
+    - Held-out predictions are marked ``covers`` or ``MISSES`` against the
+      true process; the simulator-only intervals miss where the bias is
+      largest.
+    - Posterior summaries print R-hat and ESS; the sampler warns when R-hat
+      exceeds 1.01 or ESS falls below 200.
+    - The identifiability report flags strong ``k``-``psi`` correlation, and
+      the Part 3 MLEs are printed with ``z`` scores against the truth.
+
+Cost and error:
+    - Part 1: 15 observations, 2 chains of 1000 draws after 500 warm-up for
+      both calibrations; predictions use 500 (held-out) and 300 (figure)
+      posterior draws. Part 2: 2 chains of 800 draws after 400 warm-up per
+      prior. Part 3: 200 observations, MLE with Hessian standard errors.
+    - Posterior means carry MCMC error of roughly ``sd / sqrt(ESS)``; the
+      plain calibration's small standard deviation is overconfident because
+      it ignores the discrepancy.
+
+References:
+    REF-KENNEDY-OHAGAN-2001: Bayesian calibration with model discrepancy.
+    REF-HIGDON-ETAL-2004: calibration with Gaussian-process discrepancy.
+    REF-BRYNJARSDOTTIR-OHAGAN-2014: identifiability of the discrepancy.
+    REF-HARVEY-1976: multiplicative heteroscedasticity.
+    REF-HAARIO-SAKSMAN-TAMMINEN-2001: adaptive Metropolis.
+    REF-VEHTARI-ETAL-2021: rank-normalized R-hat.
+    REF-RASMUSSEN-WILLIAMS-2006: Gaussian processes.
+
 """
 
 from __future__ import annotations
@@ -43,6 +109,9 @@ from probstat.inverse import (
 from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
 from probstat.uq import QuantityOfInterest
 
+# Seed of the Part 1 MCMC chains; the data and Parts 2-3 use the fixed seeds
+# written at each call.
+SEED = 3
 TRUE_RATE = 0.4
 NOISE = 0.03
 DATA_X = tuple(4.0 * i / 14 for i in range(15))
@@ -119,7 +188,7 @@ def part_one() -> None:
     plain = CalibrationProblem(
         model, data, (NoiseModel("y", standard_deviation=NOISE),)
     )
-    plain_post = plain.sample_posterior(draws=1000, warmup=500, chains=2, seed=3)
+    plain_post = plain.sample_posterior(draws=1000, warmup=500, chains=2, seed=SEED)
     (summary,) = plain_post.summary()
     print(
         f"  plain calibration: k = {summary.mean:.4f} +- "
@@ -142,7 +211,7 @@ def part_one() -> None:
             )
         )
     )
-    posterior = problem.sample_posterior(draws=1000, warmup=500, chains=2, seed=3)
+    posterior = problem.sample_posterior(draws=1000, warmup=500, chains=2, seed=SEED)
     for item in posterior.summary():
         print(
             f"  KOH posterior {item.name:12s} mean {item.mean:.4f} sd "

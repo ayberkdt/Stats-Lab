@@ -4,7 +4,73 @@ A cantilever beam tip deflection depends on load, Young's modulus, and
 thickness. ``UQStudy`` propagates the inputs, ranks them, estimates the
 probability of exceeding a deflection limit with several methods, prices the
 exceedance risk, fits a polynomial-chaos emulator, and writes a Markdown report
-plus one figure per stage.
+plus one figure per stage. Run with
+``PYTHONPATH=src python examples/uq_study_lab.py``; the Markdown and HTML
+reports and the stage figures are written to ``examples/generated/``.
+
+Definitions:
+    ``delta = 4 P L^3 / (E b h^3)``: tip deflection for load ``P``, modulus
+        ``E``, thickness ``h``, length ``L = 2`` m, and width ``b = 0.1`` m.
+    failure: ``delta >= 0.075`` m, the deflection limit.
+    loss: linear loss above the limit, ``2e6`` per metre of excess.
+    stage: one recorded analysis of the study (propagation, sensitivity,
+        reliability, risk, emulation) with its own child seed and cost.
+
+Assumptions:
+    - Load is lognormal, modulus and thickness are normal, and the three are
+      independent; the normal thickness has negligible mass at or below 0.
+    - The Euler-Bernoulli formula is the true model; there is no model-form
+      error and no data, so every result is a forward (prior) result.
+    - FORM and SORM assume a single dominant design point; the sampling
+      methods do not.
+
+Equations:
+    EQ-UQ-001: the named forward model.
+    EQ-MC-MEAN-001: mean deflection from the propagated sample.
+    EQ-SENS-FIRST-001: first-order Sobol indices.
+    EQ-SENS-TOTAL-001: total-effect indices and the ranking.
+    EQ-SENS-BOOT-001: bootstrap intervals of the indices.
+    EQ-REL-PF-001: failure probability.
+    EQ-REL-FORM-002: FORM index and probability.
+    EQ-REL-SORM-002: Breitung SORM correction.
+    EQ-REL-SORM-003: Hohenbichler-Rackwitz SORM correction.
+    EQ-REL-ISDP-001: importance sampling at the design point.
+    EQ-REL-SUBSET-001: subset simulation.
+    EQ-RISK-LOSS-001: linear loss function.
+    EQ-RISK-EL-001: expected loss.
+    EQ-RISK-VAR-001: value-at-risk.
+    EQ-RISK-CVAR-001: conditional value-at-risk.
+    EQ-SUR-PCE-005: least-squares PCE fit of the emulation stage.
+
+Diagnostics:
+    - Six reliability methods on one limit state: agreement of FORM, SORM,
+      importance sampling, subset simulation, and crude Monte Carlo
+      (``7.6e-3`` to ``8.9e-3``) is the evidence that the probability is
+      right; the crude Monte Carlo row is the unbiased reference.
+    - The emulator Monte Carlo probability against the true-model rows.
+    - The Markdown and HTML reports list every stage with its seed, cost,
+      warnings, and figure.
+
+Cost and error:
+    - True-model evaluations per stage: propagation 4096, sensitivity 5120
+      (1024 rows, five blocks), reliability 24 829 (FORM 49, SORM 18 more,
+      importance sampling 2000, subset simulation 2762, crude MC 20 000),
+      risk 20 000, emulation 70; 54 115 in total.
+    - Crude MC with 20 000 runs at ``P_f`` near ``8e-3`` has a relative
+      standard error of about 8%; every other row lies within two of its
+      standard errors. FORM and SORM carry approximation error instead.
+    - The emulator study spends 200 000 surrogate evaluations and no
+      true-model runs; its probability carries emulator error on top of a
+      relative Monte Carlo error of about 2.5%.
+
+References:
+    REF-SMITH-UQ-2024: uncertainty quantification workflow.
+    REF-MELCHERS-BECK-2018: structural reliability methods.
+    REF-SALTELLI-2010: Sobol index estimators.
+    REF-AU-BECK-2001: subset simulation.
+    REF-ROCKAFELLAR-URYASEV-2002: value-at-risk and conditional value-at-risk.
+    REF-SUDRET-2007: polynomial chaos emulators.
+
 """
 
 from __future__ import annotations
@@ -22,6 +88,8 @@ from probstat.workflow import UQStudy
 LENGTH = 2.0
 WIDTH = 0.10
 LIMIT = 0.075
+# Root seed of the study; every stage derives its own child stream.
+SEED = 2026
 
 
 def cantilever(parameters: Mapping[str, float]) -> Mapping[str, float]:
@@ -68,7 +136,7 @@ def main() -> None:
         (QuantityOfInterest("deflection", "tip deflection", "m"),),
         name="cantilever",
     )
-    study = UQStudy(model, seed=2026)
+    study = UQStudy(model, seed=SEED)
     forward = study.propagate(4096, design="sobol")
     print(f"mean deflection={forward['deflection'].mean * 1e3:.3f} mm")
     sobol = study.sensitivity("deflection", 1024, bootstrap=200)

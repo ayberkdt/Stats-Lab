@@ -18,6 +18,94 @@ With Matplotlib installed the report ``uq-study-complete.html`` (light and
 dark figures) is written to ``examples/generated/``.
 
 Run with ``PYTHONPATH=src python examples/uq_study_complete_lab.py``.
+
+Definitions:
+    ``y(x) = A exp(-k x)``: the simulator, priors ``A ~ N(4, 0.4)`` and
+        ``k ~ LogNormal(log 0.5, 0.25)``.
+    ``deviation``: ``|y(1) - 4 exp(-0.5)|``; failure is ``deviation >= 0.9``.
+    ``zeta(x) = 4.2 exp(-0.45 x) + 0.15 sin(2 x)``: the synthetic physical
+        process that generates the 11 calibration and 20 validation
+        observations (noise standard deviation 0.03).
+    ``delta(x)``: Kennedy-O'Hagan discrepancy, a Gaussian process with
+        squared-exponential covariance and lognormal hyperpriors.
+    design point: a local minimum-distance point of the failure domain in
+        standard-normal space; this domain has two.
+
+Assumptions:
+    - Observation noise is Gaussian, independent, and known (0.03).
+    - Plain calibration assumes the simulator is exact, which is false here
+      by construction; the discrepancy calibration models the bias with a
+      stationary Gaussian process.
+    - The tail of ``y`` above its 0.95 quantile follows a generalized Pareto
+      law; AK-MCS assumes its Gaussian-process surrogate classifies the
+      4000-point population correctly once the learning criterion is met.
+
+Equations:
+    EQ-UQ-001: the named forward model and the posterior pushed through it.
+    EQ-MC-MEAN-001: propagated means.
+    EQ-EVA-GPD-001: GPD likelihood of the threshold excesses.
+    EQ-EVA-POT-001: POT return levels.
+    EQ-EVA-POT-002: delta-method return-level intervals.
+    EQ-REL-MDP-001: bulged limit state for successive design points.
+    EQ-REL-MDP-002: multi-point FORM series approximation.
+    EQ-REL-MDP-003: mixture importance sampling over the design points.
+    EQ-REL-AKMCS-001: AK-MCS learning function and stopping rule.
+    EQ-REL-AKMCS-002: AK-MCS population estimate and coefficient of
+        variation.
+    EQ-CAL-NL-001: nonlinear observation model of the plain calibration.
+    EQ-MCMC-AM-001: adaptive Metropolis sampling of both posteriors.
+    EQ-MCMC-RHAT-002: rank-normalized R-hat in the calibration summaries.
+    EQ-OED-EIG-001: expected information gain of new conditions.
+    EQ-OED-GREEDY-001: greedy selection of the new conditions.
+    EQ-OED-LAP-001: Laplace approximation of the EIG.
+    EQ-KOH-MODEL-001: Kennedy-O'Hagan observation model.
+    EQ-KOH-POST-001: posterior of parameters and hyperparameters.
+    EQ-KOH-IDENT-001: parameter-discrepancy confounding diagnostics.
+    EQ-KOH-PRED-001: simulator-only and bias-corrected predictions.
+    EQ-VAL-AREA-001: area validation metric.
+    EQ-VAL-SCORE-CRPS-002: ensemble CRPS.
+    EQ-VAL-CAL-PIT-002: randomized ensemble PIT.
+    EQ-VAL-CAL-COV-001: interval coverage with Clopper-Pearson intervals.
+
+Diagnostics:
+    - Two design points: the multi-point FORM probability (about 0.020)
+      against the single-point value (0.0087), confirmed by mixture
+      importance sampling and by AK-MCS, which matches Monte Carlo on the
+      same population with no misclassified point.
+    - Plain-calibration prediction intervals that exclude the truth at both
+      held-out conditions, against bias-corrected intervals that contain it.
+    - The identifiability check of the discrepancy calibration.
+    - R-hat and ESS warnings: with 2 chains of 1000 draws several
+      parameters exceed R-hat 1.01, so posterior summaries are indicative
+      rather than converged.
+    - The validation verdict, CRPS, PIT mean, and 50% and 90% coverage with
+      their Clopper-Pearson intervals.
+
+Cost and error:
+    - 140 184 forward-model evaluations in total. Per stage: propagation
+      4096; extremes 0 (reuses the propagated sample); design points 4044;
+      AK-MCS 4026 (26 training runs plus the Monte Carlo comparison on the
+      same 4000-point population); plain calibration 34 441; prediction
+      2000; design 25 472; discrepancy calibration 45 105; corrected
+      prediction 13 000; validation 8000.
+    - AK-MCS reports a coefficient of variation of 0.11 for its estimate;
+      mixture importance sampling 0.037.
+    - Return levels beyond the 4096-run sample are extrapolations; the EIG
+      carries a Monte Carlo standard error (0.023 nats) and Laplace error.
+
+References:
+    REF-SMITH-UQ-2024: uncertainty quantification workflow.
+    REF-COLES-2001: peaks-over-threshold modelling.
+    REF-DERKIUREGHIAN-DAKESSIAN-1998: multiple design points.
+    REF-ECHARD-GAYTON-LEMAIRE-2011: AK-MCS.
+    REF-HAARIO-SAKSMAN-TAMMINEN-2001: adaptive Metropolis.
+    REF-HUAN-MARZOUK-2013: Bayesian experimental design.
+    REF-KENNEDY-OHAGAN-2001: calibration with model discrepancy.
+    REF-BRYNJARSDOTTIR-OHAGAN-2014: identifiability of the discrepancy.
+    REF-GNEITING-RAFTERY-2007: proper scoring rules.
+    REF-FERSON-OBERKAMPF-GINZBURG-2008: area validation metric.
+    REF-CLOPPER-PEARSON-1934: exact binomial intervals.
+
 """
 
 from __future__ import annotations
@@ -47,6 +135,8 @@ DATA_X = tuple(0.4 * i for i in range(11))
 VALIDATION_X = (0.5, 1.5, 2.5, 3.5)
 CANDIDATES = tuple({"x": x} for x in (0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0))
 OUTPUT = Path(__file__).parent / "generated"
+# Root seed of the study; the observation and validation data use 11 and 5.
+SEED = 2026
 
 
 def decay(parameters: Mapping[str, float]) -> Mapping[str, float]:
@@ -136,7 +226,7 @@ def validation_data(seed: int) -> tuple[ValidationExperiment, ...]:
     )
 
 
-def run(seed: int = 2026) -> UQStudy:
+def run(seed: int = SEED) -> UQStudy:
     """Run every stage of one study.
 
     References:

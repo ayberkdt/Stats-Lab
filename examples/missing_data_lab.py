@@ -18,6 +18,75 @@ With Matplotlib installed three figures of the first two experiments are
 written to ``examples/generated/``: the missingness pattern matrix, observed
 against imputed values, and the four interval estimates of ``E[x1]`` against
 the truth (ADR-0052).
+
+Definitions:
+    ``R_ij``: response indicator, one when ``x_ij`` is observed.
+    MCAR, MAR: missingness independent of all data, or dependent only on
+        observed values (here ``x1`` depends on the always-observed ``x0``).
+    complete cases: rows with every variable observed.
+    EM estimate: maximum-likelihood ``(mu, Sigma)`` from the incomplete
+        rows, with standard errors from the observed information.
+    multiple imputation (MI): ``m`` completed data sets drawn from the
+        posterior predictive law of the missing values (data augmentation).
+    Rubin's rules: ``Qbar``, within variance ``Ubar``, between variance
+        ``B``, total ``T = Ubar + (1 + 1/m) B``, and the fraction of missing
+        information (FMI).
+
+Assumptions:
+    - Rows are independent draws from a trivariate normal; the analysis
+      model and the imputation model are both multivariate normal.
+    - Missingness is MAR (``x1``) or MCAR (``x2``) by construction, so EM
+      and MI are consistent and complete cases and mean imputation are not.
+    - The MI chain has converged after its burn-in (50 sweeps in the single
+      data set, 20 in the coverage study).
+
+Equations:
+    EQ-MISS-001: observed-data log-likelihood maximized by EM.
+    EQ-MISS-002: conditional-normal E-step for the missing block.
+    EQ-MISS-003: observed-information standard errors of the EM mean.
+    EQ-MISS-004: Little's MCAR test statistic.
+    EQ-MISS-005: Bartlett decomposition for the inverse-Wishart P-step.
+    EQ-MISS-006: data-augmentation I- and P-steps of the imputation.
+    EQ-MISS-007: Rubin's combining rules.
+    EQ-MISS-008: Barnard-Rubin degrees of freedom.
+    EQ-MISS-009: complete-case analysis and unconditional mean imputation.
+    EQ-EM-001: EM ascent property reported as ``monotone``.
+    EQ-LM-OLS-001: least-squares slope in the pooled regression.
+    EQ-LM-INF-001: least-squares standard errors pooled by Rubin's rules.
+    EQ-DIST-T-001: Student-t quantiles of the complete-case intervals.
+    EQ-DIST-MVN-005: multivariate-normal sampling of the full data.
+
+Diagnostics:
+    - Little's test must reject MCAR for these MAR data.
+    - The full-data (oracle) row is the reference for the four analyses;
+      the comparison exposes the complete-case mean shift and the
+      variance and correlation shrinkage of mean imputation.
+    - EM iteration count, monotone flag, and log-likelihood; MI pooling
+      quantities ``r``, ``lambda``, FMI, and Barnard-Rubin df.
+    - Coverage of nominal 95% intervals over repeated samples: EM and MI
+      should be near 0.95, the two naive methods far below.
+
+Cost and error:
+    - One data set of 400 rows with ``m = 20`` imputations for experiments
+      1 to 3; 120 repeated samples of 80 rows with ``m = 10`` for the
+      coverage study.
+    - A coverage estimate over 120 samples has a binomial standard error of
+      about ``sqrt(0.95 * 0.05 / 120) = 0.020``, so 0.933 is consistent
+      with 0.95.
+    - The final line prints the elapsed wall-clock time, which varies
+      between runs; every other number is fixed by ``SEED`` and the
+      per-sample seeds.
+
+References:
+    REF-LITTLE-RUBIN-2019: missing-data mechanisms and likelihood methods.
+    REF-LITTLE-1988: the MCAR test.
+    REF-DEMPSTER-LAIRD-RUBIN-1977: the EM algorithm.
+    REF-SCHAFER-1997: multivariate-normal data augmentation.
+    REF-TANNER-WONG-1987: data augmentation.
+    REF-RUBIN-1987: multiple imputation and combining rules.
+    REF-BARNARD-RUBIN-1999: small-sample degrees of freedom.
+    REF-MONTGOMERY-PECK-VINING-2021: linear regression.
+
 """
 
 from __future__ import annotations
@@ -48,6 +117,8 @@ TRUE_MEAN = (1.0, 2.0, -1.0)
 TRUE_COVARIANCE = ((1.0, 0.6, 0.3), (0.6, 1.5, 0.4), (0.3, 0.4, 0.8))
 TRUE_SLOPE = TRUE_COVARIANCE[0][1] / TRUE_COVARIANCE[1][1]  # x0 on x1: 0.4
 OUTPUT = Path(__file__).parent / "generated"
+# Seed of the single data set and of its imputations (experiments 1 to 3).
+SEED = 31
 
 
 def simulate(
@@ -157,7 +228,7 @@ def compare_methods(
     )
     em_half = 1.959964 * fit.mean_standard_errors[1]
     others["EM (Wald)"] = (fit.mean[1], fit.mean[1] - em_half, fit.mean[1] + em_half)
-    imputed = impute_multivariate_normal(rows, 20, burn_in=50, start=fit, seed=31)
+    imputed = impute_multivariate_normal(rows, 20, burn_in=50, start=fit, seed=SEED)
     per_set = [moments(dataset) for dataset in imputed.datasets]
     pooled = pool_estimates(
         [m[0] for m in per_set], [m[1] ** 2 for m in per_set], complete_data_df=n - 1
@@ -333,7 +404,7 @@ def main() -> None:
 
     """
     started = time.perf_counter()
-    full, rows = simulate(400, 31)
+    full, rows = simulate(400, SEED)
     patterns_and_little(rows)
     imputed, pooled, others = compare_methods(full, rows)
     pooled_regression(rows)

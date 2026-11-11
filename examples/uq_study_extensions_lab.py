@@ -15,7 +15,82 @@ Three short studies exercise the stages added in ADR-0038:
 
 With Matplotlib installed, every stage figure is written to
 ``examples/generated/`` and each study gets a self-contained HTML report
-(``uq-study-<name>.html``) with light and dark figures.
+(``uq-study-<name>.html``) with light and dark figures. Run with
+``PYTHONPATH=src python examples/uq_study_extensions_lab.py``.
+
+Definitions:
+    ``delta``: cantilever tip deflection ``4 P L^3 / (E b h^3)``; the limit
+        is 0.075 m.
+    threshold ``u``: the 0.95 sample quantile of the deflection; excesses
+        over ``u`` are modelled by a generalized Pareto law.
+    ``N``-run return level: the deflection exceeded once in ``N`` model runs
+        on average.
+    ``I(X_i; Y)``: mutual information between one Ishigami input and the
+        output, in nats.
+    EIG: expected information gain of a set of new measurement times about
+        the decay parameters ``(A, k)``.
+
+Assumptions:
+    - The cantilever inputs are independent (lognormal load, normal modulus
+      and thickness); excesses over the 0.95 quantile follow the GPD limit
+      law closely enough for extrapolation to ``10^4`` runs.
+    - The Ishigami inputs are independent and uniform on ``[-pi, pi]``.
+    - The decay observations carry independent Gaussian noise with standard
+      deviation 0.05; the uniform priors on ``A`` and ``k`` are the study's
+      input law; the Laplace EIG treats the model as locally linear.
+
+Equations:
+    EQ-UQ-001: the named forward models.
+    EQ-LAB-ISHIGAMI-001: the Ishigami benchmark.
+    EQ-MC-PROB-001: empirical exceedance fraction of the propagated sample.
+    EQ-EVA-GPD-001: GPD likelihood of the threshold excesses.
+    EQ-EVA-RATE-001: threshold exceedance rate.
+    EQ-EVA-POT-001: POT return levels.
+    EQ-EVA-POT-002: delta-method return-level intervals.
+    EQ-SENS-FIRST-001: first-order Sobol indices.
+    EQ-SENS-TOTAL-001: total-effect indices.
+    EQ-SENS-BOOT-001: bootstrap intervals of the indices.
+    EQ-INFO-MI-001: mutual information.
+    EQ-INFO-KSG-001: KSG nearest-neighbour estimator of it.
+    EQ-CAL-NL-001: nonlinear observation model of the calibration.
+    EQ-MCMC-AM-001: adaptive Metropolis sampling of the posterior.
+    EQ-MCMC-RHAT-002: rank-normalized R-hat in the calibration summary.
+    EQ-OED-EIG-001: expected information gain.
+    EQ-OED-GREEDY-001: greedy selection of the new times.
+    EQ-OED-LAP-001: Laplace approximation of the EIG.
+
+Diagnostics:
+    - The POT probability of exceeding the limit against the empirical
+      fraction and its Wilson interval (ratio 0.98).
+    - Return levels with intervals next to the empirical quantiles in the
+      study report.
+    - ``x3``: first-order index near zero, positive total index and mutual
+      information, which shows dependence through interactions.
+    - R-hat of every calibrated parameter (about 1.01) before the design
+      stage uses the posterior.
+    - The EIG standard error next to the selected design.
+
+Cost and error:
+    - Cantilever: 20 000 Monte Carlo runs; the extremes stage reuses them
+      (no new runs). Return levels beyond about ``2 x 10^4`` runs are
+      extrapolations whose intervals widen accordingly.
+    - Ishigami: 5120 runs for the Sobol indices (bootstrap of 100
+      resamples) and 800 fresh runs for the KSG estimator, whose bias at
+      ``n = 800`` and ``k = 3`` is not corrected.
+    - Decay: 16 138 runs for the posterior (4 chains of 1000 warm-up and
+      1000 kept draws) and 15 872 for the design stage; the EIG carries a
+      Monte Carlo standard error of 0.14 nats and Laplace approximation
+      error.
+
+References:
+    REF-COLES-2001: peaks-over-threshold modelling.
+    REF-WILSON-1927: score interval of the empirical fraction.
+    REF-SALTELLI-2010: Sobol index estimators.
+    REF-KRASKOV-STOGBAUER-GRASSBERGER-2004: KSG mutual information.
+    REF-HAARIO-SAKSMAN-TAMMINEN-2001: adaptive Metropolis.
+    REF-HUAN-MARZOUK-2013: Bayesian experimental design by EIG.
+    REF-CHALONER-VERDINELLI-1995: Bayesian experimental design.
+
 """
 
 from __future__ import annotations
@@ -44,6 +119,8 @@ WIDTH = 0.10
 LIMIT = 0.075
 TIMES = (0.5, 1.0, 2.0, 3.0, 4.0, 6.0, 8.0, 12.0)
 OUTPUT = Path(__file__).parent / "generated"
+# Root seed shared by the three studies.
+SEED = 2026
 
 
 def cantilever(parameters: Mapping[str, float]) -> Mapping[str, float]:
@@ -140,7 +217,7 @@ class LabResults:
     design: DesignRecommendation
 
 
-def run(seed: int = 2026) -> LabResults:
+def run(seed: int = SEED) -> LabResults:
     """Run the three studies from one seed.
 
     Args:

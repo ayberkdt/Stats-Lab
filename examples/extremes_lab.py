@@ -5,7 +5,65 @@ known shape ``xi = 0.1``, so the true return levels are known exactly. The
 annual maxima are fitted by a GEV law and their return levels shown with
 profile-likelihood intervals against the truth; the mean-residual-life plot
 supports a POT threshold, and a Q-Q plot with order-statistic bands checks the
-GPD fit of the excesses.
+GPD fit of the excesses. Run with
+``PYTHONPATH=src python examples/extremes_lab.py``; three figures are
+written to ``examples/generated/``.
+
+Definitions:
+    Block maximum ``M_k``: the largest of the 365 daily values of year ``k``.
+    GEV ``(mu, sigma, xi)``: generalized extreme value law fitted to the 40
+    annual maxima.
+    ``T``-year return level ``z_T``: the level exceeded by an annual maximum
+    with probability ``1/T``.
+    POT: peaks over the threshold ``u = 3.5``; the excesses ``X - u`` are
+    fitted by a generalized Pareto law ``GPD(sigma_u, xi)``.
+    Mean residual life ``e(u) = E[X - u | X > u]``, linear in ``u`` above a
+    valid GPD threshold.
+
+Assumptions:
+    - Daily values are independent and identically distributed
+      ``GPD(0, 1, 0.1)``, so no declustering is needed and the true return
+      levels follow exactly from ``F^365``.
+    - Forty blocks are enough for the asymptotic GEV approximation of the
+      annual maxima, and ``u = 3.5`` is high enough for the GPD
+      approximation of the excesses.
+    - Profile-likelihood and delta-method intervals rely on large-sample
+      likelihood theory.
+
+Equations:
+    EQ-DIST-GPD-002: GPD quantile used to simulate the daily series.
+    EQ-EVA-BM-001: block maxima and the GEV likelihood.
+    EQ-INF-MLE-GEN-001: numerical maximum-likelihood fit.
+    EQ-EVA-RL-001: GEV return level.
+    EQ-EVA-PROF-001: profile-likelihood return-level interval.
+    EQ-EVA-MRL-001: mean residual life with its interval.
+    EQ-EVA-GPD-001: threshold excesses and the GPD likelihood.
+    EQ-EVA-RATE-001: exceedance rate per year.
+    EQ-EVA-POT-001: POT return level.
+    EQ-EVA-POT-002: delta-method POT return-level interval.
+    EQ-VIZ-QQBAND-001: pointwise order-statistic band of the Q-Q plot.
+    EQ-RNG-SPLITMIX-001: seeded child stream of the daily series.
+
+Diagnostics:
+    - Every return level is printed with its interval beside the exact
+      level; the figure shows the fitted curve against the empirical maxima.
+    - The mean-residual-life plot shows linearity above the chosen
+      threshold.
+    - The Q-Q plot of the excesses against the fitted GPD has a pointwise
+      band; about 5% of points fall outside a 95% band by chance.
+
+Cost and error:
+    - 14 600 simulated days, 40 annual maxima, 676 threshold excesses; the
+      fits are deterministic given the data.
+    - Return levels carry sampling error, shown by the interval widths; the
+      100-year GEV interval is wide and skewed because 40 maxima barely
+      reach that return period.
+
+References:
+    REF-COLES-2001: extreme value modelling.
+    REF-PICKANDS-1975: the generalized Pareto approximation.
+    REF-WILK-GNANADESIKAN-1968: probability plots.
+
 """
 
 from __future__ import annotations
@@ -28,6 +86,8 @@ from probstat.visualization.extremes_plots import (
     plot_tail_quantiles,
 )
 
+# Root seed; the daily series draws from its "daily-series" child stream.
+SEED = 2026
 YEARS = 40
 DAYS = 365
 DAILY_LAW = GeneralizedPareto(0.0, 1.0, 0.1)
@@ -62,7 +122,7 @@ def main() -> None:
 
     started = time.perf_counter()
     output = Path(__file__).parent / "generated"
-    rng = RandomStream(2026).child("daily-series").generator()
+    rng = RandomStream(SEED).child("daily-series").generator()
     series = [DAILY_LAW.quantile(rng.random()) for _ in range(YEARS * DAYS)]
 
     maxima = block_maxima(series, DAYS)

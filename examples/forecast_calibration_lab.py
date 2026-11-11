@@ -16,6 +16,90 @@ period without a shift and with two sizes of shift. When Matplotlib is
 installed, six figures are written to ``examples/generated/``: a reliability
 diagram, two PIT histograms, a CRPS comparison, a coverage plot, and a
 distribution-shift plot.
+
+Definitions:
+    ``m_i``, ``s_i``: case mean (uniform on ``[-2, 2]``) and scale (uniform
+        on ``[0.5, 1.5]``) of the true predictive law.
+    proper score: a loss whose expectation is minimized by the true law;
+        CRPS, logarithmic score (LogS), and Dawid-Sebastiani score (DSS) are
+        reported, smaller is better.
+    PIT ``u_i = F_i(y_i)``: probability integral transform; uniform across
+        cases for a calibrated forecaster.
+    coverage and sharpness: fraction of outcomes inside central intervals,
+        and the mean width of those intervals.
+    Brier score ``BS``: squared error of the probability forecast of the
+        event ``Y > 0``, split into reliability (REL), resolution (RES),
+        uncertainty (UNC), and within-bin terms (WBV, WBC).
+
+Assumptions:
+    - Cases are independent, so the chi-square PIT test, the coverage
+      intervals, and the permutation tests are valid.
+    - Ensemble members are exchangeable with the outcome, which is what the
+      randomized ensemble PIT and the fair CRPS require.
+    - The calibration and deployment periods are independent samples; the
+      shift scenarios move the outcomes by a known constant.
+
+Equations:
+    EQ-VAL-SCORE-CRPS-001: CRPS definition; the paired CRPS comparison
+        figure.
+    EQ-VAL-SCORE-CRPS-002: ensemble CRPS from order statistics.
+    EQ-VAL-SCORE-CRPS-003: fair ensemble CRPS.
+    EQ-VAL-SCORE-CRPS-004: closed-form CRPS of a normal forecast.
+    EQ-VAL-SCORE-LOG-001: logarithmic score.
+    EQ-VAL-SCORE-DSS-001: Dawid-Sebastiani score.
+    EQ-VAL-CAL-PIT-001: PIT values of the parametric forecasters.
+    EQ-VAL-CAL-PIT-002: randomized rank PIT of the ensemble.
+    EQ-VAL-CAL-HIST-001: PIT histogram chi-square test and edge ratio.
+    EQ-VAL-CAL-COV-001: central-interval coverage from PIT values.
+    EQ-VAL-CAL-SHARP-001: mean 90% interval width.
+    EQ-VAL-SCORE-WIS-001: weighted interval score of the 50/80/95% intervals.
+    EQ-VAL-SCORE-BSDEC-001: Brier reliability, resolution, uncertainty.
+    EQ-VAL-SCORE-BSDEC-002: exact Brier identity with within-bin terms.
+    EQ-VAL-CAL-REL-001: reliability table with consistency bands.
+    EQ-INF-GOF-KS2-001: two-sample Kolmogorov-Smirnov statistic.
+    EQ-VAL-SHIFT-ENERGY-001: energy-distance statistic.
+    EQ-VAL-SHIFT-MMD-001: Gaussian-kernel MMD statistic.
+    EQ-VAL-SHIFT-PERM-001: permutation p-values of the energy and MMD tests.
+    EQ-VAL-SHIFT-W-001: Wasserstein distances ``W1`` and ``W2``.
+    EQ-VIZ-PITBAND-001: pointwise binomial band of the PIT histograms.
+    EQ-VIZ-PITBAND-002: simultaneous Bonferroni band of the PIT histograms.
+
+Diagnostics:
+    - The ideal forecaster must win on every proper score; the fair
+      ensemble CRPS must approach the closed-form ideal CRPS.
+    - PIT p-values, edge ratios, and 50%/90% coverage separate the
+      overconfident (U-shaped PIT, low coverage) from the climatological
+      (calibrated but wide) forecaster.
+    - The largest residual of the Brier identity is printed and must be at
+      rounding level; reliability-table bins outside their 95% consistency
+      band flag miscalibrated probabilities.
+    - The three shift tests should not reject without a shift and should
+      all reject the largest shift.
+
+Cost and error:
+    - 2000 cases, 20 ensemble members per case, and 300 values per shift
+      period; the scores are sample means with standard errors of order
+      ``n**-0.5``.
+    - Consistency bands use 500 resamples; energy and MMD p-values use 499
+      and 199 permutations, so their resolution is ``1/500`` and ``1/200``.
+    - The final line prints the wall-clock time, which varies between runs;
+      every other number is fixed by ``SEED``.
+
+References:
+    REF-GNEITING-RAFTERY-2007: strictly proper scoring rules.
+    REF-GNEITING-BALABDAOUI-RAFTERY-2007: calibration and sharpness.
+    REF-HERSBACH-2000: CRPS decomposition for ensembles.
+    REF-FERRO-2014: fair scores for ensembles.
+    REF-DAWID-SEBASTIANI-1999: the Dawid-Sebastiani score.
+    REF-BRACHER-RAY-GNEITING-REICH-2021: weighted interval score.
+    REF-MURPHY-1973: Brier score decomposition.
+    REF-BROCKER-SMITH-2007: reliability-diagram consistency bars.
+    REF-HAMILL-2001: rank histograms.
+    REF-HODGES-1958: two-sample Kolmogorov-Smirnov distribution.
+    REF-SZEKELY-RIZZO-2013: energy statistics.
+    REF-GRETTON-ETAL-2012: kernel two-sample test.
+    REF-PANARETOS-ZEMEL-2019: Wasserstein distances.
+
 """
 
 from __future__ import annotations
@@ -49,6 +133,7 @@ from probstat.validation import (
 
 CASES = 2000
 MEMBERS = 20
+# Root seed of the simulated process and of every resampling step.
 SEED = 20261012
 OUTPUT = Path(__file__).parent / "generated"
 

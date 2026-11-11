@@ -4,6 +4,55 @@ A two-by-three joint PMF is split into ``H(X|Y)``, ``I(X; Y)`` and
 ``H(Y|X)``, and the KSG mutual-information estimator is checked against the
 bivariate-normal closed form ``-log(1 - rho^2)/2`` over a range of
 correlations with seeded replicates.
+
+Definitions:
+    ``p(x, y)``: the two-by-three joint PMF ``JOINT`` with rows indexing
+        ``X``.
+    ``H(X)``, ``H(X, Y)``, ``H(Y | X)``: Shannon, joint, and conditional
+        entropies.
+    ``I(X; Y)``: mutual information, printed in bits for the table and in
+        nats for the Gaussian check.
+    ``rho``: correlation of a standard bivariate normal pair.
+    KSG estimate: Kraskov-Stogbauer-Grassberger k-nearest-neighbour
+        estimator of ``I(X; Y)`` from a sample (``k = 3``).
+
+Assumptions:
+    - The joint PMF sums to one; the decomposition is exact.
+    - Each KSG replicate is an independent sample of ``SAMPLE_SIZE`` pairs
+      from the bivariate normal with the stated ``rho``; continuous data
+      have no ties.
+    - The reference value ``-log(1 - rho^2)/2`` is the closed-form mutual
+      information of a standard bivariate normal, computed in the lab.
+
+Equations:
+    EQ-INFO-H-001: Shannon entropy of each marginal.
+    EQ-INFO-H-002: joint and conditional entropy (chain rule).
+    EQ-INFO-MI-001: mutual information of the table.
+    EQ-INFO-KSG-001: KSG estimator in the Gaussian check.
+    EQ-RNG-SPLITMIX-001: SplitMix64 child streams, one per ``(rho,
+        replicate)``.
+
+Diagnostics:
+    - The entropy-decomposition figure shows that ``H(X|Y) + I(X; Y) +
+      H(Y|X)`` fills ``H(X, Y)``.
+    - Replicate mean against the exact value per ``rho``; the figure draws
+      +/- one replicate standard deviation and its title names the largest
+      absolute gap. The estimate at ``rho = 0`` may be slightly negative,
+      which reveals the estimator's finite-sample bias.
+
+Cost and error:
+    - 6 correlations x 6 replicates x 300 pairs; each replicate mean has a
+      standard error of about the replicate standard deviation over
+      ``sqrt(6)``, and the KSG estimator has a bias that does not vanish
+      with more replicates, only with larger samples.
+    - The final line prints the elapsed wall-clock time, which varies
+      between runs; every other number is fixed by ``SEED``.
+
+References:
+    REF-COVER-THOMAS-2006: entropy and mutual information.
+    REF-KRASKOV-STOGBAUER-GRASSBERGER-2004: the KSG estimator.
+    REF-STEELE-LEA-FLOOD-2014: SplitMix64 streams.
+
 """
 
 from __future__ import annotations
@@ -24,6 +73,8 @@ JOINT = ((0.30, 0.10, 0.05), (0.05, 0.20, 0.30))
 RHOS = (0.0, 0.3, 0.5, 0.7, 0.8, 0.9)
 REPLICATES = 6
 SAMPLE_SIZE = 300
+# Root seed of the KSG replicate streams.
+SEED = 2026
 
 
 def gaussian_mutual_information(rho: float) -> float:
@@ -53,7 +104,7 @@ def main() -> None:
     save_figure(axes.figure, output / "information-decomposition.png")
     plt.close(axes.figure)
 
-    root = RandomStream(2026)
+    root = RandomStream(SEED)
     estimates: list[list[float]] = []
     exact = [gaussian_mutual_information(rho) for rho in RHOS]
     for rho in RHOS:

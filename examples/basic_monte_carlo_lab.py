@@ -1,4 +1,59 @@
-"""Reproducible UQ-2 laboratory for integration and forward propagation."""
+"""Reproducible UQ-2 laboratory for integration and forward propagation.
+
+Three experiments: ``pi`` from the quarter-circle hit probability of 20 000
+uniform points, the integral of ``x^2`` on ``[0, 1]`` by Simpson's rule and
+by Monte Carlo, and the range of an idealized projectile with uncertain
+speed and launch angle propagated by 5000 samples. Run with
+``PYTHONPATH=src python examples/basic_monte_carlo_lab.py``; the ``pi``
+convergence figure is written to ``examples/generated/``.
+
+Definitions:
+    Hit indicator: ``I(U1^2 + U2^2 <= 1)`` for independent uniforms; its mean
+    is ``pi / 4``.
+    Convergence trace: the running estimate and standard error at
+    increasing sample sizes.
+    Projectile model: ``R = v^2 sin(2 theta) / g`` with
+    ``v ~ Normal(25, 1.5)`` m/s and ``theta ~ Uniform(0.55, 0.85)`` rad.
+    Exceedance probability: ``P(R > 65 m)``.
+
+Assumptions:
+    - Draws are independent and the contributions have finite variance, so
+      the error falls as ``1 / sqrt(N)``.
+    - The projectile model ignores drag and launches and lands at one height.
+    - Speed and angle are independent.
+
+Equations:
+    EQ-MC-PROB-001: hit-probability estimator and its standard error.
+    EQ-MC-MEAN-001: sample mean of the ``4 I`` contributions.
+    EQ-MC-SE-001: standard error ``s / sqrt(N)``.
+    EQ-MC-ROOTN-001: the ``1 / sqrt(N)`` rate shown by the trace.
+    EQ-MC-INT-001: integral as ``(b - a) E[f(U)]``.
+    EQ-NUM-SIMP-001: composite Simpson rule with 100 subintervals.
+    EQ-LAB-PROJECTILE-001: projectile range model.
+    EQ-UQ-001: forward model ``Y = g(X)`` propagated by sampling.
+    EQ-PROP-THRESH-001: exceedance probability ``P(Y > S)``.
+
+Diagnostics:
+    - The ``pi`` estimate carries a Wilson interval on the hit probability,
+      and the convergence figure shows the trace against the exact value.
+    - Simpson's rule is exact for ``x^2`` and serves as the reference for the
+      Monte Carlo integral and its standard error.
+
+Cost and error:
+    - ``pi``: 20 000 points; integral: 101 integrand evaluations (Simpson)
+      against 20 000 (Monte Carlo); projectile: 5000 model evaluations.
+    - Monte Carlo numbers carry the printed standard error; Simpson's rule
+      has zero truncation error for a quadratic integrand, so only rounding
+      remains.
+
+References:
+    REF-ROBERT-CASELLA-2004: Monte Carlo estimation and error.
+    REF-WILSON-1927: the score interval for a proportion.
+    REF-DAVIS-RABINOWITZ-1984: Simpson's rule.
+    REF-HALLIDAY-RESNICK-WALKER-2014: projectile motion.
+    REF-SMITH-UQ-2024: forward propagation.
+
+"""
 
 from __future__ import annotations
 
@@ -17,7 +72,10 @@ from probstat.monte_carlo import (
 from probstat.numerics import composite_simpson
 from probstat.propagation import propagate_samples
 from probstat.uq import QuantityOfInterest
-from probstat.visualization import plot_monte_carlo_convergence
+from probstat.visualization import plot_monte_carlo_convergence, save_figure
+
+# Seed of the quarter-circle points and of the Monte Carlo integral.
+SEED = 2026
 
 
 def projectile_model(parameters: Mapping[str, float]) -> Mapping[str, float]:
@@ -55,7 +113,7 @@ def main() -> None:
     """
     import matplotlib.pyplot as plt
 
-    generator = random.Random(2026)
+    generator = random.Random(SEED)
     inside = tuple(
         generator.random() ** 2 + generator.random() ** 2 <= 1.0
         for _ in range(20_000)
@@ -74,7 +132,7 @@ def main() -> None:
         0.0,
         1.0,
         sample_size=20_000,
-        seed=2026,
+        seed=SEED,
     )
 
     sample_size = 5_000
@@ -127,8 +185,7 @@ def main() -> None:
     )
     axes.figure.tight_layout()
     output = Path(__file__).parent / "generated"
-    output.mkdir(exist_ok=True)
-    axes.figure.savefig(output / "monte-carlo-pi-convergence.png", dpi=160)
+    save_figure(axes.figure, output / "monte-carlo-pi-convergence.png", dpi=160)
     plt.close(axes.figure)
 
 
