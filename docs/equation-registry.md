@@ -12409,3 +12409,52 @@ so `P(x_t = k | history) = P(theta_k = max_j theta_j | history)`.
   uniform random play has regret linear in `T`.
 - Code: `risk.bernoulli_bandit` (`BanditRun.cumulative_regret`).
 - Source: [REF-RUSSO-ETAL-2018, Chapter 3].
+
+### EQ-SENS-STOCH-001 — Variance decomposition of a stochastic simulator
+
+`Var(Y) = Var(m(X)) + E[Var(Y | X)]`, `m(x) = E[Y | X = x]`;
+`S_i = V_i / Var(m)`, `ST_i = T_i / Var(m)` with `V_i = Var(E[m(X) | X_i])`,
+`T_i = E[Var(m(X) | X_(~i))]`; output shares `V_i / Var(Y)` and the
+intrinsic-noise index `S_omega = E[Var(Y | X)] / Var(Y)`.
+
+- Domain: `Y = g(X, omega)` with independent inputs `X` and intrinsic
+  randomness `omega` independent of `X`; finite `Var(Y)`, `Var(m) > 0`.
+- Meaning: `V_i / Var(Y)` is the first-order index of `Y` when `omega` is
+  treated as an extra input, and `S_omega` is the total effect of `omega`;
+  indices of `m` describe the controllable part alone.
+- Code: `sensitivity.stochastic_sobol_indices`,
+  `sensitivity.StochasticSobolResult`.
+- Source: [REF-IOOSS-RIBATET-MARREL-2009, Equations 15, 19, 20, and 21] and
+  [REF-MARREL-ETAL-2012].
+
+### EQ-SENS-STOCH-002 — Replicate mean and within-point variance
+
+At design point `x` with `R >= 2` independent runs `y_1..y_R`:
+`ybar(x) = (1/R) sum_r y_r`, `s^2(x) = (1/(R-1)) sum_r (y_r - ybar)^2`, so
+`E[s^2(x)] = Var(Y | X = x)` and `Var(ybar(x) | x) = Var(Y | X = x) / R`.
+
+- Domain: runs at one point use independent seeds; runs at different
+  points are independent.
+- Meaning: the within-point variance estimates the intrinsic noise without
+  bias, which the estimators of [EQ-SENS-STOCH-003] subtract.
+- Code: `sensitivity.stochastic._replicate`.
+- Source: [REF-IOOSS-RIBATET-MARREL-2009, Section 3.2] (dispersion
+  component `Var(Y | X)`).
+
+### EQ-SENS-STOCH-003 — Noise-corrected pick-freeze estimators
+
+With design matrices `A`, `B`, `A_B^(i)` of `N` rows and `c` the mean of
+`ybar` over `A` and `B`:
+`Vhat_i = (1/N) sum_k (ybar_B,k - c)(ybar_ABi,k - ybar_A,k)`,
+`That_i = (1/(2N)) sum_k [(ybar_A,k - ybar_ABi,k)^2 - (s^2_A,k + s^2_ABi,k)/R]`,
+`noise = mean(s^2)` over all design points,
+`Var(m)hat = var(ybar over A and B) - noise / R`.
+
+- Domain: as [EQ-SENS-STOCH-001]; noise independent across design points.
+- Meaning: independent noise cancels in the expectation of the first-order
+  product, and the subtracted terms remove the noise inflation of the Jansen
+  total-effect estimator and of the variance of replicate means.
+- Code: `sensitivity.stochastic_sobol_indices`.
+- Source: [REF-SALTELLI-2010] and [REF-JANSEN-1999] (pick-freeze
+  estimators), applied to replicate means with the noise correction of
+  [EQ-SENS-STOCH-002].

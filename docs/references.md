@@ -2834,3 +2834,18 @@ William R. Thompson. "On the Likelihood that One Unknown Probability Exceeds
 Another in View of the Evidence of Two Samples." *Biometrika* 25(3-4),
 285-294, 1933.
 DOI: [10.1093/biomet/25.3-4.285](https://doi.org/10.1093/biomet/25.3-4.285).
+
+## REF-IOOSS-RIBATET-MARREL-2009
+
+Bertrand Iooss, Mathieu Ribatet, and Amandine Marrel. "Global Sensitivity
+Analysis of Stochastic Computer Models with Joint Metamodels." Preprint
+arXiv:0802.0443v3, 2009.
+[https://arxiv.org/abs/0802.0443](https://arxiv.org/abs/0802.0443).
+
+## REF-MARREL-ETAL-2012
+
+Amandine Marrel, Bertrand Iooss, Sébastien Da Veiga, and Mathieu Ribatet.
+"Global Sensitivity Analysis of Stochastic Computer Models with Joint
+Metamodels." *Statistics and Computing* 22(3), 833-847, 2012. Published
+version of [REF-IOOSS-RIBATET-MARREL-2009].
+DOI: [10.1007/s11222-011-9274-8](https://doi.org/10.1007/s11222-011-9274-8).
