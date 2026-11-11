@@ -3052,3 +3052,51 @@ Simulation Models with Bayesian Conditional Density Estimation." In
 *Advances in Neural Information Processing Systems 29* (NeurIPS 2016), 2016.
 Preprint arXiv:1605.06376v4.
 [https://arxiv.org/abs/1605.06376](https://arxiv.org/abs/1605.06376).
+
+## REF-STAN-REFERENCE-MANUAL-2-36
+
+Stan Development Team. *Stan Reference Manual*, Version 2.36, chapter
+"Constraint Transforms," sections "Ordered vector," "Unit simplex"
+(stick-breaking inverse transform and its Jacobian determinant),
+"Covariance matrices," and "Cholesky factors of correlation matrices." From
+version 2.37 the manual replaces the stick-breaking simplex transform by a
+softmax of a sum-to-zero vector; the stick-breaking form is the one cited.
+[https://mc-stan.org/docs/2_36/reference-manual/transforms.html](https://mc-stan.org/docs/2_36/reference-manual/transforms.html).
+
+## REF-STAN-USERS-GUIDE-2-36
+
+Stan Development Team. *Stan User's Guide*, Version 2.36, chapter "Latent
+Discrete Parameters," sections "The benefits of marginalization,"
+"Posterior distribution of the discrete change point," and "The mathematics
+of recovering marginalized parameters" (marginalization by `log_sum_exp`;
+recovery of `Pr[Z = k | Theta]` by Bayes's theorem given the continuous
+draws, averaged over the draws).
+[https://mc-stan.org/docs/2_36/stan-users-guide/latent-discrete.html](https://mc-stan.org/docs/2_36/stan-users-guide/latent-discrete.html).
+
+## REF-STAN-FUNCTIONS-REFERENCE-2-36
+
+Stan Development Team. *Stan Functions Reference*, Version 2.36, chapter
+"Correlation Matrix Distributions," sections "LKJ correlation distribution"
+(`LkjCorr(Sigma | eta)` proportional to `det(Sigma)^(eta - 1)`) and "Cholesky
+LKJ correlation distribution" (`LkjCholesky(L | eta)` proportional to
+`prod_(k=2..K) L_kk^(K - k + 2 eta - 2)`).
+[https://mc-stan.org/docs/2_36/functions-reference/correlation_matrix_distributions.html](https://mc-stan.org/docs/2_36/functions-reference/correlation_matrix_distributions.html).
+
+## REF-LEWANDOWSKI-KUROWICKA-JOE-2009
+
+Daniel Lewandowski, Dorota Kurowicka, and Harry Joe. "Generating Random
+Correlation Matrices Based on Vines and Extended Onion Method." *Journal of
+Multivariate Analysis* 100(9), 1989-2001, 2009. The density proportional to
+`det(R)^(eta - 1)` on correlation matrices and its generation from
+independent Beta-distributed partial correlations.
+DOI: [10.1016/j.jmva.2009.04.008](https://doi.org/10.1016/j.jmva.2009.04.008).
+
+## REF-OBERMEYER-ETAL-2019
+
+Fritz Obermeyer, Eli Bingham, Martin Jankowiak, Neeraj Pradhan, Justin
+Chiu, Alexander Rush, and Noah Goodman. "Tensor Variable Elimination for
+Plated Factor Graphs." In *Proceedings of the 36th International Conference
+on Machine Learning*, Proceedings of Machine Learning Research 97,
+4871-4880, 2019. Exact inference in discrete latent-variable models with
+repeated (plated) structure by variable elimination.
+[https://proceedings.mlr.press/v97/obermeyer19a.html](https://proceedings.mlr.press/v97/obermeyer19a.html).

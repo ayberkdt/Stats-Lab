@@ -21,6 +21,15 @@ is active *at that evaluation*, so bounds that depend on earlier latent
 values (``Uniform(0, theta)``) are handled; the map is lower triangular in
 site order, so the log-Jacobian is the sum of the per-site terms.
 
+Structured sites (simplex, ordered, correlation, covariance) use the
+transforms of :class:`~._structured.StructuredSupport`. Discrete sites
+declared with ``marginalize=True`` take their first support value in
+``trace`` mode and the value of the current configuration in ``density``
+mode; :class:`ModelIR` re-runs the model once per configuration of the
+discrete sites outside plates, and :meth:`ModelHandle.plate` re-runs one
+plate iteration per configuration of its own discrete sites, so that the
+density on ``u`` is the marginal over every discrete site.
+
 Automatic differentiation: density mode is transparent to
 :class:`~probstat.numerics.Dual` numbers and to reverse-mode
 :class:`~probstat.numerics.ReverseVariable` values (bijections,
@@ -47,10 +56,11 @@ such a site (for example ``1 - x``) so the singular end sits at zero.
 
 from __future__ import annotations
 
+import itertools
 import math
 import random
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from dataclasses import dataclass, field
 from typing import Any, Literal, cast
 
 from probstat.distributions import Normal, RealSupport
@@ -59,26 +69,25 @@ from probstat.linalg import Vector, as_vector
 from probstat.numerics import Dual, GradientEvaluator, ReverseVariable, admath
 from probstat.optimization import central_gradient
 
-SiteKind = Literal["latent", "observed", "deterministic"]
-SiteValue = float | tuple[float, ...]
+from ._discrete import (
+    ENUMERATION_LIMIT,
+    DiscreteConditional,
+    EnumerationGroup,
+    LocalEnumeration,
+    finite_support_values,
+    log_sum_exp,
+    primal,
+)
+from ._errors import ModelSpecificationError
+from ._structured import StructuredSupport, structure_for, structured_log_density
+
+SiteKind = Literal["latent", "observed", "deterministic", "discrete"]
+SiteValue = float | tuple[float, ...] | tuple[tuple[float, ...], ...]
 Model = Callable[["ModelHandle"], object]
 
 _LOG_SQRT_TWO_PI = 0.5 * math.log(2.0 * math.pi)
 _DIFFERENTIABLE = (Dual, ReverseVariable)
 _NUMERIC_ERRORS = (ValueError, ArithmeticError)
-
-
-class ModelSpecificationError(ValueError):
-    """A model violates the rules of the probabilistic-programming interface.
-
-    Raised for duplicate or unknown site names, unsupported supports or
-    shapes, missing observed data, and models whose site structure changes
-    between executions. It is never converted into a ``-inf`` log-density.
-
-    References:
-        [REF-CARPENTER-ETAL-2017], [REF-BINGHAM-ETAL-2019].
-
-    """
 
 
 # ---------------------------------------------------------------------------
@@ -307,8 +316,8 @@ def bijection_for(support: object, *, site: str = "site") -> Bijection:
         kind = type(support).__name__
         raise ModelSpecificationError(
             f"latent site {site!r}: unsupported support {kind}; latent sites need "
-            "a continuous RealSupport (discrete latent variables must be "
-            "marginalized out by hand)"
+            "a continuous RealSupport (a scalar discrete site with a finite "
+            "support can be summed out with marginalize=True)"
         )
     lower, upper = support.lower, support.upper
     if lower is not None and upper is not None:
@@ -513,14 +522,21 @@ class SiteInfo:
 
     Args:
         name: Unique site name.
-        kind: ``"latent"``, ``"observed"``, or ``"deterministic"``.
-        size: ``None`` for a scalar site, else the vector length.
+        kind: ``"latent"``, ``"observed"``, ``"deterministic"``, or
+            ``"discrete"`` (a latent site summed out by enumeration).
+        size: ``None`` for a scalar site, else the number of scalar entries
+            (the vector length, or ``d * d`` for a matrix site).
         distribution: Class name of the site's distribution (``""`` for a
             deterministic site); ``"Normal x 8"`` style for per-element lists.
         support: Support at trace time (``None`` for deterministic sites).
-        bijection: Bijection at trace time (latent sites only).
+        bijection: Bijection at trace time (scalar and vector latent sites).
         reparam: ``"noncentered"`` or ``None``.
         value: Value at trace time; for observed sites this is the data.
+        element_bijections: Bijection of every element of a vector site.
+        structure: Structured support of a simplex, ordered, correlation, or
+            covariance site, else ``None``.
+        enumeration: Support values of a discrete site, else ``()``.
+        plate: Name of the enclosing plate, else ``None``.
 
     References:
         [REF-BINGHAM-ETAL-2019], [REF-CARPENTER-ETAL-2017].
@@ -536,6 +552,9 @@ class SiteInfo:
     reparam: str | None
     value: Any
     element_bijections: tuple[Bijection, ...] = ()
+    structure: StructuredSupport | None = None
+    enumeration: tuple[Any, ...] = ()
+    plate: str | None = None
 
     @property
     def length(self) -> int:
@@ -547,14 +566,33 @@ class SiteInfo:
         """
         return 1 if self.size is None else self.size
 
+    @property
+    def free_length(self) -> int:
+        """Return the number of unconstrained coordinates of a latent site.
+
+        Equals :attr:`length` except for structured sites (for example
+        ``K - 1`` for a ``K``-simplex) and discrete sites (``0``).
+
+        References:
+            [REF-STAN-REFERENCE-MANUAL-2-36]. No equation is evaluated.
+
+        """
+        if self.kind == "discrete":
+            return 0
+        if self.structure is not None:
+            return self.structure.free_size
+        return self.length
+
     def flat_names(self, base: str | None = None) -> tuple[str, ...]:
-        """Return element names ``name`` or ``name[0], name[1], ...``.
+        """Return element names ``name``, ``name[0], ...``, or ``name[i,j]``.
 
         References:
             Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
         label = self.name if base is None else base
+        if self.structure is not None:
+            return self.structure.flat_names(label)
         if self.size is None:
             return (label,)
         return tuple(f"{label}[{i}]" for i in range(self.size))
@@ -611,8 +649,9 @@ def _describe(parts: tuple[Any, ...], size: int | None) -> str:
 class ModelHandle:
     """The object a model function receives as its argument ``m``.
 
-    Users call :meth:`sample`, :meth:`observe`, and :meth:`deterministic`;
-    the inference functions construct the handle in the right mode.
+    Users call :meth:`sample`, :meth:`observe`, :meth:`deterministic`, and
+    :meth:`plate`; the inference functions construct the handle in the right
+    mode.
 
     Args:
         mode: ``"trace"``, ``"density"``, or ``"generate"``.
@@ -620,9 +659,14 @@ class ModelHandle:
         layout: Expected site sequence; when given, each site is checked
             against it so that structural changes are reported.
         fixed: Constrained latent values by name (``generate`` mode).
-        require_fixed: Whether every latent site must appear in ``fixed``.
+        require_fixed: Whether every continuous latent site must appear in
+            ``fixed``.
         generator: Random generator (``generate`` mode).
         conditioned: Observed values by site name (see :func:`condition`).
+        global_assignment: Support indices of the discrete sites outside
+            plates, in execution order (``density`` mode).
+        record_enumeration: Whether to keep the enumerated branch weights of
+            every plate iteration in :attr:`enumeration_log`.
 
     References:
         [REF-BINGHAM-ETAL-2019], [REF-CARPENTER-ETAL-2017].
@@ -632,14 +676,24 @@ class ModelHandle:
     __slots__ = (
         "_conditioned",
         "_cursor",
+        "_enum",
         "_fixed",
         "_generator",
+        "_global_assignment",
+        "_global_position",
+        "_global_seen",
         "_layout",
+        "_local_seen",
+        "_local_sink",
         "_mode",
+        "_name_log",
         "_names",
         "_offset",
+        "_plate",
         "_require_fixed",
         "_unconstrained",
+        "discrete_term",
+        "enumeration_log",
         "log_jacobian",
         "log_likelihood",
         "log_prior",
@@ -657,6 +711,8 @@ class ModelHandle:
         require_fixed: bool = False,
         generator: random.Random | None = None,
         conditioned: Mapping[str, object] | None = None,
+        global_assignment: tuple[int, ...] = (),
+        record_enumeration: bool = False,
     ) -> None:
         """Initialize an empty execution record.
 
@@ -679,6 +735,18 @@ class ModelHandle:
         self.log_prior = 0.0
         self.log_likelihood = 0.0
         self.log_jacobian = 0.0
+        self._name_log: list[str] = []
+        self._global_assignment = global_assignment
+        self._global_position = 0
+        self._global_seen = False
+        self._local_seen = False
+        self._plate: str | None = None
+        self._enum: LocalEnumeration | None = None
+        self._local_sink: Any = None
+        self.discrete_term: Any = None
+        self.enumeration_log: list[EnumerationGroup] | None = (
+            [] if record_enumeration else None
+        )
 
     # -- bookkeeping -------------------------------------------------------
 
@@ -707,7 +775,43 @@ class ModelHandle:
         if name in self._names:
             raise ModelSpecificationError(f"duplicate site name {name!r}")
         self._names.add(name)
+        self._name_log.append(name)
         return name
+
+    def _check_order(self, site: str, kind: str) -> None:
+        """Reject a continuous latent or deterministic site after a discrete one.
+
+        Within its scope (the whole model for discrete sites outside plates,
+        one plate iteration for discrete sites inside), every discrete site
+        must follow the continuous latent and deterministic sites; only
+        observed and discrete sites may come after it. This keeps the
+        unconstrained coordinates and the reported values the same in every
+        enumerated configuration.
+
+        References:
+            [EQ-PPL-ENUM-001], [REF-STAN-USERS-GUIDE-2-36].
+
+        """
+        if self._global_seen or self._local_seen:
+            raise ModelSpecificationError(
+                f"{kind} site {site!r} follows a discrete latent site in its scope; "
+                "declare continuous latent and deterministic sites before the "
+                "discrete sites (only observed and discrete sites may follow them)"
+            )
+
+    def _add_likelihood(self, value: Any) -> None:
+        """Add a likelihood term to the active enumeration sink or the total.
+
+        References:
+            [EQ-PPL-JOINT-001], [EQ-PPL-ENUM-001].
+
+        """
+        if self._local_sink is not None:
+            self._local_sink = self._local_sink + value
+        elif self.discrete_term is not None:
+            self.discrete_term = self.discrete_term + value
+        else:
+            self.log_likelihood += value
 
     def _check_layout(self, name: str, kind: SiteKind, size: int | None) -> None:
         """Compare a site with the traced structure.
@@ -765,31 +869,58 @@ class ModelHandle:
         *,
         shape: int | None = None,
         reparam: str | None = None,
+        marginalize: bool = False,
     ) -> Any:
         """Declare a latent random variable (or an observed one if conditioned).
 
+        Three kinds of latent site exist:
+
+        * scalar and vector sites of continuous laws on intervals, mapped by
+          the bijections of :class:`Bijection`;
+        * structured sites whose distribution lives on a simplex
+          (:class:`~probstat.multivariate.Dirichlet`), on ordered vectors
+          (:class:`OrderedVector`), on Cholesky factors of correlation
+          matrices (:class:`~probstat.multivariate.LKJCholesky`), on
+          correlation matrices (:class:`~probstat.multivariate.LKJCorrelation`),
+          or on covariance matrices (Wishart, inverse Wishart), mapped by the
+          transforms of :class:`StructuredSupport`;
+        * with ``marginalize=True``, scalar discrete sites with a finite
+          support, summed out of the density by enumeration and recovered
+          afterwards from their exact conditional law.
+
         Args:
             name: Unique site name.
-            distribution: A distribution with ``support``, ``log_pdf`` and
-                ``sample``; or a list/tuple of them (one per element).
+            distribution: A distribution with ``support``, ``log_pdf`` (or
+                ``log_pmf``) and ``sample``; or a list/tuple of them (one per
+                element).
             shape: ``None`` for a scalar, ``n`` for an i.i.d. vector of length
-                ``n`` (inferred from a distribution list).
+                ``n`` (inferred from a distribution list); not allowed for
+                structured or discrete sites.
             reparam: ``"noncentered"`` samples ``z ~ N(0, 1)`` and returns
                 ``loc + scale z``; only for ``Normal`` sites.
+            marginalize: Sum a finite discrete site out by enumeration. Inside
+                an iteration of :meth:`plate` the site is enumerated with that
+                iteration only; elsewhere it is enumerated jointly with the
+                other such sites by re-running the model.
 
         Returns:
-            A float (scalar site) or a tuple of floats (vector site).
+            A float (scalar site), a tuple of floats (vector site), a tuple of
+            rows (matrix site), or a support value (discrete site).
 
         Raises:
             ModelSpecificationError: For duplicate names, bad shapes, an
-                unsupported support, or an invalid ``reparam``.
+                unsupported or unbounded support, an invalid ``reparam``, or a
+                continuous latent site declared after a discrete one in its
+                scope.
 
         Equation:
-            [EQ-PPL-JOINT-001], [EQ-PPL-NONCENTERED-001].
+            [EQ-PPL-JOINT-001], [EQ-PPL-NONCENTERED-001],
+            [EQ-PPL-TRANSFORM-003], [EQ-PPL-ENUM-001].
 
         References:
             [REF-BINGHAM-ETAL-2019], [REF-CARPENTER-ETAL-2017],
-            [REF-PAPASPILIOPOULOS-ROBERTS-SKOLD-2007].
+            [REF-PAPASPILIOPOULOS-ROBERTS-SKOLD-2007],
+            [REF-STAN-REFERENCE-MANUAL-2-36].
 
         """
         site = self._register(name)
@@ -797,6 +928,12 @@ class ModelHandle:
             self._names.discard(site)
             data = self._conditioned[site]
             return self.observe(site, distribution, data, shape=shape)
+        if marginalize:
+            return self._discrete_site(site, distribution, shape, reparam)
+        structure = structure_for(distribution)
+        if structure is not None:
+            return self._structured_site(site, distribution, structure, shape, reparam)
+        self._check_order(site, "latent")
         size, parts = _elements(distribution, _checked_shape(shape, site), site)
         if reparam is not None:
             if reparam != "noncentered":
@@ -866,7 +1003,7 @@ class ModelHandle:
                         f"site {site!r}: fixed value must be a sequence of "
                         f"length {size}"
                     )
-                return [float(v) for v in fixed]
+                return [float(v) for v in cast(tuple[float, ...], fixed)]
             if self._require_fixed:
                 raise ModelSpecificationError(
                     f"latent site {site!r} has no posterior value"
@@ -905,6 +1042,394 @@ class ModelHandle:
         self.log_jacobian += jacobian
         return values
 
+    def _structured_site(
+        self,
+        site: str,
+        distribution: object,
+        structure: StructuredSupport,
+        shape: object,
+        reparam: str | None,
+    ) -> Any:
+        """Produce a simplex, ordered, correlation, or covariance site.
+
+        References:
+            [EQ-PPL-TRANSFORM-003], [EQ-PPL-TRANSFORM-004],
+            [EQ-PPL-TRANSFORM-005], [EQ-PPL-TRANSFORM-006],
+            [REF-STAN-REFERENCE-MANUAL-2-36].
+
+        """
+        if shape is not None or reparam is not None:
+            raise ModelSpecificationError(
+                f"site {site!r}: shape and reparam do not apply to a structured "
+                f"{structure.kind} site"
+            )
+        self._check_order(site, "latent")
+        size = structure.constrained_size
+        self._check_layout(site, "latent", size)
+        if self._layout is not None:
+            expected = self._layout[self._cursor - 1].structure
+            if expected != structure:
+                raise ModelSpecificationError(
+                    f"model structure changed: site {site!r} has support "
+                    f"{structure} instead of {expected}"
+                )
+        value: Any
+        if self._mode == "generate":
+            if site in self._fixed:
+                value = structure.checked_value(self._fixed[site], site)
+            elif self._require_fixed:
+                raise ModelSpecificationError(
+                    f"latent site {site!r} has no posterior value"
+                )
+            else:
+                assert self._generator is not None
+                value = structure.checked_value(
+                    _draw(distribution, self._generator), site
+                )
+        elif self._mode == "trace":
+            value = structure.forward((0.0,) * structure.free_size).value
+        else:
+            start = self._offset
+            stop = start + structure.free_size
+            if stop > len(self._unconstrained):
+                raise ModelSpecificationError(
+                    "unconstrained vector is shorter than the model dimension"
+                )
+            point = structure.forward(self._unconstrained[start:stop])
+            self._offset = stop
+            self.log_jacobian += point.log_jacobian
+            self.log_prior += structured_log_density(
+                distribution, structure, point, _log_density
+            )
+            value = point.value
+        self.values[site] = value
+        if self._mode == "density":
+            return value
+        self.records.append(
+            SiteInfo(
+                site,
+                "latent",
+                size,
+                type(distribution).__name__,
+                structure,
+                None,
+                None,
+                value,
+                structure=structure,
+                plate=self._plate,
+            )
+        )
+        return value
+
+    def _discrete_site(
+        self,
+        site: str,
+        distribution: object,
+        shape: object,
+        reparam: str | None,
+    ) -> Any:
+        """Produce a discrete site that is summed out by enumeration.
+
+        In ``density`` mode the site takes the value of the current
+        configuration and its log-mass starts (or extends) the enumeration
+        sink of its scope; in ``trace`` mode it takes its first support value;
+        in ``generate`` mode it is fixed by name or drawn from its law.
+
+        References:
+            [EQ-PPL-ENUM-001], [REF-STAN-USERS-GUIDE-2-36],
+            [REF-OBERMEYER-ETAL-2019].
+
+        """
+        if shape is not None or reparam is not None or isinstance(
+            distribution, list | tuple
+        ):
+            raise ModelSpecificationError(
+                f"discrete site {site!r}: only scalar sites with one distribution "
+                "can be marginalized (use a plate for repeated indicators)"
+            )
+        values = finite_support_values(_support_of(distribution, site), site)
+        if values is None:
+            raise ModelSpecificationError(
+                f"site {site!r}: marginalize=True needs a finite discrete support "
+                "(IntegerSupport with both bounds, or FiniteSupport)"
+            )
+        self._check_layout(site, "discrete", None)
+        local = self._plate is not None
+        value: Any
+        if self._mode == "density":
+            if local:
+                assert self._enum is not None
+                index = self._enum.index_for(site, values)
+            else:
+                assert self._layout is not None
+                if self._layout[self._cursor - 1].enumeration != values:
+                    raise ModelSpecificationError(
+                        f"model structure changed: the support of discrete site "
+                        f"{site!r} differs from the traced one"
+                    )
+                index = self._global_assignment[self._global_position]
+                self._global_position += 1
+            value = values[index]
+            term = _log_density(distribution, value)
+            if local:
+                self._local_seen = True
+                sink = self._local_sink
+                self._local_sink = term if sink is None else sink + term
+            else:
+                self._global_seen = True
+                sink = self.discrete_term
+                self.discrete_term = term if sink is None else sink + term
+            return value
+        if self._mode == "generate":
+            if site in self._fixed:
+                value = self._fixed[site]
+                if value not in values:
+                    raise ModelSpecificationError(
+                        f"discrete site {site!r}: fixed value {value!r} is not in "
+                        "the support"
+                    )
+            else:
+                assert self._generator is not None
+                value = _draw(distribution, self._generator)
+        else:
+            value = values[0]
+        if local:
+            self._local_seen = True
+        else:
+            self._global_seen = True
+        self.records.append(
+            SiteInfo(
+                site,
+                "discrete",
+                None,
+                type(distribution).__name__,
+                _support_of(distribution, site),
+                None,
+                None,
+                value,
+                enumeration=values,
+                plate=self._plate,
+            )
+        )
+        return value
+
+    def plate(self, name: str, size: int) -> Iterator[int]:
+        """Iterate over ``size`` conditionally independent replicates.
+
+        ``for i in m.plate("data", n): ...`` runs the loop body once per
+        index in ``trace`` and ``generate`` mode. In ``density`` mode, an
+        iteration that declares discrete sites with ``marginalize=True`` is
+        re-run once per joint configuration of those sites and contributes
+        ``log sum_z exp(terms after the first discrete site)``, so ``n``
+        binary indicators cost ``2 n`` executions of the body instead of the
+        ``2^n`` of joint enumeration. The declaration asserts that iteration
+        ``i`` does not influence iteration ``j``; the loop body must not have
+        side effects other than site declarations, because it is repeated.
+
+        Args:
+            name: Plate name (used in error messages and site records).
+            size: Positive number of iterations.
+
+        Returns:
+            Iterator over ``0, ..., size - 1``.
+
+        Raises:
+            ModelSpecificationError: For an invalid name or size, or a plate
+                nested in another plate.
+
+        Equation:
+            [EQ-PPL-ENUM-001].
+
+        References:
+            [REF-OBERMEYER-ETAL-2019], [REF-BINGHAM-ETAL-2019].
+
+        """
+        if not isinstance(name, str) or not name:
+            raise ModelSpecificationError("plate names must be non-empty strings")
+        if isinstance(size, bool) or not isinstance(size, int) or size < 1:
+            raise ModelSpecificationError(
+                f"plate {name!r}: size must be a positive integer"
+            )
+        if self._plate is not None:
+            raise ModelSpecificationError(
+                f"plate {name!r} is nested in plate {self._plate!r}; nested "
+                "plates are not supported"
+            )
+        return self._plate_iterations(name, size)
+
+    def _plate_iterations(self, name: str, size: int) -> Iterator[int]:
+        """Yield plate indices, enumerating local discrete sites in density mode.
+
+        References:
+            [EQ-PPL-ENUM-001], [REF-OBERMEYER-ETAL-2019].
+
+        """
+        self._plate = name
+        try:
+            for index in range(size):
+                self._local_seen = False
+                if self._mode != "density":
+                    yield index
+                    continue
+                yield from self._enumerated_iteration(index)
+        finally:
+            self._plate = None
+            self._local_seen = False
+            self._local_sink = None
+            self._enum = None
+
+    def _checkpoint(self) -> tuple[Any, ...]:
+        """Return the state to restore before re-running a plate iteration.
+
+        References:
+            [EQ-PPL-ENUM-001]. No new equation is introduced.
+
+        """
+        return (
+            self._cursor,
+            self._offset,
+            len(self._name_log),
+            self.log_prior,
+            self.log_likelihood,
+            self.log_jacobian,
+            self.discrete_term,
+        )
+
+    def _restore(self, checkpoint: tuple[Any, ...]) -> None:
+        """Rewind the handle to a checkpoint taken at an iteration start.
+
+        References:
+            [EQ-PPL-ENUM-001]. No new equation is introduced.
+
+        """
+        (
+            self._cursor,
+            self._offset,
+            names,
+            self.log_prior,
+            self.log_likelihood,
+            self.log_jacobian,
+            self.discrete_term,
+        ) = checkpoint
+        for registered in self._name_log[names:]:
+            self._names.discard(registered)
+        del self._name_log[names:]
+
+    def _enumerated_iteration(self, index: int) -> Iterator[int]:
+        """Run one plate iteration once per configuration of its discrete sites.
+
+        The first pass discovers the discrete sites (all at support index
+        ``0``); every further configuration rewinds the handle to the
+        iteration start and re-runs the body. The terms after the first
+        discrete site of each pass are combined by a log-sum-exp.
+
+        References:
+            [EQ-PPL-ENUM-001], [REF-OBERMEYER-ETAL-2019].
+
+        """
+        checkpoint = self._checkpoint()
+        state = LocalEnumeration()
+        self._enum = state
+        self._local_sink = None
+        yield index
+        if not state.sites:
+            self._enum = None
+            return
+        totals = [self._local_sink]
+        configurations = tuple(
+            itertools.product(*(range(len(values)) for _, values in state.sites))
+        )
+        for configuration in configurations[1:]:
+            self._restore(checkpoint)
+            state.assignment = configuration
+            state.position = 0
+            self._local_sink = None
+            self._local_seen = False
+            yield index
+            if state.position != len(state.sites):
+                raise ModelSpecificationError(
+                    "model structure changed: a plate iteration declared a different "
+                    "number of discrete sites in another enumerated branch"
+                )
+            totals.append(self._local_sink)
+        self._enum = None
+        self._local_sink = None
+        self._local_seen = False
+        if self.enumeration_log is not None:
+            self.enumeration_log.append(
+                EnumerationGroup(
+                    tuple(name for name, _ in state.sites),
+                    tuple(values for _, values in state.sites),
+                    configurations,
+                    tuple(primal(total) for total in totals),
+                )
+            )
+        self._add_likelihood(log_sum_exp(totals))
+
+    def _observe_joint(
+        self, site: str, distribution: Any, value: object, shape: object
+    ) -> Any:
+        """Declare one vector- or matrix-valued observation of a joint law.
+
+        References:
+            [REF-BINGHAM-ETAL-2019]. Equation [EQ-PPL-JOINT-001].
+
+        """
+        if shape is not None:
+            raise ModelSpecificationError(
+                f"observed site {site!r}: shape does not apply to a joint law"
+            )
+        data: Any = None
+        flat: tuple[object, ...] = ()
+        if value is not None:
+            if isinstance(value, str) or not isinstance(value, Sequence):
+                raise ModelSpecificationError(
+                    f"observed site {site!r}: data of a joint law must be a "
+                    "vector or a matrix"
+                )
+            rows = tuple(value)
+            if rows and all(
+                isinstance(r, Sequence) and not isinstance(r, str) for r in rows
+            ):
+                data = tuple(tuple(r) for r in rows)
+                flat = tuple(v for row in data for v in row)
+            else:
+                data = rows
+                flat = rows
+            if not flat:
+                raise ModelSpecificationError(
+                    f"observed site {site!r}: data must be non-empty"
+                )
+        size = len(flat) if flat else None
+        self._check_layout(site, "observed", size)
+        if self._mode == "trace" and value is not None:
+            _check_data(site, flat)
+        if self._mode == "generate":
+            assert self._generator is not None
+            result = _draw(distribution, self._generator)
+        elif value is None:
+            if self._mode == "density":
+                raise ModelSpecificationError(missing_data_message(site))
+            result = None
+        else:
+            if self._mode == "density":
+                self._add_likelihood(_log_density(distribution, data))
+                return data
+            result = data
+        self.records.append(
+            SiteInfo(
+                site,
+                "observed",
+                size,
+                type(distribution).__name__,
+                getattr(distribution, "support", None),
+                None,
+                None,
+                result,
+            )
+        )
+        return result
+
     def observe(
         self,
         name: str,
@@ -915,10 +1440,16 @@ class ModelHandle:
     ) -> Any:
         """Declare an observed random variable and its data.
 
+        A distribution with a ``dimension`` attribute (the laws of
+        :mod:`probstat.multivariate`, such as ``Multinomial`` or
+        ``MultivariateNormal``) is a joint law: ``value`` is then one
+        vector or matrix observation and contributes one ``log_pdf`` (or
+        ``log_pmf``) term.
+
         Args:
             name: Unique site name.
-            distribution: A distribution (shared by all elements) or a list
-                of distributions (one per element).
+            distribution: A distribution (shared by all elements), a list
+                of distributions (one per element), or one joint law.
             value: Observed scalar or sequence; may be ``None`` when the data
                 are supplied later by :func:`condition` or when the model is
                 only simulated.
@@ -942,6 +1473,10 @@ class ModelHandle:
         site = self._register(name)
         if site in self._conditioned:
             value = self._conditioned[site]
+        if not isinstance(distribution, list | tuple) and hasattr(
+            distribution, "dimension"
+        ):
+            return self._observe_joint(site, distribution, value, shape)
         checked_shape = _checked_shape(shape, site)
         data: Any = value
         if value is not None:
@@ -989,7 +1524,7 @@ class ModelHandle:
                 total = 0.0
                 for part, element in zip(parts, elements, strict=True):
                     total += _log_density(part, element)
-                self.log_likelihood += total
+                self._add_likelihood(total)
                 return data
             result = data
         self.records.append(
@@ -1024,6 +1559,7 @@ class ModelHandle:
 
         """
         site = self._register(name)
+        self._check_order(site, "deterministic")
         size: int | None
         density = self._mode == "density"
         if isinstance(value, Sequence) and not isinstance(value, str):
@@ -1161,6 +1697,21 @@ class ModelIR:
 
     model: Model
     sites: tuple[SiteInfo, ...]
+    _global_sizes: tuple[int, ...] = field(init=False, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        """Cache the support sizes of the discrete sites outside plates.
+
+        References:
+            [EQ-PPL-ENUM-001]. No new equation is introduced.
+
+        """
+        sizes = tuple(
+            len(site.enumeration)
+            for site in self.sites
+            if site.kind == "discrete" and site.plate is None
+        )
+        object.__setattr__(self, "_global_sizes", sizes)
 
     # -- structure ---------------------------------------------------------
 
@@ -1203,6 +1754,25 @@ class ModelIR:
         """
         return self._of_kind("deterministic")
 
+    @property
+    def discrete_sites(self) -> tuple[SiteInfo, ...]:
+        """Return the marginalized discrete sites in execution order.
+
+        References:
+            [EQ-PPL-ENUM-001], [REF-STAN-USERS-GUIDE-2-36].
+
+        """
+        return self._of_kind("discrete")
+
+    def _global_configurations(self) -> tuple[tuple[int, ...], ...]:
+        """Return every joint configuration of the discrete sites outside plates.
+
+        References:
+            [EQ-PPL-ENUM-001]. No new equation is introduced.
+
+        """
+        return tuple(itertools.product(*(range(size) for size in self._global_sizes)))
+
     def site(self, name: str) -> SiteInfo:
         """Return the site called ``name``.
 
@@ -1226,7 +1796,7 @@ class ModelIR:
             [REF-CARPENTER-ETAL-2017]. No equation is evaluated.
 
         """
-        return sum(site.length for site in self.latent_sites)
+        return sum(site.free_length for site in self.latent_sites)
 
     @property
     def unconstrained_names(self) -> tuple[str, ...]:
@@ -1238,6 +1808,9 @@ class ModelIR:
         """
         names: list[str] = []
         for site in self.latent_sites:
+            if site.structure is not None:
+                names.extend(site.structure.free_names(site.name))
+                continue
             assert site.bijection is not None
             if site.reparam == "noncentered":
                 names.extend(site.flat_names(f"{site.name}_z"))
@@ -1293,8 +1866,20 @@ class ModelIR:
 
     # -- evaluation --------------------------------------------------------
 
-    def _run_density(self, u: Sequence[float]) -> ModelHandle:
+    def _run_density(
+        self,
+        u: Sequence[float],
+        assignment: tuple[int, ...] | None = None,
+        *,
+        record: bool = False,
+    ) -> ModelHandle:
         """Execute the model in density mode and check its structure.
+
+        Args:
+            u: Unconstrained vector.
+            assignment: Support indices of the discrete sites outside plates
+                (default: the first value of each).
+            record: Whether to record the enumerated plate iterations.
 
         References:
             [EQ-PPL-JOINT-001]. No new equation is introduced.
@@ -1306,16 +1891,97 @@ class ModelIR:
                 f"unconstrained vector has length {len(point)}, expected "
                 f"{self.dimension}"
             )
-        handle = ModelHandle("density", unconstrained=point, layout=self.sites)
+        handle = ModelHandle(
+            "density",
+            unconstrained=point,
+            layout=self.sites,
+            global_assignment=(
+                assignment if assignment is not None else (0,) * len(self._global_sizes)
+            ),
+            record_enumeration=record,
+        )
         self.model(handle)
         handle.finish()
         return handle
+
+    def _enumerated_terms(
+        self, u: Sequence[float]
+    ) -> tuple[ModelHandle, Any]:
+        """Run every global configuration and log-sum-exp the enumerated terms.
+
+        Returns the handle of the first configuration (whose continuous
+        terms and values are shared by all configurations) and
+        ``log sum_c exp(terms after the first global discrete site)``.
+
+        References:
+            [EQ-PPL-ENUM-001], [REF-STAN-USERS-GUIDE-2-36].
+
+        """
+        first: ModelHandle | None = None
+        terms: list[Any] = []
+        for assignment in self._global_configurations():
+            handle = self._run_density(u, assignment)
+            if first is None:
+                first = handle
+            terms.append(handle.discrete_term)
+        assert first is not None
+        return first, log_sum_exp(terms)
+
+    def discrete_conditional(self, u: Sequence[float]) -> DiscreteConditional:
+        """Return the exact conditional law of the discrete sites at ``u``.
+
+        For each joint configuration ``c`` of the discrete sites outside
+        plates, the unnormalized ``log p(c, y | theta)`` and, for each plate
+        iteration, the unnormalized ``log p(z_i, y_i | theta, c)`` of its
+        branches.
+
+        Args:
+            u: Unconstrained vector of floats.
+
+        Returns:
+            The enumeration record used by posterior recovery.
+
+        Raises:
+            ModelSpecificationError: If the model has no discrete sites.
+
+        Equation:
+            [EQ-PPL-ENUM-002].
+
+        References:
+            [REF-STAN-USERS-GUIDE-2-36].
+
+        """
+        if not self.discrete_sites:
+            raise ModelSpecificationError("the model has no discrete sites")
+        globals_ = tuple(
+            site for site in self.discrete_sites if site.plate is None
+        )
+        configurations = self._global_configurations()
+        weights: list[float] = []
+        groups: list[tuple[EnumerationGroup, ...]] = []
+        for assignment in configurations:
+            handle = self._run_density(u, assignment, record=True)
+            term = handle.discrete_term
+            weights.append(0.0 if term is None else primal(term))
+            assert handle.enumeration_log is not None
+            groups.append(tuple(handle.enumeration_log))
+        return DiscreteConditional(
+            tuple(site.name for site in globals_),
+            tuple(site.enumeration for site in globals_),
+            configurations,
+            tuple(weights),
+            tuple(groups),
+        )
 
     def terms(self, u: Sequence[float]) -> LogDensityTerms:
         """Return the prior, likelihood, and Jacobian terms at ``u``.
 
         Numerical failures inside the model propagate here (unlike
         :meth:`log_density`), which makes this the method to debug with.
+        With marginalized discrete sites, ``log_likelihood`` holds the
+        enumerated terms (the discrete log-masses and the observations
+        that follow the first discrete site of a scope) after the
+        log-sum-exp over configurations.
 
         Args:
             u: Unconstrained vector of length :attr:`dimension`.
@@ -1330,6 +1996,14 @@ class ModelIR:
             [REF-CARPENTER-ETAL-2017].
 
         """
+        if self._global_sizes:
+            handle, enumerated = self._enumerated_terms(u)
+            return LogDensityTerms(
+                handle.log_prior,
+                handle.log_likelihood + enumerated,
+                handle.log_jacobian,
+                dict(handle.values),
+            )
         handle = self._run_density(u)
         return LogDensityTerms(
             handle.log_prior,
@@ -1366,12 +2040,18 @@ class ModelIR:
 
         """
         try:
-            handle = self._run_density(u)
+            if self._global_sizes:
+                handle, enumerated = self._enumerated_terms(u)
+            else:
+                handle = self._run_density(u)
+                enumerated = None
         except ModelSpecificationError:
             raise
         except _NUMERIC_ERRORS:
             return -math.inf
         total = handle.log_prior + handle.log_likelihood + handle.log_jacobian
+        if enumerated is not None:
+            total = total + enumerated
         if admath.isnan(total) or total == math.inf:
             return -math.inf
         return total
@@ -1517,7 +2197,11 @@ class ModelIR:
         result: dict[str, SiteValue] = {}
         offset = 0
         for site in self.value_sites:
-            if site.size is None:
+            if site.structure is not None:
+                result[site.name] = site.structure.unflatten(
+                    values[offset : offset + site.length]
+                )
+            elif site.size is None:
                 result[site.name] = float(values[offset])
             else:
                 result[site.name] = tuple(
@@ -1596,8 +2280,10 @@ def flatten(values: Mapping[str, SiteValue], sites: Sequence[SiteInfo]) -> Vecto
     flat: list[float] = []
     for site in sites:
         value = values[site.name]
-        if isinstance(value, tuple):
-            flat.extend(float(v) for v in value)
+        if site.structure is not None:
+            flat.extend(site.structure.flatten(value))
+        elif isinstance(value, tuple):
+            flat.extend(float(v) for v in value)  # type: ignore[arg-type]
         else:
             flat.append(float(value))
     return tuple(flat)
@@ -1638,5 +2324,16 @@ def trace(model: Model) -> ModelIR:
     if unknown:
         raise ModelSpecificationError(
             f"condition() names sites that the model never declares: {unknown}"
+        )
+    configurations = math.prod(
+        len(record.enumeration)
+        for record in handle.records
+        if record.kind == "discrete" and record.plate is None
+    )
+    if configurations > ENUMERATION_LIMIT:
+        raise ModelSpecificationError(
+            f"the discrete sites outside plates have {configurations} joint "
+            f"configurations; at most {ENUMERATION_LIMIT} can be enumerated "
+            "(declare conditionally independent indicators inside m.plate)"
         )
     return ModelIR(model, tuple(handle.records))

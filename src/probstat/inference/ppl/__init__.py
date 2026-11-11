@@ -18,6 +18,15 @@ Metropolis), :func:`fit_advi`, and :func:`laplace` hand that density to the
 existing engines and return draws keyed by site name on the natural scale;
 :func:`prior_predictive`, :func:`posterior_predictive`, and
 :func:`predictive_pvalues` simulate from the model.
+
+Structured latent sites (ADR-0082) take values on a simplex (Dirichlet),
+on ordered vectors (:class:`OrderedVector`), on Cholesky factors of
+correlation matrices and on correlation matrices (LKJ), or on covariance
+matrices (Wishart, inverse Wishart), through the transforms of
+:class:`StructuredSupport`. Scalar discrete sites with a finite support are
+summed out by enumeration with ``m.sample(..., marginalize=True)``, locally
+inside the iterations of ``m.plate`` and jointly elsewhere, and are
+recovered from their exact conditional law (:class:`DiscreteDraws`).
 """
 
 from ._api import (
@@ -30,28 +39,34 @@ from ._api import (
     prior_predictive,
     sample,
 )
+from ._discrete import DiscreteDraws, TruncatedDiscrete
+from ._errors import ModelSpecificationError
 from ._program import (
     Bijection,
     LogDensityTerms,
     ModelHandle,
     ModelIR,
-    ModelSpecificationError,
     SiteInfo,
     bijection_for,
     condition,
     elementwise,
     trace,
 )
+from ._structured import OrderedVector, StructuredSupport
 
 __all__ = [
     "Bijection",
+    "DiscreteDraws",
     "LogDensityTerms",
     "ModelHandle",
     "ModelIR",
     "ModelSpecificationError",
+    "OrderedVector",
     "PosteriorSamples",
     "PredictiveSamples",
     "SiteInfo",
+    "StructuredSupport",
+    "TruncatedDiscrete",
     "bijection_for",
     "condition",
     "elementwise",
