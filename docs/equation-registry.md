@@ -300,7 +300,7 @@ closed two-input contribution.
 - Domain: [EQ-SENS-ANOVA-001].
 - Meaning: all variance involving input `i`, including every interaction; the
   implementation uses the Jansen squared-difference estimator.
-- Code: `sensitivity.estimate_sobol_indices`, `SobolResult.ranking`, and
+- Code: `sensitivity.estimate_sobol_indices`, `sensitivity.SobolResult.ranking`, and
   `SobolResult.negligible_inputs`.
 - Source: [REF-SALTELLI-2010].
 
@@ -774,8 +774,8 @@ epsilon_discretization + epsilon_iterative`.
 
 - Domain: events `A` and `B` in the same probability space.
 - Meaning: subtract the overlap counted once by each marginal probability.
-- Code: `FiniteEvent.union` and `FiniteEvent.intersection`; the probability
-  identity is verified in tests.
+- Code: `probability.FiniteEvent.union` and `FiniteEvent.intersection`; the
+  probability identity is verified in tests.
 - Source: [REF-ROSS-2019, Chapter 2].
 
 ### EQ-PROB-005 — Conditional probability
@@ -784,7 +784,7 @@ epsilon_discretization + epsilon_iterative`.
 
 - Domain: events `A`, `B` with `P(B) > 0`.
 - Meaning: renormalize probability after restricting the sample space to `B`.
-- Code: `FiniteProbabilityMeasure.conditional_probability`.
+- Code: `probability.FiniteProbabilityMeasure.conditional_probability`.
 - Source: [REF-ROSS-2019, Chapter 3].
 
 ### EQ-PROB-006 — Independence criterion
@@ -794,7 +794,7 @@ epsilon_discretization + epsilon_iterative`.
 - Domain: events `A` and `B` in the same probability space.
 - Meaning: knowledge that either event occurred does not alter the probability
   of the other; the product criterion remains valid for zero-probability events.
-- Code: `FiniteProbabilityMeasure.are_independent`.
+- Code: `probability.FiniteProbabilityMeasure.are_independent`.
 - Source: [REF-ROSS-2019, Chapter 3].
 
 ### EQ-PROB-007 — Law of total probability
@@ -805,7 +805,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 - Domain: finite partition with pairwise-disjoint cells, exhaustive union, and
   `P(B_i) > 0` for every cell.
 - Meaning: reconstruct an event probability by conditioning on exhaustive cases.
-- Code: `FiniteProbabilityMeasure.total_probability`.
+- Code: `probability.FiniteProbabilityMeasure.total_probability`.
 - Source: [REF-ROSS-2019, Chapter 3].
 
 ### EQ-PROB-008 — Bayes' rule for two events
@@ -816,7 +816,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
   implementation.
 - Meaning: update a prior probability using evidence likelihood and normalize by
   evidence probability.
-- Code: `FiniteProbabilityMeasure.bayes_probability`.
+- Code: `probability.FiniteProbabilityMeasure.bayes_probability`.
 - Source: [REF-ROSS-2019, Chapter 3].
 
 ### EQ-PROB-009 — Expectation on a finite probability space
@@ -826,7 +826,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 - Domain: non-empty finite `Omega`, normalized mass `p`, and finite real-valued
   function `g`.
 - Meaning: probability-weighted average of a quantity attached to outcomes.
-- Code: `FiniteProbabilityMeasure.expectation`.
+- Code: `probability.FiniteProbabilityMeasure.expectation`.
 - Source: [REF-ROSS-2019, Chapter 4].
 
 ### EQ-COMB-001 — Factorial
@@ -874,7 +874,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 
 - Domain: finite probability space and hashable-valued mapping `X`.
 - Meaning: collect the probability of every source outcome mapped to `x`.
-- Code: `FiniteRandomVariable`, `preimage`, `pmf`, and `distribution`.
+- Code: `probability.FiniteRandomVariable`, `preimage`, `pmf`, and `distribution`.
 - Source: [REF-ROSS-2019, Chapters 4-5].
 
 ### EQ-RV-002 — Transformation of a random variable
@@ -884,7 +884,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 - Domain: finite random variable `X` and deterministic hashable-valued `g`.
 - Meaning: composition changes values while retaining the underlying probability
   measure and outcome ownership.
-- Code: `FiniteRandomVariable.transform`.
+- Code: `probability.FiniteRandomVariable.transform`.
 - Source: [REF-ROSS-2019, Chapter 5].
 
 ### EQ-RV-003 — CDF of a finite real-valued random variable
@@ -893,7 +893,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 
 - Domain: finite real-valued `X` and finite real evaluation point `x`.
 - Meaning: accumulated probability mass through `x`.
-- Code: `FiniteRandomVariable.cdf`.
+- Code: `probability.FiniteRandomVariable.cdf`.
 - Source: [REF-ROSS-2019, Chapters 4-5].
 
 ### EQ-RV-004 — Expectation of a finite random variable
@@ -903,7 +903,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 - Domain: finite real-valued `X`.
 - Meaning: probability-weighted center, whether summed over source outcomes or
   induced values.
-- Code: `FiniteRandomVariable.expectation`.
+- Code: `probability.FiniteRandomVariable.expectation`.
 - Source: [REF-ROSS-2019, Chapters 4-5].
 
 ### EQ-RV-005 — Raw moment
@@ -912,7 +912,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 
 - Domain: finite real-valued `X`, integer `k >= 0`.
 - Meaning: expectation of the `k`th raw power.
-- Code: `FiniteRandomVariable.raw_moment`.
+- Code: `probability.FiniteRandomVariable.raw_moment`.
 - Source: [REF-ROSS-2019, Chapter 4].
 
 ### EQ-RV-006 — Central moment
@@ -921,7 +921,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 
 - Domain: finite real-valued `X`, integer `k >= 0`.
 - Meaning: moment of deviations from the expected value.
-- Code: `FiniteRandomVariable.central_moment`.
+- Code: `probability.FiniteRandomVariable.central_moment`.
 - Source: [REF-ROSS-2019, Chapter 4].
 
 ### EQ-RV-007 — Variance and standard deviation
@@ -930,7 +930,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 
 - Domain: finite real-valued `X`.
 - Meaning: squared spread and its original-unit scale.
-- Code: `FiniteRandomVariable.variance` and `standard_deviation`.
+- Code: `probability.FiniteRandomVariable.variance` and `standard_deviation`.
 - Source: [REF-ROSS-2019, Chapter 4].
 
 ### EQ-RV-008 — Covariance of two finite random variables
@@ -939,7 +939,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 
 - Domain: finite real-valued `X` and `Y` on the same probability measure.
 - Meaning: probability-weighted joint centered movement.
-- Code: `FiniteJointDistribution.covariance`.
+- Code: `probability.FiniteJointDistribution.covariance`.
 - Source: [REF-ROSS-2019, Chapter 6].
 
 ### EQ-RV-009 — Correlation of two finite random variables
@@ -948,7 +948,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 
 - Domain: [EQ-RV-008] with both variances strictly positive.
 - Meaning: dimensionless linear association.
-- Code: `FiniteJointDistribution.correlation`.
+- Code: `probability.FiniteJointDistribution.correlation`.
 - Source: [REF-ROSS-2019, Chapter 6].
 
 ### EQ-RV-010 — Joint PMF
@@ -957,7 +957,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 
 - Domain: finite random variables `X` and `Y` sharing one measure object.
 - Meaning: mass assigned to a pair of simultaneous mapped values.
-- Code: `FiniteJointDistribution`, `joint_pmf`, and `distribution`.
+- Code: `probability.FiniteJointDistribution`, `joint_pmf`, and `distribution`.
 - Source: [REF-ROSS-2019, Chapter 6].
 
 ### EQ-RV-011 — Marginalization of a joint PMF
@@ -966,7 +966,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 
 - Domain: finite joint PMF.
 - Meaning: recover either one-variable law by summing out the other value.
-- Code: `FiniteJointDistribution.first_marginal` and `second_marginal`.
+- Code: `probability.FiniteJointDistribution.first_marginal` and `second_marginal`.
 - Source: [REF-ROSS-2019, Chapter 6].
 
 ### EQ-RV-012 — Conditional PMF from a joint PMF
@@ -975,7 +975,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 
 - Domain: finite joint PMF with `p_Y(y) > 0`.
 - Meaning: renormalize the joint slice at the observed value `y`.
-- Code: `FiniteJointDistribution.conditional_pmf_first_given_second`.
+- Code: `probability.FiniteJointDistribution.conditional_pmf_first_given_second`.
 - Source: [REF-ROSS-2019, Chapter 6].
 
 ### EQ-RV-013 — Random-variable independence
@@ -985,7 +985,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 
 - Domain: finite random variables sharing one probability measure.
 - Meaning: the complete joint law factorizes into its marginal laws.
-- Code: `FiniteJointDistribution.are_independent`.
+- Code: `probability.FiniteJointDistribution.are_independent`.
 - Source: [REF-ROSS-2019, Chapter 6].
 
 ## Generating and characteristic functions
@@ -998,7 +998,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
   polynomial at every finite complex `z`.
 - Meaning: encodes the full discrete law in polynomial coefficients and exposes
   factorial moments through derivatives at one.
-- Code: `FiniteRandomVariable.probability_generating_function`.
+- Code: `probability.FiniteRandomVariable.probability_generating_function`.
 - Source: [REF-ROSS-2019, Section 4.7].
 
 ### EQ-GF-002 — Moment-generating function
@@ -1009,7 +1009,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
   support sum exists everywhere although machine exponentials can overflow.
 - Meaning: exponential transform of the law; derivatives at zero recover raw
   moments when differentiation is justified.
-- Code: `FiniteRandomVariable.moment_generating_function`.
+- Code: `probability.FiniteRandomVariable.moment_generating_function`.
 - Source: [REF-ROSS-2019, Section 4.7].
 
 ### EQ-GF-003 — Characteristic function
@@ -1019,7 +1019,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 - Domain: finite real-valued `X` and finite real `t`.
 - Meaning: bounded Fourier transform of the probability law; unlike an MGF, a
   characteristic function exists for every real-valued probability law.
-- Code: `FiniteRandomVariable.characteristic_function`; characteristic plot.
+- Code: `probability.FiniteRandomVariable.characteristic_function`; characteristic plot.
 - Source: [REF-ROSS-2019, Section 6.5].
 
 ## Descriptive statistics
@@ -1343,7 +1343,8 @@ before exponentiation, with explicit `p=0` and `p=1` limits.
 
 - Domain: `0<=u<=1`; endpoint values are negative and positive infinity.
 - Meaning: generalized inverse normal CDF.
-- Code: `distributions.Normal.quantile` using `statistics.NormalDist.inv_cdf`.
+- Code: `distributions.Normal.quantile`, through the inverse CDF of the Python
+  standard library's `NormalDist`.
 - Source: [REF-PYTHON-STATISTICS].
 
 ## Waiting-count distributions
@@ -1691,7 +1692,7 @@ clipping outside support.
   non-negative included variance components.
 - Meaning: separates parameter, future-observation, and model-discrepancy
   uncertainty; latent prediction omits `sigma_obs^2`.
-- Code: `inference.posterior_predictive` and `PosteriorPredictive.sample`.
+- Code: `inference.posterior_predictive` and `inference.PosteriorPredictive.sample`.
 - Source: [REF-GELMAN-ETAL-2013, Section 6.3] and
   [REF-KENNEDY-OHAGAN-2001].
 
@@ -2633,8 +2634,9 @@ Find `theta` in a sign-changing bracket with
 - Meaning: upper-tail quantiles with full relative accuracy, so the Nataf
   map stays injective for large latent values (FORM at reliability indices
   beyond about 8, where `Phi(z)` rounds to one).
-- Code: `distributions.Normal.isf`, `LogNormal.isf`, `Exponential.isf`,
-  `Weibull.isf`, `Uniform.isf`, and `modeling.JointInput.from_standard_normal`.
+- Code: `distributions.Normal.isf`, `distributions.LogNormal.isf`,
+  `distributions.Exponential.isf`, `distributions.Weibull.isf`,
+  `distributions.Uniform.isf`, and `modeling.JointInput.from_standard_normal`.
 - Source: [REF-NIST-DLMF, Section 7.17] and [REF-PYTHON-STATISTICS].
 
 ## Nonlinear calibration and Markov chain Monte Carlo
@@ -8667,7 +8669,7 @@ sqrt(n))` (regularized lower incomplete gamma, rate-free). Normal:
 - Code: `probability.standardized_mean_cdf`,
   `probability.sample_mean_upper_tail`,
   `probability.sample_mean_two_sided_tail`,
-  `probability.standard_normal_cdf`. Binomial masses use Loader's
+  `probability.limit_theorems.standard_normal_cdf`. Binomial masses use Loader's
   saddle-point form [REF-LOADER-2000], accurate to rounding for any `n`.
 - Source: [REF-CASELLA-BERGER-2002], [REF-NIST-DLMF-GAMMA],
   [REF-LOADER-2000].
@@ -11289,9 +11291,9 @@ measurable iff it is constant on every atom of `F`. The image measure is
 - Domain: finite codomain; values must be target outcomes.
 - Meaning: the law of a random element is the pushforward of the
   underlying measure.
-- Code: `FiniteMeasurableSpace.is_measurable_map`,
+- Code: `probability.FiniteMeasurableSpace.is_measurable_map`,
   `FiniteMeasurableSpace.is_measurable_function`,
-  `FiniteMeasurableSpace.generated_by_map`, `FiniteMeasure.pushforward`.
+  `FiniteMeasurableSpace.generated_by_map`, `probability.FiniteMeasure.pushforward`.
 - Source: [REF-BILLINGSLEY-1995, Section 13], [REF-DURRETT-2019,
   Sections 1.2-1.3].
 
@@ -11306,7 +11308,7 @@ a finite space is simple on the atom partition, so
   `f`.
 - Meaning: expectation is integration against the measure; it is the
   finite case of the Lebesgue integral.
-- Code: `FiniteMeasure.simple_integral`, `FiniteMeasure.integrate`,
+- Code: `probability.FiniteMeasure.simple_integral`, `FiniteMeasure.integrate`,
   `FiniteMeasure.integrate_over`.
 - Source: [REF-BILLINGSLEY-1995, Sections 15-16], [REF-DURRETT-2019,
   Sections 1.4-1.6].
@@ -11322,7 +11324,7 @@ sigma-algebra, and
   (hence integrable).
 - Meaning: independent coordinates and the interchange of the order of
   integration.
-- Code: `FiniteMeasurableSpace.product`, `FiniteMeasure.product`,
+- Code: `probability.FiniteMeasurableSpace.product`, `probability.FiniteMeasure.product`,
   `FiniteMeasure.fubini_check`, `probability.FubiniCheck`.
 - Source: [REF-BILLINGSLEY-1995, Section 18], [REF-DURRETT-2019, Section 1.7].
 
@@ -11336,7 +11338,7 @@ non-negative measurable `g` defines `nu(A) = integral_A g dmu`.
 - Domain: both measures on the same finite measurable space.
 - Meaning: densities, likelihood ratios, and change of measure; the
   derivative is unique only `mu`-almost everywhere.
-- Code: `FiniteMeasure.is_absolutely_continuous_wrt`,
+- Code: `probability.FiniteMeasure.is_absolutely_continuous_wrt`,
   `FiniteMeasure.radon_nikodym_derivative`, `FiniteMeasure.with_density`.
 - Source: [REF-BILLINGSLEY-1995, Sections 16 and 32].
 
@@ -11348,7 +11350,7 @@ If `lambda << nu << mu`, then `d lambda / d mu = (d lambda / d nu)
 - Domain: three measures on one finite measurable space.
 - Meaning: likelihood ratios compose; importance weights for a two-step
   change of measure multiply.
-- Code: verified with `FiniteMeasure.radon_nikodym_derivative` in
+- Code: verified with `probability.FiniteMeasure.radon_nikodym_derivative` in
   `tests/test_measure_theory.py`.
 - Source: [REF-BILLINGSLEY-1995, Section 32].
 
@@ -11364,7 +11366,7 @@ integral_B X dmu` for all `B in G`; tower property
 - Domain: measurable real `X`, `Z`; `H subset G subset F`.
 - Meaning: the best `G`-measurable prediction of `X`, unique almost
   everywhere.
-- Code: `FiniteMeasure.conditional_expectation`,
+- Code: `probability.FiniteMeasure.conditional_expectation`,
   `FiniteMeasure.verify_tower_property`,
   `FiniteMeasure.verify_taking_out_what_is_known`.
 - Source: [REF-BILLINGSLEY-1995, Section 34], [REF-DURRETT-2019, Section 4.1].
@@ -11376,7 +11378,7 @@ supremum attained at the union of atoms where `P(a) > Q(a)`.
 
 - Domain: probability measures on the same finite measurable space.
 - Meaning: the largest disagreement in probability over all events.
-- Code: `FiniteMeasure.total_variation_distance`.
+- Code: `probability.FiniteMeasure.total_variation_distance`.
 - Source: [REF-TSYBAKOV-2009, Chapter 2].
 
 ### EQ-MEAS-010 — Completeness of a statistic on a finite family
@@ -13198,7 +13200,7 @@ so `P(x_t = k | history) = P(theta_k = max_j theta_j | history)`.
 - Domain: known success probabilities (simulation studies only).
 - Meaning: expected reward lost against always playing the best action;
   uniform random play has regret linear in `T`.
-- Code: `risk.bernoulli_bandit` (`BanditRun.cumulative_regret`).
+- Code: `risk.bernoulli_bandit` (`risk.BanditRun.cumulative_regret`).
 - Source: [REF-RUSSO-ETAL-2018, Chapter 3].
 
 ### EQ-SENS-STOCH-001 — Variance decomposition of a stochastic simulator
