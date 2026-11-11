@@ -7,6 +7,12 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+from probstat.foundations.messages import (
+    check_locale,
+    format_number,
+    html_message,
+    message_or,
+)
 from probstat.inference import ConfidenceInterval
 from probstat.validation import CoverageAtLevel
 from probstat.workflow import UQStudy
@@ -438,7 +444,11 @@ def _encode_figure(axes: Any) -> tuple[str, str]:
 
 
 def _stage_sections(
-    study: UQStudy, prefix: str, figures_enabled: bool, level: int
+    study: UQStudy,
+    prefix: str,
+    figures_enabled: bool,
+    level: int,
+    locale: str = "en",
 ) -> tuple[list[str], list[str]]:
     """Return the HTML sections and navigation entries of a study's stages.
 
@@ -447,18 +457,27 @@ def _stage_sections(
         prefix: Anchor and number prefix (``""`` for the top-level study).
         figures_enabled: Whether Matplotlib figures are drawn.
         level: Heading level of the stage titles.
+        locale: Catalogue locale of the prose.
 
     Returns:
         ``(sections, navigation)``.
 
     References:
-        [REF-MATPLOTLIB]. No equation is evaluated.
+        [REF-MATPLOTLIB], [REF-UNICODE-CLDR]. No equation is evaluated.
 
     """
     import html
 
-    surrogate = study.evaluation_kind == "surrogate"
-    noun = "surrogate evaluations" if surrogate else "model evaluations"
+    def say(key: str, **fields: object) -> str:
+        """Return one escaped catalogue sentence in the page locale.
+
+        References:
+            [REF-WHATWG-HTML], [REF-UNICODE-CLDR]. No equation is evaluated.
+
+        """
+        return html_message(key, locale, **fields)
+
+    kind = "surrogate" if study.evaluation_kind == "surrogate" else "forward"
     children: dict[int, list[UQStudy]] = {}
     for index, child in study.children:
         children.setdefault(index, []).append(child)
@@ -468,67 +487,90 @@ def _stage_sections(
         number = f"{prefix}{index}"
         anchor = f"stage-{number.replace('.', '-')}"
         navigation.append(
-            f'<li><a href="#{anchor}">{number}. {html.escape(record.stage)}</a></li>'
+            f'<li><a href="#{anchor}">'
+            + say("study_html.nav_item", number=number, stage=record.stage)
+            + "</a></li>"
         )
-        figures = _stage_figures(record, study) if figures_enabled else []
+        figures = _stage_figures(record, study, locale) if figures_enabled else []
         rows = "".join(
             f"<tr><td>{html.escape(str(key))}</td>"
-            f'<td class="value">{html.escape(_format_value(value))}</td></tr>'
+            f'<td class="value">{html.escape(_format_value(value, locale))}</td></tr>'
             for key, value in record.summary.items()
         )
-        meta = [f"{record.evaluations:,} {noun}"]
+        meta = [say(f"study_html.stage.evaluations.{kind}", count=record.evaluations)]
         if record.failed_evaluations:
-            meta.append(f"{record.failed_evaluations:,} failed")
+            meta.append(say("study_html.stage.failed", count=record.failed_evaluations))
         if record.cache_hits:
-            meta.append(f"{record.cache_hits:,} cache hits")
-        meta.append(f"stream seed {record.seed}")
+            meta.append(say("study_html.stage.cache_hits", count=record.cache_hits))
+        meta.append(say("study_html.stage.seed", seed=record.seed))
         meta.append(
-            f"input law {html.escape(record.input_law)} "
-            f"({html.escape(record.input_law_hash)})"
+            say(
+                "study_html.stage.input_law",
+                label=record.input_law,
+                hash=record.input_law_hash,
+            )
         )
         if not record.complete:
-            meta.append(f"<strong>status: {html.escape(record.status)}</strong>")
+            status = message_or(
+                f"study.status.{record.status}", record.status, locale
+            )
+            meta.append(
+                "<strong>" + say("study_html.stage.status", status=status) + "</strong>"
+            )
         extra = ""
         if record.error:
-            extra += f'<p class="stage-meta">Error: {html.escape(record.error)}</p>'
+            error = say("study.error", error=record.error)
+            extra += f'<p class="stage-meta">{error}</p>'
         if record.settings:
             text = "; ".join(
                 f"{key}={_format_value(value)}"
                 for key, value in record.settings.items()
             )
-            extra += f'<p class="stage-meta">Settings: {html.escape(text)}</p>'
-        for message in record.warnings:
-            extra += f'<p class="warning">Warning: {html.escape(message)}</p>'
+            extra += (
+                '<p class="stage-meta">' + say("study.settings", settings=text) + "</p>"
+            )
+        for warning in record.warnings:
+            extra += (
+                '<p class="warning">'
+                + say("study_html.warning", message=warning)
+                + "</p>"
+            )
+        heading = say(
+            "study.stage_heading", index=number, stage=record.stage, label=record.label
+        )
         sections.append(
             f'<section id="{anchor}">'
-            f"<h{level}>{number}. {html.escape(record.stage)}: "
-            f"{html.escape(record.label)}</h{level}>"
+            f"<h{level}>{heading}</h{level}>"
             f'<p class="stage-meta">{" · ".join(meta)}</p>'
             + extra
             + "".join(figures)
-            + "<table><thead><tr><th>Quantity</th><th>Value</th></tr></thead>"
+            + f"<table><thead><tr><th>{say('study.table.quantity')}</th>"
+            f"<th>{say('study.table.value')}</th></tr></thead>"
             f"<tbody>{rows}</tbody></table></section>"
         )
         for child in children.get(index, []):
             child_sections, _ = _stage_sections(
-                child, f"{number}.", figures_enabled, min(level + 1, 6)
+                child, f"{number}.", figures_enabled, min(level + 1, 6), locale
             )
+            title = say("study_html.child_title", number=number, name=child.name)
+            evaluations = say("study_html.child_meta", count=child.total_evaluations)
             sections.append(
                 '<section class="child">'
-                f"<h{level}>Surrogate study from stage {number}: "
-                f"{html.escape(child.name)}</h{level}>"
-                f'<p class="stage-meta">{child.total_evaluations:,} surrogate '
-                "evaluations (not forward-model evaluations)</p></section>"
+                f"<h{level}>{title}</h{level}>"
+                f'<p class="stage-meta">{evaluations}</p></section>'
             )
             sections.extend(child_sections)
     return sections, navigation
 
 
-def _stage_figures(record: Any, study: UQStudy) -> list[str]:
+def _stage_figures(record: Any, study: UQStudy, locale: str = "en") -> list[str]:
     """Return light/dark ``<figure>`` elements for one stage record.
 
     Each image's ``alt`` text is the generated description of its light
     variant; both variants show the same marks, so one text serves both.
+    Figure titles and descriptions are English; in a page of another
+    language the ``figure`` element declares ``lang="en"`` so assistive
+    technology reads them with English pronunciation (WCAG 2.1 SC 3.1.2).
 
     References:
         [REF-MATPLOTLIB], [REF-W3C-WCAG21-2018], [REF-WHATWG-HTML].
@@ -543,8 +585,9 @@ def _stage_figures(record: Any, study: UQStudy) -> list[str]:
         light = [_encode_figure(axes) for _, axes in _figures_for(record, study)]
     with chart_theme(GRAPHITE):
         dark = [_encode_figure(axes)[0] for _, axes in _figures_for(record, study)]
+    opening = "<figure>" if locale == "en" else '<figure lang="en">'
     return [
-        "<figure><picture>"
+        f"{opening}<picture>"
         f'<source media="(prefers-color-scheme: dark)" srcset="{dark_uri}">'
         f'<img alt="{html.escape(description)}" src="{light_uri}">'
         "</picture></figure>"
@@ -552,7 +595,7 @@ def _stage_figures(record: Any, study: UQStudy) -> list[str]:
     ]
 
 
-def study_html(study: UQStudy) -> str:
+def study_html(study: UQStudy, *, locale: str = "en") -> str:
     """Return a self-contained HTML report of every stage of a study.
 
     Each stage becomes one section with its headline numbers, cost, failed
@@ -572,101 +615,140 @@ def study_html(study: UQStudy) -> str:
     ``nav``, ``main``, and ``footer`` landmarks, and gives every figure a
     text alternative generated from its titles and axes.
 
+    Every sentence comes from the message catalogue (ADR-0085); the English
+    page is unchanged byte for byte. ``locale="tr"`` writes the Turkish page
+    (``lang="tr"``, decimal commas); recorded stage data and the figures stay
+    as recorded.
+
     Args:
         study: Study to render.
+        locale: Catalogue locale (``"en"`` or ``"tr"``); never read from the
+            environment.
 
     Returns:
         HTML document text.
 
+    Raises:
+        ValueError: If the locale is unknown.
+
     References:
-        [REF-MATPLOTLIB], [REF-W3C-WCAG21-2018], [REF-WHATWG-HTML].
-        No equation is evaluated.
+        [REF-MATPLOTLIB], [REF-W3C-WCAG21-2018], [REF-WHATWG-HTML],
+        [REF-UNICODE-CLDR]. No equation is evaluated.
 
     """
-    import html
-
     from .theme import matplotlib_available
+
+    code = check_locale(locale)
+
+    def say(key: str, **fields: object) -> str:
+        """Return one escaped catalogue sentence in the page locale.
+
+        References:
+            [REF-WHATWG-HTML], [REF-UNICODE-CLDR]. No equation is evaluated.
+
+        """
+        return html_message(key, code, **fields)
 
     model = study.model
     figures_enabled = matplotlib_available()
-    sections, navigation = _stage_sections(study, "", figures_enabled, 2)
+    sections, navigation = _stage_sections(study, "", figures_enabled, 2, code)
     shown = navigation[:7]
     more = len(navigation) - len(shown)
     extra = (
-        f'<p class="meta">{more} further stage(s) follow below.</p>' if more > 0 else ""
+        f'<p class="meta">{say("study_html.more_stages", count=more)}</p>'
+        if more > 0
+        else ""
     )
     if not figures_enabled:
-        extra += (
-            '<p class="warning">Figures omitted: Matplotlib is not installed '
-            "(pip install probstat-library[visualization]).</p>"
-        )
+        extra += f'<p class="warning">{say("study_html.figures_omitted")}</p>'
     dependence = (
-        "independent"
+        say("study.dependence.independent")
         if model.inputs.is_independent
-        else f"{model.inputs.copula_family.capitalize()} copula"
+        else say(
+            "study.dependence.copula", family=model.inputs.copula_family.capitalize()
+        )
     )
     info = study.provenance()
     label, law_hash = study.input_law
+    totals = [
+        say("study_html.inputs", names=", ".join(model.inputs.names)),
+        say("study_html.quantities", names=", ".join(model.quantity_names)),
+        dependence,
+        say("study_html.total", count=study.total_evaluations),
+    ]
     failed = study.total_failed_evaluations
-    failed_text = f" · <strong>{failed:,} failed runs</strong>" if failed else ""
+    if failed:
+        totals.append("<strong>" + say("study_html.failed", count=failed) + "</strong>")
     budget = study.evaluation_budget
-    remaining = study.remaining_budget
-    budget_text = (
-        ""
-        if budget is None
-        else f" · budget {budget:,} ({remaining or 0:,} left)"
+    if budget is not None:
+        remaining = study.remaining_budget or 0
+        totals.append(say("study_html.budget", budget=budget, remaining=remaining))
+    law = [
+        say("study_html.input_law", label=label, hash=law_hash),
+        say("study_html.root_seed", seed=study.root_seed),
+    ]
+    software = [
+        say("study_html.library", version=str(info["library_version"])),
+        say("study_html.python", version=str(info["python_version"])),
+        say("study_html.platform", platform=str(info["platform"])),
+        say("study_html.created", created=str(info["created_utc"])),
+    ]
+    title = say("study.title.forward", name=study.name)
+    footer = " ".join(
+        (
+            say("study_html.footer.generated"),
+            say("study_html.footer.reproducible", seed=study.root_seed),
+        )
     )
     return (
-        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        f'<!doctype html><html lang="{code}"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1">'
-        f"<title>UQ study: {html.escape(study.name)}</title>"
+        f"<title>{title}</title>"
         f"<style>{_HTML_STYLE}</style></head><body>"
-        '<a class="skip-link" href="#content">Skip to the stage results</a>'
-        f"<header><h1>UQ study: {html.escape(study.name)}</h1>"
-        f'<p class="meta">Inputs: {html.escape(", ".join(model.inputs.names))} · '
-        f"QoIs: {html.escape(', '.join(model.quantity_names))} · {dependence} · "
-        f"{study.total_evaluations:,} model evaluations{failed_text}{budget_text}"
-        f"<br>Input law: {html.escape(label)} ({html.escape(law_hash)}) · root seed "
-        f"{study.root_seed}<br>probstat {html.escape(str(info['library_version']))}"
-        f" · Python {html.escape(str(info['python_version']))} · "
-        f"{html.escape(str(info['platform']))} · created "
-        f"{html.escape(str(info['created_utc']))} UTC</p></header>"
-        f'<nav aria-label="Stages"><ol>{"".join(shown)}</ol></nav>'
+        f'<a class="skip-link" href="#content">{say("study_html.skip_link")}</a>'
+        f"<header><h1>{title}</h1>"
+        f'<p class="meta">{" · ".join(totals)}<br>{" · ".join(law)}'
+        f"<br>{' · '.join(software)}</p></header>"
+        f'<nav aria-label="{say("study_html.nav_label")}">'
+        f'<ol>{"".join(shown)}</ol></nav>'
         f'<main id="content" tabindex="-1">{extra}'
         + "".join(sections)
-        + "</main><footer>Generated by probstat.workflow.UQStudy. Every number "
-        f"is reproducible from the root seed {study.root_seed} and the stream "
-        "seeds shown.</footer></body></html>"
+        + f"</main><footer>{footer}</footer></body></html>"
     )
 
 
-def _format_value(value: object) -> str:
+def _format_value(value: object, locale: str = "en") -> str:
     """Format a summary value for display.
 
+    Args:
+        value: Recorded summary or settings value.
+        locale: Catalogue locale; floats get its decimal separator.
+
     References:
-        [REF-PYTHON-DATAMODEL]. No equation is evaluated.
+        [REF-PYTHON-DATAMODEL], [REF-UNICODE-CLDR]. No equation is evaluated.
 
     """
     if isinstance(value, float):
-        return f"{value:.6g}"
+        return format_number(value, ".6g", locale)
     return str(value)
 
 
-def write_study_html(study: UQStudy, path: str | Path) -> Path:
+def write_study_html(study: UQStudy, path: str | Path, *, locale: str = "en") -> Path:
     """Write :func:`study_html` to a file.
 
     Args:
         study: Study to render.
         path: Destination ``.html`` path (parents are created).
+        locale: Catalogue locale (``"en"`` or ``"tr"``).
 
     Returns:
         The written path.
 
     References:
-        [REF-MATPLOTLIB]. No equation is evaluated.
+        [REF-MATPLOTLIB], [REF-UNICODE-CLDR]. No equation is evaluated.
 
     """
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(study_html(study), encoding="utf-8")
+    destination.write_text(study_html(study, locale=locale), encoding="utf-8")
     return destination

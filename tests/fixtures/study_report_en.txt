@@ -1,0 +1,130 @@
+# UQ study: report <fixture>
+
+- Inputs: R, S
+- Quantities of interest: g
+- Dependence: Gaussian copula
+- Input law: prior (hash 59be118b643e)
+- Root seed: 20261111
+- Forward-model evaluations: 9,309
+- **Failed evaluations: 17 (0.182% of attempts)**
+- Cache hits (not evaluations): 257
+- Evaluation budget: 50,000 (40,674 remaining)
+- Software: probstat 0.0.test · Python 3.12.0 · TestOS-1.0
+- Created (UTC): 2026-11-11T09:30:00+00:00
+
+## 1. propagation: Monte Carlo propagation of g
+
+Evaluations: 4,096 · stream seed: 4242 · input law: prior (a1b2c3d4)
+
+Settings: size=4096; design=sobol; level=0.95
+
+| Quantity | Value |
+|---|---|
+| g.mean | 1.97531 |
+| g.sd | 0.876 |
+| P(g < 0) | 0.0123 |
+
+## 2. sensitivity: Sobol indices of g
+
+Evaluations: 1,000 · failed: 17 · cache hits: 256 · stream seed: 4242 · input law: prior (a1b2c3d4)
+
+Settings: names=(R, S); bootstrap=40
+
+> **Warning:** bootstrap interval of S_R crosses zero
+
+| Quantity | Value |
+|---|---|
+| mean | 1.23457 |
+| count | 12/20, [0.4, 0.8] |
+
+## 3. reliability: FORM & MC for g < 0
+
+Evaluations: 33 · stream seed: 4242 · input law: prior (a1b2c3d4) · status: **aborted**
+
+Error: RuntimeError: FORM did not converge
+
+| Quantity | Value |
+|---|---|
+
+## 4. risk: Expected loss
+
+Evaluations: 1,000 · stream seed: 4242 · input law: posterior #1 (gaussian_copula) (ffee0011)
+
+| Quantity | Value |
+|---|---|
+| loss | inf |
+| VaR[95%] | 12345.7 |
+| label | a<b |
+
+## 5. screening: Morris screening
+
+Evaluations: 60 · stream seed: 4242 · input law: prior (a1b2c3d4)
+
+| Quantity | Value |
+|---|---|
+| mean | 1.23457 |
+| count | 12/20, [0.4, 0.8] |
+
+## 6. validation: Coverage check
+
+Evaluations: 1,000 · cache hits: 1 · stream seed: 4242 · input law: prior (a1b2c3d4)
+
+| Quantity | Value |
+|---|---|
+| mean | 1.23457 |
+| count | 12/20, [0.4, 0.8] |
+
+## 7. extremes: Peaks over threshold
+
+Evaluations: 1,000 · stream seed: 4242 · input law: prior (a1b2c3d4)
+
+| Quantity | Value |
+|---|---|
+| mean | 1.23457 |
+| count | 12/20, [0.4, 0.8] |
+
+## 8. design: Expected information gain
+
+Evaluations: 1,000 · stream seed: 4242 · input law: prior (a1b2c3d4)
+
+| Quantity | Value |
+|---|---|
+| mean | 1.23457 |
+| count | 12/20, [0.4, 0.8] |
+
+## 9. emulation: PCE surrogate of g
+
+Evaluations: 120 · stream seed: 4242 · input law: prior (a1b2c3d4)
+
+| Quantity | Value |
+|---|---|
+| mean | 1.23457 |
+| count | 12/20, [0.4, 0.8] |
+
+### Surrogate study: capacity surrogate
+
+- Inputs: R, S
+- Quantities of interest: g
+- Dependence: independent
+- Input law: prior (hash 0e50c24ba0bd)
+- Root seed: 7
+- Surrogate evaluations: 1,001,000
+- **Failed evaluations: 2 (0.0002% of attempts)**
+
+#### 1. propagation: Surrogate propagation
+
+Surrogate evaluations: 1,000,000 · stream seed: 4242 · input law: prior (a1b2c3d4)
+
+| Quantity | Value |
+|---|---|
+| mean | 1.23457 |
+| count | 12/20, [0.4, 0.8] |
+
+#### 2. reliability: Surrogate MC
+
+Surrogate evaluations: 1,000 · failed: 2 · stream seed: 4242 · input law: prior (a1b2c3d4)
+
+| Quantity | Value |
+|---|---|
+| mean | 1.23457 |
+| count | 12/20, [0.4, 0.8] |

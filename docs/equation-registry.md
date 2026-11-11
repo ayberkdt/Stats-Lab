@@ -13735,3 +13735,18 @@ proportional to the summand of `c`.
   models not in use that leave the posterior model probabilities
   unchanged), [REF-GODSILL-2001] (pp. 230-248: the composite model space
   that contains the Carlin-Chib method).
+
+### EQ-VIZ-LIK-001 — Binomial likelihood scaled to unit area
+
+`L(p) = p^x (1 - p)^(n - x)` divided by `B(x + 1, n - x + 1)` integrates to
+one on `[0, 1]` and equals the `Beta(x + 1, n - x + 1)` density; it is also
+the posterior under the uniform `Beta(1, 1)` prior.
+
+- Domain: `0 <= x <= n`, `n >= 0` (for `n = 0` the scaled likelihood is the
+  uniform density).
+- Meaning: draws the likelihood on the same density axis as the prior and
+  the posterior, so the three curves of a Beta-Binomial update can be
+  compared directly; the scaling does not change where the likelihood is
+  large.
+- Code: `visualization.interactive.bayesian_updating_explainer`.
+- Source: [REF-GELMAN-ETAL-2013, Chapter 2].

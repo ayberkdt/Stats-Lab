@@ -103,6 +103,27 @@ self-contained page for a `UQStudy`: one section per stage with its numbers,
 cost, stream seed, and figures embedded in both palettes so the page follows
 the reader's light or dark preference.
 
+Both reports take `locale=` (`"en"` by default, `"tr"` for Turkish); the
+text comes from the message catalogue `probstat.foundations.messages`, and
+Turkish numbers use the decimal comma (ADR-0085).
+
+## Interactive explanations
+
+`probstat.visualization.interactive` writes offline HTML explainers: one
+file each, inline SVG in the same palette tokens (light and dark), native
+labelled controls, and an `aria-live` sentence with the current numbers.
+Every number is computed by the library in Python and embedded as JSON; the
+page script only selects among precomputed states (ADR-0085).
+
+| Function | Explains |
+|---|---|
+| `clt_explainer` | exact distance of the standardized exponential mean to the normal law against the Berry-Esseen bound [EQ-LIM-001], [EQ-LIM-003] |
+| `bayesian_updating_explainer` | Beta-Binomial prior, likelihood, posterior; credible or Wilson interval [EQ-REL-DATA-001], [EQ-INF-CI-WILSON-001] |
+| `monte_carlo_error_explainer` | Monte Carlo estimates of `pi` and their 95% bands against `N` for four seeds [EQ-MC-ROOTN-001] |
+
+`examples/interactive_explainers_lab.py` writes all three in English and
+Turkish to `examples/generated/`.
+
 ## Analysis figures
 
 Four modules draw the results of the causal, design, extremes, and

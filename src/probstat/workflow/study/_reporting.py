@@ -14,6 +14,12 @@ from pathlib import Path
 from typing import Self
 
 import probstat
+from probstat.foundations.messages import (
+    check_locale,
+    format_number,
+    message,
+    message_or,
+)
 from probstat.uq import json_safe
 
 from ._base import _StudyBase
@@ -128,7 +134,7 @@ class _ReportingStages(_StudyBase):
         destination.write_text(self.to_json() + "\n", encoding="utf-8")
         return destination
 
-    def report(self) -> str:
+    def report(self, *, locale: str = "en") -> str:
         """Return a Markdown report of every stage with costs and provenance.
 
         The header states the inputs, QoIs, dependence, current input law
@@ -139,98 +145,150 @@ class _ReportingStages(_StudyBase):
         Surrogate studies created by :meth:`emulate` follow their emulation
         stage, with surrogate evaluations labelled as such.
 
+        Every sentence comes from the message catalogue
+        (:mod:`probstat.foundations.messages`, ADR-0085). The English report
+        is unchanged byte for byte; ``locale="tr"`` gives the Turkish report
+        with decimal commas. Stage kinds, labels, summary keys, settings,
+        warnings, and error texts are data recorded by the stages and are
+        shown as recorded.
+
+        Args:
+            locale: Catalogue locale (``"en"`` or ``"tr"``); never read from
+                the environment.
+
         Returns:
             Markdown text: one section per stage with a two-column table.
 
+        Raises:
+            ValueError: If the locale is unknown.
+
         References:
-            [REF-SMITH-UQ-2024, Chapter 1]. No equation is evaluated.
+            [REF-SMITH-UQ-2024, Chapter 1], [REF-UNICODE-CLDR].
+            No equation is evaluated.
 
         """
-        return "\n".join(self._report_lines(1))
+        return "\n".join(self._report_lines(1, check_locale(locale)))
 
-    def _report_lines(self, level: int) -> list[str]:
+    def _report_lines(self, level: int, locale: str = "en") -> list[str]:
         """Return the Markdown lines of this study at a heading level.
 
+        Args:
+            level: Markdown heading level of the study title.
+            locale: Catalogue locale.
+
         References:
-            [REF-SMITH-UQ-2024, Chapter 1]. No equation is evaluated.
+            [REF-SMITH-UQ-2024, Chapter 1], [REF-UNICODE-CLDR].
+            No equation is evaluated.
 
         """
+
+        def say(key: str, **fields: object) -> str:
+            """Return one catalogue sentence in the report locale.
+
+            References:
+                [REF-UNICODE-CLDR]. No equation is evaluated.
+
+            """
+            return message(key, locale, **fields)
+
         hashes = "#" * level
-        forward = self._kind == "forward-model"
-        unit = "Forward-model evaluations" if forward else "Surrogate evaluations"
+        kind = "forward" if self._kind == "forward-model" else "surrogate"
+        inputs = self._model.inputs
         dependence = (
-            "independent"
-            if self._model.inputs.is_independent
-            else f"{self._model.inputs.copula_family.capitalize()} copula"
+            say("study.dependence.independent")
+            if inputs.is_independent
+            else say(
+                "study.dependence.copula", family=inputs.copula_family.capitalize()
+            )
         )
-        title = "UQ study" if forward else "Surrogate study"
+        quantities = ", ".join(self._model.quantity_names)
         lines = [
-            f"{hashes} {title}: {self._name}",
+            f"{hashes} " + say(f"study.title.{kind}", name=self._name),
             "",
-            f"- Inputs: {', '.join(self._model.inputs.names)}",
-            f"- Quantities of interest: {', '.join(self._model.quantity_names)}",
-            f"- Dependence: {dependence}",
-            f"- Input law: {self._law_label} (hash {self._law_hash})",
-            f"- Root seed: {self._root.seed}",
-            f"- {unit}: {self.total_evaluations:,}",
+            "- " + say("report.inputs", names=", ".join(inputs.names)),
+            "- " + say("report.quantities", names=quantities),
+            "- " + say("report.dependence", dependence=dependence),
+            "- " + say("report.input_law", label=self._law_label, hash=self._law_hash),
+            "- " + say("report.root_seed", seed=self._root.seed),
+            "- " + say(f"report.total.{kind}", count=self.total_evaluations),
         ]
         failed = self.total_failed_evaluations
         if failed:
-            attempts = failed + self.total_evaluations
-            lines.append(
-                f"- **Failed evaluations: {failed:,} "
-                f"({100.0 * failed / attempts:.3g}% of attempts)**"
-            )
+            share = 100.0 * failed / (failed + self.total_evaluations)
+            failure = say("report.failed", count=failed, share=share)
+            lines.append(f"- **{failure}**")
         hits = sum(record.cache_hits for record in self._records)
         if hits:
-            lines.append(f"- Cache hits (not evaluations): {hits:,}")
+            lines.append("- " + say("report.cache_hits", count=hits))
         if self._budget is not None:
+            remaining = self.remaining_budget
             lines.append(
-                f"- Evaluation budget: {self._budget:,} "
-                f"({self.remaining_budget:,} remaining)"
+                "- " + say("report.budget", budget=self._budget, remaining=remaining)
             )
         if level == 1:
             info = self.provenance()
-            lines.append(
-                f"- Software: probstat {info['library_version']} · Python "
-                f"{info['python_version']} · {info['platform']}"
+            software = say(
+                "report.software",
+                version=info["library_version"],
+                python=info["python_version"],
+                platform=info["platform"],
             )
-            lines.append(f"- Created (UTC): {info['created_utc']}")
+            lines.append("- " + software)
+            lines.append("- " + say("report.created", created=info["created_utc"]))
         lines.append("")
         children: dict[int, list[Self]] = {}
         for index, child in self._children:
             children.setdefault(index, []).append(child)
-        count_label = "Evaluations" if forward else "Surrogate evaluations"
         for index, record in enumerate(self._records, start=1):
-            lines.append(f"{hashes}# {index}. {record.stage}: {record.label}")
+            heading = say(
+                "study.stage_heading",
+                index=index,
+                stage=record.stage,
+                label=record.label,
+            )
+            lines.append(f"{hashes}# {heading}")
             lines.append("")
-            parts = [f"{count_label}: {record.evaluations:,}"]
+            parts = [say(f"report.stage.evaluations.{kind}", count=record.evaluations)]
             if record.failed_evaluations:
-                parts.append(f"failed: {record.failed_evaluations:,}")
+                failures = record.failed_evaluations
+                parts.append(say("report.stage.failed", count=failures))
             if record.cache_hits:
-                parts.append(f"cache hits: {record.cache_hits:,}")
-            parts.append(f"stream seed: {record.seed}")
-            parts.append(f"input law: {record.input_law} ({record.input_law_hash})")
+                parts.append(say("report.stage.cache_hits", count=record.cache_hits))
+            parts.append(say("report.stage.seed", seed=record.seed))
+            parts.append(
+                say(
+                    "report.stage.input_law",
+                    label=record.input_law,
+                    hash=record.input_law_hash,
+                )
+            )
             if not record.complete:
-                parts.append(f"status: **{record.status}**")
+                status = message_or(
+                    f"study.status.{record.status}", record.status, locale
+                )
+                parts.append(say("report.stage.status", status=f"**{status}**"))
             lines.append(" · ".join(parts))
             if record.error:
-                lines.extend(["", f"Error: {record.error}"])
+                lines.extend(["", say("study.error", error=record.error)])
             if record.settings:
-                lines.extend(["", "Settings: " + _format_settings(record.settings)])
-            for message in record.warnings:
-                lines.extend(["", f"> **Warning:** {message}"])
+                settings = _format_settings(record.settings)
+                lines.extend(["", say("study.settings", settings=settings)])
+            for text in record.warnings:
+                lines.extend(["", f"> **{say('study.warning_label')}** {text}"])
             lines.append("")
-            lines.append("| Quantity | Value |")
+            lines.append(
+                f"| {say('study.table.quantity')} | {say('study.table.value')} |"
+            )
             lines.append("|---|---|")
             for key, value in record.summary.items():
-                text = (
-                    f"{value:.6g}"
+                cell = (
+                    format_number(value, ".6g", locale)
                     if isinstance(value, float) and math.isfinite(value)
                     else str(value)
                 )
-                lines.append(f"| {key} | {text} |")
+                lines.append(f"| {key} | {cell} |")
             lines.append("")
             for child in children.get(index, []):
-                lines.extend(child._report_lines(level + 2))
+                lines.extend(child._report_lines(level + 2, locale))
         return lines
+
