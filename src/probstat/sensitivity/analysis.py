@@ -103,6 +103,11 @@ class SobolResult:
     estimator did not compute second-order indices (a matrix of zeros would
     wrongly claim "no interaction").
 
+    ``sample_size`` is the number of base rows of the design and
+    ``evaluations`` the number of forward-model runs actually performed. The
+    two differ when an evaluation cache answers some design points: a repeated
+    analysis under one cache may report fewer runs than rows, down to zero.
+
     References:
         [REF-SOBOL-1993], [REF-SALTELLI-2010].
 
@@ -150,8 +155,10 @@ class SobolResult:
         evaluations = require_non_negative_integer(
             self.evaluations, name="evaluations"
         )
-        if sample_size < 2 or evaluations < sample_size:
-            raise ValueError("sample_size and evaluations are inconsistent")
+        # Cached design points are not new runs, so ``evaluations`` may be
+        # below ``sample_size``; only the design size has a lower bound.
+        if sample_size < 2:
+            raise ValueError("sample_size must be at least two")
         object.__setattr__(self, "first_order", first)
         object.__setattr__(self, "total_effect", total)
         object.__setattr__(self, "second_order", second)

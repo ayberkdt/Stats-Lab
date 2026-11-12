@@ -229,3 +229,35 @@ class ZeroFailureMonteCarloTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CachedSobolTests(unittest.TestCase):
+    """A Sobol analysis repeated under one evaluation cache is accepted."""
+
+    def test_repeated_analysis_under_a_cache_reuses_runs(self) -> None:
+        """The second run costs no evaluations and gives identical indices.
+
+        Before the fix the result record required ``evaluations >=
+        sample_size`` and rejected the cached repeat with "sample_size and
+        evaluations are inconsistent".
+        """
+        from probstat.distributions import Normal
+        from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
+        from probstat.sensitivity import sobol_analysis
+        from probstat.uq import EvaluationCache, QuantityOfInterest
+
+        inputs = JointInput.independent(
+            RandomInput("a", Normal(0.0, 1.0)), RandomInput("b", Normal(0.0, 1.0))
+        )
+        model = ProbabilisticModel(
+            inputs,
+            lambda p: {"y": p["a"] + 0.5 * p["b"]},
+            (QuantityOfInterest("y", "response", "m"),),
+        )
+        with model.evaluation_context(cache=EvaluationCache()):
+            first = sobol_analysis(model, "y", 64, seed=3)
+            second = sobol_analysis(model, "y", 64, seed=3)
+        self.assertEqual(first.result.evaluations, 64 * 4)
+        self.assertEqual(second.result.evaluations, 0)
+        self.assertEqual(second.result.first_order, first.result.first_order)
+        self.assertEqual(second.result.total_effect, first.result.total_effect)
