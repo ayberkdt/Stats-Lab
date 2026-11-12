@@ -175,8 +175,10 @@ class ShapleyResult:
         input_names: Input names in model order.
         effects: Shapley effects (normalized by the output variance; they sum
             to one by construction).
-        standard_errors: Approximate standard errors of the effects (the
-            uncertainty of the normalizing variance is ignored).
+        standard_errors: Approximate standard errors of the effects: the
+            cost-estimate (and, for ``"random"``, permutation) spread plus a
+            delta-method term for the estimated normalizing variance
+            ([EQ-SENS-SHAPLEY-005]).
         variance: Estimated output variance ``Var Y``.
         method: ``"exact"`` (all subsets) or ``"random"`` (random
             permutations).
@@ -353,10 +355,12 @@ def shapley_effects(
             continuous inputs (the conditional sampler is Gaussian).
 
     Equation:
-        [EQ-SENS-SHAPLEY-001], [EQ-SENS-SHAPLEY-002], [EQ-SENS-SHAPLEY-003].
+        [EQ-SENS-SHAPLEY-001], [EQ-SENS-SHAPLEY-002], [EQ-SENS-SHAPLEY-003],
+        [EQ-SENS-SHAPLEY-005].
 
     References:
-        [REF-SONG-NELSON-STAUM-2016], [REF-OWEN-2014], [REF-IOOSS-PRIEUR-2019].
+        [REF-SONG-NELSON-STAUM-2016], [REF-OWEN-2014], [REF-IOOSS-PRIEUR-2019],
+        [REF-CASELLA-BERGER-2002, Section 5.5.4].
 
     """
     if model.inputs.uses_rosenblatt or (
@@ -466,20 +470,32 @@ def shapley_effects(
         raw = exact_shapley_values(dimension, costs.__getitem__)
         effects = [value / variance for value in raw]
         errors = []
+        # Sh_i = A_i / V + 1/d, where A_i collects the proper-subset costs
+        # (independent of V); the delta method gives
+        # Var Sh_i = Var(A_i) / V^2 + (A_i / V)^2 Var(V) / V^2
+        # ([EQ-SENS-SHAPLEY-005]).
+        full_weight = _subset_weight(dimension - 1, dimension)
         for i in range(dimension):
             accumulated = 0.0
             for key, spread in cost_variances.items():
-                if not key:
+                if not key or key == full:
                     continue
                 if i in key:
                     weight = _subset_weight(len(key) - 1, dimension)
                 else:
                     weight = _subset_weight(len(key), dimension)
                 accumulated += weight * weight * spread
-            errors.append(math.sqrt(accumulated) / variance)
+            ratio = effects[i] - full_weight
+            errors.append(
+                math.sqrt(
+                    accumulated / variance**2
+                    + ratio * ratio * variance_of_variance / variance**2
+                )
+            )
     else:
         permutation_generator = root.child("shapley-permutations").generator()
         contributions: list[list[float]] = [[] for _ in range(dimension)]
+        last_counts = [0] * dimension
         for _ in range(count_permutations):
             order = list(range(dimension))
             permutation_generator.shuffle(order)
@@ -487,16 +503,29 @@ def shapley_effects(
             for position, player in enumerate(order):
                 if position == dimension - 1:
                     current = variance
+                    last_counts[player] += 1
                 else:
                     current, _ = estimate_cost(frozenset(order[: position + 1]))
                 contributions[player].append(current - previous)
                 previous = current
         effects = [math.fsum(c) / count_permutations / variance for c in contributions]
         errors = []
-        for column in contributions:
+        # Sh_i = B_i / V + L_i / m with L_i the permutations ending in i; the
+        # permutation spread gives Var(Sh_i | V) and the delta method adds
+        # (B_i / V)^2 Var(V) / V^2 for the shared variance estimate
+        # ([EQ-SENS-SHAPLEY-005]).
+        for column, effect, last in zip(
+            contributions, effects, last_counts, strict=True
+        ):
             center = math.fsum(column) / len(column)
             spread = math.fsum((c - center) ** 2 for c in column) / (len(column) - 1)
-            errors.append(math.sqrt(spread / len(column)) / variance)
+            ratio = effect - last / count_permutations
+            errors.append(
+                math.sqrt(
+                    spread / len(column) / variance**2
+                    + ratio * ratio * variance_of_variance / variance**2
+                )
+            )
     return ShapleyResult(
         quantity=quantity,
         input_names=joint.names,

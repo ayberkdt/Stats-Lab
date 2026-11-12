@@ -10732,7 +10732,9 @@ Sort by `x_i`, cut into `M` equal-count classes; `SSB = sum_m n_m
 (ybar_m - ybar)^2`, `SST = sum (y_k - ybar)^2`, `SSW = SST - SSB`; raw
 `eta^2 = SSB/SST`; corrected `epsilon^2 = 1 - (n-1)/(n-M) SSW/SST`.
 
-- Domain: i.i.d. rows, `2 <= M <= n/2`; inputs may be dependent.
+- Domain: i.i.d. rows, `2 <= M <= n/2`; inputs may be dependent. Tied
+  `x_i` values stay in one class (a cut inside a run of ties moves to its
+  end), and `M` in the correction is the number `M_i` of classes used.
 - Meaning: `Var(E[Y|X_i])/Var(Y)` from existing runs; the raw ratio is
   biased up by about `(M-1)(1-S_i)/(n-1)`, the class averaging biases it
   down by `O(1/M^2)` for a smooth conditional mean.
@@ -13941,3 +13943,28 @@ that `s` exists.
   conditional posteriors make the sampler efficient),
   [REF-GODSILL-2001] (pp. 230-248: the composite-space sampler and its
   pseudo-priors).
+
+### EQ-SENS-SHAPLEY-005 — Standard error of an estimated Shapley effect
+
+With exact enumeration `Sh_i = A_i / V + 1/d`, where
+`A_i = sum_(J proper, non-empty) w_iJ c_hat(J)` collects the estimated
+costs (signed subset weights `w_iJ`) and `V` is the estimated `Var Y`, which
+also enters `c(D)`. The costs and `V` come from independent draws, so the
+delta method gives
+`Var(Sh_i) ~ sum_J w_iJ^2 Var(c_hat(J)) / V^2 + (A_i / V)^2 Var(V) / V^2`.
+With `m` random permutations `Sh_i = B_i / V + L_i / m` (`L_i` permutations
+that end in `i`, whose last increment is `V - c_hat(P_i)`); the permutation
+spread `s_i^2` of the increments gives `Var(Sh_i | V) ~ s_i^2 / (m V^2)`,
+and the same delta term `(B_i / V)^2 Var(V) / V^2` is added.
+`Var(V) ~ (m_4 - V^2) / N_V` from the `N_V` variance draws.
+
+- Domain: `N_V >= 2`; `N_O >= 2` for exact enumeration (otherwise the cost
+  variances are unknown and the error is `nan`).
+- Meaning: the normalizing variance is shared by every effect, so its
+  sampling error does not average out over subsets or permutations; leaving
+  it out understates the error of the permutation estimator and, for exact
+  enumeration, misstates it in either direction because `V` cancels in part
+  between `c(D)` and the denominator.
+- Code: `sensitivity.shapley_effects`.
+- Source: [REF-SONG-NELSON-STAUM-2016] (the estimators) and
+  [REF-CASELLA-BERGER-2002, Section 5.5.4] (the delta method).
