@@ -222,6 +222,7 @@ def figures(
         plot_reliability_diagram,
         plot_score_comparison,
     )
+    from probstat.visualization.theme import share_limits
 
     print("\nFigures (examples/generated/):")
     diagram = reliability_diagram(
@@ -239,10 +240,13 @@ def figures(
         )
     ]
     pit = {name: u for name, _, _, _, u, _ in table}
-    for name in ("ensemble", "overconfident"):
-        written.append(
-            save(plot_pit_histogram(pit[name]), f"forecast-pit-{name}.png")
-        )
+    # The two PIT histograms are read against each other: one count axis.
+    histograms = {
+        name: plot_pit_histogram(pit[name]) for name in ("ensemble", "overconfident")
+    }
+    share_limits(list(histograms.values()), axis="y")
+    for name, histogram in histograms.items():
+        written.append(save(histogram, f"forecast-pit-{name}.png"))
     written.append(
         save(plot_score_comparison(per_case), "forecast-crps-comparison.png")
     )

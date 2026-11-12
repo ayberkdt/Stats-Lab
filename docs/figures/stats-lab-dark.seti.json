@@ -1,0 +1,678 @@
+{
+ "_aciklama": "Figure-set contract of probstat (ADR-0098), generated from probstat.visualization.theme by tools/generate_figure_set_contract.py; do not edit by hand.",
+ "surum": 1,
+ "dergi": "web",
+ "hedef": "web-640",
+ "ortam": "web",
+ "palet": "graphite",
+ "koyu": true,
+ "etiket_bicimi": "koseli",
+ "cift_kodlama": true,
+ "ondalik_ayirici": ".",
+ "tema": {
+  "canvas": "#141519",
+  "ink": "#F1F0EB",
+  "muted": "#A6A9B1",
+  "rule": "#303339",
+  "accent": "#9BA9F0",
+  "series": [
+   "#2A9E83",
+   "#B67E2A",
+   "#8A78CF",
+   "#CC5F70",
+   "#3F8BCB",
+   "#6A9638"
+  ],
+  "sequential": [
+   "#1E2026",
+   "#1F3F38",
+   "#22604F",
+   "#268266",
+   "#2A9E83",
+   "#7FD3BC"
+  ]
+ },
+ "varliklar": {
+  "observations": {
+   "renk": "#2a9e83",
+   "baglam": false,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 2.0,
+   "rol": "observed",
+   "sira": 0
+  },
+  "simulated": {
+   "renk": "#2a9e83",
+   "baglam": false,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 2.0,
+   "rol": "observed",
+   "sira": 1
+  },
+  "empirical": {
+   "renk": "#2a9e83",
+   "baglam": false,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 2.0,
+   "rol": "observed",
+   "sira": 2
+  },
+  "first-order index": {
+   "renk": "#2a9e83",
+   "baglam": false,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 2.0,
+   "rol": "observed",
+   "sira": 3
+  },
+  "total-effect index": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "D",
+   "cizgi": "-",
+   "kalinlik": 2.0,
+   "rol": "model",
+   "sira": 4
+  },
+  "exact posterior": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": "-",
+   "kalinlik": 2.0,
+   "rol": "model",
+   "sira": 5
+  },
+  "posterior mean": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": "-",
+   "kalinlik": 2.0,
+   "rol": "model",
+   "sira": 6
+  },
+  "filtered mean": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": "-",
+   "kalinlik": 2.0,
+   "rol": "model",
+   "sira": 7
+  },
+  "bias-corrected": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": "-",
+   "kalinlik": 2.0,
+   "rol": "model",
+   "sira": 8
+  },
+  "forecast mean": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": [
+    0.0,
+    [
+     1.0,
+     3.5
+    ]
+   ],
+   "kalinlik": 2.0,
+   "rol": "model",
+   "sira": 9
+  },
+  "AK-MCS": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": "-",
+   "kalinlik": 2.0,
+   "rol": "model",
+   "sira": 10
+  },
+  "FORM": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "D",
+   "cizgi": [
+    0.0,
+    [
+     5.0,
+     3.5
+    ]
+   ],
+   "kalinlik": 1.4,
+   "rol": "model",
+   "sira": 11
+  },
+  "GEV fit": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": [
+    0.0,
+    [
+     5.0,
+     3.5
+    ]
+   ],
+   "kalinlik": 2.0,
+   "rol": "model",
+   "sira": 12
+  },
+  "GPD fit": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": [
+    0.0,
+    [
+     5.0,
+     3.5
+    ]
+   ],
+   "kalinlik": 2.0,
+   "rol": "model",
+   "sira": 13
+  },
+  "Gamma fit": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": [
+    0.0,
+    [
+     5.0,
+     3.5
+    ]
+   ],
+   "kalinlik": 2.0,
+   "rol": "model",
+   "sira": 14
+  },
+  "LogNormal fit": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": [
+    0.0,
+    [
+     5.0,
+     3.5
+    ]
+   ],
+   "kalinlik": 2.0,
+   "rol": "model",
+   "sira": 15
+  },
+  "Weibull fit": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": [
+    0.0,
+    [
+     5.0,
+     3.5
+    ]
+   ],
+   "kalinlik": 2.0,
+   "rol": "model",
+   "sira": 16
+  },
+  "smoothed": {
+   "renk": "#cc5f70",
+   "baglam": false,
+   "isaret": "^",
+   "cizgi": [
+    0.0,
+    [
+     5.0,
+     3.5
+    ]
+   ],
+   "kalinlik": 2.0,
+   "rol": "series-4",
+   "sira": 17
+  },
+  "design point": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 2.0,
+   "rol": "model",
+   "sira": 18
+  },
+  "failed samples": {
+   "renk": "#2a9e83",
+   "baglam": false,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 2.0,
+   "rol": "observed",
+   "sira": 19
+  },
+  "limit state": {
+   "renk": "#9ba9f0",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": "-",
+   "kalinlik": 1.68,
+   "rol": "reference",
+   "sira": 20
+  },
+  "truth": {
+   "renk": "#9ba9f0",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": [
+    0.0,
+    [
+     3.5,
+     3.0
+    ]
+   ],
+   "kalinlik": 1.2,
+   "rol": "reference",
+   "sira": 21
+  },
+  "closed form": {
+   "renk": "#9ba9f0",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": [
+    0.0,
+    [
+     3.5,
+     3.0
+    ]
+   ],
+   "kalinlik": 1.2,
+   "rol": "reference",
+   "sira": 22
+  },
+  "Berry-Esseen bound": {
+   "renk": "#9ba9f0",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": [
+    0.0,
+    [
+     3.5,
+     3.0
+    ]
+   ],
+   "kalinlik": 1.2,
+   "rol": "reference",
+   "sira": 23
+  },
+  "Monte Carlo reference": {
+   "renk": "#9ba9f0",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": [
+    0.0,
+    [
+     3.5,
+     3.0
+    ]
+   ],
+   "kalinlik": 1.2,
+   "rol": "reference",
+   "sira": 24
+  },
+  "threshold": {
+   "renk": "#9ba9f0",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": [
+    0.0,
+    [
+     3.5,
+     3.0
+    ]
+   ],
+   "kalinlik": 1.2,
+   "rol": "reference",
+   "sira": 25
+  },
+  "perfect reliability": {
+   "renk": "#9ba9f0",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": [
+    0.0,
+    [
+     3.5,
+     3.0
+    ]
+   ],
+   "kalinlik": 1.2,
+   "rol": "reference",
+   "sira": 26
+  },
+  "uniform design": {
+   "renk": "#a6a9b1",
+   "baglam": true,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 1.4,
+   "rol": "context",
+   "sira": 27
+  },
+  "simulator only": {
+   "renk": "#a6a9b1",
+   "baglam": true,
+   "isaret": "o",
+   "cizgi": [
+    0.0,
+    [
+     5.0,
+     3.5
+    ]
+   ],
+   "kalinlik": 1.4,
+   "rol": "context",
+   "sira": 28
+  },
+  "calibration": {
+   "renk": "#a6a9b1",
+   "baglam": true,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 1.4,
+   "rol": "context",
+   "sira": 29
+  },
+  "safe samples": {
+   "renk": "#a6a9b1",
+   "baglam": true,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 2.0,
+   "rol": "context",
+   "sira": 30
+  },
+  "beta circle": {
+   "renk": "#a6a9b1",
+   "baglam": true,
+   "isaret": "o",
+   "cizgi": [
+    0.0,
+    [
+     1.0,
+     2.5
+    ]
+   ],
+   "kalinlik": 1.4,
+   "rol": "context",
+   "sira": 31
+  },
+  "chain 1": {
+   "renk": "#8a78cf",
+   "baglam": false,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 0.7,
+   "rol": "series-3",
+   "sira": 32
+  },
+  "chain 2": {
+   "renk": "#cc5f70",
+   "baglam": false,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 0.7,
+   "rol": "series-4",
+   "sira": 33
+  },
+  "chain 3": {
+   "renk": "#3f8bcb",
+   "baglam": false,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 0.7,
+   "rol": "series-5",
+   "sira": 34
+  },
+  "chain 4": {
+   "renk": "#6a9638",
+   "baglam": false,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 0.7,
+   "rol": "series-6",
+   "sira": 35
+  },
+  "ideal": {
+   "renk": "#2a9e83",
+   "baglam": false,
+   "isaret": "o",
+   "cizgi": "-",
+   "kalinlik": 1.4,
+   "rol": "observed",
+   "sira": 36
+  },
+  "ensemble": {
+   "renk": "#b67e2a",
+   "baglam": false,
+   "isaret": "s",
+   "cizgi": "-",
+   "kalinlik": 1.4,
+   "rol": "model",
+   "sira": 37
+  },
+  "overconfident": {
+   "renk": "#cc5f70",
+   "baglam": false,
+   "isaret": "^",
+   "cizgi": "-",
+   "kalinlik": 1.4,
+   "rol": "series-4",
+   "sira": 38
+  },
+  "climatology": {
+   "renk": "#3f8bcb",
+   "baglam": false,
+   "isaret": "D",
+   "cizgi": "-",
+   "kalinlik": 1.4,
+   "rol": "series-5",
+   "sira": 39
+  }
+ },
+ "nicelikler": {
+  "count": {
+   "etiket": "Count",
+   "birim": null,
+   "eksen": "y",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "cumulative_probability": {
+   "etiket": "Cumulative probability",
+   "birim": null,
+   "eksen": "y",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "density": {
+   "etiket": "Density",
+   "birim": null,
+   "eksen": "y",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "empirical_coverage": {
+   "etiket": "Empirical coverage",
+   "birim": null,
+   "eksen": "y",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "estimate": {
+   "etiket": "Estimate",
+   "birim": null,
+   "eksen": "y",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "exceedance_probability": {
+   "etiket": "Exceedance probability",
+   "birim": null,
+   "eksen": "y",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "failure_probability": {
+   "etiket": "Failure probability",
+   "birim": null,
+   "eksen": "serbest",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "kolmogorov_distance": {
+   "etiket": "Kolmogorov distance",
+   "birim": null,
+   "eksen": "y",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "model_evaluations": {
+   "etiket": "Number of model evaluations",
+   "birim": null,
+   "eksen": "x",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "nominal_coverage": {
+   "etiket": "Nominal coverage",
+   "birim": null,
+   "eksen": "x",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "pit_value": {
+   "etiket": "PIT value",
+   "birim": null,
+   "eksen": "x",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "posterior_density": {
+   "etiket": "Posterior density",
+   "birim": null,
+   "eksen": "y",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "probability_mass": {
+   "etiket": "Probability mass",
+   "birim": null,
+   "eksen": "y",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "sample_size": {
+   "etiket": "Sample size N",
+   "birim": null,
+   "eksen": "x",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "smallest_learning_value": {
+   "etiket": "Smallest learning value U",
+   "birim": null,
+   "eksen": "y",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "time": {
+   "etiket": "Time",
+   "birim": null,
+   "eksen": "x",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "decay_rate": {
+   "etiket": "k",
+   "birim": null,
+   "eksen": "serbest",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  },
+  "variance_share": {
+   "etiket": "Share of output variance",
+   "birim": null,
+   "eksen": "x",
+   "sinir": null,
+   "olcek": null,
+   "bicim": null
+  }
+ },
+ "siralar": {
+  "forecasters": [
+   "ideal",
+   "ensemble",
+   "overconfident",
+   "climatology"
+  ],
+  "chains": [
+   "chain 1",
+   "chain 2",
+   "chain 3",
+   "chain 4"
+  ],
+  "reliability methods": [
+   "FORM",
+   "SORM-Breitung",
+   "SORM-HR",
+   "Importance sampling",
+   "Cross-entropy importance sampling",
+   "Subset simulation",
+   "Line sampling",
+   "Monte Carlo"
+  ],
+  "sampling designs": [
+   "Monte Carlo",
+   "Latin hypercube",
+   "Halton (RQMC)",
+   "Sobol (RQMC)"
+  ]
+ },
+ "yontem_adlari": {
+  "MC": "Monte Carlo",
+  "IS": "Importance sampling",
+  "CE-IS": "Cross-entropy importance sampling",
+  "Subset": "Subset simulation",
+  "Line": "Line sampling"
+ },
+ "haritalar": {},
+ "figurler": {}
+}

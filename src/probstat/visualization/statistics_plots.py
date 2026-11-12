@@ -9,6 +9,7 @@ from typing import Any
 from probstat.statistics import gaussian_kde, quantile
 
 from .theme import (
+    CONTEXT_WIDTH,
     MAX_BAND_ALPHA,
     PROJECTED,
     active_palette,
@@ -128,7 +129,7 @@ def plot_forecast(
     n = len(history)
     past = list(range(1, n + 1))
     future = list(range(n, n + len(mean) + 1))
-    line(axes, past, history, color=palette.observed, width=1.6)
+    line(axes, past, history, color=palette.observed)
     band(
         axes,
         future,
@@ -369,11 +370,13 @@ def plot_distribution_comparison(
             linewidth=0.0,
         )
         axes.plot(
-            [index + h * scale for h in heights], grid, color=colour, linewidth=1.5
-        )
+            [index + h * scale for h in heights], grid, color=colour,
+            linewidth=CONTEXT_WIDTH,
+        )  # fmt: skip
         axes.plot(
-            [index - h * scale for h in heights], grid, color=colour, linewidth=1.5
-        )
+            [index - h * scale for h in heights], grid, color=colour,
+            linewidth=CONTEXT_WIDTH,
+        )  # fmt: skip
         q1, q2, q3 = (quantile(values, level) for level in (0.25, 0.5, 0.75))
         iqr = q3 - q1
         inside = [v for v in values if q1 - 1.5 * iqr <= v <= q3 + 1.5 * iqr]

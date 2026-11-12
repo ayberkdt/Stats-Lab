@@ -24,11 +24,11 @@ from probstat.information import (
 
 from .theme import (
     ANNOTATION_SIZE,
-    REFERENCE,
-    REFERENCE_WIDTH,
     active_palette,
     axis_labels,
     direct_labels,
+    entity_colour,
+    line,
     new_axes,
     themed,
     title_block,
@@ -94,14 +94,7 @@ def plot_estimator_check(
     spreads = [statistics.stdev(group) for group in replicates]
     exact_values = [exact(x) for x in xs]
     fine = [xs[0] + (xs[-1] - xs[0]) * k / 200 for k in range(201)]
-    axes.plot(
-        fine,
-        [exact(x) for x in fine],
-        color=palette.accent,
-        linewidth=REFERENCE_WIDTH + 0.3,
-        linestyle=REFERENCE,
-        zorder=2,
-    )
+    line(axes, fine, [exact(x) for x in fine], entity="closed form", zorder=2)
     axes.vlines(
         xs,
         [m - s for m, s in zip(means, spreads, strict=True)],
@@ -124,7 +117,7 @@ def plot_estimator_check(
     direct_labels(
         axes,
         [
-            (xs[-1], exact_values[-1], "closed form", palette.accent),
+            (xs[-1], exact_values[-1], "closed form", entity_colour("closed form")),
             (
                 xs[-1],
                 means[-1] - spreads[-1],

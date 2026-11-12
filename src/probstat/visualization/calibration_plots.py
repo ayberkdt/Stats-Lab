@@ -13,6 +13,9 @@ The functions take :class:`~probstat.inverse.DiscrepancyCalibration` and the
   not a new hue; an extra hue band reads as a third series, the "olive
   blob" failure);
 * a supplied truth is a reference curve in the accent colour.
+
+Every colour comes from the entity table of the figure-set contract
+(ADR-0098), so the same entity looks the same in every figure.
 """
 
 from __future__ import annotations
@@ -24,14 +27,12 @@ from typing import Any
 from probstat.inverse import DiscrepancyCalibration, DiscrepancyPrediction
 
 from .theme import (
-    FITTED,
     INNER_BAND_ALPHA,
-    REFERENCE,
-    REFERENCE_WIDTH,
     active_palette,
     axis_labels,
     band,
     direct_labels,
+    entity_colour,
     line,
     new_axes,
     points,
@@ -248,14 +249,12 @@ def plot_discrepancy_predictions(
     simulator = [item.interval(level, kind="simulator") for item in predictions]
     corrected = [item.interval(level, kind="corrected") for item in predictions]
     axes = new_axes(ax)
-    palette = active_palette()
-    simulator_colour = palette.muted
     band(
         axes,
         xs,
         [low for low, _ in simulator],
         [high for _, high in simulator],
-        color=simulator_colour,
+        entity="simulator only",
         alpha=INNER_BAND_ALPHA,
     )
     band(
@@ -263,27 +262,20 @@ def plot_discrepancy_predictions(
         xs,
         [low for low, _ in corrected],
         [high for _, high in corrected],
-        color=palette.model,
+        entity="bias-corrected",
     )
     simulator_mean = [item.simulator_mean for item in predictions]
     corrected_mean = [item.corrected_mean for item in predictions]
-    line(axes, xs, simulator_mean, color=simulator_colour, dashes=FITTED, width=1.6)
-    line(axes, xs, corrected_mean, color=palette.model)
+    line(axes, xs, simulator_mean, entity="simulator only")
+    line(axes, xs, corrected_mean, entity="bias-corrected")
     labels = [
-        (xs[-1], corrected_mean[-1], "bias-corrected", palette.model),
-        (xs[-1], simulator_mean[-1], "simulator only", simulator_colour),
+        (xs[-1], corrected_mean[-1], "bias-corrected", entity_colour("bias-corrected")),
+        (xs[-1], simulator_mean[-1], "simulator only", entity_colour("simulator only")),
     ]
     if values is not None:
-        axes.plot(
-            xs,
-            values,
-            color=palette.accent,
-            linewidth=REFERENCE_WIDTH,
-            linestyle=REFERENCE,
-            zorder=2,
-        )
-        labels.append((xs[-1], values[-1], "truth", palette.accent))
-    points(axes, observed_x, calibration.observed, color=palette.observed, size=26.0)
+        line(axes, xs, values, entity="truth", zorder=2)
+        labels.append((xs[-1], values[-1], "truth", entity_colour("truth")))
+    points(axes, observed_x, calibration.observed, entity="observations", size=26.0)
     axes.set_xlim(min(xs[0], *observed_x), max(xs[-1], *observed_x))
     axis_labels(axes, input_name, name or calibration.quantity)
     direct_labels(axes, labels)
@@ -371,22 +363,15 @@ def plot_discrepancy_estimate(
         xs,
         [low for low, _ in limits],
         [high for _, high in limits],
-        color=palette.model,
+        entity="posterior mean",
     )
-    line(axes, xs, means, color=palette.model)
-    labels = [(xs[-1], means[-1], "posterior delta(x)", palette.model)]
+    line(axes, xs, means, entity="posterior mean")
+    labels = [(xs[-1], means[-1], "posterior mean", entity_colour("posterior mean"))]
     if values is not None:
-        axes.plot(
-            xs,
-            values,
-            color=palette.accent,
-            linewidth=REFERENCE_WIDTH,
-            linestyle=REFERENCE,
-            zorder=2,
-        )
-        labels.append((xs[-1], values[-1], "true delta(x)", palette.accent))
+        line(axes, xs, values, entity="truth", zorder=2)
+        labels.append((xs[-1], values[-1], "truth", entity_colour("truth")))
     axes.set_xlim(xs[0], xs[-1])
-    axis_labels(axes, input_name, "Discrepancy delta(x)")
+    axis_labels(axes, input_name, "Discrepancy")
     direct_labels(axes, labels)
     excluded = sum(low > 0.0 or high < 0.0 for low, high in limits)
     worst = max(range(len(means)), key=lambda i: abs(means[i]))
@@ -401,8 +386,8 @@ def plot_discrepancy_estimate(
             f"the range; the bias peaks at {means[worst]:+.3g}"
         )
     subtitle = (
-        f"Line and band: posterior mean and {level:.0%} interval of delta, "
-        "including parameter uncertainty"
+        f"Line and band: posterior mean and {level:.0%} interval of the "
+        "discrepancy delta(x), including parameter uncertainty"
     )
     if values is not None:
         covered = sum(

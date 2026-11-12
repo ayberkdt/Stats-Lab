@@ -394,7 +394,7 @@ def plot_effect_measures(
     bottom.set_xticklabels([f"{tick:g}" for tick in ticks])
     reference_line(bottom, x=1.0, label="no effect")
     axis_labels(top, "Risk difference", None)
-    axis_labels(bottom, "Ratio (log scale)", None)
+    axis_labels(bottom, "Ratio", None)
     excludes = [
         name for _, name, _, lower, upper, null in entries if not lower <= null <= upper
     ]

@@ -600,6 +600,7 @@ def render_figures(results: CaseStudies, output: Path) -> tuple[Path, ...]:
 
     from probstat.visualization import plot_fitted_cdf, save_figure
     from probstat.visualization.fit_plots import plot_qq, plot_rootogram
+    from probstat.visualization.theme import axis_labels
 
     written: list[Path] = []
     for case, stem, label in (
@@ -633,8 +634,8 @@ def render_figures(results: CaseStudies, output: Path) -> tuple[Path, ...]:
         NEWCOMB_PASSAGE_TIMES.values(),
         normal.distribution,
         model_label="normal",
-        value_label="Passage time - 24800 ns",
-        quantile_label="Fitted normal quantile - 24800 ns",
+        value_label="Passage time deviation [ns]",
+        quantile_label="Fitted normal quantile [ns]",
         unit="ns",
     )
     _frame(axes)
@@ -642,7 +643,7 @@ def render_figures(results: CaseStudies, output: Path) -> tuple[Path, ...]:
     plt.close(axes.figure)
     best = results.bearings[0].fit
     axes = plot_fitted_cdf(LIEBLEIN_ZELEN_BALL_BEARINGS.values(), best.distribution)
-    axes.set_xlabel("Endurance (millions of revolutions)")
+    axis_labels(axes, "Endurance", x_unit="million revolutions")
     _frame(axes)
     written.append(save_figure(axes.figure, output / "real-data-bearing-cdf.png"))
     plt.close(axes.figure)

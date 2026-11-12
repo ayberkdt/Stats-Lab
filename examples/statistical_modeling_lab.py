@@ -134,7 +134,7 @@ def main() -> None:
         print(f"{name}: {below} of {len(values)} below the 49 MPa limit")
     axes = plot_distribution_comparison(
         strengths,
-        value_label="Tensile strength (MPa)",
+        value_label="Tensile strength [MPa]",
         reference=49.0,
         reference_label="lower spec limit",
     )
@@ -217,7 +217,7 @@ def main() -> None:
     axes = plot_survival_curves(
         curves,
         test_label=f"log-rank p = {test.p_value:.3g}",
-        time_label="Time (years)",
+        time_label="Time to event [years]",
     )
     save_figure(axes.figure, output / "modeling-survival.png")
     plt.close(axes.figure)

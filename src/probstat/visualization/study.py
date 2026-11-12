@@ -31,7 +31,7 @@ from .stage_plots import (
     plot_posterior_marginals,
     plot_tail_analysis,
 )
-from .theme import pyplot, save_figure
+from .theme import axis_title, pyplot, save_figure
 from .uq import (
     plot_loss_exceedance,
     plot_method_comparison,
@@ -183,7 +183,7 @@ def _figures_for(record: Any, study: UQStudy | None = None) -> list[tuple[str, A
                 "morris",
                 plot_method_comparison(
                     entries,
-                    quantity_label="mu* (mean absolute elementary effect)",
+                    quantity_label="Mean absolute elementary effect mu*",
                     title=f"{result.ranking()[0]} has the largest elementary effects",
                     subtitle="Morris screening on the unit scale of each input",
                 ),
@@ -201,9 +201,11 @@ def _figures_for(record: Any, study: UQStudy | None = None) -> list[tuple[str, A
                 result.quantity,
                 plot_method_comparison(
                     entries,
-                    quantity_label="Shapley effect (share of output variance)",
+                    quantity_label=axis_title("variance_share"),
                     title=f"{result.ranking()[0]} carries the largest Shapley share",
-                    subtitle="Dot: effect. Whisker: about 95% Monte Carlo interval",
+                    subtitle=(
+                        "Dot: Shapley effect. Whisker: about 95% Monte Carlo interval"
+                    ),
                 ),
             )
         ]

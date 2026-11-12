@@ -19,14 +19,14 @@ from probstat.risk.extremes import GPDFit, MeanResidualLifePoint, ReturnLevel
 
 from ._layout import wrapped_title_block
 from .theme import (
+    ENTITY_STYLES,
     FITTED,
     PROJECTED,
-    REFERENCE,
-    REFERENCE_WIDTH,
     active_palette,
     axis_labels,
     band,
     direct_labels,
+    entity_colour,
     line,
     new_axes,
     points,
@@ -88,7 +88,7 @@ def plot_return_levels(
     *,
     truth: Sequence[float] | None = None,
     headline_period: float | None = None,
-    model_label: str = "fitted GEV",
+    model_label: str = "GEV fit",
     period_unit: str = "year",
     name: str = "Return level",
     ax: Any | None = None,
@@ -139,6 +139,11 @@ def plot_return_levels(
     record = len(maxima)
     axes = new_axes(ax)
     palette = active_palette()
+    # The fitted family is a model entity (ADR-0098); its fitted part is
+    # dashed, its extrapolation dotted.
+    fit_colour = (
+        entity_colour(model_label) if model_label in ENTITY_STYLES else palette.model
+    )
     finite = [
         entry
         for entry in levels
@@ -150,13 +155,13 @@ def plot_return_levels(
             [entry.return_period for entry in finite],
             [entry.lower for entry in finite],
             [entry.upper for entry in finite],
-            color=palette.model,
+            color=fit_colour,
         )
     estimates = [entry.level for entry in levels]
     split = sum(period <= record for period in periods)
     if split:
         line(
-            axes, periods[:split], estimates[:split], color=palette.model, dashes=FITTED
+            axes, periods[:split], estimates[:split], color=fit_colour, dashes=FITTED
         )
     if split < len(periods):
         start = max(split - 1, 0)
@@ -164,19 +169,12 @@ def plot_return_levels(
             axes,
             periods[start:],
             estimates[start:],
-            color=palette.model,
+            color=fit_colour,
             dashes=PROJECTED,
         )
     if truth is not None:
-        axes.plot(
-            periods,
-            list(truth),
-            color=palette.accent,
-            linewidth=REFERENCE_WIDTH,
-            linestyle=REFERENCE,
-            zorder=2,
-        )
-    points(axes, hazen_return_periods(record), maxima, color=palette.observed)
+        line(axes, periods, list(truth), entity="truth", zorder=2)
+    points(axes, hazen_return_periods(record), maxima, entity="observations")
     axes.set_xscale("log")
     _plain_log_axis(axes.xaxis)
     axes.set_xlim(1.0, periods[-1] * 1.05)
@@ -186,15 +184,15 @@ def plot_return_levels(
         label=f"record: {record} {period_unit}s",
         color=palette.muted,
     )
-    axis_labels(axes, f"Return period [{period_unit}s, log scale]", name)
-    labels = [(periods[-1], estimates[-1], model_label, palette.model)]
+    axis_labels(axes, "Return period", name, x_unit=f"{period_unit}s")
+    labels = [(periods[-1], estimates[-1], model_label, fit_colour)]
     if finite and finite[-1] is levels[-1]:
         confidence = levels[-1].confidence
         labels.append(
-            (periods[-1], levels[-1].upper, f"{confidence:.0%} interval", palette.model)
+            (periods[-1], levels[-1].upper, f"{confidence:.0%} interval", fit_colour)
         )
     if truth is not None:
-        labels.append((periods[-1], truth[-1], "true", palette.accent))
+        labels.append((periods[-1], truth[-1], "truth", entity_colour("truth")))
     direct_labels(axes, labels)
     if headline_period is None:
         eligible = [p for p in periods if p <= 10.0 * record]
@@ -303,10 +301,10 @@ def plot_mean_residual_life(
     palette = active_palette()
     us = [p.threshold for p in mrl]
     band(
-        axes, us, [p.lower for p in mrl], [p.upper for p in mrl], color=palette.observed
+        axes, us, [p.lower for p in mrl], [p.upper for p in mrl], entity="empirical"
     )
-    line(axes, us, [p.mean_excess for p in mrl], color=palette.observed)
-    labels = [(us[-1], mrl[-1].mean_excess, "empirical e(u)", palette.observed)]
+    line(axes, us, [p.mean_excess for p in mrl], entity="empirical")
+    labels = [(us[-1], mrl[-1].mean_excess, "empirical", entity_colour("empirical"))]
     title = (
         f"Mean excess moves from {mrl[0].mean_excess:.3g} to "
         f"{mrl[-1].mean_excess:.3g} across thresholds"
@@ -404,7 +402,7 @@ def plot_tail_quantiles(
     distribution: Any,
     *,
     confidence: float = 0.95,
-    model_label: str = "fitted GPD",
+    model_label: str = "GPD fit",
     name: str = "excess",
     ax: Any | None = None,
 ) -> Any:
@@ -446,8 +444,11 @@ def plot_tail_quantiles(
     low_p, high_p = order_statistic_band(len(pairs), confidence)
     lower = [distribution.quantile(p) for p in low_p]
     upper = [distribution.quantile(p) for p in high_p]
-    band(axes, model_q, lower, upper, color=palette.model)
-    line(axes, model_q, model_q, color=palette.model, width=1.4)
+    fit_colour = (
+        entity_colour(model_label) if model_label in ENTITY_STYLES else palette.model
+    )
+    band(axes, model_q, lower, upper, color=fit_colour)
+    line(axes, model_q, model_q, color=fit_colour, dashes=FITTED)
     outside = [
         i for i in range(len(pairs)) if not lower[i] <= sample_q[i] <= upper[i]
     ]
@@ -458,7 +459,8 @@ def plot_tail_quantiles(
         [model_q[i] for i in inside],
         [sample_q[i] for i in inside],
         s=9.0 if dense else 18.0,
-        color=palette.observed,
+        color=entity_colour("observations"),
+        label="observations",
         alpha=0.75 if dense else 1.0,
         edgecolors=palette.canvas if not dense else "none",
         linewidths=0.0 if dense else 1.0,
@@ -469,7 +471,8 @@ def plot_tail_quantiles(
             axes,
             [model_q[i] for i in outside],
             [sample_q[i] for i in outside],
-            color=palette.observed,
+            entity="observations",
+            label="_outside the band",
             size=42.0,
             zorder=5.0,
         )
@@ -477,7 +480,7 @@ def plot_tail_quantiles(
     axis_labels(axes, f"Model quantile of {name}", f"Ordered {name}")
     direct_labels(
         axes,
-        [(model_q[-1], model_q[-1], model_label, palette.model)],
+        [(model_q[-1], model_q[-1], model_label, fit_colour)],
     )
     largest_gap = sample_q[-1] / model_q[-1] - 1.0 if model_q[-1] else math.nan
     title_block(

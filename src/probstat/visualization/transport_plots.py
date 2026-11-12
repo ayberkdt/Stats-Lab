@@ -34,12 +34,14 @@ from ._layout import halo, wrapped_title_block
 from .accessibility import legible_colour
 from .theme import (
     ANNOTATION_SIZE,
+    CONTEXT_WIDTH,
     active_palette,
     axis_labels,
     band,
     direct_labels,
     line,
     new_axes,
+    ordered_colours,
     pyplot,
     reference_line,
     sequential_colormap,
@@ -297,7 +299,7 @@ def plot_transport_lines(
     axes.set_ylim(-0.32, 1.32)
     axes.grid(axis="y", visible=False)
     axes.set_xlim(min(*xs, *ys) - 0.06 * span, max(*xs, *ys) + 0.06 * span)
-    axis_labels(axes, "Position", None)
+    axis_labels(axes, "Atom position", None)
     used = used_cells(matrix)
     crossings = crossing_pairs(matrix, xs, ys)
     value = cost
@@ -425,7 +427,8 @@ def plot_plan_matrices(
         for side in ("left", "bottom"):
             axes.spines[side].set_visible(False)
         axes.tick_params(length=0)
-        axes.set_xlabel(name, color=palette.ink)
+        # One axis title per panel: the quantity, then the panel's plan.
+        axes.set_xlabel(f"Target atom, {name}", color=palette.ink)
     panels[0][0].set_ylabel("Source atom")
     bar = figure.colorbar(image, ax=list(panels[0]), fraction=0.025, pad=0.03)
     bar.outline.set_visible(False)
@@ -499,15 +502,14 @@ def plot_sinkhorn_convergence(
     order = sorted(named, key=lambda name: -named[name].epsilon)
     axes = new_axes(ax)
     palette = active_palette()
-    ramp = sequential_colormap()
+    colours = ordered_colours(len(order))
     labels = []
     for index, name in enumerate(order):
         result = named[name]
-        depth = 0.55 + 0.45 * (index / max(1, len(order) - 1))
-        colour = ramp(depth)
+        colour = colours[index]
         trace = [max(v, 1e-300) for v in result.trace]
         steps = list(range(1, len(trace) + 1))
-        line(axes, steps, trace, color=colour, width=1.8)
+        line(axes, steps, trace, color=colour)
         labels.append((steps, trace, f"{name}\n{len(trace):,} it", colour))
     axes.set_yscale("log")
     axes.set_xscale("log")
@@ -534,7 +536,7 @@ def plot_sinkhorn_convergence(
             fontsize=ANNOTATION_SIZE, fontweight="bold", color=ink,
             linespacing=1.1, path_effects=halo(),
         )  # fmt: skip
-    axis_labels(axes, "Iteration", "Row-marginal error")
+    axis_labels(axes, "Sinkhorn iteration", "Row-marginal error")
     fastest, slowest = named[order[0]], named[order[-1]]
     if len(order) == 1:
         title = (
@@ -642,7 +644,7 @@ def plot_quantile_wasserstein(
         [(us[-1], q0[-1], names[0], palette.observed),
          (us[-1], q1[-1], names[1], palette.model)],
     )  # fmt: skip
-    axis_labels(axes, "Probability level u", "Quantile Q(u)")
+    axis_labels(axes, "Probability level u", "Quantile")
     if crossings:
         where = ", ".join(f"{u:.2f}" for u in crossings[:3])
         tail = f"; the quantile functions cross at u = {where}"
@@ -734,7 +736,7 @@ def plot_displacement_interpolation(
     axes = new_axes(ax)
     palette = active_palette()
     mixture = [0.5 * (_normal_pdf(x, m0, s0) + _normal_pdf(x, m1, s1)) for x in grid]
-    line(axes, grid, mixture, color=palette.muted, width=1.4, zorder=2.0)
+    line(axes, grid, mixture, color=palette.muted, width=CONTEXT_WIDTH, zorder=2.0)
     labels = []
     for t in stops:
         mean, sd = (1.0 - t) * m0 + t * m1, (1.0 - t) * s0 + t * s1

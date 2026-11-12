@@ -79,6 +79,61 @@ with chart_theme():                      # or chart_theme(GRAPHITE)
 Set `PROBSTAT_CHART_THEME=graphite` to render every library figure in the dark
 palette, for example to produce dark-mode documentation images.
 
+## One contract for the whole set
+
+A figure can follow every rule above and the set of figures can still
+contradict itself: "truth" in the accent in one figure and in muted ink in
+the next, "Failure probability Pf" on one axis and "Pf estimate [x 1e-3]" on
+another. The figure-set contract (ADR-0098) fixes what must not vary between
+figures, and the plotting functions and the labs read it instead of choosing
+colours and axis titles locally.
+
+* **Entities.** `theme.ENTITY_STYLES` maps every recurring entity to a colour
+  role, a marker, a dash pattern, and a line width: `truth`, `closed form`,
+  `threshold`, and the `Monte Carlo reference` are reference lines (accent,
+  dashed); `first-order index` is a data mark and `total-effect index` a
+  model mark (diamond); `FORM` is a dashed model line; `chain 1` to
+  `chain 4` take the four free slots, never the observed or model hue.
+  `line`, `points`, `band`, and `reference_line` take `entity=` and draw
+  the entity with its fixed style and its name as the artist label; an
+  unknown name is an error, not a new colour.
+* **Quantities.** `theme.QUANTITIES` gives each recurring quantity one title
+  and one axis role, and `axis_title(key)` returns it: "Failure
+  probability", "Number of model evaluations", "Kolmogorov distance",
+  "Probability mass", "Exceedance probability", "Share of output variance".
+  A unit is always written in brackets, `Name [unit]`; function notation
+  such as `P(X = k)` or `f(x)` belongs in the subtitle, and a log axis is
+  shown by its ticks and stated in the text alternative, never as "(log
+  scale)" in the title. `axis_labels` writes titles in sentence case.
+* **Line weights.** Four widths by role: data and model lines 2 pt
+  (`LINE_WIDTH`), context lines 1.4 pt (`CONTEXT_WIDTH`), many overlapping
+  paths 0.7 pt (`PATH_WIDTH`), reference lines 1.2 pt (`REFERENCE_WIDTH`).
+* **Ordered members.** Steps and decreasing regularization levels are not
+  categories: `ordered_colours(n)` gives member `k` a fixed depth of the
+  sequential ramp, so step 2 has one colour in every figure.
+* **Compared figures.** Figures read against each other share their axis
+  range through `share_limits`: the two PIT histograms of the forecast lab,
+  and the six encodings of one forecast; every Sobol figure uses the 0-1
+  share scale.
+* **Names and orders.** `theme.METHOD_NAMES` writes reliability method codes
+  out ("MC" is "Monte Carlo"), and `theme.CATEGORY_ORDERS` fixes the order
+  of forecasters, chains, methods, and sampling designs.
+
+```python
+from probstat.visualization.theme import axis_title, entity_style
+
+axis_title("failure_probability")  # 'Failure probability'
+entity_style("truth").role  # 'reference'
+entity_style("calibration (n = 300)").role  # 'context'
+```
+
+`docs/figures/stats-lab.seti.json` and `docs/figures/stats-lab-dark.seti.json`
+hold the same tables in the datawiz set format, with every colour resolved in
+the light and the dark palette; `tools/generate_figure_set_contract.py`
+writes them and `tests/test_figure_set_contract.py` checks that they match
+the theme. The set audit runs every lab, records a trace of each figure, and
+checks the traces against the contract and against each other.
+
 ## Foundation figures
 
 `probstat.visualization.foundation_plots` (named `foundations` before
@@ -87,7 +142,7 @@ of its functions are re-exported by `probstat.visualization`.
 
 | Functions | Shows | Lab |
 |---|---|---|
-| `plot_bernoulli_pmf`, `plot_integer_pmf`, `plot_categorical_pmf`, `plot_waiting_count_pmfs` | Bernoulli masses as two bars; integer masses as lollipops on an explicit window; categories as horizontal bars in declaration order, with no numeric category axis; two waiting-count PMFs as lines | `generate_foundation_figures.py` |
+| `plot_bernoulli_pmf`, `plot_integer_pmf`, `plot_categorical_pmf`, `plot_waiting_count_pmfs` | Bernoulli masses as two bars; integer masses as lollipops on an explicit window; categories as vertical bars in declaration order, with no numeric category axis; two waiting-count PMFs as lines | `generate_foundation_figures.py` |
 | `plot_finite_measure`, `plot_random_variable_pmf`, `plot_joint_pmf` | outcome masses with a highlighted event, an induced PMF, a joint PMF as a single-hue matrix | `generate_foundation_figures.py` |
 | `plot_continuous_functions`, `plot_normal_pdf`, `plot_characteristic_function` | density above CDF and survival on a shared x-axis; the central one-sigma mass; real and imaginary parts | `generate_foundation_figures.py` |
 | `plot_empirical_cdf`, `plot_fitted_cdf` | the right-continuous ECDF; ECDF against a fitted model CDF | `generate_foundation_figures.py`, `statistical_fitting_lab.py` |
@@ -172,7 +227,7 @@ result object and never refits; the labs write every figure to
 
 | Module | Function | Shows | Lab |
 |---|---|---|---|
-| `calibration_plots` | `plot_discrepancy_predictions` | observations, simulator-only band (`series[3]`, `FITTED`), bias-corrected band (model hue), truth (accent) | `discrepancy_calibration_lab.py` |
+| `calibration_plots` | `plot_discrepancy_predictions` | observations, simulator-only band (muted, `FITTED`), bias-corrected band (model hue), truth (accent) | `discrepancy_calibration_lab.py` |
 | `calibration_plots` | `plot_discrepancy_estimate` | posterior `delta(x)` with its mixture interval and the zero line | `discrepancy_calibration_lab.py` |
 | `hierarchical_plots` | `plot_shrinkage` | raw `y_j +/- s_j` (muted) against exact posterior intervals of `theta_j` (model), `mu` (accent) | `hierarchical_lab.py` |
 | `hierarchical_plots` | `plot_tau_posterior` | exact grid density of `tau` over a histogram of MCMC draws | `hierarchical_lab.py` |

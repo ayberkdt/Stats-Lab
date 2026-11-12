@@ -39,13 +39,16 @@ from ._layout import wrapped_title_block
 from .theme import (
     ANNOTATION_SIZE,
     BAND_ALPHA,
+    CONTEXT_WIDTH,
+    ENTITY_STYLES,
     INNER_BAND_ALPHA,
+    LINE_WIDTH,
     MAX_BAND_ALPHA,
-    REFERENCE,
-    REFERENCE_WIDTH,
     active_palette,
     axis_labels,
+    axis_title,
     direct_labels,
+    entity_colour,
     line,
     new_axes,
     points,
@@ -60,6 +63,9 @@ _COVERAGE_SLOTS = (0, 3, 4, 5)
 def _identity(axes: Any, low: float, high: float) -> None:
     """Draw the identity line ``y = x`` as the accent reference.
 
+    The line is the entity ``"perfect reliability"`` of the set contract
+    (ADR-0098) in the reliability diagram and in the coverage plot.
+
     Args:
         axes: Target axes.
         low: Start of the line.
@@ -69,10 +75,7 @@ def _identity(axes: Any, low: float, high: float) -> None:
         [REF-MATPLOTLIB]. No equation is evaluated.
 
     """
-    axes.plot(
-        [low, high], [low, high], color=active_palette().accent,
-        linewidth=REFERENCE_WIDTH, linestyle=REFERENCE, zorder=2,
-    )  # fmt: skip
+    line(axes, [low, high], [low, high], entity="perfect reliability", zorder=2)
 
 
 @themed
@@ -127,12 +130,14 @@ def plot_reliability_diagram(
     _identity(top, 0.0, 1.0)
     xs = [item.mean_forecast for item in used]
     ys = [item.observed_frequency for item in used]
-    line(top, xs, ys, color=palette.observed, width=1.6)
+    line(top, xs, ys, color=palette.observed)
     points(top, xs, ys, color=palette.observed, size=46.0)
     top.set_xlim(0.0, 1.0)
     top.set_ylim(0.0, 1.0)
     top.grid(axis="both", color=palette.rule, linewidth=0.6)
-    direct_labels(top, [(1.0, 1.0, "perfect reliability", palette.accent)])
+    direct_labels(
+        top, [(1.0, 1.0, "perfect reliability", entity_colour("perfect reliability"))]
+    )
     axis_labels(top, None, "Observed frequency")
     for item in diagram.bins:
         centre = 0.5 * (item.lower + item.upper)
@@ -149,7 +154,7 @@ def plot_reliability_diagram(
     bottom.set_ylim(0.0, 1.45 * peak)
     bottom.set_yticks([])
     bottom.grid(axis="y", visible=False)
-    axis_labels(bottom, "Forecast probability", "Forecasts")
+    axis_labels(bottom, "Forecast probability", axis_title("count"))
     total = sum(item.count for item in diagram.bins)
     outside = diagram.outside_bands
     worst = max(abs(item.observed_frequency - item.mean_forecast) for item in used)
@@ -285,7 +290,7 @@ def plot_score_comparison(
     high_edge = max(s[2] for s in summary.values())
     span = high_edge - low_edge or 1.0
     axes.set_xlim(low_edge - 0.05 * span, high_edge + 0.16 * span)
-    axis_labels(axes, f"Mean {score_name} (lower is better)", None)
+    axis_labels(axes, f"Mean {score_name}", None)
     best, runner = order[0], order[1]
     sizes = {len(v) for v in samples.values()}
     if len(sizes) == 1:
@@ -313,7 +318,11 @@ def plot_score_comparison(
     wrapped_title_block(
         axes,
         title,
-        [f"dots: mean over {cases}", f"bars: {confidence:.0%} interval of the mean"],
+        [
+            f"dots: mean over {cases}",
+            f"bars: {confidence:.0%} interval of the mean",
+            "lower is better",
+        ],
     )
     return axes
 
@@ -374,7 +383,13 @@ def plot_coverage(
     _identity(axes, low, high)
     labels = []
     for index, (name, items) in enumerate(named.items()):
-        colour = palette.series[_COVERAGE_SLOTS[index]]
+        # A forecaster of the set contract keeps its hue in every figure
+        # (ADR-0098); other names take the free slots in order.
+        colour = (
+            entity_colour(name)
+            if name in ENTITY_STYLES
+            else palette.series[_COVERAGE_SLOTS[index]]
+        )
         shift = step * (index - 0.5 * (len(named) - 1))
         ordered = sorted(items, key=lambda r: r.nominal)
         xs = [r.nominal + shift for r in ordered]
@@ -387,8 +402,8 @@ def plot_coverage(
             linewidth=1.6,
             zorder=3,
         )
-        line(axes, xs, ys, color=colour, width=1.1)
-        points(axes, xs, ys, color=colour, size=34.0)
+        line(axes, xs, ys, color=colour, width=CONTEXT_WIDTH, label=name)
+        points(axes, xs, ys, color=colour, size=34.0, label=name)
         labels.append((high, ys[-1], name, colour))
     axes.set_xlim(low, high)
     bottom = min(r.interval.lower for items in named.values() for r in items)
@@ -556,7 +571,10 @@ def plot_distribution_shift(
     high = max(a[-1], b[-1]) + 0.04 * span
     axes = new_axes(ax)
     palette = active_palette()
-    for sample, colour, width in ((a, palette.muted, 1.6), (b, palette.observed, 2.0)):
+    for sample, colour, width in (
+        (a, palette.muted, CONTEXT_WIDTH),
+        (b, palette.observed, LINE_WIDTH),
+    ):
         xs, ys = _ecdf_steps(sample, low, high)
         axes.step(xs, ys, where="post", color=colour, linewidth=width, zorder=3)
     axes.plot(
@@ -592,7 +610,7 @@ def plot_distribution_shift(
             (high, 1.0, f"{names[1]} (n = {len(b)})", palette.observed),
         ],
     )
-    axis_labels(axes, variable, "Empirical CDF")
+    axis_labels(axes, variable, axis_title("cumulative_probability"))
     kind = "exact" if result is not None and result.exact else "asymptotic"
     if result is None:
         title = (
