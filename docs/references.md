@@ -3404,3 +3404,145 @@ Software* 12(4), 377-393, 1986. Temme's uniform asymptotic expansion for
 shapes of at least 20 near the transition point, and the regrouped
 prefactor `x^a e^-x / Gamma(a)`.
 DOI: [10.1145/22721.23109](https://doi.org/10.1145/22721.23109).
+
+## REF-BOLLERSLEV-1986
+
+Tim Bollerslev. "Generalized Autoregressive Conditional Heteroskedasticity."
+*Journal of Econometrics* 31(3), 307-327, 1986. The GARCH(p, q) variance
+recursion, the covariance-stationarity condition
+`sum alpha_i + sum beta_j < 1`, and the unconditional variance.
+DOI: [10.1016/0304-4076(86)90063-1](https://doi.org/10.1016/0304-4076(86)90063-1).
+
+## REF-BOLLERSLEV-1987
+
+Tim Bollerslev. "A Conditionally Heteroskedastic Time Series Model for
+Speculative Prices and Rates of Return." *The Review of Economics and
+Statistics* 69(3), first page 542, 1987. GARCH with standardized Student-t
+innovations.
+DOI: [10.2307/1925546](https://doi.org/10.2307/1925546).
+
+## REF-ENGLE-1982
+
+Robert F. Engle. "Autoregressive Conditional Heteroscedasticity with
+Estimates of the Variance of United Kingdom Inflation." *Econometrica*
+50(4), first page 987, 1982. The ARCH model and the Lagrange-multiplier test
+`n R^2` for ARCH effects.
+DOI: [10.2307/1912773](https://doi.org/10.2307/1912773).
+
+## REF-LUTKEPOHL-2005
+
+Helmut Lütkepohl. *New Introduction to Multiple Time Series Analysis*.
+Springer, Berlin, Heidelberg, 2005. ISBN 978-3-540-40172-8. Vector
+autoregressions: stability, moving-average representation, impulse
+responses, forecast-error variance decomposition (Chapter 2), least-squares
+estimation and Granger-causality tests (Chapter 3), and order selection
+(Chapter 4).
+DOI: [10.1007/978-3-540-27752-1](https://doi.org/10.1007/978-3-540-27752-1).
+
+## REF-GRANGER-1969
+
+C. W. J. Granger. "Investigating Causal Relations by Econometric Models and
+Cross-spectral Methods." *Econometrica* 37(3), first page 424, 1969.
+DOI: [10.2307/1912791](https://doi.org/10.2307/1912791).
+
+## REF-HANNAN-QUINN-1979
+
+E. J. Hannan and B. G. Quinn. "The Determination of the Order of an
+Autoregression." *Journal of the Royal Statistical Society, Series B* 41(2),
+190-195, 1979. The `2 log log T` penalty.
+DOI: [10.1111/j.2517-6161.1979.tb01072.x](https://doi.org/10.1111/j.2517-6161.1979.tb01072.x).
+
+## REF-DICKEY-FULLER-1979
+
+David A. Dickey and Wayne A. Fuller. "Distribution of the Estimators for
+Autoregressive Time Series with a Unit Root." *Journal of the American
+Statistical Association* 74(366a), 427-431, 1979.
+DOI: [10.1080/01621459.1979.10482531](https://doi.org/10.1080/01621459.1979.10482531).
+
+## REF-SAID-DICKEY-1984
+
+Said E. Said and David A. Dickey. "Testing for Unit Roots in
+Autoregressive-Moving Average Models of Unknown Order." *Biometrika* 71(3),
+599-607, 1984. Lagged differences make the Dickey-Fuller limit valid for
+ARMA errors.
+DOI: [10.1093/biomet/71.3.599](https://doi.org/10.1093/biomet/71.3.599).
+
+## REF-MACKINNON-2010
+
+James G. MacKinnon. "Critical Values for Cointegration Tests." Queen's
+Economics Department Working Paper No. 1227, Queen's University, Kingston,
+Ontario, January 2010 (reissue of UCSD Discussion Paper 90-4, 1990, with a
+new appendix). Tables 2, 3, and 4: response surfaces
+`beta_inf + beta_1/T + beta_2/T^2 + beta_3/T^3` for the 1%, 5%, and 10%
+Dickey-Fuller critical values, `T` the number of observations in the test
+regression.
+[https://www.econ.queensu.ca/sites/econ.queensu.ca/files/wpaper/qed_wp_1227.pdf](https://www.econ.queensu.ca/sites/econ.queensu.ca/files/wpaper/qed_wp_1227.pdf).
+
+## REF-SCHWERT-1989
+
+G. William Schwert. "Tests for Unit Roots: A Monte Carlo Investigation."
+*Journal of Business & Economic Statistics* 7(2), 147-159, 1989.
+DOI: [10.1080/07350015.1989.10509723](https://doi.org/10.1080/07350015.1989.10509723).
+
+## REF-KPSS-1992
+
+Denis Kwiatkowski, Peter C. B. Phillips, Peter Schmidt, and Yongcheol Shin.
+"Testing the Null Hypothesis of Stationarity against the Alternative of a
+Unit Root." *Journal of Econometrics* 54(1-3), 159-178, 1992.
+DOI: [10.1016/0304-4076(92)90104-Y](https://doi.org/10.1016/0304-4076(92)90104-Y).
+
+## REF-NEWEY-WEST-1987
+
+Whitney K. Newey and Kenneth D. West. "A Simple, Positive Semi-Definite,
+Heteroskedasticity and Autocorrelation Consistent Covariance Matrix."
+*Econometrica* 55(3), first page 703, 1987. The Bartlett-weighted long-run
+variance.
+DOI: [10.2307/1913610](https://doi.org/10.2307/1913610).
+
+## REF-IMHOF-1961
+
+J. P. Imhof. "Computing the Distribution of Quadratic Forms in Normal
+Variables." *Biometrika* 48(3-4), 419-426, 1961.
+DOI: [10.1093/biomet/48.3-4.419](https://doi.org/10.1093/biomet/48.3-4.419).
+
+## REF-ANDERSON-DARLING-1952
+
+T. W. Anderson and D. A. Darling. "Asymptotic Theory of Certain 'Goodness of
+Fit' Criteria Based on Stochastic Processes." *The Annals of Mathematical
+Statistics* 23(2), 193-212, 1952. The Cramer-von Mises limit
+`sum_k Z_k^2 / (k pi)^2`.
+DOI: [10.1214/aoms/1177729437](https://doi.org/10.1214/aoms/1177729437).
+
+## REF-PAGE-1954
+
+E. S. Page. "Continuous Inspection Schemes." *Biometrika* 41(1-2), 100-115,
+1954. The cumulative-sum (CUSUM) scheme.
+DOI: [10.1093/biomet/41.1-2.100](https://doi.org/10.1093/biomet/41.1-2.100).
+
+## REF-PLOBERGER-KRAMER-1992
+
+Werner Ploberger and Walter Krämer. "The Cusum Test with OLS Residuals."
+*Econometrica* 60(2), first page 271, 1992. The supremum of a Brownian
+bridge as the limit of the residual CUSUM statistic.
+DOI: [10.2307/2951597](https://doi.org/10.2307/2951597).
+
+## REF-KILLICK-2012
+
+R. Killick, P. Fearnhead, and I. A. Eckley. "Optimal Detection of
+Changepoints With a Linear Computational Cost." *Journal of the American
+Statistical Association* 107(500), 1590-1598, 2012. The PELT pruning rule.
+DOI: [10.1080/01621459.2012.737745](https://doi.org/10.1080/01621459.2012.737745).
+
+## REF-ZHANG-SIEGMUND-2007
+
+Nancy R. Zhang and David O. Siegmund. "A Modified Bayes Information
+Criterion with Applications to the Analysis of Comparative Genomic
+Hybridization Data." *Biometrics* 63(1), 22-32, 2007.
+DOI: [10.1111/j.1541-0420.2006.00662.x](https://doi.org/10.1111/j.1541-0420.2006.00662.x).
+
+## REF-KILLICK-ECKLEY-2014
+
+Rebecca Killick and Idris A. Eckley. "changepoint: An R Package for
+Changepoint Analysis." *Journal of Statistical Software* 58(3), 2014. The
+segment costs and the BIC and MBIC penalties reproduced by `pelt`.
+DOI: [10.18637/jss.v058.i03](https://doi.org/10.18637/jss.v058.i03).
