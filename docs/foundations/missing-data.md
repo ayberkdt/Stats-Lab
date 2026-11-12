@@ -263,3 +263,40 @@ nominal coverage. The test accepts MI coverage in `[0.89, 0.995]`.
 - The observed-information standard errors use a numerical Hessian. The
   number of log-likelihood evaluations grows like `p^4`, and each evaluation
   costs `O(n p^3)`, so skip them for large `p`.
+
+## Common pitfalls
+
+- **Variances, not standard errors.** `pool_estimates` takes the
+  completed-data *variances* (squared standard errors). Passing standard
+  errors gives a wrong within-imputation variance, and with it a wrong
+  total variance and interval.
+- **Degrees of freedom without `complete_data_df`.** The default is Rubin's
+  `nu_old`, which can exceed the complete-data degrees of freedom. Pass
+  `complete_data_df` for small samples; in the hand example it lowers the
+  degrees of freedom from 21.78 to 7.05.
+- **Missing means `None` or `nan`.** Infinite entries are rejected rather
+  than treated as missing.
+- **Defaults for imputation.** `impute_multivariate_normal` defaults to
+  `imputations=5`, `burn_in=50`, and `seed=None` (not reproducible); chain
+  convergence is not diagnosed, so heavier missingness needs a longer
+  burn-in.
+- **Ignorability is an assumption.** EM and data augmentation are valid
+  under MAR; no function here tests MAR against MNAR, and
+  `little_mcar_test` probes only MCAR.
+
+```python
+import math
+from probstat.inference import missing_pattern, pool_estimates
+
+rubin = pool_estimates((10, 12, 11, 13, 9), (3.5, 4.5, 4, 3, 5))
+rubin.total_variance, rubin.degrees_of_freedom   # (7.0, 21.78)
+pool_estimates((10, 12, 11, 13, 9), (3.5, 4.5, 4, 3, 5),
+               complete_data_df=20).degrees_of_freedom   # 7.0546
+
+missing_pattern([[1.0, 2.0], [2.0, None], [3.0, math.nan]]).complete_cases  # 1
+try:
+    missing_pattern([[1.0, math.inf], [2.0, None]])
+except ValueError as error:
+    rejected = str(error)
+rejected   # 'entries must be finite (use None or nan if missing)'
+```

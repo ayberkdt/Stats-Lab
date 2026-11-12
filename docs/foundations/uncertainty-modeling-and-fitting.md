@@ -301,6 +301,32 @@ KS/AD diagnostics and an approximate log-mean interval, and saves an empirical
 versus fitted CDF figure. The output labels the fitted-null KS limitation rather
 than hiding it.
 
+## Common pitfalls
+
+- **Lognormal parameters live on the log scale.** `LogNormal(mu, sigma)` has
+  `log X ~ Normal(mu, sigma)`; its mean is `exp(mu + sigma^2 / 2)`, not `mu`.
+- **MLE scale versus sample variance.** `fit_normal_mle` uses divisor `n`;
+  the usual sample variance uses `n - 1`.
+- **Fitted nulls need calibrated p-values.** Ordinary KS p-values against
+  parameters fitted to the same data are too large; use
+  `bootstrap_goodness_of_fit`, which refits every replicate.
+- **The bootstrap p-value has a floor.** It is `(1 + exceedances) / (1 + B)`,
+  so with `select_distribution`'s default `n_bootstrap=99` the smallest value
+  is `0.01`; a reported `0.01` means "at or below the floor".
+- **Weights are relative.** Akaike and BIC weights rank the candidates that
+  were tried; they do not certify that any of them fits.
+
+```python
+import statistics
+
+from probstat.distributions import LogNormal
+from probstat.inference import fit_normal_mle
+
+LogNormal(0.0, 0.25).mean                        # 1.0317, that is exp(0.25^2 / 2)
+fit_normal_mle([1.0, 2.0, 3.0, 4.0]).sigma ** 2  # 1.25, divisor n
+statistics.variance([1.0, 2.0, 3.0, 4.0])        # 1.6667, divisor n - 1
+```
+
 ## Sources
 
 - [REF-NIST-DISTRIBUTIONS].

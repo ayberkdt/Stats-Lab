@@ -40,7 +40,7 @@ Conventions to watch:
   `xi > 0` is the heavy-tailed Frechet type. Some libraries pass `c = -xi`.
 - `Gumbel(kind="min")` models smallest values (strength, minimum
   temperature); it is the mirror image of the default maximum law.
-- Missing moments: `StudentT.mean` and `.variance` raise `ValueError` for
+- Missing moments: `StudentT.mean` and `.variance` return `nan` for
   `nu <= 1` (undefined); variances that diverge (`1 < nu <= 2`, `FisherF`
   with `nu2 <= 4`, GEV with `xi >= 1/2`) return `inf`.
 
@@ -109,9 +109,9 @@ Two limits remain:
 
 All families can be marginals of `modeling.RandomInput` inside a
 `modeling.JointInput` (the Nataf/Gaussian-copula map uses `isf` and `sf` for
-upper-tail accuracy). The exception is a law whose mean is undefined
-(`StudentT` with `nu <= 1`): `RandomInput` requires `mean`, and that property
-raises for such a law.
+upper-tail accuracy). This includes a law whose mean is undefined
+(`StudentT` with `nu <= 1`): `RandomInput` checks that `mean` and `variance`
+exist without evaluating them, and for such a law both are `nan`.
 
 ## Fitting gamma and Weibull laws
 
@@ -135,6 +135,55 @@ rescaling the data by `1e6` rescales the fitted scale by exactly that factor.
 A maximum-likelihood point estimate says nothing about its own uncertainty.
 In a UQ study, report the fitting uncertainty separately (for example by
 bootstrap or a Bayesian posterior).
+
+## Common pitfalls
+
+- **Use `sf` for upper tails.** `1 - cdf(x)` loses every digit once `cdf(x)`
+  rounds to one; `sf` and `isf` are computed directly.
+- **The second parameter is a standard deviation.** `Normal(mu, sigma)` and
+  `LogNormal(mu, sigma)` take `sigma`, not `sigma^2`, and the `LogNormal`
+  parameters describe `log X`: its median is `exp(mu)` and its mean
+  `exp(mu + sigma^2 / 2)`.
+- **Rate, not scale.** `Gamma(2.0, 3.0)` has mean `2/3`; the scale form is
+  `Gamma.from_scale(2.0, 3.0)`, with mean 6.
+- **Undefined and divergent moments are values, not errors.** An undefined
+  mean or variance is `nan` (`Cauchy`, `StudentT` with `nu <= 1`) and a
+  divergent one is `inf`; test with `math.isnan` and `math.isinf` before
+  using a moment.
+- **Keyword names differ between families.** `Triangular(lower, mode,
+  upper)` but `PERT(low, mode, high)`; `Normal(mu, sigma)` but
+  `Laplace(loc, scale)`.
+- **One seed per input.** The same integer seed given to two laws replays
+  one generator stream, so the draws are dependent: here every exponential
+  draw is `-log(1 - u)` of the matching uniform draw. Give each input its
+  own `foundations.RandomStream` child.
+
+```python
+import math
+
+from probstat.distributions import (
+    PERT,
+    Cauchy,
+    Exponential,
+    LogNormal,
+    Normal,
+    StudentT,
+    Triangular,
+    Uniform,
+)
+
+Normal().sf(10.0), 1.0 - Normal().cdf(10.0)  # (7.62e-24, 0.0)
+Normal(0.0, 2.0).variance  # 4.0
+LogNormal(0.0, 1.0).median, LogNormal(0.0, 1.0).mean  # (1.0, 1.6487)
+Gamma(2.0, 3.0).mean, Gamma.from_scale(2.0, 3.0).mean  # (0.6667, 6.0)
+math.isnan(Cauchy().mean), math.isnan(StudentT(1.0).variance)  # (True, True)
+math.isinf(StudentT(2.0).variance)  # True
+Triangular(lower=0.0, mode=1.0, upper=3.0).mean  # 1.3333
+PERT(low=0.0, mode=1.0, high=3.0).mean  # 1.1667
+uniforms = Uniform().sample(3, seed=5)
+exponentials = Exponential().sample(3, seed=5)
+all(e == -math.log1p(-u) for u, e in zip(uniforms, exponentials))  # True
+```
 
 ## Sources
 

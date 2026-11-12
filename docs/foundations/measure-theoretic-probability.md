@@ -331,6 +331,46 @@ in `p` can vanish at three points without vanishing identically.
   identity-based ownership of `FiniteSampleSpace` (ADR-0002), because a
   sub-sigma-algebra is by definition a second structure on the same set.
 
+## Common pitfalls
+
+- **Exactness follows the input type.** `int` and `Fraction` masses give
+  exact `Fraction` results; `float` masses give `float` results and
+  tolerance-based comparisons.
+- **A finite measure need not be a probability.** `counting` has total
+  mass `|Omega|`; check `is_probability` before reading a value as a
+  probability.
+- **Measurability is checked, not assumed.** Integrating or pushing forward
+  a function that varies inside an atom raises `ValueError`; after
+  `restrict`, only functions constant on the coarser atoms are measurable.
+- **Conditional expectation is unique only almost everywhere.** On an atom
+  of measure zero `conditional_expectation` returns `0` by convention, which
+  carries no information.
+- **Two kinds of equality.** `FiniteMeasurableSpace` objects compare by
+  outcomes and atoms, whereas `FiniteSampleSpace` objects compare by
+  identity.
+
+```python
+approximate = FiniteMeasure.from_point_masses({face: 1 / 6 for face in faces})
+print(type(fair.integrate(value)).__name__, type(approximate.integrate(value)).__name__)
+counting = FiniteMeasure.counting(faces)
+print(counting.total_mass, counting.is_probability)
+try:
+    coarse.integrate(value)
+except ValueError as error:
+    print("rejected:", error)
+given_six = six_only.conditional_expectation(value, parity)
+print(given_six[1], given_six[2])
+print(FiniteMeasurableSpace(faces) == FiniteMeasurableSpace(faces))
+```
+
+```text
+Fraction float
+6 False
+rejected: function is not measurable: it varies within an atom
+0 6
+True
+```
+
 ## References
 
 - [REF-BILLINGSLEY-1995] Billingsley, *Probability and Measure*, 3rd ed.,

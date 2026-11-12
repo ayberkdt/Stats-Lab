@@ -184,3 +184,39 @@ they are concentrated out exactly by least squares.
 
 Smoothing returns point forecasts only. No prediction intervals are provided
 for it.
+
+## Common pitfalls
+
+- **Sign conventions.** The AR polynomial is `1 - sum phi_j z^j` and the MA
+  polynomial `1 + sum theta_j z^j`. Coefficients copied from a source that
+  writes the MA part with a minus sign must change sign; `theta = 1.5` is
+  not invertible here.
+- **Degrees of freedom of Ljung-Box on residuals.** `ljung_box` defaults
+  to `fitted_parameters=0`. On the innovations of a fitted ARMA(p, q) pass
+  `p + q`, or use `fit.diagnostics(h)`, which does it.
+- **Mean and drift defaults.** `fit_arima` estimates a mean only for
+  `d = 0` unless `include_mean` is given; a differenced model has no drift
+  by default. Standard errors are `None` when the Hessian is not positive
+  definite.
+- **The `1/n` divisor.** `acf` and `autocovariance` divide by `n` at every
+  lag, so sample autocorrelations at large lags are shrunk toward zero
+  compared with an `n - k` divisor.
+- **Forecast intervals given the parameters.** `fit.forecast(h)` intervals
+  omit parameter-estimation uncertainty, and the smoothing functions give no
+  intervals at all.
+
+```python
+from probstat.timeseries import (
+    acf, is_invertible, is_stationary, simulate_arma,
+)
+
+acf((1.0, 2.0, 3.0, 4.0), 1)    # (1.0, 0.25); an n - k divisor would give 1/3
+is_invertible((1.5,))           # False
+is_stationary((0.5, -0.3))      # True
+is_stationary((1.0,))           # False
+try:
+    simulate_arma((1.0,), (), 10, seed=1)
+except ValueError as error:
+    unit_root = str(error)
+unit_root   # 'AR polynomial is not stationary (a root has |z| <= 1)'
+```

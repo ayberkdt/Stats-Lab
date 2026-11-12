@@ -20,6 +20,45 @@
 Entropies, KL and Renyi divergences take ``unit="nats"`` (natural
 logarithm) or ``unit="bits"``; transport costs are in the units of the cost
 matrix. The package sits at layer 2 and imports only layers 0-1.
+
+Main entry points:
+    ``entropy``: Shannon entropy of a finite PMF.
+    ``mutual_information``: mutual information of a joint PMF table.
+    ``kl_divergence``: ``D(p || q)`` between finite PMFs.
+    ``differential_entropy``: closed-form differential entropy of a
+        distribution object.
+    ``ksg_mutual_information``: nearest-neighbour mutual-information
+        estimate from samples.
+    ``exact_transport``: exact discrete optimal transport with a dual
+        certificate.
+    ``sinkhorn``: entropic optimal transport by log-domain iterations.
+    ``fisher_information``: closed-form Fisher information of a supported
+        law.
+
+Assumptions:
+    PMFs are finite and sum to one within ``1e-9``; joint tables index
+    ``X`` by rows and ``Y`` by columns. The sample estimators assume
+    independent draws from a continuous law, so no two points coincide.
+    Transport source and target weights carry the same total mass.
+
+Common pitfalls:
+    - Entropies, mutual information, and KL and Renyi divergences are in
+      nats unless ``unit="bits"`` is passed.
+    - A PMF that does not sum to one raises ``ValueError``; nothing is
+      renormalized.
+    - ``kl_divergence(p, q)`` is ``D(p || q)``, not symmetric, and infinite
+      when ``q`` is zero where ``p`` is not.
+    - ``kl_normal`` takes standard deviations, not variances.
+    - ``sinkhorn`` returns ``converged=False`` instead of raising when
+      ``max_iterations`` is reached; only ``sinkhorn_divergence`` raises.
+
+Guide: docs/foundations/information-theory.md
+
+References:
+    [REF-COVER-THOMAS-2006], [REF-KOZACHENKO-LEONENKO-1987],
+    [REF-KRASKOV-STOGBAUER-GRASSBERGER-2004], [REF-PEYRE-CUTURI-2019],
+    [REF-CUTURI-2013].
+
 """
 
 from ._units import UNITS, InformationUnit

@@ -65,8 +65,9 @@ III Marginal and IV Minor. `criticality_matrix(edges)` bins items or modes by
 severity and by `C`, using edges that **the analyst supplies**. The
 standard's qualitative probability levels and its guidance values for
 `beta` are not encoded, because they must come from the standard or from
-programme tailoring, not from this library. `mode_ratio_sums()` and
-`inconsistent_items()` flag items whose `alpha` values do not sum to one.
+programme tailoring, not from this library. `mode_ratio_sums()` reports
+each item's sum of `alpha` (below one means modes are missing), and
+`inconsistent_items()` flags the items whose sum exceeds one.
 
 **RPN and its flaws.** `RPN = S x O x D` [EQ-RISK-FMECA-003] multiplies
 ordinal ranks. Bowles (2003) shows the problems: the product of ordinal
@@ -191,3 +192,38 @@ SLSQP's slightly lower cost comes from ending marginally infeasible
 - The weighting allocation methods assume constant failure rates and series
   logic. `cost_optimal_allocation` finds a local optimum; try several
   `start` points for non-convex problems.
+
+## Common pitfalls
+
+- **A missing failure mode is not flagged.** `Fmeca.inconsistent_items` lists
+  only items whose mode ratios sum to more than one; read `mode_ratio_sums`
+  for sums below one.
+- **RPN is ordinal.** Only 120 of the integers 1-1000 can occur, and equal
+  RPNs can hide criticality numbers that differ by a large factor.
+- **The default confidence is 90 %.** `failure_rate_bounds`,
+  `failure_rate_estimate`, `demand_failure_probability`, and `crow_amsaa_fit`
+  default to `confidence=0.9` (5 % and 95 % bounds), not 95 %.
+- **Say how the test ended.** `failure_rate_bounds` assumes a time-terminated
+  test (`termination="time"`); a failure-terminated test needs
+  `termination="failure"` and gives a lower upper bound.
+- **Register totals assume independent risks.** Sums of variances and the
+  exact convolution ignore common causes.
+
+```python
+import inspect
+from probstat.reliability import demand_failure_probability, failure_rate_bounds
+from probstat.risk import FailureMode, Fmeca, risk_priority_number
+
+pump = Fmeca((
+    FailureMode("pump", "seizure", 2, 1e-4, 0.5, 0.8, 100.0),
+    FailureMode("pump", "seal leak", 3, 1e-4, 0.3, 0.5, 100.0),
+))
+dict(pump.mode_ratio_sums())                          # {'pump': 0.8}
+pump.inconsistent_items()                             # ()
+len({risk_priority_number(s, o, d)
+     for s in range(1, 11) for o in range(1, 11) for d in range(1, 11)})   # 120
+demand_failure_probability(2, 50).confidence          # 0.9
+time_ended = failure_rate_bounds(3, 12000.0)
+failure_ended = failure_rate_bounds(3, 12000.0, termination="failure")
+round(time_ended.upper, 7), round(failure_ended.upper, 7)   # (0.0006461, 0.0005246)
+```

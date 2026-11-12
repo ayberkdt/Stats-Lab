@@ -59,6 +59,12 @@ from probstat.visualization.theme import (
     active_palette, band, line, new_axes, points, reference_line, title_block,
 )
 
+xs = [0.0, 1.0, 2.0, 3.0, 4.0]
+mean = [1.0, 1.4, 1.7, 1.9, 2.0]
+lower = [m - 0.3 for m in mean]
+upper = [m + 0.3 for m in mean]
+x_data, y_data, limit = [0.5, 1.5, 2.5, 3.5], [1.1, 1.6, 1.8, 2.0], 2.6
+
 with chart_theme():                      # or chart_theme(GRAPHITE)
     ax = new_axes()
     palette = active_palette()
@@ -227,6 +233,14 @@ clear description.
 
 ```python
 from probstat.visualization.accessibility import describe_figure
+from probstat.visualization.theme import axis_labels
+
+with chart_theme():
+    ax = new_axes()
+    line(ax, [1.0, 10.0, 100.0], [0.5, 0.25, 0.125], color=palette.observed)
+    ax.set_xscale("log")
+    title_block(ax, "error halves per decade", "Line: absolute error")
+    axis_labels(ax, "Samples n", "Error")
 print(describe_figure(ax.figure))
 # Error halves per decade. Line: absolute error. Horizontal axis Samples n,
 # 0.7943 to 125.9 (log scale); vertical axis Error, 0.1062 to 0.5188.
@@ -250,3 +264,35 @@ known gap recorded in ADR-0078.
 The HTML study report declares `lang="en"`, starts with a skip link to the
 stage results, and uses `header`, `nav`, `main`, and `footer` landmarks
 [REF-WHATWG-HTML].
+
+## Common pitfalls
+
+- **Matplotlib is optional.** Without it, `chart_theme` and the plot
+  functions raise `ImportError` with install advice; check with
+  `theme.matplotlib_available()`. HTML study reports still work and omit the
+  figures.
+- **The default theme is light.** `chart_theme()` without an argument always
+  applies `PORCELAIN`. `PROBSTAT_CHART_THEME=graphite` changes only the
+  palette that library figures use outside an explicit theme, and it is read
+  once, when `probstat.visualization.theme` is first imported; set it before
+  that import.
+- **Bands are capped.** `band(..., alpha=...)` never exceeds
+  `MAX_BAND_ALPHA = 0.18`; a larger value is lowered without a warning.
+- **The title becomes the text alternative.** `title_block` upper-cases the
+  first letter, and `save_figure` stores a description built from the title,
+  subtitle, and axes. A vague title gives a vague description; pass
+  `description=` to replace it.
+
+```python
+from probstat.visualization import PORCELAIN
+from probstat.visualization.theme import matplotlib_available
+
+matplotlib_available()           # True
+with chart_theme() as chosen:
+    ax = new_axes()
+    fill = band(ax, xs, lower, upper, color=chosen.model, alpha=0.5)
+    title_block(ax, "bands stay light", "Band: requested opacity 0.5")
+chosen is PORCELAIN              # True
+fill.get_alpha()                 # 0.18
+ax.get_title(loc="left")         # 'Bands stay light'
+```

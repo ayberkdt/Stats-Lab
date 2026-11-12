@@ -81,6 +81,51 @@ remain inspectable.
 All random streams are seeded locally. The projectile model is pedagogical and
 does not include drag, Earth curvature, or numerical trajectory integration.
 
+## Common pitfalls
+
+- **Different defaults for the same step.** `propagation.propagate` defaults
+  to `design="mc"` and `seed=None` (fresh entropy, not reproducible);
+  `UQStudy.propagate` defaults to `design="sobol"` on a child of the study
+  seed.
+- **Error bars for LHS and quasi-random designs.** Without `replicates`, the
+  mean and exceedance intervals treat the points as independent draws. For
+  LHS and Sobol designs they are conservative references; pass
+  `replicates=r` for a Student-t interval over `r` randomizations, at cost
+  `r * size`.
+- **Strict exceedance.** `exceedance(t)` counts `Y > t`; an output exactly
+  equal to `t` is not an exceedance, which matters for discrete or clipped
+  outputs.
+- **Output spread is not estimator error.** `sample_variance` describes the
+  outputs; `standard_error` describes the mean estimate and shrinks like
+  `n^(-1/2)`.
+- **Truncated quadrature.** `expectation_by_quadrature` integrates only over
+  the given bounds; Simpson's rule needs an even number of intervals.
+
+```python
+import inspect
+
+from probstat.distributions import Normal
+from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
+from probstat.propagation import propagate
+from probstat.uq import QuantityOfInterest
+from probstat.workflow import UQStudy
+
+inspect.signature(propagate).parameters["design"].default          # 'mc'
+inspect.signature(UQStudy.propagate).parameters["design"].default  # 'sobol'
+
+step = ProbabilisticModel(
+    JointInput((RandomInput("x", Normal(0.0, 1.0)),)),
+    lambda p: {"y": float(p["x"] > 0.0)},
+    (QuantityOfInterest("y", "indicator of x > 0"),),
+)
+y = propagate(step, 200, seed=3)["y"]
+y.exceedance(1.0).probability   # 0.0, although about half the outputs equal 1
+plain = propagate(step, 64, design="sobol", seed=1)["y"]
+plain.mean_interval().method    # 'normal approximation with estimated standard deviation'
+replicated = propagate(step, 64, design="sobol", seed=1, replicates=4)["y"]
+replicated.mean_interval().method  # 'Student-t interval over 4 randomized replicates of the mean'
+```
+
 ## Sources
 
 - [REF-SMITH-UQ-2024, Chapters 3-4].

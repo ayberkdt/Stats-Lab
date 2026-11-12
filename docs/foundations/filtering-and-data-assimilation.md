@@ -195,6 +195,43 @@ to about `1e-11`. For the nonlinear operator `h(x) = x^2` with `x_b = 1`,
   inflation.
 - 3D-Var is a single-time analysis; 4D-Var is not implemented.
 
+## Common pitfalls
+
+- **Covariances, not standard deviations.** `Q`, `R`, and `P_0` enter
+  `LinearGaussianStateSpace` as covariance matrices.
+- **Observations are sequences.** A scalar reading is `(1.0,)`; a bare float
+  raises `TypeError`. `None` marks a missing observation: its update is
+  skipped and its log-likelihood term is zero.
+- **Index offset.** `filtered[0]` is the prior state, so `filtered` has one
+  entry more than `predicted`.
+- **Inflation is a covariance factor.** `inflation=1.0` (the default) means no
+  inflation; the anomalies are scaled by `sqrt(inflation)`, and a value below
+  one raises. Nothing is localized.
+- **Unseeded runs differ.** `simulate`, `bootstrap_particle_filter`, and
+  `ensemble_kalman_filter` default to `seed=None`.
+
+The random walk of Section 2:
+
+```python
+import inspect
+from probstat.data_assimilation import ensemble_kalman_filter
+from probstat.filtering import LinearGaussianStateSpace, kalman_filter
+
+walk = LinearGaussianStateSpace(((1.0,),), ((0.5,),), ((1.0,),), ((2.0,),), (0.0,), ((10.0,),))
+full = kalman_filter(walk, [(1.0,), (2.0,), (1.5,)])
+round(full.log_likelihood, 4)                     # -5.5687
+gap = kalman_filter(walk, [(1.0,), None, (1.5,)])
+gap.log_likelihood_terms[1]                       # 0.0, missing observation
+len(gap.filtered), len(gap.predicted)             # (4, 3)
+gap.filtered[0].mean                              # (0.0,), the prior
+try:
+    kalman_filter(walk, [1.0, 2.0])
+except TypeError as error:
+    message = str(error)
+message                                           # 'observation must be iterable'
+inspect.signature(ensemble_kalman_filter).parameters["inflation"].default   # 1.0
+```
+
 ## Sources
 
 - [REF-KALMAN-1960], [REF-RAUCH-TUNG-STRIEBEL-1965].

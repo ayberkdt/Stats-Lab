@@ -225,6 +225,61 @@ A non-significant difference test is never a substitute for TOST.
 - Studentized bootstrap with the default jackknife SE costs `n` statistic
   evaluations per replicate.
 
+## Common pitfalls
+
+- **Unpaired analysis of paired data.** `two_sample_t_test` defaults to
+  Welch's test for independent samples. When each unit is measured twice,
+  use `paired_t_test`; on the sleep data the two answers differ by a factor
+  of about 28 in the p-value.
+- **One-sided p-value, two-sided interval.** `alternative="less"` or
+  `"greater"` changes the p-value only. `confidence_interval` is always the
+  two-sided Student-t interval at `confidence`.
+- **Zero differences and ties in the signed-rank test.**
+  `wilcoxon_signed_rank_test` drops zero differences, so `sample_sizes` can
+  be smaller than the number of pairs, and with tied absolute differences
+  `method="auto"` switches from the exact law to the normal approximation.
+- **The z interval with an estimated sigma.**
+  `normal_mean_confidence_interval` without `known_sigma` is a large-sample
+  approximation and is narrower than the exact
+  `student_t_mean_confidence_interval` for small `n`.
+- **Defaults and seeds.** `adjust_p_values` defaults to Holm (FWER control,
+  not FDR); `bootstrap`, `bootstrap_confidence_interval`, and the Monte Carlo
+  branch of `permutation_test` are reproducible only with an explicit `seed`
+  (`seed=None` draws fresh randomness).
+
+```python
+import statistics
+from probstat.inference import (
+    adjust_p_values, bootstrap, normal_mean_confidence_interval, paired_t_test,
+    student_t_mean_confidence_interval, two_sample_t_test,
+    wilcoxon_signed_rank_test,
+)
+
+drug_a = (0.7, -1.6, -0.2, -1.2, -0.1, 3.4, 3.7, 0.8, 0.0, 2.0)
+drug_b = (1.9, 0.8, 1.1, 0.1, -0.1, 4.4, 5.5, 1.6, 4.6, 3.4)
+two_sample_t_test(drug_a, drug_b).method     # 'Welch two-sample t test'
+two_sample_t_test(drug_a, drug_b).p_value    # 0.0794
+paired_t_test(drug_a, drug_b).p_value        # 0.00283
+
+one_sided = paired_t_test(drug_a, drug_b, alternative="less")
+one_sided.p_value                            # 0.00142, half the two-sided value
+one_sided.confidence_interval.lower          # -2.460, still two-sided
+one_sided.confidence_interval.upper          # -0.700
+
+signed_rank = wilcoxon_signed_rank_test(drug_a, drug_b)
+signed_rank.sample_sizes                     # (9,), one zero difference dropped
+signed_rank.exact                            # False, ties force the normal law
+
+normal_mean_confidence_interval(drug_a).upper       # 1.859
+student_t_mean_confidence_interval(drug_a).upper    # 2.030
+
+adjust_p_values((0.01, 0.04, 0.03, 0.005)).method      # 'holm'
+adjust_p_values((0.01, 0.04, 0.03, 0.005)).error_rate  # 'FWER'
+first = bootstrap(statistics.fmean, drug_a, replicates=200, seed=1)
+first.standard_error == bootstrap(
+    statistics.fmean, drug_a, replicates=200, seed=1).standard_error  # True
+```
+
 ## Sources
 
 [REF-STUDENT-1908], [REF-WELCH-1947], [REF-SATTERTHWAITE-1946],

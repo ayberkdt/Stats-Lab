@@ -30,9 +30,13 @@ def eight_schools(m):
     theta = m.sample("theta", Normal(mu, tau), shape=8, reparam="noncentered")
     m.observe("y", ppl.elementwise(Normal, theta, s), y)
 
-posterior = ppl.sample(eight_schools, draws=1000, warmup=1000, chains=4, seed=1)
+posterior = ppl.sample(eight_schools, draws=150, warmup=150, chains=2, seed=1)
 posterior.mean("tau"); posterior["theta"]; posterior.summary()
 ```
+
+This is the configuration of the test run in section 3 (seed 1, two chains
+of 150 warm-up and 150 kept draws). A production run would use more draws
+and four chains; the cost grows linearly in `draws + warmup` and `chains`.
 
 The handle `m` has three methods:
 
@@ -356,6 +360,14 @@ the density handed to the engines is the marginal over the discrete sites
 refused with a message that points to `ppl.TruncatedDiscrete(base, lower,
 upper)`, which renormalizes a law on `{lower, ..., upper}`.
 
+The model functions of sections 5-7 use three small duck-typed laws that
+are not part of the library: `Indicator(p)` (a Bernoulli law on `{0, 1}`),
+`UnitNormal(mu)`, and `Gaussian(mu, sigma=1.0)`. Each one is a class of a
+few lines whose `log_pmf` or `log_pdf` touches the latent values only
+through arithmetic operators and `admath`, so the programs are traceable; they are defined in `tests/test_ppl_structured_sites.py`,
+`tests/test_ppl_dynamic_structure.py`, and `tests/test_ppl_markov.py`. The
+blocks only define the models and are executed as definitions.
+
 ```python
 def mixture(m):
     w = m.sample("w", Dirichlet((2.0, 2.0)))
@@ -589,13 +601,15 @@ chains do not nest.
 ### Structure inside plate iterations
 
 ```python
-for i in m.plate("data", len(y)):
-    z = m.sample(f"z[{i}]", Indicator(0.4), marginalize=True)
-    if z == 1:
-        theta = m.sample(f"theta[{i}]", Gaussian(mu, 1.5))
-        m.observe(f"y[{i}]", Gaussian(theta, 0.5), y[i])
-    else:
-        m.observe(f"y[{i}]", Gaussian(mu), y[i])
+def local_structure(m):
+    mu = m.sample("mu", Normal(0.0, 3.0))
+    for i in m.plate("data", len(y)):
+        z = m.sample(f"z[{i}]", Indicator(0.4), marginalize=True)
+        if z == 1:
+            theta = m.sample(f"theta[{i}]", Gaussian(mu, 1.5))
+            m.observe(f"y[{i}]", Gaussian(theta, 0.5), y[i])
+        else:
+            m.observe(f"y[{i}]", Gaussian(mu), y[i])
 ```
 
 `trace` now runs every branch of every plate iteration. A branch that
@@ -624,6 +638,9 @@ come before the iteration's discrete sites.
 Any proper pseudo-prior leaves the structure probabilities unchanged. One
 close to the conditional posterior makes the sampler move between
 structures more easily [REF-CARLIN-CHIB-1995].
+
+<!-- not-executed: outline of the call sequence (the "..." stands for the
+sampler settings); the full run is in tests/test_ppl_dynamic_structure.py -->
 
 ```python
 pilot = ppl.sample(components, draws=300, warmup=300, chains=2, seed=1)
@@ -675,6 +692,54 @@ suits the gradient-based engines [REF-GODSILL-2001].
   inverse of a non-centred site depends on its parents.
 - Posterior predictive p-values reuse the data and are not uniform under
   the true model (see [hierarchical models](hierarchical-models.md)).
+
+## Common pitfalls
+
+- **A silent fallback to finite differences.** A library distribution with
+  a latent parameter (`Normal(mu, tau)`) makes the program untraceable, and
+  the run uses central differences at `2d + 1` model executions per
+  gradient. Check `posterior.gradient_method` and
+  `posterior.gradient_fallback_reason`; the section-1 run reports
+  `"finite-difference"`.
+- **Read the convergence warnings.** NUTS, HMC, and Metropolis runs emit
+  `ConvergenceWarning` when the rank-normalized R-hat exceeds 1.01 or the
+  bulk or tail ESS falls below 100 per chain. Short runs such as the
+  section-1 configuration can trigger it; the cure is more draws or a
+  reparameterization, not a smaller threshold.
+- **Unconstrained point estimates.** The `laplace` point and the
+  `fit_advi` mean live on the unconstrained scale; mapped back, they are
+  not the natural-scale posterior mode (for `tau = exp(u)` the Laplace
+  point maximizes `tau p(tau | y)`).
+- **Site rules fail at trace time.** A repeated site name, or
+  `reparam="noncentered"` on a non-normal site, raises
+  `ModelSpecificationError` from `ppl.trace`; an observed site without data
+  is accepted by `trace` but rejected by the inference functions.
+- **Seeds.** `ppl.sample` defaults to `seed=None`, which is not
+  reproducible; with an integer seed the starting points and each chain use
+  separate child streams.
+
+```python
+from probstat.distributions import Gamma
+
+posterior.gradient_method   # 'finite-difference'
+ppl.trace(eight_schools).unconstrained_names[:3]   # ('mu', 'log(tau)', 'theta_z[0]')
+
+def repeated(m):
+    m.sample("x", Normal(0.0, 1.0))
+    m.sample("x", Normal(0.0, 1.0))
+
+def noncentered_gamma(m):
+    m.sample("g", Gamma(2.0, 1.0), reparam="noncentered")
+
+messages = []
+for program in (repeated, noncentered_gamma):
+    try:
+        ppl.trace(program)
+    except ppl.ModelSpecificationError as error:
+        messages.append(str(error))
+messages[0]   # "duplicate site name 'x'"
+messages[1]   # "site 'g': reparam='noncentered' needs Normal distributions"
+```
 
 ## References
 

@@ -465,3 +465,45 @@ Results from `examples/uq_study_complete_lab.py` (seed 2026, 17 s,
   matter, record that limitation.
 - Variance-based Sobol indices are refused for dependent inputs, because the
   functional ANOVA decomposition behind them assumes independence.
+
+## Common pitfalls
+
+- **Latent versus physical correlation.** `JointInput(inputs, R)` takes the
+  latent normal correlation. For non-normal marginals use
+  `JointInput.from_pearson`, which refuses discrete inputs (use
+  `from_spearman` or `from_kendall`).
+- **Failure side.** `UQStudy.limit_state`, `reliability`, `form`,
+  `design_points`, and `active_reliability` default to `failure="below"`;
+  `UQStudy.propagate_until` and `reliability.ModelLimitState` default to
+  `failure="above"`. Pass `failure=` whenever one threshold feeds several
+  stages.
+- **Seeds and streams.** `UQStudy(model)` uses `seed=0` by default, and the
+  `k`-th run of a stage draws from the child stream `(stage, k)`, so running
+  a stage twice gives two different samples. A child stream depends only on
+  its root seed and key path. Domain functions called directly, such as
+  `propagation.propagate`, default to `seed=None`, which draws fresh
+  operating-system entropy and is not reproducible.
+- **Cost.** `model.evaluations` accumulates over every workflow that used the
+  object. Read it before and after a stage instead of assuming it starts at
+  zero.
+- **Order matters for non-Gaussian copulas.** With a Clayton, Gumbel, Frank,
+  Student-t, or vine copula the standard space is the Rosenblatt transform in
+  input order, so FORM results can depend on that order.
+
+```python
+from probstat.foundations import RandomStream
+from probstat.modeling import nataf_correlation
+from probstat.reliability import ModelLimitState
+from probstat.workflow import UQStudy
+
+nataf_correlation(LogNormal(0.0, 0.5), LogNormal(0.0, 0.8), 0.6)  # 0.6612
+uq = UQStudy(model, seed=2026)
+uq.limit_state("margin", 0.0).failure              # 'below'
+ModelLimitState(model, "margin", 0.0).failure      # 'above'
+root = RandomStream(2026)
+root.child("propagation", 0) == RandomStream(2026).child("propagation", 0)  # True
+first = uq.propagate(64, design="mc")["margin"].mean
+second = uq.propagate(64, design="mc")["margin"].mean
+first == second                                    # False, child k = 1
+UQStudy(model, seed=2026).propagate(64, design="mc")["margin"].mean == first  # True
+```

@@ -226,11 +226,58 @@ Other tools in the same packages:
 3. **Exponential sojourns:** Markov models assume exponential sojourn times.
    Use semi-Markov or simulation when repair times are far from
    exponential.
-4. **CCF parameters** come from generic data. Their uncertainty is not yet
-   exposed as epistemic inputs in `as_probabilistic_model`.
+4. **CCF parameters** come from generic data. `as_probabilistic_model` takes
+   uncertain component parameters only; propagate CCF-parameter uncertainty
+   with `ccf_parameter_uncertainty` (mean, variance, and the CCF share of the
+   variance) or bound it with `ccf_interval_bounds`.
 5. **Campaign independence:** missions in a campaign are independent and
    identical.
 6. **Point estimates vs. epistemic means:** the epistemic mean `E[R]` and the
    reliability at mean parameters `R(E[θ])` differ when `R` is nonlinear in
    the parameters, for example with rates. Report which one is used.
    `MissionAssessment.cost(unreliability=...)` accepts either.
+
+## Common pitfalls
+
+- **Phase reliabilities do not multiply.** The phases share the same
+  components, so the product of separately computed phase reliabilities is
+  not the mission reliability. Use `PhasedMission`.
+- **One model per component ages on the whole mission.** Give a list with one
+  model per phase to apply a dormant rate during the phases where the
+  component is not used.
+- **Composition needs independent modules.** `MarkovComponent` and
+  `SubsystemComponent` are exact only when the block shares no component,
+  repair crew, load, or CCF group with the rest of the system.
+- **Seeds default differently.** `ccf_parameter_uncertainty` and
+  `ccf_interval_bounds` default to `seed=0` (repeatable), while the sampling
+  methods of `probstat.reliability` default to `seed=None` (fresh entropy).
+- **Dynamic fault trees stop at `max_states`.** `DynamicFaultTree` raises
+  instead of approximating when the generated chain exceeds `max_states`
+  (default `10_000`).
+
+Phase 1 needs either of two units (`parallel`) for 100 h, phase 2 needs both
+(`series`) for another 100 h, each unit at `1e-3` per hour:
+
+```python
+import inspect
+import math
+from probstat.reliability import model_monte_carlo
+from probstat.systems import (
+    DynamicFaultTree, ExponentialComponent, Phase, PhasedMission, SystemModel,
+    ccf_parameter_uncertainty, parallel, series,
+)
+
+units = {"A": ExponentialComponent(1e-3), "B": ExponentialComponent(1e-3)}
+mission = PhasedMission(
+    (Phase("either", 100.0, parallel("A", "B")), Phase("both", 100.0, series("A", "B"))),
+    units,
+)
+round(mission.evaluate().reliability, 6)          # 0.67032, exp(-0.4)
+round(math.exp(-0.4), 6)                          # 0.67032
+naive = (SystemModel(parallel("A", "B"), units).reliability(100.0)
+         * SystemModel(series("A", "B"), units).reliability(200.0))
+round(naive, 6)                                   # 0.66425, too low
+inspect.signature(ccf_parameter_uncertainty).parameters["seed"].default   # 0
+inspect.signature(model_monte_carlo).parameters["seed"].default           # None
+inspect.signature(DynamicFaultTree).parameters["max_states"].default      # 10000
+```

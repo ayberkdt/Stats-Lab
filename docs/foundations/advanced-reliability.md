@@ -287,3 +287,61 @@ calls on adaptation but needs neither a gradient nor a design point.
 
 Sources: [REF-RUBINSTEIN-KROESE-2004], [REF-KURTZ-SONG-2013],
 [REF-KOUTSOURELAKIS-PRADLWARTER-SCHUELLER-2004], [REF-BRENT-1973].
+
+## Common pitfalls
+
+- **The default failure side is `"above"`.** `ModelLimitState` fails when
+  `y >= t` unless `failure="below"` is given. For a safety margin the wrong
+  side is silent: FORM converges and reports the index with the opposite sign
+  and `P_f` close to one.
+- **An unconverged FORM result is returned, not raised.** Check `converged`;
+  `sorm` refuses a result with `converged=False`.
+- **`importance_factors` depend on the input order under correlation.** They
+  are `alpha_i^2` in Cholesky coordinates. Use `gamma` for the physical inputs.
+- **`METHODS` is not every method.** `compare_reliability_methods` runs
+  `METHODS` by default; `"ce"` and `"line"` must be requested explicitly.
+- **`seed=None` means fresh entropy.** Pass an integer seed to reproduce a
+  sampling result.
+
+The correlated lognormal margin of Section 7:
+
+```python
+import math
+from probstat.distributions import LogNormal
+from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
+from probstat.reliability import (
+    AVAILABLE_METHODS, METHODS, ModelLimitState, form_hlrf, sorm,
+)
+from probstat.uq import QuantityOfInterest
+
+def margin_model(order):
+    laws = {"R": LogNormal(1.2, 0.15), "S": LogNormal(0.3, 0.25)}
+    inputs = JointInput(
+        tuple(RandomInput(name, laws[name]) for name in order),
+        ((1.0, 0.4), (0.4, 1.0)),
+    )
+    return ProbabilisticModel(
+        inputs, lambda p: {"y": p["R"] - p["S"]}, (QuantityOfInterest("y", "margin"),)
+    )
+
+wrong = ModelLimitState(margin_model("RS"), "y", 0.0)
+wrong.failure                                    # 'above'
+wrong_form = form_hlrf(wrong)
+wrong_form.converged                             # True
+round(wrong_form.beta, 4)                        # -3.8376
+state = ModelLimitState(margin_model("RS"), "y", 0.0, failure="below")
+form = form_hlrf(state)
+round(form.beta, 4)                              # 3.8376
+round(form.importance_factors["R"], 3)           # 0.045
+swapped = form_hlrf(ModelLimitState(margin_model("SR"), "y", 0.0, failure="below"))
+round(swapped.importance_factors["R"], 3)        # 0.344, same model, other order
+round(form.gamma["R"], 3), round(swapped.gamma["R"], 3)   # (-0.514, -0.514)
+short = form_hlrf(state, max_iterations=1)
+short.converged                                  # False
+try:
+    sorm(state, form_result=short)
+except ValueError as error:
+    message = str(error)
+message                                          # 'SORM requires a converged FORM design point'
+("ce" in METHODS, "ce" in AVAILABLE_METHODS)     # (False, True)
+```

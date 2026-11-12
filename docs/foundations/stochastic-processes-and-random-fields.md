@@ -197,6 +197,12 @@ interpolation [EQ-PROC-KL-005], which reproduces the nodal values exactly.
 ## 5. Random-field inputs in a probabilistic model
 
 ```python
+import math
+from probstat.modeling import ProbabilisticModel, RandomFieldInput
+from probstat.processes import CovarianceKernel, karhunen_loeve_interval
+from probstat.propagation import propagate
+from probstat.uq import QuantityOfInterest
+
 kl = karhunen_loeve_interval(CovarianceKernel("exponential", 0.3**2, 0.5),
                              0.0, 1.0, 30, variance_fraction=0.9)
 stiffness = RandomFieldInput(kl, prefix="xi", transform=math.exp)
@@ -208,6 +214,9 @@ def bar(p):
 model = ProbabilisticModel(stiffness.joint_input(), bar,
                            (QuantityOfInterest("tip", "Tip displacement"),))
 study = propagate(model, 2000, design="lhs", seed=7)
+len(kl.eigenvalues)                  # 5
+study["tip"].mean                    # 2.08386
+study["tip"].standard_deviation**2   # 0.22814 (n - 1 denominator)
 ```
 
 `RandomFieldInput` declares `xi_1..xi_M` as independent `Normal(0, 1)`
@@ -336,3 +345,52 @@ The fitted drift stays within 0.056 of `-x` on the grid.
   tape: practical for one or two dimensions, widths up to about 16, and a
   few hundred to a few thousand data points. Samplers use uniform time grids
   without adaptive step control.
+
+## Common pitfalls
+
+- **Variance, not standard deviation.** `CovarianceKernel(family,
+  variance, length_scale)` takes the variance `sigma^2` (section 5 passes
+  `0.3**2`). `OrnsteinUhlenbeck(reversion, level, volatility)` has
+  stationary variance `volatility^2 / (2 reversion)`, not `volatility^2`.
+- **Rows are not renormalized.** `MarkovChain` rejects a row that does not
+  sum to one within `1e-10`.
+- **Several closed classes, or a period.** `stationary_distribution()`
+  raises when the chain has more than one closed class. A periodic chain has
+  a stationary law, but `distribution_after(pi0, n)` keeps cycling instead
+  of converging to it.
+- **Truncation removes variance.** A truncated KL expansion has pointwise
+  variance below the kernel variance everywhere; report
+  `explained_variance_fraction` with any result that depends on the field
+  variance.
+- **Drift of the price, not of its logarithm.** `GeometricBrownianMotion`
+  has mean `S0 e^(drift t)`; the drift of `log S` is
+  `drift - volatility^2 / 2`.
+
+```python
+from probstat.processes import (
+    GeometricBrownianMotion, MarkovChain, OrnsteinUhlenbeck,
+)
+
+CovarianceKernel("exponential", 0.3**2, 0.5)((0.0,), (0.0,))   # 0.09
+OrnsteinUhlenbeck(2.0, 1.0, 0.5).stationary_variance            # 0.0625
+GeometricBrownianMotion(0.05, 0.2).mean(100.0, 1.0)             # 105.127
+
+try:
+    MarkovChain(((0.7, 0.3), (0.1, 0.8)))
+except ValueError as error:
+    bad_row = str(error)
+bad_row   # 'transition row 1 does not sum to one'
+try:
+    MarkovChain(((1.0, 0.0), (0.0, 1.0))).stationary_distribution()
+except ValueError as error:
+    not_unique = str(error)
+not_unique   # 'stationary distribution is not unique: 2 closed classes; analyze each closed class separately'
+
+cycle = MarkovChain(((0.0, 1.0, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0)))
+cycle.period(0)                                  # 3
+cycle.distribution_after((1.0, 0.0, 0.0), 99)    # (1.0, 0.0, 0.0)
+cycle.distribution_after((1.0, 0.0, 0.0), 100)   # (0.0, 1.0, 0.0)
+
+kl.explained_variance_fraction                   # 0.915
+max(kl.pointwise_variance()) < 0.3**2            # True
+```

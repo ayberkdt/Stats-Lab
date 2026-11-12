@@ -180,6 +180,60 @@ which look plausible but are not jointly possible: one eigenvalue is negative.
 Trace equals the sum of eigenvalues and the determinant equals their product
 ([REF-STRANG-2016, Chapter 6]).
 
+## Common pitfalls
+
+- **Symmetry is assumed, not checked.** `cholesky` (and therefore
+  `solve_spd` and `log_det_spd`) reads only the lower triangle, so a
+  non-symmetric input is factored as if its upper triangle mirrored the
+  lower one. `symmetrize` raises when the two triangles disagree beyond a
+  relative `1e-12` and returns the averaged matrix otherwise.
+- **No jitter is added.** A singular covariance raises in `cholesky`; use
+  `cholesky_semidefinite` for a positive-semidefinite matrix, or add a
+  nugget to the diagonal deliberately.
+- **Singular matrices behave differently by function.** `determinant`
+  returns `0.0`, while `log_abs_determinant` and `lu_solve` raise
+  `ValueError`.
+- **Eigenvectors are columns.** `symmetric_eigen` returns the eigenvalues in
+  ascending order and the eigenvectors as the columns of its second result,
+  so the `k`-th eigenvector is `[row[k] for row in vectors]`, not
+  `vectors[k]`.
+- **The backend is process-wide.** `set_backend` changes it for every caller
+  and returns the previous backend; `use_backend` restores it on exit.
+
+```python
+from probstat.linalg import cholesky_semidefinite, get_backend, symmetrize, use_backend
+
+lopsided = ((4.0, 100.0), (1.0, 4.0))
+print(cholesky(lopsided) == cholesky(((4.0, 1.0), (1.0, 4.0))))
+singular = ((1.0, 1.0), (1.0, 1.0))
+print(cholesky_semidefinite(singular), determinant(singular))
+for call in (lambda: symmetrize(lopsided), lambda: cholesky(singular),
+             lambda: log_abs_determinant(singular), lambda: lu_solve(singular, (1.0, 1.0))):
+    try:
+        call()
+    except ValueError as error:
+        print(error)
+values, vectors = symmetric_eigen(A)
+columns = [tuple(row[k] for row in vectors) for k in range(3)]
+print(values[0] < values[1] < values[2])
+print(all(max(abs(a - values[k] * c) for a, c in zip(matvec(A, columns[k]), columns[k])) < 1e-12
+          for k in range(3)))
+with use_backend("python"):
+    print(get_backend().name)
+```
+
+```text
+True
+((1.0, 0.0), (1.0, 0.0)) 0.0
+matrix must be symmetric
+matrix must be positive definite
+matrix is singular; log|det| is -infinity
+matrix is singular to working precision
+True
+True
+python
+```
+
 ## Where this is used
 
 - `multivariate.MultivariateNormal` stores a Cholesky factor for densities,

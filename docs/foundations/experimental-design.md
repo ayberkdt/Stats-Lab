@@ -20,7 +20,7 @@ from probstat.design import ApproximateDesign, information_matrix, polynomial_ba
 
 xi = ApproximateDesign.uniform((-1.0, 0.0, 1.0))
 information_matrix(xi, polynomial_basis(2))
-# ((1, 0, 2/3), (0, 2/3, 0), (2/3, 0, 2/3))
+# ((1.0, 0.0, 0.6667), (0.0, 0.6667, 0.0), (0.6667, 0.0, 0.6667)); 0.6667 is 2/3
 ```
 
 ## 2. Criteria (EQ-OED-CRIT-001)
@@ -209,3 +209,42 @@ increments are never negative.
   data-generating parameter. Nested MC bias can dominate when the EIG is
   large.
 - Greedy selection is myopic and does not optimize batches jointly.
+
+## Common pitfalls
+
+- **Per-run information.** `information_matrix` uses weights that sum to
+  one, so `n` runs carry `n M`. `polynomial_basis(2)` has the three terms
+  `(1, x, x^2)`.
+- **Singular is not an error.** A design with fewer support points than
+  parameters gives `D = -inf` and `A = inf` instead of raising.
+- **Check `converged`.** `d_optimal_design` returns, rather than raises, when
+  `max_iterations` (default 10000) is reached. Fedorov-Wynn on the quadratic
+  grid of Section 4 with the default `tolerance=1e-6` stops unconverged
+  after 10000 iterations; the multiplicative algorithm converges.
+- **Nested Monte Carlo defaults differ.** `nested_monte_carlo_information_gain`
+  uses fresh inner samples (`reuse_samples=False`, biased upward);
+  `expected_information_gain(method="nested")` reuses the outer draws
+  (`reuse_samples=True`, biased downward, at most `log outer`).
+  `expected_information_gain` itself defaults to `method="laplace"`.
+- **Local means local.** A `LocalLinearization` design is optimal at its
+  nominal parameter value only.
+
+```python
+import inspect
+import math
+
+from probstat.design import (
+    design_criterion,
+    expected_information_gain,
+    nested_monte_carlo_information_gain,
+)
+
+two_points = ApproximateDesign.uniform((0.0, 1.0))
+design_criterion(two_points, polynomial_basis(2), "D") == -math.inf  # True
+design_criterion(two_points, polynomial_basis(2), "A") == math.inf   # True
+nested = inspect.signature(nested_monte_carlo_information_gain).parameters
+nested["reuse_samples"].default        # False
+dispatch = inspect.signature(expected_information_gain).parameters
+dispatch["reuse_samples"].default      # True
+dispatch["method"].default             # 'laplace'
+```

@@ -133,4 +133,48 @@ assert bernoulli.moment_generating_function(0) == 1.0
 assert bernoulli.characteristic_function(0) == 1 + 0j
 ```
 
+## Common pitfalls
+
+- **Moments are properties of the law.** `mean`, `variance`, and
+  `standard_deviation` take no parentheses and no `ddof`: `variance` is the
+  exact second central moment, not a sample estimate.
+- **The structural support is not the probabilistic support.** `support`
+  lists every mapped value, including values reached only through zero-mass
+  outcomes; use `positive_support` for values with positive probability.
+  `pmf` of a value that is never reached returns `0.0` rather than raising.
+- **The CDF is right-continuous.** `cdf(3)` includes the mass at `3`, while
+  `cdf(2.999)` does not.
+- **A joint law needs one measure object.** Two variables built on equal but
+  separately constructed measures raise `ValueError` in `joint_with`.
+- **Numeric operations stop at their domain.** The mean of a categorical
+  variable raises `TypeError`, the correlation of a constant raises
+  `ValueError`, and an MGF that overflows raises `OverflowError` instead of
+  returning infinity.
+
+```python
+def raises(call):
+    try:
+        call()
+    except (TypeError, ValueError, OverflowError) as error:
+        return type(error).__name__
+    return "no error"
+
+
+X = FiniteRandomVariable.from_function(fair, lambda face: face, name="X")
+X.variance  # 2.9167
+X.cdf(3), X.cdf(2.999)  # (0.5, 0.3333)
+X.pmf(7)  # 0.0
+skewed = FiniteProbabilityMeasure(die, {1: 0.5, 2: 0.5, 3: 0.0, 4: 0.0, 5: 0.0, 6: 0.0})
+Z = FiniteRandomVariable.from_function(skewed, lambda face: face, name="Z")
+Z.support, Z.positive_support  # ((1, 2, 3, 4, 5, 6), (1, 2))
+copy = FiniteRandomVariable.from_function(
+    FiniteProbabilityMeasure.uniform(die), lambda face: face, name="Copy"
+)
+raises(lambda: X.joint_with(copy))  # 'ValueError'
+raises(lambda: parity.mean)  # 'TypeError'
+constant = FiniteRandomVariable.from_function(fair, lambda face: 1.0, name="C")
+raises(lambda: X.joint_with(constant).correlation)  # 'ValueError'
+raises(lambda: X.moment_generating_function(1000.0))  # 'OverflowError'
+```
+
 References: [REF-ROSS-2019, Chapters 4-6].

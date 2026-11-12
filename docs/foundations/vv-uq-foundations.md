@@ -276,10 +276,47 @@ does not estimate iterative or round-off error (record those in a
 `NumericalErrorBudget`), and code verification by the method of manufactured
 solutions is only exercised in the tests. The model-form component is an
 additive Gaussian discrepancy with a declared extrapolation rule, not a
-Gaussian-process discrepancy; probability-box propagation is not implemented.
+Gaussian-process discrepancy. Probability-box propagation through a
+`ProbabilisticModel` is the sampled double loop
+`propagation.nested_propagation`; its outer points are a
+Latin hypercube plus the interval corners, so its envelope can be narrower
+than the exact one.
 Other outcomes are individually tracked in the
 [ATHENS coverage matrix](../curriculum/athens-2026-coverage.md); a tracked topic
 is not represented as completed until tested implementation evidence exists.
+
+## Common pitfalls
+
+- **Argument order.** `uq.observed_order_of_accuracy(coarse, medium, fine)`
+  takes the coarsest value first; reversed input silently gives the negative
+  order. It uses absolute differences and does not classify the sequence, so
+  an oscillatory sequence still returns a number. `verify_solution` and
+  `grid_convergence_index` sort by spacing and classify convergence.
+- **Theoretical order.** `verify_solution` defaults to
+  `theoretical_order=2.0`. For a first-order scheme pass `1.0`; the
+  asymptotic-range check is made against this value.
+- **Warnings are data.** The asymptotic-range caution is stored in
+  `SolutionVerification.warnings`; no Python warning is emitted, so read the
+  tuple.
+- **Expanded versus standard uncertainty.** `U` is expanded.
+  `standard_uncertainty()` divides by `sqrt(3)` (uniform error) by default
+  and by 1.96 with `"normal95"`; state which conversion enters a budget.
+
+```python
+from probstat.uq import observed_order_of_accuracy, verify_solution
+
+# phi(h) = 1 + h^2 on h = 1, 1/2, 1/4
+observed_order_of_accuracy(2.0, 1.25, 1.0625)   # 2.0
+observed_order_of_accuracy(1.0625, 1.25, 2.0)   # -2.0, fine-to-coarse by mistake
+statement = verify_solution("phi", (1.0, 0.5, 0.25), (2.0, 1.25, 1.0625))
+statement.expanded_uncertainty                  # 0.078125
+statement.standard_uncertainty()                # 0.0451, U / sqrt(3)
+statement.standard_uncertainty("normal95")      # 0.0399, U / 1.96
+first_order = verify_solution(
+    "phi", (1.0, 0.5, 0.25), (2.0, 1.25, 1.0625), theoretical_order=1.0
+)
+len(first_order.warnings)                       # 1
+```
 
 ## Sources
 

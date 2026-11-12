@@ -332,6 +332,39 @@ as long as each statement is labelled with the experiment it refers to.
 | `inference.bootstrap_confidence_interval` | `inference.posterior_predictive_check`, `inference.posterior_predictive_pvalues` |
 | `inference.evaluate_estimator` (coverage, bias, MSE) | `inference.simulation_based_calibration` |
 
+## Common pitfalls
+
+- **Two-sided is not twice one-sided.** `binomial_test` sums every outcome
+  no more probable than the observed one. For an asymmetric null this
+  differs from doubling the smaller one-sided p-value (`0.6295` against
+  `0.7840` for 7 of 20 at `p_0 = 0.3`).
+- **Wilson is not guaranteed.** `wilson_score_interval` undercovers at some
+  `p` (`0.9245` at `p = 0.05` in Section 4); use
+  `clopper_pearson_interval` when coverage must hold for every `p`.
+- **Beta shape parameters.** `Beta(a, b)` takes the two shape parameters,
+  so the uniform-prior posterior is `Beta(1 + x, 1 + n - x)` with mean
+  `(1 + x) / (2 + n)`, not `x / n`.
+- **Simulated coverage carries Monte Carlo error.** `evaluate_estimator`
+  reports `coverage_se` next to `coverage`; a difference of one or two
+  standard errors from an exact value is noise (Section 4).
+
+```python
+seven = binomial_test(7, 20, null_probability=0.3)
+upper_tail = binomial_test(7, 20, null_probability=0.3, alternative="greater")
+lower_tail = binomial_test(7, 20, null_probability=0.3, alternative="less")
+print(f"two-sided p-value          {seven.p_value:.4f}")
+print(f"doubled smaller tail       {2 * min(upper_tail.p_value, lower_tail.p_value):.4f}")
+print(f"posterior mean (1+x)/(2+n) {Beta(1 + x, 1 + n - x).mean:.4f}")
+print(f"sample proportion x/n      {x / n:.4f}")
+```
+
+```text
+two-sided p-value          0.6295
+doubled smaller tail       0.7840
+posterior mean (1+x)/(2+n) 0.6818
+sample proportion x/n      0.7000
+```
+
 ## References
 
 - [REF-CASELLA-BERGER-2002] Chapter 9 (interval estimation).

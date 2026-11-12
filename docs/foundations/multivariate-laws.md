@@ -155,3 +155,50 @@ it equals the sum of the sequential one-step predictive log-densities.
 holds hyperparameters for a sampler and allows an improper default;
 `multivariate.NormalInverseWishart` is a proper law with a density and a
 closed-form update.
+
+## Common pitfalls
+
+- **Scale is not covariance.** The `scale_matrix` of `MultivariateStudentT`
+  and the `S` of `Wishart(S, nu)` are scale parameters: the t covariance is
+  `nu/(nu - 2) Sigma` and the Wishart mean is `nu S`.
+- **Undefined moments come back as `inf`/`nan`, not as errors.** The
+  t covariance for `nu <= 2`, the inverse-Wishart mean for `nu <= p + 1`,
+  and the Dirichlet mode when some `alpha_i <= 1` are returned with
+  infinite or `nan` entries; check them before using them downstream.
+- **Points off the simplex.** `Dirichlet.log_pdf` raises `ValueError` for a
+  vector whose sum is not one, but returns `-inf` for a vector that sums to
+  one with a negative component.
+- **Ordered sequence versus counts.** `log_marginal_likelihood` of
+  `dirichlet_posterior` is the probability of one ordered sequence; add
+  `log(n!/prod x_i!)` to compare it with the Dirichlet-multinomial mass of
+  the counts.
+- **Two normal-inverse-Wishart classes.** `inference.NormalInverseWishartPrior`
+  is a sampler setting that allows an improper default;
+  `multivariate.NormalInverseWishart` is a proper law with a density.
+
+```python
+import math
+from probstat.multivariate import (
+    DirichletMultinomial, InverseWishart, MultivariateStudentT, Wishart,
+)
+
+identity = ((1.0, 0.0), (0.0, 1.0))
+MultivariateStudentT((0.0, 0.0), identity, 4.0).covariance   # ((2.0, 0.0), (0.0, 2.0))
+Wishart(identity, 3.0).mean                                   # ((3.0, 0.0), (0.0, 3.0))
+math.isinf(MultivariateStudentT((0.0, 0.0), identity, 2.0).covariance[0][0])  # True
+math.isinf(InverseWishart(identity, 3.0).mean[0][0])          # True
+math.isnan(Dirichlet((0.5, 2.0, 3.0)).mode[0])                # True
+
+flat = Dirichlet((1.0, 1.0, 1.0))
+flat.log_pdf((-0.1, 0.6, 0.5)) == -math.inf   # True
+try:
+    flat.log_pdf((0.2, 0.3, 0.4))
+except ValueError as error:
+    off_simplex = str(error)
+off_simplex   # 'value must sum to one (a point of the simplex)'
+
+ordered = result.log_marginal_likelihood       # -21.2116
+coefficient = math.lgamma(21) - math.lgamma(13) - math.lgamma(6) - math.lgamma(4)
+ordered + coefficient                          # -5.4424
+DirichletMultinomial(20, (1.0, 1.0, 1.0)).log_pmf((12, 5, 3))   # -5.4424
+```

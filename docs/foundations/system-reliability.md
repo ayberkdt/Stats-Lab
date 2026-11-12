@@ -449,3 +449,41 @@ renewal equation [EQ-SYS-SMP-001] (Limnios and Oprişan 2001, Chapter 5
 [REF-LIMNIOS-OPRISAN-2001]) and its largest error estimate is kept in
 `last_error_estimate`. The composition is exact for independent modules
 [EQ-SYS-ADAPT-001]. ADR-0076 records the design and its verification.
+
+## Common pitfalls
+
+- **Two parameterizations of a fixed probability.** `FixedProbability(p)`
+  takes the probability of *working*; `DemandComponent(q)` takes the
+  probability of *failing* on demand.
+- **A repeated name is one component.** `parallel("A", "A")` is just `A`, not
+  a redundant pair. Give redundant units distinct names.
+- **Do not form `1 - R` for a small unreliability.** Call `unreliability` and
+  pass the component complements through `unreliabilities=`; `1 - R` rounds
+  a `1e-27` result to zero.
+- **An infinite MTTF raises.** `SystemModel.mttf` raises `ValueError` when
+  `R(t)` does not tend to zero, for example with `FixedProbability` blocks.
+- **The CCF split depends on the measure.** The default `ccf_basis="auto"`
+  splits the cumulative hazard for mission reliability and the probability
+  for availability (Section 7).
+
+```python
+from probstat.systems import (
+    DemandComponent, FixedProbability, SystemModel, SystemStructure, parallel,
+)
+
+FixedProbability(0.9).reliability(1.0)            # 0.9
+round(DemandComponent(0.9).reliability(1.0), 12)  # 0.1
+SystemStructure(parallel("A", "A")).components    # ('A',)
+triple = SystemStructure(parallel("A", "B", "C"))
+works = {name: 1.0 - 1e-9 for name in "ABC"}
+fails = {name: 1e-9 for name in "ABC"}
+1.0 - triple.reliability(works)                   # 0.0
+triple.unreliability(works, unreliabilities=fails)   # 1e-27
+static = SystemModel(parallel("A", "B"), {"A": FixedProbability(0.9),
+                                          "B": FixedProbability(0.9)})
+try:
+    static.mttf()
+except ValueError as error:
+    message = str(error)
+message          # 'R(t) tends to 0.99 > 0 as t -> inf, so the MTTF is infinite'
+```

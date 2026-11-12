@@ -33,10 +33,21 @@ inverse direction; `sample_with_log_density` uses the forward direction and
 returns `log N(z) - log |det J_T(z)|` with each draw, which needs no inverse.
 
 ```python
+import random
 from probstat.generative import fit_flow, real_nvp_flow
 
+def banana(size, seed):
+    # x1 ~ N(0, 1), x2 | x1 ~ N(x1^2 / 2 - 1, 0.35^2)
+    rng = random.Random(seed)
+    points = []
+    for _ in range(size):
+        a = rng.gauss(0.0, 1.0)
+        points.append((a, 0.5 * a * a - 1.0 + 0.35 * rng.gauss(0.0, 1.0)))
+    return points
+
+data, test_points = banana(300, 5), banana(300, 6)
 fit = fit_flow(data, real_nvp_flow(2, couplings=2, hidden=(8,)),
-               iterations=300, heldout=test_points, seed=3)
+               iterations=300, learning_rate=0.02, heldout=test_points, seed=3)
 fit.heldout_mean_log_likelihood, fit.losses[-1]
 draws = fit.sample(1000, seed=4)
 ```
@@ -193,3 +204,41 @@ fit takes seconds, and nested 2-D quadrature 20 000 to 50 000 density
 evaluations. Score matching costs about `d + 2` network evaluations per
 point. Planar and radial layers are best used in small numbers or for
 sampling; coupling stacks are the default for density estimation.
+
+## Common pitfalls
+
+- **Fixed default seeds.** `fit_flow`, `fit_score_matching`,
+  `fit_denoising_score_matching`, and `sample_langevin` default to
+  `seed=0`, so repeated calls without a seed return the same result; vary
+  the seed to see run-to-run spread.
+- **The default energy has a network.** `EnergyModel(d)` adds an MLP with
+  `hidden=(16,)` to the quadratic; pass `hidden=None` for the plain
+  Gaussian energy.
+- **Denoising targets a smoothed density.** `fit_denoising_score_matching`
+  fits the data convolved with `N(0, s^2 I)` (`noise_scale=0.1` by
+  default); for a Gaussian energy the precision tends to `(S + s^2 I)^-1`.
+- **The quadrature box must hold the mass.** `quadrature_normalizing_constant`
+  integrates only over `[lower, upper]`, and its `error` estimates the
+  quadrature error inside the box, not the mass left outside it.
+- **ULA is biased.** `sample_langevin` defaults to `adjusted=True` (MALA);
+  with `adjusted=False` the chain samples a law that differs from the target
+  by `O(h)`. Training and held-out log-likelihoods, and single
+  `kl_divergence_estimate` values, must be read with their standard errors.
+
+```python
+import inspect
+from probstat.generative import (
+    EnergyModel, quadrature_normalizing_constant, sample_langevin,
+)
+
+whole = quadrature_normalizing_constant(lambda x: -0.5 * x[0] ** 2, -8.0, 8.0)
+inside = quadrature_normalizing_constant(lambda x: -0.5 * x[0] ** 2, -1.0, 1.0)
+whole.log_value       # 0.91894, = log sqrt(2 pi)
+inside.log_value      # 0.53722, only 68 % of the mass
+inside.error < 1e-9   # True, the missing mass is not in the error
+
+EnergyModel(2).hidden                              # (16,)
+EnergyModel(2, hidden=None).parameter_count        # 5, quadratic terms only
+inspect.signature(sample_langevin).parameters["adjusted"].default   # True
+inspect.signature(fit_flow).parameters["seed"].default             # 0
+```

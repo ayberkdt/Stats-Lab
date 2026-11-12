@@ -207,6 +207,37 @@ communicate results already obtained with the quantitative tools above.
 - Sample risk measures inherit the sampling error of the propagation; check
   the tail count `n (1 - alpha)`.
 
+## Common pitfalls
+
+- **Losses, not gains.** Every sample measure reads larger values as worse.
+  `DecisionProblem` instead defaults to `maximize=True`, so its payoffs are
+  utilities. Negate gains before passing them as losses.
+- **VaR is an observed loss.** `value_at_risk` is the lower quantile, never an
+  interpolated value.
+- **CVaR is not the mean of the losses at or above VaR.** With ties at VaR
+  only the needed part of the atom enters the tail.
+- **Unseeded runs differ.** `assess_risk` and `bootstrap_risk_interval`
+  default to `seed=None`; pass an integer seed.
+- **A cell edge belongs to the higher bin.** `RiskMatrix.cell` uses the right
+  side of each threshold, so a value equal to an edge is rated in the bin
+  above it.
+
+```python
+import inspect
+from probstat.risk import (
+    DecisionProblem, RiskMatrix, assess_risk, conditional_value_at_risk, value_at_risk,
+)
+
+value_at_risk(range(1, 11), 0.7)                     # 7.0
+losses = [0, 0, 0, 10, 10]
+conditional_value_at_risk(losses, 0.5)               # 8.0
+sum(x for x in losses if x >= value_at_risk(losses, 0.5)) / len(losses)   # 4.0, naive
+inspect.signature(DecisionProblem).parameters["maximize"].default         # True
+inspect.signature(assess_risk).parameters["seed"].default                 # None
+matrix = RiskMatrix((0.1,), (10.0,), (("low", "medium"), ("medium", "high")))
+matrix.cell(0.1, 10.0)                               # (1, 1)
+```
+
 ## Sources
 
 - [REF-KAPLAN-GARRICK-1981].

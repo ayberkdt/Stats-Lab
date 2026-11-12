@@ -20,6 +20,53 @@ Model-form uncertainty across competing models (stacking and pseudo-BMA
 weights of predictive distributions, and the within/between-model variance
 split of the averaged prediction) lives in
 :mod:`~probstat.validation.model_averaging`.
+
+Main entry points:
+    ``ValidationExperiment``: measured values, conditions, measurement
+    uncertainty, and provenance of one experiment.
+    ``assess_validation``: scoped verdict for one quantity at a stated
+    tolerance, with every metric as evidence.
+    ``area_metric``: area between the predictive CDF and the data ECDF.
+    ``asme_validation_comparison``: ASME V&V 20 model-error interval.
+    ``ValidationDomain``: applicability domain and extrapolation check.
+    ``CredibilityRecord``: verification, validation, and prediction evidence
+    kept separate.
+    ``crps_ensemble``: continuous ranked probability score of an ensemble.
+    ``pit_histogram``: PIT histogram with a uniformity test and shape indices.
+
+Assumptions:
+    A verdict holds only for the stated quantity, tolerance, and validation
+    domain. Replicate observations of one experiment are conditionally
+    independent, and the default data uncertainty ``sigma_m / sqrt(n)``
+    assumes no shared systematic error. Validation data are separate from
+    calibration data. The PIT, coverage, and permutation tests assume
+    independent (exchangeable) cases; ``pit_values`` assumes continuous
+    forecast laws. Scores are negatively oriented: smaller is better.
+
+Common pitfalls:
+    - ``ValidationExperiment`` defaults to ``measurement_uncertainty=0.0``,
+      so the data are treated as exact until a measurement uncertainty is
+      declared.
+    - The argument order differs between scores: ``crps_normal(observation,
+      mu, sigma)`` takes the observation first, while ``crps_ensemble``
+      (members, observation) and ``log_score`` (distribution, observation)
+      take it second.
+    - ``crps_ensemble`` defaults to ``fair=False``, which is biased upward by
+      ``E|X - X'| / (2m)`` for an ``m``-member ensemble.
+    - ``ensemble_pit`` returns a randomized rank and defaults to
+      ``seed=None``, so its values differ between runs unless a seed is
+      given.
+    - The ASME V&V 20 interval estimates the model error; it is not a
+      pass/fail test. ``error_resolved`` says only whether ``|E|`` exceeds
+      ``coverage_factor`` times the validation uncertainty.
+
+Guide: docs/foundations/model-validation.md
+
+References:
+    [REF-FERSON-OBERKAMPF-GINZBURG-2008], [REF-ASME-VV20-2009],
+    [REF-OBERKAMPF-ROY-2025], [REF-GNEITING-RAFTERY-2007],
+    [REF-KASS-RAFTERY-1995].
+
 """
 
 from .assessment import (

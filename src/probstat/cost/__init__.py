@@ -11,6 +11,50 @@
 - :mod:`.maintenance`: age, block, and minimal-repair replacement policies.
 - :mod:`.spares`: Poisson spare provisioning.
 - :mod:`.unreliability`: expected failure cost and design trade-offs.
+
+Main entry points:
+    ``LifeCycleCostModel``: cost breakdown structure with time profiles,
+    exact moments, and a ``ProbabilisticModel`` view.
+    ``cost_risk_analysis``: S-curves by the method of moments and by Monte
+    Carlo, with contingency at each confidence level.
+    ``net_present_value``: discounted sum of cash flows.
+    ``LearningCurve``: unit (Crawford) or cumulative-average (Wright)
+    learning curves and lot costs.
+    ``optimize_age_replacement``: cost-optimal preventive replacement age.
+    ``optimal_spares``: cost-optimal Poisson spare stock.
+    ``compare_alternatives``: designs ranked by life-cycle plus risk cost.
+
+Assumptions:
+    Cost totals are linear in the element values, so totals at the element
+    means are exact expectations. The analytic S-curve assumes a lognormal
+    (or normal) total with the exact mean and variance; the Monte Carlo
+    S-curve uses a Gaussian copula fitted to Pearson correlations, which
+    must be attainable for the marginals. Amounts and the discount rate
+    must both be real (constant currency) or both nominal (then-year).
+    Maintenance policies assume one component, negligible repair time,
+    constant costs, and a known lifetime law; spare demand is Poisson.
+
+Common pitfalls:
+    - ``real_rate`` applies the Fisher relation exactly; ``nominal -
+      inflation`` is a first-order approximation only.
+    - ``cost_risk_analysis`` without ``correlation`` treats the elements as
+      independent and understates the spread; it reports this in ``notes``
+      and raises no warning.
+    - ``LearningCurve`` defaults to ``theory="unit"`` (Crawford); the
+      cumulative-average (Wright) theory gives a much smaller total for the
+      same slope.
+    - ``optimize_age_replacement`` with a non-increasing hazard (for
+      example an exponential life) returns ``finite_optimum=False`` and an
+      infinite interval: run to failure is optimal.
+    - ``cost_risk_analysis`` defaults to ``seed=None``; pass an integer seed
+      to reproduce the Monte Carlo S-curve.
+
+Guide: docs/foundations/cost-analysis.md
+
+References:
+    [REF-NASA-CEH-2015], [REF-FABRYCKY-BLANCHARD-1991], [REF-FISHER-1930],
+    [REF-BARLOW-PROSCHAN-1965], [REF-WRIGHT-1936].
+
 """
 
 from .cost_risk import (

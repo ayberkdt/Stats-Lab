@@ -33,7 +33,7 @@ tolerance X, within validation domain D.*
 
 For a triangle of conditions `(0,0), (1,0), (0,1)`, the point `(0.8, 0.8)` is
 inside the bounding box but outside the hull, so it is extrapolation. The
-point `(0.3, 0.3)` is inside the hull but `0.283` from the nearest vertex, so
+point `(0.3, 0.3)` is inside the hull but `0.424` from the nearest vertex, so
 it is flagged as sparse coverage at the default threshold.
 
 ## Predictions at experimental conditions
@@ -214,6 +214,45 @@ units and different failure modes.
   sources, the rectangular conversion of numerical bounds, conditional
   independence across replicates, and the choice of Bayes-factor alternative
   all affect the numbers. They are reported, not hidden.
+
+## Common pitfalls
+
+- **Declare the measurement uncertainty.** `ValidationExperiment` defaults to
+  `measurement_uncertainty=0.0`, so the data are treated as exact and no
+  measurement noise is added to the predictions.
+- **`u_D` assumes independent errors.** The default `sigma_m / sqrt(n)` has no
+  shared systematic error; pass `data_uncertainty` when there is one.
+- **The area metric has a floor.** With one observation a perfect model has
+  an area of about `0.798` predictive standard deviations; a tolerance below
+  that cannot be met.
+- **ASME V&V 20 is not pass/fail.** `error_resolved` only says whether `|E|`
+  exceeds `coverage_factor` times `u_val`.
+- **Sparse coverage counts as extrapolation.** `ValidationDomain.check` flags a
+  point inside the hull but farther than `distance_threshold` (default `0.25`,
+  scaled) from every tested condition.
+
+```python
+from probstat.distributions import Normal
+from probstat.validation import (
+    ValidationDomain, ValidationExperiment, area_metric, asme_validation_comparison,
+)
+
+exact = ValidationExperiment("load test", (1.0, 1.2, 0.9))
+exact.measurement_uncertainty, exact.data_standard_uncertainty   # (0.0, 0.0)
+noisy = ValidationExperiment("load test", (1.0, 1.2, 0.9, 1.1), measurement_uncertainty=0.2)
+round(noisy.data_standard_uncertainty, 6)                        # 0.1 = 0.2 / sqrt(4)
+grid = [Normal(0.0, 1.0).quantile((i + 0.5) / 20000) for i in range(20000)]
+round(area_metric(grid, [0.0]), 4)                               # 0.7979, perfect model
+asme = asme_validation_comparison(10.5, 10.0, numerical_uncertainty=0.3,
+                                  input_uncertainty=0.4, data_uncertainty=1.2)
+asme.model_error_interval, asme.error_resolved                   # ((-2.1, 3.1), False)
+domain = ValidationDomain.from_experiments(
+    [ValidationExperiment(name, (0.0,), {"x": x, "y": y})
+     for name, (x, y) in (("a", (0, 0)), ("b", (1, 0)), ("c", (0, 1)))]
+)
+inside = domain.check({"x": 0.3, "y": 0.3})
+inside.inside_hull, round(inside.nearest_distance, 3), inside.extrapolation   # (True, 0.424, True)
+```
 
 ## Sources
 

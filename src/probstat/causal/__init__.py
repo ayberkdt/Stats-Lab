@@ -7,6 +7,46 @@
 - :mod:`.effects`: regression adjustment, IPW, AIPW, bootstrap intervals, and
   covariate balance.
 - :mod:`.sensitivity`: E-values for unmeasured confounding.
+
+Main entry points:
+    ``CausalGraph``: acyclic causal graph with d-separation and graph
+        surgery.
+    ``minimal_adjustment_sets``: minimal backdoor adjustment sets of a
+        graph.
+    ``DiscreteCausalModel``: finite structural causal model with exact
+        interventional distributions.
+    ``estimate_ipw``: inverse-probability-weighted ATE (stabilized by
+        default).
+    ``estimate_aipw``: doubly robust augmented IPW estimate of the ATE.
+    ``bootstrap_effect``: bootstrap interval that resamples whole units
+        and refits every model (pass ``seed`` for reproducibility).
+    ``e_value``: E-value of a risk ratio and of its confidence limit.
+
+Assumptions:
+    The graph encodes the true causal structure. Effect estimates assume
+    conditional exchangeability given the covariates (no unmeasured
+    confounding), positivity (``0 < e(X) < 1``), consistency, and a binary
+    treatment; the outcome models are linear and the propensity model
+    logistic.
+
+Common pitfalls:
+    - Adjusting for a collider or its descendant opens a backdoor path
+      (M-bias); let ``minimal_adjustment_sets`` choose the set.
+    - ``estimate_regression_adjustment`` reports ``standard_error = nan``;
+      use ``bootstrap_effect`` for an interval.
+    - ``estimate_ipw`` defaults to stabilized (Hajek) weights, its standard
+      error treats the propensity scores as known, and any ``trim``
+      changes the estimand to the overlap population.
+    - The confidence-limit E-value is ``1`` whenever the interval covers
+      one; double robustness does not protect against unmeasured
+      confounding.
+
+Guide: docs/foundations/causal-inference.md
+
+References:
+    [REF-PEARL-2009], [REF-HERNAN-ROBINS-2020], [REF-ROSENBAUM-RUBIN-1983],
+    [REF-ROBINS-ROTNITZKY-ZHAO-1994], [REF-VANDERWEELE-DING-2017].
+
 """
 
 from .discrete import (

@@ -262,3 +262,48 @@ are approximate conversions (EQ-CAUSAL-RRAPPROX-001).
   flexible learners and cross-fitting are not provided.
 - IPW standard errors ignore propensity estimation. Use `bootstrap_effect`
   for a full accounting.
+
+## Common pitfalls
+
+- **More adjustment is not safer.** Conditioning on a collider or its
+  descendant opens a path: in the M-bias graph `satisfies_backdoor` rejects
+  `{M}` and accepts the empty set. Let `minimal_adjustment_sets` choose
+  from the graph rather than adding every pre-treatment variable.
+- **No standard error from regression adjustment.**
+  `estimate_regression_adjustment` reports `standard_error = nan`; use
+  `bootstrap_effect` for an interval.
+- **Defaults and estimands.** `estimate_ipw` defaults to stabilized
+  (Hajek) weights; pass `stabilized=False` for Horvitz-Thompson. Any `trim`
+  changes the estimand to the overlap population, and the result's
+  `estimand` says so.
+- **Reading E-values.** The confidence-limit E-value is `1` whenever the
+  interval covers one, and a protective `RR < 1` is inverted before the
+  formula is applied.
+- **Double robustness is not robustness to unmeasured confounding.** AIPW
+  needs one of its two working models to be right *and* exchangeability
+  given the measured covariates (section 3).
+
+```python
+import math
+from probstat.causal import (
+    CausalGraph, e_value, estimate_ipw, estimate_regression_adjustment,
+    minimal_adjustment_sets, satisfies_backdoor,
+)
+
+m_bias = CausalGraph([("U1", "X"), ("U1", "M"), ("U2", "M"), ("U2", "Y"),
+                      ("X", "Y")])
+satisfies_backdoor(m_bias, "X", "Y", ["M"])          # False
+satisfies_backdoor(m_bias, "X", "Y", ["M", "U1"])    # True
+minimal_adjustment_sets(m_bias, "X", "Y")            # ((),)
+
+rows = [[0.1 * i] for i in range(20)]
+treated = [0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1]
+outcome = [1.0 + 2 * t + r[0] + 0.01 * ((7 * i) % 5)
+           for i, (t, r) in enumerate(zip(treated, rows))]
+math.isnan(estimate_regression_adjustment(rows, treated, outcome).standard_error)  # True
+estimate_ipw(rows, treated, outcome).method                 # 'ipw-stabilized'
+estimate_ipw(rows, treated, outcome, trim=0.3).estimand     # 'ATE (trimmed population)'
+
+e_value(1.5, lower=0.9).confidence_limit    # 1.0
+e_value(0.5, lower=0.3, upper=0.8).point    # 3.414, the E-value of 1/0.5 = 2
+```
