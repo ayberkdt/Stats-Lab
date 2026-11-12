@@ -61,6 +61,10 @@ of its analytic value. The coefficient-based second-order index
 `S_13 = 0.2439` recovers the `x_1`-`x_3` interaction that main-effect ranking
 misses.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/pce-loo-by-degree-dark.png"><img alt="Log-scale plot of the polynomial chaos leave-one-out error and the largest Sobol index error against degree 2 to 10" src="../images/guides/pce-loo-by-degree.png"></picture>
+
+*With the hyperbolic truncation q = 0.75 at every degree, the LOO error falls from 3.34 at degree 2 to 0.0018 at degree 10, and the largest error among the six first-order and total indices falls with it, from 0.29 to 0.0006; while the LOO error is above one the indices are not usable.*
+
 **Exactness check.** A cubic `1 + 2a - a b^2 + 0.5 b^3` in independent normal
 inputs is reproduced at degree 3 to machine precision, with LOO error below
 `1e-22`. The Nataf map is affine for normal inputs, so the Hermite expansion
@@ -105,6 +109,10 @@ accurate here because the target is analytic. The predictive variance at
 `x = 12`, far outside the data, is 2.79 (squared exponential) and 10.47
 (Matérn), compared with about `1e-11` inside the design. The variance reflects
 the absence of data, not the true error.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/gp-variance-beyond-data-dark.png"><img alt="Gaussian-process mean and 95 percent band fitted to 12 runs on 0 to 6 and extended to 12, with the true function" src="../images/guides/gp-variance-beyond-data.png"></picture>
+
+*The squared-exponential GP interpolates the 12 runs with predictive variance below 2e-10; beyond the last run the mean drifts away from the truth, which it misses by 2.91 at x = 12, where the variance has grown to 2.79 because there are no data, not because the GP has measured its error.*
 
 Use GPs with caution. The cost is cubic in the number of runs, and every
 likelihood evaluation forms the full inverse kernel matrix, so this

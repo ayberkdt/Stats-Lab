@@ -162,11 +162,19 @@ Worked example (seed `3`, 400 samples per experiment): the spring model
 | Quantity | Unbiased data | Data biased by +1 mm |
 |---|---|---|
 | maximum area metric (tolerance 0.4 mm) | 0.3005 | 1.295 |
-| u-pooling area / KS p-value | 0.0415 / 0.784 | 0.492 / 4.9e-20 |
+| u-pooling area / KS p-value | 0.0415 / 0.765 | 0.492 / 3.4e-30 |
 | Mahalanobis `D^2` on 24 dof (p) | 38.5 (0.031) | 756.5 (3e-144) |
 | summed `log B` vs inflated(5) | +20.7 | -1154 |
 | ASME error resolved? | no (all four) | yes (all four) |
 | verdict | consistent | inconsistent |
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/validation-area-metric-dark.png"><img alt="Two panels each with a predictive CDF, a data ECDF of six measurements, and the shaded area between them" src="../images/guides/validation-area-metric.png"></picture>
+
+*In the experiment with the largest discrepancy (load 4), the area between the predictive CDF and the six measurements is 0.30 mm for unbiased data, inside the 0.4 mm tolerance, and 1.30 mm when every measurement carries a 1 mm bias; the metric keeps the unit of the QoI, so the tolerance reads directly in millimetres.*
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/validation-u-pooling-dark.png"><img alt="Empirical CDFs of 24 pooled u-values for unbiased and biased data with the uniform diagonal" src="../images/guides/validation-u-pooling.png"></picture>
+
+*Mapped through the predictive CDF of their own load, the 24 unbiased observations stay close to the uniform diagonal (area 0.042, KS p = 0.765), while the biased ones all land near u = 1 (area 0.492, p = 3.4e-30): pooling across loads gives one test for the whole campaign.*
 
 The unbiased case shows why the Gaussian residual check does not drive the
 verdict on its own. Its p-value of `0.031` comes from one finite data set. Over

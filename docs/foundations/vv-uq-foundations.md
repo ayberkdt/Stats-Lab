@@ -147,6 +147,10 @@ For the trapezoid integral with `N = 8, 12, 16, 24, 32`, the fit gives
 `p = 1.99959`, `phi_0 = 1.71828177`, `U_s = 1.1e-8`, `alpha = 1.3988e-4`
 (true fine-grid error `1.3983e-4`), and `U = 1.749e-4`.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/grid-convergence-order-dark.png"><img alt="Log-log plot of trapezoid-rule errors on five step sizes with the fitted least-squares error model" src="../images/guides/grid-convergence-order.png"></picture>
+
+*The true errors of the five trapezoid grids fall on a straight line of slope two in log-log axes; the least-squares fit recovers the order 1.99959 and an extrapolated value within 6e-08 of `e - 1`, so the fine-grid uncertainty is a measured, not an assumed, quantity.*
+
 ## From verification to `u_num`
 
 `verify_solution` returns a `SolutionVerification` statement
@@ -265,6 +269,10 @@ The forward problem answered "what does the prior imply" (5-95 % width
 `0.047`; neither alone says how wrong the model equations are. The final
 `UQWorkflowRecord` has every step complete, no gaps, and directions
 `forward` and `inverse`.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/prediction-uncertainty-components-dark.png"><img alt="Dot plot of three prediction intervals at t equal to 10, prior, calibrated parametric, and with model-form error, against the truth" src="../images/guides/prediction-uncertainty-components.png"></picture>
+
+*At t = 10 the prior push-forward covers the truth 0.349 only by being wide; the calibrated parametric interval [0.248, 0.294] is sharp but misses it; adding the extrapolated model-form discrepancy and the numerical bound gives [0.133, 0.406], which covers the truth at a fifth of the prior width.*
 
 ## Scope boundary
 

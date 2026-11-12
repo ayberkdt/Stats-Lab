@@ -145,6 +145,10 @@ How to read the table:
   other seeds of the same setting, the chi-square p-values ranged from 0.034
   to 0.947 and looked uniform.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/forecast-pit-histograms-dark.png"><img alt="Three PIT histograms for the ideal, overconfident, and climatological forecasters with the uniform count and binomial band" src="../images/guides/forecast-pit-histograms.png"></picture>
+
+*On the 2,000 laboratory cases the ideal forecaster's PIT histogram is flat (p = 0.94); the overconfident one is U-shaped, with 2.62 times the uniform share in the two outer bins, because its intervals are too narrow; climatology has the right overall spread but its PIT is still not uniform (p = 7.5e-05).*
+
 For the ideal law, the weighted interval score from the 50/80/95 % intervals
 and the median is 0.4301, against a CRPS of 0.5664. Three intervals
 approximate the CRPS only roughly.
@@ -176,6 +180,10 @@ forecast stays inside every band. The overconfident forecast leaves the
 band in bins 0, 1, 3, and 4. For example, in `[0, 0.2)` its mean forecast is
 0.034 but the observed frequency is 0.122, against a band of
 `[0.022, 0.048]`.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/forecast-reliability-diagram-dark.png"><img alt="Reliability diagram of the ideal and overconfident forecasts of Y above 0 in five bins with consistency bars and the diagonal" src="../images/guides/forecast-reliability-diagram.png"></picture>
+
+*For the event Y > 0 the ideal forecaster's observed frequencies stay inside the 95% consistency bars (0 of 5 bins outside), while the overconfident one leaves them in 4 of 5 bins: its probabilities are too close to 0 and 1, so the outcomes are less extreme than forecast.*
 
 ## 4. Distribution shift
 

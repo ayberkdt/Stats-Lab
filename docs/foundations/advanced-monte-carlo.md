@@ -103,6 +103,10 @@ budget. It prints errors, allocation, weight diagnostics, and efficiency gains,
 then writes `examples/generated/advanced-monte-carlo-efficiency.png`. A second
 experiment contrasts raw-indicator and conditional Monte Carlo estimators.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/variance-reduction-budget-dark.png"><img alt="Dot plot of five estimates of the mean of U squared with 95 percent intervals and the exact value one third" src="../images/guides/variance-reduction-budget.png"></picture>
+
+*Every estimator spends the same 20,000 evaluations on `E[U^2] = 1/3`; crude Monte Carlo has standard error 0.00211, and stratified sampling is 26 times as efficient by the cost-normalized score, which is why its interval is the shortest.*
+
 ## Deliberate limits and next steps
 
 - Confidence intervals are large-sample normal approximations.
@@ -199,6 +203,10 @@ seed=1)` (the sampler is `GeometricBrownianMotion` in
   `47,332` and `745,338` steps, ratios `14.2` and `14.4` against the exact
   single-level cost. Since `beta ~ gamma`, MLMC cost grows like
   `eps^-2 (log eps)^2` instead of `eps^-3` for plain Monte Carlo.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/mlmc-level-variances-dark.png"><img alt="Two panels of a multilevel Monte Carlo run: variances per level on a log scale and the number of samples per level" src="../images/guides/mlmc-level-variances.png"></picture>
+
+*In the `eps = 0.02` run the variance of `P_l` does not fall with the level, but the coupled corrections shrink like 2^(-0.93 l), so the optimal allocation puts few samples on the fine levels and the run costs 190,889 Euler steps, 14.1 times fewer than plain Monte Carlo at level 8.*
 
 ### Limits
 

@@ -112,6 +112,10 @@ laws averaged `0.78`, which is far too conservative. An exponential sample of
 `n = 100` fitted as normal gives bootstrap p-values of `0.01` for both KS and
 AD (the minimum with `B = 99`).
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/fitting-bootstrap-calibration-dark.png"><img alt="Empirical CDFs of naive and bootstrap Kolmogorov-Smirnov p-values from 80 normal samples tested against fitted normal laws, with the uniform diagonal" src="../images/guides/fitting-bootstrap-calibration.png"></picture>
+
+*With 80 normal samples of size 30, each tested against its own fitted normal, the naive KS p-values average 0.79 and none falls below 0.1 (0 of 80); the bootstrap with 39 refits per sample averages 0.52 and gives 7 of 80 below 0.1, close to the 8 a calibrated test produces.*
+
 `qq_points` and `pp_points` return `(theoretical, empirical)` pairs with
 Hazen positions `(i - 1/2)/n` (`[EQ-INF-GOF-QQ-001]`) for plotting.
 
@@ -226,6 +230,10 @@ rootogram ([EQ-VIZ-ROOT-001]) and a Q-Q plot; `statistics.trimmed_mean`
 - **Sleep.** The paired t test on the ten differences rejects a zero mean
   effect; the Lilliefors check of the differences is reported because the
   t interval leans on their normality.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/fitting-bearing-tails-dark.png"><img alt="Log-log plot of 23 ball-bearing lives with fitted Gamma, LogNormal, and Weibull CDFs and their 1 percent lives marked" src="../images/guides/fitting-bearing-tails.png"></picture>
+
+*The Gamma, LogNormal, and Weibull fits to the 23 bearing lives lie within 1.3 AIC units and agree where the data are, yet their 1% lives range from 9.2 to 18.9 million revolutions: an extrapolation into the tail depends on a choice of family that the data cannot make.*
 
 ### Results
 
