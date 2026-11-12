@@ -536,6 +536,13 @@ class _ReliabilityStages(_StudyBase):
             tuple(sign * value for value in sorted(v for v in oriented if v > cut)),
         )
         sigma_se, xi_se = fit.gpd.standard_errors
+        # The threshold is the threshold_quantile of the oriented values; in
+        # QoI units a lower-tail threshold is the complementary quantile
+        # (quantile(-y, p) = -quantile(y, 1 - p) for the type-7 rule).
+        level_in_units = (
+            threshold_quantile if tail == "upper" else 1.0 - threshold_quantile
+        )
+        rule = f"q{level_in_units:g} of {quantity}"
         summary: dict[str, float | str] = {
             "quantity": quantity,
             "tail": tail,
@@ -543,9 +550,10 @@ class _ReliabilityStages(_StudyBase):
             "design": sample.design.method,
             "sample_size": len(oriented),
             "threshold": result.threshold,
-            "threshold_rule": (
-                f"q{threshold_quantile:g}" if threshold is None else "given"
-            ),
+            # The threshold is the threshold_quantile of the oriented values;
+            # in QoI units a lower-tail threshold is the complementary
+            # quantile, which is what the rule must name next to it.
+            "threshold_rule": "given" if threshold is not None else rule,
             "exceedances": fit.rate.exceedances,
             "zeta_u": fit.rate.probability,
             "sigma": fit.gpd.sigma,
