@@ -11,6 +11,7 @@ from probstat.foundations.validation import (
     require_non_negative_integer,
     require_probability,
 )
+from probstat.numerics.special import EULER_GAMMA
 
 from ._autodiff import admath, real_argument
 from ._base import ContinuousDistribution
@@ -18,7 +19,6 @@ from ._continuous import density_from_log, open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
 
-EULER_GAMMA = 0.57721566490153286060651209008240243
 _EXP_LIMIT = 709.0
 
 

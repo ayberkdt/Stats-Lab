@@ -17,12 +17,28 @@ import random
 import sys
 from collections.abc import Callable
 
+from probstat.numerics._double_double import (
+    INV_SQRT_TWO,
+    LOG_SQRT_TWO_PI,
+    DoubleDouble,
+    erfc_double_double,
+    two_product,
+    two_sum,
+)
+
 _EPSILON = math.ulp(1.0)
 _RESIDUAL_CLAMP = 1e200
 _MAX_BRENT_ITERATIONS = 300
 _MAX_BRACKET_EXPANSIONS = 64
 _LOG_SQRT_TWO_PI = 0.5 * math.log(2.0 * math.pi)
 _SQRT_TWO = math.sqrt(2.0)
+# Standardized points below this magnitude skip the double-double correction.
+_COMPENSATION_START = 0.7
+_SPLITTER = 134217729.0  # 2^27 + 1 (Veltkamp)
+_INV_SQRT_TWO_HIGH = (_SPLITTER * INV_SQRT_TWO[0]) - (
+    _SPLITTER * INV_SQRT_TWO[0] - INV_SQRT_TWO[0]
+)
+_INV_SQRT_TWO_LOW = INV_SQRT_TWO[0] - _INV_SQRT_TWO_HIGH
 
 LOG_MIN = -744.0
 LOG_MAX = 709.0
@@ -358,24 +374,109 @@ def bounded_exp(t: float) -> float:
     return math.exp(min(max(t, LOG_MIN), LOG_MAX))
 
 
-def log_standard_normal_sf(z: float) -> float:
+def standardized_double_double(x: float, mu: float, sigma: float) -> DoubleDouble:
+    """Return ``z = (x - mu)/sigma`` as a double-double ``hi + lo``.
+
+    ``x - mu`` is split exactly by ``two_sum``; the quotient's remainder
+    ``x - mu - hi sigma`` is formed exactly by ``two_product`` and divided by
+    ``sigma`` once more. A rounded ``z`` would perturb ``Phi(z)`` by a
+    relative ``z^2 2^-53`` in the tails; the double-double ``z`` leaves
+    ``2^-106 z^2``.
+
+    Args:
+        x: Finite point.
+        mu: Finite location.
+        sigma: Finite positive scale.
+
+    Returns:
+        ``(hi, lo)`` with ``hi = fl(fl(x - mu)/sigma)``; ``lo = 0`` when
+        ``|hi| < 0.7`` (where it cannot matter) or ``hi`` is not finite.
+
+    Equation:
+        [EQ-NUM-DD-001], [EQ-DIST-NORM-007].
+
+    References:
+        [REF-DEKKER-1971].
+
+    """
+    difference, difference_low = two_sum(x, -mu)
+    high = difference / sigma
+    if abs(high) < _COMPENSATION_START or not math.isfinite(difference_low):
+        # |z| < 0.7: Phi is well conditioned (relative condition below 0.5),
+        # so the trailing part changes no result by more than half an ulp.
+        return high, 0.0
+    product, error = two_product(high, sigma)
+    remainder = ((difference - product) - error) + difference_low
+    low = remainder / sigma
+    total = high + low
+    return total, low - (total - high)
+
+
+def standard_normal_sf_dd(z: DoubleDouble) -> float:
+    """Return ``1 - Phi(z) = erfc(z/sqrt 2)/2`` for a double-double ``z``.
+
+    ``z/sqrt 2`` is formed in double-double arithmetic and passed to
+    :func:`~probstat.numerics._double_double.erfc_double_double`, so neither
+    the rounding of ``z`` nor that of the division by ``sqrt 2`` is
+    amplified by the conditioning ``~ z^2`` of the tail. The result carries
+    the error of ``math.erfc`` at an exact float argument (measured at most
+    2.04 ulp on CPython 3.12, Windows) plus two roundings.
+
+    Args:
+        z: Double-double standardized point.
+
+    Returns:
+        Upper-tail probability.
+
+    Equation:
+        [EQ-DIST-NORM-007].
+
+    References:
+        [REF-NIST-DLMF, Sections 7.2 and 7.10], [REF-DEKKER-1971].
+
+    """
+    high, low = z
+    argument = high * INV_SQRT_TWO[0]
+    if abs(argument) < _COMPENSATION_START * INV_SQRT_TWO[0] or abs(high) > 1e300:
+        return 0.5 * math.erfc(argument)
+    # Inlined two_product(high, 1/sqrt 2) with the constant split once.
+    scaled = _SPLITTER * high
+    high_part = scaled - (scaled - high)
+    low_part = high - high_part
+    error = (
+        (high_part * _INV_SQRT_TWO_HIGH - argument)
+        + high_part * _INV_SQRT_TWO_LOW
+        + low_part * _INV_SQRT_TWO_HIGH
+    ) + low_part * _INV_SQRT_TWO_LOW
+    trailing = error + high * INV_SQRT_TWO[1] + low * INV_SQRT_TWO[0]
+    return 0.5 * erfc_double_double((argument, trailing))
+
+
+def log_standard_normal_sf(z: float, z_low: float = 0.0) -> float:
     """Return ``log(1 - Phi(z))`` beyond the underflow point of ``erfc``.
 
-    For ``z < 35`` the value is ``log(erfc(z/sqrt 2)/2)``. Further out the
-    Mills ratio ``R(z) = (1 - Phi(z))/phi(z)`` is evaluated by its continued
-    fraction ``1/(z+1/(z+2/(z+3/(z+...))))``.
+    The argument may be a double-double ``z + z_low``. For ``0 <= z < 35``
+    the value is the logarithm of :func:`standard_normal_sf_dd`; for
+    ``z < 0`` it is ``log1p(-Phi(z))`` with ``Phi(z) <= 1/2`` from the same
+    function, so the logarithm keeps full relative accuracy where it is
+    close to zero (``log(1 - Phi(z))`` of a rounded ``1 - Phi(z)`` lost up
+    to ``1 - Phi(z)``'s ulp, about ``1e-16`` absolute, for every ``z < 0``
+    above ``-5``). Further out the Mills ratio ``R(z) = (1 - Phi(z))/phi(z)``
+    is evaluated by its continued fraction ``1/(z+1/(z+2/(z+3/(z+...))))``
+    and ``z^2`` is formed exactly.
 
     Args:
         z: Real argument, possibly infinite.
+        z_low: Trailing part of a double-double argument (default zero).
 
     Returns:
         Natural logarithm of the standard-normal upper tail.
 
     Equation:
-        [EQ-DIST-TN-004].
+        [EQ-DIST-TN-004], [EQ-DIST-NORM-007].
 
     References:
-        [REF-NIST-DLMF, Sections 7.2 and 7.9].
+        [REF-NIST-DLMF, Sections 7.2 and 7.9], [REF-DEKKER-1971].
 
     """
     if z == math.inf:
@@ -383,32 +484,40 @@ def log_standard_normal_sf(z: float) -> float:
     if z == -math.inf:
         return 0.0
     if z < 35.0:
-        if z < -5.0:
-            return math.log1p(-0.5 * math.erfc(-z / _SQRT_TWO))
-        return math.log(0.5 * math.erfc(z / _SQRT_TWO))
+        if z < 0.0:
+            return math.log1p(-standard_normal_sf_dd((-z, -z_low)))
+        return math.log(standard_normal_sf_dd((z, z_low)))
     fraction = z
     for index in range(40, 0, -1):
         fraction = z + index / fraction
-    return -0.5 * z * z - _LOG_SQRT_TWO_PI - math.log(fraction)
+    square, square_low = two_product(z, z)
+    tail = (
+        -0.5 * square_low
+        - z * z_low
+        - LOG_SQRT_TWO_PI[0]
+        - math.log(fraction)
+    )
+    return -0.5 * square + tail
 
 
-def log_standard_normal_cdf(z: float) -> float:
-    """Return ``log Phi(z)`` with full accuracy in the lower tail.
+def log_standard_normal_cdf(z: float, z_low: float = 0.0) -> float:
+    """Return ``log Phi(z)`` with full accuracy in both tails.
 
     Args:
         z: Real argument, possibly infinite.
+        z_low: Trailing part of a double-double argument (default zero).
 
     Returns:
         Natural logarithm of the standard-normal CDF.
 
     Equation:
-        [EQ-DIST-TN-004].
+        [EQ-DIST-TN-004], [EQ-DIST-NORM-007].
 
     References:
         [REF-NIST-DLMF, Sections 7.2 and 7.9].
 
     """
-    return log_standard_normal_sf(-z)
+    return log_standard_normal_sf(-z, -z_low)
 
 
 def log_diff_exp(larger: float, smaller: float) -> float:

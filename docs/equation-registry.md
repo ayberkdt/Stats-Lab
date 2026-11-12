@@ -6364,6 +6364,8 @@ summed from 18-term Taylor series in `eta` with exact rational coefficients.
   `distributions._special.regularized_gamma_p`,
   `distributions._special.regularized_gamma_q`.
 - Source: [REF-TEMME-1979] and [REF-NIST-DLMF-GAMMA, Section 8.12].
+- Status: superseded by [EQ-NUM-GAMMA-004] (ADR-0089): thirteen coefficients,
+  `a >= 20`, and a double-double argument.
 
 ### EQ-INF-GOF-KS-003 — Exact one-sided Smirnov tail and the two-sided tail
 
@@ -14021,3 +14023,173 @@ order the variables carry.
 - Source: [REF-GRIEWANK-WALTHER-2008] (Chapter 3: derivatives of a program
   are the derivatives of the elementary functions it composes; a constant
   shift leaves them unchanged).
+
+### EQ-NUM-DD-001 — Error-free transformations and double-double arithmetic
+
+`s = fl(a + b)`, `e = (a - (s - v)) + (b - v)` with `v = s - a` gives
+`s + e = a + b` exactly (two-sum); with Veltkamp's splitting
+`a = a_h + a_l` (`c = (2^27 + 1) a`, `a_h = c - (c - a)`), `p = fl(a b)`,
+`e = ((a_h b_h - p) + a_h b_l + a_l b_h) + a_l b_l` gives `p + e = a b`
+exactly (two-product). A double-double `x_h + x_l` (`|x_l| <= ulp(x_h)/2`)
+is added, multiplied, and divided with these transformations, with relative
+errors of a few `2^-104`; `exp(x_h + x_l) = exp(x_h) (1 + x_l)`.
+
+- Domain: finite floats without overflow; the splitting needs
+  `|a| <= 1e300`, and the products are exact unless partial products
+  underflow (below `1e-290`).
+- Meaning: carries about 106 bits through the exponent of a special-function
+  prefactor or the argument of `erfc`, so that the outer function does not
+  amplify a rounding of its argument.
+- Code: `numerics._double_double.two_sum`,
+  `numerics._double_double.two_product`, `numerics._double_double.dd_add`,
+  `numerics._double_double.dd_mul`, `numerics._double_double.dd_div`,
+  `numerics._double_double.dd_exp`,
+  `distributions._continuous.standardized_double_double`.
+- Source: [REF-DEKKER-1971] and [REF-HIGHAM-2002, Section 4.3].
+
+### EQ-NUM-DD-002 — Table-driven double-double logarithm and Stirling remainder
+
+`log x = k ln 2 + log(j/64) + 2 atanh(y)`, `x = m 2^k`, `m` in
+`[sqrt(1/2), sqrt 2)`, `j = round(64 m)`, `y = (m - j/64)/(m + j/64)`
+(`|y| < 0.0056`), `2 atanh y = 2y + 2y (y^2/3 + y^4/5 + y^6/7 + y^8/9)`;
+`log(1 + t) - t = -t y + (2/3) y^3 + 2y sum_(k=2..10) y^(2k)/(2k+1)` with
+`y = t/(2 + t)` for `|t| <= 1/16`, and `log(1 + t) - t` from the logarithm
+otherwise; `sigma(a) = lgamma(a) - (a - 1/2) log a + a - log sqrt(2 pi)`
+equals the Stirling series for `a >= 15` and, for smaller `a` with
+`z = a + n >= 15`, `sigma(a) = (z - 1/2) log z - (a - 1/2) log a - n +
+sigma(z) - log prod_(k<n) (a + k)`.
+
+- Domain: positive finite arguments; `|t| <= 1/2` for the `log1pmx` form.
+  The table values `log(j/64)` are computed once in 40-digit decimal
+  arithmetic.
+- Meaning: absolute errors below `1e-22` (logarithm), relative errors
+  below `1e-20` (`log1pmx`), and absolute errors below `2e-18`
+  (`sigma`), so that
+  exponents of size several hundred are exact to far below one ulp.
+- Code: `numerics._double_double.dd_log`,
+  `numerics._double_double.dd_log1pmx`,
+  `numerics._double_double.dd_stirling_error`,
+  `numerics._double_double.half_log_minus_stirling`,
+  `numerics._double_double.dd_scaled_log_ratio`.
+- Source: [REF-NIST-DLMF-ELEMENTARY, Section 4.24],
+  [REF-NIST-DLMF-GAMMA, Sections 5.5 and 5.11], [REF-DEKKER-1971],
+  [REF-DIDONATO-MORRIS-1992].
+
+### EQ-NUM-DD-003 — Complementary error function at a double-double argument
+
+`erfc(w_h + w_l) = erfc(w_h) - (2/sqrt(pi)) exp(-w_h^2) w_l
++ O(w_h w_l^2 exp(-w_h^2))`.
+
+- Domain: double-double `w`; the correction is skipped for `|w_h| > 27.5`,
+  where `erfc` is 0 or 2 in floats.
+- Meaning: a rounded argument `w_h` perturbs `erfc` by the relative amount
+  `2 w^2 |w_l/w|`, which is up to `1400` ulp at `w = 26`; the first-order
+  term removes it and leaves the error of `math.erfc` at an exact float
+  argument (measured at most `2.04` ulp on 300 random arguments in
+  `[0, 27]`, CPython 3.12 on Windows).
+- Code: `numerics._double_double.erfc_double_double`.
+- Source: [REF-NIST-DLMF, Sections 7.2 and 7.10] and [REF-DEKKER-1971].
+
+### EQ-DIST-NORM-007 — Normal CDF, survival, and log tails from a double-double z
+
+`z = (x - mu)/sigma` as `z_h + z_l` ([EQ-NUM-DD-001]);
+`1 - Phi(z) = erfc(z/sqrt 2)/2` by [EQ-NUM-DD-003] with `z/sqrt 2` in
+double-double arithmetic; `Phi(z) = 1 - Phi(-z)`;
+`log(1 - Phi(z)) = log1p(-Phi(z))` for `z < 0` and `log(1 - Phi(z))` for
+`0 <= z < 35`; beyond, `-z^2/2 - log sqrt(2 pi) - log R(z)` with the Mills
+ratio continued fraction `R` and `z^2` formed exactly.
+
+- Domain: the domain of [EQ-DIST-NORM-001].
+- Meaning: the relative condition number of `Phi` in the tails is about
+  `z^2`, so a rounded `z` or `z/sqrt 2` costs `(1 + z^2)/2` ulp; the
+  double-double standardization keeps `cdf`, `sf`, `log_cdf`, and `log_sf`
+  within a few ulp over the whole range. `log1p(-Phi(z))` keeps relative
+  accuracy where `log(1 - Phi(z))` is close to zero.
+- Code: `distributions.Normal.cdf`, `distributions.Normal.sf`,
+  `distributions.Normal.log_cdf`, `distributions.Normal.log_sf`,
+  `distributions._continuous.standard_normal_sf_dd`,
+  `distributions._continuous.log_standard_normal_sf`,
+  `distributions._continuous.log_standard_normal_cdf`.
+- Source: [REF-NIST-DLMF, Sections 7.2, 7.9, and 7.10] and
+  [REF-DEKKER-1971].
+
+### EQ-NUM-GAMMA-003 — Double-double prefactor of the incomplete gamma ratios
+
+`x^a exp(-x)/Gamma(a) = exp(a log1pmx((x - a)/a) + log(a)/2 - sigma(a)
+- log sqrt(2 pi))`, every term of the exponent from [EQ-NUM-DD-002] and
+the exponential by [EQ-NUM-DD-001].
+
+- Domain: `a > 0`, `x > 0`; when the float exponent is below `-760` (the
+  prefactor underflows) the float exponent is used.
+- Meaning: the float exponent `a log x - x - lgamma(a)` has an absolute
+  error of about `2^-53` times its largest cancelling term, which `exp`
+  turns into a relative error (1400 ulp at `(200, 605)`); the regrouped
+  double-double exponent leaves one `exp` rounding.
+- Code: `distributions._special.gamma_prefactor`,
+  `distributions._special.regularized_gamma_p`,
+  `distributions._special.regularized_gamma_q`.
+- Source: [REF-DIDONATO-MORRIS-1986], [REF-NIST-DLMF-GAMMA, Section 5.11],
+  and [REF-DEKKER-1971].
+
+### EQ-NUM-BETA-003 — Double-double prefactor of the incomplete beta ratio
+
+`x^a (1-x)^b / B(a, b) = exp(a log1pmx(t) + b log1pmx(s) + [log(a)/2 -
+sigma(a)] + [log(b)/2 - sigma(b)] - [log(a+b)/2 - sigma(a+b)]
+- log sqrt(2 pi))` with `1 + t = x (a+b)/a`, `1 + s = (1-x)(a+b)/b`
+(`a t + b s = 0`), every term from [EQ-NUM-DD-002].
+
+- Domain: `a, b > 0`, `0 < x < 1`; the smaller of `x` and `1 - x` is taken
+  as exact and the other formed from it by two-sum.
+- Meaning: removes the cancellation of `lgamma` values and of `a log x`
+  terms that cost up to 770 ulp at shapes up to 400.
+- Code: `distributions._special.beta_prefactor`,
+  `distributions._special.regularized_beta_pair`.
+- Source: [REF-DIDONATO-MORRIS-1992], [REF-NIST-DLMF-BETA, Section 8.17],
+  and [REF-DEKKER-1971].
+
+### EQ-NUM-GAMMA-004 — Temme's uniform expansion with thirteen coefficients
+
+`Q(a,x) = erfc(w)/2 + R`, `P(a,x) = erfc(-w)/2 - R`, `w = eta sqrt(a/2)`,
+`R = exp(-w^2)/sqrt(2 pi a) sum_(k=0..12) c_k(eta) a^-k`,
+`eta = sign(lambda - 1) sqrt(2(lambda - 1 - log lambda))`, `lambda = x/a`;
+`c_0 = 1/mu - 1/eta`, `c_k = c_(k-1)'(eta)/eta + (-1)^k g_k/mu`,
+`mu = lambda - 1`, with `g_k` the coefficients of
+`Gamma(z) ~ e^-z z^z sqrt(2 pi/z) sum g_k z^-k`; each `c_k` summed from 26
+Taylor coefficients in `eta` derived in exact rational arithmetic;
+`w^2 = -a log1pmx((x - a)/a)` in double-double arithmetic and `erfc` by
+[EQ-NUM-DD-003].
+
+- Domain: `a >= 20` and `|x - a| <= 0.3 a` (`|eta| <= 0.34`); the omitted
+  Taylor terms are below `1e-22` and the last included term `c_12/a^12` is
+  below `2e-18` relative to `R`. Supersedes [EQ-NUM-GAMMA-002].
+- Meaning: constant cost and an error of about one ulp for every large
+  shape near the mode, where the series and the continued fraction need
+  `O(sqrt(a))` terms whose roundings accumulate (26 ulp at `a = 200`,
+  570 ulp at `a = 1e5`).
+- Code: `distributions._special._gamma_temme`,
+  `distributions._special._use_temme`,
+  `distributions._special.regularized_gamma_p`,
+  `distributions._special.regularized_gamma_q`.
+- Source: [REF-TEMME-1979], [REF-NIST-DLMF-GAMMA, Sections 5.11 and 8.12],
+  and [REF-DIDONATO-MORRIS-1986].
+
+### EQ-DIST-DIR-007 — Stirling form of the Dirichlet normalizer and entropy
+
+`log B(alpha) = sum_i (alpha_i - 1/2) log m_i - ((K-1)/2) log alpha_0
++ (K-1) log sqrt(2 pi) + sum_i sigma(alpha_i) - sigma(alpha_0)`,
+`m_i = alpha_i/alpha_0`;
+`H = (1/2) sum_i log m_i - ((K-1)/2) log alpha_0 + (K-1) log sqrt(2 pi)
++ sum_i sigma(alpha_i) - sigma(alpha_0) - (alpha_0 - K) L(alpha_0)
++ sum_i (alpha_i - 1) L(alpha_i)`, `L(a) = log a - psi(a)`.
+
+- Domain: [EQ-DIST-DIR-001]; `sigma` is the Stirling remainder of
+  [EQ-NUM-STIRLING-001] and `L` the function of [EQ-NUM-DIGAMMA-001].
+- Meaning: the linear terms of the Stirling forms cancel exactly
+  (`sum alpha_i = alpha_0`), so no `lgamma` or `alpha psi(alpha)` of size
+  `alpha log alpha` is formed; at `alpha_0 = 1e9` the normalizer is within
+  half an ulp and the entropy within `1e-15` instead of `1.4e-6` and
+  `3.5e-6`.
+- Code: `multivariate.dirichlet.log_multivariate_beta`,
+  `multivariate.Dirichlet.entropy`.
+- Source: [REF-NIST-DLMF-GAMMA, Sections 5.2 and 5.11],
+  [REF-BISHOP-2006, Appendix B].

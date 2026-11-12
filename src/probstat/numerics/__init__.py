@@ -55,11 +55,12 @@ from .reverse_autodiff import (
     reverse_value_gradient_and_hessian,
     vector_jacobian_product,
 )
-from .special import digamma, log_minus_digamma, trigamma
+from .special import EULER_GAMMA, digamma, log_minus_digamma, trigamma
 
 __all__ = [
     "AutodiffUnsupportedError",
     "DEQuadrature",
+    "EULER_GAMMA",
     "Dual",
     "GRADIENT_OPTIONS",
     "GradientEvaluator",

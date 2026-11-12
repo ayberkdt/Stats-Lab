@@ -41,6 +41,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 from probstat.linalg import Matrix, Vector, inverse_spd
+from probstat.numerics.special import EULER_GAMMA
 from probstat.optimization import (
     OptimizationResult,
     central_hessian,
@@ -66,7 +67,6 @@ _PARAMETER_KINDS = ("location", "positive", "real")
 _SAMPLE_DOMAINS = ("real", "positive", "nonnegative", "unit")
 _FIT_METHODS = ("auto", "closed-form", "numerical")
 _CRITERIA = ("aic", "aicc", "bic")
-_EULER_GAMMA = 0.5772156649015329
 _FIT_FAILURES = (ValueError, ArithmeticError)
 STUDENT_T_MAX_NU = 1000.0
 """Upper bound on the fitted Student-t degrees of freedom (normal-like limit)."""
@@ -627,7 +627,7 @@ def _weibull_start(sample: Vector) -> Vector:
     logs = tuple(math.log(x) for x in sample)
     center, spread = _moments(logs)
     shape = math.pi / (math.sqrt(6.0) * spread) if spread > 0.0 else 1.0
-    return (shape, math.exp(center + _EULER_GAMMA / shape))
+    return (shape, math.exp(center + EULER_GAMMA / shape))
 
 
 def _gumbel_start(sample: Vector) -> Vector:
@@ -639,7 +639,7 @@ def _gumbel_start(sample: Vector) -> Vector:
     """
     center, _ = _moments(sample)
     beta = math.sqrt(6.0) * _positive_spread(sample) / math.pi
-    return (center - _EULER_GAMMA * beta, beta)
+    return (center - EULER_GAMMA * beta, beta)
 
 
 def _gev_start(sample: Vector) -> Vector:

@@ -12,16 +12,31 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from probstat.distributions import Beta
+from probstat.distributions._special import stirling_error
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import require_non_negative_integer
 from probstat.linalg import Matrix, Vector, as_vector
-from probstat.numerics import digamma
+from probstat.numerics import log_minus_digamma
 
 from ._support import SIMPLEX_TOLERANCE, log_gamma_variate, positive_vector
+
+_LOG_SQRT_TWO_PI = 0.5 * math.log(2.0 * math.pi)
 
 
 def log_multivariate_beta(alpha: Vector) -> float:
     """Return ``log B(alpha) = sum_i log Gamma(alpha_i) - log Gamma(alpha_0)``.
+
+    Each ``log Gamma`` is written in Stirling form ``(a - 1/2) log a - a +
+    log sqrt(2 pi) + sigma(a)`` with the remainder ``sigma`` of
+    :func:`~probstat.distributions._special.stirling_error`; the linear terms
+    cancel exactly (``sum alpha_i = alpha_0``), leaving
+
+    ``log B = sum_i (alpha_i - 1/2) log(alpha_i/alpha_0) - ((K-1)/2) log
+    alpha_0 + (K-1) log sqrt(2 pi) + sum_i sigma(alpha_i) - sigma(alpha_0)``.
+
+    No term of size ``alpha log alpha`` is formed, so the absolute error is
+    a few ulp of the result instead of a few ulp of ``lgamma(alpha_0)``
+    (``4e-6`` at ``alpha_0 = 3e9``).
 
     Args:
         alpha: Positive concentration parameters.
@@ -30,15 +45,21 @@ def log_multivariate_beta(alpha: Vector) -> float:
         Logarithm of the Dirichlet normalizing constant.
 
     Equation:
-        [EQ-DIST-DIR-001].
+        [EQ-DIST-DIR-001], [EQ-DIST-DIR-007].
 
     References:
-        [REF-BISHOP-2006, Appendix B], [REF-NIST-DLMF-GAMMA, Section 5.2].
+        [REF-BISHOP-2006, Appendix B], [REF-NIST-DLMF-GAMMA, Sections 5.2
+        and 5.11].
 
     """
-    return math.fsum(math.lgamma(value) for value in alpha) - math.lgamma(
-        math.fsum(alpha)
-    )
+    total = math.fsum(alpha)
+    count = len(alpha)
+    terms = [(value - 0.5) * math.log(value / total) for value in alpha]
+    terms.extend(stirling_error(value) for value in alpha)
+    terms.append(-stirling_error(total))
+    terms.append(-0.5 * (count - 1) * math.log(total))
+    terms.append((count - 1) * _LOG_SQRT_TWO_PI)
+    return math.fsum(terms)
 
 
 @dataclass(frozen=True, slots=True)
@@ -242,18 +263,33 @@ class Dirichlet:
         """Return the differential entropy in nats.
 
         ``H = log B(alpha) + (alpha_0 - K) psi(alpha_0)
-        - sum_i (alpha_i - 1) psi(alpha_i)``.
+        - sum_i (alpha_i - 1) psi(alpha_i)``. With ``psi(a) = log a - L(a)``
+        (``L`` from :func:`~probstat.numerics.log_minus_digamma`) and the
+        Stirling form of ``log B`` the terms of size ``alpha log alpha``
+        cancel in closed form:
+
+        ``H = (1/2) sum_i log m_i - ((K-1)/2) log alpha_0 + (K-1) log
+        sqrt(2 pi) + sum_i sigma(alpha_i) - sigma(alpha_0)
+        - (alpha_0 - K) L(alpha_0) + sum_i (alpha_i - 1) L(alpha_i)``,
+        ``m_i = alpha_i / alpha_0``; every term is of order ``log alpha``.
 
         References:
-            [EQ-DIST-DIR-004], [REF-BISHOP-2006, Appendix B].
+            [EQ-DIST-DIR-004], [EQ-DIST-DIR-007], [REF-BISHOP-2006, Appendix B],
+            [REF-NIST-DLMF-GAMMA, Section 5.11].
 
         """
         total = self.concentration
-        return (
-            log_multivariate_beta(self.alpha)
-            + (total - self.dimension) * digamma(total)
-            - math.fsum((value - 1.0) * digamma(value) for value in self.alpha)
+        count = self.dimension
+        terms = [0.5 * math.log(value / total) for value in self.alpha]
+        terms.extend(stirling_error(value) for value in self.alpha)
+        terms.extend(
+            (value - 1.0) * log_minus_digamma(value) for value in self.alpha
         )
+        terms.append(-stirling_error(total))
+        terms.append(-(total - count) * log_minus_digamma(total))
+        terms.append(-0.5 * (count - 1) * math.log(total))
+        terms.append((count - 1) * _LOG_SQRT_TWO_PI)
+        return math.fsum(terms)
 
     def marginal(self, index: int) -> Beta:
         """Return the marginal law ``X_i ~ Beta(alpha_i, alpha_0 - alpha_i)``.

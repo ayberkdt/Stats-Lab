@@ -1,0 +1,392 @@
+"""Regression tests for the numerical-accuracy follow-ups of ADR-0089.
+
+Every oracle is independent of the float code under test: exact rational
+arithmetic (``fractions``), 40-digit decimal references from
+:mod:`probstat.numerics.reference` (ADR-0077), and an exact-rational
+re-derivation of Temme's coefficients. ULP budgets are those recorded in
+ADR-0089; each test also names the defect it guards against.
+"""
+
+from __future__ import annotations
+
+import math
+import random
+import unittest
+from decimal import Decimal, getcontext, localcontext
+from fractions import Fraction
+from math import comb
+
+from probstat.distributions import Normal
+from probstat.distributions import _special as special
+from probstat.multivariate import Dirichlet
+from probstat.multivariate.dirichlet import log_multivariate_beta
+from probstat.numerics import (
+    EULER_GAMMA,
+    compare_to_reference,
+    reference_log,
+    reference_log_gamma,
+    reference_normal_cdf,
+    reference_pi,
+    reference_regularized_gamma_p,
+    reference_regularized_gamma_q,
+)
+from probstat.numerics import _double_double as dd
+
+#: DLMF 5.2.3 digits of the Euler-Mascheroni constant.
+EULER_DIGITS = Decimal("0.57721566490153286060651209008240243104215933593992")
+
+
+def grid(lower: float, upper: float, count: int) -> list[float]:
+    """Return ``count`` equally spaced floats from ``lower`` to ``upper``.
+
+    References:
+        [EQ-NUM-REFERENCE-008].
+
+    """
+    return [lower + (upper - lower) * i / (count - 1) for i in range(count)]
+
+
+def exact_z(x: float, mu: float, sigma: float) -> Fraction:
+    """Return the exact standardized point ``(x - mu)/sigma`` of float inputs.
+
+    References:
+        [REF-PYTHON-FRACTIONS].
+
+    """
+    return (Fraction(x) - Fraction(mu)) / Fraction(sigma)
+
+
+def reference_log_cdf(z: Fraction) -> Decimal:
+    """Return ``log Phi(z)``; above zero ``-sum q^k/k`` with ``q = Phi(-z)``.
+
+    ``log(1 - q)`` of a rounded ``1 - q`` would lose ``q`` entirely once it
+    is below the working precision, so the series is summed directly.
+
+    References:
+        [EQ-NUM-REFERENCE-002], [REF-NIST-DLMF, Section 7.2].
+
+    """
+    if z <= 0:
+        return reference_normal_cdf(z).ln()
+    q = reference_normal_cdf(-z)
+    total, power, k = Decimal(0), q, 1
+    bound = Decimal(10) ** (-getcontext().prec - 5)
+    while True:
+        term = power / k
+        total += term
+        if term <= total * bound:
+            return -total
+        power *= q
+        k += 1
+
+
+def reference_digamma(a: float) -> Decimal:
+    """Return ``psi(a)`` from its asymptotic series, for ``a >= 1e3``.
+
+    ``psi(a) = log a - 1/(2a) - sum_(k=1..7) B_(2k)/(2k a^(2k))`` (DLMF
+    5.11.2); the first omitted term is below ``1e-45`` for ``a >= 1e3``.
+
+    References:
+        [REF-NIST-DLMF-GAMMA, Section 5.11].
+
+    """
+    bernoulli = (
+        Fraction(1, 6), Fraction(-1, 30), Fraction(1, 42), Fraction(-1, 30),
+        Fraction(5, 66), Fraction(-691, 2730), Fraction(7, 6),
+    )  # fmt: skip
+    value = Decimal(a)
+    total = value.ln() - 1 / (2 * value)
+    for k, number in enumerate(bernoulli, start=1):
+        coefficient = Decimal(number.numerator) / Decimal(number.denominator)
+        total -= coefficient / (2 * k * value ** (2 * k))
+    return total
+
+
+def temme_coefficients(terms: int, count: int) -> list[list[Fraction]]:
+    """Derive Taylor coefficients of Temme's ``c_k(eta)`` in rationals.
+
+    ``mu = lambda - 1`` solves ``mu - log(1 + mu) = eta^2/2``; ``c_0 = 1/mu
+    - 1/eta`` and ``c_k = c_(k-1)'(eta)/eta + (-1)^k g_k/mu`` with ``g_k``
+    the coefficients of ``Gamma(z) ~ e^-z z^z sqrt(2 pi/z) sum g_k z^-k``
+    (exponential of the Stirling series with exact Bernoulli numbers).
+
+    References:
+        [EQ-NUM-GAMMA-004], [REF-NIST-DLMF-GAMMA, Sections 5.11 and 8.12].
+
+    """
+    order = terms + 2 * count + 4
+
+    def multiply(a: list[Fraction], b: list[Fraction]) -> list[Fraction]:
+        """Return the truncated product of two power series.
+
+        References:
+            [REF-PYTHON-FRACTIONS].
+
+        """
+        out = [Fraction(0)] * order
+        for i, left in enumerate(a[:order]):
+            if left:
+                for j, right in enumerate(b[: order - i]):
+                    out[i + j] += left * right
+        return out
+
+    # eta = mu sqrt(h(mu)), h = 2 sum (-1)^j mu^j/(j + 2).
+    h = [Fraction(2 * (-1) ** j, j + 2) for j in range(order)]
+    root = [Fraction(1)] + [Fraction(0)] * (order - 1)
+    for k in range(1, order):
+        root[k] = (h[k] - sum(root[j] * root[k - j] for j in range(1, k))) / 2
+    eta_of_mu = [Fraction(0)] + root[: order - 1]
+    mu = [Fraction(0), Fraction(1)] + [Fraction(0)] * (order - 2)
+    for degree in range(2, order):
+        composed = Fraction(0)
+        power = [Fraction(1)] + [Fraction(0)] * (order - 1)
+        for k in range(1, degree + 1):
+            power = multiply(power, mu)
+            composed += eta_of_mu[k] * power[degree]
+        mu[degree] -= composed
+    ratio = mu[1:]
+    inverse = [Fraction(0)] * (order - 1)
+    inverse[0] = 1 / ratio[0]
+    for k in range(1, order - 1):
+        inverse[k] = -sum(ratio[j] * inverse[k - j] for j in range(1, k + 1))
+    bernoulli = [Fraction(1)] + [Fraction(0)] * (2 * count + 2)
+    for m in range(1, 2 * count + 3):
+        bernoulli[m] = -sum(
+            comb(m + 1, j) * bernoulli[j] for j in range(m)
+        ) / (m + 1)
+    series = [Fraction(0)] * (count + 1)
+    for k in range(1, count // 2 + 2):
+        if 2 * k - 1 <= count:
+            series[2 * k - 1] = bernoulli[2 * k] / (2 * k * (2 * k - 1))
+    g = [Fraction(1)] + [Fraction(0)] * count
+    for n in range(1, count + 1):
+        g[n] = sum(k * series[k] * g[n - k] for k in range(1, n + 1)) / n
+    rows = [[inverse[j + 1] for j in range(order - 2)]]
+    for k in range(1, count):
+        previous = rows[-1]
+        total: dict[int, Fraction] = {}
+        for j, value in enumerate(previous):
+            if j >= 1:
+                total[j - 2] = total.get(j - 2, Fraction(0)) + j * value
+        for j, value in enumerate(inverse):
+            total[j - 1] = total.get(j - 1, Fraction(0)) + (-1) ** k * g[k] * value
+        if total.get(-1, Fraction(0)) != 0:
+            raise AssertionError("pole of c_k does not cancel")
+        rows.append([total.get(j, Fraction(0)) for j in range(len(previous) - 2)])
+    return [row[:terms] for row in rows]
+
+
+class DoubleDoubleTests(unittest.TestCase):
+    """The error-free transformations and the double-double kernels."""
+
+    def test_error_free_transformations_are_exact(self) -> None:
+        """two_sum and two_product reproduce the exact rational result."""
+        generator = random.Random(89)
+        for _ in range(500):
+            a = generator.uniform(-1, 1) * 10.0 ** generator.randint(-150, 150)
+            b = generator.uniform(-1, 1) * 10.0 ** generator.randint(-150, 150)
+            total, error = dd.two_sum(a, b)
+            exact_sum = Fraction(a) + Fraction(b)
+            self.assertEqual(Fraction(total) + Fraction(error), exact_sum)
+            product, error = dd.two_product(a, b)
+            self.assertEqual(
+                Fraction(product) + Fraction(error), Fraction(a) * Fraction(b)
+            )
+
+    def test_constants_against_references(self) -> None:
+        """The split constants equal 40-digit references to 1e-32 relative."""
+        with localcontext() as context:
+            context.prec = 45
+            pi = reference_pi(digits=45)
+            expected = {
+                "LOG_SQRT_TWO_PI": reference_log(2 * pi, digits=45) / 2,
+                "INV_SQRT_TWO": Decimal(2).sqrt() / 2,
+            }
+            for name, value in expected.items():
+                high, low = getattr(dd, name)
+                gap = abs(Decimal(high) + Decimal(low) - value) / value
+                self.assertLess(gap, Decimal("1e-32"), name)
+
+    def test_logarithm_and_log1pmx(self) -> None:
+        """dd_log within 1e-22 absolute, dd_log1pmx within 1e-20 relative."""
+        generator = random.Random(1)
+        with localcontext() as context:
+            context.prec = 50
+            for _ in range(400):
+                x = math.exp(generator.uniform(-700.0, 700.0))
+                high, low = dd.dd_log((x, 0.0))
+                exact = Decimal(x).ln()
+                self.assertLess(abs(Decimal(high) + Decimal(low) - exact), 1e-22)
+                t = generator.uniform(-0.5, 0.5) * 10.0 ** generator.uniform(-8, 0)
+                high, low = dd.dd_log1pmx((t, 0.0))
+                exact = (1 + Decimal(t)).ln() - Decimal(t)
+                gap = abs(Decimal(high) + Decimal(low) - exact) / abs(exact)
+                self.assertLess(gap, 1e-20, t)
+
+    def test_stirling_remainder_against_log_gamma(self) -> None:
+        """sigma(a) within 2e-18 absolute, including shapes lifted below 15."""
+        with localcontext() as context:
+            context.prec = 50
+            pi = reference_pi(digits=50)
+            for a in (1e-300, 1e-5, 0.05, 0.5, 2.5, 7.5, 14.9, 15.0, 200.0, 1e6):
+                shape = Decimal(a)
+                exact = (
+                    reference_log_gamma(a, digits=50)
+                    - (shape - Decimal("0.5")) * shape.ln()
+                    + shape
+                    - (2 * pi).ln() / 2
+                )
+                high, low = dd.dd_stirling_error((a, 0.0))
+                self.assertLess(abs(Decimal(high) + Decimal(low) - exact), 2e-18, a)
+
+
+class NormalTailTests(unittest.TestCase):
+    """Normal cdf, sf, log_cdf, and log_sf keep a few ulp in every tail."""
+
+    def test_cdf_and_sf_over_the_whole_range(self) -> None:
+        """At most 8 ulp for z in [-37.5, 37.5]; the old code had 1228 ulp at -37."""
+        for mu, sigma in ((0.0, 1.0), (3.0, 0.7), (-1e3, 13.3)):
+            law = Normal(mu, sigma)
+            lower = [mu + sigma * z for z in grid(-37.5, 8.0, 47)]
+            upper = [mu + sigma * z for z in grid(-8.0, 37.5, 47)]
+            def lower_tail(x: float, m: float = mu, s: float = sigma) -> Decimal:
+                """Return the exact-argument reference ``Phi((x - m)/s)``.
+
+                References:
+                    [EQ-NUM-REFERENCE-002].
+
+                """
+                return reference_normal_cdf(exact_z(x, m, s))
+
+            def upper_tail(x: float, m: float = mu, s: float = sigma) -> Decimal:
+                """Return the exact-argument reference ``1 - Phi((x - m)/s)``.
+
+                References:
+                    [EQ-NUM-REFERENCE-002].
+
+                """
+                return reference_normal_cdf(-exact_z(x, m, s))
+
+            cdf = compare_to_reference(law.cdf, lower_tail, lower)
+            sf = compare_to_reference(law.sf, upper_tail, upper)
+            self.assertLessEqual(cdf.max_ulp, 8.0, (mu, sigma, cdf.worst_point))
+            self.assertLessEqual(sf.max_ulp, 8.0, (mu, sigma, sf.worst_point))
+
+    def test_log_cdf_near_zero_keeps_relative_accuracy(self) -> None:
+        """Log Phi(z) for 0 < z <= 5 was log of a rounded Phi: 1.26e6 ulp at z = 5."""
+        law = Normal()
+        points = [0.5, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 9.5, 19.0, 37.0]
+        result = compare_to_reference(
+            law.log_cdf, lambda x: reference_log_cdf(Fraction(x)), points
+        )
+        self.assertLessEqual(result.max_ulp, 4.0, result.worst_point)
+        survival = compare_to_reference(
+            law.log_sf, lambda x: reference_log_cdf(-Fraction(x)), [-z for z in points]
+        )
+        self.assertLessEqual(survival.max_ulp, 4.0, survival.worst_point)
+
+    def test_log_tails_far_beyond_underflow(self) -> None:
+        """log_cdf and log_sf stay within 4 ulp down to z = -1000."""
+        law = Normal(3.0, 0.7)
+        points = [3.0 + 0.7 * z for z in grid(-40.0, 0.0, 21) + [-1e3, -200.0, -50.0]]
+        result = compare_to_reference(
+            law.log_cdf,
+            lambda x: reference_log_cdf(exact_z(x, 3.0, 0.7)),
+            points,
+        )
+        self.assertLessEqual(result.max_ulp, 4.0, result.worst_point)
+
+
+class IncompleteGammaLargeShapeTests(unittest.TestCase):
+    """P and Q keep a constant budget for large shapes (Temme and prefactor)."""
+
+    def test_temme_coefficients_rederived_in_rationals(self) -> None:
+        """The 13 x 26 coefficient table equals the exact derivation rounded."""
+        derived = temme_coefficients(26, 13)
+        table = special._TEMME_COEFFICIENTS
+        self.assertEqual(len(table), 13)
+        self.assertEqual(derived[0][0], Fraction(-1, 3))
+        self.assertEqual(derived[2][0], Fraction(25, 6048))  # DLMF 8.12 value
+        for row, exact_row in zip(table, derived, strict=True):
+            self.assertEqual(row, tuple(float(value) for value in exact_row))
+
+    def test_near_the_mode_for_growing_shapes(self) -> None:
+        """At most 6 ulp for a = 20 .. 1e4 near x = a (was 26 to 186 ulp)."""
+        for a in (20.0, 55.0, 200.0, 1e3, 1e4):
+            points = [(a, f * a) for f in (0.75, 0.9, 0.995, 1.0, 1.005, 1.1, 1.29)]
+            for function, reference in (
+                (special.regularized_gamma_p, reference_regularized_gamma_p),
+                (special.regularized_gamma_q, reference_regularized_gamma_q),
+            ):
+                result = compare_to_reference(function, reference, points, digits=30)
+                self.assertLessEqual(result.max_ulp, 6.0, (a, result.worst_point))
+
+    def test_tails_for_large_shapes(self) -> None:
+        """At most 8 ulp away from the mode (was 1330 ulp at (200, 605))."""
+        points = [(a, f * a) for a in (30.0, 300.0, 1e3)
+                  for f in (0.01, 0.3, 0.5, 0.69, 1.31, 2.0, 3.025)]  # fmt: skip
+        for function, reference in (
+            (special.regularized_gamma_p, reference_regularized_gamma_p),
+            (special.regularized_gamma_q, reference_regularized_gamma_q),
+        ):
+            result = compare_to_reference(function, reference, points, digits=30)
+            self.assertLessEqual(result.max_ulp, 8.0, result.worst_point)
+
+
+class DirichletHugeConcentrationTests(unittest.TestCase):
+    """The Dirichlet normalizer and entropy without lgamma cancellation."""
+
+    def test_reference_at_huge_concentrations(self) -> None:
+        """Log B within one ulp and entropy within 1e-14 at alpha_0 = 1e6 .. 1e12."""
+        for scale in (1e6, 1e9, 1e12):
+            alpha = tuple(scale * p for p in (0.2, 0.3, 0.5))
+            point = (0.21, 0.29, 0.5)
+            with localcontext() as context:
+                context.prec = 50
+                total = sum(Decimal(value) for value in alpha)
+                log_beta = sum(
+                    reference_log_gamma(value, digits=50) for value in alpha
+                ) - reference_log_gamma(total, digits=50)
+                entropy = (
+                    log_beta
+                    + (total - 3) * reference_digamma(float(total))
+                    - sum((Decimal(v) - 1) * reference_digamma(v) for v in alpha)
+                )
+                log_density = sum(
+                    (Decimal(v) - 1) * Decimal(x).ln()
+                    for v, x in zip(alpha, point, strict=True)
+                ) - log_beta
+                law = Dirichlet(alpha)
+                normalizer_error = abs(Decimal(log_multivariate_beta(alpha)) - log_beta)
+                entropy_error = abs(Decimal(law.entropy) - entropy)
+                density_error = abs(Decimal(law.log_pdf(point)) - log_density)
+            self.assertLessEqual(float(normalizer_error), math.ulp(float(log_beta)))
+            self.assertLess(float(entropy_error), 1e-14, scale)
+            # One ulp of the largest term (alpha_i - 1) log x_i bounds what the
+            # density can resolve; plain lgamma sums missed it by 12x at 1e9.
+            self.assertLess(float(density_error), math.ulp(scale), scale)
+
+
+class EulerConstantTests(unittest.TestCase):
+    """One definition of the Euler-Mascheroni constant, numerically neutral."""
+
+    def test_single_definition_matches_dlmf_and_former_literals(self) -> None:
+        """EULER_GAMMA is the correctly rounded DLMF value and every former literal."""
+        from probstat.distributions import gev, gumbel, rayleigh
+        from probstat.inference import fitting
+        from probstat.information import differential
+
+        self.assertEqual(EULER_GAMMA, float(EULER_DIGITS))
+        former = (
+            0.57721566490153286060651209008240243,  # distributions/gumbel.py
+            0.57721566490153286061,  # distributions/rayleigh.py
+            0.5772156649015329,  # inference/fitting.py, information/differential.py
+        )
+        for literal in former:
+            self.assertEqual(literal, EULER_GAMMA)
+        for module in (gev, gumbel, rayleigh, fitting, differential):
+            self.assertIs(module.EULER_GAMMA, EULER_GAMMA)
+
+
+if __name__ == "__main__":
+    unittest.main()

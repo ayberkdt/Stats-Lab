@@ -5,11 +5,35 @@ from __future__ import annotations
 import math
 from fractions import Fraction
 
+from probstat.numerics._double_double import (
+    LOG_SQRT_TWO_PI,
+    STIRLING_SERIES_START,
+    dd_add,
+    dd_div,
+    dd_exp,
+    dd_log1pmx,
+    dd_mul,
+    dd_scaled_log_ratio,
+    erfc_double_double,
+    half_log_minus_stirling,
+    stirling_error_float,
+    two_product,
+    two_sum,
+)
 from probstat.numerics.special import digamma, log_minus_digamma
 
 from .constraints import NON_NEGATIVE_FINITE, POSITIVE_FINITE, PROBABILITY
 
 _EPSILON = 8.0 * math.ulp(1.0)
+# A series whose terms decay with ratio r leaves a tail of about
+# term r/(1-r); stopping at 8 ulp(1) cost up to 30 ulp (r ~ 0.7), so the
+# gamma series stops at ulp(1)/16. A continued fraction whose factors have
+# reached 8 ulp(1) of one keeps iterating, for at most 32 more steps, until a
+# factor lies within half an ulp of one (its rounding noise can keep it
+# above any smaller bound).
+_SERIES_TOLERANCE = math.ulp(1.0) / 16.0
+_FRACTION_FINE = 0.5 * math.ulp(1.0)
+_FRACTION_EXTRA = 32
 _FPMIN = 1e-300
 _MAX_ITERATIONS = 10_000
 # Terms needed by the P(a, x) series near x ~ a grow like sqrt(a): the term
@@ -20,67 +44,385 @@ _LOG_SQRT_TWO_PI = 0.5 * math.log(2.0 * math.pi)
 # Above this shape the log prefactors are formed from Stirling differences
 # instead of differences of lgamma values of size ~a log a.
 LARGE_SHAPE = 100.0
-_STIRLING_SERIES_START = 15.0
-_TEMME_MIN_SHAPE = 1e6
+_TEMME_MIN_SHAPE = 20.0
 _TEMME_MAX_OFFSET = 0.3
-# Taylor coefficients of Temme's c_0(eta) = 1/(lambda-1) - 1/eta and
-# c_1(eta) = 1/eta^3 - 1/(lambda-1)^3 - 1/(lambda-1)^2 - 1/(12(lambda-1)),
-# derived in exact rational arithmetic by reverting
-# mu - log(1 + mu) = eta^2/2 (mu = lambda - 1) and checked against the closed
-# forms in 80-digit arithmetic. Eighteen terms leave a remainder below 1e-17
-# for |eta| <= 0.36 (the region |lambda - 1| <= 0.3).
-_TEMME_C0 = (
-    -1.0 / 3.0,
-    1.0 / 12.0,
-    -2.0 / 135.0,
-    1.0 / 864.0,
-    1.0 / 2835.0,
-    -139.0 / 777600.0,
-    1.0 / 25515.0,
-    -571.0 / 261273600.0,
-    -281.0 / 151559100.0,
-    163879.0 / 197522841600.0,
-    -5221.0 / 29554024500.0,
-    5246819.0 / 782190452736000.0,
-    5459.0 / 531972441000.0,
-    -534703531.0 / 122021710626816000.0,
-    91207079.0 / 99704934754425000.0,
-    -4483131259.0 / 175711263302615040000.0,
-    -2650986803.0 / 45465450248017800000.0,
-    432261921612371.0 / 17743323368298066739200000.0,
+# Drop the terms c_k(eta) a^-k once a^-k falls below this bound (every
+# |c_k(eta)| is below 0.007 for |eta| <= 0.34 and k <= 12).
+_TEMME_TERM_FLOOR = 1e-22
+# Taylor coefficients (in eta, 26 per row) of Temme's c_k(eta), k = 0..12,
+# the coefficients of R_a(eta) = exp(-a eta^2/2)/sqrt(2 pi a) sum c_k(eta)
+# a^-k. Derived in exact rational arithmetic from mu - log(1 + mu) =
+# eta^2/2 (mu = lambda - 1), c_0 = 1/mu - 1/eta and the recursion
+# c_k = c_(k-1)'(eta)/eta + (-1)^k g_k/mu with the Stirling coefficients
+# g_k of Gamma(z) (DLMF 8.12.9-8.12.10 and 5.11.3); the derivation is
+# repeated in tests/test_numerical_accuracy_follow_ups.py. For |eta| <= 0.34
+# (the region |lambda - 1| <= 0.3) the omitted Taylor terms are below 1e-22.
+_TEMME_COEFFICIENTS = (
+    (
+        -0.3333333333333333,
+        0.08333333333333333,
+        -0.014814814814814815,
+        0.0011574074074074073,
+        0.0003527336860670194,
+        -0.0001787551440329218,
+        3.919263178522438e-05,
+        -2.185448510679992e-06,
+        -1.85406221071516e-06,
+        8.296711340953087e-07,
+        -1.7665952736826078e-07,
+        6.707853543401498e-09,
+        1.0261809784240309e-08,
+        -4.382036018453353e-09,
+        9.14769958223679e-10,
+        -2.5514193994946248e-11,
+        -5.830772132550426e-11,
+        2.4361948020667415e-11,
+        -5.0276692801141755e-12,
+        1.1004392031956135e-13,
+        3.371763262400985e-13,
+        -1.392388722418162e-13,
+        2.8534893807047445e-14,
+        -5.139111834242572e-16,
+        -1.9752288294349442e-15,
+        8.099521156704561e-16,
+    ),
+    (
+        -0.001851851851851852,
+        -0.003472222222222222,
+        0.0026455026455026454,
+        -0.0009902263374485596,
+        0.00020576131687242798,
+        -4.018775720164609e-07,
+        -1.8098550334489977e-05,
+        7.64916091608111e-06,
+        -1.6120900894563446e-06,
+        4.647127802807434e-09,
+        1.378633446915721e-07,
+        -5.752545603517705e-08,
+        1.1951628599778148e-08,
+        -1.7543241719747647e-11,
+        -1.0091543710600413e-09,
+        4.162792991842583e-10,
+        -8.56390702649298e-11,
+        6.067215101604758e-14,
+        7.1624989648114856e-12,
+        -2.933186643771437e-12,
+        5.996696365683689e-13,
+        -2.1671786527323313e-16,
+        -4.978339972369262e-14,
+        2.0291628823713425e-14,
+        -4.13125571381061e-15,
+        8.286516239883097e-19,
+    ),
+    (
+        0.004133597883597883,
+        -0.0026813271604938273,
+        0.0007716049382716049,
+        2.0093878600823047e-06,
+        -0.0001073665322636516,
+        5.2923448829120125e-05,
+        -1.2760635188618728e-05,
+        3.423578734096138e-08,
+        1.3721957309062934e-06,
+        -6.298992138380055e-07,
+        1.4280614206064242e-07,
+        -2.0477098421990866e-10,
+        -1.409252991086752e-08,
+        6.228974084922022e-09,
+        -1.3670488396617114e-09,
+        9.428356159014678e-13,
+        1.2872252400089318e-10,
+        -5.5645956134363323e-11,
+        1.197593554636698e-11,
+        -4.1689782251838634e-15,
+        -1.0940640427884595e-12,
+        4.662239946390136e-13,
+        -9.905105763906907e-14,
+        1.8931876768373515e-17,
+        8.859221872591127e-15,
+        -3.737820398046405e-15,
+    ),
+    (
+        0.0006494341563786008,
+        0.00022947209362139917,
+        -0.0004691894943952557,
+        0.00026772063206283885,
+        -7.561801671883977e-05,
+        -2.396505113867297e-07,
+        1.1082654115347302e-05,
+        -5.6749528269915965e-06,
+        1.4230900732435883e-06,
+        -2.7861080291528143e-11,
+        -1.6958404091930278e-07,
+        8.099464905388083e-08,
+        -1.9111168485973655e-08,
+        2.3928620439808118e-12,
+        2.0620131815488797e-09,
+        -9.460496661855133e-10,
+        2.1541049775774907e-10,
+        -1.388823336813903e-14,
+        -2.1894761681963938e-11,
+        9.790998951171684e-12,
+        -2.178219188018096e-12,
+        6.208819573407901e-17,
+        2.126978363279737e-13,
+        -9.344688791517433e-14,
+        2.045367122678285e-14,
+        -2.58260790403495e-19,
+    ),
+    (
+        -0.0008618882909167117,
+        0.0007840392217200666,
+        -0.0002990724803031902,
+        -1.4638452578843418e-06,
+        6.641498215465122e-05,
+        -3.968365047179435e-05,
+        1.1375726970678419e-05,
+        2.507497226237533e-10,
+        -1.6954149536558305e-06,
+        8.907507532205309e-07,
+        -2.292934834000805e-07,
+        2.956794137544049e-11,
+        2.8865829742708783e-08,
+        -1.4189739437803219e-08,
+        3.4463580499464896e-09,
+        -2.3024517174528067e-13,
+        -3.9409233028046403e-10,
+        1.86023389685045e-10,
+        -4.356323005056618e-11,
+        1.278600101629623e-15,
+        4.67927502665792e-12,
+        -2.149246470613483e-12,
+        4.908815614809652e-13,
+        -6.33859148489156e-18,
+        -5.045332069080094e-14,
+        2.2722958222901286e-14,
+    ),
+    (
+        -0.00033679855336635813,
+        -6.972813758365857e-05,
+        0.0002772753244959392,
+        -0.00019932570516188847,
+        6.797780477937208e-05,
+        1.419062920643967e-07,
+        -1.3594048189768693e-05,
+        8.018470256334202e-06,
+        -2.291481176508095e-06,
+        -3.252473551298454e-10,
+        3.4652846491085265e-07,
+        -1.8447187191171344e-07,
+        4.8240967037894184e-08,
+        -1.7989466721743514e-14,
+        -6.306194500013523e-09,
+        3.162417628774568e-09,
+        -7.840924253697429e-10,
+        5.192679165254041e-15,
+        9.358944242306784e-11,
+        -4.513426216163278e-11,
+        1.0799129993116828e-11,
+        -3.661886712685252e-17,
+        -1.210902069055155e-12,
+        5.680743584990564e-13,
+        -1.3249659916340829e-13,
+        1.8987240764284076e-19,
+    ),
+    (
+        0.0005313079364639922,
+        -0.0005921664373536939,
+        0.0002708782096718045,
+        7.902353232660328e-07,
+        -8.153969367561969e-05,
+        5.61168275310625e-05,
+        -1.8329116582843375e-05,
+        -3.0796134506033047e-09,
+        3.465155368803609e-06,
+        -2.0291327396058603e-06,
+        5.788792863149004e-07,
+        2.338630673826657e-13,
+        -8.828600746330484e-08,
+        4.7435958880408125e-08,
+        -1.2545415020710383e-08,
+        8.649648858010293e-14,
+        1.6846058979264062e-09,
+        -8.575492823577594e-10,
+        2.1598224929232125e-10,
+        -7.613230520476153e-16,
+        -2.6639822008536144e-11,
+        1.3065700536611057e-11,
+        -3.1799163902367977e-12,
+        4.710976121367431e-18,
+        3.6902800842763465e-13,
+        -1.7612674046201426e-13,
+    ),
+    (
+        0.00034436760689237765,
+        5.171790908260592e-05,
+        -0.00033493161081142234,
+        0.0002812695154763237,
+        -0.00010976582244684731,
+        -1.2741009095484485e-07,
+        2.7744451511563645e-05,
+        -1.8263488805711332e-05,
+        5.7876949497350525e-06,
+        4.93875893393627e-10,
+        -1.0595367014026043e-06,
+        6.166714376110408e-07,
+        -1.7562973359060463e-07,
+        -1.297447328701544e-12,
+        2.695423606288966e-08,
+        -1.4578352908731272e-08,
+        3.887645959386175e-09,
+        -3.881002251019412e-17,
+        -5.327994173877286e-10,
+        2.7437977643314844e-10,
+        -6.995796092070568e-11,
+        2.589986387486848e-17,
+        8.856689099669639e-12,
+        -4.403168815871311e-12,
+        1.0865561947091654e-12,
+        -2.0467988447416678e-19,
+    ),
+    (
+        -0.0006526239185953094,
+        0.0008394987206720873,
+        -0.000438297098541721,
+        -6.969091458420552e-07,
+        0.00016644846642067547,
+        -0.00012783517679769218,
+        4.629953263691304e-05,
+        4.557909867922708e-09,
+        -1.0595271125805195e-05,
+        6.783342904865167e-06,
+        -2.1075476666258803e-06,
+        -1.7213731432817144e-11,
+        3.773587741611098e-07,
+        -2.1867506700122867e-07,
+        6.220228804018927e-08,
+        6.597703826733e-16,
+        -9.590386497425686e-09,
+        5.213214492280807e-09,
+        -1.3991589583935709e-09,
+        5.382058999060575e-16,
+        1.9484714275467745e-10,
+        -1.0127287556389682e-10,
+        2.6077347197254926e-11,
+        -5.090418699993299e-18,
+        -3.3721464474854593e-12,
+        1.6953089140808568e-12,
+    ),
+    (
+        -0.0005967612901927463,
+        -7.204895416020011e-05,
+        0.0006782308837667328,
+        -0.0006401475260262758,
+        0.00027750107634328704,
+        1.819700838046515e-07,
+        -8.479507117068503e-05,
+        6.105192082501531e-05,
+        -2.1073920183404862e-05,
+        -8.858589014125599e-10,
+        4.5284535953805374e-06,
+        -2.8427815022504407e-06,
+        8.708234177864641e-07,
+        3.6886101871706966e-12,
+        -1.534469519070206e-07,
+        8.862466778790695e-08,
+        -2.5184812301826817e-08,
+        -1.0225912098215092e-14,
+        3.896947075815478e-09,
+        -2.1267304792235634e-09,
+        5.737013552805138e-10,
+        -1.8877498501697116e-19,
+        -8.093153869465787e-11,
+        4.23827232834492e-11,
+        -1.1002224534207725e-11,
+        2.3327607706802836e-19,
+    ),
+    (
+        0.0013324454494800656,
+        -0.0019144384985654776,
+        0.0011089369134596636,
+        9.9324041226423e-07,
+        -0.0005087450129309319,
+        0.00042735056665392886,
+        -0.00016858853767910798,
+        -8.1301893922785e-09,
+        4.5284402370562144e-05,
+        -3.127053674781734e-05,
+        1.044986828530338e-05,
+        4.8435226265680926e-11,
+        -2.148256587345626e-06,
+        1.329369701097492e-06,
+        -4.029569309210103e-07,
+        -1.756787766632329e-13,
+        7.014504316366825e-08,
+        -4.040787734999483e-08,
+        1.1474026743371964e-08,
+        3.964274685356394e-18,
+        -1.7804938269892715e-09,
+        9.748026254873165e-10,
+        -2.6405338676507616e-10,
+        5.79487516340376e-18,
+        3.764774955354384e-11,
+        -1.983951296757828e-11,
+    ),
+    (
+        0.001579727660730835,
+        0.00016251626278391583,
+        -0.0020633421035543276,
+        0.00213896861856891,
+        -0.0010108559391263003,
+        -3.99127055299192e-07,
+        0.0003623502508476469,
+        -0.00028143901463712157,
+        0.00010449513336495887,
+        2.12114184918303e-09,
+        -2.5779417251947842e-05,
+        1.7281818956040464e-05,
+        -5.641377387290428e-06,
+        -1.1024320105776174e-11,
+        1.1223224418895174e-06,
+        -6.869339637952674e-07,
+        2.0653236975414888e-07,
+        4.6714772409838506e-14,
+        -3.5609886164949055e-08,
+        2.0470855345905963e-08,
+        -5.809173863328336e-09,
+        -1.3328212875828647e-16,
+        9.035460439133513e-10,
+        -4.959878251733084e-10,
+        1.3481607129399748e-10,
+        -1.670378498659395e-21,
+    ),
+    (
+        -0.004072512119514016,
+        0.00640336283380807,
+        -0.004041016108167662,
+        -2.1837328028662328e-06,
+        0.002174044180125464,
+        -0.001970044051841889,
+        0.0008359546974796246,
+        1.9445447567109655e-08,
+        -0.000257793871204217,
+        0.00019009987368139304,
+        -6.769649993743896e-05,
+        -1.4440629666426571e-10,
+        1.5712512518742267e-05,
+        -1.0304008744776894e-05,
+        3.304517767401387e-06,
+        7.982976024232571e-13,
+        -6.4097794149313e-07,
+        3.8894624761300054e-07,
+        -1.161834764494887e-07,
+        -2.8168086305964423e-15,
+        1.9878012911297094e-08,
+        -1.1407719956357511e-08,
+        3.2355857064185554e-09,
+        4.1759462466484876e-20,
+        -5.042311271810582e-10,
+        2.7740247286170716e-10,
+    ),
 )
-_TEMME_C1 = (
-    -1.0 / 540.0,
-    -1.0 / 288.0,
-    1.0 / 378.0,
-    -77.0 / 77760.0,
-    1.0 / 4860.0,
-    -1.0 / 2488320.0,
-    -2743.0 / 151559100.0,
-    41969.0 / 5486745600.0,
-    -11.0 / 6823440.0,
-    47207.0 / 10158317568000.0,
-    3761.0 / 27280638000.0,
-    -3599669.0 / 62575236218880.0,
-    61903187.0 / 5179477130100000.0,
-    -4193939.0 / 239062943268864000.0,
-    -2570401.0 / 2547084047508000.0,
-    54310133948197.0 / 130465613002191667200000.0,
-    -2459127719.0 / 28715021209274400000.0,
-    28105097117.0 / 463228955069786357760000.0,
-)
-# B_(2k) / (2k (2k - 1)) for k = 1..7: coefficients of a^(1-2k) in the
-# Stirling error lgamma(a) - (a - 1/2) log a + a - log sqrt(2 pi).
-_STIRLING_COEFFICIENTS = (
-    1.0 / 12.0,
-    -1.0 / 360.0,
-    1.0 / 1260.0,
-    -1.0 / 1680.0,
-    1.0 / 1188.0,
-    -691.0 / 360360.0,
-    1.0 / 156.0,
-)
-
 
 def stirling_error(a: float) -> float:
     """Return ``lgamma(a) - [(a - 1/2) log a - a + log sqrt(2 pi)]``.
@@ -104,13 +446,9 @@ def stirling_error(a: float) -> float:
         [REF-NIST-DLMF-GAMMA, Section 5.11].
 
     """
-    if a < _STIRLING_SERIES_START:
+    if a < STIRLING_SERIES_START:
         return math.lgamma(a) - (a - 0.5) * math.log(a) + a - _LOG_SQRT_TWO_PI
-    inverse_square = 1.0 / (a * a)
-    total = 0.0
-    for coefficient in reversed(_STIRLING_COEFFICIENTS):
-        total = total * inverse_square + coefficient
-    return total / a
+    return stirling_error_float(a)
 
 
 def log1pmx(t: float) -> float:
@@ -339,13 +677,130 @@ def log_beta_function(a: float, b: float) -> float:
     )
 
 
+# Below this exponent the prefactors underflow (``exp(-745.2)`` is the
+# smallest subnormal), so the float exponent is used as it is.
+_PREFACTOR_UNDERFLOW = -760.0
+# Double-double products and quotients stay exact for magnitudes in this
+# range; arguments outside it (where no cancellation is at stake for the
+# prefactors anyway) keep the float exponent.
+_SAFE_RANGE = (1e-280, 1e280)
+
+
+def _in_safe_range(*values: float) -> bool:
+    """Return whether every value lies in the double-double safe range.
+
+    Args:
+        *values: Positive floats to check.
+
+    Returns:
+        ``True`` when all values are within ``[1e-280, 1e280]``.
+
+    References:
+        [EQ-NUM-DD-001], [REF-DEKKER-1971].
+
+    """
+    low, high = _SAFE_RANGE
+    return all(low <= value <= high for value in values)
+
+
+def gamma_prefactor(a: float, x: float) -> float:
+    """Return ``x^a exp(-x) / Gamma(a)`` with a double-double exponent.
+
+    The exponent is regrouped as ``a log1pmx((x - a)/a) + log(a)/2 -
+    log sqrt(2 pi) - stirling_error(a)`` (valid for every ``a > 0``) and each
+    term is formed in double-double arithmetic, with ``stirling_error`` of
+    shapes below 15 lifted by the recurrence of ``Gamma``. The float
+    exponent of :func:`log_gamma_kernel` has an absolute error of about
+    ``2^-53`` times the size of its largest cancelling term (``a log x``,
+    ``x``, ``lgamma(a)``), which ``exp`` turns into the same relative error:
+    1400 ulp at ``(a, x) = (200, 605)``. Here the exponent's error is below
+    ``1e-18``, so the prefactor carries one ``exp`` rounding.
+
+    Args:
+        a: Finite positive shape.
+        x: Finite positive point.
+
+    Returns:
+        The prefactor of the incomplete gamma series and continued fraction.
+
+    Equation:
+        [EQ-NUM-GAMMA-003], [EQ-NUM-STIRLING-001].
+
+    References:
+        [REF-DIDONATO-MORRIS-1986], [REF-DEKKER-1971],
+        [REF-NIST-DLMF-GAMMA, Section 5.11].
+
+    """
+    estimate = log_gamma_kernel(a, x)
+    if estimate < _PREFACTOR_UNDERFLOW or not _in_safe_range(a, x, x / a):
+        return math.exp(estimate)
+    exponent = dd_add(
+        dd_scaled_log_ratio(a, (x, 0.0)), half_log_minus_stirling((a, 0.0))
+    )
+    return dd_exp(dd_add(exponent, (-LOG_SQRT_TWO_PI[0], -LOG_SQRT_TWO_PI[1])))
+
+
+def beta_prefactor(a: float, b: float, x: float, complement: float) -> float:
+    """Return ``x^a (1 - x)^b / B(a, b)`` with a double-double exponent.
+
+    With ``1 + t = x (a+b)/a`` and ``1 + s = (1-x)(a+b)/b`` the exponent is
+    ``a log1pmx(t) + b log1pmx(s) + log(ab/(a+b))/2 - log sqrt(2 pi) -
+    stirling_error(a) - stirling_error(b) + stirling_error(a+b)`` for all
+    positive shapes (``a t + b s = 0``), every term in double-double
+    arithmetic. The smaller of ``x`` and ``1 - x`` is taken as exact and the
+    other is formed from it without rounding.
+
+    Args:
+        a: Finite positive first shape.
+        b: Finite positive second shape.
+        x: Point strictly inside ``(0, 1)``.
+        complement: ``1 - x`` formed without cancellation.
+
+    Returns:
+        The prefactor of the incomplete beta continued fraction.
+
+    Equation:
+        [EQ-NUM-BETA-003], [EQ-NUM-STIRLING-001].
+
+    References:
+        [REF-DIDONATO-MORRIS-1992], [REF-DEKKER-1971],
+        [REF-NIST-DLMF-GAMMA, Section 5.11].
+
+    """
+    estimate = log_beta_kernel(a, b, x, complement)
+    total = two_sum(a, b)
+    if estimate < _PREFACTOR_UNDERFLOW or not _in_safe_range(
+        a, b, x, complement, total[0], x * total[0] / a, complement * total[0] / b
+    ):
+        return math.exp(estimate)
+    if x <= 0.5:
+        point = (x, 0.0)
+        other = two_sum(1.0, -x)
+    else:
+        other = (complement, 0.0)
+        point = two_sum(1.0, -complement)
+    exponent = dd_add(
+        dd_scaled_log_ratio(a, dd_mul(point, total)),
+        dd_scaled_log_ratio(b, dd_mul(other, total)),
+    )
+    shapes = dd_add(
+        half_log_minus_stirling((a, 0.0)), half_log_minus_stirling((b, 0.0))
+    )
+    combined = half_log_minus_stirling(total)
+    shapes = dd_add(shapes, (-combined[0], -combined[1]))
+    exponent = dd_add(exponent, shapes)
+    return dd_exp(dd_add(exponent, (-LOG_SQRT_TWO_PI[0], -LOG_SQRT_TWO_PI[1])))
+
+
 def regularized_gamma_p(a: float, x: float) -> float:
     """Return the lower regularized incomplete gamma function ``P(a, x)``.
 
     A convergent series is used for ``x < a + 1``; otherwise the complement of
     a modified-Lentz continued fraction for ``Q(a, x)`` is used. For
-    ``a >= 1e6`` and ``|x - a| <= 0.3 a``, where both expansions would need
-    ``O(sqrt(a))`` terms, Temme's uniform asymptotic expansion is used.
+    ``a >= 20`` and ``|x - a| <= 0.3 a``, where both expansions would need
+    ``O(sqrt(a))`` terms, Temme's uniform asymptotic expansion is used. The
+    prefactor ``x^a e^-x / Gamma(a)`` has a double-double exponent
+    (:func:`gamma_prefactor`), so the error does not grow with the shape.
 
     Args:
         a: Finite positive shape parameter.
@@ -360,7 +815,7 @@ def regularized_gamma_p(a: float, x: float) -> float:
         ArithmeticError: If the selected expansion does not converge.
 
     Equation:
-        [EQ-NUM-GAMMA-001], [EQ-NUM-GAMMA-002].
+        [EQ-NUM-GAMMA-001], [EQ-NUM-GAMMA-003], [EQ-NUM-GAMMA-004].
 
     References:
         [REF-NIST-DLMF-GAMMA, Sections 8.2, 8.9, and 8.12], [REF-TEMME-1979].
@@ -387,7 +842,7 @@ def regularized_gamma_q(a: float, x: float) -> float:
     Returns:
         The complement ``1 - P(a, x)`` evaluated through the numerically
         appropriate expansion (series, continued fraction, or Temme's uniform
-        expansion for ``a >= 1e6`` near ``x = a``) and clamped to ``[0, 1]``.
+        expansion for ``a >= 20`` near ``x = a``) and clamped to ``[0, 1]``.
 
     Raises:
         TypeError: If an argument is not real.
@@ -395,7 +850,7 @@ def regularized_gamma_q(a: float, x: float) -> float:
         ArithmeticError: If the selected expansion does not converge.
 
     Equation:
-        [EQ-NUM-GAMMA-001], [EQ-NUM-GAMMA-002].
+        [EQ-NUM-GAMMA-001], [EQ-NUM-GAMMA-003], [EQ-NUM-GAMMA-004].
 
     References:
         [REF-NIST-DLMF-GAMMA, Sections 8.2, 8.9, and 8.12], [REF-TEMME-1979].
@@ -420,10 +875,13 @@ def _use_temme(a: float, x: float) -> bool:
         x: Validated positive point.
 
     Returns:
-        ``True`` for ``a >= 1e6`` and ``|x - a| <= 0.3 a``.
+        ``True`` for ``a >= 20`` and ``|x - a| <= 0.3 a``, where the series
+        and the continued fraction need ``O(sqrt(a))`` terms whose rounding
+        errors accumulate (measured: 26 ulp at ``a = 200``, 570 ulp at
+        ``a = 1e5``).
 
     References:
-        [EQ-NUM-GAMMA-002], [REF-TEMME-1979].
+        [EQ-NUM-GAMMA-004], [REF-TEMME-1979], [REF-DIDONATO-MORRIS-1986].
 
     """
     return a >= _TEMME_MIN_SHAPE and abs(x - a) <= _TEMME_MAX_OFFSET * a
@@ -433,43 +891,57 @@ def _gamma_temme(a: float, x: float) -> tuple[float, float]:
     """Evaluate ``(P(a, x), Q(a, x))`` by Temme's uniform asymptotic expansion.
 
     With ``lambda = x/a`` and ``eta = sign(lambda - 1) sqrt(2 (lambda - 1 -
-    log lambda))``, ``Q = erfc(eta sqrt(a/2))/2 + R`` and
-    ``P = erfc(-eta sqrt(a/2))/2 - R``, where
-    ``R = exp(-a eta^2/2) / sqrt(2 pi a) (c_0(eta) + c_1(eta)/a)``. The
-    coefficients are summed from their Taylor series in ``eta`` (exact
-    rational coefficients, convergent for ``|eta| < 2 sqrt(pi)``); the
-    omitted ``c_2(eta)/a^2`` term (``c_2(0) = 25/6048``) is below ``5e-15``
-    relative to ``R`` for ``a >= 1e6``.
+    log lambda))``, ``Q = erfc(w)/2 + R`` and ``P = erfc(-w)/2 - R`` with
+    ``w = eta sqrt(a/2)`` and ``R = exp(-w^2) / sqrt(2 pi a) sum_(k<=12)
+    c_k(eta) a^-k``. ``w^2 = -a log1pmx((x - a)/a)`` is formed in
+    double-double arithmetic, so neither ``exp(-w^2)`` nor ``erfc(w)``
+    inherits the ``2 w^2``-fold amplification of a rounded argument; the
+    coefficients are summed from their Taylor series in ``eta``. For
+    ``a >= 20`` the last included term ``c_12/a^12`` is below ``2e-18``
+    relative to ``R``, and ``|R| <= Q/9`` in this region.
 
     Args:
-        a: Shape with ``a >= 1e6``.
+        a: Shape with ``a >= 20``.
         x: Point with ``|x - a| <= 0.3 a``.
 
     Returns:
         The pair ``(P, Q)``, each clamped to ``[0, 1]``.
 
     Equation:
-        [EQ-NUM-GAMMA-002].
+        [EQ-NUM-GAMMA-004], [EQ-NUM-DD-003].
 
     References:
-        [REF-TEMME-1979], [REF-NIST-DLMF-GAMMA, Section 8.12].
+        [REF-TEMME-1979], [REF-NIST-DLMF-GAMMA, Section 8.12],
+        [REF-DEKKER-1971].
 
     """
-    t = (x - a) / a
-    half_square = -log1pmx(t)
-    eta = math.copysign(math.sqrt(2.0 * half_square), t)
-    c0 = 0.0
-    for coefficient in reversed(_TEMME_C0):
-        c0 = c0 * eta + coefficient
-    c1 = 0.0
-    for coefficient in reversed(_TEMME_C1):
-        c1 = c1 * eta + coefficient
-    remainder = (
-        math.exp(-a * half_square) / math.sqrt(2.0 * math.pi * a) * (c0 + c1 / a)
-    )
-    argument = eta * math.sqrt(0.5 * a)
-    lower = 0.5 * math.erfc(-argument) - remainder
-    upper = 0.5 * math.erfc(argument) + remainder
+    shape = (a, 0.0)
+    t = dd_div(two_sum(x, -a), shape)
+    exponent = dd_mul(shape, dd_log1pmx(t))
+    square = (-exponent[0], -exponent[1])
+    root = math.sqrt(square[0])
+    if root > 0.0:
+        product, error = two_product(root, root)
+        low = (((square[0] - product) - error) + square[1]) / (2.0 * root)
+    else:
+        low = 0.0
+    sign = 1.0 if t[0] >= 0.0 else -1.0
+    argument = (sign * root, sign * low)
+    eta = argument[0] / math.sqrt(0.5 * a)
+    inverse = 1.0 / a
+    power = 1.0
+    total = 0.0
+    for row in _TEMME_COEFFICIENTS:
+        value = 0.0
+        for coefficient in reversed(row):
+            value = value * eta + coefficient
+        total += value * power
+        power *= inverse
+        if power < _TEMME_TERM_FLOOR:
+            break
+    remainder = dd_exp(exponent) / math.sqrt(2.0 * math.pi * a) * total
+    upper = 0.5 * erfc_double_double(argument) + remainder
+    lower = 0.5 * erfc_double_double((-argument[0], -argument[1])) - remainder
     return _clamp_probability(lower), _clamp_probability(upper)
 
 
@@ -505,8 +977,8 @@ def _gamma_series_p(a: float, x: float) -> float:
         denominator += 1.0
         term *= x / denominator
         total += term
-        if abs(term) <= abs(total) * _EPSILON:
-            return _clamp_probability(total * math.exp(log_gamma_kernel(a, x)))
+        if abs(term) <= abs(total) * _SERIES_TOLERANCE:
+            return _clamp_probability(total * gamma_prefactor(a, x))
     raise ArithmeticError("regularized-gamma series did not converge")
 
 
@@ -537,6 +1009,7 @@ def _gamma_continued_fraction_q(a: float, x: float) -> float:
     d = 1.0 / b
     fraction = d
     limit = _MAX_ITERATIONS + int(_SERIES_SQRT_FACTOR * math.sqrt(a))
+    settled: int | None = None
     for index in range(1, limit + 1):
         coefficient = -float(index) * (float(index) - a)
         b += 2.0
@@ -550,7 +1023,9 @@ def _gamma_continued_fraction_q(a: float, x: float) -> float:
         delta = d * c
         fraction *= delta
         if abs(delta - 1.0) <= _EPSILON:
-            return _clamp_probability(math.exp(log_gamma_kernel(a, x)) * fraction)
+            settled = index if settled is None else settled
+            if abs(delta - 1.0) <= _FRACTION_FINE or index - settled >= _FRACTION_EXTRA:
+                return _clamp_probability(gamma_prefactor(a, x) * fraction)
     raise ArithmeticError("regularized-gamma continued fraction did not converge")
 
 
@@ -575,7 +1050,9 @@ def regularized_beta(x: float, a: float, b: float) -> float:
     """Return the regularized incomplete beta function ``I_x(a, b)``.
 
     The implementation chooses the direct or symmetry-transformed continued
-    fraction so the smaller tail is evaluated before any complement.
+    fraction so the smaller tail is evaluated before any complement; the
+    prefactor ``x^a (1-x)^b / B(a, b)`` has a double-double exponent
+    (:func:`beta_prefactor`).
 
     Args:
         x: Finite evaluation point in ``[0, 1]``.
@@ -591,7 +1068,7 @@ def regularized_beta(x: float, a: float, b: float) -> float:
         ArithmeticError: If the continued fraction does not converge.
 
     Equation:
-        [EQ-NUM-BETA-001].
+        [EQ-NUM-BETA-001], [EQ-NUM-BETA-003].
 
     References:
         [REF-NIST-DLMF-BETA, Sections 8.17 and 8.18].
@@ -625,7 +1102,7 @@ def regularized_beta_pair(x: float, complement: float, a: float, b: float) -> fl
         ArithmeticError: If the continued fraction does not converge.
 
     Equation:
-        [EQ-NUM-BETA-001].
+        [EQ-NUM-BETA-001], [EQ-NUM-BETA-003].
 
     References:
         [REF-NIST-DLMF-BETA, Sections 8.17 and 8.18].
@@ -644,17 +1121,17 @@ def regularized_beta_pair(x: float, complement: float, a: float, b: float) -> fl
     series = _beta_large_shape(first_shape, second_shape, point, other)
     if series is not None:
         return series
-    log_front = log_beta_kernel(first_shape, second_shape, point, other)
+    front = beta_prefactor(first_shape, second_shape, point, other)
     split = (first_shape + 1.0) / (first_shape + second_shape + 2.0)
     if point < split:
         result = (
-            math.exp(log_front)
+            front
             * _beta_continued_fraction(first_shape, second_shape, point)
             / first_shape
         )
         return _clamp_probability(result)
     reflected = (
-        math.exp(log_front)
+        front
         * _beta_continued_fraction(second_shape, first_shape, other)
         / second_shape
     )
@@ -877,6 +1354,7 @@ def _beta_continued_fraction(a: float, b: float, x: float) -> float:
         d = _FPMIN
     d = 1.0 / d
     fraction = d
+    settled: int | None = None
     for index in range(1, _MAX_ITERATIONS + 1):
         doubled = 2.0 * index
         coefficient = (
@@ -907,7 +1385,9 @@ def _beta_continued_fraction(a: float, b: float, x: float) -> float:
         delta = d * c
         fraction *= delta
         if abs(delta - 1.0) <= _EPSILON:
-            return fraction
+            settled = index if settled is None else settled
+            if abs(delta - 1.0) <= _FRACTION_FINE or index - settled >= _FRACTION_EXTRA:
+                return fraction
     raise ArithmeticError("regularized-beta continued fraction did not converge")
 
 

@@ -4,7 +4,7 @@ Reference values come from exact identities evaluated independently of the
 algorithms under test (factorials, binomial sums, ``ln`` of exact rationals,
 digit strings of ``pi``, ``e``, ``ln 2``, and Euler's constant) or from a
 published table: ``erf(1)`` is OEIS A099286. ULP budgets for the float
-kernels are those recorded in ADR-0077.
+kernels are those recorded in ADR-0077, tightened by ADR-0089.
 """
 
 from __future__ import annotations
@@ -516,22 +516,27 @@ class ReferenceValidationTests(unittest.TestCase):
 
 
 class FloatKernelBudgetTests(unittest.TestCase):
-    """Library float kernels stay within the ULP budgets of ADR-0077."""
+    """Library float kernels stay within the ULP budgets of ADR-0077/ADR-0089."""
 
     def test_normal_cdf_and_survival(self) -> None:
-        """Error <= 2 (1 + x^2) ULP (argument rounding); <= 4 for |x| <= 2."""
+        """Error <= 8 ULP over the whole range (ADR-0089); <= 4 for |x| <= 2.
+
+        ADR-0077 allowed ``2 (1 + x^2)`` ULP for the rounded argument
+        ``x/sqrt 2`` (1228 ULP at ``x = -37``); the double-double argument
+        removes that growth.
+        """
         normal = Normal()
         points = grid(-37.5, 8.0, 93)
         result = compare_to_reference(normal.cdf, reference_normal_cdf, points)
         for (x,), error in zip(result.points, result.ulp_errors, strict=True):
-            self.assertLessEqual(error, 2.0 * (1.0 + x * x), x)
+            self.assertLessEqual(error, 8.0, x)
             if abs(x) <= 2.0:
                 self.assertLessEqual(error, 4.0, x)
         survival = compare_to_reference(
             normal.sf, lambda x: reference_normal_cdf(-Decimal(x)), grid(5, 37.5, 14)
         )
         for (x,), error in zip(survival.points, survival.ulp_errors, strict=True):
-            self.assertLessEqual(error, 2.0 * (1.0 + x * x), x)
+            self.assertLessEqual(error, 8.0, x)
 
     def test_normal_quantile_and_inverse_survival(self) -> None:
         """Quantile and inverse survival within 5 ULP down to p = 1e-300."""
@@ -569,7 +574,12 @@ class FloatKernelBudgetTests(unittest.TestCase):
         self.assertTrue(log_beta.within(256.0), log_beta.worst_point)
 
     def test_regularized_gamma(self) -> None:
-        """P and Q: 256 ULP for a <= 10 and 4096 ULP for a <= 200, tails included."""
+        """P and Q: 32 ULP for a <= 10 and 16 ULP for a <= 200, tails included.
+
+        ADR-0077 budgets were 256 and 4096 ULP; ADR-0089 forms the prefactor
+        exponent in double-double arithmetic and uses Temme's expansion for
+        ``a >= 20`` near ``x = a``.
+        """
         factors = (0.01, 0.1, 0.3, 0.8, 1.0, 1.05)
         points = [(a, f * a) for a in (0.05, 0.5, 1.0, 2.5, 7.5, 10.0, 30.0, 99.0,
                                        200.0) for f in factors]  # fmt: skip
@@ -581,10 +591,14 @@ class FloatKernelBudgetTests(unittest.TestCase):
         ):
             result = compare_to_reference(function, reference, points, digits=30)
             for (a, x), error in zip(result.points, result.ulp_errors, strict=True):
-                self.assertLessEqual(error, 256.0 if a <= 10.0 else 4096.0, (a, x))
+                self.assertLessEqual(error, 32.0 if a <= 10.0 else 16.0, (a, x))
 
     def test_regularized_beta(self) -> None:
-        """I_x(a, b): 256 ULP for shapes <= 10 and 2048 ULP up to 400."""
+        """I_x(a, b): 16 ULP for shapes <= 10 and 64 ULP up to 400 (ADR-0089).
+
+        ADR-0077 budgets were 256 and 2048 ULP (770 ULP measured at
+        ``(0.05, 300, 400)``, from the ``lgamma`` prefactor).
+        """
         shapes = ((0.5, 0.5), (1, 1), (2, 3), (0.7, 5.5), (5.5, 0.7), (10, 10),
                   (30, 2), (2.5, 40), (150, 90), (300, 400))  # fmt: skip
         points = [(x, a, b) for a, b in shapes
@@ -593,7 +607,7 @@ class FloatKernelBudgetTests(unittest.TestCase):
                                       reference_regularized_beta, points,
                                       digits=30)  # fmt: skip
         for (x, a, b), error in zip(result.points, result.ulp_errors, strict=True):
-            budget = 256.0 if max(a, b) <= 10 else 2048.0
+            budget = 16.0 if max(a, b) <= 10 else 64.0
             self.assertLessEqual(error, budget, (x, a, b))
 
 

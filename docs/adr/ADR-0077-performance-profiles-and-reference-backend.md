@@ -138,11 +138,11 @@ optional and must not break headless runs.
   the conditioning of `Phi` (relative condition number about `x^2`) applied
   to the rounding of the argument `(x - mu)/(sigma sqrt 2)`, not an error of
   `math.erfc`; removing it would need the argument in extended precision.
-  It is recorded, not changed.
+  It is recorded, not changed. See ADR-0089.
 - The incomplete gamma and beta kernels lose accuracy roughly in proportion
   to the size of the `exp(a log x - x - log Gamma(a))` prefactor exponent
   for large shapes (hundreds to about 1300 ULPs, relative error up to
-  about `3e-13`); this is recorded, not changed.
+  about `3e-13`); this is recorded, not changed. See ADR-0089.
 - The reference functions are slow by design (pure-Python decimal
   arithmetic, milliseconds per value at 40 digits) and are meant for tests
   and audits, not for inner loops.
