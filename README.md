@@ -82,13 +82,13 @@ one at the precision shown.
 
 | Check | Scale | Enforced by |
 |---|---|---|
-| Tests | 2,200+ test cases, run in CI on Python 3.11 to 3.13 with lint and strict type checks | [`tests/`](https://github.com/ayberkdt/Stats-Lab/tree/main/tests), [CI workflow](https://github.com/ayberkdt/Stats-Lab/blob/main/.github/workflows/ci.yml) |
+| Tests | 2,400+ test cases, run in CI on Python 3.11 to 3.13 with lint and strict type checks | [`tests/`](https://github.com/ayberkdt/Stats-Lab/tree/main/tests), [CI workflow](https://github.com/ayberkdt/Stats-Lab/blob/main/.github/workflows/ci.yml) |
 | Equations | 1,131 entries in the [equation registry](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/equation-registry.md), each with symbols, assumptions, and a code location | every docstring cites an `EQ-` or `REF-` key that must exist |
-| Sources | 550+ primary sources in the [bibliography](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/references.md), each cited at least once | no unused or unknown reference key |
-| Decisions | 90+ decision records in [`docs/adr/`](https://github.com/ayberkdt/Stats-Lab/tree/main/docs/adr), each with its verification evidence | [contribution contract](https://github.com/ayberkdt/Stats-Lab/blob/main/CONTRIBUTING.md) |
+| Sources | 600+ primary sources in the [bibliography](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/references.md), each cited at least once | no unused or unknown reference key |
+| Decisions | 100+ decision records in [`docs/adr/`](https://github.com/ayberkdt/Stats-Lab/tree/main/docs/adr), each with its verification evidence | [contribution contract](https://github.com/ayberkdt/Stats-Lab/blob/main/CONTRIBUTING.md) |
 | Documentation | 50+ Markdown files whose Python examples run, with quoted values compared | [`tests/test_documentation_examples.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/test_documentation_examples.py) |
 | Properties | 80+ property-based and metamorphic tests, drawing random valid parameters for every distribution family | [`tests/_properties.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/_properties.py) |
-| Figures | text of at least 9 pt inside the canvas; WCAG AA contrast of 4.5:1 for text and 3:1 for marks | [canvas](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/test_figure_canvas.py) and [contrast](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/test_visualization_accessibility.py) tests |
+| Figures | text of at least 9 pt inside the canvas; WCAG AA contrast of 4.5:1 for text and 3:1 for marks; 90 guide figures in two palettes, each passing the datawiz audit, with captions that quote the numbers of the build | [canvas](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/test_figure_canvas.py), [contrast](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/test_visualization_accessibility.py), and [guide-figure](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/test_guide_figures.py) tests |
 | Packaging | the built wheel passes `twine check --strict`, installs in a clean environment, and passes a smoke test | [`tools/smoke_test_wheel.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/tools/smoke_test_wheel.py) |
 
 Two habits sit behind the table. **Defects are demonstrated, not
@@ -155,6 +155,41 @@ Read the
 [systems engineering guide](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/foundations/systems-engineering-guide.md)
 and run
 [`examples/mission_systems_lab.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/examples/mission_systems_lab.py).
+
+## Applied statistics: the models an analyst reaches for, with their caveats
+
+The same equation-traced discipline covers the statistical core: estimators
+report standard errors, degrees of freedom, and convergence, and each guide
+lists the pitfalls of its methods.
+
+```python
+from probstat.inference import fit_linear_mixed_model, random_effect
+
+batch = [b for b in "ABCDEF" for _ in range(4)]
+strength = [41.2, 43.0, 42.1, 40.6, 45.3, 46.1, 44.0, 45.9, 39.8, 38.7, 40.9, 39.5,
+            44.1, 42.8, 43.6, 44.9, 42.0, 41.1, 43.3, 42.5, 40.2, 41.9, 40.4, 41.5]
+fit = fit_linear_mixed_model([[1.0]] * 24, strength, random_effect(batch, name="batch"))
+round(fit.coefficients[0], 3)                                 # 42.308
+round(fit.variance_components[0].standard_deviations[0], 4)   # 1.9565, between batches
+round(fit.residual_sd, 4)                                     # 0.9256, within a batch
+round(fit.degrees_of_freedom[0], 3)                           # 5.0, Satterthwaite
+```
+
+| Question | Tools (`probstat.inference` unless noted) |
+|---|---|
+| Is there an effect, and how sure are we? | t, Welch, paired, sign, Wilcoxon, Mann-Whitney, Fisher exact, permutation tests; bootstrap with BCa intervals; `adjust_p_values` (Holm, Benjamini-Hochberg) |
+| Do groups differ? | Tukey HSD on the exact studentized range, Kruskal-Wallis (exact for small designs), Friedman, Cochran's Q, Dunn; Levene, Brown-Forsythe, Bartlett; Shapiro-Wilk |
+| How does a response depend on predictors? | `fit_linear_model`, `fit_glm` (Gaussian, binomial with logit or probit link, Poisson, Gamma), ridge and cross-validated elastic net, `fit_robust_linear_model` (Huber, biweight), `theil_sen_slope`, exact `fit_quantile_regression` |
+| Counts and categories? | Poisson regression with exposures and sandwich errors, negative binomial, zero-inflated and hurdle models with the Vuong test, ordinal and multinomial logit, average marginal effects |
+| Grouped or repeated measurements? | `fit_linear_mixed_model` (ML and REML, crossed and nested factors, BLUPs, Satterthwaite tests), `fit_generalized_linear_mixed_model` (Laplace and adaptive Gauss-Hermite) |
+| Smooth, unknown shapes? | B-splines, `fit_pspline` and `fit_smoothing_spline` with REML or GCV, `loess`, `isotonic_regression`, `kernel_regression`, `fit_additive_model` |
+| Many correlated variables? | `principal_components`, `factor_analysis` with varimax, linear and quadratic discriminants, `kmeans` with silhouette scores |
+| Time? | ARIMA, GARCH, VAR with bootstrap impulse-response bands, ADF and KPSS, CUSUM and PELT change points (`probstat.timeseries`) |
+| Censored, missing, or confounded data? | Kaplan-Meier, Nelson-Aalen, log-rank, Cox and parametric survival models (`inference.survival`); multiple imputation; IPW and doubly robust AIPW (`probstat.causal`) |
+
+Each row has a guide with worked examples and a figure; start from the
+[Statistics track](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/learning-path.md#track-s--statistics)
+of the learning path.
 
 ## Visual tour: every figure states its finding in its title
 

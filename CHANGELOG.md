@@ -3,6 +3,38 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [Unreleased]
+
+### Added
+
+- **A figure in every guide** (ADR-0105): all 53 guides in
+  `docs/foundations/` show 90 figures between them, each computed by the
+  library from a fixed seed, titled with its finding, and drawn in a light
+  and a dark palette that GitHub selects for the reader.
+  `tools/build_guide_figures.py` audits every figure with datawiz before it
+  is written; `tests/test_guide_figures.py` checks that each caption quotes
+  the numbers the build recorded.
+- `VARFit.impulse_response_bands`: pointwise residual-bootstrap bands
+  (percentile or Hall) with bootstrap standard errors for VAR impulse
+  responses.
+- `theme.retitle` and `theme.title_artists` restate or lay out a plot's
+  title block through public Matplotlib API.
+- README: an applied-statistics section with a checked mixed-model example
+  and a map of the statistical methods.
+
+### Fixed
+
+- `plot_shrinkage` drew the raw estimates as `y +- 1 s.e.` next to 95%
+  posterior intervals, so pooling looked as if it widened them; both now
+  use the requested level.
+- Guide values that had drifted from the code: probabilistic-programming
+  posterior summaries and diagnostics, a scrambled-Halton error in the
+  probabilistic-modeling design table, and two u-pooling KS p-values in
+  the model-validation example.
+- Two tests that failed only on Linux compared ill-conditioned values
+  with a fixed tolerance (the deck's SORM relative error and a planar-flow
+  inverse log-determinant near its boundary).
+
 ## [0.20.0] — 2026-11-12
 
 The applied-statistics core: mixed models, robust and quantile regression,

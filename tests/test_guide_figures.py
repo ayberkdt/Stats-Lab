@@ -138,6 +138,11 @@ class GuideFigureTests(unittest.TestCase):
         present = {path.name for path in IMAGES.glob("*.png")}
         self.assertEqual(sorted(present - expected), [], "unrecorded image files")
 
+    def test_readme_counts_the_guide_figures(self) -> None:
+        """The README's figure count is the number of recorded figures."""
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn(f"{len(self.manifest)} guide figures in two palettes", readme)
+
     def test_text_alternatives_describe_without_concluding(self) -> None:
         """Text alternatives are short descriptive sentences."""
         for name, entry in self.manifest.items():
