@@ -17,6 +17,17 @@ Main entry points:
     ``hierarchical_normal_posterior``: exact grid posterior of the normal
         hierarchical model.
     ``pool_estimates``: Rubin's rules for multiply imputed data.
+    ``fit_pspline``, ``fit_smoothing_spline``: penalized regression
+        splines and cubic smoothing splines with the smoothing parameter
+        chosen by REML or GCV, with pointwise bands.
+    ``loess``, ``isotonic_regression``, ``kernel_regression``: local,
+        monotone, and kernel smoothers.
+    ``fit_additive_model``: Gaussian additive models with one smoothing
+        parameter per term.
+    ``principal_components``, ``factor_analysis``: PCA and
+        maximum-likelihood factor analysis with varimax rotation.
+    ``fit_linear_discriminant``, ``fit_quadratic_discriminant``, ``kmeans``:
+        Gaussian classifiers and k-means clustering with the silhouette.
 
 Assumptions:
     Every test states its sampling model: t tests assume independent normal
@@ -38,6 +49,11 @@ Common pitfalls:
       control the FDR.
     - ``bootstrap`` and ``bootstrap_confidence_interval`` with
       ``seed=None`` draw fresh entropy and are not reproducible.
+    - Spline fits do not extrapolate: ``PSplineFit.predict`` and additive
+      terms raise outside the knot domain, and a natural smoothing spline
+      is only linear beyond its end knots.
+    - ``principal_components`` and ``kmeans`` depend on the units of the
+      columns; pass ``standardize=True`` or scale the data first.
 
 Guide: docs/foundations/hypothesis-testing-and-bootstrap.md
 
@@ -49,6 +65,14 @@ References:
 
 """
 
+from .additive_models import (
+    AdditiveModelFit,
+    AdditiveTerm,
+    PartialDependence,
+    backfit_additive_model,
+    fit_additive_model,
+    partial_dependence,
+)
 from .amortized import (
     AmortizedGaussianPosterior,
     fit_amortized_gaussian_posterior,
@@ -67,6 +91,7 @@ from .bayesian import (
     student_t_cdf,
     student_t_quantile,
 )
+from .clustering import KMeansResult, kmeans, silhouette_samples, silhouette_score
 from .confidence import (
     ConfidenceInterval,
     clopper_pearson_interval,
@@ -89,6 +114,12 @@ from .count_models import (
     fit_negative_binomial_counts,
     fit_poisson_counts,
     poisson_mean_interval,
+)
+from .discriminant import (
+    LinearDiscriminant,
+    QuadraticDiscriminant,
+    fit_linear_discriminant,
+    fit_quadratic_discriminant,
 )
 from .em import (
     CensoredNormalFit,
@@ -269,6 +300,14 @@ from .mixtures import (
     select_gaussian_mixture,
 )
 from .multiple_testing import MultipleTestingResult, adjust_p_values
+from .multivariate_analysis import (
+    FactorAnalysisResult,
+    PrincipalComponents,
+    VarimaxResult,
+    factor_analysis,
+    principal_components,
+    varimax,
+)
 from .normality import (
     EDFNormalityTest,
     NormalityTests,
@@ -331,6 +370,26 @@ from .sampling_distributions import (
     student_t_two_sided_p,
 )
 from .sbc import SBCResult, rank_statistic, simulation_based_calibration
+from .smoothing import (
+    IsotonicBlock,
+    IsotonicFit,
+    KernelRegressionFit,
+    LoessFit,
+    isotonic_regression,
+    kernel_regression,
+    loess,
+)
+from .splines import (
+    PSplineFit,
+    SmoothBand,
+    SmoothingSplineFit,
+    bspline_basis,
+    bspline_design_matrix,
+    difference_penalty,
+    fit_pspline,
+    fit_smoothing_spline,
+    uniform_knots,
+)
 from .variational import VariationalResult, advi
 
 __all__ = [
@@ -572,4 +631,40 @@ __all__ = [
     "rank_statistic",
     "simulation_based_calibration",
     "tail_effective_sample_size",
+    "AdditiveModelFit",
+    "AdditiveTerm",
+    "PartialDependence",
+    "backfit_additive_model",
+    "fit_additive_model",
+    "partial_dependence",
+    "KMeansResult",
+    "kmeans",
+    "silhouette_samples",
+    "silhouette_score",
+    "LinearDiscriminant",
+    "QuadraticDiscriminant",
+    "fit_linear_discriminant",
+    "fit_quadratic_discriminant",
+    "FactorAnalysisResult",
+    "PrincipalComponents",
+    "VarimaxResult",
+    "factor_analysis",
+    "principal_components",
+    "varimax",
+    "IsotonicBlock",
+    "IsotonicFit",
+    "KernelRegressionFit",
+    "LoessFit",
+    "isotonic_regression",
+    "kernel_regression",
+    "loess",
+    "PSplineFit",
+    "SmoothBand",
+    "SmoothingSplineFit",
+    "bspline_basis",
+    "bspline_design_matrix",
+    "difference_penalty",
+    "fit_pspline",
+    "fit_smoothing_spline",
+    "uniform_knots",
 ]
