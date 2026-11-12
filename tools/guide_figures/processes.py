@@ -84,29 +84,6 @@ from probstat.visualization.inference_plots import plot_filter_track
 FIGSIZE = (7.2, 4.0)
 
 
-def _restate(axes: Any, title: str, subtitle: str | None = None) -> None:
-    """Replace the computed title (and subtitle) of a library plot.
-
-    Library plots compute their own assertion; a guide figure states the
-    finding with the fact strings its caption quotes, so the title text is
-    replaced in place (font, colour, and padding are kept) and the subtitle
-    annotation is rewritten.
-
-    References:
-        [REF-MATPLOTLIB]. No equation is evaluated.
-
-    """
-    heading = axes.title if axes.get_title() else axes._left_title
-    old = heading.get_text()
-    heading.set_text(title[:1].upper() + title[1:])
-    if subtitle is None:
-        return
-    for text in axes.texts:
-        if text.get_text() and text.get_text() != old and text.xyann == (0.0, 8.0):
-            text.set_text(subtitle)
-            return
-
-
 def _panel_heading(axes: Any, text: str) -> None:
     """Name a panel in semibold ink at the top left inside the axes.
 
@@ -550,7 +527,7 @@ def _draw_hidden_velocity() -> tuple[Any, dict[str, str]]:
         name="velocity",
         ax=axes,
     )
-    _restate(
+    theme.retitle(
         axes,
         f"Velocity is never measured, yet the filter tracks it with RMSE "
         f"{facts['filter']} and the smoother with {facts['smoother']}",
@@ -639,7 +616,7 @@ def _draw_double_robustness() -> tuple[Any, dict[str, str]]:
     plt = theme.pyplot()
     figure, axes = plt.subplots(figsize=(7.2, 4.6))
     plot_effect_estimates(estimates, truth=2.0, truth_label="true ATE 2", ax=axes)
-    _restate(
+    theme.retitle(
         axes,
         f"AIPW stays within {facts['one_wrong']} of the true effect 2 when one "
         f"model omits X1; with both wrong it reports {facts['both_wrong']}",
@@ -890,7 +867,7 @@ def _draw_equivalence() -> tuple[Any, dict[str, str]]:
     figure = plot_optimal_design(
         design, basis, [x for (x,) in region], comparison=uniform
     )
-    _restate(
+    theme.retitle(
         figure.axes[0],
         f"Three points with weight 1/3 hold max d(x) at {facts['optimal']} = p; "
         f"the uniform 21-point design peaks at {facts['uniform']}",

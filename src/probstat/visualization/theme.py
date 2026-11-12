@@ -144,7 +144,6 @@ CONTEXT_WIDTH = 1.4
 PATH_WIDTH = 0.7
 
 
-
 def _default_palette() -> ChartPalette:
     """Return the palette named by ``PROBSTAT_CHART_THEME`` (default light).
 
@@ -813,6 +812,12 @@ def style_axes(ax: Any) -> None:
     ax.set_axisbelow(True)
 
 
+TITLE_GID = "probstat-title"
+"""Artist id of the assertion title drawn by :func:`title_block`."""
+SUBTITLE_GID = "probstat-subtitle"
+"""Artist id of the subtitle drawn by :func:`title_block`."""
+
+
 def title_block(ax: Any, title: str, subtitle: str | None = None) -> None:
     """Draw a left-aligned assertion title with an optional muted subtitle.
 
@@ -830,19 +835,17 @@ def title_block(ax: Any, title: str, subtitle: str | None = None) -> None:
 
     """
     palette = active_palette()
-    first_word = title.split(" ", 1)[0]
-    if not any(character.isdigit() or character == "_" for character in first_word):
-        title = title[:1].upper() + title[1:]
-    ax.set_title(
-        title,
+    heading = ax.set_title(
+        _title_case(title),
         loc="left",
         fontsize=TITLE_SIZE,
         fontweight="bold",
         color=palette.ink,
         pad=24.0 if subtitle else 10.0,
     )
+    heading.set_gid(TITLE_GID)
     if subtitle:
-        ax.annotate(
+        note_artist = ax.annotate(
             subtitle,
             xy=(0.0, 1.0),
             xycoords="axes fraction",
@@ -853,6 +856,72 @@ def title_block(ax: Any, title: str, subtitle: str | None = None) -> None:
             fontsize=SUBTITLE_SIZE,
             color=palette.muted,
         )
+        note_artist.set_gid(SUBTITLE_GID)
+
+
+def _title_case(title: str) -> str:
+    """Capitalize a title unless its first word is an identifier.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    first_word = title.split(" ", 1)[0]
+    if any(character.isdigit() or character == "_" for character in first_word):
+        return title
+    return title[:1].upper() + title[1:]
+
+
+def title_artists(ax: Any) -> list[Any]:
+    """Return the title and subtitle artists drawn by :func:`title_block`.
+
+    Use it to exclude the title block from a custom layout, for example
+    ``artist.set_in_layout(False)`` before ``figure.tight_layout()``.
+
+    Args:
+        ax: Axes that carries a title block.
+
+    Returns:
+        The title text and, when present, the subtitle annotation.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    return [
+        child
+        for child in ax.get_children()
+        if child.get_gid() in {TITLE_GID, SUBTITLE_GID}
+    ]
+
+
+def retitle(ax: Any, title: str, subtitle: str | None = None) -> None:
+    """Replace the text of a title block, keeping its style and placement.
+
+    Library plots state the finding they compute; a report or guide that
+    quotes other numbers restates it here instead of drawing a second title.
+
+    Args:
+        ax: Axes that carries a title block.
+        title: New assertion title (capitalized as in :func:`title_block`).
+        subtitle: New subtitle; ``None`` keeps the current one.
+
+    Raises:
+        ValueError: If the axes has no title block, or a subtitle is given
+            for a block drawn without one.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    artists = {artist.get_gid(): artist for artist in title_artists(ax)}
+    if TITLE_GID not in artists:
+        raise ValueError("the axes has no title block to replace")
+    artists[TITLE_GID].set_text(_title_case(title))
+    if subtitle is not None:
+        if SUBTITLE_GID not in artists:
+            raise ValueError("the title block was drawn without a subtitle")
+        artists[SUBTITLE_GID].set_text(subtitle)
 
 
 def source_note(ax: Any, text: str) -> None:
@@ -1082,9 +1151,7 @@ def gradient_area(
     red, green, blue = to_rgb(color)
     strength = min(top_alpha, AREA_TOP_ALPHA)
     steps = 64
-    pixels = [
-        [[red, green, blue, strength * (k / (steps - 1))]] for k in range(steps)
-    ]
+    pixels = [[[red, green, blue, strength * (k / (steps - 1))]] for k in range(steps)]
     image = ax.imshow(
         pixels,
         aspect="auto",

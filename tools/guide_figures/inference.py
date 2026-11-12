@@ -184,9 +184,8 @@ def _ink(colour: str) -> str:
 def _title(ax: Any, title: str, subtitle: str) -> None:
     """Draw the title block and keep it out of the subplot layout."""
     theme.title_block(ax, title, subtitle)
-    for name in ("title", "_left_title", "_right_title"):
-        getattr(ax, name).set_in_layout(False)
-    ax.texts[-1].set_in_layout(False)
+    for artist in theme.title_artists(ax):
+        artist.set_in_layout(False)
 
 
 def _finish(figure: Any, wspace: float | None = None) -> None:

@@ -79,6 +79,7 @@ from probstat.systems import (
     standby_system,
 )
 from probstat.uq import QuantityOfInterest
+from probstat.visualization import theme
 from probstat.visualization.reliability_plots import (
     plot_ak_mcs_convergence,
     plot_design_points,
@@ -115,21 +116,6 @@ _Y = (QuantityOfInterest("y", "limit-state value"),)
 # --------------------------------------------------------------------------
 # Shared helpers
 # --------------------------------------------------------------------------
-
-
-def _retitle(axes: Any, title: str) -> None:
-    """Replace the left-aligned assertion title, keeping its style and pad.
-
-    Library plots compute a neutral title; the guide states its own finding
-    with the facts its caption quotes. Only the text changes, so the
-    subtitle placement of the plot is kept.
-
-    References:
-        [REF-MATPLOTLIB]. No equation is evaluated.
-
-    """
-    heading = axes._left_title  # the artist set by title_block (loc="left")
-    heading.set_text(title[:1].upper() + title[1:])
 
 
 def _standard_normal_state(
@@ -339,7 +325,7 @@ def draw_form_design_point() -> tuple[Any, dict[str, str]]:
         extent=4.0,
         grid=81,
     )
-    _retitle(
+    theme.retitle(
         axes,
         f"The design point {facts['point']} lies beta = {facts['beta']} from "
         f"the origin, so FORM gives Pf = {facts['pf']}",
@@ -631,7 +617,7 @@ def draw_design_points() -> tuple[Any, dict[str, str]]:
         mixture=mixture,
         extent=5.0,
     )
-    _retitle(
+    theme.retitle(
         axes,
         f"{facts['count']} design points share beta = {facts['beta']}; mixture "
         f"sampling gives Pf = {facts['mixture']}, {facts['ratio']} the "
@@ -673,7 +659,7 @@ def draw_ak_mcs_learning() -> tuple[Any, dict[str, str]]:
         "population": f"{result.population:,}",
     }
     figure = plot_ak_mcs_convergence(result)
-    _retitle(
+    theme.retitle(
         figure.axes[0],
         f"AK-MCS reaches the Monte Carlo value Pf = {facts['pf']} with "
         f"{facts['calls']} model calls instead of {facts['population']}",
@@ -999,7 +985,7 @@ def draw_loss_exceedance() -> tuple[Any, dict[str, str]]:
         fontsize=ANNOTATION_SIZE, color=entity_colour("closed form"),
         fontweight="semibold",
     )  # fmt: skip
-    _retitle(
+    theme.retitle(
         axes,
         f"At 95% the VaR is {facts['var']} and the worst 5% of losses average "
         f"{facts['cvar']}",

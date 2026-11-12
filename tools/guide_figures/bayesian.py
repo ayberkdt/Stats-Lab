@@ -91,23 +91,6 @@ SCHOOLS_S = (15.0, 10.0, 16.0, 11.0, 9.0, 11.0, 10.0, 18.0)
 SCHOOLS = ("A", "B", "C", "D", "E", "F", "G", "H")
 
 
-def _retitle(axes: Any, title: str) -> None:
-    """Replace the assertion title a library plot wrote, keeping its subtitle.
-
-    References:
-        [REF-MATPLOTLIB]. No equation is evaluated.
-
-    """
-    axes.set_title(
-        title[:1].upper() + title[1:],
-        loc="left",
-        fontsize=theme.TITLE_SIZE,
-        fontweight="bold",
-        color=theme.active_palette().ink,
-        pad=24.0,
-    )
-
-
 def _check_title(axes: Any, facts: dict[str, str]) -> None:
     """Fail when a fact string is missing from the title the plot wrote.
 
@@ -190,7 +173,7 @@ def _mixture_fit() -> tuple[Any, dict[str, str]]:
         "components": f"K = {selection.best_components}",
         "centres": ", ".join(f"{c:.2f}" for c in centres),
     }
-    _retitle(
+    theme.retitle(
         axes,
         f"BIC selects {facts['components']} for 300 draws; the fitted centres "
         f"{facts['centres']} sit near the true -3, 0.5, 4",

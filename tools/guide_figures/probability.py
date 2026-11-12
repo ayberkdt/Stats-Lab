@@ -71,9 +71,7 @@ def _axes(
 
     """
     plt = theme.pyplot()
-    figure, grid = plt.subplots(
-        1, ncols, figsize=figsize, sharey=sharey, squeeze=False
-    )
+    figure, grid = plt.subplots(1, ncols, figsize=figsize, sharey=sharey, squeeze=False)
     axes = list(grid[0])
     for ax in axes:
         theme.style_axes(ax)
@@ -160,8 +158,9 @@ def _legible(colour: str) -> str:
     base, ink = to_rgb(colour), to_rgb(palette.ink)
     for step in range(21):
         share = step / 20
-        mixed = to_hex(tuple(b + share * (i - b) for b, i in zip(base, ink,
-                                                                  strict=True)))
+        mixed = to_hex(
+            tuple(b + share * (i - b) for b, i in zip(base, ink, strict=True))
+        )
         light, dark = sorted((_luminance(mixed), canvas), reverse=True)
         if (light + 0.05) / (dark + 0.05) >= 4.5:
             return mixed
@@ -189,8 +188,9 @@ def _log_ticks(ax: Any, low: int, high: int, *, axis: str = "y") -> None:
     from matplotlib.ticker import FixedLocator, NullLocator
 
     ticks = [10.0**k for k in range(low, high + 1)]
-    labels = [f"{10**k:g}" if 0 <= k <= 3 else f"$10^{{{k}}}$" for k in
-              range(low, high + 1)]
+    labels = [
+        f"{10**k:g}" if 0 <= k <= 3 else f"$10^{{{k}}}$" for k in range(low, high + 1)
+    ]
     target = ax.yaxis if axis == "y" else ax.xaxis
     target.set_major_locator(FixedLocator(ticks))
     target.set_minor_locator(NullLocator())
@@ -218,7 +218,8 @@ def _posterior_after_positive(
             "ill, +": prevalence * sensitivity,
             "ill, -": prevalence * (1.0 - sensitivity),
             "well, +": (1.0 - prevalence) * false_positive,
-            "well, -": 1.0 - prevalence * sensitivity
+            "well, -": 1.0
+            - prevalence * sensitivity
             - prevalence * (1.0 - sensitivity)
             - (1.0 - prevalence) * false_positive,
         },
@@ -243,12 +244,23 @@ def draw_base_rate() -> tuple[Any, dict[str, str]]:
     at_one = _posterior_after_positive(0.01, 0.95, 0.05)
     at_one_better = _posterior_after_positive(0.01, 0.95, 0.01)
     facts = {"posterior": f"{at_one:.0%}", "better": f"{at_one_better:.0%}"}
-    theme.line(ax, grid, grid, color=palette.muted, dashes=theme.REFERENCE,
-               width=theme.REFERENCE_WIDTH)
+    theme.line(
+        ax,
+        grid,
+        grid,
+        color=palette.muted,
+        dashes=theme.REFERENCE,
+        width=theme.REFERENCE_WIDTH,
+    )
     theme.line(ax, grid, better, color=palette.muted, width=theme.CONTEXT_WIDTH)
     theme.line(ax, grid, common, color=theme.role_colour("model"))
-    theme.points(ax, [0.01, 0.01], [at_one, at_one_better],
-                 color=theme.role_colour("model"), size=40.0)
+    theme.points(
+        ax,
+        [0.01, 0.01],
+        [at_one, at_one_better],
+        color=theme.role_colour("model"),
+        size=40.0,
+    )
     ax.set_xscale("log")
     ax.set_xlim(1e-3, 0.5)
     ax.set_ylim(0.0, 1.0)
@@ -258,10 +270,23 @@ def draw_base_rate() -> tuple[Any, dict[str, str]]:
     ax.xaxis.set_minor_locator(NullLocator())
     ax.set_xticklabels(["0.1%", "1%", "10%", "50%"])
     ax.yaxis.set_major_formatter(PercentFormatter(1.0, decimals=0))
-    _label(ax, 0.01, at_one, f"{facts['posterior']} at 1% prevalence",
-           theme.role_colour("model"), offset=(8.0, -2.0))
-    _label(ax, 0.01, at_one_better, facts["better"], palette.muted,
-           offset=(-8.0, 0.0), ha="right")
+    _label(
+        ax,
+        0.01,
+        at_one,
+        f"{facts['posterior']} at 1% prevalence",
+        theme.role_colour("model"),
+        offset=(8.0, -2.0),
+    )
+    _label(
+        ax,
+        0.01,
+        at_one_better,
+        facts["better"],
+        palette.muted,
+        offset=(-8.0, 0.0),
+        ha="right",
+    )
     theme.direct_labels(
         ax,
         (
@@ -269,10 +294,16 @@ def draw_base_rate() -> tuple[Any, dict[str, str]]:
             (0.5, better[-1], "1% false positives", palette.muted),
         ),
     )
-    _label(ax, 0.16, 0.16, "no test: posterior = prevalence", palette.muted,
-           offset=(6.0, -8.0), va="top")
-    theme.axis_labels(ax, "Prevalence of the condition",
-                      "P(condition | positive test)")
+    _label(
+        ax,
+        0.16,
+        0.16,
+        "no test: posterior = prevalence",
+        palette.muted,
+        offset=(6.0, -8.0),
+        va="top",
+    )
+    theme.axis_labels(ax, "Prevalence of the condition", "P(condition | positive test)")
     theme.title_block(
         ax,
         f"At 1% prevalence a positive result means only a {facts['posterior']} "
@@ -294,9 +325,7 @@ def draw_dice_sum() -> tuple[Any, dict[str, str]]:
         [EQ-RV-001], [EQ-RV-002], [REF-ROSS-2019, Chapters 4-5].
 
     """
-    pairs = FiniteSampleSpace(
-        tuple((a, b) for a in range(1, 7) for b in range(1, 7))
-    )
+    pairs = FiniteSampleSpace(tuple((a, b) for a in range(1, 7) for b in range(1, 7)))
     fair = FiniteProbabilityMeasure.uniform(pairs)
     total = FiniteRandomVariable.from_function(
         fair, lambda pair: pair[0] + pair[1], name="Sum"
@@ -347,18 +376,36 @@ def draw_zero_covariance() -> tuple[Any, dict[str, str]]:
     palette = theme.active_palette()
     model = theme.role_colour("model")
     curve = [-2.3 + 4.6 * k / 200 for k in range(201)]
-    theme.line(ax, curve, [v * v for v in curve], color=palette.muted,
-               width=theme.CONTEXT_WIDTH, zorder=2)
+    theme.line(
+        ax,
+        curve,
+        [v * v for v in curve],
+        color=palette.muted,
+        width=theme.CONTEXT_WIDTH,
+        zorder=2,
+    )
     support = list(space.outcomes)
     support.sort()
-    theme.points(ax, support, [v * v for v in support], entity="observations",
-                 size=90.0)
+    theme.points(
+        ax, support, [v * v for v in support], entity="observations", size=90.0
+    )
     mean_y = y.mean
     slope = covariance / x.variance
-    theme.line(ax, [-2.3, 2.3], [mean_y + slope * -2.3, mean_y + slope * 2.3],
-               color=model, dashes=theme.FITTED)
-    _label(ax, 2.3, mean_y, f"best linear fit: slope {abs(slope):.2f}", model,
-           offset=(6.0, 0.0))
+    theme.line(
+        ax,
+        [-2.3, 2.3],
+        [mean_y + slope * -2.3, mean_y + slope * 2.3],
+        color=model,
+        dashes=theme.FITTED,
+    )
+    _label(
+        ax,
+        2.3,
+        mean_y,
+        f"best linear fit: slope {abs(slope):.2f}",
+        model,
+        offset=(6.0, 0.0),
+    )
     for value in support:
         # Labels sit on the inner side of the parabola, away from the curve.
         side = 0.0 if value == 0 else (-1.0 if value > 0 else 1.0)
@@ -413,10 +460,14 @@ def draw_conditional_expectation() -> tuple[Any, dict[str, str]]:
 
     algebras = (
         ("face known: 6 atoms", FiniteMeasurableSpace.power_set(faces)),
-        ("parity and face <= 3: 4 atoms",
-         FiniteMeasurableSpace(faces, [{2, 4, 6}, {1, 2, 3}])),
-        ("parity only: 2 atoms",
-         FiniteMeasurableSpace.generated_by_map(faces, lambda face: face % 2)),
+        (
+            "parity and face <= 3: 4 atoms",
+            FiniteMeasurableSpace(faces, [{2, 4, 6}, {1, 2, 3}]),
+        ),
+        (
+            "parity only: 2 atoms",
+            FiniteMeasurableSpace.generated_by_map(faces, lambda face: face % 2),
+        ),
     )
     conditionals = [dict(fair.conditional_expectation(value, g)) for _, g in algebras]
     kept = [kept_variance(c) for c in conditionals]
@@ -432,10 +483,22 @@ def draw_conditional_expectation() -> tuple[Any, dict[str, str]]:
         axes, algebras, conditionals, kept, strict=True
     ):
         levels = [float(conditional[f]) for f in faces]
-        ax.vlines(faces, faces, levels, color=palette.muted,
-                  linewidth=theme.PATH_WIDTH * 1.4, zorder=2)
-        ax.hlines(levels, [f - 0.32 for f in faces], [f + 0.32 for f in faces],
-                  color=model, linewidth=3.0, zorder=3)
+        ax.vlines(
+            faces,
+            faces,
+            levels,
+            color=palette.muted,
+            linewidth=theme.PATH_WIDTH * 1.4,
+            zorder=2,
+        )
+        ax.hlines(
+            levels,
+            [f - 0.32 for f in faces],
+            [f + 0.32 for f in faces],
+            color=model,
+            linewidth=3.0,
+            zorder=3,
+        )
         theme.points(ax, faces, faces, color=palette.muted, size=26.0)
         _heading(ax, f"{heading}\nVar E[X | G] = {share:.2f}")
         ax.set_xticks(faces)
@@ -497,13 +560,14 @@ def draw_binomial_to_poisson() -> tuple[Any, dict[str, str]]:
     reference = theme.entity_colour("closed form")
     binomial = [Binomial(n=10, p=lam / 10).pmf(k) for k in ks]
     poisson = [Poisson(lam=lam).pmf(k) for k in ks]
-    left.vlines([k - 0.14 for k in ks], 0.0, binomial, color=observed,
-                linewidth=2.6, zorder=2)
+    left.vlines(
+        [k - 0.14 for k in ks], 0.0, binomial, color=observed, linewidth=2.6, zorder=2
+    )
     theme.points(left, [k - 0.14 for k in ks], binomial, color=observed, size=26.0)
-    left.vlines([k + 0.14 for k in ks], 0.0, poisson, color=reference,
-                linewidth=1.4, zorder=2)
-    theme.points(left, [k + 0.14 for k in ks], poisson, entity="closed form",
-                 size=26.0)
+    left.vlines(
+        [k + 0.14 for k in ks], 0.0, poisson, color=reference, linewidth=1.4, zorder=2
+    )
+    theme.points(left, [k + 0.14 for k in ks], poisson, entity="closed form", size=26.0)
     left.set_ylim(0.0, 0.36)
     left.set_xlim(-0.7, 11.7)
     left.set_xticks(range(0, 12, 2))
@@ -522,9 +586,15 @@ def draw_binomial_to_poisson() -> tuple[Any, dict[str, str]]:
     _log_ticks(right, -3, -1)
     right.set_ylim(5e-4, 3.0)
     for index in (1, 4):
-        _label(right, sizes[index], distances[index],
-               f"{distances[index]:.3f} at n = {sizes[index]}", model,
-               offset=(6.0, 6.0), va="bottom")
+        _label(
+            right,
+            sizes[index],
+            distances[index],
+            f"{distances[index]:.3f} at n = {sizes[index]}",
+            model,
+            offset=(6.0, 6.0),
+            va="bottom",
+        )
     _heading(right, "Total variation to Poisson(4)")
     theme.axis_labels(right, "Number of trials n", "Total variation distance")
     figure.subplots_adjust(wspace=0.32, left=0.09, right=0.97, top=0.78, bottom=0.15)
@@ -573,11 +643,12 @@ def draw_memorylessness() -> tuple[Any, dict[str, str]]:
     }
     figure, axes = _axes(2, figsize=(7.6, 4.0), sharey=True)
     shades = theme.ordered_colours(3)
-    for ax, law, name in ((axes[0], exponential, "Exponential, constant hazard"),
-                          (axes[1], weibull, "Weibull shape 2, rising hazard")):
+    for ax, law, name in (
+        (axes[0], exponential, "Exponential, constant hazard"),
+        (axes[1], weibull, "Weibull shape 2, rising hazard"),
+    ):
         for colour, s in zip(shades, ages, strict=True):
-            theme.line(ax, grid, [conditional(law, s, t) for t in grid],
-                       color=colour)
+            theme.line(ax, grid, [conditional(law, s, t) for t in grid], color=colour)
         values = [conditional(law, s, 1.0) for s in ages]
         for colour, value in zip(shades, values, strict=True):
             theme.points(ax, [1.0], [value], color=colour, size=30.0, zorder=5)
@@ -594,15 +665,24 @@ def draw_memorylessness() -> tuple[Any, dict[str, str]]:
             [REF-MATPLOTLIB].
 
         """
-        ax.text(0.97, 0.72 - 0.075 * row, text, transform=ax.transAxes,
-                ha="right", va="center", fontsize=theme.ANNOTATION_SIZE,
-                fontweight="bold", color=_legible(colour))
+        ax.text(
+            0.97,
+            0.72 - 0.075 * row,
+            text,
+            transform=ax.transAxes,
+            ha="right",
+            va="center",
+            fontsize=theme.ANNOTATION_SIZE,
+            fontweight="bold",
+            color=_legible(colour),
+        )
 
     key(axes[0], 0, "at t = 1, after waiting", theme.active_palette().ink)
     key(axes[0], 1, f"s = 0, 1, 2: all {facts['exponential']}", shades[-1])
     key(axes[1], 0, "at t = 1, after waiting", theme.active_palette().ink)
-    for row, (colour, s, value) in enumerate(zip(shades, ages, weib_one,
-                                                 strict=True), start=1):
+    for row, (colour, s, value) in enumerate(
+        zip(shades, ages, weib_one, strict=True), start=1
+    ):
         key(axes[1], row, f"s = {s:g}: {value:.3f}", colour)
     theme.axis_labels(axes[0], y="P(X > s + t | X > s)")
     figure.subplots_adjust(wspace=0.1, left=0.1, right=0.97, top=0.78, bottom=0.15)
@@ -694,12 +774,19 @@ def draw_dirichlet_update() -> tuple[Any, dict[str, str]]:
     palette = theme.active_palette()
     grid = [k / 400 for k in range(1, 400)]
     flat = prior.marginal(0)
-    theme.line(ax, grid, [flat.pdf(x) for x in grid], color=palette.muted,
-               dashes=theme.FITTED, width=theme.CONTEXT_WIDTH)
+    theme.line(
+        ax,
+        grid,
+        [flat.pdf(x) for x in grid],
+        color=palette.muted,
+        dashes=theme.FITTED,
+        width=theme.CONTEXT_WIDTH,
+    )
     roles = ("series-4", "series-5", "series-6")
     names = ("category 1", "category 2", "category 3")
-    for index, (role, name, count) in enumerate(zip(roles, names, _COUNTS,
-                                                     strict=True)):
+    for index, (role, name, count) in enumerate(
+        zip(roles, names, _COUNTS, strict=True)
+    ):
         colour = theme.role_colour(role)
         marginal = result.posterior.marginal(index)
         density = [marginal.pdf(x) for x in grid]
@@ -707,9 +794,15 @@ def draw_dirichlet_update() -> tuple[Any, dict[str, str]]:
         share = shares[index]
         theme.points(ax, [share], [marginal.pdf(share)], color=colour, size=34.0)
         peak = max(density)
-        _label(ax, grid[density.index(peak)], peak,
-               f"{name}: {count} of 20, mean {share:.3f}", colour,
-               offset=(8.0, 4.0), va="bottom")
+        _label(
+            ax,
+            grid[density.index(peak)],
+            peak,
+            f"{name}: {count} of 20, mean {share:.3f}",
+            colour,
+            offset=(8.0, 4.0),
+            va="bottom",
+        )
     ax.set_xlim(0.0, 1.0)
     ax.set_ylim(0.0, 6.4)
     theme.axis_labels(ax, "Category probability", theme.axis_title("density"))
@@ -738,9 +831,7 @@ def draw_dirichlet_multinomial() -> tuple[Any, dict[str, str]]:
     plug_in = Binomial(n=future, p=share)
     ks = list(range(future + 1))
     mixed = [
-        math.fsum(
-            predictive.pmf((k, j, future - k - j)) for j in range(future - k + 1)
-        )
+        math.fsum(predictive.pmf((k, j, future - k - j)) for j in range(future - k + 1))
         for k in ks
     ]
     binomial = [plug_in.pmf(k) for k in ks]
@@ -764,24 +855,42 @@ def draw_dirichlet_multinomial() -> tuple[Any, dict[str, str]]:
     figure, (ax,) = _axes()
     palette = theme.active_palette()
     model = theme.role_colour("model")
-    ax.vlines([k - 0.15 for k in ks], 0.0, mixed, color=model, linewidth=2.4,
-              zorder=3)
+    ax.vlines([k - 0.15 for k in ks], 0.0, mixed, color=model, linewidth=2.4, zorder=3)
     theme.points(ax, [k - 0.15 for k in ks], mixed, color=model, size=26.0)
-    ax.vlines([k + 0.15 for k in ks], 0.0, binomial, color=palette.muted,
-              linewidth=2.4, zorder=2)
-    theme.points(ax, [k + 0.15 for k in ks], binomial, color=palette.muted,
-                 size=26.0)
+    ax.vlines(
+        [k + 0.15 for k in ks],
+        0.0,
+        binomial,
+        color=palette.muted,
+        linewidth=2.4,
+        zorder=2,
+    )
+    theme.points(ax, [k + 0.15 for k in ks], binomial, color=palette.muted, size=26.0)
     ax.set_xticks(ks)
     ax.set_xlim(-0.7, 10.7)
     ax.set_ylim(0.0, max(binomial) * 1.3)
     # The upper left is empty: every mass below a count of 4 is under 0.1.
-    _label(ax, -0.5, 0.27, f"posterior predictive, variance {facts['mixed']}",
-           model, offset=(0.0, 0.0))
-    _label(ax, -0.5, 0.245,
-           f"plug-in Binomial(10, {share:.3f}), variance {facts['binomial']}",
-           palette.muted, offset=(0.0, 0.0))
-    theme.axis_labels(ax, "Category 1 count in the next 10 trials",
-                      theme.axis_title("probability_mass"))
+    _label(
+        ax,
+        -0.5,
+        0.27,
+        f"posterior predictive, variance {facts['mixed']}",
+        model,
+        offset=(0.0, 0.0),
+    )
+    _label(
+        ax,
+        -0.5,
+        0.245,
+        f"plug-in Binomial(10, {share:.3f}), variance {facts['binomial']}",
+        palette.muted,
+        offset=(0.0, 0.0),
+    )
+    theme.axis_labels(
+        ax,
+        "Category 1 count in the next 10 trials",
+        theme.axis_title("probability_mass"),
+    )
     theme.title_block(
         ax,
         f"Averaging over the posterior widens the next-10 count: variance "
@@ -835,21 +944,36 @@ def draw_clt_rates() -> tuple[Any, dict[str, str]]:
     theme.direct_labels(
         ax,
         (
-            (1000.0, bound[-1], "Berry-Esseen bound", theme.entity_colour(
-                "Berry-Esseen bound")),
+            (
+                1000.0,
+                bound[-1],
+                "Berry-Esseen bound",
+                theme.entity_colour("Berry-Esseen bound"),
+            ),
             (1000.0, normal[-1], "sup |F_n - Phi|", observed),
             (1000.0, edgeworth[-1], "sup |F_n - Edgeworth|", model),
         ),
     )
     bound_colour = theme.entity_colour("Berry-Esseen bound")
     theme.points(ax, [100.0], [at[100].berry_esseen], color=bound_colour, size=26.0)
-    for value, colour in ((at[100].kolmogorov_normal, observed),
-                          (edgeworth_100, model),
-                          (at[100].berry_esseen, bound_colour)):
-        _label(ax, 100.0, value, f"n = 100: {value:.3g}", colour,
-               offset=(-6.0, -8.0), ha="right", va="top")
-    theme.axis_labels(ax, "Number of summands n", theme.axis_title(
-        "kolmogorov_distance"))
+    for value, colour in (
+        (at[100].kolmogorov_normal, observed),
+        (edgeworth_100, model),
+        (at[100].berry_esseen, bound_colour),
+    ):
+        _label(
+            ax,
+            100.0,
+            value,
+            f"n = 100: {value:.3g}",
+            colour,
+            offset=(-6.0, -8.0),
+            ha="right",
+            va="top",
+        )
+    theme.axis_labels(
+        ax, "Number of summands n", theme.axis_title("kolmogorov_distance")
+    )
     theme.title_block(
         ax,
         f"The normal error of exponential sums falls like 1/sqrt(n), the Edgeworth "
@@ -882,10 +1006,16 @@ def draw_tail_bounds() -> tuple[Any, dict[str, str]]:
     palette = theme.active_palette()
     series = (
         ("Chebyshev", [r.chebyshev for r in rows], palette.muted),
-        ("Bernstein", [float(r.bernstein or 1.0) for r in rows],
-         theme.role_colour("series-3")),
-        ("Hoeffding", [float(r.hoeffding or 1.0) for r in rows],
-         theme.role_colour("model")),
+        (
+            "Bernstein",
+            [float(r.bernstein or 1.0) for r in rows],
+            theme.role_colour("series-3"),
+        ),
+        (
+            "Hoeffding",
+            [float(r.hoeffding or 1.0) for r in rows],
+            theme.role_colour("model"),
+        ),
     )
     labels = []
     for name, values, colour in series:
@@ -893,11 +1023,17 @@ def draw_tail_bounds() -> tuple[Any, dict[str, str]]:
         labels.append((ts[-1], values[-1], name, colour))
     exact = [r.exact_upper for r in rows]
     theme.line(ax, ts, exact, color=theme.role_colour("observed"))
-    labels.append((ts[-1], exact[-1], "exact P(mean - 0.3 >= t)",
-                   theme.role_colour("observed")))
-    theme.points(ax, [0.2, 0.2, 0.2],
-                 [marked.exact_upper, marked.hoeffding, marked.chebyshev],
-                 color=palette.ink, size=24.0, zorder=6)
+    labels.append(
+        (ts[-1], exact[-1], "exact P(mean - 0.3 >= t)", theme.role_colour("observed"))
+    )
+    theme.points(
+        ax,
+        [0.2, 0.2, 0.2],
+        [marked.exact_upper, marked.hoeffding, marked.chebyshev],
+        color=palette.ink,
+        size=24.0,
+        zorder=6,
+    )
     ax.axvline(0.2, color=palette.rule, linewidth=1.0, zorder=1)
     ax.set_yscale("log")
     ax.set_xlim(0.0, 0.25)
@@ -940,23 +1076,44 @@ def draw_variance_divisor() -> tuple[Any, dict[str, str]]:
     squared_bias = [r.bias * r.bias for r in risks]
     variances = [r.variance for r in risks]
     mses = [r.mse for r in risks]
-    theme.line(ax, grid, squared_bias, color=theme.role_colour("series-3"),
-               width=theme.CONTEXT_WIDTH)
+    theme.line(
+        ax,
+        grid,
+        squared_bias,
+        color=theme.role_colour("series-3"),
+        width=theme.CONTEXT_WIDTH,
+    )
     theme.line(ax, grid, variances, color=palette.muted, width=theme.CONTEXT_WIDTH)
     theme.line(ax, grid, mses, color=model)
-    theme.points(ax, [n - 1, best], [unbiased.mse, optimal.mse], color=model,
-                 size=40.0, zorder=5)
-    _label(ax, n - 1, unbiased.mse, f"d = n - 1: {facts['unbiased']}", model,
-           offset=(-6.0, -6.0), ha="right", va="top")
-    _label(ax, best, optimal.mse, f"d = n + 1: {facts['optimal']}", model,
-           offset=(0.0, 12.0), ha="center", va="bottom")
+    theme.points(
+        ax, [n - 1, best], [unbiased.mse, optimal.mse], color=model, size=40.0, zorder=5
+    )
+    _label(
+        ax,
+        n - 1,
+        unbiased.mse,
+        f"d = n - 1: {facts['unbiased']}",
+        model,
+        offset=(-6.0, -6.0),
+        ha="right",
+        va="top",
+    )
+    _label(
+        ax,
+        best,
+        optimal.mse,
+        f"d = n + 1: {facts['optimal']}",
+        model,
+        offset=(0.0, 12.0),
+        ha="center",
+        va="bottom",
+    )
     theme.direct_labels(
         ax,
         (
             (grid[-1], mses[-1], "MSE", model),
             (grid[-1], variances[-1], "variance", palette.muted),
-            (grid[-1], squared_bias[-1], "squared bias",
-             theme.role_colour("series-3")),
+            (grid[-1], squared_bias[-1], "squared bias", theme.role_colour("series-3")),
         ),
     )
     ax.set_xlim(6.0, 17.0)
@@ -1019,26 +1176,27 @@ def draw_kl_asymmetry() -> tuple[Any, dict[str, str]]:
     model, third = theme.role_colour("model"), theme.role_colour("series-3")
     curves = (
         (f"D(p || q), {facts['forward']} at 0.9", forward, model, theme.LINE_WIDTH),
-        (f"D(q || p), {facts['backward']} at 0.9", backward, third,
-         theme.LINE_WIDTH),
-        (f"Jensen-Shannon, {facts['js']} at 0.9", js, palette.muted,
-         theme.CONTEXT_WIDTH),
+        (f"D(q || p), {facts['backward']} at 0.9", backward, third, theme.LINE_WIDTH),
+        (
+            f"Jensen-Shannon, {facts['js']} at 0.9",
+            js,
+            palette.muted,
+            theme.CONTEXT_WIDTH,
+        ),
     )
     for _, values, colour, width in curves:
         theme.line(ax, grid, values, color=colour, width=width)
     ax.axvline(0.9, color=palette.rule, linewidth=1.0, zorder=1)
-    for key, colour in (("forward", model), ("backward", third),
-                        ("js", palette.muted)):
-        theme.points(ax, [0.9], [float(facts[key])], color=colour, size=30.0,
-                     zorder=5)
+    for key, colour in (("forward", model), ("backward", third), ("js", palette.muted)):
+        theme.points(ax, [0.9], [float(facts[key])], color=colour, size=30.0, zorder=5)
     theme.direct_labels(
-        ax, [(grid[-1], values[-1], name, colour) for name, values, colour, _ in
-             curves]
+        ax, [(grid[-1], values[-1], name, colour) for name, values, colour, _ in curves]
     )
     ax.set_xlim(0.5, 0.98)
     ax.set_ylim(0.0, 1.4)
-    theme.axis_labels(ax, "Mass q puts on the first outcome", "Divergence",
-                      y_unit="nats")
+    theme.axis_labels(
+        ax, "Mass q puts on the first outcome", "Divergence", y_unit="nats"
+    )
     theme.title_block(
         ax,
         f"KL divergence is not symmetric: for q = (0.9, 0.1), D(p || q) = "
