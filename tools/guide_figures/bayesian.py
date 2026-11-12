@@ -1243,8 +1243,9 @@ FIGURES = [
         name="hierarchical-schools-shrinkage",
         guide="hierarchical-models",
         alt=(
-            "Eight school effects, each drawn as a raw estimate with one standard "
-            "error above its posterior mean and 95% interval, joined by arrows"
+            "Eight school effects, each drawn as a raw estimate with its 95% "
+            "interval without pooling above its posterior mean and 95% interval, "
+            "joined by arrows"
         ),
         draw=_schools_shrinkage,
     ),

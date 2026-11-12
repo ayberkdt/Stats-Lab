@@ -217,7 +217,7 @@ ranges from 0.693 (school 5, `s = 9`) to 0.862 (school 8, `s = 18`). Noisier
 schools are pulled harder toward `E[mu | y] = 7.93`. School 1's estimate of
 28 becomes a posterior mean of 11.40.
 
-<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/hierarchical-schools-shrinkage-dark.png"><img alt="Eight school effects, each drawn as a raw estimate with one standard error above its posterior mean and 95% interval, joined by arrows" src="../images/guides/hierarchical-schools-shrinkage.png"></picture>
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/hierarchical-schools-shrinkage-dark.png"><img alt="Eight school effects, each drawn as a raw estimate with its 95% interval without pooling above its posterior mean and 95% interval, joined by arrows" src="../images/guides/hierarchical-schools-shrinkage.png"></picture>
 
 *Each arrow carries a school's raw estimate (schools A to H are 1 to 8) to its exact grid posterior mean, toward the pooled mean 7.93: averaged over schools the posterior puts 77% of its weight on that mean, so the range of the eight effects shrinks from 31.0 to 6.3, while each 95% interval stays 25 to 35 points wide because `tau` itself remains uncertain.*
 

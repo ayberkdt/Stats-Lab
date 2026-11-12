@@ -195,9 +195,11 @@ of the learning path.
 
 Every lab in [`examples/`](https://github.com/ayberkdt/Stats-Lab/tree/main/examples)
 (34 of them) is seeded and reproducible and writes its figures to
-`examples/generated/`. All figures share one theme: colour follows meaning
-(observed data, model, reference), labels sit on the data, and every figure
-exists in a light and a dark palette.
+`examples/generated/`; every guide in
+[`docs/foundations/`](https://github.com/ayberkdt/Stats-Lab/tree/main/docs/foundations)
+shows its own checked figures. All figures share one theme: colour follows
+meaning (observed data, model, reference), labels sit on the data, and every
+figure exists in a light and a dark palette.
 
 | | |
 |---|---|
@@ -211,6 +213,10 @@ exists in a light and a dark palette.
 | **Calibration:** 9 measurements up to t = 6 calibrate the decay; the 95% bands carry it to t = 12. | **Model error:** with a discrepancy term the 95% band covers the truth at 45 of 45 points; the simulator alone at 35. |
 | <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/filtering-velocity-dark.png"><img alt="Kalman-filtered and smoothed velocity against the true velocity" src="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/filtering-velocity.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/causal-effect-estimates-dark.png"><img alt="Four average-treatment-effect estimates with 95 percent intervals and the true effect" src="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/causal-effect-estimates.png"></picture> |
 | **Filtering:** the velocity is never measured, yet it stays inside the filter's 95% band at 96% of steps. | **Causal:** 3 of 4 intervals cover the true effect 2; the naive difference misses it by 0.77. |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/guides/robust-regression-leverage-dark.png"><img alt="Scatter of 15 points on a line and 5 far points with least-squares, Huber, and Theil-Sen lines" src="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/guides/robust-regression-leverage.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/guides/quantile-regression-fan-dark.png"><img alt="Scatter with spread growing in x and five regression quantile lines from tau 0.1 to 0.9" src="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/guides/quantile-regression-fan.png"></picture> |
+| **Robust regression:** five far points drag least squares to slope -10.869 and Huber to -10.874; Theil-Sen keeps 2.96. | **Quantile regression:** as the spread grows, the 0.9 and 0.1 quantile slopes fan out to 0.85 and 0.17 (true 0.82 and 0.18). |
+| <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/guides/mixed-models-blup-shrinkage-dark.png"><img alt="Dumbbell chart of raw group-mean deviations and BLUPs for 12 groups ordered by size" src="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/guides/mixed-models-blup-shrinkage.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/guides/time-series-garch-volatility-dark.png"><img alt="Simulated GARCH returns above the true and the fitted conditional standard deviation over 1500 time steps" src="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/guides/time-series-garch-volatility.png"></picture> |
+| **Mixed models:** with REML estimates sigma_b = 0.65 and sigma = 2.14, a group of 2 keeps 16% of its raw deviation as its BLUP, a group of 30 keeps 74%. | **Volatility:** the fitted GARCH(1, 1) volatility (persistence 0.936) tracks the simulated clusters with correlation 0.996. |
 
 Start with
 [`examples/uq_study_complete_lab.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/examples/uq_study_complete_lab.py)

@@ -143,6 +143,39 @@ class GuideFigureTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn(f"{len(self.manifest)} guide figures in two palettes", readme)
 
+    def test_readme_gallery_captions_quote_the_guide_facts(self) -> None:
+        """README gallery cells under a guide figure quote all of its facts.
+
+        The gallery is a two-column table: a row of pictures, then a row of
+        captions in the same columns.
+        """
+        readme = (ROOT / "README.md").read_text(encoding="utf-8").splitlines()
+        source = re.compile(
+            r'srcset="[^"]*/docs/images/guides/(?P<dark>[a-z0-9-]+)\.png">'
+            r'<img alt="(?P<alt>[^"]+)" src="[^"]*/docs/images/guides/'
+            r'(?P<name>[a-z0-9-]+)\.png"'
+        )
+        shown = 0
+        for index, line in enumerate(readme):
+            if "docs/images/guides/" not in line:
+                continue
+            cells = line.strip().strip("|").split(" | ")
+            captions = readme[index + 1].strip().strip("|").split(" | ")
+            self.assertEqual(len(cells), len(captions))
+            for cell, caption in zip(cells, captions, strict=True):
+                match = source.search(cell)
+                if match is None:
+                    continue
+                shown += 1
+                name = match["name"]
+                with self.subTest(figure=name):
+                    self.assertIn(name, self.manifest)
+                    self.assertEqual(match["dark"], f"{name}-dark")
+                    self.assertEqual(match["alt"], self.manifest[name]["alt"])
+                    for fact in self.manifest[name]["facts"].values():
+                        self.assertIn(fact, caption)
+        self.assertGreater(shown, 0, "the README shows guide figures")
+
     def test_text_alternatives_describe_without_concluding(self) -> None:
         """Text alternatives are short descriptive sentences."""
         for name, entry in self.manifest.items():
