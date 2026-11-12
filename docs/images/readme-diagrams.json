@@ -1,0 +1,85 @@
+{
+  "source": "tools/build_readme_figures.py",
+  "workflow": {
+    "images": [
+      "readme-one-model-workflow.png",
+      "readme-one-model-workflow-dark.png"
+    ],
+    "classes": {
+      "JointInput": "modeling",
+      "ProbabilisticModel": "modeling",
+      "UQStudy": "workflow",
+      "SystemModel": "systems",
+      "MissionAssessment": "workflow"
+    },
+    "stages": [
+      "propagate",
+      "sensitivity",
+      "reliability",
+      "calibrate",
+      "validate",
+      "extremes",
+      "design"
+    ]
+  },
+  "layers": {
+    "images": [
+      "readme-package-layers.png",
+      "readme-package-layers-dark.png"
+    ],
+    "from": "tests/test_architecture.py",
+    "packages": {
+      "0": [
+        "foundations",
+        "numerics",
+        "linalg"
+      ],
+      "1": [
+        "optimization",
+        "sampling",
+        "probability",
+        "statistics",
+        "distributions"
+      ],
+      "2": [
+        "inference",
+        "multivariate",
+        "uq",
+        "processes",
+        "information"
+      ],
+      "3": [
+        "monte_carlo",
+        "modeling",
+        "causal",
+        "generative"
+      ],
+      "4": [
+        "propagation",
+        "inverse"
+      ],
+      "5": [
+        "design",
+        "reliability",
+        "sensitivity",
+        "validation",
+        "surrogates"
+      ],
+      "6": [
+        "risk",
+        "systems",
+        "cost",
+        "filtering",
+        "data_assimilation",
+        "conformal"
+      ],
+      "7": [
+        "workflow",
+        "timeseries"
+      ],
+      "9": [
+        "visualization"
+      ]
+    }
+  }
+}
