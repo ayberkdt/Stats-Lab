@@ -98,6 +98,10 @@ sigma^2)`:
 [round(v[0], 3) for v in fit.random_effects[0].values]  # [-0.552, 2.857, -2.446, 1.46, -0.079, -1.239]
 ```
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/mixed-models-blup-shrinkage-dark.png"><img alt="Dumbbell chart of raw group-mean deviations and BLUPs for 12 groups ordered by size" src="../images/guides/mixed-models-blup-shrinkage.png"></picture>
+
+*In an unbalanced layout the shrinkage factor depends on the group size: with REML estimates sigma_b = 0.65 and sigma = 2.14 in 12 seeded groups, a group of 2 keeps 16% of its raw deviation from the fixed intercept and a group of 30 keeps 74%, so small groups borrow most strength from the others.*
+
 ## Testing a variance component
 
 Is there a batch effect at all? The null `sigma_b = 0` lies on the boundary
@@ -147,6 +151,10 @@ components = growth.variance_components[0]
 [round(s, 4) for s in components.standard_deviations]  # [2.3331, 0.7026]
 round(components.correlations[0][1], 4)  # 0.5383
 ```
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/mixed-models-growth-lines-dark.png"><img alt="Scores of six subjects over five weeks with subject BLUP lines and the population line" src="../images/guides/mixed-models-growth-lines.png"></picture>
+
+*The subject-specific BLUP lines fan around the population slope 1.97 points per week with a slope standard deviation of 0.70, and subjects with higher intercepts tend to have steeper slopes (correlation 0.54).*
 
 Every subject has the same weeks, so the per-subject least-squares lines are
 sufficient and both fixed effects are single mean squares on `6 - 1 = 5`

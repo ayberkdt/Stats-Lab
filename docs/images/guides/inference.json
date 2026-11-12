@@ -1,0 +1,156 @@
+{
+  "count-regression-ordinal-probabilities": {
+    "guide": "count-and-categorical-regression",
+    "alt": "Two panels of fitted low, mid, and high category probabilities against dose with observed shares per cell",
+    "facts": {
+      "dose": "2.236",
+      "treated": "3.57"
+    }
+  },
+  "count-regression-zero-frequencies": {
+    "guide": "count-and-categorical-regression",
+    "alt": "Bars of observed count frequencies with expected frequencies under Poisson, NB2, and zero-inflated Poisson fits",
+    "facts": {
+      "observed": "14",
+      "poisson": "8.99",
+      "zip": "13.99",
+      "nb": "11.86"
+    }
+  },
+  "descriptive-statistics-skewed-ecdf": {
+    "guide": "descriptive-statistics",
+    "alt": "Empirical CDF of 200 right-skewed draws with the law's CDF and vertical lines at the sample mean and median",
+    "facts": {
+      "mean": "1.30",
+      "median": "0.96",
+      "below": "66%"
+    }
+  },
+  "frequentist-bayesian-exact-coverage": {
+    "guide": "frequentist-and-bayesian-interpretation",
+    "alt": "Three panels of exact coverage against the true proportion for the Wilson, Clopper-Pearson, and credible intervals at n = 20",
+    "facts": {
+      "wilson": "86.0%",
+      "exact": "95.8%",
+      "credible": "81.8%"
+    }
+  },
+  "frequentist-bayesian-posterior-intervals": {
+    "guide": "frequentist-and-bayesian-interpretation",
+    "alt": "Beta posterior density for 14 successes in 20 trials above bars for the credible, Wilson, and Clopper-Pearson intervals",
+    "facts": {
+      "credible": "[0.4782, 0.8541]",
+      "wilson": "[0.4810, 0.8545]",
+      "above_half": "0.9608"
+    }
+  },
+  "hypothesis-testing-bootstrap-bca": {
+    "guide": "hypothesis-testing-and-bootstrap",
+    "alt": "Histogram of 2000 bootstrap means of a skewed sample above bars for the percentile, BCa, and Student-t intervals",
+    "facts": {
+      "bca": "(0.47, 1.21)",
+      "percentile": "(0.43, 1.15)",
+      "acceleration": "0.065",
+      "estimate": "0.75"
+    }
+  },
+  "hypothesis-testing-interval-coverage": {
+    "guide": "hypothesis-testing-and-bootstrap",
+    "alt": "Two panels of 100 replicate 95% intervals for a normal mean, Student-t and z with s, with the misses highlighted",
+    "facts": {
+      "t_hits": "95",
+      "z_hits": "87"
+    }
+  },
+  "mixed-models-blup-shrinkage": {
+    "guide": "mixed-models",
+    "alt": "Dumbbell chart of raw group-mean deviations and BLUPs for 12 groups ordered by size",
+    "facts": {
+      "small": "16%",
+      "large": "74%",
+      "sigma_b": "0.65",
+      "sigma": "2.14"
+    }
+  },
+  "mixed-models-growth-lines": {
+    "guide": "mixed-models",
+    "alt": "Scores of six subjects over five weeks with subject BLUP lines and the population line",
+    "facts": {
+      "slope": "1.97",
+      "slope_sd": "0.70",
+      "correlation": "0.54"
+    }
+  },
+  "multivariate-lda-regions": {
+    "guide": "multivariate-analysis",
+    "alt": "Plane shaded by the class LDA predicts, with the training points of three classes as markers",
+    "facts": {
+      "errors": "32",
+      "rate": "17.8%"
+    }
+  },
+  "multivariate-pca-scaling": {
+    "guide": "multivariate-analysis",
+    "alt": "Dot plot of the first principal-axis weights of height, weight, and length under covariance and correlation PCA",
+    "facts": {
+      "raw_length": "0.001",
+      "scaled_length": "0.446",
+      "raw_share": "91.1%",
+      "scaled_share": "69.6%"
+    }
+  },
+  "quantile-regression-fan": {
+    "guide": "robust-and-quantile-regression",
+    "alt": "Scatter with spread growing in x and five regression quantile lines from tau 0.1 to 0.9",
+    "facts": {
+      "upper": "0.85",
+      "lower": "0.17",
+      "true_upper": "0.82",
+      "true_lower": "0.18"
+    }
+  },
+  "regression-lasso-path": {
+    "guide": "regression-and-glms",
+    "alt": "Six lasso coefficient paths against a decreasing log penalty with the cross-validation choices marked",
+    "facts": {
+      "lambda_max": "1.9332",
+      "lambda_min": "0.0611",
+      "lambda_1se": "0.1640"
+    }
+  },
+  "regression-logistic-band": {
+    "guide": "regression-and-glms",
+    "alt": "Binary outcomes against a predictor with the fitted logistic curve, its 95% band, and a probit curve",
+    "facts": {
+      "slope": "1.324",
+      "half": "2.21",
+      "band": "0.16 to 0.84"
+    }
+  },
+  "robust-regression-leverage": {
+    "guide": "robust-and-quantile-regression",
+    "alt": "Scatter of 15 points on a line and 5 far points with least-squares, Huber, and Theil-Sen lines",
+    "facts": {
+      "ols": "-10.869",
+      "huber": "-10.874",
+      "sen": "2.96"
+    }
+  },
+  "smoothing-additive-terms": {
+    "guide": "smoothing-and-additive-models",
+    "alt": "Two panels of fitted additive-model terms with bands, partial residuals, and the true centred shapes",
+    "facts": {
+      "a": "6.62",
+      "b": "4.80"
+    }
+  },
+  "smoothing-pspline-reml": {
+    "guide": "smoothing-and-additive-models",
+    "alt": "Three panels of P-spline fits to noisy sine data at a small, a REML-chosen, and a large penalty",
+    "facts": {
+      "reml": "7.15",
+      "rough": "22.87",
+      "stiff": "2.11"
+    }
+  }
+}

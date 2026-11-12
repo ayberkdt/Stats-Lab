@@ -75,6 +75,10 @@ variance of about `5e-4` and is invisible; on the correlation scale it
 loads on the first component together with the other two. The choice is
 part of the analysis, not a detail.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/multivariate-pca-scaling-dark.png"><img alt="Dot plot of the first principal-axis weights of height, weight, and length under covariance and correlation PCA" src="../images/guides/multivariate-pca-scaling.png"></picture>
+
+*Covariance PCA gives length, measured in metres, weight 0.001 on the first axis, which explains 91.1% of the variance; after standardizing, length gets 0.446 and the first axis explains 69.6%.*
+
 `scores` holds the component scores of the data, `transform` those of new
 rows, `reconstruct` maps scores back, and `loadings` gives
 `a_jk sqrt(l_k)`, the variable-component correlations of a standardized
@@ -155,6 +159,10 @@ lda.predict([[2.0, 0.0], [0.0, 2.0]])  # ('b', 'c')
 qda = fit_quadratic_discriminant(train, labels)
 [round(p, 3) for p in qda.predict_proba([[1.2, 1.2]])[0]]  # [0.339, 0.343, 0.318]
 ```
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/multivariate-lda-regions-dark.png"><img alt="Plane shaded by the class LDA predicts, with the training points of three classes as markers" src="../images/guides/multivariate-lda-regions.png"></picture>
+
+*With a shared covariance, LDA divides the plane into three regions by straight lines, and because the classes overlap it misclassifies 32 of the 180 training points (17.8%), an optimistic resubstitution error.*
 
 The test suite checks that the LDA and QDA posteriors equal the normalized
 `pi_k N(x; mu_k, Sigma_k)` computed with `multivariate.MultivariateNormal`,

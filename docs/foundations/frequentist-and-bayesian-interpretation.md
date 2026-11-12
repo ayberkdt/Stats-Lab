@@ -95,6 +95,10 @@ of this sample size and this flat prior, not an equivalence: the two
 intervals answer different questions and diverge for small counts
 (Section 4) or informative priors.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/frequentist-bayesian-posterior-intervals-dark.png"><img alt="Beta posterior density for 14 successes in 20 trials above bars for the credible, Wilson, and Clopper-Pearson intervals" src="../images/guides/frequentist-bayesian-posterior-intervals.png"></picture>
+
+*The Beta(15, 7) posterior puts probability 0.9608 above `p = 0.5`; its equal-tailed 95% credible interval [0.4782, 0.8541] and the Wilson interval [0.4810, 0.8545] almost coincide and Clopper-Pearson is wider, yet only the credible interval is a probability statement about `p`.*
+
 ## 3. Testing `p = 0.5`: p-value, posterior probability, Bayes factor
 
 The exact binomial test reports the null probability of a count at least as
@@ -194,6 +198,10 @@ p = 0.5   Wilson 0.9586  Clopper-Pearson 0.9586  credible 0.9586
 Clopper-Pearson never falls below 0.95 (it inverts exact tests and is
 conservative); Wilson undercovers at `p = 0.05` (`0.9245`); the credible
 interval undercovers badly near the boundary (`0.8179` at `p = 0.01`).
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/frequentist-bayesian-exact-coverage-dark.png"><img alt="Three panels of exact coverage against the true proportion for the Wilson, Clopper-Pearson, and credible intervals at n = 20" src="../images/guides/frequentist-bayesian-exact-coverage.png"></picture>
+
+*On a grid of `p` with step 1/400 the Clopper-Pearson coverage never drops below 95.8%, the Wilson coverage oscillates around 95% and dips to 86.0% near the boundary, and the credible interval, used as a confidence procedure, falls to 81.8% next to `p = 0` and `p = 1`.*
 
 The same coverage can be estimated by repeated sampling with
 `evaluate_estimator`, which reports a Monte Carlo standard error with every

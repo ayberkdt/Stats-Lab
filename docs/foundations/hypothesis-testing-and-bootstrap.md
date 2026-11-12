@@ -73,6 +73,10 @@ coverages:
 - t interval: **0.953**.
 - z interval with `s`: only **0.891**.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/hypothesis-testing-interval-coverage-dark.png"><img alt="Two panels of 100 replicate 95% intervals for a normal mean, Student-t and z with s, with the misses highlighted" src="../images/guides/hypothesis-testing-interval-coverage.png"></picture>
+
+*In 100 seeded samples of size 6 the Student-t interval covers the true mean 95 times, while the narrower z interval with `s` covers it only 87 times, in line with the 0.953 and 0.891 of the 2000-sample simulation.*
+
 Every `TTestResult` reports a two-sided interval at `confidence`, whatever
 alternative was tested, together with Cohen's `d` (pooled for two samples,
 `d_z` for pairs).
@@ -166,6 +170,10 @@ returning a meaningless interval:
 
 - every replicate lies on one side of the estimate;
 - the jackknife values are constant.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/hypothesis-testing-bootstrap-bca-dark.png"><img alt="Histogram of 2000 bootstrap means of a skewed sample above bars for the percentile, BCa, and Student-t intervals" src="../images/guides/hypothesis-testing-bootstrap-bca.png"></picture>
+
+*For a skewed statistic the methods part ways: on 25 seeded Exp(1) observations with sample mean 0.75, the percentile interval (0.43, 1.15) copies the bootstrap distribution, while BCa, with acceleration 0.065, moves to (0.47, 1.21) to correct for the skewness that the symmetric Student-t interval ignores.*
 
 ## 7. Power, effect sizes, sample size
 

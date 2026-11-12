@@ -151,6 +151,10 @@ round(nb.aic, 2), round(poisson.aic, 2)  # (95.97, 101.14)
 round(zip_fit.count_coefficients[1], 3)  # 0.793
 ```
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/count-regression-zero-frequencies-dark.png"><img alt="Bars of observed count frequencies with expected frequencies under Poisson, NB2, and zero-inflated Poisson fits" src="../images/guides/count-regression-zero-frequencies.png"></picture>
+
+*Summed over the 28 fitted laws, Poisson regression expects 8.99 zeros where 14 occur, NB2 expects 11.86, and the zero-inflated Poisson model expects 13.99; the Poisson fit pays for its missing zeros with too many ones.*
+
 The Poisson fit expects 9 zeros where 14 occur, and the overdispersion test
 rejects. Here the overdispersion *is* the excess of zeros: the
 zero-inflated Poisson model has a much lower AIC than NB2, and the
@@ -217,6 +221,10 @@ ordinal = fit_ordinal_logistic(
 [round(t, 3) for t in ordinal.thresholds]  # [0.719, 2.835]
 round(ordinal.odds_ratios()[0][0], 3)  # 2.236
 ```
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/count-regression-ordinal-probabilities-dark.png"><img alt="Two panels of fitted low, mid, and high category probabilities against dose with observed shares per cell" src="../images/guides/count-regression-ordinal-probabilities.png"></picture>
+
+*One dose coefficient moves all three category curves: each step multiplies the odds of a higher category by 2.236 at both cuts, and treatment multiplies them by 3.57, so the treated panel reaches a likely high outcome at a lower dose.*
 
 Each dose step multiplies the odds of a better outcome by about 2.2, at both
 cuts. That *proportional-odds assumption* can be checked with Brant's test

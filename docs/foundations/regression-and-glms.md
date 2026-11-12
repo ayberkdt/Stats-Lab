@@ -154,6 +154,10 @@ the test, using 2x2 matrix inverses. Coefficients agree to 9 decimal places
 and standard errors to 8. For the probit fit, the test checks that the score
 equations are zero at the solution.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/regression-logistic-band-dark.png"><img alt="Binary outcomes against a predictor with the fitted logistic curve, its 95% band, and a probit curve" src="../images/guides/regression-logistic-band.png"></picture>
+
+*The logit fit (slope 1.324) reaches probability one half at x = 2.21, but with ten observations its Wald band, symmetric on the logit scale, still spans 0.16 to 0.84 there and bends asymmetrically toward 0 and 1; the probit curve is almost indistinguishable.*
+
 Grouped binomial data, with the trials passed as `weights`, give the same
 coefficients and standard errors as the expanded Bernoulli rows.
 
@@ -257,6 +261,10 @@ one (EQ-PEN-CV-001).
 The truly non-zero x0, x1, and x4 are always kept. The correlated null
 predictor x3 also enters, which is a known lasso behavior with correlated
 designs and n = 50.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/regression-lasso-path-dark.png"><img alt="Six lasso coefficient paths against a decreasing log penalty with the cross-validation choices marked" src="../images/guides/regression-lasso-path.png"></picture>
+
+*Coefficients enter one by one as the penalty falls from lambda_max = 1.9332; both the cross-validation minimum 0.0611 and the one-standard-error choice 0.1640 keep x3, a null predictor correlated with the signals, next to the true x0, x1, and x4.*
 
 ## 5. Limitations
 

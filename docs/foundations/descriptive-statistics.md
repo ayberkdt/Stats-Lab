@@ -29,6 +29,10 @@ The empirical CDF [EQ-STAT-005] assigns mass `1/n` to every observation. It is
 a right-continuous step function and is defined without assuming a parametric
 distribution. It is the bridge from observed data to distributional thinking.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/descriptive-statistics-skewed-ecdf-dark.png"><img alt="Empirical CDF of 200 right-skewed draws with the law's CDF and vertical lines at the sample mean and median" src="../images/guides/descriptive-statistics-skewed-ecdf.png"></picture>
+
+*The mean 1.30 is pulled right by the long upper tail and sits above the median 0.96, so 66% of the 200 draws fall below it; the empirical CDF follows the LogNormal(0, 0.8) CDF closely without assuming it.*
+
 ## Paired variation
 
 Covariance [EQ-STAT-006] measures joint centered movement in the product of the

@@ -99,6 +99,10 @@ gcv = fit_pspline(x, y, segments=20, method="gcv")
 gcv.edf  # 5.97
 ```
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/smoothing-pspline-reml-dark.png"><img alt="Three panels of P-spline fits to noisy sine data at a small, a REML-chosen, and a large penalty" src="../images/guides/smoothing-pspline-reml.png"></picture>
+
+*With 23 basis functions, a tiny penalty gives 22.87 effective degrees of freedom and chases the noise, a huge one leaves 2.11 and returns essentially the least-squares line, and REML settles on 7.15, close to the true sine inside its 95% band.*
+
 Both are estimates. The criterion profile stored in `fit.profile` shows how
 sharply the data determine `lambda`: here the GCV profile has two local
 minima three orders of magnitude apart in `lambda`, with scores within 2%
@@ -245,6 +249,10 @@ smoothing = {term.name: term.smoothing for term in gam.terms}
 backfit = backfit_additive_model(data, response, smoothing=smoothing, segments=10)
 max(abs(p - q) for p, q in zip(backfit.fitted, gam.fitted)) < 1e-8  # True
 ```
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/smoothing-additive-terms-dark.png"><img alt="Two panels of fitted additive-model terms with bands, partial residuals, and the true centred shapes" src="../images/guides/smoothing-additive-terms.png"></picture>
+
+*Against the partial residuals, the two centred terms track the true sine and quadratic shapes inside their 95% bands, with 6.62 and 4.80 effective degrees of freedom chosen separately by REML.*
 
 `gam.term(name).band(points)` gives the band of a centred term.
 
