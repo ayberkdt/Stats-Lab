@@ -3404,3 +3404,75 @@ Software* 12(4), 377-393, 1986. Temme's uniform asymptotic expansion for
 shapes of at least 20 near the transition point, and the regrouped
 prefactor `x^a e^-x / Gamma(a)`.
 DOI: [10.1145/22721.23109](https://doi.org/10.1145/22721.23109).
+
+## REF-CAMERON-TRIVEDI-2013
+
+A. Colin Cameron and Pravin K. Trivedi. *Regression Analysis of Count
+Data*. 2nd edition. Cambridge University Press, 2013. Poisson and negative
+binomial (NB2) regression with exposures, robust sandwich standard errors,
+overdispersion, and the zero-inflated and hurdle models (chapters "Basic
+Count Regression", "Generalized Count Regression", and "Model Evaluation
+and Testing").
+DOI: [10.1017/CBO9781139013567](https://doi.org/10.1017/CBO9781139013567).
+
+## REF-CAMERON-TRIVEDI-1990
+
+A. Colin Cameron and Pravin K. Trivedi. "Regression-Based Tests for
+Overdispersion in the Poisson Model." *Journal of Econometrics* 46(3),
+347-364, 1990. The auxiliary least-squares regression of
+`((y - mu)^2 - y)/mu` on `g(mu)/mu` and its t statistic.
+DOI: [10.1016/0304-4076(90)90014-K](https://doi.org/10.1016/0304-4076(90)90014-K).
+
+## REF-LAMBERT-1992
+
+Diane Lambert. "Zero-Inflated Poisson Regression, with an Application to
+Defects in Manufacturing." *Technometrics* 34(1), starting on page 1, 1992.
+The zero-inflated Poisson regression with a logit model for the
+structural-zero probability, fitted by maximum likelihood (EM).
+DOI: [10.2307/1269547](https://doi.org/10.2307/1269547).
+
+## REF-MULLAHY-1986
+
+John Mullahy. "Specification and Testing of Some Modified Count Data
+Models." *Journal of Econometrics* 33(3), 341-365, 1986. Hurdle count
+models: a binary process for zero against positive and a zero-truncated
+count law for the positive outcomes.
+DOI: [10.1016/0304-4076(86)90002-3](https://doi.org/10.1016/0304-4076(86)90002-3).
+
+## REF-VUONG-1989
+
+Quang H. Vuong. "Likelihood Ratio Tests for Model Selection and Non-Nested
+Hypotheses." *Econometrica* 57(2), starting on page 307, 1989. The
+normalized per-observation log-likelihood ratio of two strictly non-nested
+models and its standard normal limit.
+DOI: [10.2307/1912557](https://doi.org/10.2307/1912557).
+
+## REF-WILSON-2015
+
+Paul Wilson. "The Misuse of the Vuong Test for Non-Nested Models to Test
+for Zero-Inflation." *Economics Letters* 127, 51-53, 2015. A count model
+and its zero-inflated extension are not strictly non-nested, so the Vuong
+statistic does not test for zero inflation.
+DOI: [10.1016/j.econlet.2014.12.029](https://doi.org/10.1016/j.econlet.2014.12.029).
+
+## REF-MCCULLAGH-1980
+
+Peter McCullagh. "Regression Models for Ordinal Data." *Journal of the
+Royal Statistical Society: Series B (Methodological)* 42(2), 109-127, 1980.
+The proportional-odds (cumulative logit) model with ordered thresholds.
+DOI: [10.1111/j.2517-6161.1980.tb01109.x](https://doi.org/10.1111/j.2517-6161.1980.tb01109.x).
+
+## REF-BRANT-1990
+
+Rollin Brant. "Assessing Proportionality in the Proportional Odds Model for
+Ordinal Logistic Regression." *Biometrics* 46(4), starting on page 1171,
+1990. The Wald test comparing the slopes of the separate binary logits of
+`1{Y > j}`.
+DOI: [10.2307/2532457](https://doi.org/10.2307/2532457).
+
+## REF-WHITE-1982
+
+Halbert White. "Maximum Likelihood Estimation of Misspecified Models."
+*Econometrica* 50(1), starting on page 1, 1982. The sandwich covariance
+`A^-1 B A^-1` of a quasi-maximum-likelihood estimator.
+DOI: [10.2307/1912526](https://doi.org/10.2307/1912526).

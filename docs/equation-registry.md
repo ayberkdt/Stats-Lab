@@ -14194,3 +14194,189 @@ Taylor coefficients in `eta` derived in exact rational arithmetic;
   `multivariate.Dirichlet.entropy`.
 - Source: [REF-NIST-DLMF-GAMMA, Sections 5.2 and 5.11],
   [REF-BISHOP-2006, Appendix B].
+
+### EQ-CNT-REG-001 — Log-linear count regression with an exposure offset
+
+`log mu_i = x_i' beta + o_i`, `o_i = log t_i` for an exposure `t_i > 0`
+(plus any other offset); `exp(beta_j)` is the incidence-rate ratio, the
+factor by which the expected count per unit of exposure changes per unit
+of `x_j`.
+
+- Domain: non-negative integer counts `y_i`; full-rank design.
+- Meaning: an offset is a covariate whose coefficient is fixed at one, so
+  the model is for the rate `mu_i / t_i`.
+- Code: `inference.fit_poisson_regression`,
+  `inference.CountRegressionResult.incidence_rate_ratios`,
+  `inference.CountRegressionResult.predict`.
+- Source: [REF-CAMERON-TRIVEDI-2013], [REF-MCCULLAGH-NELDER-1989, Chapter 6].
+
+### EQ-CNT-REG-002 — Sandwich covariance of a count regression
+
+`V = A^-1 B A^-1`, `A = sum_i w_i x_i x_i'`,
+`B = sum_i s_i^2 x_i x_i'`, with `w_i = mu_i/(1 + alpha mu_i)` and the
+score `s_i = (y_i - mu_i)/(1 + alpha mu_i)` (`alpha = 0` for Poisson).
+
+- Domain: independent observations; the HC0 form without small-sample
+  factor.
+- Meaning: `beta_hat` of the Poisson model is consistent whenever the mean
+  is correctly specified; the sandwich gives standard errors that remain
+  valid when the variance is not `mu`.
+- Code: `inference.fit_poisson_regression`,
+  `inference.fit_negative_binomial_regression`.
+- Source: [REF-WHITE-1982], [REF-CAMERON-TRIVEDI-2013].
+
+### EQ-CNT-REG-003 — NB2 regression log-likelihood and scores
+
+`l = sum_i [log Gamma(y_i + theta) - log Gamma(theta) - log y_i!
++ theta log(theta/(theta + mu_i)) + y_i log(mu_i/(theta + mu_i))]`,
+`Var(y_i) = mu_i + mu_i^2/theta`, `alpha = 1/theta`;
+`dl/d eta_i = (y_i - mu_i) theta/(theta + mu_i)`,
+`dl/d theta = sum_(j<y_i) 1/(theta + j) + log(theta/(theta + mu_i)) + 1
+- (y_i + theta)/(theta + mu_i)`,
+`d^2 l/d eta^2 = -mu theta (theta + y)/(theta + mu)^2`,
+`d^2 l/d eta d theta = (y - mu) mu/(theta + mu)^2`,
+`d^2 l/d theta^2 = -sum_(j<y) 1/(theta + j)^2 + 1/theta - 1/(theta + mu)
++ (y - mu)/(theta + mu)^2`.
+
+- Domain: `theta > 0`; the maximum lies on the Poisson boundary
+  `theta = inf` when `sum [(y_i - mu_i)^2 - y_i] <= 0` at the Poisson fit
+  (the leading term of the `theta` score as `theta -> inf`).
+- Meaning: gamma-mixed Poisson counts with quadratic variance; the
+  coefficient block of the expected information is `X'WX`,
+  `W = mu/(1 + alpha mu)`, orthogonal to `theta`.
+- Code: `inference.fit_negative_binomial_regression`,
+  `inference.count_regression.nb2_log_pmf`.
+- Source: [REF-CAMERON-TRIVEDI-2013], [REF-NIST-DLMF-GAMMA, Section 5.5].
+
+### EQ-CNT-REG-004 — Regression-based overdispersion test
+
+`[(y_i - mu_i)^2 - y_i]/mu_i = alpha z_i + e_i` by least squares without
+intercept, `z_i = mu_i` (NB2, `Var = mu + alpha mu^2`) or `z_i = 1` (NB1,
+`Var = (1 + alpha) mu`); `t = alpha_hat / se`,
+`se^2 = [sum e_i^2 /(n - 1)] / sum z_i^2`, referred to `N(0, 1)`.
+
+- Domain: `mu_i` from a Poisson regression fit; one-sided against
+  `alpha > 0` by default.
+- Meaning: under the Poisson null `E[(y - mu)^2 - y] = 0`; a positive
+  `alpha` estimates the excess variance.
+- Code: `inference.poisson_overdispersion_test`.
+- Source: [REF-CAMERON-TRIVEDI-1990].
+
+### EQ-CNT-ZI-001 — Zero-inflated count likelihood
+
+`P(y_i = 0) = pi_i + (1 - pi_i) f(0; mu_i)`,
+`P(y_i = k) = (1 - pi_i) f(k; mu_i)` for `k > 0`, `logit pi_i = z_i' gamma`,
+`log mu_i = x_i' beta + o_i`, `f` Poisson or NB2;
+`E[y_i] = (1 - pi_i) mu_i`.
+
+- Domain: at least one zero; `pi_i` near zero makes `gamma` weakly
+  identified (the Poisson model is the boundary `pi = 0`).
+- Meaning: zeros arise from a structural process and from the count
+  process; for `y = 0` the posterior share of the count process is
+  `(1 - pi) f(0) / P(y = 0)`.
+- Code: `inference.fit_zero_inflated`, `inference.ZeroCountResult.predict`.
+- Source: [REF-LAMBERT-1992], [REF-CAMERON-TRIVEDI-2013].
+
+### EQ-CNT-HURDLE-001 — Hurdle count likelihood
+
+`P(y_i = 0) = 1 - p_i`, `P(y_i = k) = p_i f(k; mu_i)/(1 - f(0; mu_i))` for
+`k > 0`, `logit p_i = z_i' gamma`; the log-likelihood is the binary logit
+of `1{y_i > 0}` plus the zero-truncated count log-likelihood
+`sum_(y_i > 0) [log f(y_i; mu_i) - log(1 - f(0; mu_i))]`;
+`E[y_i] = p_i mu_i/(1 - f(0; mu_i))`.
+
+- Domain: at least one zero and more positive counts than count
+  coefficients.
+- Meaning: one process decides whether the count is positive, another how
+  large it is; with intercept-only parts the hurdle and zero-inflated
+  models have the same maximized likelihood (both reproduce the observed
+  zero share).
+- Code: `inference.fit_hurdle`, `inference.ZeroCountResult.predict`.
+- Source: [REF-MULLAHY-1986], [REF-CAMERON-TRIVEDI-2013].
+
+### EQ-CNT-VUONG-001 — Vuong statistic for non-nested models
+
+`m_i = log f_A(y_i) - log f_B(y_i)`,
+`V = (sum m_i - c)/(sqrt(n) omega)`,
+`omega^2 = (1/n) sum (m_i - m_bar)^2`, `c = 0`, `k_A - k_B` (AIC), or
+`(k_A - k_B) log(n)/2` (BIC); `V -> N(0, 1)` when the strictly non-nested
+models are equally close to the truth.
+
+- Domain: strictly non-nested models only. A count model is the
+  zero-inflated model at the boundary `pi = 0`, so the normal reference
+  does not hold for a zero-inflation comparison.
+- Meaning: large positive values favour model A, large negative values
+  model B.
+- Code: `inference.vuong_test`.
+- Source: [REF-VUONG-1989], [REF-WILSON-2015].
+
+### EQ-CAT-ORD-001 — Proportional-odds (cumulative logit) model
+
+`P(Y_i <= k | x_i) = F(theta_k - x_i' beta)`, `k = 1..J-1`,
+`theta_1 < ... < theta_(J-1)`, `F(t) = 1/(1 + e^-t)`;
+`P(Y_i = k) = F(theta_k - eta_i) - F(theta_(k-1) - eta_i)` with
+`theta_0 = -inf`, `theta_J = inf`. Without covariates
+`theta_k = logit(N_(<=k)/n)`.
+
+- Domain: ordered categories, each observed; no intercept column (the
+  thresholds absorb it).
+- Meaning: one slope vector for every cut: `exp(beta_j)` multiplies the
+  odds of `Y > k` for every `k`. With `J = 2` the model is the logistic
+  regression of `1{Y > 1}` with intercept `-theta_1` and slopes `beta`.
+- Code: `inference.fit_ordinal_logistic`,
+  `inference.OrdinalRegressionResult.predict_proba`,
+  `inference.OrdinalRegressionResult.odds_ratios`.
+- Source: [REF-MCCULLAGH-1980], [REF-AGRESTI-2013].
+
+### EQ-CAT-BRANT-001 — Brant test of proportional odds
+
+For each cut `k` a binary logit of `1{Y > k}` on `(1, x)` gives `beta_k`;
+`Cov(beta_k, beta_l) = (X'W_kk X)^-1 X'W_kl X (X'W_ll X)^-1`,
+`W_kl = diag(pi_(i,max(k,l)) - pi_ik pi_il)`;
+`X^2 = (D beta*)' (D V D')^-1 (D beta*)` with `D beta*` the slope
+contrasts `beta_1 - beta_k`, `k = 2..J-1`, on `(J - 2) p` degrees of
+freedom.
+
+- Domain: `J >= 3`, at least one covariate, no separation in any binary
+  logit.
+- Meaning: large values say the covariate effects differ across cuts, so a
+  single slope summarizes them poorly.
+- Code: `inference.brant_test`.
+- Source: [REF-BRANT-1990].
+
+### EQ-CAT-MNL-001 — Baseline-category multinomial logit
+
+`P(Y_i = k | x_i) = exp(x_i' beta_k)/sum_l exp(x_i' beta_l)`,
+`beta_ref = 0`; `dl/d beta_k = sum_i (y_ik - p_ik) x_i`,
+`d^2 l/d beta_k d beta_l' = -sum_i p_ik (delta_kl - p_il) x_i x_i'`.
+
+- Domain: every category observed; estimates do not exist under
+  (quasi-)separation.
+- Meaning: `exp(beta_kj)` multiplies the relative risk
+  `P(Y = k)/P(Y = ref)` per unit of `x_j`. With a single factor the model
+  is saturated and `beta_k` are log ratios of cell counts.
+- Code: `inference.fit_multinomial_logit`,
+  `inference.MultinomialLogitResult.predict_proba`,
+  `inference.MultinomialLogitResult.relative_risk_ratios`.
+- Source: [REF-AGRESTI-2013].
+
+### EQ-REG-AME-001 — Average marginal effects and their delta-method covariance
+
+`AME_jk = (1/n) sum_i d E_k(x_i; psi)/d x_ij` (derivative) or
+`(1/n) sum_i [E_k(x_i, x_ij = 1) - E_k(x_i, x_ij = 0)]` (discrete), with
+`E_k` a category probability or the mean count; `Cov(AME) = G V G'`,
+`G = d AME/d psi'` at `psi_hat` (central differences), `V = Cov(psi_hat)`.
+Poisson/NB2: `d mu/d x_j = beta_j mu`; ordinal:
+`d P_k/d x_j = -beta_j [f(theta_k - eta) - f(theta_(k-1) - eta)]`;
+multinomial: `d p_k/d x_j = p_k (beta_kj - sum_l p_l beta_lj)`.
+
+- Domain: a non-constant design column; derivative effects of indicator
+  columns are approximations, the discrete form is exact for them.
+- Meaning: the change of the expected outcome per unit of `x_j`, averaged
+  over the sample, on the probability or count scale rather than the link
+  scale.
+- Code: `inference.MarginalEffects`,
+  `inference.CountRegressionResult.average_marginal_effect`,
+  `inference.OrdinalRegressionResult.average_marginal_effects`,
+  `inference.MultinomialLogitResult.average_marginal_effects`.
+- Source: [REF-CASELLA-BERGER-2002, Section 5.5], [REF-AGRESTI-2013].

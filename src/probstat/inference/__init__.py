@@ -14,6 +14,12 @@ Main entry points:
     ``adjust_p_values``: Bonferroni, Holm, BH, and BY adjustment.
     ``fit_linear_model``: OLS and WLS through Householder QR.
     ``fit_glm``: generalized linear models fitted by IRLS.
+    ``fit_negative_binomial_regression``: NB2 count regression with exposures
+        and the size estimated by maximum likelihood.
+    ``fit_zero_inflated`` and ``fit_hurdle``: zero-inflated and hurdle
+        Poisson or NB2 regressions.
+    ``fit_ordinal_logistic`` and ``fit_multinomial_logit``: proportional-odds
+        and baseline-category logit models with average marginal effects.
     ``hierarchical_normal_posterior``: exact grid posterior of the normal
         hierarchical model.
     ``pool_estimates``: Rubin's rules for multiply imputed data.
@@ -38,6 +44,10 @@ Common pitfalls:
       control the FDR.
     - ``bootstrap`` and ``bootstrap_confidence_interval`` with
       ``seed=None`` draw fresh entropy and are not reproducible.
+    - The zero coefficients of ``fit_zero_inflated`` model the odds of a
+      structural zero, those of ``fit_hurdle`` the odds of a positive count;
+      ``vuong_test`` is not a test for zero inflation (see
+      docs/foundations/count-and-categorical-regression.md).
 
 Guide: docs/foundations/hypothesis-testing-and-bootstrap.md
 
@@ -49,6 +59,7 @@ References:
 
 """
 
+from ._ml_tools import MarginalEffects
 from .amortized import (
     AmortizedGaussianPosterior,
     fit_amortized_gaussian_posterior,
@@ -66,6 +77,14 @@ from .bayesian import (
     posterior_predictive_check,
     student_t_cdf,
     student_t_quantile,
+)
+from .categorical_regression import (
+    BrantTest,
+    MultinomialLogitResult,
+    OrdinalRegressionResult,
+    brant_test,
+    fit_multinomial_logit,
+    fit_ordinal_logistic,
 )
 from .confidence import (
     ConfidenceInterval,
@@ -89,6 +108,13 @@ from .count_models import (
     fit_negative_binomial_counts,
     fit_poisson_counts,
     poisson_mean_interval,
+)
+from .count_regression import (
+    CountRegressionResult,
+    OverdispersionTest,
+    fit_negative_binomial_regression,
+    fit_poisson_regression,
+    poisson_overdispersion_test,
 )
 from .em import (
     CensoredNormalFit,
@@ -332,8 +358,32 @@ from .sampling_distributions import (
 )
 from .sbc import SBCResult, rank_statistic, simulation_based_calibration
 from .variational import VariationalResult, advi
+from .zero_count_models import (
+    VuongTest,
+    ZeroCountResult,
+    fit_hurdle,
+    fit_zero_inflated,
+    vuong_test,
+)
 
 __all__ = [
+    "MarginalEffects",
+    "BrantTest",
+    "MultinomialLogitResult",
+    "OrdinalRegressionResult",
+    "brant_test",
+    "fit_multinomial_logit",
+    "fit_ordinal_logistic",
+    "CountRegressionResult",
+    "OverdispersionTest",
+    "fit_negative_binomial_regression",
+    "fit_poisson_regression",
+    "poisson_overdispersion_test",
+    "VuongTest",
+    "ZeroCountResult",
+    "fit_hurdle",
+    "fit_zero_inflated",
+    "vuong_test",
     "CountFit",
     "CountGoodnessOfFit",
     "count_goodness_of_fit",
