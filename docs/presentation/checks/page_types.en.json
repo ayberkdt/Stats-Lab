@@ -172,11 +172,43 @@
     "gorsel": "Horizontal bars: criticality importance of the lander's four most important blocks; the transponder bar is highlighted and far longer than the pump pair, igniter, and common-cause computer bars."
    },
    "bullets": [],
-   "notes": "The mission laboratory builds a lunar lander from component data: a warm-standby pump pair solved as a Markov chain, three flight computers of which two must work, with a beta-factor common cause, two batteries, a transponder, and an igniter. The binary decision diagram gives the mission reliability exactly, 0.923 over 720 hours, and a mean time to failure of 6,573 hours. Criticality importance is the probability that a block's failure caused a mission failure: the transponder reaches 90%, the pump pair 5%. That is where a redesign pays. At a loss cost of $450M per mission, the expected loss is $34.6M. Bridge: why trust any of these numbers?",
+   "notes": "The mission laboratory builds a lunar lander from component data: a warm-standby pump pair solved as a Markov chain, three flight computers of which two must work, with a beta-factor common cause, two batteries, a transponder, and an igniter. The binary decision diagram gives the mission reliability exactly, 0.923 over 720 hours, and a mean time to failure of 6,573 hours. Criticality importance is the probability that a block's failure caused a mission failure: the transponder reaches 90%, the pump pair 5%. That is where a redesign pays. At a loss cost of $450M per mission, the expected loss is $34.6M. Bridge: every one of these answers starts from input distributions, and those come from data.",
    "breathing": true
   },
   {
    "id": "s10",
+   "type": "baglam",
+   "kicker": "Applied statistics",
+   "headline": "Every input distribution needs data, and data raise 9 more questions",
+   "fields": {
+    "olgu": "9",
+    "aciklama": "questions about data, from group differences to censored samples, answered by mixed, robust, quantile, count, smoothing, multivariate, and time-series models.",
+    "kaynak": "Source: README.md, applied-statistics table"
+   },
+   "bullets": [],
+   "notes": "The load and the strength of the quick-start study were declared as distributions, but in practice each is estimated from test records, and those records raise their own questions. The README lists them: is there an effect, do groups differ, how does a response depend on predictors, what about counts and categories, grouped or repeated measurements, smooth unknown shapes, many correlated variables, time, and censored, missing, or confounded data. The statistical core answers them with linear and generalized mixed models, robust and quantile regression, Poisson, negative binomial, zero-inflated, and ordinal models, splines and additive models, principal components and discriminants, and ARIMA, GARCH, VAR, unit-root tests, and change points. The discipline is the same as for the simulator: every estimator reports its standard errors, degrees of freedom, and convergence, cites its source, and each guide lists the pitfalls of its methods; Track S of the learning path orders them. Bridge: one of these questions, grouped measurements, shows why the estimate of a batch depends on how many tests it has."
+  },
+  {
+   "id": "s11",
+   "type": "kanit",
+   "kicker": "Evidence · mixed models, simulated batches",
+   "headline": "2 tests keep 12% of a batch's deviation, 30 tests keep 66%",
+   "fields": {
+    "olcut": "share of the raw batch deviation kept by the BLUP",
+    "gercek": "benzetim",
+    "n": "12 batches, 141 tests",
+    "okuma": [
+     "REML: between batches σb 0.11 kN, within σ 0.43 kN · 12 batches, 141 tests, seeded"
+    ],
+    "kaynak": "Source: tools/build_presentation_data.py, seed 2026; fit_linear_mixed_model",
+    "gorsel": "Line chart: share of each batch's raw deviation from the overall mean that its BLUP keeps, against the number of strength tests in the batch; the fitted points sit on the closed-form curve, which rises from the smallest batch at the left towards the no-pooling line at the top."
+   },
+   "bullets": [],
+   "notes": "Say the claim first: how far a batch's estimate trusts its own tests depends on how many tests it has. The data are simulated so that the truth is known: 12 batches of a material with 2 to 30 strength tests each, 141 in all, around 4.0 kN with a between-batch spread of 0.15 kN and a within-batch spread of 0.37 kN, which together give the 0.40 kN of the quick-start strength input. A linear mixed model with a random batch intercept, fitted by REML, estimates 0.11 kN between and 0.43 kN within. The best linear unbiased predictor of a batch is its raw deviation from the overall mean times m σ_b² over m σ_b² plus σ², with m its number of tests: that is the line. The dots are the fitted predictors divided by the raw deviations, and every dot lies on the line to rounding error. A batch tested 2 times keeps 12% of its own deviation and borrows the rest from the other batches; one tested 30 times keeps 66%. Its own data outweigh the pool only beyond about 15 tests. Limitation: simulated data and one seed; with this few batches the between-batch spread is itself uncertain, estimated at 0.11 against a true 0.15 kN. Bridge: why trust any of these numbers?",
+   "breathing": true
+  },
+  {
+   "id": "s12",
    "type": "yontem",
    "kicker": "Verification",
    "headline": "Five checks stand between a formula and a release",
@@ -209,7 +241,7 @@
    "notes": "Each check is enforced by a test, not by a promise. The documentation contract fails when a function's references section names no source key or an equation identifier is missing from the registry. Tests use independent oracles: closed forms, exact enumeration, published values, a multiple-precision reference, or statistical checks whose tolerance comes from the Monte Carlo standard error, so they hold on every platform. Figures follow one semantic theme in a light and a dark palette. Continuous integration runs lint, strict type checking, the tests, the quick benchmark, and all 33 labs on 3 Python versions. Design choices are recorded in 100+ decision records. Bridge: the benchmarks score methods against exact answers."
   },
   {
-   "id": "s11",
+   "id": "s13",
    "type": "kanit",
    "kicker": "Evidence · benchmarks",
    "headline": "Sobol' points cut the error of the mean ×66 at equal cost",
@@ -227,7 +259,7 @@
    "notes": "The benchmark suite has 11 problems with exact or quadrature reference answers and records 124 method results, each with its error, cost, and interval coverage. This row is the cleanest: the same 256 runs, four designs. Plain Monte Carlo misses the Ishigami mean by 7.8%; scrambled Sobol' points by 0.12%. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover."
   },
   {
-   "id": "s12",
+   "id": "s14",
    "type": "sinirlamalar",
    "kicker": "Limitations",
    "headline": "Three limits apply to these results",
@@ -237,10 +269,10 @@
     "Benchmarks: probstat 0.17.0, quick mode, 2 to 5 seeds; coverage is coarse.",
     "Monte Carlo digits move with the seed; each carries its 95% interval."
    ],
-   "notes": "On the four-branch series system of the benchmark, a limit state with several design points, FORM and both SORM variants stop without an answer; AK-MCS reaches it with about 26 runs at a relative error of 16%. Quick mode runs few seeds, so coverage statistics are indicative only; the full benchmark mode runs more. The benchmark file was recorded with an earlier release than the study. And every Monte Carlo number moves with the seed, which is why each one carries its interval. Bridge: what to keep."
+   "notes": "On the four-branch series system of the benchmark, a limit state with several design points, FORM and both SORM variants stop without an answer; AK-MCS reaches it with about 26 runs at a relative error of 16%. Quick mode runs few seeds, so coverage statistics are indicative only; the full benchmark mode runs more. The benchmark file was recorded with an earlier release than the study. And every Monte Carlo number moves with the seed, which is why each one carries its interval. The pooling example uses simulated batches with a known spread: with 12 batches, REML puts the between-batch standard deviation at 0.11 kN against a true 0.15 kN, and every shrinkage share inherits that uncertainty. Bridge: what to keep."
   },
   {
-   "id": "s13",
+   "id": "s15",
    "type": "sonuc",
    "kicker": "Conclusion",
    "headline": "Yes: one model answered every question from one seed",
@@ -250,10 +282,10 @@
     "MCMC matched an exact posterior within 7%; mean-field ADVI missed.",
     "The transponder causes 90% of the lander's failures."
    ],
-   "notes": "Return to the question: yes, forward, reliability, and risk came from one seeded study, the inverse result from a benchmark with an exact answer, and the systems result from an exact diagram. No new numbers here; each one appeared earlier. The next question is yours: which of your simulators would you declare first? Bridge: sources, then how to start."
+   "notes": "Return to the question: yes, forward, reliability, and risk came from one seeded study, the inverse result from a benchmark with an exact answer, and the systems result from an exact diagram. The inputs those questions start from are estimated by the statistical core, where partial pooling let a batch with 2 tests keep only 12% of its own deviation. No new numbers here; each one appeared earlier. The next question is yours: which of your simulators would you declare first? Bridge: sources, then how to start."
   },
   {
-   "id": "s14",
+   "id": "s16",
    "type": "kaynaklar",
    "kicker": "Sources",
    "headline": "Every method on these slides traces to a primary source",
@@ -267,14 +299,15 @@
      "Rockafellar, Uryasev (2000). Optimization of conditional value-at-risk. J. Risk.",
      "Kucukelbir et al. (2017). Automatic differentiation variational inference. JMLR.",
      "Bryant (1986). Graph-based algorithms for Boolean function manipulation. IEEE Trans. Comput.",
-     "Rausand, Høyland (2004). System reliability theory. Wiley."
+     "Rausand, Høyland (2004). System reliability theory. Wiley.",
+     "Henderson (1975). Best linear unbiased estimation and prediction under a selection model. Biometrics."
     ]
    },
    "bullets": [],
-   "notes": "These are the primary sources of the methods on the slides: FORM, the two SORM corrections, the Sobol total-effect estimator, scrambled nets, CVaR, ADVI, binary decision diagrams, and system reliability theory. Each has a key in the bibliography that the code cites in its docstrings, and every equation the code evaluates has an identifier in the registry. Bridge: how to start."
+   "notes": "These are the primary sources of the methods on the slides: FORM, the two SORM corrections, the Sobol total-effect estimator, scrambled nets, CVaR, ADVI, binary decision diagrams, system reliability theory, and best linear unbiased prediction in mixed models. Each has a key in the bibliography that the code cites in its docstrings, and every equation the code evaluates has an identifier in the registry. Bridge: how to start."
   },
   {
-   "id": "s15",
+   "id": "s17",
    "type": "kapanis",
    "kicker": "Questions welcome",
    "headline": "One model answers every question: start with three commands",
@@ -285,7 +318,7 @@
    "notes": "Close on the claim and leave this slide up during questions. The third command runs a complete study on a cantilever beam and writes its report and figures; the learning paths order every guide with its laboratory. The core library needs nothing beyond the Python standard library; Matplotlib is only for figures."
   },
   {
-   "id": "s16",
+   "id": "s18",
    "type": "ek",
    "kicker": "Appendix · backup slide",
    "headline": "Sampling methods report their spread; analytic ones need no seed",

@@ -140,7 +140,8 @@ table.kiyas td:first-child { color: var(--color-muted); }
 .grafik-govde img { display: block; width: 1728px; height: auto; }
 .okuma { margin: 0; color: var(--color-muted); }
 .okuma b { color: var(--color-ink); font-weight: 600; }
-.koyu-gorsel { display: none; }
+/* scoped to the chart body so it outranks `.grafik-govde img` (display: block) in light mode */
+.grafik-govde .koyu-gorsel { display: none; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .acik-gorsel { display: none; }
   :root:not([data-theme="light"]) .koyu-gorsel { display: block; }

@@ -109,24 +109,23 @@ def count_tests(root: Path = ROOT) -> int:
     return total
 
 
-def _central_model_questions(root: Path) -> int:
-    """Count the questions of the central-model table in ``docs/architecture.md``.
+def _question_rows(path: Path, header: str) -> int:
+    """Count the rows of a Markdown question table.
 
     Args:
-        root: Repository root.
+        path: Markdown file.
+        header: Start of the table's header line.
 
     Returns:
-        Number of table rows between the ``| Question | Call |`` header and
-        the next blank line.
+        Number of table rows between the header (and its rule line) and the
+        next line that does not start with ``|``.
 
     References:
         [REF-PROBSTAT-API]. No mathematical equation is evaluated.
 
     """
-    lines = (root / "docs" / "architecture.md").read_text(encoding="utf-8").splitlines()
-    start = next(
-        i for i, line in enumerate(lines) if line.startswith("| Question | Call |")
-    )
+    lines = path.read_text(encoding="utf-8").splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith(header))
     rows = 0
     for line in lines[start + 2 :]:
         if not line.startswith("|"):
@@ -143,8 +142,9 @@ def repository_counts(root: Path = ROOT) -> dict[str, Any]:
 
     Returns:
         Floors of the test, equation, reference, and ADR counts, the number
-        of central-model questions, top-level packages, runtime
-        dependencies, and the CI Python versions.
+        of central-model questions and of applied-statistics questions
+        (README table), top-level packages, runtime dependencies, and the CI
+        Python versions.
 
     References:
         [REF-PROBSTAT-REPORTING], [REF-PYTHON-AST].
@@ -185,7 +185,12 @@ def repository_counts(root: Path = ROOT) -> dict[str, Any]:
         "equations_floor": _floor(equations, FLOORS["equations"]),
         "references_floor": _floor(references, FLOORS["references"]),
         "adrs_floor": _floor(adrs, FLOORS["adrs"]),
-        "questions": _central_model_questions(root),
+        "questions": _question_rows(
+            root / "docs" / "architecture.md", "| Question | Call |"
+        ),
+        "statistics_questions": _question_rows(
+            root / "README.md", "| Question | Tools (`probstat.inference`"
+        ),
         "packages": packages,
         "runtime_dependencies": runtime,
         "labs": labs,
@@ -455,6 +460,102 @@ def mission_reliability() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
+# Partial pooling in a linear mixed model (applied statistics)
+# --------------------------------------------------------------------------
+
+# Strength tests per batch: unbalanced on purpose, so that the shrinkage of
+# each batch differs. The between- and within-batch spreads split the total
+# standard deviation of the quick-start strength input (0.4 kN).
+POOLING_SIZES = (2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 25, 30)
+POOLING_MEAN = 4.0
+POOLING_BETWEEN = 0.15
+POOLING_WITHIN = 0.37
+
+
+def partial_pooling() -> dict[str, Any]:
+    """Fit a random batch intercept to seeded strength tests and read the shrinkage.
+
+    Twelve batches with 2 to 30 tests are drawn from the stream
+    ``resolve_stream(2026).child("pooling")``: a batch effect
+    ``N(0, 0.15^2)`` kN and test noise ``N(0, 0.37^2)`` kN around 4.0 kN.
+    ``fit_linear_mixed_model`` (REML) estimates the intercept ``mu``, the
+    between-batch ``sigma_b``, and the within-batch ``sigma``. In this model
+    the BLUP of batch ``j`` is its raw deviation ``ybar_j - mu`` times the
+    closed-form share ``k(m) = m sigma_b^2 / (m sigma_b^2 + sigma^2)``; the
+    data record both the fitted ratio and ``k(m)`` per batch and whether they
+    agree to ``1e-9``.
+
+    Returns:
+        Pooling section of the deck data.
+
+    References:
+        [EQ-LMM-004], [EQ-LMM-005], [REF-HENDERSON-1975],
+        [REF-PATTERSON-THOMPSON-1971], [REF-BATES-ETAL-2015].
+
+    """
+    from probstat.foundations import resolve_stream
+    from probstat.inference import fit_linear_mixed_model, random_effect
+
+    generator = resolve_stream(SEED).child("pooling").generator()
+    batch: list[int] = []
+    strength: list[float] = []
+    for index, size in enumerate(POOLING_SIZES):
+        effect = generator.gauss(0.0, POOLING_BETWEEN)
+        for _ in range(size):
+            batch.append(index)
+            strength.append(
+                POOLING_MEAN + effect + generator.gauss(0.0, POOLING_WITHIN)
+            )
+    fit = fit_linear_mixed_model(
+        [[1.0]] * len(strength), strength, random_effect(batch, name="batch")
+    )
+    intercept = fit.coefficients[0]
+    between = fit.variance_components[0].standard_deviations[0]
+    within = fit.residual_sd
+    estimates = fit.random_effects[0]
+    rows: dict[str, dict[str, Any]] = {}
+    gap = 0.0
+    for level, values in zip(estimates.levels, estimates.values, strict=True):
+        index = int(level)
+        size = POOLING_SIZES[index]
+        tests = [y for y, b in zip(strength, batch, strict=True) if b == index]
+        raw = sum(tests) / len(tests) - intercept
+        kept = size * between**2 / (size * between**2 + within**2)
+        ratio = values[0] / raw
+        gap = max(gap, abs(ratio - kept))
+        rows[f"b{index + 1:02d}"] = {
+            "tests": size,
+            "raw": raw,
+            "blup": values[0],
+            "ratio": ratio,
+            "kept": kept,
+        }
+    first, last = rows["b01"], rows[f"b{len(POOLING_SIZES):02d}"]
+    return {
+        "seed": SEED,
+        "batches": len(POOLING_SIZES),
+        "tests": len(strength),
+        "true_mean": POOLING_MEAN,
+        "true_between": POOLING_BETWEEN,
+        "true_within": POOLING_WITHIN,
+        "true_total_sd": math.hypot(POOLING_BETWEEN, POOLING_WITHIN),
+        "method": fit.method,
+        "converged": fit.converged,
+        "singular": fit.singular,
+        "intercept": intercept,
+        "between": between,
+        "within": within,
+        "smallest": first["tests"],
+        "largest": last["tests"],
+        "kept_smallest": first["kept"],
+        "kept_largest": last["kept"],
+        "half_tests": (within / between) ** 2,
+        "blups_match_closed_form": gap < 1e-9,
+        "batch": rows,
+    }
+
+
+# --------------------------------------------------------------------------
 # Benchmarks (benchmarks/results/quick.json)
 # --------------------------------------------------------------------------
 
@@ -559,9 +660,10 @@ def build_data() -> dict[str, Any]:
 
     Returns:
         The deck data: ``meta``, ``repository``, ``study``, ``mission``,
-        ``benchmark`` and ``stochastic`` (dotted key to the error scale used
-        to compare a fresh run with the stored file: the Monte Carlo standard
-        error, or the absolute scale of a difference of nearly equal numbers).
+        ``pooling``, ``benchmark`` and ``stochastic`` (dotted key to the error
+        scale used to compare a fresh run with the stored file: the Monte Carlo
+        standard error, or the absolute scale of a difference of nearly equal
+        numbers).
 
     References:
         [REF-PROBSTAT-REPORTING].
@@ -575,6 +677,7 @@ def build_data() -> dict[str, Any]:
         "repository": repository_counts(),
         "study": study,
         "mission": mission_reliability(),
+        "pooling": partial_pooling(),
         "benchmark": benchmark_highlights(),
         "stochastic": dict(sorted(errors.items())),
     }
@@ -1065,6 +1168,8 @@ def evidence_ledger(data: Mapping[str, Any]) -> dict[str, Any]:
             "examples/mission_systems_lab.py",
         ),
         ("src-arch", "Architecture: central-model questions", "docs/architecture.md"),
+        ("src-stats", "README: applied-statistics questions", "README.md"),
+        ("src-mixed", "Mixed-models guide", "docs/foundations/mixed-models.md"),
         ("src-registry", "Equation registry", "docs/equation-registry.md"),
         ("src-refs", "Bibliography", "docs/references.md"),
         ("src-adr", "Architecture decision records", "docs/adr"),
@@ -1072,6 +1177,7 @@ def evidence_ledger(data: Mapping[str, Any]) -> dict[str, Any]:
         ("src-ci", "Continuous integration workflow", ".github/workflows/ci.yml"),
     ]
     study, mission, bench = data["study"], data["mission"], data["benchmark"]
+    pooling = data["pooling"]
     claims = [
         (
             "questions",
@@ -1134,6 +1240,21 @@ def evidence_ledger(data: Mapping[str, Any]) -> dict[str, Any]:
             ["src-mission", "src-tool"],
         ),
         (
+            "statistics-questions",
+            f"The applied-statistics core answers "
+            f"{data['repository']['statistics_questions']} questions about data",
+            "background",
+            ["src-stats"],
+        ),
+        (
+            "pooling",
+            f"A batch with {pooling['smallest']} tests keeps "
+            f"{pooling['kept_smallest']:.0%} of its raw deviation as its BLUP, "
+            f"one with {pooling['largest']} tests {pooling['kept_largest']:.0%}",
+            "observation",
+            ["src-tool", "src-mixed"],
+        ),
+        (
             "sampling",
             "Scrambled Sobol' points cut the Ishigami mean error "
             f"{bench['sampling_gain']:.0f}-fold",
@@ -1151,6 +1272,14 @@ def evidence_ledger(data: Mapping[str, Any]) -> dict[str, Any]:
             "FORM does not solve the four-branch system benchmark",
             "limitation",
             ["src-bench"],
+        ),
+        (
+            "pooling-simulated",
+            "The pooling batches are simulated; REML estimates sigma_b at "
+            f"{pooling['between']:.2f} kN against a true "
+            f"{pooling['true_between']:.2f} kN",
+            "limitation",
+            ["src-tool"],
         ),
     ]
     return {
@@ -1195,7 +1324,8 @@ def evidence_ledger(data: Mapping[str, Any]) -> dict[str, Any]:
 # Figures (Matplotlib + datawiz, slide size)
 # --------------------------------------------------------------------------
 
-CHARTS = ("reliability", "calibration", "mission", "sampling")
+CHARTS = ("reliability", "calibration", "mission", "pooling", "sampling")
+LINE_CHARTS = frozenset({"pooling"})
 
 LABELS = {
     "en": {
@@ -1205,6 +1335,12 @@ LABELS = {
         "sd_error": "Error of the posterior standard deviation (%)",
         "criticality": "Criticality importance (%)",
         "mean_error": "Error of the mean, {n} runs (%)",
+        "kept": "Share of the raw deviation kept (%)",
+        "tests": "Strength tests in the batch",
+        "no_pooling": "no pooling: the batch's own mean",
+        "complete_pooling": "complete pooling: the overall mean",
+        "curve": r"closed form $m\sigma_b^2\,/\,(m\sigma_b^2+\sigma^2)$",
+        "endpoint": "{n} tests: {v}",
         "methods": {
             "form": "FORM",
             "sorm_breitung": "SORM (Breitung)",
@@ -1242,6 +1378,12 @@ LABELS = {
         "sd_error": "Sonsal standart sapmanın hatası (%)",
         "criticality": "Kritiklik önemi (%)",
         "mean_error": "Ortalamanın hatası, {n} koşu (%)",
+        "kept": "Ham sapmadan kalan pay (%)",
+        "tests": "Partideki dayanım testi sayısı",
+        "no_pooling": "havuzlama yok: partinin kendi ortalaması",
+        "complete_pooling": "tam havuzlama: genel ortalama",
+        "curve": r"kapalı biçim $m\sigma_b^2\,/\,(m\sigma_b^2+\sigma^2)$",
+        "endpoint": "{n} test: {v}",
         "methods": {
             "form": "FORM",
             "sorm_breitung": "SORM (Breitung)",
@@ -1477,10 +1619,108 @@ def _chart_sampling(ax: Any, data: Mapping[str, Any], lang: str, palette: Any) -
     )
 
 
+def _chart_pooling(ax: Any, data: Mapping[str, Any], lang: str, palette: Any) -> None:
+    """Share of each batch's raw deviation kept by its BLUP, against batch size.
+
+    The line is the closed-form share ``m sigma_b^2 / (m sigma_b^2 +
+    sigma^2)`` at the REML estimates; the dots are the fitted BLUPs divided
+    by the raw deviations. No pooling keeps 100%, complete pooling 0%.
+
+    References:
+        [EQ-LMM-005], [REF-HENDERSON-1975]. No new equation is evaluated.
+
+    """
+    words = LABELS[lang]
+    pool = data["pooling"]
+    between2, within2 = pool["between"] ** 2, pool["within"] ** 2
+    top = pool["largest"] + 2
+    grid = [0.5 + 0.25 * i for i in range(int(4 * (top - 0.5)) + 1)]
+    ax.plot(
+        grid,
+        [100.0 * m * between2 / (m * between2 + within2) for m in grid],
+        color=palette.model,
+        lw=3.0,
+        zorder=2,
+    )
+    ends = (pool["smallest"], pool["largest"])
+    for row in pool["batch"].values():
+        focus = row["tests"] in ends
+        ax.plot(
+            row["tests"],
+            100.0 * row["ratio"],
+            "o",
+            ms=14 if focus else 11,
+            color=palette.observed if focus else palette.muted,
+            mec=palette.canvas,
+            mew=2.0,
+            zorder=3,
+        )
+    # The two pooling extremes: 100% (no pooling, dashed reference) and 0%
+    # (complete pooling, a solid baseline), each labelled at the right end.
+    ax.axhline(100.0, color=palette.accent, lw=2.0, ls=(0, (3.5, 3.0)), zorder=1)
+    ax.axhline(0.0, color=palette.muted, lw=2.0, zorder=1)
+    for share, label, color in (
+        (100.0, words["no_pooling"], palette.accent),
+        (0.0, words["complete_pooling"], palette.muted),
+    ):
+        ax.annotate(
+            label,
+            (top, share),
+            xytext=(0, 12),
+            textcoords="offset points",
+            ha="right",
+            va="bottom",
+            color=color,
+        )
+    # The curve label sits just above the curve in its colour; the small
+    # batch's label needs a leader because its dot is crowded by neighbours.
+    ax.text(7.5, 64.0, words["curve"], ha="left", va="bottom", color=palette.model)
+    leader = {"arrowstyle": "-", "color": palette.observed, "lw": 1.5}
+    small, large = pool["kept_smallest"], pool["kept_largest"]
+    for size, share, anchor, align, arrow in (
+        (
+            ends[0],
+            small,
+            (0.6, 46.0),
+            "left",
+            leader | {"shrinkA": 10.0, "shrinkB": 10.0},
+        ),
+        (ends[1], large, (top, 34.0), "right", None),
+    ):
+        ax.annotate(
+            words["endpoint"].format(
+                n=format_value(size, "int", lang), v=format_value(share, "pct0", lang)
+            ),
+            (size, 100.0 * share),
+            xytext=anchor,
+            textcoords="data",
+            ha=align,
+            va="bottom",
+            color=palette.observed,
+            fontweight="bold",
+            arrowprops=arrow,
+        )
+    # A canvas-coloured halo keeps the gridlines from running through labels.
+    from matplotlib.patheffects import withStroke
+
+    for text in ax.texts:
+        text.set_path_effects([withStroke(linewidth=8.0, foreground=palette.canvas)])
+    ax.set_xlim(0.0, top)
+    ax.set_ylim(-4.0, 122.0)
+    ax.set_yticks([0, 25, 50, 75, 100])
+    ax.set_xlabel(words["tests"])
+    ax.set_ylabel(words["kept"])
+    ax.spines["bottom"].set_visible(False)
+    # Grid on the value axis (y) only, set by the caller; datawiz's own
+    # value-axis guess would grid x for this mixed line-and-dot chart.
+    ax._dw_izgara = "yok"
+
+
 DRAW: dict[str, Callable[[Any, Mapping[str, Any], str, Any], None]] = {
     "reliability": _chart_reliability,
     "calibration": _chart_calibration,
     "mission": _chart_mission,
+    "pooling": _chart_pooling,
     "sampling": _chart_sampling,
 }
 
@@ -1535,8 +1775,11 @@ def render_figures(data: Mapping[str, Any], out: Path = FIGURES) -> dict[str, An
                 fig.set_facecolor(palette.canvas)
                 ax.set_facecolor(palette.canvas)
                 DRAW[name](ax, data, lang, palette)
-                ax.grid(axis="y", visible=False)
-                ax.grid(axis="x", color=palette.rule, lw=0.8)
+                # Category charts grid the value axis (x); the pooling line
+                # chart reads its values on y.
+                value, category = ("y", "x") if name in LINE_CHARTS else ("x", "y")
+                ax.grid(axis=category, visible=False)
+                ax.grid(axis=value, color=palette.rule, lw=0.8)
                 ax.tick_params(axis="y", length=0)
                 ax.spines["left"].set_visible(False)
                 # sunumatik chart-aesthetics: no glow on data marks, so the datawiz
@@ -1602,6 +1845,7 @@ DECK_PLAN: dict[str, Any] = {
             "benchmarks/results/quick.json",
             "examples/mission_systems_lab.py",
             "docs/architecture.md",
+            "docs/foundations/mixed-models.md",
         ],
         "external_research_required": False,
     },
@@ -1655,6 +1899,17 @@ VISUAL_SPEC: dict[str, Any] = {
             "alt": "Criticality importance of the four most important blocks; "
             "the transponder dominates.",
             "data_sources": ["deck-data.json: mission.importance"],
+        },
+        {
+            "id": "pooling",
+            "question": "How much of its own deviation does a batch keep under "
+            "partial pooling, by number of tests?",
+            "type": "line (closed-form share) with fitted points and two "
+            "reference lines",
+            "units": "percent",
+            "alt": "Share of the raw batch deviation kept by the BLUP against "
+            "tests per batch; small batches keep little, large batches most.",
+            "data_sources": ["deck-data.json: pooling"],
         },
         {
             "id": "sampling",

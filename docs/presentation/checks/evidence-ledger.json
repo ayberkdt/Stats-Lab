@@ -94,6 +94,27 @@
    "notes": "value read from deck-data.json"
   },
   {
+   "id": "claim-statistics-questions",
+   "statement": "The applied-statistics core answers 9 questions about data",
+   "type": "background",
+   "source_ids": [
+    "src-stats"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
+   "id": "claim-pooling",
+   "statement": "A batch with 2 tests keeps 12% of its raw deviation as its BLUP, one with 30 tests 66%",
+   "type": "observation",
+   "source_ids": [
+    "src-tool",
+    "src-mixed"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
    "id": "claim-sampling",
    "statement": "Scrambled Sobol' points cut the Ishigami mean error 66-fold",
    "type": "observation",
@@ -123,6 +144,16 @@
    "type": "limitation",
    "source_ids": [
     "src-bench"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
+   "id": "claim-pooling-simulated",
+   "statement": "The pooling batches are simulated; REML estimates sigma_b at 0.11 kN against a true 0.15 kN",
+   "type": "limitation",
+   "source_ids": [
+    "src-tool"
    ],
    "status": "verified",
    "notes": "value read from deck-data.json"
@@ -166,6 +197,22 @@
    "title": "Architecture: central-model questions",
    "authors_or_institution": "Stats-Lab (probstat)",
    "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/docs/architecture.md",
+   "accessed_at": "2026-11-12",
+   "dataset_version": "0.20.0"
+  },
+  {
+   "id": "src-stats",
+   "title": "README: applied-statistics questions",
+   "authors_or_institution": "Stats-Lab (probstat)",
+   "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/README.md",
+   "accessed_at": "2026-11-12",
+   "dataset_version": "0.20.0"
+  },
+  {
+   "id": "src-mixed",
+   "title": "Mixed-models guide",
+   "authors_or_institution": "Stats-Lab (probstat)",
+   "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/docs/foundations/mixed-models.md",
    "accessed_at": "2026-11-12",
    "dataset_version": "0.20.0"
   },
@@ -231,6 +278,15 @@
   },
   {
    "id": "figure-mission",
+   "source_id": "src-tool",
+   "creator": "Stats-Lab (probstat)",
+   "license": "BSD-3-Clause",
+   "credit_line": "Drawn from deck-data.json",
+   "transformations": [],
+   "reuse_status": "verified"
+  },
+  {
+   "id": "figure-pooling",
    "source_id": "src-tool",
    "creator": "Stats-Lab (probstat)",
    "license": "BSD-3-Clause",

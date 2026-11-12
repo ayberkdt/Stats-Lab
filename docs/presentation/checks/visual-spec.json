@@ -31,6 +31,16 @@
    ]
   },
   {
+   "id": "pooling",
+   "question": "How much of its own deviation does a batch keep under partial pooling, by number of tests?",
+   "type": "line (closed-form share) with fitted points and two reference lines",
+   "units": "percent",
+   "alt": "Share of the raw batch deviation kept by the BLUP against tests per batch; small batches keep little, large batches most.",
+   "data_sources": [
+    "deck-data.json: pooling"
+   ]
+  },
+  {
    "id": "sampling",
    "question": "How much does the sampling design change the error at equal cost?",
    "type": "horizontal bars, one highlighted",

@@ -59,6 +59,26 @@
   "warnings": 0,
   "rules": []
  },
+ "pooling-en-light": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "pooling-en-dark": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "pooling-tr-light": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "pooling-tr-dark": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
  "sampling-en-light": {
   "errors": 0,
   "warnings": 0,
