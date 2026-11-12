@@ -43,9 +43,12 @@ class GivenDataSensitivityResult:
         first_order: Bias-corrected estimates
             ``1 - (n - 1)/(n - M) SSW / SST``.
         first_order_raw: Uncorrected correlation ratios ``SSB / SST``.
-        partitions: Number of classes ``M``.
+        partitions: Requested number of classes ``M``.
         sample_size: Number of rows ``n``.
         output_variance: Sample variance of the output (divisor ``n - 1``).
+        classes_used: Non-empty classes ``M_i`` per input; smaller than ``M``
+            when tied input values (a discrete input) are kept in one class.
+            Empty when not recorded.
 
     References:
         [REF-PLISCHKE-BORGONOVO-SMITH-2013], [REF-KELLEY-1935].
@@ -58,6 +61,7 @@ class GivenDataSensitivityResult:
     partitions: int
     sample_size: int
     output_variance: float
+    classes_used: tuple[int, ...] = ()
 
     def as_mapping(self) -> Mapping[str, float]:
         """Return ``input -> corrected first-order index``.
@@ -78,12 +82,14 @@ def given_data_first_order(
 ) -> GivenDataSensitivityResult:
     """Estimate first-order indices from an existing input-output sample.
 
-    For input ``i``, the rows are sorted by ``x_i`` (ties keep their sample
-    order) and cut into ``M`` consecutive classes whose sizes differ by at
-    most one. With class means ``ybar_m``, sizes ``n_m``,
+    For input ``i``, the rows are sorted by ``x_i`` and cut into ``M``
+    consecutive classes whose sizes differ by at most one. Tied values of
+    ``x_i`` (a discrete or rounded input) are never split: a cut inside a run
+    of ties moves to the end of the run, so ``M_i <= M`` classes remain
+    (``classes_used``). With class means ``ybar_m``, sizes ``n_m``,
     ``SSB = sum_m n_m (ybar_m - ybar)^2``, ``SST = sum_k (y_k - ybar)^2`` and
     ``SSW = SST - SSB``, the raw estimate is ``SSB / SST`` and the corrected
-    one ``1 - (n - 1)/(n - M) SSW / SST``.
+    one ``1 - (n - 1)/(n - M_i) SSW / SST``.
 
     Args:
         inputs: ``n`` rows of ``d`` input values.
@@ -135,18 +141,32 @@ def given_data_first_order(
         raise ValueError("the output is constant; indices are undefined")
     raw: list[float] = []
     corrected: list[float] = []
+    used: list[int] = []
     for i in range(dimension):
         order = sorted(range(n), key=lambda k: rows[k][i])
-        between = 0.0
+        # A class boundary inside a run of tied values would split rows with
+        # the same x_i (and the same E[Y | X_i]) across two classes, which
+        # biases the index downwards for discrete inputs; such a boundary is
+        # moved to the end of the run, so tied rows always share a class.
+        edges = [0]
+        for m in range(1, classes):
+            edge = m * n // classes
+            while edge < n and rows[order[edge]][i] == rows[order[edge - 1]][i]:
+                edge += 1
+            if edges[-1] < edge < n:
+                edges.append(edge)
+        edges.append(n)
         terms: list[float] = []
-        for m in range(classes):
-            members = order[m * n // classes : (m + 1) * n // classes]
+        for start, stop in zip(edges, edges[1:], strict=False):
+            members = order[start:stop]
             class_mean = math.fsum(y[k] for k in members) / len(members)
             terms.append(len(members) * (class_mean - mean) ** 2)
+        count = len(terms)
         between = math.fsum(terms)
         within = total - between
         raw.append(between / total)
-        corrected.append(1.0 - (n - 1) / (n - classes) * within / total)
+        corrected.append(1.0 - (n - 1) / (n - count) * within / total)
+        used.append(count)
     return GivenDataSensitivityResult(
-        labels, tuple(corrected), tuple(raw), classes, n, total / (n - 1)
+        labels, tuple(corrected), tuple(raw), classes, n, total / (n - 1), tuple(used)
     )
