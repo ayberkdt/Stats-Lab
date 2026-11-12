@@ -9,7 +9,7 @@
   "figure_text_floor_pt": 9.0,
   "tests_floor": 2400,
   "equations_floor": 1100,
-  "references_floor": 600,
+  "references_floor": 650,
   "adrs_floor": 100,
   "questions": 8,
   "packages": 33,
