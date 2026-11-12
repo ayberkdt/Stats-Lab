@@ -129,10 +129,13 @@ the public names are the ones a package re-exports.
   `gpd`, `gumbel`, `hypergeometric`, `laplace`, `logistic`, `lognormal`,
   `negative_binomial`, `normal`, `pareto`, `pert`, `poisson`, `rayleigh`,
   `student_t`, `triangular`, `truncated_normal`, `uniform`, `weibull`. The
-  composite constructions `Affine`, `Mixture`, and `Truncated` live in
-  `wrappers`; supports and parameter constraints in `support` and
-  `constraints`; shared numerical kernels in the private `_base`,
-  `_continuous`, and `_special`.
+  composite constructions live one per module as well, `Affine` in
+  `affine`, `Mixture` in `mixture`, and `Truncated` in `truncated`, with
+  their shared dispatch helpers in the private `_wrapped` (ADR-0090);
+  supports and parameter constraints in `support` and `constraints`; shared
+  numerical kernels in the private `_base`, `_continuous`, and `_special`;
+  the automatic-differentiation helpers of the log-densities in the private
+  `_autodiff` (ADR-0090).
 - `workflow.study` is a subpackage that composes `UQStudy` from one mixin
   per stage domain:
 

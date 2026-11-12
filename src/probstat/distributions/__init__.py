@@ -21,6 +21,7 @@ derivative was silently dropped. Integer parameters (counts, trials,
 """
 
 from ._base import ContinuousDistribution, DiscreteDistribution
+from .affine import Affine
 from .bernoulli import Bernoulli
 from .beta import Beta
 from .binomial import Binomial
@@ -40,6 +41,7 @@ from .hypergeometric import Hypergeometric
 from .laplace import Laplace
 from .logistic import Logistic
 from .lognormal import LogNormal
+from .mixture import Mixture
 from .negative_binomial import NegativeBinomial
 from .normal import Normal
 from .pareto import Pareto
@@ -49,10 +51,10 @@ from .rayleigh import Rayleigh
 from .student_t import StudentT
 from .support import FiniteSupport, IntegerSupport, RealSupport
 from .triangular import Triangular
+from .truncated import Truncated
 from .truncated_normal import TruncatedNormal
 from .uniform import Uniform
 from .weibull import Weibull
-from .wrappers import Affine, Mixture, Truncated
 
 __all__ = [
     "Affine",
