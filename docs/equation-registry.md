@@ -14832,3 +14832,183 @@ segment, `d = 1` (mean or variance) or `2` (both). Robust noise scale:
 - Code: `timeseries.pelt`, `timeseries.robust_noise_variance`.
 - Source: [REF-KILLICK-ECKLEY-2014], [REF-ZHANG-SIEGMUND-2007],
   [REF-HAMPEL-1974].
+
+### EQ-LMM-001 — Linear mixed model with a relative covariance factor
+
+`y | b ~ N(X beta + Z b, sigma^2 I_n)`, `b = Lambda_theta u`,
+`u ~ N(0, sigma^2 I_q)`, so `Var(b) = sigma^2 Lambda_theta Lambda_theta'`
+and `Var(y) = sigma^2 (I_n + Z Lambda Lambda' Z')`; `Lambda_theta` is block
+diagonal with one lower-triangular `r_k x r_k` block `T_k` per level of
+term `k`, and `theta` stacks the lower triangle of each `T_k` column by
+column.
+
+- Domain: `n > p`; each term has `l_k >= 2` levels and `l_k r_k < n`;
+  `T_k T_k'` is positive semidefinite for every real `theta` (a negated
+  column of `T_k` gives the same model, so the reported `theta` has a
+  non-negative diagonal).
+- Meaning: random intercepts and correlated random slopes per grouping
+  factor, independent between terms; nested factors are terms on the
+  (outer, inner) label and uncorrelated slopes are separate terms on the
+  same factor. A zero diagonal of `T_k` is a boundary (singular) fit.
+- Code: `inference.random_effect`, `inference.RandomEffectTerm`,
+  `inference.fit_linear_mixed_model`.
+- Source: [REF-BATES-ETAL-2015, Sections 2.1-3.1], [REF-LAIRD-WARE-1982].
+
+### EQ-LMM-002 — Penalized least squares by block Cholesky
+
+`L L' = Lambda' Z' Z Lambda + I`, `c_u = L^-1 Lambda' Z' y`,
+`R_ZX = L^-1 Lambda' Z' X`, `R_X' R_X = X'X - R_ZX' R_ZX`,
+`beta_hat = (R_X' R_X)^-1 (X'y - R_ZX' c_u)`,
+`u_hat = L'^-1 (c_u - R_ZX beta_hat)`,
+`r^2(theta) = ||y - X beta_hat - Z Lambda u_hat||^2 + ||u_hat||^2`.
+
+- Domain: every `theta`; `Lambda' Z' Z Lambda + I` is positive definite and
+  `R_X` exists when `X` has full column rank.
+- Meaning: `(beta_hat, u_hat)` minimize the penalized residual sum of
+  squares for fixed `theta`, so `beta`, `u` and `sigma` are profiled out and
+  only `theta` is optimized. `L` is computed inside the envelope of the
+  matrix, so one grouping factor costs `O(l r^3)`.
+- Code: `inference.fit_linear_mixed_model`.
+- Source: [REF-BATES-ETAL-2015, Section 3.2], [REF-GOLUB-VANLOAN-2013,
+  Section 4.3].
+
+### EQ-LMM-003 — Profiled ML deviance
+
+`d(theta) = log |L_theta|^2 + n (1 + log(2 pi r^2(theta) / n))`,
+`sigma_hat^2 = r^2(theta_hat) / n`.
+
+- Domain: [EQ-LMM-002] with `r^2 > 0`.
+- Meaning: `-2` times the log-likelihood maximized over `beta` and `sigma`
+  for fixed `theta`; it is even in every column of every `T_k`, so
+  `theta_ii = 0` is a stationary point that may be a boundary minimum or a
+  saddle between mirror-image optima (the fit tests trial points to tell
+  them apart).
+- Code: `inference.fit_linear_mixed_model(method="ML")`.
+- Source: [REF-BATES-ETAL-2015, Section 3.4].
+
+### EQ-LMM-004 — Profiled REML deviance
+
+`d_R(theta) = log |L_theta|^2 + log |R_X|^2
++ (n - p) (1 + log(2 pi r^2(theta) / (n - p)))`,
+`sigma_hat^2 = r^2(theta_hat) / (n - p)`.
+
+- Domain: [EQ-LMM-002] with `n > p`.
+- Meaning: `-2` times the restricted (residual) log-likelihood
+  `-(1/2)[(n - p) log 2 pi + log|V| + log|X' V^-1 X| + r' V^-1 r]` profiled
+  over `sigma`; it accounts for the degrees of freedom spent on `beta`, so
+  REML variance components of balanced designs equal the ANOVA estimators,
+  but REML likelihoods of models with different `X` are not comparable.
+- Code: `inference.fit_linear_mixed_model(method="REML")`.
+- Source: [REF-PATTERSON-THOMPSON-1971], [REF-BATES-ETAL-2015,
+  Section 3.4].
+
+### EQ-LMM-005 — Fixed-effect covariance, conditional modes, and conditional variances
+
+`Cov(beta_hat) = sigma^2 (R_X' R_X)^-1 = sigma^2 (X' V^-1 X)^-1`,
+`b_hat = Lambda u_hat`, `Var(b | y) = sigma^2 Lambda (L L')^-1 Lambda'`.
+
+- Domain: [EQ-LMM-002] at `theta_hat`.
+- Meaning: `b_hat` is the BLUP `Sigma Z' V^-1 (y - X beta_hat)` of Henderson's
+  mixed-model equations; the conditional variance treats `theta`, `sigma`
+  and `beta` as known (the lme4 convention). For a balanced one-way layout
+  `b_i = m s_b^2 (ybar_i - beta) / (m s_b^2 + s^2)` and
+  `Var(b_i | y) = (1/s_b^2 + m/s^2)^-1`.
+- Code: `inference.LinearMixedModelResult.covariance`,
+  `inference.RandomEffectEstimates.values`,
+  `inference.RandomEffectEstimates.conditional_covariances`.
+- Source: [REF-HENDERSON-1975], [REF-BATES-ETAL-2015, Sections 3.5-3.6].
+
+### EQ-LMM-006 — Satterthwaite denominator degrees of freedom
+
+For a contrast `c`, `V(psi) = c' Cov(beta_hat; psi) c` with
+`psi = (theta, sigma)` and `Cov = sigma^2 (R_X' R_X)^-1(theta)`;
+`nu = 2 V(psi_hat)^2 / (g' A g)`, `g = dV/dpsi`, `A = 2 H^-1`, where `H` is
+the Hessian of the (REML or ML) deviance
+`log|L|^2 + r^2/sigma^2 + n log(2 pi sigma^2)
+[+ log|R_X|^2 - p log(2 pi sigma^2)]` at `psi_hat`; `t = c' beta_hat /
+sqrt(V)` is referred to Student t on `nu` df.
+
+- Domain: interior `psi_hat` with a positive-definite `H`; `nu` is reported
+  as `nan` otherwise. `H` and `g` are central differences.
+- Meaning: matches the first two moments of `V(psi_hat)` to a scaled
+  chi-square. When `Cov(beta)` is one mean square (balanced one-way, nested,
+  and random-coefficient designs) `nu` is that mean square's df, `a - 1`.
+- Code: `inference.LinearMixedModelResult.degrees_of_freedom`,
+  `inference.LinearMixedModelResult.test_contrast`.
+- Source: [REF-SATTERTHWAITE-1946], [REF-KUZNETSOVA-ETAL-2017, Section 3].
+
+### EQ-LMM-007 — Likelihood-ratio test with boundary and bootstrap references
+
+`T = 2 (l_full - l_reduced) >= 0`, `df = k_full - k_reduced`;
+`p = P(chi^2_df >= T)`, `p_mix = (1/2) P(chi^2_(df-1) >= T) + (1/2)
+P(chi^2_df >= T)` (`chi^2_0` a point mass at zero), and
+`p_boot = (1 + #{T*_b >= T}) / (B + 1)` with `T*_b` from `B` responses
+simulated from the reduced fit and refitted under both models.
+
+- Domain: nested models on the same response; REML only when both share
+  the fixed-effect design.
+- Meaning: a variance tested at zero lies on the boundary, where the
+  chi-square reference is conservative; `p_mix` is the Self-Liang /
+  Stram-Lee limit when the full model adds one random effect with its
+  covariances, and the parametric bootstrap estimates the finite-sample
+  null law in general.
+- Code: `inference.mixed_model_likelihood_ratio_test`.
+- Source: [REF-SELF-LIANG-1987], [REF-STRAM-LEE-1994],
+  [REF-EFRON-TIBSHIRANI-1993, Chapter 6].
+
+### EQ-LMM-008 — Balanced one-way random-effects ANOVA estimators
+
+With `a` groups of size `m`, `N = a m`, `MSA = SSA/(a - 1)`,
+`MSE = SSE/(a(m - 1))`: REML `sigma^2 = MSE`,
+`sigma_b^2 = (MSA - MSE)/m` when `MSA > MSE`, else `sigma_b^2 = 0`,
+`sigma^2 = (SSA + SSE)/(N - 1)`; ML `sigma^2 = MSE`,
+`sigma_b^2 = (SSA/a - MSE)/m` when positive, else `sigma_b^2 = 0`,
+`sigma^2 = (SSA + SSE)/N`; `Var(beta_hat) = (sigma^2 + m sigma_b^2)/N`.
+
+- Domain: balanced data, one random intercept, `X = 1`.
+- Meaning: closed forms reproduced by the profiled deviances; the boundary
+  occurs exactly when the ANOVA solution is negative. Under the null
+  `sigma_b = 0`, `MSA/MSE ~ F(a - 1, a(m - 1))`, so the ML estimate is zero
+  with probability `P(F <= a/(a - 1))`.
+- Code: `inference.fit_linear_mixed_model`,
+  `tests/test_mixed_models.py::OneWayClosedFormTests`.
+- Source: [REF-SEARLE-CASELLA-MCCULLOCH-1992, Chapters 3-4].
+
+### EQ-GLMM-001 — Laplace approximation by penalized IRLS
+
+`h(u) = sum_i log p(y_i | eta_i) - ||u||^2/2`,
+`eta = X beta + o + Z Lambda u`; the mode `u_hat` solves Newton steps
+`(Lambda' Z' D Z Lambda + I) delta = Lambda' Z' s - u` with
+`s_i = w_i (y_i - mu_i)` and `D_i = w_i V(mu_i)` (canonical links);
+`-2 log L ~= -2 sum_i log p(y_i | u_hat) + ||u_hat||^2 + log|L|^2`,
+`L L' = Lambda' Z' D(u_hat) Z Lambda + I`.
+
+- Domain: binomial with logit link (`y` a proportion, `w` trials) and
+  Poisson with log link; `u ~ N(0, I)`, `Var(b) = Lambda Lambda'`.
+- Meaning: second-order expansion of the integrand around its mode; the
+  error shrinks as the information per random effect grows and is largest
+  for small binomial clusters. `theta` and `beta` are optimized jointly and
+  `Cov(beta)` is the `beta` block of `2 H^-1`.
+- Code: `inference.fit_generalized_linear_mixed_model(method="laplace")`,
+  `inference.glmm_deviance`.
+- Source: [REF-BATES-ETAL-2015, Section 3], [REF-PINHEIRO-BATES-1995].
+
+### EQ-GLMM-002 — Adaptive Gauss-Hermite quadrature for a scalar random effect
+
+For group `j`, `h_j(u) = sum_(i in j) log p(y_i | x_i' beta + o_i + theta u)
+- u^2/2`, mode `u_j`, `s_j = (-h_j''(u_j))^(-1/2)`;
+`L_j ~= s_j sum_(k=1..K) (w_k e^(x_k^2) / sqrt(pi)) exp(h_j(u_j + sqrt(2)
+s_j x_k))` with Gauss-Hermite nodes `x_k` and weights `w_k` for
+`exp(-x^2)` (Golub-Welsch eigenvalues refined by Newton steps on the
+orthonormal Hermite polynomial, Christoffel weights
+`1 / sum_(j<K) h_j(x_k)^2`).
+
+- Domain: one random-effect term with one column (a random intercept),
+  `1 <= K <= 64`.
+- Meaning: the rule is centred and scaled at each group's mode, so it is
+  exact for a Gaussian integrand and converges quickly; `K = 1` is the
+  Laplace value `s_j exp(h_j(u_j))` of [EQ-GLMM-001].
+- Code: `inference.fit_generalized_linear_mixed_model(method="adaptive_quadrature")`,
+  `inference.glmm_deviance`, `inference.mixed_models._gauss_hermite`.
+- Source: [REF-LIU-PIERCE-1994], [REF-PINHEIRO-BATES-1995],
+  [REF-GOLUB-WELSCH-1969].

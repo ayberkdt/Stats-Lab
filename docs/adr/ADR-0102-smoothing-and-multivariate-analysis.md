@@ -96,7 +96,7 @@ guides whose quoted numbers are checked (ADR-0095).
   through Crossref except Lawley and Maxwell (1971), which has none and was
   checked against its library catalogue record.
 - Two guides, `docs/foundations/smoothing-and-additive-models.md` and
-  `docs/foundations/multivariate-analysis.md`, are steps S16 and S17 of the
+  `docs/foundations/multivariate-analysis.md`, are steps S17 and S18 of the
   statistics track. They have no laboratory; their numbers are asserted by
   the documentation-example test and the two test modules.
 - Costs measured on the development machine (pure Python): a REML

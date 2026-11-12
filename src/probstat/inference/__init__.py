@@ -14,6 +14,10 @@ Main entry points:
     ``adjust_p_values``: Bonferroni, Holm, BH, and BY adjustment.
     ``fit_linear_model``: OLS and WLS through Householder QR.
     ``fit_glm``: generalized linear models fitted by IRLS.
+    ``fit_linear_mixed_model``: linear mixed models by profiled ML or REML
+        with Satterthwaite t tests.
+    ``fit_generalized_linear_mixed_model``: binomial and Poisson mixed
+        models by Laplace or adaptive Gauss-Hermite quadrature.
     ``hierarchical_normal_posterior``: exact grid posterior of the normal
         hierarchical model.
     ``pool_estimates``: Rubin's rules for multiply imputed data.
@@ -33,8 +37,11 @@ Assumptions:
     Every test states its sampling model: t tests assume independent normal
     observations (normal differences when paired), rank and permutation
     tests assume exchangeability under the null, and chi-square references
-    are large-sample approximations. The bootstrap assumes independent,
-    identically distributed observations. GLM standard errors are
+    are large-sample approximations. Mixed-model variance components are
+    estimated on the boundary of their parameter space when the data favour
+    zero, and GLMM likelihoods are Laplace or quadrature approximations.
+    The bootstrap assumes independent, identically distributed
+    observations. GLM standard errors are
     large-sample Wald values. EM for incomplete data and multiple
     imputation assume data missing at random.
 
@@ -290,6 +297,21 @@ from .missing import (
     missing_pattern,
     pool_estimates,
     sample_inverse_wishart,
+)
+from .mixed_models import (
+    ContrastTest,
+    GeneralizedLinearMixedModelResult,
+    LinearMixedModelResult,
+    MixedModelConvergenceWarning,
+    MixedModelLikelihoodRatioTest,
+    RandomEffectEstimates,
+    RandomEffectTerm,
+    VarianceComponent,
+    fit_generalized_linear_mixed_model,
+    fit_linear_mixed_model,
+    glmm_deviance,
+    mixed_model_likelihood_ratio_test,
+    random_effect,
 )
 from .mixtures import (
     GaussianMixture,
@@ -667,4 +689,17 @@ __all__ = [
     "fit_pspline",
     "fit_smoothing_spline",
     "uniform_knots",
+    "ContrastTest",
+    "GeneralizedLinearMixedModelResult",
+    "LinearMixedModelResult",
+    "MixedModelConvergenceWarning",
+    "MixedModelLikelihoodRatioTest",
+    "RandomEffectEstimates",
+    "RandomEffectTerm",
+    "VarianceComponent",
+    "fit_generalized_linear_mixed_model",
+    "fit_linear_mixed_model",
+    "glmm_deviance",
+    "mixed_model_likelihood_ratio_test",
+    "random_effect",
 ]

@@ -83,7 +83,7 @@ one at the precision shown.
 | Check | Scale | Enforced by |
 |---|---|---|
 | Tests | 2,200+ test cases, run in CI on Python 3.11 to 3.13 with lint and strict type checks | [`tests/`](https://github.com/ayberkdt/Stats-Lab/tree/main/tests), [CI workflow](https://github.com/ayberkdt/Stats-Lab/blob/main/.github/workflows/ci.yml) |
-| Equations | 1,093 entries in the [equation registry](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/equation-registry.md), each with symbols, assumptions, and a code location | every docstring cites an `EQ-` or `REF-` key that must exist |
+| Equations | 1,103 entries in the [equation registry](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/equation-registry.md), each with symbols, assumptions, and a code location | every docstring cites an `EQ-` or `REF-` key that must exist |
 | Sources | 550+ primary sources in the [bibliography](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/references.md), each cited at least once | no unused or unknown reference key |
 | Decisions | 90+ decision records in [`docs/adr/`](https://github.com/ayberkdt/Stats-Lab/tree/main/docs/adr), each with its verification evidence | [contribution contract](https://github.com/ayberkdt/Stats-Lab/blob/main/CONTRIBUTING.md) |
 | Documentation | 50+ Markdown files whose Python examples run, with quoted values compared | [`tests/test_documentation_examples.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/test_documentation_examples.py) |
@@ -191,7 +191,7 @@ A package imports only from its own layer or a lower one, and the
 architecture test rejects every upward import and import cycle. The diagram
 is generated from that test's layer map by
 [`tools/build_readme_figures.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/tools/build_readme_figures.py).
-33 packages and 1,624 public names, all documented in the
+33 packages and 1,637 public names, all documented in the
 [API reference](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/api-reference.md).
 
 | Area | Packages | Highlights |
