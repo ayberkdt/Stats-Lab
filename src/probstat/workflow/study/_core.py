@@ -117,6 +117,7 @@ class UQStudy(
         self._active = None
         # Latest solution verification and its u_num, per QoI.
         self._verifications = {}
+        self._sobol_designs = {}
         self._budget = evaluation_budget
         self._cache = store
         self._executor = executor

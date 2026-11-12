@@ -26,6 +26,7 @@ from probstat.foundations.random_streams import RandomStream
 from probstat.inverse import CalibrationPosterior, CalibrationProblem
 from probstat.modeling import JointInput, ProbabilisticModel
 from probstat.propagation import PropagationStudy, propagate
+from probstat.sensitivity import MultiQuantitySobolResult
 from probstat.uq import (
     EvaluationBudgetExceeded,
     EvaluationCache,
@@ -152,6 +153,10 @@ class _StudyBase:
     _active: Literal["plain", "discrepancy"] | None
     # Latest solution verification and its u_num, per QoI.
     _verifications: dict[str, tuple[SolutionVerification, float]]
+    # Shared Sobol designs: (law hash, size, design, bootstrap) -> result, stream.
+    _sobol_designs: dict[
+        tuple[str, int, str, int], tuple[MultiQuantitySobolResult, RandomStream]
+    ]
     _budget: int | None
     _cache: EvaluationCache | None
     _executor: Executor | None
