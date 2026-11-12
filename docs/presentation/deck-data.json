@@ -7,10 +7,10 @@
  "repository": {
   "licence": "BSD-3-Clause",
   "figure_text_floor_pt": 9.0,
-  "tests_floor": 2100,
+  "tests_floor": 2200,
   "equations_floor": 1000,
   "references_floor": 550,
-  "adrs_floor": 80,
+  "adrs_floor": 90,
   "questions": 8,
   "packages": 33,
   "runtime_dependencies": 0,
