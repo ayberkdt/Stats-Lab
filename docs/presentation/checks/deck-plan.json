@@ -1,0 +1,50 @@
+{
+ "presentation": {
+  "title": "One probabilistic model answers every uncertainty question",
+  "purpose": "inform",
+  "venue": "library overview: talks, onboarding, README link",
+  "audience": "engineers and scientists who simulate under uncertainty",
+  "expertise": "mixed",
+  "duration_minutes": 15,
+  "density": "speaker-led",
+  "language": "en, tr",
+  "aspect_ratio": "16:9"
+ },
+ "sources": {
+  "authoritative_files": [
+   "docs/presentation/deck-data.json",
+   "README.md",
+   "benchmarks/results/quick.json",
+   "examples/mission_systems_lab.py",
+   "docs/architecture.md"
+  ],
+  "external_research_required": false
+ },
+ "design": {
+  "source": "generated",
+  "theme": "probstat PORCELAIN (light) / GRAPHITE (dark)"
+ },
+ "runtime": {
+  "profile": "static fixed-stage HTML, sunumatik deste-kabuk",
+  "offline_required": true
+ },
+ "content": {
+  "equations": false,
+  "data_visuals": true,
+  "speaker_notes": true
+ },
+ "deliverables": [
+  "html (en)",
+  "html (tr)",
+  "print to PDF from the runtime"
+ ],
+ "validation": {
+  "projector": true,
+  "accessibility": "WCAG-2.2-AA",
+  "evidence_traceability": true
+ },
+ "risks": [
+  "benchmark file recorded with an earlier release than the study",
+  "repository counts shown as floors; a crossed floor requires a rebuild"
+ ]
+}

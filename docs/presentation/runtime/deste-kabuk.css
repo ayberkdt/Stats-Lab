@@ -1,0 +1,260 @@
+/* Copied from sunumatik presets/core/deste-kabuk.css (commit d40d33c). Local change: the
+ * overview placeholder uses 17 px instead of 20 px, so the deck keeps eight type sizes in total. */
+/* DESTE KABUĞU — sahne iskeleti ve sahne dışı krom (deste-kabuk.mjs ile).
+ *
+ * Sahne: .dk-sahne 1920×1080, mutlak, transform-origin 0 0; slaytlar üst üste,
+ *        görünürlük + opaklık + işaretçi ile değişir (.etkin görünür); sunucu notu gizli.
+ * Krom:  .dk-kumanda .dk-menu .dk-ilerleme .dk-notlar .dk-bakis .dk-yardim .dk-yaklas-cip .dk-bildirim
+ *        hepsi position: fixed — sahnenin DIŞINDA, ekran boyutunda (fixed-stage-contract.md).
+ *
+ * Bütçeler (ux-yasalari; scripts/validate-deste-kabuk.mjs denetler):
+ *   Hick        kumandada ≤ 5 eylem: ‹ › Genel bakış Diğer▾ (+ sayaç); kalanı menüde
+ *   Fitts       her düğme ≥ 44×44 px
+ *   Von Restorff tek vurgu: birincil › düğmesi ve ilerleme çubuğu (--color-accent)
+ *   Benzerlik   ≤ 6 punto (14 · 15 · 17 · 20), hepsi ≥ 13 px; ≤ 2 yarıçap (8 · 12); ≤ 2 gölge (0 · 1)
+ *   Prägnanz    mat opak yüzeyler: cam (backdrop-filter / blur), ışıma (text-shadow), degrade YOK
+ *   Doherty     geçiş 240 ms; prefers-reduced-motion'da sıfır
+ * Renkler yalnız jetonlardan (palette-library.css), yedekleri graphite-ember.
+ * Jetonlar :root'ta DEĞİL krom öğelerinde çözülür: palet body[data-palette] üzerinde
+ * tanımlıysa :root yalnız varsayılan paleti görür ve panel açık krem kalırdı. */
+
+.dk-sahne, .dk-kumanda, .dk-menu, .dk-ilerleme, .dk-notlar, .dk-bakis, .dk-yardim, .dk-yaklas-cip, .dk-bildirim {
+  --dk-yuzey: var(--color-surface, #1e2026);
+  --dk-murekkep: var(--color-ink, #f1f0eb);
+  --dk-soluk: var(--color-muted, #a6a9b1);
+  --dk-vurgu: var(--color-accent, #e8804a);
+  --dk-vurgu-murekkep: var(--color-accent-ink, #1a120b);
+  --dk-cizgi: var(--color-rule, #303339);
+  --dk-tuval: var(--color-canvas, #141519);
+  --dk-yazi: "Segoe UI", system-ui, ui-sans-serif, sans-serif;
+  --dk-golge: 0 10px 28px rgba(0, 0, 0, .38);
+}
+
+/* ── sahne ───────────────────────────────────────────────────────────── */
+.dk-sahne {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  transform-origin: 0 0;
+  background: var(--color-canvas, #0f1013);
+  color: var(--color-ink, #f4eee1);
+}
+.dk-sahne > .slayt {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease, visibility 0s linear 240ms;
+}
+.dk-sahne > .slayt.etkin {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 240ms ease;
+}
+.dk-sahne .notlar { display: none; }
+
+/* yaklaştırma kipi: sahne dönüşümü yumuşak; slaytlar işaretçiyi sahneye bırakır (tıkla/sürükle) */
+.dk-sahne.dk-gecisli { transition: transform 240ms ease; }
+.dk-sahne.dk-yaklas { cursor: zoom-in; touch-action: none; }
+.dk-sahne.dk-yaklas > * { pointer-events: none; }
+.dk-sahne.dk-surukle { cursor: grabbing; transition: none; }
+
+/* ── ortak krom parçaları ────────────────────────────────────────────── */
+.dk-kumanda, .dk-menu, .dk-notlar, .dk-bakis, .dk-yardim, .dk-yaklas-cip, .dk-bildirim {
+  font: 500 15px/1.35 var(--dk-yazi);
+  color: var(--dk-murekkep);
+}
+.dk-kumanda button, .dk-menu button, .dk-bakis .dk-kapat, .dk-yardim button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--dk-cizgi);
+  border-radius: 8px;
+  background: var(--dk-yuzey);
+  color: var(--dk-murekkep);
+  font: inherit;
+  cursor: pointer;
+}
+.dk-kumanda button:hover, .dk-bakis .dk-kapat:hover, .dk-yardim button:hover { border-color: var(--dk-soluk); }
+.dk-kumanda button:disabled { opacity: .4; cursor: default; }
+.dk-kumanda button:focus-visible, .dk-menu button:focus-visible, .dk-bakis button:focus-visible, .dk-yardim button:focus-visible {
+  outline: 2px solid var(--dk-vurgu);
+  outline-offset: 2px;
+}
+
+/* ── kumanda çubuğu (sağ alt) ────────────────────────────────────────── */
+.dk-kumanda {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--dk-yuzey);
+  border: 1px solid var(--dk-cizgi);
+  transition: opacity 240ms ease;
+}
+.dk-kumanda.soluk { opacity: .15; }
+.dk-kumanda:hover, .dk-kumanda:focus-within { opacity: 1; }
+.dk-kumanda .dk-sayac { min-width: 72px; text-align: center; font-variant-numeric: tabular-nums; color: var(--dk-soluk); }
+.dk-kumanda button.birincil {
+  background: var(--dk-vurgu);
+  color: var(--dk-vurgu-murekkep);
+  border-color: var(--dk-vurgu);
+  font-weight: 700;
+}
+.dk-kumanda button[aria-pressed="true"] { background: var(--dk-murekkep); color: var(--dk-tuval); border-color: var(--dk-murekkep); }
+
+/* ── "Diğer" menüsü ──────────────────────────────────────────────────── */
+.dk-menu {
+  position: fixed;
+  right: 16px;
+  bottom: 76px;
+  z-index: 11;
+  display: grid;
+  min-width: 280px;
+  padding: 6px;
+  border-radius: 12px;
+  background: var(--dk-yuzey);
+  border: 1px solid var(--dk-cizgi);
+  box-shadow: var(--dk-golge);
+}
+.dk-menu[hidden] { display: none; }
+.dk-menu button { border: 0; background: none; text-align: left; white-space: pre; }
+.dk-menu button:hover, .dk-menu button:focus-visible { background: var(--dk-cizgi); outline: none; }
+
+/* ── ilerleme çubuğu (ekranın altı) ──────────────────────────────────── */
+.dk-ilerleme {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  z-index: 9;
+  height: 6px;
+  width: 0;
+  background: var(--dk-vurgu);
+  transition: width 240ms ease;
+}
+
+/* ── sunucu notları (sağ panel) ──────────────────────────────────────── */
+.dk-notlar {
+  position: fixed;
+  right: 16px;
+  top: 16px;
+  bottom: 84px;
+  z-index: 9;
+  width: min(420px, calc(100vw - 32px));
+  overflow: auto;
+  margin: 0;
+  padding: 18px 20px;
+  border-radius: 12px;
+  background: var(--dk-yuzey);
+  border: 1px solid var(--dk-cizgi);
+  box-shadow: var(--dk-golge);
+  font-size: 17px;
+  line-height: 1.55;
+}
+.dk-notlar[hidden] { display: none; }
+.dk-notlar b { display: block; margin-bottom: 10px; font-size: 14px; letter-spacing: .12em; text-transform: uppercase; color: var(--dk-soluk); }
+.dk-notlar p { margin: 0; }
+
+/* ── genel bakış ─────────────────────────────────────────────────────── */
+.dk-bakis {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow: auto;
+  padding: 24px;
+  background: var(--dk-tuval);
+}
+.dk-bakis[hidden] { display: none; }
+.dk-bakis > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+.dk-bakis > header h2 { margin: 0; font-size: 14px; letter-spacing: .12em; text-transform: uppercase; color: var(--dk-soluk); }
+.dk-kucukler {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(288px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dk-kucukler button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.dk-kucukler button[aria-current="true"] { border-color: var(--dk-murekkep); }
+.dk-kucukler button:hover .dk-kucuk-sahne { outline: 2px solid var(--dk-soluk); }
+.dk-kucuk-sahne { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px; background: var(--dk-yuzey); }
+.dk-kucuk-sahne .dk-sahne { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; transition: none; }
+.dk-kucuk-sahne .dk-sahne > * { visibility: visible; opacity: 1; transition: none; animation: none; }
+.dk-kucuk-sahne .dk-yer-tutucu { position: absolute; inset: 0; display: grid; place-items: center; padding: 120px; background: var(--dk-yuzey); color: var(--dk-soluk); font-size: 17px; text-align: center; }
+.dk-kucukler .dk-ad { display: block; padding: 8px 4px 0; font-size: 14px; color: var(--dk-soluk); }
+
+/* ── yardım penceresi ────────────────────────────────────────────────── */
+.dk-yardim {
+  width: min(560px, calc(100vw - 32px));
+  padding: 24px 28px 20px;
+  border: 1px solid var(--dk-cizgi);
+  border-radius: 12px;
+  background: var(--dk-yuzey);
+  color: var(--dk-murekkep);
+  box-shadow: var(--dk-golge);
+}
+.dk-yardim::backdrop { background: rgba(0, 0, 0, .6); }
+.dk-yardim h2 { margin: 0 0 4px; font-size: 14px; letter-spacing: .12em; text-transform: uppercase; color: var(--dk-soluk); }
+.dk-yardim .dk-yardim-deste { margin: 0 0 16px; font-size: 17px; font-weight: 600; }
+.dk-yardim table { width: 100%; border-collapse: collapse; margin-bottom: 18px; }
+.dk-yardim td { padding: 8px 0; border-bottom: 1px solid var(--dk-cizgi); vertical-align: top; }
+.dk-yardim td:last-child { text-align: right; white-space: pre; font-variant-numeric: tabular-nums; color: var(--dk-soluk); }
+.dk-yardim button { display: block; margin-left: auto; }
+
+/* ── yaklaştırma çipi ve bildirim ───────────────────────────────────── */
+.dk-yaklas-cip, .dk-bildirim {
+  position: fixed;
+  left: 50%;
+  z-index: 12;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--dk-yuzey);
+  border: 1px solid var(--dk-cizgi);
+  white-space: nowrap;
+}
+.dk-yaklas-cip { top: 16px; color: var(--dk-soluk); }
+.dk-bildirim { bottom: 84px; font-weight: 600; }
+.dk-yaklas-cip[hidden], .dk-bildirim[hidden] { display: none; }
+
+/* ── kipler ─────────────────────────────────────────────────────────── */
+html[data-export="true"] .dk-kumanda, html[data-export="true"] .dk-menu, html[data-export="true"] .dk-ilerleme,
+html[data-export="true"] .dk-notlar, html[data-export="true"] .dk-bakis, html[data-export="true"] .dk-yardim,
+html[data-export="true"] .dk-yaklas-cip, html[data-export="true"] .dk-bildirim { display: none !important; }
+html[data-export="true"] .dk-sahne > .slayt, html[data-export="true"] .dk-sahne { transition: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .dk-sahne, .dk-sahne > .slayt, .dk-sahne > .slayt.etkin, .dk-kumanda, .dk-ilerleme { transition: none !important; }
+}
+
+@media print {
+  @page { size: 1920px 1080px; margin: 0; }
+  html, body { overflow: visible; height: auto; background: none; }
+  .dk-sahne { position: relative; transform: none !important; height: auto; overflow: visible; }
+  .dk-sahne > .slayt { position: relative; height: 1080px; visibility: visible; opacity: 1; break-after: page; transition: none; }
+  .dk-kumanda, .dk-menu, .dk-ilerleme, .dk-notlar, .dk-bakis, .dk-yardim, .dk-yaklas-cip, .dk-bildirim { display: none !important; }
+}

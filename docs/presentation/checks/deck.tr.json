@@ -1,0 +1,239 @@
+{
+ "metadata": {
+  "title": "Stats-Lab genel bakış",
+  "language": "tr"
+ },
+ "slides": [
+  {
+   "id": "s1",
+   "role": "kapak",
+   "headline": "Tek olasılık modeli her belirsizlik sorusunu yanıtlıyor",
+   "evidence_ids": [
+    "meta.probstat_version",
+    "repository.licence",
+    "repository.runtime_dependencies"
+   ],
+   "visual_ids": []
+  },
+  {
+   "id": "s2",
+   "role": "baglam",
+   "headline": "Tek bir benzetim 8 farklı belirsizlik sorusu doğuruyor",
+   "evidence_ids": [
+    "repository.questions"
+   ],
+   "visual_ids": []
+  },
+  {
+   "id": "s3",
+   "role": "soru",
+   "headline": "Tek model nesnesi her soruyu tek tohumdan yanıtlayabilir mi?",
+   "evidence_ids": [],
+   "visual_ids": []
+  },
+  {
+   "id": "s4",
+   "role": "yontem",
+   "headline": "Dört tanım bir benzetimi bir çalışmaya dönüştürüyor",
+   "evidence_ids": [
+    "study.seed"
+   ],
+   "visual_ids": []
+  },
+  {
+   "id": "s5",
+   "role": "karsilastirma",
+   "headline": "Tek tohumlu çalışma dört soruyu 42.048 model koşusunda yanıtladı",
+   "evidence_ids": [
+    "study.forward.evaluations",
+    "study.forward.q05",
+    "study.forward.quantile_level",
+    "study.forward.samples",
+    "study.reliability.evaluations",
+    "study.reliability.methods.sorm_hr.probability",
+    "study.reliability.methods_count",
+    "study.reliability.reference",
+    "study.risk.cvar99",
+    "study.risk.evaluations",
+    "study.risk.level",
+    "study.risk.loss_rate",
+    "study.seed",
+    "study.sensitivity.evaluations",
+    "study.sensitivity.second",
+    "study.sensitivity.second_total",
+    "study.sensitivity.top",
+    "study.sensitivity.top_total",
+    "study.total_evaluations"
+   ],
+   "visual_ids": []
+  },
+  {
+   "id": "s6",
+   "role": "kanit",
+   "headline": "SORM kesin göçme olasılığını 43 model koşusunda yakalıyor",
+   "evidence_ids": [
+    "study.reliability.ci_level",
+    "study.reliability.form_relative_error",
+    "study.reliability.mc_relative_error",
+    "study.reliability.methods.mc.ci95_high",
+    "study.reliability.methods.mc.ci95_low",
+    "study.reliability.methods.mc.evaluations",
+    "study.reliability.methods.mc.probability",
+    "study.reliability.methods.sorm_hr.evaluations",
+    "study.reliability.reference",
+    "study.reliability.sorm_relative_error",
+    "study.seed"
+   ],
+   "visual_ids": [
+    "figures/reliability-tr-light.png",
+    "figures/reliability-tr-dark.png"
+   ]
+  },
+  {
+   "id": "s7",
+   "role": "buyuk-sayi",
+   "headline": "Monte Carlo'dan daha az model koşusu, daha küçük hatayla",
+   "evidence_ids": [
+    "study.reliability.cost_ratio",
+    "study.reliability.methods.mc.evaluations",
+    "study.reliability.methods.sorm_hr.evaluations"
+   ],
+   "visual_ids": []
+  },
+  {
+   "id": "s8",
+   "role": "kanit",
+   "headline": "MCMC sonsal yayılımı %7 içinde buluyor; ortalama alan ADVI %40 ıskalıyor",
+   "evidence_ids": [
+    "benchmark.advi_mf_sd_error",
+    "benchmark.mcmc_sd_error_max",
+    "benchmark.probstat_version",
+    "benchmark.seeds_calibration"
+   ],
+   "visual_ids": [
+    "figures/calibration-tr-light.png",
+    "figures/calibration-tr-dark.png"
+   ]
+  },
+  {
+   "id": "s9",
+   "role": "kanit",
+   "headline": "İniş aracının görev kayıplarının %90'ına transponder yol açıyor",
+   "evidence_ids": [
+    "mission.cut_sets",
+    "mission.expected_loss_musd",
+    "mission.hours",
+    "mission.loss_cost_musd",
+    "mission.mttf_hours",
+    "mission.reliability",
+    "mission.second_criticality",
+    "mission.top_criticality"
+   ],
+   "visual_ids": [
+    "figures/mission-tr-light.png",
+    "figures/mission-tr-dark.png"
+   ]
+  },
+  {
+   "id": "s10",
+   "role": "yontem",
+   "headline": "Bir formülle bir sürüm arasında beş denetim duruyor",
+   "evidence_ids": [
+    "repository.adrs_floor",
+    "repository.ci_python_count",
+    "repository.ci_python_first",
+    "repository.ci_python_last",
+    "repository.equations_floor",
+    "repository.figure_text_floor_pt",
+    "repository.labs",
+    "repository.references_floor",
+    "repository.tests_floor"
+   ],
+   "visual_ids": []
+  },
+  {
+   "id": "s11",
+   "role": "kanit",
+   "headline": "Sobol' noktaları aynı maliyetle ortalamanın hatasını ×66 küçültüyor",
+   "evidence_ids": [
+    "benchmark.problems",
+    "benchmark.probstat_version",
+    "benchmark.rows",
+    "benchmark.sampling.monte_carlo.error",
+    "benchmark.sampling.scrambled_sobol.error",
+    "benchmark.sampling_gain",
+    "benchmark.sampling_runs",
+    "benchmark.seeds_propagation"
+   ],
+   "visual_ids": [
+    "figures/sampling-tr-light.png",
+    "figures/sampling-tr-dark.png"
+   ]
+  },
+  {
+   "id": "s12",
+   "role": "sinirlamalar",
+   "headline": "Üç sınır bu sonuçları kısıtlıyor",
+   "evidence_ids": [
+    "benchmark.four_branch_akmcs_error",
+    "benchmark.four_branch_akmcs_evaluations",
+    "benchmark.probstat_version",
+    "benchmark.seeds_calibration",
+    "benchmark.seeds_propagation",
+    "study.reliability.ci_level"
+   ],
+   "visual_ids": []
+  },
+  {
+   "id": "s13",
+   "role": "sonuc",
+   "headline": "Evet: tek model her soruyu tek tohumdan yanıtladı",
+   "evidence_ids": [
+    "benchmark.mcmc_sd_error_max",
+    "mission.top_criticality",
+    "study.reliability.methods.sorm_hr.evaluations",
+    "study.reliability.reference"
+   ],
+   "visual_ids": []
+  },
+  {
+   "id": "s14",
+   "role": "kaynaklar",
+   "headline": "Slaytlardaki her yöntem birincil bir kaynağa dayanıyor",
+   "evidence_ids": [],
+   "visual_ids": []
+  },
+  {
+   "id": "s15",
+   "role": "kapanis",
+   "headline": "Tek model her soruyu yanıtlıyor: üç komutla başlayın",
+   "evidence_ids": [],
+   "visual_ids": []
+  },
+  {
+   "id": "s16",
+   "role": "ek",
+   "headline": "Örnekleme yöntemleri yayılımını bildiriyor; analitikler tohum istemiyor",
+   "evidence_ids": [
+    "study.reliability.methods.form.evaluations",
+    "study.reliability.methods.form.probability",
+    "study.reliability.methods.is.cov",
+    "study.reliability.methods.is.evaluations",
+    "study.reliability.methods.is.probability",
+    "study.reliability.methods.mc.cov",
+    "study.reliability.methods.mc.evaluations",
+    "study.reliability.methods.mc.probability",
+    "study.reliability.methods.sorm_breitung.evaluations",
+    "study.reliability.methods.sorm_breitung.probability",
+    "study.reliability.methods.sorm_hr.evaluations",
+    "study.reliability.methods.sorm_hr.probability",
+    "study.reliability.methods.subset.cov",
+    "study.reliability.methods.subset.evaluations",
+    "study.reliability.methods.subset.probability",
+    "study.reliability.reference",
+    "study.seed"
+   ],
+   "visual_ids": []
+  }
+ ]
+}

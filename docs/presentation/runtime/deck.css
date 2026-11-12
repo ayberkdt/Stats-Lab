@@ -1,0 +1,168 @@
+/* Stats-Lab overview deck: slide styles on the 1920x1080 stage (ADR-0097).
+ *
+ * Layout grammar follows sunumatik presets/deck_starter/deck-starter.css: kicker in mono
+ * caps, display headline, body, rule-topped footer; safe area 96 px horizontal, 72 px vertical.
+ * Type floors (sunumatik enforce-slide-copy-density): headline >= 48, body >= 30, label >= 24,
+ * citation >= 20. This file uses five sizes (24 · 34 · 64 · 88 · 200 px); with the runtime's
+ * chrome (14 · 15 · 17 px) the deck has eight.
+ * Colours are the library chart palettes (probstat.visualization.theme): PORCELAIN (light),
+ * GRAPHITE (dark). Tokens resolve on :root; the stage and the chrome read them. */
+
+:root {
+  color-scheme: light dark;
+  --color-canvas: #F6F4EF;
+  --color-surface: #ECE9E1;
+  --color-ink: #23262B;
+  --color-muted: #656A73;
+  --color-rule: #DCD8CF;
+  --color-accent: #44599C;
+  --color-accent-ink: #FFFFFF;
+  --color-data-1: #178F6E;
+  --color-data-2: #B0642F;
+  --font-text: "Source Sans 3", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", Consolas, "Cascadia Mono", "DejaVu Sans Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-canvas: #141519;
+    --color-surface: #1E2026;
+    --color-ink: #F1F0EB;
+    --color-muted: #A6A9B1;
+    --color-rule: #303339;
+    --color-accent: #9BA9F0;
+    --color-accent-ink: #141519;
+    --color-data-1: #2A9E83;
+    --color-data-2: #B67E2A;
+  }
+}
+:root[data-theme="dark"] {
+  --color-canvas: #141519;
+  --color-surface: #1E2026;
+  --color-ink: #F1F0EB;
+  --color-muted: #A6A9B1;
+  --color-rule: #303339;
+  --color-accent: #9BA9F0;
+  --color-accent-ink: #141519;
+  --color-data-1: #2A9E83;
+  --color-data-2: #B67E2A;
+}
+
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: var(--color-canvas); }
+
+#sahne { font: 400 34px/1.35 var(--font-text); }
+
+/* ── slide skeleton: kicker + headline · body · footer ── */
+.slayt {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 40px;
+  padding: 72px 96px;
+}
+.slayt > header { display: grid; gap: 16px; }
+.ust {
+  margin: 0;
+  font: 600 24px/1.2 var(--font-mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.slayt h1, .slayt h2 {
+  margin: 0;
+  max-width: 1640px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -.01em;
+  line-height: 1.08;
+  color: var(--color-ink);
+}
+.slayt h1 { font-size: 88px; }
+.slayt h2 { font-size: 64px; }
+.govde { margin: 0; max-width: 1400px; color: var(--color-muted); }
+.alt-bilgi {
+  display: flex;
+  justify-content: space-between;
+  gap: 48px;
+  padding-top: 16px;
+  border-top: 2px solid var(--color-rule);
+  font: 400 24px/1.3 var(--font-mono);
+  color: var(--color-muted);
+}
+.kaynak { font: 400 24px/1.3 var(--font-mono); color: var(--color-muted); }
+
+/* ── cover and closing (a matched pair: same rule, same identity line) ── */
+.kapak, .kapanis { align-content: end; grid-template-rows: auto auto auto; gap: 40px; padding-bottom: 120px; }
+.kapak::before, .kapanis::before {
+  content: "";
+  position: absolute;
+  left: 96px;
+  top: 72px;
+  width: 240px;
+  height: 8px;
+  background: var(--color-accent);
+}
+.kimlik { display: flex; flex-wrap: wrap; gap: 16px 48px; margin: 0; font: 400 24px/1.3 var(--font-mono); color: var(--color-muted); }
+.kimlik > span:first-child { color: var(--color-ink); }
+
+/* ── context: one sourced fact ── */
+.olgu { display: grid; grid-template-columns: auto 1fr; gap: 64px; align-items: center; align-self: center; }
+.olgu .buyuk { margin: 0; font: 700 200px/1 var(--font-display); color: var(--color-accent); }
+
+/* ── question and big number: breathing slides ── */
+.soru h2 { align-self: center; font-size: 88px; max-width: 1600px; }
+.soru h2 em { font-style: normal; color: var(--color-accent); }
+.sayi { align-content: center; grid-template-rows: auto auto auto auto; gap: 24px; }
+.sayi .buyuk { margin: 0; font: 700 200px/1 var(--font-display); color: var(--color-accent); }
+.sayi h2 { font-size: 64px; }
+
+/* ── method: numbered steps ── */
+.adimlar { display: grid; grid-template-columns: repeat(var(--adim, 4), 1fr); gap: 48px; margin: 0; padding: 0; list-style: none; align-self: center; counter-reset: adim; }
+.adimlar.dikey { grid-template-columns: 1fr; gap: 24px; }
+.adimlar li { padding-top: 24px; border-top: 4px solid var(--color-rule); counter-increment: adim; }
+.adimlar.dikey li { display: grid; grid-template-columns: 300px 1fr; gap: 40px; padding-top: 16px; border-top-width: 2px; }
+.adimlar li:first-child { border-top-color: var(--color-accent); }
+.adimlar li::before { content: counter(adim, decimal-leading-zero); display: block; margin-bottom: 16px; font: 600 24px/1 var(--font-mono); color: var(--color-accent); }
+.adimlar.dikey li::before { display: none; }
+.adimlar b { display: block; margin-bottom: 8px; font-weight: 700; color: var(--color-ink); }
+.adimlar span { color: var(--color-muted); }
+
+/* ── comparison and appendix tables ── */
+table.kiyas { align-self: center; width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table.kiyas th { padding: 0 24px 16px 0; text-align: left; font: 600 24px/1.2 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--color-muted); border-bottom: 2px solid var(--color-ink); }
+table.kiyas td { padding: 16px 24px 16px 0; border-bottom: 2px solid var(--color-rule); color: var(--color-ink); vertical-align: baseline; }
+table.kiyas td.sayi-hucre, table.kiyas th.sayi-hucre { text-align: right; padding-right: 0; }
+table.kiyas tr.bedel td { color: var(--color-muted); border-bottom: 0; }
+table.kiyas td:first-child { color: var(--color-muted); }
+
+/* ── evidence: one chart, one reading line ── */
+.grafik-govde { display: grid; grid-template-rows: auto auto; gap: 16px; align-self: start; }
+.grafik-govde img { display: block; width: 1728px; height: auto; }
+.okuma { margin: 0; color: var(--color-muted); }
+.okuma b { color: var(--color-ink); font-weight: 600; }
+.koyu-gorsel { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .acik-gorsel { display: none; }
+  :root:not([data-theme="light"]) .koyu-gorsel { display: block; }
+}
+:root[data-theme="dark"] .acik-gorsel { display: none; }
+:root[data-theme="dark"] .koyu-gorsel { display: block; }
+
+/* ── limitations, conclusion, sources ── */
+ul.maddeler, ol.maddeler { display: grid; gap: 32px; align-self: center; margin: 0; padding: 0 0 0 48px; max-width: 1560px; }
+ul.maddeler li::marker { color: var(--color-muted); }
+ol.maddeler li::marker { font: 600 34px var(--font-mono); color: var(--color-accent); }
+ol.kaynak-listesi { display: grid; gap: 16px; align-self: center; margin: 0; padding: 0 0 0 48px; grid-template-columns: 1fr 1fr; column-gap: 96px; font: 400 24px/1.35 var(--font-mono); color: var(--color-ink); }
+
+/* ── closing: the start commands ── */
+pre.komut { margin: 0; padding: 32px 40px; border-left: 8px solid var(--color-accent); background: var(--color-surface); font: 400 34px/1.5 var(--font-mono); color: var(--color-ink); white-space: pre; }
+
+/* notes never render on stage */
+.slayt > .notlar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .slayt { transition: none; }
+}
+@media print {
+  html, body { overflow: visible; height: auto; }
+}

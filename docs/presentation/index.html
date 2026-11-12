@@ -1,0 +1,211 @@
+<!doctype html>
+<!-- Stats-Lab overview deck (ADR-0097). Built on the sunumatik deck runtime
+     (runtime/deste-kabuk.*, copied from the project owner's presentation toolkit) and the
+     deck_starter data idea: every number below is a <span data-k> whose text
+     tools/build_presentation_data.py writes from deck-data.json. Do not type numbers here;
+     add a key to the data function and bind it. Open through any local static server. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Stats-Lab overview</title>
+  <meta name="description" content="One probabilistic model answers forward, inverse, risk, and systems questions: the Stats-Lab (probstat) library in sixteen evidence-backed slides.">
+  <link rel="icon" href="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
+  <link rel="stylesheet" href="runtime/deste-kabuk.css">
+  <link rel="stylesheet" href="runtime/deck.css">
+</head>
+<body>
+<main id="sahne" aria-label="Stats-Lab overview slides">
+
+<section data-slide class="slide slayt kapak" id="s1" data-tur="kapak" data-aile="esik" aria-labelledby="h-s1">
+  <p class="ust">Stats-Lab · probstat <span data-k="meta.probstat_version" data-fmt="str">0.19.0</span></p>
+  <h1 id="h-s1">One probabilistic model answers every uncertainty question</h1>
+  <p class="govde" data-alan="alt">Declare the inputs and the simulator once; forward, inverse, risk, and systems questions then share one object and one seed.</p>
+  <p class="kimlik"><span data-alan="ad">Stats-Lab project</span><span data-alan="kurum">probstat · <span data-k="repository.licence" data-fmt="str">BSD-3-Clause</span> licence</span><span data-alan="tarih">release <span data-k="meta.probstat_version" data-fmt="str">0.19.0</span></span></p>
+  <aside class="notlar">Open with the claim, not the topic: one model object answers every uncertainty question an engineer asks about a simulator. Stats-Lab is the repository, probstat the Python package; it has <span data-k="repository.runtime_dependencies" data-fmt="int">0</span> runtime dependencies. Everything on the next slides comes from one seeded run of the library, a recorded benchmark, and counts read from the repository at build time; no number was typed by hand. Bridge: first, why one object matters at all.</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s2" data-tur="baglam" data-aile="anlati" aria-labelledby="h-s2">
+  <header><p class="ust">Why it matters</p><h2 id="h-s2">One simulator raises <span data-k="repository.questions" data-fmt="int">8</span> different uncertainty questions</h2></header>
+  <div class="olgu">
+    <p class="buyuk" data-alan="olgu"><span data-k="repository.questions" data-fmt="int">8</span></p>
+    <p class="govde" data-alan="aciklama">questions about one model, from output spread to failure cost, each answered by its own method: sampling, Sobol indices, FORM, MCMC, emulators.</p>
+  </div>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: docs/architecture.md, central-model table</span></footer>
+  <aside class="notlar">The library's architecture document lists the questions one simulator raises: what the output looks like, which inputs matter, how likely failure is, what the loss at risk is, what data say about the inputs, what we will observe next, whether a cheap emulator can stand in, and all of these reproducibly. Each is a different method family. When each lives in a separate script, the inputs are redeclared every time and the seeds drift apart, so two analyses of the same simulator can disagree for reasons nobody can trace. Bridge: so the question is whether one object can carry all of them.</aside>
+</section>
+
+<section data-slide class="slide slayt soru" id="s3" data-tur="soru" data-aile="anlati" aria-labelledby="h-s3" data-f-vurgu="one seed">
+  <h2 id="h-s3">Can one model object answer every question from <em>one seed</em>?</h2>
+  <footer class="alt-bilgi"><span>The question this deck answers with one seeded study</span></footer>
+  <aside class="notlar">One sentence, one emphasis. "One seed" is the measurable part: if every stage draws from a named child stream of the same root seed, the whole analysis reproduces bit for bit and each stage can be rerun alone. Pause here. Bridge: the next slide shows the four declarations that make this possible.</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s4" data-tur="yontem" data-aile="anlati" aria-labelledby="h-s4">
+  <header><p class="ust">Method</p><h2 id="h-s4">Four declarations turn a simulator into a study</h2></header>
+  <ol class="adimlar" style="--adim:4">
+    <li><b data-alan="adim_ad[]">Inputs</b><span data-alan="adim_cumle[]">JointInput names the marginals, their units, and their copula.</span></li>
+    <li><b data-alan="adim_ad[]">Model</b><span data-alan="adim_cumle[]">ProbabilisticModel binds the simulator to its quantities of interest.</span></li>
+    <li><b data-alan="adim_ad[]">Study</b><span data-alan="adim_cumle[]">UQStudy(model, seed=<span data-k="study.seed" data-fmt="str">2026</span>) gives every stage its own child stream.</span></li>
+    <li><b data-alan="adim_ad[]">Stages</b><span data-alan="adim_cumle[]">Each call records its model runs, seed, and figure in one report.</span></li>
+  </ol>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: README quick start; docs/architecture.md</span></footer>
+  <aside class="notlar">The running example is the README quick start: margin equals strength minus load, with a lognormal load and a normal strength in kilonewtons. JointInput holds the marginals and a Gaussian copula; the Nataf transformation inside it is the single bridge to standard-normal space for FORM and SORM and to the unit cube for Sobol' designs. ProbabilisticModel binds the simulator and the quantity of interest. UQStudy takes the root seed <span data-k="study.seed" data-fmt="str">2026</span> and hands each stage its own child stream. Bridge: here is what four calls on that study return.</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s5" data-tur="karsilastirma" data-aile="kanit" aria-labelledby="h-s5" data-f-bedel="Total cost">
+  <header><p class="ust">Results</p><h2 id="h-s5">One seeded study answered four questions in <span data-k="study.total_evaluations" data-fmt="int">42,048</span> model runs</h2></header>
+  <table class="kiyas">
+    <thead><tr><th scope="col" data-alan="sutun[]">Question</th><th scope="col" data-alan="sutun[]">Answer</th><th scope="col" class="sayi-hucre" data-alan="sutun[]">Model runs</th></tr></thead>
+    <tbody>
+      <tr><td data-alan="satir[]">What does the margin look like?</td><td><span data-k="study.forward.quantile_level" data-fmt="pct0">5%</span> quantile: <span data-k="study.forward.q05" data-fmt="f3">0.124</span> kN</td><td class="sayi-hucre"><span data-k="study.forward.evaluations" data-fmt="int">4,096</span></td></tr>
+      <tr><td data-alan="satir[]">Which input drives it?</td><td><span data-k="study.sensitivity.top" data-fmt="str">load</span>: total Sobol index <span data-k="study.sensitivity.top_total" data-fmt="f2">0.71</span></td><td class="sayi-hucre"><span data-k="study.sensitivity.evaluations" data-fmt="int">4,096</span></td></tr>
+      <tr><td data-alan="satir[]">How likely is failure?</td><td>SORM <span data-k="study.reliability.methods.sorm_hr.probability" data-fmt="pct2">3.77%</span> · exact <span data-k="study.reliability.reference" data-fmt="pct2">3.77%</span></td><td class="sayi-hucre"><span data-k="study.reliability.evaluations" data-fmt="int">13,856</span></td></tr>
+      <tr><td data-alan="satir[]">What is the loss at risk?</td><td>CVaR <span data-k="study.risk.level" data-fmt="pct0">99%</span>: <span data-k="study.risk.cvar99" data-fmt="f1">49.8</span> loss units</td><td class="sayi-hucre"><span data-k="study.risk.evaluations" data-fmt="int">20,000</span></td></tr>
+      <tr class="bedel"><td data-alan="satir[]">Total cost</td><td>one report, one seed tree</td><td class="sayi-hucre"><span data-k="study.total_evaluations" data-fmt="int">42,048</span></td></tr>
+    </tbody>
+  </table>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: README quick-start model, root seed <span data-k="study.seed" data-fmt="str">2026</span>; tools/build_presentation_data.py</span></footer>
+  <aside class="notlar">Read the rows top to bottom; each is one call on the same study. Forward: a Sobol' design of <span data-k="study.forward.samples" data-fmt="int">4,096</span> points gives the margin distribution; its lower <span data-k="study.forward.quantile_level" data-fmt="pct0">5%</span> quantile is only <span data-k="study.forward.q05" data-fmt="f3">0.124</span> kN. Sensitivity: <span data-k="study.sensitivity.top" data-fmt="str">load</span> carries a total Sobol index of <span data-k="study.sensitivity.top_total" data-fmt="f2">0.71</span>, <span data-k="study.sensitivity.second" data-fmt="str">strength</span> <span data-k="study.sensitivity.second_total" data-fmt="f2">0.28</span>. Reliability ran <span data-k="study.reliability.methods_count" data-fmt="int">6</span> methods. Risk: with a loss of <span data-k="study.risk.loss_rate" data-fmt="int">50</span> units per kN of shortfall, the mean loss in the worst one percent of outcomes is <span data-k="study.risk.cvar99" data-fmt="f1">49.8</span>. The bottom row is the cost: every model run is counted and charged to its stage. Bridge: the failure probability deserves a closer look.</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s6" data-tur="kanit" data-aile="kanit" aria-labelledby="h-s6" data-f-olcut="failure probability of the margin" data-f-gercek="benzetim">
+  <header><p class="ust">Evidence · reliability</p><h2 id="h-s6">SORM matches the exact failure probability with <span data-k="study.reliability.methods.sorm_hr.evaluations" data-fmt="int">43</span> model runs</h2></header>
+  <div class="grafik-govde">
+    <img class="acik-gorsel" src="figures/reliability-en-light.png" width="1728" height="553" alt="Dot plot: failure probability estimated by FORM, Hohenbichler-Rackwitz SORM, importance sampling, subset simulation, and Monte Carlo, each against the exact value drawn as a dashed line; the SORM point sits on the line.">
+    <img class="koyu-gorsel" src="figures/reliability-en-dark.png" width="1728" height="553" alt="Dot plot: failure probability estimated by FORM, Hohenbichler-Rackwitz SORM, importance sampling, subset simulation, and Monte Carlo, each against the exact value drawn as a dashed line; the SORM point sits on the line.">
+    <p class="okuma" data-alan="okuma[]">Exact <b><span data-k="study.reliability.reference" data-fmt="pct2">3.77%</span></b> by quadrature · Monte Carlo <span data-k="study.reliability.methods.mc.probability" data-fmt="pct2">3.95%</span>, <span data-k="study.reliability.ci_level" data-fmt="pct0">95%</span> interval <span data-k="study.reliability.methods.mc.ci95_low" data-fmt="pct2">3.57%</span>–<span data-k="study.reliability.methods.mc.ci95_high" data-fmt="pct2">4.33%</span>, <span data-alan="n"><span data-k="study.reliability.methods.mc.evaluations" data-fmt="int">10,000</span> runs</span></p>
+  </div>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: tools/build_presentation_data.py, seed <span data-k="study.seed" data-fmt="str">2026</span>; exact value by adaptive quadrature</span></footer>
+  <aside class="notlar">The dashed line is the exact failure probability, the integral of the strength distribution function against the load density, evaluated by adaptive quadrature independently of every estimator: <span data-k="study.reliability.reference" data-fmt="pct2">3.77%</span>. SORM with the Hohenbichler-Rackwitz correction lands on it, relative error <span data-k="study.reliability.sorm_relative_error" data-fmt="pct2">0.01%</span>, after <span data-k="study.reliability.methods.sorm_hr.evaluations" data-fmt="int">43</span> runs. FORM, the first-order approximation, is <span data-k="study.reliability.form_relative_error" data-fmt="pct1">4.0%</span> low but still inside the Monte Carlo interval. Monte Carlo itself is <span data-k="study.reliability.mc_relative_error" data-fmt="pct1">4.8%</span> high at <span data-k="study.reliability.methods.mc.evaluations" data-fmt="int">10,000</span> runs; that is sampling error, and its interval covers the exact value. Limitation: this limit state is smooth with one design point, which is where FORM and SORM are strong. Bridge: put the cost into one number.</aside>
+</section>
+
+<section data-slide class="slide slayt sayi" id="s7" data-tur="buyuk-sayi" data-aile="kanit" aria-labelledby="h-s7">
+  <p class="ust">One number</p>
+  <p class="buyuk" data-alan="sayi"><span data-k="study.reliability.cost_ratio" data-fmt="x0">×233</span></p>
+  <h2 id="h-s7">fewer model runs than Monte Carlo, at smaller error</h2>
+  <p class="govde" data-alan="hesap"><span data-k="study.reliability.methods.mc.evaluations" data-fmt="int">10,000</span> Monte Carlo ÷ <span data-k="study.reliability.methods.sorm_hr.evaluations" data-fmt="int">43</span> SORM runs</p>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Same study and seed</span></footer>
+  <aside class="notlar">One number, said once. The ratio is the Monte Carlo sample size over the SORM model runs of the same reliability stage. It holds for this smooth, single-design-point problem; on a system with several design points the ranking flips, which the limitations slide shows. Bridge: the backward question, what data say about the inputs.</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s8" data-tur="kanit" data-aile="kanit" aria-labelledby="h-s8" data-f-olcut="error of the posterior standard deviation" data-f-gercek="benzetim">
+  <header><p class="ust">Evidence · calibration</p><h2 id="h-s8">MCMC stays within <span data-k="benchmark.mcmc_sd_error_max" data-fmt="pct0">7%</span> of the exact spread; mean-field ADVI misses <span data-k="benchmark.advi_mf_sd_error" data-fmt="pct0">40%</span></h2></header>
+  <div class="grafik-govde">
+    <img class="acik-gorsel" src="figures/calibration-en-light.png" width="1728" height="553" alt="Horizontal bars: error of the posterior standard deviation for Laplace, static HMC, full-rank ADVI, NUTS, adaptive Metropolis, and mean-field ADVI against an exact conjugate posterior; only the mean-field ADVI bar is long and highlighted.">
+    <img class="koyu-gorsel" src="figures/calibration-en-dark.png" width="1728" height="553" alt="Horizontal bars: error of the posterior standard deviation for Laplace, static HMC, full-rank ADVI, NUTS, adaptive Metropolis, and mean-field ADVI against an exact conjugate posterior; only the mean-field ADVI bar is long and highlighted.">
+    <p class="okuma" data-alan="okuma[]">Linear-Gaussian calibration with an exact conjugate posterior · median over <span data-alan="n"><span data-k="benchmark.seeds_calibration" data-fmt="int">2</span> seeds</span></p>
+  </div>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: benchmarks/results/quick.json (probstat <span data-k="benchmark.probstat_version" data-fmt="str">0.17.0</span>, quick mode)</span></footer>
+  <aside class="notlar">Inverse problems are judged against an answer that is known exactly: a straight-line model with Gaussian noise and a Gaussian prior, whose posterior is conjugate. Laplace is exact here by construction. The three Markov chain samplers recover the posterior standard deviation within <span data-k="benchmark.mcmc_sd_error_max" data-fmt="pct0">7%</span>. Mean-field ADVI underestimates it by <span data-k="benchmark.advi_mf_sd_error" data-fmt="pct0">40%</span>, because it ignores the correlation between intercept and slope; the full-rank variant does not. The library reports this instead of hiding it. Limitation: quick mode, <span data-k="benchmark.seeds_calibration" data-fmt="int">2</span> seeds. Bridge: from one simulator to a whole system.</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s9" data-tur="kanit" data-aile="kanit" data-nefes="true" aria-labelledby="h-s9" data-f-olcut="criticality importance at the mission time" data-f-gercek="model">
+  <header><p class="ust">Evidence · systems engineering</p><h2 id="h-s9">The transponder causes <span data-k="mission.top_criticality" data-fmt="pct0">90%</span> of the lander's mission failures</h2></header>
+  <div class="grafik-govde">
+    <img class="acik-gorsel" src="figures/mission-en-light.png" width="1728" height="553" alt="Horizontal bars: criticality importance of the lander's four most important blocks; the transponder bar is highlighted and far longer than the pump pair, igniter, and common-cause computer bars.">
+    <img class="koyu-gorsel" src="figures/mission-en-dark.png" width="1728" height="553" alt="Horizontal bars: criticality importance of the lander's four most important blocks; the transponder bar is highlighted and far longer than the pump pair, igniter, and common-cause computer bars.">
+    <p class="okuma" data-alan="okuma[]">Exact reliability over <span data-alan="n"><span data-k="mission.hours" data-fmt="int">720</span> h</span>: <b><span data-k="mission.reliability" data-fmt="f3">0.923</span></b> from a binary decision diagram · <span data-k="mission.cut_sets" data-fmt="int">8</span> minimal cut sets · no sampling</p>
+  </div>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: examples/mission_systems_lab.py; criticality importance</span></footer>
+  <aside class="notlar">The mission laboratory builds a lunar lander from component data: a warm-standby pump pair solved as a Markov chain, three flight computers of which two must work, with a beta-factor common cause, two batteries, a transponder, and an igniter. The binary decision diagram gives the mission reliability exactly, <span data-k="mission.reliability" data-fmt="f3">0.923</span> over <span data-k="mission.hours" data-fmt="int">720</span> hours, and a mean time to failure of <span data-k="mission.mttf_hours" data-fmt="int">6,573</span> hours. Criticality importance is the probability that a block's failure caused a mission failure: the transponder reaches <span data-k="mission.top_criticality" data-fmt="pct0">90%</span>, the pump pair <span data-k="mission.second_criticality" data-fmt="pct0">5%</span>. That is where a redesign pays. At a loss cost of <span data-k="mission.loss_cost_musd" data-fmt="musd0">$450M</span> per mission, the expected loss is <span data-k="mission.expected_loss_musd" data-fmt="musd1">$34.6M</span>. Bridge: why trust any of these numbers?</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s10" data-tur="yontem" data-aile="anlati" aria-labelledby="h-s10">
+  <header><p class="ust">Verification</p><h2 id="h-s10">Five checks stand between a formula and a release</h2></header>
+  <ol class="adimlar dikey">
+    <li><b data-alan="adim_ad[]">Cite</b><span data-alan="adim_cumle[]"><span data-k="repository.references_floor" data-fmt="plus">550+</span> sources; every function's docstring names its source key.</span></li>
+    <li><b data-alan="adim_ad[]">Register</b><span data-alan="adim_cumle[]"><span data-k="repository.equations_floor" data-fmt="plus">1,000+</span> equations, each with symbols, a source, and its code location.</span></li>
+    <li><b data-alan="adim_ad[]">Test</b><span data-alan="adim_cumle[]"><span data-k="repository.tests_floor" data-fmt="plus">2,100+</span> tests against closed forms, enumeration, and Monte Carlo error bounds.</span></li>
+    <li><b data-alan="adim_ad[]">Audit figures</b><span data-alan="adim_cumle[]">Every themed figure keeps its text at <span data-k="repository.figure_text_floor_pt" data-fmt="int">9</span> pt or larger, inside the canvas.</span></li>
+    <li><b data-alan="adim_ad[]">Integrate</b><span data-alan="adim_cumle[]">Ruff, strict mypy, all tests, and every lab run on Python <span data-k="repository.ci_python_first" data-fmt="str">3.11</span>–<span data-k="repository.ci_python_last" data-fmt="str">3.13</span>.</span></li>
+  </ol>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: tests/, docs/equation-registry.md, docs/references.md, .github/workflows/ci.yml</span></footer>
+  <aside class="notlar">Each check is enforced by a test, not by a promise. The documentation contract fails when a function's references section names no source key or an equation identifier is missing from the registry. Tests use independent oracles: closed forms, exact enumeration, published values, a multiple-precision reference, or statistical checks whose tolerance comes from the Monte Carlo standard error, so they hold on every platform. Figures follow one semantic theme in a light and a dark palette. Continuous integration runs lint, strict type checking, the tests, the quick benchmark, and all <span data-k="repository.labs" data-fmt="int">33</span> labs on <span data-k="repository.ci_python_count" data-fmt="int">3</span> Python versions. Design choices are recorded in <span data-k="repository.adrs_floor" data-fmt="plus">80+</span> decision records. Bridge: the benchmarks score methods against exact answers.</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s11" data-tur="kanit" data-aile="kanit" aria-labelledby="h-s11" data-f-olcut="relative error of the mean" data-f-gercek="benzetim">
+  <header><p class="ust">Evidence · benchmarks</p><h2 id="h-s11">Sobol' points cut the error of the mean <span data-k="benchmark.sampling_gain" data-fmt="x0">×66</span> at equal cost</h2></header>
+  <div class="grafik-govde">
+    <img class="acik-gorsel" src="figures/sampling-en-light.png" width="1728" height="553" alt="Horizontal bars: relative error of the Ishigami mean for Monte Carlo, Latin hypercube, Halton, and Sobol' designs at the same number of runs; the Sobol' bar is highlighted and the shortest.">
+    <img class="koyu-gorsel" src="figures/sampling-en-dark.png" width="1728" height="553" alt="Horizontal bars: relative error of the Ishigami mean for Monte Carlo, Latin hypercube, Halton, and Sobol' designs at the same number of runs; the Sobol' bar is highlighted and the shortest.">
+    <p class="okuma" data-alan="okuma[]">Ishigami function, <span data-k="benchmark.sampling_runs" data-fmt="int">256</span> runs per estimate, median over <span data-alan="n"><span data-k="benchmark.seeds_propagation" data-fmt="int">5</span> seeds</span> · the quick-start study uses the same design</p>
+  </div>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: benchmarks/results/quick.json (probstat <span data-k="benchmark.probstat_version" data-fmt="str">0.17.0</span>); exact mean in closed form</span></footer>
+  <aside class="notlar">The benchmark suite has <span data-k="benchmark.problems" data-fmt="int">11</span> problems with exact or quadrature reference answers and records <span data-k="benchmark.rows" data-fmt="int">124</span> method results, each with its error, cost, and interval coverage. This row is the cleanest: the same <span data-k="benchmark.sampling_runs" data-fmt="int">256</span> runs, four designs. Plain Monte Carlo misses the Ishigami mean by <span data-k="benchmark.sampling.monte_carlo.error" data-fmt="pct1">7.8%</span>; scrambled Sobol' points by <span data-k="benchmark.sampling.scrambled_sobol.error" data-fmt="pct2">0.12%</span>. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover.</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s12" data-tur="sinirlamalar" data-aile="anlati" aria-labelledby="h-s12">
+  <header><p class="ust">Limitations</p><h2 id="h-s12">Three limits apply to these results</h2></header>
+  <ul class="maddeler">
+    <li class="madde">FORM and SORM fail on the four-branch system benchmark.</li>
+    <li class="madde">Benchmarks: probstat <span data-k="benchmark.probstat_version" data-fmt="str">0.17.0</span>, quick mode, <span data-k="benchmark.seeds_calibration" data-fmt="int">2</span> to <span data-k="benchmark.seeds_propagation" data-fmt="int">5</span> seeds; coverage is coarse.</li>
+    <li class="madde">Monte Carlo digits move with the seed; each carries its <span data-k="study.reliability.ci_level" data-fmt="pct0">95%</span> interval.</li>
+  </ul>
+  <footer class="alt-bilgi"><span>Said before the questions, not after them</span></footer>
+  <aside class="notlar">On the four-branch series system of the benchmark, a limit state with several design points, FORM and both SORM variants stop without an answer; AK-MCS reaches it with about <span data-k="benchmark.four_branch_akmcs_evaluations" data-fmt="int">26</span> runs at a relative error of <span data-k="benchmark.four_branch_akmcs_error" data-fmt="pct0">16%</span>. Quick mode runs few seeds, so coverage statistics are indicative only; the full benchmark mode runs more. The benchmark file was recorded with an earlier release than the study. And every Monte Carlo number moves with the seed, which is why each one carries its interval. Bridge: what to keep.</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s13" data-tur="sonuc" data-aile="anlati" aria-labelledby="h-s13">
+  <header><p class="ust">Conclusion</p><h2 id="h-s13">Yes: one model answered every question from one seed</h2></header>
+  <ol class="maddeler">
+    <li class="madde">SORM hit the exact <span data-k="study.reliability.reference" data-fmt="pct2">3.77%</span> failure probability in <span data-k="study.reliability.methods.sorm_hr.evaluations" data-fmt="int">43</span> runs.</li>
+    <li class="madde">MCMC matched an exact posterior within <span data-k="benchmark.mcmc_sd_error_max" data-fmt="pct0">7%</span>; mean-field ADVI missed.</li>
+    <li class="madde">The transponder causes <span data-k="mission.top_criticality" data-fmt="pct0">90%</span> of the lander's failures.</li>
+  </ol>
+  <footer class="alt-bilgi"><span>The answer to the question on slide three</span></footer>
+  <aside class="notlar">Return to the question: yes, forward, reliability, and risk came from one seeded study, the inverse result from a benchmark with an exact answer, and the systems result from an exact diagram. No new numbers here; each one appeared earlier. The next question is yours: which of your simulators would you declare first? Bridge: sources, then how to start.</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s14" data-tur="kaynaklar" data-aile="esik" aria-labelledby="h-s14">
+  <header><p class="ust">Sources</p><h2 id="h-s14">Every method on these slides traces to a primary source</h2></header>
+  <ol class="kaynak-listesi" data-literal="citations">
+    <li data-alan="kaynak_ogesi[]">Hasofer, Lind (1974). Exact and invariant second-moment code format. J. Eng. Mech. Div.</li>
+    <li data-alan="kaynak_ogesi[]">Breitung (1984). Asymptotic approximations for multinormal integrals. J. Eng. Mech.</li>
+    <li data-alan="kaynak_ogesi[]">Hohenbichler, Rackwitz (1988). Improvement of second-order reliability estimates. J. Eng. Mech.</li>
+    <li data-alan="kaynak_ogesi[]">Saltelli et al. (2010). Variance based sensitivity analysis of model output. Comput. Phys. Commun.</li>
+    <li data-alan="kaynak_ogesi[]">Owen (1995). Randomly permuted (t,m,s)-nets and (t,s)-sequences. Springer.</li>
+    <li data-alan="kaynak_ogesi[]">Rockafellar, Uryasev (2000). Optimization of conditional value-at-risk. J. Risk.</li>
+    <li data-alan="kaynak_ogesi[]">Kucukelbir et al. (2017). Automatic differentiation variational inference. JMLR.</li>
+    <li data-alan="kaynak_ogesi[]">Bryant (1986). Graph-based algorithms for Boolean function manipulation. IEEE Trans. Comput.</li>
+    <li data-alan="kaynak_ogesi[]">Rausand, Høyland (2004). System reliability theory. Wiley.</li>
+  </ol>
+  <footer class="alt-bilgi"><span class="kaynak">Full bibliography: docs/references.md · equations: docs/equation-registry.md</span></footer>
+  <aside class="notlar">These are the primary sources of the methods on the slides: FORM, the two SORM corrections, the Sobol total-effect estimator, scrambled nets, CVaR, ADVI, binary decision diagrams, and system reliability theory. Each has a key in the bibliography that the code cites in its docstrings, and every equation the code evaluates has an identifier in the registry. Bridge: how to start.</aside>
+</section>
+
+<section data-slide class="slide slayt kapanis" id="s15" data-tur="kapanis" data-aile="esik" aria-labelledby="h-s15">
+  <p class="ust">Questions welcome</p>
+  <h2 id="h-s15">One model answers every question: start with three commands</h2>
+  <pre class="komut" aria-label="Start commands">git clone https://github.com/ayberkdt/Stats-Lab.git
+python -m pip install -e ".[visualization]"
+python examples/uq_study_lab.py</pre>
+  <p class="kimlik"><span data-alan="iletisim">github.com/ayberkdt/Stats-Lab</span><span>Learning paths: docs/learning-path.md</span></p>
+  <aside class="notlar">Close on the claim and leave this slide up during questions. The third command runs a complete study on a cantilever beam and writes its report and figures; the learning paths order every guide with its laboratory. The core library needs nothing beyond the Python standard library; Matplotlib is only for figures.</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s16" data-tur="ek" data-aile="yedek" aria-labelledby="h-s16" data-f-ana_slayt="s6">
+  <header><p class="ust">Appendix · backup slide</p><h2 id="h-s16">Sampling methods report their spread; analytic ones need no seed</h2></header>
+  <table class="kiyas">
+    <thead><tr><th scope="col">Method</th><th scope="col" class="sayi-hucre">Failure probability</th><th scope="col" class="sayi-hucre">Model runs</th><th scope="col" class="sayi-hucre">Coefficient of variation</th></tr></thead>
+    <tbody>
+      <tr><td>FORM</td><td class="sayi-hucre"><span data-k="study.reliability.methods.form.probability" data-fmt="pct2">3.62%</span></td><td class="sayi-hucre"><span data-k="study.reliability.methods.form.evaluations" data-fmt="int">35</span></td><td class="sayi-hucre">analytic</td></tr>
+      <tr><td>SORM, Breitung</td><td class="sayi-hucre"><span data-k="study.reliability.methods.sorm_breitung.probability" data-fmt="pct2">3.74%</span></td><td class="sayi-hucre"><span data-k="study.reliability.methods.sorm_breitung.evaluations" data-fmt="int">43</span></td><td class="sayi-hucre">analytic</td></tr>
+      <tr><td>SORM, Hohenbichler-Rackwitz</td><td class="sayi-hucre"><span data-k="study.reliability.methods.sorm_hr.probability" data-fmt="pct2">3.77%</span></td><td class="sayi-hucre"><span data-k="study.reliability.methods.sorm_hr.evaluations" data-fmt="int">43</span></td><td class="sayi-hucre">analytic</td></tr>
+      <tr><td>Importance sampling</td><td class="sayi-hucre"><span data-k="study.reliability.methods.is.probability" data-fmt="pct2">3.75%</span></td><td class="sayi-hucre"><span data-k="study.reliability.methods.is.evaluations" data-fmt="int">2,035</span></td><td class="sayi-hucre"><span data-k="study.reliability.methods.is.cov" data-fmt="pct1">3.3%</span></td></tr>
+      <tr><td>Subset simulation</td><td class="sayi-hucre"><span data-k="study.reliability.methods.subset.probability" data-fmt="pct2">3.98%</span></td><td class="sayi-hucre"><span data-k="study.reliability.methods.subset.evaluations" data-fmt="int">1,813</span></td><td class="sayi-hucre"><span data-k="study.reliability.methods.subset.cov" data-fmt="pct1">12.3%</span></td></tr>
+      <tr><td>Monte Carlo</td><td class="sayi-hucre"><span data-k="study.reliability.methods.mc.probability" data-fmt="pct2">3.95%</span></td><td class="sayi-hucre"><span data-k="study.reliability.methods.mc.evaluations" data-fmt="int">10,000</span></td><td class="sayi-hucre"><span data-k="study.reliability.methods.mc.cov" data-fmt="pct1">4.9%</span></td></tr>
+    </tbody>
+  </table>
+  <footer class="alt-bilgi"><span class="kaynak">Exact value <span data-k="study.reliability.reference" data-fmt="pct2">3.77%</span> by adaptive quadrature; seed <span data-k="study.seed" data-fmt="str">2026</span></span></footer>
+  <aside class="notlar">For the question whether one seed was lucky: the analytic methods do not depend on the seed at all, and each sampling method states its coefficient of variation. Importance sampling around the design point reaches a coefficient of variation of <span data-k="study.reliability.methods.is.cov" data-fmt="pct1">3.3%</span> with <span data-k="study.reliability.methods.is.evaluations" data-fmt="int">2,035</span> runs, against <span data-k="study.reliability.methods.mc.cov" data-fmt="pct1">4.9%</span> for plain Monte Carlo with <span data-k="study.reliability.methods.mc.evaluations" data-fmt="int">10,000</span>.</aside>
+</section>
+
+</main>
+<noscript><p>The slide text reads without JavaScript; navigation, notes, and the overview need it.</p></noscript>
+<script type="module">
+  import { baslat } from './runtime/deck.mjs';
+  baslat();
+</script>
+</body>
+</html>

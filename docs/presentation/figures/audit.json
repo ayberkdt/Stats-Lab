@@ -1,0 +1,82 @@
+{
+ "reliability-en-light": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "reliability-en-dark": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "reliability-tr-light": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "reliability-tr-dark": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "calibration-en-light": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "calibration-en-dark": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "calibration-tr-light": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "calibration-tr-dark": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "mission-en-light": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "mission-en-dark": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "mission-tr-light": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "mission-tr-dark": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "sampling-en-light": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "sampling-en-dark": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "sampling-tr-light": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "sampling-tr-dark": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ }
+}

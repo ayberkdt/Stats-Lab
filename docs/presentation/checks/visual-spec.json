@@ -1,0 +1,44 @@
+{
+ "visuals": [
+  {
+   "id": "reliability",
+   "question": "Which reliability method reaches the exact failure probability, at what cost?",
+   "type": "dot plot with 95% intervals and a reference line",
+   "units": "percent",
+   "alt": "Failure probability of five methods against the exact value; SORM sits on the exact line.",
+   "data_sources": [
+    "deck-data.json: study.reliability"
+   ]
+  },
+  {
+   "id": "calibration",
+   "question": "How well do the samplers recover an exact posterior spread?",
+   "type": "horizontal bars, one highlighted",
+   "units": "percent",
+   "alt": "Posterior standard deviation error of six methods; only mean-field ADVI is far off.",
+   "data_sources": [
+    "deck-data.json: benchmark.calibration"
+   ]
+  },
+  {
+   "id": "mission",
+   "question": "Which block causes the lander's mission failures?",
+   "type": "horizontal bars, one highlighted",
+   "units": "percent",
+   "alt": "Criticality importance of the four most important blocks; the transponder dominates.",
+   "data_sources": [
+    "deck-data.json: mission.importance"
+   ]
+  },
+  {
+   "id": "sampling",
+   "question": "How much does the sampling design change the error at equal cost?",
+   "type": "horizontal bars, one highlighted",
+   "units": "percent",
+   "alt": "Relative error of the Ishigami mean for four designs at equal runs; Sobol' is smallest.",
+   "data_sources": [
+    "deck-data.json: benchmark.sampling"
+   ]
+  }
+ ]
+}
