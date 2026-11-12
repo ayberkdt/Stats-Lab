@@ -22,6 +22,11 @@ while the public API remains pre-1.0 and experimental.
 - `VARFit.impulse_response_bands`: pointwise residual-bootstrap bands
   (percentile or Hall) with bootstrap standard errors for VAR impulse
   responses.
+- **Overview presentation:** two slides on the applied-statistics core (18
+  slides in English and Turkish): the questions the statistical methods
+  answer, and an evidence slide on partial pooling in a linear mixed model
+  (a 2-test batch keeps 12% of its raw deviation as its BLUP, a 30-test
+  batch 66%), computed by `tools/build_presentation_data.py`.
 - `theme.retitle` and `theme.title_artists` restate or lay out a plot's
   title block through public Matplotlib API.
 - README: an applied-statistics section with a checked mixed-model example
@@ -36,6 +41,8 @@ while the public API remains pre-1.0 and experimental.
   posterior summaries and diagnostics, a scrambled-Halton error in the
   probabilistic-modeling design table, and two u-pooling KS p-values in
   the model-validation example.
+- The light theme of the presentation showed both the light and the dark
+  chart on evidence slides, pushing the footer off the slide.
 - Two tests that failed only on Linux compared ill-conditioned values
   with a fixed tolerance (the deck's SORM relative error and a planar-flow
   inverse log-determinant near its boundary).
