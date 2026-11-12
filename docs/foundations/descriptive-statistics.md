@@ -130,7 +130,7 @@ print(f"{len(chunks)} merged chunks     {error(merged.variance(), m2):.1e}   "
 print(f"two-pass            {error(variance(values), m2):.1e}   "
       f"{error(skewness(values), true_skewness):.1e}")
 print(f"unshifted Welford   {error(welford / len(values), m2):.1e}")
-print(f"mean(x^2) - mean(x)^2 = {naive:.0f} (true variance {float(m2):.3f})")
+print(f"mean(x^2) - mean(x)^2 < 0: {naive < 0} (true variance {float(m2):.3f})")
 ```
 
 ```text
@@ -139,12 +139,15 @@ RunningMoments      3.3e-16   2.9e-16
 7 merged chunks     9.8e-17   4.2e-16
 two-pass            2.4e-15   8.8e-08
 unshifted Welford   2.0e-08
-mean(x^2) - mean(x)^2 = -128 (true variance 0.956)
+mean(x^2) - mean(x)^2 < 0: True (true variance 0.956)
 ```
 
 The shifted accumulators stay at the rounding level of the data, merged or
 not; the unshifted recurrence loses eight digits and the textbook formula
-returns a negative variance. The two-pass skewness error comes from the
+returns a negative variance. Its value is pure rounding noise of order
+`1e18 * 2^-52`, so it even depends on how `sum` adds (Python 3.12 made the
+built-in `sum` of floats compensated): -128 on 3.12 and later, -3840 on
+3.11. The two-pass skewness error comes from the
 rounded mean: at `1e9` the mean can only be stored to about `1e-7`, and the
 third moment is sensitive to the center to first order.
 
