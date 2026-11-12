@@ -221,7 +221,8 @@ def dgsm(
         DGSM estimates, upper bounds, and cost accounting.
 
     Raises:
-        ValueError: For invalid settings or a QoI with zero sample variance.
+        ValueError: For invalid settings, a discrete input (no derivative
+            exists), or a QoI with zero sample variance.
         KeyError: For an unknown QoI.
         AutodiffUnsupportedError: With ``gradient="autodiff"`` for a model
             that does not accept dual inputs.
@@ -244,6 +245,15 @@ def dgsm(
         raise ValueError("gradient must be 'auto', 'autodiff', or 'finite-difference'")
     if not (math.isfinite(relative_step) and relative_step > 0.0):
         raise ValueError("relative_step must be positive")
+    if model.inputs.has_discrete:
+        # df/dx_i does not exist for an integer-valued input: autodiff and
+        # finite differences would differentiate an arbitrary real extension
+        # of the model (or a step function, giving nu_i = 0) and report it.
+        raise ValueError(
+            "DGSM needs continuous inputs; discrete inputs "
+            f"{list(model.inputs.discrete_names)} have no derivative. Use "
+            "sobol_analysis or given_data_first_order instead."
+        )
     dimension = model.dimension
     unit = make_design(
         design, size, dimension, seed=resolve_stream(seed).child("dgsm-design")
