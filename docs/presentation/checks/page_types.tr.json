@@ -5,13 +5,13 @@
   {
    "id": "s1",
    "type": "kapak",
-   "kicker": "Stats-Lab · probstat 0.19.0",
+   "kicker": "Stats-Lab · probstat 0.20.0",
    "headline": "Tek olasılık modeli her belirsizlik sorusunu yanıtlıyor",
    "fields": {
     "alt": "Girdileri ve benzetimi bir kez tanımlayın; ileri, ters, risk ve sistem soruları aynı nesneyi ve aynı tohumu paylaşsın.",
     "ad": "Stats-Lab projesi",
     "kurum": "probstat · BSD-3-Clause lisansı",
-    "tarih": "sürüm 0.19.0"
+    "tarih": "sürüm 0.20.0"
    },
    "bullets": [],
    "notes": "Konuyla değil iddiayla açın: tek bir model nesnesi, bir mühendisin benzetimi hakkında sorduğu her belirsizlik sorusunu yanıtlıyor. Stats-Lab depo, probstat Python paketi; çalışırken 0 dış bağımlılığa ihtiyaç duyuyor. Sonraki slaytlardaki her şey kitaplığın tohumlu tek bir koşusundan, kayıtlı bir kıyaslamadan ve derleme anında depodan okunan sayımlardan geliyor; hiçbir sayı elle yazılmadı. Köprü: önce tek nesnenin neden önemli olduğu."

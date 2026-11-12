@@ -4,7 +4,7 @@
 system-reliability questions, and every formula in the code is traced to a
 published source.**
 
-![Version 0.19.0](https://img.shields.io/badge/version-0.19.0-44599C)
+![Version 0.20.0](https://img.shields.io/badge/version-0.20.0-44599C)
 ![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB)
 ![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-blue)
 ![Runtime dependencies: 0](https://img.shields.io/badge/runtime%20dependencies-0-success)
@@ -263,7 +263,7 @@ and the primary sources linked from the equation records you rely on.
 @software{stats_lab,
   title   = {Probability and Statistics Library (Stats-Lab)},
   author  = {{Probability and Statistics Library contributors}},
-  version = {0.19.0},
+  version = {0.20.0},
   year    = {2026},
   url     = {https://github.com/ayberkdt/Stats-Lab}
 }

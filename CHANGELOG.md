@@ -3,6 +3,93 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.20.0] — 2026-11-12
+
+The applied-statistics core: mixed models, robust and quantile regression,
+the classical tests, smoothing and additive models, multivariate analysis,
+count and categorical regression, and volatility, VAR, unit-root and
+change-point methods. Fifteen defects found by independent reviews are
+fixed, the numerical kernels reach a few ulp, every documented example runs,
+every figure follows one visual contract, and the README and an overview
+presentation explain the library with checked numbers.
+
+### Added
+
+- **Mixed models** (ADR-0100): `fit_linear_mixed_model` (random intercepts,
+  correlated slopes, nested and crossed factors; ML and REML through the
+  profiled deviance; BLUPs; Satterthwaite t tests and contrasts),
+  `mixed_model_likelihood_ratio_test` (chi-square, boundary mixture,
+  parametric bootstrap), and `fit_generalized_linear_mixed_model` for
+  binomial and Poisson responses by Laplace or adaptive Gauss-Hermite
+  quadrature.
+- **Robust estimation, quantile regression, classical tests** (ADR-0101):
+  Huber and biweight M-estimation of location and regression, Theil-Sen,
+  exact linear quantile regression, the studentized range distribution and
+  Tukey HSD, Kruskal-Wallis (exact for small designs), Friedman, sign,
+  Levene, Brown-Forsythe, Bartlett, Shapiro-Wilk (AS R94), Cochran's Q, and
+  Dunn's test.
+- **Smoothing and multivariate analysis** (ADR-0102): B-splines, P-splines
+  and cubic smoothing splines with REML or GCV, LOESS, isotonic and kernel
+  regression, additive models and partial dependence; PCA, maximum-likelihood
+  factor analysis with varimax, LDA and QDA, k-means with silhouettes.
+- **Count and categorical regression** (ADR-0103): Poisson regression with
+  exposures and sandwich errors, the overdispersion test, NB2 regression,
+  zero-inflated and hurdle models, the Vuong statistic (with its caveat),
+  proportional-odds and multinomial logit models, average marginal effects.
+- **Time-series extensions** (ADR-0104): GARCH with normal or Student-t
+  innovations, VAR with order selection, impulse responses, FEVD and Granger
+  tests, ADF (MacKinnon 2010 critical values, simulated p-values) and KPSS
+  (exact asymptotic p-values), CUSUM and PELT change points.
+- **Differentiable distributions** (ADR-0090): log-densities accept dual and
+  reverse-mode parameters, so probabilistic programs written with library
+  laws get exact reverse-mode gradients.
+- **Overview presentation** (ADR-0097): `docs/presentation/`, 16 slides in
+  English and Turkish built with sunumatik, every number computed from a
+  seeded library run and every chart audited with datawiz.
+- **README** (ADR-0099): a reader-oriented narrative, a "why trust it" table
+  re-checked by tests, generated workflow and package-layer diagrams, and
+  absolute links for PyPI.
+- **Figure-set contract** (ADR-0098): one colour, marker, line style, axis
+  title and unit spelling per recurring entity and quantity across all lab
+  figures, in both palettes.
+- **Executable documentation** (ADR-0095): every Python example in the
+  README and guides runs in the test suite with its quoted values checked;
+  every package docstring and guide lists common pitfalls.
+- **Packaging** (ADR-0096): complete metadata, a curated sdist, and a CI job
+  that builds, checks and smoke-tests the wheel.
+
+### Fixed
+
+- Reviews of four package groups (ADR-0091 to ADR-0094) and follow-ups:
+  type-1 quantiles one order statistic too high; trimmed means trimming one
+  value too few; the exact Kolmogorov tail wrong for large samples;
+  adaptive conformal ranks differing from split conformal; entropy of a
+  point mass returning -0.0; Shapley standard errors up to 30% too small;
+  given-data indices biased for discrete inputs; DGSM applied to discrete
+  inputs; the steady-state Kalman filter stopping early for small
+  covariances; shared CCF moments documented for the wrong variable;
+  UQStudy lower-tail thresholds mislabelled; planar and radial flow
+  determinants failing near the boundary; constant ActNorm data accepted;
+  return-level titles wrong for open intervals; a Sobol analysis repeated
+  under an evaluation cache rejected.
+- Numerical accuracy (ADR-0089): normal cdf, sf and log tails within a few
+  ulp (were up to 1228 ulp, and 1.26e6 ulp for `log_cdf(5)`); incomplete
+  gamma and beta within 10 ulp for large shapes; Dirichlet normalizer and
+  entropy at huge concentrations; one Euler-Mascheroni constant.
+- Figures: titles keep the spelling of identifiers; subtitles are full
+  sentences.
+
+### Changed
+
+- `UQStudy.sensitivity` estimates every QoI's Sobol indices from one shared
+  design, so further QoIs cost no model runs.
+- `probstat.optimization.solvers`, `probstat.visualization.foundations` and
+  `probstat.distributions.wrappers` are split into content-named modules;
+  public names are unchanged, old module paths are removed.
+- Development status is 3 - Alpha.
+- 92 equation records, 93 references, 16 decision records, 360 new tests
+  (2,511 in total), and 1,683 public names in 33 packages.
+
 ## [0.19.0] — 2026-11-12
 
 Completes the probabilistic-programming layer, adds offline interactive

@@ -5,13 +5,13 @@
   {
    "id": "s1",
    "type": "kapak",
-   "kicker": "Stats-Lab · probstat 0.19.0",
+   "kicker": "Stats-Lab · probstat 0.20.0",
    "headline": "One probabilistic model answers every uncertainty question",
    "fields": {
     "alt": "Declare the inputs and the simulator once; forward, inverse, risk, and systems questions then share one object and one seed.",
     "ad": "Stats-Lab project",
     "kurum": "probstat · BSD-3-Clause licence",
-    "tarih": "release 0.19.0"
+    "tarih": "release 0.20.0"
    },
    "bullets": [],
    "notes": "Open with the claim, not the topic: one model object answers every uncertainty question an engineer asks about a simulator. Stats-Lab is the repository, probstat the Python package; it has 0 runtime dependencies. Everything on the next slides comes from one seeded run of the library, a recorded benchmark, and counts read from the repository at build time; no number was typed by hand. Bridge: first, why one object matters at all."
