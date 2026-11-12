@@ -3380,3 +3380,12 @@ Precision." *Numerische Mathematik* 18(3), 224-242, 1971. The exact
 product of two floats by splitting (with Veltkamp's splitting), the exact
 sum, and double-length addition, multiplication, and division.
 DOI: [10.1007/BF01397083](https://doi.org/10.1007/BF01397083).
+
+## REF-DIDONATO-MORRIS-1986
+
+Armido R. DiDonato and Alfred H. Morris, Jr. "Computation of the Incomplete
+Gamma Function Ratios and their Inverse." *ACM Transactions on Mathematical
+Software* 12(4), 377-393, 1986. Temme's uniform asymptotic expansion for
+shapes of at least 20 near the transition point, and the regrouped
+prefactor `x^a e^-x / Gamma(a)`.
+DOI: [10.1145/22721.23109](https://doi.org/10.1145/22721.23109).

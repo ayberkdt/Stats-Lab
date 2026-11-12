@@ -6364,6 +6364,8 @@ summed from 18-term Taylor series in `eta` with exact rational coefficients.
   `distributions._special.regularized_gamma_p`,
   `distributions._special.regularized_gamma_q`.
 - Source: [REF-TEMME-1979] and [REF-NIST-DLMF-GAMMA, Section 8.12].
+- Status: superseded by [EQ-NUM-GAMMA-004] (ADR-0089): thirteen coefficients,
+  `a >= 20`, and a double-double argument.
 
 ### EQ-INF-GOF-KS-003 — Exact one-sided Smirnov tail and the two-sided tail
 
@@ -14030,3 +14032,63 @@ ratio continued fraction `R` and `z^2` formed exactly.
   `distributions._continuous.log_standard_normal_cdf`.
 - Source: [REF-NIST-DLMF, Sections 7.2, 7.9, and 7.10] and
   [REF-DEKKER-1971].
+
+### EQ-NUM-GAMMA-003 — Double-double prefactor of the incomplete gamma ratios
+
+`x^a exp(-x)/Gamma(a) = exp(a log1pmx((x - a)/a) + log(a)/2 - sigma(a)
+- log sqrt(2 pi))`, every term of the exponent from [EQ-NUM-DD-002] and
+the exponential by [EQ-NUM-DD-001].
+
+- Domain: `a > 0`, `x > 0`; when the float exponent is below `-760` (the
+  prefactor underflows) the float exponent is used.
+- Meaning: the float exponent `a log x - x - lgamma(a)` has an absolute
+  error of about `2^-53` times its largest cancelling term, which `exp`
+  turns into a relative error (1400 ulp at `(200, 605)`); the regrouped
+  double-double exponent leaves one `exp` rounding.
+- Code: `distributions._special.gamma_prefactor`,
+  `distributions._special.regularized_gamma_p`,
+  `distributions._special.regularized_gamma_q`.
+- Source: [REF-DIDONATO-MORRIS-1986], [REF-NIST-DLMF-GAMMA, Section 5.11],
+  and [REF-DEKKER-1971].
+
+### EQ-NUM-BETA-003 — Double-double prefactor of the incomplete beta ratio
+
+`x^a (1-x)^b / B(a, b) = exp(a log1pmx(t) + b log1pmx(s) + [log(a)/2 -
+sigma(a)] + [log(b)/2 - sigma(b)] - [log(a+b)/2 - sigma(a+b)]
+- log sqrt(2 pi))` with `1 + t = x (a+b)/a`, `1 + s = (1-x)(a+b)/b`
+(`a t + b s = 0`), every term from [EQ-NUM-DD-002].
+
+- Domain: `a, b > 0`, `0 < x < 1`; the smaller of `x` and `1 - x` is taken
+  as exact and the other formed from it by two-sum.
+- Meaning: removes the cancellation of `lgamma` values and of `a log x`
+  terms that cost up to 770 ulp at shapes up to 400.
+- Code: `distributions._special.beta_prefactor`,
+  `distributions._special.regularized_beta_pair`.
+- Source: [REF-DIDONATO-MORRIS-1992], [REF-NIST-DLMF-BETA, Section 8.17],
+  and [REF-DEKKER-1971].
+
+### EQ-NUM-GAMMA-004 — Temme's uniform expansion with thirteen coefficients
+
+`Q(a,x) = erfc(w)/2 + R`, `P(a,x) = erfc(-w)/2 - R`, `w = eta sqrt(a/2)`,
+`R = exp(-w^2)/sqrt(2 pi a) sum_(k=0..12) c_k(eta) a^-k`,
+`eta = sign(lambda - 1) sqrt(2(lambda - 1 - log lambda))`, `lambda = x/a`;
+`c_0 = 1/mu - 1/eta`, `c_k = c_(k-1)'(eta)/eta + (-1)^k g_k/mu`,
+`mu = lambda - 1`, with `g_k` the coefficients of
+`Gamma(z) ~ e^-z z^z sqrt(2 pi/z) sum g_k z^-k`; each `c_k` summed from 26
+Taylor coefficients in `eta` derived in exact rational arithmetic;
+`w^2 = -a log1pmx((x - a)/a)` in double-double arithmetic and `erfc` by
+[EQ-NUM-DD-003].
+
+- Domain: `a >= 20` and `|x - a| <= 0.3 a` (`|eta| <= 0.34`); the omitted
+  Taylor terms are below `1e-22` and the last included term `c_12/a^12` is
+  below `2e-18` relative to `R`. Supersedes [EQ-NUM-GAMMA-002].
+- Meaning: constant cost and an error of about one ulp for every large
+  shape near the mode, where the series and the continued fraction need
+  `O(sqrt(a))` terms whose roundings accumulate (26 ulp at `a = 200`,
+  570 ulp at `a = 1e5`).
+- Code: `distributions._special._gamma_temme`,
+  `distributions._special._use_temme`,
+  `distributions._special.regularized_gamma_p`,
+  `distributions._special.regularized_gamma_q`.
+- Source: [REF-TEMME-1979], [REF-NIST-DLMF-GAMMA, Sections 5.11 and 8.12],
+  and [REF-DIDONATO-MORRIS-1986].

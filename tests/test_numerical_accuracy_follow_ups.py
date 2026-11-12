@@ -14,8 +14,10 @@ import random
 import unittest
 from decimal import Decimal, getcontext, localcontext
 from fractions import Fraction
+from math import comb
 
 from probstat.distributions import Normal
+from probstat.distributions import _special as special
 from probstat.numerics import _double_double as dd
 from probstat.numerics import (
     compare_to_reference,
@@ -23,6 +25,8 @@ from probstat.numerics import (
     reference_log_gamma,
     reference_normal_cdf,
     reference_pi,
+    reference_regularized_gamma_p,
+    reference_regularized_gamma_q,
 )
 
 
@@ -68,6 +72,80 @@ def reference_log_cdf(z: Fraction) -> Decimal:
             return -total
         power *= q
         k += 1
+
+
+def temme_coefficients(terms: int, count: int) -> list[list[Fraction]]:
+    """Derive Taylor coefficients of Temme's ``c_k(eta)`` in rationals.
+
+    ``mu = lambda - 1`` solves ``mu - log(1 + mu) = eta^2/2``; ``c_0 = 1/mu
+    - 1/eta`` and ``c_k = c_(k-1)'(eta)/eta + (-1)^k g_k/mu`` with ``g_k``
+    the coefficients of ``Gamma(z) ~ e^-z z^z sqrt(2 pi/z) sum g_k z^-k``
+    (exponential of the Stirling series with exact Bernoulli numbers).
+
+    References:
+        [EQ-NUM-GAMMA-004], [REF-NIST-DLMF-GAMMA, Sections 5.11 and 8.12].
+
+    """
+    order = terms + 2 * count + 4
+
+    def multiply(a: list[Fraction], b: list[Fraction]) -> list[Fraction]:
+        """Return the truncated product of two power series.
+
+        References:
+            [REF-PYTHON-FRACTIONS].
+
+        """
+        out = [Fraction(0)] * order
+        for i, left in enumerate(a[:order]):
+            if left:
+                for j, right in enumerate(b[: order - i]):
+                    out[i + j] += left * right
+        return out
+
+    # eta = mu sqrt(h(mu)), h = 2 sum (-1)^j mu^j/(j + 2).
+    h = [Fraction(2 * (-1) ** j, j + 2) for j in range(order)]
+    root = [Fraction(1)] + [Fraction(0)] * (order - 1)
+    for k in range(1, order):
+        root[k] = (h[k] - sum(root[j] * root[k - j] for j in range(1, k))) / 2
+    eta_of_mu = [Fraction(0)] + root[: order - 1]
+    mu = [Fraction(0), Fraction(1)] + [Fraction(0)] * (order - 2)
+    for degree in range(2, order):
+        composed = Fraction(0)
+        power = [Fraction(1)] + [Fraction(0)] * (order - 1)
+        for k in range(1, degree + 1):
+            power = multiply(power, mu)
+            composed += eta_of_mu[k] * power[degree]
+        mu[degree] -= composed
+    ratio = mu[1:]
+    inverse = [Fraction(0)] * (order - 1)
+    inverse[0] = 1 / ratio[0]
+    for k in range(1, order - 1):
+        inverse[k] = -sum(ratio[j] * inverse[k - j] for j in range(1, k + 1))
+    bernoulli = [Fraction(1)] + [Fraction(0)] * (2 * count + 2)
+    for m in range(1, 2 * count + 3):
+        bernoulli[m] = -sum(
+            comb(m + 1, j) * bernoulli[j] for j in range(m)
+        ) / (m + 1)
+    series = [Fraction(0)] * (count + 1)
+    for k in range(1, count // 2 + 2):
+        if 2 * k - 1 <= count:
+            series[2 * k - 1] = bernoulli[2 * k] / (2 * k * (2 * k - 1))
+    g = [Fraction(1)] + [Fraction(0)] * count
+    for n in range(1, count + 1):
+        g[n] = sum(k * series[k] * g[n - k] for k in range(1, n + 1)) / n
+    rows = [[inverse[j + 1] for j in range(order - 2)]]
+    for k in range(1, count):
+        previous = rows[-1]
+        total: dict[int, Fraction] = {}
+        for j, value in enumerate(previous):
+            if j >= 1:
+                total[j - 2] = total.get(j - 2, Fraction(0)) + j * value
+        for j, value in enumerate(inverse):
+            total[j - 1] = total.get(j - 1, Fraction(0)) + (-1) ** k * g[k] * value
+        if total.get(-1, Fraction(0)) != 0:
+            raise AssertionError("pole of c_k does not cancel")
+        rows.append([total.get(j, Fraction(0)) for j in range(len(previous) - 2)])
+    return [row[:terms] for row in rows]
 
 
 class DoubleDoubleTests(unittest.TestCase):
@@ -189,6 +267,42 @@ class NormalTailTests(unittest.TestCase):
             points,
         )
         self.assertLessEqual(result.max_ulp, 4.0, result.worst_point)
+
+
+class IncompleteGammaLargeShapeTests(unittest.TestCase):
+    """P and Q keep a constant budget for large shapes (Temme and prefactor)."""
+
+    def test_temme_coefficients_rederived_in_rationals(self) -> None:
+        """The 13 x 26 coefficient table equals the exact derivation rounded."""
+        derived = temme_coefficients(26, 13)
+        table = special._TEMME_COEFFICIENTS
+        self.assertEqual(len(table), 13)
+        self.assertEqual(derived[0][0], Fraction(-1, 3))
+        self.assertEqual(derived[2][0], Fraction(25, 6048))  # DLMF 8.12 value
+        for row, exact_row in zip(table, derived, strict=True):
+            self.assertEqual(row, tuple(float(value) for value in exact_row))
+
+    def test_near_the_mode_for_growing_shapes(self) -> None:
+        """At most 6 ulp for a = 20 .. 1e4 near x = a (was 26 to 186 ulp)."""
+        for a in (20.0, 55.0, 200.0, 1e3, 1e4):
+            points = [(a, f * a) for f in (0.75, 0.9, 0.995, 1.0, 1.005, 1.1, 1.29)]
+            for function, reference in (
+                (special.regularized_gamma_p, reference_regularized_gamma_p),
+                (special.regularized_gamma_q, reference_regularized_gamma_q),
+            ):
+                result = compare_to_reference(function, reference, points, digits=30)
+                self.assertLessEqual(result.max_ulp, 6.0, (a, result.worst_point))
+
+    def test_tails_for_large_shapes(self) -> None:
+        """At most 8 ulp away from the mode (was 1330 ulp at (200, 605))."""
+        points = [(a, f * a) for a in (30.0, 300.0, 1e3)
+                  for f in (0.01, 0.3, 0.5, 0.69, 1.31, 2.0, 3.025)]  # fmt: skip
+        for function, reference in (
+            (special.regularized_gamma_p, reference_regularized_gamma_p),
+            (special.regularized_gamma_q, reference_regularized_gamma_q),
+        ):
+            result = compare_to_reference(function, reference, points, digits=30)
+            self.assertLessEqual(result.max_ulp, 8.0, result.worst_point)
 
 
 if __name__ == "__main__":
