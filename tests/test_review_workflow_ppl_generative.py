@@ -227,7 +227,14 @@ class FlowBoundaryTests(unittest.TestCase):
             if raw > -37.0 or z != 0.0:
                 back, inverse_log_det = flow.inverse(parameters, x)
                 self.assertAlmostEqual(back[0], z, delta=1e-12)
-                self.assertAlmostEqual(inverse_log_det, -log_det, delta=1e-9)
+                # Near the boundary the determinant is e^raw + z^2 at z = 0, so
+                # a recovery error of 1e-12 in z moves log det by up to
+                # 1e-24 / e^-36 = 4e-9; the inverse is judged at the point it
+                # recovered.
+                exact = self.planar_oracle(raw, back[0])
+                self.assertAlmostEqual(
+                    inverse_log_det, -exact, delta=1e-12 * max(1, abs(exact))
+                )
 
     def test_planar_log_determinant_with_a_large_slope(self) -> None:
         """``1 - tanh^2`` no longer rounds to zero at ``|w'z + b| > 19``."""

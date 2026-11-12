@@ -62,8 +62,10 @@ def mismatches(
     """List the differences between stored and freshly computed deck data.
 
     Strings, booleans, and integers must be equal. Reals agree to a relative
-    tolerance of ``1e-6`` (platform libm), except Monte Carlo quantities,
-    which agree within four of their standard errors.
+    tolerance of ``1e-6`` (platform libm), except the keys in
+    ``stochastic`` (Monte Carlo quantities, and differences of nearly equal
+    numbers such as the SORM relative error), which agree within four of
+    their recorded error scales.
 
     Args:
         stored: Value read from ``deck-data.json``.
