@@ -6,22 +6,47 @@ build-backend = "setuptools.build_meta"
 name = "probstat-library"
 version = "0.19.0"
 description = "A citation-first, layered probability and statistics library."
-readme = "README.md"
+readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.11"
 license = "BSD-3-Clause"
 license-files = ["LICENSE", "LICENSES/*"]
-authors = [{ name = "Probability and Statistics Library contributors" }]
-keywords = ["probability", "statistics", "education", "scientific-computing"]
+authors = [{ name = "Ayberk" }]
+maintainers = [{ name = "Ayberk" }]
+keywords = [
+  "probability",
+  "statistics",
+  "uncertainty-quantification",
+  "reliability",
+  "monte-carlo",
+  "bayesian-inference",
+  "sensitivity-analysis",
+  "risk-analysis",
+  "education",
+  "scientific-computing",
+]
 classifiers = [
-  "Development Status :: 2 - Pre-Alpha",
+  "Development Status :: 3 - Alpha",
   "Intended Audience :: Education",
   "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Education",
+  "Topic :: Scientific/Engineering",
   "Topic :: Scientific/Engineering :: Mathematics",
+  "Typing :: Typed",
 ]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/ayberkdt/Stats-Lab"
+Repository = "https://github.com/ayberkdt/Stats-Lab"
+Issues = "https://github.com/ayberkdt/Stats-Lab/issues"
+Changelog = "https://github.com/ayberkdt/Stats-Lab/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/ayberkdt/Stats-Lab/tree/main/docs"
 
 [project.optional-dependencies]
 visualization = ["matplotlib>=3.8"]

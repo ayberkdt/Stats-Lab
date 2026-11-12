@@ -3372,3 +3372,18 @@ Asymptotically Optimum Decoding Algorithm." *IEEE Transactions on
 Information Theory* 13(2), 260-269, 1967. The dynamic-programming
 recursion for the most probable state sequence.
 DOI: [10.1109/TIT.1967.1054010](https://doi.org/10.1109/TIT.1967.1054010).
+
+## REF-PYPA-CORE-METADATA
+
+Python Packaging Authority. "Core metadata specifications." *Python
+Packaging User Guide*. The fields of a distribution's `METADATA` file,
+including `License-Expression`, `License-File`, `Project-URL`, and
+`Classifier`.
+[https://packaging.python.org/en/latest/specifications/core-metadata/](https://packaging.python.org/en/latest/specifications/core-metadata/).
+
+## REF-PYTHON-IMPORTLIB-METADATA
+
+Python Software Foundation. "importlib.metadata — Accessing package
+metadata." *Python 3 documentation*. `version()` and
+`distribution().files` of an installed distribution.
+[https://docs.python.org/3/library/importlib.metadata.html](https://docs.python.org/3/library/importlib.metadata.html).

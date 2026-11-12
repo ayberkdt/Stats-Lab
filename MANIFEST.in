@@ -1,0 +1,6 @@
+# Source distribution contents beyond the package, README, licences, and
+# pyproject.toml, which setuptools includes by default (ADR-0096).
+include CHANGELOG.md CITATION.cff
+# The test suite reads docs/, examples/, and benchmarks/, which are not part
+# of the distribution; the complete tree is the tagged repository.
+prune tests
