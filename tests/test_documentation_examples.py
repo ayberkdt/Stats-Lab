@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import ast
 import importlib
+import json
 import pkgutil
 import re
 import sys
@@ -47,6 +48,13 @@ HTML_SOURCE = re.compile(r"""(?:src|srcset)="([^"]+)\"""")
 INLINE_CODE = re.compile(r"(?<!`)`([^`\n]+)`(?!`)")
 DOTTED_NAME = re.compile(r"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+$")
 PITFALLS_HEADING = re.compile(r"^## Common pitfalls\s*$", re.MULTILINE)
+RAW_PREFIX = "https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/"
+# (blob | tree | "" for raw), repository path, optional heading anchor.
+REPOSITORY_URL = re.compile(
+    r"https://(?:github\.com/ayberkdt/Stats-Lab/(blob|tree)"
+    r"|raw\.githubusercontent\.com/ayberkdt/Stats-Lab)/main/"
+    r"([^\s\"')#}]+)(?:#([\w-]+))?"
+)
 DOCSTRING_SECTIONS = ("Main entry points:", "Assumptions:", "Common pitfalls:")
 
 # Package -> its foundation (or prerequisite) guide; the package docstring
@@ -432,10 +440,35 @@ class ReadmeTests(unittest.TestCase):
             [REF-PYTHON-AST]. No mathematical equation is evaluated.
 
         """
-        match = re.search(r"([\d,]+)\s+" + re.escape(phrase), self.text)
+        words = r"\s+".join(re.escape(word) for word in phrase.split())
+        match = re.search(r"([\d,]+)\s+" + words, self.text)
         self.assertIsNotNone(match, phrase)
         assert match is not None
         return int(match.group(1).replace(",", ""))
+
+    def assert_floor(self, phrase: str, actual: int) -> None:
+        """Check a count the README writes as a floor, such as ``2,200+ tests``.
+
+        A floor stays true while the repository grows; it must not exceed the
+        actual count and must not fall below 80% of it, so a stale floor is
+        caught before it becomes misleading.
+
+        Args:
+            phrase: Words that follow ``<number>+``.
+            actual: Count read from the repository.
+
+        References:
+            [REF-PYTHON-AST]. No mathematical equation is evaluated.
+
+        """
+        words = r"\s+".join(re.escape(word) for word in phrase.split())
+        match = re.search(r"([\d,]+)\+\s+" + words, self.text)
+        self.assertIsNotNone(match, phrase)
+        assert match is not None
+        floor = int(match.group(1).replace(",", ""))
+        with self.subTest(phrase=phrase, floor=floor, actual=actual):
+            self.assertLessEqual(floor, actual)
+            self.assertGreaterEqual(floor, 0.8 * actual)
 
     def test_counts_match_the_generated_references(self) -> None:
         """Packages, public names, equations, labs, topics, and families.
@@ -539,6 +572,226 @@ class ReadmeTests(unittest.TestCase):
             if len(cells) > 3 and cells[2].strip().startswith("`"):
                 listed.update(re.findall(r"`(\w+)`", cells[2]))
         self.assertEqual(listed, set(package_names()))
+
+    def test_verification_floors_match_the_repository(self) -> None:
+        """Tests, sources, decisions, documents, and property tests (ADR-0099).
+
+        References:
+            [REF-PYTHON-AST]. No mathematical equation is evaluated.
+
+        """
+        tests = REPOSITORY_ROOT / "tests"
+        bibliography = (DOCS / "references.md").read_text(encoding="utf-8")
+        properties = sorted(tests.glob("test_*propert*.py"))
+        properties += sorted(tests.glob("test_metamorphic*.py"))
+        self.assertEqual(len(properties), 4)
+        self.assert_floor(
+            "test cases", count_test_methods(sorted(tests.glob("test_*.py")))
+        )
+        self.assert_floor(
+            "primary sources",
+            len(re.findall(r"^## REF-", bibliography, flags=re.MULTILINE)),
+        )
+        self.assert_floor(
+            "decision records", len(list((DOCS / "adr").glob("ADR-*.md")))
+        )
+        self.assert_floor("Markdown files", len(documented_files()))
+        self.assert_floor(
+            "property-based and metamorphic tests", count_test_methods(properties)
+        )
+
+    def test_figure_ci_and_packaging_claims_match_their_sources(self) -> None:
+        """Text floor, contrast ratios, CI versions, wheel check, dependencies.
+
+        References:
+            [REF-PYTHON-AST]. No mathematical equation is evaluated.
+
+        """
+        theme = (SOURCE / "visualization" / "theme.py").read_text(encoding="utf-8")
+        floor = re.search(r"^ANNOTATION_SIZE = ([0-9.]+)", theme, flags=re.MULTILINE)
+        assert floor is not None
+        self.assertIn(f"at least {float(floor.group(1)):g} pt", self.text)
+        accessibility = _module_constants(
+            REPOSITORY_ROOT / "tests" / "test_visualization_accessibility.py"
+        )
+        self.assertIn(f"{accessibility['TEXT_MINIMUM']:g}:1 for text", self.text)
+        self.assertIn(f"{accessibility['GRAPHIC_MINIMUM']:g}:1 for marks", self.text)
+        workflow = (REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml").read_text(
+            encoding="utf-8"
+        )
+        matrix = re.search(r"python-version: \[(.*?)\]", workflow)
+        assert matrix is not None
+        versions = re.findall(r'"([^"]+)"', matrix.group(1))
+        self.assertIn(f"Python {versions[0]} to {versions[-1]}", self.text)
+        for step in ("twine check --strict", "tools/smoke_test_wheel.py"):
+            with self.subTest(step=step):
+                self.assertIn(step, workflow)
+                self.assertIn(step.removeprefix("tools/"), self.text)
+        project = tomllib.loads(
+            (REPOSITORY_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        )["project"]
+        self.assertEqual(project["dependencies"], [])
+        self.assertIn("badge/runtime%20dependencies-0-", self.text)
+        self.assertIn(f"version = {{{project['version']}}}", self.text)
+
+    def test_layer_count_matches_the_architecture_test(self) -> None:
+        """The number of dependency layers is the architecture test's.
+
+        References:
+            [REF-PYTHON-AST]. No mathematical equation is evaluated.
+
+        """
+        from test_architecture import LAYER
+
+        self.assertEqual(
+            self.number_before("dependency layers"), len(set(LAYER.values()))
+        )
+
+    def test_readme_diagrams_match_the_code(self) -> None:
+        """The diagram record names real stages, classes, and layers.
+
+        ``tools/build_readme_figures.py`` writes ``readme-diagrams.json``
+        next to the images; the layers must equal the architecture test's
+        map, every stage must be a ``UQStudy`` method, every class must be
+        exported by its package, and the README must show every image.
+
+        References:
+            [REF-PYTHON-AST]. No mathematical equation is evaluated.
+
+        """
+        from test_architecture import LAYER
+
+        from probstat.workflow import UQStudy
+
+        record = json.loads(
+            (DOCS / "images" / "readme-diagrams.json").read_text(encoding="utf-8")
+        )
+        expected: dict[str, list[str]] = {}
+        for module, layer in LAYER.items():
+            if module != "probstat":
+                expected.setdefault(str(layer), []).append(module.split(".", 1)[1])
+        self.assertEqual(record["layers"]["packages"], expected)
+        for stage in record["workflow"]["stages"]:
+            with self.subTest(stage=stage):
+                self.assertTrue(callable(getattr(UQStudy, stage, None)))
+        for name, package in record["workflow"]["classes"].items():
+            with self.subTest(name=name):
+                module = importlib.import_module(f"probstat.{package}")
+                self.assertIn(name, getattr(module, "__all__", ()))
+        for diagram in ("workflow", "layers"):
+            for image in record[diagram]["images"]:
+                with self.subTest(image=image):
+                    self.assertTrue((DOCS / "images" / image).is_file())
+                    url = f"{RAW_PREFIX}docs/images/{image}"
+                    self.assertTrue(url in self.text, f"README does not show {url}")
+
+    def test_readme_uses_only_absolute_links(self) -> None:
+        """Every link and image is absolute, so it also resolves on PyPI.
+
+        The README is the package's long description; PyPI does not resolve
+        relative paths (ADR-0099).
+
+        References:
+            [REF-PYTHON-AST]. No mathematical equation is evaluated.
+
+        """
+        text = prose(README)
+        targets = [a or b for a, b in LINK.findall(text)] + HTML_SOURCE.findall(text)
+        self.assertGreater(len(targets), 40)
+        relative = [target for target in targets if not re.match(r"^https://", target)]
+        self.assertEqual(relative, [])
+
+    def test_absolute_repository_urls_resolve(self) -> None:
+        """Every repository URL in the README maps to a file in the repository.
+
+        ``github.com/ayberkdt/Stats-Lab/blob/main/<path>`` and
+        ``raw.githubusercontent.com/ayberkdt/Stats-Lab/main/<path>`` must
+        name a file, ``.../tree/main/<path>`` a directory, and a heading
+        anchor on a Markdown file must exist.
+
+        References:
+            [REF-PYTHON-AST]. No mathematical equation is evaluated.
+
+        """
+        found = REPOSITORY_URL.findall(self.text)
+        self.assertGreater(len(found), 40)
+        broken: list[str] = []
+        for kind, path, anchor in found:
+            target = REPOSITORY_ROOT / path
+            exists = target.is_dir() if kind == "tree" else target.is_file()
+            if not exists:
+                broken.append(f"{kind}: {path}")
+            elif anchor and target.suffix == ".md":
+                if anchor not in heading_anchors(target):
+                    broken.append(f"{kind}: {path}#{anchor} (anchor)")
+        self.assertEqual(broken, [], "\n".join(broken))
+        other = re.findall(
+            r"https://[^\s\"')}]*ayberkdt/Stats-Lab[^\s\"')}]*", self.text
+        )
+        unmapped = [
+            url
+            for url in other
+            if not REPOSITORY_URL.fullmatch(url)
+            and url.rstrip("/") != "https://github.com/ayberkdt/Stats-Lab"
+            and url != "https://github.com/ayberkdt/Stats-Lab.git"
+        ]
+        self.assertEqual(unmapped, [])
+
+
+def count_test_methods(paths: list[Path]) -> int:
+    """Count the ``test*`` methods defined directly in classes of test files.
+
+    This equals what ``unittest`` discovery collects for this repository,
+    without importing the modules (the rule of
+    ``tools/build_presentation_data.py``).
+
+    Args:
+        paths: Test modules.
+
+    Returns:
+        Number of test methods.
+
+    References:
+        [REF-PYTHON-AST], [REF-PYTHON-UNITTEST].
+
+    """
+    total = 0
+    for path in paths:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef):
+                total += sum(
+                    1
+                    for item in node.body
+                    if isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef)
+                    and item.name.startswith("test")
+                )
+    return total
+
+
+def _module_constants(path: Path) -> dict[str, object]:
+    """Return the literal module-level constants of a Python file.
+
+    Args:
+        path: Python source file.
+
+    Returns:
+        Name to value for every ``NAME = <literal>`` assignment.
+
+    References:
+        [REF-PYTHON-AST]. No mathematical equation is evaluated.
+
+    """
+    constants: dict[str, object] = {}
+    for node in ast.parse(path.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1:
+            target = node.targets[0]
+            if isinstance(target, ast.Name):
+                try:
+                    constants[target.id] = ast.literal_eval(node.value)
+                except ValueError:
+                    continue
+    return constants
 
 
 if __name__ == "__main__":
