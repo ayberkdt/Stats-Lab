@@ -83,9 +83,10 @@ in a sibling package of the same layer, so it cannot be the shared home.
   so that `inference.missing` results do not move.
 - Limitations: the Dirichlet log-density and entropy subtract `lgamma`
   values, so for concentrations near `1e9` the absolute error is about
-  `1e-6`; multinomial sampling is `O(n)` per vector (about 0.37 s for 1000
-  vectors with `n = 1000` in pure Python); Wishart variances, conditional
-  Student-t laws and the matrix-normal family are not implemented.
+  `1e-6` (See ADR-0089.); multinomial sampling is `O(n)` per vector (about
+  0.37 s for 1000 vectors with `n = 1000` in pure Python); Wishart
+  variances, conditional Student-t laws and the matrix-normal family are not
+  implemented.
 
 ## Verification
 
