@@ -28,7 +28,7 @@ requirements point only backwards, and that every named laboratory exists.
 1. [Mathematical prerequisites](#track-m--mathematical-prerequisites) (M1-M5)
 2. [Probability](#track-p--probability) (P1-P11): counting, measure-theoretic
    probability, limit theorems, stochastic processes.
-3. [Statistics](#track-s--statistics) (S1-S15): descriptive statistics,
+3. [Statistics](#track-s--statistics) (S1-S16): descriptive statistics,
    estimation, testing, Bayesian inference, modelling, model criticism.
 4. [Uncertainty quantification](#track-u--uncertainty-quantification) (U1-U16):
    the ATHENS verification, validation, and UQ sequence, then the integrated
@@ -395,6 +395,18 @@ and reliability diagrams, and distribution-shift tests.
 - Requires: S14
 - Lab: [`examples/forecast_calibration_lab.py`](../examples/forecast_calibration_lab.py)
 - Decision record: [ADR-0042](adr/ADR-0042-scoring-and-calibration.md)
+
+### S16 — Count and categorical regression
+
+[Count and categorical regression](foundations/count-and-categorical-regression.md):
+Poisson regression with exposures and sandwich errors, the regression test
+for overdispersion, NB2 regression, zero-inflated and hurdle models and the
+limits of the Vuong statistic, the proportional-odds model with Brant's
+test, the multinomial logit, and average marginal effects.
+
+- Requires: S7
+- Lab: none; numbers asserted in [`tests/test_count_and_categorical_regression.py`](../tests/test_count_and_categorical_regression.py)
+- Decision record: [ADR-0103](adr/ADR-0103-count-and-categorical-regression.md)
 
 ## Track U — Uncertainty quantification
 
