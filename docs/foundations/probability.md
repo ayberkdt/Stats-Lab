@@ -82,6 +82,10 @@ after a positive test when false positives are common relative to the base rate.
 This is why Bayes' rule must retain `P(H)` and `P(E)` rather than comparing only
 the likelihood `P(E | H)`.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/probability-base-rate-posterior-dark.png"><img alt="Line chart of the posterior probability of a condition after a positive test against its prevalence on a log axis, for two tests" src="../images/guides/probability-base-rate-posterior.png"></picture>
+
+*With 95% sensitivity and 5% false positives, a positive result at 1% prevalence raises the probability of the condition only to 16%, because false positives from the large healthy group outnumber the true positives; cutting false positives to 1% lifts it to 49%.*
+
 ## Finite expectation bridge
 
 Expectation [EQ-PROB-009] is available for finite real-valued outcome functions.

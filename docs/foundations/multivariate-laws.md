@@ -107,9 +107,17 @@ result.log_marginal_likelihood     # -21.2116 (this ordered sequence)
 result.predictive(10).overdispersion  # 1.375
 ```
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/multivariate-dirichlet-update-dark.png"><img alt="Densities of the flat prior marginal and of three posterior category marginals after a Dirichlet update" src="../images/guides/multivariate-dirichlet-update.png"></picture>
+
+*The flat prior `Dirichlet(1, 1, 1)` has the same marginal `Beta(1, 2)` for every category; after the counts (12, 5, 3) the posterior marginals concentrate around the predictive probabilities 0.565, 0.261 and 0.174.*
+
 The log marginal likelihood refers to one ordered sequence with these
 counts; adding `log(n!/prod x_i!)` gives the Dirichlet-multinomial mass of
 the unordered counts.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/multivariate-dirichlet-multinomial-spread-dark.png"><img alt="Paired stems of two probability mass functions of a count from 0 to 10: predictive and plug-in binomial" src="../images/guides/multivariate-dirichlet-multinomial-spread.png"></picture>
+
+*The count of category 1 in the next 10 trials follows the Dirichlet-multinomial predictive; integrating over the posterior uncertainty raises its variance to 3.38 from 2.46 under the binomial with the posterior mean plugged in, the factor 1.375 that `overdispersion` reports.*
 
 ## 6. Normal-inverse-Wishart updating
 

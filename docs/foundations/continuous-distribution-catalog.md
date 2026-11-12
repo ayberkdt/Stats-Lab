@@ -63,6 +63,10 @@ the Frechet GEV (`xi > 0`) have power-law tails, and moments of order
 `>= nu` (or `>= 1/xi`) do not exist. The reversed-Weibull GEV (`xi < 0`),
 Beta, Triangular, Uniform, and two-sided TruncatedNormal laws are bounded.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/catalog-tails-equal-variance-dark.png"><img alt="Log-scale survival functions of normal, logistic, Student t, and Gumbel laws with mean 0 and variance 1 from 0 to 6" src="../images/guides/catalog-tails-equal-variance.png"></picture>
+
+*The four survival functions agree near the centre and separate in the tail: at x = 5 the normal leaves 2.87e-7 and the Gumbel 9.21e-4, a factor of 3,212, with the logistic and the Student t in between.*
+
 ### Numerical tail accuracy
 
 Every family evaluates `sf` directly rather than as `1 - cdf`, so upper tails

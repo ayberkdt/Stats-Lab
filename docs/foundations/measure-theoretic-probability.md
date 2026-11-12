@@ -252,6 +252,10 @@ True
 Conditioning depends on the measure: under the loaded die an even face has
 conditional mean `36/7`, under the fair die `4`.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/measure-conditional-expectation-atoms-dark.png"><img alt="Three panels of die faces with the conditional expectation of the face given three nested sigma-algebras drawn as bars" src="../images/guides/measure-conditional-expectation-atoms.png"></picture>
+
+*`E[X | G]` replaces each face by the average over the atom that contains it, so coarser information keeps less of the variance: `Var E[X | G]` falls from 2.92 (the face itself) to 2.25 with the four atoms of `info` and to 0.25 with parity alone; the rest is the expected conditional variance.*
+
 ## 7. Total variation
 
 The total-variation distance `sup_A |P(A) - Q(A)|` equals half the `L1`

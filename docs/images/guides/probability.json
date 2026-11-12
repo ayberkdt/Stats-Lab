@@ -1,0 +1,126 @@
+{
+  "catalog-tails-equal-variance": {
+    "guide": "continuous-distribution-catalog",
+    "alt": "Log-scale survival functions of normal, logistic, Student t, and Gumbel laws with mean 0 and variance 1 from 0 to 6",
+    "facts": {
+      "normal": "2.87e-7",
+      "gumbel": "9.21e-4",
+      "ratio": "3,212"
+    }
+  },
+  "discrete-binomial-to-poisson": {
+    "guide": "discrete-distributions",
+    "alt": "Left: binomial and Poisson masses at counts 0 to 11; right: total variation distance against the number of trials on log axes",
+    "facts": {
+      "tv10": "0.127",
+      "tv100": "0.010"
+    }
+  },
+  "information-entropy-decomposition": {
+    "guide": "information-theory",
+    "alt": "Three aligned bars splitting H(X), H(Y), and H(X, Y) of a joint table into conditional entropies and mutual information",
+    "facts": {
+      "share": "31%",
+      "information": "0.303"
+    }
+  },
+  "information-kl-asymmetry": {
+    "guide": "information-theory",
+    "alt": "Curves of the two KL divergences and the Jensen-Shannon divergence between a fair coin and a coin with bias q",
+    "facts": {
+      "forward": "0.511",
+      "backward": "0.368",
+      "js": "0.102"
+    }
+  },
+  "limit-clt-error-rates": {
+    "guide": "limit-theorems-and-estimators",
+    "alt": "Log-log lines of the normal and Edgeworth Kolmogorov errors and the Berry-Esseen bound against the number of summands",
+    "facts": {
+      "normal": "0.0133",
+      "edgeworth": "0.000678",
+      "bound": "0.115"
+    }
+  },
+  "limit-tail-bounds": {
+    "guide": "limit-theorems-and-estimators",
+    "alt": "Log-scale exact upper tail of a sample mean and the Chebyshev, Bernstein, and Hoeffding bounds against the deviation",
+    "facts": {
+      "exact": "2.21e-5",
+      "hoeffding": "15",
+      "chebyshev": "2,380"
+    }
+  },
+  "limit-variance-divisor-risk": {
+    "guide": "limit-theorems-and-estimators",
+    "alt": "Curves of squared bias, variance, and mean squared error of a variance estimator against its divisor",
+    "facts": {
+      "best": "11",
+      "unbiased": "0.222",
+      "optimal": "0.182"
+    }
+  },
+  "measure-conditional-expectation-atoms": {
+    "guide": "measure-theoretic-probability",
+    "alt": "Three panels of die faces with the conditional expectation of the face given three nested sigma-algebras drawn as bars",
+    "facts": {
+      "full": "2.92",
+      "info": "2.25",
+      "parity": "0.25"
+    }
+  },
+  "multivariate-dirichlet-multinomial-spread": {
+    "guide": "multivariate-laws",
+    "alt": "Paired stems of two probability mass functions of a count from 0 to 10: predictive and plug-in binomial",
+    "facts": {
+      "mixed": "3.38",
+      "binomial": "2.46",
+      "ratio": "1.375"
+    }
+  },
+  "multivariate-dirichlet-update": {
+    "guide": "multivariate-laws",
+    "alt": "Densities of the flat prior marginal and of three posterior category marginals after a Dirichlet update",
+    "facts": {
+      "p1": "0.565",
+      "p2": "0.261",
+      "p3": "0.174"
+    }
+  },
+  "probability-base-rate-posterior": {
+    "guide": "probability",
+    "alt": "Line chart of the posterior probability of a condition after a positive test against its prevalence on a log axis, for two tests",
+    "facts": {
+      "posterior": "16%",
+      "better": "49%"
+    }
+  },
+  "random-variables-two-dice-sum": {
+    "guide": "random-variables",
+    "alt": "Lollipop chart of the probability mass of the sum of two fair dice at each value from 2 to 12",
+    "facts": {
+      "outcomes": "36",
+      "values": "11",
+      "seven": "6",
+      "mass": "0.167"
+    }
+  },
+  "random-variables-zero-covariance": {
+    "guide": "random-variables",
+    "alt": "Scatter of the five support points of X and Y equal to X squared, with the parabola and the flat best linear fit",
+    "facts": {
+      "covariance": "0.00",
+      "marginal": "0.4",
+      "conditional": "1.0"
+    }
+  },
+  "waiting-memorylessness": {
+    "guide": "waiting-and-continuous-distributions",
+    "alt": "Two panels of conditional survival curves after waiting 0, 1, and 2 time units, for an exponential and a Weibull law",
+    "facts": {
+      "exponential": "0.368",
+      "weibull0": "0.456",
+      "weibull2": "0.020"
+    }
+  }
+}

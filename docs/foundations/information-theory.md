@@ -47,6 +47,10 @@ The tests confirm three identities to `1e-14`:
 - `I = H(X) + H(Y) - H(X, Y)`;
 - symmetry of `I` under transposing the table.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/information-entropy-decomposition-dark.png"><img alt="Three aligned bars splitting H(X), H(Y), and H(X, Y) of a joint table into conditional entropies and mutual information" src="../images/guides/information-entropy-decomposition.png"></picture>
+
+*The mutual information of 0.303 bits is the overlap of `H(X)` and `H(Y)`: knowing `Y` removes 31% of the uncertainty about `X`, and the bottom bar adds `H(X | Y)`, `I` and `H(Y | X)` to `H(X, Y)` by the chain rule.*
+
 For a product table `p(x) p(y)`, `I = 0` and `H(Y | X) = H(Y)`. Mutual
 information is never negative. A rounding-level negative sum, which can
 occur for an exact product table, is returned as `0`.
@@ -66,6 +70,10 @@ With `p = (0.5, 0.5)` and `q = (0.9, 0.1)`:
   does not.
 - Jensen-Shannon compares both laws to their average. It is symmetric, always
   finite, and at most one bit: `JS((1, 0), (0, 1)) = 1` bit exactly.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/information-kl-asymmetry-dark.png"><img alt="Curves of the two KL divergences and the Jensen-Shannon divergence between a fair coin and a coin with bias q" src="../images/guides/information-kl-asymmetry.png"></picture>
+
+*Against `p = (0.5, 0.5)`, `D(p || q)` grows faster than `D(q || p)` as `q` moves away, because it weights the log ratio by `p`, which keeps mass where `q` has little; at `q = (0.9, 0.1)` they are 0.511 and 0.368 nats, while the symmetric Jensen-Shannon divergence is 0.102.*
 
 ## 4. Differential entropy (EQ-INFO-DH-001..005)
 

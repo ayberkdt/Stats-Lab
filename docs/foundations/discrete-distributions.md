@@ -101,6 +101,10 @@ print(arrivals.cdf(2))
 print(arrivals.sf(8))
 ```
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/discrete-binomial-to-poisson-dark.png"><img alt="Left: binomial and Poisson masses at counts 0 to 11; right: total variation distance against the number of trials on log axes" src="../images/guides/discrete-binomial-to-poisson.png"></picture>
+
+*With the mean held at 4, the masses of Binomial(n, 4/n) approach those of Poisson(4): the total variation distance is 0.127 at n = 10 and 0.010 at n = 100, falling roughly like 1/n, which is why the Poisson law describes counts of many rare independent events.*
+
 ## Reading the plots correctly
 
 `plot_integer_pmf` requires an explicit display window. For an unbounded law,
