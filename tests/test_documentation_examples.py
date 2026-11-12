@@ -464,7 +464,16 @@ class ReadmeTests(unittest.TestCase):
         implemented = [row for row in topics if "| Implemented |" in row]
         self.assertEqual(self.number_before("topics of the ATHENS"), len(topics))
         self.assertEqual(self.number_before("are\nimplemented"), len(implemented))
-        not_families = {"wrappers", "support", "constraints", "empirical"}
+        # Composite laws (one module each since ADR-0090) and helpers are not
+        # families; the README names the composite laws separately.
+        not_families = {
+            "affine",
+            "mixture",
+            "truncated",
+            "support",
+            "constraints",
+            "empirical",
+        }
         families = [
             info.name
             for info in pkgutil.iter_modules([str(SOURCE / "distributions")])
