@@ -14194,3 +14194,384 @@ Taylor coefficients in `eta` derived in exact rational arithmetic;
   `multivariate.Dirichlet.entropy`.
 - Source: [REF-NIST-DLMF-GAMMA, Sections 5.2 and 5.11],
   [REF-BISHOP-2006, Appendix B].
+
+### EQ-SMOOTH-001 — Cox-de Boor recursion for B-splines
+
+`B_{i,0}(x) = 1` for `t_i <= x < t_{i+1}` and `0` otherwise;
+`B_{i,p}(x) = (x - t_i)/(t_{i+p} - t_i) B_{i,p-1}(x)
++ (t_{i+p+1} - x)/(t_{i+p+1} - t_{i+1}) B_{i+1,p-1}(x)`, with `0/0 = 0`.
+
+- Domain: non-decreasing knots `t_0, ..., t_{m-1}`, no knot repeated more
+  than `p + 1` times; `x` in `[t_p, t_{m-p-1}]`, the last interval closed.
+- Meaning: the `m - p - 1` functions are non-negative, sum to one, vanish
+  outside `p + 1` knot intervals, and span every spline of degree `p` with
+  these knots, including all polynomials of degree `<= p`; only `p + 1`
+  of them are non-zero at any `x`.
+- Code: `inference.splines.bspline_basis`,
+  `inference.splines.bspline_design_matrix`.
+- Source: [REF-DE-BOOR-1972].
+
+### EQ-SMOOTH-002 — Penalized least squares and the P-spline
+
+`beta_hat = argmin ||y - X beta||_W^2 + sum_j lambda_j beta' S_j beta
+= (X'WX + S_lambda)^-1 X'Wy`, `S_lambda = sum_j lambda_j S_j`; for a P-spline
+`X_ik = B_k(x_i)` on equally spaced knots and `S = D_d' D_d`, so that
+`beta' S beta = sum_k (Delta^d beta_k)^2`.
+
+- Domain: `W = diag(w_i)`, `w_i > 0`; `S_j` symmetric positive
+  semidefinite; `X'WX + S_lambda` positive definite.
+- Meaning: the penalty shrinks the fit towards the null space of `S`
+  (polynomials of degree `< d` for a P-spline), never towards zero;
+  `lambda = 0` is ordinary regression on the basis and `lambda -> infinity`
+  the polynomial fit of degree `d - 1`.
+- Code: `inference._penalized.PenalizedProblem.solve`,
+  `inference.splines.fit_pspline`, `inference.splines.difference_penalty`,
+  `inference.splines.uniform_knots`.
+- Source: [REF-EILERS-MARX-1996], [REF-WOOD-2017, Chapters 4 and 5].
+
+### EQ-SMOOTH-003 — Effective degrees of freedom and scale
+
+`H = X (X'WX + S_lambda)^-1 X'W`, `edf = tr(H) = tr((X'WX + S_lambda)^-1 X'WX)`,
+`phi_hat = RSS_w / (n - edf)`.
+
+- Domain: as [EQ-SMOOTH-002]; `n > edf`.
+- Meaning: `edf` decreases from the number of basis functions at
+  `lambda = 0` to the null-space dimension of `S` as `lambda -> infinity`;
+  it counts the parameters the data effectively estimate, and per-term
+  values are sums of the diagonal of `(X'WX + S_lambda)^-1 X'WX` over the
+  term's columns.
+- Code: `inference._penalized.PenalizedProblem.solve`,
+  `inference.splines.fit_pspline`, `inference.splines.fit_smoothing_spline`,
+  `inference.additive_models.fit_additive_model`.
+- Source: [REF-WOOD-2017, Chapter 6], [REF-HASTIE-TIBSHIRANI-1990].
+
+### EQ-SMOOTH-004 — Generalized cross-validation
+
+`GCV(lambda) = n RSS_w(lambda) / (n - tr H(lambda))^2`.
+
+- Domain: `tr H < n`.
+- Meaning: a rotation-invariant approximation of leave-one-out
+  cross-validation; its minimizer estimates the `lambda` of smallest
+  prediction error, and it is flat (and can undersmooth) when the noise
+  is small relative to the signal.
+- Code: `inference._penalized.PenalizedProblem.criterion`,
+  `inference.splines.fit_smoothing_spline`, `inference.splines.fit_pspline`.
+- Source: [REF-CRAVEN-WAHBA-1979], [REF-WOOD-2017, Chapter 6].
+
+### EQ-SMOOTH-005 — Restricted likelihood (REML) of a Gaussian penalized model
+
+`V_R(lambda) = ((n - M_p)/2)(1 + log(2 pi phi_hat)) + (1/2) log|X'WX + S_lambda|
+- (1/2) sum_j r_j log lambda_j + c`, with
+`phi_hat = (RSS_w + beta_hat' S_lambda beta_hat)/(n - M_p)`, `r_j = rank S_j`,
+`M_p = p - sum_j r_j`, and `c` free of `lambda`.
+
+- Domain: `beta ~ N(0, phi S_lambda^-)` improper on the null space,
+  `y | beta ~ N(X beta, phi W^-1)`; non-overlapping penalty blocks;
+  `n > M_p`, `lambda_j > 0`.
+- Meaning: minus the exact restricted log-likelihood of the equivalent
+  mixed model with `phi` profiled out, so `lambda` is estimated like a
+  variance ratio; it penalizes overfitting more strongly than GCV and has
+  fewer spurious minima. For a smoothing spline `X = I`, `S = K`, `M_p = 2`
+  and `log|W + lambda K| = log|W| + log|R + lambda Q'W^-1Q| - log|R|`.
+- Code: `inference._penalized.PenalizedProblem.criterion`,
+  `inference.splines.fit_pspline`, `inference.splines.fit_smoothing_spline`,
+  `inference.additive_models.fit_additive_model`.
+- Source: [REF-WOOD-2011], [REF-WOOD-2017, Chapter 6].
+
+### EQ-SMOOTH-006 — Bayesian pointwise confidence band
+
+`V_beta = phi_hat (X'WX + S_lambda)^-1`,
+`f_hat(x) +/- z_{(1+level)/2} sqrt(b(x)' V_beta b(x))`, `b(x)` the basis row.
+
+- Domain: as [EQ-SMOOTH-005]; `phi_hat` from [EQ-SMOOTH-003].
+- Meaning: the posterior covariance under the prior implied by the
+  penalty; it includes smoothing bias, so the coverage averaged across the
+  function is close to nominal, while at a single point it can be lower
+  or higher. The band ignores the uncertainty of `lambda` itself.
+- Code: `inference.splines.PSplineFit.band`,
+  `inference.splines.SmoothingSplineFit.band`,
+  `inference.additive_models.AdditiveTerm.band`.
+- Source: [REF-WAHBA-1983], [REF-NYCHKA-1988], [REF-WOOD-2017, Chapter 6].
+
+### EQ-SMOOTH-007 — Cubic smoothing spline (Reinsch algorithm)
+
+Minimizer of `sum_i w_i (y_i - g(x_i))^2 + lambda int g''(x)^2 dx`: the
+natural cubic spline with knots `x_1 < ... < x_n`, values `g` and interior
+second derivatives `gamma` solving
+`(R + lambda Q'W^-1 Q) gamma = Q'y`, `g = y - lambda W^-1 Q gamma`, where
+`h_i = x_{i+1} - x_i`, `Q` (`n x (n-2)`) has `q_{j-1,j} = 1/h_{j-1}`,
+`q_{jj} = -1/h_{j-1} - 1/h_j`, `q_{j+1,j} = 1/h_j`, and `R` is tridiagonal
+with `r_jj = (h_{j-1} + h_j)/3`, `r_{j,j+1} = h_j/6`;
+`int g''^2 = gamma' R gamma`.
+
+- Domain: distinct `x_i`, `n >= 3`, `w_i > 0`, `lambda > 0`.
+- Meaning: the penalty `g'Kg`, `K = Q R^-1 Q'`, leaves straight lines
+  unpenalized; the pentadiagonal system costs `O(n)`. Beyond the end knots
+  the spline is linear.
+- Code: `inference.splines.fit_smoothing_spline`,
+  `inference.splines.SmoothingSplineFit.predict`.
+- Source: [REF-REINSCH-1967], [REF-GREEN-SILVERMAN-1994].
+
+### EQ-SMOOTH-008 — Central band of the inverse of a banded matrix
+
+For `M = U'DU` with `U` unit upper triangular of bandwidth `b`:
+`(M^-1)_ij = delta_ij / d_i - sum_{k=1}^{b} U_{i,i+k} (M^-1)_{i+k,j}`,
+`j = i, ..., i + b`, computed from the last row upward;
+`tr H = n - lambda sum_{|j-k|<=2} (M^-1)_jk (Q'W^-1Q)_kj`,
+`H_ii = 1 - (lambda / w_i) sum_{j,k} Q_ij (M^-1)_jk Q_ik`.
+
+- Domain: `M` symmetric positive definite and banded.
+- Meaning: the entries of `M^-1` within the band are all that the trace
+  and the diagonal of the smoother matrix need, so GCV, REML, and the
+  pointwise variances `phi H_ii / w_i` of a smoothing spline cost `O(n)`.
+- Code: `inference.splines._Band.inverse_band`,
+  `inference.splines._ReinschSystem.solve`.
+- Source: [REF-HUTCHINSON-DEHOOG-1985].
+
+### EQ-SMOOTH-009 — Locally weighted regression (LOESS)
+
+`f_hat(x0) = a_0`, where `(a_0, ..., a_d)` minimizes
+`sum_k delta_k T(|x_k - x0| / h(x0)) (y_k - sum_r a_r (x_k - x0)^r)^2`,
+`T(u) = (1 - |u|^3)^3` for `|u| < 1` and `0` otherwise, `h(x0)` the
+distance from `x0` to its `q`-th nearest `x_k`, `q = round(f n)`.
+
+- Domain: `0 < f <= 1`, degree `d` in `{0, 1, 2}`, at least `d + 1`
+  distinct points with positive weight; `delta_k = 1` without robustness.
+- Meaning: a polynomial fitted near each point; the span `f` trades bias
+  for variance, and degree 1 avoids the boundary bias of local averaging.
+- Code: `inference.smoothing.loess`, `inference.smoothing.LoessFit.predict`.
+- Source: [REF-CLEVELAND-1979].
+
+### EQ-SMOOTH-010 — Bisquare robustness weights
+
+`delta_k = B(e_k / (6 s))`, `B(u) = (1 - u^2)^2` for `|u| < 1` and `0`
+otherwise, `s = median |e_k|`, `e_k` the current residuals.
+
+- Domain: `s > 0`; for `s = 0` points with zero residual keep weight one
+  and the others weight zero.
+- Meaning: residuals beyond six median absolute residuals get zero weight
+  in the next local fits, so isolated outliers stop pulling the curve.
+- Code: `inference.smoothing.loess`.
+- Source: [REF-CLEVELAND-1979].
+
+### EQ-SMOOTH-011 — Isotonic regression and the min-max formula
+
+`f_hat = argmin_{f_1 <= ... <= f_n} sum_i w_i (y_i - f_i)^2`,
+`f_hat_i = max_{j <= i} min_{k >= i} (sum_{l=j}^{k} w_l y_l) / (sum_{l=j}^{k} w_l)`.
+
+- Domain: `w_i > 0`; the non-increasing fit is minus the isotonic fit of
+  `-y`.
+- Meaning: the fit is a step function whose levels are weighted means of
+  consecutive blocks; pooling adjacent violators finds it in one pass.
+- Code: `inference.smoothing.isotonic_regression`.
+- Source: [REF-AYER-ETAL-1955], [REF-DE-LEEUW-HORNIK-MAIR-2009].
+
+### EQ-SMOOTH-012 — Nadaraya-Watson and local-linear kernel regression
+
+Nadaraya-Watson: `m_hat(x0) = sum_i K_i y_i / sum_i K_i`,
+`K_i = K((x_i - x0)/h)`; local linear:
+`m_hat(x0) = (S_2 T_0 - S_1 T_1)/(S_0 S_2 - S_1^2)`,
+`S_r = sum_i K_i u_i^r`, `T_r = sum_i K_i u_i^r y_i`, `u_i = (x_i - x0)/h`.
+
+- Domain: `h > 0`; `K` Gaussian `exp(-u^2/2)` or Epanechnikov
+  `(1 - u^2)_+` (constants cancel); a positive denominator.
+- Meaning: the intercept of a kernel-weighted constant or straight-line
+  fit at `x0`; the local-linear form reproduces straight lines exactly
+  and removes the first-order boundary bias of Nadaraya-Watson.
+- Code: `inference.smoothing.kernel_regression`,
+  `inference.smoothing.KernelRegressionFit.predict`.
+- Source: [REF-NADARAYA-1964], [REF-FAN-GIJBELS-1996],
+  [REF-HASTIE-TIBSHIRANI-FRIEDMAN-2009, Section 6.1].
+
+### EQ-SMOOTH-013 — Leave-one-out cross-validation of the bandwidth
+
+`CV(h) = (1/n) sum_i (y_i - m_hat_{-i}(x_i; h))^2`, `m_hat_{-i}` the
+estimate computed without observation `i`; `h_hat = argmin CV(h)` over a
+candidate grid.
+
+- Domain: every leave-one-out estimate is defined (otherwise
+  `CV(h) = infinity`).
+- Meaning: an almost unbiased estimate of the prediction error at the
+  design points; the curve is often flat, so neighbouring bandwidths are
+  equally supported.
+- Code: `inference.smoothing.kernel_regression`.
+- Source: [REF-HASTIE-TIBSHIRANI-FRIEDMAN-2009, Section 7.10],
+  [REF-FAN-GIJBELS-1996].
+
+### EQ-GAM-001 — Gaussian additive model with centred P-spline terms
+
+`y_i = alpha + sum_j f_j(x_ij) + e_i`, `f_j = B_j beta_j`,
+`beta_j = Z_j theta_j` with `1'B_j Z_j = 0`, `Z_j` the last `k_j - 1`
+columns of the Householder reflection that maps `B_j'1` to a multiple of
+`e_1`; penalties `lambda_j theta_j' Z_j' D'D Z_j theta_j` of rank
+`k_j - d`.
+
+- Domain: `e_i ~ N(0, phi / w_i)` independent; difference order `d >= 1`;
+  each predictor non-constant.
+- Meaning: the constraint `sum_i f_j(x_ij) = 0` identifies the intercept
+  without changing the space of fitted curves, because constants are
+  unpenalized; each term carries its own smoothing parameter and EDF.
+- Code: `inference.additive_models.fit_additive_model`,
+  `inference.additive_models.AdditiveModelFit.predict`,
+  `inference.additive_models.AdditiveTerm.evaluate`.
+- Source: [REF-WOOD-2017, Chapter 4], [REF-HASTIE-TIBSHIRANI-1990].
+
+### EQ-GAM-002 — Backfitting
+
+Repeat until the terms stop changing: for `j = 1, ..., m`,
+`f_j <- S_j (y - alpha - sum_{k != j} f_k)` followed by centring,
+`S_j = B_j (B_j'WB_j + lambda_j D'D)^-1 B_j'W`, and then
+`alpha <- sum_i w_i (y_i - sum_j f_j(x_ij)) / sum_i w_i`.
+
+- Domain: fixed `lambda_j > 0`; symmetric penalized smoothers.
+- Meaning: Gauss-Seidel iteration on the penalized normal equations of
+  [EQ-GAM-001]; it converges to the joint penalized solution, so the joint
+  fit and the backfit agree for the same `lambda_j`.
+- Code: `inference.additive_models.backfit_additive_model`.
+- Source: [REF-BUJA-HASTIE-TIBSHIRANI-1989], [REF-HASTIE-TIBSHIRANI-1990].
+
+### EQ-GAM-003 — Partial dependence
+
+`PD_j(v) = (1/n) sum_i m_hat(x_i1, ..., x_i(j-1), v, x_i(j+1), ..., x_ip)`.
+
+- Domain: any prediction function `m_hat`; the average is over the data.
+- Meaning: the average prediction with feature `j` held at `v`; for an
+  additive model with centred terms it equals `alpha + f_j(v)` exactly,
+  and for a model with interactions it averages over them.
+- Code: `inference.additive_models.partial_dependence`.
+- Source: [REF-FRIEDMAN-2001],
+  [REF-HASTIE-TIBSHIRANI-FRIEDMAN-2009, Section 10.13].
+
+### EQ-MVA-001 — Principal components
+
+`S = A L A'`, `L = diag(l_1 >= ... >= l_p)`, `A = (a_1, ..., a_p)`
+orthonormal; scores `z_ik = a_k' D^-1 (x_i - x_bar)`, explained ratio
+`l_k / sum_j l_j`, loadings `a_jk sqrt(l_k)`; `D = I` for the covariance
+and `D = diag(s_j)` for the correlation analysis.
+
+- Domain: `S` the unbiased sample covariance (or correlation) of `n >= 2`
+  rows; the sign of each `a_k` is fixed by making its largest-magnitude
+  entry positive.
+- Meaning: `a_k` maximizes `a'Sa` over unit vectors orthogonal to
+  `a_1, ..., a_{k-1}`, and the scores are uncorrelated with variances
+  `l_k`; the analysis depends on the units unless the variables are
+  standardized.
+- Code: `inference.multivariate_analysis.principal_components`,
+  `inference.multivariate_analysis.PrincipalComponents.transform`,
+  `inference.multivariate_analysis.PrincipalComponents.reconstruct`.
+- Source: [REF-PEARSON-1901], [REF-HOTELLING-1933], [REF-JOLLIFFE-2002].
+
+### EQ-MVA-002 — Maximum-likelihood factor analysis
+
+`R = Lambda Lambda' + Psi`; for fixed `Psi`,
+`Lambda = Psi^(1/2) Omega_q (Theta_q - I)^(1/2)` from the `q` largest
+eigenvalues `theta_1 >= ... >= theta_q` and eigenvectors `Omega_q` of
+`Psi^(-1/2) R Psi^(-1/2)`, and the discrepancy
+`F = log|Sigma| - log|R| + tr(Sigma^-1 R) - p` concentrates to
+`F(Psi) = sum_{j>q} (theta_j - log theta_j - 1)` with gradient
+`dF/dpsi_j = (Lambda Lambda' + Psi - R)_jj / psi_j^2`.
+
+- Domain: `R` a positive-definite correlation matrix, `1 <= q`,
+  `0.005 <= psi_j <= 1`; `theta_j > 1` for the retained factors.
+- Meaning: the Gaussian likelihood of the factor model profiled over the
+  loadings; at an interior optimum the fitted diagonal equals the observed
+  one. The loadings are determined only up to an orthogonal rotation.
+- Code: `inference.multivariate_analysis.factor_analysis`.
+- Source: [REF-JORESKOG-1967], [REF-LAWLEY-MAXWELL-1971].
+
+### EQ-MVA-003 — Varimax rotation
+
+Maximize `V = sum_k [p sum_i l_ik^4 - (sum_i l_ik^2)^2] / p^2` over
+orthogonal rotations `Lambda T`; for columns `a, b` with `x = l_ia`,
+`y = l_ib`, `u = x^2 - y^2`, `v = 2xy`, `A = sum u`, `B = sum v`,
+`C = sum (u^2 - v^2)`, `D = 2 sum uv`, the optimal planar angle is
+`phi = atan2(D - 2AB/p, C - (A^2 - B^2)/p) / 4`.
+
+- Domain: loadings with `p` rows; Kaiser normalization divides each row
+  by its length before the rotation and multiplies back afterwards.
+- Meaning: the rotation that makes the squared loadings of each factor as
+  spread as possible, so each variable loads mainly on few factors; the
+  fitted correlations `Lambda Lambda'` are unchanged.
+- Code: `inference.multivariate_analysis.varimax`.
+- Source: [REF-KAISER-1958].
+
+### EQ-MVA-004 — Bartlett-corrected test of the number of factors
+
+`X^2 = (n - 1 - (2p + 5)/6 - 2q/3) F(Psi_hat)`, referred to chi-square with
+`((p - q)^2 - p - q)/2` degrees of freedom.
+
+- Domain: `n` independent multivariate normal observations, positive
+  degrees of freedom.
+- Meaning: a large statistic says that `q` factors do not reproduce the
+  correlations; it is a large-sample likelihood-ratio test.
+- Code: `inference.multivariate_analysis.factor_analysis`.
+- Source: [REF-LAWLEY-MAXWELL-1971].
+
+### EQ-MVA-005 — Linear discriminant analysis
+
+`delta_k(x) = x' Sigma^-1 mu_k - mu_k' Sigma^-1 mu_k / 2 + log pi_k`,
+`P(k | x) = exp(delta_k(x)) / sum_l exp(delta_l(x))`,
+`Sigma = sum_k sum_{i in k} (x_i - mu_k)(x_i - mu_k)' / (n - K)`.
+
+- Domain: Gaussian classes with a common covariance; `n - K >= p`.
+- Meaning: the Bayes classifier of that model; the boundaries between
+  classes are hyperplanes.
+- Code: `inference.discriminant.fit_linear_discriminant`,
+  `inference.discriminant.LinearDiscriminant.decision_function`.
+- Source: [REF-FISHER-1936],
+  [REF-HASTIE-TIBSHIRANI-FRIEDMAN-2009, Section 4.3].
+
+### EQ-MVA-006 — Quadratic discriminant analysis
+
+`delta_k(x) = -log|Sigma_k| / 2 - (x - mu_k)' Sigma_k^-1 (x - mu_k) / 2
++ log pi_k`, `Sigma_k` the unbiased covariance of class `k`.
+
+- Domain: Gaussian classes; each class has more than `p` observations.
+- Meaning: the Bayes classifier with unequal covariances; the boundaries
+  are quadrics, at the cost of `K p (p + 1) / 2` covariance parameters.
+- Code: `inference.discriminant.fit_quadratic_discriminant`,
+  `inference.discriminant.QuadraticDiscriminant.decision_function`.
+- Source: [REF-HASTIE-TIBSHIRANI-FRIEDMAN-2009, Section 4.3].
+
+### EQ-MVA-007 — Fisher's canonical discriminant directions
+
+`a_r = argmax a' B a / a' W a` subject to `a' W a = 1` and `W`-orthogonality
+to `a_1, ..., a_{r-1}`, with `B = sum_k pi_k (mu_k - m)(mu_k - m)'`,
+`m = sum_k pi_k mu_k`; with `W = L L'`, `a_r = L^-T e_r` for the
+eigenvectors `e_r` of `L^-1 B L^-T`, `r = 1, ..., min(K - 1, p)`.
+
+- Domain: `W` the pooled covariance of [EQ-MVA-005], positive definite.
+- Meaning: the projections that separate the class means most relative to
+  the within-class spread; for two classes `a_1` is proportional to
+  `W^-1 (mu_2 - mu_1)`.
+- Code: `inference.discriminant.fit_linear_discriminant`,
+  `inference.discriminant.LinearDiscriminant.transform`.
+- Source: [REF-FISHER-1936],
+  [REF-HASTIE-TIBSHIRANI-FRIEDMAN-2009, Section 4.3].
+
+### EQ-MVA-008 — k-means objective and Lloyd's iteration
+
+`W(C) = sum_i ||x_i - m_{C(i)}||^2`; alternate
+`C(i) = argmin_k ||x_i - m_k||^2` and `m_k = mean{x_i : C(i) = k}`.
+
+- Domain: `1 <= K <= n` points in `R^p`; ties go to the lowest index.
+- Meaning: neither step can increase `W`, and there are finitely many
+  partitions, so the iteration stops at a local minimum; restarts from
+  k-means++ seeds ([EQ-GMM-003]) reduce the risk of a poor one.
+- Code: `inference.clustering.kmeans`.
+- Source: [REF-LLOYD-1982], [REF-ARTHUR-VASSILVITSKII-2007],
+  [REF-HASTIE-TIBSHIRANI-FRIEDMAN-2009, Section 14.3].
+
+### EQ-MVA-009 — Silhouette width
+
+`s(i) = (b(i) - a(i)) / max(a(i), b(i))`, `a(i)` the mean distance from
+`x_i` to the other members of its cluster, `b(i)` the smallest mean
+distance to the members of another cluster; `s(i) = 0` for a singleton.
+
+- Domain: Euclidean distance; between 2 and `n - 1` clusters.
+- Meaning: `s(i)` near 1 means `x_i` is much closer to its own cluster than
+  to the next one, near 0 that it lies between two, and negative that it
+  is probably misassigned; the average width compares numbers of clusters.
+- Code: `inference.clustering.silhouette_samples`,
+  `inference.clustering.silhouette_score`.
+- Source: [REF-ROUSSEEUW-1987].

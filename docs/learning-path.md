@@ -28,8 +28,9 @@ requirements point only backwards, and that every named laboratory exists.
 1. [Mathematical prerequisites](#track-m--mathematical-prerequisites) (M1-M5)
 2. [Probability](#track-p--probability) (P1-P11): counting, measure-theoretic
    probability, limit theorems, stochastic processes.
-3. [Statistics](#track-s--statistics) (S1-S15): descriptive statistics,
-   estimation, testing, Bayesian inference, modelling, model criticism.
+3. [Statistics](#track-s--statistics) (S1-S17): descriptive statistics,
+   estimation, testing, Bayesian inference, modelling, model criticism,
+   smoothing, and multivariate analysis.
 4. [Uncertainty quantification](#track-u--uncertainty-quantification) (U1-U16):
    the ATHENS verification, validation, and UQ sequence, then the integrated
    toolset on one model.
@@ -395,6 +396,31 @@ and reliability diagrams, and distribution-shift tests.
 - Requires: S14
 - Lab: [`examples/forecast_calibration_lab.py`](../examples/forecast_calibration_lab.py)
 - Decision record: [ADR-0042](adr/ADR-0042-scoring-and-calibration.md)
+
+### S16 — Smoothing and additive models
+
+[Smoothing and additive models](foundations/smoothing-and-additive-models.md):
+B-spline bases, P-splines and cubic smoothing splines with the smoothing
+parameter chosen by REML or GCV, effective degrees of freedom and Bayesian
+bands, LOESS with robustness iterations, isotonic regression, kernel
+regression with cross-validated bandwidths, additive models, and partial
+dependence.
+
+- Requires: S7, M4
+- Lab: none; numbers asserted in [`tests/test_smoothing_and_additive_models.py`](../tests/test_smoothing_and_additive_models.py)
+- Decision record: [ADR-0102](adr/ADR-0102-smoothing-and-multivariate-analysis.md)
+
+### S17 — Multivariate analysis
+
+[Multivariate analysis](foundations/multivariate-analysis.md): principal
+components on the covariance or correlation scale, maximum-likelihood
+factor analysis with varimax rotation and the test of the number of
+factors, linear and quadratic discriminant analysis, and k-means with the
+silhouette coefficient.
+
+- Requires: S7, P6, M2
+- Lab: none; numbers asserted in [`tests/test_multivariate_analysis.py`](../tests/test_multivariate_analysis.py)
+- Decision record: [ADR-0102](adr/ADR-0102-smoothing-and-multivariate-analysis.md)
 
 ## Track U — Uncertainty quantification
 

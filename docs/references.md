@@ -3404,3 +3404,215 @@ Software* 12(4), 377-393, 1986. Temme's uniform asymptotic expansion for
 shapes of at least 20 near the transition point, and the regrouped
 prefactor `x^a e^-x / Gamma(a)`.
 DOI: [10.1145/22721.23109](https://doi.org/10.1145/22721.23109).
+
+## REF-DE-BOOR-1972
+
+Carl de Boor. "On Calculating with B-splines." *Journal of Approximation
+Theory* 6(1), 50-62, 1972. The stable recurrence for the values of the
+B-splines of a knot vector and its triangular evaluation scheme.
+DOI: [10.1016/0021-9045(72)90080-9](https://doi.org/10.1016/0021-9045(72)90080-9).
+
+## REF-EILERS-MARX-1996
+
+Paul H. C. Eilers and Brian D. Marx. "Flexible Smoothing with B-splines and
+Penalties." *Statistical Science* 11(2), 89-121, 1996. P-splines: a rich
+B-spline basis on equally spaced knots with a difference penalty on
+adjacent coefficients.
+DOI: [10.1214/ss/1038425655](https://doi.org/10.1214/ss/1038425655).
+
+## REF-WOOD-2017
+
+Simon N. Wood. *Generalized Additive Models: An Introduction with R*. 2nd
+edition. Chapman and Hall/CRC, Boca Raton, 2017. Penalized regression
+splines, additive models with identifiability constraints, effective
+degrees of freedom, GCV and REML smoothness selection, and Bayesian
+confidence intervals.
+DOI: [10.1201/9781315370279](https://doi.org/10.1201/9781315370279).
+
+## REF-WOOD-2011
+
+Simon N. Wood. "Fast Stable Restricted Maximum Likelihood and Marginal
+Likelihood Estimation of Semiparametric Generalized Linear Models."
+*Journal of the Royal Statistical Society Series B: Statistical
+Methodology* 73(1), 3-36, 2011 (published online 2010). The Laplace-approximate restricted
+likelihood of a penalized model, exact in the Gaussian case, with the
+pseudo-determinant of the penalty.
+DOI: [10.1111/j.1467-9868.2010.00749.x](https://doi.org/10.1111/j.1467-9868.2010.00749.x).
+
+## REF-CRAVEN-WAHBA-1979
+
+Peter Craven and Grace Wahba. "Smoothing Noisy Data with Spline
+Functions." *Numerische Mathematik* 31(4), 377-403 (issue dated December
+1978, usually cited as 1979). The generalized cross-validation
+score `n RSS / (n - tr H)^2`.
+DOI: [10.1007/BF01404567](https://doi.org/10.1007/BF01404567).
+
+## REF-REINSCH-1967
+
+Christian H. Reinsch. "Smoothing by Spline Functions." *Numerische
+Mathematik* 10(3), 177-183, 1967. The natural cubic smoothing spline
+computed from a banded linear system in `O(n)` operations.
+DOI: [10.1007/BF02162161](https://doi.org/10.1007/BF02162161).
+
+## REF-GREEN-SILVERMAN-1994
+
+Peter J. Green and Bernard W. Silverman. *Nonparametric Regression and
+Generalized Linear Models: A Roughness Penalty Approach*. Chapman and Hall,
+London, 1994 (Springer US). The value-second-derivative representation of
+natural cubic splines with the matrices `Q` and `R`, and the Reinsch
+algorithm.
+DOI: [10.1007/978-1-4899-4473-3](https://doi.org/10.1007/978-1-4899-4473-3).
+
+## REF-HUTCHINSON-DEHOOG-1985
+
+M. F. Hutchinson and F. R. de Hoog. "Smoothing Noisy Data with Spline
+Functions." *Numerische Mathematik* 47(1), 99-106, 1985. The central band
+of the inverse of a banded symmetric matrix from its `U'DU` factor, which
+gives the trace and leverages of a smoothing spline in `O(n)`.
+DOI: [10.1007/BF01389878](https://doi.org/10.1007/BF01389878).
+
+## REF-CLEVELAND-1979
+
+William S. Cleveland. "Robust Locally Weighted Regression and Smoothing
+Scatterplots." *Journal of the American Statistical Association* 74(368),
+829-836, 1979. LOWESS: tricube-weighted local polynomial fits over the
+nearest `f n` points and bisquare robustness iterations.
+DOI: [10.1080/01621459.1979.10481038](https://doi.org/10.1080/01621459.1979.10481038).
+
+## REF-AYER-ETAL-1955
+
+Miriam Ayer, H. D. Brunk, G. M. Ewing, W. T. Reid, and Edward Silverman.
+"An Empirical Distribution Function for Sampling with Incomplete
+Information." *The Annals of Mathematical Statistics* 26(4), 641-647,
+1955. The pool-adjacent-violators construction of the monotone
+least-squares estimate.
+DOI: [10.1214/aoms/1177728423](https://doi.org/10.1214/aoms/1177728423).
+
+## REF-DE-LEEUW-HORNIK-MAIR-2009
+
+Jan de Leeuw, Kurt Hornik, and Patrick Mair. "Isotone Optimization in R:
+Pool-Adjacent-Violators Algorithm (PAVA) and Active Set Methods." *Journal
+of Statistical Software* 32(5), 2009. The weighted PAVA, its block
+structure, and the min-max characterization of the solution.
+DOI: [10.18637/jss.v032.i05](https://doi.org/10.18637/jss.v032.i05).
+
+## REF-NADARAYA-1964
+
+E. A. Nadaraya. "On Estimating Regression." *Theory of Probability and Its
+Applications* 9(1), 141-142, 1964. The kernel-weighted average estimate of
+a regression function.
+DOI: [10.1137/1109020](https://doi.org/10.1137/1109020).
+
+## REF-FAN-GIJBELS-1996
+
+Jianqing Fan and Irène Gijbels. *Local Polynomial Modelling and Its
+Applications*. Chapman and Hall, London, 1996 (Routledge reissue 2018).
+Local-linear and local-polynomial kernel regression, boundary behaviour,
+and bandwidth selection.
+DOI: [10.1201/9780203748725](https://doi.org/10.1201/9780203748725).
+
+## REF-HASTIE-TIBSHIRANI-1990
+
+T. J. Hastie and R. J. Tibshirani. *Generalized Additive Models*. Chapman
+and Hall, London, 1990 (Routledge reissue 2017). Additive models, the
+backfitting algorithm, and centred smooth terms.
+DOI: [10.1201/9780203753781](https://doi.org/10.1201/9780203753781).
+
+## REF-BUJA-HASTIE-TIBSHIRANI-1989
+
+Andreas Buja, Trevor Hastie, and Robert Tibshirani. "Linear Smoothers and
+Additive Models." *The Annals of Statistics* 17(2), 453-510, 1989.
+Backfitting as a Gauss-Seidel solution of the penalized normal equations
+and its convergence for symmetric smoothers.
+DOI: [10.1214/aos/1176347115](https://doi.org/10.1214/aos/1176347115).
+
+## REF-FRIEDMAN-2001
+
+Jerome H. Friedman. "Greedy Function Approximation: A Gradient Boosting
+Machine." *The Annals of Statistics* 29(5), 1189-1232, 2001. Partial
+dependence functions of a fitted model.
+DOI: [10.1214/aos/1013203451](https://doi.org/10.1214/aos/1013203451).
+
+## REF-PEARSON-1901
+
+Karl Pearson. "On Lines and Planes of Closest Fit to Systems of Points in
+Space." *The London, Edinburgh, and Dublin Philosophical Magazine and
+Journal of Science* 2(11), 559-572, 1901. The best-fitting line and plane
+through a point cloud: the first principal axes.
+DOI: [10.1080/14786440109462720](https://doi.org/10.1080/14786440109462720).
+
+## REF-HOTELLING-1933
+
+H. Hotelling. "Analysis of a Complex of Statistical Variables into
+Principal Components." *Journal of Educational Psychology* 24(6), 417-441,
+1933. Principal components as successive variance-maximizing linear
+combinations.
+DOI: [10.1037/h0071325](https://doi.org/10.1037/h0071325).
+
+## REF-JOLLIFFE-2002
+
+I. T. Jolliffe. *Principal Component Analysis*. 2nd edition. Springer
+Series in Statistics, Springer, New York, 2002. ISBN 0-387-95442-2.
+Covariance versus correlation PCA, the number of components, and
+interpretation of loadings.
+DOI: [10.1007/b98835](https://doi.org/10.1007/b98835).
+
+## REF-LAWLEY-MAXWELL-1971
+
+D. N. Lawley and A. E. Maxwell. *Factor Analysis as a Statistical Method*.
+2nd edition. Butterworths, London, 1971. Maximum-likelihood estimation of
+the factor model and the likelihood-ratio test of the number of factors.
+
+## REF-JORESKOG-1967
+
+K. G. Jöreskog. "Some Contributions to Maximum Likelihood Factor
+Analysis." *Psychometrika* 32(4), 443-482, 1967. The concentrated
+likelihood in the uniquenesses, the loadings from the eigenvectors of
+`Psi^-1/2 S Psi^-1/2`, and its gradient.
+DOI: [10.1007/BF02289658](https://doi.org/10.1007/BF02289658).
+
+## REF-KAISER-1958
+
+Henry F. Kaiser. "The Varimax Criterion for Analytic Rotation in Factor
+Analysis." *Psychometrika* 23(3), 187-200, 1958. The varimax criterion,
+row normalization, and the closed-form angle of each planar rotation.
+DOI: [10.1007/BF02289233](https://doi.org/10.1007/BF02289233).
+
+## REF-FISHER-1936
+
+R. A. Fisher. "The Use of Multiple Measurements in Taxonomic Problems."
+*Annals of Eugenics* 7(2), 179-188, 1936. The linear discriminant function
+that maximizes the ratio of between- to within-group variance.
+DOI: [10.1111/j.1469-1809.1936.tb02137.x](https://doi.org/10.1111/j.1469-1809.1936.tb02137.x).
+
+## REF-LLOYD-1982
+
+S. Lloyd. "Least Squares Quantization in PCM." *IEEE Transactions on
+Information Theory* 28(2), 129-137, 1982. The alternation of nearest-centre
+assignment and centroid update that decreases the squared-error
+distortion.
+DOI: [10.1109/TIT.1982.1056489](https://doi.org/10.1109/TIT.1982.1056489).
+
+## REF-ROUSSEEUW-1987
+
+Peter J. Rousseeuw. "Silhouettes: A Graphical Aid to the Interpretation and
+Validation of Cluster Analysis." *Journal of Computational and Applied
+Mathematics* 20, 53-65, 1987. The silhouette width `(b - a)/max(a, b)` and
+its average as a guide to the number of clusters.
+DOI: [10.1016/0377-0427(87)90125-7](https://doi.org/10.1016/0377-0427(87)90125-7).
+
+## REF-WAHBA-1983
+
+Grace Wahba. "Bayesian 'Confidence Intervals' for the Cross-Validated
+Smoothing Spline." *Journal of the Royal Statistical Society Series B:
+Statistical Methodology* 45(1), 133-150, 1983. Posterior covariance of a
+smoothing spline under the equivalent Gaussian prior.
+DOI: [10.1111/j.2517-6161.1983.tb01239.x](https://doi.org/10.1111/j.2517-6161.1983.tb01239.x).
+
+## REF-NYCHKA-1988
+
+Douglas Nychka. "Bayesian Confidence Intervals for Smoothing Splines."
+*Journal of the American Statistical Association* 83(404), 1134-1143,
+1988. Bayesian pointwise intervals for smoothing splines and their average
+coverage across the function.
+DOI: [10.1080/01621459.1988.10478711](https://doi.org/10.1080/01621459.1988.10478711).

@@ -79,7 +79,7 @@ Carlo, LHS, Halton, Sobol). See ADR-0014 and
 | `probability` | Sets, counting, probability rules, random-variable algebra | Inference or plotting |
 | `statistics` | Descriptive, order, and rank statistics | Distribution implementations |
 | `distributions` | Distribution objects, special functions, sampling | Rendering |
-| `inference` | Estimation, tests, regression and GLMs, survival, EM and mixtures, hierarchical models, MCMC/HMC/NUTS, ADVI, Laplace | Forward-model semantics |
+| `inference` | Estimation, tests, regression and GLMs, smoothing and additive models, multivariate analysis and clustering, survival, EM and mixtures, hierarchical models, MCMC/HMC/NUTS, ADVI, Laplace | Forward-model semantics |
 | `multivariate` | Vector-valued distributions | Inference workflows |
 | `uq` | QoI and forward-model contracts, numerical verification | Monte Carlo, reliability, inference |
 | `processes` | Markov chains, Poisson processes, SDEs, random fields | Filtering or inference |
