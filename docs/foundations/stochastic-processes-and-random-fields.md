@@ -117,6 +117,10 @@ reported order is the least-squares slope of `log e` against `log h`
 The theoretical orders are 1/2 and 1. Monte Carlo standard errors at
 `h = 1/128` are 0.039 (EM) and 0.018 (Milstein).
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/stochastic-processes-strong-convergence-dark.png"><img alt="Strong error of the Euler-Maruyama and Milstein schemes against the step size on log axes with theoretical slope lines" src="../images/guides/stochastic-processes-strong-convergence.png"></picture>
+
+*On log axes the strong error falls on a line whose slope is the order: Milstein at 0.938 and Euler-Maruyama at 0.551, close to the theoretical 1 and 1/2, so halving the step halves the Milstein error but removes only about a third of the Euler-Maruyama error.*
+
 **Weak error** compares `E f(X_N)` with the exact `E f(X(T))`. For GBM with
 EM, `E X_N = (1 + lambda h)^N` holds exactly, so the true bias is known. With
 `lambda = 2`, `mu = 0.1`, 1,000 paths, seed 2:
@@ -190,6 +194,10 @@ The pointwise truncated variance `sum_(k<=M) lambda_k phi_k(x)^2` never
 exceeds `sigma^2`, so a truncated field is always slightly *less* variable
 than the target. This should be reported alongside results that depend on
 the field variance.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/stochastic-processes-kl-fields-dark.png"><img alt="Two panels of truncated Karhunen-Loeve realizations on the unit interval, for an exponential and a squared-exponential kernel" src="../images/guides/stochastic-processes-kl-fields.png"></picture>
+
+*The kink of the exponential kernel makes its field rough and its eigenvalues decay slowly, so it needs 12 modes for 95% of the variance against 3 modes for the smooth squared-exponential kernel; the band stays just inside +/- 2 because the truncated field is slightly less variable than its unit-variance kernel.*
 
 **Evaluation off the grid.** `eigenfunction_at` and `realize_at` use Nystrom
 interpolation [EQ-PROC-KL-005], which reproduces the nodal values exactly.

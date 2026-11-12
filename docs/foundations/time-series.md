@@ -165,6 +165,10 @@ parameters. They omit parameter-estimation uncertainty.
   `sigma sqrt(sum_{j<h} phi^{2j})` to `1e-10`. The standard error rises from
   `0.979` toward the marginal value.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/time-series-forecast-intervals-dark.png"><img alt="Two panels: the last 60 values of a random walk and of an AR(1) series, each followed by a 20-step forecast with its 95% band" src="../images/guides/time-series-forecast-intervals.png"></picture>
+
+*The random-walk forecast error accumulates without limit, so its 95% interval widens 4.47x from one step to twenty (`sqrt(20)`), while the AR(1) fit with `phi = 0.5081` forgets its starting value and its interval widens only 1.16x before it levels off at the marginal spread.*
+
 ## 7. Simulation and exponential smoothing
 
 `simulate_arma(ar, ma, n, seed=..., burn_in=...)` [EQ-TS-SIM-001] uses the
@@ -225,6 +229,10 @@ The true values are `omega = 0.05`, `alpha = 0.1`, `beta = 0.85`; every
 estimate is within two standard errors. The same likelihood maximized
 independently by SciPy's SLSQP under explicit constraints gave the same
 optimum to `2e-10` in `log L`, for this fit and for a Student-t fit (`tests/test_timeseries_extensions.py`).
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/time-series-garch-volatility-dark.png"><img alt="Simulated GARCH returns above the true and the fitted conditional standard deviation over 1500 time steps" src="../images/guides/time-series-garch-volatility.png"></picture>
+
+*Calm and turbulent stretches of the returns are the peaks and troughs of `sigma_t`: the fitted conditional standard deviation follows the simulated one with correlation 0.996, and the estimated persistence 0.936 is the geometric rate at which a volatility shock decays back toward the unconditional level.*
 
 **Forecasts.** Variance forecasts [EQ-TS-GARCH-003] revert geometrically to
 the unconditional variance at the rate of the persistence; for GARCH(1, 1)
@@ -454,6 +462,10 @@ found.cost_evaluations                      # 129751
 Optimal partitioning without pruning evaluates `900 * 901 / 2 = 405 450`
 segment costs; PELT evaluated a third of them here, and the saving grows
 with the length of the series when changes keep occurring.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/time-series-pelt-segments-dark.png"><img alt="A 900-point series with three segments, their PELT means and two-standard-deviation bands, and the true change points" src="../images/guides/time-series-pelt-segments.png"></picture>
+
+*PELT recovers both changes, at 300 and 600: the first shifts the mean and keeps the spread, the second keeps the mean near 3 while the segment variance rises from 1.04 to 9.25, a change that a mean-only cost would not see.*
 
 ## When to use which method
 

@@ -1,0 +1,107 @@
+{
+  "causal-double-robustness": {
+    "guide": "causal-inference",
+    "alt": "Forest plot of nine average-treatment-effect estimates with 95% intervals against the true effect of 2",
+    "facts": {
+      "naive": "2.79",
+      "one_wrong": "0.01",
+      "both_wrong": "3.30"
+    }
+  },
+  "experimental-design-equivalence": {
+    "guide": "experimental-design",
+    "alt": "Design weights above the standardized variance function of the D-optimal quadratic design and of the uniform grid design",
+    "facts": {
+      "optimal": "3.000",
+      "uniform": "7.48",
+      "bound": "0.224"
+    }
+  },
+  "extreme-value-return-levels": {
+    "guide": "extreme-value-analysis",
+    "alt": "GEV return-level curve against the return period on a log axis with the delta band, profile intervals, maxima, and truth",
+    "facts": {
+      "profile": "19.59 to 33.66",
+      "delta": "17.58 to 29.14",
+      "truth": "21.68"
+    }
+  },
+  "filtering-hidden-velocity": {
+    "guide": "filtering-and-data-assimilation",
+    "alt": "True velocity, Kalman-filtered velocity with its 95% band, and the smoothed velocity over 150 time steps",
+    "facts": {
+      "filter": "0.285",
+      "smoother": "0.155",
+      "coverage": "93%"
+    }
+  },
+  "missing-data-interval-coverage": {
+    "guide": "missing-data",
+    "alt": "Three panels of 95% intervals for the mean of x1 over 60 samples: complete cases, mean imputation, and multiple imputation",
+    "facts": {
+      "complete cases": "70%",
+      "mean imputation": "25%",
+      "multiple imputation": "92%"
+    }
+  },
+  "stochastic-processes-kl-fields": {
+    "guide": "stochastic-processes-and-random-fields",
+    "alt": "Two panels of truncated Karhunen-Loeve realizations on the unit interval, for an exponential and a squared-exponential kernel",
+    "facts": {
+      "exponential": "12 modes",
+      "squared_exponential": "3 modes"
+    }
+  },
+  "stochastic-processes-strong-convergence": {
+    "guide": "stochastic-processes-and-random-fields",
+    "alt": "Strong error of the Euler-Maruyama and Milstein schemes against the step size on log axes with theoretical slope lines",
+    "facts": {
+      "euler": "0.551",
+      "milstein": "0.938"
+    }
+  },
+  "survival-censoring-bias": {
+    "guide": "survival-analysis",
+    "alt": "Kaplan-Meier curve with its 95% band, a fitted Weibull survival curve, and the curve that treats every time as an event",
+    "facts": {
+      "censored": "146",
+      "km": "4.06",
+      "naive": "3.09",
+      "weibull": "4.04"
+    }
+  },
+  "time-series-forecast-intervals": {
+    "guide": "time-series",
+    "alt": "Two panels: the last 60 values of a random walk and of an AR(1) series, each followed by a 20-step forecast with its 95% band",
+    "facts": {
+      "walk": "4.47x",
+      "ar": "1.16x",
+      "phi": "0.5081"
+    }
+  },
+  "time-series-garch-volatility": {
+    "guide": "time-series",
+    "alt": "Simulated GARCH returns above the true and the fitted conditional standard deviation over 1500 time steps",
+    "facts": {
+      "correlation": "0.996",
+      "persistence": "0.936"
+    }
+  },
+  "time-series-pelt-segments": {
+    "guide": "time-series",
+    "alt": "A 900-point series with three segments, their PELT means and two-standard-deviation bands, and the true change points",
+    "facts": {
+      "changes": "300 and 600",
+      "first_variance": "1.04",
+      "last_variance": "9.25"
+    }
+  },
+  "visual-language-encoding-rules": {
+    "guide": "visual-language",
+    "alt": "Regression observations with a dashed fitted mean, a dotted projection, its 95% band, and the dashed true line",
+    "facts": {
+      "widening": "4.4x",
+      "n": "25"
+    }
+  }
+}
