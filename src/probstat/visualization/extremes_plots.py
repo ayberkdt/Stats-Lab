@@ -17,6 +17,7 @@ from probstat.foundations.validation import coerce_finite_sample
 from probstat.inference import qq_points
 from probstat.risk.extremes import GPDFit, MeanResidualLifePoint, ReturnLevel
 
+from ._layout import wrapped_title_block
 from .theme import (
     FITTED,
     PROJECTED,
@@ -200,27 +201,61 @@ def plot_return_levels(
         headline_period = eligible[-1] if eligible else periods[-1]
     key = min(range(len(periods)), key=lambda i: abs(periods[i] - headline_period))
     entry = levels[key]
-    if math.isfinite(entry.lower) and math.isfinite(entry.upper):
-        title = (
-            f"The {entry.return_period:g}-{period_unit} level is {entry.level:.3g}; "
-            f"its {entry.confidence:.0%} interval spans "
-            f"{entry.lower:.3g} to {entry.upper:.3g}"
-        )
-    else:
-        title = (
-            f"The {entry.return_period:g}-{period_unit} level is {entry.level:.3g}; "
-            "its upper confidence limit is unbounded"
-        )
+    title = (
+        f"The {entry.return_period:g}-{period_unit} level is {entry.level:.3g}; "
+        + _interval_clause(entry)
+    )
     method = {"delta": "delta-method", "profile": "profile-likelihood"}.get(
         levels[0].method, levels[0].method
     )
-    title_block(
-        axes,
-        title,
-        f"Markers: {record} maxima, one per {period_unit} · dashed: fit · "
-        f"dotted: extrapolation · band: {method} interval",
-    )
+    parts = [
+        f"Markers: {record} maxima, one per {period_unit}",
+        "dashed: fit",
+        "dotted: extrapolation",
+    ]
+    if len(finite) >= 2:
+        parts.append(f"band: {method} interval")
+    wrapped_title_block(axes, title, parts, width_inches=axes.figure.get_figwidth())
     return axes
+
+
+def _interval_clause(entry: ReturnLevel) -> str:
+    """Describe the confidence interval of one return level as its limits are.
+
+    A limit is a finite number, an infinity (an open profile interval), or
+    ``nan`` (no interval, as for a probability-weighted-moments fit). Each
+    case is stated as it is, so the title never calls a missing interval
+    unbounded or names the wrong open side.
+
+    Args:
+        entry: Return level quoted in the title.
+
+    Returns:
+        Clause such as ``"its 95% interval spans 4 to 6"``.
+
+    References:
+        [EQ-EVA-PROF-001], [REF-COLES-2001, Section 4.3].
+
+    """
+    lower, upper = entry.lower, entry.upper
+    if math.isnan(lower) or math.isnan(upper):
+        return "no confidence interval is available (point estimate only)"
+    if math.isfinite(lower) and math.isfinite(upper):
+        return (
+            f"its {entry.confidence:.0%} interval spans "
+            f"{lower:.3g} to {upper:.3g}"
+        )
+    if math.isfinite(lower):
+        return (
+            f"its {entry.confidence:.0%} interval starts at {lower:.3g} and its "
+            "upper limit is unbounded"
+        )
+    if math.isfinite(upper):
+        return (
+            f"its {entry.confidence:.0%} interval ends at {upper:.3g} and its "
+            "lower limit is unbounded"
+        )
+    return f"its {entry.confidence:.0%} interval is unbounded on both sides"
 
 
 @themed
