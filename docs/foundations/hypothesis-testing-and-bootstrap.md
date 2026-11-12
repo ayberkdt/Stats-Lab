@@ -4,7 +4,10 @@
 confidence procedures, power analysis, and multiple-testing control. Every
 procedure returns a frozen result that names its method, so a reader can see
 which assumptions were used. All numbers below come from the library and are
-also asserted in `tests/test_classical_resampling_inference.py`.
+also asserted in `tests/test_classical_resampling_inference.py` (section 10
+in `tests/test_classical_tests.py`). Robust estimation and quantile
+regression have their own guide,
+[Robust estimation and quantile regression](robust-and-quantile-regression.md).
 
 ## 0. What the numbers mean
 
@@ -212,6 +215,106 @@ Example: ten differences with mean 0.02 and margins `(-0.2, 0.2)`:
 
 A non-significant difference test is never a substitute for TOST.
 
+## 10. Several groups, blocks, variances, normality, and post hoc tests
+
+These tests live in `probstat.inference` next to the two-sample tests; their
+oracles (SciPy cross-checks made offline, brute-force enumeration, and
+closed forms) are in `tests/test_classical_tests.py` (ADR-0101).
+
+### Which test when
+
+| Question | Data | Normal-theory test | Rank or robust test |
+|---|---|---|---|
+| Do two groups differ in location? | independent | `two_sample_t_test` (Welch) | `mann_whitney_u_test` |
+| Does a paired difference have median zero? | paired | `paired_t_test` | `wilcoxon_signed_rank_test` (symmetry), `sign_test` (none) |
+| Do `k` groups differ in location? | independent | `one_way_anova` | `kruskal_wallis_test` |
+| Do `k` treatments differ within blocks? | complete blocks | two-way ANOVA (not provided) | `friedman_test` |
+| Do `k` matched binary rates differ? | matched 0/1 | | `cochran_q_test` (`mcnemar_test` for `k = 2`) |
+| Do `k` groups differ in spread? | independent | `bartlett_test` | `brown_forsythe_test`, `levene_test` |
+| Are the data normal? | one sample | `shapiro_wilk_test` | `normality_tests` (EDF statistics) |
+| Which pairs of means differ? | after ANOVA | `tukey_hsd_test` | `dunn_test` (after Kruskal-Wallis) |
+
+- `kruskal_wallis_test` (EQ-INF-KW-001) mid-ranks the pooled sample and
+  corrects `H` for ties. When the number of assignments `N!/prod n_g!` is at
+  most `max_exact` (100000) it enumerates them all, which gives the exact
+  permutation p-value given the ties; otherwise it uses chi-square with
+  `k - 1` degrees of freedom. For sizes `(3, 3, 3)` without ties,
+  `P(H >= 5.6) = 84/1680 = 0.05`.
+- `friedman_test` (EQ-INF-FRIEDMAN-001) ranks within blocks and reports
+  Kendall's `W` as its effect size.
+- `sign_test` (EQ-INF-SIGN-001) is `binomial_test` on the signs of the
+  non-zero differences.
+- `levene_test` and `brown_forsythe_test` (EQ-INF-LEVENE-001) are the
+  one-way ANOVA of absolute deviations from the group means or medians;
+  `bartlett_test` (EQ-INF-BARTLETT-001) is the normal-theory likelihood-ratio
+  test.
+- `shapiro_wilk_test` (EQ-INF-SW-001) follows Royston's algorithm AS R94 for
+  `3 <= n <= 5000`; its polynomial constants were checked against the
+  published Fortran listing, and `W` and the p-value agree with SciPy's
+  `swilk` to `1e-8` and `1e-6` relative.
+- `tukey_hsd_test` (EQ-INF-TUKEY-001) refers each standardized difference to
+  the studentized range distribution (EQ-INF-SRANGE-001), evaluated by
+  numerical integration to an absolute accuracy of about `1e-12`
+  (`studentized_range_cdf`, `studentized_range_sf`,
+  `studentized_range_quantile`).
+- `dunn_test` (EQ-INF-DUNN-001) compares mean ranks of the pooled ranking
+  and adjusts its p-values with `adjust_p_values` (Holm by default).
+
+```python
+from probstat.inference import (
+    bartlett_test, brown_forsythe_test, cochran_q_test, dunn_test, friedman_test,
+    kruskal_wallis_test, levene_test, one_way_anova, sign_test,
+    studentized_range_quantile, tukey_hsd_test,
+)
+
+a = (2.9, 3.0, 2.5, 2.6, 3.2, 3.0)
+b = (3.8, 2.7, 4.0, 2.4, 3.0)
+c = (2.8, 3.4, 3.7, 2.2, 2.0, 4.1, 3.9)
+one_way_anova(a, b, c).p_value               # 0.665
+kruskal = kruskal_wallis_test(a, b, c)
+kruskal.statistic                            # 0.5641, tie-corrected H
+kruskal.p_value                              # 0.754
+kruskal.exact                                # False; there are 14702688 assignments
+
+levene_test(a, b, c).p_value                 # 0.0125, mean-centred
+brown_forsythe_test(a, b, c).p_value         # 0.114, median-centred
+bartlett_test(a, b, c).p_value               # 0.0734
+
+hsd = tukey_hsd_test(a, b, c)
+hsd.comparison(0, 1).p_value                 # 0.7155
+hsd.df                                       # 15.0
+studentized_range_quantile(0.95, 3, 15)      # 3.6734
+dunn = dunn_test(a, b, c)
+dunn.comparison(0, 2).p_value                # 0.5049, unadjusted
+dunn.comparison(0, 2).adjusted_p_value       # 1.0, Holm
+
+blocks = [(31, 27, 24), (31, 28, 31), (45, 29, 46), (21, 18, 48),
+          (42, 36, 46), (32, 17, 40), (27, 27, 30), (33, 20, 35)]
+friedman_test(blocks).statistic              # 9.8
+friedman_test(blocks).p_value                # 0.00745
+sign_test((1, 2, 3, -1, 4, 5, 6, 7, 8, 9, 0)).p_value   # 0.02148, 22/1024
+cochran_q_test([(1, 1, 0), (1, 0, 0), (1, 1, 1), (0, 1, 0),
+                (1, 1, 0), (1, 0, 0), (0, 0, 0), (1, 1, 0)]).statistic  # 7.0
+```
+
+The three groups give conflicting variance verdicts: Levene's mean-centred
+test rejects at 5%, Brown-Forsythe and Bartlett do not. The tests differ
+only in how they centre and weigh the deviations, so a borderline verdict
+should not be read as firm evidence either way; Brown and Forsythe found the
+median-centred version to keep its level under skewed and heavy-tailed
+data, which makes it the safer default. Bartlett's test fails in the other
+direction: two outliers in otherwise similar samples make it reject while
+Brown-Forsythe does not.
+
+```python
+from probstat.inference import bartlett_test, brown_forsythe_test
+
+heavy = (0.1, -0.3, 0.2, 5.0, -0.1, 0.0, 0.3, -4.2)
+light = (0.4, -0.2, 0.1, -0.5, 0.2, 0.3, -0.1, 0.0)
+bartlett_test(heavy, light).p_value          # 1.27e-05
+brown_forsythe_test(heavy, light).p_value    # 0.173
+```
+
 ## Limitations
 
 - Exact rank and permutation branches are pure-Python enumerations. They are
@@ -224,6 +327,11 @@ A non-significant difference test is never a substitute for TOST.
   tests only.
 - Studentized bootstrap with the default jackknife SE costs `n` statistic
   evaluations per replicate.
+- The exact Kruskal-Wallis law enumerates assignments one by one and is
+  limited to `max_exact` of them; Friedman, Cochran's Q, Bartlett, and Dunn
+  use their large-sample reference laws only.
+- Each studentized-range evaluation costs tens of milliseconds (a double
+  integral), so `tukey_hsd_test` with many groups takes seconds.
 
 ## Common pitfalls
 
@@ -242,6 +350,23 @@ A non-significant difference test is never a substitute for TOST.
   `normal_mean_confidence_interval` without `known_sigma` is a large-sample
   approximation and is narrower than the exact
   `student_t_mean_confidence_interval` for small `n`.
+- **Ties in rank tests.** `kruskal_wallis_test`, `friedman_test`, and
+  `dunn_test` use mid-ranks and tie-corrected variances; with heavy ties the
+  chi-square reference is rough, and the exact Kruskal-Wallis law (small
+  designs) is conditional on the observed tie pattern.
+- **Unequal variances.** `one_way_anova` and `tukey_hsd_test` assume a common
+  variance; Kruskal-Wallis assumes identical distributions under the null,
+  so unequal spreads distort its level and a rejection does not by itself
+  mean the medians differ. Check spreads with
+  `brown_forsythe_test` rather than `bartlett_test`, which reacts to heavy
+  tails as if they were unequal variances.
+- **Multiple comparisons.** Run all pairwise t tests and the family-wise
+  error grows with the number of pairs; `tukey_hsd_test` p-values are
+  already simultaneous, while `dunn_test` p-values are adjusted by
+  `adjust_p_values` (Holm by default; pass `adjustment="bh"` for FDR).
+- **Shapiro-Wilk at large n.** With thousands of observations
+  `shapiro_wilk_test` rejects for departures from normality too small to
+  matter; look at a Q-Q plot as well.
 - **Defaults and seeds.** `adjust_p_values` defaults to Holm (FWER control,
   not FDR); `bootstrap`, `bootstrap_confidence_interval`, and the Monte Carlo
   branch of `permutation_test` are reproducible only with an explicit `seed`
@@ -290,4 +415,9 @@ first.standard_error == bootstrap(
 [REF-DAVISON-HINKLEY-1997], [REF-COHEN-1988], [REF-HEDGES-1981],
 [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995], [REF-HOLM-1979],
 [REF-BENJAMINI-HOCHBERG-1995], [REF-BENJAMINI-YEKUTIELI-2001],
-[REF-LEHMANN-ROMANO-2005], [REF-SCHUIRMANN-1987].
+[REF-LEHMANN-ROMANO-2005], [REF-SCHUIRMANN-1987], [REF-KRUSKAL-WALLIS-1952],
+[REF-FRIEDMAN-1937], [REF-DIXON-MOOD-1946], [REF-BROWN-FORSYTHE-1974],
+[REF-BARTLETT-1937], [REF-SHAPIRO-WILK-1965], [REF-ROYSTON-1992],
+[REF-ROYSTON-1995], [REF-STATLIB-AS-R94], [REF-COCHRAN-1950],
+[REF-KRAMER-1956], [REF-COPENHAVER-HOLLAND-1988], [REF-LUND-LUND-1983],
+[REF-HOCHBERG-TAMHANE-1987], [REF-DUNN-1964].
