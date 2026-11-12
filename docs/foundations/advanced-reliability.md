@@ -54,13 +54,16 @@ FORM fails or misleads in these cases:
 - The search does not converge within `max_iterations`. The result then has
   `converged=False`, and SORM refuses to use it.
 
-**Upper-tail precision limit.** `JointInput.from_standard_normal` evaluates
+**Upper-tail precision.** `JointInput.from_standard_normal` evaluates
 `F^-1(Phi(z))`. For latent values `z > 6`, `Phi(z)` is within `1e-9` of one,
-and double precision rounds it. Beyond `z ~ 8.1` the input stops changing.
-Finite-difference gradients then become noisy, and FORM can stall when a
-design-point coordinate is in that region. This was observed for
-`beta ~ 6.8` and `8.5` on a lognormal margin. Treat indices above about 6 with
-care until the transformation evaluates the upper tail through `Phi(-z)`.
+and double precision rounds it. For `z > 0` a continuous margin with an
+inverse survival function is therefore evaluated as `S^-1(Phi(-z))`, which
+keeps full accuracy: on the correlated lognormal margin of Section 7 with
+`mu_R` raised to give `beta = 8.5`, FORM converges in 8 iterations with a
+design-point coordinate of `8.3`. A margin without `isf`, and the Rosenblatt
+route of a non-Gaussian copula, still clamp `Phi(z)` below one. There the
+input stops changing near `z ~ 8`, finite-difference gradients become noisy,
+and FORM can stall when a design-point coordinate is in that region.
 
 ## 3. SORM from principal curvatures
 
@@ -126,8 +129,9 @@ available:
 
 `bivariate_normal_cdf` implements Genz's version of the Drezner-Wesolowsky
 Gauss-Legendre scheme [EQ-REL-BVN-001] [EQ-REL-BVN-002]. It matches an
-independent quadrature to `4e-15` over a grid of 714 points, including
-`|rho| >= 0.925`.
+independent quadrature (200 panels of 24-point Gauss-Legendre on
+`[-12, h]`) to `2.2e-15` over 637 points: `h, k = -3, -2, ..., 3` and 13
+correlations from `-0.995` to `0.995`, including `|rho| >= 0.925`.
 
 ## 6. Inverse FORM and target-reliability design
 
@@ -159,7 +163,7 @@ factors are `alpha^2 = (0.045, 0.955)`, and the correlated importance vector is
 | --- | --- | --- | --- | --- |
 | FORM | 6.2118e-5 | 3.8376 | 35 | — |
 | SORM-Breitung | 6.2118e-5 | 3.8376 | 44 | — |
-| SORM-HR | 6.2119e-5 | 3.8376 | 44 | — |
+| SORM-HR | 6.2118e-5 | 3.8376 | 44 | — |
 | IS (2000 draws) | 6.490e-5 | 3.8268 | 2035 | 0.046 |
 | Subset (N = 1000) | 6.19e-5 | 3.8385 | 4191 | 0.34 |
 | Crude MC | 1.0e-4 | 3.7190 | 20000 | 0.71 |
@@ -191,7 +195,7 @@ and correlations `(0.6, 0.8, 0)`. Its bounds and estimate:
 
 - Uni-modal bounds: `[0.00621, 0.01427]`.
 - Ditlevsen bounds: `[0.011813, 0.011829]`.
-- Mixture importance sampling (20000 draws): `0.01195 +/- 0.00014`.
+- Mixture importance sampling (20000 draws, `seed=3`): `0.01195 +/- 0.00014`.
 
 ## Sources
 

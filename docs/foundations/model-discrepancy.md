@@ -109,9 +109,9 @@ Their prior densities carry the Jacobian `+ log(value)` ([EQ-KOH-POST-001]).
 `CalibrationProblem`. The test suite checks this on the exponential-decay
 problem (21 points, seed 7). Log posteriors agree to 10 decimal places. The
 MAP and Laplace covariance agree with `laplace_posterior()`. The seeded
-adaptive-Metropolis chains agree draw by draw to within `1e-7`. In an
-exploratory run with 2 chains of 500 draws (seed 5), the maximum difference
-was `3.1e-11`.
+adaptive-Metropolis chains agree draw by draw to within `1e-7`; with the
+test's 2 chains of 300 draws after 200 warm-up iterations (seed 5), the
+maximum difference is `4.3e-11`.
 
 ## 4. Prediction: simulator alone versus bias-corrected
 
@@ -147,7 +147,7 @@ used 2 chains of 1000 draws after 500 warm-up iterations, with seed 3.
 | --- | --- |
 | plain `CalibrationProblem` | 0.3925 +- 0.0023, 90% 0.3887..0.3964 (excludes 0.4) |
 | KOH MAP | 0.3930 (SE 0.0377) |
-| KOH posterior | mean 0.3952, sd 0.0450, R-hat 1.002, ESS 165 |
+| KOH posterior | mean 0.3952, sd 0.0450, R-hat 1.002, ESS 167 |
 
 Without a discrepancy, the posterior of `k` is 20 times narrower and excludes
 the true value. The discrepancy posterior has `sigma_delta` mean 0.289 and

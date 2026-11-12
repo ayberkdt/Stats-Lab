@@ -105,12 +105,14 @@ estimator**, and reports `p = (1 + #{T* >= T})/(1 + B_ok)` for KS and AD
 refits. The smallest attainable p-value is `1/(B+1)`. With `B = 19` nothing
 can be rejected at `alpha = 0.05`, and `select_distribution` warns about this.
 
-One seeded check: 40 normal samples (`n = 30`, `B = 49`, root seed 11),
-each with a fitted normal null. The bootstrap KS p-values averaged `0.53`,
-and `12.5 %` fell below `0.1`. The naive KS p-values against the same fitted
-laws averaged `0.78`, which is far too conservative. An exponential sample of
-`n = 100` fitted as normal gives bootstrap p-values of `0.01` for both KS and
-AD (the minimum with `B = 99`).
+One seeded check: 40 samples of `n = 30` from `Normal(3, 2)` (root stream
+`RandomStream(11)`, data seed `root.child("data", r)` and bootstrap stream
+`root.child("b", r)` for replicate `r`, `B = 49`), each tested against its
+own fitted normal. The bootstrap KS p-values averaged `0.53`, and `12.5 %`
+fell below `0.1`. The naive KS p-values against the same fitted laws
+averaged `0.77`, which is far too conservative. An exponential sample of
+`n = 100` (`Exponential(1)`, seed 5) fitted as normal gives bootstrap
+p-values of `0.01` for both KS and AD (seed 3; the minimum with `B = 99`).
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/fitting-bootstrap-calibration-dark.png"><img alt="Empirical CDFs of naive and bootstrap Kolmogorov-Smirnov p-values from 80 normal samples tested against fitted normal laws, with the uniform diagonal" src="../images/guides/fitting-bootstrap-calibration.png"></picture>
 

@@ -144,7 +144,7 @@ design.
 | Same GP | 99 runs | `+/- q sd(x)` (normalized) | 0.933 |
 
 The guarantee for the PCE row is `k/(n+1) = 0.9`. The observed `0.851` is
-about 1.6 standard deviations below 0.9 under the `Beta(90, 10)` law of
+about 1.7 standard deviations below 0.9 under the `Beta(90, 10)` law of
 fixed-calibration coverage (standard deviation about 0.03). That is the
 calibration-set variability described in Section 0, not a failure.
 

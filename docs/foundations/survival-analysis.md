@@ -131,7 +131,8 @@ observed information. `weibull_parameters()` maps them to shape and scale by
 the delta method.
 
 Seeded check: 500 Weibull(shape 1.7, scale 5) lifetimes with uniform(0, 14)
-censoring (146 censored, 29.2%).
+censoring, drawn from `RandomStream(2026)` as in
+`tests/test_survival_analysis.py` (146 censored, 29.2%).
 
 | Quantity | Estimate | se |
 |---|---|---|

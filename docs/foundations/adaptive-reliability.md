@@ -130,7 +130,7 @@ two-sided bounds, so antipodal modes cost no sampling noise.
 | two planes | 2.037036e-3 (bivariate) | 1.349898e-3 | 2.037036e-3 | 1.9027e-3 +- 8.6e-5 (2000) |
 | four-branch, `k = 6` | crude MC 4.4750e-3 +- 1.5e-4 (2e5) | 1.3499e-3 | 5.3923e-3 (4 points, SE 3e-15) | 4.6069e-3 +- 1.4e-4 (4000) |
 
-The four-branch function has four design points, all with `beta = 3` (1160
+The four-branch function has four design points, all with `beta = 3` (1010
 calls with the axes rule). Multi-point FORM equals the linearized value
 `1 - (1 - 2 Phi(-3))^2`, which overestimates because two branches curve away
 from the origin. Mixture IS agrees with crude Monte Carlo. The four-branch
@@ -178,16 +178,17 @@ Implementation choices that are not part of the published method:
   the smallest coordinate gap and 20 times the extent of the training set,
   and the diagonal keeps at least `1e-8 sigma_f^2`. `regularization=None`
   restores plain maximum likelihood. Without it, `G = 3 + u1^2/4 - u2` gave
-  length scales `1e3`-`2e5`, a signal-to-noise ratio of about `1e18`, and
-  `min U` of 114-2320 right after the 12-point design (10 seeds,
-  `N = 2000`). With populations up to `5 * 10^4` (`target_cov = 0.1`, seeds
-  1-5) those surrogates misclassified 4 points in total although `min U` was
-  up to 639. Regularized, the same runs added 3-7 points, misclassified none,
-  and stopped at `min U` 2.05-4.6. On the four-branch function
-  (`N = 2000`, seeds 1-10), seeds 5 and 9 kept a white-noise optimum
-  (length scales `2e-3` and `5e-6`). They ran 198 and 128 additions and
-  misclassified 7 and 11 points; seed 9 predicted no failure at all.
-  Regularized, all ten runs used 20-31 calls and misclassified nothing.
+  length scales `8e2`-`2e5`, a signal-to-noise ratio of about `1e18`, and
+  `min U` of 231-1370 right after the 12-point design (seeds 1-10,
+  `N = 2000`, `target_cov = 1`), so learning stopped without adding a point.
+  These surrogates happened to classify every population point correctly,
+  also when the population grew from `10^4` to `5 * 10^4`
+  (`target_cov = 0.1`, seeds 1-5, `min U` up to 545): the misclassification
+  count does not reveal the overconfidence, and `min U` no longer measures
+  sign uncertainty. Regularized, the same runs added 3-7 points,
+  misclassified none, and stopped at `min U` 2.05-4.6. On the four-branch
+  function (`N = 2000`, seeds 1-10) both fits used 20-30 calls and
+  misclassified nothing.
 
 Four-branch system (`k = 6`), `N = 10^4`, `target_cov` not binding:
 
@@ -207,18 +208,16 @@ Starting from `N = 5000` with `target_cov = 0.15`, the population grew to
 10 000 and the run used 36 calls (`P_f = 4.5e-3`, the same as crude MC on the
 same points, c.o.v. 0.149).
 
-Seeds 1-4 and the growing-population run are identical to the unregularized
-fit. Seed 5 used 41 calls instead of 48 and misclassified one point
+All five seeds and the growing-population run give the same calls and
+estimates with `regularization=None`. Seed 5 misclassified one point
 (`min U = 2.19`). The `min U >= 2` rule bounds each point's sign error by
 about 2.3%, not the count over `10^4` points.
 
-The kernel matters. With `squared_exponential`, `N = 5000`, and the
-unregularized fit, seed 1 exhausted `max_added = 200` without reaching
-`min U >= 2`. It ended with 24 misclassified points (`P_f = 1.0e-3` against
-5.8e-3), while seed 2 matched crude MC with 37 calls. With the regularized
-default, seed 1 needed 34 calls and misclassified nothing. Seed 2 needed 35
-calls and misclassified 3 (`P_f = 3.6e-3` against 4.2e-3). Use the Matérn
-default.
+On this problem the kernel choice did not change the outcome. With
+`squared_exponential`, `N = 5000`, and `target_cov = 1`, seeds 1 and 2
+needed 34 and 26 calls and matched crude MC on the same population
+(`P_f = 5.8e-3` and `4.2e-3`, nothing misclassified), with and without
+regularization. The Matérn kernel remains the default.
 
 ## Limitations
 
@@ -226,8 +225,8 @@ default.
   about `2d + 1` HL-RF searches per round, and secondary points inside a
   bulge ball are hidden.
 - Separation-of-variables sampling uses no variable reordering. For three
-  equicorrelated modes (`rho = 0.5`, `beta = 3`), 4000 samples gave a relative
-  SE of 2.5%.
+  equicorrelated modes (`rho = 0.5`, `beta = 3`), 4000 samples (`seed=1`) gave
+  a relative SE of 2.7%.
 - AK-MCS cost grows with `N` times the training size (posterior updates) plus
   the GP likelihood fits. It is meant for expensive models and populations up
   to about `10^5` in pure Python. Its c.o.v. is the Monte Carlo error of the

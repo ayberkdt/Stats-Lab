@@ -94,8 +94,9 @@ At `k = 1` the smoothed variance 0.8224 is half the filtered 1.6800.
 
 **Constant-velocity tracking.** State `(position, velocity)`, `dt = 1`,
 white-noise acceleration `Q = q [[1/3, 1/2], [1/2, 1]]` with `q = 0.01`, and
-position measured with `r = 4` [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Over 150
-steps (`simulate(..., seed=11)`):
+position measured with `r = 4` [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001], prior
+mean `(0, 1)` and prior covariance `diag(1, 0.5)`. Over 150 steps
+(`simulate(..., seed=11)`):
 
 | estimate | position RMSE | velocity RMSE |
 |---|---|---|
@@ -161,8 +162,9 @@ Kalman covariance with the sample covariance of `N` model runs. Each member
 is forecast with its own process noise and updated with its own perturbed
 observation `y + e_i`, `e_i ~ N(0, R)` [EQ-DA-ENKF-001]. Without the
 perturbation the analysis ensemble would be too narrow. On the
-constant-velocity model (`q = 0.05`, `r = 1`, 5 steps, `seed=7` data,
-`seed=0` filter), the final analysis compared with the exact filter is:
+constant-velocity model (`q = 0.05`, `r = 1`, the same prior, 5 steps,
+`seed=7` data, `seed=0` filter), the final analysis compared with the exact
+filter is:
 
 | | mean (pos, vel) | variance (pos, vel) |
 |---|---|---|
@@ -181,8 +183,8 @@ silently, and localization is not implemented.
 observation cost [EQ-DA-3DVAR-001] by BFGS with an analytic gradient. For a
 linear observation operator the minimizer equals one Kalman update. With the
 first constant-velocity prediction `(1, 1)` and observation `1.9959`, 3D-Var
-returns `(1.60019, 1.20776)` after 9 iterations, the same as the Kalman update
-to about `1e-11`. For the nonlinear operator `h(x) = x^2` with `x_b = 1`,
+returns `(1.60019, 1.20776)` after 3 iterations, the same as the Kalman update
+to rounding error (about `2e-16`). For the nonlinear operator `h(x) = x^2` with `x_b = 1`,
 `B = 0.5`, `y = 2`, `R = 0.1`, the analysis is `x_a = 1.4040` with cost
 0.1674 and Gauss-Newton analysis variance 0.01237. Unlike the Kalman filter,
 3D-Var keeps `B` fixed instead of propagating it.

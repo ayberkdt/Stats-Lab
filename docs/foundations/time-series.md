@@ -109,7 +109,7 @@ Checks:
 | check | difference |
 |---|---|
 | AR(1) closed form [EQ-TS-LIK-002] vs both filters (`phi=0.7`, `sigma^2=0.8`, `mu=0.3`, n=200, seed 105; `log L = -269.5869`) | `5.7e-14` (both filters) |
-| dense `N(mu 1, Toeplitz(gamma))` log-density, n=150, five models incl. non-invertible MA(1) `theta=1.5` | at most `6.8e-13` |
+| dense `N(mu 1, Toeplitz(gamma))` log-density, n=150, five models incl. non-invertible MA(1) `theta=1.5` | rounding level (about `1e-12`) |
 | ARMA(2,1) plus measurement noise `0.25`: `kalman(..., observation_variance=0.25)` vs `filtering.kalman_filter(model.to_linear_gaussian(0.25), ...)` | `0.0` |
 
 `filtering.LinearGaussianStateSpace` requires a positive-definite observation
@@ -128,13 +128,13 @@ central-difference Hessian [EQ-TS-SE-001].
 | simulation | estimates | standard errors | `log L` |
 |---|---|---|---|
 | AR(2) `(0.5, -0.3)`, `mu = 1`, n = 800, seed 108 | `phi = (0.4131, -0.3107)`, `mu = 1.0267`, `sigma^2 = 0.9421` | `0.0336, 0.0336, 0.0382, 0.0471` | -1111.441 |
-| MA(1) `theta = 0.6`, n = 800, seed 109 | `theta = 0.6002`, `sigma^2 = 1.0093` | `0.0286, 0.0505` | -1139.092 |
+| MA(1) `theta = 0.6`, no mean, n = 800, seed 109 | `theta = 0.6002`, `sigma^2 = 1.0093` | `0.0286, 0.0505` | -1139.092 |
 
 The AR(2) `phi_1` estimate is 2.6 standard errors from the truth. That is an
 honest sampling outcome for this seed, and the test checks the 3-SE
-criterion. For three models (n = 400-600), the maximum agreed with an
-independent SciPy Nelder-Mead run on the same likelihood to `2.3e-12` in
-`log L`. Information criteria (AIC / BIC) on the AR(2) data pick the true
+criterion. For this AR(2), the MA(1) with a mean, and the AR(1) of
+Section 6, the maximum agreed with an independent SciPy Nelder-Mead run on
+the same likelihood to within `1e-11` in `log L`. Information criteria (AIC / BIC) on the AR(2) data pick the true
 order:
 
 | order | AIC | BIC |
@@ -183,7 +183,7 @@ they are concentrated out exactly by least squares.
 | data | result |
 |---|---|
 | `5 + N(0, 1)`, n = 200, seed 112 | `alpha = 2e-8` (no evidence of level change); forecast `5.0722` = least-squares level (the sample mean) |
-| `3 + 0.7 t + N(0, 0.25)`, n = 150, seed 113 | `alpha = 1.2e-5`, `beta = 7.9e-5`, slope `0.6995` |
+| `3 + 0.7 t + N(0, 0.25)`, n = 150, seed 113 | `alpha = 1.3e-5`, `beta = 4.9e-3`, slope `0.6995` |
 | ARIMA(0,1,1) with `theta = -0.6`, n = 300, seed 43 | `alpha = 0.355` (the equivalent ARIMA value is `1 + theta = 0.4`) |
 
 Smoothing returns point forecasts only. No prediction intervals are provided
@@ -393,7 +393,8 @@ The p-value is **simulated** [EQ-TS-ADF-003]: the statistic is compared with
 `simulations` (default 2000) Dickey-Fuller statistics of seeded Gaussian
 random walks with the same regression length, and the result carries its
 Monte Carlo standard error. The simulated distribution reproduces
-MacKinnon's critical values: the share of 20 000 simulated statistics below
+MacKinnon's critical values: the share of 20 000 simulated statistics (seed
+2026) below
 each published value is within two standard errors of 1%, 5%, and 10% for
 all four regressions at `T = 100` (ADR-0104).
 

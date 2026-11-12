@@ -158,10 +158,11 @@ Two independent checks support the formula:
   `log p(tau | y)` differs from the closed-form multivariate-normal evidence
   `log N(y | m_0 1, diag(s^2 + tau^2) + s_0^2 11')` by a constant. The
   spread of that constant over the grid was `2.1e-14`.
-- **Brute-force quadrature.** A 2-D quadrature over `(mu, tau)` (step 0.05 in
-  `tau` up to 200, step 0.1 in `mu`) gave `E[tau | y] = 6.592`. The grid gives
-  6.575. The left-endpoint rule omits about `h p(0) / 2` of the mass, which
-  accounts for the 0.015 difference.
+- **Brute-force quadrature.** A 2-D Riemann sum over `(mu, tau)` (step 0.1 in
+  `mu` from -60 to 80, step `h = 0.05` in `tau` from 0.05 to 200) gave
+  `E[tau | y] = 6.592`. The grid gives 6.575. Starting the `tau` sum at `h`
+  omits about `h p(0) / 2` of the mass next to the mode at `tau = 0`, which
+  accounts for the 0.017 difference.
 
 **NUTS route.** `sample_hierarchical_normal` runs the existing
 `no_u_turn_sampler` on the non-centered parameterization
@@ -169,23 +170,28 @@ Two independent checks support the formula:
 analytic gradient and `target_acceptance = 0.9`.
 
 Lab output: 4 chains, 500 warm-up and 1000 kept draws each, seed 2026. NUTS
-took 7.4 s in that run (5.3 to 5.4 s in later runs), with 1 divergence in 4000 draws.
+takes several seconds (5 to 10 s on the development machine), with no
+divergence in the 4000 draws of this run. The NUTS digits depend on the
+platform's floating-point library, so another platform prints a different but
+equally valid run; the `z` column is the quantity to compare.
 
 | quantity | grid mean | grid sd | NUTS mean | NUTS sd | MCSE | z | E[B_j] |
 |---|---|---|---|---|---|---|---|
-| mu | 7.932 | 5.178 | 8.257 | 5.101 | 0.156 | 2.08 | |
-| tau | 6.575 | 5.650 | 6.561 | 5.447 | 0.168 | -0.09 | |
-| theta_1 | 11.400 | 8.341 | 11.652 | 8.421 | 0.212 | 1.19 | 0.825 |
-| theta_2 | 7.895 | 6.275 | 8.039 | 6.125 | 0.121 | 1.19 | 0.723 |
-| theta_3 | 6.131 | 7.765 | 6.247 | 7.867 | 0.153 | 0.76 | 0.839 |
-| theta_4 | 7.645 | 6.546 | 7.845 | 6.606 | 0.129 | 1.55 | 0.749 |
-| theta_5 | 5.126 | 6.357 | 5.203 | 6.427 | 0.133 | 0.58 | 0.693 |
-| theta_6 | 6.139 | 6.710 | 6.132 | 6.672 | 0.130 | -0.05 | 0.749 |
-| theta_7 | 10.667 | 6.786 | 10.823 | 6.745 | 0.148 | 1.05 | 0.723 |
-| theta_8 | 8.457 | 7.888 | 8.602 | 8.041 | 0.171 | 0.85 | 0.862 |
+| mu | 7.932 | 5.178 | 7.790 | 4.909 | 0.134 | -1.06 | |
+| tau | 6.575 | 5.650 | 6.585 | 5.251 | 0.134 | 0.07 | |
+| theta_1 | 11.400 | 8.341 | 11.697 | 8.268 | 0.186 | 1.60 | 0.825 |
+| theta_2 | 7.895 | 6.275 | 8.026 | 6.313 | 0.116 | 1.13 | 0.723 |
+| theta_3 | 6.131 | 7.765 | 6.186 | 7.684 | 0.163 | 0.34 | 0.839 |
+| theta_4 | 7.645 | 6.546 | 7.412 | 6.546 | 0.121 | -1.92 | 0.749 |
+| theta_5 | 5.126 | 6.357 | 5.056 | 6.395 | 0.127 | -0.55 | 0.693 |
+| theta_6 | 6.139 | 6.710 | 6.047 | 6.620 | 0.132 | -0.69 | 0.749 |
+| theta_7 | 10.667 | 6.786 | 10.761 | 6.652 | 0.130 | 0.72 | 0.723 |
+| theta_8 | 8.457 | 7.888 | 8.173 | 7.895 | 0.157 | -1.81 | 0.862 |
 
-Here `z = (NUTS mean - grid mean) / MCSE`. The `theta` errors share the sign
-of the `mu` error because every `theta_j` is correlated with `mu`.
+Here `z = (NUTS mean - grid mean) / MCSE`. Every `|z|` is below 2, the size
+expected from Monte Carlo error alone. The ten `z` values are not independent:
+every `theta_j` is correlated with `mu`, so one chain excursion moves several
+of them at once.
 
 The grid quantiles of `tau` are:
 
@@ -197,12 +203,12 @@ The same comparison over six seeds (same settings) gave these z-scores:
 
 | seed | mu | tau | theta_1 | divergences |
 |---|---|---|---|---|
-| 1 | -1.53 | -0.36 | -0.87 | 0 |
-| 2 | -1.06 | 1.36 | 0.30 | 0 |
-| 3 | -1.11 | -1.75 | -0.24 | 0 |
-| 4 | -0.76 | -0.05 | -1.42 | 0 |
-| 5 | -0.54 | 0.01 | 0.40 | 0 |
-| 2026 | 2.08 | -0.09 | 1.19 | 1 |
+| 1 | -0.05 | 0.36 | 0.86 | 1 |
+| 2 | 0.66 | -1.21 | -0.14 | 0 |
+| 3 | 0.04 | 0.96 | 0.82 | 0 |
+| 4 | -0.09 | 0.52 | -1.12 | 0 |
+| 5 | 1.13 | -0.53 | 0.68 | 0 |
+| 2026 | -1.06 | 0.07 | 1.60 | 0 |
 
 The test requires `|z| < 4` for `mu`, `tau` and `theta_1`, and the medians of
 `tau` to agree within 0.6.
@@ -282,16 +288,16 @@ sample mean is fitted directly by the posterior, so its p-value piles up at
 mid-range p-value from a statistic the model fits directly is no evidence of
 good fit.
 
-For the eight schools, the checks on the 4000 NUTS draws (seed 4) gave
-p-values (MCSE) of:
+For the eight schools, the checks on the 4000 NUTS draws of the seed-2026
+run, with replicates drawn from seed 4, gave upper-tail p-values (MCSE) of:
 
 | test quantity | p-value (MCSE) |
 |---|---|
-| `max` | 0.495 (0.009) |
-| `min` | 0.168 (0.006) |
-| `mean` | 0.467 (0.009) |
-| `sd` | 0.789 (0.007) |
-| realized `chi2 = sum ((y_j - theta_j)/s_j)^2` | 0.693 (0.008) |
+| `max` | 0.486 (0.008) |
+| `min` | 0.175 (0.006) |
+| `mean` | 0.451 (0.010) |
+| `sd` | 0.790 (0.007) |
+| realized `chi2 = sum ((y_j - theta_j)/s_j)^2` | 0.702 (0.007) |
 
 None of these flags a misfit.
 
@@ -301,8 +307,8 @@ Ties are counted at one half, or randomized with `randomize_ties=True`.
 replicates conditioned on all of the data. It is not leave-one-out, so its
 values are pulled toward 0.5 and the KS p-value is descriptive only.
 
-The eight-schools PIT values were 0.83, 0.49, 0.30, 0.48, 0.27, 0.33, 0.72
-and 0.56.
+The eight-schools PIT values of the same run were 0.83, 0.50, 0.30, 0.49,
+0.28, 0.33, 0.73 and 0.57.
 
 ## 7. Limitations
 

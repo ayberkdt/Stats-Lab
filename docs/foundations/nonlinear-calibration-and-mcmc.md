@@ -4,7 +4,8 @@ This guide extends [inverse problems and Bayesian calibration](inverse-problems-
 from straight lines with known noise to general nonlinear forward models,
 unknown or heavy-tailed noise, and sampled posteriors. Every number quoted
 below was computed with this library and the seeds used in
-`tests/test_uq6b_nonlinear_calibration.py`, so it can be reproduced exactly.
+`tests/test_uq6b_nonlinear_calibration.py` (sections 3-10) and
+`tests/test_hmc_nuts_advi.py` (section 12), so it can be reproduced.
 
 ## 1. What changes when the model is nonlinear
 
@@ -128,8 +129,10 @@ normalizing constant,
 
 For the unnormalized Gaussian with covariance `[[1, 0.8], [0.8, 2]]` the
 library returns the mode `(1, -2)`, the covariance exactly, and
-`log Z = 1.99161942`, which equals `0.5 log((2 pi)^2 x 1.36)`. Fifty
-log-density evaluations were needed (BFGS plus the finite-difference Hessian).
+`log Z = 1.99161942`, which equals `0.5 log((2 pi)^2 x 1.36)`. Thirty
+log-density evaluations were needed: BFGS with forward-mode
+automatic-differentiation gradients plus a forward-over-forward Hessian, each
+dual-number evaluation counting as one.
 
 For a straight-line calibration `y = a + b x` (prior `a ~ N(0, 2^2)`,
 `b ~ N(1, 1)`, seven points at `x = 0, 0.5, ..., 3`, known noise `0.3`),
@@ -153,12 +156,13 @@ can still be ergodic (Haario et al. prove it for their algorithm), but the
 retained chain would no longer be a time-homogeneous Markov chain, and the
 diagnostics below assume one. Freezing gives the guarantee for free.
 
-On the correlated Gaussian above (4 chains, 600 warm-up, 2000 kept draws):
+On the correlated Gaussian above (4 chains, 600 warm-up, 2000 kept draws,
+seed 7):
 
 | Coordinate | Mean (truth) | MCSE | ESS | split R-hat | rank R-hat |
 |---|---:|---:|---:|---:|---:|
-| `x0` | 0.9953 (1) | 0.0320 | 1030.5 | 1.0048 | 1.0048 |
-| `x1` | -1.9792 (-2) | 0.0437 | 1070.6 | 1.0033 | 1.0079 |
+| `x0` | 0.9953 (1) | 0.0320 | 1031.1 | 1.0048 | 1.0048 |
+| `x1` | -1.9792 (-2) | 0.0436 | 1073.3 | 1.0033 | 1.0079 |
 
 The acceptance rate was `0.343`. Both errors are well inside two MCSEs.
 
@@ -196,13 +200,14 @@ R-hat can detect non-convergence, and maps every draw back to
 Worked numbers:
 
 - Two random-walk chains on a mixture with modes at `+-5`, started in
-  different modes with proposal standard deviation `0.5`, never cross. Split
+  different modes with proposal standard deviation `0.5` (500 draws each,
+  seed 1), never cross. Split
   R-hat is `6.137` and rank R-hat `1.836`, both far above `1.1`.
 - Chains `N(0, 1)` and `N(0, 3^2)` have the same mean. Split R-hat is `1.0002`
   and misses the difference; the folded rank R-hat is `1.1716` and flags it.
 - Four AR(1) chains, `phi = 0.5`, 5000 draws each: the estimated ESS is
-  `6831.2` against the theoretical `4 x 5000 x (1 - phi)/(1 + phi) = 6666.7`.
-  The MCSE of the mean is `0.01212` against `1/sqrt(6666.7) = 0.01225`.
+  `6843.1` against the theoretical `4 x 5000 x (1 - phi)/(1 + phi) = 6666.7`.
+  The MCSE of the mean is `0.01211` against `1/sqrt(6666.7) = 0.01225`.
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/calibration-trace-convergence-dark.png"><img alt="Two trace panels: two MCMC chains of a decay rate, and two random-walk chains on a target with two separated modes" src="../images/guides/calibration-trace-convergence.png"></picture>
 
@@ -214,13 +219,13 @@ mode agree with each other.
 ## 8. Worked example: exponential decay
 
 Same data as section 4, four chains of 800 draws after 400 warm-up
-iterations. That is 4804 log-posterior evaluations, each running the model at
+iterations (seed 3). That is 4804 log-posterior evaluations, each running the model at
 21 conditions.
 
 | Parameter | Posterior mean | sd | 5% | 50% | 95% | ESS | rank R-hat |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | `A` | 5.0073 | 0.0710 | 4.8916 | 5.0037 | 5.1253 | 408 | 1.0175 |
-| `k` | 0.3011 | 0.0065 | 0.2907 | 0.3010 | 0.3121 | 445 | 1.0059 |
+| `k` | 0.3011 | 0.0065 | 0.2907 | 0.3010 | 0.3121 | 443 | 1.0059 |
 
 The posterior standard deviations (`0.0710`, `0.0065`) are close to the
 least-squares standard errors (`0.0680`, `0.0064`). That is expected here:
@@ -230,7 +235,7 @@ posterior region.
 **Unknown noise.** Replace the known noise with
 `standard_deviation_prior = LogNormal(log 0.3, 1)`. Least-squares
 reweighting estimates `sigma = 0.0892`. The posterior (four chains, 800 draws
-after 500 warm-up) gives a mean of `sigma` of `0.0981` and a 90% interval of
+after 500 warm-up, seed 3) gives a mean of `sigma` of `0.0981` and a 90% interval of
 `(0.0729, 0.1322)`, which covers the true `0.1`. `A` and `k` are essentially
 unchanged (`5.0028`, `0.3009`), and their intervals widen slightly because the
 noise level is now uncertain.
@@ -243,7 +248,7 @@ uncertainty only. With `include_noise=True` one noise draw is added per
 parameter draw: Gaussian or Student-t as declared, with the draw's own `sigma`
 when it was calibrated and with the discrepancy variance included.
 
-Using 1600 posterior draws:
+Using 1600 draws of the section 8 posterior (prediction seed 1):
 
 | `t` | True mean | Latent 95% interval | Observation 95% interval |
 |---:|---:|---|---|
@@ -336,9 +341,11 @@ Static HMC takes a fixed number `L` of steps. If `L eps` is close to the
 period of the target's oscillation, the trajectory returns to its start and
 the chain stalls. `step_size_jitter` breaks that resonance.
 
-NUTS removes the choice of `L`. The implementation is the efficient recursive
-algorithm of Hoffman and Gelman with **slice sampling** ([EQ-NUTS-SLICE-001]);
-the multinomial variant is not implemented. The trajectory doubles in a
+NUTS removes the choice of `L`. By default (`variant="multinomial"`) the next
+state is drawn from the whole trajectory with weights proportional to
+`exp(-H)` ([EQ-NUTS-MULTINOMIAL-001], [REF-BETANCOURT-2017]);
+`variant="slice"` selects the original recursive algorithm of Hoffman and
+Gelman with **slice sampling** ([EQ-NUTS-SLICE-001]). The trajectory doubles in a
 random direction until its ends turn back towards each other
 ([EQ-NUTS-UTURN-001]), a leaf diverges, or `max_tree_depth` (default 10) is
 reached.
@@ -354,31 +361,34 @@ MCSE apply unchanged. The draws are an ordinary `MCMCResult` in `result.mcmc`.
 
 The frozen step size is the average of the warm-up iterates, which is smaller
 than the last iterate. Post-warm-up acceptance is therefore above the 0.8
-target: 0.90-0.95 in the runs below.
+target: 0.90-0.96 in the runs below.
 
 Correlated 2-D Gaussian (`mean (1, -2)`, covariance `((1, 0.8), (0.8, 2))`),
-4 chains, 300 warm-up and 400 kept draws, analytic gradient, seed 1:
+4 chains, 300 warm-up and 400 kept draws, analytic gradient, multinomial NUTS,
+seed 1:
 
 | Metric | Mean | Covariance (11, 12, 22) | Min ESS | Gradients | Mean depth |
 |---|---|---|---:|---:|---:|
-| diagonal | (0.984, -2.007) | (0.962, 0.733, 1.882) | 647 | 13 397 | 2.26-2.37 |
-| dense | (1.054, -1.979) | (1.038, 0.808, 2.122) | 758 | 11 710 | 1.94-2.41 |
+| diagonal | (1.06, -1.94) | (1.00, 0.76, 1.84) | 695 | 13 184 | 2.23-2.36 |
+| dense | (0.98, -2.00) | (1.03, 0.84, 1.98) | 928 | 11 328 | 1.89-2.29 |
 
-The dense metric learns the correlation. Chain 0 ends with
-`M^-1 = ((1.174, 0.803), (0.803, 1.518))`. There were no divergences and
-E-BFMI was between 0.97 and 1.23 ([EQ-HMC-BFMI-001]). Static HMC with `L = 6`
-and jitter 0.3 (seed 2) gives mean `(1.029, -2.028)` and ESS 4072 and 2807
-from 1600 draws. ESS above the draw count means the draws are antithetic,
+The MCSE of the means is 0.03-0.05, so the mean errors are within about 1.7
+MCSE. The dense metric learns the correlation. Chain 0 ends with
+`M^-1 = ((0.768, 0.473), (0.473, 1.247))`, whose off-diagonal-to-variance
+ratio 0.38 is close to the target's 0.4. There were no divergences and
+E-BFMI was between 0.98 and 1.32 ([EQ-HMC-BFMI-001]). Static HMC with `L = 6`
+and jitter 0.3 (seed 2) gives mean `(1.03, -2.03)` (MCSE 0.015 and 0.024) and
+ESS 4338 and 3513 from 1600 draws. ESS above the draw count means the draws are antithetic,
 which is typical of HMC on Gaussians.
 
 ### Efficiency per gradient
 
 10-D iid standard normal, 2 chains, 200 warm-up and 300 kept draws (seed 5).
-NUTS used 6763 gradients and reached a **minimum** ESS of 841 over the ten
-coordinates, or 0.124 per gradient. Random-walk Metropolis with the optimal
-scale `2.38^2/d` was given the same budget of 6762 density evaluations. It
-reached a **maximum** ESS of 257, or 0.038 per evaluation, at acceptance
-0.262. Even comparing NUTS's worst coordinate with RWM's best, NUTS is 3.3
+NUTS used 7121 gradients and reached a **minimum** ESS of 780 over the ten
+coordinates, or 0.110 per gradient. Random-walk Metropolis with the optimal
+scale `2.38^2/d` was given the same budget of 7120 density evaluations. It
+reached a **maximum** ESS of 259, or 0.036 per evaluation, at acceptance
+0.264. Even comparing NUTS's worst coordinate with RWM's best, NUTS is 3.0
 times as efficient here. Theory predicts the gap to grow with dimension
 [REF-NEAL-2011].
 
@@ -389,28 +399,35 @@ region where `log p` and its gradient are finite. Divergences are counted per
 chain (`result.divergences_per_chain`, with iteration indices in each
 `HamiltonianChainStatistics`). On Neal's funnel (`v ~ N(0, 9)`,
 `z_i | v ~ N(0, e^v)`, 3-D) with a fixed step of 1.0, 2 chains of 200
-iterations gave:
+iterations (seed 1) gave:
 
 | Sampler | Divergences per chain | Acceptance |
 |---|---|---:|
 | static HMC (`L = 16`) | (61, 74) | 0.196 |
-| NUTS | (6, 12) | 0.611 |
+| NUTS | (16, 13) | 0.484 |
 
-The same NUTS settings on a standard normal give no divergences. Even with
-full adaptation (400 warm-up iterations) NUTS on the funnel ends with 7
-divergences in one chain, step size 0.283, and E-BFMI 0.28. These are the
-signatures of a neck the sampler cannot enter. Treat any divergence as
+The same NUTS settings on a standard normal give no divergences. Full
+adaptation does not cure the funnel. With 400 warm-up iterations and 2 chains
+of 200 draws, seed 1 gives 20 and 13 divergences during warm-up, adapted step
+sizes of 0.099 and 0.279 (a factor of three apart between chains), and E-BFMI
+0.27 in the second chain; seeds 2 and 3 also leave 4 divergences in one chain
+after warm-up. These are the signatures of a neck the sampler cannot enter. Treat any divergence as
 evidence of possible bias and reparameterize; a smaller step only hides the
 symptom.
 
 ### Gradient cost
 
-With `gradient=None` each gradient is a central difference ([EQ-OPT-FD-001])
-costing `2d` extra evaluations. The tests check that density evaluations
-equal `(2d + 1)` times gradient evaluations exactly. In calibration,
-`sample_posterior(method="nuts")` or `"hmc"` uses such gradients of
-`standard_log_posterior` and a diagonal metric started from the Laplace
-variances; HMC/NUTS diagnostics are stored in `posterior.sampler`. The default
+Without an analytic gradient (`gradient="auto"`, the default, or `None`) the
+samplers evaluate the log-density on dual numbers (forward-mode automatic
+differentiation). When the log-density does not accept dual numbers, they fall
+back to central differences ([EQ-OPT-FD-001]), costing `2d` extra evaluations
+per gradient, and `gradient_method` records the fallback. The tests check that
+with `gradient="finite-difference"` density evaluations equal `(2d + 1)` times
+gradient evaluations exactly. In calibration,
+`sample_posterior(method="nuts")` or `"hmc"` samples
+`standard_log_posterior`, which falls back to such finite-difference
+gradients, with a diagonal metric started from the Laplace variances;
+HMC/NUTS diagnostics are stored in `posterior.sampler`. The default
 `method="adaptive-metropolis"` reproduces earlier results bit for bit. On the
 2-parameter straight-line calibration used in the tests (`a + b x`, known
 noise 0.3; 2 chains, 200 + 300 iterations, seed 11; exact posterior mean `(0.6417, 0.7875)`, sd
@@ -418,8 +435,10 @@ noise 0.3; 2 chains, 200 + 300 iterations, seed 11; exact posterior mean `(0.641
 
 | Method | Means | SDs | ESS | Posterior evaluations |
 |---|---|---|---|---:|
-| adaptive Metropolis | (0.6311, 0.8010) | (0.2151, 0.1134) | 109, 125 | 1 002 |
-| NUTS, FD gradients | (0.6484, 0.7844) | (0.1938, 0.1055) | 151, 166 | 33 340 |
+| adaptive Metropolis | (0.631, 0.801) | (0.215, 0.113) | 110, 125 | 1 002 |
+| NUTS, FD gradients | (0.630, 0.798) | (0.210, 0.119) | 142, 150 | 31 487 |
+
+The MCSE of the means is about 0.02 for `a` and 0.01 for `b` in both runs.
 
 For two well-conditioned parameters, finite-difference NUTS spends far more
 model runs per effective draw than adaptive Metropolis. It pays off for many
@@ -449,7 +468,7 @@ On the same correlated Gaussian (4 gradient samples per step, learning rate
 | Family | Iterations | Mean | Covariance (11, 12, 22) | ELBO |
 |---|---:|---|---|---:|
 | full-rank | 5000 | (0.999, -2.018) | (0.992, 0.790, 1.974) | 1.963 |
-| mean-field | 5400 | (1.000, -2.018) | (0.673, 0, 1.358) | 1.770 |
+| mean-field | 7300 | (1.000, -2.007) | (0.680, 0, 1.369) | 1.770 |
 
 Full-rank recovers the target. Mean-field recovers the mean and the variances
 `1/Lambda_ii = (0.68, 1.36)`, well below the true `(1, 2)`; its ELBO gap

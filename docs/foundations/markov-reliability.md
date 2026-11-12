@@ -183,7 +183,7 @@ the warm case raises `R(1000)` to `0.953959` and the MTTF to `20,992` h.
 squarings. The unreliability `1.999999990e-9` agrees with a 60-digit mpmath
 `expm` to `1e-15` relative accuracy, and the reported bound is `4e-13`.
 scipy's double-precision `expm` gives `1.999999977e-9` (relative error
-`7e-9`). Its `1 - R` gives `1.5e-8`, because the subtraction cancels.
+`6.5e-9`). Its `1 - R` gives `1.5e-8`, because the subtraction cancels.
 
 ## 5. Phased missions
 
@@ -222,9 +222,12 @@ stage attempts. These match exact rational arithmetic.
 
 ## 6. Accuracy and limits
 
-- The error bounds are worst-case and first order. On the stiff examples the
-  actual error is about 3 to 7 orders of magnitude below the bound. The truncation
-  part is rigorous. The rounding part assumes IEEE double arithmetic and
+- The error bounds are worst-case and first order. Against closed forms or a
+  60-digit mpmath `expm`, the actual error is 3.5 orders of magnitude below
+  the bound for `A(10)` of the repairable unit, 5.5 orders for a stiff unit
+  (`lambda = 1e-6`, `mu = 1e3`, `q t = 1e5`, tolerance `1e-20`), and 11 to 16
+  orders for the stiff 1-out-of-2 system, whose actual error is at the
+  rounding level of the value. The truncation part is rigorous. The rounding part assumes IEEE double arithmetic and
   ignores second-order terms.
 - The cost is `O(q t)` sparse products for the series. Squaring costs
   `O(n^3 log(q t))` and is preferred for few states with large `q t`.

@@ -101,13 +101,13 @@ noise variance on top of the nugget. Closed-form leave-one-out residuals
 
 | kernel | log-lik. at start | log-lik. fitted | `sigma_f^2` | `ell` | max error at 11 midpoints | LOO error |
 |---|---|---|---|---|---|---|
-| squared exponential | -128.78 | 40.21 | 9.71 | 3.01 | 4.8e-6 | 3.6e-9 |
-| Matérn 5/2 | -19.81 | 7.49 | 32.69 | 7.58 | 1.8e-3 | 2.5e-4 |
+| squared exponential | -128.78 | 40.21 | 9.72 | 3.01 | 4.5e-6 | 3.7e-9 |
+| Matérn 5/2 | -19.81 | 7.49 | 32.69 | 7.58 | 1.7e-3 | 2.5e-4 |
 
 Both fits interpolate the training data. The squared exponential is more
 accurate here because the target is analytic. The predictive variance at
 `x = 12`, far outside the data, is 2.79 (squared exponential) and 10.47
-(Matérn), compared with about `1e-11` inside the design. The variance reflects
+(Matérn), compared with at most `2.5e-11` at the training runs. The variance reflects
 the absence of data, not the true error.
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/gp-variance-beyond-data-dark.png"><img alt="Gaussian-process mean and 95 percent band fitted to 12 runs on 0 to 6 and extended to 12, with the true function" src="../images/guides/gp-variance-beyond-data.png"></picture>
@@ -139,12 +139,16 @@ that ended on a bound in `at_bound`. On the 12-point AK-MCS design (LHS on
 
 | fit | `ell_1`, `ell_2` | signal / noise | `mu(0.5, 2)` (true 1.0625) | predictive sd | `at_bound` |
 |---|---|---|---|---|---|
-| unregularized | 1502, 1.57e5 | 4.7e18 | 1.070 | 0 | none |
+| unregularized | 1402, 1.31e5 | 4.2e18 | 1.064 | 0 | none |
 | regularized | 38.8, 177 | 1.0e8 | 1.068 | 0.047 | `length_scale[1]:upper` |
 
-On the four-branch design of seed 5 the unregularized length scales were
-0.0017 and 0.0020 (smallest gap 0.33, a white-noise fit whose mean is the
-output mean everywhere); regularized they are 5.98 and 1.06. The default of
+On the four-branch design of seed 5 (smallest coordinate gaps 0.33 and
+0.26), releases before 0.16 ended the unregularized fit at a white-noise
+optimum, with length scales two orders of magnitude below those gaps and a
+mean equal to the output mean everywhere. The current BFGS with a
+strong-Wolfe line search (ADR-0059) reaches length scales 5.98 and 1.06 there
+with or without regularization; the bounds exclude the white-noise region by
+construction, whatever the optimizer does. The default of
 `fit_gaussian_process` is still the unregularized fit, so existing results do
 not change; `reliability.ak_mcs` uses the regularized fit by default.
 

@@ -157,10 +157,12 @@ central differences when a support bound depends on a latent value
 when a law takes float parameters only (a latent Dirichlet concentration, a
 latent covariance), or when the model calls `math`. Leapfrog stays
 volume-preserving and reversible with an approximate force, so a fallback
-costs efficiency, not correctness. Before ADR-0090 the eight-schools test
-run (two chains of 150 warm-up and 150 kept draws) fell back and needed
-5 610 gradients, which is 117 810 model executions, 7-11 s on the
-development machine at about 75 µs per execution.
+costs efficiency, not correctness. Before ADR-0090 the eight-schools
+program fell back to central differences. Forced back onto them
+(`gradient="finite-difference"`), the test run of section 1 (seed 1, two
+chains of 150 warm-up and 150 kept draws) needs 6 523 gradients, which is
+136 983 model executions (`2 d + 1 = 21` per gradient); in reverse mode the
+same run needs 5 367 gradients and as many executions.
 
 ## 3. Inference
 
@@ -259,8 +261,9 @@ trials, so the exact posterior is `Beta(15, 10)` (mean 0.6000, sd 0.0961).
 - The test checks the same thing pointwise: `log p(u)` minus
   `log Beta(15, 10)(sigmoid(u))` minus `log J(u)` equals the log evidence
   to ten decimal places at five values of `u`.
-- NUTS gives mean 0.5953 and sd 0.0935 (lab, seed 7), or 0.5967 (MCSE
-  0.0036) and sd 0.0955 (test, seed 8).
+- NUTS gives mean 0.5953 and sd 0.0935 (lab, seed 7, two chains of
+  300 + 1 000 draws), or 0.598 (MCSE 0.005) and sd 0.096 (test, seed 8,
+  two chains of 200 + 500 draws).
 - Every draw lies inside (0, 1).
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/ppl-beta-binomial-posterior-dark.png"><img alt="Histogram of NUTS draws of a success probability over the exact Beta posterior density and the dashed Beta prior" src="../images/guides/ppl-beta-binomial-posterior.png"></picture>
@@ -352,15 +355,15 @@ Checks:
   plus `log(1 - tanh^2)` to eleven digits, which checks the constant, the
   Cholesky density, and the Jacobian together.
 - Dirichlet(2, 1.5, 1) with multinomial counts (12, 5, 3), NUTS (seed 3, two
-  chains of 300 + 400 draws). The reverse-mode run (ADR-0090) needed 5 616
-  model executions; the finite-difference run, the only option before
-  ADR-0090, needed 27 755 (5 551 gradients):
+  chains of 300 + 400 draws). The reverse-mode run (ADR-0090) needed 5 533
+  model executions; the finite-difference run (`gradient="finite-difference"`),
+  the only option before ADR-0090, needed 28 545 (5 709 gradients):
 
   | | reverse (MCSE) | finite differences (MCSE) | conjugate |
   |---|---|---|---|
-  | p[0] | 0.5772 (0.0037) | 0.5766 (0.0034) | 0.5714 |
-  | p[1] | 0.2571 (0.0038) | 0.2579 (0.0033) | 0.2653 |
-  | p[2] | 0.1658 (0.0032) | 0.1655 (0.0025) | 0.1633 |
+  | p[0] | 0.5742 (0.0037) | 0.5683 (0.0036) | 0.5714 |
+  | p[1] | 0.2621 (0.0038) | 0.2658 (0.0038) | 0.2653 |
+  | p[2] | 0.1637 (0.0035) | 0.1658 (0.0035) | 0.1633 |
 
 - An inverse-Wishart(nu = 6) covariance with twelve bivariate normal
   observations (NUTS, seed 4, two chains of 250 + 250 draws): posterior
@@ -445,8 +448,9 @@ Checks:
 - A truncated Poisson(6) number of trials on `{0, ..., 20}` with a binomial
   count of 4 and a Beta(2, 2) success probability: the log-density matches
   the explicit sum over `n` to eleven digits, and the Rao-Blackwellized
-  posterior mean of `n` from NUTS (seed 6) is 6.438 against the closed form
-  6.451 (`sum_n n TP(n) C(n, 4) B(6, n - 2)`, standard error about 0.07).
+  posterior mean of `n` from NUTS (seed 6, two chains of 150 + 250 draws)
+  is 6.45 against the closed form 6.451
+  (`sum_n n TP(n) C(n, 4) B(6, n - 2)`, standard error about 0.08).
 
 ## 6. Dynamic structure, nested plates, and vector discrete sites
 
@@ -609,9 +613,11 @@ Checks:
   `-0.6850` and `1.8186` (Monte Carlo standard errors 0.0146 and 0.0143)
   against `-0.6805` and `1.8132` by quadrature.
 
-The prior on the means is ordered. With two separate normal priors, both
-chains of the same run settled in the label-swapped local mode; at the
-mirrored point its log-density is about 8.5 lower.
+The prior on the means is ordered. With the two separate normal priors
+`N(-1, 1)` and `N(1.5, 1)` of the same test module, both chains of the
+same run (seed 3, 250 + 250) settled in the label-swapped local mode, near
+`(1.49, -0.64)`; its log-density is about 8.0 below that of the global
+mode near `(-0.69, 1.82)`.
 
 A chain may sit inside a plate (one chain per sequence), and a step may
 contain a plate with its own indicators. A step must not declare

@@ -94,15 +94,15 @@ In the tests, a 5 x 5 problem with costs in `[0, 1]`
 | 0.02 | 0.0019373 | 94 |
 | 0.005 | 5.2e-05 | 1356 |
 
-When `eps` is about 1/300 of the cost spread, the marginal error decays
-roughly like `1/k`. On the 8-point example used during development it had
-not reached `1e-9` after 50 000 iterations. Choose `eps` relative to
-`max C`.
+The iteration count grows quickly once `eps` is small against the cost
+spread (0.95 here): at `eps = 1/300` the same problem needs 3327 iterations,
+and the lab's `eps = 0.25` row needs 3322. Choose `eps` relative to `max C`.
 
-The optional `epsilon_scaling` (geometric annealing from `max|C|`) gave the
-same answer as plain iteration in the tests. The saving was small: on one
-development example at `eps = 0.1` it cut 810 iterations to 679, and it did
-not rescue the slowly converging small-`eps` cases.
+The optional `epsilon_scaling` (geometric annealing from `max|C|`) gives the
+same transport cost as plain iteration (to `2e-10` on this problem) but
+rarely saves work: with factor `0.5` it takes 49, 111, 1183, and 3688
+iterations at `eps = 0.1, 0.02, 0.005, 1/300`, against 42, 94, 1356, and
+3327 without it.
 
 **Sinkhorn divergence.**
 
@@ -124,20 +124,23 @@ which converges in a few dozen steps where plain alternation is slow.
   roots come from `linalg.symmetric_eigen`.
 - `normal_wasserstein` is the 1-D case `sqrt(dmu^2 + dsigma^2)`.
 - `quantile_wasserstein(law0, law1, p)` integrates `|Q0(u) - Q1(u)|^p` over
-  `u` in `(0, 1)`. It substitutes `u = Phi(z)` and uses Simpson quadrature
-  on `[-8, 8]` with 512 intervals. Upper-tail nodes call `isf`, so there is
-  no cancellation in `1 - u`.
+  `u` in `(0, 1)`. The default `method="tanh-sinh"` integrates in `u` on
+  `(0, 1/2)` and `(1/2, 1)` with nodes reaching about `1e-300` from either
+  end. `method="simpson"` substitutes `u = Phi(z)` and uses Simpson
+  quadrature on `[-8, 8]` with 512 intervals. Upper-tail nodes call `isf`,
+  so there is no cancellation in `1 - u`.
 
-| Distance | Reference | Quadrature |
+| Distance | Reference | Quadrature (tanh-sinh) |
 |---|---|---|
 | `W_2(N(1, 2^2), N(-0.5, 0.7^2))` | 1.9849433241 (1-D formula; Bures form identical) | 1.9849433241 |
-| `W_1(Gamma(2, 1), Exp(0.8))` | 0.7500086081 (Simpson of `\|F0 - F1\|`) | 0.7500086129 |
+| `W_1(Gamma(2, 1), Exp(0.8))` | 0.7500086081 (Simpson of `\|F0 - F1\|`) | 0.7500086081 |
 
-The `W_1` integrand has a kink where the quantile functions cross, which
-limits Simpson's accuracy. With 2048 intervals the gap shrinks to `4.5e-10`.
-The quadrature truncates probability `2 Phi(-8) ~ 1.2e-15`. That is
-negligible for light tails; if `W_p` is barely finite because of heavy
-tails, the quadrature converges slowly.
+The `W_1` integrand has a kink where the quantile functions cross. The
+tanh-sinh value agrees with the reference to `1.8e-11`; Simpson's rule in
+`z` is limited by the kink and gives `0.7500086129` with 512 intervals and a
+gap of `4.7e-10` with 2048. The Simpson grid also truncates probability
+`2 Phi(-8) ~ 1.2e-15`. That is negligible for light tails; if `W_p` is
+barely finite because of heavy tails, use the default method.
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/transport-quantile-w1-dark.png"><img alt="Quantile functions of a Gamma and an exponential law with the area between them shaded" src="../images/guides/transport-quantile-w1.png"></picture>
 
@@ -148,7 +151,7 @@ tails, the quadrature converges slowly.
 On the line, `W_2` is the `L^2` distance between quantile functions.
 `quantile_barycenter(laws, weights)` therefore averages quantiles.
 
-- The barycenter of `N(0, 1)` and `N(4, 3^2)` is within `W_2 = 2.5e-16` of
+- The barycenter of `N(0, 1)` and `N(4, 3^2)` is within `W_2 = 2.8e-16` (rounding error) of
   `N(2, 2^2)`: averaged mean and averaged standard deviation, not averaged
   variance.
 - With weights `(0.25, 0.75)` it is `N(3, 2.5^2)`.
@@ -188,13 +191,13 @@ central differences in `theta` and then averages over `X`:
 - or Monte Carlo over draws.
 
 The averaged quantity is either the score outer product or minus the
-Hessian. Largest relative error against the closed form (lab and tests):
+Hessian. Largest relative error against the closed form (lab):
 
 | Law | `I_11` closed | score | Hessian |
 |---|---|---|---|
 | Normal(0.3, 1.7) | 0.346021 | 2.7e-10 | 1.6e-08 |
-| Gamma(2.3, 1.4) | 0.542537 | 6.1e-12 | 1.6e-08 |
-| Beta(2, 3.5) | 0.445592 | 7.7e-13 | 5.0e-08 |
+| Gamma(2.3, 1.4) | 0.542537 | 1.1e-12 | 1.4e-08 |
+| Beta(2, 3.5) | 0.445592 | 2.4e-13 | 5.1e-08 |
 | Bernoulli(0.3) | 4.761905 | 5.6e-10 | 4.2e-08 |
 | Poisson(3.2) | 0.312500 | 2.5e-11 | 5.5e-10 |
 
@@ -237,7 +240,7 @@ For finite PMFs, with `p = (0.2, 0.5, 0.3)` and `q = (0.4, 0.4, 0.2)`:
 | Quantity | Value |
 |---|---|
 | total variation | 0.2 |
-| Hellinger (`H^2 = 1 - BC`, range `[0, 1]`) | 0.158097 |
+| Hellinger `H` (`H^2 = 1 - BC`, range `[0, 1]`) | 0.158097 |
 | Bhattacharyya distance | 0.025312 |
 | Rényi `D_{1/2}` | 0.050625 |
 | KL = `D_1` | 0.094582 |
