@@ -23,6 +23,7 @@ from probstat.inference import (
     PredictiveStatisticCheck,
     pit_uniformity,
 )
+from probstat.modeling import standard_normal_quantile
 
 from ._layout import wrapped_title_block
 from .calibration_plots import gaussian_mixture_interval
@@ -129,15 +130,17 @@ def plot_shrinkage(
 ) -> Any:
     """Plot raw group estimates against their partially pooled posteriors.
 
-    Each row is one group, sorted by its raw estimate: the raw ``y_j +- s_j``
-    is muted context above, the posterior mean and exact central interval of
-    ``theta_j`` are in the model hue below, and a thin arrow joins them. The
+    Each row is one group, sorted by its raw estimate: the no-pooling
+    interval ``y_j +- z s_j`` at the same level is muted context above, the
+    posterior mean and exact central interval of ``theta_j`` are in the model
+    hue below, and a thin arrow joins them. Both intervals share the level,
+    so their widths compare directly: pooling narrows each one. The
     posterior mean of ``mu`` is the accent reference line.
 
     Args:
         posterior: Output of :func:`probstat.inference.hierarchical_normal_posterior`.
         names: Group labels (default ``"group 1"``...).
-        level: Central probability of the posterior intervals.
+        level: Central probability of both intervals of every row.
         unit: Optional unit of the effects.
         ax: Optional axes.
 
@@ -156,9 +159,7 @@ def plot_shrinkage(
 
     """
     groups = posterior.groups
-    labels = (
-        [f"group {j + 1}" for j in range(groups)] if names is None else list(names)
-    )
+    labels = [f"group {j + 1}" for j in range(groups)] if names is None else list(names)
     if len(labels) != groups:
         raise ValueError("names must match the number of groups")
     if not 0.0 < level < 1.0:
@@ -167,7 +168,9 @@ def plot_shrinkage(
     limits = theta_intervals(posterior, level)
     mu, _ = posterior.mu_moments()
     shrink = posterior.expected_shrinkage()
-    ys, ss = posterior.estimates, posterior.standard_errors
+    z = standard_normal_quantile(0.5 + 0.5 * level)
+    ys = posterior.estimates
+    ss = tuple(z * s for s in posterior.standard_errors)
     order = sorted(range(groups), key=lambda j: (ys[j], j))
     axes = new_axes(ax, figsize=(7.2, 0.5 * groups + 2.2))
     palette = active_palette()
@@ -218,7 +221,7 @@ def plot_shrinkage(
     direct_labels(
         axes,
         [
-            (ys[top] + ss[top], groups - 1 + offset, "raw +/- 1 s.e.", palette.muted),
+            (ys[top] + ss[top], groups - 1 + offset, f"raw {level:.0%}", palette.muted),
             (
                 limits[top][1],
                 groups - 1 - offset,
@@ -236,8 +239,8 @@ def plot_shrinkage(
         axes,
         f"Partial pooling moves the {groups} estimates {average:.0%} of the way "
         f"to mu; their range shrinks from {raw_range:.1f} to {pooled_range:.1f}",
-        f"Grey: raw estimate +/- 1 s.e. · colour: posterior mean and {level:.0%} "
-        "interval (exact grid) · line: posterior mean of mu",
+        f"Grey: raw estimate, {level:.0%} without pooling · colour: posterior "
+        "mean and interval (exact) · line: mean of mu",
     )
     return axes
 
@@ -593,8 +596,7 @@ def plot_predictive_check(
         )
     else:
         title = (
-            f"The model reproduces the observed {check.name}: "
-            f"p = {check.p_value:.2f}"
+            f"The model reproduces the observed {check.name}: p = {check.p_value:.2f}"
         )
     title_block(axes, title, subtitle)
     return axes
