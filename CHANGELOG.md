@@ -58,6 +58,9 @@ distribution catalogue with property-based and metamorphic tests.
   function and differ from exact rational sums by less than 1e-12 relative.
 - Continuous sites may follow a discrete site outside plates, and inside plate
   iterations branches may declare different continuous and observed sites.
+- The CI test step runs `tools/ci_test_report.py`, which reports each failing
+  test as a run annotation; a pseudo-prior test no longer pins the digits of a
+  seeded NUTS estimate, which depend on the platform's floating-point library.
 
 ## [0.18.0] — 2026-11-11
 
