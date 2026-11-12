@@ -906,20 +906,22 @@ class SystemStructure:
         such components in ``shared`` (component -> group label). All members
         of a group must have equal mean and variance. ``R`` is then a
         polynomial of degree up to the group size in the shared value, and
-        its moments need the raw moments ``E[q^k]`` up to twice the group
-        size. Give them in ``shared_moments`` (group -> ``(E[q], E[q^2],
-        ...)``); for a group without them the beta law with the given mean
-        and variance is assumed, and the group is reported in
+        its moments need the raw moments ``E[p^k]`` of the shared
+        *reliability* ``p`` (the quantity whose mean and variance are given
+        in ``means`` and ``variances``, not the unreliability ``1 - p``) up
+        to twice the group size. Give them in ``shared_moments`` (group ->
+        ``(E[p], E[p^2], ...)``); for a group without them the beta law with
+        the given mean and variance is assumed, and the group is reported in
         ``beta_assumed_groups``. With explicit raw moments the mixed moments
-        ``E[q^j (1 - q)^k]`` are formed by an alternating binomial sum,
+        ``E[p^j (1 - p)^k]`` are formed by an alternating binomial sum,
         which loses accuracy for very large groups.
 
         Args:
             means: ``E[p_i]`` for every component.
             variances: ``Var[p_i]`` for every component.
             shared: Optional component -> group label.
-            shared_moments: Optional group -> raw moments ``E[q^k]``,
-                ``k = 1, 2, ...``.
+            shared_moments: Optional group -> raw moments ``E[p^k]``,
+                ``k = 1, 2, ...``, of the shared reliability ``p``.
 
         Returns:
             Mean, variance, standard deviation, and mean unreliability.
@@ -1115,9 +1117,10 @@ def _beta_mixed_moment(mean: float, variance: float) -> MixedMoment:
 def _raw_mixed_moment(
     mean: float, variance: float, raw: Sequence[float], order: int, group: str
 ) -> MixedMoment:
-    """Return mixed moments from raw moments ``E[q^k]``.
+    """Return mixed moments from raw moments ``E[p^k]`` of a reliability.
 
-    ``E[q^j (1 - q)^k] = sum_i C(k, i) (-1)^i E[q^(j + i)]``.
+    ``E[p^j (1 - p)^k] = sum_i C(k, i) (-1)^i E[p^(j + i)]``, where ``p`` is
+    the shared component reliability whose mean is ``mean``.
 
     Raises:
         ValueError: If fewer than ``order`` raw moments are given, a moment
@@ -1137,7 +1140,18 @@ def _raw_mixed_moment(
             f"got {len(values) - 1}"
         )
     if abs(values[1] - mean) > 1e-9 or abs(values[2] - mean * mean - variance) > 1e-9:
-        raise ValueError(f"raw moments of group {group!r} disagree with mean/variance")
+        hint = ""
+        if (
+            abs(values[1] - (1.0 - mean)) <= 1e-9
+            and abs(values[2] - (1.0 - mean) ** 2 - variance) <= 1e-9
+        ):
+            hint = (
+                "; they match the unreliability 1 - p, but shared_moments "
+                "must be raw moments E[p^k] of the reliability p"
+            )
+        raise ValueError(
+            f"raw moments of group {group!r} disagree with mean/variance{hint}"
+        )
 
     def moment(j: int, k: int) -> float:
         """Return the alternating-sum mixed moment.
