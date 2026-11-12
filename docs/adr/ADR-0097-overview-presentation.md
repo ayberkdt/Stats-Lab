@@ -112,3 +112,36 @@ including a slide profile with an 18 pt floor.
   [REF-BRYANT-1986], [REF-RAUSAND-HOYLAND-2004]; markup and accessibility
   [REF-WHATWG-HTML], [REF-W3C-WCAG21-2018]; figures [REF-MATPLOTLIB];
   reporting contract [REF-PROBSTAT-REPORTING].
+
+## Revised (2026-11-12): the applied-statistics slides
+
+The deck said nothing about the applied-statistics core of 0.20.0. Two
+slides now follow the systems evidence, so the deck has eighteen slides:
+
+- `s10` (context, `baglam`): every input distribution needs data, and data
+  raise the questions of the README's applied-statistics table (counted at
+  build time as `repository.statistics_questions`).
+- `s11` (evidence, `kanit`, simulated data): partial pooling in a linear
+  mixed model. `partial_pooling()` draws twelve batches with 2 to 30 strength
+  tests from `resolve_stream(2026).child("pooling")`, fits a random batch
+  intercept by REML with `fit_linear_mixed_model`, and records each batch's
+  BLUP, raw deviation, and the closed-form share `m sigma_b^2 / (m sigma_b^2
+  + sigma^2)`; the headline states the share kept by the smallest and the
+  largest batch, and the chart (`figures/pooling-*`) draws the closed-form
+  curve with the fitted ratios on it [EQ-LMM-005], [REF-HENDERSON-1975].
+
+The former slides 10 to 16 are now 12 to 18; the sources slide adds
+Henderson (1975), and the notes of the limitations and conclusion slides
+carry the simulated-data caveat and the pooling result. In
+`runtime/deck.css` the rule hiding the dark chart is scoped to
+`.grafik-govde`, because `.grafik-govde img { display: block }` outranked it
+and showed both chart variants in the light theme.
+
+Verification of the revision: `tests/test_presentation.py` 11 tests and 455
+subtests (a new test checks every BLUP against the closed-form share);
+`denetle-cli.mjs` 18 slides and 150 bound values per deck, 0 warnings;
+page types, slide copy, deck manifest, evidence ledger (15 claims, 12
+sources, 5 figures), deck plan, and visual spec valid with 0 warnings; the
+English assertion linter keeps its 9 reviewed verb warnings and the new
+slides add none; figure audit 20 charts, 0 errors, 0 warnings; UX law audit
+0 errors and 0 warnings for both decks.

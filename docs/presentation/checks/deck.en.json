@@ -136,6 +136,40 @@
   },
   {
    "id": "s10",
+   "role": "baglam",
+   "headline": "Every input distribution needs data, and data raise 9 more questions",
+   "evidence_ids": [
+    "repository.statistics_questions"
+   ],
+   "visual_ids": []
+  },
+  {
+   "id": "s11",
+   "role": "kanit",
+   "headline": "2 tests keep 12% of a batch's deviation, 30 tests keep 66%",
+   "evidence_ids": [
+    "pooling.batches",
+    "pooling.between",
+    "pooling.half_tests",
+    "pooling.kept_largest",
+    "pooling.kept_smallest",
+    "pooling.largest",
+    "pooling.seed",
+    "pooling.smallest",
+    "pooling.tests",
+    "pooling.true_between",
+    "pooling.true_mean",
+    "pooling.true_total_sd",
+    "pooling.true_within",
+    "pooling.within"
+   ],
+   "visual_ids": [
+    "figures/pooling-en-light.png",
+    "figures/pooling-en-dark.png"
+   ]
+  },
+  {
+   "id": "s12",
    "role": "yontem",
    "headline": "Five checks stand between a formula and a release",
    "evidence_ids": [
@@ -152,7 +186,7 @@
    "visual_ids": []
   },
   {
-   "id": "s11",
+   "id": "s13",
    "role": "kanit",
    "headline": "Sobol' points cut the error of the mean ×66 at equal cost",
    "evidence_ids": [
@@ -171,7 +205,7 @@
    ]
   },
   {
-   "id": "s12",
+   "id": "s14",
    "role": "sinirlamalar",
    "headline": "Three limits apply to these results",
    "evidence_ids": [
@@ -180,38 +214,43 @@
     "benchmark.probstat_version",
     "benchmark.seeds_calibration",
     "benchmark.seeds_propagation",
+    "pooling.batches",
+    "pooling.between",
+    "pooling.true_between",
     "study.reliability.ci_level"
    ],
    "visual_ids": []
   },
   {
-   "id": "s13",
+   "id": "s15",
    "role": "sonuc",
    "headline": "Yes: one model answered every question from one seed",
    "evidence_ids": [
     "benchmark.mcmc_sd_error_max",
     "mission.top_criticality",
+    "pooling.kept_smallest",
+    "pooling.smallest",
     "study.reliability.methods.sorm_hr.evaluations",
     "study.reliability.reference"
    ],
    "visual_ids": []
   },
   {
-   "id": "s14",
+   "id": "s16",
    "role": "kaynaklar",
    "headline": "Every method on these slides traces to a primary source",
    "evidence_ids": [],
    "visual_ids": []
   },
   {
-   "id": "s15",
+   "id": "s17",
    "role": "kapanis",
    "headline": "One model answers every question: start with three commands",
    "evidence_ids": [],
    "visual_ids": []
   },
   {
-   "id": "s16",
+   "id": "s18",
    "role": "ek",
    "headline": "Sampling methods report their spread; analytic ones need no seed",
    "evidence_ids": [

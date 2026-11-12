@@ -8,7 +8,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Stats-Lab genel bakış</title>
-  <meta name="description" content="Tek olasılık modeli ileri, ters, risk ve sistem sorularını yanıtlıyor: Stats-Lab (probstat) kitaplığı, kanıta dayalı on altı slaytta.">
+  <meta name="description" content="Tek olasılık modeli ileri, ters, risk ve sistem sorularını yanıtlıyor: Stats-Lab (probstat) kitaplığı, kanıta dayalı on sekiz slaytta.">
   <link rel="icon" href="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
   <link rel="stylesheet" href="runtime/deste-kabuk.css">
   <link rel="stylesheet" href="runtime/deck.css">
@@ -107,11 +107,32 @@
     <p class="okuma" data-alan="okuma[]"><span data-alan="n"><span data-k="mission.hours" data-fmt="int">720</span> sa</span> boyunca kesin güvenilirlik: <b><span data-k="mission.reliability" data-fmt="f3">0,923</span></b>, ikili karar diyagramından · <span data-k="mission.cut_sets" data-fmt="int">8</span> en küçük kesme kümesi · örnekleme yok</p>
   </div>
   <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Kaynak: examples/mission_systems_lab.py; kritiklik önemi</span></footer>
-  <aside class="notlar">Görev laboratuvarı bir Ay iniş aracını bileşen verisinden kuruyor: Markov zinciriyle çözülen ılık yedekli bir pompa çifti, ikisinin çalışması gereken üç uçuş bilgisayarı ve onların beta etkenli ortak nedeni, iki batarya, bir transponder ve bir ateşleyici. İkili karar diyagramı görev güvenilirliğini kesin veriyor: <span data-k="mission.hours" data-fmt="int">720</span> saatte <span data-k="mission.reliability" data-fmt="f3">0,923</span>; arızaya kadar ortalama süre <span data-k="mission.mttf_hours" data-fmt="int">6.573</span> saat. Kritiklik önemi, bir görev kaybına o bloğun arızasının yol açmış olma olasılığı: transponder <span data-k="mission.top_criticality" data-fmt="pct0">%90</span>, pompa çifti <span data-k="mission.second_criticality" data-fmt="pct0">%5</span>. Yeniden tasarımın karşılığını verdiği yer burası. Görev başına <span data-k="mission.loss_cost_musd" data-fmt="musd0">450 M$</span> kayıp maliyetiyle beklenen kayıp <span data-k="mission.expected_loss_musd" data-fmt="musd1">34,6 M$</span>. Köprü: bu sayıların hiçbirine neden güvenelim?</aside>
+  <aside class="notlar">Görev laboratuvarı bir Ay iniş aracını bileşen verisinden kuruyor: Markov zinciriyle çözülen ılık yedekli bir pompa çifti, ikisinin çalışması gereken üç uçuş bilgisayarı ve onların beta etkenli ortak nedeni, iki batarya, bir transponder ve bir ateşleyici. İkili karar diyagramı görev güvenilirliğini kesin veriyor: <span data-k="mission.hours" data-fmt="int">720</span> saatte <span data-k="mission.reliability" data-fmt="f3">0,923</span>; arızaya kadar ortalama süre <span data-k="mission.mttf_hours" data-fmt="int">6.573</span> saat. Kritiklik önemi, bir görev kaybına o bloğun arızasının yol açmış olma olasılığı: transponder <span data-k="mission.top_criticality" data-fmt="pct0">%90</span>, pompa çifti <span data-k="mission.second_criticality" data-fmt="pct0">%5</span>. Yeniden tasarımın karşılığını verdiği yer burası. Görev başına <span data-k="mission.loss_cost_musd" data-fmt="musd0">450 M$</span> kayıp maliyetiyle beklenen kayıp <span data-k="mission.expected_loss_musd" data-fmt="musd1">34,6 M$</span>. Köprü: bu yanıtların hepsi girdi dağılımlarından başlıyor, onlar da veriden geliyor.</aside>
 </section>
 
-<section data-slide class="slide slayt" id="s10" data-tur="yontem" data-aile="anlati" aria-labelledby="h-s10">
-  <header><p class="ust">Doğrulama</p><h2 id="h-s10">Bir formülle bir sürüm arasında beş denetim duruyor</h2></header>
+<section data-slide class="slide slayt" id="s10" data-tur="baglam" data-aile="anlati" aria-labelledby="h-s10">
+  <header><p class="ust">Uygulamalı istatistik</p><h2 id="h-s10">Girdi dağılımları veriden geliyor, veri de <span data-k="repository.statistics_questions" data-fmt="int">9</span> soru daha doğuruyor</h2></header>
+  <div class="olgu">
+    <p class="buyuk" data-alan="olgu"><span data-k="repository.statistics_questions" data-fmt="int">9</span></p>
+    <p class="govde" data-alan="aciklama">veri sorusu, grup farklarından sansürlü örneklemlere; karma, dayanıklı, kantil, sayım, düzgünleştirme, çok değişkenli ve zaman serisi modelleri yanıtlıyor.</p>
+  </div>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Kaynak: README.md, uygulamalı istatistik tablosu</span></footer>
+  <aside class="notlar">Hızlı başlangıç çalışmasında yük ve dayanım dağılım olarak tanımlandı; uygulamada her biri deney kayıtlarından kestiriliyor ve bu kayıtlar kendi sorularını doğuruyor. README bu soruları sıralıyor: bir etki var mı, gruplar farklı mı, yanıt açıklayıcılara nasıl bağlı, sayımlar ve kategoriler, gruplanmış ya da yinelenen ölçümler, düzgün ama bilinmeyen biçimler, birbiriyle ilişkili çok sayıda değişken, zaman ve sansürlü, eksik ya da karıştırıcılı veri. İstatistik çekirdeği bunları doğrusal ve genelleştirilmiş karma modellerle, dayanıklı ve kantil regresyonuyla, Poisson, negatif binom, sıfır yığılmalı ve sıralı modellerle, spline'lar ve toplamsal modellerle, temel bileşenler ve ayırma çözümlemesiyle, ARIMA, GARCH, VAR, birim kök sınamaları ve değişim noktalarıyla yanıtlıyor. Disiplin benzetimdekiyle aynı: her kestirici standart hatasını, serbestlik derecesini ve yakınsamasını bildiriyor ve kaynağını anıyor; her rehber yöntemlerinin tuzaklarını sıralıyor, öğrenme yolundaki S izleği de bunları sıraya koyuyor. Köprü: bu sorulardan biri, gruplanmış ölçümler, bir partinin kestiriminin neden test sayısına bağlı olduğunu gösteriyor.</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s11" data-tur="kanit" data-aile="kanit" data-nefes="true" aria-labelledby="h-s11" data-f-olcut="BLUP'ta kalan ham parti sapması payı" data-f-gercek="benzetim">
+  <header><p class="ust">Kanıt · karma modeller, benzetim partileri</p><h2 id="h-s11">Ham sapmadan kalan pay <span data-k="pooling.smallest" data-fmt="int">2</span> testlik partide <span data-k="pooling.kept_smallest" data-fmt="pct0">%12</span>, <span data-k="pooling.largest" data-fmt="int">30</span>&nbsp;testlikte <span data-k="pooling.kept_largest" data-fmt="pct0">%66</span> oluyor</h2></header>
+  <div class="grafik-govde">
+    <img class="acik-gorsel" src="figures/pooling-tr-light.png" width="1728" height="553" alt="Çizgi grafik: her partinin genel ortalamadan ham sapmasının BLUP'ta kalan payı, partideki dayanım testi sayısına karşı; kestirilen noktalar kapalı biçim eğrisinin üzerinde, eğri soldaki en küçük partiden yukarıdaki havuzlamasız çizgiye doğru yükseliyor.">
+    <img class="koyu-gorsel" src="figures/pooling-tr-dark.png" width="1728" height="553" alt="Çizgi grafik: her partinin genel ortalamadan ham sapmasının BLUP'ta kalan payı, partideki dayanım testi sayısına karşı; kestirilen noktalar kapalı biçim eğrisinin üzerinde, eğri soldaki en küçük partiden yukarıdaki havuzlamasız çizgiye doğru yükseliyor.">
+    <p class="okuma" data-alan="okuma[]">REML: partiler arası <b>σ<sub>b</sub> <span data-k="pooling.between" data-fmt="f2">0,11</span> kN</b>, parti içi σ <span data-k="pooling.within" data-fmt="f2">0,43</span> kN · <span data-alan="n"><span data-k="pooling.batches" data-fmt="int">12</span> parti, <span data-k="pooling.tests" data-fmt="int">141</span> test</span>, tohumlu</p>
+  </div>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Kaynak: tools/build_presentation_data.py, tohum <span data-k="pooling.seed" data-fmt="str">2026</span>; fit_linear_mixed_model</span></footer>
+  <aside class="notlar">Önce iddiayı söyleyin: bir partinin kestirimi kendi testlerine ne kadar güveneceğini test sayısına göre belirliyor. Veri, doğru yanıt bilinsin diye benzetimle üretildi: bir malzemenin <span data-k="pooling.batches" data-fmt="int">12</span> partisi, her birinde <span data-k="pooling.smallest" data-fmt="int">2</span> ile <span data-k="pooling.largest" data-fmt="int">30</span> arasında dayanım testi, toplam <span data-k="pooling.tests" data-fmt="int">141</span> test; ortalama <span data-k="pooling.true_mean" data-fmt="f1">4,0</span> kN, partiler arası yayılım <span data-k="pooling.true_between" data-fmt="f2">0,15</span> kN, parti içi yayılım <span data-k="pooling.true_within" data-fmt="f2">0,37</span> kN; ikisi birlikte hızlı başlangıçtaki dayanım girdisinin <span data-k="pooling.true_total_sd" data-fmt="f2">0,40</span> kN yayılımını veriyor. Rastgele parti kesişimli bir doğrusal karma model, REML ile, partiler arasını <span data-k="pooling.between" data-fmt="f2">0,11</span> kN, parti içini <span data-k="pooling.within" data-fmt="f2">0,43</span> kN kestiriyor. Bir partinin en iyi doğrusal yansız öngörücüsü, genel ortalamadan ham sapmasının m σ_b² bölü m σ_b² artı σ² katı; m partideki test sayısı: çizgi bu. Noktalar kestirilen öngörücülerin ham sapmalara oranı ve her nokta yuvarlama hatası düzeyinde çizginin üzerinde. <span data-k="pooling.smallest" data-fmt="int">2</span> kez test edilen parti kendi sapmasından <span data-k="pooling.kept_smallest" data-fmt="pct0">%12</span> pay tutuyor, kalanını öbür partilerden ödünç alıyor; <span data-k="pooling.largest" data-fmt="int">30</span> kez test edilen parti <span data-k="pooling.kept_largest" data-fmt="pct0">%66</span> pay tutuyor. Partinin kendi verisi havuzun ağırlığını ancak yaklaşık <span data-k="pooling.half_tests" data-fmt="int">15</span> testten sonra geçiyor. Sınırlama: benzetim verisi ve tek tohum; bu kadar az partiyle partiler arası yayılımın kendisi de belirsiz: gerçek değer <span data-k="pooling.true_between" data-fmt="f2">0,15</span> kN iken kestirim <span data-k="pooling.between" data-fmt="f2">0,11</span> kN. Köprü: bu sayıların hiçbirine neden güvenelim?</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s12" data-tur="yontem" data-aile="anlati" aria-labelledby="h-s12">
+  <header><p class="ust">Doğrulama</p><h2 id="h-s12">Bir formülle bir sürüm arasında beş denetim duruyor</h2></header>
   <ol class="adimlar dikey">
     <li><b data-alan="adim_ad[]">Atıf</b><span data-alan="adim_cumle[]"><span data-k="repository.references_floor" data-fmt="plus">650+</span> kaynak; her işlevin belge dizesi kaynak anahtarını adlandırıyor.</span></li>
     <li><b data-alan="adim_ad[]">Kayıt</b><span data-alan="adim_cumle[]"><span data-k="repository.equations_floor" data-fmt="plus">1.100+</span> denklem; her birinin simgeleri, kaynağı ve kod konumu kayıtlı.</span></li>
@@ -123,8 +144,8 @@
   <aside class="notlar">Her denetimi bir söz değil bir sınama zorluyor. Belge sözleşmesi, kaynakça bölümü kaynak anahtarı adlandırmayan ya da denklem kimliği kayıtta olmayan işlevde başarısız oluyor. Sınamalar bağımsız kâhinler kullanıyor: kapalı biçimler, tam sayım, yayımlanmış değerler, çok duyarlıklı bir başvuru ya da hoşgörüsü Monte Carlo standart hatasından gelen istatistiksel denetimler; bu yüzden her platformda tutuyorlar. Figürler açık ve koyu iki paletli tek bir anlamsal temaya uyuyor. Sürekli bütünleştirme biçim denetimini, katı tür denetimini, sınamaları, hızlı kıyaslamayı ve <span data-k="repository.labs" data-fmt="int">33</span> laboratuvarın hepsini <span data-k="repository.ci_python_count" data-fmt="int">3</span> Python sürümünde koşturuyor. Tasarım kararları <span data-k="repository.adrs_floor" data-fmt="plus">100+</span> karar kaydında yazılı. Köprü: kıyaslamalar yöntemleri kesin yanıtlara karşı puanlıyor.</aside>
 </section>
 
-<section data-slide class="slide slayt" id="s11" data-tur="kanit" data-aile="kanit" aria-labelledby="h-s11" data-f-olcut="ortalamanın göreli hatası" data-f-gercek="benzetim">
-  <header><p class="ust">Kanıt · kıyaslamalar</p><h2 id="h-s11">Sobol' noktaları aynı maliyetle ortalamanın hatasını <span data-k="benchmark.sampling_gain" data-fmt="x0">×66</span> küçültüyor</h2></header>
+<section data-slide class="slide slayt" id="s13" data-tur="kanit" data-aile="kanit" aria-labelledby="h-s13" data-f-olcut="ortalamanın göreli hatası" data-f-gercek="benzetim">
+  <header><p class="ust">Kanıt · kıyaslamalar</p><h2 id="h-s13">Sobol' noktaları aynı maliyetle ortalamanın hatasını <span data-k="benchmark.sampling_gain" data-fmt="x0">×66</span> küçültüyor</h2></header>
   <div class="grafik-govde">
     <img class="acik-gorsel" src="figures/sampling-tr-light.png" width="1728" height="553" alt="Yatay çubuklar: aynı koşu sayısında Monte Carlo, Latin hiperküp, Halton ve Sobol' tasarımlarıyla Ishigami ortalamasının göreli hatası; Sobol' çubuğu vurgulu ve en kısa.">
     <img class="koyu-gorsel" src="figures/sampling-tr-dark.png" width="1728" height="553" alt="Yatay çubuklar: aynı koşu sayısında Monte Carlo, Latin hiperküp, Halton ve Sobol' tasarımlarıyla Ishigami ortalamasının göreli hatası; Sobol' çubuğu vurgulu ve en kısa.">
@@ -134,30 +155,30 @@
   <aside class="notlar">Kıyaslama takımında kesin ya da karelemeyle bulunmuş başvuru yanıtı olan <span data-k="benchmark.problems" data-fmt="int">11</span> problem var ve <span data-k="benchmark.rows" data-fmt="int">124</span> yöntem sonucu kayıtlı; her birinin hatası, maliyeti ve aralık kapsaması yazılı. En temiz satır bu: aynı <span data-k="benchmark.sampling_runs" data-fmt="int">256</span> koşu, dört tasarım. Düz Monte Carlo Ishigami ortalamasını <span data-k="benchmark.sampling.monte_carlo.error" data-fmt="pct1">%7,8</span> ıskalıyor, karıştırılmış Sobol' noktaları <span data-k="benchmark.sampling.scrambled_sobol.error" data-fmt="pct2">%0,12</span>. Hızlı başlangıç çalışmasının yayılımı Sobol' tasarımıyla yapması bu yüzden. Köprü: kanıtın kapsamadığı şeyler.</aside>
 </section>
 
-<section data-slide class="slide slayt" id="s12" data-tur="sinirlamalar" data-aile="anlati" aria-labelledby="h-s12">
-  <header><p class="ust">Sınırlamalar</p><h2 id="h-s12">Üç sınır bu sonuçları kısıtlıyor</h2></header>
+<section data-slide class="slide slayt" id="s14" data-tur="sinirlamalar" data-aile="anlati" aria-labelledby="h-s14">
+  <header><p class="ust">Sınırlamalar</p><h2 id="h-s14">Üç sınır bu sonuçları kısıtlıyor</h2></header>
   <ul class="maddeler">
     <li class="madde">FORM ve SORM dört kollu sistem kıyaslamasında çözemiyor.</li>
     <li class="madde">Kıyaslamalar: probstat <span data-k="benchmark.probstat_version" data-fmt="str">0.17.0</span>, hızlı kip, <span data-k="benchmark.seeds_calibration" data-fmt="int">2</span> ile <span data-k="benchmark.seeds_propagation" data-fmt="int">5</span> tohum; kapsama oranları kaba.</li>
     <li class="madde">Monte Carlo basamakları tohumla oynuyor; her biri <span data-k="study.reliability.ci_level" data-fmt="pct0">%95</span> aralığını taşıyor.</li>
   </ul>
   <footer class="alt-bilgi"><span>Sorulardan önce söylenir, sonra değil</span></footer>
-  <aside class="notlar">Kıyaslamadaki dört kollu seri sistemde, yani birden çok tasarım noktalı bir limit durumda, FORM ve iki SORM türü yanıt vermeden duruyor; AK-MCS yaklaşık <span data-k="benchmark.four_branch_akmcs_evaluations" data-fmt="int">26</span> koşuda, <span data-k="benchmark.four_branch_akmcs_error" data-fmt="pct0">%16</span> göreli hatayla ulaşıyor. Hızlı kip az tohum koşturuyor, bu yüzden kapsama istatistikleri yalnızca yön gösteriyor; tam kıyaslama kipi daha çok koşturuyor. Kıyaslama dosyası çalışmadan daha eski bir sürümle kaydedildi. Ve her Monte Carlo sayısı tohumla oynuyor; her birinin aralığını taşıması bu yüzden. Köprü: akılda kalması gerekenler.</aside>
+  <aside class="notlar">Kıyaslamadaki dört kollu seri sistemde, yani birden çok tasarım noktalı bir limit durumda, FORM ve iki SORM türü yanıt vermeden duruyor; AK-MCS yaklaşık <span data-k="benchmark.four_branch_akmcs_evaluations" data-fmt="int">26</span> koşuda, <span data-k="benchmark.four_branch_akmcs_error" data-fmt="pct0">%16</span> göreli hatayla ulaşıyor. Hızlı kip az tohum koşturuyor, bu yüzden kapsama istatistikleri yalnızca yön gösteriyor; tam kıyaslama kipi daha çok koşturuyor. Kıyaslama dosyası çalışmadan daha eski bir sürümle kaydedildi. Ve her Monte Carlo sayısı tohumla oynuyor; her birinin aralığını taşıması bu yüzden. Havuzlama örneği yayılımı bilinen benzetim partileri kullanıyor: <span data-k="pooling.batches" data-fmt="int">12</span> partiyle REML partiler arası standart sapmayı gerçek <span data-k="pooling.true_between" data-fmt="f2">0,15</span> kN yerine <span data-k="pooling.between" data-fmt="f2">0,11</span> kN buluyor ve her küçülme payı bu belirsizliği taşıyor. Köprü: akılda kalması gerekenler.</aside>
 </section>
 
-<section data-slide class="slide slayt" id="s13" data-tur="sonuc" data-aile="anlati" aria-labelledby="h-s13">
-  <header><p class="ust">Sonuç</p><h2 id="h-s13">Evet: tek model her soruyu tek tohumdan yanıtladı</h2></header>
+<section data-slide class="slide slayt" id="s15" data-tur="sonuc" data-aile="anlati" aria-labelledby="h-s15">
+  <header><p class="ust">Sonuç</p><h2 id="h-s15">Evet: tek model her soruyu tek tohumdan yanıtladı</h2></header>
   <ol class="maddeler">
     <li class="madde">SORM kesin <span data-k="study.reliability.reference" data-fmt="pct2">%3,77</span> göçme olasılığını <span data-k="study.reliability.methods.sorm_hr.evaluations" data-fmt="int">43</span> koşuda buldu.</li>
     <li class="madde">MCMC kesin sonsalı <span data-k="benchmark.mcmc_sd_error_max" data-fmt="pct0">%7</span> içinde buldu; ortalama alan ADVI ıskaladı.</li>
     <li class="madde">İniş aracının kayıplarının <span data-k="mission.top_criticality" data-fmt="pct0">%90</span>'ına transponder yol açıyor.</li>
   </ol>
   <footer class="alt-bilgi"><span>Üçüncü slayttaki sorunun yanıtı</span></footer>
-  <aside class="notlar">Soruya dönün: evet; ileri yayılım, güvenilirlik ve risk tohumlu tek bir çalışmadan, ters problem sonucu kesin yanıtı olan bir kıyaslamadan, sistem sonucu kesin bir diyagramdan geldi. Burada yeni sayı yok; her biri daha önce geçti. Sıradaki soru sizin: hangi benzetiminizi önce tanımlardınız? Köprü: kaynaklar, sonra nasıl başlanır.</aside>
+  <aside class="notlar">Soruya dönün: evet; ileri yayılım, güvenilirlik ve risk tohumlu tek bir çalışmadan, ters problem sonucu kesin yanıtı olan bir kıyaslamadan, sistem sonucu kesin bir diyagramdan geldi. Bu soruların başladığı girdileri istatistik çekirdeği kestiriyor; orada kısmi havuzlama, <span data-k="pooling.smallest" data-fmt="int">2</span> testlik bir partiye kendi sapmasından yalnızca <span data-k="pooling.kept_smallest" data-fmt="pct0">%12</span> pay bıraktı. Burada yeni sayı yok; her biri daha önce geçti. Sıradaki soru sizin: hangi benzetiminizi önce tanımlardınız? Köprü: kaynaklar, sonra nasıl başlanır.</aside>
 </section>
 
-<section data-slide class="slide slayt" id="s14" data-tur="kaynaklar" data-aile="esik" aria-labelledby="h-s14">
-  <header><p class="ust">Kaynaklar</p><h2 id="h-s14">Slaytlardaki her yöntem birincil bir kaynağa dayanıyor</h2></header>
+<section data-slide class="slide slayt" id="s16" data-tur="kaynaklar" data-aile="esik" aria-labelledby="h-s16">
+  <header><p class="ust">Kaynaklar</p><h2 id="h-s16">Slaytlardaki her yöntem birincil bir kaynağa dayanıyor</h2></header>
   <ol class="kaynak-listesi" data-literal="citations">
     <li data-alan="kaynak_ogesi[]">Hasofer, Lind (1974). Exact and invariant second-moment code format. J. Eng. Mech. Div.</li>
     <li data-alan="kaynak_ogesi[]">Breitung (1984). Asymptotic approximations for multinormal integrals. J. Eng. Mech.</li>
@@ -168,14 +189,15 @@
     <li data-alan="kaynak_ogesi[]">Kucukelbir et al. (2017). Automatic differentiation variational inference. JMLR.</li>
     <li data-alan="kaynak_ogesi[]">Bryant (1986). Graph-based algorithms for Boolean function manipulation. IEEE Trans. Comput.</li>
     <li data-alan="kaynak_ogesi[]">Rausand, Høyland (2004). System reliability theory. Wiley.</li>
+    <li data-alan="kaynak_ogesi[]">Henderson (1975). Best linear unbiased estimation and prediction under a selection model. Biometrics.</li>
   </ol>
   <footer class="alt-bilgi"><span class="kaynak">Tam kaynakça: docs/references.md · denklemler: docs/equation-registry.md</span></footer>
-  <aside class="notlar">Bunlar slaytlardaki yöntemlerin birincil kaynakları: FORM, iki SORM düzeltmesi, Sobol toplam etki kestiricisi, karıştırılmış ağlar, CVaR, ADVI, ikili karar diyagramları ve sistem güvenilirliği kuramı. Her birinin kaynakçada, kodun belge dizelerinde andığı bir anahtarı var; kodun hesapladığı her denklemin de kayıtta bir kimliği var. Köprü: nasıl başlanır.</aside>
+  <aside class="notlar">Bunlar slaytlardaki yöntemlerin birincil kaynakları: FORM, iki SORM düzeltmesi, Sobol toplam etki kestiricisi, karıştırılmış ağlar, CVaR, ADVI, ikili karar diyagramları, sistem güvenilirliği kuramı ve karma modellerde en iyi doğrusal yansız öngörü. Her birinin kaynakçada, kodun belge dizelerinde andığı bir anahtarı var; kodun hesapladığı her denklemin de kayıtta bir kimliği var. Köprü: nasıl başlanır.</aside>
 </section>
 
-<section data-slide class="slide slayt kapanis" id="s15" data-tur="kapanis" data-aile="esik" aria-labelledby="h-s15">
+<section data-slide class="slide slayt kapanis" id="s17" data-tur="kapanis" data-aile="esik" aria-labelledby="h-s17">
   <p class="ust">Sorularınızı bekliyoruz</p>
-  <h2 id="h-s15">Tek model her soruyu yanıtlıyor: üç komutla başlayın</h2>
+  <h2 id="h-s17">Tek model her soruyu yanıtlıyor: üç komutla başlayın</h2>
   <pre class="komut" aria-label="Başlangıç komutları">git clone https://github.com/ayberkdt/Stats-Lab.git
 python -m pip install -e ".[visualization]"
 python examples/uq_study_lab.py</pre>
@@ -183,8 +205,8 @@ python examples/uq_study_lab.py</pre>
   <aside class="notlar">İddiayla kapatın ve sorular boyunca bu slaytı açık bırakın. Üçüncü komut bir konsol kiriş üzerinde eksiksiz bir çalışma koşturuyor, raporunu ve figürlerini yazıyor; öğrenme yolları her rehberi laboratuvarıyla birlikte sıralıyor. Çekirdek kitaplık Python standart kitaplığının ötesinde hiçbir şey istemiyor; Matplotlib yalnızca figürler için.</aside>
 </section>
 
-<section data-slide class="slide slayt" id="s16" data-tur="ek" data-aile="yedek" aria-labelledby="h-s16" data-f-ana_slayt="s6">
-  <header><p class="ust">Ek · yedek slayt</p><h2 id="h-s16">Örnekleme yöntemleri yayılımını bildiriyor; analitikler tohum istemiyor</h2></header>
+<section data-slide class="slide slayt" id="s18" data-tur="ek" data-aile="yedek" aria-labelledby="h-s18" data-f-ana_slayt="s6">
+  <header><p class="ust">Ek · yedek slayt</p><h2 id="h-s18">Örnekleme yöntemleri yayılımını bildiriyor; analitikler tohum istemiyor</h2></header>
   <table class="kiyas">
     <thead><tr><th scope="col">Yöntem</th><th scope="col" class="sayi-hucre">Göçme olasılığı</th><th scope="col" class="sayi-hucre">Model koşusu</th><th scope="col" class="sayi-hucre">Değişim katsayısı</th></tr></thead>
     <tbody>

@@ -241,6 +241,22 @@ class PresentationDataTests(unittest.TestCase):
         self.assertLess(reference, monte_carlo["ci95_high"])
         self.assertLess(reliability["sorm_relative_error"], 0.01)
 
+    def test_blups_follow_the_closed_form_shrinkage(self) -> None:
+        """Each BLUP is its raw deviation times m sb^2/(m sb^2 + s^2), rising in m."""
+        pooling = self.fresh["pooling"]
+        self.assertTrue(pooling["converged"])
+        self.assertTrue(pooling["blups_match_closed_form"])
+        rows = sorted(pooling["batch"].values(), key=lambda row: row["tests"])
+        between2, within2 = pooling["between"] ** 2, pooling["within"] ** 2
+        for row in rows:
+            with self.subTest(tests=row["tests"]):
+                share = row["tests"] * between2 / (row["tests"] * between2 + within2)
+                self.assertAlmostEqual(row["blup"], share * row["raw"], places=12)
+        kept = [row["kept"] for row in rows]
+        self.assertEqual(kept, sorted(kept))
+        self.assertLess(pooling["kept_smallest"], 0.5)
+        self.assertGreater(pooling["kept_largest"], 0.5)
+
 
 class PresentationHtmlTests(unittest.TestCase):
     """The decks bind every number and reference only local files."""
@@ -310,7 +326,7 @@ class PresentationHtmlTests(unittest.TestCase):
         english = TOOL.extract_slides(self.texts["en"])
         turkish = TOOL.extract_slides(self.texts["tr"])
         self.assertEqual(len(english), len(turkish))
-        self.assertTrue(12 <= len(english) <= 16, len(english))
+        self.assertTrue(12 <= len(english) <= 18, len(english))
         for en_slide, tr_slide in zip(english, turkish, strict=True):
             with self.subTest(slide=en_slide["id"]):
                 self.assertEqual(en_slide["id"], tr_slide["id"])

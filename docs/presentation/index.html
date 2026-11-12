@@ -9,7 +9,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Stats-Lab overview</title>
-  <meta name="description" content="One probabilistic model answers forward, inverse, risk, and systems questions: the Stats-Lab (probstat) library in sixteen evidence-backed slides.">
+  <meta name="description" content="One probabilistic model answers forward, inverse, risk, and systems questions: the Stats-Lab (probstat) library in eighteen evidence-backed slides.">
   <link rel="icon" href="data:image/gif;base64,R0lGODlhAQABAAAAACw=">
   <link rel="stylesheet" href="runtime/deste-kabuk.css">
   <link rel="stylesheet" href="runtime/deck.css">
@@ -108,11 +108,32 @@
     <p class="okuma" data-alan="okuma[]">Exact reliability over <span data-alan="n"><span data-k="mission.hours" data-fmt="int">720</span> h</span>: <b><span data-k="mission.reliability" data-fmt="f3">0.923</span></b> from a binary decision diagram · <span data-k="mission.cut_sets" data-fmt="int">8</span> minimal cut sets · no sampling</p>
   </div>
   <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: examples/mission_systems_lab.py; criticality importance</span></footer>
-  <aside class="notlar">The mission laboratory builds a lunar lander from component data: a warm-standby pump pair solved as a Markov chain, three flight computers of which two must work, with a beta-factor common cause, two batteries, a transponder, and an igniter. The binary decision diagram gives the mission reliability exactly, <span data-k="mission.reliability" data-fmt="f3">0.923</span> over <span data-k="mission.hours" data-fmt="int">720</span> hours, and a mean time to failure of <span data-k="mission.mttf_hours" data-fmt="int">6,573</span> hours. Criticality importance is the probability that a block's failure caused a mission failure: the transponder reaches <span data-k="mission.top_criticality" data-fmt="pct0">90%</span>, the pump pair <span data-k="mission.second_criticality" data-fmt="pct0">5%</span>. That is where a redesign pays. At a loss cost of <span data-k="mission.loss_cost_musd" data-fmt="musd0">$450M</span> per mission, the expected loss is <span data-k="mission.expected_loss_musd" data-fmt="musd1">$34.6M</span>. Bridge: why trust any of these numbers?</aside>
+  <aside class="notlar">The mission laboratory builds a lunar lander from component data: a warm-standby pump pair solved as a Markov chain, three flight computers of which two must work, with a beta-factor common cause, two batteries, a transponder, and an igniter. The binary decision diagram gives the mission reliability exactly, <span data-k="mission.reliability" data-fmt="f3">0.923</span> over <span data-k="mission.hours" data-fmt="int">720</span> hours, and a mean time to failure of <span data-k="mission.mttf_hours" data-fmt="int">6,573</span> hours. Criticality importance is the probability that a block's failure caused a mission failure: the transponder reaches <span data-k="mission.top_criticality" data-fmt="pct0">90%</span>, the pump pair <span data-k="mission.second_criticality" data-fmt="pct0">5%</span>. That is where a redesign pays. At a loss cost of <span data-k="mission.loss_cost_musd" data-fmt="musd0">$450M</span> per mission, the expected loss is <span data-k="mission.expected_loss_musd" data-fmt="musd1">$34.6M</span>. Bridge: every one of these answers starts from input distributions, and those come from data.</aside>
 </section>
 
-<section data-slide class="slide slayt" id="s10" data-tur="yontem" data-aile="anlati" aria-labelledby="h-s10">
-  <header><p class="ust">Verification</p><h2 id="h-s10">Five checks stand between a formula and a release</h2></header>
+<section data-slide class="slide slayt" id="s10" data-tur="baglam" data-aile="anlati" aria-labelledby="h-s10">
+  <header><p class="ust">Applied statistics</p><h2 id="h-s10">Every input distribution needs data, and data raise <span data-k="repository.statistics_questions" data-fmt="int">9</span> more questions</h2></header>
+  <div class="olgu">
+    <p class="buyuk" data-alan="olgu"><span data-k="repository.statistics_questions" data-fmt="int">9</span></p>
+    <p class="govde" data-alan="aciklama">questions about data, from group differences to censored samples, answered by mixed, robust, quantile, count, smoothing, multivariate, and time-series models.</p>
+  </div>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: README.md, applied-statistics table</span></footer>
+  <aside class="notlar">The load and the strength of the quick-start study were declared as distributions, but in practice each is estimated from test records, and those records raise their own questions. The README lists them: is there an effect, do groups differ, how does a response depend on predictors, what about counts and categories, grouped or repeated measurements, smooth unknown shapes, many correlated variables, time, and censored, missing, or confounded data. The statistical core answers them with linear and generalized mixed models, robust and quantile regression, Poisson, negative binomial, zero-inflated, and ordinal models, splines and additive models, principal components and discriminants, and ARIMA, GARCH, VAR, unit-root tests, and change points. The discipline is the same as for the simulator: every estimator reports its standard errors, degrees of freedom, and convergence, cites its source, and each guide lists the pitfalls of its methods; Track S of the learning path orders them. Bridge: one of these questions, grouped measurements, shows why the estimate of a batch depends on how many tests it has.</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s11" data-tur="kanit" data-aile="kanit" data-nefes="true" aria-labelledby="h-s11" data-f-olcut="share of the raw batch deviation kept by the BLUP" data-f-gercek="benzetim">
+  <header><p class="ust">Evidence · mixed models, simulated batches</p><h2 id="h-s11"><span data-k="pooling.smallest" data-fmt="int">2</span> tests keep <span data-k="pooling.kept_smallest" data-fmt="pct0">12%</span> of a batch's deviation, <span data-k="pooling.largest" data-fmt="int">30</span> tests keep <span data-k="pooling.kept_largest" data-fmt="pct0">66%</span></h2></header>
+  <div class="grafik-govde">
+    <img class="acik-gorsel" src="figures/pooling-en-light.png" width="1728" height="553" alt="Line chart: share of each batch's raw deviation from the overall mean that its BLUP keeps, against the number of strength tests in the batch; the fitted points sit on the closed-form curve, which rises from the smallest batch at the left towards the no-pooling line at the top.">
+    <img class="koyu-gorsel" src="figures/pooling-en-dark.png" width="1728" height="553" alt="Line chart: share of each batch's raw deviation from the overall mean that its BLUP keeps, against the number of strength tests in the batch; the fitted points sit on the closed-form curve, which rises from the smallest batch at the left towards the no-pooling line at the top.">
+    <p class="okuma" data-alan="okuma[]">REML: between batches <b>σ<sub>b</sub> <span data-k="pooling.between" data-fmt="f2">0.11</span> kN</b>, within σ <span data-k="pooling.within" data-fmt="f2">0.43</span> kN · <span data-alan="n"><span data-k="pooling.batches" data-fmt="int">12</span> batches, <span data-k="pooling.tests" data-fmt="int">141</span> tests</span>, seeded</p>
+  </div>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: tools/build_presentation_data.py, seed <span data-k="pooling.seed" data-fmt="str">2026</span>; fit_linear_mixed_model</span></footer>
+  <aside class="notlar">Say the claim first: how far a batch's estimate trusts its own tests depends on how many tests it has. The data are simulated so that the truth is known: <span data-k="pooling.batches" data-fmt="int">12</span> batches of a material with <span data-k="pooling.smallest" data-fmt="int">2</span> to <span data-k="pooling.largest" data-fmt="int">30</span> strength tests each, <span data-k="pooling.tests" data-fmt="int">141</span> in all, around <span data-k="pooling.true_mean" data-fmt="f1">4.0</span> kN with a between-batch spread of <span data-k="pooling.true_between" data-fmt="f2">0.15</span> kN and a within-batch spread of <span data-k="pooling.true_within" data-fmt="f2">0.37</span> kN, which together give the <span data-k="pooling.true_total_sd" data-fmt="f2">0.40</span> kN of the quick-start strength input. A linear mixed model with a random batch intercept, fitted by REML, estimates <span data-k="pooling.between" data-fmt="f2">0.11</span> kN between and <span data-k="pooling.within" data-fmt="f2">0.43</span> kN within. The best linear unbiased predictor of a batch is its raw deviation from the overall mean times m σ_b² over m σ_b² plus σ², with m its number of tests: that is the line. The dots are the fitted predictors divided by the raw deviations, and every dot lies on the line to rounding error. A batch tested <span data-k="pooling.smallest" data-fmt="int">2</span> times keeps <span data-k="pooling.kept_smallest" data-fmt="pct0">12%</span> of its own deviation and borrows the rest from the other batches; one tested <span data-k="pooling.largest" data-fmt="int">30</span> times keeps <span data-k="pooling.kept_largest" data-fmt="pct0">66%</span>. Its own data outweigh the pool only beyond about <span data-k="pooling.half_tests" data-fmt="int">15</span> tests. Limitation: simulated data and one seed; with this few batches the between-batch spread is itself uncertain, estimated at <span data-k="pooling.between" data-fmt="f2">0.11</span> against a true <span data-k="pooling.true_between" data-fmt="f2">0.15</span> kN. Bridge: why trust any of these numbers?</aside>
+</section>
+
+<section data-slide class="slide slayt" id="s12" data-tur="yontem" data-aile="anlati" aria-labelledby="h-s12">
+  <header><p class="ust">Verification</p><h2 id="h-s12">Five checks stand between a formula and a release</h2></header>
   <ol class="adimlar dikey">
     <li><b data-alan="adim_ad[]">Cite</b><span data-alan="adim_cumle[]"><span data-k="repository.references_floor" data-fmt="plus">650+</span> sources; every function's docstring names its source key.</span></li>
     <li><b data-alan="adim_ad[]">Register</b><span data-alan="adim_cumle[]"><span data-k="repository.equations_floor" data-fmt="plus">1,100+</span> equations, each with symbols, a source, and its code location.</span></li>
@@ -124,8 +145,8 @@
   <aside class="notlar">Each check is enforced by a test, not by a promise. The documentation contract fails when a function's references section names no source key or an equation identifier is missing from the registry. Tests use independent oracles: closed forms, exact enumeration, published values, a multiple-precision reference, or statistical checks whose tolerance comes from the Monte Carlo standard error, so they hold on every platform. Figures follow one semantic theme in a light and a dark palette. Continuous integration runs lint, strict type checking, the tests, the quick benchmark, and all <span data-k="repository.labs" data-fmt="int">33</span> labs on <span data-k="repository.ci_python_count" data-fmt="int">3</span> Python versions. Design choices are recorded in <span data-k="repository.adrs_floor" data-fmt="plus">100+</span> decision records. Bridge: the benchmarks score methods against exact answers.</aside>
 </section>
 
-<section data-slide class="slide slayt" id="s11" data-tur="kanit" data-aile="kanit" aria-labelledby="h-s11" data-f-olcut="relative error of the mean" data-f-gercek="benzetim">
-  <header><p class="ust">Evidence · benchmarks</p><h2 id="h-s11">Sobol' points cut the error of the mean <span data-k="benchmark.sampling_gain" data-fmt="x0">×66</span> at equal cost</h2></header>
+<section data-slide class="slide slayt" id="s13" data-tur="kanit" data-aile="kanit" aria-labelledby="h-s13" data-f-olcut="relative error of the mean" data-f-gercek="benzetim">
+  <header><p class="ust">Evidence · benchmarks</p><h2 id="h-s13">Sobol' points cut the error of the mean <span data-k="benchmark.sampling_gain" data-fmt="x0">×66</span> at equal cost</h2></header>
   <div class="grafik-govde">
     <img class="acik-gorsel" src="figures/sampling-en-light.png" width="1728" height="553" alt="Horizontal bars: relative error of the Ishigami mean for Monte Carlo, Latin hypercube, Halton, and Sobol' designs at the same number of runs; the Sobol' bar is highlighted and the shortest.">
     <img class="koyu-gorsel" src="figures/sampling-en-dark.png" width="1728" height="553" alt="Horizontal bars: relative error of the Ishigami mean for Monte Carlo, Latin hypercube, Halton, and Sobol' designs at the same number of runs; the Sobol' bar is highlighted and the shortest.">
@@ -135,30 +156,30 @@
   <aside class="notlar">The benchmark suite has <span data-k="benchmark.problems" data-fmt="int">11</span> problems with exact or quadrature reference answers and records <span data-k="benchmark.rows" data-fmt="int">124</span> method results, each with its error, cost, and interval coverage. This row is the cleanest: the same <span data-k="benchmark.sampling_runs" data-fmt="int">256</span> runs, four designs. Plain Monte Carlo misses the Ishigami mean by <span data-k="benchmark.sampling.monte_carlo.error" data-fmt="pct1">7.8%</span>; scrambled Sobol' points by <span data-k="benchmark.sampling.scrambled_sobol.error" data-fmt="pct2">0.12%</span>. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover.</aside>
 </section>
 
-<section data-slide class="slide slayt" id="s12" data-tur="sinirlamalar" data-aile="anlati" aria-labelledby="h-s12">
-  <header><p class="ust">Limitations</p><h2 id="h-s12">Three limits apply to these results</h2></header>
+<section data-slide class="slide slayt" id="s14" data-tur="sinirlamalar" data-aile="anlati" aria-labelledby="h-s14">
+  <header><p class="ust">Limitations</p><h2 id="h-s14">Three limits apply to these results</h2></header>
   <ul class="maddeler">
     <li class="madde">FORM and SORM fail on the four-branch system benchmark.</li>
     <li class="madde">Benchmarks: probstat <span data-k="benchmark.probstat_version" data-fmt="str">0.17.0</span>, quick mode, <span data-k="benchmark.seeds_calibration" data-fmt="int">2</span> to <span data-k="benchmark.seeds_propagation" data-fmt="int">5</span> seeds; coverage is coarse.</li>
     <li class="madde">Monte Carlo digits move with the seed; each carries its <span data-k="study.reliability.ci_level" data-fmt="pct0">95%</span> interval.</li>
   </ul>
   <footer class="alt-bilgi"><span>Said before the questions, not after them</span></footer>
-  <aside class="notlar">On the four-branch series system of the benchmark, a limit state with several design points, FORM and both SORM variants stop without an answer; AK-MCS reaches it with about <span data-k="benchmark.four_branch_akmcs_evaluations" data-fmt="int">26</span> runs at a relative error of <span data-k="benchmark.four_branch_akmcs_error" data-fmt="pct0">16%</span>. Quick mode runs few seeds, so coverage statistics are indicative only; the full benchmark mode runs more. The benchmark file was recorded with an earlier release than the study. And every Monte Carlo number moves with the seed, which is why each one carries its interval. Bridge: what to keep.</aside>
+  <aside class="notlar">On the four-branch series system of the benchmark, a limit state with several design points, FORM and both SORM variants stop without an answer; AK-MCS reaches it with about <span data-k="benchmark.four_branch_akmcs_evaluations" data-fmt="int">26</span> runs at a relative error of <span data-k="benchmark.four_branch_akmcs_error" data-fmt="pct0">16%</span>. Quick mode runs few seeds, so coverage statistics are indicative only; the full benchmark mode runs more. The benchmark file was recorded with an earlier release than the study. And every Monte Carlo number moves with the seed, which is why each one carries its interval. The pooling example uses simulated batches with a known spread: with <span data-k="pooling.batches" data-fmt="int">12</span> batches, REML puts the between-batch standard deviation at <span data-k="pooling.between" data-fmt="f2">0.11</span> kN against a true <span data-k="pooling.true_between" data-fmt="f2">0.15</span> kN, and every shrinkage share inherits that uncertainty. Bridge: what to keep.</aside>
 </section>
 
-<section data-slide class="slide slayt" id="s13" data-tur="sonuc" data-aile="anlati" aria-labelledby="h-s13">
-  <header><p class="ust">Conclusion</p><h2 id="h-s13">Yes: one model answered every question from one seed</h2></header>
+<section data-slide class="slide slayt" id="s15" data-tur="sonuc" data-aile="anlati" aria-labelledby="h-s15">
+  <header><p class="ust">Conclusion</p><h2 id="h-s15">Yes: one model answered every question from one seed</h2></header>
   <ol class="maddeler">
     <li class="madde">SORM hit the exact <span data-k="study.reliability.reference" data-fmt="pct2">3.77%</span> failure probability in <span data-k="study.reliability.methods.sorm_hr.evaluations" data-fmt="int">43</span> runs.</li>
     <li class="madde">MCMC matched an exact posterior within <span data-k="benchmark.mcmc_sd_error_max" data-fmt="pct0">7%</span>; mean-field ADVI missed.</li>
     <li class="madde">The transponder causes <span data-k="mission.top_criticality" data-fmt="pct0">90%</span> of the lander's failures.</li>
   </ol>
   <footer class="alt-bilgi"><span>The answer to the question on slide three</span></footer>
-  <aside class="notlar">Return to the question: yes, forward, reliability, and risk came from one seeded study, the inverse result from a benchmark with an exact answer, and the systems result from an exact diagram. No new numbers here; each one appeared earlier. The next question is yours: which of your simulators would you declare first? Bridge: sources, then how to start.</aside>
+  <aside class="notlar">Return to the question: yes, forward, reliability, and risk came from one seeded study, the inverse result from a benchmark with an exact answer, and the systems result from an exact diagram. The inputs those questions start from are estimated by the statistical core, where partial pooling let a batch with <span data-k="pooling.smallest" data-fmt="int">2</span> tests keep only <span data-k="pooling.kept_smallest" data-fmt="pct0">12%</span> of its own deviation. No new numbers here; each one appeared earlier. The next question is yours: which of your simulators would you declare first? Bridge: sources, then how to start.</aside>
 </section>
 
-<section data-slide class="slide slayt" id="s14" data-tur="kaynaklar" data-aile="esik" aria-labelledby="h-s14">
-  <header><p class="ust">Sources</p><h2 id="h-s14">Every method on these slides traces to a primary source</h2></header>
+<section data-slide class="slide slayt" id="s16" data-tur="kaynaklar" data-aile="esik" aria-labelledby="h-s16">
+  <header><p class="ust">Sources</p><h2 id="h-s16">Every method on these slides traces to a primary source</h2></header>
   <ol class="kaynak-listesi" data-literal="citations">
     <li data-alan="kaynak_ogesi[]">Hasofer, Lind (1974). Exact and invariant second-moment code format. J. Eng. Mech. Div.</li>
     <li data-alan="kaynak_ogesi[]">Breitung (1984). Asymptotic approximations for multinormal integrals. J. Eng. Mech.</li>
@@ -169,14 +190,15 @@
     <li data-alan="kaynak_ogesi[]">Kucukelbir et al. (2017). Automatic differentiation variational inference. JMLR.</li>
     <li data-alan="kaynak_ogesi[]">Bryant (1986). Graph-based algorithms for Boolean function manipulation. IEEE Trans. Comput.</li>
     <li data-alan="kaynak_ogesi[]">Rausand, Høyland (2004). System reliability theory. Wiley.</li>
+    <li data-alan="kaynak_ogesi[]">Henderson (1975). Best linear unbiased estimation and prediction under a selection model. Biometrics.</li>
   </ol>
   <footer class="alt-bilgi"><span class="kaynak">Full bibliography: docs/references.md · equations: docs/equation-registry.md</span></footer>
-  <aside class="notlar">These are the primary sources of the methods on the slides: FORM, the two SORM corrections, the Sobol total-effect estimator, scrambled nets, CVaR, ADVI, binary decision diagrams, and system reliability theory. Each has a key in the bibliography that the code cites in its docstrings, and every equation the code evaluates has an identifier in the registry. Bridge: how to start.</aside>
+  <aside class="notlar">These are the primary sources of the methods on the slides: FORM, the two SORM corrections, the Sobol total-effect estimator, scrambled nets, CVaR, ADVI, binary decision diagrams, system reliability theory, and best linear unbiased prediction in mixed models. Each has a key in the bibliography that the code cites in its docstrings, and every equation the code evaluates has an identifier in the registry. Bridge: how to start.</aside>
 </section>
 
-<section data-slide class="slide slayt kapanis" id="s15" data-tur="kapanis" data-aile="esik" aria-labelledby="h-s15">
+<section data-slide class="slide slayt kapanis" id="s17" data-tur="kapanis" data-aile="esik" aria-labelledby="h-s17">
   <p class="ust">Questions welcome</p>
-  <h2 id="h-s15">One model answers every question: start with three commands</h2>
+  <h2 id="h-s17">One model answers every question: start with three commands</h2>
   <pre class="komut" aria-label="Start commands">git clone https://github.com/ayberkdt/Stats-Lab.git
 python -m pip install -e ".[visualization]"
 python examples/uq_study_lab.py</pre>
@@ -184,8 +206,8 @@ python examples/uq_study_lab.py</pre>
   <aside class="notlar">Close on the claim and leave this slide up during questions. The third command runs a complete study on a cantilever beam and writes its report and figures; the learning paths order every guide with its laboratory. The core library needs nothing beyond the Python standard library; Matplotlib is only for figures.</aside>
 </section>
 
-<section data-slide class="slide slayt" id="s16" data-tur="ek" data-aile="yedek" aria-labelledby="h-s16" data-f-ana_slayt="s6">
-  <header><p class="ust">Appendix · backup slide</p><h2 id="h-s16">Sampling methods report their spread; analytic ones need no seed</h2></header>
+<section data-slide class="slide slayt" id="s18" data-tur="ek" data-aile="yedek" aria-labelledby="h-s18" data-f-ana_slayt="s6">
+  <header><p class="ust">Appendix · backup slide</p><h2 id="h-s18">Sampling methods report their spread; analytic ones need no seed</h2></header>
   <table class="kiyas">
     <thead><tr><th scope="col">Method</th><th scope="col" class="sayi-hucre">Failure probability</th><th scope="col" class="sayi-hucre">Model runs</th><th scope="col" class="sayi-hucre">Coefficient of variation</th></tr></thead>
     <tbody>

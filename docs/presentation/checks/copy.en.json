@@ -146,7 +146,7 @@
    "body": [],
    "bullets": [],
    "labels": [],
-   "notes": "The mission laboratory builds a lunar lander from component data: a warm-standby pump pair solved as a Markov chain, three flight computers of which two must work, with a beta-factor common cause, two batteries, a transponder, and an igniter. The binary decision diagram gives the mission reliability exactly, 0.923 over 720 hours, and a mean time to failure of 6,573 hours. Criticality importance is the probability that a block's failure caused a mission failure: the transponder reaches 90%, the pump pair 5%. That is where a redesign pays. At a loss cost of $450M per mission, the expected loss is $34.6M. Bridge: why trust any of these numbers?",
+   "notes": "The mission laboratory builds a lunar lander from component data: a warm-standby pump pair solved as a Markov chain, three flight computers of which two must work, with a beta-factor common cause, two batteries, a transponder, and an igniter. The binary decision diagram gives the mission reliability exactly, 0.923 over 720 hours, and a mean time to failure of 6,573 hours. Criticality importance is the probability that a block's failure caused a mission failure: the transponder reaches 90%, the pump pair 5%. That is where a redesign pays. At a loss cost of $450M per mission, the expected loss is $34.6M. Bridge: every one of these answers starts from input distributions, and those come from data.",
    "font_px": {
     "headline": 60,
     "body": 34,
@@ -157,6 +157,40 @@
   },
   {
    "id": "s10",
+   "role": "baglam",
+   "kicker": "Applied statistics",
+   "headline": "Every input distribution needs data, and data raise 9 more questions",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "The load and the strength of the quick-start study were declared as distributions, but in practice each is estimated from test records, and those records raise their own questions. The README lists them: is there an effect, do groups differ, how does a response depend on predictors, what about counts and categories, grouped or repeated measurements, smooth unknown shapes, many correlated variables, time, and censored, missing, or confounded data. The statistical core answers them with linear and generalized mixed models, robust and quantile regression, Poisson, negative binomial, zero-inflated, and ordinal models, splines and additive models, principal components and discriminants, and ARIMA, GARCH, VAR, unit-root tests, and change points. The discipline is the same as for the simulator: every estimator reports its standard errors, degrees of freedom, and convergence, cites its source, and each guide lists the pitfalls of its methods; Track S of the learning path orders them. Bridge: one of these questions, grouped measurements, shows why the estimate of a batch depends on how many tests it has.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s11",
+   "role": "kanit",
+   "kicker": "Evidence · mixed models, simulated batches",
+   "headline": "2 tests keep 12% of a batch's deviation, 30 tests keep 66%",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "Say the claim first: how far a batch's estimate trusts its own tests depends on how many tests it has. The data are simulated so that the truth is known: 12 batches of a material with 2 to 30 strength tests each, 141 in all, around 4.0 kN with a between-batch spread of 0.15 kN and a within-batch spread of 0.37 kN, which together give the 0.40 kN of the quick-start strength input. A linear mixed model with a random batch intercept, fitted by REML, estimates 0.11 kN between and 0.43 kN within. The best linear unbiased predictor of a batch is its raw deviation from the overall mean times m σ_b² over m σ_b² plus σ², with m its number of tests: that is the line. The dots are the fitted predictors divided by the raw deviations, and every dot lies on the line to rounding error. A batch tested 2 times keeps 12% of its own deviation and borrows the rest from the other batches; one tested 30 times keeps 66%. Its own data outweigh the pool only beyond about 15 tests. Limitation: simulated data and one seed; with this few batches the between-batch spread is itself uncertain, estimated at 0.11 against a true 0.15 kN. Bridge: why trust any of these numbers?",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s12",
    "role": "yontem",
    "kicker": "Verification",
    "headline": "Five checks stand between a formula and a release",
@@ -173,7 +207,7 @@
    }
   },
   {
-   "id": "s11",
+   "id": "s13",
    "role": "kanit",
    "kicker": "Evidence · benchmarks",
    "headline": "Sobol' points cut the error of the mean ×66 at equal cost",
@@ -190,7 +224,7 @@
    }
   },
   {
-   "id": "s12",
+   "id": "s14",
    "role": "sinirlamalar",
    "kicker": "Limitations",
    "headline": "Three limits apply to these results",
@@ -201,45 +235,7 @@
     "Monte Carlo digits move with the seed; each carries its 95% interval."
    ],
    "labels": [],
-   "notes": "On the four-branch series system of the benchmark, a limit state with several design points, FORM and both SORM variants stop without an answer; AK-MCS reaches it with about 26 runs at a relative error of 16%. Quick mode runs few seeds, so coverage statistics are indicative only; the full benchmark mode runs more. The benchmark file was recorded with an earlier release than the study. And every Monte Carlo number moves with the seed, which is why each one carries its interval. Bridge: what to keep.",
-   "font_px": {
-    "headline": 60,
-    "body": 34,
-    "label": 26,
-    "caption": 24,
-    "citation": 24
-   }
-  },
-  {
-   "id": "s13",
-   "role": "sonuc",
-   "kicker": "Conclusion",
-   "headline": "Yes: one model answered every question from one seed",
-   "body": [],
-   "bullets": [
-    "SORM hit the exact 3.77% failure probability in 43 runs.",
-    "MCMC matched an exact posterior within 7%; mean-field ADVI missed.",
-    "The transponder causes 90% of the lander's failures."
-   ],
-   "labels": [],
-   "notes": "Return to the question: yes, forward, reliability, and risk came from one seeded study, the inverse result from a benchmark with an exact answer, and the systems result from an exact diagram. No new numbers here; each one appeared earlier. The next question is yours: which of your simulators would you declare first? Bridge: sources, then how to start.",
-   "font_px": {
-    "headline": 60,
-    "body": 34,
-    "label": 26,
-    "caption": 24,
-    "citation": 24
-   }
-  },
-  {
-   "id": "s14",
-   "role": "kaynaklar",
-   "kicker": "Sources",
-   "headline": "Every method on these slides traces to a primary source",
-   "body": [],
-   "bullets": [],
-   "labels": [],
-   "notes": "These are the primary sources of the methods on the slides: FORM, the two SORM corrections, the Sobol total-effect estimator, scrambled nets, CVaR, ADVI, binary decision diagrams, and system reliability theory. Each has a key in the bibliography that the code cites in its docstrings, and every equation the code evaluates has an identifier in the registry. Bridge: how to start.",
+   "notes": "On the four-branch series system of the benchmark, a limit state with several design points, FORM and both SORM variants stop without an answer; AK-MCS reaches it with about 26 runs at a relative error of 16%. Quick mode runs few seeds, so coverage statistics are indicative only; the full benchmark mode runs more. The benchmark file was recorded with an earlier release than the study. And every Monte Carlo number moves with the seed, which is why each one carries its interval. The pooling example uses simulated batches with a known spread: with 12 batches, REML puts the between-batch standard deviation at 0.11 kN against a true 0.15 kN, and every shrinkage share inherits that uncertainty. Bridge: what to keep.",
    "font_px": {
     "headline": 60,
     "body": 34,
@@ -250,6 +246,44 @@
   },
   {
    "id": "s15",
+   "role": "sonuc",
+   "kicker": "Conclusion",
+   "headline": "Yes: one model answered every question from one seed",
+   "body": [],
+   "bullets": [
+    "SORM hit the exact 3.77% failure probability in 43 runs.",
+    "MCMC matched an exact posterior within 7%; mean-field ADVI missed.",
+    "The transponder causes 90% of the lander's failures."
+   ],
+   "labels": [],
+   "notes": "Return to the question: yes, forward, reliability, and risk came from one seeded study, the inverse result from a benchmark with an exact answer, and the systems result from an exact diagram. The inputs those questions start from are estimated by the statistical core, where partial pooling let a batch with 2 tests keep only 12% of its own deviation. No new numbers here; each one appeared earlier. The next question is yours: which of your simulators would you declare first? Bridge: sources, then how to start.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s16",
+   "role": "kaynaklar",
+   "kicker": "Sources",
+   "headline": "Every method on these slides traces to a primary source",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "These are the primary sources of the methods on the slides: FORM, the two SORM corrections, the Sobol total-effect estimator, scrambled nets, CVaR, ADVI, binary decision diagrams, system reliability theory, and best linear unbiased prediction in mixed models. Each has a key in the bibliography that the code cites in its docstrings, and every equation the code evaluates has an identifier in the registry. Bridge: how to start.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s17",
    "role": "kapanis",
    "kicker": "Questions welcome",
    "headline": "One model answers every question: start with three commands",
@@ -266,7 +300,7 @@
    }
   },
   {
-   "id": "s16",
+   "id": "s18",
    "role": "appendix",
    "kicker": "Appendix · backup slide",
    "headline": "Sampling methods report their spread; analytic ones need no seed",

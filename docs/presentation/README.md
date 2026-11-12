@@ -1,6 +1,6 @@
 # Overview presentation
 
-A sixteen-slide overview of the library, in English (`index.html`) and Turkish
+An eighteen-slide overview of the library, in English (`index.html`) and Turkish
 (`index.tr.html`), built on the sunumatik deck runtime and audited with the
 datawiz figure checks ([ADR-0097](../adr/ADR-0097-overview-presentation.md)).
 
@@ -32,9 +32,11 @@ PYTHONPATH=src python tools/build_presentation_data.py --figures  # also the cha
 node docs/presentation/runtime/denetle-cli.mjs docs/presentation/index.html docs/presentation/index.tr.html
 ```
 
-The first command reruns the README quick-start study (seed 2026) and the
-mission laboratory, reads `benchmarks/results/quick.json` and the repository
-counts, writes `deck-data.json`, fills both decks, and writes the validator
+The first command reruns the README quick-start study (seed 2026), the mission
+laboratory, and the partial-pooling fit (twelve seeded batches, a
+random-intercept mixed model by REML), reads `benchmarks/results/quick.json`
+and the repository counts (including the applied-statistics questions of the
+README), writes `deck-data.json`, fills both decks, and writes the validator
 inputs in `checks/`. `tests/test_presentation.py` fails when the stored data
 no longer equals a fresh run; rerun the command after a change that moves a
 shown number (for example a test count crossing the next hundred).

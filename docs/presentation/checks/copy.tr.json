@@ -146,7 +146,7 @@
    "body": [],
    "bullets": [],
    "labels": [],
-   "notes": "Görev laboratuvarı bir Ay iniş aracını bileşen verisinden kuruyor: Markov zinciriyle çözülen ılık yedekli bir pompa çifti, ikisinin çalışması gereken üç uçuş bilgisayarı ve onların beta etkenli ortak nedeni, iki batarya, bir transponder ve bir ateşleyici. İkili karar diyagramı görev güvenilirliğini kesin veriyor: 720 saatte 0,923; arızaya kadar ortalama süre 6.573 saat. Kritiklik önemi, bir görev kaybına o bloğun arızasının yol açmış olma olasılığı: transponder %90, pompa çifti %5. Yeniden tasarımın karşılığını verdiği yer burası. Görev başına 450 M$ kayıp maliyetiyle beklenen kayıp 34,6 M$. Köprü: bu sayıların hiçbirine neden güvenelim?",
+   "notes": "Görev laboratuvarı bir Ay iniş aracını bileşen verisinden kuruyor: Markov zinciriyle çözülen ılık yedekli bir pompa çifti, ikisinin çalışması gereken üç uçuş bilgisayarı ve onların beta etkenli ortak nedeni, iki batarya, bir transponder ve bir ateşleyici. İkili karar diyagramı görev güvenilirliğini kesin veriyor: 720 saatte 0,923; arızaya kadar ortalama süre 6.573 saat. Kritiklik önemi, bir görev kaybına o bloğun arızasının yol açmış olma olasılığı: transponder %90, pompa çifti %5. Yeniden tasarımın karşılığını verdiği yer burası. Görev başına 450 M$ kayıp maliyetiyle beklenen kayıp 34,6 M$. Köprü: bu yanıtların hepsi girdi dağılımlarından başlıyor, onlar da veriden geliyor.",
    "font_px": {
     "headline": 60,
     "body": 34,
@@ -157,6 +157,40 @@
   },
   {
    "id": "s10",
+   "role": "baglam",
+   "kicker": "Uygulamalı istatistik",
+   "headline": "Girdi dağılımları veriden geliyor, veri de 9 soru daha doğuruyor",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "Hızlı başlangıç çalışmasında yük ve dayanım dağılım olarak tanımlandı; uygulamada her biri deney kayıtlarından kestiriliyor ve bu kayıtlar kendi sorularını doğuruyor. README bu soruları sıralıyor: bir etki var mı, gruplar farklı mı, yanıt açıklayıcılara nasıl bağlı, sayımlar ve kategoriler, gruplanmış ya da yinelenen ölçümler, düzgün ama bilinmeyen biçimler, birbiriyle ilişkili çok sayıda değişken, zaman ve sansürlü, eksik ya da karıştırıcılı veri. İstatistik çekirdeği bunları doğrusal ve genelleştirilmiş karma modellerle, dayanıklı ve kantil regresyonuyla, Poisson, negatif binom, sıfır yığılmalı ve sıralı modellerle, spline'lar ve toplamsal modellerle, temel bileşenler ve ayırma çözümlemesiyle, ARIMA, GARCH, VAR, birim kök sınamaları ve değişim noktalarıyla yanıtlıyor. Disiplin benzetimdekiyle aynı: her kestirici standart hatasını, serbestlik derecesini ve yakınsamasını bildiriyor ve kaynağını anıyor; her rehber yöntemlerinin tuzaklarını sıralıyor, öğrenme yolundaki S izleği de bunları sıraya koyuyor. Köprü: bu sorulardan biri, gruplanmış ölçümler, bir partinin kestiriminin neden test sayısına bağlı olduğunu gösteriyor.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s11",
+   "role": "kanit",
+   "kicker": "Kanıt · karma modeller, benzetim partileri",
+   "headline": "Ham sapmadan kalan pay 2 testlik partide %12, 30 testlikte %66 oluyor",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "Önce iddiayı söyleyin: bir partinin kestirimi kendi testlerine ne kadar güveneceğini test sayısına göre belirliyor. Veri, doğru yanıt bilinsin diye benzetimle üretildi: bir malzemenin 12 partisi, her birinde 2 ile 30 arasında dayanım testi, toplam 141 test; ortalama 4,0 kN, partiler arası yayılım 0,15 kN, parti içi yayılım 0,37 kN; ikisi birlikte hızlı başlangıçtaki dayanım girdisinin 0,40 kN yayılımını veriyor. Rastgele parti kesişimli bir doğrusal karma model, REML ile, partiler arasını 0,11 kN, parti içini 0,43 kN kestiriyor. Bir partinin en iyi doğrusal yansız öngörücüsü, genel ortalamadan ham sapmasının m σ_b² bölü m σ_b² artı σ² katı; m partideki test sayısı: çizgi bu. Noktalar kestirilen öngörücülerin ham sapmalara oranı ve her nokta yuvarlama hatası düzeyinde çizginin üzerinde. 2 kez test edilen parti kendi sapmasından %12 pay tutuyor, kalanını öbür partilerden ödünç alıyor; 30 kez test edilen parti %66 pay tutuyor. Partinin kendi verisi havuzun ağırlığını ancak yaklaşık 15 testten sonra geçiyor. Sınırlama: benzetim verisi ve tek tohum; bu kadar az partiyle partiler arası yayılımın kendisi de belirsiz: gerçek değer 0,15 kN iken kestirim 0,11 kN. Köprü: bu sayıların hiçbirine neden güvenelim?",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s12",
    "role": "yontem",
    "kicker": "Doğrulama",
    "headline": "Bir formülle bir sürüm arasında beş denetim duruyor",
@@ -173,7 +207,7 @@
    }
   },
   {
-   "id": "s11",
+   "id": "s13",
    "role": "kanit",
    "kicker": "Kanıt · kıyaslamalar",
    "headline": "Sobol' noktaları aynı maliyetle ortalamanın hatasını ×66 küçültüyor",
@@ -190,7 +224,7 @@
    }
   },
   {
-   "id": "s12",
+   "id": "s14",
    "role": "sinirlamalar",
    "kicker": "Sınırlamalar",
    "headline": "Üç sınır bu sonuçları kısıtlıyor",
@@ -201,45 +235,7 @@
     "Monte Carlo basamakları tohumla oynuyor; her biri %95 aralığını taşıyor."
    ],
    "labels": [],
-   "notes": "Kıyaslamadaki dört kollu seri sistemde, yani birden çok tasarım noktalı bir limit durumda, FORM ve iki SORM türü yanıt vermeden duruyor; AK-MCS yaklaşık 26 koşuda, %16 göreli hatayla ulaşıyor. Hızlı kip az tohum koşturuyor, bu yüzden kapsama istatistikleri yalnızca yön gösteriyor; tam kıyaslama kipi daha çok koşturuyor. Kıyaslama dosyası çalışmadan daha eski bir sürümle kaydedildi. Ve her Monte Carlo sayısı tohumla oynuyor; her birinin aralığını taşıması bu yüzden. Köprü: akılda kalması gerekenler.",
-   "font_px": {
-    "headline": 60,
-    "body": 34,
-    "label": 26,
-    "caption": 24,
-    "citation": 24
-   }
-  },
-  {
-   "id": "s13",
-   "role": "sonuc",
-   "kicker": "Sonuç",
-   "headline": "Evet: tek model her soruyu tek tohumdan yanıtladı",
-   "body": [],
-   "bullets": [
-    "SORM kesin %3,77 göçme olasılığını 43 koşuda buldu.",
-    "MCMC kesin sonsalı %7 içinde buldu; ortalama alan ADVI ıskaladı.",
-    "İniş aracının kayıplarının %90'ına transponder yol açıyor."
-   ],
-   "labels": [],
-   "notes": "Soruya dönün: evet; ileri yayılım, güvenilirlik ve risk tohumlu tek bir çalışmadan, ters problem sonucu kesin yanıtı olan bir kıyaslamadan, sistem sonucu kesin bir diyagramdan geldi. Burada yeni sayı yok; her biri daha önce geçti. Sıradaki soru sizin: hangi benzetiminizi önce tanımlardınız? Köprü: kaynaklar, sonra nasıl başlanır.",
-   "font_px": {
-    "headline": 60,
-    "body": 34,
-    "label": 26,
-    "caption": 24,
-    "citation": 24
-   }
-  },
-  {
-   "id": "s14",
-   "role": "kaynaklar",
-   "kicker": "Kaynaklar",
-   "headline": "Slaytlardaki her yöntem birincil bir kaynağa dayanıyor",
-   "body": [],
-   "bullets": [],
-   "labels": [],
-   "notes": "Bunlar slaytlardaki yöntemlerin birincil kaynakları: FORM, iki SORM düzeltmesi, Sobol toplam etki kestiricisi, karıştırılmış ağlar, CVaR, ADVI, ikili karar diyagramları ve sistem güvenilirliği kuramı. Her birinin kaynakçada, kodun belge dizelerinde andığı bir anahtarı var; kodun hesapladığı her denklemin de kayıtta bir kimliği var. Köprü: nasıl başlanır.",
+   "notes": "Kıyaslamadaki dört kollu seri sistemde, yani birden çok tasarım noktalı bir limit durumda, FORM ve iki SORM türü yanıt vermeden duruyor; AK-MCS yaklaşık 26 koşuda, %16 göreli hatayla ulaşıyor. Hızlı kip az tohum koşturuyor, bu yüzden kapsama istatistikleri yalnızca yön gösteriyor; tam kıyaslama kipi daha çok koşturuyor. Kıyaslama dosyası çalışmadan daha eski bir sürümle kaydedildi. Ve her Monte Carlo sayısı tohumla oynuyor; her birinin aralığını taşıması bu yüzden. Havuzlama örneği yayılımı bilinen benzetim partileri kullanıyor: 12 partiyle REML partiler arası standart sapmayı gerçek 0,15 kN yerine 0,11 kN buluyor ve her küçülme payı bu belirsizliği taşıyor. Köprü: akılda kalması gerekenler.",
    "font_px": {
     "headline": 60,
     "body": 34,
@@ -250,6 +246,44 @@
   },
   {
    "id": "s15",
+   "role": "sonuc",
+   "kicker": "Sonuç",
+   "headline": "Evet: tek model her soruyu tek tohumdan yanıtladı",
+   "body": [],
+   "bullets": [
+    "SORM kesin %3,77 göçme olasılığını 43 koşuda buldu.",
+    "MCMC kesin sonsalı %7 içinde buldu; ortalama alan ADVI ıskaladı.",
+    "İniş aracının kayıplarının %90'ına transponder yol açıyor."
+   ],
+   "labels": [],
+   "notes": "Soruya dönün: evet; ileri yayılım, güvenilirlik ve risk tohumlu tek bir çalışmadan, ters problem sonucu kesin yanıtı olan bir kıyaslamadan, sistem sonucu kesin bir diyagramdan geldi. Bu soruların başladığı girdileri istatistik çekirdeği kestiriyor; orada kısmi havuzlama, 2 testlik bir partiye kendi sapmasından yalnızca %12 pay bıraktı. Burada yeni sayı yok; her biri daha önce geçti. Sıradaki soru sizin: hangi benzetiminizi önce tanımlardınız? Köprü: kaynaklar, sonra nasıl başlanır.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s16",
+   "role": "kaynaklar",
+   "kicker": "Kaynaklar",
+   "headline": "Slaytlardaki her yöntem birincil bir kaynağa dayanıyor",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "Bunlar slaytlardaki yöntemlerin birincil kaynakları: FORM, iki SORM düzeltmesi, Sobol toplam etki kestiricisi, karıştırılmış ağlar, CVaR, ADVI, ikili karar diyagramları, sistem güvenilirliği kuramı ve karma modellerde en iyi doğrusal yansız öngörü. Her birinin kaynakçada, kodun belge dizelerinde andığı bir anahtarı var; kodun hesapladığı her denklemin de kayıtta bir kimliği var. Köprü: nasıl başlanır.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s17",
    "role": "kapanis",
    "kicker": "Sorularınızı bekliyoruz",
    "headline": "Tek model her soruyu yanıtlıyor: üç komutla başlayın",
@@ -266,7 +300,7 @@
    }
   },
   {
-   "id": "s16",
+   "id": "s18",
    "role": "appendix",
    "kicker": "Ek · yedek slayt",
    "headline": "Örnekleme yöntemleri yayılımını bildiriyor; analitikler tohum istemiyor",
