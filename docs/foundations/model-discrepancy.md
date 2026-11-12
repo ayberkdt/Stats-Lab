@@ -153,6 +153,10 @@ Without a discrepancy, the posterior of `k` is 20 times narrower and excludes
 the true value. The discrepancy posterior has `sigma_delta` mean 0.289 and
 `length[x]` mean 0.655.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/discrepancy-rate-intervals-dark.png"><img alt="Posterior mean and 90% interval of the decay rate k with and without a discrepancy term, beside the true value" src="../images/guides/discrepancy-rate-intervals.png"></picture>
+
+*The plain calibration reads the 0.25 sin(2.5 x) bias as information about `k`: its 90% interval 0.3887..0.3964 is 20 times narrower than the Kennedy-O'Hagan interval 0.3274..0.4712 and excludes the true 0.4, which the discrepancy posterior covers.*
+
 | held-out `x` | truth | simulator-only 95% | bias-corrected 95% | `delta` mean |
 | --- | --- | --- | --- | --- |
 | 0.65 | 3.3338 | [2.901, 3.270], misses | [3.300, 3.388], covers | +0.248 |
@@ -164,6 +168,10 @@ Inside the data range, the corrected intervals are narrow and cover the truth.
 At `x = 4.5`, beyond the data, the corrected interval widens back towards the
 prior discrepancy variance. That width is the honest answer: the data say
 nothing about the discrepancy there.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/discrepancy-bias-corrected-bands-dark.png"><img alt="Observations, true process, simulator-only band and bias-corrected band of an exponential-decay simulator over the input x" src="../images/guides/discrepancy-bias-corrected-bands.png"></picture>
+
+*On a grid of 45 inputs over [0, 4.5] (300 posterior draws) the bias-corrected 95% band covers the true process at 45 of 45 points and the simulator-only band at 35; the corrected band follows the wiggle of the data inside [0, 4] and opens up again beyond the last observation.*
 
 The test suite runs the same problem with 500 draws after 400 warm-up
 iterations. At `x = 0.65` it gives a corrected interval [3.300, 3.388] and a

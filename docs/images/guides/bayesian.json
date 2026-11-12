@@ -1,0 +1,133 @@
+{
+  "calibration-decay-prediction": {
+    "guide": "nonlinear-calibration-and-mcmc",
+    "alt": "Decay measurements with the calibrated mean curve, its parameter band and its wider observation band extended to t = 12",
+    "facts": {
+      "ratio": "11",
+      "latent": "(0.119, 0.154)",
+      "observed": "(-0.065, 0.328)"
+    }
+  },
+  "calibration-trace-convergence": {
+    "guide": "nonlinear-calibration-and-mcmc",
+    "alt": "Two trace panels: two MCMC chains of a decay rate, and two random-walk chains on a target with two separated modes",
+    "facts": {
+      "rhat_k": "1.008",
+      "split": "6.41",
+      "rank": "1.94"
+    }
+  },
+  "discrepancy-bias-corrected-bands": {
+    "guide": "model-discrepancy",
+    "alt": "Observations, true process, simulator-only band and bias-corrected band of an exponential-decay simulator over the input x",
+    "facts": {
+      "corrected": "45",
+      "simulator": "35",
+      "points": "45"
+    }
+  },
+  "discrepancy-rate-intervals": {
+    "guide": "model-discrepancy",
+    "alt": "Posterior mean and 90% interval of the decay rate k with and without a discrepancy term, beside the true value",
+    "facts": {
+      "ratio": "20",
+      "plain": "0.3887..0.3964",
+      "koh": "0.3274..0.4712"
+    }
+  },
+  "generative-flow-versus-gaussian": {
+    "guide": "generative-models",
+    "alt": "Two panels of banana-shaped training points with the 50% and 90% density contours of one Gaussian and of a normalizing flow",
+    "facts": {
+      "flow": "-1.87",
+      "gaussian": "-2.86",
+      "truth": "-1.79"
+    }
+  },
+  "hierarchical-mixture-fit": {
+    "guide": "hierarchical-models",
+    "alt": "Histogram of 300 observations with the fitted Gaussian-mixture density and its weighted components",
+    "facts": {
+      "components": "K = 3",
+      "centres": "-3.08, 0.34, 3.94"
+    }
+  },
+  "hierarchical-schools-shrinkage": {
+    "guide": "hierarchical-models",
+    "alt": "Eight school effects, each drawn as a raw estimate with one standard error above its posterior mean and 95% interval, joined by arrows",
+    "facts": {
+      "shrinkage": "77%",
+      "raw_range": "31.0",
+      "pooled_range": "6.3",
+      "mu": "7.93"
+    }
+  },
+  "inverse-calibration-prediction": {
+    "guide": "inverse-problems-and-calibration",
+    "alt": "Eight measurements with the posterior mean line, its parameter band and its future-observation band extended to x = 9",
+    "facts": {
+      "ratio": "1.5",
+      "tail": "0.711"
+    }
+  },
+  "inverse-prior-to-posterior": {
+    "guide": "inverse-problems-and-calibration",
+    "alt": "Two panels with the 95% band of a straight line under the prior and under the posterior, with the eight measurements",
+    "facts": {
+      "prior": "+/-16.9",
+      "posterior": "+/-0.24",
+      "ratio": "70"
+    }
+  },
+  "modeling-design-comparison": {
+    "guide": "probabilistic-modeling",
+    "alt": "Spread of replicate mean estimates of the Ishigami function for four sampling designs on a logarithmic axis",
+    "facts": {
+      "gain": "62x",
+      "mc": "0.227",
+      "sobol": "0.00365"
+    }
+  },
+  "modeling-latent-physical-correlation": {
+    "guide": "probabilistic-modeling",
+    "alt": "Two scatter panels of the same joint draws: latent standard normals and the two lognormal physical inputs",
+    "facts": {
+      "latent": "0.661",
+      "physical": "0.590"
+    }
+  },
+  "ppl-beta-binomial-posterior": {
+    "guide": "probabilistic-programming",
+    "alt": "Histogram of NUTS draws of a success probability over the exact Beta posterior density and the dashed Beta prior",
+    "facts": {
+      "nuts_mean": "0.5953",
+      "exact_mean": "0.6000",
+      "rhat": "1.004"
+    }
+  },
+  "ppl-engines-closed-form": {
+    "guide": "probabilistic-programming",
+    "alt": "Posterior mean and one standard deviation of a normal mean from five inference engines beside the closed-form value",
+    "facts": {
+      "exact": "4.8425",
+      "gap": "0.021"
+    }
+  },
+  "transport-plane-coupling": {
+    "guide": "optimal-transport",
+    "alt": "Two panels of six source and six target points in the plane joined by the exact and by an entropic transport plan",
+    "facts": {
+      "cost": "4.591",
+      "epsilon": "eps = 0.5",
+      "cells": "17 of 36",
+      "gap": "0.158"
+    }
+  },
+  "transport-quantile-w1": {
+    "guide": "optimal-transport",
+    "alt": "Quantile functions of a Gamma and an exponential law with the area between them shaded",
+    "facts": {
+      "w1": "0.750"
+    }
+  }
+}

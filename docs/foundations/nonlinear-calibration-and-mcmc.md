@@ -204,6 +204,10 @@ Worked numbers:
   `6831.2` against the theoretical `4 x 5000 x (1 - phi)/(1 + phi) = 6666.7`.
   The MCSE of the mean is `0.01212` against `1/sqrt(6666.7) = 0.01225`.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/calibration-trace-convergence-dark.png"><img alt="Two trace panels: two MCMC chains of a decay rate, and two random-walk chains on a target with two separated modes" src="../images/guides/calibration-trace-convergence.png"></picture>
+
+*Left, two adaptive-Metropolis chains for the decay rate `k` of section 8 (seed 1) overlap around the true 0.3 and give rank-normalized R-hat 1.008; right, two random-walk chains of 800 draws (proposal sd 0.5, seed 4) started at -5 and +5 never cross between the modes, and split R-hat 6.41 (rank-normalized 1.94) flags them although each chain looks stationary on its own.*
+
 R-hat near one is necessary, not sufficient: chains that all miss the same
 mode agree with each other.
 
@@ -250,6 +254,10 @@ At `t = 12` the latent variance is `8.86e-5` and the observation variance is
 `9.98e-3`, close to `8.86e-5 + 0.1^2`. A future measurement is dominated by
 noise, while the mean response is pinned down well. Reporting only one of
 the two would mislead.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/calibration-decay-prediction-dark.png"><img alt="Decay measurements with the calibrated mean curve, its parameter band and its wider observation band extended to t = 12" src="../images/guides/calibration-decay-prediction.png"></picture>
+
+*The 1600 draws of the two-chain run traced in section 7 give, at `t = 12`, a latent 95% interval of (0.119, 0.154) and an observation interval of (-0.065, 0.328), 11 times wider: the inner band is nearly invisible beyond the data while the outer band keeps the full width of the measurement noise.*
 
 `t = 12` lies outside the calibration window `[0, 10]`. The computation is
 valid as conditional mathematics, but the data cannot confirm that the model
