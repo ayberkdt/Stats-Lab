@@ -1068,7 +1068,7 @@ For a positive-probability partition `{B_i}_{i=1}^m` of `Omega`,
 - Domain: non-empty finite sample and finite real `x`.
 - Meaning: observed fraction at or below `x`.
 - Code: `statistics.descriptive.empirical_cdf` and
-  `visualization.foundations.plot_empirical_cdf`.
+  `visualization.foundation_plots.plot_empirical_cdf`.
 - Source: [REF-WASSERMAN-2004, Section 7.3].
 
 ### EQ-STAT-006 — Covariance with degrees-of-freedom offset
@@ -1238,7 +1238,7 @@ with `k = floor(x)` and support clipping; `S(x) = I_p(k+1, n-k)`.
 - Meaning: one draw from named, unordered categories. Labels have no canonical
   numeric value or order, so this law does not manufacture a CDF or moments.
 - Code: `distributions.Categorical`, `ProbabilitySimplexConstraint`, and
-  `visualization.foundations.plot_categorical_pmf`.
+  `visualization.foundation_plots.plot_categorical_pmf`.
 - Source: [REF-ROSS-2019, Section 4.6].
 
 ### EQ-DIST-CAT-002 — Categorical Shannon entropy

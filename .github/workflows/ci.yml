@@ -32,3 +32,24 @@ jobs:
           MPLBACKEND: Agg
         run: |
           for lab in examples/*.py; do python "$lab"; done
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Build sdist and wheel
+        run: |
+          python -m venv "$RUNNER_TEMP/build-env"
+          "$RUNNER_TEMP/build-env/bin/python" -m pip install build twine
+          "$RUNNER_TEMP/build-env/bin/python" -m build --outdir dist .
+      - name: Check distribution metadata
+        run: '"$RUNNER_TEMP/build-env/bin/python" -m twine check --strict dist/*'
+      - name: Install the wheel in a clean environment and smoke-test it
+        run: |
+          python -m venv "$RUNNER_TEMP/smoke-env"
+          "$RUNNER_TEMP/smoke-env/bin/python" -m pip install dist/*.whl
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/smoke-env/bin/python" -I "$GITHUB_WORKSPACE/tools/smoke_test_wheel.py"

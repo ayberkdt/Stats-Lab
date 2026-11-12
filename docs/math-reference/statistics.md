@@ -96,7 +96,7 @@ method in `[min x_i + h z_p, max x_i + h z_p]`; mean `xbar`, variance
 - Domain: non-empty finite sample and finite real `x`.
 - Meaning: observed fraction at or below `x`.
 - Code: `statistics.descriptive.empirical_cdf` and
-  `visualization.foundations.plot_empirical_cdf`.
+  `visualization.foundation_plots.plot_empirical_cdf`.
 - Source: [REF-WASSERMAN-2004, Section 7.3].
   - [REF-WASSERMAN-2004](../references.md#ref-wasserman-2004): Larry Wasserman. *All of Statistics: A Concise Course in Statistical Inference*. Springer, 2004. DOI: [10.1007/978-0-387-21736-9](https://doi.org/10.1007/978-0-387-21736-9).
 - Also names: [`visualization`](visualization.md)

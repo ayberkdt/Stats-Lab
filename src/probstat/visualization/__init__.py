@@ -5,7 +5,7 @@ colour roles, assertion titles, direct labels, and quiet axes. Use
 ``chart_theme(GRAPHITE)`` for dark output and ``save_figure`` to export.
 """
 
-from .foundations import (
+from .foundation_plots import (
     plot_bernoulli_pmf,
     plot_categorical_pmf,
     plot_characteristic_function,

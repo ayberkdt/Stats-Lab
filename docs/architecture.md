@@ -152,6 +152,20 @@ the public names are the ones a package re-exports.
 
   Every mixin derives from `_StudyBase`, so each one type-checks on its own;
   no mixin imports `_core`.
+- `optimization` has one module per solver family (ADR-0096):
+  `finite_differences` (gradients, Jacobians, Hessians), `quasi_newton`
+  (BFGS with the strong-Wolfe line search), `nelder_mead`, `multistart`,
+  `nonlinear_least_squares` (Levenberg-Marquardt and the Gauss-Newton
+  covariance), `root_finding` (Brent), and `stochastic` (Adam); `bounds`
+  holds `BoxTransform`, `results` the four result records, and the private
+  `_common` the callable aliases and value validation they share.
+  `quasi_newton` and `nonlinear_least_squares` take their derivatives from
+  `finite_differences`, `multistart` runs `quasi_newton` or `nelder_mead`,
+  and no other family module imports another.
+- `visualization` names each module after the figures it draws:
+  `foundation_plots` (PMFs, CDFs, characteristic functions, finite measures,
+  Monte Carlo convergence), `fit_plots`, `reliability_plots`, and so on;
+  `theme` holds the shared visual language.
 
 ## Dense backend boundary
 

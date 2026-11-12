@@ -1,5 +1,12 @@
 """Plotting helpers that keep mathematical definitions visible.
 
+Figures of the foundational objects: probability mass functions (Bernoulli,
+integer-valued, categorical, induced, joint), densities with distribution and
+survival functions, finite measures and events, characteristic functions,
+empirical and fitted CDFs, Monte Carlo convergence and cost-normalized
+efficiency, and refinement convergence. The module was named
+``foundations`` before ADR-0096.
+
 Every function draws inside :func:`~probstat.visualization.theme.chart_theme`
 and follows its rules: semantic colours (observed data, model, reference),
 assertion titles with muted subtitles, direct labels instead of legends where

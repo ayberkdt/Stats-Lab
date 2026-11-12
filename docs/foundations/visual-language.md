@@ -73,6 +73,20 @@ with chart_theme():                      # or chart_theme(GRAPHITE)
 Set `PROBSTAT_CHART_THEME=graphite` to render every library figure in the dark
 palette, for example to produce dark-mode documentation images.
 
+## Foundation figures
+
+`probstat.visualization.foundation_plots` (named `foundations` before
+ADR-0096) draws the definitions of the probability and statistics guides. All
+of its functions are re-exported by `probstat.visualization`.
+
+| Functions | Shows | Lab |
+|---|---|---|
+| `plot_bernoulli_pmf`, `plot_integer_pmf`, `plot_categorical_pmf`, `plot_waiting_count_pmfs` | Bernoulli masses as two bars; integer masses as lollipops on an explicit window; categories as horizontal bars in declaration order, with no numeric category axis; two waiting-count PMFs as lines | `generate_foundation_figures.py` |
+| `plot_finite_measure`, `plot_random_variable_pmf`, `plot_joint_pmf` | outcome masses with a highlighted event, an induced PMF, a joint PMF as a single-hue matrix | `generate_foundation_figures.py` |
+| `plot_continuous_functions`, `plot_normal_pdf`, `plot_characteristic_function` | density above CDF and survival on a shared x-axis; the central one-sigma mass; real and imaginary parts | `generate_foundation_figures.py` |
+| `plot_empirical_cdf`, `plot_fitted_cdf` | the right-continuous ECDF; ECDF against a fitted model CDF | `generate_foundation_figures.py`, `statistical_fitting_lab.py` |
+| `plot_monte_carlo_convergence`, `plot_efficiency_comparison`, `plot_refinement_convergence` | nested estimates with their confidence band; cost-normalized efficiency against a baseline; three-level refinement against Richardson extrapolation | `basic_monte_carlo_lab.py`, `advanced_monte_carlo_lab.py`, `generate_foundation_figures.py` |
+
 ## One uncertainty, six encodings
 
 `examples/uncertainty_visualization_lab.py` simulates 400 demand paths from a

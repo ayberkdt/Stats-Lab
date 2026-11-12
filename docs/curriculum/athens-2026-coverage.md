@@ -49,15 +49,15 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-3.5 | Numerical quadrature for uncertainty propagation | Implemented | UQ-2 | `probstat.numerics.quadrature` | `src/probstat/numerics/quadrature.py` |
 | ATHENS-3.6 | Basic Monte Carlo propagation | Implemented | UQ-2 | `probstat.monte_carlo` | `src/probstat/monte_carlo/estimation.py`; `src/probstat/propagation/forward.py` |
 | ATHENS-3.7 | Monte Carlo estimators | Implemented | UQ-2 | `probstat.monte_carlo` | `src/probstat/monte_carlo/estimation.py` |
-| ATHENS-3.8 | Monte Carlo convergence | Implemented | UQ-2 | `probstat.monte_carlo` | `src/probstat/monte_carlo/estimation.py`; `src/probstat/visualization/foundations.py` |
+| ATHENS-3.8 | Monte Carlo convergence | Implemented | UQ-2 | `probstat.monte_carlo` | `src/probstat/monte_carlo/estimation.py`; `src/probstat/visualization/foundation_plots.py` |
 | ATHENS-3.9 | Estimation error and estimator confidence intervals | Implemented | UQ-2 | `probstat.monte_carlo` | `src/probstat/monte_carlo/estimation.py`; `src/probstat/inference/confidence.py` |
 | ATHENS-3.10 | Computational cost and sample-budget tradeoffs | Implemented | UQ-2 | `probstat.monte_carlo` | `src/probstat/monte_carlo/estimation.py`; `src/probstat/propagation/forward.py` |
 | ATHENS-3.11 | Threshold and exceedance probabilities | Implemented | UQ-2 | `probstat.propagation` | `src/probstat/propagation/forward.py` |
 | ATHENS-4.1 | Standard Monte Carlo simulation | Implemented | UQ-3 | `probstat.monte_carlo` | `src/probstat/monte_carlo/estimation.py`; `examples/basic_monte_carlo_lab.py` |
 | ATHENS-4.2 | Monte Carlo estimation of pi | Implemented | UQ-3 | `examples.monte_carlo` | `examples/basic_monte_carlo_lab.py` |
 | ATHENS-4.3 | Variance-reduction principles | Implemented | UQ-3 | `probstat.monte_carlo.variance_reduction` | `src/probstat/monte_carlo/variance_reduction.py`; `docs/foundations/advanced-monte-carlo.md` |
-| ATHENS-4.4 | Estimator efficiency | Implemented | UQ-3 | `probstat.monte_carlo.diagnostics` | `src/probstat/monte_carlo/variance_reduction.py`; `src/probstat/visualization/foundations.py` |
-| ATHENS-4.5 | Root-N Monte Carlo convergence rate | Implemented | UQ-3 | `probstat.monte_carlo.diagnostics` | `src/probstat/monte_carlo/estimation.py`; `src/probstat/visualization/foundations.py` |
+| ATHENS-4.4 | Estimator efficiency | Implemented | UQ-3 | `probstat.monte_carlo.diagnostics` | `src/probstat/monte_carlo/variance_reduction.py`; `src/probstat/visualization/foundation_plots.py` |
+| ATHENS-4.5 | Root-N Monte Carlo convergence rate | Implemented | UQ-3 | `probstat.monte_carlo.diagnostics` | `src/probstat/monte_carlo/estimation.py`; `src/probstat/visualization/foundation_plots.py` |
 | ATHENS-4.6 | Strategy comparison and diagnostics | Implemented | UQ-3 | `probstat.monte_carlo.diagnostics` | `src/probstat/monte_carlo/variance_reduction.py`; `examples/advanced_monte_carlo_lab.py` |
 | ATHENS-4.7 | Simulation-budget allocation | Implemented | UQ-3 | `probstat.monte_carlo` | `src/probstat/monte_carlo/variance_reduction.py` |
 | ATHENS-4.8 | Antithetic variates | Implemented | UQ-3 | `probstat.monte_carlo.variance_reduction` | `src/probstat/monte_carlo/variance_reduction.py` |
@@ -117,8 +117,8 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-8.13 | Extended Kalman filter | Implemented | UQ-7 | `probstat.filtering.extended` | `src/probstat/filtering/extended.py`; `tests/test_uq7_filtering.py` |
 | ATHENS-8.14 | Ensemble Kalman filter | Implemented | UQ-7 | `probstat.data_assimilation.enkf` | `src/probstat/data_assimilation/enkf.py`; `tests/test_uq7_filtering.py` |
 | ATHENS-8.15 | Particle filtering | Implemented | UQ-7 | `probstat.filtering.particle` | `src/probstat/filtering/particle.py`; `tests/test_uq7_filtering.py` |
-| ATHENS-9.1 | Statistical fitting laboratory | Implemented | LAB-1 | `examples.labs.statistical_fitting` | `examples/statistical_fitting_lab.py`; `examples/model_selection_lab.py`; `src/probstat/visualization/foundations.py`; `docs/foundations/uncertainty-modeling-and-fitting.md` |
-| ATHENS-9.2 | Basic Monte Carlo laboratory | Implemented | LAB-2 | `examples.labs.basic_monte_carlo` | `examples/basic_monte_carlo_lab.py`; `src/probstat/visualization/foundations.py` |
+| ATHENS-9.1 | Statistical fitting laboratory | Implemented | LAB-1 | `examples.labs.statistical_fitting` | `examples/statistical_fitting_lab.py`; `examples/model_selection_lab.py`; `src/probstat/visualization/foundation_plots.py`; `docs/foundations/uncertainty-modeling-and-fitting.md` |
+| ATHENS-9.2 | Basic Monte Carlo laboratory | Implemented | LAB-2 | `examples.labs.basic_monte_carlo` | `examples/basic_monte_carlo_lab.py`; `src/probstat/visualization/foundation_plots.py` |
 | ATHENS-9.3 | Advanced Monte Carlo variance-reduction laboratory | Implemented | LAB-3 | `examples.labs.advanced_monte_carlo` | `examples/advanced_monte_carlo_lab.py`; `docs/foundations/advanced-monte-carlo.md` |
 | ATHENS-9.4 | Reliability laboratory with FORM and directional sampling | Implemented | LAB-4 | `examples.labs.reliability` | `examples/reliability_lab.py`; `docs/foundations/reliability-analysis.md` |
 | ATHENS-9.5 | Bayesian calibration laboratory | Implemented | LAB-5 | `examples.labs.bayesian_calibration` | `examples/bayesian_calibration_lab.py`; `docs/foundations/inverse-problems-and-calibration.md` |
@@ -127,6 +127,6 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-10.2 | Statistics prerequisite | Implemented | PRE-1 | `probstat.statistics` | `docs/foundations/descriptive-statistics.md`; `docs/prerequisites/probability-and-statistics-refresher.md`; `src/probstat/statistics/descriptive.py`; `src/probstat/statistics/order.py`; `tests/test_descriptive.py`; `tests/test_prerequisite_guides.py` |
 | ATHENS-10.3 | Linear-algebra prerequisite | Implemented | PRE-1 | `probstat.linalg` | `src/probstat/linalg/dense.py`; `docs/prerequisites/linear-algebra.md`; `tests/test_core_modeling.py`; `tests/test_prerequisite_bridges.py`; `tests/test_prerequisite_guides.py` |
 | ATHENS-10.4 | Numerical integration, convergence, and error prerequisite | Implemented | PRE-1 | `probstat.numerics` | `src/probstat/numerics/quadrature.py`; `src/probstat/uq/verification.py` |
-| ATHENS-10.5 | Optimization prerequisite | Implemented | PRE-1 | `probstat.optimization` | `src/probstat/optimization/solvers.py`; `docs/prerequisites/optimization.md`; `tests/test_core_modeling.py`; `tests/test_prerequisite_guides.py` |
+| ATHENS-10.5 | Optimization prerequisite | Implemented | PRE-1 | `probstat.optimization` | `src/probstat/optimization`; `docs/prerequisites/optimization.md`; `tests/test_core_modeling.py`; `tests/test_prerequisite_guides.py` |
 | ATHENS-10.6 | Multivariable calculus, Jacobians, and conditional distributions | Implemented | PRE-1 | `docs.prerequisites` | `src/probstat/multivariate/normal.py`; `src/probstat/multivariate/transforms.py`; `src/probstat/linalg/dense.py`; `tests/test_prerequisite_bridges.py`; `docs/prerequisites/multivariable-calculus-and-conditioning.md`; `tests/test_prerequisite_guides.py` |
 | ATHENS-10.7 | R programming bridge | Implemented | PRE-1 | `docs.prerequisites.r-bridge` | `docs/prerequisites/r-bridge.md`; `tests/test_r_bridge_examples.py`; `tests/test_prerequisite_guides.py` |

@@ -482,7 +482,7 @@ with `k = floor(x)` and support clipping; `S(x) = I_p(k+1, n-k)`.
 - Meaning: one draw from named, unordered categories. Labels have no canonical
   numeric value or order, so this law does not manufacture a CDF or moments.
 - Code: `distributions.Categorical`, `ProbabilitySimplexConstraint`, and
-  `visualization.foundations.plot_categorical_pmf`.
+  `visualization.foundation_plots.plot_categorical_pmf`.
 - Source: [REF-ROSS-2019, Section 4.6].
   - [REF-ROSS-2019](../references.md#ref-ross-2019): Sheldon M. Ross. *A First Course in Probability*. 10th edition. Pearson, 2019.
 - Also names: [`visualization`](visualization.md)
