@@ -290,3 +290,57 @@ vanish, the bound goes to zero and the estimator is consistent.
   exactly; see [measure-theoretic probability](measure-theoretic-probability.md),
   Section 8.
 - `mle_efficiency` covers five family/estimand pairs with exact moments.
+
+## Common pitfalls
+
+- **One- versus two-sided bounds.** `chebyshev_bound` bounds the two-sided
+  tail `P(|Xbar - mu| >= t)`; `hoeffding_bound` and `bernstein_bound` bound
+  the one-sided tail unless `two_sided=True`, which doubles them. Compare
+  each with the matching exact tail of `compare_tail_bounds`.
+- **Bounded-support bounds need bounded summands.** For exponential
+  summands `compare_tail_bounds` reports Hoeffding and Bernstein as `None`.
+- **Berry-Esseen can be vacuous.** `berry_esseen_bound` is not capped at
+  one: for `Bernoulli(0.01)` it exceeds one up to `n = 21`. The Chebyshev,
+  Hoeffding, and Bernstein bounds are capped at one.
+- **Edgeworth needs a non-lattice summand.**
+  `kolmogorov_distance_to_normal(..., edgeworth=True)` raises `ValueError`
+  for Bernoulli summands.
+- **A zero delta-method variance is not a zero variance.** For
+  `g(p) = p(1 - p)` at `p = 1/2` the first-order variance is `0` while the
+  exact variance is positive, so the ratio is infinite.
+
+```python
+from probstat.probability import (
+    bernoulli_summand,
+    berry_esseen_bound,
+    compare_tail_bounds,
+    delta_method_bernoulli,
+    exponential_summand,
+    hoeffding_bound,
+    kolmogorov_distance_to_normal,
+)
+
+one_sided = hoeffding_bound(0.0, 1.0, 100, 0.1)
+one_sided, hoeffding_bound(0.0, 1.0, 100, 0.1, two_sided=True)  # (0.1353, 0.2707)
+coin = compare_tail_bounds(bernoulli_summand(0.3), 100, 0.2)
+coin.exact_upper, coin.exact_two_sided, coin.chebyshev  # (2.206e-05, 2.362e-05, 0.0525)
+waiting = compare_tail_bounds(exponential_summand(1.0), 10, 0.2)
+waiting.hoeffding, waiting.bernstein  # (None, None)
+rare = bernoulli_summand(0.01)
+rho, sigma = rare.third_absolute_central_moment, rare.standard_deviation
+berry_esseen_bound(rho, sigma, 21) > 1.0, berry_esseen_bound(rho, sigma, 22) > 1.0  # (True, False)
+
+
+def error_message(call):
+    try:
+        call()
+    except ValueError as error:
+        return str(error)
+    return "no error"
+
+
+error_message(lambda: kolmogorov_distance_to_normal(bernoulli_summand(0.5), 10, edgeworth=True))
+# 'the one-term Edgeworth expansion needs a non-lattice summand'
+flat = delta_method_bernoulli(lambda p: p * (1 - p), 0.0, 0.5, 10)
+flat.delta_variance, flat.exact_variance, flat.ratio == float("inf")  # (0.0, 0.001125, True)
+```

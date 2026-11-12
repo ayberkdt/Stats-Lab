@@ -288,3 +288,45 @@ The Gaussian Rényi divergence differs from KL by `-2.41e-03` at
   normal.
 - Total variation between Gaussians is closed-form only in 1-D or with a
   shared covariance.
+
+## Common pitfalls
+
+- **Check `converged` after `sinkhorn`.** When `max_iterations` is reached
+  the result is returned with `converged=False` and an arbitrary plan; only
+  `sinkhorn_divergence` raises. `epsilon` is in cost units, so choose it
+  relative to `max C`.
+- **Entropic cost is biased upward.** `sinkhorn(...).transport_cost` lies
+  above the exact optimum and approaches it only as `epsilon` falls.
+- **`W_p` versus the transport cost.** `discrete_wasserstein` returns
+  `(OT cost)^(1/p)`, while `exact_transport(...).cost` is the cost itself.
+- **Equal mass.** Source and target weights must have the same total;
+  `exact_transport` raises `ValueError` otherwise.
+- **Parameterizations and conventions.** `fisher_information(Normal(mu,
+  sigma))` is in `(mu, sigma)` coordinates, not `(mu, sigma^2)`, and
+  `hellinger_distance` uses the `1/2` factor, so it lies in `[0, 1]`.
+
+```python
+from probstat.distributions import Normal
+from probstat.information import (
+    discrete_wasserstein, exact_transport, fisher_information,
+    hellinger_distance, sinkhorn,
+)
+
+a, b = (0.2, 0.3, 0.5), (0.4, 0.4, 0.2)
+C = ((0.0, 1.0, 4.0), (1.0, 0.0, 1.0), (4.0, 1.0, 0.0))
+exact_transport(a, b, C).cost                                   # 0.5
+sinkhorn(a, b, C, epsilon=0.5).transport_cost                   # 0.526
+stopped = sinkhorn(a, b, C, epsilon=0.05, max_iterations=5)
+stopped.converged                                               # False
+stopped.marginal_error > 0.5                                    # True
+
+discrete_wasserstein((0.0, 1.0), (0.5, 0.5), (2.0, 3.0), (0.5, 0.5), p=2)  # 2.0, cost 4
+try:
+    exact_transport((0.5, 0.5), (0.3, 0.3), ((0.0, 1.0), (1.0, 0.0)))
+except ValueError as error:
+    unequal = str(error)
+unequal   # 'source and target weights must have equal total mass'
+
+fisher_information(Normal(0.0, 2.0))       # ((0.25, 0.0), (0.0, 0.5))
+hellinger_distance((1.0, 0.0), (0.0, 1.0))  # 1.0
+```

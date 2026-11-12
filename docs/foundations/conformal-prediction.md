@@ -170,14 +170,51 @@ look for conditional under-coverage.
 ## Limitations
 
 - Only regression with scalar responses is covered. Classification sets,
-  multi-output, time series, and covariate-shift (weighted) conformal are not
-  implemented.
+  multi-output, and covariate-shift (weighted) conformal are not
+  implemented. For sequential data under drift, `adaptive_conformal_intervals`
+  (adaptive conformal inference) is provided; its guarantee is a bound on
+  the long-run miscoverage frequency, not exchangeable finite-sample
+  coverage.
 - Split conformal spends data on calibration. Jackknife+ spends `n` refits
   instead. CV+ and full conformal are not implemented.
 - Normalized scores are only as useful as `s(x)`. A GP standard deviation can
   vanish numerically (Section 5).
 - Coverage is marginal. Nothing here certifies coverage at a particular input
   or for a particular calibration draw.
+
+## Common pitfalls
+
+- **`alpha` is the miscoverage.** `alpha=0.1` asks for 90% intervals.
+  The guaranteed level is `k/(n+1)` (`guaranteed_coverage`), which can sit
+  above `1 - alpha`.
+- **Too few calibration points give infinite intervals.** When
+  `ceil((1 - alpha)(n + 1)) > n`, the quantile is `+inf`; with
+  `alpha = 0.1` this happens for `n < 9`.
+- **Calibration data must be fresh and random.** The predictor (and any
+  `scale`) must not have seen the calibration points, and
+  `conformalize_surrogate` draws plain Monte Carlo inputs because LHS or
+  Sobol points are not exchangeable with a random test input.
+- **Jackknife+ guarantees `1 - 2 alpha`.** Its typical coverage is near
+  `1 - alpha`, but the bound is weaker than that of split conformal.
+- **Normalized scores need a positive spread.** A GP standard deviation
+  that vanishes makes `conformalize_surrogate(..., normalized=True)` raise;
+  set `scale_offset` before seeing the calibration data.
+
+```python
+import math
+from probstat.conformal import (
+    conformal_quantile, conformal_rank, split_conformal_regression,
+)
+
+conformal_rank(5, 0.1)                                  # 6, more than n = 5
+math.isinf(conformal_quantile([0.1, 0.2, 0.3, 0.4, 0.5], 0.1))   # True
+ten = split_conformal_regression(
+    lambda x: 0.0, [[float(i)] for i in range(10)],
+    [0.1 * (-1) ** i * (i + 1) for i in range(10)], alpha=0.1)
+ten.rank, ten.quantile          # (10, 1.0)
+ten.guaranteed_coverage         # 0.9091, = 10/11
+ten.interval([1.0]).lower, ten.interval([1.0]).upper   # (-1.0, 1.0)
+```
 
 ## Sources
 

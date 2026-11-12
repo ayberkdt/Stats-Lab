@@ -103,8 +103,8 @@ correlation would understate the spread by 19.2 % and the P80 reserve by about
 24. With five identical lognormal elements (mean 21.76 each) and pairwise
 correlation 0.3, the standard deviation is 30.06 against 20.27 independent,
 and the Monte Carlo P80 is 132.20 against 125.01. **Omitting correlation
-understates the reserve.** The library therefore warns whenever no correlation
-is supplied.
+understates the reserve.** The result therefore carries a note in `notes`
+whenever no correlation is supplied (no Python warning is raised).
 
 For normal elements the total is exactly normal. The test suite checks that
 the analytic quantiles equal `scipy.stats.norm` to 1e-6. It also checks that
@@ -207,3 +207,35 @@ which scenario holds, for example through a test programme.
   is resolved only to the renewal-grid step.
 - The spares model is single-item, single-echelon, and has no repair within
   the period.
+
+## Common pitfalls
+
+- **Fisher, not subtraction.** `real_rate(nominal, inflation)` is exact;
+  `nominal - inflation` is only first order.
+- **Missing correlation is reported, not raised.** Without `correlation`,
+  `cost_risk_analysis` treats the elements as independent and says so only in
+  `notes`.
+- **Two learning theories.** `LearningCurve` defaults to `theory="unit"`
+  (Crawford). The same slope under `"cumulative_average"` (Wright) gives a
+  much smaller total.
+- **No finite optimum is a valid answer.** With a non-increasing hazard
+  `optimize_age_replacement` returns `finite_optimum=False`: run to failure.
+- **The contingency is relative to the point estimate.** Without
+  `point_estimate=` the point estimate is the mean total.
+
+```python
+from probstat.cost import LearningCurve, cost_risk_analysis, optimize_age_replacement, real_rate
+from probstat.distributions import Exponential, Normal
+from probstat.modeling import RandomInput
+
+round(real_rate(0.07, 0.03), 6)                      # 0.038835, not 0.04
+result = cost_risk_analysis(
+    [RandomInput("a", Normal(100, 10)), RandomInput("b", Normal(50, 5))],
+    samples=2000, seed=1,
+)
+any("No correlation was supplied" in note for note in result.notes)   # True
+result.point_estimate                                # 150.0, the mean total
+round(LearningCurve(1000, 0.85).cumulative_cost(100), 2)              # 43753.87
+round(LearningCurve(1000, 0.85, "cumulative_average").cumulative_cost(100), 2)   # 33967.96
+optimize_age_replacement(Exponential(0.01), 1.0, 10.0).finite_optimum   # False
+```

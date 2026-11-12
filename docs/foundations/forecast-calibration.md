@@ -237,3 +237,33 @@ slows. `W_1(N(0,1), N(1,2))` agrees with the closed form `E|1 + Z|` to
   Power depends on that choice, and no bandwidth optimization is attempted.
 - Permutation tests on vectors cost `O(m^2)` per relabeling after one
   `O(N^2)` distance matrix. This suits samples of a few hundred points.
+
+## Common pitfalls
+
+- **Smaller is better.** Every score here is negatively oriented; `log_score`
+  is the negative log density, and it is infinite where the forecast density
+  is zero.
+- **The observation is not always the first argument.** `crps_normal`,
+  `crps_lognormal` and the other closed forms take `(observation, ...)`;
+  `crps_ensemble` takes `(members, observation)` and `log_score` takes
+  `(distribution, observation)`.
+- **The plain ensemble CRPS is biased.** `crps_ensemble` defaults to
+  `fair=False`; use `fair=True` to compare ensembles of different sizes with
+  a closed-form CRPS.
+- **The ensemble PIT is random.** `ensemble_pit` defaults to `seed=None`.
+- **No detected shift is not no shift.** A non-significant permutation or KS
+  test can miss a shift of a quarter of a standard deviation (Section 4).
+
+```python
+import inspect
+import math
+from probstat.distributions import Normal, Uniform
+from probstat.validation import crps_ensemble, crps_normal, ensemble_pit, log_score
+
+round(log_score(Normal(0.0, 1.0), 0.0), 6)        # 0.918939, -log phi(0)
+math.isinf(log_score(Uniform(0.0, 1.0), 2.0))     # True
+round(crps_normal(0.4, 1.0, 2.0), 6)              # 0.538666, observation first
+round(crps_ensemble([0.0, 1.0, 2.0], 1.0), 6)     # 0.222222
+crps_ensemble([0.0, 1.0, 2.0], 1.0, fair=True)    # 0.0
+inspect.signature(ensemble_pit).parameters["seed"].default   # None
+```

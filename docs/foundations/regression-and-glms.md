@@ -271,3 +271,56 @@ designs and n = 50.
   implemented.
 - Pure-Python cost is `O(n p^2)` per QR. Coordinate descent costs `O(n p)`
   per sweep. Both are aimed at teaching-sized and moderate problems.
+
+## Common pitfalls
+
+- **The family must be named.** `fit_glm` defaults to `family="gaussian"`
+  with the identity link; 0/1 responses fitted without
+  `family="binomial"` give a linear probability model, not a logistic one.
+  Binomial responses are proportions, with the trials passed as `weights`.
+- **Two penalty scalings.** `fit_ridge` penalizes `||y_c - X~b||^2 +
+  lambda ||b||^2`, while `fit_elastic_net` uses the glmnet scaling with
+  `1/(2n)`. The same `penalty` value is therefore not the same amount of
+  shrinkage: elastic net at `alpha=0` and `penalty=lambda` equals ridge at
+  `penalty=n*lambda`. `fit_elastic_net` defaults to `alpha=1.0`, the lasso.
+- **Reference levels.** Treatment coding drops the first level in sorted
+  text order unless `reference=` names another; coefficients are contrasts
+  against that level. `DesignMatrix.transform` rejects levels it has not
+  seen.
+- **Errors are not patched.** A dependent column raises
+  `RankDeficientDesignError` (there is no column pivoting), and separated
+  binomial data raise `SeparationError`. With `on_separation="warn"` the
+  returned coefficients and standard errors are meaningless.
+
+```python
+from probstat.inference import (
+    RankDeficientDesignError, SeparationError, fit_elastic_net, fit_glm,
+    fit_ridge,
+)
+
+rows = [[1, 2], [2, 1], [3, 5], [4, 3], [5, 6], [6, 4], [7, 8], [8, 7]]
+response = [3.1, 4.0, 8.2, 6.9, 11.4, 9.8, 14.1, 15.3]
+fit_ridge(rows, response, penalty=8 * 0.5).coefficients[0]          # 0.7510
+fit_elastic_net(rows, response, penalty=0.5, alpha=0.0).coefficients[0]  # 0.7510
+fit_elastic_net(rows, response, penalty=0.5).alpha                  # 1.0
+
+coded = design_matrix(
+    {"dose": [1, 2, 3, 1, 2, 3], "site": ["b", "a", "c", "a", "c", "b"]},
+    categorical=["site"], reference={"site": "c"},
+)
+coded.column_names   # ('(Intercept)', 'dose', 'site[a]', 'site[b]')
+
+separated = design_matrix({"x": [1, 2, 3, 3, 4, 5]})
+fit_glm(separated, [0, 0, 0, 1, 1, 1]).family   # 'gaussian'
+try:
+    fit_glm(separated, [0, 0, 0, 1, 1, 1], family="binomial")
+except SeparationError as error:
+    caught = type(error).__name__
+caught   # 'SeparationError'
+try:
+    fit_linear_model(design_matrix({"a": [1, 2, 3, 4], "b": [2, 4, 6, 8]}),
+                     [1, 2, 3, 5])
+except RankDeficientDesignError as error:
+    dependent = str(error)
+dependent   # 'design matrix is rank deficient; column(s) b are linear combinations of earlier columns'
+```

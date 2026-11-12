@@ -128,3 +128,48 @@ returns a `MonteCarloEstimate` whose work count is the number of draws.
 References: [REF-WELFORD-1962], [REF-WEST-1979],
 [REF-CHAN-GOLUB-LEVEQUE-1983], [REF-PEBAY-2008], [REF-JAIN-CHLAMTAC-1985],
 [REF-VITTER-1985], [REF-WILSON-1927].
+
+## Common pitfalls
+
+- **`ddof` defaults to 0.** `variance`, `standard_deviation`, `covariance`,
+  `z_scores`, and `RunningMoments.variance()` divide by `n`; the
+  standard-library `statistics.variance` divides by `n - 1`. Pass `ddof=1`
+  for the unbiased sample variance. `RunningMoments.standard_error()`
+  already uses `ddof=1`.
+- **The robust scale is rescaled.** `median_absolute_deviation` multiplies
+  the raw median absolute deviation by `1/Phi^-1(3/4)`, about `1.4826`,
+  unless `normal_consistent=False`.
+- **The default trimmed mean may trim nothing.** `trimmed_mean` removes
+  `floor(0.1 n)` values from each end, so for fewer than ten observations it
+  equals the arithmetic mean, outlier included.
+- **Only two quantile definitions exist.** `quantile` accepts `method=7`
+  (default, linear interpolation) and `method=1` (inverse empirical CDF);
+  any other value raises `ValueError`.
+- **`P2Quantile` cannot be merged.** Only `RunningMoments`,
+  `WeightedRunningMoments`, `RunningCovariance`, and `ExceedanceCounter`
+  have `merge`; keep a `ReservoirSampler` when chunks must be combined.
+
+```python
+import statistics as standard_library
+
+from probstat.statistics import (
+    P2Quantile,
+    RunningMoments,
+    median_absolute_deviation,
+    quantile,
+    trimmed_mean,
+    variance,
+)
+
+x = [2.0, 4.0, 4.0, 4.0, 5.0, 5.0, 7.0, 9.0]
+variance(x), variance(x, ddof=1)  # (4.0, 4.5714)
+standard_library.variance(x)  # 4.5714
+running = RunningMoments()
+running.extend(x)
+running.variance(), running.standard_error()  # (4.0, 0.7559)
+median_absolute_deviation(x), median_absolute_deviation(x, normal_consistent=False)  # (0.7413, 0.5)
+trimmed_mean([1.0, 2.0, 3.0, 4.0, 100.0])  # 22.0
+trimmed_mean([1.0, 2.0, 3.0, 4.0, 100.0], 0.2)  # 3.0
+quantile(x, 0.9), quantile(x, 0.9, method=1)  # (7.6, 9.0)
+hasattr(RunningMoments, "merge"), hasattr(P2Quantile, "merge")  # (True, False)
+```

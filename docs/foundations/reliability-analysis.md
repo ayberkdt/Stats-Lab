@@ -38,8 +38,10 @@ boundary residual, and probability. It is an exact, testable special case.
 General nonlinear FORM is covered in
 [Model-based reliability](advanced-reliability.md). That guide treats
 non-normal and correlated inputs, the HL-RF iteration with convergence
-diagnostics, SORM, subset simulation, and systems. Finding several design
-points is still not supported.
+diagnostics, SORM, subset simulation, and systems. Several design points of
+one limit state are found by `find_design_points` and combined by
+`multi_point_form` or `mixture_importance_sampling`; see
+[Adaptive reliability](adaptive-reliability.md).
 
 ## Directional sampling
 
@@ -57,6 +59,34 @@ affine FORM, and directional sampling on the same bivariate Gaussian boundary,
 then estimates a five-sigma normal tail with mean-shift importance sampling. It
 writes `examples/generated/reliability-method-comparison.png` with uncertainty
 bars and the analytic affine reference.
+
+## Common pitfalls
+
+- **The boundary is failure.** `LimitState.failed` is `g(x) <= 0`, so a sample
+  exactly on the limit surface counts as a failure.
+- **Zero failures do not mean zero risk.** With no observed failure the plug-in
+  `standard_error` is `0.0`; the Wilson interval keeps a positive upper bound.
+- **`beta` is signed.** `linear_normal_form(intercept, coefficients)` describes
+  `g(u) = intercept + coefficients . u`; a negative intercept means the origin
+  already fails and gives a negative index.
+- **Importance weights are the caller's responsibility.**
+  `estimate_weighted_failure_probability` uses the likelihood ratios it is
+  given; wrong ratios or a proposal with too small a support bias the result
+  without an error.
+- **Directional sampling needs one entry radius per ray.** The radial boundary
+  returns `None` (no failure on that ray) or the radius where failure begins.
+
+```python
+from probstat.reliability import LimitState, estimate_failure_probability, linear_normal_form
+
+capacity = LimitState(lambda x: 3.0 - x[0], "capacity")
+capacity.failed((3.0,))                          # True
+direct = estimate_failure_probability(capacity, [(0.1 * i,) for i in range(20)])
+direct.failure.successes, direct.standard_error  # (0, 0.0)
+round(direct.failure.confidence_interval.upper, 3)   # 0.161 (95 % Wilson interval)
+linear_normal_form(3.0, (-1.0, 0.0)).reliability_index   # 3.0
+linear_normal_form(-3.0, (1.0, 0.0)).reliability_index   # -3.0
+```
 
 ## Sources
 

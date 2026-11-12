@@ -237,4 +237,42 @@ OverflowError: math range error
 | Zero-valued integral | pass `abs_tol` | a relative target cannot certify zero |
 | Quantile-scale integral on `(0, 1)` | `tanh_sinh(g, 0, 1)` | `g(u, 1 - u)` avoids cancellation |
 
+## Common pitfalls
+
+- **A missed target is a flag, not an error.** No adaptive rule raises or
+  warns when it stops short of its tolerance; read `result.converged` and
+  `result.error_estimate` before using `result.value`.
+- **The default target is relative.** With `abs_tol=0.0` and
+  `rel_tol=1e-10`, an integral whose value is zero cannot be certified, so
+  `converged` is `False` even when the value is accurate; pass `abs_tol`.
+- **Limits are ordered.** `integrate(f, a, b)` requires `a < b` and raises
+  `ValueError` for reversed limits instead of returning `-integrate(f, b, a)`.
+- **Fixed grids carry no error estimate.** `composite_simpson` needs an even
+  number of intervals, and neither it nor `composite_trapezoid` reports an
+  error estimate; compare two grid sizes or use an adaptive rule.
+- **`converged=False` can accompany an accurate value.** For an interior
+  kink, `method="auto"` flags the disagreement between its two rules even
+  when one of them is exact (section 4); split the range at the kink or call
+  `gauss_kronrod` directly.
+
+```python
+zero = integrate(math.sin, 0.0, 2 * math.pi)
+certified = integrate(math.sin, 0.0, 2 * math.pi, abs_tol=1e-12)
+print(zero.converged, certified.converged)
+for call in (lambda: integrate(math.sin, 1.0, 0.0),
+             lambda: composite_simpson(math.sin, 0.0, 1.0, intervals=3)):
+    try:
+        call()
+    except ValueError as error:
+        print(error)
+print(hasattr(composite_simpson(math.sin, 0.0, math.pi, intervals=4), "error_estimate"))
+```
+
+```text
+False True
+upper must be greater than lower
+Simpson quadrature requires an even interval count
+False
+```
+
 Next: [multivariable calculus and conditioning](multivariable-calculus-and-conditioning.md).

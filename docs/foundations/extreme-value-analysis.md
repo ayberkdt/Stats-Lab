@@ -209,3 +209,30 @@ threshold or a shorter run length when exceedances are frequent.
 - Return levels assume stationarity over the return period. A 100-year level
   from 10 years of data is an extrapolation: the interval reflects
   parameter uncertainty only, not model error.
+
+## Common pitfalls
+
+- **Give the sampling frequency.** `fit_pot` and `exceedance_rate` default to
+  `observations_per_year=1.0`, so an "annual" rate of daily data is a rate
+  per observation until `observations_per_year=365` is passed.
+- **A GEV return period counts blocks.** `gev_return_level(..., T)` is the
+  level one *block* maximum exceeds with probability `1/T`; it is in years
+  only when a block is a year.
+- **The last block may be dropped.** `block_maxima` keeps complete blocks
+  only.
+- **PWM fits have no intervals.** `fit_gpd(..., method="pwm")` returns
+  `covariance=None`.
+- **Runs declustering can invent clusters.** With frequent exceedances,
+  `decluster_runs` merges independent exceedances; the extremal index then
+  falls below one for independent data (Section 6).
+
+```python
+from probstat.risk import block_maxima, decluster_runs, exceedance_rate, fit_gpd
+
+series = [0, 5, 6, 0, 0, 7, 0, 0, 0, 8, 9, 0]
+round(exceedance_rate(series, 4.0).annual_rate, 4)                    # 0.4167
+round(exceedance_rate(series, 4.0, observations_per_year=365).annual_rate, 2)   # 152.08
+block_maxima(range(10), 4)                                            # (3.0, 7.0)
+fit_gpd([1, 2, 3, 4, 5], method="pwm").covariance is None             # True
+decluster_runs(series, 4.0, 2).extremal_index                         # 0.6
+```

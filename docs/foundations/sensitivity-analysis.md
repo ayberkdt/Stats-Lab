@@ -119,3 +119,60 @@ with standard errors of about `0.023`, in 8200 calls.
 
 Sources: [REF-OWEN-2014], [REF-SONG-NELSON-STAUM-2016],
 [REF-OWEN-PRIEUR-2017], [REF-IOOSS-PRIEUR-2019].
+
+## Common pitfalls
+
+- **Dependent inputs.** `sensitivity.sobol_analysis` and
+  `sensitivity.morris_screening` raise `ValueError` for a model with a
+  non-identity copula. Use `shapley_effects` rather than dropping the
+  correlation.
+- **No interval by default.** `sobol_analysis` defaults to `bootstrap=0` and
+  reports `interval_method == "none"` with `nan` bounds; `UQStudy.sensitivity`
+  defaults to `bootstrap=200`, which on a Sobol design gives replicate
+  intervals over 8 randomizations. Rows of a quasi-random or LHS design are
+  never bootstrapped.
+- **Cost.** One analysis costs `size (d + 2)` model runs; use
+  `sobol_analysis_all` to share them across QoIs.
+- **Rank by total effect.** Estimates are not clipped to `[0, 1]`, and an
+  input that acts only through interactions has a first-order index near
+  zero.
+- **Morris on periodic responses.** One Morris step moves an input by half
+  of its quantile range, so `sin(x)**2` with `x ~ Uniform(-pi, pi)` gives
+  `mu* = 0` although `x` matters.
+
+```python
+import math
+
+from probstat.distributions import Normal, Uniform
+from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
+from probstat.sensitivity import morris_screening, sobol_analysis
+from probstat.uq import QuantityOfInterest
+from probstat.workflow import UQStudy
+
+def total(p):
+    return {"y": p["a"] + p["b"]}
+
+laws = (RandomInput("a", Normal(0.0, 1.0)), RandomInput("b", Normal(0.0, 2.0)))
+qoi = (QuantityOfInterest("y", "sum"),)
+independent = ProbabilisticModel(JointInput(laws), total, qoi)
+plain = sobol_analysis(independent, "y", 128, seed=1)
+(plain.interval_method, plain.evaluations)    # ('none', 512); cost 128 * (2 + 2)
+staged = UQStudy(independent, seed=1).sensitivity("y", 128)
+(staged.interval_method, staged.replicates)   # ('replicates', 8)
+correlated = ProbabilisticModel(JointInput(laws, ((1.0, 0.6), (0.6, 1.0))), total, qoi)
+try:
+    sobol_analysis(correlated, "y", 64, seed=1)
+except ValueError as error:
+    refused = str(error).split(";")[0]
+refused                                       # 'variance-based Sobol indices require independent inputs'
+
+def periodic(p):
+    return {"y": math.sin(p["x"]) ** 2 + p["z"]}
+
+wave = ProbabilisticModel(
+    JointInput((RandomInput("x", Uniform(-math.pi, math.pi)), RandomInput("z", Uniform(0.0, 1.0)))),
+    periodic,
+    (QuantityOfInterest("y", "periodic in x"),),
+)
+morris_screening(wave, "y", 10, seed=1).mu_star  # (0.0, 1.0)
+```

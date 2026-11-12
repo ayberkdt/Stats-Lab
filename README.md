@@ -52,7 +52,8 @@ risk = study.risk("margin", custom_loss(lambda m: 50.0 * max(0.0, -m)), 20_000)
 
 forward["margin"].quantile(0.05)        # 0.124
 sobol.ranking()                          # ('load', 'strength')
-methods.row("FORM").probability          # 0.0362  (Monte Carlo: 0.0395)
+methods.row("FORM").probability          # 0.0362, first-order approximation
+methods.row("MC").probability            # 0.0395, crude Monte Carlo (10 000 runs)
 risk.conditional_value_at_risk[0.99]     # 49.8, mean loss in the worst 1%
 print(study.report())                    # Markdown: every stage, cost, and seed
 
@@ -60,8 +61,10 @@ from probstat.visualization.study import write_study_html
 write_study_html(study, "study.html")    # one page, every stage, light and dark figures
 ```
 
-The core library has no runtime dependencies; Matplotlib is only needed for
-figures.
+The core library has no runtime dependencies. Optional extras:
+`visualization` (Matplotlib, for figures), `numerics` (NumPy, for the
+optional dense linear-algebra backend selected with
+`linalg.set_backend("numpy")`), and `dev` (pytest, ruff, mypy).
 
 ## One study, every question
 
@@ -118,7 +121,7 @@ and run [`examples/mission_systems_lab.py`](examples/mission_systems_lab.py).
 
 ## What's inside
 
-33 packages and 1,554 public names, all documented in the
+33 packages and 1,555 public names, all documented in the
 [API reference](docs/api-reference.md).
 
 | Area | Packages | Highlights |
@@ -168,7 +171,7 @@ steps with the low-level APIs).
 - **One model, every question.** `ProbabilisticModel` is the only model
   contract; analyses never redefine the inputs or the simulator.
 - **Citation-first.** Docstrings cite equation IDs such as `EQ-REL-HLRF-001`;
-  each of the 1,038 entries in the [equation registry](docs/equation-registry.md)
+  each of the 1,049 entries in the [equation registry](docs/equation-registry.md)
   resolves to the [bibliography](docs/references.md).
 - **Honest boundaries.** Estimators report assumptions, model-evaluation cost,
   and convergence; unconverged results are flagged, and validation results are

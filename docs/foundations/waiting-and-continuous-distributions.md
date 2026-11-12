@@ -75,10 +75,9 @@ Mathematically, `S(x)=P(X>x)=1-F(x)`. Numerically, subtracting a CDF such as
 `0.9999999999999999` can lose most useful digits in the tail. A direct `sf`
 method is therefore a separate narrow protocol, not a convenience alias.
 
-This release provides direct survival functions for Bernoulli, Binomial,
-Geometric, Negative Binomial, Poisson, Normal, Uniform, and Exponential laws.
-The algorithms differ: finite sums, powers, incomplete beta/gamma functions,
-`erfc`, or a closed-form exponential tail.
+Every family that has a CDF evaluates `sf` directly (`Categorical`, which has
+no CDF, is the only exception). The algorithms differ: finite sums, powers,
+incomplete beta/gamma functions, `erfc`, or a closed-form exponential tail.
 
 ## Quantiles are generalized inverses
 
@@ -142,6 +141,31 @@ probability on the right. A density may exceed one, while CDF and survival
 remain in `[0,1]`; placing all three on a falsely shared “probability” axis would
 be easier to draw but conceptually wrong.
 
+## Common pitfalls
+
+- **Failures, not trials.** `Geometric(p)` and `NegativeBinomial(r, p)`
+  count failures, so their support starts at 0. A trials-until-success
+  quantity is the count plus `1` (plus `r` for the negative binomial): its
+  mean is `1/p`, not `(1 - p)/p`.
+- **Discrete quantiles are floats.** `quantile` returns a supported count as
+  a `float`, and `quantile(1.0)` is `inf` for an unbounded count.
+- **Hazards exist only where they are implemented.** `hazard` is available
+  on `Exponential`, `Uniform`, `Weibull`, and `GeneralizedPareto`; other
+  families have no `hazard` method. `Uniform.hazard` raises `ValueError`
+  where the survival probability is zero.
+- **`Exponential` takes a rate.** `Exponential(rate=2.0)` has mean `0.5`; a
+  source quoting a mean waiting time of 2 means `Exponential(rate=0.5)`.
+
+```python
+from probstat.distributions import Normal, Uniform
+
+attempts.pmf(0), attempts.mean, attempts.mean + 1  # (0.2, 4.0, 5.0)
+type(attempts.quantile(0.9)).__name__, attempts.quantile(1.0) == float("inf")  # ('float', True)
+hasattr(waiting_time, "hazard"), hasattr(Normal(), "hazard")  # (True, False)
+Uniform().hazard(0.999)  # 1000.0
+waiting_time.mean, Exponential(rate=0.5).mean  # (0.5, 2.0)
+```
+
 ## Sources and next steps
 
 Core distribution identities follow [REF-ROSS-2019] and
@@ -149,7 +173,6 @@ Core distribution identities follow [REF-ROSS-2019] and
 identity, and continued fraction follow [REF-NIST-DLMF-BETA]. Hazard conventions
 follow [REF-KLEIN-MOESCHBERGER-2003].
 
-The next family should build Gamma and Beta laws on this special-function
-foundation, then derive Chi-square and Student-t relationships. Stable inverse
-special functions, explicit error budgets, and reference-backend comparisons
-remain required before those APIs can be considered mature.
+Gamma, Beta, Chi-square, Student-t, and the other continuous families built
+on the same special-function foundation are listed, with their tail accuracy,
+in the [continuous distribution catalog](continuous-distribution-catalog.md).

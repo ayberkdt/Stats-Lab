@@ -192,5 +192,40 @@ The 95 % interval contains `3.0` exactly when the two-sided p-value exceeds
 `0.05`. The [hypothesis testing and bootstrap](../foundations/hypothesis-testing-and-bootstrap.md)
 guide continues from here.
 
+## Common pitfalls
+
+- **Weights are probabilities.** `FiniteProbabilityMeasure` rejects weights
+  that do not sum to one (within `1e-12`) instead of normalizing counts.
+- **`ddof` defaults to 0.** `statistics.variance` and its relatives divide
+  by `n` unless `ddof=1` is passed (section 4).
+- **Moments are properties on laws, functions on data.**
+  `X.mean` and `z.variance` take no parentheses; `statistics.mean(data)` is
+  a function of a sample.
+- **Use `sf` for upper tails.** At `x = 9` the standard normal `1 - cdf(x)`
+  is exactly `0.0` in floating point, while `sf(x)` is positive.
+- **Derive seeds instead of inventing them.** Hand-picked seeds such as
+  `1000 + k` in section 5 work, but `foundations.RandomStream(root).spawn(n)`
+  gives `n` distinct, reproducible child streams without bookkeeping.
+
+```python
+from probstat.foundations import RandomStream
+
+try:
+    FiniteProbabilityMeasure(space, {outcome: 1 for outcome in outcomes})
+except ValueError as error:
+    print(error)
+print(isinstance(type(z).__dict__["mean"], property), callable(mean))
+print(z.sf(9.0) > 0.0, 1.0 - z.cdf(9.0) == 0.0)
+streams = RandomStream(1000).spawn(3)
+print(len({stream.seed for stream in streams}), streams == RandomStream(1000).spawn(3))
+```
+
+```text
+weights must sum to one; received 4.0
+True True
+True True
+3 True
+```
+
 Previous: [multivariable calculus and conditioning](multivariable-calculus-and-conditioning.md).
 Next: [R bridge](r-bridge.md).

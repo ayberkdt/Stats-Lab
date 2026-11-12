@@ -16,6 +16,51 @@ quantitative risk register with exact totals and mitigation waterfalls in
 :mod:`.hazard_matrix`, and F-N curves in :mod:`.fn_curve`. Sequential decisions
 under uncertainty (the Beta-Bernoulli bandit with Thompson sampling) live in
 :mod:`.bandits`.
+
+Main entry points:
+    ``assess_risk``: loss distribution, expected loss, VaR, CVaR, and
+    exceedance curve of one model output.
+    ``conditional_value_at_risk``: tail mean of a weighted loss sample.
+    ``FaultTree``: minimal cut sets, exact top-event probability, and
+    importance measures.
+    ``EventTree``: sequence frequencies of initiating events.
+    ``DecisionProblem``: expected values, EVPI, and preposterior analysis.
+    ``RiskRegister``: exact exposure, ranking, and mitigation waterfalls.
+    ``fit_pot``: peaks-over-threshold tail fit with return levels.
+    ``fit_gev``: block-maxima tail fit with return levels.
+
+Assumptions:
+    Losses are oriented so that larger is worse. Sample measures treat the
+    weights as a probability distribution over the given losses and inherit
+    the sampling error of the sample. Fault-tree basic events and register
+    risks are independent, and an impact is independent of its occurrence.
+    Extreme value fits assume a stationary series and, for POT, a threshold
+    high enough for the GPD to hold and independent (or declustered)
+    exceedances. A risk matrix is a communication aid only.
+
+Common pitfalls:
+    - Sample risk measures read larger values as worse, while
+      ``DecisionProblem`` defaults to ``maximize=True`` (payoffs are
+      utilities). Negate gains before passing them as losses.
+    - ``value_at_risk`` is the lower quantile and always an observed loss:
+      ``value_at_risk(range(1, 11), 0.7)`` is ``7``, not an interpolated
+      value.
+    - ``fit_pot`` and ``exceedance_rate`` default to
+      ``observations_per_year=1.0``, so rates and return periods are per
+      observation until the sampling frequency is given.
+    - ``assess_risk`` and ``bootstrap_risk_interval`` default to
+      ``seed=None`` (fresh entropy); pass an integer seed to reproduce them.
+    - ``Fmeca.inconsistent_items`` flags only mode ratios that sum to more
+      than one; a smaller sum (missing modes) is visible only in
+      ``mode_ratio_sums``.
+
+Guide: docs/foundations/risk-analysis.md
+
+References:
+    [REF-KAPLAN-GARRICK-1981], [REF-ROCKAFELLAR-URYASEV-2002],
+    [REF-ARTZNER-ETAL-1999], [REF-VESELY-ETAL-1981], [REF-COX-2008],
+    [REF-COLES-2001].
+
 """
 
 from .bandits import BanditRun, bernoulli_bandit

@@ -41,8 +41,9 @@ requirements point only backwards, and that every named laboratory exists.
 ## Track M — Mathematical prerequisites
 
 Every Python snippet in these guides is executed by
-`tests/test_prerequisite_guides.py`, and each documented output block must
-match exactly.
+`tests/test_documentation_examples.py` (ADR-0095), and each documented output block must
+match to the shown precision; `tests/test_prerequisite_guides.py` keeps every
+snippet paired with its output block.
 
 ### M1 — Probability and statistics refresher
 
@@ -52,7 +53,7 @@ distributions, sample statistics, and the limit theorems to the `probstat`
 objects that compute them.
 
 - Requires: none
-- Lab: none; snippets run in [`tests/test_prerequisite_guides.py`](../tests/test_prerequisite_guides.py)
+- Lab: none; snippets run in [`tests/test_documentation_examples.py`](../tests/test_documentation_examples.py)
 - Decision record: [ADR-0028](adr/ADR-0028-prerequisite-bridges.md)
 
 ### M2 — Linear algebra
@@ -62,7 +63,7 @@ covariance, LU solves and determinants, conditioning numbers, and symmetric
 eigen-decompositions on the dependency-free `probstat.linalg` layer.
 
 - Requires: none
-- Lab: none; snippets run in [`tests/test_prerequisite_guides.py`](../tests/test_prerequisite_guides.py)
+- Lab: none; snippets run in [`tests/test_documentation_examples.py`](../tests/test_documentation_examples.py)
 - Decision record: [ADR-0028](adr/ADR-0028-prerequisite-bridges.md)
 
 ### M3 — Multivariable calculus and conditioning
@@ -73,7 +74,7 @@ Box-Muller, linear maps of a Gaussian), the delta method, and conditioning a
 Gaussian vector.
 
 - Requires: M2
-- Lab: none; snippets run in [`tests/test_prerequisite_guides.py`](../tests/test_prerequisite_guides.py) and [`tests/test_prerequisite_bridges.py`](../tests/test_prerequisite_bridges.py)
+- Lab: none; snippets run in [`tests/test_documentation_examples.py`](../tests/test_documentation_examples.py) and [`tests/test_prerequisite_bridges.py`](../tests/test_prerequisite_bridges.py)
 - Decision record: [ADR-0028](adr/ADR-0028-prerequisite-bridges.md)
 
 ### M4 — Optimization
@@ -83,7 +84,7 @@ truncation-rounding trade-off, BFGS, Nelder-Mead, Levenberg-Marquardt least
 squares with its Gauss-Newton covariance, and Brent root finding.
 
 - Requires: M2
-- Lab: none; snippets run in [`tests/test_prerequisite_guides.py`](../tests/test_prerequisite_guides.py)
+- Lab: none; snippets run in [`tests/test_documentation_examples.py`](../tests/test_documentation_examples.py)
 - Decision record: [ADR-0028](adr/ADR-0028-prerequisite-bridges.md)
 
 ### M5 — Numerical integration
@@ -94,7 +95,7 @@ sinh-sinh rules with error estimates, where each rule fails, and the
 evaluation policy.
 
 - Requires: none
-- Lab: none; snippets run in [`tests/test_prerequisite_guides.py`](../tests/test_prerequisite_guides.py) and [`tests/test_adaptive_quadrature.py`](../tests/test_adaptive_quadrature.py)
+- Lab: none; snippets run in [`tests/test_documentation_examples.py`](../tests/test_documentation_examples.py) and [`tests/test_adaptive_quadrature.py`](../tests/test_adaptive_quadrature.py)
 - Decision record: [ADR-0050](adr/ADR-0050-adaptive-quadrature.md)
 
 ## Track P — Probability
@@ -273,7 +274,7 @@ bootstrap, Sobol indices, and the multivariate normal, with their `probstat`
 equivalents and the parameterization and default differences.
 
 - Requires: S3
-- Lab: none; snippets run in [`tests/test_prerequisite_guides.py`](../tests/test_prerequisite_guides.py) and [`tests/test_r_bridge_examples.py`](../tests/test_r_bridge_examples.py)
+- Lab: none; snippets run in [`tests/test_documentation_examples.py`](../tests/test_documentation_examples.py) and [`tests/test_r_bridge_examples.py`](../tests/test_r_bridge_examples.py)
 - Decision record: [ADR-0028](adr/ADR-0028-prerequisite-bridges.md)
 
 ### S5 — Frequentist and Bayesian interpretation

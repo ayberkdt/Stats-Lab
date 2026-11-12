@@ -42,11 +42,13 @@ common success probability `p`:
 
 Its support is `{0,...,n}`, mean is `np`, and variance is `np(1-p)`. The code
 computes the binomial coefficient in log space through `lgamma`, uses `log1p`
-for `log(1-p)`, and treats `p=0` and `p=1` as exact limiting cases. The CDF sums
-the lower tail below the mean and complements the upper tail above it. This is
-more stable than blindly
-forming factorials and powers, though later work should add specialized
-incomplete-beta algorithms for very large `n`.
+for `log(1-p)`, and treats `p=0` and `p=1` as exact limiting cases. For
+`n <= 256` the CDF sums the lower tail below the mean and complements the upper
+tail above it. For larger `n` it uses the regularized incomplete beta function,
+`F(k) = I_(1-p)(n - k, k + 1)` [EQ-NUM-BETA-001], which selects the smaller tail
+before any complement and needs a bounded number of continued-fraction terms
+instead of a sum of `O(n)` masses. Both are more stable than blindly forming
+factorials and powers.
 
 ```python
 from probstat.distributions import Binomial
@@ -107,6 +109,40 @@ uses positions only for display and labels the axis as categories, not numeric
 values. These constraints make the visuals easier to read without changing the
 mathematics they represent.
 
+## Common pitfalls
+
+- **Masses need integer arguments; CDFs do not.** `pmf` and `log_pmf` accept
+  an integer or an integral float such as `2.0`, and raise `TypeError` for
+  `2.5`. `cdf(2.7)` is `cdf(2)`, because the CDF is a right-continuous step
+  function of a real argument.
+- **Outside the support the mass is zero, not an error.** `pmf` returns
+  `0.0` and `log_pmf` returns `-inf` there, also for a `Categorical` label
+  that was never declared, so a misspelled label passes silently.
+- **`Categorical` has no CDF, mean, or variance.** Map the labels to
+  numbers explicitly, for example with a `probability.FiniteRandomVariable`,
+  when a numeric summary is meant.
+- **Equal mean and variance is a Poisson assumption.** `Poisson(lam)` has
+  `mean == variance == lam`; check observed counts for over- or
+  underdispersion instead of assuming it.
+
+```python
+def raises(call):
+    try:
+        call()
+    except (TypeError, ValueError) as error:
+        return type(error).__name__
+    return "no error"
+
+
+five = Binomial(5, 0.5)
+five.pmf(2.0), raises(lambda: five.pmf(2.5))  # (0.3125, 'TypeError')
+five.cdf(2.7) == five.cdf(2)  # True
+Poisson(2.0).pmf(-1), five.log_pmf(7) == float("-inf")  # (0.0, True)
+weather.pmf("snow")  # 0.0
+hasattr(weather, "cdf"), hasattr(weather, "mean")  # (False, False)
+arrivals.mean, arrivals.variance  # (4.0, 4.0)
+```
+
 ## Sources and next steps
 
 Definitions and elementary identities follow [REF-ROSS-2019]. Incomplete-gamma
@@ -114,6 +150,8 @@ definitions and expansions follow [REF-NIST-DLMF-GAMMA]. Entropy follows
 [REF-COVER-THOMAS-2006], and transformed-rejection sampling follows
 [REF-HORMANN-1993]. Full records are in the equation registry and bibliography.
 
-The next distribution round should add Geometric and Negative Binomial laws,
-then Uniform and Exponential continuous laws, while extending quantile,
-survival, hazard, and stable special-function infrastructure.
+Geometric and negative binomial waiting counts, survival functions,
+quantiles, and hazards continue in
+[waiting counts and continuous foundations](waiting-and-continuous-distributions.md);
+the continuous families are listed in the
+[continuous distribution catalog](continuous-distribution-catalog.md).

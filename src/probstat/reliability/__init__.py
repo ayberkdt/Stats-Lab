@@ -13,6 +13,54 @@ component parameters from test and field data (Beta/Gamma posteriors,
 chi-square bounds, demonstration tests, Crow-AMSAA growth) and
 ``allocation`` apportions a system reliability target to units, including
 cost-optimal allocation.
+
+Main entry points:
+    ``ModelLimitState``: one model output and a threshold as a limit state
+    whose failure set is ``g <= 0``.
+    ``form_hlrf``: FORM design point and signed reliability index by the
+    improved HL-RF iteration.
+    ``sorm``: Breitung and Hohenbichler-Rackwitz corrections at a converged
+    FORM design point.
+    ``subset_simulation``: small failure probabilities without a design point.
+    ``compare_reliability_methods``: FORM, SORM, importance sampling, subset
+    simulation, and crude Monte Carlo on one limit state.
+    ``find_design_points``: several design points of one limit state.
+    ``ak_mcs``: Gaussian-process active learning for expensive models.
+    ``estimate_failure_probability``: direct Monte Carlo on explicit vectors.
+
+Assumptions:
+    Failure is the closed set ``g <= 0``: a sample exactly on the boundary
+    fails. Model-based methods work in independent standard-normal space
+    through the model's joint input law; FORM, SORM, and the design-point
+    methods need continuous inputs. ``Phi(-beta)`` is exact only for a limit
+    state that is linear in that space. SORM needs ``beta > 0`` and
+    ``1 + beta kappa_i > 0`` for every principal curvature. Sampling
+    estimators assume independent draws; the reported coefficient of
+    variation is a Monte Carlo error, not a model-form error.
+
+Common pitfalls:
+    - ``ModelLimitState`` defaults to ``failure="above"`` (failure when
+      ``y >= t``). A safety margin needs ``failure="below"``; the wrong side
+      still converges and reports ``beta`` with the opposite sign and
+      ``P_f`` close to one.
+    - ``form_hlrf`` does not raise when ``max_iterations`` is reached: it
+      returns ``converged=False``, and ``sorm`` then refuses the result. Check
+      ``converged`` before reading ``beta``.
+    - With correlated inputs ``importance_factors`` (``alpha_i^2``) depend on
+      the input order; ``gamma`` refers to the physical inputs and does not.
+    - ``seed=None`` draws fresh entropy, so repeated runs differ; pass an
+      integer seed. ``compare_reliability_methods`` runs ``METHODS``, which
+      leaves out ``"ce"`` and ``"line"`` (both are in ``AVAILABLE_METHODS``).
+    - Zero observed failures give ``standard_error == 0``; the Wilson
+      interval keeps a positive upper bound, which is the number to report.
+
+Guide: docs/foundations/advanced-reliability.md
+
+References:
+    [REF-MELCHERS-BECK-2018], [REF-HASOFER-LIND-1974],
+    [REF-DERKIUREGHIAN-2005], [REF-BREITUNG-1984], [REF-AU-BECK-2001],
+    [REF-WILSON-1927].
+
 """
 
 from .active_learning import (

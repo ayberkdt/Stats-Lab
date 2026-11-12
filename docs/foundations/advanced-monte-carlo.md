@@ -110,10 +110,13 @@ experiment contrasts raw-indicator and conditional Monte Carlo estimators.
 - Stratification is presently one-dimensional with equal-width strata.
 - Importance sampling is ordinary rather than self-normalized; adaptive and
   multiple importance sampling are not yet implemented.
-- Randomized quasi-Monte Carlo, Latin hypercube sampling, and rare-event
-  proposal design remain roadmap work here; multilevel Monte Carlo and
-  Stein control variates and control functionals are covered in the
-  sections below.
+- These scalar estimators draw plain pseudo-random points. Latin hypercube
+  and randomized quasi-Monte Carlo designs live in `probstat.sampling` and
+  are used through `propagation.propagate` (with `replicates=` for honest
+  error bars); rare-event importance sampling (design-point, mixture,
+  cross-entropy) and subset simulation live in `probstat.reliability`.
+  Multilevel Monte Carlo and Stein control variates and control functionals
+  are covered in the sections below.
 
 The next ATHENS slice builds reliability and rare-event analysis on these
 auditable probability, cost, and importance-weight foundations.
@@ -306,3 +309,44 @@ settings against one target, not a calibrated test.
 Sources: [REF-ASSARAF-CAFFAREL-1999], [REF-MIRA-SOLGI-IMPARATO-2013],
 [REF-OATES-GIROLAMI-CHOPIN-2017], [REF-LIU-LEE-JORDAN-2016],
 [REF-GORHAM-MACKEY-2017], [REF-GARREAU-JITKRITTUM-KANAGAWA-2017].
+
+## Common pitfalls
+
+- **No events is not zero uncertainty.** With no observed event the plug-in
+  standard error is `0.0`, but the Wilson interval still reaches `0.037` for
+  100 trials. Report the interval.
+- **Small samples.** `estimate_mean` uses a normal (z) interval at every
+  sample size, so for a handful of values it is narrower than a Student-t
+  interval.
+- **Count evaluations, not contributions.** An antithetic pair is one
+  contribution and two evaluations. `compare_efficiency` multiplies the
+  squared standard error by `evaluations`; comparing standard errors at equal
+  `sample_size` favours paired methods unfairly.
+- **Seeds.** The scalar estimators take `seed: int | None` and default to
+  `None`, which is not reproducible.
+- **Exact Booleans.** `estimate_probability` rejects `1` and `0`; pass
+  `True` and `False`.
+- **Importance weights.** The estimator is ordinary, not self-normalized, so
+  both densities must be normalized. The effective sample size measures weight
+  concentration, not the number of useful samples.
+
+```python
+from probstat.monte_carlo import (
+    estimate_antithetic_uniform,
+    estimate_mean,
+    estimate_probability,
+)
+
+none_seen = estimate_probability([False] * 100)
+none_seen.standard_error                      # 0.0
+none_seen.confidence_interval.upper           # 0.037, Wilson upper bound
+small = estimate_mean([1.0, 2.0, 3.0, 4.0])
+small.confidence_interval.lower               # 1.235, that is 2.5 - 1.96 * 0.6455
+pairs = estimate_antithetic_uniform(lambda u: u * u, pairs=500, seed=1)
+(pairs.sample_size, pairs.evaluations)        # (500, 1000)
+try:
+    estimate_probability([1, 0])
+except TypeError as error:
+    reason = str(error)
+reason                                        # 'events[0] must be Boolean'
+```

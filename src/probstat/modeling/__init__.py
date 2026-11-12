@@ -13,6 +13,60 @@ by bounds. :class:`CVineCopula` and :class:`DVineCopula`
 sequential maximum likelihood. :class:`RandomFieldInput` exposes a truncated
 Karhunen-Loeve expansion of a random field as standard-normal inputs of that
 object.
+
+Main entry points:
+    ``ProbabilisticModel``: inputs, forward model, and QoIs in one object that
+        every workflow accepts.
+    ``JointInput``: joint input law, marginals plus a copula (Gaussian by
+        default).
+    ``RandomInput``: one named uncertain input with its marginal law and unit.
+    ``nataf_correlation``: latent normal correlation that reproduces a target
+        Pearson correlation of two continuous marginals.
+    ``fit_joint_input``: marginals and a rank-based Gaussian copula fitted to
+        data columns.
+    ``CVineCopula``: canonical vine built from bivariate ``PairCopula`` blocks.
+    ``fit_vine_copula``: sequential structure, family, and parameter fit of a
+        C- or D-vine.
+    ``RandomFieldInput``: truncated Karhunen-Loeve field as standard-normal
+        inputs.
+
+Assumptions:
+    Each marginal is a law with ``pdf``, ``cdf``, ``quantile``, ``mean``, and
+    ``variance``; all dependence lives in the copula. The forward model is a
+    function of the named random inputs and the fixed parameters only, and
+    every QoI it returns is a finite real number; a missing or non-finite QoI
+    is a failed run. A Gaussian copula has no tail dependence.
+
+Common pitfalls:
+    - ``JointInput(inputs, correlation)`` takes the latent normal correlation
+      of the Nataf model, not the Pearson correlation of the physical inputs.
+      For two lognormals with log-scale deviations 0.5 and 0.8, a physical
+      correlation of 0.6 needs a latent value of 0.6612
+      (``nataf_correlation``). ``JointInput.from_pearson`` solves this for a
+      whole matrix; it refuses discrete marginals (use ``from_spearman`` or
+      ``from_kendall``), and with ``repair=True`` it replaces a latent matrix
+      that is not positive definite with a ``UserWarning``, after which the
+      targets are matched only approximately.
+    - With a non-Gaussian copula or a vine, the standard space is the
+      Rosenblatt transform in input order, so FORM results can change when
+      the inputs are reordered although the joint law does not.
+    - ``ProbabilisticModel.evaluations`` counts completed calls made through
+      the object by every workflow so far; it is not reset per study. Failed
+      attempts and cache hits are counted separately in
+      ``failed_evaluations`` and ``cache_hits``.
+    - ``on_failure`` defaults to ``"raise"``. Under ``"skip"`` or ``"record"``
+      failed runs are dropped, so every estimate is conditional on success
+      and biased unless failing is unrelated to the output.
+    - ``evaluate(mapping)`` raises ``ValueError`` for missing, unknown, or
+      fixed-parameter names instead of ignoring them.
+
+Guide: docs/foundations/probabilistic-modeling.md
+
+References:
+    [REF-LIU-DERKIUREGHIAN-1986], [REF-NELSEN-2006, Chapter 2],
+    [REF-LEBRUN-DUTFOY-2009], [REF-AAS-CZADO-FRIGESSI-BAKKEN-2009],
+    [REF-SMITH-UQ-2024, Chapters 1-5].
+
 """
 
 from .copulas import (

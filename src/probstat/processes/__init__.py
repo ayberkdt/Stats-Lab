@@ -16,6 +16,50 @@ variance-preserving and variance-exploding forward SDEs, denoising score
 matching, and reverse-time samplers (reverse SDE, predictor-corrector,
 probability-flow ODE); ``neural_sde`` owns SDEs with network coefficients
 fitted by Euler pseudo-likelihood.
+
+Main entry points:
+    ``MarkovChain``: finite discrete-time chain with classification,
+        stationary law, and absorption analysis.
+    ``ContinuousTimeMarkovChain``: finite continuous-time chain solved by
+        uniformization.
+    ``PoissonProcess``: homogeneous Poisson process with an exact sampler.
+    ``OrnsteinUhlenbeck``: mean-reverting diffusion with exact Gaussian
+        transitions.
+    ``euler_maruyama``: Euler-Maruyama scheme for a ``ScalarSDE``.
+    ``CovarianceKernel``: stationary isotropic covariance kernel.
+    ``karhunen_loeve_interval``: truncated Karhunen-Loeve expansion of a
+        Gaussian field on an interval.
+    ``reverse_sde_sample``: reverse-time sampler of a score-based
+        diffusion.
+
+Assumptions:
+    Markov chains are time-homogeneous on a finite state space. Kernels
+    depend on the distance between points only (stationary and
+    isotropic), and the Karhunen-Loeve expansion represents a Gaussian
+    field; non-Gaussian fields come from a pointwise transform. The SDE
+    schemes are scalar with a uniform step.
+
+Common pitfalls:
+    - ``CovarianceKernel(family, variance, length_scale)`` takes the
+      variance, and ``OrnsteinUhlenbeck(reversion, level, volatility)`` has
+      stationary variance ``volatility^2 / (2 reversion)``.
+    - ``MarkovChain`` rejects a row that does not sum to one within
+      ``1e-10``; nothing is renormalized.
+    - ``stationary_distribution()`` raises when the chain has more than one
+      closed class, and ``distribution_after`` of a periodic chain cycles
+      instead of converging.
+    - A truncated Karhunen-Loeve field has less pointwise variance than the
+      kernel; report ``explained_variance_fraction`` with the results.
+    - ``GeometricBrownianMotion(drift, volatility)`` has mean
+      ``S0 exp(drift t)``; the drift of ``log S`` is
+      ``drift - volatility^2 / 2``.
+
+Guide: docs/foundations/stochastic-processes-and-random-fields.md
+
+References:
+    [REF-NORRIS-1997], [REF-KLOEDEN-PLATEN-1992], [REF-GHANEM-SPANOS-1991],
+    [REF-RASMUSSEN-WILLIAMS-2006], [REF-SONG-ETAL-2021].
+
 """
 
 from .continuous import (

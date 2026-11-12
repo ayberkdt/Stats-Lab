@@ -85,15 +85,55 @@ the likelihood `P(E | H)`.
 ## Finite expectation bridge
 
 Expectation [EQ-PROB-009] is available for finite real-valued outcome functions.
-This provides a mathematically useful bridge, while the next round will add an
-explicit immutable random-variable abstraction, transformations, moments, and
-joint behavior.
+`FiniteRandomVariable` builds on the same measure with an explicit immutable
+random-variable abstraction, transformations, moments, and joint laws; see
+[finite random variables](random-variables.md).
 
 ## Common misunderstanding
 
 A probability density may exceed one. Only its integral over a measurable set
 is a probability and must lie in `[0, 1]`. In contrast, a discrete PMF value is
 itself a point probability.
+
+## Common pitfalls
+
+- **Weights are probabilities, not counts.** Each weight must lie in
+  `[0, 1]` and the weights must sum to one within `1e-12`; raw counts raise
+  `ValueError` instead of being normalized. Divide by the total first.
+- **A sample space is identified by the object, not by its outcomes.** A
+  second `FiniteSampleSpace` with the same labels is a different experiment,
+  and a measure rejects its events.
+- **Disjoint is not independent.** Two disjoint events of positive
+  probability are dependent.
+- **`are_independent` uses an absolute tolerance** (`1e-12` by default). For
+  events with probabilities near `1e-7`, the product is below the tolerance,
+  so even disjoint events pass; pass a smaller `tolerance` for rare events.
+- **Conditioning on an impossible event raises** `ValueError`; there is no
+  convention for `P(A | B)` with `P(B) = 0`.
+
+```python
+def raises(call):
+    try:
+        call()
+    except (TypeError, ValueError) as error:
+        return type(error).__name__
+    return "no error"
+
+
+counts = {1: 2, 2: 1, 3: 1, 4: 1, 5: 1, 6: 1}
+raises(lambda: FiniteProbabilityMeasure(die, counts))  # 'ValueError'
+loaded = FiniteProbabilityMeasure(die, {face: n / 7 for face, n in counts.items()})
+loaded.probability(die.event((1,)))  # 0.2857
+twin = FiniteSampleSpace((1, 2, 3, 4, 5, 6))
+twin == die  # False
+raises(lambda: fair.probability(twin.event((2,))))  # 'ValueError'
+fair.are_independent(die.event((1,)), die.event((2,)))  # False
+rare = FiniteSampleSpace(("a", "b", "rest"))
+tiny = FiniteProbabilityMeasure(rare, {"a": 1e-7, "b": 1e-7, "rest": 1 - 2e-7})
+tiny.are_independent(rare.event(("a",)), rare.event(("b",)))  # True
+tiny.are_independent(rare.event(("a",)), rare.event(("b",)), tolerance=0.0)  # False
+raises(lambda: fair.conditional_probability(even, die.empty_event))  # 'ValueError'
+```
 
 References: [REF-KOLMOGOROV-1956, Chapter I, Section 2],
 [REF-ROSS-2019, Chapters 2-4].

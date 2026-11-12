@@ -31,6 +31,7 @@ input law is read as the **prior** on the calibration parameters.
 
 ```python
 import math
+import random
 from probstat.distributions import LogNormal, Uniform
 from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
 from probstat.uq import QuantityOfInterest
@@ -44,6 +45,10 @@ prior = JointInput.independent(
     RandomInput("k", LogNormal(math.log(0.5), 1.0)),
 )
 model = ProbabilisticModel(prior, decay, (QuantityOfInterest("y", "signal"),))
+# Synthetic data of section 4: A = 5, k = 0.3, t = 0, 0.5, ..., 10, noise 0.1.
+rng = random.Random(7)
+data = [(t, 5.0 * math.exp(-0.3 * t) + rng.gauss(0.0, 0.1))
+        for t in (0.5 * i for i in range(21))]
 experiments = tuple(Experiment({"y": y}, {"t": t}) for t, y in data)
 problem = CalibrationProblem(model, experiments, (NoiseModel("y", standard_deviation=0.1),))
 ```
@@ -91,6 +96,13 @@ noise `0.1`:
 | `k` | 0.3008 | 0.0064 |
 
 The fit used 819 forward-model runs (finite-difference Jacobians included).
+With the problem of section 2:
+
+```python
+fit = problem.fit_least_squares()
+fit.estimate                       # (5.0031, 0.3008)
+fit.standard_errors                # (0.0680, 0.0064)
+```
 
 Identifiability is read from the spectrum of the Fisher information
 `F = J_w' J_w` ([EQ-CAL-FISHER-001]). Scaling by prior standard deviations,
@@ -273,9 +285,11 @@ which the tests check to ten decimals.
   inefficient chain; check ESS.
 - Multimodal posteriors can defeat every diagnostic when no chain starts near
   a mode. Use over-dispersed starts and domain knowledge.
-- Noise is independent across observations. Correlated errors and
-  input-dependent discrepancy processes (Kennedy-O'Hagan Gaussian processes)
-  are not implemented.
+- Noise is independent across observations, and correlated measurement
+  errors are not implemented. An input-dependent discrepancy process
+  (Kennedy-O'Hagan Gaussian process) is not part of `CalibrationProblem`; it
+  is provided by `DiscrepancyCalibration` (see
+  [model discrepancy](model-discrepancy.md)).
 - The Fisher diagnostic is local and assumes Gaussian errors.
 - The Laplace approximation is computed in physical coordinates. Bounded
   priors with modes on the boundary make it unreliable; prefer
@@ -441,3 +455,36 @@ first, for example `log sigma` or the prior's standard-normal space used by
 Gaussian `q` underestimates the spread of skewed or heavy-tailed posteriors.
 Use ADVI for fast exploration and starting points, and confirm reported
 uncertainty with MCMC.
+
+## Common pitfalls
+
+- **Conditions never name a parameter.** An `Experiment` whose conditions
+  include a calibration parameter is rejected when the problem is built, and
+  so is an observed quantity without a `NoiseModel`.
+- **`fit_least_squares` ignores the prior.** Compare it with the Laplace or
+  MCMC posterior rather than reading it as a MAP estimate.
+- **R-hat near one is necessary, not sufficient.** Chains that all miss the
+  same mode agree with each other (Section 7). Check ESS as well.
+- **MCSE is not the posterior spread.** It is the simulation error of a
+  posterior mean.
+- **Latent or observation.** `predict` defaults to `include_noise=False`; a
+  future measurement needs `include_noise=True` (Section 9).
+
+With the model of Section 2:
+
+```python
+import inspect
+
+try:
+    CalibrationProblem(model, (Experiment({"y": 1.0}, {"t": 1.0, "k": 0.3}),),
+                       (NoiseModel("y", standard_deviation=0.1),))
+except ValueError as error:
+    shadow = str(error)
+shadow                        # "experiment 0 conditions shadow parameters ['k']"
+try:
+    CalibrationProblem(model, experiments, ())
+except ValueError as error:
+    missing = str(error)
+missing                       # "no noise model for observed 'y'"
+inspect.signature(predict).parameters["include_noise"].default   # False
+```

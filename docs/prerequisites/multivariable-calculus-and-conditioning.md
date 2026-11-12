@@ -268,6 +268,41 @@ intercept -0.8319 vs -0.8000
 residual variance 1.3418 vs 1.3600
 ```
 
+## Common pitfalls
+
+- **`transformed_density` takes the inverse map.** Its second argument is
+  `g^-1`, from `y` back to `x`, and the optional third is the Jacobian of
+  that inverse; passing the forward map `g` returns a wrong density without
+  any error.
+- **Scalars are one-component vectors.** The log-density and the maps
+  receive and return sequences, so a univariate density is written
+  `lambda x: base.log_pdf(x[0])`.
+- **`conditional` takes the observed components.** `conditional(indices,
+  values)` conditions on `indices` and returns the law of the remaining
+  components in ascending index order, whereas `marginal_subset(indices)`
+  keeps the order it is given.
+- **Finite-difference Jacobians need a smooth map.** `central_jacobian`
+  returns `(J, calls)`, and near a branch cut or kink of the map its
+  differences are meaningless.
+- **The delta method is first order.** Its mean is `g(mu)`; the curvature
+  bias `tr(H Sigma)/2` is not included (section 3).
+
+```python
+mistaken = transformed_density(lambda x: base.log_pdf(x[0]), lambda y: (math.exp(y[0]),))
+print(abs(mistaken([1.0]) - LogNormal(0.5, 0.8).log_pdf(1.0)) > 0.1)
+print(joint.conditional([1], [2.0]).mean)
+print(joint.marginal_subset([2, 0]).mean, joint.marginal_subset([0, 2]).mean)
+jacobian_pair = central_jacobian(polar_to_cartesian, (2.0, 0.6))
+print(type(jacobian_pair).__name__, len(jacobian_pair))
+```
+
+```text
+True
+(1.0, 3.0)
+(3.0, 1.0) (1.0, 3.0)
+tuple 2
+```
+
 ## Where this is used
 
 - `inference.condition_linear_gaussian` and the Kalman filters apply the same

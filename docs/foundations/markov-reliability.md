@@ -274,3 +274,35 @@ uniform grid, so horizons much longer than the sojourn scales need many
 steps; kernels with singular or discontinuous densities converge more
 slowly, and the error estimate may then be optimistic. Sojourn laws may not
 have an atom at zero. ADR-0076 records the design.
+
+## Common pitfalls
+
+- **Transient measures carry their bound.** `reliability(t)`,
+  `availability(t)`, `unreliability(t)` and `unavailability(t)` return a
+  `BoundedValue` (`value`, `error_bound`), not a float. Steady-state measures
+  and the MTTF are plain floats.
+- **Ask for the complement directly.** `1 - reliability(t).value` loses the
+  relative accuracy of a small unreliability; `unreliability(t)` keeps it.
+- **Availability is not reliability.** `availability(t)` lets the system be
+  repaired after a failure; `reliability(t)` makes the down states absorbing.
+- **Phases are continuous by default.** `MissionPhase(..., continuous=True)`
+  fails the mission on any visit to a failure state; `continuous=False`
+  checks the requirement only at the end of the phase.
+- **Rates and times share one unit.** The builders take plain numbers, so a
+  rate per hour needs a time in hours.
+- **The semi-Markov error is an estimate.** The Richardson error of
+  Section 7 is not a rigorous bound like the uniformization bounds.
+
+```python
+import inspect
+from probstat.systems import MissionPhase, repairable_k_out_of_n, single_repairable_unit
+
+unit = single_repairable_unit(0.001, 0.1)          # rates per hour
+type(unit.reliability(1000.0)).__name__            # 'BoundedValue'
+round(unit.reliability(1000.0).value, 6)           # 0.367879, exp(-1)
+round(unit.availability(1000.0).value, 6)          # 0.990099
+stiff = repairable_k_out_of_n(2, 1, 1e-6, 1e3)
+1.0 - stiff.reliability(1e6).value                 # 2.00000005e-09, cancellation
+stiff.unreliability(1e6).value                     # 1.99999999e-09
+inspect.signature(MissionPhase).parameters["continuous"].default   # True
+```

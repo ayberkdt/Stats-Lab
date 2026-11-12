@@ -33,8 +33,11 @@ by dropping high-order interactions first.
 
 **Fit and validation.** `fit_polynomial_chaos` draws an experimental design
 (LHS by default, twice as many points as terms), maps it through the joint
-input law, evaluates the model, and solves the least-squares normal equations
-by Cholesky factorization [EQ-SUR-PCE-005]. The leave-one-out error comes from
+input law, evaluates the model, and solves the least-squares problem
+[EQ-SUR-PCE-005] by a Householder QR factorization of the design matrix,
+which avoids the squared condition number of the normal equations. A
+numerically rank-deficient design is rejected with the dependent
+multi-indices named. The leave-one-out error comes from
 the hat-matrix diagonal without re-running the model [EQ-SUR-PCE-006]. The
 mean is `c_0`, the variance is the sum of the other squared coefficients
 [EQ-SUR-PCE-007], and Sobol indices are partial sums of squared coefficients
@@ -81,9 +84,11 @@ input.
 `fit_gaussian_process` standardizes the outputs, then maximizes the log
 marginal likelihood [EQ-SUR-GP-004] over log hyperparameters. It uses BFGS
 with the exact gradient and several seeded restarts. The **nugget** is an
-explicit diagonal variance in standardized units (default `1e-10`). It is
-never enlarged automatically: if the kernel matrix is numerically singular, a
-clear error asks for a larger nugget. `estimate_noise=True` adds a fitted
+explicit diagonal variance in standardized units (default `1e-10`). If no
+optimizer start gives a positive-definite kernel matrix, `adaptive_nugget=True`
+(the default) multiplies it by ten, up to `1e-4`, and emits
+`GaussianProcessJitterWarning`; the value used is the result's `nugget`, and
+`adaptive_nugget=False` raises instead. `estimate_noise=True` adds a fitted
 noise variance on top of the nugget. Closed-form leave-one-out residuals
 [EQ-SUR-GP-005] are available from `leave_one_out()`.
 
@@ -162,6 +167,51 @@ computed on a surrogate.
   kernels, dense `O(n^3)` algebra, and hyperparameters restricted to
   `|log theta| <= 25` (narrower, data-dependent bounds with `regularization`;
   their factors are computational choices, not estimated).
+
+## Common pitfalls
+
+- **Nugget units and growth.** The GP `nugget` (default `1e-10`) is a
+  variance in standardized output units, not in QoI units. It can grow up to
+  `1e-4` under `adaptive_nugget=True`; check for
+  `GaussianProcessJitterWarning` and read the result's `nugget`. A condition
+  number above `1e12` emits `GaussianProcessConditioningWarning`.
+- **Unregularized by default.** `fit_gaussian_process` and
+  `fit_gaussian_process_to_model` default to `regularization=None`. On small
+  designs pass `GaussianProcessRegularization()` and inspect `at_bound`.
+- **Predictive variance is not the error.** It grows with distance from the
+  data whether or not the mean is wrong there.
+- **Read the leave-one-out error first.** A PCE whose `loo_error` exceeds one
+  predicts held-out points worse than the output mean, and its moments and
+  indices are not usable.
+- **Basis and inputs.** `basis="hermite"` is the default for every input law;
+  `basis="legendre"` is refused unless all inputs are independent uniforms.
+- **Seeds.** The fitters default to `seed=None`, which is not reproducible.
+
+```python
+import inspect
+
+from probstat.distributions import Normal
+from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
+from probstat.surrogates import fit_gaussian_process, fit_polynomial_chaos
+from probstat.uq import QuantityOfInterest
+
+gp_defaults = inspect.signature(fit_gaussian_process).parameters
+gp_defaults["nugget"].default                  # 1e-10
+gp_defaults["adaptive_nugget"].default         # True
+gp_defaults["regularization"].default is None  # True
+square = ProbabilisticModel(
+    JointInput((RandomInput("x", Normal(0.0, 1.0)),)),
+    lambda p: {"y": p["x"] ** 2},
+    (QuantityOfInterest("y", "square of x"),),
+)
+fit_polynomial_chaos(square, degree=1, seed=1).loo_error > 1.0  # True, a line cannot fit x^2
+fit_polynomial_chaos(square, degree=2, seed=1).mean             # 1.0, exact at degree 2
+try:
+    fit_polynomial_chaos(square, degree=2, basis="legendre", seed=1)
+except ValueError as error:
+    refused = str(error)
+refused  # "the Legendre basis requires Uniform marginals; 'x' is not uniform"
+```
 
 ## Sources
 

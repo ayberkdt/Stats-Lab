@@ -214,6 +214,48 @@ likelihood.
   gradient, so they are accurate to about six digits, not to machine
   precision.
 
+## Common pitfalls
+
+- **Event coding.** `survival_data(times, events)` reads `1`/`True` as an
+  observed event and `0`/`False` as censored. Some data sets code the
+  reverse (a censoring indicator); flip it before fitting.
+- **Unbounded median limits.** With few subjects or heavy censoring the
+  upper confidence limit of `km.median()` is `inf`; report it as unbounded
+  rather than dropping it, or report the restricted mean instead.
+- **RMST beyond follow-up.** `km.restricted_mean(tau)` raises `ValueError`
+  for a `tau` past the last observed time while the curve is still
+  positive.
+- **AFT coefficients are time ratios.** `fit_parametric_survival` reports
+  `exp(beta_k)` as a multiplier of survival time, not a hazard ratio; the
+  Weibull proportional-hazards coefficient is `-beta_k / sigma`.
+- **Tie handling.** `fit_cox_model` defaults to `ties="efron"`; with tied
+  event times `ties="breslow"` gives a different (smaller) coefficient, as
+  in the table of section 7.
+
+```python
+from probstat.inference.survival import (
+    fit_cox_model, kaplan_meier, survival_data,
+)
+import inspect
+
+hand = survival_data([1, 2, 2, 3, 4, 5, 5, 6], [1, 1, 0, 1, 0, 1, 1, 0])
+km = kaplan_meier(hand)
+km.median().estimate, km.median().lower   # (5.0, 1.0)
+km.median().upper == float("inf")         # True
+km.restricted_mean(6.0).estimate   # 4.025
+try:
+    km.restricted_mean(7.0)
+except ValueError:
+    rmst_refused = True
+rmst_refused   # True
+inspect.signature(fit_cox_model).parameters["ties"].default   # 'efron'
+
+tied = survival_data((1, 1, 2, 2, 2, 3, 4, 4), (1, 1, 1, 1, 0, 1, 1, 0))
+tied_rows = [[x] for x in (1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0)]
+(fit_cox_model(tied, tied_rows, ties="breslow").coefficients[0]
+ < fit_cox_model(tied, tied_rows).coefficients[0])   # True
+```
+
 ## Sources
 
 [REF-KAPLAN-MEIER-1958], [REF-GREENWOOD-1926], [REF-NELSON-1972],

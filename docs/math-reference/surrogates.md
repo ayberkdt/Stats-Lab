@@ -189,8 +189,9 @@ i.e. `psi_n = He_n / sqrt(n!)`.
 
 ### EQ-SUR-PCE-005 — Least-squares PCE coefficients
 
-`c = argmin sum_j (y_j - Psi(x_j)'c)^2 = (Psi' Psi)^-1 Psi' y`, solved by a
-Cholesky factorization of the information matrix `Psi' Psi`.
+`c = argmin sum_j (y_j - Psi(x_j)'c)^2 = (Psi' Psi)^-1 Psi' y`, solved as
+`c = R^-1 Q' y` from a Householder QR factorization `Psi = Q R` (the
+information matrix `Psi' Psi` is never formed for the solve).
 
 - Domain: more design points than basis terms and a positive-definite
   information matrix; `Psi' Psi / N` near the identity indicates a

@@ -27,9 +27,10 @@ that the observation model is adequate.
 
 The design matrix must also identify the parameters. If every `x_i` is equal,
 the intercept and slope columns are linearly dependent. The library rejects
-calibration in this case. A full-rank but poorly conditioned design receives a
-warning because practical identifiability may still be weak
-([EQ-INV-IDENT-001]).
+calibration in this case. A full-rank but poorly conditioned design is accepted
+with a message in the `warning` field of its identifiability diagnostic,
+because practical identifiability may still be weak ([EQ-INV-IDENT-001]). The
+message is not a Python warning, so it has to be read.
 
 ## 3. Bayesian update
 
@@ -112,5 +113,47 @@ Update: unknown noise variance (Normal-inverse-gamma and log-sigma sampling),
 nonlinear forward models, Student-t likelihoods, Laplace approximations, and
 MCMC with convergence diagnostics are now covered in
 [nonlinear calibration and MCMC](nonlinear-calibration-and-mcmc.md)
-(ADR-0017). Heteroscedastic and correlated error models, discrepancy
-processes, and experimental design remain open.
+(ADR-0017). Gaussian-process discrepancy processes and heteroscedastic noise
+(`DiscrepancyCalibration`, `LogLinearNoise`) are covered in
+[model discrepancy and heteroscedastic noise](model-discrepancy.md), and
+experimental design in [experimental design](experimental-design.md).
+Correlated measurement-error models remain open.
+
+## Common pitfalls
+
+- **Read the identifiability message.** `calibrate_linear_gaussian` raises
+  `ValueError` for an unidentifiable design but accepts a weakly conditioned
+  one silently; the message is in `identifiability.warning`.
+- **Latent is the default target.** `predict` uses `include_noise=False`, so
+  its intervals describe the mean response. A future measurement needs
+  `include_noise=True` and is much wider.
+- **Least squares ignores the prior.** `CalibrationProblem.fit_least_squares`
+  is the frequentist baseline; the prior enters only the Laplace and MCMC
+  posteriors.
+- **Discrepancy is opt-in.** `NoiseModel` has `discrepancy_variance=0.0` by
+  default; without a declared discrepancy all misfit is read as noise or as
+  parameter information.
+- **Unseeded draws differ.** `sample_posterior` and `predict` default to
+  `seed=None`.
+
+```python
+import inspect
+from probstat.inverse import (
+    CalibrationProblem, NoiseModel, calibrate_linear_gaussian, predict,
+)
+from probstat.multivariate import MultivariateNormal
+
+prior = MultivariateNormal((0.0, 1.0), ((4.0, 0.0), (0.0, 1.0)))
+try:
+    calibrate_linear_gaussian([1.0, 1.0, 1.0], [1.0, 2.0, 3.0],
+                              observation_variance=0.1, prior=prior)
+except ValueError as error:
+    message = str(error)
+message                       # 'The intercept and slope are not jointly identifiable.'
+weak = calibrate_linear_gaussian([100.0, 100.01, 100.02], [1.0, 2.0, 3.0],
+                                 observation_variance=0.1, prior=prior)
+weak.identifiability.warning  # 'The design is full rank but weakly conditioned.'
+inspect.signature(predict).parameters["include_noise"].default                   # False
+inspect.signature(NoiseModel).parameters["discrepancy_variance"].default         # 0.0
+inspect.signature(CalibrationProblem.sample_posterior).parameters["seed"].default   # None
+```

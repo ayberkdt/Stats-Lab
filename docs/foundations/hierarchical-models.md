@@ -313,3 +313,46 @@ and 0.56.
 - Empirical Bayes plugs in point estimates. It is not a full Bayesian
   treatment of `(alpha, beta)`.
 - PIT values are not leave-one-out.
+
+## Common pitfalls
+
+- **One EM start is a local answer.** `fit_gaussian_mixture` defaults to
+  `restarts=1` and `seed=None`, so an unseeded fit is not reproducible and a
+  single start can stop at a poor local maximum. Pass a seed and several
+  restarts when the components overlap.
+- **Too few groups for a flat `tau` prior.** With the default flat prior,
+  `hierarchical_normal_posterior` refuses two groups because the posterior
+  of `tau` is improper; supply `log_tau_prior` (for example
+  `half_cauchy_log_prior(5.0)`) or more groups.
+- **No over-dispersion means complete pooling.** When the counts look
+  binomial, `fit_beta_binomial` drives `kappa` toward infinity, the
+  shrinkage weights approach one, and every group gets the pooled rate.
+- **Censored values are intervals, not numbers.** `fit_censored_normal`
+  takes `(lower, upper)` pairs; replacing a censored value by its limit, or
+  dropping it, understates the spread (section 3).
+- **Ties in PIT values.** `pit_values` counts a replicate equal to the
+  observation as one half unless `randomize_ties=True`.
+
+```python
+import math
+from probstat.inference import (
+    fit_beta_binomial, fit_censored_normal, hierarchical_normal_posterior,
+    pit_values,
+)
+
+try:
+    hierarchical_normal_posterior((28, 8), (15, 10))
+except ValueError as error:
+    refused = str(error)
+refused   # 'posterior of tau does not decay; it may be improper'
+
+pooled = fit_beta_binomial([5, 5, 5, 5], [10, 10, 10, 10])
+pooled.posterior_means   # (0.5, 0.5, 0.5, 0.5)
+pooled.shrinkage[0] > 0.999   # True
+
+censored = fit_censored_normal(
+    [(1.0, 1.0), (2.0, 2.0), (3.0, 3.0), (-math.inf, 1.5), (2.5, math.inf)])
+censored.exact_count, censored.censored_count   # (3, 2)
+
+pit_values([1.0], [[0.0], [1.0], [2.0], [1.0]])   # (0.5,)
+```

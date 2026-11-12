@@ -1,4 +1,53 @@
-"""Statistical estimation, testing, resampling, Bayesian updating, and diagnostics."""
+"""Statistical estimation, testing, resampling, Bayesian updating, and diagnostics.
+
+Classical tests and intervals, the bootstrap, regression and generalized
+linear models, EM and mixtures, hierarchical and conjugate Bayesian models,
+missing data, and MCMC live here. Survival analysis is in
+:mod:`.survival` and the probabilistic-programming interface in :mod:`.ppl`.
+
+Main entry points:
+    ``two_sample_t_test``: Welch (default) or pooled t test for two
+        independent samples.
+    ``paired_t_test``: t test on the differences of paired measurements.
+    ``bootstrap_confidence_interval``: nonparametric bootstrap interval
+        (BCa by default).
+    ``adjust_p_values``: Bonferroni, Holm, BH, and BY adjustment.
+    ``fit_linear_model``: OLS and WLS through Householder QR.
+    ``fit_glm``: generalized linear models fitted by IRLS.
+    ``hierarchical_normal_posterior``: exact grid posterior of the normal
+        hierarchical model.
+    ``pool_estimates``: Rubin's rules for multiply imputed data.
+
+Assumptions:
+    Every test states its sampling model: t tests assume independent normal
+    observations (normal differences when paired), rank and permutation
+    tests assume exchangeability under the null, and chi-square references
+    are large-sample approximations. The bootstrap assumes independent,
+    identically distributed observations. GLM standard errors are
+    large-sample Wald values. EM for incomplete data and multiple
+    imputation assume data missing at random.
+
+Common pitfalls:
+    - ``two_sample_t_test`` treats the samples as independent; paired
+      measurements need ``paired_t_test``.
+    - A one-sided ``alternative`` changes the p-value only; the reported
+      ``confidence_interval`` is always two-sided.
+    - ``fit_glm`` defaults to ``family="gaussian"``; binomial responses are
+      proportions with the trials passed as ``weights``.
+    - ``adjust_p_values`` defaults to Holm (FWER control); BH and BY
+      control the FDR.
+    - ``bootstrap`` and ``bootstrap_confidence_interval`` with
+      ``seed=None`` draw fresh entropy and are not reproducible.
+
+Guide: docs/foundations/hypothesis-testing-and-bootstrap.md
+
+References:
+    [REF-CASELLA-BERGER-2002], [REF-EFRON-TIBSHIRANI-1993],
+    [REF-MCCULLAGH-NELDER-1989], [REF-HOLM-1979],
+    [REF-BENJAMINI-HOCHBERG-1995], [REF-GELMAN-ETAL-2013],
+    [REF-LITTLE-RUBIN-2019].
+
+"""
 
 from .amortized import (
     AmortizedGaussianPosterior,

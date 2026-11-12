@@ -172,4 +172,48 @@ root bracket must change sign
 | Scalar root with a bracket | `brent_root` | guaranteed convergence once the bracket changes sign |
 | Derivatives of a black box | `central_gradient`, `central_jacobian`, `central_hessian` | `2n` (gradient) or `1 + 2n^2` (Hessian) calls |
 
+## Common pitfalls
+
+- **Check `converged` before using `x`.** An iteration or evaluation limit
+  returns a result with `converged=False` and a message; it does not raise.
+- **`cost` is half the sum of squares.** `LeastSquaresResult.cost` is
+  `0.5 ||r||^2`; `gauss_newton_covariance` estimates the noise variance as
+  `2 cost / (m - n)` unless `noise_variance=` is given.
+- **Derivative helpers return pairs.** `central_gradient`, `central_jacobian`,
+  and `central_hessian` return `(value, calls)`; unpack them.
+- **Seeds default differently.** `multi_start` defaults to `seed=None` (fresh
+  entropy, not reproducible) and needs finite bounds; `adam_minimize`
+  defaults to `seed=0`.
+- **Some tolerances are absolute.** `minimize_bfgs` tests the gradient norm
+  against an absolute `gradient_tolerance=1e-8` (besides a relative step
+  test), and `brent_root` stops when the bracket is narrower than an
+  absolute `tolerance=1e-12`, so the scale of `f` and of `x` matters.
+  Nelder-Mead reports `gradient_norm` as `nan`.
+
+```python
+import inspect
+from probstat.optimization import adam_minimize, multi_start
+
+capped = minimize_bfgs(rosenbrock, (-1.2, 1.0), max_iterations=3)
+print(capped.converged, capped.message)
+print(math.isclose(fit.cost, 0.5 * sum(r * r for r in fit.residuals)))
+gradient_pair = central_gradient(f, point)
+print(type(gradient_pair).__name__, len(gradient_pair))
+print(inspect.signature(multi_start).parameters["seed"].default,
+      inspect.signature(adam_minimize).parameters["seed"].default)
+box = ((-2.0, 2.0), (-2.0, 2.0))
+print(multi_start(rosenbrock, box, seed=3, starts=3).best.x
+      == multi_start(rosenbrock, box, seed=3, starts=3).best.x)
+print(math.isnan(simplex.gradient_norm))
+```
+
+```text
+False iteration limit reached
+True
+tuple 2
+None 0
+True
+True
+```
+
 Next: [multivariable calculus and conditioning](multivariable-calculus-and-conditioning.md).

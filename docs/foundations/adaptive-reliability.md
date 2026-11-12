@@ -226,6 +226,37 @@ default.
   population and excludes misclassification. Very small `P_f` needs importance
   or subset variants of AK-MCS, which are not implemented.
 
+## Common pitfalls
+
+- **CE-IS adapts the mean only by default.** `adapt_covariance=False` is the
+  default; with `adapt_covariance=True` the covariance is floored at
+  `CE_COVARIANCE_FLOOR`, and `covariance_floor=None` removes that guard.
+- **A healthy weight diagnostic does not prove coverage.** One Gaussian
+  proposal follows one failure region. Read `multiple_failure_regions_suspected`
+  and the `UserWarning`, and switch to `find_design_points` with
+  `mixture_importance_sampling` when several regions are possible.
+- **Line sampling assumes one crossing per line.** A line with no root inside
+  `max_distance` (default `10.0`) contributes exactly 0 or 1.
+- **The AK-MCS c.o.v. excludes misclassification.** It is the Monte Carlo
+  error of the population. `misclassified` is `-1` unless
+  `compare_with_monte_carlo=True`, which spends extra true-model calls.
+
+```python
+import inspect
+from probstat.reliability import (
+    CE_COVARIANCE_FLOOR, CE_MAX_UNCOVERED_ELITE_FRACTION, ak_mcs,
+    cross_entropy_importance_sampling, line_sampling,
+)
+
+ce = inspect.signature(cross_entropy_importance_sampling).parameters
+ce["adapt_covariance"].default                   # False
+ce["covariance_floor"].default                   # 0.55
+CE_COVARIANCE_FLOOR                              # 0.55
+CE_MAX_UNCOVERED_ELITE_FRACTION                  # 0.1
+inspect.signature(line_sampling).parameters["max_distance"].default         # 10.0
+inspect.signature(ak_mcs).parameters["compare_with_monte_carlo"].default   # False
+```
+
 ## Sources
 
 [REF-ECHARD-GAYTON-LEMAIRE-2011], [REF-DERKIUREGHIAN-DAKESSIAN-1998],

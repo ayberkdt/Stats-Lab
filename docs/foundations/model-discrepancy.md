@@ -49,9 +49,26 @@ and the code uses the `O(n)` sum of independent Gaussian terms.
 
 ```python
 import math
+import random
 from probstat.distributions import LogNormal
 from probstat.inverse import (
     DiscrepancyCalibration, DiscrepancyProcess, Experiment, KnownNoise,
+)
+from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
+from probstat.uq import QuantityOfInterest
+
+# The worked example of section 4: simulator 4 exp(-k x), biased truth.
+prior = JointInput.independent(RandomInput("k", LogNormal(math.log(0.5), 0.5)))
+model = ProbabilisticModel(
+    prior,
+    lambda p: {"y": 4.0 * math.exp(-p["k"] * p["x"])},
+    (QuantityOfInterest("y", "y"),),
+)
+rng = random.Random(11)
+experiments = tuple(
+    Experiment({"y": 4.0 * math.exp(-0.4 * x) + 0.25 * math.sin(2.5 * x)
+                     + rng.gauss(0.0, 0.03)}, {"x": x})
+    for x in (4.0 * i / 14 for i in range(15))
 )
 
 discrepancy = DiscrepancyProcess(
@@ -226,6 +243,40 @@ at `x = 3.5`.
   `2 d + 1` likelihood evaluations.
 - The identifiability report shows symptoms of confounding; it is not a test
   of identifiability.
+
+## Common pitfalls
+
+- **The split between `theta` and `delta` comes from the prior.** The data
+  constrain `eta + delta`; a tight discrepancy prior pulls `theta` back
+  towards the biased value (Section 5).
+- **No identifiability warning is not a proof.** `identifiability` warns above
+  `correlation_warning=0.5` or `ratio_warning=0.8`; both are screening
+  thresholds.
+- **`fit()` is MAP by default.** `objective="posterior"` is the default;
+  `objective="likelihood"` gives the MLE. Its covariance is `None` when the
+  Hessian is not positive definite.
+- **Choose the interval kind.** `DiscrepancyPrediction.interval` defaults to
+  `kind="corrected"` (the true process); a new measurement needs
+  `kind="observed"` and the simulator alone `kind="simulator"`.
+- **Vectors are on the log scale.** Hyperparameters enter parameter vectors
+  as `log_sigma_delta` and `log_length[x]`; `physical_names` lists the
+  physical ones.
+- **Cost is cubic.** An active discrepancy makes every likelihood an `O(n^3)`
+  Cholesky solve (`is_dense`); keep to tens of observations.
+
+With the problem of Section 2:
+
+```python
+import inspect
+from probstat.inverse import DiscrepancyPrediction
+
+problem.vector_names          # ('k', 'log_sigma_delta', 'log_length[x]')
+problem.physical_names        # ('k', 'sigma_delta', 'length[x]')
+problem.is_dense              # True
+DiscrepancyCalibration(model, experiments, "y", KnownNoise(0.03)).is_dense   # False
+inspect.signature(DiscrepancyCalibration.fit).parameters["objective"].default      # 'posterior'
+inspect.signature(DiscrepancyPrediction.interval).parameters["kind"].default       # 'corrected'
+```
 
 ## References
 

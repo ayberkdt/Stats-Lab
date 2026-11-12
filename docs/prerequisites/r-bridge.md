@@ -339,9 +339,10 @@ individual draws.
 reproducible, named substream (`root.child("inputs")`, `root.spawn(4)`). It
 serves the purpose that `RNGkind("L'Ecuyer-CMRG")` with
 `parallel::nextRNGStream()` serves in R: independent streams without manual
-seed bookkeeping. Distribution `sample` methods take an integer seed (use
-`stream.integer_seed()`); higher-level functions such as `inference.bootstrap`
-and `sensitivity.sobol_analysis` accept a stream directly.
+seed bookkeeping. Distribution `sample` methods accept an integer seed or a
+stream (`stream.integer_seed()` gives the integer for interfaces that take
+only `seed: int`); higher-level functions such as `inference.bootstrap` and
+`sensitivity.sobol_analysis` accept a stream directly.
 
 ```python
 from probstat.foundations import RandomStream
@@ -472,5 +473,42 @@ MultivariateNormal(mean=(0.5,), covariance=((0.75,),))
 5. `alternative = "two.sided"` becomes `"two-sided"`.
 6. `uniroot` and `optim` tolerances differ; compare to the looser one.
 7. Same seed, different numbers: compare distributions, not draws.
+
+## Common pitfalls
+
+Beyond the porting traps above:
+
+- **A stream and its integer seed are interchangeable in `sample`.**
+  `sample(n, seed=stream)` and `sample(n, seed=stream.integer_seed())` give
+  the same draws, so reusing one stream (or one integer) for two inputs
+  makes them dependent; derive a child per input.
+- **`trimmed_mean` trims by default.** It removes `floor(0.1 n)` values from
+  each end unless `proportion` is given, so for ten or more observations it
+  differs from `mean`.
+- **Only two quantile types exist.** `quantile` and `quantiles` accept
+  `method=7` and `method=1`; any other type raises `ValueError` rather than
+  falling back to a default.
+- **Out-of-range counting arguments raise.** `combinations(n, r)` and
+  `permutations(n, r)` raise `ValueError` for `r > n` instead of returning 0.
+
+```python
+from probstat.probability import combinations
+from probstat.statistics import quantile, trimmed_mean
+
+print(Normal().sample(3, seed=root.child("inputs")) == first)
+print(f"{trimmed_mean(data):.4f} {mean(data):.4f}")
+for call in (lambda: quantile(data, 0.5, method=6), lambda: combinations(3, 5)):
+    try:
+        call()
+    except ValueError as error:
+        print(error)
+```
+
+```text
+True
+3.6875 3.7500
+method must be 1 or 7
+r must not exceed n
+```
 
 Previous: [probability and statistics refresher](probability-and-statistics-refresher.md).

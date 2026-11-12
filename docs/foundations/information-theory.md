@@ -169,8 +169,49 @@ standard deviations. The seeded estimates above sit well inside them.
 
 - No plug-in or bias-corrected (Miller-Madow) entropy estimators for
   discrete *samples*. The discrete functions take PMFs, not counts.
-- No Rényi or Tsallis entropies, no f-divergences beyond KL and JS, and no
-  transfer entropy.
+- No Rényi or Tsallis entropies and no transfer entropy. Divergences beyond
+  KL and JS (total variation, Hellinger, Bhattacharyya, Rényi, and alpha
+  divergences) are covered in section 7 of the
+  [optimal transport and information geometry guide](optimal-transport.md).
 - Differential entropies are provided for the families listed in section 4
   only. `differential_entropy` raises `TypeError` for any other family, for
   example `Weibull`.
+
+## Common pitfalls
+
+- **Nats by default.** Every function of this guide returns nats unless
+  `unit="bits"` is passed; `entropy((0.5, 0.25, 0.25))` is `1.0397` nats, not `1.5`.
+- **No silent renormalization.** A PMF that does not sum to one within
+  `1e-9` raises `ValueError`; normalize counts yourself.
+- **Argument order and orientation.** `kl_divergence(p, q)` is
+  `D(p || q)`, which is infinite when `q` is zero where `p` is not. In a
+  joint table the rows index `X`, so `conditional_entropy(J)` is
+  `H(Y | X)`; the transposed table gives `H(X | Y)`.
+- **Standard deviations, not variances.** `kl_normal(mu0, sigma0, mu1,
+  sigma1)` takes the scales `sigma`.
+- **Differential entropy is not a discrete entropy.** It can be negative
+  (`Uniform(0, 0.5)` has `-0.69315` nats) and changes under a change of
+  variables; the sample estimators reject duplicated points.
+
+```python
+from probstat.distributions import Uniform
+from probstat.information import (
+    conditional_entropy, differential_entropy, entropy, kl_divergence,
+    kl_normal,
+)
+
+entropy((0.5, 0.25, 0.25))                # 1.0397
+entropy((0.5, 0.25, 0.25), unit="bits")   # 1.5
+try:
+    entropy((0.5, 0.3, 0.3))
+except ValueError as error:
+    not_normalized = str(error)
+not_normalized                            # 'pmf must sum to one'
+kl_divergence((0.5, 0.5), (1.0, 0.0)) == float("inf")   # True
+
+table = ((0.30, 0.10, 0.05), (0.05, 0.20, 0.30))
+conditional_entropy(table)                # 0.88596, H(Y | X)
+conditional_entropy(tuple(zip(*table)))   # 0.47804, H(X | Y)
+kl_normal(0.0, 1.0, 1.0, 2.0)             # 0.44315, sigma1 = 2
+differential_entropy(Uniform(0.0, 0.5))   # -0.69315
+```
