@@ -13941,3 +13941,29 @@ that `s` exists.
   conditional posteriors make the sampler efficient),
   [REF-GODSILL-2001] (pp. 230-248: the composite-space sampler and its
   pseudo-priors).
+
+### EQ-GEN-FLOW-008 — Cancellation-free planar and radial log-determinants
+
+Planar flow, with `s = w'z + b`, `t = tanh(s)`, and the margin
+`m = 1 + w'u_hat = log(1 + e^(w'u))` computed directly:
+`1 + (1 - t^2) w'u_hat = t^2 + m sech^2(s)`,
+`sech^2(s) = 4 e / (1 + e)^2` with `e = exp(-2 |s|)`; the same sum is the
+slope `g'(a)` of the inverse root `g(a) = a + w'u_hat tanh(a + b) - w'x`.
+Radial flow, with `r = |z - z0|` and `m = alpha + beta = log(1 + e^c)`:
+`1 + beta h = (r + m) / (alpha + r)`,
+`1 + beta alpha h^2 = (r (2 alpha + r) + m alpha) / (alpha + r)^2`, and the
+inverse `z = z0 + (x - z0) (alpha + r) / (r + m)`, `B = m - rho`.
+
+- Domain: as in [EQ-GEN-FLOW-002] and [EQ-GEN-FLOW-004]; `m > 0`.
+- Meaning: algebraically identical to [EQ-GEN-FLOW-002] and
+  [EQ-GEN-FLOW-004], but every factor is a sum of non-negative terms. The
+  forms `1 + (1 - t^2) (-1 + m)` and `1 + (-alpha + m) alpha h^2` round the
+  margin to zero once `m` is below the spacing of doubles near one or near
+  `alpha` (raw parameter below about -37), which gives a log-determinant of
+  minus infinity or a domain error where the exact value is finite, and
+  `1 - t^2` rounds to zero for `|s|` above about 19, which drops
+  `w'u_hat sech^2(s)` from the planar determinant.
+- Code: `generative.PlanarFlow.forward`, `generative.PlanarFlow.inverse`,
+  `generative.RadialFlow.forward`, `generative.RadialFlow.inverse`.
+- Source: [REF-REZENDE-MOHAMED-2015, Equations 10-14 and Appendix A],
+  [REF-HIGHAM-2002, Chapter 1] (cancellation in floating-point subtraction).
