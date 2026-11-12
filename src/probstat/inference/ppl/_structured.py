@@ -63,12 +63,19 @@ _LOG_TWO = math.log(2.0)
 def _softplus(t: Any) -> Any:
     """Return ``log(1 + exp(t))`` without overflow (dual-transparent).
 
+    ``t + log1p(exp(-t))`` for ``t > 0`` and ``log1p(exp(t))`` otherwise:
+    both branches are smooth, so the derivative at ``t = 0`` is the exact
+    ``1/2``. A form written with ``|t|`` took the derivative 0 that
+    automatic differentiation assigns to ``|t|`` at its kink, which is the
+    last stick of the simplex map at the PPL start ``u = 0``.
+
     References:
         [EQ-PPL-TRANSFORM-003], [REF-STAN-REFERENCE-MANUAL-2-36].
 
     """
-    positive = t if t > 0.0 else 0.0 * t
-    return positive + admath.log1p(admath.exp(-abs(t)))
+    if t > 0.0:
+        return t + admath.log1p(admath.exp(-t))
+    return admath.log1p(admath.exp(t))
 
 
 def _log_one_minus_tanh_squared(y: Any) -> Any:

@@ -332,6 +332,29 @@ class StructuredSiteTests(unittest.TestCase):
             for k in range(3):
                 self.assertLess(abs(mean[k] - exact[k]), 0.05)
 
+    def test_simplex_gradient_is_exact_at_the_origin(self) -> None:
+        """The stick-breaking gradient at ``u = 0`` matches central differences.
+
+        The last stick has offset ``log 1 = 0``, so ``t = 0`` there; a
+        softplus written with ``|t|`` had derivative 0 instead of 1/2 at that
+        point, the PPL start, and the Laplace mode search never moved the
+        coordinate.
+        """
+
+        def prior_only(m: ModelHandle) -> None:
+            """Declare a Dirichlet site with no data."""
+            m.sample("p", Dirichlet(ALPHA))
+
+        for model in (prior_only,):
+            program = ppl.trace(model)
+            for u in ((0.0, 0.0), (0.4, 0.0), (0.0, -0.7)):
+                exact = program.gradient(u, method="reverse")
+                forward = program.gradient(u, method="autodiff")
+                finite = program.gradient(u, method="finite-difference")
+                for a, b, c in zip(exact, forward, finite, strict=True):
+                    self.assertAlmostEqual(a, c, delta=1e-7)
+                    self.assertAlmostEqual(b, c, delta=1e-7)
+
     def test_dirichlet_density_is_exact(self) -> None:
         """Prior + likelihood + Jacobian against a direct evaluation."""
         program = ppl.trace(dirichlet_multinomial)
