@@ -69,7 +69,7 @@ def plot_field_realizations(
     for values in realizations[highlight:]:
         axes.plot(locations, values, color=palette.muted, linewidth=0.7, alpha=0.45)
     for index, values in enumerate(realizations[:highlight]):
-        line(axes, locations, values, color=palette.series[index], width=1.8)
+        line(axes, locations, values, color=palette.series[index])
     axes.axhline(mean, color=palette.ink, linewidth=0.8, alpha=0.6)
     axis_labels(axes, "Location", name)
     title_block(

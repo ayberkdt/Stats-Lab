@@ -37,7 +37,7 @@ def plot_effect_estimates(
     estimates: Mapping[str, tuple[float, float | None, float | None]],
     *,
     truth: float | None = None,
-    truth_label: str = "true effect",
+    truth_label: str = "truth",
     quantity_label: str = "Average treatment effect",
     interval_label: str = "95% interval",
     ax: Any | None = None,

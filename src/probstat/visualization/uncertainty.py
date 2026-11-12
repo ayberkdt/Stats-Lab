@@ -18,6 +18,7 @@ from probstat.statistics import quantile
 
 from .theme import (
     ANNOTATION_SIZE,
+    PATH_WIDTH,
     active_palette,
     axis_labels,
     line,
@@ -156,9 +157,9 @@ def plot_spaghetti(
     axes = new_axes(ax)
     palette = active_palette()
     for values in paths[highlight:]:
-        axes.plot(times, values, color=palette.muted, linewidth=0.6, alpha=0.35)
+        axes.plot(times, values, color=palette.muted, linewidth=PATH_WIDTH, alpha=0.35)
     for index, values in enumerate(paths[:highlight]):
-        line(axes, times, values, color=palette.series[index], width=1.6)
+        line(axes, times, values, color=palette.series[index])
     axis_labels(axes, "Time", name)
     title_block(
         axes,

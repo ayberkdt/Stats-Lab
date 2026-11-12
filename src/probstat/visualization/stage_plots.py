@@ -25,17 +25,20 @@ from probstat.workflow import (
     TailAnalysis,
 )
 
+from .reliability_plots import learning_panels
 from .theme import (
     ANNOTATION_SIZE,
     BAND_ALPHA,
+    CONTEXT_WIDTH,
     FITTED,
     PROJECTED,
     REFERENCE,
     REFERENCE_WIDTH,
     active_palette,
     axis_labels,
-    band,
+    axis_title,
     direct_labels,
+    entity_colour,
     line,
     new_axes,
     points,
@@ -137,6 +140,7 @@ def plot_tail_analysis(
     probabilities = [1.0 / t for t in grid]
     axes = new_axes(ax)
     palette = active_palette()
+    fit_colour = entity_colour("GPD fit")
     finite = [
         (p, low, high)
         for p, (_, low, high) in zip(probabilities, curve, strict=True)
@@ -147,7 +151,7 @@ def plot_tail_analysis(
             [p for p, _, _ in finite],
             [low for _, low, _ in finite],
             [high for _, _, high in finite],
-            color=palette.model,
+            color=fit_colour,
             alpha=BAND_ALPHA,
             linewidth=0.0,
             zorder=1,
@@ -156,8 +160,8 @@ def plot_tail_analysis(
     split = sum(p >= 1.0 / count for p in probabilities)
     if split:
         line(
-            axes, levels[:split], probabilities[:split], color=palette.model,
-            dashes=FITTED,
+            axes, levels[:split], probabilities[:split], color=fit_colour,
+            dashes=FITTED, label="GPD fit",
         )  # fmt: skip
     if split < len(levels):
         start = max(split - 1, 0)
@@ -165,7 +169,7 @@ def plot_tail_analysis(
             axes,
             levels[start:],
             probabilities[start:],
-            color=palette.model,
+            color=fit_colour,
             dashes=PROJECTED,
         )
     exceedances = list(tail.exceedances)
@@ -175,10 +179,11 @@ def plot_tail_analysis(
             exceedances,
             [(total - i - 0.5) / count for i in range(total)],
             s=12.0,
-            color=palette.observed,
+            color=entity_colour("observations"),
             edgecolors="none",
             alpha=0.85,
             zorder=4,
+            label="observations",
         )
     elif empirical_levels:
         shown = {t: v for t, v in empirical_levels.items() if math.isfinite(v)}
@@ -187,11 +192,11 @@ def plot_tail_analysis(
                 axes,
                 list(shown.values()),
                 [1.0 / t for t in shown],
-                color=palette.observed,
+                entity="empirical",
                 size=40.0,
             )
     axes.set_yscale("log")
-    reference_line(axes, x=tail.threshold, label="threshold", color=palette.muted)
+    reference_line(axes, x=tail.threshold, label="threshold", entity="threshold")
     reference_line(
         axes, y=1.0 / count, label=f"1 / {count:,} runs", color=palette.muted
     )
@@ -199,12 +204,12 @@ def plot_tail_analysis(
         (i for i, p in enumerate(probabilities) if p < 4.0 * bottom),
         len(probabilities) - 1,
     )
-    labels = [(levels[anchor], probabilities[anchor], "fitted GPD tail", palette.model)]
+    labels = [(levels[anchor], probabilities[anchor], "GPD fit", fit_colour)]
     if tail.level is not None:
         reference_line(axes, x=tail.level, label=f"level {tail.level:g}")
         if pot is not None and pot > 0.0:
             points(
-                axes, [tail.level], [pot], color=palette.model,
+                axes, [tail.level], [pot], color=fit_colour,
                 size=46.0, zorder=5.0,
             )  # fmt: skip
         if tail.empirical is not None and tail.empirical.probability > 0.0:
@@ -241,7 +246,7 @@ def plot_tail_analysis(
     axis_labels(
         axes,
         name or tail.quantity,
-        f"P(Y {relation} x) per run [log scale]",
+        axis_title("exceedance_probability"),
     )
     direct_labels(axes, labels)
     if tail.level is not None and tail.empirical is not None and pot is not None:
@@ -266,6 +271,7 @@ def plot_tail_analysis(
     title_block(
         axes,
         title,
+        f"P({tail.quantity} {relation} x) per run · "
         f"{fit.rate.exceedances} exceedances of {count:,} runs · dashed: fit · "
         f"dotted: beyond the sample · band: {confidence:.0%} delta interval · "
         f"{dots}",
@@ -305,13 +311,16 @@ def plot_information_sensitivity(
 ) -> Any:
     """Plot the mutual information of each input with the QoI.
 
-    Inputs are rows sorted by mutual information (largest on top), drawn as
-    observed-hue lollipops. With Sobol indices of the same QoI a second
-    panel on the same rows shows first-order (observed hue, the variance
-    analogue of a one-input dependence measure, just below the row) and
-    total-effect (model hue, just above it) indices, so moment-independent
-    and variance-based rankings can be read side by side without a dual
-    axis, and equal indices do not hide each other.
+    Inputs are rows drawn as observed-hue lollipops, sorted by mutual
+    information (largest on top). With Sobol indices of the same QoI a
+    second panel on the same rows shows first-order (observed hue, the
+    variance analogue of a one-input dependence measure, just below the row)
+    and total-effect (model hue, just above it) indices on the 0-1 share
+    scale of :func:`probstat.visualization.uq.plot_sobol_indices`, so
+    moment-independent and variance-based rankings can be read side by side
+    without a dual axis, and equal indices do not hide each other. The rows
+    then follow the total-effect order of the Sobol figures (ADR-0098), so
+    an input keeps its row in every sensitivity figure of the study.
 
     Args:
         result: Result of ``UQStudy.information_sensitivity``.
@@ -336,6 +345,12 @@ def plot_information_sensitivity(
     names = list(result.input_names)
     mi = dict(zip(names, result.mutual_information, strict=True))
     order = sorted(names, key=lambda n: (mi[n], -names.index(n)))
+    if sobol is not None and set(sobol.input_names) == set(names):
+        totals = {
+            n: item.estimate
+            for n, item in zip(sobol.input_names, sobol.total_effect, strict=True)
+        }
+        order = sorted(names, key=lambda n: totals[n])
     plt = pyplot()
     palette = active_palette()
     height = 0.62 * len(names) + 2.3
@@ -360,7 +375,8 @@ def plot_information_sensitivity(
     left.grid(axis="y", visible=False)
     left.grid(axis="x", color=palette.rule, linewidth=0.7)
     axis_labels(left, f"Mutual information I(X; {result.quantity}) [{result.unit}]")
-    top, runner = order[-1], order[-2] if len(order) > 1 else None
+    ranked = sorted(names, key=lambda n: (mi[n], -names.index(n)))
+    top, runner = ranked[-1], ranked[-2] if len(ranked) > 1 else None
     title = f"Input {top} shares the most information with {result.quantity}: " + (
         f"{mi[top]:.2f} {result.unit}"
     )
@@ -389,23 +405,23 @@ def plot_information_sensitivity(
         dodge = 0.09
         points(right, [first[n] for n in order],
                [row - dodge for row in range(len(order))],
-               color=palette.observed, size=54.0)  # fmt: skip
+               entity="first-order index", size=54.0)  # fmt: skip
         points(right, [total[n] for n in order],
                [row + dodge for row in range(len(order))],
-               color=palette.model, size=54.0)  # fmt: skip
-        right.set_xlim(min(0.0, *first.values()) - 0.02, 1.0)
+               entity="total-effect index", size=54.0)  # fmt: skip
+        right.set_xlim(min(0.0, *first.values()) - 0.03, 1.15)
         right.grid(axis="y", visible=False)
         right.grid(axis="x", color=palette.rule, linewidth=0.7)
         right.tick_params(axis="y", length=0, labelleft=False)
-        axis_labels(right, "Sobol index (share of variance)")
+        axis_labels(right, axis_title("variance_share"))
         lead = order[-1]
         direct_labels(
             right,
             [
                 (max(first[lead], total[lead]), len(order) - 1 + 0.28,
-                 "total S_T", palette.model),
+                 "total S_Ti", entity_colour("total-effect index")),
                 (max(first[lead], total[lead]), len(order) - 1 - 0.28,
-                 "first-order S", palette.observed),
+                 "first-order S_i", entity_colour("first-order index")),
             ],
             gap_points=10.0,
         )  # fmt: skip
@@ -422,7 +438,7 @@ def plot_information_sensitivity(
             )
         subtitle = (
             f"Left: KSG mutual information (k = {result.k}, "
-            f"{result.sample_size:,} runs). Right: Sobol S and S_T"
+            f"{result.sample_size:,} runs). Right: Sobol S_i and S_Ti"
         )
     title_block(left, title, subtitle)
     return figure
@@ -489,7 +505,7 @@ def plot_design_path(
             edgecolors="none",
             zorder=2,
         )
-    line(axes, list(range(steps + 1)), path, color=palette.observed, width=1.8)
+    line(axes, list(range(steps + 1)), path, color=palette.observed)
     points(axes, list(range(steps + 1)), path, color=palette.observed, size=50.0)
     for step, condition in enumerate(selection.selected, start=1):
         axes.annotate(
@@ -741,13 +757,15 @@ def plot_active_learning(
 ) -> Any:
     """Plot the AK-MCS estimate and stopping statistic against training runs.
 
-    Top panel: the surrogate estimate ``N_f / N`` after each learning step
-    (model hue) with a band of two Monte Carlo standard errors
-    ``sqrt(P_f (1 - P_f) / N)`` of the population; crude Monte Carlo on the
-    same population, when it was run, is the accent reference. Bottom panel:
-    the smallest learning value ``U = |mu| / sigma`` over the population with
-    the stopping threshold as the reference line. Two panels share the
-    horizontal axis instead of a dual vertical axis.
+    The panels are those of
+    :func:`probstat.visualization.reliability_plots.plot_ak_mcs_convergence`
+    (:func:`~probstat.visualization.reliability_plots.learning_panels`), so
+    an AK-MCS run looks the same in a study report and in a lab: top, the
+    surrogate estimate ``N_f / N`` (model hue) with a band of two Monte
+    Carlo standard errors and crude Monte Carlo on the same population as
+    the accent reference; bottom, the smallest learning value
+    ``U = |mu| / sigma`` on a log scale with the stopping threshold. Both
+    share the number of true-model evaluations as horizontal axis.
 
     Args:
         result: Result of ``UQStudy.active_reliability``.
@@ -770,59 +788,17 @@ def plot_active_learning(
     if len(history) < 2:
         raise ValueError("the learning history needs at least two records")
     plt = pyplot()
-    palette = active_palette()
     figure, (top, bottom) = plt.subplots(
         2,
         1,
         sharex=True,
-        figsize=(7.4, 6.4),
-        gridspec_kw={"height_ratios": (1.35, 1.0), "hspace": 0.16},
+        figsize=(7.2, 5.8),
+        gridspec_kw={"height_ratios": (1.25, 1.0), "hspace": 0.14},
     )
     style_axes(top)
     style_axes(bottom)
-    xs = [float(item.training_size) for item in history]
-    estimates = [item.probability for item in history]
-    errors = [
-        2.0 * math.sqrt(max(p * (1.0 - p), 0.0) / item.population)
-        for p, item in zip(estimates, history, strict=True)
-    ]
-    band(
-        top,
-        xs,
-        [max(p - e, 0.0) for p, e in zip(estimates, errors, strict=True)],
-        [p + e for p, e in zip(estimates, errors, strict=True)],
-        color=palette.model,
-    )
-    line(top, xs, estimates, color=palette.model, width=1.8)
-    top.set_xlim(xs[0], xs[-1])
-    labels = [(xs[-1], estimates[-1], "AK-MCS", palette.model)]
+    learning_panels(top, bottom, result, learning_threshold)
     reference = result.reference_probability
-    if math.isfinite(reference):
-        reference_line(top, y=reference)
-        labels.append((xs[-1], reference, "Monte Carlo", palette.accent))
-    axis_labels(top, None, "Failure probability estimate")
-    direct_labels(top, labels)
-    finite = [
-        (x, item.min_learning)
-        for x, item in zip(xs, history, strict=True)
-        if math.isfinite(item.min_learning)
-    ]
-    tallest = learning_threshold
-    if finite:
-        line(
-            bottom,
-            [x for x, _ in finite],
-            [u for _, u in finite],
-            color=palette.model,
-            width=1.6,
-        )
-        tallest = max(u for _, u in finite)
-    ceiling = min(1.1 * tallest, 4.0 * learning_threshold)
-    bottom.set_ylim(0.0, max(1.6 * learning_threshold, ceiling))
-    reference_line(
-        bottom, y=learning_threshold, label=f"stop: U = {learning_threshold:g}"
-    )
-    axis_labels(bottom, "Training runs of the true model", "Smallest U")
     grown = sum(
         1
         for a, b in zip(history, history[1:], strict=False)
@@ -941,7 +917,7 @@ def plot_posterior_marginals(
         if name in laws:
             xs = [low - pad + (high - low + 2.0 * pad) * i / 200 for i in range(201)]
             density = [float(laws[name].pdf(x)) for x in xs]
-            line(axes, xs, density, color=palette.muted, width=1.4)
+            line(axes, xs, density, color=palette.muted, width=CONTEXT_WIDTH)
             if prior_sds[name] > 0.0:
                 ratios[name] = spread / prior_sds[name]
         axes.set_xlim(low - pad, high + pad)

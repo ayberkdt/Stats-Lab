@@ -18,13 +18,18 @@ from ._layout import halo, keep_inside_axes
 from .theme import (
     ANNOTATION_SIZE,
     BAND_ALPHA,
+    ENTITY_STYLES,
     FITTED,
     INNER_BAND_ALPHA,
+    METHOD_NAMES,
     PROJECTED,
     active_palette,
     axis_labels,
+    axis_title,
     band,
     direct_labels,
+    entity_colour,
+    entity_style,
     line,
     new_axes,
     points,
@@ -139,7 +144,12 @@ def plot_method_comparison(
     axes.grid(axis="y", visible=False)
     axes.grid(axis="x", visible=True, color=palette.rule, linewidth=0.7)
     if reference is not None:
-        reference_line(axes, x=reference, label=reference_label)
+        reference_line(
+            axes,
+            x=reference,
+            label=reference_label,
+            entity=reference_label if reference_label in ENTITY_STYLES else None,
+        )
     axis_labels(axes, quantity_label)
     title_block(
         axes,
@@ -190,7 +200,8 @@ def plot_sobol_indices(
     order = sorted(range(len(names)), key=lambda index: total_effect[index])
     axes = new_axes(ax, figsize=(7.2, 0.62 * len(names) + 2.0))
     palette = active_palette()
-    first_colour, total_colour = palette.series[0], palette.series[1]
+    first_colour = entity_colour("first-order index")
+    total_colour = entity_colour("total-effect index")
     for position, index in enumerate(order):
         s1, st = first_order[index], total_effect[index]
         axes.hlines(
@@ -201,24 +212,8 @@ def plot_sobol_indices(
             linewidth=5.0,
             zorder=1,
         )
-        axes.scatter(
-            [s1],
-            [position],
-            s=60.0,
-            color=first_colour,
-            edgecolors=palette.canvas,
-            linewidths=1.3,
-            zorder=3,
-        )
-        axes.scatter(
-            [st],
-            [position],
-            s=60.0,
-            color=total_colour,
-            edgecolors=palette.canvas,
-            linewidths=1.3,
-            zorder=3,
-        )
+        points(axes, [s1], [position], entity="first-order index", size=60.0, zorder=3)
+        points(axes, [st], [position], entity="total-effect index", size=60.0, zorder=3)
         axes.annotate(
             f"{st:.2f}",
             (st, position),
@@ -255,11 +250,12 @@ def plot_sobol_indices(
         yticks=tuple(range(len(order))), yticklabels=tuple(names[i] for i in order)
     )
     axes.set_ylim(-0.6, len(order) - 0.1)
-    upper = max(max(total_effect), max(first_order), 0.0)
-    axes.set_xlim(min(0.0, min(first_order)) - 0.03, upper * 1.18 + 0.02)
+    # Every Sobol figure of the set shares the 0-1 share scale (ADR-0098), so
+    # the same index has the same length in every figure.
+    axes.set_xlim(min(0.0, min(first_order)) - 0.03, 1.15)
     axes.grid(axis="y", visible=False)
     axes.grid(axis="x", visible=True, color=palette.rule, linewidth=0.7)
-    axis_labels(axes, "Share of output variance")
+    axis_labels(axes, axis_title("variance_share"))
     gaps = [total_effect[i] - first_order[i] for i in range(len(names))]
     candidates = [i for i in range(len(names)) if total_effect[i] > 0.05]
     if title is None and candidates:
@@ -522,7 +518,7 @@ def plot_output_distribution(
                     "right" if label.xy[0] < limit else "left"
                 )
     keep_inside_axes(axes, quantile_labels)
-    axis_labels(axes, name, "Density", x_unit=unit)
+    axis_labels(axes, name, axis_title("density"), x_unit=unit)
     title_block(axes, headline, subtitle)
     return axes
 
@@ -598,7 +594,7 @@ def plot_design_comparison(
     axes.set_ylim(-0.7, len(ordered) - 0.3)
     axes.grid(axis="y", visible=False)
     axes.grid(axis="x", visible=True, color=palette.rule, linewidth=0.7)
-    axis_labels(axes, "Standard deviation of the mean estimate (log scale)")
+    axis_labels(axes, "Standard deviation of the mean estimate")
     best_name, (_, best_spread) = ordered[-1]
     title_block(
         axes,
@@ -667,7 +663,7 @@ def plot_exceedance_curves(
     axes.set_ylim(floor / 2.0, 1.2)
     if threshold is not None:
         reference_line(axes, x=threshold, label="limit")
-    axis_labels(axes, x_label, "P(Y > y)", x_unit=unit)
+    axis_labels(axes, x_label, axis_title("exceedance_probability"), x_unit=unit)
     direct_labels(axes, labels)
     title_block(
         axes,
@@ -757,7 +753,7 @@ def plot_loss_exceedance(
     _plain_log_axis(axes.yaxis, percent=True)
     axes.set_ylim(floor / 3.0, 1.3)
     axes.set_xlim(left=min(0.0, sample[0]))
-    axis_labels(axes, "Loss l", "P(L > l)", x_unit=unit)
+    axis_labels(axes, "Loss", axis_title("exceedance_probability"), x_unit=unit)
     mean = math.fsum(sample) / n
     title_block(
         axes,
@@ -809,57 +805,61 @@ def plot_form_geometry(
     """
     axes = new_axes(ax, figsize=(5.8, 5.4))
     palette = active_palette()
+    # The same encoding as plot_design_points (ADR-0046, ADR-0098): the exact
+    # limit state is a reference over a light failure domain, the design
+    # point a model result, failed samples data, the beta circle context.
+    reference = entity_colour("limit state")
     half = extent if extent is not None else abs(beta) + 2.0
     ticks = [-half + 2.0 * half * k / (grid - 1) for k in range(grid)]
     values = [[function(x, y) for x in ticks] for y in ticks]
     axes.contourf(
-        ticks, ticks, values, levels=[-1e300, 0.0], colors=[palette.model], alpha=0.12
+        ticks, ticks, values, levels=[-1e300, 0.0], colors=[reference], alpha=0.08
     )
     axes.contour(
-        ticks, ticks, values, levels=[0.0], colors=[palette.model], linewidths=2.0
+        ticks,
+        ticks,
+        values,
+        levels=[0.0],
+        colors=[reference],
+        linewidths=entity_style("limit state").width,
     )
     if samples:
         safe = [point for point in samples if function(point[0], point[1]) > 0.0]
         failed = [point for point in samples if function(point[0], point[1]) <= 0.0]
-        if safe:
-            axes.scatter(
-                [p[0] for p in safe],
-                [p[1] for p in safe],
-                s=6.0,
-                color=palette.muted,
-                alpha=0.35,
-                linewidths=0.0,
-                zorder=2,
-            )
-        if failed:
-            axes.scatter(
-                [p[0] for p in failed],
-                [p[1] for p in failed],
-                s=9.0,
-                color=palette.model,
-                alpha=0.8,
-                linewidths=0.0,
-                zorder=2,
-            )
+        for chosen, name, size, alpha in (
+            (safe, "safe samples", 5.0, 0.35),
+            (failed, "failed samples", 7.0, 0.65),
+        ):
+            if chosen:
+                axes.scatter(
+                    [p[0] for p in chosen],
+                    [p[1] for p in chosen],
+                    s=size,
+                    color=entity_colour(name),
+                    alpha=alpha,
+                    edgecolors="none",
+                    zorder=2,
+                    label=name,
+                )
     circle_x = [abs(beta) * math.cos(2.0 * math.pi * k / 200) for k in range(201)]
     circle_y = [abs(beta) * math.sin(2.0 * math.pi * k / 200) for k in range(201)]
-    line(axes, circle_x, circle_y, color=palette.accent, dashes=FITTED, width=1.2)
+    line(axes, circle_x, circle_y, entity="beta circle")
     axes.plot(
         [0.0, design_point[0]],
         [0.0, design_point[1]],
-        color=palette.ink,
-        linewidth=1.0,
+        color=palette.muted,
+        linewidth=0.7,
         zorder=3,
     )
     points(
         axes,
         [design_point[0]],
         [design_point[1]],
-        color=palette.observed,
+        entity="design point",
         size=70.0,
         zorder=6,
     )
-    points(axes, [0.0], [0.0], color=palette.ink, size=24.0, zorder=6)
+    axes.plot([0.0], [0.0], marker="+", color=palette.muted, markersize=8, zorder=3)
     # The label sits outward along the radius, off the beta circle.
     radius = math.hypot(design_point[0], design_point[1])
     out_x, out_y = (
@@ -876,7 +876,7 @@ def plot_form_geometry(
         va="bottom" if out_y >= 0.0 else "top",
         fontsize=ANNOTATION_SIZE,
         fontweight="bold",
-        color=palette.observed,
+        color=entity_colour("design point"),
         path_effects=halo(),
         zorder=7,
     )
@@ -887,18 +887,21 @@ def plot_form_geometry(
         ha="right",
         va="bottom" if design_point[1] < 0 else "top",
         fontsize=ANNOTATION_SIZE,
-        color=palette.model,
+        color=reference,
         fontweight="semibold",
     )
     axes.set_xlim(-half, half)
     axes.set_ylim(-half, half)
     axes.set_aspect("equal")
     axes.grid(axis="both", color=palette.rule, linewidth=0.6)
-    axis_labels(axes, axis_names[0], axis_names[1])
+    axes.spines["left"].set_visible(True)
+    axis_labels(
+        axes, f"Standard normal {axis_names[0]}", f"Standard normal {axis_names[1]}"
+    )
     title_block(
         axes,
         f"The closest failure point lies beta = {beta:.2f} from the origin",
-        "Standard-normal space. Dashed circle: equally likely points",
+        "Standard-normal space. Line: g = 0. Dotted circle: equally likely points",
     )
     return axes
 
@@ -912,6 +915,10 @@ def plot_reliability_comparison(
     ax: Any | None = None,
 ) -> Any:
     """Compare reliability methods by failure probability and model cost.
+
+    Method codes are written out with the names of the set contract
+    (:data:`probstat.visualization.theme.METHOD_NAMES`, ADR-0098), so a
+    method has one name in every figure.
 
     Args:
         rows: Objects with ``method``, ``probability``, ``evaluations`` and an
@@ -932,20 +939,19 @@ def plot_reliability_comparison(
     for row in rows:
         cov = getattr(row, "coefficient_of_variation", None)
         pf = float(row.probability)
+        method = METHOD_NAMES.get(row.method, row.method)
         if cov is not None and math.isfinite(cov) and pf > 0.0:
             spread = 1.96 * cov * pf
             entries.append(
                 (
-                    f"{row.method}  ({row.evaluations:,} runs)",
+                    f"{method}  ({row.evaluations:,} runs)",
                     pf,
                     max(pf - spread, pf / 50.0),
                     pf + spread,
                 )
             )
         else:
-            entries.append(
-                (f"{row.method}  ({row.evaluations:,} runs)", pf, None, None)
-            )
+            entries.append((f"{method}  ({row.evaluations:,} runs)", pf, None, None))
     magnitudes = [value for entry in entries for value in entry[1:] if value]
     wide = max(magnitudes) / min(magnitudes) > 10.0 if magnitudes else False
     cheapest = min(rows, key=lambda row: row.evaluations)
@@ -955,9 +961,11 @@ def plot_reliability_comparison(
         reference=reference,
         reference_label=reference_label,
         log_scale=wide,
-        quantity_label="Failure probability Pf" + (" (log scale)" if wide else ""),
-        title=f"{cheapest.method} needs {cheapest.evaluations:,} runs; "
-        f"{costliest.method} needs {costliest.evaluations:,}",
+        quantity_label=axis_title("failure_probability"),
+        title=f"{METHOD_NAMES.get(cheapest.method, cheapest.method)} needs "
+        f"{cheapest.evaluations:,} runs; "
+        f"{METHOD_NAMES.get(costliest.method, costliest.method)} needs "
+        f"{costliest.evaluations:,}",
         subtitle="Dot: estimate. Whisker: about 95% (1.96 c.o.v.) where reported",
         ax=ax,
     )

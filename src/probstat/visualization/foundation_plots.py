@@ -50,9 +50,11 @@ from probstat.uq import observed_order_of_accuracy, richardson_extrapolation
 from .theme import (
     ANNOTATION_SIZE,
     BAND_ALPHA,
+    CONTEXT_WIDTH,
     FITTED,
     active_palette,
     axis_labels,
+    axis_title,
     band,
     direct_labels,
     line,
@@ -185,7 +187,7 @@ def plot_bernoulli_pmf(distribution: Bernoulli, *, ax: Any | None = None) -> Any
     _value_labels(axes, outcomes, masses)
     axes.set(xticks=outcomes, xticklabels=("failure (0)", "success (1)"))
     axes.set_ylim(0.0, 1.08)
-    axis_labels(axes, y="P(X = k)")
+    axis_labels(axes, y=axis_title("probability_mass"))
     title_block(
         axes,
         f"Success carries probability p = {distribution.p:.3g}",
@@ -241,7 +243,7 @@ def plot_integer_pmf(
     axes.set_ylim(0.0, max(masses, default=0.0) * 1.15 or 1.0)
     axes.set_xlim(checked_lower - 0.6, checked_upper + 0.6)
     axes.xaxis.set_major_locator(_integer_locator())
-    axis_labels(axes, "Count k", "P(X = k)")
+    axis_labels(axes, "Count k", axis_title("probability_mass"))
     title_block(
         axes,
         f"{type(distribution).__name__} mass peaks at k = {mode}",
@@ -257,8 +259,10 @@ def plot_categorical_pmf(
 ) -> Any:
     """Plot an unordered categorical PMF without imposing numeric meaning.
 
-    Categories are drawn as horizontal bars in declaration order; their order
-    carries no meaning, so no axis implies a scale between labels.
+    Categories are drawn as vertical bars in declaration order, left to
+    right; their order carries no meaning, so no axis implies a scale
+    between labels. Probability mass is the vertical axis, as in every PMF
+    figure of the set (ADR-0098).
 
     Args:
         distribution: Validated categorical distribution.
@@ -276,13 +280,13 @@ def plot_categorical_pmf(
     """
     labels = tuple(str(label) for label in distribution.support.values)
     masses = tuple(distribution.pmf(label) for label in distribution.support.values)
-    axes = new_axes(ax, figsize=(6.4, 0.55 * len(labels) + 1.6))
+    axes = new_axes(ax, figsize=(max(4.8, 0.9 * len(labels) + 2.6), 4.0))
     palette = active_palette()
-    positions = tuple(range(len(labels)))[::-1]
-    axes.barh(
+    positions = tuple(range(len(labels)))
+    axes.bar(
         positions,
         masses,
-        height=0.56,
+        width=0.56,
         color=palette.observed,
         edgecolor=palette.canvas,
         linewidth=1.0,
@@ -290,19 +294,17 @@ def plot_categorical_pmf(
     for position, mass in zip(positions, masses, strict=True):
         axes.annotate(
             f"{mass:.3f}",
-            (mass, position),
-            xytext=(6.0, 0.0),
+            (position, mass),
+            xytext=(0.0, 4.0),
             textcoords="offset points",
-            va="center",
+            ha="center",
+            va="bottom",
             fontsize=ANNOTATION_SIZE,
             color=palette.ink,
         )
-    axes.set(yticks=positions, yticklabels=labels, xlim=(0.0, max(masses) * 1.2))
-    axes.grid(axis="y", visible=False)
-    axes.grid(axis="x", visible=True, color=palette.rule, linewidth=0.7)
-    axes.spines["left"].set_visible(False)
-    axes.spines["bottom"].set_visible(False)
-    axis_labels(axes, "Probability mass")
+    axes.set(xticks=positions, xticklabels=labels, ylim=(0.0, max(masses) * 1.2))
+    axes.set_xlim(-0.6, len(labels) - 0.4)
+    axis_labels(axes, "Category", axis_title("probability_mass"))
     title_block(
         axes,
         "Categorical masses on unordered labels",
@@ -354,16 +356,18 @@ def plot_waiting_count_pmfs(
     first, second = palette.series[0], palette.series[2]
     # Both masses tend to zero, so the two marker sets meet in the tail:
     # distinct shapes and translucent fills keep both visible there.
-    line(axes, counts, geometric_masses, color=first, width=1.6)
+    line(axes, counts, geometric_masses, color=first)
     points(axes, counts, geometric_masses, color=first, size=22.0, alpha=0.75)
-    line(axes, counts, negative_masses, color=second, width=1.6)
+    line(axes, counts, negative_masses, color=second)
     points(
         axes, counts, negative_masses, color=second, size=20.0, marker="s", alpha=0.75
     )
     axes.set_xlim(-0.5, checked_upper + 0.5)
     axes.xaxis.set_major_locator(_integer_locator())
     axes.set_ylim(0.0, 1.12 * max((*geometric_masses, *negative_masses)))
-    axis_labels(axes, "Failures k before the target success", "P(X = k)")
+    axis_labels(
+        axes, "Failures k before the target success", axis_title("probability_mass")
+    )
     direct_labels(
         axes,
         (
@@ -451,7 +455,7 @@ def plot_continuous_functions(
     density_axes.set_ylim(0.0, max(densities) * 1.12 or 1.0)
     density_axes.tick_params(axis="x", labelbottom=False, length=0)
     density_axes.spines["bottom"].set_visible(False)
-    axis_labels(density_axes, y="Density f(x)")
+    axis_labels(density_axes, y=axis_title("density"))
     line(probability_axes, xs, cdf, color=palette.series[0])
     line(probability_axes, xs, survival, color=palette.series[1])
     probability_axes.set_ylim(0.0, 1.05)
@@ -526,7 +530,7 @@ def plot_finite_measure(
         xticklabels=tuple(str(outcome) for outcome in outcomes),
         ylim=(0.0, max(masses) * 1.2),
     )
-    axis_labels(axes, "Outcome", "Probability mass")
+    axis_labels(axes, "Outcome", axis_title("probability_mass"))
     if event_probability is None:
         title_block(axes, "Finite probability measure", "Mass assigned to each outcome")
     else:
@@ -571,7 +575,7 @@ def plot_random_variable_pmf(
         ylim=(0.0, max(masses) * 1.22),
         xlim=(-0.6, len(positions) - 0.4),
     )
-    axis_labels(axes, f"{variable.name} value", "Probability mass")
+    axis_labels(axes, f"{variable.name} value", axis_title("probability_mass"))
     title_block(
         axes,
         f"Induced law of {variable.name}",
@@ -704,7 +708,7 @@ def plot_characteristic_function(
     line(axes, frequencies, real, color=palette.series[0])
     line(axes, frequencies, imaginary, color=palette.series[2])
     axes.set_ylim(-1.08, 1.08)
-    axis_labels(axes, "Frequency t", "phi(t) component")
+    axis_labels(axes, "Frequency t", "Characteristic function")
     direct_labels(
         axes,
         (
@@ -785,7 +789,7 @@ def plot_normal_pdf(
         xy=(mu + 0.5 * sigma, distribution.pdf(mu + 0.5 * sigma) * 0.5),
         offset=(46.0, 30.0),
     )
-    axis_labels(axes, "x", "Density f(x)")
+    axis_labels(axes, "x", axis_title("density"))
     title_block(
         axes,
         f"Normal density with mean {mu:g} and sigma {sigma:g}",
@@ -827,7 +831,7 @@ def plot_empirical_cdf(values: Iterable[float], *, ax: Any | None = None) -> Any
     axes.step(xs, ys, where="post", color=palette.observed, linewidth=2.0)
     points(axes, unique, heights, color=palette.observed, size=28.0)
     axes.set_ylim(0.0, 1.06)
-    axis_labels(axes, "x", "F_n(x)")
+    axis_labels(axes, "x", axis_title("cumulative_probability"))
     title_block(
         axes,
         f"Empirical CDF of {len(sample)} observations",
@@ -911,7 +915,7 @@ def plot_fitted_cdf(
     axes.set_ylim(0.0, 1.06)
     axes.set_xlim(lower, upper)
     note(axes, f"largest gap D = {gap:.3f}", xy=(gap_x, gap_y), offset=(30.0, -28.0))
-    axis_labels(axes, "x", "Cumulative probability")
+    axis_labels(axes, "x", axis_title("cumulative_probability"))
     direct_labels(
         axes,
         (
@@ -978,8 +982,10 @@ def plot_refinement_convergence(
     palette = active_palette()
     guide_x = (steps[0] * 1.15, steps[-1] / 1.15)
     guide_y = tuple(errors[0] * (x / steps[0]) ** order for x in guide_x)
-    line(axes, guide_x, guide_y, color=palette.model, dashes=FITTED, width=1.4)
-    line(axes, steps, errors, color=palette.observed, width=1.6)
+    line(
+        axes, guide_x, guide_y, color=palette.model, dashes=FITTED, width=CONTEXT_WIDTH
+    )
+    line(axes, steps, errors, color=palette.observed)
     points(axes, steps, errors, color=palette.observed, size=40.0)
     axes.set_xscale("log")
     axes.set_yscale("log")
@@ -987,9 +993,7 @@ def plot_refinement_convergence(
     axes.xaxis.set_minor_formatter(_null_formatter())
     axes.invert_xaxis()
     axes.grid(axis="y", which="major", color=palette.rule, linewidth=0.7)
-    axis_labels(
-        axes, "Relative step size h (finer to the right)", "|QoI(h) - extrapolated|"
-    )
+    axis_labels(axes, "Relative step size h", "Error against the extrapolated value")
     direct_labels(
         axes,
         ((guide_x[-1], guide_y[-1], f"slope p = {order:.2f}", palette.model),),
@@ -997,7 +1001,8 @@ def plot_refinement_convergence(
     title_block(
         axes,
         f"Error falls with observed order p = {order:.2f}",
-        f"Errors relative to the Richardson value {extrapolated:.4g}",
+        f"|QoI(h) - QoI*| against the Richardson value QoI* = {extrapolated:.4g}; "
+        "finer steps to the right",
     )
     return axes
 
@@ -1057,7 +1062,7 @@ def plot_monte_carlo_convergence(
     if checked_reference is not None:
         reference_line(axes, y=checked_reference, label=reference_label)
     confidence = trace[-1].confidence_interval.confidence
-    axis_labels(axes, "Sample size N", "Estimate")
+    axis_labels(axes, axis_title("sample_size"), axis_title("estimate"))
     width_ratio = (uppers[0] - lowers[0]) / max(uppers[-1] - lowers[-1], 1e-300)
     title_block(
         axes,
@@ -1149,7 +1154,7 @@ def plot_efficiency_comparison(
     axes.grid(axis="y", visible=False)
     axes.grid(axis="x", which="major", visible=True, color=palette.rule, linewidth=0.7)
     reference_line(axes, x=1.0, label=f"{records[0].baseline_label} parity")
-    axis_labels(axes, "Variance-cost efficiency gain (log scale)")
+    axis_labels(axes, "Variance-cost efficiency gain")
     best = ordered[-1]
     title_block(
         axes,

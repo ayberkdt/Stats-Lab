@@ -32,10 +32,13 @@ from ._layout import halo, wrapped_title_block
 from .theme import (
     ANNOTATION_SIZE,
     FITTED,
-    REFERENCE_WIDTH,
     active_palette,
     axis_labels,
+    axis_title,
     band,
+    direct_labels,
+    entity_colour,
+    entity_style,
     line,
     new_axes,
     points,
@@ -99,15 +102,15 @@ def _draw_limit_state(axes: Any, grid: LimitStateGrid) -> None:
 
     """
     xs, ys, values = _check_grid(grid)
-    palette = active_palette()
+    reference = entity_colour("limit state")
     low = min(v for row in values for v in row)
     axes.contourf(
-        xs, ys, values, levels=[low - 1.0, 0.0], colors=[palette.accent],
+        xs, ys, values, levels=[low - 1.0, 0.0], colors=[reference],
         alpha=0.08, zorder=0,
     )  # fmt: skip
     axes.contour(
-        xs, ys, values, levels=[0.0], colors=[palette.accent],
-        linewidths=REFERENCE_WIDTH * 1.4, zorder=2,
+        xs, ys, values, levels=[0.0], colors=[reference],
+        linewidths=entity_style("limit state").width, zorder=2,
     )  # fmt: skip
 
 
@@ -309,24 +312,26 @@ def plot_design_points(
     if sample_points:
         safe = [p for p, f in zip(sample_points, flags, strict=True) if not f]
         hit = [p for p, f in zip(sample_points, flags, strict=True) if f]
-        for chosen, colour, size, alpha in (
-            (safe, palette.muted, 5.0, 0.35),
-            (hit, palette.observed, 7.0, 0.65),
+        for chosen, name, size, alpha in (
+            (safe, "safe samples", 5.0, 0.35),
+            (hit, "failed samples", 7.0, 0.65),
         ):
             if chosen:
                 axes.scatter(
                     [p[0] for p in chosen], [p[1] for p in chosen], s=size,
-                    color=colour, alpha=alpha, edgecolors="none", zorder=1.5,
-                    rasterized=True,
+                    color=entity_colour(name), alpha=alpha, edgecolors="none",
+                    zorder=1.5, rasterized=True, label=name,
                 )  # fmt: skip
     angles = [math.atan2(f.design_point_u[1], f.design_point_u[0]) for f in forms]
     theta = [2.0 * math.pi * k / 360 for k in range(361)]
     radius = min(betas)
-    axes.plot(
+    line(
+        axes,
         [radius * math.cos(t) for t in theta],
         [radius * math.sin(t) for t in theta],
-        color=palette.muted, linewidth=1.0, linestyle=(0, (1.0, 2.5)), zorder=2,
-    )  # fmt: skip
+        entity="beta circle",
+        zorder=2,
+    )
     label_angle = _free_angle(angles)
     axes.annotate(
         f"beta = {radius:.2f}",
@@ -344,11 +349,8 @@ def plot_design_points(
         tangent = _tangent_in_square((u1, u2), (-n2, n1), half)
         if tangent is not None:
             (x0, y0), (x1, y1) = tangent
-            line(
-                axes, [x0, x1], [y0, y1],
-                color=palette.model, dashes=FITTED, width=1.4, zorder=3.0,
-            )  # fmt: skip
-        points(axes, [u1], [u2], color=palette.model, size=70.0, zorder=5.0)
+            line(axes, [x0, x1], [y0, y1], entity="FORM", zorder=3.0)
+        points(axes, [u1], [u2], entity="design point", size=70.0, zorder=5.0)
         d1, d2 = (n1 - n2) / math.sqrt(2.0), (n2 + n1) / math.sqrt(2.0)
         axes.annotate(
             f"u*{index + 1}",
@@ -356,7 +358,7 @@ def plot_design_points(
             xytext=(20.0 * d1, 20.0 * d2),
             textcoords="offset points",
             ha="center", va="center", fontsize=ANNOTATION_SIZE,
-            fontweight="bold", color=palette.model, zorder=6,
+            fontweight="bold", color=entity_colour("design point"), zorder=6,
             path_effects=halo(),
         )  # fmt: skip
     _square_map(axes, half, names)
@@ -521,15 +523,15 @@ def plot_ak_mcs_classification(
             )  # fmt: skip
     safe = [i for i in range(len(pool)) if means[i] > 0.0]
     fail = [i for i in range(len(pool)) if means[i] <= 0.0]
-    for chosen, colour, size, alpha in (
-        (safe, palette.muted, 3.0, 0.3),
-        (fail, palette.observed, 16.0, 0.9),
+    for chosen, name, size, alpha in (
+        (safe, "safe samples", 3.0, 0.3),
+        (fail, "failed samples", 16.0, 0.9),
     ):
         if chosen:
             axes.scatter(
                 [pool[i][0] for i in chosen], [pool[i][1] for i in chosen], s=size,
-                color=colour, alpha=alpha, edgecolors="none", zorder=1.5,
-                rasterized=True,
+                color=entity_colour(name), alpha=alpha, edgecolors="none",
+                zorder=1.5, rasterized=True, label=name,
             )  # fmt: skip
     if flagged:
         axes.scatter(
@@ -583,20 +585,94 @@ def plot_ak_mcs_classification(
     return axes
 
 
+def learning_panels(
+    top: Any, bottom: Any, result: AKMCSResult, learning_threshold: float
+) -> None:
+    """Draw the two AK-MCS learning panels shared by every AK-MCS figure.
+
+    Top: the estimate ``P_f = N_f / N`` (entity ``"AK-MCS"``) with a band of
+    two Monte Carlo standard errors and, when it was run, the same-population
+    Monte Carlo value (``"Monte Carlo reference"``). Bottom: the smallest
+    learning value ``U = |mu| / sigma`` on a log scale with the stopping
+    threshold. Both panels use the number of true-model evaluations as the
+    horizontal axis, so every AK-MCS figure of the set has the same axes
+    (ADR-0098).
+
+    Args:
+        top: Axes of the estimate.
+        bottom: Axes of ``min U`` (sharing the horizontal axis).
+        result: Output of :func:`probstat.reliability.ak_mcs`.
+        learning_threshold: Stopping threshold of ``min U``.
+
+    References:
+        [EQ-REL-AKMCS-001], [EQ-REL-AKMCS-002],
+        [REF-ECHARD-GAYTON-LEMAIRE-2011], [REF-MATPLOTLIB].
+
+    """
+    from matplotlib.ticker import FuncFormatter, NullFormatter
+
+    history = result.history
+    xs = [float(h.training_size) for h in history]
+    pf = [h.probability for h in history]
+    spread = [
+        2.0 * h.coefficient_of_variation * p for h, p in zip(history, pf, strict=True)
+    ]
+    colour = entity_colour("AK-MCS")
+    band(
+        top, xs, [max(0.0, p - s) for p, s in zip(pf, spread, strict=True)],
+        [p + s for p, s in zip(pf, spread, strict=True)], entity="AK-MCS",
+    )  # fmt: skip
+    line(top, xs, pf, entity="AK-MCS")
+    points(top, [xs[-1]], [pf[-1]], entity="AK-MCS", size=40.0)
+    labels = [(xs[-1], pf[-1], "AK-MCS", colour)]
+    reference = result.reference_probability
+    if math.isfinite(reference):
+        reference_line(top, y=reference, entity="Monte Carlo reference")
+        labels.append(
+            (xs[-1], reference, "Monte Carlo reference",
+             entity_colour("Monte Carlo reference"))
+        )  # fmt: skip
+    top.set_xlim(xs[0], xs[-1])
+    top.set_ylim(0.0, None)
+    top.ticklabel_format(axis="y", style="plain", useOffset=False)
+    axis_labels(top, None, axis_title("failure_probability"))
+    direct_labels(top, labels)
+    finite = [
+        (x, h.min_learning)
+        for x, h in zip(xs, history, strict=True)
+        if math.isfinite(h.min_learning) and h.min_learning > 0.0
+    ]
+    if finite:
+        line(bottom, [x for x, _ in finite], [u for _, u in finite], entity="AK-MCS")
+        points(
+            bottom, [x for x, _ in finite], [u for _, u in finite],
+            entity="AK-MCS", size=18.0,
+        )  # fmt: skip
+    bottom.set_yscale("log")
+    bottom.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
+    bottom.yaxis.set_minor_formatter(NullFormatter())
+    reference_line(
+        bottom, y=learning_threshold, label=f"stop: U = {learning_threshold:g}"
+    )
+    axis_labels(
+        bottom, axis_title("model_evaluations"), axis_title("smallest_learning_value")
+    )
+
+
 @themed
 def plot_ak_mcs_convergence(
     result: AKMCSResult, *, learning_threshold: float = 2.0
 ) -> Any:
-    """Plot the AK-MCS estimate and ``min U`` against added training points.
+    """Plot the AK-MCS estimate and ``min U`` against true-model evaluations.
 
-    Two stacked panels share the horizontal axis (no dual axis). Top: the
-    surrogate estimate ``P_f = N_f / N`` (model hue) with a band of two
-    Monte Carlo standard errors ``2 c.o.v. P_f`` and, when available, the
-    same-population Monte Carlo value as the accent reference. Bottom:
-    ``min U`` over the population on a log scale with the stopping
-    threshold as the accent reference. Records that share a training size
-    (a hyperparameter refit or a population enlargement) appear as vertical
-    steps.
+    Two stacked panels share the horizontal axis (no dual axis), drawn by
+    :func:`learning_panels`. Top: the surrogate estimate ``P_f = N_f / N``
+    (model hue) with a band of two Monte Carlo standard errors
+    ``2 c.o.v. P_f`` and, when available, the same-population Monte Carlo
+    value as the accent reference. Bottom: ``min U`` over the population on
+    a log scale with the stopping threshold as the accent reference. Records
+    that share a training size (a hyperparameter refit or a population
+    enlargement) appear as vertical steps.
 
     Args:
         result: Output of :func:`probstat.reliability.ak_mcs`.
@@ -622,52 +698,13 @@ def plot_ak_mcs_convergence(
     if len(history) < 2:
         raise ValueError("at least two learning records are required")
     plt = pyplot()
-    palette = active_palette()
     figure, (top, bottom) = plt.subplots(
         2, 1, sharex=True, figsize=(7.2, 5.8),
         gridspec_kw={"height_ratios": (1.25, 1.0), "hspace": 0.14},
     )  # fmt: skip
     for axes in (top, bottom):
         style_axes(axes)
-    xs = [float(h.training_size - result.initial_size) for h in history]
-    largest = max(h.probability for h in history)
-    exponent = math.floor(math.log10(largest)) if largest > 0.0 else 0
-    scale = 10.0**exponent
-    pf = [h.probability / scale for h in history]
-    spread = [
-        2.0 * h.coefficient_of_variation * p
-        for h, p in zip(history, pf, strict=True)
-    ]
-    band(
-        top, xs, [max(0.0, p - s) for p, s in zip(pf, spread, strict=True)],
-        [p + s for p, s in zip(pf, spread, strict=True)], color=palette.model,
-    )  # fmt: skip
-    line(top, xs, pf, color=palette.model, width=1.8)
-    points(top, [xs[-1]], [pf[-1]], color=palette.model, size=40.0)
-    if not math.isnan(result.reference_probability):
-        reference_line(
-            top, y=result.reference_probability / scale,
-            label=f"same-point MC {result.reference_probability:.2e}",
-        )  # fmt: skip
-    top.set_ylim(0.0, None)
-    unit = f"x 1e{exponent}" if exponent else None
-    axis_labels(top, None, "Pf estimate", y_unit=unit)
-    finite = [
-        (x, h.min_learning)
-        for x, h in zip(xs, history, strict=True)
-        if math.isfinite(h.min_learning) and h.min_learning > 0.0
-    ]
-    line(bottom, [x for x, _ in finite], [u for _, u in finite],
-         color=palette.model, width=1.6)  # fmt: skip
-    points(bottom, [x for x, _ in finite], [u for _, u in finite],
-           color=palette.model, size=18.0)  # fmt: skip
-    bottom.set_yscale("log")
-    from matplotlib.ticker import FuncFormatter, NullFormatter
-
-    bottom.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
-    bottom.yaxis.set_minor_formatter(NullFormatter())
-    reference_line(bottom, y=learning_threshold, label=f"U = {learning_threshold:g}")
-    axis_labels(bottom, "Training points added by active learning", "min U")
+    learning_panels(top, bottom, result, learning_threshold)
     final = result.min_learning
     if result.converged:
         title = (
@@ -684,7 +721,7 @@ def plot_ak_mcs_convergence(
         title,
         [
             f"top: estimate with +/- 2 Monte Carlo s.e. (N = {result.population:,})",
-            "bottom: smallest learning value U = |mu|/sigma",
+            "bottom: smallest learning value U = |mu| / sigma",
             f"{result.evaluations} model calls",
         ],
     )

@@ -28,12 +28,15 @@ from ._layout import wrapped_title_block
 from .calibration_plots import gaussian_mixture_interval
 from .theme import (
     ANNOTATION_SIZE,
+    CONTEXT_WIDTH,
     FITTED,
     REFERENCE,
     REFERENCE_WIDTH,
     active_palette,
     axis_labels,
+    axis_title,
     direct_labels,
+    entity_colour,
     line,
     new_axes,
     points,
@@ -307,15 +310,19 @@ def plot_tau_posterior(
         mean = math.fsum(sample) / len(sample)
         subtitle += f" · bars: {len(sample):,} MCMC draws (density scale)"
         title_tail = f"; MCMC mean {mean:.3g} vs exact {posterior.tau_mean():.3g}"
-    line(axes, xs, ys, color=palette.model, zorder=4.0)
+    line(axes, xs, ys, entity="exact posterior", zorder=4.0)
     median = posterior.tau_quantile(0.5)
     upper = posterior.tau_quantile(0.95)
     axes.set_xlim(0.0, end)
     axes.set_ylim(0.0, None)
-    axis_labels(axes, "Between-group sd tau", "Posterior density")
+    axis_labels(axes, "Between-group sd tau", axis_title("posterior_density"))
     direct_labels(
-        axes, [(xs[len(xs) // 2], ys[len(ys) // 2], "exact posterior", palette.model)]
-    )
+        axes,
+        [
+            (xs[len(xs) // 2], ys[len(ys) // 2], "exact posterior",
+             entity_colour("exact posterior"))
+        ],
+    )  # fmt: skip
     title_block(
         axes,
         f"tau has posterior median {median:.3g}; 95% of its mass lies below "
@@ -406,7 +413,7 @@ def plot_mixture_fit(
             mixture.weights[k] * _normal_pdf(x, means[k], variances[k]) for x in grid
         ]
         total = [a + b for a, b in zip(total, curve, strict=True)]
-        line(axes, grid, curve, color=palette.model, dashes=FITTED, width=1.2)
+        line(axes, grid, curve, color=palette.model, dashes=FITTED, width=CONTEXT_WIDTH)
         peak = mixture.weights[k] * _normal_pdf(means[k], means[k], variances[k])
         axes.annotate(
             f"w = {mixture.weights[k]:.2f}",
@@ -422,7 +429,7 @@ def plot_mixture_fit(
     line(axes, grid, total, color=palette.model)
     axes.set_xlim(low, high)
     axes.set_ylim(0.0, max(total) * 1.2)
-    axis_labels(axes, name, "Density")
+    axis_labels(axes, name, axis_title("density"))
     centres = ", ".join(f"{means[k]:.2f}" for k in order)
     title_block(
         axes,
@@ -471,7 +478,6 @@ def plot_mixture_selection(
         [ks[i] for i in order],
         [scores[i] for i in order],
         color=palette.observed,
-        width=1.6,
     )
     points(axes, ks, scores, color=palette.observed, size=34.0)
     points(axes, [ks[best]], [scores[best]], color=palette.observed, size=90.0)
@@ -553,12 +559,11 @@ def plot_predictive_check(
             zorder=2,
         )
         axes.grid(axis="both", color=palette.rule, linewidth=0.6)
-        axis_labels(
-            axes, f"Realized {check.name}  T(y, theta)", "Replicated  T(y_rep, theta)"
-        )
+        axis_labels(axes, f"Realized {check.name}", f"Replicated {check.name}")
         direct_labels(axes, [(high, high, "T_rep = T_obs", palette.accent)])
         subtitle = (
-            f"Dots: {count:,} posterior draws · p = share on or above the line · "
+            f"Dots: T(y, theta) against T(y_rep, theta) for {count:,} posterior "
+            "draws · p = share on or above the line · "
             f"two-sided {check.two_sided_p_value:.2f}"
         )
     else:
@@ -576,7 +581,7 @@ def plot_predictive_check(
         low, high = axes.get_xlim()
         if observed > high - 0.02 * (high - low) or observed < low:
             axes.set_xlim(min(low, observed), max(high, observed) + 0.1 * (high - low))
-        axis_labels(axes, f"Replicated {check.name}", "Draws")
+        axis_labels(axes, f"Replicated {check.name}", axis_title("count"))
         subtitle = (
             f"Bars: {count:,} replicated datasets · line: observed value · "
             f"two-sided p = {check.two_sided_p_value:.2f}"
@@ -818,7 +823,7 @@ def plot_pit_histogram(
     reference_line(axes, y=expected, label="uniform")
     axes.set_xlim(0.0, 1.0)
     axes.set_ylim(0.0, max(max(counts), wide_high) * 1.3)
-    axis_labels(axes, "PIT value", "Count")
+    axis_labels(axes, axis_title("pit_value"), axis_title("count"))
     outside = sum(c < low or c > high for c in counts)
     wide_outside = sum(c < wide_low or c > wide_high for c in counts)
     ks = pit_uniformity(sample)

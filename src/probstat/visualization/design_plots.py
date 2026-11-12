@@ -19,13 +19,16 @@ from probstat.design import (
     standardized_variances,
 )
 
+from .profile_plots import _legible
 from .theme import (
     ANNOTATION_SIZE,
+    CONTEXT_WIDTH,
     active_palette,
     axis_labels,
     direct_labels,
     line,
     new_axes,
+    ordered_colours,
     points,
     pyplot,
     reference_line,
@@ -138,9 +141,10 @@ def plot_optimal_design(
     labels = []
     if comparison is not None:
         context = standardized_variances(comparison, basis, grid)
-        line(bottom, grid, context, color=palette.muted, width=1.4)
+        line(bottom, grid, context, color=palette.muted, width=CONTEXT_WIDTH,
+             label=comparison_label)  # fmt: skip
         labels.append((grid[-1], context[-1], comparison_label, palette.muted))
-    line(bottom, grid, variances, color=palette.observed)
+    line(bottom, grid, variances, color=palette.observed, label="this design")
     on_support = standardized_variances(design, basis, [(x,) for x in support])
     points(bottom, support, on_support, color=palette.observed, size=34.0)
     reference_line(bottom, y=float(parameters))
@@ -151,7 +155,7 @@ def plot_optimal_design(
     )
     right = bottom.get_xlim()[1]
     direct_labels(bottom, [(right, y, text, colour) for _, y, text, colour in labels])
-    axis_labels(bottom, factor, "Standardized variance d(x)")
+    axis_labels(bottom, factor, "Standardized variance")
     peak = max(variances)
     peak_at = grid[variances.index(peak)]
     if peak <= parameters * (1.0 + 1e-3):
@@ -165,7 +169,10 @@ def plot_optimal_design(
             f"d(x) peaks at {peak:.2f} > p = {parameters} (x = {peak_at:.3g}); "
             f"D-efficiency is at least {bound:.0%}"
         )
-    subtitle = "Top: design weights. Bottom: d(x) over the region; dots: support"
+    subtitle = (
+        "Top: design weights. Bottom: standardized variance d(x) over the "
+        "region; dots: support"
+    )
     if comparison is not None:
         subtitle += f"; grey: {comparison_label}"
     title_block(top, title, subtitle)
@@ -186,7 +193,7 @@ def plot_greedy_design(
     Step ``k`` draws ``EIG(selected + [c]) - EIG(selected)`` over the
     candidates ``c``; its maximum (a dot) is the condition chosen at that
     step. Curves fall from step to step as the information already gathered
-    grows.
+    grows. Steps are shaded light to dark on the sequential ramp.
 
     Args:
         result: Output of :func:`probstat.design.greedy_design`.
@@ -214,26 +221,21 @@ def plot_greedy_design(
     if not result.candidate_scores or len(result.candidate_scores[0]) != len(xs):
         raise ValueError("candidates must match the scored candidate list")
     axes = new_axes(ax)
-    palette = active_palette()
     previous = result.baseline_information_gain
     labels = []
+    # Steps are ordered, not categories: light (first) to dark (last).
+    colours = ordered_colours(len(result.candidate_scores))
     for step, scores in enumerate(result.candidate_scores):
-        colour = palette.series[step % len(palette.series)]
+        colour = colours[step]
         gains = [score - previous for score in scores]
         # Information gain varies continuously with the condition: draw it
         # smooth (monotone cubic, no overshoot) when the grid is ordered.
         ordered = len(xs) >= 3 and all(b > a for a, b in zip(xs, xs[1:], strict=False))
-        line(axes, xs, gains, color=colour, width=1.8, smooth=ordered)
         chosen = result.indices[step]
+        name = f"step {step + 1}: {factor} = {xs[chosen]:g}"
+        line(axes, xs, gains, color=colour, smooth=ordered, label=name)
         points(axes, [xs[chosen]], [gains[chosen]], color=colour, size=48.0)
-        labels.append(
-            (
-                xs[-1],
-                gains[-1],
-                f"step {step + 1}: {factor} = {xs[chosen]:g}",
-                colour,
-            )
-        )
+        labels.append((xs[-1], gains[-1], name, _legible(colour)))
         previous = result.information_gains[step]
     axes.set_ylim(0.0, None)
     axis_labels(axes, factor, f"Information added [{unit}]")

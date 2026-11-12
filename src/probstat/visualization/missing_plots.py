@@ -473,7 +473,7 @@ def plot_rubin_summary(
     span = high - low or 1.0
     axes.set_xlim(low - 0.05 * span, high + 0.18 * span)
     if truth is not None:
-        reference_line(axes, x=truth, label="true value")
+        reference_line(axes, x=truth, label="truth", entity="truth")
     _value_labels(
         axes,
         [

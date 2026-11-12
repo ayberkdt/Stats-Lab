@@ -12,11 +12,14 @@ from ._layout import halo
 from .theme import (
     ANNOTATION_SIZE,
     BAND_ALPHA,
-    FITTED,
+    CATEGORY_ORDERS,
+    PATH_WIDTH,
     active_palette,
     axis_labels,
+    axis_title,
     band,
     direct_labels,
+    entity_colour,
     line,
     new_axes,
     points,
@@ -65,14 +68,16 @@ def plot_chain_traces(
     if not chains:
         raise ValueError("at least one chain is required")
     axes = new_axes(ax, figsize=(7.2, 3.4))
-    palette = active_palette()
     ends: list[tuple[float, float, str, str]] = []
     for index, chain in enumerate(chains):
-        colour = palette.series[index % len(palette.series)]
         label = f"chain {index + 1}"
+        # Chains 1-4 have fixed hues in the set contract (ADR-0098), away from
+        # the observed and model hues; further chains reuse the slots.
+        member = CATEGORY_ORDERS["chains"]
+        colour = entity_colour(member[index % len(member)])
         axes.plot(
-            range(len(chain)), chain, color=colour, linewidth=0.7, alpha=0.75,
-            label=label,
+            range(len(chain)), chain, color=colour, linewidth=PATH_WIDTH,
+            alpha=0.75, label=label,
         )  # fmt: skip
         if len(chains) > 1 and len(chain) > 0:
             ends.append((float(len(chain) - 1), float(chain[-1]), label, colour))
@@ -82,11 +87,11 @@ def plot_chain_traces(
         last = max(len(chain) for chain in chains) - 1.0
         axes.set_xlim(0.0, max(last, 1.0))
         if truth is not None:
-            reference_line(axes, y=truth)
-            ends.append((last, float(truth), "true value", palette.accent))
+            reference_line(axes, y=truth, entity="truth")
+            ends.append((last, float(truth), "truth", entity_colour("truth")))
     elif truth is not None:
-        reference_line(axes, y=truth, label="true value")
-    axis_labels(axes, "Iteration (after warm-up)", name)
+        reference_line(axes, y=truth, label="truth", entity="truth")
+    axis_labels(axes, "Iteration after warm-up", name)
     direct_labels(axes, ends)
     verdict = ""
     if rhat is not None:
@@ -138,7 +143,9 @@ def plot_posterior_marginals(
         1, len(draws), figsize=(3.3 * len(draws) + 0.6, 3.4), squeeze=False
     )
     tail = 0.5 * (1.0 - level)
-    for axes, (name, values) in zip(axes_list[0], draws.items(), strict=True):
+    for index, (axes, (name, values)) in enumerate(
+        zip(axes_list[0], draws.items(), strict=True)
+    ):
         style_axes(axes)
         axes.hist(
             values,
@@ -173,7 +180,7 @@ def plot_posterior_marginals(
         if truth and name in truth:
             # The truth line spans the histogram only, so it stops below the
             # interval bar and its label instead of running through them.
-            marker = reference_line(axes, x=truth[name], label=None)
+            marker = reference_line(axes, x=truth[name], label=None, entity="truth")
             marker.set_ydata([0.0, 1.0 / 1.25])
             axes.annotate(
                 f"true {truth[name]:.4g}",
@@ -185,7 +192,7 @@ def plot_posterior_marginals(
                 va="bottom",
                 fontsize=ANNOTATION_SIZE,
                 fontweight="semibold",
-                color=palette.accent,
+                color=entity_colour("truth"),
                 bbox={
                     "boxstyle": "round,pad=0.2",
                     "facecolor": palette.canvas,
@@ -195,8 +202,8 @@ def plot_posterior_marginals(
                 zorder=6,
             )
         axes.set_ylim(0.0, top * 1.25)
-        axes.set_yticks([])
-        axes.set_xlabel(name)
+        # The same axes as the study's posterior marginals (ADR-0098).
+        axis_labels(axes, name, axis_title("density") if index == 0 else None)
     title_block(
         axes_list[0][0],
         "Posterior marginals of the calibrated parameters",
@@ -241,21 +248,22 @@ def plot_filter_track(
 
     """
     axes = new_axes(ax)
-    palette = active_palette()
     lower = [m - 1.96 * s for m, s in zip(estimate, standard_deviation, strict=True)]
     upper = [m + 1.96 * s for m, s in zip(estimate, standard_deviation, strict=True)]
-    band(axes, times, lower, upper, color=palette.model, alpha=BAND_ALPHA)
+    band(axes, times, lower, upper, entity="filtered mean", alpha=BAND_ALPHA)
     labels: list[tuple[float, float, str, str]] = []
     if truth is not None:
-        line(axes, times, truth, color=palette.muted, width=1.4, zorder=2)
-        labels.append((times[-1], truth[-1], "truth", palette.muted))
-    line(axes, times, estimate, color=palette.model)
-    labels.append((times[-1], estimate[-1], "filtered mean", palette.model))
+        line(axes, times, truth, entity="truth", zorder=2)
+        labels.append((times[-1], truth[-1], "truth", entity_colour("truth")))
+    line(axes, times, estimate, entity="filtered mean")
+    labels.append(
+        (times[-1], estimate[-1], "filtered mean", entity_colour("filtered mean"))
+    )
     if smoothed is not None:
-        line(
-            axes, times, smoothed[0], color=palette.series[2], dashes=FITTED, width=1.6
+        line(axes, times, smoothed[0], entity="smoothed")
+        labels.append(
+            (times[-1], smoothed[0][-1], "smoothed", entity_colour("smoothed"))
         )
-        labels.append((times[-1], smoothed[0][-1], "smoothed", palette.series[2]))
     if observations is not None:
         kept = [
             (t, y) for t, y in zip(times, observations, strict=True) if y is not None
@@ -265,10 +273,10 @@ def plot_filter_track(
                 axes,
                 [t for t, _ in kept],
                 [float(y) for _, y in kept],
-                color=palette.observed,
+                entity="observations",
                 size=18.0,
             )
-    axis_labels(axes, "Time", name)
+    axis_labels(axes, axis_title("time"), name)
     direct_labels(axes, labels)
     coverage = ""
     if truth is not None:
