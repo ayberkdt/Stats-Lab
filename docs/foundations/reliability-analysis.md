@@ -43,6 +43,10 @@ one limit state are found by `find_design_points` and combined by
 `multi_point_form` or `mixture_importance_sampling`; see
 [Adaptive reliability](adaptive-reliability.md).
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/reliability-form-design-point-dark.png"><img alt="Standard-normal plane with the affine limit state, failed and safe Monte Carlo samples, the beta circle, and the FORM design point" src="../images/guides/reliability-form-design-point.png"></picture>
+
+*For `g = 3 - u1 - u2` the design point (1.50, 1.50) is where the beta circle of radius 2.12 touches the limit state; the failed samples all lie beyond that line, and `Phi(-beta)` = 0.01695 is exact because the boundary is a plane.*
+
 ## Directional sampling
 
 Independent standard-normal vectors separate into a uniform direction and a
@@ -56,9 +60,13 @@ lobes violate this contract and need richer search/partition methods.
 
 Run `python examples/reliability_lab.py`. The lab compares direct Monte Carlo,
 affine FORM, and directional sampling on the same bivariate Gaussian boundary,
-then estimates a five-sigma normal tail with mean-shift importance sampling. It
-writes `examples/generated/reliability-method-comparison.png` with uncertainty
-bars and the analytic affine reference.
+then estimates a five-sigma normal tail with mean-shift importance sampling.
+The figure shows the three estimates with their 95% intervals against the
+analytic affine reference.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/reliability-method-intervals-dark.png"><img alt="Dot plot of direct Monte Carlo, directional sampling, and FORM failure probabilities with 95% intervals and the exact value" src="../images/guides/reliability-method-intervals.png"></picture>
+
+*Both sampling intervals cover the exact value 0.01695; directional sampling (estimate 0.01689) integrates the radial tail of each ray analytically, so its 30,000 rays give an interval 2.2 times narrower than 100,000 direct draws.*
 
 ## Common pitfalls
 

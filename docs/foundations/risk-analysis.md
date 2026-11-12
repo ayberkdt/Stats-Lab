@@ -89,6 +89,10 @@ the normal ones. With 20 000 LHS points (seed 5) the assessment gives
 interval of the mean assumes independent draws; for LHS or QMC it is a
 conservative reference only.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/risk-loss-exceedance-dark.png"><img alt="Loss exceedance curve on a log probability axis with VaR and CVaR markers, the closed-form tail, and the expected loss" src="../images/guides/risk-loss-exceedance.png"></picture>
+
+*The loss is zero half the time, so the expected loss 0.398941 sits far below the tail; at 95% the VaR 1.64466 is the loss exceeded with probability 5%, and the CVaR 2.06268 is the mean of that worst 5%, both on the closed-form normal tail.*
+
 ## Fault trees
 
 Build trees from `BasicEvent` leaves with `and_gate`, `or_gate`, and

@@ -146,6 +146,10 @@ Builders return ready models:
 - The expected number of failures is `0.990197`. It equals `lambda` times the
   expected uptime, as it must.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/markov-availability-vs-reliability-dark.png"><img alt="Point availability and reliability of one repairable unit over 3000 hours of operation" src="../images/guides/markov-availability-vs-reliability.png"></picture>
+
+*Repair keeps the unit available, `A(1000)` = 0.990099, but the probability of 1000 h without any failure is `exp(-1)` = 0.367879: availability and reliability answer different questions.*
+
 **Repairable 1-out-of-2.** Take `lambda = 1e-4/h`, `mu = 0.05/h` and one
 crew.
 
@@ -169,6 +173,10 @@ The cold value equals `exp(-lambda t)(1 + p lambda t)`. The warm values equal
 `exp(-lambda t)[1 + p (lambda/lambda_s)(1 - exp(-lambda_s t))]`, and the MTTF
 equals `1/lambda + p/(lambda + lambda_s)`. Adding repair at `mu = 0.05/h` to
 the warm case raises `R(1000)` to `0.953959` and the MTTF to `20,992` h.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/markov-standby-reliability-dark.png"><img alt="Reliability over time of cold, warm, and hot standby pairs and of a single unit without a spare" src="../images/guides/markov-standby-reliability.png"></picture>
+
+*With switch success 0.98, a cold spare gives `R(1000)` = 0.728401 and a hot spare, which ages while it waits, 0.595773; both stay far above the 0.368 of one unit without a spare.*
 
 **A stiff model.** Take the 1-out-of-2 system with `lambda = 1e-6` and
 `mu = 1e3` over `t = 1e6` h, so `q t = 1e9`. The `auto` method uses 21

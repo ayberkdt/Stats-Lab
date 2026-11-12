@@ -49,6 +49,10 @@ every component is relevant, and `SystemStructure.irrelevant_components`
 lists the components that are not. For example, `B` is irrelevant in
 `parallel(A, series(A, B))`.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/system-reliability-k-out-of-n-dark.png"><img alt="System reliability of series, 2-out-of-3, and parallel structures of three components against the component reliability" src="../images/guides/system-reliability-k-out-of-n.png"></picture>
+
+*Redundancy is not free: 2-out-of-3 voting is more reliable than one unit only for p > 0.50, and at p = 0.9 it gives 0.972, between the series value 0.729 and the parallel value 0.999.*
+
 ## 2. Binary decision diagrams
 
 A reduced ordered BDD [REF-BRYANT-1986] stores a Boolean function as a graph
@@ -355,6 +359,10 @@ The importance measures at 1000 h, with CCF:
 The valve is the main contributor: it is a single-event cut with the largest
 rate. The CCF event has the RAW of a single-event cut, even though its
 criticality is small.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/system-reliability-importance-dark.png"><img alt="Dot plot of Birnbaum and criticality importance for each basic event of the cooling loop with common-cause failure" src="../images/guides/system-reliability-importance.png"></picture>
+
+*Birnbaum importance asks how far `R` moves when an event's probability changes, criticality how often the event takes part in a system failure: the CCF event has Birnbaum 0.956, the value of a single-event cut, but criticality only 0.097, while the valve carries the largest share, 0.393.*
 
 ## 11. Verification
 

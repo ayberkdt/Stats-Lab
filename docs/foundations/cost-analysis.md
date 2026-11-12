@@ -106,6 +106,10 @@ and the Monte Carlo P80 is 132.20 against 125.01. **Omitting correlation
 understates the reserve.** The result therefore carries a note in `notes`
 whenever no correlation is supplied (no Python warning is raised).
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/cost-risk-s-curve-dark.png"><img alt="Cumulative probability of the life-cycle cost from Monte Carlo, the moment-matched lognormal, and the independent approximation" src="../images/guides/cost-risk-s-curve.png"></picture>
+
+*The correlated Monte Carlo S-curve and the moment-matched lognormal agree; ignoring correlation steepens the curve and puts the P80 budget at 1718.63 instead of 1740.44, so the P80 reserve over the point estimate 1615.34 falls from 125.10 by about a sixth.*
+
 For normal elements the total is exactly normal. The test suite checks that
 the analytic quantiles equal `scipy.stats.norm` to 1e-6. It also checks that
 the Monte Carlo quantiles lie within four quantile standard errors.
@@ -168,6 +172,10 @@ renewal-reward theorem (Barlow and Proschan 1965). Results report
 Weibull(2.5, 1000) with `c_p = 1000` and `c_f = 10 000`: age replacement at
 354.6 h costs 4.751 per hour, block replacement at about 349 h costs 4.868 per
 hour, and run-to-failure costs 11.271 per hour.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/cost-age-replacement-dark.png"><img alt="Long-run cost rate of age replacement against the replacement age with the optimum and the run-to-failure rate" src="../images/guides/cost-age-replacement.png"></picture>
+
+*Replacing too early pays the preventive cost too often and replacing too late pays for failures: the minimum at 354.6 h costs 4.751 per hour, 58% less than the run-to-failure rate 11.271 that the curve approaches for long intervals.*
 
 ## 6. Spare parts
 

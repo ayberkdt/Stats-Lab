@@ -137,6 +137,10 @@ from the origin. Mixture IS agrees with crude Monte Carlo. The four-branch
 `G` has a kink at the origin, where the central-difference gradient vanishes,
 so the first FORM run is started at `(0.3, 0.1)`.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/adaptive-reliability-design-points-dark.png"><img alt="Standard-normal map of the four-branch limit state with four design points, FORM tangents, the beta circle, and mixture samples" src="../images/guides/adaptive-reliability-design-points.png"></picture>
+
+*All 4 design points of the four-branch function lie on the beta circle at beta = 3.00, and one FORM point sees only one of the four failure regions; importance samples from the mixture centred on all of them give Pf = 4.61e-03, 3.4x the one-point FORM value and in line with crude Monte Carlo.*
+
 ## 4. AK-MCS
 
 `ak_mcs` follows Echard, Gayton, and Lemaire
@@ -194,6 +198,10 @@ Four-branch system (`k = 6`), `N = 10^4`, `target_cov` not binding:
 | 3 | 43 | 31 | 5.1000e-3 | 5.1000e-3 | 0 |
 | 4 | 37 | 25 | 4.8000e-3 | 4.8000e-3 | 0 |
 | 5 | 41 | 29 | 3.8000e-3 | 3.9000e-3 | 1 |
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/adaptive-reliability-ak-mcs-learning-dark.png"><img alt="Two panels against model calls: the AK-MCS failure probability with its band and the smallest learning value with the stop threshold" src="../images/guides/adaptive-reliability-ak-mcs-learning.png"></picture>
+
+*Seed 1 of the table: the estimate settles on the same-population Monte Carlo value Pf = 4.50e-03 as the smallest learning value U climbs past 2, after 35 model calls instead of the 10,000 that crude Monte Carlo on the population would spend.*
 
 Starting from `N = 5000` with `target_cov = 0.15`, the population grew to
 10 000 and the run used 36 calls (`P_f = 4.5e-3`, the same as crude MC on the
