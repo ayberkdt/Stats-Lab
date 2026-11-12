@@ -20,7 +20,7 @@ from probstat.optimization import (
     minimize_nelder_mead,
     multi_start,
 )
-from probstat.optimization.solvers import _strong_wolfe
+from probstat.optimization.quasi_newton import _strong_wolfe
 
 
 def quadratic(constant: float):
