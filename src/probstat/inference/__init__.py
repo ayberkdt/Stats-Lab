@@ -15,6 +15,7 @@ Main entry points:
     ``fit_linear_model``: OLS and WLS through Householder QR.
     ``linear_model_anova`` / ``factorial_design``: type I, II, and III ANOVA
         tables; ``nested_f_test``, ``breusch_pagan_test``, ``durbin_watson``.
+    ``marginal_means``: estimated marginal means with Tukey-Kramer contrasts.
     ``fit_glm``: generalized linear models fitted by IRLS.
     ``fit_linear_mixed_model``: linear mixed models by profiled ML or REML
         with Satterthwaite t tests.
@@ -315,6 +316,12 @@ from .linear_models import (
     fit_linear_model,
     variance_inflation_factors,
 )
+from .marginal_means import (
+    MarginalContrast,
+    MarginalMean,
+    MarginalMeans,
+    marginal_means,
+)
 from .mcmc import (
     ConvergenceWarning,
     LaplaceApproximation,
@@ -509,6 +516,10 @@ from .zero_count_models import (
 )
 
 __all__ = [
+    "MarginalContrast",
+    "MarginalMean",
+    "MarginalMeans",
+    "marginal_means",
     "AnovaRow",
     "AnovaTable",
     "BreuschPaganTest",

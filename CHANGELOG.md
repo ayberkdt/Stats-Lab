@@ -3,6 +3,15 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [Unreleased]
+
+### Added
+
+- `marginal_means`: estimated marginal means of a factorial linear model,
+  optionally at fixed levels of other factors, with Tukey-Kramer pairwise
+  contrasts; checked against Montgomery's comparison of the battery
+  materials at 70 degrees F.
+
 ## [0.21.0] — 2026-11-12
 
 Every guide now shows checked figures, the statistical core gains ANOVA

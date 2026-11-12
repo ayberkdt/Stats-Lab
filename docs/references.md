@@ -4147,3 +4147,11 @@ J. Durbin and G. S. Watson. Testing for serial correlation in least squares
 regression. II. *Biometrika*, 38(1-2):159-178, 1951. Tables of the bounds
 `d_L` and `d_U`.
 DOI: [10.1093/biomet/38.1-2.159](https://doi.org/10.1093/biomet/38.1-2.159).
+
+## REF-SEARLE-SPEED-MILLIKEN-1980
+
+S. R. Searle, F. M. Speed, and G. A. Milliken. Population marginal means
+in the linear model: an alternative to least squares means. *The American
+Statistician*, 34(4):216-221, 1980. Marginal means as equal-weight averages
+of predicted cell means, estimable when no cell is empty.
+DOI: [10.1080/00031305.1980.10483031](https://doi.org/10.1080/00031305.1980.10483031).

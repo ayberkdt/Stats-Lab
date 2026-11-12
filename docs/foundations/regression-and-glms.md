@@ -168,6 +168,31 @@ over the levels of the other factor and is meaningful only with effect
 coding: with treatment coding it tests a simple effect at the reference
 level instead (`factorial_design(..., coding="treatment")`).
 
+**Which levels differ: estimated marginal means.** An F test says a
+factor matters, not which levels differ. `marginal_means(factors, y,
+factor)` averages the model's predicted cell means with equal weight over
+the other factors [EQ-LM-EMM-001] (in unbalanced data this differs from the
+raw level means, which weight cells by their counts) and compares every
+pair with the studentized range, the Tukey-Kramer procedure
+[EQ-LM-EMM-002]. Because the interaction is significant, Montgomery
+compares the materials at a fixed temperature; `at=` does that:
+
+```python
+from probstat.inference import marginal_means
+
+at70 = marginal_means(
+    {"material": material, "temperature": temperature}, life, "material",
+    at={"temperature": 70},
+)
+[round(m.estimate, 2) for m in at70.means]   # [57.25, 119.75, 145.75]
+[(c.first, c.second, round(c.difference, 1), round(c.p_value, 4)) for c in at70.contrasts]   # [('1', '2', -62.5, 0.0058), ('1', '3', -88.5, 0.0001), ('2', '3', -26.0, 0.3475)]
+round(at70.contrasts[0].upper - at70.contrasts[0].difference, 2)   # 45.56
+```
+
+At 70 degrees F material 1 is worse than materials 2 and 3, which do not
+differ: the half-width `q_0.05(3, 27) sqrt(MSE / 4) = 45.56` is the Tukey
+threshold (Montgomery's table value `q = 3.50` gives 45.47).
+
 **Checking the error assumptions.** The F tests assume constant error
 variance and uncorrelated errors. `breusch_pagan_test(fit)` regresses the
 squared residuals on the design; Koenker's `n R^2` form is the default

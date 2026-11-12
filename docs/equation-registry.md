@@ -6191,6 +6191,33 @@ asymptotically `chi^2(q)` with `q` non-constant columns of `Z`.
   design-dependent bounds `d_L`, `d_U`.
 - Code: `inference.durbin_watson`.
 - Source: [REF-DURBIN-WATSON-1950], [REF-DURBIN-WATSON-1951].
+
+### EQ-LM-EMM-001 — Estimated marginal means
+
+`mu_hat(a) = L_a beta_hat` with `L_a` the average of the design rows of the
+reference-grid cells with level `a` (all combinations of the other factors
+weighted equally, or the `at` levels held fixed);
+`SE = sqrt(L_a Cov(beta_hat) L_a')`.
+
+- Domain: a factorial linear model with no empty cell in the grid.
+- Meaning: the level mean adjusted for unequal cell sizes; equals the raw
+  marginal mean in a balanced design and the unweighted mean of the cell
+  means under the full interaction model.
+- Code: `inference.marginal_means`.
+- Source: [REF-SEARLE-SPEED-MILLIKEN-1980].
+
+### EQ-LM-EMM-002 — Tukey-Kramer contrasts of marginal means
+
+`d = (L_a - L_b) beta_hat`, `t = d / SE(d)`; adjusted
+`p = P(Q_(k, nu) >= sqrt(2) |t|)` and simultaneous interval
+`d +- q_(1-alpha)(k, nu) SE(d) / sqrt(2)` with `Q` the studentized range of
+`k` levels and `nu` residual degrees of freedom.
+
+- Domain: [EQ-LM-EMM-001] with normal errors of constant variance.
+- Meaning: all pairwise differences at family-wise level `alpha`; exact for
+  balanced designs, conservative (Tukey-Kramer) otherwise.
+- Code: `inference.marginal_means`.
+- Source: [REF-KRAMER-1956], [REF-HOCHBERG-TAMHANE-1987].
 ### EQ-GLM-FAM-001 — GLM families, links, and variance functions
 
 `g(mu_i) = eta_i = x_i'beta + o_i`, `Var(y_i) = phi V(mu_i)/w_i`, with
