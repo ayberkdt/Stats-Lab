@@ -358,6 +358,12 @@ def quick_start_study() -> tuple[dict[str, Any], dict[str, float]]:
         "study.total_evaluations",
     ):
         errors[key] = level_cost / 4.0
+    # The SORM and FORM relative errors are differences of nearly equal
+    # numbers: a platform difference of 1e-6 relative in the probability (the
+    # tolerance for exact values) moves them by 1e-6 absolute, which is up to
+    # 1% of SORM's 1e-4. They are compared on that absolute scale.
+    for method in ("sorm", "form"):
+        errors[f"study.reliability.{method}_relative_error"] = 1e-6
     errors["study.risk.probability_of_loss"] = math.sqrt(
         risk.probability_of_loss * (1.0 - risk.probability_of_loss) / len(losses)
     )
@@ -553,8 +559,9 @@ def build_data() -> dict[str, Any]:
 
     Returns:
         The deck data: ``meta``, ``repository``, ``study``, ``mission``,
-        ``benchmark`` and ``stochastic`` (dotted key to the Monte Carlo
-        standard error used to compare a fresh run with the stored file).
+        ``benchmark`` and ``stochastic`` (dotted key to the error scale used
+        to compare a fresh run with the stored file: the Monte Carlo standard
+        error, or the absolute scale of a difference of nearly equal numbers).
 
     References:
         [REF-PROBSTAT-REPORTING].

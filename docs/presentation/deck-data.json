@@ -232,6 +232,7 @@
  },
  "stochastic": {
   "study.reliability.evaluations": 453.25,
+  "study.reliability.form_relative_error": 1e-06,
   "study.reliability.mc_half_width": 0.0019478128760227456,
   "study.reliability.mc_relative_error": 0.051673888338723745,
   "study.reliability.methods.is.ci95_high": 0.0012249635887405304,
@@ -247,6 +248,7 @@
   "study.reliability.methods.subset.cov": 0.12272000855601084,
   "study.reliability.methods.subset.evaluations": 453.25,
   "study.reliability.methods.subset.probability": 0.0048842563405292316,
+  "study.reliability.sorm_relative_error": 1e-06,
   "study.risk.cvar95": 0.6449135558194871,
   "study.risk.cvar99": 1.4239990655558445,
   "study.risk.probability_of_loss": 0.0013536689033881218,
