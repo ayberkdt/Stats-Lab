@@ -5,5 +5,5 @@ The root package exposes metadata only. Import from domain packages such as
 remains visible.
 """
 
-__version__ = "0.20.0"
+__version__ = "0.21.0"
 

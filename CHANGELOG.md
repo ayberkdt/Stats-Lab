@@ -3,7 +3,13 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
-## [Unreleased]
+## [0.21.0] — 2026-11-12
+
+Every guide now shows checked figures, the statistical core gains ANOVA
+tables and model comparison, VAR impulse responses get bootstrap bands, the
+overview presentation tells the applied-statistics story, and an audit
+brings every result number quoted in the guides' prose in line with the
+code.
 
 ### Added
 
@@ -51,6 +57,12 @@ while the public API remains pre-1.0 and experimental.
 - Two tests that failed only on Linux compared ill-conditioned values
   with a fixed tolerance (the deck's SORM relative error and a planar-flow
   inverse log-determinant near its boundary).
+
+### Counts
+
+- 5 equation records, 8 references, 1 decision record, 33 new tests (2,544
+  in total), 90 guide figures in two palettes, and 1,693 public names in 33
+  packages.
 
 ## [0.20.0] — 2026-11-12
 

@@ -166,7 +166,7 @@
    "authors_or_institution": "Stats-Lab (probstat)",
    "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/README.md",
    "accessed_at": "2026-11-12",
-   "dataset_version": "0.20.0"
+   "dataset_version": "0.21.0"
   },
   {
    "id": "src-tool",
@@ -174,7 +174,7 @@
    "authors_or_institution": "Stats-Lab (probstat)",
    "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/tools/build_presentation_data.py",
    "accessed_at": "2026-11-12",
-   "dataset_version": "0.20.0"
+   "dataset_version": "0.21.0"
   },
   {
    "id": "src-bench",
@@ -182,7 +182,7 @@
    "authors_or_institution": "Stats-Lab (probstat)",
    "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/benchmarks/results/quick.json",
    "accessed_at": "2026-11-12",
-   "dataset_version": "0.20.0"
+   "dataset_version": "0.21.0"
   },
   {
    "id": "src-mission",
@@ -190,7 +190,7 @@
    "authors_or_institution": "Stats-Lab (probstat)",
    "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/examples/mission_systems_lab.py",
    "accessed_at": "2026-11-12",
-   "dataset_version": "0.20.0"
+   "dataset_version": "0.21.0"
   },
   {
    "id": "src-arch",
@@ -198,7 +198,7 @@
    "authors_or_institution": "Stats-Lab (probstat)",
    "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/docs/architecture.md",
    "accessed_at": "2026-11-12",
-   "dataset_version": "0.20.0"
+   "dataset_version": "0.21.0"
   },
   {
    "id": "src-stats",
@@ -206,7 +206,7 @@
    "authors_or_institution": "Stats-Lab (probstat)",
    "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/README.md",
    "accessed_at": "2026-11-12",
-   "dataset_version": "0.20.0"
+   "dataset_version": "0.21.0"
   },
   {
    "id": "src-mixed",
@@ -214,7 +214,7 @@
    "authors_or_institution": "Stats-Lab (probstat)",
    "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/docs/foundations/mixed-models.md",
    "accessed_at": "2026-11-12",
-   "dataset_version": "0.20.0"
+   "dataset_version": "0.21.0"
   },
   {
    "id": "src-registry",
@@ -222,7 +222,7 @@
    "authors_or_institution": "Stats-Lab (probstat)",
    "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/docs/equation-registry.md",
    "accessed_at": "2026-11-12",
-   "dataset_version": "0.20.0"
+   "dataset_version": "0.21.0"
   },
   {
    "id": "src-refs",
@@ -230,7 +230,7 @@
    "authors_or_institution": "Stats-Lab (probstat)",
    "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/docs/references.md",
    "accessed_at": "2026-11-12",
-   "dataset_version": "0.20.0"
+   "dataset_version": "0.21.0"
   },
   {
    "id": "src-adr",
@@ -238,7 +238,7 @@
    "authors_or_institution": "Stats-Lab (probstat)",
    "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/docs/adr",
    "accessed_at": "2026-11-12",
-   "dataset_version": "0.20.0"
+   "dataset_version": "0.21.0"
   },
   {
    "id": "src-tests",
@@ -246,7 +246,7 @@
    "authors_or_institution": "Stats-Lab (probstat)",
    "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/tests",
    "accessed_at": "2026-11-12",
-   "dataset_version": "0.20.0"
+   "dataset_version": "0.21.0"
   },
   {
    "id": "src-ci",
@@ -254,7 +254,7 @@
    "authors_or_institution": "Stats-Lab (probstat)",
    "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/.github/workflows/ci.yml",
    "accessed_at": "2026-11-12",
-   "dataset_version": "0.20.0"
+   "dataset_version": "0.21.0"
   }
  ],
  "figures": [
