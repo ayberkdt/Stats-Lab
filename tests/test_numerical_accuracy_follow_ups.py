@@ -18,6 +18,8 @@ from math import comb
 
 from probstat.distributions import Normal
 from probstat.distributions import _special as special
+from probstat.multivariate import Dirichlet
+from probstat.multivariate.dirichlet import log_multivariate_beta
 from probstat.numerics import _double_double as dd
 from probstat.numerics import (
     compare_to_reference,
@@ -72,6 +74,28 @@ def reference_log_cdf(z: Fraction) -> Decimal:
             return -total
         power *= q
         k += 1
+
+
+def reference_digamma(a: float) -> Decimal:
+    """Return ``psi(a)`` from its asymptotic series, for ``a >= 1e3``.
+
+    ``psi(a) = log a - 1/(2a) - sum_(k=1..7) B_(2k)/(2k a^(2k))`` (DLMF
+    5.11.2); the first omitted term is below ``1e-45`` for ``a >= 1e3``.
+
+    References:
+        [REF-NIST-DLMF-GAMMA, Section 5.11].
+
+    """
+    bernoulli = (
+        Fraction(1, 6), Fraction(-1, 30), Fraction(1, 42), Fraction(-1, 30),
+        Fraction(5, 66), Fraction(-691, 2730), Fraction(7, 6),
+    )  # fmt: skip
+    value = Decimal(a)
+    total = value.ln() - 1 / (2 * value)
+    for k, number in enumerate(bernoulli, start=1):
+        coefficient = Decimal(number.numerator) / Decimal(number.denominator)
+        total -= coefficient / (2 * k * value ** (2 * k))
+    return total
 
 
 def temme_coefficients(terms: int, count: int) -> list[list[Fraction]]:
@@ -303,6 +327,40 @@ class IncompleteGammaLargeShapeTests(unittest.TestCase):
         ):
             result = compare_to_reference(function, reference, points, digits=30)
             self.assertLessEqual(result.max_ulp, 8.0, result.worst_point)
+
+
+class DirichletHugeConcentrationTests(unittest.TestCase):
+    """The Dirichlet normalizer and entropy without lgamma cancellation."""
+
+    def test_reference_at_huge_concentrations(self) -> None:
+        """Log B within one ulp and entropy within 1e-14 at alpha_0 = 1e6 .. 1e12."""
+        for scale in (1e6, 1e9, 1e12):
+            alpha = tuple(scale * p for p in (0.2, 0.3, 0.5))
+            point = (0.21, 0.29, 0.5)
+            with localcontext() as context:
+                context.prec = 50
+                total = sum(Decimal(value) for value in alpha)
+                log_beta = sum(
+                    reference_log_gamma(value, digits=50) for value in alpha
+                ) - reference_log_gamma(total, digits=50)
+                entropy = (
+                    log_beta
+                    + (total - 3) * reference_digamma(float(total))
+                    - sum((Decimal(v) - 1) * reference_digamma(v) for v in alpha)
+                )
+                log_density = sum(
+                    (Decimal(v) - 1) * Decimal(x).ln()
+                    for v, x in zip(alpha, point, strict=True)
+                ) - log_beta
+                law = Dirichlet(alpha)
+                normalizer_error = abs(Decimal(log_multivariate_beta(alpha)) - log_beta)
+                entropy_error = abs(Decimal(law.entropy) - entropy)
+                density_error = abs(Decimal(law.log_pdf(point)) - log_density)
+            self.assertLessEqual(float(normalizer_error), math.ulp(float(log_beta)))
+            self.assertLess(float(entropy_error), 1e-14, scale)
+            # One ulp of the largest term (alpha_i - 1) log x_i bounds what the
+            # density can resolve; plain lgamma sums missed it by 12x at 1e9.
+            self.assertLess(float(density_error), math.ulp(scale), scale)
 
 
 if __name__ == "__main__":

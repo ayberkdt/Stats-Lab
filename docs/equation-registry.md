@@ -14092,3 +14092,24 @@ Taylor coefficients in `eta` derived in exact rational arithmetic;
   `distributions._special.regularized_gamma_q`.
 - Source: [REF-TEMME-1979], [REF-NIST-DLMF-GAMMA, Sections 5.11 and 8.12],
   and [REF-DIDONATO-MORRIS-1986].
+
+### EQ-DIST-DIR-007 — Stirling form of the Dirichlet normalizer and entropy
+
+`log B(alpha) = sum_i (alpha_i - 1/2) log m_i - ((K-1)/2) log alpha_0
++ (K-1) log sqrt(2 pi) + sum_i sigma(alpha_i) - sigma(alpha_0)`,
+`m_i = alpha_i/alpha_0`;
+`H = (1/2) sum_i log m_i - ((K-1)/2) log alpha_0 + (K-1) log sqrt(2 pi)
++ sum_i sigma(alpha_i) - sigma(alpha_0) - (alpha_0 - K) L(alpha_0)
++ sum_i (alpha_i - 1) L(alpha_i)`, `L(a) = log a - psi(a)`.
+
+- Domain: [EQ-DIST-DIR-001]; `sigma` is the Stirling remainder of
+  [EQ-NUM-STIRLING-001] and `L` the function of [EQ-NUM-DIGAMMA-001].
+- Meaning: the linear terms of the Stirling forms cancel exactly
+  (`sum alpha_i = alpha_0`), so no `lgamma` or `alpha psi(alpha)` of size
+  `alpha log alpha` is formed; at `alpha_0 = 1e9` the normalizer is within
+  half an ulp and the entropy within `1e-15` instead of `1.4e-6` and
+  `3.5e-6`.
+- Code: `multivariate.dirichlet.log_multivariate_beta`,
+  `multivariate.Dirichlet.entropy`.
+- Source: [REF-NIST-DLMF-GAMMA, Sections 5.2 and 5.11],
+  [REF-BISHOP-2006, Appendix B].
