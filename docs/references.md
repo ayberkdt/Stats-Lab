@@ -3911,3 +3911,181 @@ Halbert White. "Maximum Likelihood Estimation of Misspecified Models."
 *Econometrica* 50(1), starting on page 1, 1982. The sandwich covariance
 `A^-1 B A^-1` of a quasi-maximum-likelihood estimator.
 DOI: [10.2307/1912526](https://doi.org/10.2307/1912526).
+
+## REF-HUBER-1964
+
+Peter J. Huber. "Robust Estimation of a Location Parameter." *The Annals of
+Mathematical Statistics* 35(1), 73-101, 1964. The minimax M-estimator of
+location and the score function `max(-k, min(k, u))`.
+DOI: [10.1214/aoms/1177703732](https://doi.org/10.1214/aoms/1177703732).
+
+## REF-HUBER-1981
+
+Peter J. Huber. *Robust Statistics*. Wiley Series in Probability and
+Statistics. Wiley, 1981. M-estimators of location, scale, and regression,
+their asymptotic covariances, and the iterative algorithms that compute
+them.
+DOI: [10.1002/0471725250](https://doi.org/10.1002/0471725250).
+
+## REF-MARONNA-MARTIN-YOHAI-2006
+
+Ricardo A. Maronna, R. Douglas Martin, and Victor J. Yohai. *Robust
+Statistics: Theory and Methods*. Wiley Series in Probability and
+Statistics. Wiley, 2006. Huber and bisquare M-estimators with a MAD scale,
+IRLS, efficiency tuning constants, breakdown points, and sandwich
+covariances.
+DOI: [10.1002/0470010940](https://doi.org/10.1002/0470010940).
+
+## REF-BEATON-TUKEY-1974
+
+Albert E. Beaton and John W. Tukey. "The Fitting of Power Series, Meaning
+Polynomials, Illustrated on Band-Spectroscopic Data." *Technometrics*
+16(2), 147-185, 1974. The biweight (bisquare) weight function and its use
+in iteratively reweighted fitting.
+DOI: [10.1080/00401706.1974.10489171](https://doi.org/10.1080/00401706.1974.10489171).
+
+## REF-SEN-1968
+
+Pranab Kumar Sen. "Estimates of the Regression Coefficient Based on
+Kendall's Tau." *Journal of the American Statistical Association* 63(324),
+1379-1389, 1968. The median of pairwise slopes and its distribution-free
+confidence interval.
+DOI: [10.1080/01621459.1968.10480934](https://doi.org/10.1080/01621459.1968.10480934).
+
+## REF-KOENKER-BASSETT-1978
+
+Roger Koenker and Gilbert Bassett. "Regression Quantiles." *Econometrica*
+46(1), 33ff., 1978. The check-loss definition of linear regression
+quantiles and the existence of an optimal elemental (basic) solution.
+DOI: [10.2307/1913643](https://doi.org/10.2307/1913643).
+
+## REF-KOENKER-2005
+
+Roger Koenker. *Quantile Regression*. Cambridge University Press, 2005.
+The linear-programming formulation, simplex and interior-point
+computation, and inference by resampling.
+DOI: [10.1017/CBO9780511754098](https://doi.org/10.1017/CBO9780511754098).
+
+## REF-BARRODALE-ROBERTS-1973
+
+I. Barrodale and F. D. K. Roberts. "An Improved Algorithm for Discrete
+`l_1` Linear Approximation." *SIAM Journal on Numerical Analysis* 10(5),
+839-848, 1973. The simplex method for least absolute deviations that
+passes several vertices in one step.
+DOI: [10.1137/0710069](https://doi.org/10.1137/0710069).
+
+## REF-KRUSKAL-WALLIS-1952
+
+William H. Kruskal and W. Allen Wallis. "Use of Ranks in One-Criterion
+Variance Analysis." *Journal of the American Statistical Association*
+47(260), 583-621, 1952.
+DOI: [10.1080/01621459.1952.10483441](https://doi.org/10.1080/01621459.1952.10483441).
+
+## REF-FRIEDMAN-1937
+
+Milton Friedman. "The Use of Ranks to Avoid the Assumption of Normality
+Implicit in the Analysis of Variance." *Journal of the American Statistical
+Association* 32(200), 675-701, 1937.
+DOI: [10.1080/01621459.1937.10503522](https://doi.org/10.1080/01621459.1937.10503522).
+
+## REF-BROWN-FORSYTHE-1974
+
+Morton B. Brown and Alan B. Forsythe. "Robust Tests for the Equality of
+Variances." *Journal of the American Statistical Association* 69(346),
+364-367, 1974. Levene's ANOVA of absolute deviations with the group mean,
+median, or trimmed mean as centre.
+DOI: [10.1080/01621459.1974.10482955](https://doi.org/10.1080/01621459.1974.10482955).
+
+## REF-BARTLETT-1937
+
+M. S. Bartlett. "Properties of Sufficiency and Statistical Tests."
+*Proceedings of the Royal Society of London, Series A* 160(901), 268-282,
+1937. The corrected likelihood-ratio test of equal normal variances.
+DOI: [10.1098/rspa.1937.0109](https://doi.org/10.1098/rspa.1937.0109).
+
+## REF-SHAPIRO-WILK-1965
+
+S. S. Shapiro and M. B. Wilk. "An Analysis of Variance Test for Normality
+(Complete Samples)." *Biometrika* 52(3-4), 591-611, 1965.
+DOI: [10.1093/biomet/52.3-4.591](https://doi.org/10.1093/biomet/52.3-4.591).
+
+## REF-ROYSTON-1992
+
+Patrick Royston. "Approximating the Shapiro-Wilk W-test for
+Non-normality." *Statistics and Computing* 2(3), 117-119, 1992. The
+polynomial approximations of the coefficients and of the null law of
+`W`.
+DOI: [10.1007/BF01891203](https://doi.org/10.1007/BF01891203).
+
+## REF-ROYSTON-1995
+
+Patrick Royston. "Remark AS R94: A Remark on Algorithm AS 181: The W-test
+for Normality." *Applied Statistics* 44(4), 547ff., 1995.
+DOI: [10.2307/2986146](https://doi.org/10.2307/2986146).
+
+## REF-STATLIB-AS-R94
+
+StatLib Applied Statistics algorithms. Fortran listing of algorithm AS R94
+(subroutine `SWILK`), the data statements `C1`-`C6` and `G` and the
+p-value branches for `n = 3`, `4 <= n <= 11`, and `n >= 12`; read on
+2026-11-12.
+[https://lib.stat.cmu.edu/apstat/R94](https://lib.stat.cmu.edu/apstat/R94).
+
+## REF-COCHRAN-1950
+
+W. G. Cochran. "The Comparison of Percentages in Matched Samples."
+*Biometrika* 37(3-4), 256-266, 1950.
+DOI: [10.1093/biomet/37.3-4.256](https://doi.org/10.1093/biomet/37.3-4.256).
+
+## REF-KRAMER-1956
+
+Clyde Young Kramer. "Extension of Multiple Range Tests to Group Means with
+Unequal Numbers of Replications." *Biometrics* 12(3), 307ff., 1956.
+DOI: [10.2307/3001469](https://doi.org/10.2307/3001469).
+
+## REF-COPENHAVER-HOLLAND-1988
+
+Margaret Diponzio Copenhaver and Burt Holland. "Computation of the
+Distribution of the Maximum Studentized Range Statistic with Application
+to Multiple Significance Testing of Simple Effects." *Journal of
+Statistical Computation and Simulation* 30(1), 1-15, 1988. Numerical
+evaluation of the studentized range distribution as a double integral.
+DOI: [10.1080/00949658808811082](https://doi.org/10.1080/00949658808811082).
+
+## REF-LUND-LUND-1983
+
+R. E. Lund and J. R. Lund. "Algorithm AS 190: Probabilities and Upper
+Quantiles for the Studentized Range." *Applied Statistics* 32(2), 204ff.,
+1983.
+DOI: [10.2307/2347300](https://doi.org/10.2307/2347300).
+
+## REF-HOCHBERG-TAMHANE-1987
+
+Yosef Hochberg and Ajit C. Tamhane. *Multiple Comparison Procedures*.
+Wiley Series in Probability and Statistics. Wiley, 1987. Tukey's
+studentized-range procedure, the Tukey-Kramer modification, and
+family-wise error control.
+DOI: [10.1002/9780470316672](https://doi.org/10.1002/9780470316672).
+
+## REF-DUNN-1964
+
+Olive Jean Dunn. "Multiple Comparisons Using Rank Sums." *Technometrics*
+6(3), 241-252, 1964.
+DOI: [10.1080/00401706.1964.10490181](https://doi.org/10.1080/00401706.1964.10490181).
+
+## REF-DIXON-MOOD-1946
+
+W. J. Dixon and A. M. Mood. "The Statistical Sign Test." *Journal of the
+American Statistical Association* 41(236), 557-566, 1946.
+DOI: [10.1080/01621459.1946.10501898](https://doi.org/10.1080/01621459.1946.10501898).
+
+## REF-R-DATASETS-STACKLOSS
+
+R Core Team. Documentation of the data set `stackloss` ("Brownlee's Stack
+Loss Plant Data") in the R package datasets: 21 days of operation of a
+plant oxidizing ammonia to nitric acid, with `Air.Flow`, `Water.Temp`,
+`Acid.Conc.`, and `stack.loss`, citing K. A. Brownlee, *Statistical Theory
+and Methodology in Science and Engineering* (2nd edition, Wiley, 1965),
+pages 491-500. Values checked against the Rdatasets CSV export on
+2026-11-12.
+[https://vincentarelbundock.github.io/Rdatasets/doc/datasets/stackloss.html](https://vincentarelbundock.github.io/Rdatasets/doc/datasets/stackloss.html).

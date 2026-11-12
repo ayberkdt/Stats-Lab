@@ -38,6 +38,14 @@ Main entry points:
         maximum-likelihood factor analysis with varimax rotation.
     ``fit_linear_discriminant``, ``fit_quadratic_discriminant``, ``kmeans``:
         Gaussian classifiers and k-means clustering with the silhouette.
+    ``fit_robust_linear_model``, ``robust_location``: Huber and biweight
+        M-estimators by IRLS with a MAD scale and sandwich standard errors;
+        ``theil_sen_slope`` for the median of pairwise slopes.
+    ``fit_quantile_regression``: exact linear quantile regression with
+        pairs-bootstrap intervals.
+    ``kruskal_wallis_test``, ``friedman_test``, ``shapiro_wilk_test``,
+        ``levene_test``, ``tukey_hsd_test``, ``dunn_test``: k-sample,
+        blocked, normality, variance, and post hoc tests.
 
 Assumptions:
     Every test states its sampling model: t tests assume independent normal
@@ -71,8 +79,11 @@ Common pitfalls:
       structural zero, those of ``fit_hurdle`` the odds of a positive count;
       ``vuong_test`` is not a test for zero inflation (see
       docs/foundations/count-and-categorical-regression.md).
+    - ``fit_robust_linear_model`` resists outlying responses, not outlying
+      design points; one bad leverage point can still break it.
 
 Guide: docs/foundations/hypothesis-testing-and-bootstrap.md
+(robust and quantile regression: docs/foundations/robust-and-quantile-regression.md)
 
 References:
     [REF-CASELLA-BERGER-2002], [REF-EFRON-TIBSHIRANI-1993],
@@ -116,6 +127,22 @@ from .categorical_regression import (
     brant_test,
     fit_multinomial_logit,
     fit_ordinal_logistic,
+)
+from .classical_tests import (
+    ClassicalTestResult,
+    PairwiseComparison,
+    PairwiseComparisonResult,
+    bartlett_test,
+    brown_forsythe_test,
+    cochran_q_test,
+    dunn_test,
+    friedman_test,
+    kruskal_wallis_test,
+    levene_test,
+    shapiro_wilk_coefficients,
+    shapiro_wilk_test,
+    sign_test,
+    tukey_hsd_test,
 )
 from .clustering import KMeansResult, kmeans, silhouette_samples, silhouette_score
 from .confidence import (
@@ -380,6 +407,11 @@ from .predictive_checks import (
     pit_values,
     posterior_predictive_pvalues,
 )
+from .quantile_regression import (
+    QuantileRegressionResult,
+    check_loss,
+    fit_quantile_regression,
+)
 from .rank_tests import (
     RankTestResult,
     mann_whitney_u_distribution,
@@ -407,6 +439,17 @@ from .resampling import (
     bootstrap_confidence_interval,
     jackknife,
     permutation_test,
+)
+from .robust import (
+    BISQUARE_TUNING,
+    HUBER_TUNING,
+    RobustLocationResult,
+    RobustRegressionResult,
+    TheilSenResult,
+    fit_robust_linear_model,
+    psi_function,
+    robust_location,
+    theil_sen_slope,
 )
 from .sampling_distributions import (
     chi_square_sf,
@@ -437,6 +480,11 @@ from .splines import (
     fit_pspline,
     fit_smoothing_spline,
     uniform_knots,
+)
+from .studentized_range import (
+    studentized_range_cdf,
+    studentized_range_quantile,
+    studentized_range_sf,
 )
 from .variational import VariationalResult, advi
 from .zero_count_models import (
@@ -752,4 +800,33 @@ __all__ = [
     "glmm_deviance",
     "mixed_model_likelihood_ratio_test",
     "random_effect",
+    "ClassicalTestResult",
+    "PairwiseComparison",
+    "PairwiseComparisonResult",
+    "bartlett_test",
+    "brown_forsythe_test",
+    "cochran_q_test",
+    "dunn_test",
+    "friedman_test",
+    "kruskal_wallis_test",
+    "levene_test",
+    "shapiro_wilk_coefficients",
+    "shapiro_wilk_test",
+    "sign_test",
+    "tukey_hsd_test",
+    "QuantileRegressionResult",
+    "check_loss",
+    "fit_quantile_regression",
+    "BISQUARE_TUNING",
+    "HUBER_TUNING",
+    "RobustLocationResult",
+    "RobustRegressionResult",
+    "TheilSenResult",
+    "fit_robust_linear_model",
+    "psi_function",
+    "robust_location",
+    "theil_sen_slope",
+    "studentized_range_cdf",
+    "studentized_range_quantile",
+    "studentized_range_sf",
 ]

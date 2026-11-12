@@ -15198,3 +15198,247 @@ multinomial: `d p_k/d x_j = p_k (beta_kj - sum_l p_l beta_lj)`.
   `inference.OrdinalRegressionResult.average_marginal_effects`,
   `inference.MultinomialLogitResult.average_marginal_effects`.
 - Source: [REF-CASELLA-BERGER-2002, Section 5.5], [REF-AGRESTI-2013].
+
+### EQ-INF-ROB-001 — Huber and Tukey biweight score functions
+
+Huber: `rho(u) = u^2/2` for `|u| <= k` and `k|u| - k^2/2` beyond,
+`psi(u) = max(-k, min(k, u))`, `w(u) = min(1, k/|u|)`. Tukey biweight
+(bisquare): `psi(u) = u (1 - (u/c)^2)^2` for `|u| < c` and `0` beyond,
+`psi'(u) = (1 - (u/c)^2)(1 - 5 (u/c)^2)`, `w(u) = (1 - (u/c)^2)^2`.
+
+- Domain: `k, c > 0`; the defaults `k = 1.345` and `c = 4.685` give 95%
+  asymptotic efficiency at the normal law.
+- Meaning: the score bounds the influence of one observation; the
+  biweight redescends to zero, so gross outliers are rejected entirely, at
+  the price of a non-convex objective.
+- Code: `inference.psi_function`, `inference.robust._psi`,
+  `inference.robust._psi_derivative`, `inference.robust._weight`.
+- Source: [REF-HUBER-1964], [REF-BEATON-TUKEY-1974], and
+  [REF-MARONNA-MARTIN-YOHAI-2006].
+
+### EQ-INF-ROB-002 — M-estimator of location with MAD scale and sandwich error
+
+`sum_i psi((x_i - mu)/s) = 0` with `s = 1.4826 median|x_i - median(x)|`
+fixed; IRLS `mu <- sum w_i x_i / sum w_i`, `w_i = w((x_i - mu)/s)`, started
+at the median; `se(mu) = s sqrt(n/(n-1) sum psi(u_i)^2) / sum psi'(u_i)`,
+interval `mu +- t_{n-1, 1-alpha/2} se`.
+
+- Domain: `n >= 2`, `s > 0`, `sum psi'(u_i) > 0`.
+- Meaning: the empirical form of the asymptotic variance
+  `s^2 E psi^2 / (E psi')^2 / n`; the MAD gives the estimator the 50%
+  breakdown point of the median; the scale's own variability is ignored.
+- Code: `inference.robust_location`.
+- Source: [REF-HUBER-1964], [REF-HUBER-1981], and
+  [REF-MARONNA-MARTIN-YOHAI-2006].
+
+### EQ-INF-ROB-003 — Regression M-estimator by IRLS with sandwich covariance
+
+`sum_i psi(r_i/s) x_i = 0`, `r_i = y_i - x_i' beta`,
+`s = 1.4826 median_i |r_i|` re-estimated each iteration; IRLS
+`beta <- (X'WX)^-1 X'Wy`, `W = diag w(r_i/s)`;
+`Cov(beta) = s^2 n/(n-p) A^-1 B A^-1`, `A = sum psi'(u_i) x_i x_i'`,
+`B = sum psi(u_i)^2 x_i x_i'`, intervals with `t_{n-p}`.
+
+- Domain: `n > p`, full-rank weighted design, `s > 0`, `A` non-singular.
+- Meaning: robust to outlying responses but not to outlying design points
+  (breakdown point `1/n` for leverage); the biweight root depends on the
+  start (least absolute deviations by default).
+- Code: `inference.fit_robust_linear_model`,
+  `inference.robust._residual_scale`.
+- Source: [REF-HUBER-1981], [REF-BEATON-TUKEY-1974], and
+  [REF-MARONNA-MARTIN-YOHAI-2006].
+
+### EQ-INF-ROB-004 — Theil-Sen slope and Sen's interval
+
+`b = median{(y_j - y_i)/(x_j - x_i): i < j, x_i != x_j}`,
+`a = median(y_i - b x_i)`; with `N` sorted pairwise slopes `S_(1..N)` and
+`C = z_{1-alpha/2} sqrt([n(n-1)(2n+5) - sum_t t(t-1)(2t+5)]/18)` (ties `t`
+in `x`), the interval is `[S_(round((N-C)/2)), S_(round((N+C)/2)+1)]`.
+
+- Domain: `n >= 2` with at least two distinct `x`; continuous `y`.
+- Meaning: inverts Kendall's test of `beta` on `(x, y - beta x)`; the slope
+  stays bounded while good-good pairs, a fraction `(1 - eps)^2` of all
+  pairs, form a majority, a breakdown point of `1 - 1/sqrt 2`.
+- Code: `inference.theil_sen_slope`.
+- Source: [REF-SEN-1968], [REF-KENDALL-1938], and
+  [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 9].
+
+### EQ-INF-QR-001 — Regression quantiles as a linear program
+
+`beta(tau) in argmin sum_i rho_tau(y_i - x_i' beta)`,
+`rho_tau(r) = r (tau - 1{r < 0})`; some minimizer is an elemental vertex
+`beta = X_h^-1 y_h`. Along edge `(j, s)` (`X_h d = -s e_j`) the
+directional derivative is
+`D = [tau if s = 1 else 1 - tau] + sum_{i not in h} g_i(s c_ij)`,
+`c_i = x_i' X_h^-1`, with `g_i(a) = psi_tau(r_i) a` for `r_i != 0` and
+`max(tau a, (tau - 1) a)` for `r_i = 0`; the vertex is optimal when no edge
+of any elemental basis of the zero-residual set has `D < 0`.
+
+- Domain: `0 < tau < 1`, full-rank design, `n >= p`.
+- Meaning: the steepest descending edge is followed to the breakpoint where
+  the derivative, increased by `|a_i|` at each residual sign change, first
+  becomes non-negative (a weighted-median line search); each step strictly
+  lowers the objective.
+- Code: `inference.fit_quantile_regression`, `inference.check_loss`,
+  `inference.quantile_regression._solve`,
+  `inference.quantile_regression._edge_derivatives`.
+- Source: [REF-KOENKER-BASSETT-1978], [REF-BARRODALE-ROBERTS-1973], and
+  [REF-KOENKER-2005].
+
+### EQ-INF-QR-002 — Pairs bootstrap for regression quantiles
+
+Resample `(x_i, y_i)` pairs `B` times, refit `beta*_b(tau)`, and report
+`se_j = sd_b(beta*_bj)` and the percentile interval
+`[Q_{alpha/2}(beta*_j), Q_{1-alpha/2}(beta*_j)]` (Hyndman-Fan type 7);
+rank-deficient resamples are redrawn.
+
+- Domain: `B >= 50`; independent pairs (heteroscedasticity allowed).
+- Meaning: a large-sample interval that does not need the sparsity
+  `1/f(F^-1(tau))`.
+- Code: `inference.fit_quantile_regression`,
+  `inference.quantile_regression._bootstrap`.
+- Source: [REF-KOENKER-2005] and [REF-EFRON-TIBSHIRANI-1993, Chapter 9].
+
+### EQ-INF-KW-001 — Kruskal-Wallis statistic and exact permutation law
+
+`H = [12/(N(N+1)) sum_g R_g^2/n_g - 3(N+1)] / (1 - sum(t^3 - t)/(N^3 - N))`
+with pooled mid-ranks; exact law: every one of the `N!/prod n_g!`
+assignments of the observed mid-ranks to groups is equally likely, and
+`p = #{T >= T_obs}/#assignments` with `T = sum_g (L/n_g) S_g^2` in doubled
+integer ranks, `L = lcm(n_g)`; otherwise `H ~ chi^2_{k-1}`;
+`epsilon^2 = H/(N - 1)`.
+
+- Domain: `k >= 2` non-empty groups, not all observations tied.
+- Meaning: tests that the groups come from one distribution, sensitive to
+  location shifts; the exact law is conditional on the tie pattern.
+- Code: `inference.kruskal_wallis_test`,
+  `inference.classical_tests._kruskal_exact_p`.
+- Source: [REF-KRUSKAL-WALLIS-1952] and
+  [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 6].
+
+### EQ-INF-FRIEDMAN-001 — Friedman statistic for complete blocks
+
+`Q = [12/(n k (k+1)) sum_j R_j^2 - 3 n (k+1)] /
+(1 - sum_blocks sum(t^3 - t)/(n (k^3 - k)))` with within-block mid-ranks,
+`Q ~ chi^2_{k-1}`; Kendall's `W = Q/(n (k - 1))`.
+
+- Domain: `n >= 2` blocks of `k >= 2` treatments, not every block tied.
+- Meaning: the rank analogue of the two-way ANOVA without interaction.
+- Code: `inference.friedman_test`.
+- Source: [REF-FRIEDMAN-1937] and
+  [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 7].
+
+### EQ-INF-SIGN-001 — Sign test
+
+Zero differences dropped; `S = #{d_i > 0} ~ Binomial(m, 1/2)` for the `m`
+non-zero differences; p-values from [EQ-INF-BINOM-001].
+
+- Domain: `m >= 1`.
+- Meaning: tests that the median difference is the null value without
+  assuming symmetry.
+- Code: `inference.sign_test`.
+- Source: [REF-DIXON-MOOD-1946] and
+  [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 3].
+
+### EQ-INF-LEVENE-001 — Levene and Brown-Forsythe tests
+
+`z_ij = |x_ij - c_i|` with `c_i` the group mean (Levene) or median
+(Brown-Forsythe); `F` is the one-way ANOVA statistic [EQ-INF-ANOVA-001] of
+the `z_ij`, referred to `F(k - 1, N - k)`.
+
+- Domain: `k >= 2` groups of at least two observations; the `z_ij` not
+  constant within every group.
+- Meaning: compares spreads; the median version keeps its level under
+  skewed and heavy-tailed data.
+- Code: `inference.levene_test`, `inference.brown_forsythe_test`.
+- Source: [REF-BROWN-FORSYTHE-1974].
+
+### EQ-INF-BARTLETT-001 — Bartlett's test of equal variances
+
+`T = [(N - k) ln s_p^2 - sum (n_i - 1) ln s_i^2] /
+(1 + (sum 1/(n_i - 1) - 1/(N - k))/(3(k - 1)))`, `T ~ chi^2_{k-1}`.
+
+- Domain: `k >= 2` groups with `n_i >= 2` and `s_i^2 > 0`.
+- Meaning: the modified likelihood-ratio test under normality; not robust
+  to non-normal tails.
+- Code: `inference.bartlett_test`.
+- Source: [REF-BARTLETT-1937].
+
+### EQ-INF-SW-001 — Shapiro-Wilk W by Royston's approximation (AS R94)
+
+`m_i = Phi^-1((i - 3/8)/(n + 1/4))`, `u = n^-1/2`;
+`a_n = -m_1/||m|| + C1(u)`, `a_{n-1} = -m_2/||m|| + C2(u)` (`n > 5`), other
+`a_i = -m_i/phi` with `sum a_i^2 = 1`, where
+`C1 = (0, 0.221157, -0.147981, -2.071190, 4.434685, -2.706056)` and
+`C2 = (0, 0.042981, -0.293762, -1.752461, 5.682633, -3.582633)` are
+polynomial coefficients; `W = corr(a, x_(.))^2`. p-value: `n = 3`:
+`(6/pi)(asin sqrt W - pi/3)`; `4 <= n <= 11`:
+`y = -ln(gamma - ln(1 - W))`, `gamma = -2.273 + 0.459 n`, mean
+`0.544 - 0.39978 n + 0.025054 n^2 - 6.714e-4 n^3`, log sd
+`1.3822 - 0.77857 n + 0.062767 n^2 - 0.0020322 n^3`; `n >= 12`:
+`y = ln(1 - W)`, mean `-1.5861 - 0.31082 l - 0.083751 l^2 + 0.0038915 l^3`,
+log sd `-0.4803 - 0.082676 l + 0.0030302 l^2`, `l = ln n`; `p = P(Z > (y -
+mean)/sd)`.
+
+- Domain: `3 <= n <= 5000`, positive range.
+- Meaning: small `W` indicates departure from normality; the coefficients
+  were checked against the published Fortran listing of AS R94.
+- Code: `inference.shapiro_wilk_test`, `inference.shapiro_wilk_coefficients`.
+- Source: [REF-SHAPIRO-WILK-1965], [REF-ROYSTON-1992], [REF-ROYSTON-1995],
+  and [REF-STATLIB-AS-R94].
+
+### EQ-INF-COCHRANQ-001 — Cochran's Q for matched binary outcomes
+
+`Q = (k - 1)(k sum_j C_j^2 - T^2)/(k T - sum_i R_i^2)` with column totals
+`C_j`, row totals `R_i`, `T = sum C_j`; `Q ~ chi^2_{k-1}`.
+
+- Domain: binary `n x k` table with at least one mixed row.
+- Meaning: tests equal success probabilities across `k` matched
+  conditions; equals McNemar's uncorrected statistic for `k = 2`.
+- Code: `inference.cochran_q_test`.
+- Source: [REF-COCHRAN-1950].
+
+### EQ-INF-SRANGE-001 — Studentized range distribution
+
+`P(Q <= q) = int_0^inf f_nu(s) P_k(q s) ds`,
+`P_k(w) = k int phi(z) [Phi(z) - Phi(z - w)]^(k-1) dz`,
+`f_nu(s) = 2 (nu/2)^(nu/2)/Gamma(nu/2) s^(nu-1) exp(-nu s^2/2)`; for
+`nu = inf`, `P(Q <= q) = P_k(q)`; for `k = 2`,
+`P(Q <= q) = P(|T_nu| <= q/sqrt 2)`.
+
+- Domain: `k >= 2`, `nu >= 1` or `inf`, `q >= 0`.
+- Meaning: the law of the range of `k` independent normal means divided by
+  an independent root mean square on `nu` degrees of freedom; inner rule
+  16-point Gauss-Legendre on nine panels of `[-9, 9]`, outer rule adaptive
+  Gauss-Kronrod; absolute error about `1e-12`.
+- Code: `inference.studentized_range_cdf`, `inference.studentized_range_sf`,
+  `inference.studentized_range_quantile`,
+  `inference.studentized_range._range_cdf`.
+- Source: [REF-COPENHAVER-HOLLAND-1988], [REF-LUND-LUND-1983], and
+  [REF-HOCHBERG-TAMHANE-1987].
+
+### EQ-INF-TUKEY-001 — Tukey-Kramer honestly significant differences
+
+`q_ij = |x_bar_i - x_bar_j| / sqrt(MSE/2 (1/n_i + 1/n_j))`,
+`p_ij = P(Q_{k, N-k} > q_ij)`, simultaneous intervals
+`x_bar_i - x_bar_j +- q_{1-alpha; k, N-k} sqrt(MSE/2 (1/n_i + 1/n_j))`.
+
+- Domain: `k >= 2` groups, `N > k`, `MSE > 0`; normal errors with a common
+  variance.
+- Meaning: family-wise error exactly `alpha` for equal sizes and
+  conservative (Tukey-Kramer) for unequal sizes.
+- Code: `inference.tukey_hsd_test`.
+- Source: [REF-KRAMER-1956] and [REF-HOCHBERG-TAMHANE-1987].
+
+### EQ-INF-DUNN-001 — Dunn's pairwise rank comparisons
+
+`z_ij = (R_bar_i - R_bar_j) /
+sqrt((N(N+1)/12 - sum(t^3 - t)/(12(N - 1)))(1/n_i + 1/n_j))` with pooled
+mid-ranks, two-sided normal p-values, adjusted by [EQ-INF-MT-001] or
+[EQ-INF-MT-002].
+
+- Domain: `k >= 2` groups, not all observations tied.
+- Meaning: the follow-up to a Kruskal-Wallis rejection that uses the
+  pooled ranks of all groups, not separate two-sample rankings.
+- Code: `inference.dunn_test`.
+- Source: [REF-DUNN-1964] and [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 6].

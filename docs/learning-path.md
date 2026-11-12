@@ -28,10 +28,10 @@ requirements point only backwards, and that every named laboratory exists.
 1. [Mathematical prerequisites](#track-m--mathematical-prerequisites) (M1-M5)
 2. [Probability](#track-p--probability) (P1-P11): counting, measure-theoretic
    probability, limit theorems, stochastic processes.
-3. [Statistics](#track-s--statistics) (S1-S19): descriptive statistics,
+3. [Statistics](#track-s--statistics) (S1-S20): descriptive statistics,
    estimation, testing, Bayesian inference, modelling, model criticism,
-   mixed models, count and categorical regression, smoothing, and
-   multivariate analysis.
+   mixed models, count and categorical regression, robust and quantile
+   regression, smoothing, and multivariate analysis.
 4. [Uncertainty quantification](#track-u--uncertainty-quantification) (U1-U16):
    the ATHENS verification, validation, and UQ sequence, then the integrated
    toolset on one model.
@@ -262,11 +262,13 @@ studies.
 [Hypothesis testing, confidence intervals, and the bootstrap](foundations/hypothesis-testing-and-bootstrap.md):
 sampling distributions, t tests and the Student-t interval, count data, rank
 and permutation tests, bootstrap and jackknife, power and sample size,
-multiple testing, and equivalence testing.
+multiple testing, equivalence testing, and the k-sample, blocked, variance,
+normality, and post hoc tests (Kruskal-Wallis, Friedman, sign, Levene and
+Brown-Forsythe, Bartlett, Shapiro-Wilk, Cochran's Q, Tukey HSD, Dunn).
 
 - Requires: S2
-- Lab: none; numbers asserted in [`tests/test_classical_resampling_inference.py`](../tests/test_classical_resampling_inference.py)
-- Decision record: [ADR-0021](adr/ADR-0021-classical-and-resampling-inference.md)
+- Lab: none; numbers asserted in [`tests/test_classical_resampling_inference.py`](../tests/test_classical_resampling_inference.py) and [`tests/test_classical_tests.py`](../tests/test_classical_tests.py)
+- Decision record: [ADR-0021](adr/ADR-0021-classical-and-resampling-inference.md), [ADR-0101](adr/ADR-0101-robust-quantile-classical-tests.md)
 
 ### S4 — R bridge
 
@@ -425,7 +427,19 @@ test, the multinomial logit, and average marginal effects.
 - Lab: none; numbers asserted in [`tests/test_count_and_categorical_regression.py`](../tests/test_count_and_categorical_regression.py)
 - Decision record: [ADR-0103](adr/ADR-0103-count-and-categorical-regression.md)
 
-### S18 — Smoothing and additive models
+### S18 — Robust estimation and quantile regression
+
+[Robust estimation and quantile regression](foundations/robust-and-quantile-regression.md):
+Huber and biweight M-estimators of location and regression by IRLS with a
+MAD scale and sandwich standard errors, breakdown point versus efficiency,
+the Theil-Sen slope with Sen's interval, and exact linear quantile
+regression with pairs-bootstrap intervals.
+
+- Requires: S3, S7
+- Lab: none; numbers asserted in [`tests/test_robust_estimation.py`](../tests/test_robust_estimation.py) and [`tests/test_quantile_regression.py`](../tests/test_quantile_regression.py)
+- Decision record: [ADR-0101](adr/ADR-0101-robust-quantile-classical-tests.md)
+
+### S19 — Smoothing and additive models
 
 [Smoothing and additive models](foundations/smoothing-and-additive-models.md):
 B-spline bases, P-splines and cubic smoothing splines with the smoothing
@@ -438,7 +452,7 @@ dependence.
 - Lab: none; numbers asserted in [`tests/test_smoothing_and_additive_models.py`](../tests/test_smoothing_and_additive_models.py)
 - Decision record: [ADR-0102](adr/ADR-0102-smoothing-and-multivariate-analysis.md)
 
-### S19 — Multivariate analysis
+### S20 — Multivariate analysis
 
 [Multivariate analysis](foundations/multivariate-analysis.md): principal
 components on the covariance or correlation scale, maximum-likelihood
