@@ -157,7 +157,8 @@ def _plogp_sum(values: Iterable[float]) -> float:
         [REF-COVER-THOMAS-2006, Section 2.1].
 
     """
-    return -math.fsum(p * math.log(p) for p in values if p > 0.0)
+    # Adding 0.0 turns the -0.0 of a point mass (-(1 log 1)) into +0.0.
+    return -math.fsum(p * math.log(p) for p in values if p > 0.0) + 0.0
 
 
 def entropy(pmf: Iterable[object], *, unit: InformationUnit = "nats") -> float:
@@ -242,7 +243,7 @@ def conditional_entropy(
     for row in rows:
         row_mass = math.fsum(row)
         terms.extend(p * math.log(p / row_mass) for p in row if p > 0.0)
-    return max(-math.fsum(terms), 0.0) * factor
+    return (max(-math.fsum(terms), 0.0) + 0.0) * factor
 
 
 def mutual_information(

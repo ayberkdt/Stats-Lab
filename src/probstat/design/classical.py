@@ -929,6 +929,16 @@ def efficient_rounding(design: ApproximateDesign, runs: int) -> ExactDesign:
     count with the largest ``(n_j - 1) / w_j``. Points rounded to zero runs
     are dropped.
 
+    Every positive weight counts as a support point, and when ``n >= l`` each
+    support point receives at least one run, however small its weight. The
+    grid algorithms of :func:`d_optimal_design` leave small residual weights
+    next to the optimal support; round ``design.condensed(min_weight=...)``
+    instead of the raw result, or runs are spent on those neighbours (seven
+    runs for the quadratic D-optimal design on a 41-point grid of
+    ``[-1, 1]`` give counts ``(2, 1, 1, 1, 2)`` on five points, two of them
+    carrying weight ``4e-5``; after ``condensed(min_weight=1e-3)`` they give
+    ``(3, 2, 2)`` on ``{-1, 0, 1}``).
+
     Args:
         design: Approximate design (zero-weight points are ignored).
         runs: Positive total number of runs ``n``.

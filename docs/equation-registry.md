@@ -6387,7 +6387,10 @@ summed from 18-term Taylor series in `eta` with exact rational coefficients.
 `D_n < d` iff `N(i/n - d) <= i - 1` and `N((i-1)/n + d) >= i` for all `i`,
 with `N` the uniform-sample counting process; over the merged boundary
 times `t_m`, `Q_(m+1)(c') = sum_(c<=c') Q_m(c) (t_(m+1)-t_m)^(c'-c)/(c'-c)!`
-on admissible counts and `P(D_n < d) = n! Q_M(n)`.
+on admissible counts and `P(D_n < d) = n! Q_M(n)`. The code uses the
+equivalent scaled gaps `n (t_(m+1) - t_m)` and `P(D_n < d) = n! n^(-n) Q_M(n)`,
+which keeps `Q_m` proportional to a Poisson law centred in the admissible band
+and inside the floating-point range (ADR-0091).
 
 - Domain: `n <= 100` in `inference.kolmogorov_smirnov_test` (larger samples
   keep [EQ-INF-GOF-KS-002]); `1/(2n) < d < 1`.

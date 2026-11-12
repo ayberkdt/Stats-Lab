@@ -31,6 +31,59 @@ def _sorted_sample(values: Iterable[float], *, minimum: int = 1) -> tuple[float,
     return tuple(sorted(sample))
 
 
+def _smallest_index_reaching(size: int, probability: float) -> int:
+    """Return the smallest ``j`` in ``1..n`` with ``j / n >= p``.
+
+    ``ceil(n p)`` in floating point can overshoot by one when ``n p`` is an
+    integer that the product rounds above (``100 * 0.07 = 7.000000000000001``).
+    The result is corrected against the comparison ``j / n >= p`` evaluated
+    on the same floats as the empirical CDF, so ``F_n(x_(j)) = j / n``
+    reaching ``p`` selects ``x_(j)``.
+
+    Args:
+        size: Sample size ``n >= 1``.
+        probability: Level ``p`` in ``(0, 1]``.
+
+    Returns:
+        Order-statistic index ``j``.
+
+    References:
+        [EQ-STAT-QUANT-001], [REF-HYNDMAN-FAN-1996].
+
+    """
+    index = min(max(math.ceil(size * probability), 1), size)
+    while index > 1 and (index - 1) / size >= probability:
+        index -= 1
+    while index < size and index / size < probability:
+        index += 1
+    return index
+
+
+def _largest_count_within(size: int, proportion: float) -> int:
+    """Return the largest ``g`` in ``0..n`` with ``g / n <= proportion``.
+
+    This is ``floor(proportion n)`` without the floating-point undershoot of
+    the product (``0.29 * 100 = 28.999999999999996``).
+
+    Args:
+        size: Sample size ``n >= 1``.
+        proportion: Non-negative fraction.
+
+    Returns:
+        Count ``g``.
+
+    References:
+        [EQ-STAT-TRIM-001], [REF-STIGLER-1977].
+
+    """
+    count = min(max(math.floor(proportion * size), 0), size)
+    while count < size and (count + 1) / size <= proportion:
+        count += 1
+    while count > 0 and count / size > proportion:
+        count -= 1
+    return count
+
+
 def quantile(values: Iterable[float], probability: float, *, method: int = 7) -> float:
     """Return a sample quantile under an explicit Hyndman-Fan definition.
 
@@ -38,7 +91,10 @@ def quantile(values: Iterable[float], probability: float, *, method: int = 7) ->
         values: Non-empty finite sample.
         probability: Level in ``[0, 1]``.
         method: ``7`` (linear interpolation of order statistics, the default
-            in R and NumPy) or ``1`` (inverse of the empirical CDF).
+            in R and NumPy) or ``1`` (inverse of the empirical CDF,
+            ``x_(j)`` with the smallest ``j`` such that ``j / n >= p``; when
+            ``n p`` is an integer, ``j = n p`` exactly, so the 7th of 100
+            sorted values is the type-1 quantile at ``p = 0.07``).
 
     Returns:
         Sample quantile.
@@ -59,7 +115,7 @@ def quantile(values: Iterable[float], probability: float, *, method: int = 7) ->
     if method == 1:
         if p == 0.0:
             return ordered[0]
-        return ordered[max(0, math.ceil(n * p) - 1)]
+        return ordered[_smallest_index_reaching(n, p) - 1]
     if method != 7:
         raise ValueError("method must be 1 or 7")
     position = (n - 1) * p
@@ -137,7 +193,9 @@ def trimmed_mean(values: Iterable[float], proportion: float = 0.1) -> float:
 
     With ``g = floor(proportion * n)``, the ``g`` smallest and ``g`` largest
     observations are removed and the remaining ``n - 2g`` are averaged.
-    ``proportion = 0`` gives the arithmetic mean.
+    ``proportion = 0`` gives the arithmetic mean. The floor is taken exactly:
+    ``proportion = 0.29`` with ``n = 100`` trims 29 values per end, although
+    the floating-point product ``0.29 * 100`` is ``28.999999999999996``.
 
     Args:
         values: Non-empty finite sample.
@@ -162,7 +220,7 @@ def trimmed_mean(values: Iterable[float], proportion: float = 0.1) -> float:
     fraction = require_probability(proportion, name="proportion")
     if fraction >= 0.5:
         raise ValueError("proportion must be below one half")
-    trimmed = math.floor(fraction * len(ordered))
+    trimmed = _largest_count_within(len(ordered), fraction)
     kept = ordered[trimmed : len(ordered) - trimmed]
     return math.fsum(kept) / len(kept)
 
