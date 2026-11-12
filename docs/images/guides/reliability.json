@@ -1,0 +1,149 @@
+{
+  "adaptive-reliability-ak-mcs-learning": {
+    "guide": "adaptive-reliability",
+    "alt": "Two panels against model calls: the AK-MCS failure probability with its band and the smallest learning value with the stop threshold",
+    "facts": {
+      "calls": "35",
+      "pf": "4.50e-03",
+      "population": "10,000"
+    }
+  },
+  "adaptive-reliability-design-points": {
+    "guide": "adaptive-reliability",
+    "alt": "Standard-normal map of the four-branch limit state with four design points, FORM tangents, the beta circle, and mixture samples",
+    "facts": {
+      "count": "4",
+      "beta": "3.00",
+      "mixture": "4.61e-03",
+      "ratio": "3.4x"
+    }
+  },
+  "advanced-reliability-method-comparison": {
+    "guide": "advanced-reliability",
+    "alt": "Dot plot on a log axis of FORM, SORM, importance sampling, subset simulation, and Monte Carlo failure probabilities with intervals",
+    "facts": {
+      "is_calls": "2,035",
+      "is_cov": "0.046",
+      "mc_calls": "20,000",
+      "mc_cov": "0.71"
+    }
+  },
+  "advanced-reliability-sorm-curvature": {
+    "guide": "advanced-reliability",
+    "alt": "Failure probability against limit-state curvature for the exact value, FORM, and the Breitung and Hohenbichler-Rackwitz SORM formulas",
+    "facts": {
+      "form_error": "29%",
+      "hr_error": "0.5%"
+    }
+  },
+  "cost-age-replacement": {
+    "guide": "cost-analysis",
+    "alt": "Long-run cost rate of age replacement against the replacement age with the optimum and the run-to-failure rate",
+    "facts": {
+      "age": "354.6",
+      "rate": "4.751",
+      "run_to_failure": "11.271",
+      "savings": "58%"
+    }
+  },
+  "cost-risk-s-curve": {
+    "guide": "cost-analysis",
+    "alt": "Cumulative probability of the life-cycle cost from Monte Carlo, the moment-matched lognormal, and the independent approximation",
+    "facts": {
+      "p80": "1740.44",
+      "p80_independent": "1718.63",
+      "point": "1615.34",
+      "reserve": "125.10"
+    }
+  },
+  "fmeca-criticality-vs-rpn": {
+    "guide": "risk-register-and-fmeca",
+    "alt": "Two lollipop panels of three failure modes: criticality number on the left and risk priority number on the right",
+    "facts": {
+      "rpn": "96",
+      "ratio": "2.3x"
+    }
+  },
+  "markov-availability-vs-reliability": {
+    "guide": "markov-reliability",
+    "alt": "Point availability and reliability of one repairable unit over 3000 hours of operation",
+    "facts": {
+      "availability": "0.990099",
+      "reliability": "0.367879"
+    }
+  },
+  "markov-standby-reliability": {
+    "guide": "markov-reliability",
+    "alt": "Reliability over time of cold, warm, and hot standby pairs and of a single unit without a spare",
+    "facts": {
+      "cold": "0.728401",
+      "hot": "0.595773",
+      "single": "0.368"
+    }
+  },
+  "reliability-form-design-point": {
+    "guide": "reliability-analysis",
+    "alt": "Standard-normal plane with the affine limit state, failed and safe Monte Carlo samples, the beta circle, and the FORM design point",
+    "facts": {
+      "beta": "2.12",
+      "point": "(1.50, 1.50)",
+      "pf": "0.01695"
+    }
+  },
+  "reliability-method-intervals": {
+    "guide": "reliability-analysis",
+    "alt": "Dot plot of direct Monte Carlo, directional sampling, and FORM failure probabilities with 95% intervals and the exact value",
+    "facts": {
+      "ratio": "2.2",
+      "exact": "0.01695",
+      "directional": "0.01689"
+    }
+  },
+  "risk-loss-exceedance": {
+    "guide": "risk-analysis",
+    "alt": "Loss exceedance curve on a log probability axis with VaR and CVaR markers, the closed-form tail, and the expected loss",
+    "facts": {
+      "var": "1.64466",
+      "cvar": "2.06268",
+      "mean": "0.398941"
+    }
+  },
+  "risk-register-exposure": {
+    "guide": "risk-register-and-fmeca",
+    "alt": "Exceedance probability of the total register exposure before and after mitigation with the P90 values marked",
+    "facts": {
+      "p90": "190",
+      "p90_mitigated": "100",
+      "mean": "75.00",
+      "mean_mitigated": "42.00"
+    }
+  },
+  "system-reliability-importance": {
+    "guide": "system-reliability",
+    "alt": "Dot plot of Birnbaum and criticality importance for each basic event of the cooling loop with common-cause failure",
+    "facts": {
+      "ccf_birnbaum": "0.956",
+      "ccf_criticality": "0.097",
+      "valve_criticality": "0.393"
+    }
+  },
+  "system-reliability-k-out-of-n": {
+    "guide": "system-reliability",
+    "alt": "System reliability of series, 2-out-of-3, and parallel structures of three components against the component reliability",
+    "facts": {
+      "crossing": "0.50",
+      "two": "0.972",
+      "series": "0.729",
+      "parallel": "0.999"
+    }
+  },
+  "systems-engineering-phased-dormancy": {
+    "guide": "systems-engineering-guide",
+    "alt": "Mission reliability over launch, cruise, and landing with dormant and with active failure rates for the engine and radar",
+    "facts": {
+      "dormant": "0.9240",
+      "active": "0.5622",
+      "cruise": "0.9297"
+    }
+  }
+}

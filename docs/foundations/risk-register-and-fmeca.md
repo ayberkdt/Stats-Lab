@@ -45,6 +45,10 @@ for 10 (ROI 1.3). `mitigation_waterfall()` orders the steps by ROI: 75 â†’ 55 â†
 42 at a cumulative cost of 15. For independent risks the reductions add
 exactly.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/risk-register-exposure-dark.png"><img alt="Exceedance probability of the total register exposure before and after mitigation with the P90 values marked" src="../images/guides/risk-register-exposure.png"></picture>
+
+*The exact distribution of the total shows what the means hide: the two mitigations cut the P90 exposure from 190 to 100 and the expected exposure from 75.00 to 42.00, and the whole exceedance curve moves to the left.*
+
 **Independence is an assumption.** Common causes make risks co-occur and
 fatten the tail. When that matters, model the drivers in a
 `ProbabilisticModel` with a copula instead.
@@ -84,6 +88,10 @@ enumerating all 1000 triples. The worked example shows the effect:
 RPN ties two class-II modes whose criticality numbers differ by a factor of
 2.3. Use the criticality numbers, or the quantitative measures in
 `probstat.risk`, for decisions.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/fmeca-criticality-vs-rpn-dark.png"><img alt="Two lollipop panels of three failure modes: criticality number on the left and risk priority number on the right" src="../images/guides/fmeca-criticality-vs-rpn.png"></picture>
+
+*RPN ranks pump seizure and valve fails-closed equally at 96, although their criticality numbers differ 2.3x; the criticality number keeps the ratio scale that a product of ordinal ranks loses.*
 
 **AIAG-VDA Action Priority.** The 2019 AIAG-VDA FMEA Handbook replaces RPN
 with Action Priority (high, medium or low) looked up from tables of S, O and

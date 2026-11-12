@@ -169,6 +169,10 @@ it is far less precise than IS around the design point. Inverse FORM with
 `beta_t = 3` returns the threshold `y = 0.5224`, after 10 iterations and 41
 calls.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/advanced-reliability-method-comparison-dark.png"><img alt="Dot plot on a log axis of FORM, SORM, importance sampling, subset simulation, and Monte Carlo failure probabilities with intervals" src="../images/guides/advanced-reliability-method-comparison.png"></picture>
+
+*FORM and both SORM corrections sit on the exact value because `G = 0` is a plane in `u`; importance sampling around the design point reaches a c.o.v. of 0.046 with 2,035 calls, while 20,000 crude Monte Carlo draws see two failures and leave a c.o.v. of 0.71, with a Wilson interval that spans more than a factor of ten.*
+
 The curvature correction matters for the parabolic limit state
 `G = 3 - u2 + kappa u1^2 / 2`. Its exact value comes from Gauss-Hermite
 quadrature of `E[Phi(-(3 + kappa U^2/2))]`:
@@ -177,6 +181,10 @@ quadrature of `E[Phi(-(3 + kappa U^2/2))]`:
 | --- | --- | --- | --- | --- |
 | +0.2 | 1.0436e-3 | 1.3499e-3 | 1.0672e-3 | 1.0488e-3 |
 | -0.2 | 2.1257e-3 | 1.3499e-3 | 2.1344e-3 | 2.3036e-3 |
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/advanced-reliability-sorm-curvature-dark.png"><img alt="Failure probability against limit-state curvature for the exact value, FORM, and the Breitung and Hohenbichler-Rackwitz SORM formulas" src="../images/guides/advanced-reliability-sorm-curvature.png"></picture>
+
+*Every curvature leaves `beta = 3`, so FORM is a flat line: at kappa = +0.2 it overstates the exact probability by 29% and Hohenbichler-Rackwitz by only 0.5%, while for negative curvature (a surface bending toward the origin) Breitung stays closer to the exact value, as in the table.*
 
 The series system has three linear components with `beta = (2.5, 2.7, 2.6)`
 and correlations `(0.6, 0.8, 0)`. Its bounds and estimate:

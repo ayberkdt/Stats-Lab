@@ -155,6 +155,10 @@ therefore all probabilities, are unchanged, and the size never increases.
   exact probability of each absorbing outcome and the expected number of
   stage attempts.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/systems-engineering-phased-dormancy-dark.png"><img alt="Mission reliability over launch, cruise, and landing with dormant and with active failure rates for the engine and radar" src="../images/guides/systems-engineering-phased-dormancy.png"></picture>
+
+*In the three-phase lunar-lander mission of the worked example both variants reach 0.9297 at the end of cruise, which needs only the computers and the transponder; at landing the engine and the radar must work, and ageing them at their active rates through the 717 h cruise drops the mission reliability from 0.9240 to 0.5622.*
+
 ## 5. Epistemic uncertainty and what to test next
 
 `MissionAssessment(..., uncertain={component: random_input})` propagates
