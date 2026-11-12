@@ -1,4 +1,8 @@
-"""Digamma and trigamma functions for positive real arguments."""
+"""Digamma and trigamma functions for positive real arguments.
+
+The module also holds the Euler-Mascheroni constant ``EULER_GAMMA``, the one
+definition shared by every package that needs it (ADR-0089).
+"""
 
 from __future__ import annotations
 
@@ -7,6 +11,10 @@ import sys
 
 from probstat.foundations.validation import require_finite_real
 
+#: The Euler-Mascheroni constant ``gamma = lim_(n->inf) (1 + 1/2 + ... + 1/n
+#: - log n) = -psi(1)`` (DLMF 5.2.3), correctly rounded to a float.
+#: [REF-NIST-DLMF-GAMMA, Section 5.2]
+EULER_GAMMA = 0.57721566490153286060651209008240243
 _ASYMPTOTIC_START = 10.0
 # B_(2k) / (2k) for k = 1..6: coefficients of x^(-2k) in log x - psi(x) - 1/(2x).
 _DIGAMMA_COEFFICIENTS = (

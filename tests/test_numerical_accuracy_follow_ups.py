@@ -20,8 +20,8 @@ from probstat.distributions import Normal
 from probstat.distributions import _special as special
 from probstat.multivariate import Dirichlet
 from probstat.multivariate.dirichlet import log_multivariate_beta
-from probstat.numerics import _double_double as dd
 from probstat.numerics import (
+    EULER_GAMMA,
     compare_to_reference,
     reference_log,
     reference_log_gamma,
@@ -30,6 +30,10 @@ from probstat.numerics import (
     reference_regularized_gamma_p,
     reference_regularized_gamma_q,
 )
+from probstat.numerics import _double_double as dd
+
+#: DLMF 5.2.3 digits of the Euler-Mascheroni constant.
+EULER_DIGITS = Decimal("0.57721566490153286060651209008240243104215933593992")
 
 
 def grid(lower: float, upper: float, count: int) -> list[float]:
@@ -361,6 +365,27 @@ class DirichletHugeConcentrationTests(unittest.TestCase):
             # One ulp of the largest term (alpha_i - 1) log x_i bounds what the
             # density can resolve; plain lgamma sums missed it by 12x at 1e9.
             self.assertLess(float(density_error), math.ulp(scale), scale)
+
+
+class EulerConstantTests(unittest.TestCase):
+    """One definition of the Euler-Mascheroni constant, numerically neutral."""
+
+    def test_single_definition_matches_dlmf_and_former_literals(self) -> None:
+        """EULER_GAMMA is the correctly rounded DLMF value and every former literal."""
+        from probstat.distributions import gev, gumbel, rayleigh
+        from probstat.inference import fitting
+        from probstat.information import differential
+
+        self.assertEqual(EULER_GAMMA, float(EULER_DIGITS))
+        former = (
+            0.57721566490153286060651209008240243,  # distributions/gumbel.py
+            0.57721566490153286061,  # distributions/rayleigh.py
+            0.5772156649015329,  # inference/fitting.py, information/differential.py
+        )
+        for literal in former:
+            self.assertEqual(literal, EULER_GAMMA)
+        for module in (gev, gumbel, rayleigh, fitting, differential):
+            self.assertIs(module.EULER_GAMMA, EULER_GAMMA)
 
 
 if __name__ == "__main__":

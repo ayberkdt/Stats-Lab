@@ -11,11 +11,11 @@ from probstat.foundations.validation import (
     require_non_negative_integer,
     require_probability,
 )
+from probstat.numerics.special import EULER_GAMMA
 
 from ._base import ContinuousDistribution
 from ._continuous import density_from_log, open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
-from .gumbel import EULER_GAMMA
 from .support import RealSupport
 
 # zeta(k) for k = 2..12, used by the small-shape moment series.

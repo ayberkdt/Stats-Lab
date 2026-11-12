@@ -40,10 +40,10 @@ from probstat.linalg import (
     symmetric_eigen,
 )
 from probstat.numerics import digamma, log_minus_digamma
+from probstat.numerics.special import EULER_GAMMA
 
 from ._units import InformationUnit, unit_factor
 
-_EULER_GAMMA = 0.5772156649015329
 _LOG_TWO_PI_E = math.log(2.0 * math.pi) + 1.0
 _SYMMETRY_TOLERANCE = 1e-10
 _LOG_SQRT_TWO_PI = 0.5 * math.log(2.0 * math.pi)
@@ -374,7 +374,7 @@ def gev_entropy(sigma: float, xi: float, *, unit: InformationUnit = "nats") -> f
     factor = unit_factor(unit)
     scale = _positive(sigma, name="sigma")
     shape = require_finite_real(xi, name="xi")
-    return (math.log(scale) + _EULER_GAMMA * (1.0 + shape) + 1.0) * factor
+    return (math.log(scale) + EULER_GAMMA * (1.0 + shape) + 1.0) * factor
 
 
 def differential_entropy(law: object, *, unit: InformationUnit = "nats") -> float:
