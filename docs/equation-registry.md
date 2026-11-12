@@ -6142,6 +6142,55 @@ parameters.
 - Code: `inference.fit_linear_model`.
 - Source: [REF-AKAIKE-1974], [REF-SCHWARZ-1978].
 
+
+### EQ-LM-ANOVA-001 — Extra sum of squares and the nested F test
+
+`F = ((RSS_r - RSS_f) / (df_r - df_f)) / (RSS_f / df_f) ~ F(df_r - df_f, df_f)`
+when the column space of the reduced design lies in that of the full design.
+
+- Domain: independent normal errors with constant variance; same response
+  and weights in both fits.
+- Meaning: whether the extra columns explain more variance than noise;
+  one column gives `F = t^2`.
+- Code: `inference.nested_f_test`.
+- Source: [REF-MONTGOMERY-PECK-VINING-2021, Chapter 3].
+
+### EQ-LM-ANOVA-002 — Type I, II, and III sums of squares
+
+With `RSS(S)` the residual sum of squares of the model with terms `S`:
+type I `SS(T_k) = RSS(T_1..T_(k-1)) - RSS(T_1..T_k)`; type II
+`SS(T) = RSS(R) - RSS(R + T)`, `R` the terms not containing `T`; type III
+`SS(T) = RSS(all - T) - RSS(all)`. Sum (effect) coding of an `m`-level
+factor: columns `1{x = L_k} - 1{x = L_m}`, `k < m`.
+
+- Domain: a full-rank design whose columns are grouped into terms.
+- Meaning: the variance attributed to a term depends on the model it is
+  added to; the three types coincide for balanced data with sum coding.
+- Code: `inference.linear_model_anova`, `inference.factorial_design`.
+- Source: [REF-MONTGOMERY-2017, Chapter 5], [REF-FOX-WEISBERG-2019],
+  [REF-SEARLE-CASELLA-MCCULLOCH-1992].
+
+### EQ-LM-BP-001 — Breusch-Pagan test of constant variance
+
+Regress `e_i^2` on `Z` (with an intercept); Koenker's statistic `n R^2`, or
+`ESS / (2 sigma_hat^4)` with `sigma_hat^2 = RSS / n` (original form), is
+asymptotically `chi^2(q)` with `q` non-constant columns of `Z`.
+
+- Domain: least-squares residuals of an unweighted fit.
+- Meaning: evidence that the error variance changes with `Z`; the original
+  form assumes normal errors.
+- Code: `inference.breusch_pagan_test`.
+- Source: [REF-BREUSCH-PAGAN-1979], [REF-KOENKER-1981].
+
+### EQ-LM-DW-001 — Durbin-Watson statistic
+
+`d = sum_{t=2}^n (e_t - e_(t-1))^2 / sum_{t=1}^n e_t^2 ~ 2 (1 - r_1)`.
+
+- Domain: residuals in their natural (time) order.
+- Meaning: lag-one serial correlation of the errors; tested against the
+  design-dependent bounds `d_L`, `d_U`.
+- Code: `inference.durbin_watson`.
+- Source: [REF-DURBIN-WATSON-1950], [REF-DURBIN-WATSON-1951].
 ### EQ-GLM-FAM-001 — GLM families, links, and variance functions
 
 `g(mu_i) = eta_i = x_i'beta + o_i`, `Var(y_i) = phi V(mu_i)/w_i`, with

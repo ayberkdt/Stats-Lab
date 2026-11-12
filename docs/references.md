@@ -4106,3 +4106,44 @@ Least-squares bias of VAR coefficients and the resulting undercoverage of
 percentile bootstrap bands in small samples; the bias-corrected
 bootstrap-after-bootstrap.
 DOI: [10.1162/003465398557465](https://doi.org/10.1162/003465398557465).
+
+## REF-MONTGOMERY-2017
+
+Douglas C. Montgomery. *Design and Analysis of Experiments*, 9th edition.
+Wiley, Hoboken, 2017. ISBN 978-1-119-11347-8. Two-factor factorial designs,
+their ANOVA, and the battery-life example of Chapter 5.
+
+## REF-FOX-WEISBERG-2019
+
+John Fox and Sanford Weisberg. *An R Companion to Applied Regression*, 3rd
+edition. SAGE Publications, Thousand Oaks, 2019. ISBN 978-1-5443-3647-3.
+Contrast coding of factors and the type II and type III tests of linear
+model terms.
+
+## REF-BREUSCH-PAGAN-1979
+
+T. S. Breusch and A. R. Pagan. A simple test for heteroscedasticity and
+random coefficient variation. *Econometrica*, 47(5):1287, 1979. The
+Lagrange-multiplier test of constant error variance.
+DOI: [10.2307/1911963](https://doi.org/10.2307/1911963).
+
+## REF-KOENKER-1981
+
+Roger Koenker. A note on studentizing a test for heteroscedasticity.
+*Journal of Econometrics*, 17(1):107-112, 1981. The `n R^2` form of the
+Breusch-Pagan test, valid without normal errors.
+DOI: [10.1016/0304-4076(81)90062-2](https://doi.org/10.1016/0304-4076(81)90062-2).
+
+## REF-DURBIN-WATSON-1950
+
+J. Durbin and G. S. Watson. Testing for serial correlation in least squares
+regression. I. *Biometrika*, 37(3-4):409-428, 1950. The statistic `d` and
+its bounds.
+DOI: [10.1093/biomet/37.3-4.409](https://doi.org/10.1093/biomet/37.3-4.409).
+
+## REF-DURBIN-WATSON-1951
+
+J. Durbin and G. S. Watson. Testing for serial correlation in least squares
+regression. II. *Biometrika*, 38(1-2):159-178, 1951. Tables of the bounds
+`d_L` and `d_U`.
+DOI: [10.1093/biomet/38.1-2.159](https://doi.org/10.1093/biomet/38.1-2.159).

@@ -13,6 +13,8 @@ Main entry points:
         (BCa by default).
     ``adjust_p_values``: Bonferroni, Holm, BH, and BY adjustment.
     ``fit_linear_model``: OLS and WLS through Householder QR.
+    ``linear_model_anova`` / ``factorial_design``: type I, II, and III ANOVA
+        tables; ``nested_f_test``, ``breusch_pagan_test``, ``durbin_watson``.
     ``fit_glm``: generalized linear models fitted by IRLS.
     ``fit_linear_mixed_model``: linear mixed models by profiled ML or REML
         with Satterthwaite t tests.
@@ -374,6 +376,17 @@ from .mixtures import (
     kmeans_plus_plus,
     select_gaussian_mixture,
 )
+from .model_comparison import (
+    AnovaRow,
+    AnovaTable,
+    BreuschPaganTest,
+    NestedFTest,
+    breusch_pagan_test,
+    durbin_watson,
+    factorial_design,
+    linear_model_anova,
+    nested_f_test,
+)
 from .multiple_testing import MultipleTestingResult, adjust_p_values
 from .multivariate_analysis import (
     FactorAnalysisResult,
@@ -496,6 +509,15 @@ from .zero_count_models import (
 )
 
 __all__ = [
+    "AnovaRow",
+    "AnovaTable",
+    "BreuschPaganTest",
+    "NestedFTest",
+    "breusch_pagan_test",
+    "durbin_watson",
+    "factorial_design",
+    "linear_model_anova",
+    "nested_f_test",
     "MarginalEffects",
     "BrantTest",
     "MultinomialLogitResult",

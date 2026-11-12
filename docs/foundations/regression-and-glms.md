@@ -109,6 +109,81 @@ exact rational least-squares solution.
 replicated that many times. The test checks this identity and also the exact
 rational weighted normal equations.
 
+**Comparing models: nested F tests and ANOVA tables.** A term is judged by
+how much its columns reduce the residual sum of squares
+[EQ-LM-ANOVA-001]. `nested_f_test(reduced, full)` compares two fits on the
+same response; `linear_model_anova(design, y, terms, kind=...)` does it for
+every term, and `factorial_design` builds a full-factorial design with
+sum-to-zero (effect) coding and the term-to-columns map. Montgomery's
+battery-life experiment crosses three materials with three temperatures,
+four batteries per cell [REF-MONTGOMERY-2017, Chapter 5]:
+
+```python
+from probstat.inference import (
+    breusch_pagan_test, factorial_design, fit_linear_model, linear_model_anova,
+    nested_f_test,
+)
+
+material = [m for m in (1, 2, 3) for _ in range(12)]
+temperature = [t for _ in range(3) for t in (15, 70, 125) for _ in range(4)]
+life = [130, 155, 74, 180, 34, 40, 80, 75, 20, 70, 82, 58,
+        150, 188, 159, 126, 136, 122, 106, 115, 25, 70, 58, 45,
+        138, 110, 168, 160, 174, 120, 150, 139, 96, 104, 82, 60]
+design, terms = factorial_design({"material": material, "temperature": temperature})
+table = linear_model_anova(design, life, terms, kind="III")
+[(r.term, r.df, round(r.sum_squares, 2), round(r.f_statistic, 2)) for r in table.rows[:-1]]   # [('material', 2, 10683.72, 7.91), ('temperature', 2, 39118.72, 28.97), ('material:temperature', 4, 9613.78, 3.56)]
+round(table.row("material:temperature").p_value, 4)   # 0.0186
+```
+
+These are the sums of squares and F ratios of Montgomery's Table 5.5. The
+interaction is significant, so the effect of temperature depends on the
+material. The same interaction test as an explicit model comparison:
+
+```python
+additive = fit_linear_model([row[:5] for row in design.rows], life)
+test = nested_f_test(additive, table.fit)
+round(test.statistic, 2), test.numerator_df, test.denominator_df   # (3.56, 4, 27)
+```
+
+**Type I, II, or III.** The types differ in the model a term joins
+[EQ-LM-ANOVA-002]: type I adds terms in the order given, type II adds a
+term to every term that does not contain it (main effects are tested
+without their interactions), and type III removes the term from the full
+model. In a balanced design with effect coding they agree, as above. Drop
+three batteries and they no longer do:
+
+```python
+keep = [i for i in range(36) if i not in (0, 5, 30)]
+design2, terms2 = factorial_design(
+    {"material": [material[i] for i in keep], "temperature": [temperature[i] for i in keep]}
+)
+life2 = [life[i] for i in keep]
+{kind: round(linear_model_anova(design2, life2, terms2, kind=kind).row("material").sum_squares, 1)
+ for kind in ("I", "II", "III")}   # {'I': 8548.2, 'II': 6871.5, 'III': 7862.2}
+```
+
+Type I depends on the order of the terms. Type II is the usual choice when
+interactions are absent or negligible; type III tests main effects averaged
+over the levels of the other factor and is meaningful only with effect
+coding: with treatment coding it tests a simple effect at the reference
+level instead (`factorial_design(..., coding="treatment")`).
+
+**Checking the error assumptions.** The F tests assume constant error
+variance and uncorrelated errors. `breusch_pagan_test(fit)` regresses the
+squared residuals on the design; Koenker's `n R^2` form is the default
+because the original statistic is oversized when the errors are not normal
+[EQ-LM-BP-001]. `durbin_watson(fit)` is about `2 (1 - r_1)` for residuals in
+time order [EQ-LM-DW-001].
+
+```python
+bp = breusch_pagan_test(table.fit)
+round(bp.statistic, 3), bp.df, round(bp.p_value, 3)   # (10.973, 8, 0.203)
+```
+
+The nine sample cell variances range from 160 to 2057, a factor of 13, yet
+with four batteries per cell the test has little power: a p-value of 0.2 is
+weak evidence for constant variance, not proof of it.
+
 ## 3. Generalized linear models
 
 `fit_glm(design, y, family=..., link=..., weights=..., offset=...)` runs
@@ -295,6 +370,10 @@ designs and n = 50.
   text order unless `reference=` names another; coefficients are contrasts
   against that level. `DesignMatrix.transform` rejects levels it has not
   seen.
+- **The ANOVA type is part of the question.** Type I sums of squares change
+  with the order of the terms in unbalanced data, and type III main effects
+  under treatment coding test a simple effect at the reference level. State
+  the type, and use `factorial_design` (effect coding) for type III.
 - **Errors are not patched.** A dependent column raises
   `RankDeficientDesignError` (there is no column pivoting), and separated
   binomial data raise `SeparationError`. With `on_separation="warn"` the

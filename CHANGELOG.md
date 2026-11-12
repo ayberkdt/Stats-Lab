@@ -14,6 +14,11 @@ while the public API remains pre-1.0 and experimental.
   `tools/build_guide_figures.py` audits every figure with datawiz before it
   is written; `tests/test_guide_figures.py` checks that each caption quotes
   the numbers the build recorded.
+- **Model comparison for linear models:** `linear_model_anova` (type I, II,
+  and III tables), `factorial_design` (effect or treatment coding with
+  interaction columns), `nested_f_test`, `breusch_pagan_test` (Koenker's
+  studentized and the original form), and `durbin_watson`; checked against
+  Montgomery's battery-life ANOVA table.
 - `VARFit.impulse_response_bands`: pointwise residual-bootstrap bands
   (percentile or Hall) with bootstrap standard errors for VAR impulse
   responses.
