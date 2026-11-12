@@ -12,6 +12,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath
 from ._base import DiscreteDistribution
 from .constraints import POSITIVE_FINITE
 from .support import IntegerSupport
@@ -45,7 +46,7 @@ class Geometric(DiscreteDistribution):
             [EQ-DIST-GEOM-001], [REF-ROSS-2019, Section 4.5].
 
         """
-        checked = POSITIVE_FINITE.validate(self.p, name="p")
+        checked = POSITIVE_FINITE.validate_parameter(self.p, name="p")
         if checked > 1.0:
             raise ValueError("p must not exceed one")
         object.__setattr__(self, "p", checked)
@@ -85,7 +86,7 @@ class Geometric(DiscreteDistribution):
             return -math.inf
         if self.p == 1.0:
             return 0.0 if k == 0 else -math.inf
-        return math.log(self.p) + k * math.log1p(-self.p)
+        return admath.log(self.p) + k * admath.log1p(-self.p)
 
     def pmf(self, k: int) -> float:
         """Evaluate probability of exactly ``k`` failures before success.

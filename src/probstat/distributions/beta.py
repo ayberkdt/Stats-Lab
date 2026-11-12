@@ -12,6 +12,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath, any_variable, primal, real_argument, transfer_derivatives
 from ._base import ContinuousDistribution
 from ._continuous import (
     LOGIT_LIMIT,
@@ -64,10 +65,10 @@ class Beta(ContinuousDistribution):
 
         """
         object.__setattr__(
-            self, "alpha", POSITIVE_FINITE.validate(self.alpha, name="alpha")
+            self, "alpha", POSITIVE_FINITE.validate_parameter(self.alpha, name="alpha")
         )
         object.__setattr__(
-            self, "beta", POSITIVE_FINITE.validate(self.beta, name="beta")
+            self, "beta", POSITIVE_FINITE.validate_parameter(self.beta, name="beta")
         )
 
     @property
@@ -104,13 +105,15 @@ class Beta(ContinuousDistribution):
             ValueError: If ``x`` is non-finite.
 
         Equation:
-            [EQ-DIST-BETA-001], [EQ-NUM-STIRLING-001].
+            [EQ-DIST-BETA-001], [EQ-NUM-STIRLING-001], [EQ-DIST-AD-001].
 
         References:
             [REF-JKB-1995, Chapter 25], [REF-NIST-DLMF-GAMMA, Section 5.11].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
+        if any_variable(self.alpha, self.beta, point):
+            return self._variable_log_pdf(point)
         if point < 0.0 or point > 1.0:
             return -math.inf
         normalizer = self._log_beta_function()
@@ -134,6 +137,39 @@ class Beta(ContinuousDistribution):
             + (self.beta - 1.0) * math.log1p(-point)
             - normalizer
         )
+
+    def _variable_log_pdf(self, point: float) -> float:
+        """Return the log-density when a shape or the point is a variable.
+
+        The value is the float log-density at the primal values; the
+        derivatives are those of ``(alpha - 1) log x + (beta - 1) log(1 - x)
+        - log B(alpha, beta)`` ([EQ-DIST-AD-001]).
+
+        References:
+            [EQ-DIST-BETA-001], [EQ-DIST-AD-001], [REF-JKB-1995, Chapter 25].
+
+        """
+        a, b = self.alpha, self.beta
+        accurate = Beta(primal(a), primal(b)).log_pdf(primal(point))
+
+        def closed_form() -> float:
+            """Return the log-density written with ``admath``.
+
+            References:
+                [EQ-DIST-BETA-001], [REF-JKB-1995, Chapter 25].
+
+            """
+            normalizer = admath.lgamma(a) + admath.lgamma(b) - admath.lgamma(a + b)
+            value = primal(point)
+            if value == 0.0 or value == 1.0:
+                return -normalizer
+            return (
+                (a - 1.0) * admath.log(point)
+                + (b - 1.0) * admath.log1p(-point)
+                - normalizer
+            )
+
+        return transfer_derivatives(accurate, closed_form)
 
     def pdf(self, x: float) -> float:
         """Evaluate the beta probability density.

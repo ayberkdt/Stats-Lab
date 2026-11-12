@@ -13,6 +13,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath
 from ._base import DiscreteDistribution
 from ._special import regularized_gamma_p, regularized_gamma_q
 from .constraints import NON_NEGATIVE_FINITE
@@ -47,7 +48,7 @@ class Poisson(DiscreteDistribution):
 
         """
         object.__setattr__(
-            self, "lam", NON_NEGATIVE_FINITE.validate(self.lam, name="lam")
+            self, "lam", NON_NEGATIVE_FINITE.validate_parameter(self.lam, name="lam")
         )
 
     @property
@@ -85,7 +86,7 @@ class Poisson(DiscreteDistribution):
             return -math.inf
         if self.lam == 0.0:
             return 0.0 if k == 0 else -math.inf
-        return k * math.log(self.lam) - self.lam - math.lgamma(k + 1.0)
+        return k * admath.log(self.lam) - self.lam - admath.lgamma(k + 1.0)
 
     def pmf(self, k: int) -> float:
         """Evaluate Poisson probability mass at integer ``k``.

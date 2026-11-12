@@ -13,6 +13,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath, real_argument
 from ._base import ContinuousDistribution
 from ._continuous import (
     density_from_log,
@@ -50,8 +51,8 @@ class Normal(ContinuousDistribution):
             [EQ-DIST-NORM-001], [REF-CASELLA-BERGER-2002, Section 3.3].
 
         """
-        location = FINITE_REAL.validate(self.mu, name="mu")
-        scale = POSITIVE_FINITE.validate(self.sigma, name="sigma")
+        location = FINITE_REAL.validate_parameter(self.mu, name="mu")
+        scale = POSITIVE_FINITE.validate_parameter(self.sigma, name="sigma")
         object.__setattr__(self, "mu", location)
         object.__setattr__(self, "sigma", scale)
 
@@ -85,9 +86,9 @@ class Normal(ContinuousDistribution):
             [REF-CASELLA-BERGER-2002, Section 3.3].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         z = (point - self.mu) / self.sigma
-        return -0.5 * z * z - math.log(self.sigma) - 0.5 * math.log(
+        return -0.5 * z * z - admath.log(self.sigma) - 0.5 * math.log(
             2.0 * math.pi
         )
 

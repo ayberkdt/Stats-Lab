@@ -12,6 +12,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath
 from ._base import DiscreteDistribution
 from ._special import regularized_beta
 from .constraints import POSITIVE_FINITE, POSITIVE_INTEGER
@@ -46,7 +47,7 @@ class NegativeBinomial(DiscreteDistribution):
 
         """
         target = POSITIVE_INTEGER.validate(self.r, name="r")
-        probability = POSITIVE_FINITE.validate(self.p, name="p")
+        probability = POSITIVE_FINITE.validate_parameter(self.p, name="p")
         if probability > 1.0:
             raise ValueError("p must not exceed one")
         object.__setattr__(self, "r", target)
@@ -88,14 +89,14 @@ class NegativeBinomial(DiscreteDistribution):
         if self.p == 1.0:
             return 0.0 if k == 0 else -math.inf
         log_coefficient = (
-            math.lgamma(k + self.r)
-            - math.lgamma(k + 1.0)
-            - math.lgamma(self.r)
+            admath.lgamma(k + self.r)
+            - admath.lgamma(k + 1.0)
+            - admath.lgamma(self.r)
         )
         return (
             log_coefficient
-            + self.r * math.log(self.p)
-            + k * math.log1p(-self.p)
+            + self.r * admath.log(self.p)
+            + k * admath.log1p(-self.p)
         )
 
     def pmf(self, k: int) -> float:

@@ -42,7 +42,7 @@ class ChiSquare(ContinuousDistribution):
             [EQ-DIST-CHI2-001], [REF-JKB-1994, Chapter 18].
 
         """
-        checked = POSITIVE_FINITE.validate(self.nu, name="nu")
+        checked = POSITIVE_FINITE.validate_parameter(self.nu, name="nu")
         object.__setattr__(self, "nu", checked)
         object.__setattr__(self, "_gamma", Gamma(0.5 * checked, 0.5))
 

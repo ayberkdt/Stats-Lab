@@ -7,11 +7,11 @@ from dataclasses import dataclass
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
-    require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._autodiff import admath, real_argument
 from ._base import ContinuousDistribution
 from ._continuous import density_from_log, expit, open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
@@ -45,8 +45,12 @@ class Logistic(ContinuousDistribution):
             [EQ-DIST-LOGIS-001], [REF-JKB-1995, Chapter 23].
 
         """
-        object.__setattr__(self, "mu", FINITE_REAL.validate(self.mu, name="mu"))
-        object.__setattr__(self, "s", POSITIVE_FINITE.validate(self.s, name="s"))
+        object.__setattr__(
+            self, "mu", FINITE_REAL.validate_parameter(self.mu, name="mu")
+        )
+        object.__setattr__(
+            self, "s", POSITIVE_FINITE.validate_parameter(self.s, name="s")
+        )
 
     @property
     def support(self) -> RealSupport:
@@ -75,7 +79,7 @@ class Logistic(ContinuousDistribution):
             [EQ-DIST-LOGIS-001], [REF-JKB-1995, Chapter 23].
 
         """
-        return (require_finite_real(x, name="x") - self.mu) / self.s
+        return (real_argument(x, name="x") - self.mu) / self.s
 
     def log_pdf(self, x: float) -> float:
         """Evaluate ``-|z| - log s - 2 log(1 + exp(-|z|))``.
@@ -98,7 +102,11 @@ class Logistic(ContinuousDistribution):
 
         """
         magnitude = abs(self._standardized(x))
-        return -magnitude - math.log(self.s) - 2.0 * math.log1p(math.exp(-magnitude))
+        return (
+            -magnitude
+            - admath.log(self.s)
+            - 2.0 * admath.log1p(admath.exp(-magnitude))
+        )
 
     def pdf(self, x: float) -> float:
         """Evaluate the logistic density.

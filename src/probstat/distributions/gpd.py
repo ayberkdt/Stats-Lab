@@ -12,6 +12,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath, is_variable, primal, real_argument
 from ._base import ContinuousDistribution
 from ._continuous import density_from_log, open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
@@ -59,11 +60,15 @@ class GeneralizedPareto(ContinuousDistribution):
             [EQ-DIST-GPD-001], [REF-COLES-2001, Chapter 4].
 
         """
-        object.__setattr__(self, "mu", FINITE_REAL.validate(self.mu, name="mu"))
         object.__setattr__(
-            self, "sigma", POSITIVE_FINITE.validate(self.sigma, name="sigma")
+            self, "mu", FINITE_REAL.validate_parameter(self.mu, name="mu")
         )
-        object.__setattr__(self, "xi", FINITE_REAL.validate(self.xi, name="xi"))
+        object.__setattr__(
+            self, "sigma", POSITIVE_FINITE.validate_parameter(self.sigma, name="sigma")
+        )
+        object.__setattr__(
+            self, "xi", FINITE_REAL.validate_parameter(self.xi, name="xi")
+        )
 
     @property
     def upper_endpoint(self) -> float | None:
@@ -85,7 +90,7 @@ class GeneralizedPareto(ContinuousDistribution):
             value = self.mu - self.sigma / self.xi
         except OverflowError:
             return None
-        return value if math.isfinite(value) else None
+        return value if admath.isfinite(value) else None
 
     @property
     def support(self) -> RealSupport:
@@ -121,7 +126,7 @@ class GeneralizedPareto(ContinuousDistribution):
             [REF-COLES-2001, Section 4.2].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         z = (point - self.mu) / self.sigma
         if z < 0.0:
             return -math.inf
@@ -133,8 +138,12 @@ class GeneralizedPareto(ContinuousDistribution):
         if w <= -1.0 or (end is not None and point >= end):
             return math.inf
         if abs(w) < _TINY_PRODUCT:
+            if is_variable(w):
+                # log1p(w)/xi = z (1 - w/2 + w^2/3 - ...) keeps the
+                # xi-derivatives at xi = 0; the value is z to rounding.
+                return z * (1.0 - 0.5 * w + w * w / 3.0)
             return z
-        return math.log1p(w) / self.xi
+        return admath.log1p(w) / self.xi
 
     def log_pdf(self, x: float) -> float:
         """Evaluate ``-log sigma - (1 + xi) y`` on the support.
@@ -163,15 +172,15 @@ class GeneralizedPareto(ContinuousDistribution):
             return -math.inf
         if y == math.inf:
             end = self.upper_endpoint
-            point = float(x)
+            point = primal(x)
             if end is None or point > end:
                 return -math.inf
             if self.xi > -1.0:
                 return -math.inf
             if self.xi == -1.0:
-                return -math.log(self.sigma)
+                return -admath.log(self.sigma)
             return math.inf
-        return -math.log(self.sigma) - (1.0 + self.xi) * y
+        return -admath.log(self.sigma) - (1.0 + self.xi) * y
 
     def pdf(self, x: float) -> float:
         """Evaluate the GPD density.

@@ -13,6 +13,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath, real_argument
 from ._base import ContinuousDistribution
 from ._continuous import density_from_log
 from .constraints import FINITE_REAL, POSITIVE_FINITE
@@ -46,9 +47,11 @@ class LogNormal(ContinuousDistribution):
             [EQ-DIST-LN-001], [REF-NIST-DISTRIBUTIONS].
 
         """
-        object.__setattr__(self, "mu", FINITE_REAL.validate(self.mu, name="mu"))
         object.__setattr__(
-            self, "sigma", POSITIVE_FINITE.validate(self.sigma, name="sigma")
+            self, "mu", FINITE_REAL.validate_parameter(self.mu, name="mu")
+        )
+        object.__setattr__(
+            self, "sigma", POSITIVE_FINITE.validate_parameter(self.sigma, name="sigma")
         )
 
     @property
@@ -81,16 +84,16 @@ class LogNormal(ContinuousDistribution):
             [REF-NIST-DISTRIBUTIONS, Lognormal Distribution].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         if point <= 0.0:
             return -math.inf
-        logarithm = math.log(point)
+        logarithm = admath.log(point)
         z = (logarithm - self.mu) / self.sigma
         return (
             -0.5 * z * z
-            - math.log(point)
-            - math.log(self.sigma)
-            - 0.5 * math.log(2.0 * math.pi)
+            - admath.log(point)
+            - admath.log(self.sigma)
+            - 0.5 * admath.log(2.0 * math.pi)
         )
 
     def pdf(self, x: float) -> float:

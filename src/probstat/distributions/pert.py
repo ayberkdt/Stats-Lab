@@ -14,11 +14,9 @@ import math
 from dataclasses import dataclass
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
-from probstat.foundations.validation import (
-    require_finite_real,
-)
 from probstat.numerics.special import digamma
 
+from ._autodiff import admath, real_argument
 from ._base import ContinuousDistribution
 from ._special import log_beta_function
 from .beta import Beta
@@ -65,10 +63,10 @@ class PERT(ContinuousDistribution):
             [EQ-DIST-PERT-001], [REF-MALCOLM-1959].
 
         """
-        low = FINITE_REAL.validate(self.low, name="low")
-        mode = FINITE_REAL.validate(self.mode, name="mode")
-        high = FINITE_REAL.validate(self.high, name="high")
-        lam = POSITIVE_FINITE.validate(self.lam, name="lam")
+        low = FINITE_REAL.validate_parameter(self.low, name="low")
+        mode = FINITE_REAL.validate_parameter(self.mode, name="mode")
+        high = FINITE_REAL.validate_parameter(self.high, name="high")
+        lam = POSITIVE_FINITE.validate_parameter(self.lam, name="lam")
         if not low < high:
             raise ValueError("low must be below high")
         if not low <= mode <= high:
@@ -140,7 +138,7 @@ class PERT(ContinuousDistribution):
             [EQ-DIST-PERT-001]. No new equation.
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         return min(max((point - self.low) / self.width, 0.0), 1.0)
 
     def log_pdf(self, x: float) -> float:
@@ -153,10 +151,10 @@ class PERT(ContinuousDistribution):
             [REF-VOSE-2008].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         if point < self.low or point > self.high:
             return -math.inf
-        return self.standard.log_pdf(self._unit(point)) - math.log(self.width)
+        return self.standard.log_pdf(self._unit(point)) - admath.log(self.width)
 
     def pdf(self, x: float) -> float:
         """Return the PERT density.

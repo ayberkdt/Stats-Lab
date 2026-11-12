@@ -135,17 +135,28 @@ and 50-55 (ADR-0069, Verification). The saving that does not depend on the
 machine is the number of model executions: one instead of `2 d + 1`.
 
 *Traceable programs.* Model code and distribution objects must use
-operators and `admath` rather than `math` or `float()`. The distribution
-classes of `probstat.distributions` validate their parameters as floats, so
-`Normal(mu, 1.0)` with a latent `mu` is not traceable and the run falls back
-to central differences (reason "mu must be a real number"). Constant-
-parameter priors such as `Normal(0.0, 10.0)` are traceable (their density is
-inlined), and so are duck-typed distributions whose `log_pdf` uses
-`admath`. Leapfrog stays volume-preserving and reversible with an
-approximate force, so a fallback costs efficiency, not correctness. The
-eight-schools test run (two chains of 150 warm-up and 150 kept draws) falls
-back and needed 5 610 gradients, which is 117 810 model executions. That
-took 7-11 s on the development machine, at about 75 µs per execution.
+operators and `admath` rather than `math` or `float()`. The library laws
+qualify (ADR-0090): every family of `probstat.distributions` with real
+parameters, `multivariate.Multinomial` and the mean of
+`multivariate.MultivariateNormal` accept dual numbers and tape variables,
+validate them on their primal values, and evaluate `log_pdf` / `log_pmf`
+with `admath`. So `Normal(mu, 1.0)` with a latent `mu`, a `Gamma(2, 1)`
+prior on a latent precision, and `Multinomial(n, p)` with a simplex-valued
+`p` are differentiated exactly, with `gradient_method == "reverse"`. Where a
+family keeps a float-only kernel for accuracy (large gamma, beta, F and
+Student-t shapes, the truncated-normal mass), the value comes from that
+kernel and the derivatives from the closed form ([EQ-DIST-AD-001]); float
+results are bit-identical to the float-only code. Duck-typed distributions
+whose `log_pdf` uses `admath` are traceable as well. Programs fall back to
+central differences when a support bound depends on a latent value
+(`Uniform(0, t)` with a latent `t`: reason "upper must be a real number"),
+when a law takes float parameters only (a latent Dirichlet concentration, a
+latent covariance), or when the model calls `math`. Leapfrog stays
+volume-preserving and reversible with an approximate force, so a fallback
+costs efficiency, not correctness. Before ADR-0090 the eight-schools test
+run (two chains of 150 warm-up and 150 kept draws) fell back and needed
+5 610 gradients, which is 117 810 model executions, 7-11 s on the
+development machine at about 75 µs per execution.
 
 ## 3. Inference
 
@@ -297,10 +308,9 @@ and so on, and `posterior.mean("Sigma")` is a matrix.
 The densities of these laws are evaluated inside the PPL from the
 quantities the transform already holds (the logarithms of the simplex
 entries and of the Cholesky diagonal), with `admath`. So a prior with
-constant parameters is traceable and reverse mode applies; a likelihood
-built from library classes with latent parameters (for example
-`Multinomial(n, p)` with a latent `p`) still falls back to central
-differences. `m.observe(name, law, value)` with a law that has a
+constant parameters is traceable and reverse mode applies, and since
+ADR-0090 so is a likelihood such as `Multinomial(n, p)` with a latent `p`.
+`m.observe(name, law, value)` with a law that has a
 `dimension` attribute (`Multinomial`, `MultivariateNormal`, ...) adds one
 joint `log_pdf` or `log_pmf` term for the whole vector.
 
@@ -329,14 +339,15 @@ Checks:
   plus `log(1 - tanh^2)` to eleven digits, which checks the constant, the
   Cholesky density, and the Jacobian together.
 - Dirichlet(2, 1.5, 1) with multinomial counts (12, 5, 3), NUTS (seed 3, two
-  chains of 300 + 400 draws, finite differences because `Multinomial` takes
-  float parameters):
+  chains of 300 + 400 draws). The reverse-mode run (ADR-0090) needed 5 616
+  model executions; the finite-difference run, the only option before
+  ADR-0090, needed 27 755 (5 551 gradients):
 
-  | | NUTS (MCSE) | conjugate |
-  |---|---|---|
-  | p[0] | 0.5766 (0.0034) | 0.5714 |
-  | p[1] | 0.2579 (0.0033) | 0.2653 |
-  | p[2] | 0.1655 (0.0025) | 0.1633 |
+  | | reverse (MCSE) | finite differences (MCSE) | conjugate |
+  |---|---|---|---|
+  | p[0] | 0.5772 (0.0037) | 0.5766 (0.0034) | 0.5714 |
+  | p[1] | 0.2571 (0.0038) | 0.2579 (0.0033) | 0.2653 |
+  | p[2] | 0.1658 (0.0032) | 0.1655 (0.0025) | 0.1633 |
 
 - An inverse-Wishart(nu = 6) covariance with twelve bivariate normal
   observations (NUTS, seed 4, two chains of 250 + 250 draws): posterior
@@ -649,11 +660,15 @@ suits the gradient-based engines [REF-GODSILL-2001].
 
 ## 8. Limitations
 
-- Programs built from the library distribution classes with latent
-  parameters are not traceable; their gradients come from finite
-  differences, so each gradient costs `2d + 1` model executions and such
-  models suit up to a few tens of parameters. Traceable programs take one
-  reverse-mode execution per gradient.
+- Programs whose support bounds depend on latent values, or that use
+  laws with float-only parameters (a latent Dirichlet concentration, a
+  latent `MultivariateNormal` covariance, `DirichletMultinomial`,
+  `MultivariateStudentT`, the composite `Affine`, `Mixture` and `Truncated`
+  laws), are not traceable; their gradients come from finite differences,
+  so each gradient costs `2d + 1` model executions and such models suit up
+  to a few tens of parameters. Programs written with the other library
+  laws are traceable (ADR-0090) and take one reverse-mode execution per
+  gradient.
 - Variable elimination is provided along plates and first-order Markov
   chains only, not for general discrete graphs. A Markov step may not
   declare continuous latent or deterministic sites, may not change its

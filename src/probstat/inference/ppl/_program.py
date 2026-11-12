@@ -57,11 +57,15 @@ distribution objects* accept them (the program is traceable), the
 inference entry points take the exact reverse-mode gradient of
 :meth:`ModelIR.log_density`: one model execution recorded on a tape and one
 backward sweep ([EQ-AD-REVERSE-001], ADR-0069). The distribution classes of
-:mod:`probstat.distributions` validate their parameters as floats, so a site
-such as ``Normal(mu, tau)`` with a latent ``mu`` is not traceable; the
-entry points then fall back to finite differences and record why
-(``gradient_method``, ``gradient_fallback_reason``). Duck-typed
-distributions whose ``log_pdf`` uses ``admath`` are differentiated exactly.
+:mod:`probstat.distributions`, ``multivariate.Multinomial`` and
+``multivariate.MultivariateNormal`` (mean and point) accept variables in
+their parameters and log-densities (ADR-0090), so a site such as
+``Normal(mu, tau)`` with a latent ``mu`` is traceable; so are duck-typed
+distributions whose ``log_pdf`` uses ``admath``. A program that is not
+traceable (a support bound that depends on a latent value, a law that
+takes float parameters only, ``math`` in the model code) falls back to
+finite differences, and the entry points record why
+(``gradient_method``, ``gradient_fallback_reason``).
 
 Floating-point limit: on an interval ``(a, b)`` the map
 ``x = a + (b - a) sigmoid(u)`` rounds to exactly ``b`` once ``u`` exceeds
@@ -134,12 +138,19 @@ structure; the trace cost of a chain grows with the square of its depth.
 def _softplus(t: float) -> float:
     """Return ``log(1 + exp(t))`` without overflow (dual-transparent).
 
+    ``t + log1p(exp(-t))`` for ``t > 0`` and ``log1p(exp(t))`` otherwise:
+    both branches are smooth, so the derivative at ``t = 0`` is the exact
+    ``1/2`` (a form written with ``|t|`` would take the derivative 0 that
+    automatic differentiation assigns to ``|t|`` at its kink). The float
+    values equal those of ``max(t, 0) + log1p(exp(-|t|))``.
+
     References:
         [EQ-PPL-TRANSFORM-002]. No new equation is introduced.
 
     """
-    positive = t if t > 0.0 else 0.0 * t
-    return cast(float, positive + admath.log1p(admath.exp(-abs(t))))
+    if t > 0.0:
+        return cast(float, t + admath.log1p(admath.exp(-t)))
+    return cast(float, admath.log1p(admath.exp(t)))
 
 
 def _sigmoid(t: float) -> float:
@@ -419,7 +430,7 @@ def _log_density(distribution: Any, value: Any) -> float:
         # argument validation, which dominates the cost of small models.
         sigma: float = distribution.sigma
         z: float = (value - distribution.mu) / sigma
-        return -0.5 * z * z - math.log(sigma) - _LOG_SQRT_TWO_PI
+        return cast(float, -0.5 * z * z - admath.log(sigma) - _LOG_SQRT_TWO_PI)
     method = getattr(distribution, "log_pdf", None)
     if method is None:
         method = getattr(distribution, "log_pmf", None)
@@ -3377,8 +3388,8 @@ class ModelIR:
         or ``log_pdf`` (an invalid parameter value, an overflow) and
         non-finite results other than ``-inf`` are mapped to ``-inf``, which
         every sampler treats as "outside the support". Specification errors
-        still propagate, and so do ``TypeError``s (for example a distribution
-        that rejects :class:`~probstat.numerics.Dual` parameters), so that
+        still propagate, and so do ``TypeError``s (for example a support
+        whose bound is a :class:`~probstat.numerics.Dual`), so that
         automatic differentiation can fall back to finite differences.
 
         Under dynamic site structure the density is
