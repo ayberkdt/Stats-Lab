@@ -3372,3 +3372,11 @@ Asymptotically Optimum Decoding Algorithm." *IEEE Transactions on
 Information Theory* 13(2), 260-269, 1967. The dynamic-programming
 recursion for the most probable state sequence.
 DOI: [10.1109/TIT.1967.1054010](https://doi.org/10.1109/TIT.1967.1054010).
+
+## REF-DEKKER-1971
+
+T. J. Dekker. "A Floating-Point Technique for Extending the Available
+Precision." *Numerische Mathematik* 18(3), 224-242, 1971. The exact
+product of two floats by splitting (with Veltkamp's splitting), the exact
+sum, and double-length addition, multiplication, and division.
+DOI: [10.1007/BF01397083](https://doi.org/10.1007/BF01397083).

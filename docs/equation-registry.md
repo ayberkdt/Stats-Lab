@@ -13941,3 +13941,92 @@ that `s` exists.
   conditional posteriors make the sampler efficient),
   [REF-GODSILL-2001] (pp. 230-248: the composite-space sampler and its
   pseudo-priors).
+
+### EQ-NUM-DD-001 — Error-free transformations and double-double arithmetic
+
+`s = fl(a + b)`, `e = (a - (s - v)) + (b - v)` with `v = s - a` gives
+`s + e = a + b` exactly (two-sum); with Veltkamp's splitting
+`a = a_h + a_l` (`c = (2^27 + 1) a`, `a_h = c - (c - a)`), `p = fl(a b)`,
+`e = ((a_h b_h - p) + a_h b_l + a_l b_h) + a_l b_l` gives `p + e = a b`
+exactly (two-product). A double-double `x_h + x_l` (`|x_l| <= ulp(x_h)/2`)
+is added, multiplied, and divided with these transformations, with relative
+errors of a few `2^-104`; `exp(x_h + x_l) = exp(x_h) (1 + x_l)`.
+
+- Domain: finite floats without overflow; the splitting needs
+  `|a| <= 1e300`, and the products are exact unless partial products
+  underflow (below `1e-290`).
+- Meaning: carries about 106 bits through the exponent of a special-function
+  prefactor or the argument of `erfc`, so that the outer function does not
+  amplify a rounding of its argument.
+- Code: `numerics._double_double.two_sum`,
+  `numerics._double_double.two_product`, `numerics._double_double.dd_add`,
+  `numerics._double_double.dd_mul`, `numerics._double_double.dd_div`,
+  `numerics._double_double.dd_exp`,
+  `distributions._continuous.standardized_double_double`.
+- Source: [REF-DEKKER-1971] and [REF-HIGHAM-2002, Section 4.3].
+
+### EQ-NUM-DD-002 — Table-driven double-double logarithm and Stirling remainder
+
+`log x = k ln 2 + log(j/64) + 2 atanh(y)`, `x = m 2^k`, `m` in
+`[sqrt(1/2), sqrt 2)`, `j = round(64 m)`, `y = (m - j/64)/(m + j/64)`
+(`|y| < 0.0056`), `2 atanh y = 2y + 2y (y^2/3 + y^4/5 + y^6/7 + y^8/9)`;
+`log(1 + t) - t = -t y + (2/3) y^3 + 2y sum_(k=2..10) y^(2k)/(2k+1)` with
+`y = t/(2 + t)` for `|t| <= 1/16`, and `log(1 + t) - t` from the logarithm
+otherwise; `sigma(a) = lgamma(a) - (a - 1/2) log a + a - log sqrt(2 pi)`
+equals the Stirling series for `a >= 15` and, for smaller `a` with
+`z = a + n >= 15`, `sigma(a) = (z - 1/2) log z - (a - 1/2) log a - n +
+sigma(z) - log prod_(k<n) (a + k)`.
+
+- Domain: positive finite arguments; `|t| <= 1/2` for the `log1pmx` form.
+  The table values `log(j/64)` are computed once in 40-digit decimal
+  arithmetic.
+- Meaning: absolute errors below `1e-22` (logarithm), relative errors
+  below `1e-20` (`log1pmx`), and absolute errors below `2e-18`
+  (`sigma`), so that
+  exponents of size several hundred are exact to far below one ulp.
+- Code: `numerics._double_double.dd_log`,
+  `numerics._double_double.dd_log1pmx`,
+  `numerics._double_double.dd_stirling_error`,
+  `numerics._double_double.half_log_minus_stirling`,
+  `numerics._double_double.dd_scaled_log_ratio`.
+- Source: [REF-NIST-DLMF-ELEMENTARY, Section 4.24],
+  [REF-NIST-DLMF-GAMMA, Sections 5.5 and 5.11], [REF-DEKKER-1971],
+  [REF-DIDONATO-MORRIS-1992].
+
+### EQ-NUM-DD-003 — Complementary error function at a double-double argument
+
+`erfc(w_h + w_l) = erfc(w_h) - (2/sqrt(pi)) exp(-w_h^2) w_l
++ O(w_h w_l^2 exp(-w_h^2))`.
+
+- Domain: double-double `w`; the correction is skipped for `|w_h| > 27.5`,
+  where `erfc` is 0 or 2 in floats.
+- Meaning: a rounded argument `w_h` perturbs `erfc` by the relative amount
+  `2 w^2 |w_l/w|`, which is up to `1400` ulp at `w = 26`; the first-order
+  term removes it and leaves the error of `math.erfc` at an exact float
+  argument (measured at most `2.04` ulp on 300 random arguments in
+  `[0, 27]`, CPython 3.12 on Windows).
+- Code: `numerics._double_double.erfc_double_double`.
+- Source: [REF-NIST-DLMF, Sections 7.2 and 7.10] and [REF-DEKKER-1971].
+
+### EQ-DIST-NORM-007 — Normal CDF, survival, and log tails from a double-double z
+
+`z = (x - mu)/sigma` as `z_h + z_l` ([EQ-NUM-DD-001]);
+`1 - Phi(z) = erfc(z/sqrt 2)/2` by [EQ-NUM-DD-003] with `z/sqrt 2` in
+double-double arithmetic; `Phi(z) = 1 - Phi(-z)`;
+`log(1 - Phi(z)) = log1p(-Phi(z))` for `z < 0` and `log(1 - Phi(z))` for
+`0 <= z < 35`; beyond, `-z^2/2 - log sqrt(2 pi) - log R(z)` with the Mills
+ratio continued fraction `R` and `z^2` formed exactly.
+
+- Domain: the domain of [EQ-DIST-NORM-001].
+- Meaning: the relative condition number of `Phi` in the tails is about
+  `z^2`, so a rounded `z` or `z/sqrt 2` costs `(1 + z^2)/2` ulp; the
+  double-double standardization keeps `cdf`, `sf`, `log_cdf`, and `log_sf`
+  within a few ulp over the whole range. `log1p(-Phi(z))` keeps relative
+  accuracy where `log(1 - Phi(z))` is close to zero.
+- Code: `distributions.Normal.cdf`, `distributions.Normal.sf`,
+  `distributions.Normal.log_cdf`, `distributions.Normal.log_sf`,
+  `distributions._continuous.standard_normal_sf_dd`,
+  `distributions._continuous.log_standard_normal_sf`,
+  `distributions._continuous.log_standard_normal_cdf`.
+- Source: [REF-NIST-DLMF, Sections 7.2, 7.9, and 7.10] and
+  [REF-DEKKER-1971].

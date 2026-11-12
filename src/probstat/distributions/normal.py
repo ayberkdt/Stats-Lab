@@ -18,6 +18,8 @@ from ._continuous import (
     density_from_log,
     log_standard_normal_cdf,
     log_standard_normal_sf,
+    standard_normal_sf_dd,
+    standardized_double_double,
 )
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
@@ -120,50 +122,57 @@ class Normal(ContinuousDistribution):
             x: Finite real-valued evaluation point.
 
         Returns:
-            ``P(X <= x)`` computed through the error function.
+            ``P(X <= x)`` computed through the error function. The
+            standardized point is carried in double-double arithmetic, so the
+            error stays within a few ulp over the whole range instead of
+            growing like ``(1 + z^2)`` ulp in the tails (ADR-0089).
 
         Raises:
             TypeError: If ``x`` is not real.
             ValueError: If ``x`` is not finite.
 
         Equation:
-            [EQ-DIST-NORM-002].
+            [EQ-DIST-NORM-002], [EQ-DIST-NORM-007].
 
         References:
-            [REF-NIST-DLMF, Equation 7.2.1].
+            [REF-NIST-DLMF, Equation 7.2.1], [REF-DEKKER-1971].
 
         """
         point = require_finite_real(x, name="x")
-        standardized = (point - self.mu) / (self.sigma * math.sqrt(2.0))
-        # erfc(-z) equals 1 + erf(z) but keeps full relative accuracy in the
-        # lower tail, where 1 + erf(z) cancels catastrophically.
-        return 0.5 * math.erfc(-standardized)
+        high, low = standardized_double_double(point, self.mu, self.sigma)
+        # erfc(-z/sqrt 2)/2 equals (1 + erf(z/sqrt 2))/2 but keeps full
+        # relative accuracy in the lower tail, where 1 + erf cancels.
+        return standard_normal_sf_dd((-high, -low))
 
     def log_cdf(self, x: float) -> float:
         """Return ``log Phi((x - mu)/sigma)``, finite far beyond ``erfc`` underflow.
 
         Equation:
-            [EQ-DIST-TN-004].
+            [EQ-DIST-TN-004], [EQ-DIST-NORM-007].
 
         References:
             [REF-NIST-DLMF, Sections 7.2 and 7.9].
 
         """
-        z = (require_finite_real(x, name="x") - self.mu) / self.sigma
-        return log_standard_normal_cdf(z)
+        point = require_finite_real(x, name="x")
+        return log_standard_normal_cdf(
+            *standardized_double_double(point, self.mu, self.sigma)
+        )
 
     def log_sf(self, x: float) -> float:
         """Return ``log(1 - Phi((x - mu)/sigma))`` without underflow.
 
         Equation:
-            [EQ-DIST-TN-004].
+            [EQ-DIST-TN-004], [EQ-DIST-NORM-007].
 
         References:
             [REF-NIST-DLMF, Sections 7.2 and 7.9].
 
         """
-        z = (require_finite_real(x, name="x") - self.mu) / self.sigma
-        return log_standard_normal_sf(z)
+        point = require_finite_real(x, name="x")
+        return log_standard_normal_sf(
+            *standardized_double_double(point, self.mu, self.sigma)
+        )
 
     def sf(self, x: float) -> float:
         """Evaluate the normal survival function through ``erfc``.
@@ -172,22 +181,24 @@ class Normal(ContinuousDistribution):
             x: Finite real-valued evaluation point.
 
         Returns:
-            Upper-tail probability evaluated without near-one subtraction.
+            Upper-tail probability evaluated without near-one subtraction,
+            from a double-double standardized point (ADR-0089).
 
         Raises:
             TypeError: If ``x`` is not real.
             ValueError: If ``x`` is non-finite.
 
         Equation:
-            [EQ-DIST-NORM-005].
+            [EQ-DIST-NORM-005], [EQ-DIST-NORM-007].
 
         References:
-            [REF-NIST-DLMF, Equation 7.2.2].
+            [REF-NIST-DLMF, Equation 7.2.2], [REF-DEKKER-1971].
 
         """
         point = require_finite_real(x, name="x")
-        standardized = (point - self.mu) / (self.sigma * math.sqrt(2.0))
-        return 0.5 * math.erfc(standardized)
+        return standard_normal_sf_dd(
+            standardized_double_double(point, self.mu, self.sigma)
+        )
 
     def quantile(self, probability: float) -> float:
         """Return the normal generalized inverse CDF.

@@ -519,19 +519,24 @@ class FloatKernelBudgetTests(unittest.TestCase):
     """Library float kernels stay within the ULP budgets of ADR-0077."""
 
     def test_normal_cdf_and_survival(self) -> None:
-        """Error <= 2 (1 + x^2) ULP (argument rounding); <= 4 for |x| <= 2."""
+        """Error <= 8 ULP over the whole range (ADR-0089); <= 4 for |x| <= 2.
+
+        ADR-0077 allowed ``2 (1 + x^2)`` ULP for the rounded argument
+        ``x/sqrt 2`` (1228 ULP at ``x = -37``); the double-double argument
+        removes that growth.
+        """
         normal = Normal()
         points = grid(-37.5, 8.0, 93)
         result = compare_to_reference(normal.cdf, reference_normal_cdf, points)
         for (x,), error in zip(result.points, result.ulp_errors, strict=True):
-            self.assertLessEqual(error, 2.0 * (1.0 + x * x), x)
+            self.assertLessEqual(error, 8.0, x)
             if abs(x) <= 2.0:
                 self.assertLessEqual(error, 4.0, x)
         survival = compare_to_reference(
             normal.sf, lambda x: reference_normal_cdf(-Decimal(x)), grid(5, 37.5, 14)
         )
         for (x,), error in zip(survival.points, survival.ulp_errors, strict=True):
-            self.assertLessEqual(error, 2.0 * (1.0 + x * x), x)
+            self.assertLessEqual(error, 8.0, x)
 
     def test_normal_quantile_and_inverse_survival(self) -> None:
         """Quantile and inverse survival within 5 ULP down to p = 1e-300."""
