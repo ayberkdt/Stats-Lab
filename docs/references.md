@@ -3404,3 +3404,84 @@ Software* 12(4), 377-393, 1986. Temme's uniform asymptotic expansion for
 shapes of at least 20 near the transition point, and the regrouped
 prefactor `x^a e^-x / Gamma(a)`.
 DOI: [10.1145/22721.23109](https://doi.org/10.1145/22721.23109).
+
+## REF-BATES-ETAL-2015
+
+Douglas Bates, Martin Mächler, Ben Bolker, and Steve Walker. "Fitting Linear
+Mixed-Effects Models Using lme4." *Journal of Statistical Software* 67(1),
+1-48, 2015. The relative covariance factor, penalized least squares by
+sparse Cholesky, the profiled ML and REML deviances, conditional modes and
+variances, and the penalized IRLS Laplace approximation for GLMMs.
+DOI: [10.18637/jss.v067.i01](https://doi.org/10.18637/jss.v067.i01).
+
+## REF-KUZNETSOVA-ETAL-2017
+
+Alexandra Kuznetsova, Per B. Brockhoff, and Rune H. B. Christensen.
+"lmerTest Package: Tests in Linear Mixed Effects Models." *Journal of
+Statistical Software* 82(13), 1-26, 2017. Satterthwaite denominator degrees
+of freedom from the Hessian of the deviance in `(theta, sigma)` and the
+gradient of the fixed-effect covariance.
+DOI: [10.18637/jss.v082.i13](https://doi.org/10.18637/jss.v082.i13).
+
+## REF-PINHEIRO-BATES-1995
+
+José C. Pinheiro and Douglas M. Bates. "Approximations to the
+Log-Likelihood Function in the Nonlinear Mixed-Effects Model." *Journal of
+Computational and Graphical Statistics* 4(1), 12-35, 1995. Laplace and
+adaptive Gauss-Hermite approximations of the marginal likelihood.
+DOI: [10.1080/10618600.1995.10474663](https://doi.org/10.1080/10618600.1995.10474663).
+
+## REF-LIU-PIERCE-1994
+
+Qing Liu and Donald A. Pierce. "A Note on Gauss-Hermite Quadrature."
+*Biometrika* 81(3), 624-629, 1994. Gauss-Hermite nodes centred at the mode
+and scaled by the curvature of the integrand; one node gives the Laplace
+approximation.
+DOI: [10.1093/biomet/81.3.624](https://doi.org/10.1093/biomet/81.3.624).
+
+## REF-SEARLE-CASELLA-MCCULLOCH-1992
+
+Shayle R. Searle, George Casella, and Charles E. McCulloch. *Variance
+Components*. Wiley Series in Probability and Statistics. Wiley, 1992. ANOVA,
+ML, and REML estimators of balanced one-way and nested random-effects
+models, and their boundary solutions.
+DOI: [10.1002/9780470316856](https://doi.org/10.1002/9780470316856).
+
+## REF-SELF-LIANG-1987
+
+Steven G. Self and Kung-Yee Liang. "Asymptotic Properties of Maximum
+Likelihood Estimators and Likelihood Ratio Tests under Nonstandard
+Conditions." *Journal of the American Statistical Association* 82(398),
+605-610, 1987. Mixtures of chi-square laws as the limit of the likelihood
+ratio when the null parameter lies on the boundary.
+DOI: [10.1080/01621459.1987.10478472](https://doi.org/10.1080/01621459.1987.10478472).
+
+## REF-STRAM-LEE-1994
+
+Daniel O. Stram and Jae Won Lee. "Variance Components Testing in the
+Longitudinal Mixed Effects Model." *Biometrics* 50(4), first page 1171,
+1994. The 50:50 mixture of chi-square laws with `q` and `q + 1` degrees of
+freedom for adding one random effect.
+DOI: [10.2307/2533455](https://doi.org/10.2307/2533455).
+
+## REF-PATTERSON-THOMPSON-1971
+
+H. D. Patterson and R. Thompson. "Recovery of Inter-Block Information when
+Block Sizes are Unequal." *Biometrika* 58(3), 545-554, 1971. Restricted
+(residual) maximum likelihood for variance components.
+DOI: [10.1093/biomet/58.3.545](https://doi.org/10.1093/biomet/58.3.545).
+
+## REF-HENDERSON-1975
+
+C. R. Henderson. "Best Linear Unbiased Estimation and Prediction under a
+Selection Model." *Biometrics* 31(2), first page 423, 1975. The
+mixed-model equations and best linear unbiased predictors of random
+effects.
+DOI: [10.2307/2529430](https://doi.org/10.2307/2529430).
+
+## REF-LAIRD-WARE-1982
+
+Nan M. Laird and James H. Ware. "Random-Effects Models for Longitudinal
+Data." *Biometrics* 38(4), first page 963, 1982. The two-stage
+random-coefficient model `y_i = X_i beta + Z_i b_i + e_i`.
+DOI: [10.2307/2529876](https://doi.org/10.2307/2529876).
