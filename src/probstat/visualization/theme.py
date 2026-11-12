@@ -130,6 +130,19 @@ PROJECTED: tuple[float, tuple[float, ...]] = (0.0, (1.0, 3.5))
 SIMULATED: tuple[float, tuple[float, ...]] = (0.0, (8.0, 3.0, 1.5, 3.0))
 REFERENCE: tuple[float, tuple[float, ...]] = (0.0, (3.5, 3.0))
 
+# Construction lines of a geometric picture (the beta circle of FORM): fine
+# dots, distinct from the epistemic patterns above.
+GUIDE: tuple[float, tuple[float, ...]] = (0.0, (1.0, 2.5))
+
+# Line widths by role (ADR-0098): every figure of the set uses these four, so
+# a line of the same role has the same weight in every figure. Data and model
+# lines use ``LINE_WIDTH``; context lines (comparison designs, a reference
+# sample, a truth path under its estimate) ``CONTEXT_WIDTH``; many
+# overlapping paths (MCMC traces, spaghetti, realizations) ``PATH_WIDTH``;
+# reference lines ``REFERENCE_WIDTH``.
+CONTEXT_WIDTH = 1.4
+PATH_WIDTH = 0.7
+
 
 
 def _default_palette() -> ChartPalette:
@@ -167,6 +180,384 @@ def active_palette() -> ChartPalette:
 
     """
     return _ACTIVE[-1]
+
+
+# --------------------------------------------------------------------------
+# The figure-set contract (ADR-0098)
+#
+# A single figure can follow every rule above and the set can still
+# contradict itself: "truth" drawn in the accent in one figure and in muted
+# ink in the next, "Failure probability Pf" in one and "Pf estimate" in
+# another. The tables below fix the encoding of every recurring entity and
+# the name and unit of every recurring quantity; the plotting functions and
+# the labs read them instead of choosing hues and axis titles locally.
+# ``docs/figures/stats-lab.seti.json`` (light) and
+# ``docs/figures/stats-lab-dark.seti.json`` (dark) are the same tables
+# written in the datawiz set format, and ``tests/test_figure_set_contract.py``
+# keeps both in step.
+# --------------------------------------------------------------------------
+
+ROLES = (
+    "observed",
+    "model",
+    "reference",
+    "context",
+    "series-3",
+    "series-4",
+    "series-5",
+    "series-6",
+)
+"""Colour roles of ADR-0024: the first four carry meaning, the last four are
+the remaining categorical slots for members of one family (chains,
+forecasters) that have no observed/model meaning."""
+
+
+def role_colour(role: str, palette: ChartPalette | None = None) -> str:
+    """Return the colour of a semantic role in a palette.
+
+    Args:
+        role: One of :data:`ROLES`.
+        palette: Palette to read (the active one by default).
+
+    Returns:
+        Hexadecimal colour.
+
+    Raises:
+        ValueError: If ``role`` is not a known role.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    tokens = palette or active_palette()
+    if role == "observed":
+        return tokens.observed
+    if role == "model":
+        return tokens.model
+    if role == "reference":
+        return tokens.accent
+    if role == "context":
+        return tokens.muted
+    if role in ROLES:
+        return tokens.series[int(role.rsplit("-", 1)[1]) - 1]
+    raise ValueError(f"unknown colour role {role!r}; expected one of {ROLES}")
+
+
+@dataclass(frozen=True, slots=True)
+class EntityStyle:
+    """Fixed encoding of one recurring entity in every figure.
+
+    Args:
+        role: Colour role (:data:`ROLES`).
+        marker: Matplotlib marker code used when the entity is drawn as points.
+        dashes: ``None`` (solid), ``FITTED``, ``PROJECTED``, ``SIMULATED`` or
+            ``REFERENCE``.
+        width: Line width in points.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+
+    role: str
+    marker: str = "o"
+    dashes: tuple[float, tuple[float, ...]] | None = None
+    width: float = LINE_WIDTH
+
+    def colour(self, palette: ChartPalette | None = None) -> str:
+        """Return the entity colour in ``palette`` (the active one by default).
+
+        References:
+            [REF-MATPLOTLIB]. No equation is evaluated.
+
+        """
+        return role_colour(self.role, palette)
+
+
+_REFERENCE_ENTITY = EntityStyle("reference", "s", REFERENCE, REFERENCE_WIDTH)
+_FIT = EntityStyle("model", "s", FITTED)
+
+ENTITY_STYLES: dict[str, EntityStyle] = {
+    # Data: observed or simulated values.
+    "observations": EntityStyle("observed", "o"),
+    "simulated": EntityStyle("observed", "o"),
+    "empirical": EntityStyle("observed", "o"),
+    "first-order index": EntityStyle("observed", "o"),
+    # Model results: fits, posteriors, filters, surrogates, linearizations.
+    "total-effect index": EntityStyle("model", "D"),
+    "exact posterior": EntityStyle("model", "s"),
+    "posterior mean": EntityStyle("model", "s"),
+    "filtered mean": EntityStyle("model", "s"),
+    "bias-corrected": EntityStyle("model", "s"),
+    "forecast mean": EntityStyle("model", "s", PROJECTED),
+    "AK-MCS": EntityStyle("model", "s"),
+    "FORM": EntityStyle("model", "D", FITTED, CONTEXT_WIDTH),
+    "GEV fit": _FIT,
+    "GPD fit": _FIT,
+    "Gamma fit": _FIT,
+    "LogNormal fit": _FIT,
+    "Weibull fit": _FIT,
+    # Slot 4 (olive, rose in the dark palette) stays far from the accent of
+    # the truth line it is drawn beside in both palettes.
+    "smoothed": EntityStyle("series-4", "^", FITTED),
+    "design point": EntityStyle("model", "o"),
+    # Standard-normal maps (FORM geometry, design points, AK-MCS): failed
+    # samples are data, the exact limit state is a reference.
+    "failed samples": EntityStyle("observed", "o"),
+    "limit state": EntityStyle("reference", "s", None, 1.4 * REFERENCE_WIDTH),
+    # Reference values: exact, true, or limiting quantities.
+    "truth": _REFERENCE_ENTITY,
+    "closed form": _REFERENCE_ENTITY,
+    "Berry-Esseen bound": _REFERENCE_ENTITY,
+    "Monte Carlo reference": _REFERENCE_ENTITY,
+    "threshold": _REFERENCE_ENTITY,
+    "perfect reliability": _REFERENCE_ENTITY,
+    # Context: what the highlighted result is compared with.
+    "uniform design": EntityStyle("context", "o", None, CONTEXT_WIDTH),
+    "simulator only": EntityStyle("context", "o", FITTED, CONTEXT_WIDTH),
+    "calibration": EntityStyle("context", "o", None, CONTEXT_WIDTH),
+    "safe samples": EntityStyle("context", "o"),
+    "beta circle": EntityStyle("context", "o", GUIDE, CONTEXT_WIDTH),
+    # Members of one family without observed/model meaning.
+    "chain 1": EntityStyle("series-3", "o", None, PATH_WIDTH),
+    "chain 2": EntityStyle("series-4", "o", None, PATH_WIDTH),
+    "chain 3": EntityStyle("series-5", "o", None, PATH_WIDTH),
+    "chain 4": EntityStyle("series-6", "o", None, PATH_WIDTH),
+    "ideal": EntityStyle("observed", "o", None, CONTEXT_WIDTH),
+    "ensemble": EntityStyle("model", "s", None, CONTEXT_WIDTH),
+    "overconfident": EntityStyle("series-4", "^", None, CONTEXT_WIDTH),
+    "climatology": EntityStyle("series-5", "D", None, CONTEXT_WIDTH),
+}
+"""Entity name (as written in the figure) to its fixed encoding."""
+
+
+def entity_style(name: str) -> EntityStyle:
+    """Return the fixed encoding of a recurring entity.
+
+    A trailing parenthesized qualifier is ignored, so ``"calibration (n =
+    300)"`` is drawn like ``"calibration"``.
+
+    Args:
+        name: Entity name as written in the figure.
+
+    Returns:
+        The entity's :class:`EntityStyle`.
+
+    Raises:
+        ValueError: If the entity is not part of the set contract.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    key = name if name in ENTITY_STYLES else name.split(" (", 1)[0].strip()
+    try:
+        return ENTITY_STYLES[key]
+    except KeyError:
+        raise ValueError(
+            f"{name!r} is not an entity of the figure-set contract (ADR-0098)"
+        ) from None
+
+
+def entity_colour(name: str, palette: ChartPalette | None = None) -> str:
+    """Return the colour of a recurring entity in ``palette``.
+
+    Args:
+        name: Entity name (see :func:`entity_style`).
+        palette: Palette to read (the active one by default).
+
+    Returns:
+        Hexadecimal colour.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    return entity_style(name).colour(palette)
+
+
+@dataclass(frozen=True, slots=True)
+class Quantity:
+    """Name, unit, and axis role of a quantity shared by several figures.
+
+    Args:
+        name: Axis title in sentence case, without symbols in parentheses.
+        unit: Unit written in brackets after the name, or ``None``.
+        axis: ``"x"``, ``"y"``, or ``"free"`` when the quantity is the value
+            axis of a dot plot (horizontal) in some figures and of a curve
+            (vertical) in others.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+
+    name: str
+    unit: str | None = None
+    axis: str = "x"
+
+    @property
+    def label(self) -> str:
+        """Return the axis title, ``"Name [unit]"`` or ``"Name"``.
+
+        References:
+            [REF-MATPLOTLIB]. No equation is evaluated.
+
+        """
+        return f"{self.name} [{self.unit}]" if self.unit else self.name
+
+
+QUANTITIES: dict[str, Quantity] = {
+    "count": Quantity("Count", axis="y"),
+    "cumulative_probability": Quantity("Cumulative probability", axis="y"),
+    "density": Quantity("Density", axis="y"),
+    "empirical_coverage": Quantity("Empirical coverage", axis="y"),
+    "estimate": Quantity("Estimate", axis="y"),
+    "exceedance_probability": Quantity("Exceedance probability", axis="y"),
+    "failure_probability": Quantity("Failure probability", axis="free"),
+    "kolmogorov_distance": Quantity("Kolmogorov distance", axis="y"),
+    "model_evaluations": Quantity("Number of model evaluations", axis="x"),
+    "nominal_coverage": Quantity("Nominal coverage", axis="x"),
+    "pit_value": Quantity("PIT value", axis="x"),
+    "posterior_density": Quantity("Posterior density", axis="y"),
+    "probability_mass": Quantity("Probability mass", axis="y"),
+    "sample_size": Quantity("Sample size N", axis="x"),
+    "smallest_learning_value": Quantity("Smallest learning value U", axis="y"),
+    "time": Quantity("Time", axis="x"),
+    # A calibrated parameter is the vertical axis of its MCMC trace and the
+    # horizontal axis of its posterior histogram.
+    "decay_rate": Quantity("k", axis="free"),
+    "variance_share": Quantity("Share of output variance", axis="x"),
+}
+"""Recurring quantities: one name, one unit spelling, one axis role."""
+
+METHOD_NAMES: dict[str, str] = {
+    "MC": "Monte Carlo",
+    "IS": "Importance sampling",
+    "CE-IS": "Cross-entropy importance sampling",
+    "Subset": "Subset simulation",
+    "Line": "Line sampling",
+}
+"""Reliability method codes (``reliability.compare_reliability_methods``) to
+the names written in figures; FORM and SORM keep their acronyms."""
+
+CATEGORY_ORDERS: dict[str, tuple[str, ...]] = {
+    "forecasters": ("ideal", "ensemble", "overconfident", "climatology"),
+    "chains": ("chain 1", "chain 2", "chain 3", "chain 4"),
+    "reliability methods": (
+        "FORM",
+        "SORM-Breitung",
+        "SORM-HR",
+        "Importance sampling",
+        "Cross-entropy importance sampling",
+        "Subset simulation",
+        "Line sampling",
+        "Monte Carlo",
+    ),
+    "sampling designs": (
+        "Monte Carlo",
+        "Latin hypercube",
+        "Halton (RQMC)",
+        "Sobol (RQMC)",
+    ),
+}
+"""Families whose members appear in a fixed order in every figure."""
+
+
+def axis_title(key: str) -> str:
+    """Return the axis title of a recurring quantity.
+
+    Args:
+        key: Key of :data:`QUANTITIES`.
+
+    Returns:
+        ``"Name [unit]"`` or ``"Name"``.
+
+    Raises:
+        ValueError: If the quantity is not part of the set contract.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    try:
+        return QUANTITIES[key].label
+    except KeyError:
+        raise ValueError(
+            f"{key!r} is not a quantity of the figure-set contract (ADR-0098)"
+        ) from None
+
+
+_SYMBOL_WORDS = frozenset(
+    {
+        "alpha", "beta", "gamma", "delta", "eps", "epsilon", "theta", "kappa",
+        "lambda", "mu", "nu", "xi", "pi", "rho", "sigma", "tau", "phi", "chi",
+        "psi", "omega", "log",
+    }
+)  # fmt: skip
+
+
+def sentence_case(text: str) -> str:
+    """Capitalize the first word of an axis title unless it is a symbol.
+
+    Variable names such as ``deflection`` become ``Deflection``; symbols
+    (``x``, ``u_load``, ``eps = 0.5``, Greek names) and words that already
+    carry a capital are left as they are.
+
+    Args:
+        text: Axis title.
+
+    Returns:
+        The title in sentence case.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    head, _, _ = text.partition(" ")
+    letters = head.replace("-", "")
+    if (
+        len(letters) >= 2
+        and letters.isalpha()
+        and letters.islower()
+        and letters.lower() not in _SYMBOL_WORDS
+    ):
+        return text[:1].upper() + text[1:]
+    return text
+
+
+def share_limits(axes: Sequence[Any], *, axis: str = "y") -> tuple[float, float]:
+    """Give compared axes (in one or several figures) one common range.
+
+    Figures that are read against each other (two forecasters' PIT
+    histograms, six encodings of one forecast) need a common scale, or equal
+    values look unequal (ADR-0098). The union of the current ranges is set
+    on every axes.
+
+    Args:
+        axes: Axes to align.
+        axis: ``"x"`` or ``"y"``.
+
+    Returns:
+        The common ``(low, high)`` range.
+
+    Raises:
+        ValueError: If ``axes`` is empty or ``axis`` is not ``"x"`` or ``"y"``.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    if axis not in {"x", "y"}:
+        raise ValueError("axis must be 'x' or 'y'")
+    if not axes:
+        raise ValueError("at least one axes is required")
+    ranges = [a.get_xlim() if axis == "x" else a.get_ylim() for a in axes]
+    low = min(min(r) for r in ranges)
+    high = max(max(r) for r in ranges)
+    for a in axes:
+        (a.set_xlim if axis == "x" else a.set_ylim)(low, high)
+    return float(low), float(high)
 
 
 def pyplot() -> Any:
@@ -491,7 +882,11 @@ def axis_labels(
     x_unit: str | None = None,
     y_unit: str | None = None,
 ) -> None:
-    """Set axis titles with optional units in brackets.
+    """Set axis titles in sentence case with optional units in brackets.
+
+    Every figure of the set writes a unit as ``"Name [unit]"`` (ADR-0098);
+    parentheses are kept for function notation in subtitles, never for units.
+    A recurring quantity is passed by its title from :func:`axis_title`.
 
     Args:
         ax: Target axes.
@@ -505,9 +900,9 @@ def axis_labels(
 
     """
     if x is not None:
-        ax.set_xlabel(f"{x} [{x_unit}]" if x_unit else x)
+        ax.set_xlabel(sentence_case(f"{x} [{x_unit}]" if x_unit else x))
     if y is not None:
-        ax.set_ylabel(f"{y} [{y_unit}]" if y_unit else y)
+        ax.set_ylabel(sentence_case(f"{y} [{y_unit}]" if y_unit else y))
 
 
 def band(
@@ -516,10 +911,11 @@ def band(
     lower: Sequence[float],
     upper: Sequence[float],
     *,
-    color: str,
+    color: str | None = None,
     alpha: float = BAND_ALPHA,
     label: str | None = None,
     smooth: bool = False,
+    entity: str | None = None,
 ) -> Any:
     """Draw an uncertainty band in its parent series hue with no stroke.
 
@@ -532,18 +928,26 @@ def band(
         x: Abscissae.
         lower: Lower band edge.
         upper: Upper band edge.
-        color: Parent series colour.
+        color: Parent series colour (or give ``entity``).
         alpha: Fill opacity, capped at 0.18.
         label: Optional legend label.
         smooth: Interpolate the edges with :func:`monotone_cubic`.
+        entity: Parent entity of the set contract; sets the colour.
 
     Returns:
         The Matplotlib collection.
+
+    Raises:
+        ValueError: If neither ``color`` nor ``entity`` is given.
 
     References:
         [REF-MATPLOTLIB]. No equation is evaluated.
 
     """
+    if entity is not None:
+        color = entity_colour(entity)
+    if color is None:
+        raise ValueError("band needs a color or an entity")
     if smooth:
         xs, lower = monotone_cubic(x, lower)
         _, upper = monotone_cubic(x, upper)
@@ -700,44 +1104,58 @@ def line(
     x: Sequence[float],
     y: Sequence[float],
     *,
-    color: str,
+    color: str | None = None,
     dashes: tuple[float, tuple[float, ...]] | None = None,
-    width: float = LINE_WIDTH,
+    width: float | None = None,
     label: str | None = None,
     zorder: float = 3.0,
     smooth: bool = False,
+    entity: str | None = None,
 ) -> Any:
     """Draw a data or model line with optional epistemic dash pattern.
 
     With ``smooth=True`` the line is drawn through :func:`monotone_cubic`
     (continuous phenomena are drawn smooth without overshoot; keep the
-    default for discrete steps).
+    default for discrete steps). With ``entity`` the colour, dash pattern,
+    width, and label come from the set contract (:data:`ENTITY_STYLES`), so
+    the entity looks the same in every figure; ``label`` may then add a
+    qualifier such as ``"calibration (n = 300)"``.
 
     Args:
         ax: Target axes.
         x: Abscissae.
         y: Ordinates.
-        color: Series colour.
+        color: Series colour (or give ``entity``).
         dashes: ``FITTED``, ``PROJECTED``, ``SIMULATED`` or ``None`` (solid).
-        width: Line width in points.
+        width: Line width in points (default ``LINE_WIDTH``).
         label: Optional legend label.
         zorder: Drawing order.
         smooth: Interpolate with :func:`monotone_cubic`.
+        entity: Entity of the set contract.
 
     Returns:
         The Matplotlib line.
+
+    Raises:
+        ValueError: If neither ``color`` nor ``entity`` is given.
 
     References:
         [REF-MATPLOTLIB]. No equation is evaluated.
 
     """
+    if entity is not None:
+        style = entity_style(entity)
+        color, dashes, width = style.colour(), style.dashes, style.width
+        label = label or entity
+    if color is None:
+        raise ValueError("line needs a color or an entity")
     if smooth:
         x, y = monotone_cubic(x, y)
     return ax.plot(
         x,
         y,
         color=color,
-        linewidth=width,
+        linewidth=LINE_WIDTH if width is None else width,
         linestyle=dashes if dashes is not None else "-",
         label=label,
         zorder=zorder,
@@ -749,43 +1167,55 @@ def points(
     x: Sequence[float],
     y: Sequence[float],
     *,
-    color: str,
+    color: str | None = None,
     size: float = 30.0,
     label: str | None = None,
     zorder: float = 4.0,
-    marker: str = "o",
+    marker: str | None = None,
     alpha: float | None = None,
+    entity: str | None = None,
 ) -> Any:
     """Draw markers with a canvas-colour rim so they separate from lines.
 
     Two series that share positions (for example two probability mass
     functions that both tend to zero) stay visible together when they use
-    different ``marker`` shapes and a translucent ``alpha``.
+    different ``marker`` shapes and a translucent ``alpha``. With ``entity``
+    the colour, marker, and label come from the set contract.
 
     Args:
         ax: Target axes.
         x: Abscissae.
         y: Ordinates.
-        color: Series colour.
+        color: Series colour (or give ``entity``).
         size: Marker area in points squared.
         label: Optional legend label.
         zorder: Drawing order.
         marker: Matplotlib marker code (default a filled circle).
         alpha: Optional marker opacity in ``(0, 1]``.
+        entity: Entity of the set contract.
 
     Returns:
         The Matplotlib path collection.
+
+    Raises:
+        ValueError: If neither ``color`` nor ``entity`` is given.
 
     References:
         [REF-MATPLOTLIB]. No equation is evaluated.
 
     """
+    if entity is not None:
+        style = entity_style(entity)
+        color, marker = style.colour(), style.marker
+        label = label or entity
+    if color is None:
+        raise ValueError("points needs a color or an entity")
     return ax.scatter(
         x,
         y,
         s=size,
         color=color,
-        marker=marker,
+        marker=marker or "o",
         alpha=alpha,
         edgecolors=active_palette().canvas,
         linewidths=1.2,
@@ -801,6 +1231,7 @@ def reference_line(
     x: float | None = None,
     label: str | None = None,
     color: str | None = None,
+    entity: str | None = None,
 ) -> Any:
     """Draw a thin dashed reference line in the accent colour with a label.
 
@@ -812,6 +1243,8 @@ def reference_line(
         x: Abscissa of a vertical reference.
         label: Short label such as ``"exact value"``.
         color: Override colour (defaults to the accent).
+        entity: Entity of the set contract (``"truth"``, ``"threshold"``,
+            ...); sets the colour and names the line for the set audit.
 
     Returns:
         The Matplotlib line.
@@ -825,10 +1258,18 @@ def reference_line(
     """
     if (x is None) == (y is None):
         raise ValueError("supply exactly one of x or y")
+    if entity is not None:
+        color = entity_colour(entity)
     colour = color or active_palette().accent
+    name = entity or "_reference"
     if y is not None:
         artist = ax.axhline(
-            y, color=colour, linewidth=REFERENCE_WIDTH, linestyle=REFERENCE, zorder=2
+            y,
+            color=colour,
+            linewidth=REFERENCE_WIDTH,
+            linestyle=REFERENCE,
+            zorder=2,
+            label=name,
         )
         if label:
             ax.annotate(
@@ -846,7 +1287,12 @@ def reference_line(
             )
         return artist
     artist = ax.axvline(
-        x, color=colour, linewidth=REFERENCE_WIDTH, linestyle=REFERENCE, zorder=2
+        x,
+        color=colour,
+        linewidth=REFERENCE_WIDTH,
+        linestyle=REFERENCE,
+        zorder=2,
+        label=name,
     )
     if label:
         ax.annotate(
@@ -979,6 +1425,42 @@ def sequential_colormap(palette: ChartPalette | None = None) -> Any:
 
     ramp = (palette or active_palette()).sequential
     return LinearSegmentedColormap.from_list("probstat-sequential", list(ramp))
+
+
+def ordered_colours(count: int, palette: ChartPalette | None = None) -> list[str]:
+    """Return colours for ordered members (steps, decreasing ``eps``).
+
+    Members with an order (greedy design steps, Sinkhorn runs at decreasing
+    regularization) are not categories: they take the strong end of the
+    single-hue sequential ramp, light to dark, so the order is read from the
+    depth and no categorical hue (which means observed or model) is spent
+    on them (ADR-0098). Member ``k`` (from 0) always sits at depth
+    ``min(1, 0.55 + 0.15 k)``, so step 2 has the same colour in a two-step
+    and in a three-step figure, and neighbours stay apart under protan and
+    deutan vision. Direct labels of the lightest member are darkened toward
+    the ink for legibility by the caller.
+
+    Args:
+        count: Number of members (positive).
+        palette: Palette whose ramp is used (the active one by default).
+
+    Returns:
+        ``count`` hexadecimal colours; members beyond the fourth share the
+        darkest.
+
+    Raises:
+        ValueError: If ``count`` is not positive.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    from matplotlib.colors import to_hex
+
+    if count < 1:
+        raise ValueError("count must be positive")
+    ramp = sequential_colormap(palette)
+    return [to_hex(ramp(min(1.0, 0.55 + 0.15 * index))) for index in range(count)]
 
 
 def _wrap_wide_titles(figure: Any, renderer: Any) -> None:
