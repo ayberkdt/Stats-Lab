@@ -90,6 +90,10 @@ The profile interval is skewed upward because the likelihood allows a
 heavier tail much more readily than a lighter one. For long return periods,
 prefer it over the Wald interval.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/extreme-value-return-levels-dark.png"><img alt="GEV return-level curve against the return period on a log axis with the delta band, profile intervals, maxima, and truth" src="../images/guides/extreme-value-return-levels.png"></picture>
+
+*The delta interval is symmetric about the estimate by construction, 17.58 to 29.14 for the 100-year level, while the profile-likelihood interval, 19.59 to 33.66, stretches upward; both contain the true level 21.68, and the two intervals part further as the return period grows beyond the 80-year record.*
+
 **Coverage check.** For 100 seeded samples of 50 maxima from
 `GEV(0, 1, 0.1)`, the nominal 95% delta interval for `z_10` covered the truth
 in 90 replicates (a separate 150-replicate run gave 90.7%). The

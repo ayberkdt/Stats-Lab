@@ -55,6 +55,10 @@ equals `p` exactly when `xi` is D-optimal. `equivalence_check` evaluates
 At the optimum `d(x) = 3 - 4.5x^2 + 4.5x^4` (checked on 2001 points), which
 touches `p = 3` only at `-1, 0, 1`.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/experimental-design-equivalence-dark.png"><img alt="Design weights above the standardized variance function of the D-optimal quadratic design and of the uniform grid design" src="../images/guides/experimental-design-equivalence.png"></picture>
+
+*The equivalence theorem made visible: the D-optimal design keeps `d(x)` at or below `p = 3` and reaches it (3.000) only at its support, while the uniform grid design peaks at 7.48 at the ends of the region, which bounds its D-efficiency from below by 0.224.*
+
 ## 4. Approximate D-optimal designs on a grid (EQ-OED-MULT-001, EQ-OED-FW-001)
 
 `d_optimal_design(candidates, basis, method=...)` stops when

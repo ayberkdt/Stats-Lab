@@ -141,6 +141,10 @@ censoring (146 censored, 29.2%).
 Both estimates lie within one standard error of the truth. The AIC ranks
 Weibull (1744.0) ahead of lognormal (1779.2) and exponential (1860.8).
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/survival-censoring-bias-dark.png"><img alt="Kaplan-Meier curve with its 95% band, a fitted Weibull survival curve, and the curve that treats every time as an event" src="../images/guides/survival-censoring-bias.png"></picture>
+
+*The two estimators that use the censoring agree: Kaplan-Meier puts the median at 4.06 and the censored Weibull fit at 4.04, against a true median of 4.03; treating the 146 censored times as events pulls the median down to 3.09, the bias toward shorter survival described in Section 0.*
+
 In the exponential model with no covariates, the MLE is the closed form
 `rate = d / sum t_i`, with `se(log mean) = 1/sqrt(d)`. Without censoring, the
 lognormal and Weibull fits reproduce the ordinary MLEs. The tests compare the

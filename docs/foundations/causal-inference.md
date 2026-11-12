@@ -217,6 +217,10 @@ AIPW stays within 3 SE of 2 whenever one model is correct. It fails, like
 both comparators, when both models are wrong. Double robustness is not
 robustness to unmeasured confounding.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/causal-double-robustness-dark.png"><img alt="Forest plot of nine average-treatment-effect estimates with 95% intervals against the true effect of 2" src="../images/guides/causal-double-robustness.png"></picture>
+
+*With correct working models every adjusted estimator lands near the true effect 2, while the naive contrast reports 2.79; when one model omits the confounder X1, regression or IPW alone moves to about 3.3 but AIPW stays within 0.01 of the truth, and only with both models wrong does it fail as well, at 3.30.*
+
 ### Bootstrap intervals
 
 `bootstrap_effect(..., method="aipw", replicates=40, seed=11)` was run on

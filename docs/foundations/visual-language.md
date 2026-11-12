@@ -35,6 +35,10 @@ smooth=True)` so the band follows its line) [REF-FRITSCH-CARLSON-1980], and
 the primary observed series may carry one fading gradient area
 (`gradient_area`, at most 0.26 at the line).
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/visual-language-encoding-rules-dark.png"><img alt="Regression observations with a dashed fitted mean, a dotted projection, its 95% band, and the dashed true line" src="../images/guides/visual-language-encoding-rules.png"></picture>
+
+*One least-squares fit to 25 observations carries the first three rules: the data take the first hue, the fitted mean is dashed where the data support it and dotted past the last observation, its 95% band takes the model hue and grows 4.4x wider by x = 10, and the true line is the accent with the reference dash.*
+
 ## Palettes
 
 | Token | Porcelain (light, default) | Graphite (dark) |

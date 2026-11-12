@@ -245,6 +245,10 @@ information of 0.48. With 100 replications the binomial standard error of a
 coverage near 0.95 is about 0.022, so 0.92 and 0.93 are consistent with
 nominal coverage. The test accepts MI coverage in `[0.89, 0.995]`.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/missing-data-interval-coverage-dark.png"><img alt="Three panels of 95% intervals for the mean of x1 over 60 samples: complete cases, mean imputation, and multiple imputation" src="../images/guides/missing-data-interval-coverage.png"></picture>
+
+*Complete cases lose the rows with large `x0`, and with them large `x1`, so their intervals sit low and cover the true mean in 70% of the first 60 samples of the lab's coverage study; mean imputation adds a falsely narrow spread to the same bias and covers in 25%, while multiple imputation (`m = 5`) uses the `x0`-`x1` relation and covers in 92%, within two binomial standard errors of 95%.*
+
 ## 9. Limitations
 
 - Only the multivariate normal model. There is no chained-equations (FCS)

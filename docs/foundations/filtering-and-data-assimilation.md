@@ -108,6 +108,10 @@ correlation that `F` builds between position and velocity. 94.7% of the
 filtered position errors fall inside two filtered standard deviations, close
 to the nominal 95%.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/filtering-hidden-velocity-dark.png"><img alt="True velocity, Kalman-filtered velocity with its 95% band, and the smoothed velocity over 150 time steps" src="../images/guides/filtering-hidden-velocity.png"></picture>
+
+*Only position is measured, yet the filter infers the velocity from the correlation the dynamics build between the two states, with RMSE 0.285; the smoother, which also uses later observations, lowers it to 0.155, and the filtered 95% band holds the true velocity at 93% of the steps.*
+
 ## 4. Nonlinear Gaussian filters
 
 - **Extended Kalman filter** (`extended_kalman_filter`) linearizes `f` and
