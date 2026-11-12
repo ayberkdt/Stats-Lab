@@ -1462,14 +1462,17 @@ def _blup_shrinkage() -> tuple[Any, dict[str, str]]:
         offset=(10, 0) if raw[0] > blups[0] else (-10, 0),
         ha="left" if raw[0] > blups[0] else "right",
     )
+    # The label sits beyond the pair on the side away from zero, so it never
+    # crosses the reference line at the fixed intercept.
+    outward = 1.0 if raw[top] + blups[top] > 0.0 else -1.0
     _text(
         ax,
-        blups[top],
+        max(raw[top], blups[top]) if outward > 0 else min(raw[top], blups[top]),
         top,
         f"BLUP keeps {facts['large']}",
         model,
-        offset=(10, 0) if blups[top] > raw[top] else (-10, 0),
-        ha="left" if blups[top] > raw[top] else "right",
+        offset=(10 * outward, 0),
+        ha="left" if outward > 0 else "right",
     )
     _text(
         ax,
