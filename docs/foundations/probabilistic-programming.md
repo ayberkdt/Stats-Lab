@@ -204,8 +204,8 @@ chains of 150 warm-up and 150 kept draws:
 
 | | exact | NUTS (MCSE) |
 |---|---|---|
-| E[mu] | 4.441 | 4.591 (0.198) |
-| E[tau] | 3.290 | 3.257 (0.163) |
+| E[mu] | 4.441 | 4.302 (0.209) |
+| E[tau] | 3.290 | 3.521 (0.229) |
 
 The run had no divergences and a mean tree depth of 2.9 and 3.1. The test
 requires agreement within 4 MCSE and rank-normalized R-hat < 1.05.
@@ -215,14 +215,15 @@ class. Seed 2026, two chains of 300 + 300 draws:
 
 | | exact | NUTS (MCSE) | ESS |
 |---|---|---|---|
-| E[mu] | 4.397 | 4.301 (0.250) | 235 |
-| E[tau] | 3.598 | 3.858 (0.179) | 285 |
-| E[theta_1] | 6.212 | 6.366 (0.301) | |
+| E[mu] | 4.397 | 4.246 (0.178) | 331 |
+| E[tau] | 3.598 | 3.756 (0.168) | 360 |
+| E[theta_1] | 6.212 | 6.351 (0.323) | |
 
 The non-centred run had 0 divergences. The same model written centred
-(tree depth capped at 6, 150 + 150 draws) had 3 divergences and an ESS of
-only 9 for tau. Its tau mean of 3.408 happens to be close, but with an ESS
-of 9 that number cannot be trusted. This is the funnel that
+(tree depth capped at 6, 150 + 150 draws) had no divergences, but 58 of its
+300 draws stopped at the depth limit, one chain had an E-BFMI of 0.27, and
+the ESS of tau was only 66 against 360. Its tau mean of 3.808 cannot be
+trusted at that ESS. This is the funnel that
 `reparam="noncentered"` removes ([EQ-PPL-NONCENTERED-001]).
 
 ### Conjugate checks
@@ -236,14 +237,18 @@ Results from the lab (seeds 1-5):
 | Method | mean | sd |
 |---|---|---|
 | Laplace (2 000 draws) | 4.8598 | 0.3804 |
-| NUTS | 4.8400 | 0.3724 |
-| HMC | 4.8391 | 0.3762 |
+| NUTS | 4.8286 | 0.3759 |
+| HMC | 4.8417 | 0.3612 |
 | Metropolis | 4.8503 | 0.3808 |
 | ADVI | 4.8220 | 0.3674 |
 
 The Laplace mode itself is 4.842520, exact to six digits. In the test, the
 Laplace sd is 0.376473, also exact to six digits. The Laplace mean in the
 table is a sample mean of draws, so it carries Monte Carlo error.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/ppl-engines-closed-form-dark.png"><img alt="Posterior mean and one standard deviation of a normal mean from five inference engines beside the closed-form value" src="../images/guides/ppl-engines-closed-form.png"></picture>
+
+*One program, five engines: with the lab's seeds and settings (HMC shortened to 200 warm-up and 300 kept draws per chain) every posterior mean lies within 0.021 of the closed-form 4.8425, and every +/- 1 sd bar ends close to the dotted exact limits, so the program, its bijections, and each engine agree.*
 
 **Beta-binomial.** The model is `p ~ Beta(2, 3)` with 13 successes in 20
 trials, so the exact posterior is `Beta(15, 10)` (mean 0.6000, sd 0.0961).
@@ -254,9 +259,13 @@ trials, so the exact posterior is `Beta(15, 10)` (mean 0.6000, sd 0.0961).
 - The test checks the same thing pointwise: `log p(u)` minus
   `log Beta(15, 10)(sigmoid(u))` minus `log J(u)` equals the log evidence
   to ten decimal places at five values of `u`.
-- NUTS gives mean 0.5996 and sd 0.0915 (lab, seed 7), or 0.6075 (MCSE
-  0.0048) and sd 0.0957 (test, seed 8).
+- NUTS gives mean 0.5953 and sd 0.0935 (lab, seed 7), or 0.5967 (MCSE
+  0.0036) and sd 0.0955 (test, seed 8).
 - Every draw lies inside (0, 1).
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/ppl-beta-binomial-posterior-dark.png"><img alt="Histogram of NUTS draws of a success probability over the exact Beta posterior density and the dashed Beta prior" src="../images/guides/ppl-beta-binomial-posterior.png"></picture>
+
+*The lab's two NUTS chains (seed 7, rank-normalized R-hat 1.004) sample the logit of `p`, yet their histogram on the natural scale follows the exact `Beta(15, 10)` density: the sample mean 0.5953 lies within two Monte Carlo standard errors of the exact 0.6000, and the data have moved the mass well to the right of the `Beta(2, 3)` prior.*
 
 ## 4. Predictive simulation
 
@@ -279,8 +288,8 @@ For eight schools (lab, half-Cauchy prior):
 
 - The prior predictive range `max y - min y` has median 43.3 and 90 %
   quantile 99.6. The observed range is 31.0.
-- The posterior predictive p-values are 0.327 for `max` (MCSE 0.020),
-  0.088 for `min` (0.011), and 0.750 for `sd` (0.019).
+- The posterior predictive p-values are 0.293 for `max` (MCSE 0.019),
+  0.082 for `min` (0.011), and 0.738 for `sd` (0.017).
 
 ## 5. Structured and discrete latent sites
 

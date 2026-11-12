@@ -67,6 +67,10 @@ Some targets are unattainable for skewed marginals (for example a strong
 negative correlation between two heavy lognormals); the solver reports that
 instead of returning a wrong matrix.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/modeling-latent-physical-correlation-dark.png"><img alt="Two scatter panels of the same joint draws: latent standard normals and the two lognormal physical inputs" src="../images/guides/modeling-latent-physical-correlation.png"></picture>
+
+*The same joint draws in both spaces: the Nataf solver sets the latent normal correlation to 0.661 so that, after the skewed marginals stretch the upper tail, the physical Pearson correlation lands at 0.590 in 30 000 draws (seed 1), close to the 0.6 target; in the latent space the cloud is an ellipse, in the physical space a fan.*
+
 ## Vine copulas: dependence built from pairs
 
 A single parametric copula imposes one kind of dependence on every pair of
@@ -208,12 +212,16 @@ seed 1):
 |---|---|
 | Monte Carlo | 0.227 |
 | Latin hypercube | 0.100 |
-| scrambled Halton | 0.048 |
+| scrambled Halton | 0.024 |
 | scrambled Sobol | 0.0037 |
 
 Same model, same cost, about 60 times less error with scrambled Sobol. The
 advantage shrinks for non-smooth or very high-dimensional integrands, which is
 why the design is a parameter and not a hidden default.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/modeling-design-comparison-dark.png"><img alt="Spread of replicate mean estimates of the Ishigami function for four sampling designs on a logarithmic axis" src="../images/guides/modeling-design-comparison.png"></picture>
+
+*On the logarithmic axis each design is a step down from Monte Carlo at the same 256 model runs: the spread of the replicate means falls from 0.227 to 0.00365 with scrambled Sobol, a 62x reduction, with Latin hypercube and scrambled Halton in between.*
 
 ## Forward propagation on the model
 

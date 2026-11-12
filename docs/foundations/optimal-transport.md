@@ -78,7 +78,13 @@ Lab (same problem as in section 1, exact cost 4.59118):
 | 0.25 | 3322 | 7.47e-02 | 3.71e-01 | 1.0e-09 | 4.55135 |
 
 Both costs fall toward the LP optimum as `eps` falls, but the iteration
-count rises sharply. In the tests, a 5 x 5 problem with costs in `[0, 1]`
+count rises sharply.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/transport-plane-coupling-dark.png"><img alt="Two panels of six source and six target points in the plane joined by the exact and by an entropic transport plan" src="../images/guides/transport-plane-coupling.png"></picture>
+
+*On the lab's six-plus-six problem the simplex plan is a permutation, one line per point, with cost 4.591; Sinkhorn at eps = 0.5 keeps both marginals but spreads the mass over 17 of 36 pairs (entries above 0.5% of the total), which raises `<P,C>` by 0.158, the `eps = 0.50` row of the table.*
+
+In the tests, a 5 x 5 problem with costs in `[0, 1]`
 (exact cost 0.39445) gives these `<P,C>` gaps:
 
 | eps | `<P,C>` gap | iterations |
@@ -132,6 +138,10 @@ limits Simpson's accuracy. With 2048 intervals the gap shrinks to `4.5e-10`.
 The quadrature truncates probability `2 Phi(-8) ~ 1.2e-15`. That is
 negligible for light tails; if `W_p` is barely finite because of heavy
 tails, the quadrature converges slowly.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/transport-quantile-w1-dark.png"><img alt="Quantile functions of a Gamma and an exponential law with the area between them shaded" src="../images/guides/transport-quantile-w1.png"></picture>
+
+*`W_1` between `Gamma(2, 1)` and `Exp(0.8)` is the shaded area between the quantile functions, 0.750; the Gamma quantile stays above the exponential one over the drawn range, and the crossing that puts the kink into the integrand lies far out, between `u = 0.99997` and `0.99999`, where the heavier exponential tail overtakes.*
 
 ## 4. Barycenters (EQ-OT-BARY-001, EQ-OT-BARY-002)
 

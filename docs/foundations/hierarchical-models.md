@@ -84,6 +84,10 @@ The over-fitted `K = 4, 5` runs hit the iteration cap without converging.
 EM is slow when components overlap or are redundant. Their log-likelihoods
 are still enough to rank them by BIC.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/hierarchical-mixture-fit-dark.png"><img alt="Histogram of 300 observations with the fitted Gaussian-mixture density and its weighted components" src="../images/guides/hierarchical-mixture-fit.png"></picture>
+
+*In one dimension the same selection works on 300 draws from a three-component mixture (seed 21): BIC picks K = 3, and EM places the components at -3.08, 0.34, 3.94, close to the true centres -3, 0.5 and 4, with the dashed weighted components summing to the solid mixture density.*
+
 With all 600 points, recovery is within 0.05 in the weights, 0.15 in the
 means, and 0.25 in the covariance entries
 (`test_recovers_seeded_parameters`).
@@ -212,6 +216,10 @@ therefore converges slowly and is itself noisy.
 ranges from 0.693 (school 5, `s = 9`) to 0.862 (school 8, `s = 18`). Noisier
 schools are pulled harder toward `E[mu | y] = 7.93`. School 1's estimate of
 28 becomes a posterior mean of 11.40.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/hierarchical-schools-shrinkage-dark.png"><img alt="Eight school effects, each drawn as a raw estimate with one standard error above its posterior mean and 95% interval, joined by arrows" src="../images/guides/hierarchical-schools-shrinkage.png"></picture>
+
+*Each arrow carries a school's raw estimate (schools A to H are 1 to 8) to its exact grid posterior mean, toward the pooled mean 7.93: averaged over schools the posterior puts 77% of its weight on that mean, so the range of the eight effects shrinks from 31.0 to 6.3, while each 95% interval stays 25 to 35 points wide because `tau` itself remains uncertain.*
 
 **Priors.** `half_cauchy_log_prior(A)` gives the half-Cauchy prior recommended
 by Gelman (2006). With `A = 5` it lowers both `E[tau | y]` and the 95 %

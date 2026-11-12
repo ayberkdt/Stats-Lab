@@ -114,6 +114,10 @@ On a banana-shaped target (`x1 ~ N(0, 1)`, `x2 | x1 ~ N(x1^2/2 - 1, 0.35^2)`,
 log-likelihood of `-1.87`, against `-2.86` for one Gaussian and `-1.79` for
 the true density (ADR-0074).
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/generative-flow-versus-gaussian-dark.png"><img alt="Two panels of banana-shaped training points with the 50% and 90% density contours of one Gaussian and of a normalizing flow" src="../images/guides/generative-flow-versus-gaussian.png"></picture>
+
+*The single Gaussian spends its 90% region on the empty space inside the arc, while the two-coupling flow of the example above bends its contours along the banana; on the 300 held-out points the flow scores a mean log-likelihood of -1.87 against -2.86 for the Gaussian and -1.79 for the true density.*
+
 ## Energy-based models
 
 An energy model is `p(x) = exp(-E(x)) / Z` [EQ-GEN-EBM-001]. `EnergyModel`

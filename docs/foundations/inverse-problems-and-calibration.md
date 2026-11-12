@@ -46,6 +46,10 @@ conditional distribution given all these assumptions. If the noise variance
 is estimated rather than known, the present conjugate contract is not the
 correct model and a later hierarchical extension is required.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/inverse-prior-to-posterior-dark.png"><img alt="Two panels with the 95% band of a straight line under the prior and under the posterior, with the eight measurements" src="../images/guides/inverse-prior-to-posterior.png"></picture>
+
+*In the companion lab the prior `N((0, 0), diag(25, 4))` leaves the line `a + b x` almost unconstrained, with a 95% band of +/-16.9 at `x = 3.5`; eight measurements of `1.25 + 0.82 x` with known noise sd 0.35 make the exact conjugate posterior band +/-0.24, 70 times narrower, so the data, not the prior, now carry the calibration.*
+
 ## 4. Posterior samples and predictions
 
 Posterior parameter draws propagate parameter uncertainty through later
@@ -66,6 +70,10 @@ This is the calibration-versus-prediction boundary. Calibration conditions on
 data collected at the calibration inputs. Prediction declares new inputs and a
 target: latent response or future observation. Extrapolation outside the
 calibration domain may be numerically computable while scientifically unsafe.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/inverse-calibration-prediction-dark.png"><img alt="Eight measurements with the posterior mean line, its parameter band and its future-observation band extended to x = 9" src="../images/guides/inverse-calibration-prediction.png"></picture>
+
+*Both bands carry the lab's declared discrepancy sd of 0.15; adding the measurement noise makes the future-observation band 1.5 times as wide as the mean-response band at `x = 9`, past the last calibration input at `x = 7`, and the posterior-predictive tail probability of the eight measurements, 0.711, gives no sign of misfit.*
 
 ## 5. Posterior-predictive checking
 
