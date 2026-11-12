@@ -352,7 +352,7 @@ The importance measures at 1000 h, with CCF:
 |---|---|---|---|---|---|
 | V | 0.970 | 0.393 | 0.405 | 20.4 | 1.65 |
 | C | 0.961 | 0.195 | 0.203 | 20.4 | 1.24 |
-| IND[P1] | 0.087 | 0.161 | 0.168 | 2.62 | 1.19 |
+| IND[P1] | 0.087 | 0.161 | 0.168 | 2.61 | 1.19 |
 | CCF[P1,P2] | 0.956 | 0.097 | 0.102 | 20.4 | 1.11 |
 | S1 | 0.089 | 0.089 | 0.095 | 2.73 | 1.10 |
 
@@ -432,7 +432,8 @@ uses the cross moment of two copies that share only `theta_S`
 share of all CCF parameters together, which answers how much the CCF data
 matter compared with the component data (state-of-knowledge correlation,
 Apostolakis and Kaplan 1981 [REF-APOSTOLAKIS-KAPLAN-1981]). For a 2-out-of-3
-group with `Q_t = 0.01` and `beta ~ Beta(2, 18)`,
+group of `FixedProbability(0.99)` members (`Q_t = 0.01`) built with
+`ccf_basis="probability"`, at `t = 1` and with `beta ~ Beta(2, 18)`,
 `E[R] = 0.99875742` and `Var[R] = 3.855e-7`, equal to quadrature over the
 beta law; adding `Q_t ~ Beta(2, 198)` gives the shares `0.18` (beta) and
 `0.74` (total). Under the hazard split, and for alpha-factor parameters,
@@ -447,7 +448,7 @@ non-monotone, and bounds it over the corners of the box; parameters with
 distributions are sampled with common random numbers at every corner, and
 the envelope of the corner distributions is a probability box
 [EQ-SYS-ECCF-004] (Ferson et al. 2003 [REF-FERSON-ET-AL-2003]). For
-`beta in [0.02, 0.2]` the 2-out-of-3 unreliability increases with `beta`
+`beta in [0.02, 0.2]` the same 2-out-of-3 unreliability increases with `beta`
 and lies in `[4.86e-4, 2.19e-3]`; for a series system it decreases, since
 a common cause then replaces several independent failures by one event.
 

@@ -221,7 +221,7 @@ The example data are `x = 0.5, 1.0, ..., 5.0` with
 | Link | Intercept (SE) | Slope (SE) | Deviance | AIC | Iterations |
 |---|---|---|---|---|---|
 | logit | -2.92651 (2.06009) | 1.32442 (0.80019) | 8.62024 | 12.62024 | 6 |
-| probit | -1.80698 (1.15349) | 0.81493 (0.43756) | 8.48344 | 12.48344 | 12 |
+| probit | -1.80698 (1.15349) | 0.81493 (0.43755) | 8.48344 | 12.48344 | 12 |
 
 The null deviance is `-2(6 log 0.6 + 4 log 0.4) = 13.4602`. The test checks
 the logit fit against an explicit two-parameter Newton iteration written in

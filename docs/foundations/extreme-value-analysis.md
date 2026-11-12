@@ -95,14 +95,16 @@ prefer it over the Wald interval.
 *The delta interval is symmetric about the estimate by construction, 17.58 to 29.14 for the 100-year level, while the profile-likelihood interval, 19.59 to 33.66, stretches upward; both contain the true level 21.68, and the two intervals part further as the return period grows beyond the 80-year record.*
 
 **Coverage check.** For 100 seeded samples of 50 maxima from
-`GEV(0, 1, 0.1)`, the nominal 95% delta interval for `z_10` covered the truth
-in 90 replicates (a separate 150-replicate run gave 90.7%). The
+`GEV(0, 1, 0.1)` (replicate `i` uses
+`RandomStream(2026).child("gev", i).integer_seed()`), the nominal 95% delta
+interval for `z_10` covered the truth in 90 replicates; extending the same
+stream to 150 replicates gives 90.7%. The
 test requires a rate between 82% and 99%. The mild undercoverage is the
 known small-sample behaviour of Wald intervals. It grows for shorter records
 and longer periods: with 30 maxima and `T = 100` (200 replicates each for
-`xi = -0.2, 0.1, 0.3`), nominal 95% delta intervals covered the truth in
-76.5-86% of fits and profile intervals in 92.5-96.5%. Use the profile interval
-for small samples.
+`xi = -0.2, 0.1, 0.3`, seeded the same way), nominal 95% delta intervals
+covered the truth in 84.5-88% of fits and profile intervals in 96%. Use the
+profile interval for small samples.
 
 ## 4. Choosing a threshold (EQ-EVA-MRL-001, EQ-EVA-STAB-001)
 

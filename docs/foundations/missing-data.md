@@ -217,9 +217,9 @@ Variable `x1`: true mean 2.000, variance 1.500, corr(`x0`, `x1`) 0.490.
 
 Mean imputation halves the variance (0.848 against 1.638 before deletion). It
 attenuates the correlation, and it reports the smallest standard error of
-all, smaller even than the full data. In this one sample EM and MI land about
-1.2 standard errors above the truth. That is sampling noise, as the repeated
-samples in section 8 show.
+all, smaller even than the full data. In this one sample EM lands 1.2 and MI
+1.4 of their standard errors above the truth. That is sampling noise, as the
+repeated samples in section 8 show.
 
 EM converged in 41 iterations, monotone. The MI pooling diagnostics were
 `r = 0.519`, `lambda = 0.342`, FMI 0.355, and df 100.2.

@@ -287,16 +287,17 @@ settings against one target, not a calibrated test.
 
 - Quadratic `x^2 + 3xy - y^2 + 2x - y + 4` under a correlated bivariate
   Gaussian, `n = 40`, degree 2: error `-1.8e-15` with either method, and the
-  adjusted-to-raw variance ratio is `1.3e-31`.
+  adjusted-to-raw variance ratio is below `1e-30` (rounding error).
 - `exp(x/2)` under `N(0, 1)`, `n = 200`: variance-reduction factor `6.3`
   (degree 1) and `81.7` (degree 2) same-sample; `6.1` and `64.6`
   split-sample.
 - Bias at `n = 12` for `exp(x)` under `N(0, 1)`, 400 seeds, degree 2: the
   split-sample mean is `-1.8` standard errors from `e^(1/2)`, the
   same-sample mean `-6.1`.
-- `cos(x)` under `N(0, 1)`, 8 seeds: plain Monte Carlo RMSE `0.112`
-  (`n = 16`) and `0.056` (`n = 64`); split-sample control functional
-  `1.8e-2` and `1.4e-4`; kernel-quadrature weights `3.1e-4` and `3.7e-5`.
+- `cos(x)` under `N(0, 1)`: plain Monte Carlo has RMSE
+  `sigma / sqrt(n) = 0.112` (`n = 16`) and `0.056` (`n = 64`); over 8 seeds
+  the split-sample control functional reaches RMSE `1.8e-2` and `1.4e-4`,
+  and the kernel-quadrature weights `3.1e-4` and `3.7e-5`.
 - An AR(1) chain with coefficient `0.8` targeting `N(0, 1)`, `n = 500`,
   integrand `exp(x)`: the MCMC standard error is `0.039` against the IID
   formula's `0.026`.

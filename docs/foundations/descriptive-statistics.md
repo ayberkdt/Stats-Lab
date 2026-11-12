@@ -74,35 +74,95 @@ summarized in parallel and combined in any order.
 
 Each moment accumulator subtracts its first observation `K` before updating.
 For tightly clustered values far from zero, `x - K` is exact and the
-recurrence works on numbers of order one. On 2000 values `1e9 + Exp(1)`
-(seed 7), relative errors against an exact rational computation were:
+recurrence works on numbers of order one. The block below draws 2000 values
+`1e9 + Exp(1)` and compares the shifted Welford/Pébay accumulator (single
+pass, and seven merged chunks of 286 values), the two-pass `variance` and
+`skewness`, an unshifted Welford recurrence, and the textbook formula
+`mean(x^2) - mean(x)^2` with an exact rational computation:
 
-| Method | variance | skewness |
-| --- | --- | --- |
-| `RunningMoments` (shifted Welford/Pébay) | 3.5e-16 | 3.9e-16 |
-| `RunningMoments`, 7 merged chunks | 1.2e-16 | 2.6e-16 |
-| two-pass `variance` / `skewness` | 2.4e-15 | 8.8e-8 |
-| unshifted Welford | 2.0e-8 | — |
-| `mean(x^2) - mean(x)^2` | returns `-128` (true value 0.956) | — |
+```python
+import random
+from decimal import Decimal, localcontext
+from fractions import Fraction
+from functools import reduce
 
-The two-pass skewness error comes from the rounded mean: at `1e9` the mean
-can only be stored to about `1e-7`, and the third moment is sensitive to the
-center to first order.
+from probstat.statistics import RunningMoments, skewness, variance
+
+generator = random.Random(7)
+values = [1e9 + generator.expovariate(1.0) for _ in range(2000)]
+
+exact = [Fraction(value) for value in values]
+center = sum(exact) / len(exact)
+m2 = sum((value - center) ** 2 for value in exact) / len(exact)
+m3 = sum((value - center) ** 3 for value in exact) / len(exact)
+with localcontext() as context:
+    context.prec = 50
+    d2 = Decimal(m2.numerator) / Decimal(m2.denominator)
+    d3 = Decimal(m3.numerator) / Decimal(m3.denominator)
+    true_skewness = Fraction(d3 / (d2 * d2.sqrt()))
+
+
+def error(value, truth):
+    return float(abs(Fraction(value) - truth) / truth)
+
+
+streamed = RunningMoments()
+streamed.extend(values)
+chunks = []
+for start in range(0, len(values), 286):
+    chunk = RunningMoments()
+    chunk.extend(values[start : start + 286])
+    chunks.append(chunk)
+merged = reduce(RunningMoments.merge, chunks)
+
+mean = welford = 0.0
+for count, value in enumerate(values, start=1):
+    delta = value - mean
+    mean += delta / count
+    welford += delta * (value - mean)
+naive = sum(v * v for v in values) / len(values) - (sum(values) / len(values)) ** 2
+
+print("relative error      variance  skewness")
+print(f"RunningMoments      {error(streamed.variance(), m2):.1e}   "
+      f"{error(streamed.skewness(), true_skewness):.1e}")
+print(f"{len(chunks)} merged chunks     {error(merged.variance(), m2):.1e}   "
+      f"{error(merged.skewness(), true_skewness):.1e}")
+print(f"two-pass            {error(variance(values), m2):.1e}   "
+      f"{error(skewness(values), true_skewness):.1e}")
+print(f"unshifted Welford   {error(welford / len(values), m2):.1e}")
+print(f"mean(x^2) - mean(x)^2 = {naive:.0f} (true variance {float(m2):.3f})")
+```
+
+```text
+relative error      variance  skewness
+RunningMoments      3.3e-16   2.9e-16
+7 merged chunks     9.8e-17   4.2e-16
+two-pass            2.4e-15   8.8e-08
+unshifted Welford   2.0e-08
+mean(x^2) - mean(x)^2 = -128 (true variance 0.956)
+```
+
+The shifted accumulators stay at the rounding level of the data, merged or
+not; the unshifted recurrence loses eight digits and the textbook formula
+returns a negative variance. The two-pass skewness error comes from the
+rounded mean: at `1e9` the mean can only be stored to about `1e-7`, and the
+third moment is sensitive to the center to first order.
 
 ### Streaming quantiles
 
 `P2Quantile` (Jain and Chlamtac) keeps five markers and moves the three
-interior ones by a piecewise-parabolic prediction. Over five seeds per case,
-the largest errors were:
+interior ones by a piecewise-parabolic prediction. Over the five streams
+`random.Random(seed)`, `seed = 0, ..., 4` (`gauss(0, 1)` or
+`expovariate(1)`), the largest errors were:
 
 | Law, `p` | `n` | max rank error | max absolute error |
 | --- | --- | --- | --- |
-| N(0,1), 0.5 | 1e4 / 1e5 | 0.0014 / 0.0004 | 0.016 / 0.006 |
-| N(0,1), 0.9 | 1e4 / 1e5 | 0.0014 / 0.0002 | 0.021 / 0.015 |
-| N(0,1), 0.99 | 1e4 / 1e5 | 0.0008 / 0.0001 | 0.062 / 0.023 |
-| Exp(1), 0.5 | 1e4 / 1e5 | 0.0016 / 0.0003 | 0.017 / 0.003 |
-| Exp(1), 0.9 | 1e4 / 1e5 | 0.0009 / 0.0008 | 0.080 / 0.023 |
-| Exp(1), 0.99 | 1e4 / 1e5 | 0.0006 / 0.0002 | 0.084 / 0.026 |
+| N(0,1), 0.5 | 1e4 / 1e5 | 0.0013 / 0.0002 | 0.011 / 0.004 |
+| N(0,1), 0.9 | 1e4 / 1e5 | 0.0005 / 0.0001 | 0.008 / 0.010 |
+| N(0,1), 0.99 | 1e4 / 1e5 | 0.0008 / 0.0001 | 0.045 / 0.013 |
+| Exp(1), 0.5 | 1e4 / 1e5 | 0.0016 / 0.0003 | 0.011 / 0.004 |
+| Exp(1), 0.9 | 1e4 / 1e5 | 0.0026 / 0.0005 | 0.066 / 0.025 |
+| Exp(1), 0.99 | 1e4 / 1e5 | 0.0007 / 0.0001 | 0.110 / 0.065 |
 
 The rank error is `abs(F_n(q) - p)`, with `F_n` the empirical CDF of the same
 stream: the error of P² as a substitute for the sample quantile. Most of the

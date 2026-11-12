@@ -36,9 +36,12 @@ is computed directly so that small p-values keep their accuracy:
 | `f_sf` | `I_{d2/(d2+d1 f)}(d2/2, d1/2)` | EQ-INF-DIST-F-001 |
 | `noncentral_t_cdf` | `E[Phi(t S - delta)]`, `S = sqrt(chi^2_nu / nu)` | EQ-INF-DIST-NCT-001 |
 
-`noncentral_t_cdf` integrates the exact mixture representation with
-2000-interval Simpson quadrature. It agrees with an independent reference
-implementation to about `1e-11` on the tested points.
+`noncentral_t_cdf` integrates the exact mixture representation by adaptive
+Gauss-Legendre quadrature, with breakpoints where the integrand changes
+fastest. It agrees with independent reference implementations (a series and
+a brute-force quadrature) to `1e-12` on the tested points and to `1e-11` at
+the sharp step `(t, nu, delta) = (2000, 30, 1950)`, where a fixed
+2000-panel Simpson rule was off by `4e-4`.
 
 ## 2. t tests and the Student-t interval
 

@@ -92,10 +92,11 @@ experiment. If the predictions are right, the pooled `u` values are close to
 one-sample Kolmogorov-Smirnov test [EQ-INF-GOF-KS-001]. A single `u = 1/2`
 gives area `0.25`. A single `u = 0` gives the maximum, `0.5`.
 
-The seeded test uses 12 experiments with 4 observations each. Data drawn from
-the predictive laws give area `0.0374`, KS `D = 0.117`, and `p = 0.51`. A
-one-sigma bias in every experiment gives area `0.298`, `D = 0.503`, and
-`p = 2.3e-11`.
+The seeded test (`random.Random(2024)`) uses 12 experiments with 800
+predictive draws and 4 observations each. Data drawn from
+the predictive laws give area `0.0374`, KS `D = 0.117`, and `p = 0.49`. A
+one-sigma bias in every experiment gives area `0.298`, `D = 0.5025`, and
+`p = 9.7e-12`.
 
 ### Gaussian residuals and the reliability metric
 
@@ -177,10 +178,57 @@ Worked example (seed `3`, 400 samples per experiment): the spring model
 *Mapped through the predictive CDF of their own load, the 24 unbiased observations stay close to the uniform diagonal (area 0.042, KS p = 0.765), while the biased ones all land near u = 1 (area 0.492, p = 3.4e-30): pooling across loads gives one test for the whole campaign.*
 
 The unbiased case shows why the Gaussian residual check does not drive the
-verdict on its own. Its p-value of `0.031` comes from one finite data set. Over
-40 independent synthetic data sets, the Mahalanobis and KS checks rejected at
-the 5% level 2 and 4 times, with mean p-values `0.46` and `0.53`. That is what
-a calibrated test should do when the model is correct.
+verdict on its own. Its p-value of `0.031` comes from one finite data set.
+Over 40 independent synthetic campaigns drawn from the model itself
+(`random.Random(s)` for `s = 0, ..., 39`, the same assessment seed `3`), the
+Mahalanobis and KS checks reject at the 5% level 4 and 1 times, against 2
+expected, with mean p-values near `0.5`. That is what a calibrated test should
+do when the model is correct.
+
+```python
+import random
+
+from probstat.distributions import Normal
+from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
+from probstat.uq import NumericalErrorBudget, QuantityOfInterest
+from probstat.validation import ValidationExperiment, assess_validation
+
+spring = ProbabilisticModel(
+    JointInput.independent(RandomInput("k", Normal(2.0, 0.1))),
+    lambda p: {"y": p["k"] * p["load"]},
+    (QuantityOfInterest("y", "deflection", "mm"),),
+    name="spring",
+)
+
+
+def campaign(seed):
+    rng = random.Random(seed)
+    return [
+        ValidationExperiment(
+            f"test-{i}",
+            [rng.gauss(2.0, 0.1) * load + rng.gauss(0.0, 0.05) for _ in range(6)],
+            {"load": load},
+            measurement_uncertainty=0.05,
+        )
+        for i, load in enumerate((1.0, 2.0, 3.0, 4.0))
+    ]
+
+
+def assess(seed):
+    return assess_validation(
+        spring, "y", campaign(seed), tolerance=0.4, sample_size=400, seed=3,
+        numerical_uncertainty=NumericalErrorBudget(discretization=0.01),
+    )
+
+
+worked = assess(11)                       # the unbiased column of the table
+round(worked.mahalanobis.p_value, 3), round(worked.u_pooling.ks.p_value, 3)   # (0.031, 0.765)
+runs = [assess(s) for s in range(40)]
+mahalanobis_p = [run.mahalanobis.p_value for run in runs]
+ks_p = [run.u_pooling.ks.p_value for run in runs]
+sum(p < 0.05 for p in mahalanobis_p), sum(p < 0.05 for p in ks_p)   # (4, 1)
+round(sum(mahalanobis_p) / 40, 2), round(sum(ks_p) / 40, 2)          # (0.5, 0.48)
+```
 
 The summary also checks the intended-use conditions. `load = 2.5` is inside
 the hull and near the tested points. `load = 8` is outside the bounding box

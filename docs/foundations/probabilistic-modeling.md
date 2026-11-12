@@ -181,7 +181,9 @@ D-vine density over an end variable returns the remaining pair copula to
 - Sequential estimates are consistent but are not the joint
   maximum-likelihood estimates, and no standard errors are reported. Family
   selection is itself uncertain: in twenty replicate fits of a 3-D D-vine
-  with `n = 500`, the second-tree Frank copula was selected 15 times.
+  (Clayton `theta = 3` and Gumbel-90 `theta = 2` in tree 1, Frank `theta = 2`
+  in tree 2) with `n = 500` and seeds 101-120, the second-tree Frank copula
+  was selected 15 times.
 - Kendall's tau and tail dependence are available in closed form only for
   first-tree pairs. The CDF exists only for bivariate vines.
 - The Rosenblatt transform conditions in the vine order. FORM results
@@ -197,7 +199,7 @@ D-vine density over an end variable returns the remaining pair copula to
 | Monte Carlo | `monte_carlo_design` | IID; error `O(N^-1/2)` |
 | Latin hypercube | `latin_hypercube` | one point per marginal stratum [EQ-SAMP-LHS-001] |
 | Halton | `halton(scramble=..., shift=...)` | low discrepancy, prime bases [EQ-SAMP-HALTON-001] |
-| Sobol | `sobol(scramble=...)` | base-2 digital net, 16 dimensions [EQ-SAMP-SOBOL-001] |
+| Sobol | `sobol(scramble=...)` | base-2 digital net, up to 1024 dimensions [EQ-SAMP-SOBOL-001] |
 
 Randomizing a quasi-random design (digital shift, Cranley-Patterson shift)
 keeps its uniformity while making the estimator unbiased [EQ-SAMP-RQMC-001],
@@ -237,7 +239,7 @@ margin.exceedance_curve(50)     # (level, P(Y > level)) pairs
 study.rank_correlations("margin")  # Spearman screening per input
 ```
 
-For Ishigami with 4096 Sobol points this gives a mean of 3.500004 and a
+For Ishigami with 4096 Sobol points (seed 7) this gives a mean of 3.500004 and a
 standard deviation of 3.7213 against the exact 3.7208.
 
 When the sample size is not known in advance, `UQStudy.propagate_until(q,
@@ -261,7 +263,7 @@ comes from a fresh, independent sample of size `n` [EQ-WF-SEQ-FRESH-001],
 which is an ordinary fixed-size sample given `n`. In 300 seeded runs of
 `Y ~ N(1, 0.5)` reusing the pilot over-estimated `P(Y > 1.64) = 0.100` by
 4.9% (4 standard errors) and the mean by 1.0%; the fresh estimates were
-unbiased within one standard error. `final="reuse"` keeps the old,
+unbiased within 1.2 standard errors (-1.4% and +0.1%). `final="reuse"` keeps the old,
 cheaper behaviour with a warning. `confidence=` sets the level of the
 Student-t mean interval and the Wilson interval. If `max_samples` is reached
 first the stage reports `converged = no`.
@@ -394,17 +396,18 @@ Results from `examples/uq_study_extensions_lab.py` (seed 2026, about 12 s):
 
   | Input | `S` | `ST` | MI (nats) |
   |---|---|---|---|
-  | `x1` | 0.305 | 0.555 | 0.351 |
-  | `x2` | 0.443 | 0.441 | 0.446 |
-  | `x3` | -0.001 | 0.245 | 0.142 |
+  | `x1` | 0.324 | 0.577 | 0.351 |
+  | `x2` | 0.461 | 0.457 | 0.446 |
+  | `x3` | 0.004 | 0.261 | 0.142 |
 
   `x3` acts on `Y` only through its interaction with `x1`. Its first-order
-  Sobol index is zero, but its mutual information is clearly positive.
+  Sobol index is zero (the estimate's 95% interval is `[-0.028, 0.035]`), but
+  its mutual information is clearly positive.
 - **Decay `A exp(-k t)`, calibrated on two observations at `t = 0, 1`.**
-  - Laplace EIG with 64 prior draws picks `t = 3`, then `t = 2`, from eight
-    candidates.
-  - Final EIG of the four-condition design: `6.50 ± 0.14` nats.
-  - The greedy path reports `6.81` for the same design. That value is the
+  - Laplace EIG with 64 prior draws picks `t = 2` twice (repeats are
+    allowed) from eight candidates.
+  - Final EIG of the four-condition design: `6.51 ± 0.14` nats.
+  - The greedy path reports `6.57` for the same design. That value is the
     maximum over candidates scored with one stream, so it is biased upward.
     The independent re-estimate is the honest figure.
 
@@ -426,7 +429,7 @@ discrepancy calibration, `design` needs explicit `noise=` models, because the
 Bayesian design problem has no discrepancy term.
 
 Results from `examples/uq_study_complete_lab.py` (seed 2026, 17 s,
-139 887 model runs). The model is `y = A exp(-k x)` with `A ~ N(4, 0.4)` and
+140 184 model runs). The model is `y = A exp(-k x)` with `A ~ N(4, 0.4)` and
 `k ~ LogNormal(log 0.5, 0.25)`. The data come from
 `4.2 exp(-0.45 x) + 0.15 sin(2x)` plus noise with sd 0.03 at 11 points on
 `[0, 4]`.

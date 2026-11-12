@@ -56,7 +56,7 @@ round(poisson.pearson_chi2 / 14, 2)  # 4.19
 ```
 
 With one factor the Poisson fit is saturated in the mean: the rate ratio is
-`(sum y / sum t)` of line 1 over that of line 0, `125/24` against
+`(sum y / sum t)` of line 1 over that of line 0, `91/24` against
 `32/22`. The Pearson ratio of 4.19 says the counts vary far more than a
 Poisson law allows, so the model-based standard error is too small.
 

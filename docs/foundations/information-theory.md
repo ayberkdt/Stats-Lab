@@ -157,10 +157,14 @@ Seeded checks against Gaussian closed forms:
 | KSG, `rho = 0.6` | 800 | 0.2294 | `-log(1 - rho^2)/2 = 0.2231` |
 | KSG, independent | 800 | -0.0063 | 0 |
 
-Over eight seeds at `n = 400`, both estimators had a mean error below 0.01
-nats and a standard deviation of about 0.045 nats. Scaled to the test sample
-sizes, the test tolerances (0.12 for entropy, 0.10 and 0.06 for KSG) are 2-4
-standard deviations. The seeded estimates above sit well inside them.
+Over the eight seeds `0-7` at `n = 400`, drawn as in the test module, the
+1-D entropy estimate and the KSG estimate at `rho = 0.6` had mean errors of
+about 0.01 nats and standard deviations of about 0.07 nats. The 2-D entropy
+estimate (`k = 4`) had a standard deviation of 0.04 nats and a downward bias
+of 0.06 nats, and KSG under independence a standard deviation of 0.03 nats.
+Scaled by `n^(-1/2)` to the test sample sizes, the test tolerances (0.12 for
+entropy, 0.10 and 0.06 for KSG) are 2-4 standard deviations. The seeded
+estimates above sit inside them.
 
 **Practical points.**
 

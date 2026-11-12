@@ -95,9 +95,8 @@ Gaussian `X` from `Var(E[Y | X_J]) = s_J' Sigma_JJ^-1 s_J`, `s = Sigma b`
 
 Expanding `Sh_1 = (1/2)[c({1}) + V - c({2})]` with
 `c({1}) = (b1 s1 + rho b2 s2)^2` and `c({2}) = (b2 s2 + rho b1 s1)^2` gives
-this formula. For this release it was also checked numerically against the
-subset enumeration on four parameter sets; the largest difference was
-`1.9e-16`.
+this formula. `tests/test_mlmc_ce_line_shapley.py` checks it against
+`linear_gaussian_shapley` on three parameter sets to twelve decimal places.
 
 ### Numbers computed with this release
 
@@ -109,16 +108,39 @@ subset enumeration on four parameter sets; the largest difference was
 | closed first-order index `Var(E[Y | X_i]) / V` | 0.654 | 0.914 |
 | total index `1 - Var(E[Y | X_-i]) / V` | 0.086 | 0.346 |
 | exact Shapley effect | 0.3703 | 0.6297 |
-| `shapley_effects`, exact, `N_O = 500`, `N_V = 2000`, seed 1 (5000 calls) | 0.3755 +/- 0.0172 | 0.6245 +/- 0.0172 |
-| `shapley_effects`, 400 random permutations, seed 1 (2200 calls) | 0.3831 +/- 0.0188 | 0.6169 +/- 0.0188 |
+| `shapley_effects`, exact, `N_O = 500`, `N_V = 2000`, seed 1 (5000 calls) | 0.3755 +/- 0.0084 | 0.6245 +/- 0.0084 |
+| `shapley_effects`, 400 random permutations, `N_V = 1000`, seed 1 (2200 calls) | 0.3831 +/- 0.0198 | 0.6169 +/- 0.0198 |
 
 The first-order indices sum to 1.57 and the total indices to 0.43. Only the
-Shapley effects give a variance budget that sums to one.
+Shapley effects give a variance budget that sums to one. The estimated rows
+are reproduced by:
+
+```python
+from probstat.distributions import Normal
+from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
+from probstat.sensitivity import linear_gaussian_shapley, shapley_effects
+from probstat.uq import QuantityOfInterest
+
+sum_qoi = (QuantityOfInterest("y", "sum"),)
+pair_inputs = JointInput(
+    (RandomInput("x1", Normal(0.0, 1.0)), RandomInput("x2", Normal(0.0, 2.0))),
+    ((1.0, 0.6), (0.6, 1.0)),
+)
+pair = ProbabilisticModel(pair_inputs, lambda p: {"y": p["x1"] + p["x2"]}, sum_qoi)
+analytic = linear_gaussian_shapley((1.0, 1.0), ((1.0, 1.2), (1.2, 4.0)))
+round(analytic[0], 4)   # 0.3703
+subsets = shapley_effects(pair, "y", outer_samples=500, variance_samples=2000, seed=1)
+round(subsets.effects[0], 4), round(subsets.standard_errors[0], 4)   # (0.3755, 0.0084)
+subsets.evaluations   # 5000
+permuted = shapley_effects(pair, "y", method="random", permutations=400, seed=1)
+round(permuted.effects[0], 4), round(permuted.standard_errors[0], 4)   # (0.3831, 0.0198)
+permuted.evaluations   # 2200
+```
 
 For the independent additive model `Y = X0 + 2 X1 + 3 X2` (standard normal
 inputs) the exact values are `(1, 4, 9)/14 = (0.071, 0.286, 0.643)`. With
 `N_O = 400` and seed 4, `shapley_effects` returned `(0.088, 0.263, 0.649)`,
-with standard errors of about `0.023`, in 8200 calls.
+with standard errors of about `0.02` (0.022, 0.018 and 0.021), in 8200 calls.
 
 Sources: [REF-OWEN-2014], [REF-SONG-NELSON-STAUM-2016],
 [REF-OWEN-PRIEUR-2017], [REF-IOOSS-PRIEUR-2019].

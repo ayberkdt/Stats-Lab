@@ -100,9 +100,10 @@ Worked example (the model above, `rho = [[1, .5, 0], [.5, 1, .3], [0, .3, 1]]`,
 
 The standard deviation is 154.59 with correlation and 124.87 without. Ignoring
 correlation would understate the spread by 19.2 % and the P80 reserve by about
-24. With five identical lognormal elements (mean 21.76 each) and pairwise
-correlation 0.3, the standard deviation is 30.06 against 20.27 independent,
-and the Monte Carlo P80 is 132.20 against 125.01. **Omitting correlation
+24. With five identical `LogNormal(3, 0.4)` elements (mean 21.76 each) and
+pairwise correlation 0.3, the standard deviation is 30.06 against 20.27
+independent, and the Monte Carlo P80 (20 000 samples, seed 1) is 132.20
+against 125.01. **Omitting correlation
 understates the reserve.** The result therefore carries a note in `notes`
 whenever no correlation is supplied (no Python warning is raised).
 

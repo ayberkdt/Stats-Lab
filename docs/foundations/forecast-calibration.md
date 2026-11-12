@@ -76,10 +76,10 @@ observations:
 | Family | vs Simpson on the definition | vs quantile quadrature |
 |---|---|---|
 | Normal(1, 2) | 8.5e-13 | 8.9e-16 |
-| LogNormal(0.2, 0.5) | 3.9e-09 | 2.7e-15 |
+| LogNormal(0.2, 0.5) | 3.9e-09 | 4.4e-16 |
 | Logistic(1, 0.7) | 6.5e-11 | 8.9e-16 |
-| Exponential(1.5) | 1.5e-09 | 1.3e-15 |
-| Uniform(-1, 2) | 0 | 1.6e-15 |
+| Exponential(1.5) | 1.5e-09 | 2.2e-16 |
+| Uniform(-1, 2) | 0 | 0 |
 
 The Simpson column is limited by the Simpson rule itself (4000 panels per
 piece and a finite range), not by the closed forms. Weibull and gamma
@@ -141,9 +141,9 @@ How to read the table:
   far the least sharp forecast.
 - **The ensemble's plain CRPS (0.5958) is worse than the ideal law's
   (0.5664)** only because of the finite-ensemble bias. Its fair CRPS is
-  0.5677. The ensemble's PIT `p = 0.0246` is a chance result. Across 30
-  other seeds of the same setting, the chi-square p-values ranged from 0.034
-  to 0.947 and looked uniform.
+  0.5677. The ensemble's PIT `p = 0.0246` is a chance result. With seeds 1
+  to 30 in place of the lab seed, the chi-square p-values range from 0.065
+  to 0.957, and a KS test of their uniformity gives `p = 0.96`.
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/forecast-pit-histograms-dark.png"><img alt="Three PIT histograms for the ideal, overconfident, and climatological forecasters with the uniform count and binomial band" src="../images/guides/forecast-pit-histograms.png"></picture>
 
@@ -223,10 +223,11 @@ a p-value.
 
 `distribution_wasserstein_distance` integrates `|Q_1(u) - Q_2(u)|^p` over
 `u` with tanh-sinh quadrature. It reproduces `W_2(N(0,1), N(1,2)) = sqrt 2`
-to `7e-14` and `W_2^2(U(0,1), Exp(1)) = 5/6` to `2e-12`. For `p = 1`,
-`|.|` has a kink wherever the two quantile functions cross, so convergence
-slows. `W_1(N(0,1), N(1,2))` agrees with the closed form `E|1 + Z|` to
-`1.5e-7`, after 6333 integrand evaluations.
+and `W_2^2(U(0,1), Exp(1)) = 5/6` to rounding error (below `1e-15`). For
+`p = 1`, `|.|` has a kink wherever the two quantile functions cross; the
+crossings are located first and made piece boundaries, so the rule keeps its
+fast convergence. `W_1(N(0,1), N(1,2))` agrees with the closed form
+`E|1 + Z|` to rounding error after 194 integrand evaluations.
 
 ## 5. Limitations
 

@@ -109,13 +109,13 @@ reported order is the least-squares slope of `log e` against `log h`
 | `h` | EM `E|X_N - X(T)|` | Milstein |
 |---|---|---|
 | 1/16 | 1.156 | 0.924 |
-| 1/32 | 0.818 | 0.495 |
+| 1/32 | 0.817 | 0.495 |
 | 1/64 | 0.571 | 0.258 |
 | 1/128 | 0.365 | 0.132 |
 | fitted order | **0.551** | **0.938** |
 
 The theoretical orders are 1/2 and 1. Monte Carlo standard errors at
-`h = 1/128` are 0.039 (EM) and 0.018 (Milstein).
+`h = 1/128` are 0.039 (EM) and 0.017 (Milstein).
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/stochastic-processes-strong-convergence-dark.png"><img alt="Strong error of the Euler-Maruyama and Milstein schemes against the step size on log axes with theoretical slope lines" src="../images/guides/stochastic-processes-strong-convergence.png"></picture>
 
@@ -130,7 +130,7 @@ EM, `E X_N = (1 + lambda h)^N` holds exactly, so the true bias is known. With
 | 1/16 | 0.830 | 0.806 | 0.019 |
 | 1/32 | 0.457 | 0.430 | 0.022 |
 | 1/64 | 0.251 | 0.223 | 0.023 |
-| 1/128 | 0.143 | 0.113 | 0.024 |
+| 1/128 | 0.142 | 0.113 | 0.024 |
 
 The fitted order is 0.849. The order of the exact bias over this range is
 0.94; it is not yet 1 because `lambda h` is not small at `h = 1/16`. A weak
@@ -189,7 +189,7 @@ retained modes is:
 | squared exponential | 3 |
 
 The exact exponential-kernel spectrum on `[-1, 1]` (total variance 2)
-explains 57.5 %, 77.0 %, 84.9 %, 88.8 %, 91.2 %, and 92.8 % with 1-6 modes.
+explains 57.5 %, 77.0 %, 84.9 %, 88.8 %, 91.2 %, and 92.7 % with 1-6 modes.
 The pointwise truncated variance `sum_(k<=M) lambda_k phi_k(x)^2` never
 exceeds `sigma^2`, so a truncated field is always slightly *less* variable
 than the target. This should be reported alongside results that depend on
@@ -312,9 +312,9 @@ score (nine points within two marginal standard deviations) is:
 | initial network | 3.07 | 1.28 | 1.16 | 1.20 |
 
 At small `t` the weighting gives the score little influence on the loss
-and 300 points determine it poorly; reverse-SDE samples from the trained
-score have mean 1.000 and variance 0.206, against 1.002 and 0.260 for the
-training data. The small-noise score, not the samplers, limits sample
+and 300 points determine it poorly; 400 reverse-SDE samples from the trained
+score (300 steps, seed 11) have mean 1.000 and variance 0.206, against 1.002
+and 0.260 for the training data. The small-noise score, not the samplers, limits sample
 quality.
 
 **Neural SDEs.** `NeuralSDE(dimension, hidden, diffusion="constant" |
