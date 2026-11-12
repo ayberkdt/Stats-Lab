@@ -123,10 +123,10 @@ from probstat.probability import (
 )
 from probstat.visualization import active_palette, chart_theme, save_figure
 from probstat.visualization.theme import (
-    REFERENCE,
-    REFERENCE_WIDTH,
     axis_labels,
+    axis_title,
     direct_labels,
+    entity_colour,
     line,
     matplotlib_available,
     new_axes,
@@ -352,9 +352,7 @@ def clt_error_figure() -> Any:
     bound = [row.berry_esseen for row in rows]
     palette = active_palette()
     ax = new_axes()
-    line(
-        ax, sizes, bound, color=palette.accent, dashes=REFERENCE, width=REFERENCE_WIDTH
-    )
+    line(ax, sizes, bound, entity="Berry-Esseen bound")
     line(ax, sizes, normal, color=palette.observed)
     points(ax, sizes, normal, color=palette.observed)
     line(ax, sizes, edgeworth, color=palette.model)
@@ -364,11 +362,12 @@ def clt_error_figure() -> Any:
     ax.set_xticks(sizes, [f"{row.n}" for row in rows])
     ax.xaxis.set_minor_locator(NullLocator())
     ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:g}"))
-    axis_labels(ax, "Number of summands n", "Kolmogorov distance")
+    axis_labels(ax, "Number of summands n", axis_title("kolmogorov_distance"))
     direct_labels(
         ax,
         (
-            (sizes[-1], bound[-1], "Berry-Esseen bound", palette.accent),
+            (sizes[-1], bound[-1], "Berry-Esseen bound",
+             entity_colour("Berry-Esseen bound")),
             (sizes[-1], normal[-1], "to the normal law", palette.observed),
             (sizes[-1], edgeworth[-1], "to Edgeworth", palette.model),
         ),
@@ -393,7 +392,8 @@ def write_figures() -> None:
         return
     import matplotlib.pyplot as plt
 
-    with chart_theme():
+    # The active palette, so PROBSTAT_CHART_THEME=graphite gives the dark copy.
+    with chart_theme(active_palette()):
         ax = clt_error_figure()
         save_figure(ax.figure, OUTPUT / "limit-theorems-clt-error.png")
         plt.close(ax.figure)

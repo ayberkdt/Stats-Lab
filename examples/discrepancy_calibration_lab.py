@@ -267,7 +267,9 @@ def save_figures(
 
     truth = [oscillating_truth(x) for x in FIGURE_GRID]
     bias = [0.25 * math.sin(2.5 * x) for x in FIGURE_GRID]
-    axes = plot_discrepancy_predictions(problem, grid, "x", truth=truth)
+    axes = plot_discrepancy_predictions(
+        problem, grid, "x", truth=truth, name="Response y"
+    )
     first = save_figure(axes.figure, OUTPUT / "discrepancy-predictions.png")
     plt.close(axes.figure)
     axes = plot_discrepancy_estimate(grid, "x", truth=bias)

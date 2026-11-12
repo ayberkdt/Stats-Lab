@@ -123,7 +123,8 @@ def main() -> None:
     print(f"model evaluations={global_result.evaluations}")
 
     axes = plot_sobol_indices(
-        ("X1", "X2", "X3"),
+        # The input names of every Ishigami figure of the set (ADR-0098).
+        ("x1", "x2", "x3"),
         global_result.first_order,
         global_result.total_effect,
     )

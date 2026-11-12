@@ -385,7 +385,7 @@ def save_figures(
             pooled,
             others=others,
             truth=TRUE_MEAN[1],
-            quantity="Estimate of E[x1] with 95% interval",
+            quantity="Mean of x1",
             label="MI (m = 20, Rubin)",
         ),
     }

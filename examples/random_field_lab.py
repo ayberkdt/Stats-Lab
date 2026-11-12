@@ -166,7 +166,7 @@ def main() -> None:
     save_figure(axes.figure, output / "random-field-spectrum.png")
     plt.close(axes.figure)
     axes = plot_output_distribution(
-        [value * 1e3 for value in tip.values], name="Tip displacement x 1e3"
+        list(tip.values), name="Tip displacement"
     )
     save_figure(axes.figure, output / "random-field-tip.png")
     plt.close(axes.figure)

@@ -155,7 +155,7 @@ def main() -> None:
     summaries = {entry.name: entry for entry in posterior.summary()}
     axes = plot_chain_traces(
         [[sample[1] for sample in chain.samples] for chain in chains],
-        name="k (decay rate)",
+        name="k",
         rhat=summaries["k"].rank_normalized_rhat,
         truth=TRUE_RATE,
     )
@@ -183,7 +183,7 @@ def main() -> None:
         ([q[0] for q in latent], [q[-1] for q in latent]),
         ([q[0] for q in observed], [q[-1] for q in observed]),
         calibration_limit=max(times),
-        x_label="Time t",
+        x_label="Time",
         y_label="Amplitude y",
         confidence=prediction.predictions[0].probabilities[-1]
         - prediction.predictions[0].probabilities[0],

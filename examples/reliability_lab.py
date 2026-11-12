@@ -68,6 +68,7 @@ from probstat.reliability import (
     linear_normal_form,
 )
 from probstat.visualization import save_figure
+from probstat.visualization.theme import axis_title
 from probstat.visualization.uq import plot_method_comparison
 
 # Seed of the direct and directional samples; the proposal uses SEED + 1.
@@ -140,7 +141,7 @@ def main() -> None:
     axes = plot_method_comparison(
         (
             (
-                "direct Monte Carlo",
+                "Monte Carlo",
                 direct.failure.probability,
                 direct.failure.confidence_interval.lower,
                 direct.failure.confidence_interval.upper,
@@ -155,7 +156,7 @@ def main() -> None:
         ),
         reference=form.failure_probability,
         reference_label="exact Pf",
-        quantity_label="Failure probability Pf",
+        quantity_label=axis_title("failure_probability"),
         title="Sampling methods bracket the exact failure probability",
         subtitle="Dot: estimate. Whisker: 95% interval. FORM is exact for an "
         "affine limit state",

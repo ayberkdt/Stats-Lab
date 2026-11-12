@@ -80,6 +80,7 @@ from probstat.monte_carlo import estimate_mean
 from probstat.processes import GeometricBrownianMotion
 from probstat.propagation import OutputDistribution
 from probstat.visualization import save_figure
+from probstat.visualization.theme import share_limits
 from probstat.visualization.uncertainty import (
     dkw_epsilon,
     plot_ecdf_band,
@@ -136,7 +137,7 @@ def main() -> None:
             terminal, dots=50, threshold=CAPACITY, name="Demand at t = 4"
         ),
         "uncertainty-ecdf-band": plot_ecdf_band(
-            terminal[:120], name="Demand at t = 4 (first 120 paths)"
+            terminal[:120], name="Demand at t = 4"
         ),
         "uncertainty-exceedance": plot_exceedance_curves(
             {
@@ -151,6 +152,23 @@ def main() -> None:
             terminal, name="Demand at t = 4", threshold=CAPACITY
         ),
     }
+    # The six encodings show one forecast: paths share the demand axis and
+    # the four terminal views share the demand-at-t = 4 axis (ADR-0098).
+    share_limits(
+        [figures["uncertainty-fan-chart"], figures["uncertainty-spaghetti"]], axis="y"
+    )
+    share_limits(
+        [
+            figures[key]
+            for key in (
+                "uncertainty-quantile-dots",
+                "uncertainty-ecdf-band",
+                "uncertainty-exceedance",
+                "uncertainty-histogram",
+            )
+        ],
+        axis="x",
+    )
     for name, axes in figures.items():
         save_figure(axes.figure, output / f"{name}.png")
         plt.close(axes.figure)
