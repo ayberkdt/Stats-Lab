@@ -54,6 +54,10 @@ gives exactly `k = 7`.
 The `n = 10` row shows why the `(n+1)/n` correction matters. The seeded
 replicates below land on `0.909`, not on `0.818`.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/conformal-coverage-staircase-dark.png"><img alt="Empirical split-conformal coverage at ten nominal levels with the guaranteed staircase k over n plus 1 and the diagonal" src="../images/guides/conformal-coverage-staircase.png"></picture>
+
+*With n = 10 calibration points the empirical coverage of split-conformal intervals follows the staircase k/(n+1), on or above the nominal diagonal at every level: at nominal 90% it is 0.907 against the guaranteed 0.909, far from the 0.818 the uncorrected index would give.*
+
 ## 2. Split conformal regression (EQ-CONF-002)
 
 `split_conformal_regression(predictor, x_cal, y_cal, alpha=0.1)` scores the
@@ -63,6 +67,10 @@ held-out residuals `|y - mu(x)|` and returns `mu(x) +/- q_hat`. Passing
 guarantee is unchanged, and the width now follows `s(x)`.
 
 The predictor and `s` must not have seen the calibration data.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/conformal-normalized-scores-dark.png"><img alt="Two panels of heteroscedastic test points with 90 percent conformal bands from absolute and from normalized scores" src="../images/guides/conformal-normalized-scores.png"></picture>
+
+*Built around the true mean from the same 200 calibration points, both bands carry the same marginal guarantee, but absolute scores give one width everywhere and so cover 100% of test points where the noise is small (x < 1) and 82% where it is large (x > 2); scores normalized by the noise scale make the width follow it and cover 92% and 92% in the two regions.*
 
 Seeded check (`tests/test_conformal_prediction.py`):
 

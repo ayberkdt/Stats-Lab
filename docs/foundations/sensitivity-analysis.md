@@ -42,8 +42,11 @@ epistemic, safety, and measurement-cost information must still be considered.
 
 Run `python examples/sensitivity_lab.py`. The Ishigami benchmark contains a
 strong interaction: its third input has essentially no first-order effect but a
-substantial total effect. The generated `ishigami-sobol-indices.png` makes this
-failure mode of main-effect-only ranking visible.
+substantial total effect.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/ishigami-sobol-indices-dark.png"><img alt="Dumbbell chart of first-order and total Sobol indices of the three Ishigami inputs on a common zero to one scale" src="../images/guides/ishigami-sobol-indices.png"></picture>
+
+*With two 50,000-row pick-freeze designs, x3 has a first-order index of 0.01 but a total index of 0.25 (analytic values 0 and 0.2437): ranking by main effects alone would mark it for fixing, while the total effect, which includes its interaction with x1, keeps it.*
 
 ## Sources
 

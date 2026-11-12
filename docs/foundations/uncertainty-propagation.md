@@ -57,6 +57,10 @@ This rate is an assumption-backed asymptotic statement. Dependence, heavy
 tails, nonstationarity, rare events, or biased sampling can invalidate its
 ordinary interpretation. A visually stable trace is evidence, not proof.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/propagation-design-convergence-dark.png"><img alt="Log-log plot of the spread of replicate mean estimates against sample size for Monte Carlo, Latin hypercube, and Sobol designs" src="../images/guides/propagation-design-convergence.png"></picture>
+
+*For the laboratory's projectile range, the spread of plain Monte Carlo means follows the N^-1/2 guide (fitted slope -0.53), so four times the samples halve the error; Latin hypercube and randomized Sobol points fall faster, and at N = 2,048 their means are 28 and 34 times less variable.*
+
 Every result carries an evaluation count. In forward propagation, one model
 call may produce several QoIs, so `model_evaluations` counts complete calls
 rather than multiplying by the number of outputs.

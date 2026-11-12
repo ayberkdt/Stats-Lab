@@ -1,0 +1,149 @@
+{
+  "conformal-coverage-staircase": {
+    "guide": "conformal-prediction",
+    "alt": "Empirical split-conformal coverage at ten nominal levels with the guaranteed staircase k over n plus 1 and the diagonal",
+    "facts": {
+      "empirical": "0.907",
+      "guaranteed": "0.909",
+      "naive_value": "0.818"
+    }
+  },
+  "conformal-normalized-scores": {
+    "guide": "conformal-prediction",
+    "alt": "Two panels of heteroscedastic test points with 90 percent conformal bands from absolute and from normalized scores",
+    "facts": {
+      "absolute_low": "100%",
+      "absolute_high": "82%",
+      "normalized_low": "92%",
+      "normalized_high": "92%"
+    }
+  },
+  "fitting-bearing-tails": {
+    "guide": "uncertainty-modeling-and-fitting",
+    "alt": "Log-log plot of 23 ball-bearing lives with fitted Gamma, LogNormal, and Weibull CDFs and their 1 percent lives marked",
+    "facts": {
+      "aic_spread": "1.3",
+      "life_low": "9.2",
+      "life_high": "18.9"
+    }
+  },
+  "fitting-bootstrap-calibration": {
+    "guide": "uncertainty-modeling-and-fitting",
+    "alt": "Empirical CDFs of naive and bootstrap Kolmogorov-Smirnov p-values from 80 normal samples tested against fitted normal laws, with the uniform diagonal",
+    "facts": {
+      "naive_mean": "0.79",
+      "bootstrap_mean": "0.52",
+      "naive_below": "0 of 80",
+      "bootstrap_below": "7 of 80"
+    }
+  },
+  "forecast-pit-histograms": {
+    "guide": "forecast-calibration",
+    "alt": "Three PIT histograms for the ideal, overconfident, and climatological forecasters with the uniform count and binomial band",
+    "facts": {
+      "ideal_p": "0.94",
+      "edge_ratio": "2.62",
+      "climatology_p": "7.5e-05"
+    }
+  },
+  "forecast-reliability-diagram": {
+    "guide": "forecast-calibration",
+    "alt": "Reliability diagram of the ideal and overconfident forecasts of Y above 0 in five bins with consistency bars and the diagonal",
+    "facts": {
+      "overconfident_outside": "4 of 5",
+      "ideal_outside": "0 of 5"
+    }
+  },
+  "gp-variance-beyond-data": {
+    "guide": "surrogate-models",
+    "alt": "Gaussian-process mean and 95 percent band fitted to 12 runs on 0 to 6 and extended to 12, with the true function",
+    "facts": {
+      "far_variance": "2.79",
+      "inside_variance": "2e-10",
+      "far_error": "2.91"
+    }
+  },
+  "grid-convergence-order": {
+    "guide": "vv-uq-foundations",
+    "alt": "Log-log plot of trapezoid-rule errors on five step sizes with the fitted least-squares error model",
+    "facts": {
+      "order": "1.99959",
+      "extrapolation_error": "6e-08"
+    }
+  },
+  "ishigami-sobol-indices": {
+    "guide": "sensitivity-analysis",
+    "alt": "Dumbbell chart of first-order and total Sobol indices of the three Ishigami inputs on a common zero to one scale",
+    "facts": {
+      "s3": "0.01",
+      "st3": "0.25",
+      "size": "50,000"
+    }
+  },
+  "mlmc-level-variances": {
+    "guide": "advanced-monte-carlo",
+    "alt": "Two panels of a multilevel Monte Carlo run: variances per level on a log scale and the number of samples per level",
+    "facts": {
+      "beta": "0.93",
+      "ratio": "14.1",
+      "cost": "190,889"
+    }
+  },
+  "pce-loo-by-degree": {
+    "guide": "surrogate-models",
+    "alt": "Log-scale plot of the polynomial chaos leave-one-out error and the largest Sobol index error against degree 2 to 10",
+    "facts": {
+      "loo_low": "3.34",
+      "loo_high": "0.0018",
+      "index_error": "0.0006",
+      "index_error_low": "0.29"
+    }
+  },
+  "prediction-uncertainty-components": {
+    "guide": "vv-uq-foundations",
+    "alt": "Dot plot of three prediction intervals at t equal to 10, prior, calibrated parametric, and with model-form error, against the truth",
+    "facts": {
+      "truth": "0.349",
+      "parametric": "[0.248, 0.294]",
+      "combined": "[0.133, 0.406]"
+    }
+  },
+  "propagation-design-convergence": {
+    "guide": "uncertainty-propagation",
+    "alt": "Log-log plot of the spread of replicate mean estimates against sample size for Monte Carlo, Latin hypercube, and Sobol designs",
+    "facts": {
+      "size": "2,048",
+      "lhs_gain": "28",
+      "sobol_gain": "34",
+      "mc_slope": "-0.53"
+    }
+  },
+  "validation-area-metric": {
+    "guide": "model-validation",
+    "alt": "Two panels each with a predictive CDF, a data ECDF of six measurements, and the shaded area between them",
+    "facts": {
+      "unbiased": "0.30",
+      "biased": "1.30"
+    }
+  },
+  "validation-u-pooling": {
+    "guide": "model-validation",
+    "alt": "Empirical CDFs of 24 pooled u-values for unbiased and biased data with the uniform diagonal",
+    "facts": {
+      "unbiased_area": "0.042",
+      "biased_area": "0.492",
+      "unbiased_p": "0.765",
+      "biased_p": "3.4e-30"
+    }
+  },
+  "variance-reduction-budget": {
+    "guide": "advanced-monte-carlo",
+    "alt": "Dot plot of five estimates of the mean of U squared with 95 percent intervals and the exact value one third",
+    "facts": {
+      "budget": "20,000",
+      "best": "stratified sampling",
+      "gain": "26",
+      "crude_se": "0.00211"
+    }
+  }
+}
