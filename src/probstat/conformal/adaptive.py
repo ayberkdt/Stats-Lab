@@ -38,6 +38,7 @@ from probstat.foundations.validation import (
     require_non_negative_integer,
 )
 
+from .quantile import conformal_rank
 from .regression import PredictionInterval
 
 
@@ -191,7 +192,10 @@ class AdaptiveConformalPredictor:
 
         Returns:
             ``+inf`` for the whole line, ``-inf`` for the empty set, or the
-            conformal order statistic of the score history.
+            conformal order statistic of the score history. The order index
+            is :func:`~probstat.conformal.conformal_rank` of ``alpha_t``
+            (exact rational arithmetic on its decimal text), so a frozen
+            level reproduces the split conformal quantile.
 
         Equation:
             [EQ-CONF-ACI-002].
@@ -206,7 +210,9 @@ class AdaptiveConformalPredictor:
         size = len(self._sorted)
         if level <= 0.0 or size == 0:
             return math.inf
-        rank = math.ceil((1.0 - level) * (size + 1))
+        # The same exact-rational rank as split conformal prediction, so that
+        # gamma = 0 reproduces split_conformal_regression step for step.
+        rank = conformal_rank(size, level)
         if rank > size:
             return math.inf
         return self._sorted[rank - 1]
