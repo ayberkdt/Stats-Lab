@@ -181,7 +181,9 @@ group out with the mixed moments `E[q^j (1 - q)^k]` [EQ-SYS-MOM-002].
 
 The variance needs raw moments of the shared value up to twice the group
 size, and a mean and a variance alone do not determine them. Supply them
-with `shared_moments=`, or the library assumes the beta law that matches
+with `shared_moments=` as raw moments `E[p^k]` of the shared *reliability*
+`p` (the quantity described by `means` and `variances`, not the
+unreliability `q = 1 - p`), or the library assumes the beta law that matches
 the mean and variance and reports the group in `beta_assumed_groups`.
 
 For a full propagation, with any input law, sensitivity indices, and

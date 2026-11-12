@@ -598,7 +598,9 @@ def steady_state_kalman(
 
     Args:
         model: Time-invariant linear-Gaussian model.
-        tolerance: Relative max-entry change that declares convergence.
+        tolerance: Relative change that declares convergence: the largest
+            entry change of ``P^-`` divided by its largest entry magnitude,
+            so the criterion does not depend on the units of the state.
         max_iterations: Maximum number of Riccati iterations.
 
     Returns:
@@ -640,7 +642,9 @@ def steady_state_kalman(
             sandwich(model.transition_matrix, update.state.covariance),
             model.process_covariance,
         )
-        scale = max(1.0, max(abs(v) for row in predicted for v in row))
+        # Purely relative: an absolute floor (such as max(1, |P|)) would let
+        # covariances far below one in magnitude "converge" on the first step.
+        scale = max(abs(v) for row in following for v in row)
         change = max(
             abs(a - b)
             for row_a, row_b in zip(following, predicted, strict=True)
