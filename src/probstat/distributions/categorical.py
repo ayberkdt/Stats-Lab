@@ -11,6 +11,7 @@ from typing import Generic, TypeVar
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import require_non_negative_integer
 
+from ._autodiff import admath
 from .constraints import SIMPLEX
 from .support import FiniteSupport
 
@@ -55,7 +56,9 @@ class Categorical(Generic[LabelT]):
 
         """
         support = FiniteSupport(probabilities.keys())
-        masses = SIMPLEX.validate(probabilities.values(), name="probabilities")
+        masses = SIMPLEX.validate_parameter(
+            probabilities.values(), name="probabilities"
+        )
         normalized = dict(zip(support.values, masses, strict=True))
         object.__setattr__(self, "support", support)
         object.__setattr__(self, "_probabilities", MappingProxyType(normalized))
@@ -111,7 +114,7 @@ class Categorical(Generic[LabelT]):
 
         """
         mass = self.pmf(label)
-        return -math.inf if mass == 0.0 else math.log(mass)
+        return -math.inf if mass == 0.0 else admath.log(mass)
 
     def probability_of(self, labels: Iterable[LabelT]) -> float:
         """Return total mass of the union of supplied category labels.

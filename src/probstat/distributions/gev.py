@@ -7,11 +7,11 @@ from dataclasses import dataclass
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
-    require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._autodiff import admath, is_variable, real_argument
 from ._base import ContinuousDistribution
 from ._continuous import density_from_log, open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
@@ -126,11 +126,15 @@ class GeneralizedExtremeValue(ContinuousDistribution):
             [EQ-DIST-GEV-001], [REF-COLES-2001, Chapter 3].
 
         """
-        object.__setattr__(self, "mu", FINITE_REAL.validate(self.mu, name="mu"))
         object.__setattr__(
-            self, "sigma", POSITIVE_FINITE.validate(self.sigma, name="sigma")
+            self, "mu", FINITE_REAL.validate_parameter(self.mu, name="mu")
         )
-        object.__setattr__(self, "xi", FINITE_REAL.validate(self.xi, name="xi"))
+        object.__setattr__(
+            self, "sigma", POSITIVE_FINITE.validate_parameter(self.sigma, name="sigma")
+        )
+        object.__setattr__(
+            self, "xi", FINITE_REAL.validate_parameter(self.xi, name="xi")
+        )
 
     @property
     def endpoint(self) -> float | None:
@@ -153,7 +157,7 @@ class GeneralizedExtremeValue(ContinuousDistribution):
             value = self.mu - self.sigma / self.xi
         except OverflowError:
             return None
-        return value if math.isfinite(value) else None
+        return value if admath.isfinite(value) else None
 
     @property
     def support(self) -> RealSupport:
@@ -191,7 +195,7 @@ class GeneralizedExtremeValue(ContinuousDistribution):
             [REF-COLES-2001, Section 3.1].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         z = (point - self.mu) / self.sigma
         w = self.xi * z
         # The reported support endpoint ``mu - sigma/xi`` and ``1 + xi z``
@@ -207,8 +211,12 @@ class GeneralizedExtremeValue(ContinuousDistribution):
         if w <= -1.0:
             return w, (-math.inf if self.xi > 0.0 else math.inf)
         if abs(w) < _TINY_PRODUCT:
+            if is_variable(w):
+                # log1p(w)/xi = z (1 - w/2 + w^2/3 - ...) keeps the
+                # xi-derivatives at xi = 0; the value is z to rounding.
+                return w, z * (1.0 - 0.5 * w + w * w / 3.0)
             return w, z
-        return w, math.log1p(w) / self.xi
+        return w, admath.log1p(w) / self.xi
 
     @staticmethod
     def _exponent(y: float) -> float:
@@ -227,7 +235,7 @@ class GeneralizedExtremeValue(ContinuousDistribution):
             [REF-COLES-2001, Section 3.1].
 
         """
-        return math.inf if -y > _EXP_LIMIT else math.exp(-y)
+        return math.inf if -y > _EXP_LIMIT else admath.exp(-y)
 
     def log_pdf(self, x: float) -> float:
         """Evaluate ``-log sigma - (1 + xi) y - exp(-y)`` on the support.
@@ -258,12 +266,12 @@ class GeneralizedExtremeValue(ContinuousDistribution):
             if self.xi > -1.0:
                 return -math.inf
             if self.xi == -1.0:
-                return -math.log(self.sigma)
+                return -admath.log(self.sigma)
             return math.inf
         t = self._exponent(y)
         if t == math.inf:
             return -math.inf
-        return -math.log(self.sigma) - (1.0 + self.xi) * y - t
+        return -admath.log(self.sigma) - (1.0 + self.xi) * y - t
 
     def pdf(self, x: float) -> float:
         """Evaluate the GEV density.

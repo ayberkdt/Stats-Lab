@@ -512,8 +512,12 @@ class ProbabilisticProgrammingGradientTests(unittest.TestCase):
         laplace = ppl.laplace(model, draws=10, seed=1)
         self.assertAlmostEqual(laplace.engine.covariance[0][0], POST_VAR, delta=1e-12)
 
-    def test_standard_distributions_fall_back(self) -> None:
-        """Probstat distributions reject dual parameters: finite differences."""
+    def test_standard_distributions_are_differentiated(self) -> None:
+        """Probstat distributions accept dual parameters (ADR-0090).
+
+        Until ADR-0090 this model fell back to finite differences; forward
+        and reverse mode now give the closed-form gradient.
+        """
 
         def model(m):
             """Declare the same model with the library Normal."""
@@ -521,13 +525,16 @@ class ProbabilisticProgrammingGradientTests(unittest.TestCase):
             m.observe("y", Normal(mu, 1.0), DATA)
 
         posterior = quiet(ppl.sample, model, draws=300, warmup=300, chains=2, seed=4)
-        self.assertEqual(posterior.gradient_method, "finite-difference")
-        self.assertIn("real number", posterior.gradient_fallback_reason)
+        self.assertEqual(posterior.gradient_method, "reverse")
+        self.assertIsNone(posterior.gradient_fallback_reason)
+        summary = posterior.summary()[0]
+        self.assertLess(abs(summary.mean - POST_MEAN), 4.0 * summary.mcse_mean)
         program = ppl.trace(model)
         exact = sum(y - 0.3 for y in DATA) - 0.3 / 100.0
-        self.assertAlmostEqual(program.gradient((0.3,))[0], exact, delta=1e-6)
-        with self.assertRaises(AutodiffUnsupportedError):
-            program.gradient((0.3,), method="autodiff")
+        for method in ("autodiff", "reverse"):
+            self.assertAlmostEqual(
+                program.gradient((0.3,), method=method)[0], exact, delta=1e-12
+            )
 
 
 class SimulationBasedCalibrationTests(unittest.TestCase):

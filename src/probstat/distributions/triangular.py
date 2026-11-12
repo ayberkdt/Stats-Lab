@@ -12,6 +12,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath, real_argument
 from ._base import ContinuousDistribution
 from .constraints import FINITE_REAL
 from .support import RealSupport
@@ -49,14 +50,14 @@ class Triangular(ContinuousDistribution):
             [EQ-DIST-TRI-001], [REF-KOTZ-VANDORP-2004, Chapter 1].
 
         """
-        lower = FINITE_REAL.validate(self.lower, name="lower")
-        mode = FINITE_REAL.validate(self.mode, name="mode")
-        upper = FINITE_REAL.validate(self.upper, name="upper")
+        lower = FINITE_REAL.validate_parameter(self.lower, name="lower")
+        mode = FINITE_REAL.validate_parameter(self.mode, name="mode")
+        upper = FINITE_REAL.validate_parameter(self.upper, name="upper")
         if not lower < upper:
             raise ValueError("lower must be strictly less than upper")
         if not lower <= mode <= upper:
             raise ValueError("mode must lie in [lower, upper]")
-        if not math.isfinite(upper - lower):
+        if not admath.isfinite(upper - lower):
             raise ValueError("upper - lower must be finite")
         object.__setattr__(self, "lower", lower)
         object.__setattr__(self, "mode", mode)
@@ -104,7 +105,7 @@ class Triangular(ContinuousDistribution):
             [REF-KOTZ-VANDORP-2004, Chapter 1].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         a, c, b = self.lower, self.mode, self.upper
         if point < a or point > b:
             return 0.0
@@ -135,7 +136,7 @@ class Triangular(ContinuousDistribution):
 
         """
         density = self.pdf(x)
-        return math.log(density) if density > 0.0 else -math.inf
+        return admath.log(density) if density > 0.0 else -math.inf
 
     def cdf(self, x: float) -> float:
         """Evaluate the triangular CDF from the nearer endpoint.

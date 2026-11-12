@@ -14,6 +14,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from probstat.distributions import Normal
+from probstat.distributions._autodiff import admath, any_variable
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import require_non_negative_integer
 from probstat.linalg import (
@@ -24,6 +25,8 @@ from probstat.linalg import (
     dot,
     get_backend,
 )
+
+from ._support import real_vector
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +63,7 @@ class MultivariateNormal:
             [EQ-DIST-MVN-001], [REF-MARDIA-KENT-BIBBY-1979, Chapter 1].
 
         """
-        mean = as_vector(self.mean, name="mean")
+        mean = real_vector(self.mean, name="mean")
         if not mean:
             raise ValueError("mean must contain at least one component")
         try:
@@ -135,6 +138,46 @@ class MultivariateNormal:
         solved = self._factor.solve_lower(centered)
         return math.fsum(component * component for component in solved)
 
+    def _variable_mahalanobis_squared(self, point: Vector) -> float:
+        """Return the squared Mahalanobis distance for variable entries.
+
+        Forward substitution with the float Cholesky factor ``L`` written with
+        operators, ``s_i = (c_i - sum_(j<i) L_ij s_j) / L_ii`` with
+        ``c = x - mu``, so derivatives with respect to the point and the mean
+        flow (ADR-0090).
+
+        Args:
+            point: Validated point (floats and variables).
+
+        Returns:
+            ``|L^-1 (x - mu)|^2``.
+
+        Raises:
+            ValueError: If the dimension differs.
+
+        Equation:
+            [EQ-DIST-MVN-002], [EQ-LINALG-002].
+
+        References:
+            [REF-MARDIA-KENT-BIBBY-1979, Chapter 1],
+            [REF-GOLUB-VANLOAN-2013, Section 3.1].
+
+        """
+        if len(point) != self.dimension:
+            raise ValueError("value dimension must equal distribution dimension")
+        lower = self._cholesky
+        solved: list[float] = []
+        for row, (coordinate, location) in enumerate(
+            zip(point, self.mean, strict=True)
+        ):
+            residual = coordinate - location
+            if row:
+                residual = residual - admath.fsum(
+                    lower[row][column] * solved[column] for column in range(row)
+                )
+            solved.append(residual / lower[row][row])
+        return admath.fsum(component * component for component in solved)
+
     def log_pdf(self, value: Iterable[float]) -> float:
         """Evaluate the multivariate normal log-density.
 
@@ -155,7 +198,11 @@ class MultivariateNormal:
             [REF-MARDIA-KENT-BIBBY-1979, Chapter 1].
 
         """
-        quadratic = self.mahalanobis_squared(value)
+        point = real_vector(value, name="value")
+        if any_variable(*point, *self.mean):
+            quadratic = self._variable_mahalanobis_squared(point)
+        else:
+            quadratic = self.mahalanobis_squared(point)
         log_determinant = self._factor.log_det()
         return -0.5 * (
             self.dimension * math.log(2.0 * math.pi)

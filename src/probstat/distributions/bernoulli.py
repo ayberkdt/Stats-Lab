@@ -12,6 +12,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath
 from ._base import DiscreteDistribution
 from .constraints import PROBABILITY
 from .support import IntegerSupport
@@ -42,7 +43,7 @@ class Bernoulli(DiscreteDistribution):
             [EQ-PROB-001], [REF-KOLMOGOROV-1956].
 
         """
-        object.__setattr__(self, "p", PROBABILITY.validate(self.p, name="p"))
+        object.__setattr__(self, "p", PROBABILITY.validate_parameter(self.p, name="p"))
 
     @property
     def support(self) -> IntegerSupport:
@@ -74,7 +75,7 @@ class Bernoulli(DiscreteDistribution):
 
         """
         mass = self.pmf(k)
-        return -math.inf if mass == 0.0 else math.log(mass)
+        return -math.inf if mass == 0.0 else admath.log(mass)
 
     def pmf(self, k: int) -> float:
         """Evaluate probability mass at integer outcome ``k``.

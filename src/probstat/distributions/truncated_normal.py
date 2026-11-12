@@ -12,6 +12,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath, any_variable, primal, real_argument, with_value
 from ._base import ContinuousDistribution
 from ._continuous import (
     LOG_MAX,
@@ -59,6 +60,42 @@ def _log_mass_from(anchor: float, width: float, far: float) -> float:
     if width * (abs(anchor) + width) <= _SHORT_INTERVAL:
         return log_normal_short_mass(anchor, width)
     return log_normal_interval_mass(min(anchor, far), max(anchor, far))
+
+
+def _variable_log_mass(alpha: float, beta: float) -> float:
+    """Return ``log(Phi(beta) - Phi(alpha))`` written with ``admath``.
+
+    Used only for the derivatives of the normalizer when a parameter is a
+    dual number or a reverse-mode variable ([EQ-DIST-AD-001]); the value is
+    taken from the float kernels. Both tails are mirrored so that the
+    difference is formed from the smaller complementary probabilities.
+
+    Args:
+        alpha: Standardized lower bound (variable, or ``-inf``).
+        beta: Standardized upper bound (variable, or ``inf``).
+
+    Returns:
+        Log interval probability with derivatives.
+
+    Equation:
+        [EQ-DIST-TN-002], [EQ-DIST-AD-001].
+
+    References:
+        [REF-NIST-DLMF, Sections 7.2 and 7.9].
+
+    """
+    root_two = math.sqrt(2.0)
+    if primal(alpha) >= 0.0:
+        far = 0.0 if beta == math.inf else admath.erfc(beta / root_two)
+        mass = 0.5 * (admath.erfc(alpha / root_two) - far)
+    elif primal(beta) <= 0.0:
+        far = 0.0 if alpha == -math.inf else admath.erfc(-alpha / root_two)
+        mass = 0.5 * (admath.erfc(-beta / root_two) - far)
+    else:
+        high = 1.0 if beta == math.inf else admath.erf(beta / root_two)
+        low = -1.0 if alpha == -math.inf else admath.erf(alpha / root_two)
+        mass = 0.5 * (high - low)
+    return admath.log(mass)
 
 
 def _short_interval_moments(centre: float, half_width: float) -> tuple[float, float]:
@@ -155,28 +192,37 @@ class TruncatedNormal(ContinuousDistribution):
             [REF-JKB-1994, Chapter 13].
 
         """
-        mu = FINITE_REAL.validate(self.mu, name="mu")
-        sigma = POSITIVE_FINITE.validate(self.sigma, name="sigma")
+        mu = FINITE_REAL.validate_parameter(self.mu, name="mu")
+        sigma = POSITIVE_FINITE.validate_parameter(self.sigma, name="sigma")
         lower = (
             None
             if self.lower is None
-            else FINITE_REAL.validate(self.lower, name="lower")
+            else FINITE_REAL.validate_parameter(self.lower, name="lower")
         )
         upper = (
             None
             if self.upper is None
-            else FINITE_REAL.validate(self.upper, name="upper")
+            else FINITE_REAL.validate_parameter(self.upper, name="upper")
         )
         if lower is not None and upper is not None and not lower < upper:
             raise ValueError("lower must be strictly less than upper")
-        alpha = -math.inf if lower is None else (lower - mu) / sigma
-        beta = math.inf if upper is None else (upper - mu) / sigma
-        if lower is not None and upper is not None:
-            log_mass = _log_mass_from(alpha, (upper - lower) / sigma, beta)
+        # The float quantities are formed from the primal values; for float
+        # parameters these are the parameters themselves.
+        mu0, sigma0 = primal(mu), primal(sigma)
+        lower0 = None if lower is None else primal(lower)
+        upper0 = None if upper is None else primal(upper)
+        alpha = -math.inf if lower0 is None else (lower0 - mu0) / sigma0
+        beta = math.inf if upper0 is None else (upper0 - mu0) / sigma0
+        if lower0 is not None and upper0 is not None:
+            log_mass = _log_mass_from(alpha, (upper0 - lower0) / sigma0, beta)
         else:
             log_mass = log_normal_interval_mass(alpha, beta)
         if not math.isfinite(log_mass):
             raise ValueError("truncation interval has numerically zero mass")
+        if any_variable(mu, sigma, lower, upper):
+            alpha = alpha if lower is None else (lower - mu) / sigma
+            beta = beta if upper is None else (upper - mu) / sigma
+            log_mass = with_value(log_mass, _variable_log_mass(alpha, beta))
         object.__setattr__(self, "mu", mu)
         object.__setattr__(self, "sigma", sigma)
         object.__setattr__(self, "lower", lower)
@@ -220,13 +266,13 @@ class TruncatedNormal(ContinuousDistribution):
             [REF-JKB-1994, Chapter 13].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         if (self.lower is not None and point < self.lower) or (
             self.upper is not None and point > self.upper
         ):
             return -math.inf
         z = (point - self.mu) / self.sigma
-        return -0.5 * z * z - _LOG_SQRT_TWO_PI - math.log(self.sigma) - self._log_mass
+        return -0.5 * z * z - _LOG_SQRT_TWO_PI - admath.log(self.sigma) - self._log_mass
 
     def pdf(self, x: float) -> float:
         """Evaluate the truncated normal density.

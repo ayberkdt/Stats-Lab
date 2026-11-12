@@ -12,6 +12,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath, real_argument
 from ._base import ContinuousDistribution
 from ._continuous import density_from_log
 from .constraints import POSITIVE_FINITE
@@ -44,7 +45,7 @@ class Exponential(ContinuousDistribution):
 
         """
         object.__setattr__(
-            self, "rate", POSITIVE_FINITE.validate(self.rate, name="rate")
+            self, "rate", POSITIVE_FINITE.validate_parameter(self.rate, name="rate")
         )
 
     @property
@@ -77,10 +78,10 @@ class Exponential(ContinuousDistribution):
             [REF-ROSS-2019, Chapter 5].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         if point < 0.0:
             return -math.inf
-        return math.log(self.rate) - self.rate * point
+        return admath.log(self.rate) - self.rate * point
 
     def pdf(self, x: float) -> float:
         """Evaluate exponential probability density at ``x``.

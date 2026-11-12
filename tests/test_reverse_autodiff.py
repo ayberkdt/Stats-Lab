@@ -8,7 +8,7 @@ import sys
 import unittest
 import warnings
 
-from probstat.distributions import Normal, RealSupport
+from probstat.distributions import Gamma, Normal, RealSupport, Uniform
 from probstat.inference import (
     hamiltonian_monte_carlo,
     laplace_approximation,
@@ -806,9 +806,15 @@ def hierarchical(m):
 
 
 def library_normal(m):
-    """Declare the likelihood with library Normal objects (not traceable)."""
+    """Declare the likelihood with library Normal objects (traceable, ADR-0090)."""
     mu = m.sample("mu", Normal(0.0, 10.0))
     m.observe("y", Normal(mu, 1.0), (1.2, 0.4, 2.1))
+
+
+def latent_bound(m):
+    """Declare a site whose support bound is latent (not traceable)."""
+    upper = m.sample("upper", Gamma(4.0, 1.0))
+    m.sample("x", Uniform(0.0, upper))
 
 
 class ProbabilisticProgrammingTests(unittest.TestCase):
@@ -885,18 +891,33 @@ class ProbabilisticProgrammingTests(unittest.TestCase):
         )
         self.assertEqual(advi_fit.gradient_method, "reverse")
 
-    def test_library_distributions_fall_back(self) -> None:
-        """Library Normal rejects variables: finite differences, reason kept."""
+    def test_library_distributions_use_reverse(self) -> None:
+        """Library Normal accepts tape variables (ADR-0090): exact reverse mode.
+
+        Until ADR-0090 the constructor rejected variables and the run fell
+        back to central differences; the gradient now equals the closed form
+        to rounding.
+        """
         posterior = quiet(
             ppl.sample, library_normal, draws=60, warmup=60, chains=1, seed=4
         )
-        self.assertEqual(posterior.gradient_method, "finite-difference")
-        self.assertIn("real number", posterior.gradient_fallback_reason)
+        self.assertEqual(posterior.gradient_method, "reverse")
+        self.assertIsNone(posterior.gradient_fallback_reason)
         program = ppl.trace(library_normal)
-        with self.assertRaises(AutodiffUnsupportedError):
-            program.gradient((0.3,), method="reverse")
         exact = sum(y - 0.3 for y in (1.2, 0.4, 2.1)) - 0.3 / 100.0
-        self.assertAlmostEqual(program.gradient((0.3,))[0], exact, delta=1e-6)
+        self.assertAlmostEqual(
+            program.gradient((0.3,), method="reverse")[0], exact, delta=1e-12
+        )
+
+    def test_latent_support_bound_falls_back(self) -> None:
+        """A support bound that is a variable is refused: finite differences."""
+        program = ppl.trace(latent_bound)
+        with self.assertRaises(AutodiffUnsupportedError):
+            program.gradient((0.1, 0.2), method="reverse")
+        evaluator = program.gradient_evaluator("auto")
+        evaluator.gradient((0.1, 0.2))
+        self.assertEqual(evaluator.method, "finite-difference")
+        self.assertIn("real number", evaluator.fallback_reason)
 
 
 if __name__ == "__main__":

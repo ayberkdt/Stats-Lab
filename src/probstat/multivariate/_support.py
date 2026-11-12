@@ -14,7 +14,14 @@ import math
 import random
 from collections.abc import Iterable
 from numbers import Integral
+from typing import cast
 
+from probstat.distributions._autodiff import (
+    admath,
+    any_variable,
+    is_variable,
+    primal,
+)
 from probstat.foundations.validation import require_finite_real
 from probstat.linalg import (
     Matrix,
@@ -60,6 +67,47 @@ def positive_vector(
     return vector
 
 
+def real_vector(values: Iterable[object], *, name: str) -> Vector:
+    """Validate a finite real vector whose entries may carry derivatives.
+
+    Without dual numbers or reverse-mode variables this is exactly
+    :func:`~probstat.linalg.as_vector`. A variable entry is validated on its
+    primal value and kept, so a log-density built from it is differentiable
+    (ADR-0090).
+
+    Args:
+        values: Candidate components (reals or variables).
+        name: Argument name used in error messages.
+
+    Returns:
+        Tuple of floats and variables.
+
+    Raises:
+        TypeError: If ``values`` is not iterable or holds a non-real entry.
+        ValueError: If a (primal) entry is not finite.
+
+    References:
+        Project validation policy [REF-PROBSTAT-VALIDATION],
+        [REF-GRIEWANK-WALTHER-2008, Chapter 3]. No equation is evaluated.
+
+    """
+    try:
+        raw = tuple(values)
+    except TypeError as error:
+        raise TypeError(f"{name} must be iterable") from error
+    if not any_variable(*raw):
+        return as_vector(raw, name=name)
+    as_vector(
+        (primal(value) if is_variable(value) else value for value in raw), name=name
+    )
+    return tuple(
+        cast(float, value)
+        if is_variable(value)
+        else require_finite_real(value, name=f"{name}[{index}]")
+        for index, value in enumerate(raw)
+    )
+
+
 def probability_vector(values: Iterable[object], *, name: str) -> Vector:
     """Validate a probability vector with at least two categories.
 
@@ -84,12 +132,18 @@ def probability_vector(values: Iterable[object], *, name: str) -> Vector:
         evaluated.
 
     """
-    vector = as_vector(values, name=name)
+    vector = real_vector(values, name=name)
     if len(vector) < 2:
         raise ValueError(f"{name} must have at least two categories")
     for index, value in enumerate(vector):
         if not 0.0 <= value <= 1.0:
             raise ValueError(f"{name}[{index}] must lie in [0, 1]")
+    if any_variable(*vector):
+        # Validate the primal vector; normalize by the differentiable sum.
+        if abs(math.fsum(primal(value) for value in vector) - 1.0) > SIMPLEX_TOLERANCE:
+            raise ValueError(f"{name} must sum to one")
+        variable_total = admath.fsum(vector)
+        return tuple(value / variable_total for value in vector)
     total = math.fsum(vector)
     if abs(total - 1.0) > SIMPLEX_TOLERANCE:
         raise ValueError(f"{name} must sum to one")

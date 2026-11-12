@@ -13,6 +13,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath, any_variable, primal, real_argument, transfer_derivatives
 from ._base import ContinuousDistribution
 from ._continuous import (
     LOG_MAX,
@@ -60,8 +61,12 @@ class FisherF(ContinuousDistribution):
             [EQ-DIST-F-001], [REF-JKB-1995, Chapter 27].
 
         """
-        object.__setattr__(self, "nu1", POSITIVE_FINITE.validate(self.nu1, name="nu1"))
-        object.__setattr__(self, "nu2", POSITIVE_FINITE.validate(self.nu2, name="nu2"))
+        object.__setattr__(
+            self, "nu1", POSITIVE_FINITE.validate_parameter(self.nu1, name="nu1")
+        )
+        object.__setattr__(
+            self, "nu2", POSITIVE_FINITE.validate_parameter(self.nu2, name="nu2")
+        )
 
     @property
     def support(self) -> RealSupport:
@@ -95,6 +100,44 @@ class FisherF(ContinuousDistribution):
         denominator = numerator + self.nu2
         return numerator / denominator, self.nu2 / denominator
 
+    def _variable_log_pdf(self, point: float) -> float:
+        """Return the log-density when a degree of freedom or the point is a variable.
+
+        The value is the float log-density at the primal values; the
+        derivatives are those of ``(nu1/2) log y + (nu2/2) log(1 - y) - log x
+        - log B(nu1/2, nu2/2)`` with ``y = nu1 x / (nu1 x + nu2)``
+        ([EQ-DIST-AD-001]).
+
+        References:
+            [EQ-DIST-F-001], [EQ-DIST-AD-001], [REF-JKB-1995, Chapter 27].
+
+        """
+        nu1, nu2 = self.nu1, self.nu2
+        accurate = FisherF(primal(nu1), primal(nu2)).log_pdf(primal(point))
+
+        def closed_form() -> float:
+            """Return the log-density written with ``admath``.
+
+            References:
+                [EQ-DIST-F-001], [REF-JKB-1995, Chapter 27].
+
+            """
+            if primal(point) == 0.0:
+                return accurate
+            half1, half2 = 0.5 * nu1, 0.5 * nu2
+            denominator = nu1 * point + nu2
+            log_beta = admath.lgamma(half1) + admath.lgamma(half2) - admath.lgamma(
+                half1 + half2
+            )
+            return (
+                half1 * admath.log(nu1 * point / denominator)
+                + half2 * admath.log(nu2 / denominator)
+                - admath.log(point)
+                - log_beta
+            )
+
+        return transfer_derivatives(accurate, closed_form)
+
     def log_pdf(self, x: float) -> float:
         """Evaluate the F log-density, including its endpoint limit.
 
@@ -110,13 +153,15 @@ class FisherF(ContinuousDistribution):
             ValueError: If ``x`` is non-finite.
 
         Equation:
-            [EQ-DIST-F-001], [EQ-NUM-STIRLING-001].
+            [EQ-DIST-F-001], [EQ-NUM-STIRLING-001], [EQ-DIST-AD-001].
 
         References:
             [REF-JKB-1995, Chapter 27], [REF-NIST-DLMF-GAMMA, Section 5.11].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
+        if any_variable(self.nu1, self.nu2, point):
+            return self._variable_log_pdf(point)
         if point < 0.0:
             return -math.inf
         half1, half2 = 0.5 * self.nu1, 0.5 * self.nu2

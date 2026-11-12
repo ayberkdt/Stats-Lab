@@ -12,6 +12,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath, any_variable, primal, real_argument, with_value
 from ._base import ContinuousDistribution
 from ._continuous import (
     LOG_MAX,
@@ -65,10 +66,10 @@ class Gamma(ContinuousDistribution):
 
         """
         object.__setattr__(
-            self, "shape", POSITIVE_FINITE.validate(self.shape, name="shape")
+            self, "shape", POSITIVE_FINITE.validate_parameter(self.shape, name="shape")
         )
         object.__setattr__(
-            self, "rate", POSITIVE_FINITE.validate(self.rate, name="rate")
+            self, "rate", POSITIVE_FINITE.validate_parameter(self.rate, name="rate")
         )
 
     @classmethod
@@ -146,34 +147,42 @@ class Gamma(ContinuousDistribution):
             ValueError: If ``x`` is non-finite.
 
         Equation:
-            [EQ-DIST-GAM-001], [EQ-NUM-STIRLING-001].
+            [EQ-DIST-GAM-001], [EQ-NUM-STIRLING-001], [EQ-DIST-AD-001].
 
         References:
             [REF-JKB-1994, Chapter 17], [REF-NIST-DLMF-GAMMA, Section 5.11].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         if point < 0.0:
             return -math.inf
         if point == 0.0:
             if self.shape < 1.0:
                 return math.inf
             if self.shape == 1.0:
-                return math.log(self.rate)
+                return admath.log(self.rate)
             return -math.inf
         scaled = self._scaled(point)
         if scaled == math.inf:
             return -math.inf
-        if self.shape >= LARGE_SHAPE and scaled > 0.0:
-            # k log(lambda x) - lambda x - lgamma(k) without differencing
-            # lgamma(k) (size k log k) against k log(lambda x).
-            return log_gamma_kernel(self.shape, point, self.rate) - math.log(point)
-        return (
-            self.shape * math.log(self.rate)
-            + (self.shape - 1.0) * math.log(point)
-            - scaled
-            - math.lgamma(self.shape)
-        )
+        closed_form = not (self.shape >= LARGE_SHAPE and scaled > 0.0)
+        if closed_form or any_variable(self.shape, self.rate, point):
+            log_density = (
+                self.shape * admath.log(self.rate)
+                + (self.shape - 1.0) * admath.log(point)
+                - scaled
+                - admath.lgamma(self.shape)
+            )
+            if closed_form:
+                return log_density
+        else:
+            log_density = 0.0
+        # k log(lambda x) - lambda x - lgamma(k) without differencing
+        # lgamma(k) (size k log k) against k log(lambda x); variables take
+        # their derivatives from the closed form ([EQ-DIST-AD-001]).
+        shape, rate, value = primal(self.shape), primal(self.rate), primal(point)
+        accurate = log_gamma_kernel(shape, value, rate) - math.log(value)
+        return with_value(accurate, log_density)
 
     def pdf(self, x: float) -> float:
         """Evaluate the gamma probability density.

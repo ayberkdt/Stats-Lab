@@ -345,7 +345,7 @@ class StructuredSiteTests(unittest.TestCase):
             """Declare a Dirichlet site with no data."""
             m.sample("p", Dirichlet(ALPHA))
 
-        for model in (prior_only,):
+        for model in (prior_only, dirichlet_multinomial):
             program = ppl.trace(model)
             for u in ((0.0, 0.0), (0.4, 0.0), (0.0, -0.7)):
                 exact = program.gradient(u, method="reverse")

@@ -12,6 +12,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath
 from ._base import DiscreteDistribution
 from ._special import regularized_beta_pair
 from .constraints import NON_NEGATIVE_INTEGER, PROBABILITY
@@ -50,7 +51,7 @@ class Binomial(DiscreteDistribution):
 
         """
         object.__setattr__(self, "n", NON_NEGATIVE_INTEGER.validate(self.n, name="n"))
-        object.__setattr__(self, "p", PROBABILITY.validate(self.p, name="p"))
+        object.__setattr__(self, "p", PROBABILITY.validate_parameter(self.p, name="p"))
 
     @property
     def support(self) -> IntegerSupport:
@@ -90,14 +91,14 @@ class Binomial(DiscreteDistribution):
         if self.p == 1.0:
             return 0.0 if k == self.n else -math.inf
         log_coefficient = (
-            math.lgamma(self.n + 1.0)
-            - math.lgamma(k + 1.0)
-            - math.lgamma(self.n - k + 1.0)
+            admath.lgamma(self.n + 1.0)
+            - admath.lgamma(k + 1.0)
+            - admath.lgamma(self.n - k + 1.0)
         )
         return (
             log_coefficient
-            + k * math.log(self.p)
-            + (self.n - k) * math.log1p(-self.p)
+            + k * admath.log(self.p)
+            + (self.n - k) * admath.log1p(-self.p)
         )
 
     def pmf(self, k: int) -> float:

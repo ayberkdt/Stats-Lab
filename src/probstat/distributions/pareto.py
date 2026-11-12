@@ -17,11 +17,11 @@ from dataclasses import dataclass
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
-    require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._autodiff import admath, real_argument
 from ._base import ContinuousDistribution
 from ._continuous import open_unit
 from .constraints import POSITIVE_FINITE
@@ -62,10 +62,10 @@ class Pareto(ContinuousDistribution):
 
         """
         object.__setattr__(
-            self, "scale", POSITIVE_FINITE.validate(self.scale, name="scale")
+            self, "scale", POSITIVE_FINITE.validate_parameter(self.scale, name="scale")
         )
         object.__setattr__(
-            self, "shape", POSITIVE_FINITE.validate(self.shape, name="shape")
+            self, "shape", POSITIVE_FINITE.validate_parameter(self.shape, name="shape")
         )
 
     @property
@@ -85,10 +85,10 @@ class Pareto(ContinuousDistribution):
             [EQ-DIST-PARETO-001]. No new equation.
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         if point < self.scale:
             return -math.inf
-        return math.log(point / self.scale)
+        return admath.log(point / self.scale)
 
     def log_pdf(self, x: float) -> float:
         """Return ``log(alpha / x_m) - (alpha + 1) log(x / x_m)``.
@@ -103,7 +103,7 @@ class Pareto(ContinuousDistribution):
         ratio = self._log_ratio(x)
         if ratio == -math.inf:
             return -math.inf
-        return math.log(self.shape / self.scale) - (self.shape + 1.0) * ratio
+        return admath.log(self.shape / self.scale) - (self.shape + 1.0) * ratio
 
     def pdf(self, x: float) -> float:
         """Return the Pareto density.

@@ -12,6 +12,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath, real_argument
 from ._base import ContinuousDistribution
 from ._continuous import density_from_log
 from .constraints import POSITIVE_FINITE
@@ -46,10 +47,10 @@ class Weibull(ContinuousDistribution):
 
         """
         object.__setattr__(
-            self, "shape", POSITIVE_FINITE.validate(self.shape, name="shape")
+            self, "shape", POSITIVE_FINITE.validate_parameter(self.shape, name="shape")
         )
         object.__setattr__(
-            self, "scale", POSITIVE_FINITE.validate(self.scale, name="scale")
+            self, "scale", POSITIVE_FINITE.validate_parameter(self.scale, name="scale")
         )
 
     @property
@@ -76,7 +77,7 @@ class Weibull(ContinuousDistribution):
 
         """
         try:
-            return math.pow(point / self.scale, self.shape)
+            return admath.pow(point / self.scale, self.shape)
         except OverflowError:
             return math.inf
 
@@ -100,20 +101,20 @@ class Weibull(ContinuousDistribution):
             [REF-NIST-DISTRIBUTIONS, Weibull Distribution].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         if point < 0.0:
             return -math.inf
         if point == 0.0:
             if self.shape < 1.0:
                 return math.inf
             if self.shape == 1.0:
-                return -math.log(self.scale)
+                return -admath.log(self.scale)
             return -math.inf
         powered = self._powered_ratio(point)
         return (
-            math.log(self.shape)
-            - math.log(self.scale)
-            + (self.shape - 1.0) * math.log(point / self.scale)
+            admath.log(self.shape)
+            - admath.log(self.scale)
+            + (self.shape - 1.0) * admath.log(point / self.scale)
             - powered
         )
 

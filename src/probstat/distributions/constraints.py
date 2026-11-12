@@ -5,12 +5,15 @@ from __future__ import annotations
 import math
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import cast
 
 from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_finite_real,
     require_probability,
 )
+
+from ._autodiff import admath, is_variable, primal
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +117,36 @@ class RealIntervalConstraint:
         if not self.contains(numeric):
             raise ValueError(f"{name} lies outside {self!r}")
         return numeric
+
+    def validate_parameter(self, value: object, *, name: str) -> float:
+        """Validate a distribution parameter that may carry derivatives.
+
+        A dual number or reverse-mode variable is checked on its primal
+        value and returned unchanged, so a log-density built from it is
+        differentiable (ADR-0090); any other value is handled exactly as by
+        :meth:`validate`.
+
+        Args:
+            value: Candidate scalar, dual, or reverse-mode variable.
+            name: Parameter name used in error messages.
+
+        Returns:
+            The validated float, or the variable itself.
+
+        Raises:
+            TypeError: If ``value`` is not real.
+            ValueError: If its (primal) value is non-finite or outside the
+                interval.
+
+        References:
+            [REF-CASELLA-BERGER-2002, Chapter 3],
+            [REF-GRIEWANK-WALTHER-2008, Chapter 3]. No equation is evaluated.
+
+        """
+        if is_variable(value):
+            self.validate(primal(value), name=name)
+            return cast(float, value)
+        return self.validate(value, name=name)
 
 
 @dataclass(frozen=True, slots=True)
@@ -259,6 +292,41 @@ class ProbabilitySimplexConstraint:
         if not math.isclose(total, 1.0, rel_tol=0.0, abs_tol=self.tolerance):
             raise ValueError(f"{name} must sum to one; received {total!r}")
         return tuple(value / total for value in checked)
+
+    def validate_parameter(
+        self, values: Iterable[object], *, name: str
+    ) -> tuple[float, ...]:
+        """Validate a probability vector whose entries may carry derivatives.
+
+        Without dual numbers or reverse-mode variables this is exactly
+        :meth:`validate`. Otherwise the primal values are validated and the
+        entries are divided by their (differentiable) sum, so the returned
+        vector is the normalized function of the inputs (ADR-0090).
+
+        Args:
+            values: Candidate probabilities (reals or variables).
+            name: Parameter name used in indexed error messages.
+
+        Returns:
+            Normalized probabilities.
+
+        Raises:
+            TypeError: If an element is not real.
+            ValueError: If the primal vector is not a probability vector.
+
+        Equation:
+            [EQ-DIST-CAT-001].
+
+        References:
+            [REF-ROSS-2019, Section 4.6], [REF-GRIEWANK-WALTHER-2008, Chapter 3].
+
+        """
+        entries = tuple(values)
+        if not any(is_variable(value) for value in entries):
+            return self.validate(entries, name=name)
+        self.validate((primal(v) if is_variable(v) else v for v in entries), name=name)
+        total = admath.fsum(cast(tuple[float, ...], entries))
+        return tuple(cast(float, value) / total for value in entries)
 
 
 FINITE_REAL = RealIntervalConstraint()

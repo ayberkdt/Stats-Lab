@@ -14,6 +14,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 
 from probstat.distributions import Binomial
+from probstat.distributions._autodiff import admath
 from probstat.distributions._special import log_gamma_ratio
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import require_non_negative_integer
@@ -208,8 +209,8 @@ class Multinomial:
                 continue
             if probability == 0.0:
                 return -math.inf
-            terms.append(count * math.log(probability))
-        return math.fsum(terms)
+            terms.append(count * admath.log(probability))
+        return admath.fsum(terms)
 
     def pmf(self, counts: Iterable[int]) -> float:
         """Evaluate the multinomial probability of a count vector.

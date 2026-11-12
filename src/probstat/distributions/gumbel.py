@@ -8,11 +8,11 @@ from typing import Literal
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
-    require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._autodiff import admath, real_argument
 from ._base import ContinuousDistribution
 from ._continuous import density_from_log, open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
@@ -35,7 +35,7 @@ def _exp_capped(value: float) -> float:
         [REF-PYTHON-MATH]. No probability equation is evaluated.
 
     """
-    return math.inf if value > _EXP_LIMIT else math.exp(value)
+    return math.inf if value > _EXP_LIMIT else admath.exp(value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,9 +74,11 @@ class Gumbel(ContinuousDistribution):
             [EQ-DIST-GUM-001], [REF-JKB-1995, Chapter 22].
 
         """
-        object.__setattr__(self, "mu", FINITE_REAL.validate(self.mu, name="mu"))
         object.__setattr__(
-            self, "beta", POSITIVE_FINITE.validate(self.beta, name="beta")
+            self, "mu", FINITE_REAL.validate_parameter(self.mu, name="mu")
+        )
+        object.__setattr__(
+            self, "beta", POSITIVE_FINITE.validate_parameter(self.beta, name="beta")
         )
         if self.kind not in ("max", "min"):
             raise ValueError("kind must be 'max' or 'min'")
@@ -111,7 +113,7 @@ class Gumbel(ContinuousDistribution):
             [EQ-DIST-GUM-001], [REF-JKB-1995, Chapter 22].
 
         """
-        z = (require_finite_real(x, name="x") - self.mu) / self.beta
+        z = (real_argument(x, name="x") - self.mu) / self.beta
         return z if self.kind == "max" else -z
 
     def log_pdf(self, x: float) -> float:
@@ -135,7 +137,7 @@ class Gumbel(ContinuousDistribution):
 
         """
         w = self._reflected(x)
-        return -math.log(self.beta) - w - _exp_capped(-w)
+        return -admath.log(self.beta) - w - _exp_capped(-w)
 
     def pdf(self, x: float) -> float:
         """Evaluate the Gumbel density.

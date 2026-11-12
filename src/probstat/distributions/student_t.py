@@ -7,12 +7,12 @@ from dataclasses import dataclass
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
-    require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 from probstat.numerics.special import digamma
 
+from ._autodiff import admath, is_variable, primal, real_argument, with_value
 from ._base import ContinuousDistribution
 from ._continuous import (
     SINH_LIMIT,
@@ -64,10 +64,14 @@ class StudentT(ContinuousDistribution):
             [EQ-DIST-STT-001], [REF-JKB-1995, Chapter 28].
 
         """
-        object.__setattr__(self, "nu", POSITIVE_FINITE.validate(self.nu, name="nu"))
-        object.__setattr__(self, "mu", FINITE_REAL.validate(self.mu, name="mu"))
         object.__setattr__(
-            self, "sigma", POSITIVE_FINITE.validate(self.sigma, name="sigma")
+            self, "nu", POSITIVE_FINITE.validate_parameter(self.nu, name="nu")
+        )
+        object.__setattr__(
+            self, "mu", FINITE_REAL.validate_parameter(self.mu, name="mu")
+        )
+        object.__setattr__(
+            self, "sigma", POSITIVE_FINITE.validate_parameter(self.sigma, name="sigma")
         )
 
     @property
@@ -147,7 +151,7 @@ class StudentT(ContinuousDistribution):
             [EQ-DIST-STT-001], [REF-JKB-1995, Chapter 28].
 
         """
-        return (require_finite_real(x, name="x") - self.mu) / self.sigma
+        return (real_argument(x, name="x") - self.mu) / self.sigma
 
     def log_pdf(self, x: float) -> float:
         """Evaluate the location-scale Student-t log-density.
@@ -163,27 +167,36 @@ class StudentT(ContinuousDistribution):
             ValueError: If ``x`` is non-finite.
 
         Equation:
-            [EQ-DIST-STT-001], [EQ-NUM-STIRLING-001].
+            [EQ-DIST-STT-001], [EQ-NUM-STIRLING-001], [EQ-DIST-AD-001].
 
         References:
             [REF-JKB-1995, Chapter 28], [REF-NIST-DLMF-GAMMA, Section 5.11].
 
         """
         z = self._standardized(x)
-        ratio = abs(z) / math.sqrt(self.nu)
+        ratio = abs(z) / admath.sqrt(self.nu)
         if ratio > 1e150:
-            log_term = 2.0 * math.log(ratio)
+            log_term = 2.0 * admath.log(ratio)
         else:
-            log_term = math.log1p(ratio * ratio)
+            log_term = admath.log1p(ratio * ratio)
         if 0.5 * self.nu >= LARGE_SHAPE:
             # lgamma((nu+1)/2) - lgamma(nu/2) from Stirling differences.
-            log_ratio = log_gamma_ratio(0.5 * self.nu, 0.5)
+            log_ratio = log_gamma_ratio(0.5 * primal(self.nu), 0.5)
+            if is_variable(self.nu):
+                # Value from the Stirling form, derivatives from the
+                # log-gamma difference ([EQ-DIST-AD-001]).
+                difference = admath.lgamma(0.5 * (self.nu + 1.0)) - admath.lgamma(
+                    0.5 * self.nu
+                )
+                log_ratio = with_value(log_ratio, difference)
         else:
-            log_ratio = math.lgamma(0.5 * (self.nu + 1.0)) - math.lgamma(0.5 * self.nu)
+            log_ratio = admath.lgamma(0.5 * (self.nu + 1.0)) - admath.lgamma(
+                0.5 * self.nu
+            )
         return (
             log_ratio
-            - 0.5 * math.log(self.nu * math.pi)
-            - math.log(self.sigma)
+            - 0.5 * admath.log(self.nu * math.pi)
+            - admath.log(self.sigma)
             - 0.5 * (self.nu + 1.0) * log_term
         )
 

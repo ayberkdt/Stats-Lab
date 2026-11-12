@@ -18,11 +18,11 @@ from dataclasses import dataclass
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
-    require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._autodiff import admath, real_argument
 from ._base import ContinuousDistribution
 from ._continuous import density_from_log, open_unit
 from .constraints import FINITE_REAL, POSITIVE_FINITE
@@ -61,9 +61,11 @@ class Cauchy(ContinuousDistribution):
             [EQ-DIST-CAUCHY-001], [REF-JKB-1994, Chapter 16].
 
         """
-        object.__setattr__(self, "loc", FINITE_REAL.validate(self.loc, name="loc"))
         object.__setattr__(
-            self, "scale", POSITIVE_FINITE.validate(self.scale, name="scale")
+            self, "loc", FINITE_REAL.validate_parameter(self.loc, name="loc")
+        )
+        object.__setattr__(
+            self, "scale", POSITIVE_FINITE.validate_parameter(self.scale, name="scale")
         )
 
     @property
@@ -83,7 +85,7 @@ class Cauchy(ContinuousDistribution):
             [EQ-DIST-CAUCHY-001]. No new equation.
 
         """
-        return (require_finite_real(x, name="x") - self.loc) / self.scale
+        return (real_argument(x, name="x") - self.loc) / self.scale
 
     def log_pdf(self, x: float) -> float:
         """Return ``-log(pi s) - log(1 + z^2)``.
@@ -97,10 +99,10 @@ class Cauchy(ContinuousDistribution):
         """
         z = abs(self._z(x))
         if z > 1e8:
-            tail = 2.0 * math.log(z) + math.log1p(1.0 / (z * z))
+            tail = 2.0 * admath.log(z) + admath.log1p(1.0 / (z * z))
         else:
-            tail = math.log1p(z * z)
-        return -math.log(math.pi * self.scale) - tail
+            tail = admath.log1p(z * z)
+        return -admath.log(math.pi * self.scale) - tail
 
     def pdf(self, x: float) -> float:
         """Return the Cauchy density.

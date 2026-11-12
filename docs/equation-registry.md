@@ -13941,3 +13941,27 @@ that `s` exists.
   conditional posteriors make the sampler efficient),
   [REF-GODSILL-2001] (pp. 230-248: the composite-space sampler and its
   pseudo-priors).
+
+### EQ-DIST-AD-001 — Accurate value with closed-form derivatives
+
+For a log-density `l(theta)` evaluated by an accurate float-only kernel
+`v = K(theta_0)` at the primal parameters `theta_0`, and the same quantity
+written in closed form `g(theta)` with differentiable elementary functions,
+the automatic-differentiation result is `l~(theta) = v + (g(theta) - g_0)`
+with `g_0 = g(theta_0)` held constant. Then `l~(theta_0) = v` and every
+derivative of `l~` equals the corresponding derivative of `g`, to every
+order the variables carry.
+
+- Domain: `v` finite (a non-finite value is returned without derivatives);
+  `g` differentiable at `theta_0`; `theta` dual numbers or reverse-mode
+  tape variables.
+- Meaning: the value keeps the accuracy of the cancellation-free kernel
+  (Stirling differences for large shapes, interval masses of the truncated
+  normal), while the derivatives, which do not suffer the cancellation of
+  the value (for example `log(lambda x) - digamma(k)` for the gamma shape),
+  come from the closed form. Float evaluations are unchanged.
+- Code: `distributions._autodiff.with_value`,
+  `distributions._autodiff.transfer_derivatives`.
+- Source: [REF-GRIEWANK-WALTHER-2008] (Chapter 3: derivatives of a program
+  are the derivatives of the elementary functions it composes; a constant
+  shift leaves them unchanged).

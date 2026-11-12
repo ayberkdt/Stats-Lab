@@ -17,11 +17,11 @@ from dataclasses import dataclass
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
-    require_finite_real,
     require_non_negative_integer,
     require_probability,
 )
 
+from ._autodiff import admath, real_argument
 from ._base import ContinuousDistribution
 from ._continuous import density_from_log, open_unit
 from .constraints import POSITIVE_FINITE
@@ -56,7 +56,7 @@ class Rayleigh(ContinuousDistribution):
 
         """
         object.__setattr__(
-            self, "scale", POSITIVE_FINITE.validate(self.scale, name="scale")
+            self, "scale", POSITIVE_FINITE.validate_parameter(self.scale, name="scale")
         )
 
     @property
@@ -76,7 +76,7 @@ class Rayleigh(ContinuousDistribution):
             [EQ-DIST-RAYLEIGH-001]. No new equation.
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         if point <= 0.0:
             return 0.0
         ratio = point / self.scale
@@ -92,10 +92,14 @@ class Rayleigh(ContinuousDistribution):
             [REF-JKB-1994, Chapter 18].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         if point <= 0.0:
             return -math.inf
-        return math.log(point) - 2.0 * math.log(self.scale) - self._half_square(point)
+        return (
+            admath.log(point)
+            - 2.0 * admath.log(self.scale)
+            - self._half_square(point)
+        )
 
     def pdf(self, x: float) -> float:
         """Return the Rayleigh density.

@@ -12,6 +12,7 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from ._autodiff import admath, real_argument
 from ._base import ContinuousDistribution
 from ._continuous import density_from_log
 from .constraints import FINITE_REAL
@@ -45,8 +46,8 @@ class Uniform(ContinuousDistribution):
             [EQ-DIST-UNIF-001], [REF-CASELLA-BERGER-2002, Section 3.3].
 
         """
-        lower = FINITE_REAL.validate(self.lower, name="lower")
-        upper = FINITE_REAL.validate(self.upper, name="upper")
+        lower = FINITE_REAL.validate_parameter(self.lower, name="lower")
+        upper = FINITE_REAL.validate_parameter(self.upper, name="upper")
         if upper <= lower:
             raise ValueError("upper must be strictly greater than lower")
         object.__setattr__(self, "lower", lower)
@@ -94,10 +95,10 @@ class Uniform(ContinuousDistribution):
             [REF-CASELLA-BERGER-2002, Section 3.3].
 
         """
-        point = require_finite_real(x, name="x")
+        point = real_argument(x, name="x")
         if point < self.lower or point > self.upper:
             return -math.inf
-        return -math.log(self.width)
+        return -admath.log(self.width)
 
     def pdf(self, x: float) -> float:
         """Evaluate the continuous uniform density at ``x``.
