@@ -43,6 +43,7 @@ References:
 from __future__ import annotations
 
 import math
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Protocol
@@ -265,14 +266,20 @@ class PlanarFlow:
 
     def _constrained(
         self, parameters: Sequence[Any]
-    ) -> tuple[list[Any], list[Any], Any, Any]:
-        """Return ``(u_hat, w, b, w'u_hat)`` from the raw parameters.
+    ) -> tuple[list[Any], list[Any], Any, Any, Any]:
+        """Return ``(u_hat, w, b, w'u_hat, 1 + w'u_hat)`` from the raw parameters.
+
+        The margin ``1 + w'u_hat = softplus(w'u)`` is returned as computed,
+        not as ``1 + (-1 + softplus(w'u))``: near the invertibility boundary
+        (``w'u`` below about ``-37``) the latter rounds to zero although the
+        margin is positive ([EQ-GEN-FLOW-008]).
 
         Raises:
             ValueError: If the parameter vector has the wrong length.
 
         References:
-            [EQ-GEN-FLOW-002], [REF-REZENDE-MOHAMED-2015, Appendix A.1].
+            [EQ-GEN-FLOW-002], [EQ-GEN-FLOW-008],
+            [REF-REZENDE-MOHAMED-2015, Appendix A.1].
 
         """
         _check_length(parameters, self.parameter_count, "PlanarFlow")
@@ -282,12 +289,13 @@ class PlanarFlow:
         b = parameters[2 * d]
         norm_squared = _dot(w, w)
         if primal(norm_squared) == 0.0:
-            return u, w, b, 0.0
+            return u, w, b, 0.0, 1.0
         wu = _dot(w, u)
-        projected = -1.0 + _softplus(wu)
+        margin = _softplus(wu)
+        projected = -1.0 + margin
         correction = (projected - wu) / norm_squared
         u_hat = [ui + correction * wi for ui, wi in zip(u, w, strict=True)]
-        return u_hat, w, b, projected
+        return u_hat, w, b, projected, margin
 
     def forward(self, parameters: Sequence[Any], z: Sequence[Any]) -> LayerOutput:
         """Return ``x = z + u_hat tanh(w'z + b)`` and its log-determinant.
@@ -307,10 +315,10 @@ class PlanarFlow:
 
         """
         _check_point(z, self.dimension, "PlanarFlow")
-        u_hat, w, b, wu_hat = self._constrained(parameters)
-        t = admath.tanh(_dot(w, z) + b)
+        u_hat, w, b, _, margin = self._constrained(parameters)
+        t, sech_squared = _tanh_and_sech_squared(_dot(w, z) + b)
         x = [zi + ui * t for zi, ui in zip(z, u_hat, strict=True)]
-        return x, admath.log(1.0 + (1.0 - t * t) * wu_hat)
+        return x, admath.log(t * t + margin * sech_squared)
 
     def inverse(self, parameters: Sequence[Any], x: Sequence[Any]) -> LayerOutput:
         """Return ``z = T^{-1}(x)`` and ``log |det dz/dx|``.
@@ -337,41 +345,68 @@ class PlanarFlow:
 
         """
         _check_point(x, self.dimension, "PlanarFlow")
-        u_hat, w, b, wu_hat = self._constrained(parameters)
+        u_hat, w, b, wu_hat, margin = self._constrained(parameters)
         target = _dot(w, x)
-        root = _planar_root(primal(wu_hat), primal(b), primal(target))
-        t_root = admath.tanh(root + b)
+        root = _planar_root(
+            primal(wu_hat), primal(b), primal(target), primal(margin)
+        )
+        t_root, sech_root = _tanh_and_sech_squared(root + b)
         residual = root + wu_hat * t_root - target
-        slope = 1.0 + wu_hat * (1.0 - t_root * t_root)
+        slope = t_root * t_root + margin * sech_root
         a = root - residual / slope
-        t = admath.tanh(a + b)
+        t, sech_squared = _tanh_and_sech_squared(a + b)
         z = [xi - ui * t for xi, ui in zip(x, u_hat, strict=True)]
-        return z, -admath.log(1.0 + (1.0 - t * t) * wu_hat)
+        return z, -admath.log(t * t + margin * sech_squared)
 
 
-def _planar_root(c: float, b: float, target: float) -> float:
+def _tanh_and_sech_squared(value: Any) -> tuple[Any, Any]:
+    """Return ``tanh(s)`` and ``1 - tanh(s)^2 = sech(s)^2`` without cancellation.
+
+    ``sech(s)^2 = 4 e / (1 + e)^2`` with ``e = exp(-2 |s|)`` keeps full
+    relative precision where ``1 - tanh(s)^2`` rounds to zero (``|s|`` above
+    about 19), for any numeric kind.
+
+    References:
+        [EQ-GEN-FLOW-008], [REF-REZENDE-MOHAMED-2015, Equation 12].
+
+    """
+    magnitude = value if value > 0 else -value
+    e = admath.exp(-2.0 * magnitude)
+    return admath.tanh(value), 4.0 * e / ((1.0 + e) * (1.0 + e))
+
+
+def _planar_root(c: float, b: float, target: float, margin: float) -> float:
     """Solve ``a + c tanh(a + b) = target`` for ``c > -1`` in floating point.
 
     The left side is strictly increasing with slope in
     ``[min(1, 1 + c), max(1, 1 + c)]`` and the root lies within ``|c|`` of
     ``target``; Newton steps that leave the bracket are replaced by
-    bisection.
+    bisection. The slope is ``tanh^2 + margin sech^2`` with
+    ``margin = 1 + c`` passed as computed, so it stays positive where
+    ``1 + c (1 - tanh^2)`` would round to zero ([EQ-GEN-FLOW-008]).
 
     References:
-        [EQ-GEN-FLOW-003], [REF-REZENDE-MOHAMED-2015, Appendix A.1].
+        [EQ-GEN-FLOW-003], [EQ-GEN-FLOW-008],
+        [REF-REZENDE-MOHAMED-2015, Appendix A.1].
 
     """
     low = target - abs(c) - 1e-12
     high = target + abs(c) + 1e-12
     a = target
     for _ in range(100):
-        t = math.tanh(a + b)
+        t, sech_squared = _tanh_and_sech_squared(a + b)
         value = a + c * t - target
         if value > 0.0:
             high = a
         else:
             low = a
-        slope = 1.0 + c * (1.0 - t * t)
+        slope = t * t + margin * sech_squared
+        if slope <= 0.0:
+            candidate = 0.5 * (low + high)
+            if abs(candidate - a) <= 1e-15 * max(1.0, abs(a)):
+                return candidate
+            a = candidate
+            continue
         candidate = a - value / slope
         if not low < candidate < high:
             candidate = 0.5 * (low + high)
@@ -448,33 +483,54 @@ class RadialFlow:
         z0 = [generator.gauss(0.0, 1.0) for _ in range(self.dimension)]
         return (*z0, 0.0, generator.gauss(0.0, 0.1))
 
-    def _constrained(self, parameters: Sequence[Any]) -> tuple[list[Any], Any, Any]:
-        """Return ``(z0, alpha, beta)`` from the raw parameters.
+    def _constrained(
+        self, parameters: Sequence[Any]
+    ) -> tuple[list[Any], Any, Any, Any]:
+        """Return ``(z0, alpha, beta, alpha + beta)`` from the raw parameters.
+
+        The margin ``alpha + beta = softplus(beta_raw)`` is returned as
+        computed: ``alpha + (-alpha + softplus(beta_raw))`` rounds to zero
+        for ``beta_raw`` below about ``-37`` although it is positive
+        ([EQ-GEN-FLOW-008]).
 
         Raises:
             ValueError: If the parameter vector has the wrong length.
 
         References:
-            [EQ-GEN-FLOW-004], [REF-REZENDE-MOHAMED-2015, Appendix A.2].
+            [EQ-GEN-FLOW-004], [EQ-GEN-FLOW-008],
+            [REF-REZENDE-MOHAMED-2015, Appendix A.2].
 
         """
         _check_length(parameters, self.parameter_count, "RadialFlow")
         d = self.dimension
         alpha = _softplus(parameters[d])
-        beta = -alpha + _softplus(parameters[d + 1])
-        return list(parameters[:d]), alpha, beta
+        margin = _softplus(parameters[d + 1])
+        beta = -alpha + margin
+        return list(parameters[:d]), alpha, beta, margin
 
-    def _log_determinant(self, alpha: Any, beta: Any, radius: Any) -> Any:
+    def _log_determinant(self, alpha: Any, margin: Any, radius: Any) -> Any:
         """Return ``log |det dx/dz|`` at base-side radius ``r``.
 
+        With ``m = alpha + beta`` the two factors are
+        ``1 + beta h = (r + m) / (alpha + r)`` and
+        ``1 + beta alpha h^2 = (r (2 alpha + r) + m alpha) / (alpha + r)^2``,
+        sums of non-negative terms that keep full precision near the
+        invertibility boundary ``m -> 0`` ([EQ-GEN-FLOW-008]).
+
         References:
-            [EQ-GEN-FLOW-004], [REF-REZENDE-MOHAMED-2015, Section 4.1].
+            [EQ-GEN-FLOW-004], [EQ-GEN-FLOW-008],
+            [REF-REZENDE-MOHAMED-2015, Section 4.1].
 
         """
-        h = 1.0 / (alpha + radius)
-        total = admath.log(1.0 + beta * alpha * h * h)
+        log_scale = admath.log(alpha + radius)
+        total = (
+            admath.log(radius * (2.0 * alpha + radius) + margin * alpha)
+            - 2.0 * log_scale
+        )
         if self.dimension > 1:
-            total = total + (self.dimension - 1) * admath.log(1.0 + beta * h)
+            total = total + (self.dimension - 1) * (
+                admath.log(radius + margin) - log_scale
+            )
         return total
 
     def forward(self, parameters: Sequence[Any], z: Sequence[Any]) -> LayerOutput:
@@ -495,12 +551,12 @@ class RadialFlow:
 
         """
         _check_point(z, self.dimension, "RadialFlow")
-        z0, alpha, beta = self._constrained(parameters)
+        z0, alpha, beta, margin = self._constrained(parameters)
         difference = [zi - ci for zi, ci in zip(z, z0, strict=True)]
         radius = admath.hypot(*difference)
         factor = beta / (alpha + radius)
         x = [zi + factor * di for zi, di in zip(z, difference, strict=True)]
-        return x, self._log_determinant(alpha, beta, radius)
+        return x, self._log_determinant(alpha, margin, radius)
 
     def inverse(self, parameters: Sequence[Any], x: Sequence[Any]) -> LayerOutput:
         """Return the closed-form inverse and ``log |det dz/dx|``.
@@ -525,18 +581,18 @@ class RadialFlow:
 
         """
         _check_point(x, self.dimension, "RadialFlow")
-        z0, alpha, beta = self._constrained(parameters)
+        z0, alpha, _, margin = self._constrained(parameters)
         difference = [xi - ci for xi, ci in zip(x, z0, strict=True)]
         rho = admath.hypot(*difference)
-        linear = alpha + beta - rho
+        linear = margin - rho
         root = admath.sqrt(linear * linear + 4.0 * rho * alpha)
         if linear > 0:
             radius = 2.0 * rho * alpha / (linear + root)
         else:
             radius = 0.5 * (root - linear)
-        shrink = 1.0 / (1.0 + beta / (alpha + radius))
+        shrink = (alpha + radius) / (radius + margin)
         z = [ci + shrink * di for ci, di in zip(z0, difference, strict=True)]
-        return z, -self._log_determinant(alpha, beta, radius)
+        return z, -self._log_determinant(alpha, margin, radius)
 
 
 @dataclass(frozen=True)
@@ -1193,8 +1249,18 @@ class NormalizingFlow:
                     column = [p[i] for p in points]
                     mean = math.fsum(column) / n
                     spread = math.sqrt(math.fsum((v - mean) ** 2 for v in column) / n)
-                    if spread <= 0.0:
-                        raise ValueError("a coordinate has zero spread at an ActNorm")
+                    # The rounded mean of a constant column can differ from
+                    # its value by one unit in the last place, which leaves a
+                    # spurious spread of order eps |v|; such a column is
+                    # constant to working precision.
+                    resolution = 4.0 * sys.float_info.epsilon * max(
+                        abs(v) for v in column
+                    )
+                    if spread <= resolution or max(column) == min(column):
+                        raise ValueError(
+                            "a coordinate has zero spread at an ActNorm "
+                            "(constant to working precision)"
+                        )
                     slices[index][i] = mean
                     slices[index][d + i] = math.log(spread)
             points = [
