@@ -94,6 +94,10 @@ The one-term expansion `G_n(z) = Phi(z) - phi(z) gamma (z^2 - 1)/(6 sqrt(n))`
 - For a lattice law the expansion needs an extra discontinuous term. The
   code raises rather than return a misleading number.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/limit-clt-error-rates-dark.png"><img alt="Log-log lines of the normal and Edgeworth Kolmogorov errors and the Berry-Esseen bound against the number of summands" src="../images/guides/limit-clt-error-rates.png"></picture>
+
+*On log-log axes the exact normal error of standardized Exponential(1) means falls with slope -1/2 and the one-term Edgeworth error with slope -1: at n = 100 they are 0.0133 and 0.000678, both under the Berry-Esseen bound 0.115.*
+
 ## 4. Tail bounds against exact tails
 
 `compare_tail_bounds(summand, n, t)` reports, for `Xbar_n - mu`:
@@ -121,6 +125,10 @@ For `Bernoulli(0.3)` and `n = 100`:
   over.
 - For exponential summands, Hoeffding and Bernstein are reported as `None`,
   because their bounded-support hypothesis fails.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/limit-tail-bounds-dark.png"><img alt="Log-scale exact upper tail of a sample mean and the Chebyshev, Bernstein, and Hoeffding bounds against the deviation" src="../images/guides/limit-tail-bounds.png"></picture>
+
+*Every bound lies above the exact one-sided tail of the mean of 100 Bernoulli(0.3) draws, a staircase because the mean is a lattice variable; at t = 0.2 the exact tail is 2.21e-5, Hoeffding overstates it 15-fold, and Chebyshev, which uses only the variance, 2,380-fold.*
 
 ## 5. Delta method against exact variances
 
@@ -231,6 +239,10 @@ unbiased estimator of `tau`. With `g = grad E[T]`, it bounds a biased one.
 The minimum-MSE divisor is exactly `n + 1`. Simulation with 5000
 replications gives the MSE of `SS/(n-1)` as 0.2303 +/- 0.0056, against the
 exact 0.2222.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/limit-variance-divisor-risk-dark.png"><img alt="Curves of squared bias, variance, and mean squared error of a variance estimator against its divisor" src="../images/guides/limit-variance-divisor-risk.png"></picture>
+
+*A larger divisor trades squared bias for variance: the unbiased choice `n - 1 = 9` has MSE 0.222, and the MSE is smallest at `n + 1 = 11` with 0.182.*
 
 **Uniform(0, theta) maximum** (`theta = 1`, `n = 10`, [EQ-EST-006]):
 

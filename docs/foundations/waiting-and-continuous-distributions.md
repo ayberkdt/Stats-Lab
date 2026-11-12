@@ -130,6 +130,10 @@ print(waiting_time.hazard(1.5))
 print(waiting_time.quantile(0.95))
 ```
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/waiting-memorylessness-dark.png"><img alt="Two panels of conditional survival curves after waiting 0, 1, and 2 time units, for an exponential and a Weibull law" src="../images/guides/waiting-memorylessness.png"></picture>
+
+*A constant hazard makes the exponential memoryless: after any wait `s` the chance of surviving one more unit stays 0.368 (`exp(-1)` for rate 1), whereas a Weibull with shape 2 and the same mean ages, and that chance falls from 0.456 at `s = 0` to 0.020 at `s = 2`.*
+
 ## Reading the paired visualizations
 
 The waiting-count plot compares Geometric and Negative Binomial PMFs under the

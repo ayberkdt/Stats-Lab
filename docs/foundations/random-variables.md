@@ -45,6 +45,10 @@ error.
 Multiple source values may collapse to one transformed value. The new PMF sums
 all corresponding source mass automatically.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/random-variables-two-dice-sum-dark.png"><img alt="Lollipop chart of the probability mass of the sum of two fair dice at each value from 2 to 12" src="../images/guides/random-variables-two-dice-sum.png"></picture>
+
+*The mapping `(a, b) -> a + b` sends 36 equally likely pairs of faces to 11 values, so each mass is a preimage count over 36: the sum 7 has 6 preimages and mass 0.167, while 2 and 12 have one each.*
+
 ## 3. Numeric variables, CDFs, and moments
 
 CDF evaluation [EQ-RV-003], expectation [EQ-RV-004], moments [EQ-RV-005] and
@@ -97,6 +101,10 @@ Covariance [EQ-RV-008] and correlation [EQ-RV-009] summarize linear co-movement
 for numeric variables. Zero covariance does not generally imply independence.
 Independence does imply zero covariance when the relevant expectations exist,
 but nonlinear dependent relationships can have zero covariance.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/random-variables-zero-covariance-dark.png"><img alt="Scatter of the five support points of X and Y equal to X squared, with the parabola and the flat best linear fit" src="../images/guides/random-variables-zero-covariance.png"></picture>
+
+*With X uniform on `{-2, ..., 2}` and `Y = X^2`, the symmetric parabola has no linear trend, so the covariance is 0.00; yet observing `X = 2` moves `P(Y = 4)` from 0.4 to 1.0, so the variables are dependent.*
 
 Correlation is undefined when either variable has zero variance. The library
 raises an error instead of returning NaN or inventing a convention.
