@@ -4,8 +4,8 @@ Discrete identities are checked exactly; closed-form differential entropies
 and Gaussian divergences are compared with independent Simpson integration of
 ``-f log f`` and ``p log(p/q)``; nearest-neighbour estimators are compared
 with Gaussian closed forms on seeded samples, with tolerances of about four
-Monte Carlo standard deviations (measured over eight seeds at ``n = 400``:
-about 0.045 nats for both estimators).
+Monte Carlo standard deviations of each estimator, measured over eight seeds
+at ``n = 400``.
 """
 
 from __future__ import annotations

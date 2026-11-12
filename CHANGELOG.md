@@ -37,10 +37,15 @@ while the public API remains pre-1.0 and experimental.
 - `plot_shrinkage` drew the raw estimates as `y +- 1 s.e.` next to 95%
   posterior intervals, so pooling looked as if it widened them; both now
   use the requested level.
-- Guide values that had drifted from the code: probabilistic-programming
-  posterior summaries and diagnostics, a scrambled-Halton error in the
-  probabilistic-modeling design table, and two u-pooling KS p-values in
-  the model-validation example.
+- Guide values that had drifted from the code: an audit of every result
+  number quoted outside the executable blocks of the 53 guides (about 1,000
+  table rows and sentences) corrected 139, stated missing seeds and
+  settings, turned 15 into test-checked code, and rewrote the arguments
+  that no longer held (among them the NUTS default, now the multinomial
+  variant, and GP fits that no longer reach a white-noise optimum).
+- Two lab messages: the missing-data lab computes the EM and MI distances
+  from the truth instead of printing a fixed 1.2 SE, and the hierarchical
+  lab names the seed of the replicate data correctly.
 - The light theme of the presentation showed both the light and the dark
   chart on evidence slides, pushing the footer off the slide.
 - Two tests that failed only on Linux compared ill-conditioned values

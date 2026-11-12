@@ -142,3 +142,14 @@ row is limited by population size, not by the surrogate.
   covariance), and is weakened by `initial_mean`. A stalled CE run with
   `||mu|| < 1` is caught only by the ESS warning. Non-convergence after
   `max_levels` is still reported only through `converged`.
+
+## Revised (2026-11-12)
+
+The evidence above was recorded with the optimizer and kernel defaults of
+its release. Later changes to the hyperparameter optimizer mean that the
+unregularized fits of the four-branch example no longer reach the
+white-noise optimum for the seeds quoted, and the call counts differ. The
+decision is unchanged: the regularization still removes the near-singular
+parabola optimum, which `tests/test_gp_regularization.py` checks. The
+current behaviour is described in the adaptive-reliability and surrogate
+guides.

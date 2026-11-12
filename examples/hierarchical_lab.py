@@ -374,7 +374,10 @@ def eight_schools() -> float:
         keep_replicates=True,
         seed=4,
     )
-    print(f"4. Posterior predictive checks on {check.draws} NUTS draws (seed 4)")
+    print(
+        f"4. Posterior predictive checks on {check.draws} NUTS draws "
+        "(replicate data drawn with seed 4)"
+    )
     print(f"{'statistic':<10}{'p (>=)':>8}{'MCSE':>8}{'two-sided':>11}")
     for item in check.checks:
         print(

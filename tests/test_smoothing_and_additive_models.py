@@ -332,7 +332,7 @@ class PSplineTests(unittest.TestCase):
         Forty replicates of ``sin(2 pi x) + N(0, 0.3^2)`` at 50 points, REML
         P-splines with 12 segments; the band's average coverage across the
         function must be at least ``0.95 - 3 SE`` (Nychka 1988) and below
-        ``0.995``. The run gives about 0.966.
+        ``0.995``.
 
         References:
             [EQ-SMOOTH-006], [REF-NYCHKA-1988].

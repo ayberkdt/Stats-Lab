@@ -89,9 +89,9 @@ class GaussianProcessRegularizationTests(unittest.TestCase):
         """Regularization removes the singular optimum and keeps a variance.
 
         Regression: on the AK-MCS design (seed 1) of ``3 + u1^2/4 - u2``
-        unregularized maximum likelihood gives length scales ``1.5e3`` and
-        ``1.6e5``, signal-to-noise ``4.7e18``, and predictive standard
-        deviation exactly ``0`` off the design.
+        unregularized maximum likelihood drives both length scales above
+        ``500`` and leaves a predictive standard deviation of exactly ``0``
+        off the design.
         """
         points = akmcs_design(1)
         values = [parabola(u) for u in points]

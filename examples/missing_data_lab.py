@@ -245,8 +245,10 @@ def compare_methods(
     )
     print("   * biased under MAR: complete cases shift the mean; mean imputation")
     print("     shrinks the variance and correlation and understates the SE.")
-    print("   One sample: EM and MI sit 1.2 SE above the truth here; experiment 4")
-    print("   shows the behaviour over repeated samples.")
+    em_z = (fit.mean[1] - 2.0) / fit.mean_standard_errors[1]
+    mi_z = (pooled.estimate - 2.0) / pooled.standard_error
+    print(f"   One sample: EM sits {em_z:.1f} SE and MI {mi_z:.1f} SE from the truth")
+    print("   here; experiment 4 shows the behaviour over repeated samples.")
     print(
         f"   EM: {fit.em.iterations} iterations, monotone = {fit.em.monotone}, "
         f"log-likelihood {fit.log_likelihood:.2f}"
