@@ -287,7 +287,11 @@ def plot_filter_track(
     title_block(
         axes,
         f"The filter tracks {name} from noisy data{coverage}",
-        ("Dots: measurements. " if observations is not None else "Not measured. ")
+        (
+            "Dots: measurements. "
+            if observations is not None
+            else f"{name[:1].upper()}{name[1:]} is never measured. "
+        )
         + "Band: filtered 95% interval",
     )
     return axes

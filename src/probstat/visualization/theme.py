@@ -820,13 +820,19 @@ def title_block(ax: Any, title: str, subtitle: str | None = None) -> None:
         ax: Target axes.
         title: Assertion stating what the chart shows.
         subtitle: One line naming the marks (not repeating axis titles).
+            The first letter of the title is capitalized unless the first word
+            is an identifier (it contains a digit or an underscore, such as an
+            input named ``x3`` or ``igniter_p``), which keeps the spelling the
+            axis labels use.
 
     References:
         [REF-MATPLOTLIB]. No equation is evaluated.
 
     """
     palette = active_palette()
-    title = title[:1].upper() + title[1:]
+    first_word = title.split(" ", 1)[0]
+    if not any(character.isdigit() or character == "_" for character in first_word):
+        title = title[:1].upper() + title[1:]
     ax.set_title(
         title,
         loc="left",

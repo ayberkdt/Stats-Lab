@@ -17,7 +17,7 @@ own figures through `probstat.visualization.theme`.
    `FITTED` dashes mark fitted or smoothed curves, `PROJECTED` dots mark
    extrapolation. A dash is never decoration.
 4. **Titles state the finding.** The title is an assertion computed from the
-   data ("X3 matters only through interactions"); a muted subtitle says what
+   data ("x3 matters only through interactions"); a muted subtitle says what
    the marks are. Labels sit at line ends instead of in a legend box.
 5. **Data ink dominates.** Horizontal hairline grid, no top or right spine, no
    shadows, glow, 3-D, or dual y-axes.
