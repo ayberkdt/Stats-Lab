@@ -193,12 +193,17 @@ def kolmogorov_exact_sf(count: int, statistic: float) -> float:
     ``p_+ <= 1e-7`` (the first event is decreasing and the second increasing
     in the observations, so by the Harris-FKG inequality their overlap is at
     most ``p_+^2 <= 1e-14``). Otherwise ``1 - P(D_n < d)`` from
-    :func:`_kolmogorov_noe_cdf` is returned, accurate to about ``1e-14`` in
-    absolute terms (the regression tests compare it with the
-    Marsaglia-Tsang-Wang matrix formula evaluated in exact rationals).
+    :func:`_kolmogorov_noe_cdf` is returned. Its absolute error is a few
+    ``1e-14`` for ``n <= 200`` and below ``1e-12`` up to ``n = 1000`` (the
+    regression tests compare it with the Marsaglia-Tsang-Wang matrix formula
+    evaluated in exact rationals and, offline, with 80 significant digits),
+    so between ``p_+ = 1e-7`` and about ``1e-4`` the relative accuracy of the
+    tail is limited to that absolute level.
 
     Args:
-        count: Positive sample size ``n`` (practical up to a few hundred).
+        count: Positive sample size ``n``; the run time grows steeply with
+            ``n`` (about 10 s for ``n = 700, d = 0.1``, minutes for
+            ``n = 5000``).
         statistic: Observed ``d`` in ``[0, 1]``.
 
     Returns:
@@ -281,10 +286,20 @@ def _kolmogorov_noe_cdf(count: int, statistic: float) -> float:
     ``N((i-1)/n + d) >= i`` for every ``i``. Merging these boundary times
     ``0 = t_0 < t_1 < ... < t_M = 1``, the multinomial law of the counts in
     the gaps gives the recursion
-    ``Q_(m+1)(c') = sum_(c <= c') Q_m(c) (t_(m+1) - t_m)^(c'-c)/(c'-c)!``
-    restricted to the admissible counts, and ``P(D_n < d) = n! Q_M(n)``.
-    All terms are non-negative; the vector is rescaled at every step and the
-    scale is carried in logarithms.
+    ``Q_(m+1)(c') = sum_(c <= c') Q_m(c) g_m^(c'-c)/(c'-c)!`` with the
+    scaled gaps ``g_m = n (t_(m+1) - t_m)``, restricted to the admissible
+    counts, and ``P(D_n < d) = n! n^(-n) Q_M(n)``. All terms are
+    non-negative; the vector is rescaled at every step and the scale is
+    carried in logarithms.
+
+    The gaps are scaled by ``n`` so that ``Q_m`` is proportional to a
+    Poisson law with mean ``n t_m``, which peaks inside the admissible band
+    ``n t_m +/- n d``. With unscaled gaps ``Q_m(c)`` is proportional to
+    ``t_m^c / c!``, which decreases steeply over the band; once its range
+    exceeded the double-precision range (from about ``n = 700`` in the tail),
+    the counts above the lower boundary underflowed to zero and probability
+    was lost (``n = 800, d = 0.0972`` gave ``P(D_n >= d) = 0.0437`` for an
+    exact ``4.92e-7``).
 
     Args:
         count: Positive sample size ``n``.
@@ -318,14 +333,14 @@ def _kolmogorov_noe_cdf(count: int, statistic: float) -> float:
     log_scale = 0.0
     previous = 0.0
     for time, (lower_count, upper_count) in schedule:
-        gap = time - previous
+        scaled_gap = n * (time - previous)
         new_low = max(lower_count, low)
         new_high = upper_count
         if new_low > new_high:
             return 0.0
         poisson = [1.0]
         for step in range(1, new_high - low + 1):
-            poisson.append(poisson[-1] * gap / step)
+            poisson.append(poisson[-1] * scaled_gap / step)
         updated = [0.0] * (n + 1)
         peak = 0.0
         for target in range(new_low, new_high + 1):
@@ -345,7 +360,10 @@ def _kolmogorov_noe_cdf(count: int, statistic: float) -> float:
     final = weights[n]
     if final <= 0.0:
         return 0.0
-    return min(1.0, math.exp(math.lgamma(n + 1.0) + log_scale + math.log(final)))
+    log_probability = (
+        math.lgamma(n + 1.0) - n * math.log(n) + log_scale + math.log(final)
+    )
+    return min(1.0, math.exp(log_probability))
 
 
 def anderson_darling_test(

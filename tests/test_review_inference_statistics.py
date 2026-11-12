@@ -15,6 +15,10 @@ from fractions import Fraction
 
 from probstat.conformal import AdaptiveConformalPredictor, conformal_quantile
 from probstat.design import d_optimal_design, efficient_rounding, polynomial_basis
+from probstat.inference.goodness_of_fit import (
+    kolmogorov_exact_sf,
+    smirnov_one_sided_sf,
+)
 from probstat.information import conditional_entropy, entropy, joint_entropy
 from probstat.statistics import empirical_cdf, quantile, trimmed_mean
 
@@ -128,6 +132,36 @@ class DiscreteEntropySignTests(unittest.TestCase):
         ):
             self.assertEqual(value, 0.0)
             self.assertEqual(math.copysign(1.0, value), 1.0)
+
+
+class KolmogorovExactTailTests(unittest.TestCase):
+    """Noé's recursion no longer loses mass to underflow for larger ``n``."""
+
+    def test_tail_lies_inside_the_one_sided_bracket(self) -> None:
+        """``n = 700, d = 0.1``: ``2 p+ - p+^2 <= P(D_n >= d) <= 2 p+``.
+
+        Oracle: the union bound and the Harris-FKG inequality on the events
+        ``D_n^+ >= d`` (decreasing) and ``D_n^- >= d`` (increasing), with
+        the exact one-sided Birnbaum-Tingey tail ``p+``; tolerance 1e-11
+        absolute. Before the fix the value was 0.00288 (exact about
+        1.51e-6).
+        """
+        n, d = 700, 0.1
+        one_sided = smirnov_one_sided_sf(n, d)
+        value = kolmogorov_exact_sf(n, d)
+        self.assertLessEqual(value, 2.0 * one_sided + 1e-11)
+        self.assertGreaterEqual(value, 2.0 * one_sided - one_sided**2 - 1e-11)
+
+    def test_matches_high_precision_matrix_formula(self) -> None:
+        """``n = 600, d = 0.0513`` agrees with Marsaglia-Tsang-Wang to 1e-12.
+
+        Oracle: ``1 - n!/n^n (H^n)_kk`` of Marsaglia, Tsang and Wang (2003)
+        evaluated offline with mpmath at 80 significant digits:
+        ``0.082097444709242452``.
+        """
+        self.assertAlmostEqual(
+            kolmogorov_exact_sf(600, 0.0513), 0.082097444709242452, delta=1e-12
+        )
 
 
 class EfficientRoundingGuidanceTests(unittest.TestCase):
