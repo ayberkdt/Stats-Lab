@@ -1,18 +1,20 @@
-"""Execute every Python snippet in the prerequisite guides and check its output.
+"""Check the snippet contract of the prerequisite guides.
 
 Each guide under ``docs/prerequisites`` follows one contract: every
 ````python`` block is immediately followed by a ````text`` block holding the
-exact standard output of that snippet. Blocks of one guide share a namespace
-and run in order, so a guide reads like one session.
+standard output of that snippet. Blocks of one guide share a namespace and
+run in order, so a guide reads like one script. The snippets are executed,
+and their output compared, by ``tests/test_documentation_examples.py``
+(ADR-0095), which runs every guide of the documentation once; this module
+checks only that the listed guides exist and keep the contract.
 """
 
 from __future__ import annotations
 
-import contextlib
-import io
-import re
 import unittest
 from pathlib import Path
+
+from _documentation import code_blocks
 
 REPOSITORY_ROOT = Path(__file__).parents[1]
 GUIDE_DIRECTORY = REPOSITORY_ROOT / "docs" / "prerequisites"
@@ -24,7 +26,6 @@ GUIDES = (
     "r-bridge.md",
     "numerical-integration.md",
 )
-BLOCK_PATTERN = re.compile(r"^```(\w+)\n(.*?)^```$", re.MULTILINE | re.DOTALL)
 
 
 def snippet_pairs(path: Path) -> list[tuple[str, str]]:
@@ -40,43 +41,34 @@ def snippet_pairs(path: Path) -> list[tuple[str, str]]:
         AssertionError: If a Python block is not followed by a text block.
 
     References:
-        Project documentation contract. No mathematical equation is evaluated.
+        [REF-PYTHON-AST]. No mathematical equation is evaluated.
 
     """
-    blocks = BLOCK_PATTERN.findall(path.read_text(encoding="utf-8"))
     pairs: list[tuple[str, str]] = []
-    for index, (language, body) in enumerate(blocks):
-        if language != "python":
+    for block in code_blocks(path.read_text(encoding="utf-8")):
+        if block.language != "python":
             continue
-        if index + 1 >= len(blocks) or blocks[index + 1][0] != "text":
-            raise AssertionError(f"{path.name}: python block {index} lacks output")
-        pairs.append((body, blocks[index + 1][1]))
+        if block.output is None:
+            raise AssertionError(f"{path.name}: python block {block.line} lacks output")
+        pairs.append((block.body, block.output))
     return pairs
 
 
 class PrerequisiteGuideTests(unittest.TestCase):
-    """Guides contain only snippets that run and print what they claim."""
+    """Guides contain snippets that document their output."""
 
     def test_every_guide_exists_and_has_snippets(self) -> None:
-        """Every listed guide exists and holds at least two snippets."""
+        """Every listed guide exists and holds at least two documented snippets."""
         for name in GUIDES:
             with self.subTest(guide=name):
                 path = GUIDE_DIRECTORY / name
                 self.assertTrue(path.exists(), name)
                 self.assertGreaterEqual(len(snippet_pairs(path)), 2)
 
-    def test_snippets_print_documented_output(self) -> None:
-        """Running each snippet reproduces its documented output exactly."""
-        for name in GUIDES:
-            namespace: dict[str, object] = {"__name__": f"guide_{name}"}
-            for number, (code, expected) in enumerate(
-                snippet_pairs(GUIDE_DIRECTORY / name)
-            ):
-                with self.subTest(guide=name, snippet=number):
-                    buffer = io.StringIO()
-                    with contextlib.redirect_stdout(buffer):
-                        exec(compile(code, f"{name}#{number}", "exec"), namespace)
-                    self.assertEqual(buffer.getvalue().rstrip(), expected.rstrip())
+    def test_every_guide_in_the_directory_is_listed(self) -> None:
+        """No prerequisite guide escapes the contract by being unlisted."""
+        found = sorted(path.name for path in GUIDE_DIRECTORY.glob("*.md"))
+        self.assertEqual(found, sorted(GUIDES))
 
 
 if __name__ == "__main__":

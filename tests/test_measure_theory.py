@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import contextlib
-import io
 import math
 import re
 import unittest
 from fractions import Fraction
 from itertools import product
 from pathlib import Path
+
+from _documentation import run_document
 
 from probstat.probability import (
     CompletenessCheck,
@@ -115,18 +115,24 @@ def run_guide(path: Path) -> tuple[list[tuple[str, str]], dict[str, object]]:
     Returns:
         Pairs of (actual, documented) outputs and the final namespace.
 
+    The guide is executed once per test run by the shared documentation
+    harness (``tests/_documentation.py``, ADR-0095), whose cached result is
+    reused here.
+
     References:
-        Project documentation contract. No equation is evaluated.
+        Project documentation contract [REF-PYTHON-AST]. No equation is
+        evaluated.
 
     """
-    namespace: dict[str, object] = {"__name__": f"guide_{path.stem}"}
-    outputs: list[tuple[str, str]] = []
-    for number, (code, expected) in enumerate(guide_pairs(path)):
-        buffer = io.StringIO()
-        with contextlib.redirect_stdout(buffer):
-            exec(compile(code, f"{path.name}#{number}", "exec"), namespace)
-        outputs.append((buffer.getvalue().rstrip(), expected.rstrip()))
-    return outputs, namespace
+    guide_pairs(path)
+    run = run_document(path)
+    if run.failures:
+        raise AssertionError("\n\n".join(run.failures))
+    outputs = [
+        (printed.rstrip(), (documented or "").rstrip())
+        for printed, documented in run.outputs
+    ]
+    return outputs, run.namespace
 
 
 class SigmaAlgebraTests(unittest.TestCase):
