@@ -14575,3 +14575,260 @@ distance to the members of another cluster; `s(i) = 0` for a singleton.
 - Code: `inference.clustering.silhouette_samples`,
   `inference.clustering.silhouette_score`.
 - Source: [REF-ROUSSEEUW-1987].
+
+### EQ-TS-GARCH-001 — GARCH(p, q) variance recursion and stationarity
+
+`y_t = mu + e_t`, `e_t = sigma_t z_t`,
+`sigma_t^2 = omega + sum_{i=1}^{q} alpha_i e_(t-i)^2 + sum_{j=1}^{p} beta_j sigma_(t-j)^2`;
+covariance stationary iff `sum alpha_i + sum beta_j < 1`, then
+`Var(e_t) = omega / (1 - sum alpha_i - sum beta_j)`. Pre-sample values
+`e_s^2 = sigma_s^2 = (1/n) sum_t e_t^2` (backcast).
+
+- Domain: `omega > 0`, `alpha_i, beta_j >= 0`, `q >= 1`, `p >= 0`; `z_t`
+  i.i.d. with mean 0 and variance 1.
+- Meaning: today's variance responds to yesterday's squared shock (`alpha`)
+  and decays slowly (`beta`); the persistence governs how fast shocks die
+  out. The estimator maps unconstrained coordinates onto this region (exp,
+  logistic, softmax).
+- Code: `timeseries.garch_variances`, `timeseries.fit_garch`,
+  `timeseries.GARCHFit.unconditional_variance`, `timeseries.simulate_garch`.
+- Source: [REF-BOLLERSLEV-1986], [REF-ENGLE-1982].
+
+### EQ-TS-GARCH-002 — Conditional GARCH log-likelihood (normal and Student-t)
+
+Normal: `log L = -(1/2) sum_t [log 2 pi + log sigma_t^2 + e_t^2 / sigma_t^2]`.
+Standardized Student-t with `nu > 2`:
+`log L = sum_t [c(nu) - (1/2) log sigma_t^2 - ((nu+1)/2) log(1 + e_t^2 / ((nu - 2) sigma_t^2))]`,
+`c(nu) = log Gamma((nu+1)/2) - log Gamma(nu/2) - (1/2) log(pi (nu - 2))`.
+
+- Domain: [EQ-TS-GARCH-001] with every `sigma_t^2 > 0`.
+- Meaning: the prediction-error decomposition of the joint density given
+  the pre-sample values; the t law has unit variance so `sigma_t^2` stays
+  the conditional variance.
+- Code: `timeseries.garch_log_likelihood`, `timeseries.fit_garch`.
+- Source: [REF-BOLLERSLEV-1986], [REF-BOLLERSLEV-1987].
+
+### EQ-TS-GARCH-003 — GARCH variance forecasts
+
+`sigma_(n+h|n)^2 = omega + sum_i alpha_i E[e_(n+h-i)^2] + sum_j beta_j E[sigma_(n+h-j)^2]`
+with `E[e_s^2] = sigma_(s|n)^2` for `s > n`; for GARCH(1, 1)
+`sigma_(n+h|n)^2 = sigma_bar^2 + (alpha + beta)^(h-1) (sigma_(n+1)^2 - sigma_bar^2)`.
+
+- Domain: [EQ-TS-GARCH-001], stationary.
+- Meaning: volatility forecasts revert geometrically to the unconditional
+  variance at the rate of the persistence.
+- Code: `timeseries.GARCHFit.forecast`.
+- Source: [REF-BOLLERSLEV-1986].
+
+### EQ-TS-ARCHLM-001 — Engle's LM test for ARCH effects
+
+Regress `x_t^2` on `1, x_(t-1)^2, ..., x_(t-m)^2` over `n' = n - m`
+observations; `LM = n' R^2 ~ chi^2(m)` asymptotically under no ARCH.
+
+- Domain: `m >= 1`; mean-zero `x_t` (returns minus their mean, or
+  standardized residuals).
+- Meaning: autocorrelation in squared values signals volatility clustering.
+- Code: `timeseries.arch_lm_test`, `timeseries.GARCHFit.diagnostics`.
+- Source: [REF-ENGLE-1982].
+
+### EQ-TS-VAR-001 — VAR(p) least-squares estimator
+
+`y_t = nu + A_1 y_(t-1) + ... + A_p y_(t-p) + u_t`; with
+`Z_t = (1, y_(t-1)', ..., y_(t-p)')'`, `B = [nu, A_1, ..., A_p]`:
+`B_hat = Y Z' (Z Z')^-1`, `Sigma_u_hat = U U' / (T - K p - 1)`,
+`Sigma_u_tilde = U U' / T`, `Cov(vec B_hat) = (Z Z')^-1 (x) Sigma_u_hat`,
+`log L = -(T/2) (K log 2 pi + log det Sigma_u_tilde + K)`.
+
+- Domain: `T = n - p` equations, `Z Z'` positive definite.
+- Meaning: equation-by-equation OLS is efficient because every equation has
+  the same regressors.
+- Code: `timeseries.fit_var`, `timeseries.simulate_var`.
+- Source: [REF-LUTKEPOHL-2005, Chapter 3].
+
+### EQ-TS-VAR-002 — VAR order-selection criteria
+
+On a common sample of `T = n - M` observations, for `m = 0..M`:
+`AIC(m) = log det Sigma_u_tilde(m) + 2 m K^2 / T`,
+`SC(m) = log det Sigma_u_tilde(m) + log(T) m K^2 / T`,
+`HQ(m) = log det Sigma_u_tilde(m) + 2 log(log T) m K^2 / T`,
+`FPE(m) = ((T + K m + 1)/(T - K m - 1))^K det Sigma_u_tilde(m)`.
+
+- Domain: [EQ-TS-VAR-001]; the constant term is common to all orders.
+- Meaning: SC and HQ estimate the true order consistently; AIC and FPE
+  favour forecasting accuracy and tend to overfit.
+- Code: `timeseries.select_var_order`, `timeseries.fit_var`.
+- Source: [REF-LUTKEPOHL-2005, Chapter 4], [REF-AKAIKE-1974],
+  [REF-SCHWARZ-1978], [REF-HANNAN-QUINN-1979].
+
+### EQ-TS-VAR-003 — Companion form, stability, and Hessenberg QR eigenvalues
+
+`Y_t = A Y_(t-1) + U_t`, `Y_t = (y_t', ..., y_(t-p+1)')'`,
+`A = [[A_1, ..., A_p], [I_(K(p-1)), 0]]`; the VAR is stable iff every
+eigenvalue of `A` has modulus below one. Eigenvalues by reduction to upper
+Hessenberg form with elementary stabilized similarities and the implicitly
+double-shifted Francis QR iteration with deflation.
+
+- Domain: real `Kp x Kp` matrix.
+- Meaning: stability implies stationarity and a convergent moving-average
+  representation; a modulus at one signals a unit root.
+- Code: `timeseries.VARFit.companion_matrix`, `timeseries.VARFit.eigenvalues`,
+  `timeseries.VARFit.is_stable`, `timeseries._eigen.eigenvalues`.
+- Source: [REF-LUTKEPOHL-2005, Chapter 2], [REF-GOLUB-VANLOAN-2013,
+  Sections 7.4 and 7.5].
+
+### EQ-TS-VAR-004 — Moving-average coefficients and orthogonalized impulse responses
+
+`Phi_0 = I_K`, `Phi_i = sum_{j=1}^{min(i,p)} Phi_(i-j) A_j`;
+`Theta_i = Phi_i P` with `P` lower triangular, `P P' = Sigma_u`. For a
+VAR(1), `Phi_i = A_1^i`.
+
+- Domain: stable VAR.
+- Meaning: `Theta_i[k][j]` is the response of variable `k` after `i`
+  periods to a one-standard-deviation orthogonal shock in variable `j`; the
+  Cholesky ordering is an identifying assumption.
+- Code: `timeseries.VARFit.ma_coefficients`,
+  `timeseries.VARFit.impulse_response`.
+- Source: [REF-LUTKEPOHL-2005, Chapter 2].
+
+### EQ-TS-VAR-005 — Forecast-error variance decomposition
+
+`omega_(kj)(h) = sum_{i=0}^{h-1} Theta_i[k][j]^2 / sum_{i=0}^{h-1} sum_l Theta_i[k][l]^2`.
+
+- Domain: [EQ-TS-VAR-004].
+- Meaning: the share of the `h`-step forecast-error variance of variable
+  `k` due to orthogonal shock `j`; each row sums to one.
+- Code: `timeseries.VARFit.fevd`.
+- Source: [REF-LUTKEPOHL-2005, Chapter 2].
+
+### EQ-TS-VAR-006 — Granger-causality Wald and F tests
+
+`H_0: C vec(B) = 0` (all lag coefficients of the causing variables in the
+caused equations); `lambda_W = (C b)' [C ((Z Z')^-1 (x) Sigma_u_hat) C']^-1 (C b)
+~ chi^2(N)`, `lambda_F = lambda_W / N ~ F(N, K (T - K p - 1))` approximately.
+
+- Domain: [EQ-TS-VAR-001], stable VAR.
+- Meaning: lags of the causing variables do not improve the forecasts of
+  the caused variables.
+- Code: `timeseries.VARFit.granger_causality`.
+- Source: [REF-GRANGER-1969], [REF-LUTKEPOHL-2005, Chapter 3].
+
+### EQ-TS-VAR-007 — VAR forecasts and their MSE
+
+`y_hat_(n+h) = nu + sum_j A_j y_hat_(n+h-j)` (observed values for indices
+`<= n`); `Sigma_y(h) = sum_{i=0}^{h-1} Phi_i Sigma_u Phi_i'`.
+
+- Domain: [EQ-TS-VAR-004]; parameter uncertainty ignored.
+- Meaning: Gaussian intervals `y_hat +/- z sqrt(diag Sigma_y(h))`.
+- Code: `timeseries.VARFit.forecast`.
+- Source: [REF-LUTKEPOHL-2005, Chapter 2].
+
+### EQ-TS-ADF-001 — Augmented Dickey-Fuller regression and statistic
+
+`Delta y_t = D_t' delta + gamma y_(t-1) + sum_{j=1}^{k} phi_j Delta y_(t-j) + e_t`,
+`D_t` in `{(), (1), (1, t), (1, t, t^2)}`; `tau = gamma_hat / se(gamma_hat)`
+with `s^2 = RSS / (T - m)`; reject a unit root for small `tau`.
+
+- Domain: `T = n - k - 1` regression observations.
+- Meaning: under the null `gamma = 0` the statistic has a non-standard
+  (Dickey-Fuller) limit; lagged differences absorb serial correlation.
+- Code: `timeseries.adf_test`, `timeseries.unit_root._simulated_statistics`.
+- Source: [REF-DICKEY-FULLER-1979], [REF-SAID-DICKEY-1984].
+
+### EQ-TS-ADF-002 — MacKinnon response surfaces for Dickey-Fuller critical values
+
+`c(T) = beta_inf + beta_1 / T + beta_2 / T^2 + beta_3 / T^3` with the
+`N = 1` coefficients of MacKinnon (2010), Table 2 (`tau_nc`, `tau_c`),
+Table 3 (`tau_ct`), and Table 4 (`tau_ctt`), at 1%, 5%, and 10%.
+
+- Domain: `T` = observations in the test regression; i.i.d. normal errors.
+- Meaning: finite-sample and (as `T -> inf`) asymptotic critical values
+  from large simulation experiments summarized by regression.
+- Code: `timeseries.adf_critical_values`.
+- Source: [REF-MACKINNON-2010, Tables 2-4].
+
+### EQ-TS-ADF-003 — Simulated Dickey-Fuller p-value
+
+`p = (1 + #{r : tau*_r <= tau}) / (1 + R)`, `se(p) = sqrt(p (1 - p) / R)`,
+where `tau*_r` is the Dickey-Fuller statistic of a Gaussian random walk
+`y_t = y_(t-1) + z_t` (`y_0 = 0`) with the same deterministic terms and `T`.
+
+- Domain: `R >= 100` replications from a seeded stream.
+- Meaning: a valid Monte Carlo test; it replaces interpolation in a table
+  whose coefficients could not be checked against the primary source.
+- Code: `timeseries.adf_simulated_p_value`, `timeseries.adf_test`.
+- Source: [REF-DAVISON-HINKLEY-1997, Chapter 4], [REF-DICKEY-FULLER-1979].
+
+### EQ-TS-KPSS-001 — KPSS statistic and Newey-West long-run variance
+
+`e_t` residuals of `y_t` on `1` (level) or `(1, t)` (trend),
+`S_t = sum_{i<=t} e_i`, `eta = sum_t S_t^2 / (T^2 s^2(l))`,
+`s^2(l) = gamma_0 + 2 sum_{j=1}^{l} (1 - j/(l+1)) gamma_j`,
+`gamma_j = (1/T) sum_{t>j} e_t e_(t-j)`.
+
+- Domain: `0 <= l < T`; the Bartlett weights keep `s^2(l) >= 0`.
+- Meaning: large partial sums of residuals contradict stationarity.
+- Code: `timeseries.kpss_test`, `timeseries.newey_west_variance`,
+  `timeseries.cusum_test`.
+- Source: [REF-KPSS-1992], [REF-NEWEY-WEST-1987].
+
+### EQ-TS-KPSS-002 — Limit law of the KPSS statistic and Imhof inversion
+
+`eta -> sum_k lambda_k Z_k^2`; level: `lambda_k = 1/(k pi)^2` (kernel
+`min(s,t) - s t`); trend: kernel `min(s,t) - s t - 3 s(1-s) t(1-t)`, whose
+eigenvalues are `1/(2 pi j)^2` and `1/(4 x_j^2)` with `tan x_j = x_j`
+(the rank-one secular equation `1 = 3 sum_(k odd) c_k^2 / (lambda_k - mu)`,
+`c_k^2 = 32/(k pi)^6`, reduces to `tan(omega/2) = omega/2` for
+`mu = 1/omega^2`). `P(Q > x) = 1/2 + (1/pi) int_0^inf sin theta(u) / (u rho(u)) du`,
+`theta(u) = (1/2) sum arctan(lambda_k u) - x u / 2`,
+`rho(u) = prod (1 + lambda_k^2 u^2)^(1/4)`.
+
+- Domain: traces `1/6` (level) and `1/15` (trend).
+- Meaning: an exact asymptotic p-value; the level case is the
+  Cramer-von Mises limit.
+- Code: `timeseries.kpss_asymptotic_sf`, `timeseries.kpss_critical_values`,
+  `timeseries.unit_root._tan_fixed_points`.
+- Source: [REF-KPSS-1992], [REF-IMHOF-1961], [REF-ANDERSON-DARLING-1952].
+
+### EQ-TS-CP-001 — CUSUM statistic for a mean shift
+
+`S_k = sum_{i<=k} (x_i - x_bar)`, `B = max_{1<=k<n} |S_k| / (sigma_hat sqrt(n))
+-> sup_t |W^0(t)|`, `P(sup |W^0| > b) = 2 sum_{j>=1} (-1)^(j-1) exp(-2 j^2 b^2)`;
+`k_hat = argmax_k |S_k|`.
+
+- Domain: constant mean under the null; `sigma_hat^2` a consistent
+  (long-run) variance estimate.
+- Meaning: the partial sums of deviations drift linearly away from zero on
+  each side of a shift.
+- Code: `timeseries.cusum_test`, `timeseries.kolmogorov_sf`.
+- Source: [REF-PAGE-1954], [REF-PLOBERGER-KRAMER-1992].
+
+### EQ-TS-CP-002 — Penalized segmentation and the PELT recursion
+
+`F(t) = min_{tau in R_t} [F(tau) + C(y_(tau+1:t)) + beta]`, `F(0) = -beta`;
+`R_(t+1) = {tau in R_t : F(tau) + C(y_(tau+1:t)) + K <= F(t)} U {t}`, valid
+when `C(a:b) + C(b+1:c) + K <= C(a:c)`.
+
+- Domain: `K = 0` for maximized `-2 log`-likelihood costs, `K = -log n` with
+  the MBIC segment term; with a minimum segment length `L` a pruned
+  candidate remains usable for `L - 1` steps.
+- Meaning: exact optimal partitioning at expected linear cost when changes
+  are spread through the series.
+- Code: `timeseries.pelt`.
+- Source: [REF-KILLICK-2012].
+
+### EQ-TS-CP-003 — Gaussian segment costs and BIC / MBIC penalties
+
+Mean (known `sigma^2`): `C = sum (x - x_bar)^2 / sigma^2`; variance (known
+`mu`): `C = n_i (log 2 pi + log(sum (x - mu)^2 / n_i) + 1)`; mean and
+variance: `C = n_i (log 2 pi + log sigma_hat^2 + 1)`. BIC:
+`beta = (d + 1) log n`; MBIC: `beta = (d + 2) log n` plus `log n_i` per
+segment, `d = 1` (mean or variance) or `2` (both). Robust noise scale:
+`sigma_hat = 1.4826 MAD(Delta x) / sqrt(2)`.
+
+- Domain: independent Gaussian segments; variance estimates floored at
+  `1e-11` times the sample variance.
+- Meaning: `-2` times the maximized segment log-likelihood (up to
+  constants common to all segmentations) plus a per-change price.
+- Code: `timeseries.pelt`, `timeseries.robust_noise_variance`.
+- Source: [REF-KILLICK-ECKLEY-2014], [REF-ZHANG-SIEGMUND-2007],
+  [REF-HAMPEL-1974].

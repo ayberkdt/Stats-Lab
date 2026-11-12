@@ -1,4 +1,4 @@
-# Time Series: Correlograms, ARIMA, and Exponential Smoothing
+# Time Series: Correlograms, ARIMA, Smoothing, Volatility, VAR, Unit Roots, and Change Points
 
 A time series is a set of observations whose order matters: today's value
 carries information about tomorrow's. This guide covers `probstat.timeseries`.
@@ -185,6 +185,290 @@ they are concentrated out exactly by least squares.
 Smoothing returns point forecasts only. No prediction intervals are provided
 for it.
 
+## 8. Volatility: GARCH models
+
+Financial returns are close to uncorrelated, but their *squares* are not:
+calm and turbulent periods cluster. Bollerslev's GARCH(p, q) model lets the
+conditional variance respond to recent squared shocks and to its own past
+[EQ-TS-GARCH-001]:
+
+`sigma_t^2 = omega + sum_{i=1}^{q} alpha_i e_(t-i)^2 + sum_{j=1}^{p} beta_j sigma_(t-j)^2`.
+
+`q` counts the ARCH terms and `p` the GARCH terms, as in Bollerslev (1986)
+and R's `tseries::garch(order = c(p, q))`. The process is covariance
+stationary exactly when the persistence `sum alpha + sum beta` is below one;
+the unconditional variance is then `omega / (1 - persistence)`.
+`fit_garch` maximizes the conditional likelihood [EQ-TS-GARCH-002] in
+coordinates that keep every iterate inside that region (`omega` through an
+exponential, the persistence through a logistic map, its split among the
+coefficients through a softmax), so the optimizer never proposes a
+non-stationary or negative-variance model. Innovations are normal or
+standardized Student-t (`distribution="t"`, `nu > 2`).
+
+Start by checking that there is something to model: Engle's LM test
+[EQ-TS-ARCHLM-001] regresses squared values on their own lags.
+
+```python
+from probstat.timeseries import arch_lm_test, fit_garch, simulate_garch
+
+returns = simulate_garch(0.05, (0.1,), (0.85,), 1500, mean=0.02, seed=2026)
+arch_lm_test(returns.series, 5).p_value   # 2.7e-21 (strong ARCH effects)
+fit = fit_garch(returns.series)           # GARCH(1, 1), normal innovations
+fit.parameter_names    # ('mean', 'omega', 'alpha1', 'beta1')
+[round(value, 4) for value in fit.estimates]          # [0.0014, 0.0656, 0.0989, 0.8375]
+[round(value, 4) for value in fit.standard_errors]    # [0.0241, 0.0211, 0.0196, 0.0329]
+round(fit.persistence, 4)              # 0.9364
+round(fit.unconditional_variance, 4)   # 1.0319
+```
+
+The true values are `omega = 0.05`, `alpha = 0.1`, `beta = 0.85`; every
+estimate is within two standard errors. The same likelihood maximized
+independently by SciPy's SLSQP under explicit constraints gave the same
+optimum to `2e-10` in `log L`, for this fit and for a Student-t fit (`tests/test_timeseries_extensions.py`).
+
+**Forecasts.** Variance forecasts [EQ-TS-GARCH-003] revert geometrically to
+the unconditional variance at the rate of the persistence; for GARCH(1, 1)
+`sigma_(n+h)^2 = sigma_bar^2 + (alpha + beta)^(h-1) (sigma_(n+1)^2 - sigma_bar^2)`.
+
+```python
+forecast = fit.forecast(250)
+[round(value, 4) for value in forecast.variance[:3]]   # [0.8586, 0.8697, 0.88]
+round(forecast.variance[-1], 4)                        # 1.0319
+```
+
+**Diagnostics.** If the model is adequate, the standardized residuals
+`z_t = e_t / sigma_t` show no remaining ARCH effects and no autocorrelation
+in `z_t^2`:
+
+```python
+checks = fit.diagnostics()
+round(checks.arch_test.p_value, 3)           # 0.717
+round(checks.ljung_box_squared.p_value, 3)   # 0.6
+round(checks.excess_kurtosis, 3)             # -0.023
+```
+
+Heavy tails that GARCH does not explain show up as positive excess kurtosis
+of `z_t`. On a series simulated with Student-t innovations (`nu = 6`), the
+normal GARCH leaves `z_t` with excess kurtosis 1.85, and the t model is
+preferred by AIC:
+
+```python
+heavy = simulate_garch(
+    0.05, (0.1,), (0.85,), 1500, distribution="t", shape=6.0, seed=2027
+).series
+normal_fit = fit_garch(heavy)
+t_fit = fit_garch(heavy, distribution="t")
+round(normal_fit.diagnostics().excess_kurtosis, 2)   # 1.85
+round(normal_fit.aic, 1), round(t_fit.aic, 1)        # (3983.6, 3909.9)
+round(t_fit.shape, 2)                                # 6.27
+```
+
+## 9. Vector autoregression
+
+A VAR(p) models `K` series jointly: each variable is regressed on `p` lags
+of every variable [EQ-TS-VAR-001]. Least squares equation by equation is the
+efficient estimator because all equations share the regressors.
+
+**Choosing `p`.** `select_var_order` fits every order on the same sample and
+reports AIC, BIC (Schwarz), Hannan-Quinn, and FPE [EQ-TS-VAR-002]. BIC and
+HQ are consistent; AIC and FPE aim at forecasting and tend to choose more
+lags. Here the data come from a VAR(2) whose second lag has a single
+coefficient, `0.25`:
+
+```python
+from probstat.timeseries import fit_var, select_var_order, simulate_var
+
+A1 = ((0.5, 0.1), (0.4, 0.5))
+A2 = ((0.0, 0.0), (0.25, 0.0))
+SIGMA = ((1.0, 0.3), (0.3, 0.5))
+data = simulate_var((A1, A2), SIGMA, 300, intercept=(0.1, -0.2), seed=11)
+select_var_order(data, 6).selected   # {'aic': 2, 'bic': 1, 'hq': 1, 'fpe': 2}
+```
+
+BIC's heavier penalty drops the weak second lag at `n = 300`; the
+disagreement is itself informative.
+
+**Stability.** The VAR is stable (stationary) when all eigenvalues of the
+companion matrix lie inside the unit circle [EQ-TS-VAR-003]. They are
+computed by Hessenberg reduction and the Francis double-shift QR
+iteration:
+
+```python
+var = fit_var(data, 2, names=("x", "y"))
+[[round(value, 3) for value in row] for row in var.coefficients[0]]   # [[0.447, 0.09], [0.374, 0.528]]
+[round(abs(value), 4) for value in var.eigenvalues()]   # [0.7834, 0.2706, 0.1105, 0.032]
+var.is_stable()                                         # True
+```
+
+**Impulse responses and variance decomposition.** `impulse_response(h)`
+returns `Theta_i = Phi_i P` [EQ-TS-VAR-004], with `Phi_i` the moving-average
+coefficients and `P` the lower Cholesky factor of the residual covariance:
+the response of each variable to a one-standard-deviation orthogonal shock.
+The Cholesky factor makes the first variable's shock contemporaneously
+exogenous, so **the ordering of the variables is an assumption**. For a
+VAR(1) `Phi_i = A_1^i`, the closed form used in the tests.
+`fevd(h)` [EQ-TS-VAR-005] splits each variable's `h`-step forecast-error
+variance among the orthogonal shocks.
+
+```python
+response = var.impulse_response(10)
+[round(matrix[1][0], 4) for matrix in response[:4]]   # [0.2583, 0.4939, 0.6075, 0.5253]
+[round(share, 3) for share in var.fevd(10)[-1][1]]    # [0.694, 0.306]
+```
+
+A shock to `x` raises `y` for several periods, and after ten periods 69% of
+the forecast-error variance of `y` is due to `x`.
+
+**Granger causality.** `x` Granger-causes `y` if past `x` improves the
+forecasts of `y` given past `y`. The Wald test sets the lag coefficients of
+`x` in the `y` equation to zero [EQ-TS-VAR-006]; `lambda_W / N` is compared
+with `F(N, K(T - Kp - 1))`.
+
+```python
+x_to_y = var.granger_causality(caused=1, causing=0)
+round(x_to_y.f_statistic, 2), x_to_y.f_degrees_of_freedom   # (49.25, (2, 586))
+x_to_y.f_p_value < 1e-15                                     # True
+y_to_x = var.granger_causality(caused=0, causing=1)
+round(y_to_x.f_statistic, 3), round(y_to_x.f_p_value, 3)     # (1.306, 0.272)
+```
+
+The true coefficients of `y` in the `x` equation are `0.1` and `0`, too
+small to detect at `n = 300`. Granger causality is predictive, not
+structural, and both series must be stationary for the F distribution to
+apply.
+
+## 10. Unit roots and stationarity: ADF and KPSS
+
+Before differencing, or before fitting an ARMA or VAR in levels, decide
+whether the series has a unit root. Two tests with **opposite nulls** are
+used together:
+
+| | null | rejects for | here |
+|---|---|---|---|
+| augmented Dickey-Fuller | unit root | large negative `tau` | `adf_test` |
+| KPSS | (level or trend) stationarity | large `eta` | `kpss_test` |
+
+**ADF** [EQ-TS-ADF-001] regresses `Delta y_t` on deterministic terms,
+`y_(t-1)`, and `k` lagged differences; the t-ratio of `y_(t-1)` has a
+non-standard Dickey-Fuller distribution. `regression` is `"n"`, `"c"`
+(constant), `"ct"` (constant and trend), or `"ctt"`. With `lags=None` the
+lag `k` is chosen by AIC (or `criterion="bic"`) on a common sample, up to
+Schwert's `floor(12 (n/100)^(1/4))`. Critical values come from MacKinnon's
+(2010) response surfaces, transcribed from Tables 2-4 of the working paper
+(row `N = 1`) [EQ-TS-ADF-002]:
+
+```python
+from probstat.timeseries import adf_critical_values
+
+{level: round(value, 4) for level, value in adf_critical_values(249, "c").items()}   # {0.01: -3.4569, 0.05: -2.8732, 0.1: -2.573}
+```
+
+The p-value is **simulated** [EQ-TS-ADF-003]: the statistic is compared with
+`simulations` (default 2000) Dickey-Fuller statistics of seeded Gaussian
+random walks with the same regression length, and the result carries its
+Monte Carlo standard error. The simulated distribution reproduces
+MacKinnon's critical values: the share of 20 000 simulated statistics below
+each published value is within two standard errors of 1%, 5%, and 10% for
+all four regressions at `T = 100` (ADR-0104).
+
+**KPSS** [EQ-TS-KPSS-001] uses the partial sums of regression residuals and
+a Newey-West long-run variance with truncation lag `floor(4 (T/100)^(1/4))`
+(`lags="short"`) or `floor(12 (T/100)^(1/4))` (`"long"`). Its limit is a
+weighted sum of `chi^2_1` variables [EQ-TS-KPSS-002]: the Cramer-von Mises
+law for the level case (`lambda_k = 1/(k pi)^2`) and, for the trend case,
+`lambda = 1/(2 pi j)^2` together with `1/(4 x^2)` at the positive roots of
+`tan x = x`. The p-value is computed from this law by Imhof's inversion
+formula, not by interpolating four tabulated points.
+
+```python
+import random
+
+from probstat.timeseries import adf_test, kpss_test, simulate_arma
+
+generator = random.Random(5)
+walk = [0.0]
+for _ in range(249):
+    walk.append(walk[-1] + generator.gauss(0.0, 1.0))
+stationary = simulate_arma((0.5,), (), 250, seed=8)
+
+adf_walk, kpss_walk = adf_test(walk), kpss_test(walk)
+adf_walk.lags, adf_walk.nobs                 # (0, 249)
+round(adf_walk.statistic, 3)                 # -1.461
+round(adf_walk.p_value, 3)                   # 0.555
+round(adf_walk.p_value_standard_error, 3)    # 0.011
+round(kpss_walk.statistic, 3), round(kpss_walk.p_value, 4)   # (0.943, 0.0034)
+
+adf_ar, kpss_ar = adf_test(stationary), kpss_test(stationary)
+round(adf_ar.statistic, 3), adf_ar.p_value   # (-10.529, 0.0005), the smallest attainable p-value 1/2001
+round(kpss_ar.statistic, 3), round(kpss_ar.p_value, 4)       # (0.363, 0.0906)
+kpss_critical = kpss_ar.critical_values
+kpss_critical[0.1], kpss_critical[0.05]      # (0.347305, 0.461361)
+```
+
+The random walk: ADF does not reject a unit root, KPSS rejects
+stationarity. The AR(1) with `phi = 0.5`: ADF rejects decisively; KPSS does
+not reject at 5% but does at 10%. A level-`alpha` test rejects a true null a
+fraction `alpha` of the time, and when the two tests disagree the honest
+conclusion is that the data cannot settle the question. The exact limiting
+critical values (`0.347305` and `0.461361` for the level case) differ in
+the third decimal from the simulated table used by R's `tseries::kpss.test`
+(`0.347`, `0.463`, `0.574`, `0.739` at 10%, 5%, 2.5%, 1%); the exact
+trend-case values are `0.119220`, `0.147890`, `0.177468`, and `0.217747`
+(table: `0.119`, `0.146`, `0.176`, `0.216`).
+
+## 11. Change points: CUSUM and PELT
+
+**One shift in the mean.** `cusum_test` [EQ-TS-CP-001] standardizes the
+partial sums of deviations from the mean; under a constant mean their
+maximum converges to the supremum of a Brownian bridge (Kolmogorov law), and
+the arg-max estimates where the mean changed. For dependent data pass a
+positive `lags` (Newey-West scale), otherwise positive autocorrelation
+inflates the false-alarm rate.
+
+**Several changes.** `pelt` [EQ-TS-CP-002] minimizes a penalized Gaussian
+cost over all segmentations [EQ-TS-CP-003]: shifts in the mean
+(`model="mean"`, known noise variance, by default estimated robustly from
+first differences), in the variance (`"variance"`), or in both
+(`"meanvar"`), with the BIC or MBIC penalty or a number. The pruning rule of
+Killick, Fearnhead and Eckley removes candidates that can never again be
+optimal, so the answer is exactly that of optimal partitioning, which the
+tests confirm by brute force and by exhaustive enumeration.
+
+```python
+from probstat.timeseries import cusum_test, pelt
+
+generator = random.Random(2012)
+segments = (
+    [generator.gauss(0.0, 1.0) for _ in range(300)]
+    + [generator.gauss(3.0, 1.0) for _ in range(300)]
+    + [generator.gauss(3.0, 3.0) for _ in range(300)]
+)
+shift = cusum_test(segments[:600])
+round(shift.statistic, 3), shift.location   # (10.233, 300)
+found = pelt(segments, model="meanvar", penalty="mbic")
+found.changepoints                          # (300, 600)
+[(s.start, s.stop, round(s.mean, 2), round(s.variance, 2)) for s in found.segments]   # [(0, 300, -0.07, 1.03), (300, 600, 3.03, 1.04), (600, 900, 2.95, 9.25)]
+found.cost_evaluations                      # 129751
+```
+
+Optimal partitioning without pruning evaluates `900 * 901 / 2 = 405 450`
+segment costs; PELT evaluated a third of them here, and the saving grows
+with the length of the series when changes keep occurring.
+
+## When to use which method
+
+| question | method | function |
+|---|---|---|
+| Is there serial correlation? | correlogram, Ljung-Box | `acf`, `ljung_box` |
+| Forecast one stationary series | ARIMA, exponential smoothing | `fit_arima`, `holt_linear` |
+| Does the variance cluster? | ARCH-LM, then GARCH | `arch_lm_test`, `fit_garch` |
+| Forecast several interacting series | VAR with order selection | `select_var_order`, `fit_var` |
+| How does a shock propagate? | orthogonalized IRF, FEVD | `VARFit.impulse_response`, `VARFit.fevd` |
+| Does `x` help predict `y`? | Granger Wald/F test | `VARFit.granger_causality` |
+| Difference first, or not? | ADF together with KPSS | `adf_test`, `kpss_test` |
+| Did the mean change once? | CUSUM | `cusum_test` |
+| Where did mean or variance change? | PELT | `pelt` |
+
 ## Common pitfalls
 
 - **Sign conventions.** The AR polynomial is `1 - sum phi_j z^j` and the MA
@@ -204,6 +488,35 @@ for it.
 - **Forecast intervals given the parameters.** `fit.forecast(h)` intervals
   omit parameter-estimation uncertainty, and the smoothing functions give no
   intervals at all.
+- **Spurious regression.** Regressing one random walk on another, unrelated
+  one gives a "significant" slope most of the time, because the residuals
+  are themselves a random walk and the usual t statistic does not apply.
+  Test for unit roots first; difference (or test for cointegration) before
+  regressing levels.
+- **Choosing lags.** Too few lags leave autocorrelation that distorts the
+  ADF and Granger tests; too many waste degrees of freedom and lower power.
+  Use `select_var_order` (BIC/HQ for the true order, AIC/FPE for
+  forecasting), the automatic ADF lag choice, and check that residuals are
+  white (`ljung_box`). The KPSS truncation lag trades size for power:
+  `"short"` keeps power, `"long"` controls size under strong
+  autocorrelation.
+- **Volatility clustering versus structural breaks.** A single jump in the
+  variance makes squared values autocorrelated, so the ARCH-LM test fires
+  and a GARCH fit reports high persistence; conversely, a change-point
+  method for the variance splits a GARCH series into spurious regimes. Test
+  each half of a suspected break separately, and compare a GARCH model with
+  a segmentation before choosing.
+- **ADF and KPSS answer different questions.** Failing to reject a unit
+  root is not evidence of one. Use both tests; trend terms must match the
+  data (a trending stationary series looks like a unit root to `"c"`).
+- **Simulated p-values have Monte Carlo error.** `adf_test` reports
+  `p_value_standard_error`; raise `simulations` when the p-value is near
+  the significance level. The smallest attainable value is
+  `1/(simulations + 1)`.
+- **GARCH order convention and boundaries.** `fit_garch(series, p, q)` has
+  `q` ARCH and `p` GARCH terms. A coefficient at the boundary (near zero)
+  makes the observed information singular, and the standard errors are
+  then `None`.
 
 ```python
 from probstat.timeseries import (
@@ -219,4 +532,50 @@ try:
 except ValueError as error:
     unit_root = str(error)
 unit_root   # 'AR polynomial is not stationary (a root has |z| <= 1)'
+```
+
+```python
+import math
+
+from probstat.inference import fit_simple_linear_regression
+from probstat.timeseries import difference
+
+
+def slope_t(x, y):
+    """Return |t| of the OLS slope from R^2."""
+    r_squared = fit_simple_linear_regression(x, y).r_squared
+    return math.sqrt(r_squared * (len(x) - 2) / (1.0 - r_squared))
+
+
+def random_walk(generator, n):
+    """Return a Gaussian random walk of length n started at zero."""
+    path = [0.0]
+    for _ in range(n - 1):
+        path.append(path[-1] + generator.gauss(0.0, 1.0))
+    return path
+
+
+levels = changes = 0
+for seed in range(200):
+    generator = random.Random(seed)
+    x, y = random_walk(generator, 100), random_walk(generator, 100)
+    levels += slope_t(x, y) > 1.96
+    changes += slope_t(difference(x), difference(y)) > 1.96
+levels / 200    # 0.725 (independent walks look related 72.5% of the time)
+changes / 200   # 0.06 (the differences reject at about the nominal 5%)
+```
+
+```python
+generator = random.Random(2012)
+for _ in range(900):
+    generator.gauss(0.0, 1.0)
+break_series = (
+    [generator.gauss(0.0, 1.0) for _ in range(500)]
+    + [generator.gauss(0.0, 2.5) for _ in range(500)]
+)
+arch_lm_test(break_series, 5).p_value < 1e-15   # True, a variance break mimics ARCH
+[round(arch_lm_test(half, 5).p_value, 3) for half in (break_series[:500], break_series[500:])]   # [0.704, 0.719]
+clustered = simulate_garch(0.05, (0.1,), (0.85,), 1000, seed=88).series
+pelt(break_series, model="variance").changepoints   # (500,)
+pelt(clustered, model="variance").changepoints      # (332, 346, 941), regimes that are only clustering
 ```

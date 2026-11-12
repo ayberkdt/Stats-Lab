@@ -315,12 +315,14 @@ elastic net with cross-validation.
 
 [Time series](foundations/time-series.md): correlograms, differencing and
 decomposition, ARMA roots and stationarity, the exact likelihood through the
-state-space form, estimation, forecasts with exact intervals, simulation, and
-exponential smoothing.
+state-space form, estimation, forecasts with exact intervals, simulation,
+exponential smoothing, GARCH volatility models, vector autoregressions
+(order selection, impulse responses, variance decomposition, Granger tests),
+ADF and KPSS unit-root tests, and CUSUM and PELT change-point detection.
 
 - Requires: S7
 - Lab: [`examples/statistical_modeling_lab.py`](../examples/statistical_modeling_lab.py)
-- Decision record: [ADR-0031](adr/ADR-0031-time-series.md)
+- Decision record: [ADR-0031](adr/ADR-0031-time-series.md), [ADR-0104](adr/ADR-0104-time-series-extensions.md)
 
 ### S9 — Survival analysis
 
