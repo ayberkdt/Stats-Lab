@@ -154,6 +154,10 @@ fit_robust_linear_model([(1.0, v) for v in x], y).coefficients[1]  # -10.874
 theil_sen_slope(x, y).slope                                     # 2.96
 ```
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/robust-regression-leverage-dark.png"><img alt="Scatter of 15 points on a line and 5 far points with least-squares, Huber, and Theil-Sen lines" src="../images/guides/robust-regression-leverage.png"></picture>
+
+*A quarter of the points sit at one far design position, so least squares (slope -10.869) and the Huber fit (-10.874), which bounds residuals but not leverage, both run through them, while the median of the pairwise slopes, 2.96, stays with the 15 good points.*
+
 `theil_sen_slope` also returns Sen's distribution-free interval, which
 inverts Kendall's test of the slope and corrects its variance for ties in
 `x`. Here it is very wide (`(-10.4, 3.0)`) because a quarter of the pairwise
@@ -198,6 +202,10 @@ negative and 4 zero residuals bracket `21 x 0.5 = 10.5`. The bootstrap
 resamples the `(x_i, y_i)` pairs, so it remains valid when the spread of
 the response depends on the predictors; the interval is a percentile
 interval and needs a few hundred replicates.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/quantile-regression-fan-dark.png"><img alt="Scatter with spread growing in x and five regression quantile lines from tau 0.1 to 0.9" src="../images/guides/quantile-regression-fan.png"></picture>
+
+*With noise whose spread grows linearly in x, the regression quantiles fan out: the 0.9 line has slope 0.85 and the 0.1 line slope 0.17, close to the true conditional-quantile slopes 0.82 and 0.18, a change in spread that a single least-squares line cannot show.*
 
 ## Limitations
 
