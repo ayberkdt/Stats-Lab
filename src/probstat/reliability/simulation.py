@@ -80,8 +80,14 @@ class ModelMonteCarloResult:
     Args:
         limit_state: Label of the analyzed limit state.
         failure: Bernoulli estimate with Wilson interval.
-        coefficient_of_variation: ``standard_error / probability``.
+        coefficient_of_variation: ``standard_error / probability``;
+            ``inf`` when no sample failed.
         evaluations: Model evaluations.
+
+    With no failures (or no survivors) in the sample the plug-in standard
+    error ``sqrt(p (1 - p) / N)`` is zero, which does not mean the estimate
+    is exact: report the Wilson interval ``failure.confidence_interval``
+    instead, whose upper end stays positive (about ``3.8 / N`` at 95 %).
 
     References:
         [REF-MELCHERS-BECK-2018, Chapter 5], [REF-WILSON-1927].
@@ -109,6 +115,9 @@ class ModelMonteCarloResult:
     @property
     def standard_error(self) -> float:
         """Return the Bernoulli plug-in standard error.
+
+        It is zero when no sample (or every sample) failed; the Wilson
+        interval of ``failure`` is the honest error statement then.
 
         Equation:
             [EQ-MC-PROB-001].
