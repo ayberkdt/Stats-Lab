@@ -4089,3 +4089,20 @@ and Methodology in Science and Engineering* (2nd edition, Wiley, 1965),
 pages 491-500. Values checked against the Rdatasets CSV export on
 2026-11-12.
 [https://vincentarelbundock.github.io/Rdatasets/doc/datasets/stackloss.html](https://vincentarelbundock.github.io/Rdatasets/doc/datasets/stackloss.html).
+
+## REF-RUNKLE-1987
+
+David E. Runkle. Vector autoregressions and reality. *Journal of Business
+& Economic Statistics*, 5(4):437-442, 1987. Bootstrap confidence intervals
+for impulse responses and variance decompositions of a VAR by resampling
+its residuals.
+DOI: [10.1080/07350015.1987.10509609](https://doi.org/10.1080/07350015.1987.10509609).
+
+## REF-KILIAN-1998
+
+Lutz Kilian. Small-sample confidence intervals for impulse response
+functions. *Review of Economics and Statistics*, 80(2):218-230, 1998.
+Least-squares bias of VAR coefficients and the resulting undercoverage of
+percentile bootstrap bands in small samples; the bias-corrected
+bootstrap-after-bootstrap.
+DOI: [10.1162/003465398557465](https://doi.org/10.1162/003465398557465).

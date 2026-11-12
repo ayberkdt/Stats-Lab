@@ -14722,6 +14722,21 @@ caused equations); `lambda_W = (C b)' [C ((Z Z')^-1 (x) Sigma_u_hat) C']^-1 (C b
 - Code: `timeseries.VARFit.forecast`.
 - Source: [REF-LUTKEPOHL-2005, Chapter 2].
 
+
+### EQ-TS-VAR-008 — Residual-bootstrap bands for impulse responses
+
+`y*_t = nu_hat + sum_{j=1}^p A_hat_j y*_(t-j) + u*_t` with `u*_t` drawn with
+replacement from the centred residuals and `y*_1..y*_p` the observed start;
+each replication refits the VAR(p) and recomputes `Theta*_h` (or `Phi*_h`).
+Percentile band `[q_(alpha/2), q_(1-alpha/2)]` of the replicated responses;
+Hall's band `[2 theta_hat - q_(1-alpha/2), 2 theta_hat - q_(alpha/2)]`.
+
+- Domain: a stable fitted VAR with i.i.d. innovations; bands are pointwise
+  in `h`.
+- Meaning: sampling uncertainty of the impulse responses; percentile bands
+  inherit the small-sample bias of least-squares VAR coefficients.
+- Code: `timeseries.VARFit.impulse_response_bands`.
+- Source: [REF-RUNKLE-1987], [REF-KILIAN-1998], [REF-HALL-1992].
 ### EQ-TS-ADF-001 — Augmented Dickey-Fuller regression and statistic
 
 `Delta y_t = D_t' delta + gamma y_(t-1) + sum_{j=1}^{k} phi_j Delta y_(t-j) + e_t`,

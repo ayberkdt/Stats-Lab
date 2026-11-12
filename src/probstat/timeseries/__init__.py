@@ -27,7 +27,8 @@ Main entry points:
     ``fit_garch``: GARCH(p, q) by maximum likelihood with stationarity
         constraints; ``GARCHFit.forecast`` and ``GARCHFit.diagnostics``.
     ``fit_var`` / ``select_var_order``: VAR(p) least squares and AIC/BIC/HQ/
-        FPE order selection; ``VARFit.impulse_response``, ``VARFit.fevd``,
+        FPE order selection; ``VARFit.impulse_response`` (with bootstrap
+        bands from ``VARFit.impulse_response_bands``), ``VARFit.fevd``,
         ``VARFit.granger_causality``, ``VARFit.is_stable``.
     ``adf_test``: augmented Dickey-Fuller unit-root test (MacKinnon 2010
         critical values, simulated p-value).
@@ -155,6 +156,7 @@ from .unit_root import (
 )
 from .var import (
     GrangerCausalityResult,
+    ImpulseResponseBands,
     VARFit,
     VARForecast,
     VAROrderSelection,
@@ -216,6 +218,7 @@ __all__ = [
     "KPSSResult",
     "Segment",
     "VARFit",
+    "ImpulseResponseBands",
     "VARForecast",
     "VAROrderSelection",
     "adf_critical_values",

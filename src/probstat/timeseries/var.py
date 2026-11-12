@@ -43,6 +43,7 @@ from probstat.linalg import (
     transpose,
 )
 from probstat.modeling import standard_normal_quantile
+from probstat.statistics import quantiles
 
 from ._eigen import eigenvalues as _eigenvalues
 
@@ -240,6 +241,38 @@ class VARForecast:
 
 
 @dataclass(frozen=True)
+class ImpulseResponseBands:
+    """Pointwise bootstrap bands for VAR impulse responses.
+
+    Entry ``[h][i][j]`` of each field refers to the response of variable
+    ``i``, ``h`` periods after a shock in variable ``j``.
+
+    Args:
+        point: Responses of the fitted VAR (``Theta_h`` or ``Phi_h``).
+        lower: Lower pointwise bounds.
+        upper: Upper pointwise bounds.
+        standard_errors: Standard deviations of the bootstrap responses.
+        level: Two-sided level.
+        replications: Bootstrap replications.
+        orthogonalized: Whether the shocks are Cholesky-orthogonalized.
+        interval: ``"percentile"`` or ``"hall"``.
+
+    References:
+        [REF-RUNKLE-1987], [REF-HALL-1992].
+
+    """
+
+    point: tuple[Matrix, ...]
+    lower: tuple[Matrix, ...]
+    upper: tuple[Matrix, ...]
+    standard_errors: tuple[Matrix, ...]
+    level: float
+    replications: int
+    orthogonalized: bool
+    interval: str
+
+
+@dataclass(frozen=True)
 class VARFit:
     """Least-squares VAR(p) fit.
 
@@ -428,6 +461,129 @@ class VARFit:
             return phis
         factor = cholesky(self.residual_covariance)
         return tuple(matmul(phi, factor) for phi in phis)
+
+    def impulse_response_bands(
+        self,
+        horizon: int,
+        *,
+        replications: int = 499,
+        level: float = 0.95,
+        orthogonalized: bool = True,
+        interval: str = "percentile",
+        seed: int | RandomStream | None = 0,
+    ) -> ImpulseResponseBands:
+        """Return residual-bootstrap confidence bands for the impulse responses.
+
+        Each replication resamples the centred residuals with replacement,
+        rebuilds a series by the fitted recursion from the first ``p``
+        observations, refits the VAR(p) with the same constant choice, and
+        recomputes the responses (orthogonalized with the replication's own
+        ``Sigma_u``). ``"percentile"`` reports the ``alpha/2`` and
+        ``1 - alpha/2`` bootstrap quantiles; ``"hall"`` reflects them about
+        the estimate, ``[2 theta_hat - q_hi, 2 theta_hat - q_lo]``.
+
+        Least-squares VAR coefficients are biased toward zero in short
+        samples, and percentile bands inherit that bias; for persistent
+        systems and small ``T`` the coverage can fall below the nominal
+        level [REF-KILIAN-1998]. The band is pointwise in ``h``, not a
+        simultaneous band for the whole response path.
+
+        Args:
+            horizon: Last horizon ``H >= 0``.
+            replications: Bootstrap replications ``R >= 2``.
+            level: Two-sided level in ``(0, 1)``.
+            orthogonalized: Use Cholesky-orthogonalized shocks.
+            interval: ``"percentile"`` or ``"hall"``.
+            seed: Seed or stream; replication ``r`` uses child ``("irf", r)``.
+                ``None`` is not reproducible.
+
+        Returns:
+            Point responses, pointwise bounds, and bootstrap standard errors.
+
+        Raises:
+            ValueError: If an argument is invalid or a replication's
+                regressors are collinear.
+
+        Equation:
+            [EQ-TS-VAR-004], [EQ-TS-VAR-008].
+
+        References:
+            [REF-RUNKLE-1987], [REF-KILIAN-1998],
+            [REF-EFRON-TIBSHIRANI-1993, Chapter 13], [REF-HALL-1992],
+            [REF-LUTKEPOHL-2005, Chapter 3].
+
+        """
+        steps = require_non_negative_integer(horizon, name="horizon")
+        count = require_non_negative_integer(replications, name="replications")
+        if count < 2:
+            raise ValueError("replications must be at least 2")
+        coverage = require_probability(level, name="level")
+        if not 0.0 < coverage < 1.0:
+            raise ValueError("level must lie strictly between 0 and 1")
+        if interval not in {"percentile", "hall"}:
+            raise ValueError("interval must be 'percentile' or 'hall'")
+        k = self.dimension
+        p = self.order
+        point = self.impulse_response(steps, orthogonalized=orthogonalized)
+        means = tuple(
+            math.fsum(row[i] for row in self.residuals) / self.nobs for i in range(k)
+        )
+        centred = tuple(
+            tuple(row[i] - means[i] for i in range(k)) for row in self.residuals
+        )
+        nu = self.intercept if self.intercept is not None else (0.0,) * k
+        root = resolve_stream(seed)
+        draws: list[tuple[Matrix, ...]] = []
+        for replication in range(count):
+            generator = root.child("irf", replication).generator()
+            series: list[Vector] = list(self.series[:p])
+            for _ in range(self.nobs):
+                shock = centred[generator.randrange(len(centred))]
+                value = [nu[i] + shock[i] for i in range(k)]
+                for lag, matrix in enumerate(self.coefficients, start=1):
+                    past = series[-lag]
+                    for i in range(k):
+                        value[i] += math.fsum(matrix[i][j] * past[j] for j in range(k))
+                series.append(tuple(value))
+            refit = fit_var(
+                series, p, include_constant=self.include_constant, names=self.names
+            )
+            draws.append(refit.impulse_response(steps, orthogonalized=orthogonalized))
+        tail = 0.5 * (1.0 - coverage)
+        lower: list[Matrix] = []
+        upper: list[Matrix] = []
+        errors: list[Matrix] = []
+        for h in range(steps + 1):
+            low_rows, high_rows, error_rows = [], [], []
+            for i in range(k):
+                low_row, high_row, error_row = [], [], []
+                for j in range(k):
+                    values = [draw[h][i][j] for draw in draws]
+                    q_low, q_high = quantiles(values, (tail, 1.0 - tail))
+                    if interval == "hall":
+                        estimate = point[h][i][j]
+                        q_low, q_high = 2.0 * estimate - q_high, 2.0 * estimate - q_low
+                    centre = math.fsum(values) / count
+                    spread = math.fsum((v - centre) ** 2 for v in values) / (count - 1)
+                    low_row.append(q_low)
+                    high_row.append(q_high)
+                    error_row.append(math.sqrt(spread))
+                low_rows.append(tuple(low_row))
+                high_rows.append(tuple(high_row))
+                error_rows.append(tuple(error_row))
+            lower.append(tuple(low_rows))
+            upper.append(tuple(high_rows))
+            errors.append(tuple(error_rows))
+        return ImpulseResponseBands(
+            point=point,
+            lower=tuple(lower),
+            upper=tuple(upper),
+            standard_errors=tuple(errors),
+            level=coverage,
+            replications=count,
+            orthogonalized=orthogonalized,
+            interval=interval,
+        )
 
     def fevd(self, horizon: int) -> tuple[Matrix, ...]:
         """Return the forecast-error variance decomposition for ``h = 1..H``.

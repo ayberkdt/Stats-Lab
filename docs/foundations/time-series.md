@@ -327,6 +327,24 @@ response = var.impulse_response(10)
 A shock to `x` raises `y` for several periods, and after ten periods 69% of
 the forecast-error variance of `y` is due to `x`.
 
+**How sure is the response?** `impulse_response_bands(h)` attaches pointwise
+residual-bootstrap bands [EQ-TS-VAR-008]: each replication resamples the
+centred residuals, rebuilds the series by the fitted recursion, refits the
+VAR, and recomputes the responses [REF-RUNKLE-1987]. `interval="hall"`
+reflects the percentile band about the estimate [REF-HALL-1992].
+
+```python
+bands = var.impulse_response_bands(10, replications=499, seed=2026)
+[(round(bands.lower[h][1][0], 3), round(bands.upper[h][1][0], 3)) for h in (1, 2, 3)]   # [(0.397, 0.583), (0.488, 0.711), (0.385, 0.625)]
+round(bands.lower[10][1][0], 3), round(bands.upper[10][1][0], 3)   # (0.008, 0.193)
+```
+
+The response of `y` to an `x` shock stays above zero for ten periods, but
+by then the band spans 0.008 to 0.193. The bands are pointwise, not a
+simultaneous band for the whole path, and least-squares VAR coefficients are
+biased toward zero in short samples, so percentile bands of persistent
+systems tend to cover less than their nominal level [REF-KILIAN-1998].
+
 **Granger causality.** `x` Granger-causes `y` if past `x` improves the
 forecasts of `y` given past `y`. The Wald test sets the lag coefficients of
 `x` in the `y` equation to zero [EQ-TS-VAR-006]; `lambda_W / N` is compared
@@ -475,7 +493,7 @@ with the length of the series when changes keep occurring.
 | Forecast one stationary series | ARIMA, exponential smoothing | `fit_arima`, `holt_linear` |
 | Does the variance cluster? | ARCH-LM, then GARCH | `arch_lm_test`, `fit_garch` |
 | Forecast several interacting series | VAR with order selection | `select_var_order`, `fit_var` |
-| How does a shock propagate? | orthogonalized IRF, FEVD | `VARFit.impulse_response`, `VARFit.fevd` |
+| How does a shock propagate? | orthogonalized IRF with bootstrap bands, FEVD | `VARFit.impulse_response`, `VARFit.impulse_response_bands`, `VARFit.fevd` |
 | Does `x` help predict `y`? | Granger Wald/F test | `VARFit.granger_causality` |
 | Difference first, or not? | ADF together with KPSS | `adf_test`, `kpss_test` |
 | Did the mean change once? | CUSUM | `cusum_test` |
