@@ -18,6 +18,12 @@ Main entry points:
         with Satterthwaite t tests.
     ``fit_generalized_linear_mixed_model``: binomial and Poisson mixed
         models by Laplace or adaptive Gauss-Hermite quadrature.
+    ``fit_negative_binomial_regression``: NB2 count regression with exposures
+        and the size estimated by maximum likelihood.
+    ``fit_zero_inflated`` and ``fit_hurdle``: zero-inflated and hurdle
+        Poisson or NB2 regressions.
+    ``fit_ordinal_logistic`` and ``fit_multinomial_logit``: proportional-odds
+        and baseline-category logit models with average marginal effects.
     ``hierarchical_normal_posterior``: exact grid posterior of the normal
         hierarchical model.
     ``pool_estimates``: Rubin's rules for multiply imputed data.
@@ -61,6 +67,10 @@ Common pitfalls:
       is only linear beyond its end knots.
     - ``principal_components`` and ``kmeans`` depend on the units of the
       columns; pass ``standardize=True`` or scale the data first.
+    - The zero coefficients of ``fit_zero_inflated`` model the odds of a
+      structural zero, those of ``fit_hurdle`` the odds of a positive count;
+      ``vuong_test`` is not a test for zero inflation (see
+      docs/foundations/count-and-categorical-regression.md).
 
 Guide: docs/foundations/hypothesis-testing-and-bootstrap.md
 
@@ -72,6 +82,7 @@ References:
 
 """
 
+from ._ml_tools import MarginalEffects
 from .additive_models import (
     AdditiveModelFit,
     AdditiveTerm,
@@ -98,6 +109,14 @@ from .bayesian import (
     student_t_cdf,
     student_t_quantile,
 )
+from .categorical_regression import (
+    BrantTest,
+    MultinomialLogitResult,
+    OrdinalRegressionResult,
+    brant_test,
+    fit_multinomial_logit,
+    fit_ordinal_logistic,
+)
 from .clustering import KMeansResult, kmeans, silhouette_samples, silhouette_score
 from .confidence import (
     ConfidenceInterval,
@@ -121,6 +140,13 @@ from .count_models import (
     fit_negative_binomial_counts,
     fit_poisson_counts,
     poisson_mean_interval,
+)
+from .count_regression import (
+    CountRegressionResult,
+    OverdispersionTest,
+    fit_negative_binomial_regression,
+    fit_poisson_regression,
+    poisson_overdispersion_test,
 )
 from .discriminant import (
     LinearDiscriminant,
@@ -413,8 +439,32 @@ from .splines import (
     uniform_knots,
 )
 from .variational import VariationalResult, advi
+from .zero_count_models import (
+    VuongTest,
+    ZeroCountResult,
+    fit_hurdle,
+    fit_zero_inflated,
+    vuong_test,
+)
 
 __all__ = [
+    "MarginalEffects",
+    "BrantTest",
+    "MultinomialLogitResult",
+    "OrdinalRegressionResult",
+    "brant_test",
+    "fit_multinomial_logit",
+    "fit_ordinal_logistic",
+    "CountRegressionResult",
+    "OverdispersionTest",
+    "fit_negative_binomial_regression",
+    "fit_poisson_regression",
+    "poisson_overdispersion_test",
+    "VuongTest",
+    "ZeroCountResult",
+    "fit_hurdle",
+    "fit_zero_inflated",
+    "vuong_test",
     "CountFit",
     "CountGoodnessOfFit",
     "count_goodness_of_fit",

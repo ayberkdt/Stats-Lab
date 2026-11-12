@@ -28,9 +28,10 @@ requirements point only backwards, and that every named laboratory exists.
 1. [Mathematical prerequisites](#track-m--mathematical-prerequisites) (M1-M5)
 2. [Probability](#track-p--probability) (P1-P11): counting, measure-theoretic
    probability, limit theorems, stochastic processes.
-3. [Statistics](#track-s--statistics) (S1-S18): descriptive statistics,
+3. [Statistics](#track-s--statistics) (S1-S19): descriptive statistics,
    estimation, testing, Bayesian inference, modelling, model criticism,
-   mixed models, smoothing, and multivariate analysis.
+   mixed models, count and categorical regression, smoothing, and
+   multivariate analysis.
 4. [Uncertainty quantification](#track-u--uncertainty-quantification) (U1-U16):
    the ATHENS verification, validation, and UQ sequence, then the integrated
    toolset on one model.
@@ -412,7 +413,19 @@ Gauss-Hermite quadrature.
 - Lab: none; numbers asserted in [`tests/test_mixed_models.py`](../tests/test_mixed_models.py)
 - Decision record: [ADR-0100](adr/ADR-0100-mixed-models.md)
 
-### S17 — Smoothing and additive models
+### S17 — Count and categorical regression
+
+[Count and categorical regression](foundations/count-and-categorical-regression.md):
+Poisson regression with exposures and sandwich errors, the regression test
+for overdispersion, NB2 regression, zero-inflated and hurdle models and the
+limits of the Vuong statistic, the proportional-odds model with Brant's
+test, the multinomial logit, and average marginal effects.
+
+- Requires: S7
+- Lab: none; numbers asserted in [`tests/test_count_and_categorical_regression.py`](../tests/test_count_and_categorical_regression.py)
+- Decision record: [ADR-0103](adr/ADR-0103-count-and-categorical-regression.md)
+
+### S18 — Smoothing and additive models
 
 [Smoothing and additive models](foundations/smoothing-and-additive-models.md):
 B-spline bases, P-splines and cubic smoothing splines with the smoothing
@@ -425,7 +438,7 @@ dependence.
 - Lab: none; numbers asserted in [`tests/test_smoothing_and_additive_models.py`](../tests/test_smoothing_and_additive_models.py)
 - Decision record: [ADR-0102](adr/ADR-0102-smoothing-and-multivariate-analysis.md)
 
-### S18 — Multivariate analysis
+### S19 — Multivariate analysis
 
 [Multivariate analysis](foundations/multivariate-analysis.md): principal
 components on the covariance or correlation scale, maximum-likelihood
