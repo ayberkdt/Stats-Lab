@@ -1,0 +1,286 @@
+{
+ "profile": "speaker-led",
+ "language": "en",
+ "slides": [
+  {
+   "id": "s1",
+   "role": "kapak",
+   "kicker": "Stats-Lab · probstat 0.19.0",
+   "headline": "One probabilistic model answers every uncertainty question",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "Open with the claim, not the topic: one model object answers every uncertainty question an engineer asks about a simulator. Stats-Lab is the repository, probstat the Python package; it has 0 runtime dependencies. Everything on the next slides comes from one seeded run of the library, a recorded benchmark, and counts read from the repository at build time; no number was typed by hand. Bridge: first, why one object matters at all.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s2",
+   "role": "baglam",
+   "kicker": "Why it matters",
+   "headline": "One simulator raises 8 different uncertainty questions",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "The library's architecture document lists the questions one simulator raises: what the output looks like, which inputs matter, how likely failure is, what the loss at risk is, what data say about the inputs, what we will observe next, whether a cheap emulator can stand in, and all of these reproducibly. Each is a different method family. When each lives in a separate script, the inputs are redeclared every time and the seeds drift apart, so two analyses of the same simulator can disagree for reasons nobody can trace. Bridge: so the question is whether one object can carry all of them.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s3",
+   "role": "soru",
+   "kicker": "",
+   "headline": "Can one model object answer every question from one seed?",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "One sentence, one emphasis. \"One seed\" is the measurable part: if every stage draws from a named child stream of the same root seed, the whole analysis reproduces bit for bit and each stage can be rerun alone. Pause here. Bridge: the next slide shows the four declarations that make this possible.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s4",
+   "role": "yontem",
+   "kicker": "Method",
+   "headline": "Four declarations turn a simulator into a study",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "The running example is the README quick start: margin equals strength minus load, with a lognormal load and a normal strength in kilonewtons. JointInput holds the marginals and a Gaussian copula; the Nataf transformation inside it is the single bridge to standard-normal space for FORM and SORM and to the unit cube for Sobol' designs. ProbabilisticModel binds the simulator and the quantity of interest. UQStudy takes the root seed 2026 and hands each stage its own child stream. Bridge: here is what four calls on that study return.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s5",
+   "role": "karsilastirma",
+   "kicker": "Results",
+   "headline": "One seeded study answered four questions in 42,048 model runs",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "Read the rows top to bottom; each is one call on the same study. Forward: a Sobol' design of 4,096 points gives the margin distribution; its lower 5% quantile is only 0.124 kN. Sensitivity: load carries a total Sobol index of 0.71, strength 0.28. Reliability ran 6 methods. Risk: with a loss of 50 units per kN of shortfall, the mean loss in the worst one percent of outcomes is 49.8. The bottom row is the cost: every model run is counted and charged to its stage. Bridge: the failure probability deserves a closer look.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s6",
+   "role": "kanit",
+   "kicker": "Evidence · reliability",
+   "headline": "SORM matches the exact failure probability with 43 model runs",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "The dashed line is the exact failure probability, the integral of the strength distribution function against the load density, evaluated by adaptive quadrature independently of every estimator: 3.77%. SORM with the Hohenbichler-Rackwitz correction lands on it, relative error 0.01%, after 43 runs. FORM, the first-order approximation, is 4.0% low but still inside the Monte Carlo interval. Monte Carlo itself is 4.8% high at 10,000 runs; that is sampling error, and its interval covers the exact value. Limitation: this limit state is smooth with one design point, which is where FORM and SORM are strong. Bridge: put the cost into one number.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s7",
+   "role": "buyuk-sayi",
+   "kicker": "One number",
+   "headline": "fewer model runs than Monte Carlo, at smaller error",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "One number, said once. The ratio is the Monte Carlo sample size over the SORM model runs of the same reliability stage. It holds for this smooth, single-design-point problem; on a system with several design points the ranking flips, which the limitations slide shows. Bridge: the backward question, what data say about the inputs.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s8",
+   "role": "kanit",
+   "kicker": "Evidence · calibration",
+   "headline": "MCMC stays within 7% of the exact spread; mean-field ADVI misses 40%",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "Inverse problems are judged against an answer that is known exactly: a straight-line model with Gaussian noise and a Gaussian prior, whose posterior is conjugate. Laplace is exact here by construction. The three Markov chain samplers recover the posterior standard deviation within 7%. Mean-field ADVI underestimates it by 40%, because it ignores the correlation between intercept and slope; the full-rank variant does not. The library reports this instead of hiding it. Limitation: quick mode, 2 seeds. Bridge: from one simulator to a whole system.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s9",
+   "role": "kanit",
+   "kicker": "Evidence · systems engineering",
+   "headline": "The transponder causes 90% of the lander's mission failures",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "The mission laboratory builds a lunar lander from component data: a warm-standby pump pair solved as a Markov chain, three flight computers of which two must work, with a beta-factor common cause, two batteries, a transponder, and an igniter. The binary decision diagram gives the mission reliability exactly, 0.923 over 720 hours, and a mean time to failure of 6,573 hours. Criticality importance is the probability that a block's failure caused a mission failure: the transponder reaches 90%, the pump pair 5%. That is where a redesign pays. At a loss cost of $450M per mission, the expected loss is $34.6M. Bridge: why trust any of these numbers?",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s10",
+   "role": "yontem",
+   "kicker": "Verification",
+   "headline": "Five checks stand between a formula and a release",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "Each check is enforced by a test, not by a promise. The documentation contract fails when a function's references section names no source key or an equation identifier is missing from the registry. Tests use independent oracles: closed forms, exact enumeration, published values, a multiple-precision reference, or statistical checks whose tolerance comes from the Monte Carlo standard error, so they hold on every platform. Figures follow one semantic theme in a light and a dark palette. Continuous integration runs lint, strict type checking, the tests, the quick benchmark, and all 33 labs on 3 Python versions. Design choices are recorded in 80+ decision records. Bridge: the benchmarks score methods against exact answers.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s11",
+   "role": "kanit",
+   "kicker": "Evidence · benchmarks",
+   "headline": "Sobol' points cut the error of the mean ×66 at equal cost",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "The benchmark suite has 11 problems with exact or quadrature reference answers and records 124 method results, each with its error, cost, and interval coverage. This row is the cleanest: the same 256 runs, four designs. Plain Monte Carlo misses the Ishigami mean by 7.8%; scrambled Sobol' points by 0.12%. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s12",
+   "role": "sinirlamalar",
+   "kicker": "Limitations",
+   "headline": "Three limits apply to these results",
+   "body": [],
+   "bullets": [
+    "FORM and SORM fail on the four-branch system benchmark.",
+    "Benchmarks: probstat 0.17.0, quick mode, 2 to 5 seeds; coverage is coarse.",
+    "Monte Carlo digits move with the seed; each carries its 95% interval."
+   ],
+   "labels": [],
+   "notes": "On the four-branch series system of the benchmark, a limit state with several design points, FORM and both SORM variants stop without an answer; AK-MCS reaches it with about 26 runs at a relative error of 16%. Quick mode runs few seeds, so coverage statistics are indicative only; the full benchmark mode runs more. The benchmark file was recorded with an earlier release than the study. And every Monte Carlo number moves with the seed, which is why each one carries its interval. Bridge: what to keep.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s13",
+   "role": "sonuc",
+   "kicker": "Conclusion",
+   "headline": "Yes: one model answered every question from one seed",
+   "body": [],
+   "bullets": [
+    "SORM hit the exact 3.77% failure probability in 43 runs.",
+    "MCMC matched an exact posterior within 7%; mean-field ADVI missed.",
+    "The transponder causes 90% of the lander's failures."
+   ],
+   "labels": [],
+   "notes": "Return to the question: yes, forward, reliability, and risk came from one seeded study, the inverse result from a benchmark with an exact answer, and the systems result from an exact diagram. No new numbers here; each one appeared earlier. The next question is yours: which of your simulators would you declare first? Bridge: sources, then how to start.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s14",
+   "role": "kaynaklar",
+   "kicker": "Sources",
+   "headline": "Every method on these slides traces to a primary source",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "These are the primary sources of the methods on the slides: FORM, the two SORM corrections, the Sobol total-effect estimator, scrambled nets, CVaR, ADVI, binary decision diagrams, and system reliability theory. Each has a key in the bibliography that the code cites in its docstrings, and every equation the code evaluates has an identifier in the registry. Bridge: how to start.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s15",
+   "role": "kapanis",
+   "kicker": "Questions welcome",
+   "headline": "One model answers every question: start with three commands",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "Close on the claim and leave this slide up during questions. The third command runs a complete study on a cantilever beam and writes its report and figures; the learning paths order every guide with its laboratory. The core library needs nothing beyond the Python standard library; Matplotlib is only for figures.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s16",
+   "role": "appendix",
+   "kicker": "Appendix · backup slide",
+   "headline": "Sampling methods report their spread; analytic ones need no seed",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "For the question whether one seed was lucky: the analytic methods do not depend on the seed at all, and each sampling method states its coefficient of variation. Importance sampling around the design point reaches a coefficient of variation of 3.3% with 2,035 runs, against 4.9% for plain Monte Carlo with 10,000.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  }
+ ]
+}

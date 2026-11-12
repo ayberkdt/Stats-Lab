@@ -1,0 +1,299 @@
+{
+ "title": "Stats-Lab genel bakış",
+ "profile": "speaker-led",
+ "slides": [
+  {
+   "id": "s1",
+   "type": "kapak",
+   "kicker": "Stats-Lab · probstat 0.19.0",
+   "headline": "Tek olasılık modeli her belirsizlik sorusunu yanıtlıyor",
+   "fields": {
+    "alt": "Girdileri ve benzetimi bir kez tanımlayın; ileri, ters, risk ve sistem soruları aynı nesneyi ve aynı tohumu paylaşsın.",
+    "ad": "Stats-Lab projesi",
+    "kurum": "probstat · BSD-3-Clause lisansı",
+    "tarih": "sürüm 0.19.0"
+   },
+   "bullets": [],
+   "notes": "Konuyla değil iddiayla açın: tek bir model nesnesi, bir mühendisin benzetimi hakkında sorduğu her belirsizlik sorusunu yanıtlıyor. Stats-Lab depo, probstat Python paketi; çalışırken 0 dış bağımlılığa ihtiyaç duyuyor. Sonraki slaytlardaki her şey kitaplığın tohumlu tek bir koşusundan, kayıtlı bir kıyaslamadan ve derleme anında depodan okunan sayımlardan geliyor; hiçbir sayı elle yazılmadı. Köprü: önce tek nesnenin neden önemli olduğu."
+  },
+  {
+   "id": "s2",
+   "type": "baglam",
+   "kicker": "Neden önemli",
+   "headline": "Tek bir benzetim 8 farklı belirsizlik sorusu doğuruyor",
+   "fields": {
+    "olgu": "8",
+    "aciklama": "soru, çıktının dağılımından göçmenin maliyetine kadar; her birini kendi yöntemi yanıtlıyor: örnekleme, Sobol indisleri, FORM, MCMC, vekil modeller.",
+    "kaynak": "Kaynak: docs/architecture.md, merkezî model tablosu"
+   },
+   "bullets": [],
+   "notes": "Kitaplığın mimari belgesi tek bir benzetimin doğurduğu soruları sıralıyor: çıktı nasıl görünüyor, hangi girdiler önemli, göçme ne kadar olası, risk altındaki kayıp ne, veriler girdiler hakkında ne söylüyor, sırada ne gözlenecek, ucuz bir vekil model yerine geçebilir mi ve bunların hepsi yeniden üretilebilir mi. Her biri ayrı bir yöntem ailesi. Her biri ayrı bir betikte yaşadığında girdiler her seferinde yeniden tanımlanıyor, tohumlar birbirinden kopuyor; aynı benzetimin iki analizi kimsenin izleyemediği nedenlerle ayrışabiliyor. Köprü: soru, tek bir nesnenin bunların hepsini taşıyıp taşıyamayacağı."
+  },
+  {
+   "id": "s3",
+   "type": "soru",
+   "kicker": "",
+   "headline": "Tek model nesnesi her soruyu tek tohumdan yanıtlayabilir mi?",
+   "fields": {
+    "vurgu": "tek tohumdan"
+   },
+   "bullets": [],
+   "notes": "Tek cümle, tek vurgu. Ölçülebilir kısım \"tek tohum\": her aşama aynı kök tohumun adlandırılmış bir alt akışından çekiyorsa analizin tamamı bit bit yeniden üretilir ve her aşama tek başına yeniden koşturulabilir. Burada durun. Köprü: bunu mümkün kılan dört tanım bir sonraki slaytta."
+  },
+  {
+   "id": "s4",
+   "type": "yontem",
+   "kicker": "Yöntem",
+   "headline": "Dört tanım bir benzetimi bir çalışmaya dönüştürüyor",
+   "fields": {
+    "kaynak": "Kaynak: README hızlı başlangıç; docs/architecture.md",
+    "adimlar": [
+     {
+      "ad": "Girdiler",
+      "cumle": "JointInput marjinalleri, birimlerini ve kopulalarını adlandırıyor."
+     },
+     {
+      "ad": "Model",
+      "cumle": "ProbabilisticModel benzetimi ilgilenilen niceliklere bağlıyor."
+     },
+     {
+      "ad": "Çalışma",
+      "cumle": "UQStudy(model, seed=2026) her aşamaya kendi alt akışını veriyor."
+     },
+     {
+      "ad": "Aşamalar",
+      "cumle": "Her çağrı model koşularını, tohumunu ve figürünü tek rapora yazıyor."
+     }
+    ]
+   },
+   "bullets": [],
+   "notes": "Örnek, README'deki hızlı başlangıç: güvenlik payı dayanım eksi yük; yük log-normal, dayanım normal, birimler kilonewton. JointInput marjinalleri ve bir Gauss kopulasını tutuyor; içindeki Nataf dönüşümü FORM ve SORM için standart normal uzaya, Sobol' tasarımları için birim küpe giden tek köprü. ProbabilisticModel benzetimi ve ilgilenilen niceliği bağlıyor. UQStudy kök tohum 2026 değerini alıyor ve her aşamaya kendi alt akışını veriyor. Köprü: bu çalışmadaki dört çağrının sonucu."
+  },
+  {
+   "id": "s5",
+   "type": "karsilastirma",
+   "kicker": "Sonuçlar",
+   "headline": "Tek tohumlu çalışma dört soruyu 42.048 model koşusunda yanıtladı",
+   "fields": {
+    "kaynak": "Kaynak: README hızlı başlangıç modeli, kök tohum 2026; tools/build_presentation_data.py",
+    "sutunlar": [
+     "Soru",
+     "Yanıt",
+     "Model koşusu"
+    ],
+    "satirlar": [
+     {
+      "olcut": "Güvenlik payı nasıl dağılıyor?",
+      "bedel": false
+     },
+     {
+      "olcut": "Hangi girdi belirliyor?",
+      "bedel": false
+     },
+     {
+      "olcut": "Göçme ne kadar olası?",
+      "bedel": false
+     },
+     {
+      "olcut": "Risk altındaki kayıp ne?",
+      "bedel": false
+     },
+     {
+      "olcut": "Toplam maliyet",
+      "bedel": true
+     }
+    ]
+   },
+   "bullets": [],
+   "notes": "Satırları yukarıdan aşağı okuyun; her biri aynı çalışmada tek bir çağrı. İleri yayılım: 4.096 noktalı bir Sobol' tasarımı güvenlik payının dağılımını veriyor; alt %5 yüzdeliği yalnızca 0,124 kN. Duyarlılık: load girdisinin toplam Sobol indisi 0,71, strength girdisininki 0,28. Güvenilirlik aşaması 6 yöntem koşturdu. Risk: kilonewton başına 50 birimlik kayıpla, en kötü yüzde birlik sonuçlardaki ortalama kayıp 49,8. Alt satır maliyet: her model koşusu sayılıyor ve kendi aşamasına yazılıyor. Köprü: göçme olasılığına daha yakından bakalım."
+  },
+  {
+   "id": "s6",
+   "type": "kanit",
+   "kicker": "Kanıt · güvenilirlik",
+   "headline": "SORM kesin göçme olasılığını 43 model koşusunda yakalıyor",
+   "fields": {
+    "olcut": "güvenlik payının göçme olasılığı",
+    "gercek": "benzetim",
+    "n": "10.000 koşu",
+    "okuma": [
+     "Kesin %3,77, karelemeyle · Monte Carlo %3,95, %95 aralık %3,57–%4,33, 10.000 koşu"
+    ],
+    "kaynak": "Kaynak: tools/build_presentation_data.py, tohum 2026; kesin değer uyarlamalı karelemeyle",
+    "gorsel": "Nokta grafiği: FORM, Hohenbichler-Rackwitz SORM, önem örneklemesi, alt küme benzetimi ve Monte Carlo'nun kestirdiği göçme olasılığı, kesikli çizgiyle gösterilen kesin değere karşı; SORM noktası çizginin üstünde."
+   },
+   "bullets": [],
+   "notes": "Kesikli çizgi kesin göçme olasılığı: dayanımın dağılım işlevinin yük yoğunluğuna karşı integrali; her kestiriciden bağımsız olarak uyarlamalı karelemeyle hesaplandı: %3,77. Hohenbichler-Rackwitz düzeltmeli SORM 43 koşudan sonra tam üstüne düşüyor; göreli hatası %0,01. Birinci mertebe yaklaşım FORM %4,0 düşük, ama Monte Carlo aralığının içinde. Monte Carlo 10.000 koşuda %4,8 yüksek; bu örnekleme hatası ve aralığı kesin değeri kapsıyor. Sınır: bu limit durum düzgün ve tek tasarım noktalı; FORM ile SORM'un güçlü olduğu yer burası. Köprü: maliyeti tek sayıya indirelim."
+  },
+  {
+   "id": "s7",
+   "type": "buyuk-sayi",
+   "kicker": "Bir sayı",
+   "headline": "Monte Carlo'dan daha az model koşusu, daha küçük hatayla",
+   "fields": {
+    "sayi": "×233",
+    "hesap": "10.000 Monte Carlo ÷ 43 SORM koşusu",
+    "kaynak": "Aynı çalışma, aynı tohum"
+   },
+   "bullets": [],
+   "notes": "Tek sayı, bir kez söylenir. Oran, aynı güvenilirlik aşamasındaki Monte Carlo örneklem büyüklüğünün SORM model koşularına bölümü. Bu düzgün, tek tasarım noktalı problem için geçerli; birden çok tasarım noktalı bir sistemde sıralama tersine dönüyor, sınırlamalar slaytı bunu gösteriyor. Köprü: geriye doğru soru, veriler girdiler hakkında ne söylüyor."
+  },
+  {
+   "id": "s8",
+   "type": "kanit",
+   "kicker": "Kanıt · kalibrasyon",
+   "headline": "MCMC sonsal yayılımı %7 içinde buluyor; ortalama alan ADVI %40 ıskalıyor",
+   "fields": {
+    "olcut": "sonsal standart sapmanın hatası",
+    "gercek": "benzetim",
+    "n": "2 tohumun",
+    "okuma": [
+     "Kesin eşlenik sonsalı olan doğrusal-Gauss kalibrasyonu · 2 tohumun ortancası"
+    ],
+    "kaynak": "Kaynak: benchmarks/results/quick.json (probstat 0.17.0, hızlı kip)",
+    "gorsel": "Yatay çubuklar: Laplace, statik HMC, tam kerte ADVI, NUTS, uyarlamalı Metropolis ve ortalama alan ADVI için sonsal standart sapmanın kesin eşlenik sonsala göre hatası; yalnız ortalama alan ADVI çubuğu uzun ve vurgulu."
+   },
+   "bullets": [],
+   "notes": "Ters problemler kesin bilinen bir yanıta karşı sınanıyor: Gauss gürültülü ve Gauss önsellü bir doğru modeli; sonsalı eşlenik. Laplace burada kuruluşu gereği kesin. Üç Markov zinciri örnekleyicisi sonsal standart sapmayı %7 içinde buluyor. Ortalama alan ADVI onu %40 küçük kestiriyor, çünkü kesişim ile eğim arasındaki ilintiyi yok sayıyor; tam kerte türü saymıyor. Kitaplık bunu gizlemek yerine raporluyor. Sınır: hızlı kip, 2 tohum. Köprü: tek bir benzetimden bütün bir sisteme."
+  },
+  {
+   "id": "s9",
+   "type": "kanit",
+   "kicker": "Kanıt · sistem mühendisliği",
+   "headline": "İniş aracının görev kayıplarının %90'ına transponder yol açıyor",
+   "fields": {
+    "olcut": "görev süresinde kritiklik önemi",
+    "gercek": "model",
+    "n": "720 sa",
+    "okuma": [
+     "720 sa boyunca kesin güvenilirlik: 0,923, ikili karar diyagramından · 8 en küçük kesme kümesi · örnekleme yok"
+    ],
+    "kaynak": "Kaynak: examples/mission_systems_lab.py; kritiklik önemi",
+    "gorsel": "Yatay çubuklar: iniş aracının en önemli dört bloğunun kritiklik önemi; transponder çubuğu vurgulu ve pompa çifti, ateşleyici ve ortak nedenli bilgisayar çubuklarından çok daha uzun."
+   },
+   "bullets": [],
+   "notes": "Görev laboratuvarı bir Ay iniş aracını bileşen verisinden kuruyor: Markov zinciriyle çözülen ılık yedekli bir pompa çifti, ikisinin çalışması gereken üç uçuş bilgisayarı ve onların beta etkenli ortak nedeni, iki batarya, bir transponder ve bir ateşleyici. İkili karar diyagramı görev güvenilirliğini kesin veriyor: 720 saatte 0,923; arızaya kadar ortalama süre 6.573 saat. Kritiklik önemi, bir görev kaybına o bloğun arızasının yol açmış olma olasılığı: transponder %90, pompa çifti %5. Yeniden tasarımın karşılığını verdiği yer burası. Görev başına 450 M$ kayıp maliyetiyle beklenen kayıp 34,6 M$. Köprü: bu sayıların hiçbirine neden güvenelim?",
+   "breathing": true
+  },
+  {
+   "id": "s10",
+   "type": "yontem",
+   "kicker": "Doğrulama",
+   "headline": "Bir formülle bir sürüm arasında beş denetim duruyor",
+   "fields": {
+    "kaynak": "Kaynak: tests/, docs/equation-registry.md, docs/references.md, .github/workflows/ci.yml",
+    "adimlar": [
+     {
+      "ad": "Atıf",
+      "cumle": "550+ kaynak; her işlevin belge dizesi kaynak anahtarını adlandırıyor."
+     },
+     {
+      "ad": "Kayıt",
+      "cumle": "1.000+ denklem; her birinin simgeleri, kaynağı ve kod konumu kayıtlı."
+     },
+     {
+      "ad": "Sınama",
+      "cumle": "2.100+ sınama: kapalı biçimler, sayım ve Monte Carlo hata sınırları."
+     },
+     {
+      "ad": "Figür denetimi",
+      "cumle": "Temalı her figür yazısını 9 pt ve üstünde, tuvalin içinde tutuyor."
+     },
+     {
+      "ad": "Bütünleştirme",
+      "cumle": "Ruff, katı mypy, tüm sınamalar ve her laboratuvar Python 3.11–3.13 üzerinde koşuyor."
+     }
+    ]
+   },
+   "bullets": [],
+   "notes": "Her denetimi bir söz değil bir sınama zorluyor. Belge sözleşmesi, kaynakça bölümü kaynak anahtarı adlandırmayan ya da denklem kimliği kayıtta olmayan işlevde başarısız oluyor. Sınamalar bağımsız kâhinler kullanıyor: kapalı biçimler, tam sayım, yayımlanmış değerler, çok duyarlıklı bir başvuru ya da hoşgörüsü Monte Carlo standart hatasından gelen istatistiksel denetimler; bu yüzden her platformda tutuyorlar. Figürler açık ve koyu iki paletli tek bir anlamsal temaya uyuyor. Sürekli bütünleştirme biçim denetimini, katı tür denetimini, sınamaları, hızlı kıyaslamayı ve 33 laboratuvarın hepsini 3 Python sürümünde koşturuyor. Tasarım kararları 80+ karar kaydında yazılı. Köprü: kıyaslamalar yöntemleri kesin yanıtlara karşı puanlıyor."
+  },
+  {
+   "id": "s11",
+   "type": "kanit",
+   "kicker": "Kanıt · kıyaslamalar",
+   "headline": "Sobol' noktaları aynı maliyetle ortalamanın hatasını ×66 küçültüyor",
+   "fields": {
+    "olcut": "ortalamanın göreli hatası",
+    "gercek": "benzetim",
+    "n": "5 tohumun",
+    "okuma": [
+     "Ishigami işlevi, kestirim başına 256 koşu, 5 tohumun ortancası · hızlı başlangıç çalışması aynı tasarımı kullanıyor"
+    ],
+    "kaynak": "Kaynak: benchmarks/results/quick.json (probstat 0.17.0); kesin ortalama kapalı biçimde",
+    "gorsel": "Yatay çubuklar: aynı koşu sayısında Monte Carlo, Latin hiperküp, Halton ve Sobol' tasarımlarıyla Ishigami ortalamasının göreli hatası; Sobol' çubuğu vurgulu ve en kısa."
+   },
+   "bullets": [],
+   "notes": "Kıyaslama takımında kesin ya da karelemeyle bulunmuş başvuru yanıtı olan 11 problem var ve 124 yöntem sonucu kayıtlı; her birinin hatası, maliyeti ve aralık kapsaması yazılı. En temiz satır bu: aynı 256 koşu, dört tasarım. Düz Monte Carlo Ishigami ortalamasını %7,8 ıskalıyor, karıştırılmış Sobol' noktaları %0,12. Hızlı başlangıç çalışmasının yayılımı Sobol' tasarımıyla yapması bu yüzden. Köprü: kanıtın kapsamadığı şeyler."
+  },
+  {
+   "id": "s12",
+   "type": "sinirlamalar",
+   "kicker": "Sınırlamalar",
+   "headline": "Üç sınır bu sonuçları kısıtlıyor",
+   "fields": {},
+   "bullets": [
+    "FORM ve SORM dört kollu sistem kıyaslamasında çözemiyor.",
+    "Kıyaslamalar: probstat 0.17.0, hızlı kip, 2 ile 5 tohum; kapsama oranları kaba.",
+    "Monte Carlo basamakları tohumla oynuyor; her biri %95 aralığını taşıyor."
+   ],
+   "notes": "Kıyaslamadaki dört kollu seri sistemde, yani birden çok tasarım noktalı bir limit durumda, FORM ve iki SORM türü yanıt vermeden duruyor; AK-MCS yaklaşık 26 koşuda, %16 göreli hatayla ulaşıyor. Hızlı kip az tohum koşturuyor, bu yüzden kapsama istatistikleri yalnızca yön gösteriyor; tam kıyaslama kipi daha çok koşturuyor. Kıyaslama dosyası çalışmadan daha eski bir sürümle kaydedildi. Ve her Monte Carlo sayısı tohumla oynuyor; her birinin aralığını taşıması bu yüzden. Köprü: akılda kalması gerekenler."
+  },
+  {
+   "id": "s13",
+   "type": "sonuc",
+   "kicker": "Sonuç",
+   "headline": "Evet: tek model her soruyu tek tohumdan yanıtladı",
+   "fields": {},
+   "bullets": [
+    "SORM kesin %3,77 göçme olasılığını 43 koşuda buldu.",
+    "MCMC kesin sonsalı %7 içinde buldu; ortalama alan ADVI ıskaladı.",
+    "İniş aracının kayıplarının %90'ına transponder yol açıyor."
+   ],
+   "notes": "Soruya dönün: evet; ileri yayılım, güvenilirlik ve risk tohumlu tek bir çalışmadan, ters problem sonucu kesin yanıtı olan bir kıyaslamadan, sistem sonucu kesin bir diyagramdan geldi. Burada yeni sayı yok; her biri daha önce geçti. Sıradaki soru sizin: hangi benzetiminizi önce tanımlardınız? Köprü: kaynaklar, sonra nasıl başlanır."
+  },
+  {
+   "id": "s14",
+   "type": "kaynaklar",
+   "kicker": "Kaynaklar",
+   "headline": "Slaytlardaki her yöntem birincil bir kaynağa dayanıyor",
+   "fields": {
+    "kaynaklar": [
+     "Hasofer, Lind (1974). Exact and invariant second-moment code format. J. Eng. Mech. Div.",
+     "Breitung (1984). Asymptotic approximations for multinormal integrals. J. Eng. Mech.",
+     "Hohenbichler, Rackwitz (1988). Improvement of second-order reliability estimates. J. Eng. Mech.",
+     "Saltelli et al. (2010). Variance based sensitivity analysis of model output. Comput. Phys. Commun.",
+     "Owen (1995). Randomly permuted (t,m,s)-nets and (t,s)-sequences. Springer.",
+     "Rockafellar, Uryasev (2000). Optimization of conditional value-at-risk. J. Risk.",
+     "Kucukelbir et al. (2017). Automatic differentiation variational inference. JMLR.",
+     "Bryant (1986). Graph-based algorithms for Boolean function manipulation. IEEE Trans. Comput.",
+     "Rausand, Høyland (2004). System reliability theory. Wiley."
+    ]
+   },
+   "bullets": [],
+   "notes": "Bunlar slaytlardaki yöntemlerin birincil kaynakları: FORM, iki SORM düzeltmesi, Sobol toplam etki kestiricisi, karıştırılmış ağlar, CVaR, ADVI, ikili karar diyagramları ve sistem güvenilirliği kuramı. Her birinin kaynakçada, kodun belge dizelerinde andığı bir anahtarı var; kodun hesapladığı her denklemin de kayıtta bir kimliği var. Köprü: nasıl başlanır."
+  },
+  {
+   "id": "s15",
+   "type": "kapanis",
+   "kicker": "Sorularınızı bekliyoruz",
+   "headline": "Tek model her soruyu yanıtlıyor: üç komutla başlayın",
+   "fields": {
+    "iletisim": "github.com/ayberkdt/Stats-Lab"
+   },
+   "bullets": [],
+   "notes": "İddiayla kapatın ve sorular boyunca bu slaytı açık bırakın. Üçüncü komut bir konsol kiriş üzerinde eksiksiz bir çalışma koşturuyor, raporunu ve figürlerini yazıyor; öğrenme yolları her rehberi laboratuvarıyla birlikte sıralıyor. Çekirdek kitaplık Python standart kitaplığının ötesinde hiçbir şey istemiyor; Matplotlib yalnızca figürler için."
+  },
+  {
+   "id": "s16",
+   "type": "ek",
+   "kicker": "Ek · yedek slayt",
+   "headline": "Örnekleme yöntemleri yayılımını bildiriyor; analitikler tohum istemiyor",
+   "fields": {
+    "ana_slayt": "s6"
+   },
+   "bullets": [],
+   "notes": "Tek tohum şanslı mıydı sorusu için: analitik yöntemler tohuma hiç bağlı değil, her örnekleme yöntemi de değişim katsayısını söylüyor. Tasarım noktası çevresinde önem örneklemesi 2.035 koşuyla %3,3 değişim katsayısına ulaşıyor; düz Monte Carlo 10.000 koşuyla %4,9."
+  }
+ ]
+}

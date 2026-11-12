@@ -1,0 +1,251 @@
+{
+ "claims": [
+  {
+   "id": "claim-questions",
+   "statement": "One simulator raises 8 uncertainty questions",
+   "type": "background",
+   "source_ids": [
+    "src-arch"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
+   "id": "claim-forward",
+   "statement": "5% quantile of the margin is 0.124 kN",
+   "type": "observation",
+   "source_ids": [
+    "src-readme",
+    "src-tool"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
+   "id": "claim-sobol",
+   "statement": "load has total Sobol index 0.71",
+   "type": "observation",
+   "source_ids": [
+    "src-tool"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
+   "id": "claim-form",
+   "statement": "FORM failure probability lies inside the Monte Carlo 95% interval",
+   "type": "observation",
+   "source_ids": [
+    "src-tool"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
+   "id": "claim-cost",
+   "statement": "Monte Carlo used 233 times the runs of SORM",
+   "type": "observation",
+   "source_ids": [
+    "src-tool"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
+   "id": "claim-cvar",
+   "statement": "CVaR at 99% is 49.8 loss units",
+   "type": "observation",
+   "source_ids": [
+    "src-tool"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
+   "id": "claim-calibration",
+   "statement": "Mean-field ADVI misses the exact posterior sd by 40%",
+   "type": "observation",
+   "source_ids": [
+    "src-bench"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
+   "id": "claim-mission",
+   "statement": "Mission reliability over 720 h is 0.923",
+   "type": "observation",
+   "source_ids": [
+    "src-mission",
+    "src-tool"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
+   "id": "claim-importance",
+   "statement": "transponder has criticality importance 0.90",
+   "type": "observation",
+   "source_ids": [
+    "src-mission",
+    "src-tool"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
+   "id": "claim-sampling",
+   "statement": "Scrambled Sobol' points cut the Ishigami mean error 66-fold",
+   "type": "observation",
+   "source_ids": [
+    "src-bench"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
+   "id": "claim-counts",
+   "statement": "Test, equation, reference, and ADR counts are floors of repository counts",
+   "type": "observation",
+   "source_ids": [
+    "src-tests",
+    "src-registry",
+    "src-refs",
+    "src-adr",
+    "src-ci"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  },
+  {
+   "id": "claim-four-branch",
+   "statement": "FORM does not solve the four-branch system benchmark",
+   "type": "limitation",
+   "source_ids": [
+    "src-bench"
+   ],
+   "status": "verified",
+   "notes": "value read from deck-data.json"
+  }
+ ],
+ "sources": [
+  {
+   "id": "src-readme",
+   "title": "README quick start (the study model)",
+   "authors_or_institution": "Stats-Lab (probstat)",
+   "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/README.md",
+   "accessed_at": "2026-11-12",
+   "dataset_version": "0.19.0"
+  },
+  {
+   "id": "src-tool",
+   "title": "Deck data builder (fixed seed 2026)",
+   "authors_or_institution": "Stats-Lab (probstat)",
+   "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/tools/build_presentation_data.py",
+   "accessed_at": "2026-11-12",
+   "dataset_version": "0.19.0"
+  },
+  {
+   "id": "src-bench",
+   "title": "Recorded quick benchmark",
+   "authors_or_institution": "Stats-Lab (probstat)",
+   "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/benchmarks/results/quick.json",
+   "accessed_at": "2026-11-12",
+   "dataset_version": "0.19.0"
+  },
+  {
+   "id": "src-mission",
+   "title": "Mission systems laboratory",
+   "authors_or_institution": "Stats-Lab (probstat)",
+   "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/examples/mission_systems_lab.py",
+   "accessed_at": "2026-11-12",
+   "dataset_version": "0.19.0"
+  },
+  {
+   "id": "src-arch",
+   "title": "Architecture: central-model questions",
+   "authors_or_institution": "Stats-Lab (probstat)",
+   "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/docs/architecture.md",
+   "accessed_at": "2026-11-12",
+   "dataset_version": "0.19.0"
+  },
+  {
+   "id": "src-registry",
+   "title": "Equation registry",
+   "authors_or_institution": "Stats-Lab (probstat)",
+   "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/docs/equation-registry.md",
+   "accessed_at": "2026-11-12",
+   "dataset_version": "0.19.0"
+  },
+  {
+   "id": "src-refs",
+   "title": "Bibliography",
+   "authors_or_institution": "Stats-Lab (probstat)",
+   "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/docs/references.md",
+   "accessed_at": "2026-11-12",
+   "dataset_version": "0.19.0"
+  },
+  {
+   "id": "src-adr",
+   "title": "Architecture decision records",
+   "authors_or_institution": "Stats-Lab (probstat)",
+   "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/docs/adr",
+   "accessed_at": "2026-11-12",
+   "dataset_version": "0.19.0"
+  },
+  {
+   "id": "src-tests",
+   "title": "Test suite",
+   "authors_or_institution": "Stats-Lab (probstat)",
+   "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/tests",
+   "accessed_at": "2026-11-12",
+   "dataset_version": "0.19.0"
+  },
+  {
+   "id": "src-ci",
+   "title": "Continuous integration workflow",
+   "authors_or_institution": "Stats-Lab (probstat)",
+   "url": "https://github.com/ayberkdt/Stats-Lab/blob/main/.github/workflows/ci.yml",
+   "accessed_at": "2026-11-12",
+   "dataset_version": "0.19.0"
+  }
+ ],
+ "figures": [
+  {
+   "id": "figure-reliability",
+   "source_id": "src-tool",
+   "creator": "Stats-Lab (probstat)",
+   "license": "BSD-3-Clause",
+   "credit_line": "Drawn from deck-data.json",
+   "transformations": [],
+   "reuse_status": "verified"
+  },
+  {
+   "id": "figure-calibration",
+   "source_id": "src-tool",
+   "creator": "Stats-Lab (probstat)",
+   "license": "BSD-3-Clause",
+   "credit_line": "Drawn from deck-data.json",
+   "transformations": [],
+   "reuse_status": "verified"
+  },
+  {
+   "id": "figure-mission",
+   "source_id": "src-tool",
+   "creator": "Stats-Lab (probstat)",
+   "license": "BSD-3-Clause",
+   "credit_line": "Drawn from deck-data.json",
+   "transformations": [],
+   "reuse_status": "verified"
+  },
+  {
+   "id": "figure-sampling",
+   "source_id": "src-tool",
+   "creator": "Stats-Lab (probstat)",
+   "license": "BSD-3-Clause",
+   "credit_line": "Drawn from deck-data.json",
+   "transformations": [],
+   "reuse_status": "verified"
+  }
+ ]
+}
