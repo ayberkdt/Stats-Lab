@@ -3,7 +3,15 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
-## [Unreleased]
+## [0.22.0] — 2026-11-16
+
+The input-modeling toolkit of the ATHENS uncertainty-quantification course
+is complete: maximum-entropy laws, method-of-moments fits next to maximum
+likelihood, parameter-uncertainty bands, Anderson-Darling p-values, and
+cross-validated kernel bandwidths, checked against R (fitdistrplus and
+stats) for the moment fits and bandwidths, and against published values and
+closed forms for the rest. ANOVA tables, marginal means, and bias-corrected impulse-response
+bands extend the statistical core.
 
 ### Added
 
@@ -48,6 +56,11 @@ while the public API remains pre-1.0 and experimental.
   optionally at fixed levels of other factors, with Tukey-Kramer pairwise
   contrasts; checked against Montgomery's comparison of the battery
   materials at 70 degrees F.
+
+### Counts
+
+- 18 equation records, 15 references, 101 new tests (2,645 in total), and
+  1,717 public names in 33 packages.
 
 ## [0.21.0] — 2026-11-12
 
