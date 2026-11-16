@@ -1166,6 +1166,18 @@ class RParityTests(unittest.TestCase):
         counts = re.findall(r"(\d+) parity cases", section)
         self.assertEqual(counts, [str(len(CASES))])
 
+    def test_readme_quotes_the_number_of_cases(self) -> None:
+        """The README trust table states the current case count.
+
+        References:
+            [REF-R-CORE-TEAM]. No mathematical equation is evaluated.
+
+        """
+        readme = (GUIDE.parents[2] / "README.md").read_text(encoding="utf-8")
+        self.assertEqual(
+            re.findall(r"(\d+) cases checked against R", readme), [str(len(CASES))]
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

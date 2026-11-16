@@ -13,6 +13,16 @@ while the public API remains pre-1.0 and experimental.
   leave-one-out choice on a two-mode sample (integrated squared error 0.050
   against 0.0076). The README maps the input-modeling methods and shows two
   of these figures.
+- **Parity with R:** `tools/r_oracles/parity.R` writes `tests/data/r_parity.json`
+  (136 cases on R's own datasets, with R and package versions, the exact R
+  call, and a justified tolerance each), and `tests/test_r_parity.py` checks
+  probstat against it without R: distribution functions of 17 families plus
+  the noncentral t and studentized range, descriptive statistics and KDE
+  bandwidths, classical tests, lm, glm, glm.nb, rlm, nls, lme, Kaplan-Meier,
+  log-rank, Cox, acf/pacf/arima, and fitdistrplus and ismev fits. No
+  probstat defect was found; definitional differences (the mad constant,
+  rlm's MAD constant, Kaplan-Meier interval type, arima's approximate diffuse
+  prior, glm `vcov` weights, the Fisher odds ratio) are recorded per case.
 - Overview presentation: an evidence slide on input laws built from data
   (19 slides). On 400 simulated wind maxima a naive Anderson-Darling test
   accepts a normal fit (p = 0.192); calibrated by the parametric bootstrap
