@@ -326,6 +326,54 @@ bartlett_test(heavy, light).p_value          # 1.27e-05
 brown_forsythe_test(heavy, light).p_value    # 0.173
 ```
 
+## Agreement with R
+
+Agreement with R is a test, not a claim in prose. The script
+`tools/r_oracles/parity.R` evaluates R 4.6.2 (base, the recommended packages
+MASS, nlme, and survival, plus fitdistrplus, ismev, and e1071) on literal
+copies of classic R datasets (`sleep`, `ToothGrowth`, `PlantGrowth`,
+`warpbreaks`, `mtcars`, `airquality`, `faithful`, `InsectSprays`,
+`chickwts`, `stackloss`, `esoph`, `lh`, `LakeHuron`, `Puromycin`,
+`aml`, `portpirie`, and small examples from the R help pages). It writes
+`tests/data/r_parity.json`, which records 136 parity cases: for each, the
+probstat target, the exact R call, the R values, the tolerance, and the
+reason for that tolerance, under a header with the R and package versions.
+`tests/test_r_parity.py` repeats every case in probstat and needs no R.
+After changing a case, regenerate the file from the repository root:
+
+```text
+Rscript tools/r_oracles/parity.R
+```
+
+The cases cover the d/p/q functions of 17 distribution families at central
+and tail points, the noncentral t and studentized range laws, quantile types
+1 and 7, variance, MAD, IQR, the trimmed mean, Pearson, Spearman, and Kendall
+correlation, e1071 type-1 skewness and kurtosis, the `bw.nrd0`, `bw.nrd`,
+`bw.ucv`, and `bw.bcv` bandwidths; the t tests and their power, exact and
+normal-approximation Wilcoxon tests, the binomial, Wilson, Fisher,
+chi-square, McNemar, Kolmogorov-Smirnov, Shapiro-Wilk, Kruskal-Wallis,
+Friedman, Bartlett, Levene, and Brown-Forsythe tests, one-way ANOVA, Tukey
+HSD, and `p.adjust`; `lm` with its diagnostics and sequential ANOVA, binomial
+(also grouped), Poisson, and Gamma `glm`, `MASS::glm.nb`, `MASS::rlm`,
+`nls`, and `nlme::lme` (REML); Kaplan-Meier, the log-rank test, and Cox
+models with Efron and Breslow ties; `acf`, `pacf`, `ar.yw`, and ML `arima`;
+and `fitdistrplus::fitdist` and `ismev::gev.fit` fits.
+
+Most cases agree to 1e-10 relative or better, because both sides evaluate the
+same closed form or special function. A looser tolerance appears only where
+one side stops an iterative algorithm early, and the record names it: R's
+optimizers in `fitdist`, `gev.fit`, `arima`, and `lme`, the binning in
+`bw.ucv`, and probstat's central-difference Hessian for distribution-fit
+standard errors. Where the two use different valid definitions, the R call
+is changed to probstat's definition and the record says so: `mad` with the
+unrounded constant `1/qnorm(0.75)`, `rlm` with the Huber constant rescaled
+to probstat's MAD constant, `survfit` with log-log intervals, the
+differenced series instead of `arima`'s approximate diffuse prior, and `glm`
+refitted from its converged coefficients so that `vcov` uses the final
+working weights. Comparisons that do not exist (quantile types 2-6, 8, and
+9, `HoltWinters`, `mgcv::gam`) are listed with their reasons under
+`skipped` in the JSON file.
+
 ## Limitations
 
 - Exact rank and permutation branches are pure-Python enumerations. They are
@@ -378,6 +426,13 @@ brown_forsythe_test(heavy, light).p_value    # 0.173
 - **Shapiro-Wilk at large n.** With thousands of observations
   `shapiro_wilk_test` rejects for departures from normality too small to
   matter; look at a Q-Q plot as well.
+- **Matching R to the last digit.** Some R defaults differ from probstat's
+  by definition, not by error: `mad` multiplies by the rounded 1.4826 (about
+  1.5e-6 relative from `median_absolute_deviation`), `MASS::rlm` scales by
+  `median|r| / 0.6745`, `survfit` reports log intervals rather than log-log,
+  and `vcov` of a `glm` uses the working weights of the iteration before the
+  last update. The records in `tests/data/r_parity.json` show the R call
+  that matches each probstat definition.
 - **Defaults and seeds.** `adjust_p_values` defaults to Holm (FWER control,
   not FDR); `bootstrap`, `bootstrap_confidence_interval`, and the Monte Carlo
   branch of `permutation_test` are reproducible only with an explicit `seed`
