@@ -3,7 +3,11 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
-## [Unreleased]
+## [0.23.0] — 2026-11-16
+
+probstat is checked case by case against R, gains an end-to-end
+input-modeling laboratory, and the guides, README, and overview
+presentation show the input-modeling constructions.
 
 ### Added
 
@@ -38,6 +42,11 @@ while the public API remains pre-1.0 and experimental.
   accepts a normal fit (p = 0.192); calibrated by the parametric bootstrap
   with 199 refits it rejects it (p = 0.005, the smallest value 199 refits
   can give), while the GEV fit passes (0.720) and wins the AIC by 19.3.
+
+### Counts
+
+- 3 equation records, 1 reference, one new laboratory (35 in total), 136
+  cases checked against R, and 1,717 public names in 33 packages.
 
 ## [0.22.0] — 2026-11-16
 
