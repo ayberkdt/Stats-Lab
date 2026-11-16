@@ -4263,3 +4263,13 @@ David W. Scott. *Multivariate Density Estimation: Theory, Practice, and
 Visualization*. Wiley, 2015. Normal-reference bandwidths and the
 multivariate kernel estimator.
 DOI: [10.1002/9781118575574](https://doi.org/10.1002/9781118575574).
+
+## REF-R-E1071
+
+David Meyer, Evgenia Dimitriadou, Kurt Hornik, Andreas Weingessel, and
+Friedrich Leisch. *e1071: Misc Functions of the Department of Statistics,
+Probability Theory Group (Formerly: E1071), TU Wien*. R package version
+1.7-17, 2025. The `type` argument of `skewness` and `kurtosis` (types 1 to
+3 after Joanes and Gill; type 3 is the default), read from the package help
+pages of version 1.7-17.
+DOI: [10.32614/CRAN.package.e1071](https://doi.org/10.32614/CRAN.package.e1071).
