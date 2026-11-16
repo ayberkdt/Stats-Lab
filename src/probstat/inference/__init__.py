@@ -16,6 +16,9 @@ Main entry points:
     ``linear_model_anova`` / ``factorial_design``: type I, II, and III ANOVA
         tables; ``nested_f_test``, ``breusch_pagan_test``, ``durbin_watson``.
     ``marginal_means``: estimated marginal means with Tukey-Kramer contrasts.
+    ``anderson_darling_test``: Anderson-Darling statistic with its
+        fully specified-null p-value (``anderson_darling_cdf``,
+        ``anderson_darling_asymptotic_cdf``).
     ``fit_glm``: generalized linear models fitted by IRLS.
     ``fit_linear_mixed_model``: linear mixed models by profiled ML or REML
         with Satterthwaite t tests.
@@ -108,6 +111,10 @@ from .additive_models import (
 from .amortized import (
     AmortizedGaussianPosterior,
     fit_amortized_gaussian_posterior,
+)
+from .anderson_darling import (
+    anderson_darling_asymptotic_cdf,
+    anderson_darling_cdf,
 )
 from .bayesian import (
     GaussianLinearPosterior,
@@ -630,6 +637,8 @@ __all__ = [
     "advi",
     "akaike_weights",
     "anderson_darling_test",
+    "anderson_darling_asymptotic_cdf",
+    "anderson_darling_cdf",
     "binomial_test",
     "bootstrap",
     "bootstrap_confidence_interval",

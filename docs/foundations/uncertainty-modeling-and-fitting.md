@@ -60,10 +60,85 @@ Both tests require careful calibration:
 - Anderson-Darling critical values and p-values depend on the null family and
   on whether parameters were estimated.
 
-Therefore the generic AD result reports the statistic without inventing a
-universal p-value. When parameters are estimated from the tested data, use
-`bootstrap_goodness_of_fit` (next section), which calibrates both statistics by
-a parametric bootstrap with refitting.
+### Anderson-Darling p-values for a fully specified null
+
+When the null CDF `F` is fixed in advance, `F(X_i)` are uniform and the law
+of `A_n^2` (`[EQ-INF-GOF-AD-001]`) depends on `n` only. Its limit
+`ADinf(z)` is a series in which each term is summed by a two-term recursion
+(`[EQ-INF-GOF-AD-002]`, [REF-MARSAGLIA-MARSAGLIA-2004, Section 2]);
+`anderson_darling_asymptotic_cdf` reproduces the paper's 30-digit values
+and an independent 30-digit quadrature to `5e-16`. For finite `n`,
+`P(A_n^2 < z) = x + errfix(n, x)` with `x = ADinf(z)`, where `errfix` is an
+empirical error curve fitted to `10^10` simulated statistics
+(`[EQ-INF-GOF-AD-003]`, Section 3); for `n = 1` the exact law
+`sqrt(1 - 4 exp(-1 - z))` applies (`[EQ-INF-GOF-AD-004]`).
+`anderson_darling_cdf` implements both, and `anderson_darling_test`
+reports `p_value = 1 - P(A_n^2 < a)` with a `method` label.
+
+Use it only when nothing in `F` was estimated from the tested sample: a
+specification, a design value, or a law fitted to other data. The stated
+accuracy is `5e-5` at `n = 8, 16, 32, 64, 128` and `5e-4` elsewhere; seeded
+simulations of four million statistics found deviations up to `5e-4` at
+`n = 8, 10, 50`, `6e-4` at `n = 5`, `0.004` at `n = 3`, and `0.012` at
+`n = 2`.
+The correction also leaves an upper-tail floor near `6e-4 / n`, so extreme
+statistics get small but conservative p-values.
+
+```python
+import random
+
+from probstat.distributions import Uniform
+from probstat.inference import (
+    NORMAL_FAMILY,
+    anderson_darling_asymptotic_cdf,
+    anderson_darling_cdf,
+    anderson_darling_test,
+    bootstrap_goodness_of_fit,
+    fit_normal_mle,
+    normality_tests,
+)
+
+anderson_darling_asymptotic_cdf(2.492)  # 0.94998, the classical 95% point
+anderson_darling_asymptotic_cdf(3.857)  # 0.98976, so 3.857 is not the 99% point
+anderson_darling_cdf(2.492, 10)         # 0.94875
+
+# Marsaglia and Marsaglia's first test sample, against Uniform(0, 1).
+spread = [0.0392, 0.0884, 0.260, 0.310, 0.454, 0.644, 0.797, 0.813, 0.921, 0.960]
+uniform_check = anderson_darling_test(spread, Uniform(0.0, 1.0))
+uniform_check.statistic  # 0.3632
+uniform_check.p_value    # 0.882
+```
+
+The classical 99% point `3.857` of Anderson and Darling (1954) is too small;
+the paper gives `3.8781250216...` (Section 2), and
+`anderson_darling_asymptotic_cdf` returns `0.99` there to `1e-13`. The
+paper's C routine `ADtest` returns the CDF value `P(A_n^2 < a)`, not the
+upper-tail p-value.
+
+When parameters are estimated, the fitted law sits closer to the data than
+the true law, `A_n^2` is stochastically smaller, and the case-0 p-value is
+too large. For a normal null with mean and standard deviation estimated,
+`normality_tests` applies Stephens' modified statistic and table
+(`[EQ-INF-GOF-NORM-003]`); for any fitted family, `bootstrap_goodness_of_fit`
+(next section) refits every replicate. Both are shown here on 30 lognormal
+values tested as normal:
+
+```python
+rng = random.Random(1)
+skewed = [rng.lognormvariate(0.0, 0.5) for _ in range(30)]
+fitted = fit_normal_mle(skewed)
+anderson_darling_test(skewed, fitted).p_value  # 0.40, case 0: too large
+bootstrap_goodness_of_fit(skewed, NORMAL_FAMILY, n_bootstrap=199, seed=1).ad_p_value  # 0.01
+normality_tests(skewed).anderson_darling.p_value  # 0.021, Stephens
+
+rng = random.Random(30)
+naive = []
+for _ in range(200):
+    normal_sample = [rng.gauss(0.0, 1.0) for _ in range(30)]
+    naive.append(anderson_darling_test(normal_sample, fit_normal_mle(normal_sample)).p_value)
+sum(p < 0.10 for p in naive)  # 0, where a calibrated test gives about 20
+sum(naive) / len(naive)       # 0.85, where a calibrated test gives about 0.5
+```
 
 ## Generic fitting, calibrated goodness of fit, and model selection
 
@@ -320,6 +395,12 @@ than hiding it.
 - **Fitted nulls need calibrated p-values.** Ordinary KS p-values against
   parameters fitted to the same data are too large; use
   `bootstrap_goodness_of_fit`, which refits every replicate.
+- **Case-0 Anderson-Darling p-values assume nothing was fitted.**
+  `anderson_darling_test(...).p_value` is calibrated only for a fully
+  specified null; against a law fitted to the same data it is too large
+  (0.40 against 0.01 for the lognormal sample above). Use
+  `normality_tests` for a fitted normal and `bootstrap_goodness_of_fit`
+  otherwise.
 - **The bootstrap p-value has a floor.** It is `(1 + exceedances) / (1 + B)`,
   so with `select_distribution`'s default `n_bootstrap=99` the smallest value
   is `0.01`; a reported `0.01` means "at or below the floor".
@@ -346,7 +427,8 @@ statistics.variance([1.0, 2.0, 3.0, 4.0])        # 1.6667, divisor n - 1
 - [REF-WILSON-1927].
 - [REF-AKAIKE-1974], [REF-SCHWARZ-1978], [REF-HURVICH-TSAI-1989].
 - [REF-BURNHAM-ANDERSON-2002, Chapter 2].
-- [REF-LILLIEFORS-1967], [REF-STEPHENS-1974].
+- [REF-LILLIEFORS-1967], [REF-STEPHENS-1974], [REF-STEPHENS-1986].
+- [REF-MARSAGLIA-MARSAGLIA-2004], [REF-ANDERSON-DARLING-1954].
 - [REF-DAVISON-HINKLEY-1997, Chapter 4].
 - [REF-WILK-GNANADESIKAN-1968].
 - [REF-GENEST-GHOUDI-RIVEST-1995], [REF-KRUSKAL-1958].
