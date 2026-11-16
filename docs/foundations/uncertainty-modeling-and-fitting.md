@@ -32,6 +32,187 @@ a Gaussian law lives on a lower-dimensional affine subspace and needs a
 different measure/density contract; silently adding jitter would alter the
 model.
 
+## Which construction for which information
+
+An input law should encode the information that is actually available and
+nothing more. Three situations call for three constructions:
+
+| Available information | Construction | Call |
+|---|---|---|
+| Expert statements only: a range, a mean, a spread, a skewness, a tail weight | Maximum-entropy law under those constraints [EQ-DIST-MAXENT-001] | `maximum_entropy` |
+| Expert statements and a modest sample | Parametric family fitted to the data, the family chosen with the expert's support and shape | `fit_distribution`, `select_distribution` |
+| Many observations | Kernel density estimate with a data-driven bandwidth [EQ-STAT-KDE-004] | `gaussian_kde`, `select_kde_bandwidth`, `gaussian_kde_multivariate` |
+
+The boundaries are soft. A maximum-entropy law is the least committal law
+consistent with the statements, so it is the honest default before data
+arrive; a parametric family adds a shape assumption that a modest sample can
+check but not replace; a kernel estimate adds no shape assumption, which is
+only affordable when the sample is large enough to show the shape itself.
+
+## Maximum-entropy laws from expert constraints
+
+Given a support `K` and constraints `E[g_m(X)] = h_m`, the density of
+largest differential entropy is `f(x) = 1_K(x) exp(-lambda_0 - sum_m
+lambda_m g_m(x))` [REF-JAYNES-1957]. The multipliers minimize the convex dual
+`Gamma(lambda) = log int_K exp(-sum_m lambda_m (g_m - h_m)) dx`, whose
+gradient is `h - E[g]` and whose Hessian is `Cov[g]`
+[REF-MEAD-PAPANICOLAOU-1984]; `maximum_entropy` runs Newton's method with a
+backtracking line search on it (or BFGS with `method="bfgs"`), integrates
+with composite Kronrod panels, and confirms the constraints afterwards by
+adaptive Gauss-Kronrod quadrature. At the optimum the entropy equals the
+minimum of the dual, `lambda_0 + sum_m lambda_m h_m`
+[REF-COVER-THOMAS-2006, Chapter 12].
+
+The classical laws are special cases: no constraint on `[a, b]` gives the
+uniform law, a mean on a half-line the exponential law, a mean and a
+variance on the real line the normal law, and `E[log X]` with `E[X]` on
+`[0, inf)` the gamma law.
+
+```python
+from probstat.distributions import maximum_entropy
+
+maximum_entropy(0.0, mean=2.0).multipliers  # (0.5,), the exponential rate
+normal = maximum_entropy(mean=1.0, variance=4.0)
+normal.multipliers  # (-0.25, 0.125), the exponent (x - 1)^2 / 8
+normal.entropy      # 2.1121, that is log(2 sqrt(2 pi e))
+```
+
+The ATHENS example states a range `[-5, 5]`, a mean 1, a variance 1, a
+skewness 2, and `E[((X - mu)/sigma)^4] = 10`, an excess kurtosis of 7.
+These moments are feasible: Pearson's inequality `10 > 2^2 + 1` holds
+[REF-WILKINS-1944], and the Hankel and localizing matrices of `[-5, 5]` are
+positive definite [EQ-DIST-MAXENT-002]. The quartic multiplier of the
+solution is negative, so the density rises again towards both ends of the
+range: a kurtosis of 10 asks for tail mass that a bounded range can only
+hold near its ends, and one percent of the probability lies above 4.96.
+
+```python
+course = maximum_entropy(
+    -5.0, 5.0, mean=1.0, variance=1.0, skewness=2.0, excess_kurtosis=7.0
+)
+course.diagnostics.converged                    # True
+max(abs(r) for r in course.residuals) < 1e-10  # True
+course.multipliers[3] < 0.0                     # True
+course.pdf(1.0)          # 0.603
+course.pdf(5.0)          # 0.330
+course.pdf(-5.0)         # 0.0104
+course.quantile(0.99)    # 4.964
+course.entropy           # 1.0373
+```
+
+Infeasible constraints raise before any iteration, and constraints that no
+density on an unbounded support can attain raise after the solve with the
+reason:
+
+```python
+try:
+    maximum_entropy(
+        -5.0, 5.0, mean=1.0, variance=1.0, skewness=2.0, excess_kurtosis=1.5
+    )
+except ValueError as error:
+    print(error)
+# kurtosis E[Z^4] = 4.5 must exceed skewness^2 + 1 = 5.0 (Pearson's inequality)
+```
+
+### Common pitfalls
+
+- **The law encodes only the stated constraints.** A maximum-entropy law
+  with a mean and a variance on the real line is normal because nothing else
+  was said; it does not certify normal tails. Add the constraints the expert
+  can defend (a range, `E[log X]`, a tail moment) rather than reading shape
+  into the result.
+- **A bounded range can distort high moments.** With a large kurtosis on a
+  short range the density piles up at the ends, as in the example above.
+  Check `pdf` at the ends before using the law in a reliability analysis.
+- **Unbounded supports need decaying exponents.** On the real line the top
+  constrained moment must have even order with a positive multiplier;
+  moments such as mean 0, variance 1, skewness 0, kurtosis 4 have no
+  maximum-entropy density there [REF-JUNK-2000], and `maximum_entropy`
+  raises instead of returning a law with mass at infinity.
+- **`excess_kurtosis` is excess.** The course writes the standardized fourth
+  moment (10); pass `excess_kurtosis=7.0`, consistent with the `kurtosis`
+  property of every distribution in `probstat.distributions`.
+
+## Kernel density estimates with selected bandwidths
+
+A Gaussian kernel estimate `f_h(x) = (1/(n h)) sum_i phi((x - x_i)/h)`
+[EQ-STAT-KDE-001] is only as good as its bandwidth. The rules of thumb
+(`kde_bandwidth`, R's `bw.nrd0` and `bw.nrd` [EQ-STAT-KDE-003]) are optimal
+for normal data and oversmooth multimodal data. `select_kde_bandwidth`
+chooses `h` from the data instead:
+
+- `method="likelihood"` maximizes the leave-one-out log-likelihood
+  `L_LOO(h) = sum_i log((1/(n-1)) sum_(j != i) phi_h(x_i - x_j))`
+  [EQ-STAT-KDE-004] [REF-DUIN-1976];
+- `method="ucv"` minimizes the unbiased (least-squares) cross-validation
+  score and `method="bcv"` the biased one [EQ-STAT-KDE-005]
+  [REF-SCOTT-TERRELL-1987], the criteria of R's `bw.ucv` and `bw.bcv`
+  evaluated on exact rather than binned distances.
+
+Leaving `x_i` out is essential: the in-sample log-likelihood contains
+`phi_h(0) = 1/(h sqrt(2 pi))` in every term, so it grows without bound as
+`h -> 0`, while the leave-one-out version falls.
+
+```python
+from probstat.distributions import Mixture, Normal
+from probstat.statistics import (
+    gaussian_kde,
+    gaussian_kde_multivariate,
+    kde_bandwidth,
+    kde_loo_log_likelihood,
+    select_kde_bandwidth,
+)
+
+law = Mixture((Normal(-2.0, 0.5), Normal(2.0, 0.5)), (0.5, 0.5))
+sample = law.sample(200, seed=2026)
+kde_bandwidth(sample)                                        # 0.661
+select_kde_bandwidth(sample, method="likelihood").bandwidth  # 0.243
+select_kde_bandwidth(sample, method="ucv").bandwidth         # 0.183
+law.pdf(2.0)                                                 # 0.399
+gaussian_kde(sample).pdf(2.0)                                # 0.240
+gaussian_kde(sample, bandwidth="likelihood").pdf(2.0)        # 0.388
+kde_loo_log_likelihood(sample[:20], 1e-3, leave_one_out=False)  # 59.86
+kde_loo_log_likelihood(sample[:20], 1e-6, leave_one_out=False)  # 198.02
+```
+
+Silverman's bandwidth flattens each mode to 0.240 against a true peak of
+0.399; the cross-validated bandwidths keep it.
+
+For `d`-dimensional data `gaussian_kde_multivariate` uses the kernel
+covariance `h^2 R`, with `R` the sample covariance, so every kernel has the
+shape of the data cloud [EQ-STAT-KDE-006]. Silverman's factor is
+`h = (4 / (N (d + 2)))^(1/(d+4))` [REF-SILVERMAN-1986, Chapter 4]; with
+`bandwidth="likelihood"` the factor maximizes the leave-one-out
+log-likelihood instead.
+
+```python
+x = law.sample(150, seed=1)
+noise = Normal(0.0, 0.3).sample(150, seed=2)
+points = [(u, 0.5 * u + e) for u, e in zip(x, noise)]
+gaussian_kde_multivariate(points).factor                           # 0.434
+gaussian_kde_multivariate(points, bandwidth="likelihood").factor   # 0.236
+```
+
+### Common pitfalls
+
+- **Silverman over-smooths multimodal or curved data.** Its factor is the
+  optimum for a single normal law; on two separated modes it fills the
+  trough and lowers the peaks, as above. In several dimensions one factor
+  scales a single covariance, so a curved or clustered cloud is smoothed
+  across its gaps; select the factor by the likelihood or reduce the
+  dimension first.
+- **The leave-one-out likelihood is pulled up by outliers.** A distant
+  observation is predicted only by wide kernels, so a few outliers inflate
+  the selected bandwidth (Newcomb's passage times with two outliers give
+  `8.08` against Silverman's `1.96`). Prefer `"ucv"` for data with outliers or
+  heavy tails.
+- **Rounded data break cross-validation.** When every value is repeated the
+  leave-one-out likelihood grows without bound as `h -> 0`; the search then
+  stops at the lower end of the interval and warns.
+- **R's values differ slightly.** R bins the pairwise distances (1000 bins)
+  and stops `optimize` at a tolerance of `0.01 h_os`, so its `bw.ucv` and
+  `bw.bcv` agree with the exact minimizers only to about one percent.
+
 ## Estimation is not uncertainty elimination
 
 `fit_normal_mle` and `fit_lognormal_mle` implement closed-form maximum

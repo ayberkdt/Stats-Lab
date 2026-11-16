@@ -4655,6 +4655,53 @@ of `exp(-a s - s^2/2)`).
   `distributions.TruncatedNormal.cdf`, `distributions.TruncatedNormal.sf`.
 - Source: [REF-NIST-DLMF, Section 7.2] and [REF-JKB-1994, Chapter 13].
 
+### EQ-DIST-MAXENT-001 — Maximum-entropy density and its convex dual
+
+Maximize `-int_K f log f` subject to `int_K f = 1` and
+`int_K g_m f = h_m`, `m = 1..M`. The maximizer is
+`f(x) = 1_K(x) exp(-lambda_0 - sum_m lambda_m g_m(x))` with
+`lambda_0 = log int_K exp(-sum_m lambda_m g_m)`, and `lambda` minimizes the
+convex dual `Gamma(lambda) = log int_K exp(-sum_m lambda_m (g_m(x) - h_m)) dx`
+(equivalently `<Lambda, H> + int_K exp(-<Lambda, G>)` with `g_0 = h_0 = 1`,
+after minimizing over `lambda_0`). Gradient `h - E_lambda[g]`, Hessian
+`Cov_lambda[g]`; Newton step `Cov[g] delta = E[g] - h`. At the optimum the
+entropy is `lambda_0 + sum_m lambda_m h_m = min Gamma`. Closed forms: no
+constraint on `[a, b]` gives `U(a, b)`; `E[X] = mu` on `[a, inf)` gives the
+exponential law with rate `1/(mu - a)`; mean and variance on the real line
+give `N(mu, sigma^2)`; `E[X] = mu` on `[a, b]` gives `f ∝ exp(-lambda x)`
+with `mu = a + 1/lambda - (b - a)/(exp(lambda (b - a)) - 1)`.
+
+- Domain: `K` an interval; the `g_m` linearly independent on `K` and the
+  targets in the interior of their attainable set. On an unbounded `K` the
+  exponent must tend to `+inf` at every infinite end; otherwise the
+  supremum may not be attained.
+- Meaning: the least-informative law that encodes exactly the stated
+  constraints and nothing else.
+- Code: `distributions.maximum_entropy.maximum_entropy`,
+  `distributions.maximum_entropy.MaximumEntropy`.
+- Source: [REF-JAYNES-1957], [REF-MEAD-PAPANICOLAOU-1984],
+  [REF-COVER-THOMAS-2006, Chapter 12], [REF-JUNK-2000].
+
+### EQ-DIST-MAXENT-002 — Interior of the truncated moment space
+
+Raw moments `m_0 = 1, m_1..m_K` of a density on `K` satisfy: the Hankel
+matrix `[m_(i+j)]_(i,j <= K/2)` is positive definite and, on `[a, inf)`,
+`[m_(i+j+1) - a m_(i+j)]` is positive definite; on `(-inf, b]`,
+`[b m_(i+j) - m_(i+j+1)]`; on `[a, b]`, for even `K`
+`[(a + b) m_(i+j+1) - m_(i+j+2) - a b m_(i+j)]_(i,j <= K/2 - 1)` and, for odd
+`K`, both half-line matrices. Special cases: Pearson's inequality
+`E[Z^4] > (E[Z^3])^2 + 1` for the standardized variable and the
+Bhatia-Davis bound `Var X < (mu - a)(b - mu)`. The test is applied to the
+standardized moments `E[((X - c)/s)^k]`, obtained by binomial expansion.
+
+- Domain: contiguous orders `1..K`; equality (a singular matrix) means only
+  a finite discrete law has these moments.
+- Meaning: moments outside this set cannot belong to any density, so no
+  maximum-entropy law exists for them.
+- Code: `distributions.maximum_entropy.maximum_entropy`.
+- Source: [REF-SCHMUDGEN-2017], [REF-KREIN-NUDELMAN-1977],
+  [REF-WILKINS-1944], [REF-BHATIA-DAVIS-2000].
+
 ## Multilevel Monte Carlo, adaptive rare-event sampling, and Shapley effects
 
 ### EQ-MC-MLMC-001 — Multilevel telescoping estimator
@@ -7284,6 +7331,78 @@ marginal space.
 - Code: `statistics.density.gaussian_kde`, `statistics.density.kde_bandwidth`,
   `statistics.density.KernelDensity`.
 - Source: [REF-SILVERMAN-1986, Sections 3.3 and 3.4.2].
+
+### EQ-STAT-KDE-003 — R's normal-reference bandwidth `bw.nrd`
+
+`h = 1.06 min(s, IQR/1.34) n^(-1/5)`.
+
+- Domain: at least two finite observations; `s` is the sample standard
+  deviation (divisor `n - 1`) and `IQR` the type-7 interquartile range; a
+  zero IQR falls back to `s` (R returns zero there).
+- Meaning: the normal reference rule with Silverman's robust spread, the
+  variation R calls `bw.nrd`; `kde_bandwidth(rule="silverman")` is R's
+  `bw.nrd0` (factor `0.9`).
+- Code: `statistics.density.kde_bandwidth`.
+- Source: [REF-SCOTT-2015], [REF-R-CORE-TEAM].
+
+### EQ-STAT-KDE-004 — Leave-one-out likelihood cross-validation
+
+`L_LOO(h) = sum_i log((1/(n-1)) sum_(j != i) phi_h(x_i - x_j))`, with
+`phi_h(u) = exp(-u^2/(2h^2)) / (h sqrt(2 pi))`; the selected bandwidth
+maximizes `L_LOO`. The in-sample log-likelihood
+`sum_i log((1/n) sum_j phi_h(x_i - x_j)) >= n log(1/(n h sqrt(2 pi)))`
+tends to `+inf` as `h -> 0`. Derivative:
+`dL_LOO/d log h = sum_i (sum_j D_ij^2 w_ij / sum_j w_ij) - n`,
+`D_ij = (x_i - x_j)/h`, `w_ij = exp(-D_ij^2/2)`.
+
+- Domain: `h > 0`; at least two observations. When every observation is
+  repeated (heavily rounded data), `L_LOO` grows without bound as `h -> 0`.
+- Meaning: the bandwidth that best predicts each observation from the
+  others in Kullback-Leibler terms; sensitive to outliers and heavy tails,
+  which pull it towards large `h`.
+- Code: `statistics.bandwidth_selection.kde_loo_log_likelihood`,
+  `statistics.bandwidth_selection.select_kde_bandwidth`.
+- Source: [REF-DUIN-1976], [REF-SILVERMAN-1986, Section 3.4].
+
+### EQ-STAT-KDE-005 — Unbiased and biased cross-validation scores
+
+With `D = (x_i - x_j)/h` over pairs `i < j`:
+`UCV(h) = 1/(2 n h sqrt(pi)) + (1/(n^2 h sqrt(pi))) sum (exp(-D^2/4) - sqrt(8) exp(-D^2/2))`
+and
+`BCV(h) = 1/(2 n h sqrt(pi)) + (1/(64 n^2 h sqrt(pi))) sum exp(-D^2/4)(D^4 - 12 D^2 + 12)`;
+search interval `[0.1 h_os, h_os]`, `h_os = 1.144 s n^(-1/5)`.
+
+- Domain: `h > 0`; pairs with `D^2 >= 1000` are dropped, as in R.
+- Meaning: `UCV` estimates `ISE(h) - int f^2` (least-squares
+  cross-validation); `BCV` is the asymptotic MISE with a kernel estimate of
+  `int f''^2` and tends to zero as `h -> inf`, so its interior local minimum
+  is used. R's `bw.ucv` and `bw.bcv` evaluate the same scores on binned
+  pairwise distances.
+- Code: `statistics.bandwidth_selection.kde_ucv`,
+  `statistics.bandwidth_selection.kde_bcv`,
+  `statistics.bandwidth_selection.oversmoothed_bandwidth`,
+  `statistics.bandwidth_selection.select_kde_bandwidth`.
+- Source: [REF-SCOTT-TERRELL-1987], [REF-BOWMAN-1984], [REF-R-CORE-TEAM].
+
+### EQ-STAT-KDE-006 — Multivariate Gaussian KDE with a covariance-shaped kernel
+
+`f_h(x) = (1/N) sum_i phi_d(x - x_i; h^2 R)`, `R` the sample covariance
+(divisor `N - 1`); Silverman's factor `h = (4 / (N (d + 2)))^(1/(d+4))`,
+Scott's factor `h = N^(-1/(d+4))`; the leave-one-out log-likelihood
+`sum_i log((1/(N-1)) sum_(j != i) phi_d(x_i - x_j; h^2 R))` selects `h`.
+The estimate has mean `xbar` and covariance `((N - 1)/N + h^2) R`; draws are
+`x_J + h L Z` with `R = L L'`.
+
+- Domain: `N > d`, `R` positive definite, `h > 0`.
+- Meaning: every kernel has the shape of the data cloud, so one scalar
+  factor smooths all directions in proportion to their spread; the
+  normal-reference factor oversmooths multimodal or curved data.
+- Code: `statistics.multivariate_density.gaussian_kde_multivariate`,
+  `statistics.multivariate_density.multivariate_kde_factor`,
+  `statistics.multivariate_density.multivariate_kde_loo_log_likelihood`,
+  `statistics.multivariate_density.MultivariateKernelDensity`.
+- Source: [REF-SILVERMAN-1986, Chapter 4], [REF-SCOTT-2015],
+  [REF-DUIN-1976].
 
 ## Model discrepancy and heteroscedastic calibration (Kennedy-O'Hagan)
 
