@@ -1,0 +1,2802 @@
+{
+  "generator": "tools/r_oracles/parity.R",
+  "r_version": "R version 4.6.2 (2026-10-29 ucrt)",
+  "packages": {
+    "stats": "4.6.2",
+    "MASS": "7.3.66",
+    "nlme": "3.1.171",
+    "survival": "3.8.12",
+    "fitdistrplus": "1.2.6",
+    "ismev": "1.43",
+    "e1071": "1.7.17"
+  },
+  "comparison": "A value passes when |probstat - R| <= absolute + relative * |R|.",
+  "case_count": 136,
+  "helpers": {
+    "htest_values": "function (r) \n{\n    out <- list(statistic = unname(r$statistic))\n    if (!is.null(r$parameter)) \n        out$df <- unname(r$parameter)\n    out$p_value <- r$p.value\n    if (!is.null(r$conf.int)) \n        out$conf_int <- as.numeric(r$conf.int)\n    out\n}",
+    "abs_deviation_anova": "function (y, g, centre) \n{\n    d <- abs(y - ave(y, g, FUN = centre))\n    a <- anova(lm(d ~ g))\n    list(statistic = a[[\"F value\"]][1], df = a[[\"Df\"]], p_value = a[[\"Pr(>F)\"]][1])\n}"
+  },
+  "datasets": {
+    "sleep": {
+      "extra": [0.7, -1.6, -0.2, -1.2, -0.1, 3.4, 3.7, 0.8, 0, 2, 1.9, 0.8, 1.1, 0.1, -0.1, 4.4, 5.5, 1.6, 4.6, 3.4],
+      "group": ["1", "1", "1", "1", "1", "1", "1", "1", "1", "1", "2", "2", "2", "2", "2", "2", "2", "2", "2", "2"],
+      "ID": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
+    },
+    "ToothGrowth": {
+      "len": [4.2, 11.5, 7.3, 5.8, 6.4, 10, 11.2, 11.2, 5.2, 7, 16.5, 16.5, 15.2, 17.3, 22.5, 17.3, 13.6, 14.5, 18.8, 15.5, 23.6, 18.5, 33.9, 25.5, 26.4, 32.5, 26.7, 21.5, 23.3, 29.5, 15.2, 21.5, 17.6, 9.7, 14.5, 10, 8.2, 9.4, 16.5, 9.7, 19.7, 23.3, 23.6, 26.4, 20, 25.2, 25.8, 21.2, 14.5, 27.3, 25.5, 26.4, 22.4, 24.5, 24.8, 30.9, 26.4, 27.3, 29.4, 23],
+      "supp": ["VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "VC", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ", "OJ"],
+      "dose": [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]
+    },
+    "PlantGrowth": {
+      "weight": [4.17, 5.58, 5.18, 6.11, 4.5, 4.61, 5.17, 4.53, 5.33, 5.14, 4.81, 4.17, 4.41, 3.59, 5.87, 3.83, 6.03, 4.89, 4.32, 4.69, 6.31, 5.12, 5.54, 5.5, 5.37, 5.29, 4.92, 6.15, 5.8, 5.26],
+      "group": ["ctrl", "ctrl", "ctrl", "ctrl", "ctrl", "ctrl", "ctrl", "ctrl", "ctrl", "ctrl", "trt1", "trt1", "trt1", "trt1", "trt1", "trt1", "trt1", "trt1", "trt1", "trt1", "trt2", "trt2", "trt2", "trt2", "trt2", "trt2", "trt2", "trt2", "trt2", "trt2"]
+    },
+    "warpbreaks": {
+      "breaks": [26, 30, 54, 25, 70, 52, 51, 26, 67, 18, 21, 29, 17, 12, 18, 35, 30, 36, 36, 21, 24, 18, 10, 43, 28, 15, 26, 27, 14, 29, 19, 29, 31, 41, 20, 44, 42, 26, 19, 16, 39, 28, 21, 39, 29, 20, 21, 24, 17, 13, 15, 15, 16, 28],
+      "wool": ["A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B"],
+      "tension": ["L", "L", "L", "L", "L", "L", "L", "L", "L", "M", "M", "M", "M", "M", "M", "M", "M", "M", "H", "H", "H", "H", "H", "H", "H", "H", "H", "L", "L", "L", "L", "L", "L", "L", "L", "L", "M", "M", "M", "M", "M", "M", "M", "M", "M", "H", "H", "H", "H", "H", "H", "H", "H", "H"]
+    },
+    "mtcars": {
+      "mpg": [21, 21, 22.8, 21.4, 18.7, 18.1, 14.3, 24.4, 22.8, 19.2, 17.8, 16.4, 17.3, 15.2, 10.4, 10.4, 14.7, 32.4, 30.4, 33.9, 21.5, 15.5, 15.2, 13.3, 19.2, 27.3, 26, 30.4, 15.8, 19.7, 15, 21.4],
+      "cyl": [6, 6, 4, 6, 8, 6, 8, 4, 4, 6, 6, 8, 8, 8, 8, 8, 8, 4, 4, 4, 4, 8, 8, 8, 8, 4, 4, 4, 8, 6, 8, 4],
+      "hp": [110, 110, 93, 110, 175, 105, 245, 62, 95, 123, 123, 180, 180, 180, 205, 215, 230, 66, 52, 65, 97, 150, 150, 245, 175, 66, 91, 113, 264, 175, 335, 109],
+      "wt": [2.62, 2.875, 2.32, 3.215, 3.44, 3.46, 3.57, 3.19, 3.15, 3.44, 3.44, 4.07, 3.73, 3.78, 5.25, 5.424, 5.345, 2.2, 1.615, 1.835, 2.465, 3.52, 3.435, 3.84, 3.845, 1.935, 2.14, 1.513, 3.17, 2.77, 3.57, 2.78],
+      "am": [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1]
+    },
+    "airquality": {
+      "Ozone": [41, 36, 12, 18, 28, 23, 19, 8, 7, 16, 11, 14, 18, 14, 34, 6, 30, 11, 1, 11, 4, 32, 23, 45, 115, 37, 29, 71, 39, 23, 21, 37, 20, 12, 13, 135, 49, 32, 64, 40, 77, 97, 97, 85, 10, 27, 7, 48, 35, 61, 79, 63, 16, 80, 108, 20, 52, 82, 50, 64, 59, 39, 9, 16, 78, 35, 66, 122, 89, 110, 44, 28, 65, 22, 59, 23, 31, 44, 21, 9, 45, 168, 73, 76, 118, 84, 85, 96, 78, 73, 91, 47, 32, 20, 23, 21, 24, 44, 21, 28, 9, 13, 46, 18, 13, 24, 16, 13, 23, 36, 7, 14, 30, 14, 18, 20],
+      "Temp": [67, 72, 74, 62, 66, 65, 59, 61, 74, 69, 66, 68, 58, 64, 66, 57, 68, 62, 59, 73, 61, 61, 67, 81, 79, 76, 82, 90, 87, 82, 77, 72, 65, 73, 76, 84, 85, 81, 83, 83, 88, 92, 92, 89, 73, 81, 80, 81, 82, 84, 87, 85, 74, 86, 85, 82, 86, 88, 86, 83, 81, 81, 81, 82, 86, 85, 87, 89, 90, 90, 86, 82, 80, 77, 79, 76, 78, 78, 77, 72, 79, 81, 86, 97, 94, 96, 94, 91, 92, 93, 93, 87, 84, 80, 78, 75, 73, 81, 76, 77, 71, 71, 78, 67, 76, 68, 82, 64, 71, 81, 69, 63, 70, 75, 76, 68]
+    },
+    "faithful": {
+      "eruptions": [3.6, 1.8, 3.333, 2.283, 4.533, 2.883, 4.7, 3.6, 1.95, 4.35, 1.833, 3.917, 4.2, 1.75, 4.7, 2.167, 1.75, 4.8, 1.6, 4.25, 1.8, 1.75, 3.45, 3.067, 4.533, 3.6, 1.967, 4.083, 3.85, 4.433, 4.3, 4.467, 3.367, 4.033, 3.833, 2.017, 1.867, 4.833, 1.833, 4.783, 4.35, 1.883, 4.567, 1.75, 4.533, 3.317, 3.833, 2.1, 4.633, 2, 4.8, 4.716, 1.833, 4.833, 1.733, 4.883, 3.717, 1.667, 4.567, 4.317, 2.233, 4.5, 1.75, 4.8, 1.817, 4.4, 4.167, 4.7, 2.067, 4.7, 4.033, 1.967, 4.5, 4, 1.983, 5.067, 2.017, 4.567, 3.883, 3.6, 4.133, 4.333, 4.1, 2.633, 4.067, 4.933, 3.95, 4.517, 2.167, 4, 2.2, 4.333, 1.867, 4.817, 1.833, 4.3, 4.667, 3.75, 1.867, 4.9, 2.483, 4.367, 2.1, 4.5, 4.05, 1.867, 4.7, 1.783, 4.85, 3.683, 4.733, 2.3, 4.9, 4.417, 1.7, 4.633, 2.317, 4.6, 1.817, 4.417, 2.617, 4.067, 4.25, 1.967, 4.6, 3.767, 1.917, 4.5, 2.267, 4.65, 1.867, 4.167, 2.8, 4.333, 1.833, 4.383, 1.883, 4.933, 2.033, 3.733, 4.233, 2.233, 4.533, 4.817, 4.333, 1.983, 4.633, 2.017, 5.1, 1.8, 5.033, 4, 2.4, 4.6, 3.567, 4, 4.5, 4.083, 1.8, 3.967, 2.2, 4.15, 2, 3.833, 3.5, 4.583, 2.367, 5, 1.933, 4.617, 1.917, 2.083, 4.583, 3.333, 4.167, 4.333, 4.5, 2.417, 4, 4.167, 1.883, 4.583, 4.25, 3.767, 2.033, 4.433, 4.083, 1.833, 4.417, 2.183, 4.8, 1.833, 4.8, 4.1, 3.966, 4.233, 3.5, 4.366, 2.25, 4.667, 2.1, 4.35, 4.133, 1.867, 4.6, 1.783, 4.367, 3.85, 1.933, 4.5, 2.383, 4.7, 1.867, 3.833, 3.417, 4.233, 2.4, 4.8, 2, 4.15, 1.867, 4.267, 1.75, 4.483, 4, 4.117, 4.083, 4.267, 3.917, 4.55, 4.083, 2.417, 4.183, 2.217, 4.45, 1.883, 1.85, 4.283, 3.95, 2.333, 4.15, 2.35, 4.933, 2.9, 4.583, 3.833, 2.083, 4.367, 2.133, 4.35, 2.2, 4.45, 3.567, 4.5, 4.15, 3.817, 3.917, 4.45, 2, 4.283, 4.767, 4.533, 1.85, 4.25, 1.983, 2.25, 4.75, 4.117, 2.15, 4.417, 1.817, 4.467],
+      "waiting": [79, 54, 74, 62, 85, 55, 88, 85, 51, 85, 54, 84, 78, 47, 83, 52, 62, 84, 52, 79, 51, 47, 78, 69, 74, 83, 55, 76, 78, 79, 73, 77, 66, 80, 74, 52, 48, 80, 59, 90, 80, 58, 84, 58, 73, 83, 64, 53, 82, 59, 75, 90, 54, 80, 54, 83, 71, 64, 77, 81, 59, 84, 48, 82, 60, 92, 78, 78, 65, 73, 82, 56, 79, 71, 62, 76, 60, 78, 76, 83, 75, 82, 70, 65, 73, 88, 76, 80, 48, 86, 60, 90, 50, 78, 63, 72, 84, 75, 51, 82, 62, 88, 49, 83, 81, 47, 84, 52, 86, 81, 75, 59, 89, 79, 59, 81, 50, 85, 59, 87, 53, 69, 77, 56, 88, 81, 45, 82, 55, 90, 45, 83, 56, 89, 46, 82, 51, 86, 53, 79, 81, 60, 82, 77, 76, 59, 80, 49, 96, 53, 77, 77, 65, 81, 71, 70, 81, 93, 53, 89, 45, 86, 58, 78, 66, 76, 63, 88, 52, 93, 49, 57, 77, 68, 81, 81, 73, 50, 85, 74, 55, 77, 83, 83, 51, 78, 84, 46, 83, 55, 81, 57, 76, 84, 77, 81, 87, 77, 51, 78, 60, 82, 91, 53, 78, 46, 77, 84, 49, 83, 71, 80, 49, 75, 64, 76, 53, 94, 55, 76, 50, 82, 54, 75, 78, 79, 78, 78, 70, 79, 70, 54, 86, 50, 90, 54, 54, 77, 79, 64, 75, 47, 86, 63, 85, 82, 57, 82, 67, 74, 54, 83, 73, 73, 88, 80, 71, 83, 56, 79, 78, 84, 58, 83, 43, 60, 75, 81, 46, 90, 46, 74]
+    },
+    "InsectSprays": {
+      "count": [10, 7, 20, 14, 14, 12, 10, 23, 17, 20, 14, 13, 11, 17, 21, 11, 16, 14, 17, 17, 19, 21, 7, 13, 0, 1, 7, 2, 3, 1, 2, 1, 3, 0, 1, 4, 3, 5, 12, 6, 4, 3, 5, 5, 5, 5, 2, 4, 3, 5, 3, 5, 3, 6, 1, 1, 3, 2, 6, 4, 11, 9, 15, 22, 15, 16, 13, 10, 26, 26, 24, 13],
+      "spray": ["A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "A", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "B", "C", "C", "C", "C", "C", "C", "C", "C", "C", "C", "C", "C", "D", "D", "D", "D", "D", "D", "D", "D", "D", "D", "D", "D", "E", "E", "E", "E", "E", "E", "E", "E", "E", "E", "E", "E", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F", "F"]
+    },
+    "chickwts": {
+      "weight": [179, 160, 136, 227, 217, 168, 108, 124, 143, 140, 309, 229, 181, 141, 260, 203, 148, 169, 213, 257, 244, 271, 243, 230, 248, 327, 329, 250, 193, 271, 316, 267, 199, 171, 158, 248, 423, 340, 392, 339, 341, 226, 320, 295, 334, 322, 297, 318, 325, 257, 303, 315, 380, 153, 263, 242, 206, 344, 258, 368, 390, 379, 260, 404, 318, 352, 359, 216, 222, 283, 332],
+      "feed": ["horsebean", "horsebean", "horsebean", "horsebean", "horsebean", "horsebean", "horsebean", "horsebean", "horsebean", "horsebean", "linseed", "linseed", "linseed", "linseed", "linseed", "linseed", "linseed", "linseed", "linseed", "linseed", "linseed", "linseed", "soybean", "soybean", "soybean", "soybean", "soybean", "soybean", "soybean", "soybean", "soybean", "soybean", "soybean", "soybean", "soybean", "soybean", "sunflower", "sunflower", "sunflower", "sunflower", "sunflower", "sunflower", "sunflower", "sunflower", "sunflower", "sunflower", "sunflower", "sunflower", "meatmeal", "meatmeal", "meatmeal", "meatmeal", "meatmeal", "meatmeal", "meatmeal", "meatmeal", "meatmeal", "meatmeal", "meatmeal", "casein", "casein", "casein", "casein", "casein", "casein", "casein", "casein", "casein", "casein", "casein", "casein"]
+    },
+    "stackloss": {
+      "Air.Flow": [80, 80, 75, 62, 62, 62, 62, 62, 58, 58, 58, 58, 58, 58, 50, 50, 50, 50, 50, 56, 70],
+      "Water.Temp": [27, 27, 25, 24, 22, 23, 24, 24, 23, 18, 18, 17, 18, 19, 18, 18, 19, 19, 20, 20, 20],
+      "Acid.Conc.": [89, 88, 90, 87, 87, 87, 93, 93, 87, 80, 89, 88, 82, 93, 89, 86, 72, 79, 80, 82, 91],
+      "stack.loss": [42, 37, 37, 28, 18, 18, 19, 20, 15, 14, 14, 13, 11, 12, 8, 7, 8, 8, 9, 15, 15]
+    },
+    "esoph": {
+      "agegp": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+      "alcgp": [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 1, 1, 1, 2, 2, 2, 2, 3, 3, 4, 4],
+      "tobgp": [1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 4, 1, 2, 3, 4, 1, 2, 1, 2],
+      "ncases": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 3, 1, 0, 0, 0, 0, 0, 2, 0, 2, 1, 0, 0, 0, 6, 4, 5, 5, 3, 6, 1, 2, 4, 3, 2, 4, 2, 3, 3, 4, 9, 6, 4, 3, 9, 8, 3, 4, 5, 6, 2, 5, 5, 4, 2, 0, 17, 3, 5, 6, 4, 2, 1, 3, 1, 1, 1, 1, 2, 1, 2, 1, 0, 1, 1, 1, 2, 1],
+      "ncontrols": [40, 10, 6, 5, 27, 7, 4, 7, 2, 1, 2, 1, 0, 1, 2, 60, 13, 7, 8, 35, 20, 13, 8, 11, 6, 2, 1, 1, 3, 2, 45, 18, 10, 4, 32, 17, 10, 2, 13, 8, 4, 2, 0, 1, 1, 0, 47, 19, 9, 2, 31, 15, 13, 3, 9, 7, 3, 0, 5, 1, 1, 1, 43, 10, 5, 2, 17, 7, 4, 7, 8, 1, 0, 1, 1, 0, 0, 17, 4, 2, 3, 2, 3, 0, 0, 0, 0, 0]
+    },
+    "aml": {
+      "time": [9, 13, 13, 18, 23, 28, 31, 34, 45, 48, 161, 5, 5, 8, 8, 12, 16, 23, 27, 30, 33, 43, 45],
+      "status": [1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1],
+      "x": ["Maintained", "Maintained", "Maintained", "Maintained", "Maintained", "Maintained", "Maintained", "Maintained", "Maintained", "Maintained", "Maintained", "Nonmaintained", "Nonmaintained", "Nonmaintained", "Nonmaintained", "Nonmaintained", "Nonmaintained", "Nonmaintained", "Nonmaintained", "Nonmaintained", "Nonmaintained", "Nonmaintained", "Nonmaintained"]
+    },
+    "Puromycin": {
+      "conc": [0.02, 0.02, 0.06, 0.06, 0.11, 0.11, 0.22, 0.22, 0.56, 0.56, 1.1, 1.1],
+      "rate": [76, 47, 97, 107, 123, 139, 159, 152, 191, 201, 207, 200]
+    },
+    "lh": [2.4, 2.4, 2.4, 2.2, 2.1, 1.5, 2.3, 2.3, 2.5, 2, 1.9, 1.7, 2.2, 1.8, 3.2, 3.2, 2.7, 2.2, 2.2, 1.9, 1.9, 1.8, 2.7, 3, 2.3, 2, 2, 2.9, 2.9, 2.7, 2.7, 2.3, 2.6, 2.4, 1.8, 1.7, 1.5, 1.4, 2.1, 3.3, 3.5, 3.5, 3.1, 2.6, 2.1, 3.4, 3, 2.9],
+    "LakeHuron": [580.38, 581.86, 580.97, 580.8, 579.79, 580.39, 580.42, 580.82, 581.4, 581.32, 581.44, 581.68, 581.17, 580.53, 580.01, 579.91, 579.14, 579.16, 579.55, 579.67, 578.44, 578.24, 579.1, 579.09, 579.35, 578.82, 579.32, 579.01, 579, 579.8, 579.83, 579.72, 579.89, 580.01, 579.37, 578.69, 578.19, 578.67, 579.55, 578.92, 578.09, 579.37, 580.13, 580.14, 579.51, 579.24, 578.66, 578.86, 578.05, 577.79, 576.75, 576.75, 577.82, 578.64, 580.58, 579.48, 577.38, 576.9, 576.94, 576.24, 576.84, 576.85, 576.9, 577.79, 578.18, 577.51, 577.23, 578.42, 579.61, 579.05, 579.26, 579.22, 579.38, 579.1, 577.95, 578.12, 579.75, 580.85, 580.41, 579.96, 579.61, 578.76, 578.18, 577.21, 577.13, 579.1, 578.25, 577.91, 576.89, 575.96, 576.8, 577.68, 578.38, 578.52, 579.74, 579.31, 579.89, 579.96],
+    "portpirie": [4.03, 3.83, 3.65, 3.88, 4.01, 4.08, 4.18, 3.8, 4.36, 3.96, 3.98, 4.69, 3.85, 3.96, 3.85, 3.93, 3.75, 3.63, 3.57, 4.25, 3.97, 4.05, 4.24, 4.22, 3.73, 4.37, 4.06, 3.71, 3.96, 4.06, 4.55, 3.79, 3.89, 4.11, 3.85, 3.86, 3.86, 4.21, 4.01, 4.11, 4.24, 3.96, 4.21, 3.74, 3.85, 3.88, 3.66, 4.11, 3.71, 4.18, 3.9, 3.78, 3.91, 3.72, 4, 3.66, 3.62, 4.33, 4.55, 3.75, 4.08, 3.9, 3.88, 3.94, 4.33],
+    "depression_x": [1.83, 0.5, 1.62, 2.48, 1.68, 1.88, 1.55, 3.06, 1.3],
+    "depression_y": [0.878, 0.647, 0.598, 2.05, 1.06, 1.29, 1.06, 3.14, 1.29],
+    "permeability_x": [0.8, 0.83, 1.89, 1.04, 1.45, 1.38, 1.91, 1.64, 0.73, 1.46],
+    "permeability_y": [1.15, 0.88, 0.9, 0.74, 1.21],
+    "rounding_times": [
+      [5.4, 5.5, 5.55],
+      [5.85, 5.7, 5.75],
+      [5.2, 5.6, 5.5],
+      [5.55, 5.5, 5.4],
+      [5.9, 5.85, 5.7],
+      [5.45, 5.55, 5.6],
+      [5.4, 5.4, 5.35],
+      [5.45, 5.5, 5.35],
+      [5.25, 5.15, 5],
+      [5.85, 5.8, 5.7],
+      [5.25, 5.2, 5.1],
+      [5.65, 5.55, 5.45],
+      [5.6, 5.35, 5.45],
+      [5.05, 5, 4.95],
+      [5.5, 5.5, 5.4],
+      [5.45, 5.55, 5.5],
+      [5.55, 5.55, 5.35],
+      [5.45, 5.5, 5.55],
+      [5.5, 5.45, 5.25],
+      [5.65, 5.6, 5.4],
+      [5.7, 5.65, 5.55],
+      [6.3, 6.3, 6.25]
+    ],
+    "tea_tasting": [
+      [3, 1],
+      [1, 3]
+    ],
+    "convictions": [
+      [2, 15],
+      [10, 3]
+    ],
+    "party_by_gender": [
+      [762, 327, 468],
+      [484, 239, 477]
+    ],
+    "ucb_admissions": [
+      [1198, 557],
+      [1493, 1278]
+    ],
+    "performance": [
+      [794, 150],
+      [86, 570]
+    ],
+    "p_values": [0.0001, 0.004, 0.019, 0.023, 0.04, 0.041, 0.2, 0.62]
+  },
+  "cases": [
+    {
+      "id": "dist.norm.pdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Normal.pdf",
+      "r_call": "list(values = dnorm(c(-30, -3, 0, 1.5, 4, 25), mean = 1.5, sd = 2))",
+      "inputs": [],
+      "r_value": {
+        "values": [2.715142398756417e-55, 0.01586982591783371, 0.15056871607740221, 0.19947114020071635, 0.09132454269451096, 2.089243772271323e-31]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "Normal",
+        "parameters": {
+          "mu": 1.5,
+          "sigma": 2
+        },
+        "method": "pdf",
+        "points": [-30, -3, 0, 1.5, 4, 25]
+      }
+    },
+    {
+      "id": "dist.norm.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Normal.cdf",
+      "r_call": "list(values = pnorm(c(-38.5, -20, -5, -1.96, 0, 0.3, 3), mean = 0, sd = 1))",
+      "inputs": [],
+      "r_value": {
+        "values": [0, 2.7536241186062337e-89, 2.866515718791939e-07, 0.024997895148220428, 0.5, 0.6179114221889527, 0.9986501019683699]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "Normal",
+        "parameters": {
+          "mu": 0,
+          "sigma": 1
+        },
+        "method": "cdf",
+        "points": [-38.5, -20, -5, -1.96, 0, 0.3, 3]
+      }
+    },
+    {
+      "id": "dist.norm.sf",
+      "area": "distributions",
+      "target": "probstat.distributions.Normal.sf",
+      "r_call": "list(values = pnorm(c(-3, 0, 5, 20, 38), mean = 0, sd = 1, lower.tail = FALSE))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.9986501019683699, 0.5, 2.866515718791939e-07, 2.7536241186062337e-89, 2.88542835100396e-316]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "Normal",
+        "parameters": {
+          "mu": 0,
+          "sigma": 1
+        },
+        "method": "sf",
+        "points": [-3, 0, 5, 20, 38]
+      }
+    },
+    {
+      "id": "dist.norm.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.Normal.quantile",
+      "r_call": "list(values = qnorm(c(1e-300, 1e-20, 1e-05, 0.025, 0.5, 0.8, 0.999999), mean = 0, sd = 1))",
+      "inputs": [],
+      "r_value": {
+        "values": [-37.0470962993612, -9.262340089798405, -4.2648907939228256, -1.9599639845400538, 0, 0.8416212335729144, 4.753424308817089]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "Normal",
+        "parameters": {
+          "mu": 0,
+          "sigma": 1
+        },
+        "method": "quantile",
+        "points": [1e-300, 1e-20, 1e-05, 0.025, 0.5, 0.8, 0.999999]
+      }
+    },
+    {
+      "id": "dist.t.pdf",
+      "area": "distributions",
+      "target": "probstat.distributions.StudentT.pdf",
+      "r_call": "list(values = dt(c(-10, -1, 0, 2, 50), df = 4))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.00010879223472902213, 0.21466252583997977, 0.375, 0.06629126073623884, 3.824682905007414e-08]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "StudentT",
+        "parameters": {
+          "nu": 4
+        },
+        "method": "pdf",
+        "points": [-10, -1, 0, 2, 50]
+      }
+    },
+    {
+      "id": "dist.t.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.StudentT.cdf",
+      "r_call": "list(values = pt(c(-50, -4, -1, 0, 0.5, 2.5, 30), df = 3.5))",
+      "inputs": [],
+      "r_value": {
+        "values": [2.0095422238491094e-06, 0.01046030818270186, 0.19066862678172278, 0.5, 0.6765747803387245, 0.962152678095255, 0.9999880319340022]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "StudentT",
+        "parameters": {
+          "nu": 3.5
+        },
+        "method": "cdf",
+        "points": [-50, -4, -1, 0, 0.5, 2.5, 30]
+      }
+    },
+    {
+      "id": "dist.t.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.StudentT.quantile",
+      "r_call": "list(values = qt(c(1e-10, 0.001, 0.025, 0.5, 0.9, 0.9999), df = 7))",
+      "inputs": [],
+      "r_value": {
+        "values": [-53.83557948467375, -4.785289628638334, -2.3646242515927844, 0, 1.4149239276505086, 7.063432828157639]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "StudentT",
+        "parameters": {
+          "nu": 7
+        },
+        "method": "quantile",
+        "points": [1e-10, 0.001, 0.025, 0.5, 0.9, 0.9999]
+      }
+    },
+    {
+      "id": "dist.chisq.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.ChiSquare.cdf",
+      "r_call": "list(values = pchisq(c(0.0001, 0.5, 3, 10, 40), df = 5))",
+      "inputs": [],
+      "r_value": {
+        "values": [5.319040436531818e-12, 0.007876706767370406, 0.3000141641213725, 0.9247647538534878, 0.99999985066321]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "ChiSquare",
+        "parameters": {
+          "nu": 5
+        },
+        "method": "cdf",
+        "points": [0.0001, 0.5, 3, 10, 40]
+      }
+    },
+    {
+      "id": "dist.chisq.sf",
+      "area": "distributions",
+      "target": "probstat.distributions.ChiSquare.sf",
+      "r_call": "list(values = pchisq(c(50, 100, 200), df = 5, lower.tail = FALSE))",
+      "inputs": [],
+      "r_value": {
+        "values": [1.3857973367009593e-09, 5.28514836094324e-20, 2.8406228986415315e-41]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "ChiSquare",
+        "parameters": {
+          "nu": 5
+        },
+        "method": "sf",
+        "points": [50, 100, 200]
+      }
+    },
+    {
+      "id": "dist.chisq.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.ChiSquare.quantile",
+      "r_call": "list(values = qchisq(c(1e-08, 0.01, 0.5, 0.95, 0.999999), df = 2.5))",
+      "inputs": [],
+      "r_value": {
+        "values": [8.798628031298351e-07, 0.05621205483482213, 1.873847767780879, 6.928076113452423, 29.20048572964512]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "ChiSquare",
+        "parameters": {
+          "nu": 2.5
+        },
+        "method": "quantile",
+        "points": [1e-08, 0.01, 0.5, 0.95, 0.999999]
+      }
+    },
+    {
+      "id": "dist.f.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.FisherF.cdf",
+      "r_call": "list(values = pf(c(0.01, 0.5, 1, 3, 20), df1 = 4, df2 = 12))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.00022923144018416948, 0.2635138663069203, 0.5550537109375002, 0.9375, 0.9999693825714056]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "FisherF",
+        "parameters": {
+          "nu1": 4,
+          "nu2": 12
+        },
+        "method": "cdf",
+        "points": [0.01, 0.5, 1, 3, 20]
+      }
+    },
+    {
+      "id": "dist.f.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.FisherF.quantile",
+      "r_call": "list(values = qf(c(0.001, 0.05, 0.5, 0.95, 0.999), df1 = 3, df2 = 17))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.007878641320435847, 0.115168894562293, 0.8212087638531961, 3.196776840943343, 8.726852036125917]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "FisherF",
+        "parameters": {
+          "nu1": 3,
+          "nu2": 17
+        },
+        "method": "quantile",
+        "points": [0.001, 0.05, 0.5, 0.95, 0.999]
+      }
+    },
+    {
+      "id": "dist.gamma.pdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Gamma.pdf",
+      "r_call": "list(values = dgamma(c(0.01, 0.5, 1, 3, 12), shape = 2.5, rate = 1.5))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.0020421024702433066, 0.34619922631227434, 0.46254098941130783, 0.1196599071223262, 1.3123906955618297e-06]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "Gamma",
+        "parameters": {
+          "shape": 2.5,
+          "rate": 1.5
+        },
+        "method": "pdf",
+        "points": [0.01, 0.5, 1, 3, 12]
+      }
+    },
+    {
+      "id": "dist.gamma.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Gamma.cdf",
+      "r_call": "list(values = pgamma(c(0.001, 0.2, 1, 4, 15), shape = 2.5, rate = 1.5))",
+      "inputs": [],
+      "r_value": {
+        "values": [2.6193084613233277e-08, 0.011996757205906273, 0.3000141641213725, 0.9652122194937581, 0.9999999854912283]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "Gamma",
+        "parameters": {
+          "shape": 2.5,
+          "rate": 1.5
+        },
+        "method": "cdf",
+        "points": [0.001, 0.2, 1, 4, 15]
+      }
+    },
+    {
+      "id": "dist.gamma.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.Gamma.quantile",
+      "r_call": "list(values = qgamma(c(1e-06, 0.05, 0.5, 0.95, 0.999999999), shape = 0.4, rate = 2))",
+      "inputs": [],
+      "r_value": {
+        "values": [3.707677341282e-16, 0.00020732685778576405, 0.07253907082171764, 0.8309810088770505, 9.07811046674502]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "Gamma",
+        "parameters": {
+          "shape": 0.4,
+          "rate": 2
+        },
+        "method": "quantile",
+        "points": [1e-06, 0.05, 0.5, 0.95, 0.999999999]
+      }
+    },
+    {
+      "id": "dist.beta.pdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Beta.pdf",
+      "r_call": "list(values = dbeta(c(0.01, 0.3, 0.7, 0.99), shape1 = 2.5, shape2 = 0.7))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.0014089853154641925, 0.2568913584684729, 1.1806134019114498, 5.5087088222060006]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "Beta",
+        "parameters": {
+          "alpha": 2.5,
+          "beta": 0.7
+        },
+        "method": "pdf",
+        "points": [0.01, 0.3, 0.7, 0.99]
+      }
+    },
+    {
+      "id": "dist.beta.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Beta.cdf",
+      "r_call": "list(values = pbeta(c(1e-06, 0.1, 0.5, 0.9, 0.999999), shape1 = 2.5, shape2 = 0.7))",
+      "inputs": [],
+      "r_value": {
+        "values": [5.618975127135473e-16, 0.001817006281962545, 0.11398345944666873, 0.6239321729007936, 0.9998733810473033]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "Beta",
+        "parameters": {
+          "alpha": 2.5,
+          "beta": 0.7
+        },
+        "method": "cdf",
+        "points": [1e-06, 0.1, 0.5, 0.9, 0.999999]
+      }
+    },
+    {
+      "id": "dist.beta.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.Beta.quantile",
+      "r_call": "list(values = qbeta(c(1e-08, 0.025, 0.5, 0.975, 0.99999), shape1 = 0.5, shape2 = 3))",
+      "inputs": [],
+      "r_value": {
+        "values": [2.8444444444444455e-17, 0.0001778199329347577, 0.07903276707617302, 0.5949531330134032, 0.9683788805724732]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "Beta",
+        "parameters": {
+          "alpha": 0.5,
+          "beta": 3
+        },
+        "method": "quantile",
+        "points": [1e-08, 0.025, 0.5, 0.975, 0.99999]
+      }
+    },
+    {
+      "id": "dist.binom.pmf",
+      "area": "distributions",
+      "target": "probstat.distributions.Binomial.pmf",
+      "r_call": "list(values = dbinom(c(0, 3, 10, 25, 40), size = 40, prob = 0.3))",
+      "inputs": [],
+      "r_value": {
+        "values": [6.366805760909033e-07, 0.0004951630043090645, 0.11281730161487, 1.618086544346048e-05, 1.2157665459056917e-21]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "Binomial",
+        "parameters": {
+          "n": 40,
+          "p": 0.3
+        },
+        "method": "pmf",
+        "points": [0, 3, 10, 25, 40]
+      }
+    },
+    {
+      "id": "dist.binom.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Binomial.cdf",
+      "r_call": "list(values = pbinom(c(0, 5, 12, 20, 39), size = 40, prob = 0.3))",
+      "inputs": [],
+      "r_value": {
+        "values": [6.366805760909019e-07, 0.00861805331137421, 0.5771809245034388, 0.9975806401028664, 1]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "Binomial",
+        "parameters": {
+          "n": 40,
+          "p": 0.3
+        },
+        "method": "cdf",
+        "points": [0, 5, 12, 20, 39]
+      }
+    },
+    {
+      "id": "dist.binom.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.Binomial.quantile",
+      "r_call": "list(values = qbinom(c(0.001, 0.1, 0.5, 0.9, 0.999), size = 40, prob = 0.3))",
+      "inputs": [],
+      "r_value": {
+        "values": [4, 8, 12, 16, 21]
+      },
+      "tolerance": {
+        "relative": 0,
+        "absolute": 0
+      },
+      "tolerance_reason": "Discrete quantiles are integers and must be equal.",
+      "probstat": {
+        "law": "Binomial",
+        "parameters": {
+          "n": 40,
+          "p": 0.3
+        },
+        "method": "quantile",
+        "points": [0.001, 0.1, 0.5, 0.9, 0.999]
+      }
+    },
+    {
+      "id": "dist.pois.pmf",
+      "area": "distributions",
+      "target": "probstat.distributions.Poisson.pmf",
+      "r_call": "list(values = dpois(c(0, 1, 5, 20, 60), lambda = 7.5))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.0005530843701478336, 0.0041481327761087525, 0.10937459468255498, 7.20928237946217e-05, 2.1197875632902542e-33]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "Poisson",
+        "parameters": {
+          "lam": 7.5
+        },
+        "method": "pmf",
+        "points": [0, 1, 5, 20, 60]
+      }
+    },
+    {
+      "id": "dist.pois.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Poisson.cdf",
+      "r_call": "list(values = ppois(c(0, 3, 7, 15, 30), lambda = 7.5))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.0005530843701478336, 0.05914545983268398, 0.5246385264876054, 0.9953916836504945, 0.9999999998826539]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "Poisson",
+        "parameters": {
+          "lam": 7.5
+        },
+        "method": "cdf",
+        "points": [0, 3, 7, 15, 30]
+      }
+    },
+    {
+      "id": "dist.pois.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.Poisson.quantile",
+      "r_call": "list(values = qpois(c(0.001, 0.25, 0.5, 0.75, 0.9999), lambda = 7.5))",
+      "inputs": [],
+      "r_value": {
+        "values": [1, 6, 7, 9, 20]
+      },
+      "tolerance": {
+        "relative": 0,
+        "absolute": 0
+      },
+      "tolerance_reason": "Discrete quantiles are integers and must be equal.",
+      "probstat": {
+        "law": "Poisson",
+        "parameters": {
+          "lam": 7.5
+        },
+        "method": "quantile",
+        "points": [0.001, 0.25, 0.5, 0.75, 0.9999]
+      }
+    },
+    {
+      "id": "dist.nbinom.pmf",
+      "area": "distributions",
+      "target": "probstat.distributions.NegativeBinomial.pmf",
+      "r_call": "list(values = dnbinom(c(0, 2, 5, 15, 40), size = 3, prob = 0.4))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.06400000000000002, 0.13824, 0.10450943999999998, 0.004092490105749499, 7.366024190684476e-08]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "NegativeBinomial",
+        "parameters": {
+          "r": 3,
+          "p": 0.4
+        },
+        "method": "pmf",
+        "points": [0, 2, 5, 15, 40]
+      }
+    },
+    {
+      "id": "dist.nbinom.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.NegativeBinomial.cdf",
+      "r_call": "list(values = pnbinom(c(0, 2, 5, 15, 40), size = 3, prob = 0.4))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.06400000000000003, 0.31744000000000017, 0.6846054400000001, 0.9917736435098583, 0.9999998755539729]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "probstat": {
+        "law": "NegativeBinomial",
+        "parameters": {
+          "r": 3,
+          "p": 0.4
+        },
+        "method": "cdf",
+        "points": [0, 2, 5, 15, 40]
+      }
+    },
+    {
+      "id": "dist.weibull.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Weibull.cdf",
+      "r_call": "list(values = pweibull(c(0.01, 0.5, 1, 2, 5, 12), shape = 1.7, scale = 2))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.0001225243480137674, 0.0903835805358521, 0.26492746924321325, 0.6321205588285577, 0.9913297807991475, 0.9999999992647897]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "law": "Weibull",
+        "parameters": {
+          "shape": 1.7,
+          "scale": 2
+        },
+        "method": "cdf",
+        "points": [0.01, 0.5, 1, 2, 5, 12]
+      }
+    },
+    {
+      "id": "dist.weibull.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.Weibull.quantile",
+      "r_call": "list(values = qweibull(c(1e-09, 0.1, 0.5, 0.9, 0.999999), shape = 1.7, scale = 2))",
+      "inputs": [],
+      "r_value": {
+        "values": [1.0160436096814403e-05, 0.5322732433934927, 1.6121220343718417, 3.2666157210636277, 9.372038790944861]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "law": "Weibull",
+        "parameters": {
+          "shape": 1.7,
+          "scale": 2
+        },
+        "method": "quantile",
+        "points": [1e-09, 0.1, 0.5, 0.9, 0.999999]
+      }
+    },
+    {
+      "id": "dist.lnorm.pdf",
+      "area": "distributions",
+      "target": "probstat.distributions.LogNormal.pdf",
+      "r_call": "list(values = dlnorm(c(0.01, 0.5, 1, 3, 50), meanlog = 0.3, sdlog = 0.8))",
+      "inputs": [],
+      "r_value": {
+        "values": [3.4214116707334486e-07, 0.46152135211339385, 0.4648188673372112, 0.10099602333061448, 3.734206425787159e-07]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "LogNormal",
+        "parameters": {
+          "mu": 0.3,
+          "sigma": 0.8
+        },
+        "method": "pdf",
+        "points": [0.01, 0.5, 1, 3, 50]
+      }
+    },
+    {
+      "id": "dist.lnorm.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.LogNormal.cdf",
+      "r_call": "list(values = plnorm(c(0.01, 0.5, 1, 3, 50), meanlog = 0.3, sdlog = 0.8))",
+      "inputs": [],
+      "r_value": {
+        "values": [4.3537367044280615e-10, 0.10722273723483378, 0.35383023332727626, 0.8409246501315321, 0.9999968345912719]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "LogNormal",
+        "parameters": {
+          "mu": 0.3,
+          "sigma": 0.8
+        },
+        "method": "cdf",
+        "points": [0.01, 0.5, 1, 3, 50]
+      }
+    },
+    {
+      "id": "dist.lnorm.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.LogNormal.quantile",
+      "r_call": "list(values = qlnorm(c(1e-12, 0.05, 0.5, 0.95, 0.9999999), meanlog = 0.3, sdlog = 0.8))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.00485577257448825, 0.36208260536895126, 1.3498588075760032, 5.032329013800107, 86.44168855220808]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "LogNormal",
+        "parameters": {
+          "mu": 0.3,
+          "sigma": 0.8
+        },
+        "method": "quantile",
+        "points": [1e-12, 0.05, 0.5, 0.95, 0.9999999]
+      }
+    },
+    {
+      "id": "dist.exp.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Exponential.cdf",
+      "r_call": "list(values = pexp(c(1e-08, 0.1, 1, 10, 50), rate = 0.7))",
+      "inputs": [],
+      "r_value": {
+        "values": [6.9999999755e-09, 0.06760618009405178, 0.5034146962085905, 0.9990881180344455, 0.9999999999999993]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "law": "Exponential",
+        "parameters": {
+          "rate": 0.7
+        },
+        "method": "cdf",
+        "points": [1e-08, 0.1, 1, 10, 50]
+      }
+    },
+    {
+      "id": "dist.exp.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.Exponential.quantile",
+      "r_call": "list(values = qexp(c(1e-12, 0.1, 0.5, 0.9, 0.999999999999), rate = 0.7))",
+      "inputs": [],
+      "r_value": {
+        "values": [1.428571428572143e-12, 0.15051502236832331, 0.990210257942779, 3.2894072757057797, 39.472918911276224]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "law": "Exponential",
+        "parameters": {
+          "rate": 0.7
+        },
+        "method": "quantile",
+        "points": [1e-12, 0.1, 0.5, 0.9, 0.999999999999]
+      }
+    },
+    {
+      "id": "dist.unif.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Uniform.cdf",
+      "r_call": "list(values = punif(c(-1, 0.5, 2, 3.9, 5), min = 0.5, max = 4))",
+      "inputs": [],
+      "r_value": {
+        "values": [0, 0, 0.42857142857142855, 0.9714285714285714, 1]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "law": "Uniform",
+        "parameters": {
+          "lower": 0.5,
+          "upper": 4
+        },
+        "method": "cdf",
+        "points": [-1, 0.5, 2, 3.9, 5]
+      }
+    },
+    {
+      "id": "dist.unif.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.Uniform.quantile",
+      "r_call": "list(values = qunif(c(0, 0.1, 0.5, 0.999, 1), min = 0.5, max = 4))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.5, 0.8500000000000001, 2.25, 3.9965, 4]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "law": "Uniform",
+        "parameters": {
+          "lower": 0.5,
+          "upper": 4
+        },
+        "method": "quantile",
+        "points": [0, 0.1, 0.5, 0.999, 1]
+      }
+    },
+    {
+      "id": "dist.hyper.pmf",
+      "area": "distributions",
+      "target": "probstat.distributions.Hypergeometric.pmf",
+      "r_call": "list(values = dhyper(c(0, 2, 5, 8, 12), m = 30, n = 20, k = 12))",
+      "inputs": [],
+      "r_value": {
+        "values": [1.0376471337321666e-06, 0.0006620188713211208, 0.09099750303977591, 0.23358734039228207, 0.000712466833440511]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "Hypergeometric",
+        "parameters": {
+          "population": 50,
+          "successes": 30,
+          "draws": 12
+        },
+        "method": "pmf",
+        "points": [0, 2, 5, 8, 12]
+      }
+    },
+    {
+      "id": "dist.hyper.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Hypergeometric.cdf",
+      "r_call": "list(values = phyper(c(0, 3, 6, 9, 11), m = 30, n = 20, k = 12))",
+      "inputs": [],
+      "r_value": {
+        "values": [1.0376471337321666e-06, 0.0063216922210742686, 0.31533404629364703, 0.9432651411055003, 0.9992875331665595]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same special function to near machine precision.",
+      "probstat": {
+        "law": "Hypergeometric",
+        "parameters": {
+          "population": 50,
+          "successes": 30,
+          "draws": 12
+        },
+        "method": "cdf",
+        "points": [0, 3, 6, 9, 11]
+      }
+    },
+    {
+      "id": "dist.geom.pmf",
+      "area": "distributions",
+      "target": "probstat.distributions.Geometric.pmf",
+      "r_call": "list(values = dgeom(c(0, 1, 5, 20, 80), prob = 0.3))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.3, 0.21, 0.05042100000000001, 0.0002393767988928361, 1.2160864679143335e-13]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "law": "Geometric",
+        "parameters": {
+          "p": 0.3
+        },
+        "method": "pmf",
+        "points": [0, 1, 5, 20, 80]
+      }
+    },
+    {
+      "id": "dist.geom.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Geometric.cdf",
+      "r_call": "list(values = pgeom(c(0, 1, 5, 20, 50), prob = 0.3))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.3, 0.51, 0.8823509999999999, 0.9994414541359167, 0.9999999874107447]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "law": "Geometric",
+        "parameters": {
+          "p": 0.3
+        },
+        "method": "cdf",
+        "points": [0, 1, 5, 20, 50]
+      }
+    },
+    {
+      "id": "dist.logis.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Logistic.cdf",
+      "r_call": "list(values = plogis(c(-40, -3, 0, 1, 40), location = 1, scale = 2))",
+      "inputs": [],
+      "r_value": {
+        "values": [1.2501528648238605e-09, 0.11920292202211755, 0.3775406687981454, 0.5, 0.9999999966017321]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "law": "Logistic",
+        "parameters": {
+          "mu": 1,
+          "s": 2
+        },
+        "method": "cdf",
+        "points": [-40, -3, 0, 1, 40]
+      }
+    },
+    {
+      "id": "dist.logis.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.Logistic.quantile",
+      "r_call": "list(values = qlogis(c(1e-10, 0.1, 0.5, 0.75, 0.9999999), location = 1, scale = 2))",
+      "inputs": [],
+      "r_value": {
+        "values": [-45.05170185968091, -3.3944491546724382, 1, 3.1972245773362196, 33.23619110296934]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "law": "Logistic",
+        "parameters": {
+          "mu": 1,
+          "s": 2
+        },
+        "method": "quantile",
+        "points": [1e-10, 0.1, 0.5, 0.75, 0.9999999]
+      }
+    },
+    {
+      "id": "dist.cauchy.cdf",
+      "area": "distributions",
+      "target": "probstat.distributions.Cauchy.cdf",
+      "r_call": "list(values = pcauchy(c(-1000000, -5, 0, 1, 1000), location = 0.5, scale = 2))",
+      "inputs": [],
+      "r_value": {
+        "values": [6.366194540570056e-07, 0.11101725845499989, 0.4220208696226307, 0.5779791303773694, 0.9993630626086105]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "law": "Cauchy",
+        "parameters": {
+          "loc": 0.5,
+          "scale": 2
+        },
+        "method": "cdf",
+        "points": [-1000000, -5, 0, 1, 1000]
+      }
+    },
+    {
+      "id": "dist.cauchy.quantile",
+      "area": "distributions",
+      "target": "probstat.distributions.Cauchy.quantile",
+      "r_call": "list(values = qcauchy(c(1e-08, 0.1, 0.5, 0.75, 0.999999), location = 0.5, scale = 2))",
+      "inputs": [],
+      "r_value": {
+        "values": [-63661976.73675811, -5.655367074350508, 0.5, 2.5, 636620.2723471805]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "law": "Cauchy",
+        "parameters": {
+          "loc": 0.5,
+          "scale": 2
+        },
+        "method": "quantile",
+        "points": [1e-08, 0.1, 0.5, 0.75, 0.999999]
+      }
+    },
+    {
+      "id": "dist.noncentral_t.cdf",
+      "area": "distributions",
+      "target": "probstat.inference.noncentral_t_cdf",
+      "r_call": "list(values = pt(c(-1, 0.5, 2, 4), df = 12, ncp = 1.5))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.007513554696781388, 0.15740320816404912, 0.6641768557043575, 0.971583560033068]
+      },
+      "tolerance": {
+        "relative": 0,
+        "absolute": 1e-11
+      },
+      "tolerance_reason": "R's pnt (AS 243, Lenth 1989) sums its series to errmax = 1e-12 absolute; probstat integrates by adaptive quadrature.",
+      "probstat": {
+        "df": 12,
+        "noncentrality": 1.5,
+        "points": [-1, 0.5, 2, 4]
+      }
+    },
+    {
+      "id": "dist.studentized_range.cdf",
+      "area": "distributions",
+      "target": "probstat.inference.studentized_range_cdf",
+      "r_call": "list(values = ptukey(c(1, 2.5, 3.5, 5), nmeans = 4, df = 20))",
+      "inputs": [],
+      "r_value": {
+        "values": [0.10691014887674714, 0.6827970026261856, 0.9050415494514433, 0.9897124654059655]
+      },
+      "tolerance": {
+        "relative": 0,
+        "absolute": 1e-10
+      },
+      "tolerance_reason": "R's ptukey (Copenhaver and Holland 1988) integrates with fixed-order Gauss-Legendre rules and no error estimate; probstat's adaptive quadrature is accurate to about 1e-12. The bound allows 1e-10 absolute.",
+      "probstat": {
+        "groups": 4,
+        "df": 20,
+        "points": [1, 2.5, 3.5, 5]
+      }
+    },
+    {
+      "id": "descriptive.quantile.type1",
+      "area": "descriptive",
+      "target": "probstat.statistics.quantiles",
+      "r_call": "list(values = quantile(sleep$extra, probs = c(0, 0.1, 0.25, 0.5, 0.75, 0.9, 1), type = 1))",
+      "inputs": ["sleep"],
+      "r_value": {
+        "values": [-1.6, -1.2, -0.1, 0.8, 3.4, 4.4, 5.5]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 1e-14
+      },
+      "tolerance_reason": "Hyndman-Fan definition evaluated as the same order-statistic interpolation on both sides.",
+      "probstat": {
+        "method": 1,
+        "probabilities": [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+      }
+    },
+    {
+      "id": "descriptive.quantile.type7",
+      "area": "descriptive",
+      "target": "probstat.statistics.quantiles",
+      "r_call": "list(values = quantile(sleep$extra, probs = c(0, 0.1, 0.25, 0.5, 0.75, 0.9, 1), type = 7))",
+      "inputs": ["sleep"],
+      "r_value": {
+        "values": [-1.6, -0.29999999999999966, -0.025, 0.9500000000000001, 3.4, 4.420000000000001, 5.5]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 1e-14
+      },
+      "tolerance_reason": "Hyndman-Fan definition evaluated as the same order-statistic interpolation on both sides.",
+      "probstat": {
+        "method": 7,
+        "probabilities": [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+      }
+    },
+    {
+      "id": "descriptive.variance",
+      "area": "descriptive",
+      "target": "probstat.statistics.variance",
+      "r_call": "list(variance = var(mtcars$mpg), standard_deviation = sd(mtcars$mpg))",
+      "inputs": ["mtcars"],
+      "r_value": {
+        "variance": [36.32410282258064],
+        "standard_deviation": [6.026948052089104]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "note": "probstat uses ddof = 1 for the n - 1 divisor of var() and sd()."
+    },
+    {
+      "id": "descriptive.mad",
+      "area": "descriptive",
+      "target": "probstat.statistics.median_absolute_deviation",
+      "r_call": "list(raw = mad(faithful$eruptions, constant = 1), normal = mad(faithful$eruptions, constant = 1 / qnorm(0.75)))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "raw": [0.6415000000000002],
+        "normal": [0.951089323171344]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "note": "R's default constant 1.4826 is the four-digit rounding of 1/qnorm(0.75) = 1.482602...; probstat uses the unrounded constant, so the R call passes it explicitly."
+    },
+    {
+      "id": "descriptive.iqr",
+      "area": "descriptive",
+      "target": "probstat.statistics.interquartile_range",
+      "r_call": "list(iqr = IQR(faithful$waiting))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "iqr": [24]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs."
+    },
+    {
+      "id": "descriptive.trimmed_mean",
+      "area": "descriptive",
+      "target": "probstat.statistics.trimmed_mean",
+      "r_call": "list(trimmed_mean = mean(chickwts$weight, trim = 0.1))",
+      "inputs": ["chickwts"],
+      "r_value": {
+        "trimmed_mean": [261]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs."
+    },
+    {
+      "id": "descriptive.cor.pearson",
+      "area": "descriptive",
+      "target": "probstat.statistics.pearson_correlation",
+      "r_call": "list(correlation = cor(mtcars$mpg, mtcars$wt))",
+      "inputs": ["mtcars"],
+      "r_value": {
+        "correlation": [-0.8676593765172278]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs."
+    },
+    {
+      "id": "descriptive.cor.spearman",
+      "area": "descriptive",
+      "target": "probstat.statistics.spearman_correlation",
+      "r_call": "list(correlation = cor(mtcars$mpg, mtcars$hp, method = \"spearman\"))",
+      "inputs": ["mtcars"],
+      "r_value": {
+        "correlation": [-0.8946646457499625]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Pearson correlation of mid-ranks on both sides (hp and mpg contain ties)."
+    },
+    {
+      "id": "descriptive.cor.kendall",
+      "area": "descriptive",
+      "target": "probstat.modeling.kendall_tau",
+      "r_call": "list(correlation = cor(mtcars$mpg, mtcars$hp, method = \"kendall\"))",
+      "inputs": ["mtcars"],
+      "r_value": {
+        "correlation": [-0.7428125060886726]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides count concordant, discordant, and tied pairs exactly (tau-b with ties in both variables)."
+    },
+    {
+      "id": "descriptive.skewness.type1",
+      "area": "descriptive",
+      "target": "probstat.statistics.skewness",
+      "r_call": "list(skewness = e1071::skewness(faithful$eruptions, type = 1))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "skewness": [-0.41584095291899054]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "note": "e1071 type 1 is the moment ratio g1 = m3 / m2^(3/2), probstat's definition."
+    },
+    {
+      "id": "descriptive.kurtosis.type1",
+      "area": "descriptive",
+      "target": "probstat.statistics.excess_kurtosis",
+      "r_call": "list(excess_kurtosis = e1071::kurtosis(faithful$eruptions, type = 1))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "excess_kurtosis": [-1.5006003587752426]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "note": "e1071 type 1 is g2 = m4 / m2^2 - 3, probstat's definition."
+    },
+    {
+      "id": "descriptive.bandwidth.nrd0",
+      "area": "descriptive",
+      "target": "probstat.statistics.kde_bandwidth",
+      "r_call": "list(bandwidth = bw.nrd0(faithful$eruptions))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "bandwidth": [0.33477703446394325]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "rule": "silverman"
+      }
+    },
+    {
+      "id": "descriptive.bandwidth.nrd",
+      "area": "descriptive",
+      "target": "probstat.statistics.kde_bandwidth",
+      "r_call": "list(bandwidth = bw.nrd(faithful$eruptions))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "bandwidth": [0.3942929517019776]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "rule": "nrd"
+      }
+    },
+    {
+      "id": "descriptive.bandwidth.ucv",
+      "area": "descriptive",
+      "target": "probstat.statistics.select_kde_bandwidth",
+      "r_call": "list(bandwidth = bw.ucv(faithful$eruptions, nb = 10000000L, tol = 1e-10 * 1.144 * sd(faithful$eruptions) * length(faithful$eruptions)^(-1/5)))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "bandwidth": [0.10318352041967817]
+      },
+      "tolerance": {
+        "relative": 1e-06,
+        "absolute": 0
+      },
+      "tolerance_reason": "R bins every pairwise distance to a multiple of 1.01 range / nb before minimizing (at most about 1e-6 relative at nb = 1e7); probstat minimizes the criterion on exact distances.",
+      "probstat": {
+        "method": "ucv"
+      }
+    },
+    {
+      "id": "descriptive.bandwidth.bcv",
+      "area": "descriptive",
+      "target": "probstat.statistics.select_kde_bandwidth",
+      "r_call": "list(bandwidth = bw.bcv(faithful$eruptions, nb = 10000000L, tol = 1e-10 * 1.144 * sd(faithful$eruptions) * length(faithful$eruptions)^(-1/5)))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "bandwidth": [0.15756688837036795]
+      },
+      "tolerance": {
+        "relative": 1e-06,
+        "absolute": 0
+      },
+      "tolerance_reason": "R bins every pairwise distance to a multiple of 1.01 range / nb before minimizing (at most about 1e-6 relative at nb = 1e7); probstat minimizes the criterion on exact distances.",
+      "probstat": {
+        "method": "bcv"
+      }
+    },
+    {
+      "id": "tests.t.one_sample",
+      "area": "tests",
+      "target": "probstat.inference.one_sample_t_test",
+      "r_call": "c(htest_values(t.test(sleep$extra[sleep$group == \"2\"], mu = 1)), list(standard_error = t.test(sleep$extra[sleep$group == \"2\"], mu = 1)$stderr))",
+      "inputs": ["sleep"],
+      "r_value": {
+        "statistic": [2.100552849818713],
+        "df": [9],
+        "p_value": [0.06505988566809544],
+        "conf_int": [0.8976775393767056, 3.762322460623295],
+        "standard_error": [0.6331666447310692]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.t.welch",
+      "area": "tests",
+      "target": "probstat.inference.two_sample_t_test",
+      "r_call": "htest_values(t.test(ToothGrowth$len[ToothGrowth$supp == \"OJ\"], ToothGrowth$len[ToothGrowth$supp == \"VC\"]))",
+      "inputs": ["ToothGrowth"],
+      "r_value": {
+        "statistic": [1.915268268695268],
+        "df": [55.30943268264059],
+        "p_value": [0.060634507880934066],
+        "conf_int": [-0.1710156183671637, 7.571015618367162]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.t.pooled",
+      "area": "tests",
+      "target": "probstat.inference.two_sample_t_test",
+      "r_call": "htest_values(t.test(ToothGrowth$len[ToothGrowth$supp == \"OJ\"], ToothGrowth$len[ToothGrowth$supp == \"VC\"], var.equal = TRUE))",
+      "inputs": ["ToothGrowth"],
+      "r_value": {
+        "statistic": [1.9152682686952682],
+        "df": [58],
+        "p_value": [0.06039337122412871],
+        "conf_int": [-0.16700642014122544, 7.567006420141224]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.t.paired",
+      "area": "tests",
+      "target": "probstat.inference.paired_t_test",
+      "r_call": "htest_values(t.test(sleep$extra[sleep$group == \"1\"], sleep$extra[sleep$group == \"2\"], paired = TRUE))",
+      "inputs": ["sleep"],
+      "r_value": {
+        "statistic": [-4.062127683382037],
+        "df": [9],
+        "p_value": [0.00283289019738427],
+        "conf_int": [-2.4598857632769824, -0.7001142367230175]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.t.power",
+      "area": "tests",
+      "target": "probstat.inference.t_test_power",
+      "r_call": "list(one_sample = power.t.test(n = 20, delta = 0.6, sd = 1, type = \"one.sample\", strict = TRUE)$power, two_sample = power.t.test(n = 15, delta = 0.8, sd = 1, type = \"two.sample\", strict = TRUE)$power)",
+      "inputs": [],
+      "r_value": {
+        "one_sample": [0.7210050995597357],
+        "two_sample": [0.5617848517412148]
+      },
+      "tolerance": {
+        "relative": 0,
+        "absolute": 1e-11
+      },
+      "tolerance_reason": "Both sides evaluate the noncentral t distribution function: R by the AS 243 series (errmax 1e-12 absolute), probstat by quadrature.",
+      "note": "strict = TRUE adds the lower rejection region, which probstat's exact two-sided power includes."
+    },
+    {
+      "id": "tests.wilcoxon.signed_rank_exact",
+      "area": "tests",
+      "target": "probstat.inference.wilcoxon_signed_rank_test",
+      "r_call": "htest_values(wilcox.test(depression_x, depression_y, paired = TRUE, alternative = \"greater\"))",
+      "inputs": ["depression_x", "depression_y"],
+      "r_value": {
+        "statistic": [40],
+        "p_value": [0.01953125]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Exact null distribution by counting on both sides."
+    },
+    {
+      "id": "tests.wilcoxon.signed_rank_normal",
+      "area": "tests",
+      "target": "probstat.inference.wilcoxon_signed_rank_test",
+      "r_call": "htest_values(suppressWarnings(wilcox.test(sleep$extra[sleep$group == \"2\"], sleep$extra[sleep$group == \"1\"], paired = TRUE, exact = FALSE, correct = TRUE)))",
+      "inputs": ["sleep"],
+      "r_value": {
+        "statistic": [45],
+        "p_value": [0.009090698015925103]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Same normal approximation (zeros dropped, tie-corrected variance, continuity correction) on both sides."
+    },
+    {
+      "id": "tests.wilcoxon.rank_sum_exact",
+      "area": "tests",
+      "target": "probstat.inference.mann_whitney_u_test",
+      "r_call": "htest_values(wilcox.test(permeability_x, permeability_y, alternative = \"greater\"))",
+      "inputs": ["permeability_x", "permeability_y"],
+      "r_value": {
+        "statistic": [35],
+        "p_value": [0.1272061272061272]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Exact null distribution by counting on both sides.",
+      "note": "R's W is the Mann-Whitney U of the first sample, probstat's statistic."
+    },
+    {
+      "id": "tests.wilcoxon.rank_sum_normal",
+      "area": "tests",
+      "target": "probstat.inference.mann_whitney_u_test",
+      "r_call": "htest_values(wilcox.test(InsectSprays$count[InsectSprays$spray == \"C\"], InsectSprays$count[InsectSprays$spray == \"D\"], exact = FALSE, correct = TRUE))",
+      "inputs": ["InsectSprays"],
+      "r_value": {
+        "statistic": [20],
+        "p_value": [0.0026510815599861586]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Same normal approximation (tie-corrected variance, continuity correction) on both sides."
+    },
+    {
+      "id": "tests.binomial",
+      "area": "tests",
+      "target": "probstat.inference.binomial_test",
+      "r_call": "local({ r <- binom.test(682, 925, p = 0.75); list(p_value = r$p.value, conf_int = as.numeric(r$conf.int)) })",
+      "inputs": [],
+      "r_value": {
+        "p_value": [0.38249155957485204],
+        "conf_int": [0.707668264079039, 0.7654065582415253]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Same minimum-likelihood two-sided sum (relative tolerance 1e-7 on the masses) and Clopper-Pearson interval from beta quantiles on both sides."
+    },
+    {
+      "id": "tests.wilson_interval",
+      "area": "tests",
+      "target": "probstat.inference.wilson_score_interval",
+      "r_call": "list(conf_int = as.numeric(prop.test(15, 40, correct = FALSE)$conf.int))",
+      "inputs": [],
+      "r_value": {
+        "conf_int": [0.24222979167233277, 0.5296756086269889]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "note": "prop.test without continuity correction reports the Wilson score interval."
+    },
+    {
+      "id": "tests.fisher.greater",
+      "area": "tests",
+      "target": "probstat.inference.fisher_exact_test",
+      "r_call": "list(p_value = fisher.test(tea_tasting, alternative = \"greater\")$p.value)",
+      "inputs": ["tea_tasting"],
+      "r_value": {
+        "p_value": [0.24285714285714288]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Exact hypergeometric tail on both sides.",
+      "note": "R reports the conditional maximum-likelihood odds ratio, probstat the sample odds ratio ad/bc; only the p-value is compared."
+    },
+    {
+      "id": "tests.fisher.two_sided",
+      "area": "tests",
+      "target": "probstat.inference.fisher_exact_test",
+      "r_call": "list(p_value = fisher.test(convictions)$p.value)",
+      "inputs": ["convictions"],
+      "r_value": {
+        "p_value": [0.0005367241191434356]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Exact hypergeometric sum over tables no more probable than the observed one (relative tolerance 1e-7) on both sides."
+    },
+    {
+      "id": "tests.chisq.independence",
+      "area": "tests",
+      "target": "probstat.inference.chi_square_independence_test",
+      "r_call": "htest_values(chisq.test(party_by_gender))",
+      "inputs": ["party_by_gender"],
+      "r_value": {
+        "statistic": [30.070149095754672],
+        "df": [2],
+        "p_value": [2.953589183211757e-07]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.chisq.yates",
+      "area": "tests",
+      "target": "probstat.inference.chi_square_independence_test",
+      "r_call": "htest_values(chisq.test(ucb_admissions, correct = TRUE))",
+      "inputs": ["ucb_admissions"],
+      "r_value": {
+        "statistic": [91.60959785812125],
+        "df": [1],
+        "p_value": [1.0557968087828389e-21]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.chisq.goodness_of_fit",
+      "area": "tests",
+      "target": "probstat.inference.chi_square_goodness_of_fit",
+      "r_call": "htest_values(suppressWarnings(chisq.test(c(89, 37, 30, 28, 2), p = c(0.40, 0.20, 0.20, 0.19, 0.01))))",
+      "inputs": [],
+      "r_value": {
+        "statistic": [5.794708545557442],
+        "df": [4],
+        "p_value": [0.21501309592078605]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.mcnemar",
+      "area": "tests",
+      "target": "probstat.inference.mcnemar_test",
+      "r_call": "htest_values(mcnemar.test(performance))[c(\"statistic\", \"p_value\")]",
+      "inputs": ["performance"],
+      "r_value": {
+        "statistic": [16.81779661016949],
+        "p_value": [4.1145622813459436e-05]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.ks.one_sample_exact",
+      "area": "tests",
+      "target": "probstat.inference.kolmogorov_smirnov_test",
+      "r_call": "htest_values(ks.test(depression_x, \"pnorm\", 1.5, 0.6))",
+      "inputs": ["depression_x"],
+      "r_value": {
+        "statistic": [0.31098452963040013],
+        "p_value": [0.284853040099618]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Same statistic; both sides compute the exact two-sided p-value for n = 9 (Marsaglia, Tsang and Wang 2003)."
+    },
+    {
+      "id": "tests.ks.one_sample_statistic",
+      "area": "tests",
+      "target": "probstat.inference.kolmogorov_smirnov_test",
+      "r_call": "list(statistic = unname(suppressWarnings(ks.test(faithful$eruptions, \"pnorm\", 3.5, 1.1))$statistic))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "statistic": [0.18263479931309323]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "note": "R falls back to the asymptotic p-value for n = 272 with ties; probstat's p-value is exact, so only the statistic is compared."
+    },
+    {
+      "id": "tests.ks.two_sample_exact",
+      "area": "tests",
+      "target": "probstat.inference.kolmogorov_smirnov_two_sample_test",
+      "r_call": "htest_values(ks.test(permeability_x, permeability_y))",
+      "inputs": ["permeability_x", "permeability_y"],
+      "r_value": {
+        "statistic": [0.6000000000000001],
+        "p_value": [0.16583416583416583]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Same statistic and exact null distribution on both sides."
+    },
+    {
+      "id": "tests.shapiro.small",
+      "area": "tests",
+      "target": "probstat.inference.shapiro_wilk_test",
+      "r_call": "htest_values(shapiro.test(PlantGrowth$weight))",
+      "inputs": ["PlantGrowth"],
+      "r_value": {
+        "statistic": [0.9826830160985873],
+        "p_value": [0.8915073682273987]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides implement Royston's algorithm AS R94 (1995) with the same polynomial approximations."
+    },
+    {
+      "id": "tests.shapiro.large",
+      "area": "tests",
+      "target": "probstat.inference.shapiro_wilk_test",
+      "r_call": "htest_values(shapiro.test(faithful$waiting))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "statistic": [0.9221466952421657],
+        "p_value": [1.0152392728648195e-10]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides implement Royston's algorithm AS R94 (1995) with the same polynomial approximations."
+    },
+    {
+      "id": "tests.kruskal.chickwts",
+      "area": "tests",
+      "target": "probstat.inference.kruskal_wallis_test",
+      "r_call": "htest_values(kruskal.test(weight ~ feed, data = chickwts))",
+      "inputs": ["chickwts"],
+      "r_value": {
+        "statistic": [37.34271769425621],
+        "df": [5],
+        "p_value": [5.11282951193715e-07]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "note": "probstat is called with method = \"chi-square\", R's reference distribution."
+    },
+    {
+      "id": "tests.kruskal.insectsprays",
+      "area": "tests",
+      "target": "probstat.inference.kruskal_wallis_test",
+      "r_call": "htest_values(kruskal.test(count ~ spray, data = InsectSprays))",
+      "inputs": ["InsectSprays"],
+      "r_value": {
+        "statistic": [54.691344622371446],
+        "df": [5],
+        "p_value": [1.5108444394185103e-10]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "note": "probstat is called with method = \"chi-square\", R's reference distribution."
+    },
+    {
+      "id": "tests.friedman",
+      "area": "tests",
+      "target": "probstat.inference.friedman_test",
+      "r_call": "htest_values(friedman.test(rounding_times))",
+      "inputs": ["rounding_times"],
+      "r_value": {
+        "statistic": [11.142857142857142],
+        "df": [2],
+        "p_value": [0.003805040775511363]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.bartlett.plantgrowth",
+      "area": "tests",
+      "target": "probstat.inference.bartlett_test",
+      "r_call": "htest_values(bartlett.test(weight ~ group, data = PlantGrowth))",
+      "inputs": ["PlantGrowth"],
+      "r_value": {
+        "statistic": [2.8785737872360935],
+        "df": [2],
+        "p_value": [0.23709677363455817]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.bartlett.chickwts",
+      "area": "tests",
+      "target": "probstat.inference.bartlett_test",
+      "r_call": "htest_values(bartlett.test(weight ~ feed, data = chickwts))",
+      "inputs": ["chickwts"],
+      "r_value": {
+        "statistic": [3.259689084432156],
+        "df": [5],
+        "p_value": [0.6600186898122429]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.levene.mean",
+      "area": "tests",
+      "target": "probstat.inference.levene_test",
+      "r_call": "abs_deviation_anova(PlantGrowth$weight, PlantGrowth$group, mean)",
+      "inputs": ["PlantGrowth"],
+      "r_value": {
+        "statistic": [1.2369629544697833],
+        "df": [2, 27],
+        "p_value": [0.3061949229914475]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "note": "car is not installed; Levene's statistic is the one-way ANOVA F of absolute deviations from the group means (car::leveneTest(center = mean))."
+    },
+    {
+      "id": "tests.levene.median",
+      "area": "tests",
+      "target": "probstat.inference.brown_forsythe_test",
+      "r_call": "abs_deviation_anova(chickwts$weight, chickwts$feed, median)",
+      "inputs": ["chickwts"],
+      "r_value": {
+        "statistic": [0.7492638944937459],
+        "df": [5, 65],
+        "p_value": [0.5896095048009099]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "note": "Brown-Forsythe statistic: one-way ANOVA F of absolute deviations from the group medians (car::leveneTest's default)."
+    },
+    {
+      "id": "tests.anova.one_way",
+      "area": "tests",
+      "target": "probstat.inference.one_way_anova",
+      "r_call": "htest_values(oneway.test(weight ~ group, data = PlantGrowth, var.equal = TRUE))",
+      "inputs": ["PlantGrowth"],
+      "r_value": {
+        "statistic": [4.846087862380137],
+        "df": [2, 27],
+        "p_value": [0.015909958325622912]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.tukey.difference_and_p",
+      "area": "tests",
+      "target": "probstat.inference.tukey_hsd_test",
+      "r_call": "local({ tk <- TukeyHSD(aov(weight ~ group, data = PlantGrowth))$group; list(difference = tk[, \"diff\"], p_value = tk[, \"p adj\"]) })",
+      "inputs": ["PlantGrowth"],
+      "r_value": {
+        "difference": [-0.37100000000000044, 0.4939999999999998, 0.8650000000000002],
+        "p_value": [0.39087114420212465, 0.19799599129970824, 0.01200642397945273]
+      },
+      "tolerance": {
+        "relative": 0,
+        "absolute": 1e-10
+      },
+      "tolerance_reason": "Differences are exact; the adjusted p-values come from R's ptukey (fixed-order Gauss-Legendre rules without an error estimate), so the bound is the 1e-10 absolute allowed for ptukey itself."
+    },
+    {
+      "id": "tests.tukey.interval",
+      "area": "tests",
+      "target": "probstat.inference.tukey_hsd_test",
+      "r_call": "local({ tk <- TukeyHSD(aov(weight ~ group, data = PlantGrowth))$group; list(lower = tk[, \"lwr\"], upper = tk[, \"upr\"]) })",
+      "inputs": ["PlantGrowth"],
+      "r_value": {
+        "lower": [-1.0622160514104588, -0.19721605141045861, 0.17378394858954183],
+        "upper": [0.32021605141045795, 1.1852160514104582, 1.5562160514104586]
+      },
+      "tolerance": {
+        "relative": 0,
+        "absolute": 1e-10
+      },
+      "tolerance_reason": "The bounds use R's qtukey, which inverts ptukey by a secant iteration, and probstat's quantile, which inverts its own distribution function by Brent's method to 1e-10; the bound is the 1e-10 absolute allowed for ptukey."
+    },
+    {
+      "id": "tests.p_adjust.bonferroni",
+      "area": "tests",
+      "target": "probstat.inference.adjust_p_values",
+      "r_call": "list(adjusted = p.adjust(p_values, method = \"bonferroni\"))",
+      "inputs": ["p_values"],
+      "r_value": {
+        "adjusted": [0.0008, 0.032, 0.152, 0.184, 0.32, 0.328, 1, 1]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "method": "bonferroni"
+      }
+    },
+    {
+      "id": "tests.p_adjust.holm",
+      "area": "tests",
+      "target": "probstat.inference.adjust_p_values",
+      "r_call": "list(adjusted = p.adjust(p_values, method = \"holm\"))",
+      "inputs": ["p_values"],
+      "r_value": {
+        "adjusted": [0.0008, 0.028, 0.11399999999999999, 0.11499999999999999, 0.16, 0.16, 0.4, 0.62]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "method": "holm"
+      }
+    },
+    {
+      "id": "tests.p_adjust.bh",
+      "area": "tests",
+      "target": "probstat.inference.adjust_p_values",
+      "r_call": "list(adjusted = p.adjust(p_values, method = \"BH\"))",
+      "inputs": ["p_values"],
+      "r_value": {
+        "adjusted": [0.0008, 0.016, 0.046, 0.046, 0.05466666666666667, 0.05466666666666667, 0.22857142857142856, 0.62]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "method": "bh"
+      }
+    },
+    {
+      "id": "tests.p_adjust.by",
+      "area": "tests",
+      "target": "probstat.inference.adjust_p_values",
+      "r_call": "list(adjusted = p.adjust(p_values, method = \"BY\"))",
+      "inputs": ["p_values"],
+      "r_value": {
+        "adjusted": [0.0021742857142857145, 0.04348571428571429, 0.12502142857142856, 0.12502142857142856, 0.14857619047619047, 0.14857619047619047, 0.6212244897959184, 1]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "probstat": {
+        "method": "by"
+      }
+    },
+    {
+      "id": "regression.lm.coefficients",
+      "area": "regression",
+      "target": "probstat.inference.fit_linear_model",
+      "r_call": "local({ s <- coef(summary(lm(mpg ~ wt + hp, data = mtcars))); list(coefficients = s[, 1], standard_errors = s[, 2], t_values = s[, 3], p_values = s[, 4]) })",
+      "inputs": ["mtcars"],
+      "r_value": {
+        "coefficients": [37.2272701164472, -3.877830742404682, -0.031772946982161],
+        "standard_errors": [1.598787537999394, 0.6327334943773953, 0.009029709675855722],
+        "t_values": [23.28468869793086, -6.128695219810414, -3.518711910208781],
+        "p_values": [2.5654585119837577e-20, 1.1196471362000422e-06, 0.0014512285315694238]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides solve the same least-squares problem by orthogonal factorizations."
+    },
+    {
+      "id": "regression.lm.summary",
+      "area": "regression",
+      "target": "probstat.inference.fit_linear_model",
+      "r_call": "local({ s <- summary(lm(mpg ~ wt + hp, data = mtcars)); list(r_squared = s$r.squared, adjusted_r_squared = s$adj.r.squared, f_statistic = s$fstatistic[1], sigma = s$sigma) })",
+      "inputs": ["mtcars"],
+      "r_value": {
+        "r_squared": [0.8267854518827912],
+        "adjusted_r_squared": [0.8148396209781561],
+        "f_statistic": [69.21121339177765],
+        "sigma": [2.593411777226567]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Closed forms of the same least-squares fit."
+    },
+    {
+      "id": "regression.lm.information",
+      "area": "regression",
+      "target": "probstat.inference.fit_linear_model",
+      "r_call": "local({ fit <- lm(mpg ~ wt + hp, data = mtcars); list(log_likelihood = as.numeric(logLik(fit)), aic = AIC(fit), bic = BIC(fit)) })",
+      "inputs": ["mtcars"],
+      "r_value": {
+        "log_likelihood": [-74.32616941282066],
+        "aic": [156.65233882564132],
+        "bic": [162.51528243684024]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Closed forms of the same least-squares fit (p + 1 parameters)."
+    },
+    {
+      "id": "regression.lm.hatvalues",
+      "area": "regression",
+      "target": "probstat.inference.fit_linear_model",
+      "r_call": "list(leverage = hatvalues(lm(mpg ~ wt + hp, data = mtcars)))",
+      "inputs": ["mtcars"],
+      "r_value": {
+        "leverage": [0.04427691482048597, 0.040486686555104415, 0.06020097241781264, 0.04747493663172465, 0.036862879706245286, 0.06715104233220881, 0.11701541541686623, 0.11565615089936737, 0.060016313514132884, 0.046910825197975015, 0.046910825197975015, 0.05619559109256365, 0.041236104691598094, 0.04257291807693516, 0.18577111718285205, 0.20897838222723933, 0.18648720888572273, 0.07990990922180215, 0.1229581358083369, 0.0995033458459866, 0.05303126337498316, 0.03571654469906558, 0.03339813400719969, 0.10298538359620571, 0.044533205823575846, 0.09225188153646958, 0.07078181291700349, 0.15364134780688807, 0.2044238555846745, 0.06704650921125592, 0.39420815764688066, 0.04140622807286344]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Closed forms of the same least-squares fit."
+    },
+    {
+      "id": "regression.lm.residuals",
+      "area": "regression",
+      "target": "probstat.inference.fit_linear_model",
+      "r_call": "local({ fit <- lm(mpg ~ wt + hp, data = mtcars); list(standardized = rstandard(fit), studentized = rstudent(fit), cooks_distance = cooks.distance(fit)) })",
+      "inputs": ["mtcars"],
+      "r_value": {
+        "standardized": [-1.0145864667164364, -0.6233275241723787, -0.9847587962968363, 0.05332850146193796, 0.14644775688568423, -0.9476980047257532, -0.5330589898792347, 0.6203510777196032, 0.3206855536196798, -0.30786159936057933, -0.8608165981740652, 0.2677651863782009, 0.10087865302586128, -0.6501950739793866, 0.019142066016924156, 0.44970227747276326, 2.3545171593759653, 2.3319225122154332, 0.44781171903726547, 2.378617835208755, -1.22297828956555, -1.3002685780486334, -1.5456418883692904, -0.5097330836568461, 0.9638056868621248, -0.13220036837163662, -0.014949994120209191, 1.1024151225973626, -0.32270883810904505, -0.4891939664391243, 1.1198909025031922, -0.6236921371672581],
+        "studentized": [-1.0151192849283022, -0.6166309071956515, -0.9842272793418704, 0.0524035480876699, 0.14395388545408846, -0.9459787557968335, -0.5263728298277166, 0.6136467422720361, 0.3156681933089183, -0.3030026229734362, -0.8568628093935587, 0.26343389739758877, 0.0991415044175056, -0.6435947623177045, 0.018809253952871235, 0.44342960965727884, 2.572477556206945, 2.5420599516582407, 0.44155241342246304, 2.6051516291549857, -1.2339491826445006, -1.3166088991309617, -1.5854675927871251, -0.5031264562462003, 0.9625846903556257, -0.12994021646319656, -0.014690030995218041, 1.1066784957968372, -0.31766697730069715, -0.4826812876917263, 1.1250083849989896, -0.6169965055556337],
+        "cooks_distance": [0.015896523304089635, 0.0054647787608488865, 0.020706514364272694, 4.7248223866269874e-05, 0.0002736184202153875, 0.021550636691568755, 0.012552182542099386, 0.016776501596980038, 0.0021887015047515833, 0.00155499616928487, 0.0121573675241649, 0.0014230075681996763, 0.0001458959569916868, 0.006266049281624378, 2.786686114672936e-05, 0.017809098242978084, 0.4236109016239786, 0.15742628949048876, 0.009371445860216045, 0.2083932597273053, 0.027919817320397163, 0.020874188584809397, 0.027515098831055296, 0.009943527069137979, 0.014431985232267165, 0.0005920439549362848, 5.674985673457208e-06, 0.07353984997752121, 0.008919700817634347, 0.0057326721634246075, 0.27203974870739794, 0.005600803682364867]
+      },
+      "tolerance": {
+        "relative": 1e-09,
+        "absolute": 0
+      },
+      "tolerance_reason": "Closed forms of the same least-squares fit; the deleted residuals divide by small differences, so the relative tolerance allows one extra digit of rounding."
+    },
+    {
+      "id": "regression.anova.sequential",
+      "area": "regression",
+      "target": "probstat.inference.linear_model_anova",
+      "r_call": "local({ a <- anova(lm(mpg ~ wt + factor(cyl), data = mtcars)); list(df = a$Df, sum_squares = a[[\"Sum Sq\"]], f_statistic = a[[\"F value\"]][1:2], p_value = a[[\"Pr(>F)\"]][1:2]) })",
+      "inputs": ["mtcars"],
+      "r_value": {
+        "df": [1, 2, 28],
+        "sum_squares": [847.7252499566571, 95.26328987496586, 183.05864766837774],
+        "f_statistic": [129.66504069114623, 7.285567085940558],
+        "p_value": [5.0790402639696955e-12, 0.002835302159762396]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Sequential (type I) sums of squares of the same least-squares fits.",
+      "note": "probstat is called with kind = \"I\"; the design is unbalanced, so type I and type II differ."
+    },
+    {
+      "id": "regression.glm.binomial",
+      "area": "regression",
+      "target": "probstat.inference.fit_glm",
+      "r_call": "local({ fit <- glm(am ~ wt, family = binomial, data = mtcars, control = glm.control(epsilon = 1e-14, maxit = 100)); fit <- update(fit, start = coef(fit)); list(coefficients = coef(fit), standard_errors = sqrt(diag(vcov(fit))), deviance = deviance(fit), null_deviance = fit$null.deviance, aic = AIC(fit)) })",
+      "inputs": ["mtcars"],
+      "r_value": {
+        "coefficients": [12.040369728657321, -4.023969962173202],
+        "standard_errors": [4.510066238966759, 1.4365277526235587],
+        "deviance": [19.176084807445083],
+        "null_deviance": [43.22973327685781],
+        "aic": [23.176084807445083]
+      },
+      "tolerance": {
+        "relative": 1e-09,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides run IRLS to convergence (R with epsilon = 1e-14) and evaluate the covariance at the solution: the R call refits from the converged coefficients because vcov() of a glm uses the working weights of the iteration before the final update (a 1e-8 relative effect on esoph)."
+    },
+    {
+      "id": "regression.glm.binomial_trials",
+      "area": "regression",
+      "target": "probstat.inference.fit_glm",
+      "r_call": "local({ fit <- glm(cbind(ncases, ncontrols) ~ agegp + alcgp, family = binomial, data = esoph, control = glm.control(epsilon = 1e-14, maxit = 100)); fit <- update(fit, start = coef(fit)); list(coefficients = coef(fit), standard_errors = sqrt(diag(vcov(fit))), deviance = deviance(fit), aic = AIC(fit)) })",
+      "inputs": ["esoph"],
+      "r_value": {
+        "coefficients": [-6.22839374604721, 0.6920120270986525, 1.136089221933215],
+        "standard_errors": [0.4359064749177664, 0.07862678553663159, 0.101498139297028],
+        "deviance": [129.8139951965171],
+        "aic": [250.86891559529138]
+      },
+      "tolerance": {
+        "relative": 1e-09,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides run IRLS to convergence (R with epsilon = 1e-14) and evaluate the covariance at the solution: the R call refits from the converged coefficients because vcov() of a glm uses the working weights of the iteration before the final update (a 1e-8 relative effect on esoph).",
+      "note": "Grouped binomial data: probstat receives the proportions ncases / (ncases + ncontrols) with the totals as prior weights, which is what glm does with a two-column response."
+    },
+    {
+      "id": "regression.glm.poisson",
+      "area": "regression",
+      "target": "probstat.inference.fit_glm",
+      "r_call": "local({ fit <- glm(breaks ~ wool + tension, family = poisson, data = warpbreaks, control = glm.control(epsilon = 1e-14, maxit = 100)); fit <- update(fit, start = coef(fit)); list(coefficients = coef(fit), standard_errors = sqrt(diag(vcov(fit))), deviance = deviance(fit), null_deviance = fit$null.deviance, aic = AIC(fit)) })",
+      "inputs": ["warpbreaks"],
+      "r_value": {
+        "coefficients": [3.691963144940792, -0.2059884426386205, -0.32132043160061013, -0.5184884965115596],
+        "standard_errors": [0.045410794342800986, 0.05157124278372983, 0.06026591669548086, 0.06395951939589964],
+        "deviance": [210.39188876245385],
+        "null_deviance": [297.37221180460534],
+        "aic": [493.0559664179576]
+      },
+      "tolerance": {
+        "relative": 1e-09,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides run IRLS to convergence (R with epsilon = 1e-14) and evaluate the covariance at the solution: the R call refits from the converged coefficients because vcov() of a glm uses the working weights of the iteration before the final update (a 1e-8 relative effect on esoph)."
+    },
+    {
+      "id": "regression.glm.gamma_log",
+      "area": "regression",
+      "target": "probstat.inference.fit_glm",
+      "r_call": "local({ fit <- glm(Ozone ~ Temp, family = Gamma(link = \"log\"), data = airquality, control = glm.control(epsilon = 1e-14, maxit = 100)); fit <- update(fit, start = coef(fit)); list(coefficients = coef(fit), standard_errors = sqrt(diag(vcov(fit))), deviance = deviance(fit), dispersion = summary(fit)$dispersion, aic = AIC(fit)) })",
+      "inputs": ["airquality"],
+      "r_value": {
+        "coefficients": [-1.2414952841159894, 0.061832192774796534],
+        "standard_errors": [0.4454770309930726, 0.005679110746553962],
+        "deviance": [35.93798536617935],
+        "dispersion": [0.3337164826841156],
+        "aic": [998.3319733307007]
+      },
+      "tolerance": {
+        "relative": 1e-09,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides run IRLS to convergence (R with epsilon = 1e-14) and evaluate the covariance at the solution: the R call refits from the converged coefficients because vcov() of a glm uses the working weights of the iteration before the final update (a 1e-8 relative effect on esoph).",
+      "note": "Both use the Pearson dispersion X^2 / (n - p) for standard errors and the deviance / n plug-in for the AIC."
+    },
+    {
+      "id": "regression.glm.gamma_inverse",
+      "area": "regression",
+      "target": "probstat.inference.fit_glm",
+      "r_call": "local({ fit <- glm(Ozone ~ Temp, family = Gamma, data = airquality, control = glm.control(epsilon = 1e-14, maxit = 100)); fit <- update(fit, start = coef(fit)); list(coefficients = coef(fit), standard_errors = sqrt(diag(vcov(fit))), deviance = deviance(fit), aic = AIC(fit)) })",
+      "inputs": ["airquality"],
+      "r_value": {
+        "coefficients": [0.13940248549660753, -0.001393350357968077],
+        "standard_errors": [0.012209009222743919, 0.00013686839191391598],
+        "deviance": [39.16552314322235],
+        "aic": [1008.840746206454]
+      },
+      "tolerance": {
+        "relative": 1e-09,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides run IRLS to convergence (R with epsilon = 1e-14) and evaluate the covariance at the solution: the R call refits from the converged coefficients because vcov() of a glm uses the working weights of the iteration before the final update (a 1e-8 relative effect on esoph)."
+    },
+    {
+      "id": "regression.glm_nb",
+      "area": "regression",
+      "target": "probstat.inference.fit_negative_binomial_regression",
+      "r_call": "local({ fit <- MASS::glm.nb(breaks ~ wool + tension, data = warpbreaks, control = glm.control(epsilon = 1e-14, maxit = 100)); list(coefficients = coef(fit), theta = fit$theta, log_likelihood = fit$twologlik / 2) })",
+      "inputs": ["warpbreaks"],
+      "r_value": {
+        "coefficients": [3.6733545665791496, -0.18621105235101593, -0.29922723862868095, -0.5113955151913901],
+        "theta": [9.944385435900402],
+        "log_likelihood": [-199.3819038890033]
+      },
+      "tolerance": {
+        "relative": 1e-08,
+        "absolute": 0
+      },
+      "tolerance_reason": "glm.nb alternates IRLS with a Newton solve for theta until the changes in likelihood and theta fall below epsilon = 1e-14; probstat runs Newton-Raphson on (beta, log theta) jointly."
+    },
+    {
+      "id": "regression.glm_nb.standard_errors",
+      "area": "regression",
+      "target": "probstat.inference.fit_negative_binomial_regression",
+      "r_call": "local({ fit <- MASS::glm.nb(breaks ~ wool + tension, data = warpbreaks, control = glm.control(epsilon = 1e-14, maxit = 100)); th <- MASS::theta.ml(warpbreaks$breaks, fitted(fit), limit = 100, eps = 1e-12); list(standard_errors = sqrt(diag(vcov(fit))), theta_standard_error = attr(th, \"SE\")) })",
+      "inputs": ["warpbreaks"],
+      "r_value": {
+        "standard_errors": [0.09790304729044708, 0.10096139942882426, 0.1217284968022339, 0.12373986446503567],
+        "theta_standard_error": [2.5613266477941226]
+      },
+      "tolerance": {
+        "relative": 1e-08,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides invert the same observed information of theta (and the information of beta given theta) at the converged fit.",
+      "note": "fit$SE.theta is computed inside glm.nb's last theta.ml call with the means of the preceding IRLS fit (6.6e-8 relative from the value at the solution); theta.ml at the final fitted means evaluates it at the solution."
+    },
+    {
+      "id": "regression.rlm_huber",
+      "area": "regression",
+      "target": "probstat.inference.fit_robust_linear_model",
+      "r_call": "local({ fit <- MASS::rlm(stack.loss ~ Air.Flow + Water.Temp + Acid.Conc., data = stackloss, k = 1.345 * 0.6745 / qnorm(0.75), acc = 1e-15, maxit = 500); list(coefficients = coef(fit), scale = fit$s * 0.6745 / qnorm(0.75)) })",
+      "inputs": ["stackloss"],
+      "r_value": {
+        "coefficients": [-41.02649835240021, 0.82938433460011, 0.926065966196646, -0.1278467249457859],
+        "scale": [2.440536091721009]
+      },
+      "tolerance": {
+        "relative": 1e-08,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides iterate the same IRLS fixed point from the least-squares start; R stops when the relative residual change is below acc = 1e-15.",
+      "note": "MASS::rlm scales the residuals by median|r| / 0.6745, probstat by median|r| * 1/qnorm(0.75). Scaling k by 0.6745 / qnorm(0.75) makes the Huber weights identical, so the R call uses that k and converts the reported scale; with MASS's default k = 1.345 the coefficients differ in the sixth digit."
+    },
+    {
+      "id": "regression.nls",
+      "area": "regression",
+      "target": "probstat.optimization.least_squares",
+      "r_call": "local({ fit <- nls(rate ~ SSmicmen(conc, Vm, K), data = Puromycin, control = nls.control(tol = 1e-8, maxiter = 200)); s <- summary(fit); list(estimates = coef(fit), standard_errors = s$coefficients[, 2], sigma = s$sigma) })",
+      "inputs": ["Puromycin"],
+      "r_value": {
+        "estimates": [212.6837429777788, 0.06412128142487711],
+        "standard_errors": [6.947155151028658, 0.008280949471040251],
+        "sigma": [10.933658191288762]
+      },
+      "tolerance": {
+        "relative": 1e-07,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides reach the same least-squares minimum with analytic gradients; R stops when its relative-offset criterion falls below tol = 1e-8, a few 1e-9 relative from the minimum.",
+      "note": "probstat: least_squares with the analytic Jacobian and gauss_newton_covariance. SSmicmen supplies the analytic gradient; with the plain formula nls differentiates by forward differences and its standard errors move by 1.7e-8 relative."
+    },
+    {
+      "id": "regression.lme_reml",
+      "area": "regression",
+      "target": "probstat.inference.fit_linear_mixed_model",
+      "r_call": "local({ fit <- nlme::lme(extra ~ group, random = ~ 1 | ID, data = sleep, method = \"REML\", control = nlme::lmeControl(msTol = 1e-14, tolerance = 1e-12, niterEM = 0, msMaxIter = 500)); list(coefficients = nlme::fixef(fit), standard_errors = sqrt(diag(vcov(fit))), residual_variance = fit$sigma^2, intercept_variance = as.numeric(nlme::VarCorr(fit)[1, 1]), log_likelihood = as.numeric(logLik(fit))) })",
+      "inputs": ["sleep"],
+      "r_value": {
+        "coefficients": [0.7500000000000006, 1.5799999999999998],
+        "standard_errors": [0.6003980234332533, 0.3889587179039531],
+        "residual_variance": [0.7564444211674353],
+        "intercept_variance": [2.8483334],
+        "log_likelihood": [-34.977941461350675]
+      },
+      "tolerance": {
+        "relative": 1e-06,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides maximize the same restricted likelihood numerically (nlme by nlminb, probstat by BFGS); nlme stops 3e-8 relative from the closed-form REML variances (case regression.lme_reml.closed_form)."
+    },
+    {
+      "id": "regression.lme_reml.closed_form",
+      "area": "regression",
+      "target": "probstat.inference.fit_linear_mixed_model",
+      "r_call": "local({ d <- sleep$extra[sleep$group == \"2\"] - sleep$extra[sleep$group == \"1\"]; m <- (sleep$extra[sleep$group == \"2\"] + sleep$extra[sleep$group == \"1\"]) / 2; list(residual_variance = var(d) / 2, intercept_variance = (2 * var(m) - var(d) / 2) / 2) })",
+      "inputs": ["sleep"],
+      "r_value": {
+        "residual_variance": [0.7564444444444444],
+        "intercept_variance": [2.8483333333333336]
+      },
+      "tolerance": {
+        "relative": 1e-07,
+        "absolute": 0
+      },
+      "tolerance_reason": "In this balanced subjects-by-treatments design the REML variances equal the ANOVA estimators (the residual mean square, and half the excess of the subject mean square over it) when positive; probstat's BFGS on the profiled criterion (tolerance 1e-7) stops a few 1e-9 relative from them."
+    },
+    {
+      "id": "survival.kaplan_meier",
+      "area": "survival",
+      "target": "probstat.inference.survival.kaplan_meier",
+      "r_call": "local({ s <- summary(survfit(Surv(time, status) ~ 1, data = aml, conf.type = \"log-log\")); list(times = s$time, at_risk = s$n.risk, events = s$n.event, survival = s$surv) })",
+      "inputs": ["aml"],
+      "r_value": {
+        "times": [5, 8, 9, 12, 13, 18, 23, 27, 30, 31, 33, 34, 43, 45, 48],
+        "at_risk": [23, 21, 19, 18, 17, 14, 13, 11, 9, 8, 7, 6, 5, 4, 2],
+        "events": [2, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1],
+        "survival": [0.9130434782608695, 0.8260869565217391, 0.7826086956521738, 0.7391304347826086, 0.6956521739130435, 0.6459627329192547, 0.546583850931677, 0.4968944099378882, 0.4416839199447895, 0.3864734299516908, 0.33126293995859213, 0.27605244996549344, 0.22084195997239475, 0.16563146997929606, 0.08281573498964803]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs."
+    },
+    {
+      "id": "survival.kaplan_meier.interval",
+      "area": "survival",
+      "target": "probstat.inference.survival.kaplan_meier",
+      "r_call": "local({ s <- summary(survfit(Surv(time, status) ~ 1, data = aml, conf.type = \"log-log\")); list(standard_error = s$std.err, lower = s$lower, upper = s$upper) })",
+      "inputs": ["aml"],
+      "r_value": {
+        "standard_error": [0.05875338475584141, 0.0790341964475118, 0.0860061487037983, 0.09156053715170007, 0.09594387554215139, 0.10114267517528461, 0.10725064174012229, 0.10840178078868302, 0.10951806997765715, 0.10885880149486436, 0.10639097288755056, 0.10198337609049186, 0.09536743848643442, 0.0860352084085751, 0.0726618005035283],
+        "lower": [0.6949475375320587, 0.6006104112371989, 0.5542115066687285, 0.5092094387542188, 0.46564174976200395, 0.4139529507171171, 0.31925041397118686, 0.2755656280121372, 0.2273811684625425, 0.18283661864862794, 0.14182569348173837, 0.10444134323359304, 0.07099664898286148, 0.042114281261576895, 0.0069559667985364575],
+        "upper": [0.9775156699007135, 0.9309035583871155, 0.9032074898818869, 0.8733757816976765, 0.8417212913917631, 0.8053077644820785, 0.7264491738206336, 0.684213788447816, 0.637092687459888, 0.5874769144179404, 0.5352737899890685, 0.4802846604165616, 0.4221674433809246, 0.36036136027318333, 0.2867603679809181]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "note": "Greenwood standard error of S(t) and log-log pointwise interval (conf.type = \"log-log\", probstat's interval; R's default is \"log\")."
+    },
+    {
+      "id": "survival.log_rank",
+      "area": "survival",
+      "target": "probstat.inference.survival.log_rank_test",
+      "r_call": "local({ d <- survdiff(Surv(time, status) ~ x, data = aml); list(statistic = d$chisq, observed = d$obs, expected = d$exp, p_value = pchisq(d$chisq, 1, lower.tail = FALSE)) })",
+      "inputs": ["aml"],
+      "r_value": {
+        "statistic": [3.396388698977601],
+        "observed": [7, 11],
+        "expected": [10.689335992300725, 7.310664007699276],
+        "p_value": [0.06533932204050513]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs."
+    },
+    {
+      "id": "survival.cox.efron",
+      "area": "survival",
+      "target": "probstat.inference.survival.fit_cox_model",
+      "r_call": "local({ fit <- coxph(Surv(time, status) ~ x, data = aml, ties = \"efron\", control = coxph.control(eps = 1e-11, iter.max = 100)); list(coefficients = coef(fit), standard_errors = sqrt(diag(vcov(fit))), log_partial_likelihood = fit$loglik[2], null_log_partial_likelihood = fit$loglik[1], score_statistic = fit$score) })",
+      "inputs": ["aml"],
+      "r_value": {
+        "coefficients": [0.9155325750147176],
+        "standard_errors": [0.5119342751720054],
+        "log_partial_likelihood": [-41.03261559645838],
+        "null_log_partial_likelihood": [-42.72483926276022],
+        "score_statistic": [3.416734395517303]
+      },
+      "tolerance": {
+        "relative": 1e-09,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides run Newton-Raphson on the same Efron partial likelihood to convergence (R with eps = 1e-11)."
+    },
+    {
+      "id": "survival.cox.breslow",
+      "area": "survival",
+      "target": "probstat.inference.survival.fit_cox_model",
+      "r_call": "local({ fit <- coxph(Surv(time, status) ~ x, data = aml, ties = \"breslow\", control = coxph.control(eps = 1e-11, iter.max = 100)); list(coefficients = coef(fit), standard_errors = sqrt(diag(vcov(fit))), log_partial_likelihood = fit$loglik[2], null_log_partial_likelihood = fit$loglik[1], score_statistic = fit$score) })",
+      "inputs": ["aml"],
+      "r_value": {
+        "coefficients": [0.9042197236857002],
+        "standard_errors": [0.5122479073041512],
+        "log_partial_likelihood": [-41.25011435006887],
+        "null_log_partial_likelihood": [-42.89812389717403],
+        "score_statistic": [3.3225614162730652]
+      },
+      "tolerance": {
+        "relative": 1e-09,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides run Newton-Raphson on the same Breslow partial likelihood to convergence (R with eps = 1e-11)."
+    },
+    {
+      "id": "timeseries.acf",
+      "area": "timeseries",
+      "target": "probstat.timeseries.acf",
+      "r_call": "list(values = acf(lh, lag.max = 10, plot = FALSE)$acf)",
+      "inputs": ["lh"],
+      "r_value": {
+        "values": [0.9999999999999998, 0.5755244755244755, 0.18181818181818182, -0.1447552447552447, -0.17482517482517487, -0.1496503496503497, -0.020979020979021035, -0.02027972027972032, -0.004195804195804299, -0.1356643356643357, -0.1538461538461538]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 1e-14
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs."
+    },
+    {
+      "id": "timeseries.pacf",
+      "area": "timeseries",
+      "target": "probstat.timeseries.pacf",
+      "r_call": "list(values = pacf(lh, lag.max = 10, plot = FALSE)$acf)",
+      "inputs": ["lh"],
+      "r_value": {
+        "values": [0.5755244755244755, -0.22340997286429734, -0.22694020165024134, 0.10276837700622211, -0.07593441965331005, 0.0675579345259662, -0.10417025122780975, 0.012013676148550527, -0.18768722846113858, 0.002551041119738808]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 1e-13
+      },
+      "tolerance_reason": "Durbin-Levinson recursion on the same autocorrelations."
+    },
+    {
+      "id": "timeseries.yule_walker",
+      "area": "timeseries",
+      "target": "probstat.timeseries.yule_walker",
+      "r_call": "list(coefficients = ar.yw(lh, aic = FALSE, order.max = 3)$ar)",
+      "inputs": ["lh"],
+      "r_value": {
+        "coefficients": [0.6534016786916391, -0.06362083608746166, -0.22694020165024148]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Durbin-Levinson recursion on the same autocovariances.",
+      "note": "Only the coefficients are compared: ar.yw rescales the innovation variance by n / (n - (p + 1))."
+    },
+    {
+      "id": "timeseries.arima.ar1",
+      "area": "timeseries",
+      "target": "probstat.timeseries.fit_arima",
+      "r_call": "local({ fit <- arima(lh, order = c(1, 0, 0), method = \"ML\", optim.control = list(reltol = 1e-15, maxit = 1000)); list(coefficients = coef(fit), sigma2 = fit$sigma2) })",
+      "inputs": ["lh"],
+      "r_value": {
+        "coefficients": [0.5739245285633818, 2.413285379858384],
+        "sigma2": [0.19748955064307586]
+      },
+      "tolerance": {
+        "relative": 1e-05,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides maximize the same exact Gaussian likelihood numerically; R's BFGS on finite-difference gradients stops where the likelihood is flat to about 1e-11, which leaves the coefficients free by about 1e-6 relative.",
+      "note": "R's \"intercept\" is the process mean, probstat's mean."
+    },
+    {
+      "id": "timeseries.arima.ar1.log_likelihood",
+      "area": "timeseries",
+      "target": "probstat.timeseries.fit_arima",
+      "r_call": "list(log_likelihood = arima(lh, order = c(1, 0, 0), method = \"ML\", optim.control = list(reltol = 1e-15, maxit = 1000))$loglik)",
+      "inputs": ["lh"],
+      "r_value": {
+        "log_likelihood": [-29.379162386266024]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "The maximized log-likelihood is insensitive to first order to where each optimizer stops."
+    },
+    {
+      "id": "timeseries.arima.arma11",
+      "area": "timeseries",
+      "target": "probstat.timeseries.fit_arima",
+      "r_call": "local({ fit <- arima(LakeHuron, order = c(1, 0, 1), method = \"ML\", optim.control = list(reltol = 1e-15, maxit = 1000)); list(coefficients = coef(fit), sigma2 = fit$sigma2) })",
+      "inputs": ["LakeHuron"],
+      "r_value": {
+        "coefficients": [0.7448990472130509, 0.32058876802234165, 579.0554514388281],
+        "sigma2": [0.4749398464966082]
+      },
+      "tolerance": {
+        "relative": 1e-05,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides maximize the same exact Gaussian likelihood numerically; R's BFGS on finite-difference gradients stops where the likelihood is flat to about 1e-11, which leaves the coefficients free by about 1e-6 relative.",
+      "note": "R's \"intercept\" is the process mean, probstat's mean."
+    },
+    {
+      "id": "timeseries.arima.arma11.log_likelihood",
+      "area": "timeseries",
+      "target": "probstat.timeseries.fit_arima",
+      "r_call": "list(log_likelihood = arima(LakeHuron, order = c(1, 0, 1), method = \"ML\", optim.control = list(reltol = 1e-15, maxit = 1000))$loglik)",
+      "inputs": ["LakeHuron"],
+      "r_value": {
+        "log_likelihood": [-103.24526062620669]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "The maximized log-likelihood is insensitive to first order to where each optimizer stops."
+    },
+    {
+      "id": "timeseries.arima.ima11",
+      "area": "timeseries",
+      "target": "probstat.timeseries.fit_arima",
+      "r_call": "local({ fit <- arima(diff(LakeHuron), order = c(0, 0, 1), include.mean = FALSE, method = \"ML\", optim.control = list(reltol = 1e-15, maxit = 1000)); list(coefficients = coef(fit), sigma2 = fit$sigma2) })",
+      "inputs": ["LakeHuron"],
+      "r_value": {
+        "coefficients": [0.20022757774300146],
+        "sigma2": [0.5397779081066972]
+      },
+      "tolerance": {
+        "relative": 1e-05,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides maximize the same exact Gaussian likelihood numerically; R's BFGS on finite-difference gradients stops where the likelihood is flat to about 1e-11, which leaves the coefficients free by about 1e-6 relative.",
+      "note": "arima(LakeHuron, order = c(0, 1, 1)) approximates the diffuse prior of the differenced state by a variance of kappa = 1e6, which moves ma1 to 0.200254 (1.3e-4 relative); probstat maximizes the exact likelihood of the differenced series, which is what the R call fits."
+    },
+    {
+      "id": "timeseries.arima.ima11.log_likelihood",
+      "area": "timeseries",
+      "target": "probstat.timeseries.fit_arima",
+      "r_call": "list(log_likelihood = arima(diff(LakeHuron), order = c(0, 0, 1), include.mean = FALSE, method = \"ML\", optim.control = list(reltol = 1e-15, maxit = 1000))$loglik)",
+      "inputs": ["LakeHuron"],
+      "r_value": {
+        "log_likelihood": [-107.7525171519764]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "The maximized log-likelihood is insensitive to first order to where each optimizer stops."
+    },
+    {
+      "id": "fitting.gamma.mle",
+      "area": "fitting",
+      "target": "probstat.inference.fit_distribution",
+      "r_call": "local({ f <- fitdist(airquality$Ozone, \"gamma\", method = \"mle\", control = list(reltol = 1e-15, maxit = 10000)); list(estimates = f$estimate, log_likelihood = f$loglik) })",
+      "inputs": ["airquality"],
+      "r_value": {
+        "estimates": [1.6992777975680227, 0.040334809360044105],
+        "log_likelihood": [-541.5376424462638]
+      },
+      "tolerance": {
+        "relative": 1e-06,
+        "absolute": 0
+      },
+      "tolerance_reason": "fitdistrplus maximizes by Nelder-Mead (reltol 1e-15), which stops 3e-7 relative from the root of the likelihood equations; probstat solves those equations.",
+      "note": "With optim.method = \"BFGS\" (finite-difference gradients) fitdistrplus stops 2.3e-4 relative from the maximum (log-likelihood -541.5376446 against -541.5376424); probstat agrees with the profile root to 1e-15 (case fitting.gamma.mle.profile)."
+    },
+    {
+      "id": "fitting.gamma.mle.profile",
+      "area": "fitting",
+      "target": "probstat.inference.fit_distribution",
+      "r_call": "local({ x <- airquality$Ozone; s <- log(mean(x)) - mean(log(x)); k <- uniroot(function(k) log(k) - digamma(k) - s, c(0.1, 10), tol = 1e-15)$root; list(estimates = c(k, k / mean(x))) })",
+      "inputs": ["airquality"],
+      "r_value": {
+        "estimates": [1.6992772511682364, 0.04033479867720798]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides solve the profile likelihood equation log(k) - digamma(k) = log(mean x) - mean(log x) to full precision."
+    },
+    {
+      "id": "fitting.gamma.mle.standard_errors",
+      "area": "fitting",
+      "target": "probstat.inference.fit_distribution",
+      "r_call": "local({ x <- airquality$Ozone; n <- length(x); s <- log(mean(x)) - mean(log(x)); k <- uniroot(function(k) log(k) - digamma(k) - s, c(0.1, 10), tol = 1e-15)$root; b <- k / mean(x); list(standard_errors = sqrt(diag(solve(n * matrix(c(trigamma(k), -1 / b, -1 / b, k / b^2), 2))))) })",
+      "inputs": ["airquality"],
+      "r_value": {
+        "standard_errors": [0.20497413773147874, 0.005650237866464123]
+      },
+      "tolerance": {
+        "relative": 1e-06,
+        "absolute": 0
+      },
+      "tolerance_reason": "R evaluates the exact Fisher information of the gamma law at the MLE; probstat inverts a central-difference Hessian of the log-likelihood, accurate to about 2e-7 relative.",
+      "note": "fitdistrplus's standard errors come from optim's Hessian (finite differences with ndeps = 1e-3) and are 1.2e-3 relative from the exact values, so the exact information is the reference."
+    },
+    {
+      "id": "fitting.weibull.mle",
+      "area": "fitting",
+      "target": "probstat.inference.fit_distribution",
+      "r_call": "local({ f <- fitdist(airquality$Ozone, \"weibull\", method = \"mle\", control = list(reltol = 1e-15, maxit = 10000)); list(estimates = f$estimate, log_likelihood = f$loglik) })",
+      "inputs": ["airquality"],
+      "r_value": {
+        "estimates": [1.3402315964027744, 46.080307187285314],
+        "log_likelihood": [-542.6102573581059]
+      },
+      "tolerance": {
+        "relative": 1e-06,
+        "absolute": 0
+      },
+      "tolerance_reason": "fitdistrplus maximizes by Nelder-Mead (reltol 1e-15), which stops about 4e-8 relative from the root of the likelihood equations; probstat solves those equations."
+    },
+    {
+      "id": "fitting.weibull.mle.profile",
+      "area": "fitting",
+      "target": "probstat.inference.fit_distribution",
+      "r_call": "local({ x <- airquality$Ozone; b <- uniroot(function(b) sum(x^b * log(x)) / sum(x^b) - 1 / b - mean(log(x)), c(0.5, 5), tol = 1e-15)$root; list(estimates = c(b, mean(x^b)^(1 / b))) })",
+      "inputs": ["airquality"],
+      "r_value": {
+        "estimates": [1.3402315407271732, 46.08030641676891]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides solve the Weibull profile equation for the shape to full precision; the scale follows in closed form."
+    },
+    {
+      "id": "fitting.lnorm.mle",
+      "area": "fitting",
+      "target": "probstat.inference.fit_distribution",
+      "r_call": "local({ f <- fitdist(airquality$Ozone, \"lnorm\", method = \"mle\"); list(estimates = f$estimate, log_likelihood = f$loglik) })",
+      "inputs": ["airquality"],
+      "r_value": {
+        "estimates": [3.418515100812007, 0.8617359690270703],
+        "log_likelihood": [-543.883084288141]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "fitdistrplus and probstat both use the closed-form log-normal MLE."
+    },
+    {
+      "id": "fitting.lnorm.mle.standard_errors",
+      "area": "fitting",
+      "target": "probstat.inference.fit_distribution",
+      "r_call": "local({ y <- log(airquality$Ozone); n <- length(y); s <- sqrt(mean((y - mean(y))^2)); list(standard_errors = c(s / sqrt(n), s / sqrt(2 * n))) })",
+      "inputs": ["airquality"],
+      "r_value": {
+        "standard_errors": [0.08001017609390566, 0.05657573807993048]
+      },
+      "tolerance": {
+        "relative": 1e-06,
+        "absolute": 0
+      },
+      "tolerance_reason": "R evaluates the exact inverse Fisher information; probstat inverts a central-difference Hessian of the log-likelihood, accurate to about 3e-8 relative."
+    },
+    {
+      "id": "fitting.gamma.mme",
+      "area": "fitting",
+      "target": "probstat.inference.fit_distribution_moments",
+      "r_call": "list(estimates = fitdist(airquality$Ozone, \"gamma\", method = \"mme\")$estimate)",
+      "inputs": ["airquality"],
+      "r_value": {
+        "estimates": [1.6452046089320531, 0.03905130645306285]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "note": "fitdistrplus matches the mean and the biased (divisor n) variance, as probstat does."
+    },
+    {
+      "id": "fitting.gev.mle",
+      "area": "fitting",
+      "target": "probstat.risk.fit_gev",
+      "r_call": "local({ g <- ismev::gev.fit(portpirie, show = FALSE, method = \"Nelder-Mead\", maxit = 100000, reltol = 1e-15); list(estimates = g$mle, log_likelihood = -g$nllh) })",
+      "inputs": ["portpirie"],
+      "r_value": {
+        "estimates": [3.874749855237792, 0.198043956247366, -0.05010952749857091],
+        "log_likelihood": [4.339058473679444]
+      },
+      "tolerance": {
+        "relative": 1e-06,
+        "absolute": 0
+      },
+      "tolerance_reason": "ismev maximizes by Nelder-Mead (reltol 1e-15); the simplex stops on function values, which leaves the parameters free by about 1e-7 relative.",
+      "note": "ismev and probstat share the sign convention: xi > 0 is the heavy-tailed Frechet type."
+    }
+  ],
+  "skipped": [
+    {
+      "r_function": "HoltWinters",
+      "reason": "probstat's simple and Holt exponential smoothing concentrate the initial level and trend out by least squares, while HoltWinters starts from the first observations (l.start = x[1], or x[2] and x[2] - x[1]); the fitted smoothing parameters and SSE differ by construction."
+    },
+    {
+      "r_function": "e1071::skewness / e1071::kurtosis types 2 and 3",
+      "reason": "probstat implements only the moment ratios g1 and g2 (e1071 type 1); the bias-adjusted G1/G2 (type 2) and b1/b2 (type 3) have no probstat function."
+    },
+    {
+      "r_function": "fisher.test conditional odds ratio",
+      "reason": "probstat reports the sample odds ratio ad/bc rather than R's conditional maximum-likelihood estimate; the p-values are compared."
+    },
+    {
+      "r_function": "fisher.test on r x c tables",
+      "reason": "probstat's fisher_exact_test is defined for 2 x 2 tables only."
+    },
+    {
+      "r_function": "fligner.test",
+      "reason": "probstat has no Fligner-Killeen test."
+    },
+    {
+      "r_function": "oneway.test(var.equal = FALSE)",
+      "reason": "probstat has no Welch one-way ANOVA."
+    },
+    {
+      "r_function": "mgcv::gam",
+      "reason": "probstat's additive models use Eilers-Marx P-splines with their own knot placement and identifiability constraint; mgcv's default thin-plate regression splines (and its bs = \"ps\" variant with different knot conventions) do not define the same penalized fit."
+    },
+    {
+      "r_function": "lme4::lmer",
+      "reason": "lme4 is not installed; nlme::lme is used for the REML comparison."
+    },
+    {
+      "r_function": "quantreg::rq",
+      "reason": "quantreg is not installed."
+    },
+    {
+      "r_function": "car::leveneTest",
+      "reason": "car is not installed; the base-R ANOVA of absolute deviations is used instead."
+    },
+    {
+      "r_function": "MASS::rlm standard errors",
+      "reason": "summary.rlm scales sqrt(sum(psi^2) / (n - p)) by Huber's correction factor kappa / mean(psi') and uses (X'WX)^-1; probstat reports the sandwich s^2 n / (n - p) A^-1 B A^-1, so only coefficients and scale are compared."
+    },
+    {
+      "r_function": "quantile types 2-6, 8, 9",
+      "reason": "probstat.statistics.quantile implements Hyndman-Fan types 1 and 7 only; both are compared."
+    },
+    {
+      "r_function": "fitdistrplus standard errors",
+      "reason": "fitdist inverts optim's finite-difference Hessian (ndeps = 1e-3), 1.2e-3 relative from the exact gamma information on airquality$Ozone; the exact Fisher information evaluated in base R is the reference instead."
+    },
+    {
+      "r_function": "ismev::gev.fit standard errors",
+      "reason": "gev.fit inverts optim's finite-difference Hessian (ndeps = 1e-3); on portpirie its standard errors differ from probstat's central-difference observed information by 4e-6, 1.2e-4, and 2.8e-5 relative (mu, sigma, xi), and base R offers no exact GEV information to arbitrate."
+    },
+    {
+      "r_function": "mad() with the default constant",
+      "reason": "R's default constant 1.4826 is rounded; the case passes constant = 1 / qnorm(0.75), probstat's constant."
+    }
+  ]
+}
