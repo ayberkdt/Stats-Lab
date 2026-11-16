@@ -439,6 +439,26 @@ def _truncated(draw: Draw) -> dict[str, Any]:
     return {"base": base, "lower": lower, "upper": upper}
 
 
+def _maximum_entropy(draw: Draw) -> dict[str, Any]:
+    """Return a feasible maximum-entropy problem on a bounded, half or full line.
+
+    Bounded supports take a mean and a variance below the Bhatia-Davis
+    bound (and sometimes a skewness inside the moment space); a half-line
+    takes a mean; the real line takes a mean and a variance.
+    """
+    location = _location(draw)
+    scale = _scale(draw)
+    style = draw.choice(("bounded", "bounded", "lower", "real"))
+    if style == "lower":
+        return {"lower": location, "mean": location + scale}
+    if style == "real":
+        return {"mean": location, "variance": scale * scale}
+    lower, upper = location, location + scale
+    mean = lower + scale * draw.uniform(0.2, 0.8)
+    variance = (mean - lower) * (upper - mean) * draw.uniform(0.05, 0.5)
+    return {"lower": lower, "upper": upper, "mean": mean, "variance": variance}
+
+
 def _mixture(draw: Draw) -> dict[str, Any]:
     """Return a mixture of two or three smooth laws with positive weights."""
     count = draw.integer(2, 3)
@@ -741,6 +761,14 @@ def continuous_specs() -> list[FamilySpec]:
             _truncated,
             tail_condition=_truncation_condition,
         ),
+        # Maximum-entropy variates invert a quadrature distribution function.
+        FamilySpec(
+            "MaximumEntropy",
+            dist.MaximumEntropy,
+            _maximum_entropy,
+            build=lambda p: dist.maximum_entropy(**p),
+            sample_size=200,
+        ),
         # Mixture variates are drawn by inverting component quantiles
         # (Brent's method for gamma and beta components), hence fewer draws.
         FamilySpec(
@@ -859,6 +887,7 @@ NON_LAW_EXPORTS = frozenset(
         "DiscreteDistribution",
         "FiniteSupport",
         "IntegerSupport",
+        "MaximumEntropyDiagnostics",
         "RealSupport",
     }
 )

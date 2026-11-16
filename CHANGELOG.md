@@ -7,6 +7,18 @@ while the public API remains pre-1.0 and experimental.
 
 ### Added
 
+- **Maximum-entropy input laws:** `distributions.maximum_entropy` builds the
+  least-committal law on a bounded, half-line, or real support from mean,
+  variance, skewness, kurtosis, raw-moment, or general `E[g(X)] = h`
+  constraints (Newton or BFGS on the convex dual), reports the Lagrange
+  multipliers and constraint residuals, and rejects infeasible moments
+  (Pearson's inequality, the Bhatia-Davis bound, Hankel matrices) and
+  maxima that are not attained on unbounded supports.
+- **Kernel-density bandwidths:** `statistics.select_kde_bandwidth` with
+  leave-one-out likelihood, unbiased (least-squares), and biased
+  cross-validation (scores match R's `bw.ucv` and `bw.bcv`), `rule="nrd"`
+  for R's `bw.nrd`, and `gaussian_kde_multivariate` with kernel covariance
+  `h^2 R` and leave-one-out factor selection.
 - **Method of moments:** `fit_distribution_moments` fits ten families by
   moment matching with the fitdistrplus `method = "mme"` conventions
   (population variance; Weibull and GEV shapes by root finding, the GEV

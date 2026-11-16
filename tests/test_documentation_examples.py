@@ -506,6 +506,7 @@ class ReadmeTests(unittest.TestCase):
             "support",
             "constraints",
             "empirical",
+            "maximum_entropy",
         }
         families = [
             info.name

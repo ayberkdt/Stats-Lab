@@ -4181,3 +4181,85 @@ variance (divisor `n`) and delta-method moment-estimator covariance
 (`calcvcov`); conventions read from the `mmedist` source of fitdistrplus
 1.2.6.
 DOI: [10.18637/jss.v064.i04](https://doi.org/10.18637/jss.v064.i04).
+
+## REF-JAYNES-1957
+
+E. T. Jaynes. Information theory and statistical mechanics. *Physical
+Review*, 106(4):620-630, 1957. The maximum-entropy principle and the
+exponential form of the least-informative law under expectation
+constraints.
+DOI: [10.1103/PhysRev.106.620](https://doi.org/10.1103/PhysRev.106.620).
+
+## REF-MEAD-PAPANICOLAOU-1984
+
+Lawrence R. Mead and N. Papanicolaou. Maximum entropy in the problem of
+moments. *Journal of Mathematical Physics*, 25(8):2404-2417, 1984. The
+convex potential whose minimizer gives the Lagrange multipliers of a
+maximum-entropy density with prescribed moments.
+DOI: [10.1063/1.526446](https://doi.org/10.1063/1.526446).
+
+## REF-JUNK-2000
+
+Michael Junk. Maximum entropy for reduced moment problems. *Mathematical
+Models and Methods in Applied Sciences*, 10(7):1001-1025, 2000. Moment
+vectors on unbounded domains for which the maximum entropy is not attained.
+DOI: [10.1142/S0218202500000513](https://doi.org/10.1142/S0218202500000513).
+
+## REF-WILKINS-1944
+
+J. Ernest Wilkins. A note on skewness and kurtosis. *The Annals of
+Mathematical Statistics*, 15(3):333-335, 1944. The bound of the kurtosis
+by the squared skewness plus one.
+DOI: [10.1214/aoms/1177731243](https://doi.org/10.1214/aoms/1177731243).
+
+## REF-BHATIA-DAVIS-2000
+
+Rajendra Bhatia and Chandler Davis. A better bound on the variance. *The
+American Mathematical Monthly*, 107(4):353-357, 2000. The bound
+`Var X <= (b - mu)(mu - a)` for a law on `[a, b]`.
+DOI: [10.1080/00029890.2000.12005203](https://doi.org/10.1080/00029890.2000.12005203).
+
+## REF-SCHMUDGEN-2017
+
+Konrad Schmüdgen. *The Moment Problem*. Graduate Texts in Mathematics.
+Springer, 2017. Truncated Hamburger, Stieltjes, and Hausdorff moment
+problems and their Hankel-matrix conditions.
+DOI: [10.1007/978-3-319-64546-9](https://doi.org/10.1007/978-3-319-64546-9).
+
+## REF-KREIN-NUDELMAN-1977
+
+M. G. Kreĭn and A. A. Nudel'man. *The Markov Moment Problem and Extremal
+Problems*. Translations of Mathematical Monographs 50. American
+Mathematical Society, 1977. Positivity conditions for truncated moment
+sequences on an interval.
+DOI: [10.1090/mmono/050](https://doi.org/10.1090/mmono/050).
+
+## REF-DUIN-1976
+
+Duin. On the choice of smoothing parameters for Parzen estimators of
+probability density functions. *IEEE Transactions on Computers*,
+C-25(11):1175-1179, 1976. Bandwidth selection by maximizing the
+leave-one-out likelihood.
+DOI: [10.1109/TC.1976.1674577](https://doi.org/10.1109/TC.1976.1674577).
+
+## REF-BOWMAN-1984
+
+Adrian W. Bowman. An alternative method of cross-validation for the
+smoothing of density estimates. *Biometrika*, 71(2):353-360, 1984.
+Least-squares cross-validation of the integrated squared error.
+DOI: [10.1093/biomet/71.2.353](https://doi.org/10.1093/biomet/71.2.353).
+
+## REF-SCOTT-TERRELL-1987
+
+David W. Scott and George R. Terrell. Biased and unbiased cross-validation
+in density estimation. *Journal of the American Statistical Association*,
+82(400):1131-1146, 1987. The UCV and BCV scores that R's `bw.ucv` and
+`bw.bcv` minimize.
+DOI: [10.1080/01621459.1987.10478550](https://doi.org/10.1080/01621459.1987.10478550).
+
+## REF-SCOTT-2015
+
+David W. Scott. *Multivariate Density Estimation: Theory, Practice, and
+Visualization*. Wiley, 2015. Normal-reference bandwidths and the
+multivariate kernel estimator.
+DOI: [10.1002/9781118575574](https://doi.org/10.1002/9781118575574).

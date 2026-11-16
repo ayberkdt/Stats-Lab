@@ -1,4 +1,4 @@
-"""Gaussian kernel density estimation with rule-of-thumb bandwidths."""
+"""Gaussian kernel density estimation with rule-of-thumb or selected bandwidths."""
 
 from __future__ import annotations
 
@@ -15,6 +15,8 @@ from probstat.foundations.validation import (
 )
 from probstat.optimization import brent_root
 
+from .bandwidth_selection import METHODS as CROSS_VALIDATION_METHODS
+from .bandwidth_selection import select_kde_bandwidth
 from .order import quantile
 
 _SQRT2 = math.sqrt(2.0)
@@ -22,42 +24,56 @@ _INV_SQRT_2PI = 1.0 / math.sqrt(2.0 * math.pi)
 
 
 def kde_bandwidth(values: Iterable[float], *, rule: str = "silverman") -> float:
-    """Return a rule-of-thumb bandwidth for a Gaussian kernel.
+    """Return a rule-of-thumb or cross-validated bandwidth for a Gaussian kernel.
 
-    ``silverman``: ``0.9 min(s, IQR/1.34) n^(-1/5)``, robust to heavy tails
-    and mild multimodality; ``normal``: ``1.06 s n^(-1/5)``, optimal for
-    normal data. A zero IQR falls back to ``s``.
+    ``silverman``: ``0.9 min(s, IQR/1.34) n^(-1/5)`` (R's ``bw.nrd0``),
+    robust to heavy tails and mild multimodality; ``normal``:
+    ``1.06 s n^(-1/5)``, optimal for normal data; ``nrd``:
+    ``1.06 min(s, IQR/1.34) n^(-1/5)`` (R's ``bw.nrd``). A zero IQR falls
+    back to ``s`` (R's ``bw.nrd`` returns zero there). ``likelihood``,
+    ``ucv``, and ``bcv`` run :func:`select_kde_bandwidth` with its default
+    search interval and return the selected bandwidth.
 
     Args:
         values: At least two finite observations.
-        rule: ``"silverman"`` or ``"normal"``.
+        rule: ``"silverman"``, ``"normal"``, ``"nrd"``, ``"likelihood"``,
+            ``"ucv"``, or ``"bcv"``.
 
     Returns:
-        Positive bandwidth, or ``0`` for a constant sample.
+        Positive bandwidth, or ``0`` for a constant sample with a rule of
+        thumb.
 
     Raises:
-        ValueError: For fewer than two observations or an unknown rule.
+        ValueError: For fewer than two observations, an unknown rule, or a
+            constant sample with a cross-validation rule.
 
     Equation:
-        [EQ-STAT-KDE-001].
+        [EQ-STAT-KDE-001], [EQ-STAT-KDE-003], [EQ-STAT-KDE-004],
+        [EQ-STAT-KDE-005].
 
     References:
-        [REF-SILVERMAN-1986, Section 3.4.2].
+        [REF-SILVERMAN-1986, Section 3.4.2], [REF-SCOTT-2015],
+        [REF-R-CORE-TEAM].
 
     """
     sample = coerce_finite_sample(values, name="values")
     size = len(sample)
     if size < 2:
         raise ValueError("a bandwidth needs at least two observations")
+    if rule in CROSS_VALIDATION_METHODS:
+        return select_kde_bandwidth(sample, method=rule).bandwidth
     centre = math.fsum(sample) / size
     sd = math.sqrt(math.fsum((v - centre) ** 2 for v in sample) / (size - 1))
     if rule == "normal":
         return 1.06 * sd * math.pow(size, -0.2)
-    if rule != "silverman":
-        raise ValueError("rule must be 'silverman' or 'normal'")
+    if rule not in ("silverman", "nrd"):
+        raise ValueError(
+            "rule must be 'silverman', 'normal', 'nrd', 'likelihood', 'ucv', or 'bcv'"
+        )
     iqr = quantile(sample, 0.75) - quantile(sample, 0.25)
     spread = min(sd, iqr / 1.34) if iqr > 0.0 else sd
-    return 0.9 * spread * math.pow(size, -0.2)
+    factor = 0.9 if rule == "silverman" else 1.06
+    return factor * spread * math.pow(size, -0.2)
 
 
 @dataclass(frozen=True, slots=True)

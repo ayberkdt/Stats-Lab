@@ -35,6 +35,8 @@ Main entry points:
     ``Poisson``: count with mean and variance ``lam``.
     ``Truncated``: restriction of any continuous law to an interval.
     ``Mixture``: finite weighted mixture of continuous component laws.
+    ``maximum_entropy``: least-informative law on an interval under moment
+        or expectation constraints (Newton on the convex dual).
 
 Assumptions:
     Parameters are finite and inside the documented domain (invalid values
@@ -93,6 +95,7 @@ from .hypergeometric import Hypergeometric
 from .laplace import Laplace
 from .logistic import Logistic
 from .lognormal import LogNormal
+from .maximum_entropy import MaximumEntropy, MaximumEntropyDiagnostics, maximum_entropy
 from .mixture import Mixture
 from .negative_binomial import NegativeBinomial
 from .normal import Normal
@@ -147,4 +150,7 @@ __all__ = [
     "TruncatedNormal",
     "Uniform",
     "Weibull",
+    "MaximumEntropy",
+    "MaximumEntropyDiagnostics",
+    "maximum_entropy",
 ]

@@ -12,7 +12,11 @@ Main entry points:
         default.
     ``pearson_correlation``: linear association of paired samples.
     ``gaussian_kde``: Gaussian kernel density estimate with a rule-of-thumb
-        bandwidth.
+        or cross-validated bandwidth.
+    ``select_kde_bandwidth``: bandwidth by leave-one-out likelihood, unbiased
+        (least-squares) or biased cross-validation.
+    ``gaussian_kde_multivariate``: multivariate Gaussian KDE with kernel
+        covariance ``h^2 R``, Silverman, Scott, or likelihood factor.
     ``RunningMoments``: mergeable one-pass mean, variance, skewness, and
         kurtosis.
     ``P2Quantile``: fixed-memory streaming estimate of one quantile.
@@ -52,6 +56,14 @@ References:
 
 """
 
+from .bandwidth_selection import (
+    BandwidthSelection,
+    kde_bcv,
+    kde_loo_log_likelihood,
+    kde_ucv,
+    oversmoothed_bandwidth,
+    select_kde_bandwidth,
+)
 from .datasets import (
     BORTKIEWICZ_HORSE_KICKS,
     DATASETS,
@@ -72,6 +84,12 @@ from .descriptive import (
     standard_deviation,
     variance,
     z_scores,
+)
+from .multivariate_density import (
+    MultivariateKernelDensity,
+    gaussian_kde_multivariate,
+    multivariate_kde_factor,
+    multivariate_kde_loo_log_likelihood,
 )
 from .order import (
     excess_kurtosis,
@@ -134,4 +152,14 @@ __all__ = [
     "variance",
     "WeightedRunningMoments",
     "z_scores",
+    "BandwidthSelection",
+    "gaussian_kde_multivariate",
+    "kde_bcv",
+    "kde_loo_log_likelihood",
+    "kde_ucv",
+    "MultivariateKernelDensity",
+    "multivariate_kde_factor",
+    "multivariate_kde_loo_log_likelihood",
+    "oversmoothed_bandwidth",
+    "select_kde_bandwidth",
 ]
