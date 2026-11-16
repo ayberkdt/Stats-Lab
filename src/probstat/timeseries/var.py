@@ -26,6 +26,7 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
+from dataclasses import replace as dataclass_replace
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
@@ -39,6 +40,7 @@ from probstat.linalg import (
     cholesky,
     inverse_spd,
     log_det_spd,
+    lu_solve,
     matmul,
     transpose,
 )
@@ -485,16 +487,24 @@ class VARFit:
         Least-squares VAR coefficients are biased toward zero in short
         samples, and percentile bands inherit that bias; for persistent
         systems and small ``T`` the coverage can fall below the nominal
-        level [REF-KILIAN-1998]. The band is pointwise in ``h``, not a
-        simultaneous band for the whole response path.
+        level [REF-KILIAN-1998]. ``"bias-corrected"`` is Kilian's
+        bootstrap-after-bootstrap: a first bootstrap estimates the bias
+        ``Psi = mean(A*) - A_hat``; the series of the second bootstrap are
+        generated from ``A_hat - Psi`` (keeping the fitted process mean),
+        every refit is corrected by the same ``Psi``, and a correction that
+        would make a system non-stable is shrunk in steps of 0.01 until it is
+        stable [EQ-TS-VAR-009]. It costs two bootstraps. The band is
+        pointwise in ``h``, not a simultaneous band for the whole response
+        path.
 
         Args:
             horizon: Last horizon ``H >= 0``.
             replications: Bootstrap replications ``R >= 2``.
             level: Two-sided level in ``(0, 1)``.
             orthogonalized: Use Cholesky-orthogonalized shocks.
-            interval: ``"percentile"`` or ``"hall"``.
-            seed: Seed or stream; replication ``r`` uses child ``("irf", r)``.
+            interval: ``"percentile"``, ``"hall"``, or ``"bias-corrected"``.
+            seed: Seed or stream; replication ``r`` uses child ``("irf", r)``
+                (and ``("irf-bias", r)`` in the first bias-correction stage).
                 ``None`` is not reproducible.
 
         Returns:
@@ -505,7 +515,7 @@ class VARFit:
                 regressors are collinear.
 
         Equation:
-            [EQ-TS-VAR-004], [EQ-TS-VAR-008].
+            [EQ-TS-VAR-004], [EQ-TS-VAR-008], [EQ-TS-VAR-009].
 
         References:
             [REF-RUNKLE-1987], [REF-KILIAN-1998],
@@ -520,8 +530,10 @@ class VARFit:
         coverage = require_probability(level, name="level")
         if not 0.0 < coverage < 1.0:
             raise ValueError("level must lie strictly between 0 and 1")
-        if interval not in {"percentile", "hall"}:
-            raise ValueError("interval must be 'percentile' or 'hall'")
+        if interval not in {"percentile", "hall", "bias-corrected"}:
+            raise ValueError(
+                "interval must be 'percentile', 'hall', or 'bias-corrected'"
+            )
         k = self.dimension
         p = self.order
         point = self.impulse_response(steps, orthogonalized=orthogonalized)
@@ -533,22 +545,79 @@ class VARFit:
         )
         nu = self.intercept if self.intercept is not None else (0.0,) * k
         root = resolve_stream(seed)
-        draws: list[tuple[Matrix, ...]] = []
-        for replication in range(count):
-            generator = root.child("irf", replication).generator()
-            series: list[Vector] = list(self.series[:p])
-            for _ in range(self.nobs):
-                shock = centred[generator.randrange(len(centred))]
-                value = [nu[i] + shock[i] for i in range(k)]
-                for lag, matrix in enumerate(self.coefficients, start=1):
-                    past = series[-lag]
-                    for i in range(k):
-                        value[i] += math.fsum(matrix[i][j] * past[j] for j in range(k))
-                series.append(tuple(value))
-            refit = fit_var(
-                series, p, include_constant=self.include_constant, names=self.names
+
+        def refits(
+            coefficients: tuple[Matrix, ...], intercept: Vector, label: str
+        ) -> list[VARFit]:
+            """Refit the VAR to series rebuilt from resampled residuals.
+
+            References:
+                [REF-RUNKLE-1987], [REF-KILIAN-1998].
+
+            """
+            fits: list[VARFit] = []
+            for replication in range(count):
+                generator = root.child(label, replication).generator()
+                series: list[Vector] = list(self.series[:p])
+                for _ in range(self.nobs):
+                    shock = centred[generator.randrange(len(centred))]
+                    value = [intercept[i] + shock[i] for i in range(k)]
+                    for lag, matrix in enumerate(coefficients, start=1):
+                        past = series[-lag]
+                        for i in range(k):
+                            value[i] += math.fsum(
+                                matrix[i][j] * past[j] for j in range(k)
+                            )
+                    series.append(tuple(value))
+                fits.append(
+                    fit_var(
+                        series,
+                        p,
+                        include_constant=self.include_constant,
+                        names=self.names,
+                    )
+                )
+            return fits
+
+        if interval == "bias-corrected":
+            first_stage = refits(self.coefficients, nu, "irf-bias")
+            bias = tuple(
+                tuple(
+                    tuple(
+                        math.fsum(fit.coefficients[lag][i][j] for fit in first_stage)
+                        / count
+                        - self.coefficients[lag][i][j]
+                        for j in range(k)
+                    )
+                    for i in range(k)
+                )
+                for lag in range(p)
             )
-            draws.append(refit.impulse_response(steps, orthogonalized=orthogonalized))
+            corrected = self._bias_corrected(self.coefficients, bias)
+            # Keep the process mean of the fitted model: nu = (I - sum A) mu.
+            mean = self._process_mean()
+            shifted = nu
+            if mean is not None:
+                shifted = tuple(
+                    mean[i]
+                    - math.fsum(
+                        corrected[lag][i][j] * mean[j]
+                        for lag in range(p)
+                        for j in range(k)
+                    )
+                    for i in range(k)
+                )
+            draws = [
+                dataclass_replace(
+                    fit, coefficients=self._bias_corrected(fit.coefficients, bias)
+                ).impulse_response(steps, orthogonalized=orthogonalized)
+                for fit in refits(corrected, shifted, "irf")
+            ]
+        else:
+            draws = [
+                fit.impulse_response(steps, orthogonalized=orthogonalized)
+                for fit in refits(self.coefficients, nu, "irf")
+            ]
         tail = 0.5 * (1.0 - coverage)
         lower: list[Matrix] = []
         upper: list[Matrix] = []
@@ -584,6 +653,63 @@ class VARFit:
             orthogonalized=orthogonalized,
             interval=interval,
         )
+
+    def _process_mean(self) -> Vector | None:
+        """Return ``mu = (I - A_1 - ... - A_p)^-1 nu``, or ``None`` if unavailable.
+
+        Equation:
+            [EQ-TS-VAR-003].
+
+        References:
+            [REF-LUTKEPOHL-2005, Chapter 2].
+
+        """
+        if self.intercept is None:
+            return None
+        k = self.dimension
+        system = tuple(
+            tuple(
+                (1.0 if i == j else 0.0)
+                - math.fsum(matrix[i][j] for matrix in self.coefficients)
+                for j in range(k)
+            )
+            for i in range(k)
+        )
+        try:
+            return tuple(lu_solve(system, self.intercept))
+        except (ValueError, ArithmeticError):
+            return None
+
+    def _bias_corrected(
+        self, coefficients: tuple[Matrix, ...], bias: tuple[Matrix, ...]
+    ) -> tuple[Matrix, ...]:
+        """Subtract ``delta Psi``, shrinking ``delta`` until the VAR is stable.
+
+        A non-stable input is returned unchanged, as in Kilian (1998).
+
+        Equation:
+            [EQ-TS-VAR-009].
+
+        References:
+            [REF-KILIAN-1998].
+
+        """
+        if not dataclass_replace(self, coefficients=coefficients).is_stable():
+            return coefficients
+        steps = 100
+        while steps > 0:
+            delta = steps / 100.0
+            candidate = tuple(
+                tuple(
+                    tuple(a - delta * b for a, b in zip(row, brow, strict=True))
+                    for row, brow in zip(matrix, bmatrix, strict=True)
+                )
+                for matrix, bmatrix in zip(coefficients, bias, strict=True)
+            )
+            if dataclass_replace(self, coefficients=candidate).is_stable():
+                return candidate
+            steps -= 1
+        return coefficients
 
     def fevd(self, horizon: int) -> tuple[Matrix, ...]:
         """Return the forecast-error variance decomposition for ``h = 1..H``.

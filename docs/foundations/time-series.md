@@ -343,7 +343,14 @@ The response of `y` to an `x` shock stays above zero for ten periods, but
 by then the band spans 0.008 to 0.193. The bands are pointwise, not a
 simultaneous band for the whole path, and least-squares VAR coefficients are
 biased toward zero in short samples, so percentile bands of persistent
-systems tend to cover less than their nominal level [REF-KILIAN-1998].
+systems tend to cover less than their nominal level [REF-KILIAN-1998]. `interval="bias-corrected"` applies Kilian's bootstrap-after-bootstrap
+[EQ-TS-VAR-009]: a first bootstrap estimates the bias of the coefficients,
+the second resamples from the corrected system and corrects every refit by
+the same amount (shrunk if it would break stability). On 30 simulated
+series of length 80 from a VAR(1) with eigenvalues 0.9 and 0.7, the 90%
+bands of the horizon-4 and horizon-8 responses of the first variable
+covered the true response in 27 of 60 cases with the percentile method and
+48 of 60 with the correction; it costs a second bootstrap.
 
 **Granger causality.** `x` Granger-causes `y` if past `x` improves the
 forecasts of `y` given past `y`. The Wald test sets the lag coefficients of

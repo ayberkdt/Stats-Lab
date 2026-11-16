@@ -17,6 +17,7 @@ References:
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 
 from probstat.linalg import Matrix, cholesky, matmul
 from probstat.timeseries import ImpulseResponseBands, fit_var, simulate_var
@@ -135,3 +136,65 @@ class ImpulseResponseCoverageTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BiasCorrectedBandTests(unittest.TestCase):
+    """Kilian's bootstrap-after-bootstrap on a persistent VAR(1)."""
+
+    PERSISTENT = ((0.9, 0.0), (0.3, 0.7))
+
+    def test_corrects_undercoverage_of_persistent_responses(self) -> None:
+        """30 series of length 80: the corrected band covers far more often.
+
+        At the nominal 90% the percentile band misses the long-horizon
+        responses of this near-unit-root system in about half the series
+        (least-squares bias toward zero); the bias-corrected band comes
+        close to nominal [REF-KILIAN-1998].
+        """
+        factor = cholesky(SIGMA)
+        phi: Matrix = ((1.0, 0.0), (0.0, 1.0))
+        truth = [matmul(phi, factor)]
+        for _ in range(8):
+            phi = matmul(phi, self.PERSISTENT)
+            truth.append(matmul(phi, factor))
+        keys = ((4, 0, 0), (8, 0, 0))
+        hits = {"percentile": 0, "bias-corrected": 0}
+        for dataset in range(30):
+            fit = fit_var(
+                simulate_var((self.PERSISTENT,), SIGMA, 80, seed=500 + dataset), 1
+            )
+            for method in hits:
+                bands = fit.impulse_response_bands(
+                    8, replications=99, level=0.9, interval=method, seed=dataset
+                )
+                hits[method] += sum(
+                    bands.lower[h][i][j] <= truth[h][i][j] <= bands.upper[h][i][j]
+                    for h, i, j in keys
+                )
+        # Measured: 27 (percentile) and 48 (bias-corrected) of 60; nominal 54.
+        self.assertGreaterEqual(hits["bias-corrected"], 44)
+        self.assertGreaterEqual(hits["bias-corrected"] - hits["percentile"], 12)
+
+    def test_correction_keeps_stability(self) -> None:
+        """A bias that would push the system past a unit root is shrunk."""
+        fit = fit_var(simulate_var((self.PERSISTENT,), SIGMA, 80, seed=3), 1)
+        push = (((0.5, 0.0), (0.0, 0.5)),)
+        corrected = fit._bias_corrected(fit.coefficients, push)
+        self.assertTrue(replace(fit, coefficients=corrected).is_stable())
+        self.assertNotEqual(corrected, fit.coefficients)
+        self.assertEqual(
+            fit._bias_corrected(fit.coefficients, ((((0.0,) * 2),) * 2,)),
+            fit.coefficients,
+        )
+
+    def test_reproducible(self) -> None:
+        """Same seed, same bands; the two stages use distinct streams."""
+        fit = fit_var(simulate_var((self.PERSISTENT,), SIGMA, 80, seed=4), 1)
+        first = fit.impulse_response_bands(
+            3, replications=20, interval="bias-corrected", seed=9
+        )
+        second = fit.impulse_response_bands(
+            3, replications=20, interval="bias-corrected", seed=9
+        )
+        self.assertEqual(first, second)
+        self.assertEqual(first.interval, "bias-corrected")

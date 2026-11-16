@@ -14813,6 +14813,22 @@ Hall's band `[2 theta_hat - q_(1-alpha/2), 2 theta_hat - q_(alpha/2)]`.
   inherit the small-sample bias of least-squares VAR coefficients.
 - Code: `timeseries.VARFit.impulse_response_bands`.
 - Source: [REF-RUNKLE-1987], [REF-KILIAN-1998], [REF-HALL-1992].
+
+### EQ-TS-VAR-009 — Bias-corrected bootstrap for impulse responses
+
+`Psi_hat = mean_b(A*_b) - A_hat` from a first residual bootstrap;
+`A_tilde = A_hat - delta Psi_hat` with the largest `delta` in
+`{1, 0.99, ..., 0}` that keeps the companion spectral radius below one;
+second-stage series are generated from `A_tilde` and every refit `A*` is
+replaced by `A* - delta* Psi_hat` (same rule) before the responses and
+their percentile band are computed.
+
+- Domain: a stable fitted VAR; a non-stable estimate is left uncorrected.
+- Meaning: removes the first-order small-sample bias of least-squares VAR
+  coefficients, which otherwise drags percentile bands of persistent
+  systems toward zero.
+- Code: `timeseries.VARFit.impulse_response_bands`.
+- Source: [REF-KILIAN-1998].
 ### EQ-TS-ADF-001 — Augmented Dickey-Fuller regression and statistic
 
 `Delta y_t = D_t' delta + gamma y_(t-1) + sum_{j=1}^{k} phi_j Delta y_(t-j) + e_t`,
