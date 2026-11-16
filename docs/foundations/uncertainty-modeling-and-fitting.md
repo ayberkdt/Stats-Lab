@@ -636,7 +636,8 @@ GEV and normal fits and the growth of the min/max envelope with the number
 of draws; kernel estimates with Silverman, leave-one-out likelihood, and
 UCV bandwidths, scored by their integrated squared error against the exact
 density [EQ-LAB-INPUT-003]; and the 1-in-100 block maximum under every law.
-Only the GEV band, 23.70 to 25.24 m/s, contains the exact value 24.75 m/s.
+Only the GEV fits contain the exact value 24.75 m/s: by likelihood with the
+band 23.70 to 25.24 m/s, by moments with a band that is almost the same.
 The block means, in contrast, are fitted best by the normal law: both
 results could be anticipated from how the values were formed.
 `tests/test_input_modeling_lab.py` checks the numbers against R (`e1071`,

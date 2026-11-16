@@ -13,6 +13,16 @@ while the public API remains pre-1.0 and experimental.
   leave-one-out choice on a two-mode sample (integrated squared error 0.050
   against 0.0076). The README maps the input-modeling methods and shows two
   of these figures.
+- **Input-modeling laboratory:** `examples/input_modeling_lab.py` walks the
+  ATHENS input-modeling decision on simulated wind maxima and block means:
+  description (both e1071 skewness conventions), maximum-entropy laws from
+  expert statements (whose 0.99 quantile moves with the arbitrary upper
+  end of the range once a skewness is imposed), likelihood and moment fits
+  with naive and bootstrap-calibrated KS/AD p-values, parameter bands, and
+  kernel estimates scored against the exact law `F(x)^144`. Only the GEV
+  fits contain the exact 1-in-100 block maximum, 24.75 m/s; the block
+  means are fitted best by the normal law. Checked against R (e1071,
+  fitdistrplus, evd, stats) by `tests/test_input_modeling_lab.py`.
 - **Parity with R:** `tools/r_oracles/parity.R` writes `tests/data/r_parity.json`
   (136 cases on R's own datasets, with R and package versions, the exact R
   call, and a justified tolerance each), and `tests/test_r_parity.py` checks

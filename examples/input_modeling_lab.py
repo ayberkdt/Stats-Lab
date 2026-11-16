@@ -1712,9 +1712,9 @@ def draw_design_values(results: LabResults) -> Any:
     ]
     if len(covering) == 1:
         lead = (
-            f"Only the {covering[0].label.split(' ')[0]} band "
-            f"({covering[0].lower:.2f} to {covering[0].upper:.2f} m/s) contains the "
-            f"exact 1-in-100 block maximum, {exact:.2f} m/s"
+            f"Only the {covering[0].label.split(' ')[0]} fits contain the exact "
+            f"1-in-100 block maximum, {exact:.2f} m/s (likelihood band "
+            f"{covering[0].lower:.2f} to {covering[0].upper:.2f})"
         )
     else:
         lead = (
