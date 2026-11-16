@@ -417,6 +417,17 @@ contains the 1000-draw run: the 95 % band settles near `0.07` while the
 envelope keeps widening. The bands are pointwise; a band that holds
 simultaneously over all `x` is wider.
 
+**A band is conditional on its family.** Parameter uncertainty is not
+model uncertainty: a narrow band around the wrong family is confidently
+wrong in the tail, which is where design values live. Block maxima of wind
+speed are the classic case: the normal law fits the bulk and misses the
+upper tail, while the GEV law, the limit law of maxima
+[REF-COLES-2001, Chapter 3], follows it.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/fitting-parameter-bands-dark.png"><img alt="Exceedance probabilities of 400 simulated wind maxima on a log scale with the fitted normal and GEV laws and their parameter bands" src="../images/guides/fitting-parameter-bands.png"></picture>
+
+*Each of 400 simulated maxima is the largest of 144 Weibull(2, 8) wind speeds; at 24 m/s, 6 of 400 exceed, which lies inside the pointwise 95% band of the GEV fit (0.69% to 2.38%) and above the band of the normal fit (0.30% to 0.94%), whose AIC is 19.3 units worse.*
+
 ## Real-data case studies
 
 Synthetic data show that a method works when its assumptions hold; historical

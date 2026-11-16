@@ -37,6 +37,18 @@
       "bootstrap_below": "7 of 80"
     }
   },
+  "fitting-parameter-bands": {
+    "guide": "uncertainty-modeling-and-fitting",
+    "alt": "Exceedance probabilities of 400 simulated wind maxima on a log scale with the fitted normal and GEV laws and their parameter bands",
+    "facts": {
+      "count": "6 of 400",
+      "normal_low": "0.30%",
+      "normal_high": "0.94%",
+      "gev_low": "0.69%",
+      "gev_high": "2.38%",
+      "aic": "19.3"
+    }
+  },
   "forecast-pit-histograms": {
     "guide": "forecast-calibration",
     "alt": "Three PIT histograms for the ideal, overconfident, and climatological forecasters with the uniform count and binomial band",

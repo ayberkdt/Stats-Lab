@@ -357,6 +357,113 @@ def draw_fitting_bearing_tails() -> tuple[Any, dict[str, str]]:
     return figure, facts
 
 
+def draw_fitting_parameter_bands() -> tuple[Any, dict[str, str]]:
+    """Contrast the parameter-uncertainty bands of a normal and a GEV fit.
+
+    The 400 maxima are simulated: each is the largest of 144 Weibull(2, 8)
+    wind speeds, the shape of a wind-maximum sample. The bands are pointwise
+    95% bands of the exceedance probability from parameters drawn from the
+    asymptotic normal law of each maximum-likelihood fit.
+
+    Equation:
+        [EQ-INF-MLE-GEN-001], [EQ-INF-BAND-001].
+
+    References:
+        [REF-COLES-2001, Chapter 3], [REF-DELIGNETTE-MULLER-DUTANG-2015].
+
+    """
+    from matplotlib.ticker import NullLocator
+
+    from probstat.distributions import Weibull
+    from probstat.inference import (
+        GEV_FAMILY,
+        NORMAL_FAMILY,
+        fit_distribution,
+        parameter_uncertainty_band,
+    )
+
+    size, block = 400, 144
+    speeds = Weibull(2.0, 8.0).sample(size * block, seed=2026)
+    maxima = sorted(
+        max(speeds[index * block : (index + 1) * block]) for index in range(size)
+    )
+    grid = [17.0 + 0.05 * k for k in range(181)]
+    fits = {
+        "normal": fit_distribution(maxima, NORMAL_FAMILY),
+        "GEV": fit_distribution(maxima, GEV_FAMILY),
+    }
+    bands = {
+        name: parameter_uncertainty_band(fit, grid, draws=2000, level=0.95, seed=11)
+        for name, fit in fits.items()
+    }
+    probe = 24.0
+    at = grid.index(min(grid, key=lambda value: abs(value - probe)))
+    exceed = sum(value > probe for value in maxima)
+    facts = {
+        "count": f"{exceed} of {size}",
+        "normal_low": f"{100.0 * (1.0 - bands['normal'].upper[at]):.2f}%",
+        "normal_high": f"{100.0 * (1.0 - bands['normal'].lower[at]):.2f}%",
+        "gev_low": f"{100.0 * (1.0 - bands['GEV'].upper[at]):.2f}%",
+        "gev_high": f"{100.0 * (1.0 - bands['GEV'].lower[at]):.2f}%",
+        "aic": f"{fits['normal'].aic - fits['GEV'].aic:.1f}",
+    }
+
+    figure, (ax,) = _panels(figsize=(7.2, 4.4))
+    colours = {
+        "normal": theme.role_colour("context"),
+        "GEV": theme.role_colour("model"),
+    }
+    floor = 1.5e-3
+
+    def visible(values: Sequence[float]) -> list[float]:
+        """Exceedance probabilities, blank below the plotted floor."""
+        return [1.0 - v if 1.0 - v >= floor else math.nan for v in values]
+
+    for name, band in bands.items():
+        theme.band(
+            ax,
+            grid,
+            [max(1.0 - value, floor) for value in band.upper],
+            visible(band.lower),
+            color=colours[name],
+            alpha=0.22,
+        )
+        theme.line(ax, grid, visible(band.cdf_estimate), color=colours[name])
+    n = len(maxima)
+    theme.points(
+        ax,
+        maxima,
+        [1.0 - (i + 0.5) / n for i in range(n)],
+        entity="observations",
+        size=14.0,
+    )
+    theme.reference_line(ax, x=probe, label=None)
+    ax.set_yscale("log")
+    _plain_log(ax.yaxis, percent=True)
+    ax.set_yticks([0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0])
+    ax.yaxis.set_minor_locator(NullLocator())
+    ax.set_xlim(17.0, 26.5)
+    ax.set_ylim(floor, 1.1)
+    gev_tail = 1.0 - fits["GEV"].distribution.cdf(24.7)
+    normal_tail = 1.0 - fits["normal"].distribution.cdf(23.2)
+    _label(ax, 24.7, gev_tail, "GEV", colours["GEV"], offset=(4.0, 12.0), ha="left")
+    _label(
+        ax, 23.2, normal_tail, "normal", colours["normal"], offset=(-8.0, -6.0),
+        ha="right", va="top", boxed=True,
+    )  # fmt: skip
+    theme.axis_labels(
+        ax, "Block maximum of the wind speed [m/s]", "Exceedance probability"
+    )
+    theme.title_block(
+        ax,
+        f"At 24 m/s, {facts['count']} maxima exceed: inside the GEV band "
+        f"({facts['gev_low']} to {facts['gev_high']}), above the normal one",
+        "Dots: 400 simulated maxima. Lines and shading: fitted law and pointwise "
+        "95% parameter-uncertainty band",
+    )
+    return figure, facts
+
+
 # --------------------------------------------------------------------------
 # Uncertainty propagation
 # --------------------------------------------------------------------------
@@ -1925,6 +2032,13 @@ FIGURES: list[GuideFigure] = [
         "from 80 normal samples tested against fitted normal laws, with the "
         "uniform diagonal",
         draw=draw_fitting_bootstrap_calibration,
+    ),
+    GuideFigure(
+        name="fitting-parameter-bands",
+        guide="uncertainty-modeling-and-fitting",
+        alt="Exceedance probabilities of 400 simulated wind maxima on a log "
+        "scale with the fitted normal and GEV laws and their parameter bands",
+        draw=draw_fitting_parameter_bands,
     ),
     GuideFigure(
         name="fitting-bearing-tails",

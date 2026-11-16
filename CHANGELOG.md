@@ -20,7 +20,9 @@ while the public API remains pre-1.0 and experimental.
   parameters from the asymptotic normal law of a fit and returns pointwise
   CDF and quantile bands, the delta-method band, the min/max envelope (which
   widens with the number of draws and is not a confidence band), and the
-  share of rejected draws.
+  share of rejected draws. A new guide figure shows the bands of a normal and
+  a GEV fit to 400 simulated wind maxima: the normal band misses the upper
+  tail that the GEV band holds.
 - **Anderson-Darling p-values:** `anderson_darling_test` reports `p_value`
   for a fully specified null (Marsaglia and Marsaglia 2004 finite-n law for
   n >= 2, the exact law for n = 1); `anderson_darling_asymptotic_cdf` and
