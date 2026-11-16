@@ -4155,3 +4155,13 @@ in the linear model: an alternative to least squares means. *The American
 Statistician*, 34(4):216-221, 1980. Marginal means as equal-weight averages
 of predicted cell means, estimable when no cell is empty.
 DOI: [10.1080/00031305.1980.10483031](https://doi.org/10.1080/00031305.1980.10483031).
+
+## REF-DELIGNETTE-MULLER-DUTANG-2015
+
+Marie Laure Delignette-Muller and Christophe Dutang. fitdistrplus: an R
+package for fitting distributions. *Journal of Statistical Software*,
+64(4):1-34, 2015. Moment matching (`method = "mme"`) with the population
+variance (divisor `n`) and delta-method moment-estimator covariance
+(`calcvcov`); conventions read from the `mmedist` source of fitdistrplus
+1.2.6.
+DOI: [10.18637/jss.v064.i04](https://doi.org/10.18637/jss.v064.i04).

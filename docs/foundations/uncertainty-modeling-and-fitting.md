@@ -171,6 +171,177 @@ bootstrap with numerical refits costs `B` optimizations per candidate (about
 0.02-0.1 s each in pure Python). The Gaussian copula cannot represent tail
 dependence.
 
+## Moments versus likelihood, and parameter-uncertainty bands
+
+### Choosing the estimator
+
+`fit_distribution` maximizes the likelihood; `fit_distribution_moments`
+equates the first `k` moments of a `k`-parameter family to the sample mean,
+the population variance `v = (1/n) sum (x_i - m)^2` (divisor `n`), and, for
+the GEV, the population third central moment ([EQ-INF-MOM-001]). These are
+the conventions of R's `fitdistrplus::fitdist(x, distr, method = "mme")`
+[REF-DELIGNETTE-MULLER-DUTANG-2015]: on the ATHENS wind maxima (400 values)
+both libraries give the lognormal moment estimate
+`meanlog = 2.978689811447`, `sdlog = 0.161122240569`. The closed forms
+([EQ-INF-MOM-002]) are Normal `(m, sqrt v)`, LogNormal
+`s2 = log(1 + v/m^2)`, `(log m - s2/2, sqrt s2)` (moments of `x`, not of
+`log x`), Exponential `1/m`, Gamma `(m^2/v, m/v)`, Uniform
+`m -+ sqrt(3v)`, Logistic `(m, sqrt(3v)/pi)`, Gumbel
+`beta = sqrt(6v)/pi`, `mu = m - gamma_E beta`, and Beta
+`c = m(1 - m)/v - 1`, `(mc, (1 - m)c)`. The Weibull shape solves the
+coefficient-of-variation equation and the GEV shape the skewness equation
+([EQ-INF-MOM-003]). The Student t has no moment rule: its fourth-moment
+estimator is unstable, so maximum likelihood is the only option offered.
+
+When to use which:
+
+- **Maximum likelihood** is the default. It is asymptotically efficient,
+  it gives observed-information standard errors, and only a maximized
+  likelihood supports AIC, BIC, and likelihood-ratio comparisons.
+- **Moments** give a closed-form or one-dimensional answer that cannot fail
+  to converge, a reproduction of an `mme` analysis done in R, starting
+  values, and a quick consistency check: a large gap between the two
+  estimates is a sign that the family does not fit.
+- A moment estimate is not a likelihood estimate. `MomentFitResult`
+  therefore carries no AIC or BIC; its `log_likelihood` is only the value at
+  the moment estimate, and it is `-inf` when the fitted support excludes an
+  observation (a Uniform `m -+ sqrt(3v)` can fall inside the sample range).
+
+Standard errors of moment estimates come from the delta method
+([EQ-INF-MOM-004]): with `J` the Jacobian of the moments with respect to
+`theta`, `Cov(theta_hat) = J^-1 A J^-T / n`. `covariance="model"` (default)
+takes the covariance `A` of the powers `(x - m)^j` from the fitted law, as
+fitdistrplus's `calcvcov` does; `covariance="empirical"` takes it from the
+data (a sandwich estimate that stays valid when the family is wrong). Both
+need finite moments of order `2k`. For a GEV with `xi >= 1/6` the model form
+does not exist and its standard errors are `nan`. fitdistrplus 1.2.6
+reports a wrong `calcvcov` for its beta, uniform, and logistic moment fits:
+its internal moment functions return the second moment for orders 3 and 4.
+
+On 400 Gumbel maxima, the normal moment fit coincides with the normal MLE
+(both use divisor `n`), while the lognormal and Gumbel fits differ, and the
+moment estimate of the Gumbel scale has a standard error a third larger
+than the MLE:
+
+```python
+from probstat.distributions import Gumbel
+from probstat.inference import (
+    GUMBEL_FAMILY,
+    LOGNORMAL_FAMILY,
+    NORMAL_FAMILY,
+    fit_distribution,
+    fit_distribution_moments,
+)
+
+maxima = Gumbel(18.5, 2.5).sample(400, seed=2026)
+fit_distribution_moments(maxima, NORMAL_FAMILY).estimates    # (20.12, 3.157)
+fit_distribution(maxima, NORMAL_FAMILY).estimates            # (20.12, 3.157)
+fit_distribution_moments(maxima, LOGNORMAL_FAMILY).estimates  # (2.990, 0.1559)
+fit_distribution(maxima, LOGNORMAL_FAMILY).estimates          # (2.991, 0.1491)
+gumbel_moments = fit_distribution_moments(maxima, GUMBEL_FAMILY)
+gumbel_mle = fit_distribution(maxima, GUMBEL_FAMILY)
+gumbel_moments.estimates        # (18.70, 2.461)
+gumbel_moments.standard_errors  # (0.133, 0.129)
+gumbel_mle.estimates            # (18.70, 2.508)
+gumbel_mle.standard_errors      # (0.132, 0.0964)
+```
+
+### A case where moments lose badly: the uniform endpoint
+
+For `X_i ~ U(0, theta)` the moment estimator is `2 xbar`, unbiased with
+quadratic risk `theta^2/(3n)`. The likelihood `theta^-n 1{theta >= max x_i}`
+is maximized at `max x_i`; its unbiased rescaling `(n+1)/n max x_i` has risk
+`theta^2/(n(n+2))` ([EQ-EST-006], [REF-CASELLA-BERGER-2002, Section 7.3.1]).
+The first decreases like `1/n`, the second like `1/n^2`, because the support
+depends on `theta` and the usual regularity conditions fail. A seeded
+simulation reproduces both risks within their Monte Carlo errors:
+
+```python
+import math
+
+from probstat.distributions import Uniform
+from probstat.inference import evaluate_estimator, uniform_maximum_risks
+
+risks = {risk.label: risk.mse for risk in uniform_maximum_risks(1.0, 10)}
+risks["2 mean"]       # 0.03333, theta^2/(3n)
+risks["(n+1)/n max"]  # 0.008333, theta^2/(n(n+2))
+
+law = Uniform(0.0, 1.0)
+
+
+def sampler(size, rng):
+    return tuple(law.quantile(rng.random()) for _ in range(size))
+
+
+twice_mean = evaluate_estimator(
+    lambda xs: 2 * math.fsum(xs) / len(xs), sampler, 1.0, 10, 4000, seed=7
+)
+scaled_max = evaluate_estimator(
+    lambda xs: 11 / 10 * max(xs), sampler, 1.0, 10, 4000, seed=7
+)
+twice_mean.mse, twice_mean.mse_se  # (0.0339, 0.00074)
+scaled_max.mse, scaled_max.mse_se  # (0.00894, 0.00032)
+```
+
+### Parameter-uncertainty bands for a fitted CDF
+
+A fitted CDF inherits the uncertainty of its parameters.
+`parameter_uncertainty_band(fit, grid)` draws `R` parameter vectors from the
+asymptotic normal law `N(theta_hat, Cov(theta_hat))` of a `FitResult`
+(inverse observed information) or a `MomentFitResult` (delta-method
+covariance), discards and counts draws outside the parameter space, and
+evaluates `F(x; theta*)` on the grid ([EQ-INF-BAND-001]). It returns three
+pointwise bands:
+
+- the `(1 - level)/2` and `(1 + level)/2` sample quantiles of the drawn CDF
+  values, which converge as `R` grows;
+- the min/max envelope of the draws, which is what a plot of all drawn CDFs
+  shows;
+- the delta-method band `F(x; theta_hat) +- z se(x)`,
+  `se(x)^2 = g' Cov g`, `g = dF/dtheta` ([EQ-INF-BAND-002],
+  [REF-CASELLA-BERGER-2002, Section 5.5.4]).
+
+**The envelope is not a confidence band.** The extremes of `R` draws move
+outwards as `R` grows (for one normal parameter, like `sqrt(2 log R)`
+standard errors), so its width measures the number of draws as much as the
+uncertainty. Quote the quantile band, or the delta band where the CDF is
+close to linear in the parameters. For a normal fit
+`se(x)^2 = phi(u)^2 (1 + u^2/2)/n`, `u = (x - mu)/sigma`;
+`tests/test_parameter_bands.py` checks this formula, and checks that the
+simulated band agrees with the exact quantiles of the normal approximation
+within its Monte Carlo error and covers the true CDF at the nominal level.
+In the tails the simulated band is asymmetric and the symmetric delta band
+can reach below zero, where it is clipped.
+
+```python
+from probstat.inference import parameter_uncertainty_band
+
+band = parameter_uncertainty_band(
+    gumbel_mle, (14.0, 18.0, 22.0, 28.0), draws=2000, seed=11,
+    quantile_probabilities=(0.99,),
+)
+band.cdf_estimate  # (0.00148, 0.2664, 0.7646, 0.9758)
+band.lower         # (0.00049, 0.2314, 0.7314, 0.9675)
+band.upper         # (0.00344, 0.3008, 0.7997, 0.9830)
+band.delta_lower   # (0.00007, 0.2317, 0.7309, 0.9679)
+band.delta_upper   # (0.00289, 0.3012, 0.7983, 0.9836)
+band.quantile_estimate, band.quantile_lower, band.quantile_upper
+# ((30.24,), (29.24,), (31.18,))
+
+for draws in (100, 1000, 10000):
+    wider = parameter_uncertainty_band(gumbel_mle, (22.0,), draws=draws, seed=11)
+    print(draws, round(wider.upper[0] - wider.lower[0], 3),
+          round(wider.envelope_upper[0] - wider.envelope_lower[0], 3))
+# 100 0.07 0.088
+# 1000 0.07 0.107
+# 10000 0.067 0.134
+```
+
+The draws are generated in order from one stream, so the 10000-draw run
+contains the 1000-draw run: the 95 % band settles near `0.07` while the
+envelope keeps widening. The bands are pointwise; a band that holds
+simultaneously over all `x` is wider.
+
 ## Real-data case studies
 
 Synthetic data show that a method works when its assumptions hold; historical
@@ -325,6 +496,12 @@ than hiding it.
   is `0.01`; a reported `0.01` means "at or below the floor".
 - **Weights are relative.** Akaike and BIC weights rank the candidates that
   were tried; they do not certify that any of them fits.
+- **A moment fit has no AIC.** `MomentFitResult.log_likelihood` is the value
+  at the moment estimate, not a maximum; rank families with
+  `fit_distribution` fits.
+- **A min/max envelope of drawn CDFs is not a confidence band.** It widens
+  with the number of draws; use the pointwise quantile band of
+  `parameter_uncertainty_band`.
 
 ```python
 import statistics
@@ -354,3 +531,5 @@ statistics.variance([1.0, 2.0, 3.0, 4.0])        # 1.6667, divisor n - 1
   [REF-NEWCOMB-VELOCITY-OF-LIGHT], [REF-LIEBLEIN-ZELEN-1956],
   [REF-STUDENT-1908], [REF-CUSHNY-PEEBLES-1905].
 - [REF-GARWOOD-1936], [REF-LEVIN-REEDS-1977], [REF-KLEIBER-ZEILEIS-2016].
+- [REF-DELIGNETTE-MULLER-DUTANG-2015], [REF-VAN-DER-VAART-1998, Chapters 3
+  and 4].
