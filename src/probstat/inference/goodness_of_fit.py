@@ -19,10 +19,16 @@ from probstat.foundations.validation import (
     require_probability,
 )
 
+from .anderson_darling import anderson_darling_cdf
+
 _KS_EXACT_MAX_N = 100
 _KS_SMIRNOV_SWITCH = 1e-7
 _KS_EXACT_LABEL = "exact finite-n one-sample KS"
 _KS_ASYMPTOTIC_LABEL = "Stephens-corrected asymptotic one-sample KS"
+_AD_EXACT_LABEL = "exact n = 1 Anderson-Darling law (fully specified null)"
+_AD_MARSAGLIA_LABEL = (
+    "Marsaglia-Marsaglia finite-n Anderson-Darling law (fully specified null)"
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,28 +84,37 @@ class KolmogorovSmirnovResult:
 class AndersonDarlingResult:
     """One-sample Anderson-Darling statistic for a fully specified CDF.
 
-    Critical values and p-values depend on the null family and whether its
-    parameters were estimated. This generic result intentionally reports no
-    universal p-value.
+    The p-value is the fully specified-null (case 0) tail probability. It is
+    conservative (too large) when the null parameters were estimated from
+    the tested data; ``normality_tests`` (normal null) and
+    ``bootstrap_goodness_of_fit`` (any fitted family) calibrate that case.
 
     Args:
         statistic: Non-negative tail-weighted discrepancy, possibly infinite.
         sample_size: Positive number of observations.
+        p_value: Null-tail probability ``P(A_n^2 >= a)`` in ``[0, 1]`` for a
+            fully specified null, or ``None`` when not computed.
+        method: Label identifying the p-value computation, or ``None``.
 
     References:
-        [REF-NIST-GOF, Anderson-Darling Test].
+        [REF-NIST-GOF, Anderson-Darling Test],
+        [REF-MARSAGLIA-MARSAGLIA-2004].
 
     """
 
     statistic: float
     sample_size: int
+    p_value: float | None = None
+    method: str | None = None
 
     def __post_init__(self) -> None:
-        """Validate non-negative discrepancy and positive sample size.
+        """Validate the discrepancy, sample size, p-value, and method label.
 
         Raises:
             TypeError: If a field has an invalid type.
-            ValueError: If the statistic is NaN/negative or sample size is zero.
+            ValueError: If the statistic is NaN/negative, the sample size is
+                zero, the p-value lies outside ``[0, 1]``, or the method
+                label is empty.
 
         References:
             [EQ-INF-GOF-AD-001], [REF-NIST-GOF].
@@ -115,6 +130,15 @@ class AndersonDarlingResult:
         )
         if sample_size == 0:
             raise ValueError("sample_size must be positive")
+        if self.p_value is not None:
+            object.__setattr__(
+                self, "p_value", require_probability(self.p_value, name="p_value")
+            )
+        if self.method is not None:
+            if not isinstance(self.method, str):
+                raise TypeError("method must be a string or None")
+            if not self.method.strip():
+                raise ValueError("method must not be empty")
         object.__setattr__(self, "statistic", statistic)
         object.__setattr__(self, "sample_size", sample_size)
 
@@ -370,7 +394,18 @@ def anderson_darling_test(
     values: Iterable[object],
     distribution: CumulativeDistribution,
 ) -> AndersonDarlingResult:
-    """Compute the one-sample Anderson-Darling statistic.
+    """Compute the one-sample Anderson-Darling statistic and its p-value.
+
+    The p-value ``P(A_n^2 >= a)`` assumes a fully specified continuous null
+    (case 0): exact for ``n = 1`` and the Marsaglia-Marsaglia finite-``n``
+    approximation otherwise (absolute error below about ``6e-4`` for
+    ``n >= 5``; see ``anderson_darling_cdf``).
+
+    Warning:
+        If ``distribution`` was fitted to ``values``, the statistic is
+        stochastically smaller than under case 0 and this p-value is too
+        large. Use ``normality_tests`` for a fitted normal and
+        ``bootstrap_goodness_of_fit`` for any fitted family.
 
     Args:
         values: Non-empty iterable of finite real observations.
@@ -378,23 +413,27 @@ def anderson_darling_test(
             method is used for upper tails when available.
 
     Returns:
-        Tail-weighted discrepancy and sample size; no universal p-value.
+        Tail-weighted discrepancy, sample size, case-0 p-value, and method
+        label. An observation with null tail probability zero gives an
+        infinite statistic and p-value ``0``.
 
     Raises:
         TypeError: If inputs violate the iterable or CDF protocol.
         ValueError: If observations or returned probabilities are invalid.
 
     Equation:
-        [EQ-INF-GOF-AD-001].
+        [EQ-INF-GOF-AD-001], [EQ-INF-GOF-AD-003], [EQ-INF-GOF-AD-004].
 
     References:
-        [REF-NIST-GOF, Anderson-Darling Test].
+        [REF-NIST-GOF, Anderson-Darling Test],
+        [REF-MARSAGLIA-MARSAGLIA-2004, Sections 1 and 3].
 
     """
     sample = tuple(sorted(coerce_finite_sample(values)))
     if not isinstance(distribution, CumulativeDistribution):
         raise TypeError("distribution must expose cdf(x)")
     count = len(sample)
+    method = _AD_EXACT_LABEL if count == 1 else _AD_MARSAGLIA_LABEL
     weighted_logs: list[float] = []
     has_survival = isinstance(distribution, SurvivalFunction)
     for rank, lower_value in enumerate(sample, start=1):
@@ -409,13 +448,14 @@ def anderson_darling_test(
         else:
             upper_probability = 1.0 - _cdf_probability(distribution, upper_value)
         if lower_probability == 0.0 or upper_probability == 0.0:
-            return AndersonDarlingResult(math.inf, count)
+            return AndersonDarlingResult(math.inf, count, 0.0, method)
         weighted_logs.append(
             (2 * rank - 1)
             * (math.log(lower_probability) + math.log(upper_probability))
         )
-    statistic = -count - math.fsum(weighted_logs) / count
-    return AndersonDarlingResult(max(0.0, statistic), count)
+    statistic = max(0.0, -count - math.fsum(weighted_logs) / count)
+    p_value = 1.0 - anderson_darling_cdf(statistic, count)
+    return AndersonDarlingResult(statistic, count, p_value, method)
 
 
 def _cdf_probability(distribution: CumulativeDistribution, value: float) -> float:

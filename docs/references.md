@@ -4155,3 +4155,19 @@ in the linear model: an alternative to least squares means. *The American
 Statistician*, 34(4):216-221, 1980. Marginal means as equal-weight averages
 of predicted cell means, estimable when no cell is empty.
 DOI: [10.1080/00031305.1980.10483031](https://doi.org/10.1080/00031305.1980.10483031).
+
+## REF-MARSAGLIA-MARSAGLIA-2004
+
+George Marsaglia and John Marsaglia. "Evaluating the Anderson-Darling
+Distribution." *Journal of Statistical Software* 9(2), 1-5, 2004. The
+series for the limiting law (Section 2), the finite-n error correction
+`errfix` (Section 3), and the exact law for `n = 1` (Section 1).
+DOI: [10.18637/jss.v009.i02](https://doi.org/10.18637/jss.v009.i02).
+
+## REF-ANDERSON-DARLING-1954
+
+T. W. Anderson and D. A. Darling. "A Test of Goodness of Fit." *Journal of
+the American Statistical Association* 49(268), 765-769, 1954. The reported
+asymptotic percentage points `1.933`, `2.492`, and `3.857` (as quoted in
+[REF-MARSAGLIA-MARSAGLIA-2004, Section 2]).
+DOI: [10.1080/01621459.1954.10501232](https://doi.org/10.1080/01621459.1954.10501232).

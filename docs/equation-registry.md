@@ -687,6 +687,49 @@ series and Stephens finite-sample argument correction.
 - Code: `inference.wilson_score_interval`.
 - Source: [REF-WILSON-1927].
 
+### EQ-INF-GOF-AD-002 — Limiting Anderson-Darling distribution
+
+`ADinf(z) = lim P(A_n^2 < z) = (1/z) sum_(j>=0) binomial(-1/2, j) (4j+1)
+f(z, j)`, `f(z, j) = sqrt(2 pi) e^(-t_j) int_0^inf exp(z/(8(1+w^2)) -
+w^2 t_j) dw`, `t_j = (4j+1)^2 pi^2/(8z)`; with `f(z, j) = sum_k c_k
+(z/8)^k/k!`, `c_0 = pi e^(-t) (2t)^(-1/2)`, `c_1 = pi (pi/2)^(1/2)
+erfc(t^(1/2))`, and `c_(k+1) = ((k - 1/2 - t) c_k + t c_(k-1))/k`.
+
+- Domain: `z > 0`; fully specified continuous null, `n -> infinity`.
+- Meaning: the Anderson-Darling (1952) limit law evaluated to double
+  precision by a two-term recursion; its 90, 95, and 99 percent points are
+  `1.93296`, `2.49237`, and `3.87813` (the classical `3.857` is too small).
+- Code: `inference.anderson_darling_asymptotic_cdf`.
+- Source: [REF-MARSAGLIA-MARSAGLIA-2004, Section 2] and
+  [REF-ANDERSON-DARLING-1952].
+
+### EQ-INF-GOF-AD-003 — Finite-n Anderson-Darling correction
+
+`P(A_n^2 < z) = x + errfix(n, x)` with `x = ADinf(z)` and
+`c(n) = 0.01265 + 0.1757/n`: `errfix = (0.0037/n^3 + 0.00078/n^2 +
+0.00006/n) g1(x/c)` for `x < c`, `(0.04213/n + 0.01365/n^2)
+g2((x - c)/(0.8 - c))` for `c <= x < 0.8`, and `g3(x)/n` for `x > 0.8`;
+`g1(u) = sqrt(u) (1 - u)(49u - 102)`, `g2` and `g3` quintic polynomials.
+
+- Domain: `n >= 2` (fitted from `10^10` simulated statistics at
+  `n = 8, 16, 32, 64, 128`); fully specified continuous null.
+- Meaning: an empirical error curve that turns `ADinf` into the finite-n
+  law, accurate to about `5e-5` at the fitted `n` and `5e-4` otherwise; the
+  p-value is `1 - P(A_n^2 < z)`.
+- Code: `inference.anderson_darling_cdf`, `inference.anderson_darling_test`.
+- Source: [REF-MARSAGLIA-MARSAGLIA-2004, Section 3].
+
+### EQ-INF-GOF-AD-004 — Exact Anderson-Darling law for one observation
+
+`A_1^2 = -1 - log(U(1 - U))` and `P(A_1^2 < z) = sqrt(1 - 4 e^(-1-z))` for
+`z > log 4 - 1`, else `0`.
+
+- Domain: `n = 1`, `U ~ Uniform(0, 1)`.
+- Meaning: `A_1^2 < z` exactly when `U` lies between the two roots of
+  `u(1 - u) = e^(-1-z)`, an interval of that length.
+- Code: `inference.anderson_darling_cdf`.
+- Source: [REF-MARSAGLIA-MARSAGLIA-2004, Section 1].
+
 ## Verification and uncertainty quantification
 
 ### EQ-UQ-001 — Named forward-model map

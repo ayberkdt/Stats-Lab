@@ -7,6 +7,11 @@ while the public API remains pre-1.0 and experimental.
 
 ### Added
 
+- **Anderson-Darling p-values:** `anderson_darling_test` reports `p_value`
+  for a fully specified null (Marsaglia and Marsaglia 2004 finite-n law for
+  n >= 2, the exact law for n = 1); `anderson_darling_asymptotic_cdf` and
+  `anderson_darling_cdf` expose the limiting and finite-n null laws,
+  checked against the paper's 30-digit values and seeded simulations.
 - `VARFit.impulse_response_bands(..., interval="bias-corrected")`: Kilian's
   bootstrap-after-bootstrap, which restores near-nominal coverage of the
   bands of persistent systems (27 of 60 against 48 of 60 at the nominal 90%
