@@ -254,7 +254,7 @@ ranking candidate families, joint inputs from data, and real-data case
 studies.
 
 - Requires: S1, P5, P8
-- Lab: [`examples/statistical_fitting_lab.py`](../examples/statistical_fitting_lab.py), [`examples/model_selection_lab.py`](../examples/model_selection_lab.py), [`examples/real_data_fitting_lab.py`](../examples/real_data_fitting_lab.py)
+- Lab: [`examples/statistical_fitting_lab.py`](../examples/statistical_fitting_lab.py), [`examples/model_selection_lab.py`](../examples/model_selection_lab.py), [`examples/real_data_fitting_lab.py`](../examples/real_data_fitting_lab.py), [`examples/input_modeling_lab.py`](../examples/input_modeling_lab.py)
 - Decision record: [ADR-0027](adr/ADR-0027-generic-fitting-and-model-selection.md), [ADR-0080](adr/ADR-0080-real-data-case-studies.md)
 
 ### S3 — Hypothesis testing, intervals, and the bootstrap
@@ -492,7 +492,7 @@ read for UQ inputs: the required univariate families, multivariate normal
 structure, MLE, confidence intervals, and goodness-of-fit limitations.
 
 - Requires: U1, P5
-- Lab: [`examples/statistical_fitting_lab.py`](../examples/statistical_fitting_lab.py)
+- Lab: [`examples/statistical_fitting_lab.py`](../examples/statistical_fitting_lab.py), [`examples/input_modeling_lab.py`](../examples/input_modeling_lab.py)
 - Decision record: [ADR-0008](adr/ADR-0008-uq1-linear-algebra-and-fit-calibration.md)
 
 ### U3 — Uncertainty propagation (UQ-2)

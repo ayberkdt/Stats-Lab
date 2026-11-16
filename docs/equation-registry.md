@@ -2058,6 +2058,22 @@ normal consistency.
   `propagation.PropagationStudy.rank_correlations`.
 - Source: [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 8].
 
+### EQ-LAB-INPUT-002 — Skewness and kurtosis conventions of R's `e1071`
+
+Type 1: `g1 = m3 / m2^(3/2)`, `g2 = m4 / m2^2 - 3`; type 3 (the default of
+`e1071::skewness` and `e1071::kurtosis`): `b1 = m3 / s^3 = g1 ((n-1)/n)^(3/2)`
+and `b2 = m4 / s^4 - 3 = (g2 + 3)(1 - 1/n)^2 - 3`, with
+`m_k = n^-1 sum (x_i - xbar)^k` and `s` the standard deviation with divisor
+`n - 1`.
+
+- Domain: at least two observations with positive `m2`.
+- Meaning: the same moment ratios with the population (`n`) or the sample
+  (`n - 1`) standard deviation; the two conventions differ by a factor that
+  tends to one as `n` grows. `statistics.skewness` and
+  `statistics.excess_kurtosis` return type 1.
+- Code: `examples.input_modeling_lab.describe`.
+- Source: [REF-JOANES-GILL-1998], [REF-R-E1071].
+
 ## Model-based sensitivity analysis
 
 ### EQ-SENS-BOOT-001 — Bootstrap percentile intervals for Sobol indices
@@ -7557,6 +7573,35 @@ The estimate has mean `xbar` and covariance `((N - 1)/N + h^2) R`; draws are
   `statistics.multivariate_density.MultivariateKernelDensity`.
 - Source: [REF-SILVERMAN-1986, Chapter 4], [REF-SCOTT-2015],
   [REF-DUIN-1976].
+
+### EQ-LAB-INPUT-001 — Exact law of a block maximum
+
+For `M = max(X_1, ..., X_m)` with independent `X_j ~ F`:
+`P(M <= x) = F(x)^m`, density `m F(x)^(m-1) f(x)`, and quantile
+`F^-1(p^(1/m))`.
+
+- Domain: independent and identically distributed `X_j`; `m >= 1`;
+  `0 < p < 1`.
+- Meaning: the reference law against which fitted families, kernel
+  estimates, and design values of simulated block maxima are judged; it
+  is exact for every `m`, whereas the GEV law is its limit as `m` grows.
+- Code: `examples.input_modeling_lab.exact_maximum_cdf`,
+  `examples.input_modeling_lab.exact_maximum_pdf`,
+  `examples.input_modeling_lab.exact_maximum_quantile`.
+- Source: [REF-COLES-2001, Section 3.1].
+
+### EQ-LAB-INPUT-003 — Integrated squared error of a density estimate
+
+`ISE(h) = int (f_h(x) - f(x))^2 dx`.
+
+- Domain: `f_h` and `f` square integrable; evaluated by adaptive
+  Gauss-Kronrod quadrature on an interval that holds all but a negligible
+  part of both densities.
+- Meaning: the loss of one kernel estimate from one sample against the
+  true density; least-squares (unbiased) cross-validation estimates
+  `ISE(h) - int f^2` without knowing `f` [EQ-STAT-KDE-005].
+- Code: `examples.input_modeling_lab.integrated_squared_error`.
+- Source: [REF-BOWMAN-1984].
 
 ## Model discrepancy and heteroscedastic calibration (Kennedy-O'Hagan)
 

@@ -609,6 +609,31 @@ upper tail, while the GEV law, the limit law of maxima
 
 *Each of 400 simulated maxima is the largest of 144 Weibull(2, 8) wind speeds; at 24 m/s, 6 of 400 exceed, which lies inside the pointwise 95% band of the GEV fit (0.69% to 2.38%) and above the band of the normal fit (0.30% to 0.94%), whose AIC is 19.3 units worse.*
 
+### Laboratory
+
+`examples/input_modeling_lab.py` walks the whole decision of this guide on
+the 400 simulated maxima of the figure above (`SEED = 2026`) and on the 400
+block means of the same speeds; the exact law of a maximum, `F(x)^144`
+[EQ-LAB-INPUT-001], is known, so every answer can be checked. It prints the
+sample skewness in both conventions (`g1 = 0.558`; R's `e1071` default
+`b1 = 0.556`, [EQ-LAB-INPUT-002]); the maximum-entropy laws of expert
+statements alone (range 12 to 32 m/s, mean 19, standard deviation 2), whose
+0.99 quantile is 23.66 m/s, or 24.67 m/s with a Gumbel skewness that then
+moves with the arbitrary upper end of the range; the AIC ranking of the
+likelihood fits (GEV, then lognormal +2.0, gamma +6.2, normal +19.3,
+Weibull +92.9) next to the moment fits, with naive and bootstrap p-values
+(the fitted normal passes the naive Anderson-Darling test, `p = 0.19`, and
+fails the calibrated one at its floor `1/200`); the parameter bands of the
+GEV and normal fits and the growth of the min/max envelope with the number
+of draws; kernel estimates with Silverman, leave-one-out likelihood, and
+UCV bandwidths, scored by their integrated squared error against the exact
+density [EQ-LAB-INPUT-003]; and the 1-in-100 block maximum under every law.
+Only the GEV band, 23.70 to 25.24 m/s, contains the exact value 24.75 m/s.
+The block means, in contrast, are fitted best by the normal law: both
+results could be anticipated from how the values were formed.
+`tests/test_input_modeling_lab.py` checks the numbers against R (`e1071`,
+`fitdistrplus`, `evd`) and closed forms.
+
 ## Real-data case studies
 
 Synthetic data show that a method works when its assumptions hold; historical
