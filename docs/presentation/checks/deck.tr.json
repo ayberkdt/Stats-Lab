@@ -103,6 +103,36 @@
   {
    "id": "s8",
    "role": "kanit",
+   "headline": "Bootstrap kalibrasyonu normal uyumu reddediyor: p = 0,192 değil, 0,005",
+   "evidence_ids": [
+    "fitting.aic_gap",
+    "fitting.alpha",
+    "fitting.band_level",
+    "fitting.block",
+    "fitting.exceed",
+    "fitting.exceed_share",
+    "fitting.gev.band_high",
+    "fitting.gev.band_low",
+    "fitting.gev.bootstrap_ad_p",
+    "fitting.maxima",
+    "fitting.n_bootstrap",
+    "fitting.normal.band_high",
+    "fitting.normal.band_low",
+    "fitting.normal.bootstrap_ad_p",
+    "fitting.normal.bootstrap_ks_p",
+    "fitting.normal.naive_ad_p",
+    "fitting.normal.naive_ks_p",
+    "fitting.probe",
+    "fitting.seed"
+   ],
+   "visual_ids": [
+    "figures/fitting-tr-light.png",
+    "figures/fitting-tr-dark.png"
+   ]
+  },
+  {
+   "id": "s9",
+   "role": "kanit",
    "headline": "MCMC sonsal yayılımı %7 içinde buluyor; ortalama alan ADVI %40 ıskalıyor",
    "evidence_ids": [
     "benchmark.advi_mf_sd_error",
@@ -116,7 +146,7 @@
    ]
   },
   {
-   "id": "s9",
+   "id": "s10",
    "role": "kanit",
    "headline": "İniş aracının görev kayıplarının %90'ına transponder yol açıyor",
    "evidence_ids": [
@@ -135,7 +165,7 @@
    ]
   },
   {
-   "id": "s10",
+   "id": "s11",
    "role": "baglam",
    "headline": "Girdi dağılımları veriden geliyor, veri de 9 soru daha doğuruyor",
    "evidence_ids": [
@@ -144,7 +174,7 @@
    "visual_ids": []
   },
   {
-   "id": "s11",
+   "id": "s12",
    "role": "kanit",
    "headline": "Ham sapmadan kalan pay 2 testlik partide %12, 30 testlikte %66 oluyor",
    "evidence_ids": [
@@ -169,7 +199,7 @@
    ]
   },
   {
-   "id": "s12",
+   "id": "s13",
    "role": "yontem",
    "headline": "Bir formülle bir sürüm arasında beş denetim duruyor",
    "evidence_ids": [
@@ -186,7 +216,7 @@
    "visual_ids": []
   },
   {
-   "id": "s13",
+   "id": "s14",
    "role": "kanit",
    "headline": "Sobol' noktaları aynı maliyetle ortalamanın hatasını ×66 küçültüyor",
    "evidence_ids": [
@@ -205,7 +235,7 @@
    ]
   },
   {
-   "id": "s14",
+   "id": "s15",
    "role": "sinirlamalar",
    "headline": "Üç sınır bu sonuçları kısıtlıyor",
    "evidence_ids": [
@@ -214,6 +244,8 @@
     "benchmark.probstat_version",
     "benchmark.seeds_calibration",
     "benchmark.seeds_propagation",
+    "fitting.n_bootstrap",
+    "fitting.p_floor",
     "pooling.batches",
     "pooling.between",
     "pooling.true_between",
@@ -222,11 +254,12 @@
    "visual_ids": []
   },
   {
-   "id": "s15",
+   "id": "s16",
    "role": "sonuc",
    "headline": "Evet: tek model her soruyu tek tohumdan yanıtladı",
    "evidence_ids": [
     "benchmark.mcmc_sd_error_max",
+    "fitting.normal.bootstrap_ad_p",
     "mission.top_criticality",
     "pooling.kept_smallest",
     "pooling.smallest",
@@ -236,21 +269,21 @@
    "visual_ids": []
   },
   {
-   "id": "s16",
+   "id": "s17",
    "role": "kaynaklar",
    "headline": "Slaytlardaki her yöntem birincil bir kaynağa dayanıyor",
    "evidence_ids": [],
    "visual_ids": []
   },
   {
-   "id": "s17",
+   "id": "s18",
    "role": "kapanis",
    "headline": "Tek model her soruyu yanıtlıyor: üç komutla başlayın",
    "evidence_ids": [],
    "visual_ids": []
   },
   {
-   "id": "s18",
+   "id": "s19",
    "role": "ek",
    "headline": "Örnekleme yöntemleri yayılımını bildiriyor; analitikler tohum istemiyor",
    "evidence_ids": [

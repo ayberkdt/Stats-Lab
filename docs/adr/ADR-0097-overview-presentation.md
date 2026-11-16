@@ -145,3 +145,43 @@ sources, 5 figures), deck plan, and visual spec valid with 0 warnings; the
 English assertion linter keeps its 9 reviewed verb warnings and the new
 slides add none; figure audit 20 charts, 0 errors, 0 warnings; UX law audit
 0 errors and 0 warnings for both decks.
+
+## Revised (2026-11-16): an input law built from data
+
+The deck showed what the library does with input laws, not how it builds
+them. One evidence slide now follows the cost slide, so the deck has
+nineteen slides:
+
+- `s8` (evidence, `kanit`, simulated data): `input_law_fit()` draws the 400
+  block maxima of the fitting guide (each the largest of 144
+  `Weibull(2, 8)` wind speeds, seed 2026), fits a normal and a GEV law with
+  `fit_distribution`, and tests each fit twice: with the ordinary KS and
+  Anderson-Darling p-values against the fitted law, and with
+  `bootstrap_goodness_of_fit` (199 refitted replicates, seed 2026). The
+  headline states the normal fit's Anderson-Darling p-value, 0.192 naive
+  and 0.005 calibrated (the floor of 199 refits); the GEV keeps 0.720 and
+  wins the AIC by 19.3. The notes name the three information levels
+  (`maximum_entropy`, `fit_distribution` / `fit_distribution_moments`,
+  `gaussian_kde` with `select_kde_bandwidth`) and give the 95%
+  `parameter_uncertainty_band` of each fit at 24 m/s (seed 11, 2000 draws,
+  the guide's figure settings), which covers the observed exceedance share
+  for the GEV only. The chart (`figures/fitting-*`) is a dumbbell of the two
+  p-values per fit on a log axis with the 0.05 level [EQ-INF-GOF-PB-001],
+  [REF-STEPHENS-1974].
+
+The former slides 8 to 18 are now 9 to 19. Bootstrap p-values and band ends
+are compared with a fresh run on their binomial and quantile error scales
+(`stochastic`). The sources slide lists the two SORM papers in one item and
+adds Stephens (1974), keeping ten items; the limitations and conclusion
+notes carry the simulated-sample caveat and the result. The data function
+now takes about 50 s (the 199 numerical GEV refits add about 26 s).
+
+Verification of the revision: `tests/test_presentation.py` 12 tests and 524
+subtests (a new test checks that only the normal fit is rejected and that
+only the GEV band covers the observed share); `denetle-cli.mjs` 19 slides
+and 178 bound values per deck, 0 warnings; page types, slide copy, deck
+manifest, evidence ledger (18 claims, 13 sources, 6 figures), deck plan,
+visual spec, and icon usage valid with 0 warnings; the English assertion
+linter adds one reviewed verb warning (rejects) to the nine; figure audit
+24 charts, 0 errors, 0 warnings; UX law audit 0 errors and 0 warnings for
+both decks.

@@ -19,6 +19,26 @@
   "warnings": 0,
   "rules": []
  },
+ "fitting-en-light": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "fitting-en-dark": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "fitting-tr-light": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
+ "fitting-tr-dark": {
+  "errors": 0,
+  "warnings": 0,
+  "rules": []
+ },
  "calibration-en-light": {
   "errors": 0,
   "warnings": 0,
