@@ -92,6 +92,25 @@
       "size": "50,000"
     }
   },
+  "kde-bandwidth-selection": {
+    "guide": "uncertainty-modeling-and-fitting",
+    "alt": "Kernel density estimates of 100 draws from a two-mode mixture with the Silverman and the leave-one-out bandwidths and the true density",
+    "facts": {
+      "h_silverman": "0.74",
+      "h_loo": "0.25",
+      "ise_silverman": "0.050",
+      "ise_loo": "0.0076"
+    }
+  },
+  "maximum-entropy-constraints": {
+    "guide": "uncertainty-modeling-and-fitting",
+    "alt": "Maximum-entropy densities on the interval from minus 5 to 5 under one to four moment constraints, with the uniform density of the support",
+    "facts": {
+      "support": "2.30",
+      "mean_only": "2.24",
+      "four": "1.04"
+    }
+  },
   "mlmc-level-variances": {
     "guide": "advanced-monte-carlo",
     "alt": "Two panels of a multilevel Monte Carlo run: variances per level on a log scale and the number of samples per level",

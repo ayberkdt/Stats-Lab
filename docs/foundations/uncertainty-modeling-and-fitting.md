@@ -100,6 +100,10 @@ course.quantile(0.99)    # 4.964
 course.entropy           # 1.0373
 ```
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/maximum-entropy-constraints-dark.png"><img alt="Maximum-entropy densities on the interval from minus 5 to 5 under one to four moment constraints, with the uniform density of the support" src="../images/guides/maximum-entropy-constraints.png"></picture>
+
+*The support alone gives the uniform law with entropy 2.30 nats; a mean of 1 tilts it into a truncated exponential (2.24), the variance pulls in a bell, skewness leans it, and the fourth moment of the course example sharpens the peak and lifts the density again at the right end of the support, ending at 1.04 nats: every constraint is information, and the law commits to nothing else.*
+
 Infeasible constraints raise before any iteration, and constraints that no
 density on an unbounded support can attain raise after the solve with the
 reason:
@@ -177,6 +181,10 @@ kde_loo_log_likelihood(sample[:20], 1e-6, leave_one_out=False)  # 198.02
 
 Silverman's bandwidth flattens each mode to 0.240 against a true peak of
 0.399; the cross-validated bandwidths keep it.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/kde-bandwidth-selection-dark.png"><img alt="Kernel density estimates of 100 draws from a two-mode mixture with the Silverman and the leave-one-out bandwidths and the true density" src="../images/guides/kde-bandwidth-selection.png"></picture>
+
+*Silverman's rule assumes one Gaussian bump, so on 100 draws from two separated modes it picks h = 0.74 and halves both peaks; maximizing the leave-one-out likelihood picks h = 0.25 and follows the modes, cutting the integrated squared error from 0.050 to 0.0076.*
 
 For `d`-dimensional data `gaussian_kde_multivariate` uses the kernel
 covariance `h^2 R`, with `R` the sample covariance, so every kernel has the

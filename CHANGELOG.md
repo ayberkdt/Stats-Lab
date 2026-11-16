@@ -3,6 +3,17 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [Unreleased]
+
+### Added
+
+- Guide figures for the input-modeling constructions: maximum-entropy laws
+  losing entropy as moment constraints are added (2.30 nats for the support
+  alone, 1.04 with four moments), and Silverman's bandwidth against the
+  leave-one-out choice on a two-mode sample (integrated squared error 0.050
+  against 0.0076). The README maps the input-modeling methods and shows two
+  of these figures.
+
 ## [0.22.0] — 2026-11-16
 
 The input-modeling toolkit of the ATHENS uncertainty-quantification course

@@ -464,6 +464,167 @@ def draw_fitting_parameter_bands() -> tuple[Any, dict[str, str]]:
     return figure, facts
 
 
+def draw_maximum_entropy_constraints() -> tuple[Any, dict[str, str]]:
+    """Show the maximum-entropy law on [-5, 5] as moment constraints are added.
+
+    The constraints are those of the ATHENS course example: mean 1,
+    variance 1, skewness 2, and fourth standardized moment 10 (excess
+    kurtosis 7).
+
+    Equation:
+        [EQ-DIST-MAXENT-001], [EQ-DIST-MAXENT-002].
+
+    References:
+        [REF-JAYNES-1957], [REF-MEAD-PAPANICOLAOU-1984].
+
+    """
+    from probstat.distributions import maximum_entropy
+
+    lower, upper = -5.0, 5.0
+    steps = (
+        ("mean", {"mean": 1.0}),
+        ("+ variance", {"mean": 1.0, "variance": 1.0}),
+        ("+ skewness", {"mean": 1.0, "variance": 1.0, "skewness": 2.0}),
+        (
+            "+ kurtosis",
+            {"mean": 1.0, "variance": 1.0, "skewness": 2.0, "excess_kurtosis": 7.0},
+        ),
+    )
+    laws = [(name, maximum_entropy(lower, upper, **kw)) for name, kw in steps]
+    support_entropy = math.log(upper - lower)
+    facts = {
+        "support": f"{support_entropy:.2f}",
+        "mean_only": f"{laws[0][1].entropy:.2f}",
+        "four": f"{laws[-1][1].entropy:.2f}",
+    }
+
+    plt = theme.pyplot()
+    figure, grid_axes = plt.subplots(2, 2, figsize=(7.2, 5.4), sharex=True, sharey=True)
+    axes = [ax for row in grid_axes for ax in row]
+    xs = [lower + (upper - lower) * k / 400 for k in range(401)]
+    model = theme.role_colour("model")
+    context = theme.role_colour("context")
+    previous: list[float] = [1.0 / (upper - lower)] * len(xs)
+    previous_name = "support only"
+    for ax, (name, law) in zip(axes, laws, strict=True):
+        theme.style_axes(ax)
+        theme.line(ax, xs, previous, color=context, dashes=theme.PROJECTED)
+        current = [law.pdf(x) for x in xs]
+        theme.line(ax, xs, current, color=model)
+        ax.text(
+            0.03, 0.95, f"{name}: H = {law.entropy:.2f}",
+            transform=ax.transAxes, ha="left", va="top",
+            fontsize=theme.ANNOTATION_SIZE, fontweight="bold", color=model,
+        )  # fmt: skip
+        ax.text(
+            0.03, 0.82, f"dotted: {previous_name}",
+            transform=ax.transAxes, ha="left", va="top",
+            fontsize=theme.ANNOTATION_SIZE, color=context,
+        )  # fmt: skip
+        previous, previous_name = current, name
+        ax.set_xlim(lower, upper)
+        ax.set_ylim(0.0, 0.75)
+    for ax in axes[2:]:
+        theme.axis_labels(ax, "Value of the input", None)
+    for ax in (axes[0], axes[2]):
+        ax.set_ylabel(theme.axis_title("density"))
+    theme.title_block(
+        axes[0],
+        f"Each moment constraint removes entropy: {facts['support']} nats for the "
+        f"support alone, {facts['four']} with four moments",
+        "Maximum-entropy densities on [-5, 5]: mean 1, variance 1, skewness 2, "
+        "kurtosis 10 added in turn",
+    )
+    figure.subplots_adjust(top=0.80, hspace=0.18, wspace=0.12)
+    return figure, facts
+
+
+def draw_kde_bandwidth_selection() -> tuple[Any, dict[str, str]]:
+    """Compare Silverman's bandwidth with the leave-one-out likelihood choice.
+
+    Equation:
+        [EQ-STAT-KDE-001], [EQ-STAT-KDE-004].
+
+    References:
+        [REF-SILVERMAN-1986], [REF-DUIN-1976].
+
+    """
+    from probstat.statistics import gaussian_kde, kde_bandwidth, select_kde_bandwidth
+
+    generator = random.Random(2026)
+    sample = [
+        generator.gauss(-2.0 if generator.random() < 0.5 else 2.0, 0.5)
+        for _ in range(100)
+    ]
+
+    def truth(value: float) -> float:
+        """Density of the equal mixture of N(-2, 0.5^2) and N(2, 0.5^2)."""
+        scale = 0.5 * math.sqrt(2.0 * math.pi)
+        return (
+            0.5
+            * (
+                math.exp(-0.5 * ((value + 2.0) / 0.5) ** 2)
+                + math.exp(-0.5 * ((value - 2.0) / 0.5) ** 2)
+            )
+            / scale
+        )
+
+    silverman = kde_bandwidth(sample)
+    selected = select_kde_bandwidth(sample, method="likelihood").bandwidth
+    grid = [-5.0 + 0.01 * k for k in range(1001)]
+    estimates = {
+        "Silverman": gaussian_kde(sample, bandwidth=silverman),
+        "leave-one-out": gaussian_kde(sample, bandwidth=selected),
+    }
+    ise = {
+        name: 0.01 * math.fsum((kde.pdf(g) - truth(g)) ** 2 for g in grid)
+        for name, kde in estimates.items()
+    }
+    facts = {
+        "h_silverman": f"{silverman:.2f}",
+        "h_loo": f"{selected:.2f}",
+        "ise_silverman": f"{ise['Silverman']:.3f}",
+        "ise_loo": f"{ise['leave-one-out']:.4f}",
+    }
+
+    figure, (ax,) = _panels(figsize=(7.2, 4.2))
+    theme.line(ax, grid, [truth(g) for g in grid], entity="truth")
+    colours = {
+        "Silverman": theme.role_colour("context"),
+        "leave-one-out": theme.role_colour("model"),
+    }
+    for name, kde in estimates.items():
+        theme.line(ax, grid, [kde.pdf(g) for g in grid], color=colours[name])
+    ax.plot(
+        sample,
+        [-0.012] * len(sample),
+        linestyle="none",
+        marker="|",
+        markersize=7,
+        color=theme.entity_colour("observations"),
+        alpha=0.6,
+    )
+    silverman_label = f"Silverman, h = {facts['h_silverman']}"
+    _label(ax, -4.9, 0.31, silverman_label, colours["Silverman"], offset=(0.0, 0.0),
+           ha="left")  # fmt: skip
+    _label(ax, 2.75, 0.33, f"leave-one-out, h = {facts['h_loo']}",
+           colours["leave-one-out"], offset=(0.0, 0.0))  # fmt: skip
+    _label(ax, 2.0, truth(2.0), "truth", theme.entity_colour("truth"),
+           offset=(0.0, 7.0), ha="center", va="bottom")  # fmt: skip
+    ax.set_xlim(-5.0, 5.0)
+    ax.set_ylim(-0.03, 0.5)
+    theme.axis_labels(ax, "x", theme.axis_title("density"))
+    theme.title_block(
+        ax,
+        f"Silverman's h = {facts['h_silverman']} flattens both modes; the "
+        f"leave-one-out choice cuts the squared error from {facts['ise_silverman']} "
+        f"to {facts['ise_loo']}",
+        "100 seeded draws (ticks) from a two-mode mixture; lines: Gaussian kernel "
+        "estimates and the true density",
+    )
+    return figure, facts
+
+
 # --------------------------------------------------------------------------
 # Uncertainty propagation
 # --------------------------------------------------------------------------
@@ -2032,6 +2193,20 @@ FIGURES: list[GuideFigure] = [
         "from 80 normal samples tested against fitted normal laws, with the "
         "uniform diagonal",
         draw=draw_fitting_bootstrap_calibration,
+    ),
+    GuideFigure(
+        name="maximum-entropy-constraints",
+        guide="uncertainty-modeling-and-fitting",
+        alt="Maximum-entropy densities on the interval from minus 5 to 5 under one "
+        "to four moment constraints, with the uniform density of the support",
+        draw=draw_maximum_entropy_constraints,
+    ),
+    GuideFigure(
+        name="kde-bandwidth-selection",
+        guide="uncertainty-modeling-and-fitting",
+        alt="Kernel density estimates of 100 draws from a two-mode mixture with "
+        "the Silverman and the leave-one-out bandwidths and the true density",
+        draw=draw_kde_bandwidth_selection,
     ),
     GuideFigure(
         name="fitting-parameter-bands",
