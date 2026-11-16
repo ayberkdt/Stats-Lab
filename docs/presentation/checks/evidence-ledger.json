@@ -117,7 +117,7 @@
   },
   {
    "id": "claim-statistics-questions",
-   "statement": "The applied-statistics core answers 9 questions about data",
+   "statement": "The applied-statistics core answers 10 questions about data",
    "type": "background",
    "source_ids": [
     "src-stats"

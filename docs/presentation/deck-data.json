@@ -12,7 +12,7 @@
   "references_floor": 650,
   "adrs_floor": 100,
   "questions": 8,
-  "statistics_questions": 9,
+  "statistics_questions": 10,
   "packages": 33,
   "runtime_dependencies": 0,
   "labs": 33,

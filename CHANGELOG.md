@@ -13,6 +13,11 @@ while the public API remains pre-1.0 and experimental.
   leave-one-out choice on a two-mode sample (integrated squared error 0.050
   against 0.0076). The README maps the input-modeling methods and shows two
   of these figures.
+- Overview presentation: an evidence slide on input laws built from data
+  (19 slides). On 400 simulated wind maxima a naive Anderson-Darling test
+  accepts a normal fit (p = 0.192); calibrated by the parametric bootstrap
+  with 199 refits it rejects it (p = 0.005, the smallest value 199 refits
+  can give), while the GEV fit passes (0.720) and wins the AIC by 19.3.
 
 ## [0.22.0] — 2026-11-16
 

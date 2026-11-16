@@ -197,9 +197,9 @@
    "id": "s11",
    "type": "baglam",
    "kicker": "Applied statistics",
-   "headline": "Every input distribution needs data, and data raise 9 more questions",
+   "headline": "Every input distribution needs data, and data raise 10 more questions",
    "fields": {
-    "olgu": "9",
+    "olgu": "10",
     "aciklama": "questions about data, from group differences to censored samples, answered by mixed, robust, quantile, count, smoothing, multivariate, and time-series models.",
     "kaynak": "Source: README.md, applied-statistics table"
    },

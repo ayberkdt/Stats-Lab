@@ -197,9 +197,9 @@
    "id": "s11",
    "type": "baglam",
    "kicker": "Uygulamalı istatistik",
-   "headline": "Girdi dağılımları veriden geliyor, veri de 9 soru daha doğuruyor",
+   "headline": "Girdi dağılımları veriden geliyor, veri de 10 soru daha doğuruyor",
    "fields": {
-    "olgu": "9",
+    "olgu": "10",
     "aciklama": "veri sorusu, grup farklarından sansürlü örneklemlere; karma, dayanıklı, kantil, sayım, düzgünleştirme, çok değişkenli ve zaman serisi modelleri yanıtlıyor.",
     "kaynak": "Kaynak: README.md, uygulamalı istatistik tablosu"
    },
