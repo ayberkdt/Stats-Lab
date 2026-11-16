@@ -7,6 +7,20 @@ while the public API remains pre-1.0 and experimental.
 
 ### Added
 
+- **Method of moments:** `fit_distribution_moments` fits ten families by
+  moment matching with the fitdistrplus `method = "mme"` conventions
+  (population variance; Weibull and GEV shapes by root finding, the GEV
+  skewness equation evaluated without cancellation near the Gumbel limit),
+  with delta-method standard errors (model-based or empirical sandwich) and
+  no information criteria; agreement with fitdistrplus 1.2.6 to 4e-15 for
+  the closed forms. fitdistrplus 1.2.6 reports wrong `mme` covariances for
+  the beta, uniform, and logistic families (its moment functions return the
+  second moment for orders 3 and 4); the guide records this.
+- **Parameter-uncertainty bands:** `parameter_uncertainty_band` draws
+  parameters from the asymptotic normal law of a fit and returns pointwise
+  CDF and quantile bands, the delta-method band, the min/max envelope (which
+  widens with the number of draws and is not a confidence band), and the
+  share of rejected draws.
 - **Anderson-Darling p-values:** `anderson_darling_test` reports `p_value`
   for a fully specified null (Marsaglia and Marsaglia 2004 finite-n law for
   n >= 2, the exact law for n = 1); `anderson_darling_asymptotic_cdf` and

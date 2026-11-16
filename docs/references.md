@@ -4171,3 +4171,13 @@ the American Statistical Association* 49(268), 765-769, 1954. The reported
 asymptotic percentage points `1.933`, `2.492`, and `3.857` (as quoted in
 [REF-MARSAGLIA-MARSAGLIA-2004, Section 2]).
 DOI: [10.1080/01621459.1954.10501232](https://doi.org/10.1080/01621459.1954.10501232).
+
+## REF-DELIGNETTE-MULLER-DUTANG-2015
+
+Marie Laure Delignette-Muller and Christophe Dutang. fitdistrplus: an R
+package for fitting distributions. *Journal of Statistical Software*,
+64(4):1-34, 2015. Moment matching (`method = "mme"`) with the population
+variance (divisor `n`) and delta-method moment-estimator covariance
+(`calcvcov`); conventions read from the `mmedist` source of fitdistrplus
+1.2.6.
+DOI: [10.18637/jss.v064.i04](https://doi.org/10.18637/jss.v064.i04).

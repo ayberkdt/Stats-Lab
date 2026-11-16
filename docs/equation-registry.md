@@ -5012,6 +5012,117 @@ the negative log-likelihood in `u` at the estimate and diagonal Jacobian
 - Source: [REF-GENEST-GHOUDI-RIVEST-1995] and
   [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 8].
 
+### EQ-INF-MOM-001 — Method-of-moments estimator with population moments
+
+`m = (1/n) sum x_i`, `v = (1/n) sum (x_i - m)^2`,
+`c3 = (1/n) sum (x_i - m)^3`; `theta_hat` solves `E_theta[X] = m`,
+`Var_theta(X) = v` and, for three parameters, `E_theta[(X - EX)^3] = c3`.
+
+- Domain: a `k`-parameter family whose first `k` moments exist and determine
+  `theta`; at least `k` distinct finite observations in the family domain.
+- Meaning: equating the first `k` raw sample moments `(1/n) sum x_i^j` to
+  the model moments; with divisor `n` this is the `method = "mme"`
+  convention of fitdistrplus. The estimate does not maximize the likelihood,
+  so information criteria do not apply to it.
+- Code: `inference.fit_distribution_moments`,
+  `inference.moment_fitting._sample_moments`.
+- Source: [REF-CASELLA-BERGER-2002, Section 7.2.1] and
+  [REF-DELIGNETTE-MULLER-DUTANG-2015].
+
+### EQ-INF-MOM-002 — Closed-form moment estimators
+
+Normal `(m, sqrt v)`; LogNormal `s2 = log(1 + v/m^2)`,
+`(log m - s2/2, sqrt s2)`; Exponential `1/m`; Gamma (shape, rate)
+`(m^2/v, m/v)`; Uniform `(m - sqrt(3v), m + sqrt(3v))`; Logistic
+`(m, sqrt(3v)/pi)`; Gumbel `beta = sqrt(6v)/pi`, `mu = m - gamma_E beta`;
+Beta `c = m(1 - m)/v - 1`, `(m c, (1 - m) c)`.
+
+- Domain: `v > 0`; `m > 0` for LogNormal, Exponential, and Gamma;
+  `0 < m < 1` and `v < m(1 - m)` for Beta.
+- Meaning: inverses of the mean-variance maps; the LogNormal estimator uses
+  the moments of `x`, not of `log x`. A Uniform moment fit need not contain
+  the sample range.
+- Code: `inference.fit_distribution_moments`,
+  `inference.moment_fitting._lognormal_inverse`,
+  `inference.moment_fitting._beta_inverse`.
+- Source: [REF-DELIGNETTE-MULLER-DUTANG-2015], [REF-JKB-1994, Chapters 14,
+  17, and 21], and [REF-JKB-1995, Chapters 22, 23, and 25].
+
+### EQ-INF-MOM-003 — Weibull and GEV moment equations
+
+Weibull: `Gamma(1 + 2/k)/Gamma(1 + 1/k)^2 - 1 = v/m^2`,
+`lambda = m / Gamma(1 + 1/k)`. GEV with `g_j = Gamma(1 - j xi)`:
+`sign(xi) (g3 - 3 g1 g2 + 2 g1^3)/(g2 - g1^2)^(3/2) = c3 / v^(3/2)`,
+`sigma = |xi| sqrt(v/(g2 - g1^2))`, `mu = m - sigma (g1 - 1)/xi`.
+
+- Domain: Weibull shape in `[0.01, 10^6]`; GEV `xi < 1/3` (finite third
+  moment), searched on `[-50, 1/3)`.
+- Meaning: the squared coefficient of variation decreases strictly in the
+  Weibull shape and the GEV skewness increases strictly in `xi` from `-inf`
+  to `+inf`, so each equation has one root (Brent's method). The skewness
+  is evaluated through `a = L2 - 2 L1`, `b = L3 - 3 L1`,
+  `L_j = log g_j`, as `(b - 3a + phi(b) - 3 phi(a))/expm1(a)^(3/2)` times
+  `sign(xi)`, `phi(t) = e^t - 1 - t`, with the log-gamma Maclaurin series
+  for `|xi| < 0.05`; its `xi = 0` value is the Gumbel skewness
+  `12 sqrt(6) zeta(3)/pi^3`.
+- Code: `inference.moment_fitting._weibull_inverse`,
+  `inference.moment_fitting._gev_inverse`,
+  `inference.moment_fitting._gev_skewness`.
+- Source: [REF-JKB-1994, Chapter 21], [REF-COLES-2001, Section 3.1], and
+  [REF-NIST-DLMF-GAMMA, Section 5.7].
+
+### EQ-INF-MOM-004 — Delta-method covariance of moment estimators
+
+`Cov(theta_hat) ~= J^-1 A J^-T / n`, `J_jl = d E_theta[(X - c)^j]/d theta_l`
+at `theta_hat`, `c = m`; model form `A_ij = mu_(i+j) - mu_i mu_j` (central
+moments of the fitted law), empirical form
+`A_ij = (1/n) sum y_t^(i+j) - ((1/n) sum y_t^i)((1/n) sum y_t^j)`,
+`y_t = x_t - m`.
+
+- Domain: finite moments of order `2k`; `J` non-singular.
+- Meaning: the sample moments are asymptotically normal with covariance
+  `A/n` and `theta_hat` is a smooth function of them. The model form is the
+  `calcvcov` estimate of fitdistrplus (valid when the family is correct);
+  the empirical form is a sandwich estimate valid under misspecification.
+- Code: `inference.fit_distribution_moments`,
+  `inference.moment_fitting._delta_covariance`.
+- Source: [REF-VAN-DER-VAART-1998, Chapter 4],
+  [REF-CASELLA-BERGER-2002, Section 5.5.4], and
+  [REF-DELIGNETTE-MULLER-DUTANG-2015].
+
+### EQ-INF-BAND-001 — Parameter-draw CDF band
+
+`theta*_r = theta_hat + L z_r`, `L L' = Cov(theta_hat)`, `z_r ~ N(0, I)`,
+`r = 1..R`; draws outside the parameter space are discarded. Pointwise
+band `[Q_(alpha/2), Q_(1-alpha/2)]` of `{F(x; theta*_r)}` (type-7 sample
+quantiles); envelope `[min_r, max_r]`.
+
+- Domain: a regular fit with finite covariance; `R >= 2`.
+- Meaning: propagates the asymptotic normal law of the estimator to `F(x)`.
+  The quantile band converges as `R` grows; the envelope widens like the
+  extreme order statistics of `R` draws (about `sqrt(2 log R)` standard
+  errors) and is not a confidence band. Both are pointwise.
+- Code: `inference.parameter_uncertainty_band`.
+- Source: [REF-CASELLA-BERGER-2002, Sections 5.4 and 10.1] and
+  [REF-HYNDMAN-FAN-1996].
+
+### EQ-INF-BAND-002 — Delta-method pointwise CDF band
+
+`se(x)^2 = g(x)' Cov(theta_hat) g(x)`, `g(x) = dF(x; theta)/d theta` at
+`theta_hat` (central differences); band
+`[max(0, F - z se), min(1, F + z se)]`, `z = Phi^-1((1 + level)/2)`; for a
+normal fit with `Cov = diag(sigma^2/n, sigma^2/(2n))`,
+`se(x)^2 = phi(u)^2 (1 + u^2/2)/n`, `u = (x - mu)/sigma`.
+
+- Domain: `F` differentiable in `theta`; regular fit with finite covariance.
+- Meaning: first-order propagation of parameter uncertainty to `F(x)` and to
+  quantiles `F^-1(p)`; the simulation band of [EQ-INF-BAND-001] approaches
+  it when `F` is close to linear in `theta` over the spread of the draws.
+- Code: `inference.parameter_uncertainty_band`,
+  `inference.parameter_bands._delta_error`.
+- Source: [REF-CASELLA-BERGER-2002, Section 5.5.4] and
+  [REF-VAN-DER-VAART-1998, Chapter 3].
+
 ## Prerequisite bridges: determinants, Gaussian conditioning, change of variables
 
 ### EQ-LINALG-008 — Determinant from a partial-pivot LU factorization

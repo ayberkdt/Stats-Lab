@@ -19,6 +19,10 @@ Main entry points:
     ``anderson_darling_test``: Anderson-Darling statistic with its
         fully specified-null p-value (``anderson_darling_cdf``,
         ``anderson_darling_asymptotic_cdf``).
+    ``fit_distribution_moments``: method-of-moments fits (fitdistrplus
+        ``mme`` conventions) with delta-method standard errors.
+    ``parameter_uncertainty_band``: pointwise CDF and quantile bands from
+        the asymptotic normal law of fitted parameters.
     ``fit_glm``: generalized linear models fitted by IRLS.
     ``fit_linear_mixed_model``: linear mixed models by profiled ML or REML
         with Satterthwaite t tests.
@@ -401,6 +405,11 @@ from .model_comparison import (
     linear_model_anova,
     nested_f_test,
 )
+from .moment_fitting import (
+    MOMENT_FAMILIES,
+    MomentFitResult,
+    fit_distribution_moments,
+)
 from .multiple_testing import MultipleTestingResult, adjust_p_values
 from .multivariate_analysis import (
     FactorAnalysisResult,
@@ -417,6 +426,7 @@ from .normality import (
     lilliefors_p_value,
     normality_tests,
 )
+from .parameter_bands import ParameterUncertaintyBand, parameter_uncertainty_band
 from .power import (
     SampleSizeResult,
     cohens_d,
@@ -871,4 +881,9 @@ __all__ = [
     "studentized_range_cdf",
     "studentized_range_quantile",
     "studentized_range_sf",
+    "MOMENT_FAMILIES",
+    "MomentFitResult",
+    "fit_distribution_moments",
+    "ParameterUncertaintyBand",
+    "parameter_uncertainty_band",
 ]
