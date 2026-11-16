@@ -124,6 +124,23 @@
   {
    "id": "s8",
    "role": "kanit",
+   "kicker": "Evidence · input laws from data, simulated maxima",
+   "headline": "Bootstrap calibration rejects the normal fit: p = 0.005, not 0.192",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "Every probability on the last slides rests on input laws, and the library builds an input law from the information there is. With expert statements only, a range, a mean, a spread, maximum_entropy returns the least committal law that honours them. With some data, fit_distribution fits a family by likelihood, fit_distribution_moments by moments. With many data, gaussian_kde with a bandwidth chosen by select_kde_bandwidth needs no family at all. This slide is the middle case and its trap. The data are simulated so that the truth is known: 400 block maxima, each the largest of 144 Weibull wind speeds. A normal and a GEV law are fitted by maximum likelihood. Tested against the fitted normal, the ordinary Anderson-Darling p-value is 0.192 and the Kolmogorov-Smirnov one 0.383: the fit looks acceptable. Those p-values assume the law was fixed before the data were seen; a law fitted to the same data sits closer to them, so the p-values come out too large. bootstrap_goodness_of_fit draws 199 samples from the fitted law, refits each one, and compares: the normal fit's Anderson-Darling p-value falls to 0.005, the smallest value that many refits can give. The GEV keeps 0.720 and wins the AIC by 19.3. The difference sits in the tail, where design values live: at 24 m/s, 6 of the maxima exceed, 1.5%. The 95% parameter-uncertainty band of the GEV from parameter_uncertainty_band covers that share, 0.69% to 2.38%; the normal band, 0.30% to 0.94%, does not. Limitation: one simulated sample and one seed, and the Kolmogorov-Smirnov test, which weighs the tails less, stays at 0.065 even after calibration, just above 5%. Bridge: when the data observe the model's output instead of the input, the input law comes from calibration.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s9",
+   "role": "kanit",
    "kicker": "Evidence · calibration",
    "headline": "MCMC stays within 7% of the exact spread; mean-field ADVI misses 40%",
    "body": [],
@@ -139,7 +156,7 @@
    }
   },
   {
-   "id": "s9",
+   "id": "s10",
    "role": "kanit",
    "kicker": "Evidence · systems engineering",
    "headline": "The transponder causes 90% of the lander's mission failures",
@@ -156,7 +173,7 @@
    }
   },
   {
-   "id": "s10",
+   "id": "s11",
    "role": "baglam",
    "kicker": "Applied statistics",
    "headline": "Every input distribution needs data, and data raise 9 more questions",
@@ -173,7 +190,7 @@
    }
   },
   {
-   "id": "s11",
+   "id": "s12",
    "role": "kanit",
    "kicker": "Evidence · mixed models, simulated batches",
    "headline": "2 tests keep 12% of a batch's deviation, 30 tests keep 66%",
@@ -190,7 +207,7 @@
    }
   },
   {
-   "id": "s12",
+   "id": "s13",
    "role": "yontem",
    "kicker": "Verification",
    "headline": "Five checks stand between a formula and a release",
@@ -207,7 +224,7 @@
    }
   },
   {
-   "id": "s13",
+   "id": "s14",
    "role": "kanit",
    "kicker": "Evidence · benchmarks",
    "headline": "Sobol' points cut the error of the mean ×66 at equal cost",
@@ -224,7 +241,7 @@
    }
   },
   {
-   "id": "s14",
+   "id": "s15",
    "role": "sinirlamalar",
    "kicker": "Limitations",
    "headline": "Three limits apply to these results",
@@ -235,28 +252,7 @@
     "Monte Carlo digits move with the seed; each carries its 95% interval."
    ],
    "labels": [],
-   "notes": "On the four-branch series system of the benchmark, a limit state with several design points, FORM and both SORM variants stop without an answer; AK-MCS reaches it with about 26 runs at a relative error of 16%. Quick mode runs few seeds, so coverage statistics are indicative only; the full benchmark mode runs more. The benchmark file was recorded with an earlier release than the study. And every Monte Carlo number moves with the seed, which is why each one carries its interval. The pooling example uses simulated batches with a known spread: with 12 batches, REML puts the between-batch standard deviation at 0.11 kN against a true 0.15 kN, and every shrinkage share inherits that uncertainty. Bridge: what to keep.",
-   "font_px": {
-    "headline": 60,
-    "body": 34,
-    "label": 26,
-    "caption": 24,
-    "citation": 24
-   }
-  },
-  {
-   "id": "s15",
-   "role": "sonuc",
-   "kicker": "Conclusion",
-   "headline": "Yes: one model answered every question from one seed",
-   "body": [],
-   "bullets": [
-    "SORM hit the exact 3.77% failure probability in 43 runs.",
-    "MCMC matched an exact posterior within 7%; mean-field ADVI missed.",
-    "The transponder causes 90% of the lander's failures."
-   ],
-   "labels": [],
-   "notes": "Return to the question: yes, forward, reliability, and risk came from one seeded study, the inverse result from a benchmark with an exact answer, and the systems result from an exact diagram. The inputs those questions start from are estimated by the statistical core, where partial pooling let a batch with 2 tests keep only 12% of its own deviation. No new numbers here; each one appeared earlier. The next question is yours: which of your simulators would you declare first? Bridge: sources, then how to start.",
+   "notes": "On the four-branch series system of the benchmark, a limit state with several design points, FORM and both SORM variants stop without an answer; AK-MCS reaches it with about 26 runs at a relative error of 16%. Quick mode runs few seeds, so coverage statistics are indicative only; the full benchmark mode runs more. The benchmark file was recorded with an earlier release than the study. And every Monte Carlo number moves with the seed, which is why each one carries its interval. The pooling example uses simulated batches with a known spread: with 12 batches, REML puts the between-batch standard deviation at 0.11 kN against a true 0.15 kN, and every shrinkage share inherits that uncertainty. The fitting example is one simulated sample as well: with 199 refits the smallest attainable bootstrap p-value is 0.005, so the normal fit's value is a bound, not an estimate. Bridge: what to keep.",
    "font_px": {
     "headline": 60,
     "body": 34,
@@ -267,13 +263,17 @@
   },
   {
    "id": "s16",
-   "role": "kaynaklar",
-   "kicker": "Sources",
-   "headline": "Every method on these slides traces to a primary source",
+   "role": "sonuc",
+   "kicker": "Conclusion",
+   "headline": "Yes: one model answered every question from one seed",
    "body": [],
-   "bullets": [],
+   "bullets": [
+    "SORM hit the exact 3.77% failure probability in 43 runs.",
+    "MCMC matched an exact posterior within 7%; mean-field ADVI missed.",
+    "The transponder causes 90% of the lander's failures."
+   ],
    "labels": [],
-   "notes": "These are the primary sources of the methods on the slides: FORM, the two SORM corrections, the Sobol total-effect estimator, scrambled nets, CVaR, ADVI, binary decision diagrams, system reliability theory, and best linear unbiased prediction in mixed models. Each has a key in the bibliography that the code cites in its docstrings, and every equation the code evaluates has an identifier in the registry. Bridge: how to start.",
+   "notes": "Return to the question: yes, forward, reliability, and risk came from one seeded study, the inverse result from a benchmark with an exact answer, and the systems result from an exact diagram. The inputs those questions start from come from data: a calibrated test rejected a normal law for wind maxima at p = 0.005 that a naive test accepted, and in the statistical core partial pooling let a batch with 2 tests keep only 12% of its own deviation. No new numbers here; each one appeared earlier. The next question is yours: which of your simulators would you declare first? Bridge: sources, then how to start.",
    "font_px": {
     "headline": 60,
     "body": 34,
@@ -284,6 +284,23 @@
   },
   {
    "id": "s17",
+   "role": "kaynaklar",
+   "kicker": "Sources",
+   "headline": "Every method on these slides traces to a primary source",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "These are the primary sources of the methods on the slides: FORM, the two SORM corrections, the Sobol total-effect estimator, scrambled nets, CVaR, ADVI, goodness of fit with estimated parameters, binary decision diagrams, system reliability theory, and best linear unbiased prediction in mixed models. Each has a key in the bibliography that the code cites in its docstrings, and every equation the code evaluates has an identifier in the registry. Bridge: how to start.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s18",
    "role": "kapanis",
    "kicker": "Questions welcome",
    "headline": "One model answers every question: start with three commands",
@@ -300,7 +317,7 @@
    }
   },
   {
-   "id": "s18",
+   "id": "s19",
    "role": "appendix",
    "kicker": "Appendix · backup slide",
    "headline": "Sampling methods report their spread; analytic ones need no seed",

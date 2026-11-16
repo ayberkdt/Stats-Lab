@@ -124,6 +124,23 @@
   {
    "id": "s8",
    "role": "kanit",
+   "kicker": "Kanıt · veriden girdi dağılımı, benzetim maksimumları",
+   "headline": "Bootstrap kalibrasyonu normal uyumu reddediyor: p = 0,192 değil, 0,005",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "Önceki slaytlardaki her olasılık girdi dağılımlarına dayanıyor; kitaplık bir girdi dağılımını eldeki bilgiden kuruyor. Yalnız uzman ifadeleri varsa, bir aralık, bir ortalama, bir yayılım, maximum_entropy bunlara uyan en az bağlayıcı dağılımı veriyor. Biraz veri varsa fit_distribution bir aileyi olabilirlikle, fit_distribution_moments momentlerle uyduruyor. Çok veri varsa select_kde_bandwidth ile bant genişliği seçilen gaussian_kde hiçbir aile varsaymıyor. Bu slayt ortadaki durum ve onun tuzağı. Veri, doğru yanıt bilinsin diye benzetimle üretildi: 400 blok maksimumu, her biri 144 Weibull rüzgâr hızının en büyüğü. Normal ve GEV dağılımları en çok olabilirlikle uyduruluyor. Uydurulan normale karşı sıradan Anderson-Darling p değeri 0,192, Kolmogorov-Smirnov p değeri 0,383: uyum kabul edilebilir görünüyor. Oysa bu p değerleri dağılımın veri görülmeden sabitlendiğini varsayıyor; aynı veriye uydurulan dağılım veriye daha yakın durduğundan p değerleri fazla büyük çıkıyor. bootstrap_goodness_of_fit uydurulan dağılımdan 199 örneklem çekiyor, her birini yeniden uyduruyor ve karşılaştırıyor: normal uyumun Anderson-Darling p değeri 0,005 değerine, bu kadar yeniden uydurmanın verebileceği en küçük değere düşüyor. GEV 0,720 değerini koruyor ve AIC'de 19,3 birim önde. Fark, tasarım değerlerinin bulunduğu kuyrukta: 24 m/s'yi maksimumlardan 6 tanesi aşıyor, yani %1,5. parameter_uncertainty_band ile bulunan GEV'nin %95 parametre belirsizliği bandı bu payı kapsıyor, %0,69 ile %2,38 arası; normalin bandı, %0,30 ile %0,94 arası, kapsamıyor. Sınırlama: tek bir benzetim örneklemi ve tek tohum; kuyruklara daha az ağırlık veren Kolmogorov-Smirnov testi kalibrasyondan sonra da 0,065 değerinde, %5 eşiğinin hemen üstünde kalıyor. Köprü: veri girdinin kendisini değil modelin çıktısını gözlüyorsa girdi dağılımı kalibrasyondan geliyor.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s9",
+   "role": "kanit",
    "kicker": "Kanıt · kalibrasyon",
    "headline": "MCMC sonsal yayılımı %7 içinde buluyor; ortalama alan ADVI %40 ıskalıyor",
    "body": [],
@@ -139,7 +156,7 @@
    }
   },
   {
-   "id": "s9",
+   "id": "s10",
    "role": "kanit",
    "kicker": "Kanıt · sistem mühendisliği",
    "headline": "İniş aracının görev kayıplarının %90'ına transponder yol açıyor",
@@ -156,7 +173,7 @@
    }
   },
   {
-   "id": "s10",
+   "id": "s11",
    "role": "baglam",
    "kicker": "Uygulamalı istatistik",
    "headline": "Girdi dağılımları veriden geliyor, veri de 9 soru daha doğuruyor",
@@ -173,7 +190,7 @@
    }
   },
   {
-   "id": "s11",
+   "id": "s12",
    "role": "kanit",
    "kicker": "Kanıt · karma modeller, benzetim partileri",
    "headline": "Ham sapmadan kalan pay 2 testlik partide %12, 30 testlikte %66 oluyor",
@@ -190,7 +207,7 @@
    }
   },
   {
-   "id": "s12",
+   "id": "s13",
    "role": "yontem",
    "kicker": "Doğrulama",
    "headline": "Bir formülle bir sürüm arasında beş denetim duruyor",
@@ -207,7 +224,7 @@
    }
   },
   {
-   "id": "s13",
+   "id": "s14",
    "role": "kanit",
    "kicker": "Kanıt · kıyaslamalar",
    "headline": "Sobol' noktaları aynı maliyetle ortalamanın hatasını ×66 küçültüyor",
@@ -224,7 +241,7 @@
    }
   },
   {
-   "id": "s14",
+   "id": "s15",
    "role": "sinirlamalar",
    "kicker": "Sınırlamalar",
    "headline": "Üç sınır bu sonuçları kısıtlıyor",
@@ -235,28 +252,7 @@
     "Monte Carlo basamakları tohumla oynuyor; her biri %95 aralığını taşıyor."
    ],
    "labels": [],
-   "notes": "Kıyaslamadaki dört kollu seri sistemde, yani birden çok tasarım noktalı bir limit durumda, FORM ve iki SORM türü yanıt vermeden duruyor; AK-MCS yaklaşık 26 koşuda, %16 göreli hatayla ulaşıyor. Hızlı kip az tohum koşturuyor, bu yüzden kapsama istatistikleri yalnızca yön gösteriyor; tam kıyaslama kipi daha çok koşturuyor. Kıyaslama dosyası çalışmadan daha eski bir sürümle kaydedildi. Ve her Monte Carlo sayısı tohumla oynuyor; her birinin aralığını taşıması bu yüzden. Havuzlama örneği yayılımı bilinen benzetim partileri kullanıyor: 12 partiyle REML partiler arası standart sapmayı gerçek 0,15 kN yerine 0,11 kN buluyor ve her küçülme payı bu belirsizliği taşıyor. Köprü: akılda kalması gerekenler.",
-   "font_px": {
-    "headline": 60,
-    "body": 34,
-    "label": 26,
-    "caption": 24,
-    "citation": 24
-   }
-  },
-  {
-   "id": "s15",
-   "role": "sonuc",
-   "kicker": "Sonuç",
-   "headline": "Evet: tek model her soruyu tek tohumdan yanıtladı",
-   "body": [],
-   "bullets": [
-    "SORM kesin %3,77 göçme olasılığını 43 koşuda buldu.",
-    "MCMC kesin sonsalı %7 içinde buldu; ortalama alan ADVI ıskaladı.",
-    "İniş aracının kayıplarının %90'ına transponder yol açıyor."
-   ],
-   "labels": [],
-   "notes": "Soruya dönün: evet; ileri yayılım, güvenilirlik ve risk tohumlu tek bir çalışmadan, ters problem sonucu kesin yanıtı olan bir kıyaslamadan, sistem sonucu kesin bir diyagramdan geldi. Bu soruların başladığı girdileri istatistik çekirdeği kestiriyor; orada kısmi havuzlama, 2 testlik bir partiye kendi sapmasından yalnızca %12 pay bıraktı. Burada yeni sayı yok; her biri daha önce geçti. Sıradaki soru sizin: hangi benzetiminizi önce tanımlardınız? Köprü: kaynaklar, sonra nasıl başlanır.",
+   "notes": "Kıyaslamadaki dört kollu seri sistemde, yani birden çok tasarım noktalı bir limit durumda, FORM ve iki SORM türü yanıt vermeden duruyor; AK-MCS yaklaşık 26 koşuda, %16 göreli hatayla ulaşıyor. Hızlı kip az tohum koşturuyor, bu yüzden kapsama istatistikleri yalnızca yön gösteriyor; tam kıyaslama kipi daha çok koşturuyor. Kıyaslama dosyası çalışmadan daha eski bir sürümle kaydedildi. Ve her Monte Carlo sayısı tohumla oynuyor; her birinin aralığını taşıması bu yüzden. Havuzlama örneği yayılımı bilinen benzetim partileri kullanıyor: 12 partiyle REML partiler arası standart sapmayı gerçek 0,15 kN yerine 0,11 kN buluyor ve her küçülme payı bu belirsizliği taşıyor. Uydurma örneği de tek bir benzetim örneklemi: 199 yeniden uydurmayla ulaşılabilecek en küçük bootstrap p değeri 0,005; normal uyumun değeri bu yüzden bir kestirim değil, bir sınır. Köprü: akılda kalması gerekenler.",
    "font_px": {
     "headline": 60,
     "body": 34,
@@ -267,13 +263,17 @@
   },
   {
    "id": "s16",
-   "role": "kaynaklar",
-   "kicker": "Kaynaklar",
-   "headline": "Slaytlardaki her yöntem birincil bir kaynağa dayanıyor",
+   "role": "sonuc",
+   "kicker": "Sonuç",
+   "headline": "Evet: tek model her soruyu tek tohumdan yanıtladı",
    "body": [],
-   "bullets": [],
+   "bullets": [
+    "SORM kesin %3,77 göçme olasılığını 43 koşuda buldu.",
+    "MCMC kesin sonsalı %7 içinde buldu; ortalama alan ADVI ıskaladı.",
+    "İniş aracının kayıplarının %90'ına transponder yol açıyor."
+   ],
    "labels": [],
-   "notes": "Bunlar slaytlardaki yöntemlerin birincil kaynakları: FORM, iki SORM düzeltmesi, Sobol toplam etki kestiricisi, karıştırılmış ağlar, CVaR, ADVI, ikili karar diyagramları, sistem güvenilirliği kuramı ve karma modellerde en iyi doğrusal yansız öngörü. Her birinin kaynakçada, kodun belge dizelerinde andığı bir anahtarı var; kodun hesapladığı her denklemin de kayıtta bir kimliği var. Köprü: nasıl başlanır.",
+   "notes": "Soruya dönün: evet; ileri yayılım, güvenilirlik ve risk tohumlu tek bir çalışmadan, ters problem sonucu kesin yanıtı olan bir kıyaslamadan, sistem sonucu kesin bir diyagramdan geldi. Bu soruların başladığı girdiler veriden geliyor: rüzgâr maksimumları için ham testin kabul ettiği normal dağılımı kalibre edilmiş test p = 0,005 ile reddetti; istatistik çekirdeğinde de kısmi havuzlama 2 testlik bir partiye kendi sapmasından yalnızca %12 pay bıraktı. Burada yeni sayı yok; her biri daha önce geçti. Sıradaki soru sizin: hangi benzetiminizi önce tanımlardınız? Köprü: kaynaklar, sonra nasıl başlanır.",
    "font_px": {
     "headline": 60,
     "body": 34,
@@ -284,6 +284,23 @@
   },
   {
    "id": "s17",
+   "role": "kaynaklar",
+   "kicker": "Kaynaklar",
+   "headline": "Slaytlardaki her yöntem birincil bir kaynağa dayanıyor",
+   "body": [],
+   "bullets": [],
+   "labels": [],
+   "notes": "Bunlar slaytlardaki yöntemlerin birincil kaynakları: FORM, iki SORM düzeltmesi, Sobol toplam etki kestiricisi, karıştırılmış ağlar, CVaR, ADVI, parametreleri kestirilmiş uyum iyiliği sınamaları, ikili karar diyagramları, sistem güvenilirliği kuramı ve karma modellerde en iyi doğrusal yansız öngörü. Her birinin kaynakçada, kodun belge dizelerinde andığı bir anahtarı var; kodun hesapladığı her denklemin de kayıtta bir kimliği var. Köprü: nasıl başlanır.",
+   "font_px": {
+    "headline": 60,
+    "body": 34,
+    "label": 26,
+    "caption": 24,
+    "citation": 24
+   }
+  },
+  {
+   "id": "s18",
    "role": "kapanis",
    "kicker": "Sorularınızı bekliyoruz",
    "headline": "Tek model her soruyu yanıtlıyor: üç komutla başlayın",
@@ -300,7 +317,7 @@
    }
   },
   {
-   "id": "s18",
+   "id": "s19",
    "role": "appendix",
    "kicker": "Ek · yedek slayt",
    "headline": "Örnekleme yöntemleri yayılımını bildiriyor; analitikler tohum istemiyor",

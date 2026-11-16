@@ -241,6 +241,25 @@ class PresentationDataTests(unittest.TestCase):
         self.assertLess(reference, monte_carlo["ci95_high"])
         self.assertLess(reliability["sorm_relative_error"], 0.01)
 
+    def test_calibration_rejects_only_the_normal_fit(self) -> None:
+        """A naive test accepts the normal fit, the bootstrap rejects it; GEV passes."""
+        fitting = self.fresh["fitting"]
+        alpha = fitting["alpha"]
+        normal, gev = fitting["normal"], fitting["gev"]
+        self.assertGreater(normal["naive_ad_p"], alpha)
+        self.assertLess(normal["bootstrap_ad_p"], alpha)
+        self.assertLess(normal["bootstrap_ad_p"], normal["naive_ad_p"])
+        self.assertTrue(normal["rejected"])
+        self.assertGreater(gev["bootstrap_ad_p"], alpha)
+        self.assertGreater(gev["bootstrap_ks_p"], alpha)
+        self.assertFalse(gev["rejected"])
+        self.assertGreater(fitting["aic_gap"], 0.0)
+        self.assertEqual(normal["refits"], fitting["n_bootstrap"])
+        self.assertGreaterEqual(normal["bootstrap_ad_p"], fitting["p_floor"])
+        share = fitting["exceed_share"]
+        self.assertTrue(gev["band_low"] <= share <= gev["band_high"])
+        self.assertGreater(share, normal["band_high"])
+
     def test_blups_follow_the_closed_form_shrinkage(self) -> None:
         """Each BLUP is its raw deviation times m sb^2/(m sb^2 + s^2), rising in m."""
         pooling = self.fresh["pooling"]
@@ -326,7 +345,7 @@ class PresentationHtmlTests(unittest.TestCase):
         english = TOOL.extract_slides(self.texts["en"])
         turkish = TOOL.extract_slides(self.texts["tr"])
         self.assertEqual(len(english), len(turkish))
-        self.assertTrue(12 <= len(english) <= 18, len(english))
+        self.assertTrue(12 <= len(english) <= 19, len(english))
         for en_slide, tr_slide in zip(english, turkish, strict=True):
             with self.subTest(slide=en_slide["id"]):
                 self.assertEqual(en_slide["id"], tr_slide["id"])

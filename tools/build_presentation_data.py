@@ -460,6 +460,137 @@ def mission_reliability() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------
+# An input law from data: fit, calibrated goodness of fit, parameter bands
+# --------------------------------------------------------------------------
+
+# The sample of the fitting guide (docs/foundations/uncertainty-modeling-and-
+# fitting.md): each maximum is the largest of 144 Weibull(2, 8) wind speeds.
+MAXIMA_COUNT = 400
+MAXIMA_BLOCK = 144
+MAXIMA_WEIBULL = (2.0, 8.0)
+FIT_BOOTSTRAP = 199
+FIT_ALPHA = 0.05
+FIT_PROBE = 24.0
+# Seed and draw count of the guide's parameter-band figure, so that the deck
+# and the guide quote the same band.
+BAND_SEED = 11
+BAND_DRAWS = 2000
+
+
+def input_law_fit() -> tuple[dict[str, Any], dict[str, float]]:
+    """Fit a normal and a GEV law to seeded block maxima and test both fits.
+
+    The 400 maxima are drawn as in the fitting guide
+    (``Weibull(2, 8).sample(400 * 144, seed=2026)``, the maximum of each block
+    of 144). Each family is fitted by maximum likelihood
+    (``fit_distribution``) and tested twice: with the ordinary KS and
+    Anderson-Darling p-values against the fitted law, which assume a fully
+    specified null, and with ``bootstrap_goodness_of_fit`` (199 replicates
+    from the fitted law, each refitted, seed 2026), which calibrates both
+    statistics for the estimated parameters. ``parameter_uncertainty_band``
+    gives the pointwise 95% band of each fit's exceedance probability at
+    24 m/s.
+
+    Returns:
+        Fitting section of the deck data and the error scales of its
+        bootstrap and band quantities (dotted key to scale).
+
+    References:
+        [EQ-INF-MLE-GEN-001], [EQ-INF-GOF-PB-001], [EQ-INF-GOF-AD-001],
+        [EQ-INF-BAND-001], [REF-STEPHENS-1974], [REF-LILLIEFORS-1967],
+        [REF-DAVISON-HINKLEY-1997, Chapter 4], [REF-COLES-2001, Chapter 3].
+
+    """
+    from probstat.distributions import Weibull
+    from probstat.inference import (
+        GEV_FAMILY,
+        NORMAL_FAMILY,
+        anderson_darling_test,
+        bootstrap_goodness_of_fit,
+        fit_distribution,
+        kolmogorov_smirnov_test,
+        parameter_uncertainty_band,
+    )
+
+    speeds = Weibull(*MAXIMA_WEIBULL).sample(MAXIMA_COUNT * MAXIMA_BLOCK, seed=SEED)
+    maxima = [
+        max(speeds[index * MAXIMA_BLOCK : (index + 1) * MAXIMA_BLOCK])
+        for index in range(MAXIMA_COUNT)
+    ]
+    exceed = sum(value > FIT_PROBE for value in maxima)
+    floor = 1.0 / (FIT_BOOTSTRAP + 1)
+    errors: dict[str, float] = {}
+    fits: dict[str, dict[str, Any]] = {}
+    for key, family in (("normal", NORMAL_FAMILY), ("gev", GEV_FAMILY)):
+        fit = fit_distribution(maxima, family)
+        calibrated = bootstrap_goodness_of_fit(
+            maxima, family, n_bootstrap=FIT_BOOTSTRAP, seed=SEED, fit=fit
+        )
+        band = parameter_uncertainty_band(
+            fit, (FIT_PROBE,), draws=BAND_DRAWS, level=0.95, seed=BAND_SEED
+        )
+        low, high = 1.0 - band.upper[0], 1.0 - band.lower[0]
+        fits[key] = {
+            "family": family.name,
+            "location": fit.estimates[0],
+            "scale": fit.estimates[1],
+            "aic": fit.aic,
+            "naive_ks_p": kolmogorov_smirnov_test(maxima, fit.distribution).p_value,
+            "naive_ad_p": anderson_darling_test(maxima, fit.distribution).p_value,
+            "bootstrap_ks_p": calibrated.ks_p_value,
+            "bootstrap_ad_p": calibrated.ad_p_value,
+            "refits": calibrated.refits,
+            "rejected": calibrated.rejected(FIT_ALPHA),
+            "band_low": low,
+            "band_high": high,
+        }
+        if len(fit.estimates) > 2:
+            fits[key]["shape"] = fit.estimates[2]
+        # A bootstrap p-value is a binomial proportion over the refits; its
+        # standard error is taken at no less than the attainable floor.
+        for name in ("bootstrap_ks_p", "bootstrap_ad_p"):
+            p = fits[key][name]
+            errors[f"fitting.{key}.{name}"] = math.sqrt(
+                max(p, floor) * (1.0 - min(p, 1.0 - floor)) / (FIT_BOOTSTRAP + 1)
+            )
+        # A 2.5% or 97.5% quantile of the drawn values: for a near-normal
+        # spread s its standard error is sqrt(0.025 * 0.975 / R) / phi(1.96) * s,
+        # about 0.06 s; the band width is 3.92 s.
+        scale = (
+            math.sqrt(0.025 * 0.975 / BAND_DRAWS)
+            / (math.exp(-0.5 * 1.959963984540054**2) / math.sqrt(2.0 * math.pi))
+            * (high - low)
+            / (2.0 * 1.959963984540054)
+        )
+        errors[f"fitting.{key}.band_low"] = scale
+        errors[f"fitting.{key}.band_high"] = scale
+        # The refit count of the numerical GEV fit may differ by a replicate
+        # between platforms; the closed-form normal refits cannot fail.
+        errors[f"fitting.{key}.refits"] = 1.0
+    normal, gev = fits["normal"], fits["gev"]
+    section = {
+        "seed": SEED,
+        "maxima": MAXIMA_COUNT,
+        "block": MAXIMA_BLOCK,
+        "weibull_shape": MAXIMA_WEIBULL[0],
+        "weibull_scale": MAXIMA_WEIBULL[1],
+        "n_bootstrap": FIT_BOOTSTRAP,
+        "p_floor": floor,
+        "alpha": FIT_ALPHA,
+        "normal": normal,
+        "gev": gev,
+        "aic_gap": normal["aic"] - gev["aic"],
+        "probe": FIT_PROBE,
+        "exceed": exceed,
+        "exceed_share": exceed / MAXIMA_COUNT,
+        "band_level": 0.95,
+        "band_seed": BAND_SEED,
+        "band_draws": BAND_DRAWS,
+    }
+    return section, errors
+
+
+# --------------------------------------------------------------------------
 # Partial pooling in a linear mixed model (applied statistics)
 # --------------------------------------------------------------------------
 
@@ -659,11 +790,11 @@ def build_data() -> dict[str, Any]:
     """Compute every number the deck shows.
 
     Returns:
-        The deck data: ``meta``, ``repository``, ``study``, ``mission``,
-        ``pooling``, ``benchmark`` and ``stochastic`` (dotted key to the error
-        scale used to compare a fresh run with the stored file: the Monte Carlo
-        standard error, or the absolute scale of a difference of nearly equal
-        numbers).
+        The deck data: ``meta``, ``repository``, ``study``, ``fitting``,
+        ``mission``, ``pooling``, ``benchmark`` and ``stochastic`` (dotted key
+        to the error scale used to compare a fresh run with the stored file:
+        the Monte Carlo standard error, or the absolute scale of a difference
+        of nearly equal numbers).
 
     References:
         [REF-PROBSTAT-REPORTING].
@@ -672,10 +803,13 @@ def build_data() -> dict[str, Any]:
     from probstat import __version__
 
     study, errors = quick_start_study()
+    fitting, fitting_errors = input_law_fit()
+    errors.update(fitting_errors)
     return {
         "meta": {"schema": SCHEMA, "probstat_version": __version__, "seed": SEED},
         "repository": repository_counts(),
         "study": study,
+        "fitting": fitting,
         "mission": mission_reliability(),
         "pooling": partial_pooling(),
         "benchmark": benchmark_highlights(),
@@ -1168,6 +1302,11 @@ def evidence_ledger(data: Mapping[str, Any]) -> dict[str, Any]:
             "examples/mission_systems_lab.py",
         ),
         ("src-arch", "Architecture: central-model questions", "docs/architecture.md"),
+        (
+            "src-fitting",
+            "Uncertainty modeling and fitting guide",
+            "docs/foundations/uncertainty-modeling-and-fitting.md",
+        ),
         ("src-stats", "README: applied-statistics questions", "README.md"),
         ("src-mixed", "Mixed-models guide", "docs/foundations/mixed-models.md"),
         ("src-registry", "Equation registry", "docs/equation-registry.md"),
@@ -1177,7 +1316,7 @@ def evidence_ledger(data: Mapping[str, Any]) -> dict[str, Any]:
         ("src-ci", "Continuous integration workflow", ".github/workflows/ci.yml"),
     ]
     study, mission, bench = data["study"], data["mission"], data["benchmark"]
-    pooling = data["pooling"]
+    pooling, fitting = data["pooling"], data["fitting"]
     claims = [
         (
             "questions",
@@ -1217,6 +1356,23 @@ def evidence_ledger(data: Mapping[str, Any]) -> dict[str, Any]:
             f"CVaR at 99% is {study['risk']['cvar99']:.1f} loss units",
             "observation",
             ["src-tool"],
+        ),
+        (
+            "fitting",
+            "Calibrated by the parametric bootstrap, the Anderson-Darling test "
+            f"rejects the normal fit to {fitting['maxima']} maxima at p = "
+            f"{fitting['normal']['bootstrap_ad_p']:.3f}; the naive p-value is "
+            f"{fitting['normal']['naive_ad_p']:.3f}",
+            "observation",
+            ["src-tool", "src-fitting"],
+        ),
+        (
+            "fitting-gev",
+            "The GEV fit keeps a calibrated p-value of "
+            f"{fitting['gev']['bootstrap_ad_p']:.2f} and an AIC lead of "
+            f"{fitting['aic_gap']:.1f}",
+            "observation",
+            ["src-tool", "src-fitting"],
         ),
         (
             "calibration",
@@ -1281,6 +1437,14 @@ def evidence_ledger(data: Mapping[str, Any]) -> dict[str, Any]:
             "limitation",
             ["src-tool"],
         ),
+        (
+            "fitting-simulated",
+            "The maxima are one simulated sample; with "
+            f"{fitting['n_bootstrap']} refits the smallest attainable bootstrap "
+            f"p-value is {fitting['p_floor']:.3f}",
+            "limitation",
+            ["src-tool"],
+        ),
     ]
     return {
         "claims": [
@@ -1324,7 +1488,7 @@ def evidence_ledger(data: Mapping[str, Any]) -> dict[str, Any]:
 # Figures (Matplotlib + datawiz, slide size)
 # --------------------------------------------------------------------------
 
-CHARTS = ("reliability", "calibration", "mission", "pooling", "sampling")
+CHARTS = ("reliability", "fitting", "calibration", "mission", "pooling", "sampling")
 LINE_CHARTS = frozenset({"pooling"})
 
 LABELS = {
@@ -1341,6 +1505,11 @@ LABELS = {
         "complete_pooling": "complete pooling: the overall mean",
         "curve": r"closed form $m\sigma_b^2\,/\,(m\sigma_b^2+\sigma^2)$",
         "endpoint": "{n} tests: {v}",
+        "ad_p": "Anderson-Darling p-value of the fit, log scale",
+        "naive": "naive",
+        "bootstrap": "bootstrap",
+        "alpha": "rejected below {v}",
+        "fits": {"normal": "Normal fit", "gev": "GEV fit"},
         "methods": {
             "form": "FORM",
             "sorm_breitung": "SORM (Breitung)",
@@ -1384,6 +1553,11 @@ LABELS = {
         "complete_pooling": "tam havuzlama: genel ortalama",
         "curve": r"kapalı biçim $m\sigma_b^2\,/\,(m\sigma_b^2+\sigma^2)$",
         "endpoint": "{n} test: {v}",
+        "ad_p": "Uyumun Anderson-Darling p değeri, log ölçek",
+        "naive": "ham",
+        "bootstrap": "bootstrap",
+        "alpha": "{v} altında ret",
+        "fits": {"normal": "Normal uyum", "gev": "GEV uyumu"},
         "methods": {
             "form": "FORM",
             "sorm_breitung": "SORM (Breitung)",
@@ -1716,7 +1890,100 @@ def _chart_pooling(ax: Any, data: Mapping[str, Any], lang: str, palette: Any) ->
     ax._dw_izgara = "yok"
 
 
+def _chart_fitting(ax: Any, data: Mapping[str, Any], lang: str, palette: Any) -> None:
+    """Dumbbell of the naive and the bootstrap Anderson-Darling p-value per fit.
+
+    Each row joins the ordinary p-value against the fitted law (grey) to the
+    parametric-bootstrap p-value (coloured) on a log axis, with the 5% level
+    as a dashed reference: the normal fit crosses it, the GEV fit does not.
+
+    References:
+        [EQ-INF-GOF-PB-001], [REF-STEPHENS-1974]. No new equation is evaluated.
+
+    """
+    from matplotlib.ticker import FixedLocator, NullLocator
+
+    words = LABELS[lang]
+    fitting = data["fitting"]
+    rows = (("normal", 1.0, palette.observed), ("gev", 0.0, palette.model))
+    for key, position, color in rows:
+        naive = fitting[key]["naive_ad_p"]
+        calibrated = fitting[key]["bootstrap_ad_p"]
+        ax.annotate(
+            "",
+            (calibrated, position),
+            xytext=(naive, position),
+            arrowprops={
+                "arrowstyle": "-|>,head_length=0.6,head_width=0.35",
+                "color": palette.rule,
+                "lw": 5.0,
+                "shrinkA": 12.0,
+                "shrinkB": 14.0,
+            },
+            zorder=1,
+        )
+        for value, shade, size in ((naive, palette.muted, 13), (calibrated, color, 16)):
+            ax.plot(
+                value,
+                position,
+                "o",
+                ms=size,
+                color=shade,
+                mec=palette.canvas,
+                mew=2.0,
+                zorder=3,
+            )
+        # The top row names the two p-values above its points; on the bottom
+        # row the points are close, so the values sit outside them, left and
+        # right, in the same order.
+        top = key == "normal"
+        for value, shade, name, weight, side in (
+            (naive, palette.muted, words["naive"], "normal", 1),
+            (calibrated, color, words["bootstrap"], "bold", -1),
+        ):
+            text = format_value(value, "f3", lang)
+            ax.annotate(
+                f"{name} {text}" if top else text,
+                (value, position),
+                xytext=(0, 20) if top else (side * 20, 0),
+                textcoords="offset points",
+                ha="center" if top else ("left" if side > 0 else "right"),
+                va="bottom" if top else "center",
+                color=shade,
+                fontweight=weight,
+            )
+    alpha = fitting["alpha"]
+    # A canvas-coloured line under the dashed reference hides the gridline
+    # of the 0.05 tick between the dashes.
+    ax.axvline(alpha, color=palette.canvas, lw=4.0, zorder=0.5)
+    ax.axvline(alpha, color=palette.accent, lw=2.0, ls=(0, (3.5, 3.0)), zorder=0.6)
+    ax.annotate(
+        words["alpha"].format(v=format_value(alpha, "f2", lang)),
+        (alpha, -0.62),
+        xytext=(-10, 0),
+        textcoords="offset points",
+        ha="right",
+        va="bottom",
+        color=palette.accent,
+    )
+    # A canvas-coloured halo keeps the gridlines from running through labels.
+    from matplotlib.patheffects import withStroke
+
+    for text in ax.texts:
+        text.set_path_effects([withStroke(linewidth=8.0, foreground=palette.canvas)])
+    ax.set_xscale("log")  # datawiz: izin eksen adı log ölçeği söylüyor
+    ticks = (0.005, 0.01, 0.05, 0.1, 0.5, 1.0)
+    ax.xaxis.set_major_locator(FixedLocator(ticks))
+    ax.xaxis.set_minor_locator(NullLocator())
+    ax.set_xticks(ticks, [format_value(t, "f3", lang) for t in ticks])
+    ax.set_xlim(0.0032, 1.6)
+    ax.set_yticks([1.0, 0.0], [words["fits"]["normal"], words["fits"]["gev"]])
+    ax.set_ylim(-0.7, 1.75)
+    ax.set_xlabel(words["ad_p"])
+
+
 DRAW: dict[str, Callable[[Any, Mapping[str, Any], str, Any], None]] = {
+    "fitting": _chart_fitting,
     "reliability": _chart_reliability,
     "calibration": _chart_calibration,
     "mission": _chart_mission,
@@ -1846,6 +2113,7 @@ DECK_PLAN: dict[str, Any] = {
             "examples/mission_systems_lab.py",
             "docs/architecture.md",
             "docs/foundations/mixed-models.md",
+            "docs/foundations/uncertainty-modeling-and-fitting.md",
         ],
         "external_research_required": False,
     },
@@ -1881,6 +2149,16 @@ VISUAL_SPEC: dict[str, Any] = {
             "alt": "Failure probability of five methods against the exact value; "
             "SORM sits on the exact line.",
             "data_sources": ["deck-data.json: study.reliability"],
+        },
+        {
+            "id": "fitting",
+            "question": "Does a goodness-of-fit test still accept a fitted law once "
+            "it is calibrated for the estimated parameters?",
+            "type": "dumbbell on a log axis with a reference line",
+            "units": "p-value",
+            "alt": "Anderson-Darling p-value of a normal and a GEV fit, naive and "
+            "bootstrap-calibrated; only the normal fit falls below 0.05.",
+            "data_sources": ["deck-data.json: fitting"],
         },
         {
             "id": "calibration",

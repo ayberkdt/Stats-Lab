@@ -11,6 +11,16 @@
    ]
   },
   {
+   "id": "fitting",
+   "question": "Does a goodness-of-fit test still accept a fitted law once it is calibrated for the estimated parameters?",
+   "type": "dumbbell on a log axis with a reference line",
+   "units": "p-value",
+   "alt": "Anderson-Darling p-value of a normal and a GEV fit, naive and bootstrap-calibrated; only the normal fit falls below 0.05.",
+   "data_sources": [
+    "deck-data.json: fitting"
+   ]
+  },
+  {
    "id": "calibration",
    "question": "How well do the samplers recover an exact posterior spread?",
    "type": "horizontal bars, one highlighted",

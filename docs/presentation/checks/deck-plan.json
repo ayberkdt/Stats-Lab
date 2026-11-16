@@ -17,7 +17,8 @@
    "benchmarks/results/quick.json",
    "examples/mission_systems_lab.py",
    "docs/architecture.md",
-   "docs/foundations/mixed-models.md"
+   "docs/foundations/mixed-models.md",
+   "docs/foundations/uncertainty-modeling-and-fitting.md"
   ],
   "external_research_required": false
  },

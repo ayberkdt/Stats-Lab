@@ -141,6 +141,24 @@
   {
    "id": "s8",
    "type": "kanit",
+   "kicker": "Evidence · input laws from data, simulated maxima",
+   "headline": "Bootstrap calibration rejects the normal fit: p = 0.005, not 0.192",
+   "fields": {
+    "olcut": "Anderson-Darling p-value of the fitted law",
+    "gercek": "benzetim",
+    "n": "400 maxima",
+    "okuma": [
+     "400 maxima of 144 wind speeds · 199 refitted replicates per test · AIC favours the GEV by 19.3"
+    ],
+    "kaynak": "Source: tools/build_presentation_data.py, seed 2026; bootstrap_goodness_of_fit",
+    "gorsel": "Dumbbell chart on a log scale: Anderson-Darling p-value of a normal and a GEV fit to the same maxima, each joined from the naive value to the bootstrap-calibrated value; the normal fit moves from above to below the dashed 0.05 line, the GEV fit stays near the top of the scale."
+   },
+   "bullets": [],
+   "notes": "Every probability on the last slides rests on input laws, and the library builds an input law from the information there is. With expert statements only, a range, a mean, a spread, maximum_entropy returns the least committal law that honours them. With some data, fit_distribution fits a family by likelihood, fit_distribution_moments by moments. With many data, gaussian_kde with a bandwidth chosen by select_kde_bandwidth needs no family at all. This slide is the middle case and its trap. The data are simulated so that the truth is known: 400 block maxima, each the largest of 144 Weibull wind speeds. A normal and a GEV law are fitted by maximum likelihood. Tested against the fitted normal, the ordinary Anderson-Darling p-value is 0.192 and the Kolmogorov-Smirnov one 0.383: the fit looks acceptable. Those p-values assume the law was fixed before the data were seen; a law fitted to the same data sits closer to them, so the p-values come out too large. bootstrap_goodness_of_fit draws 199 samples from the fitted law, refits each one, and compares: the normal fit's Anderson-Darling p-value falls to 0.005, the smallest value that many refits can give. The GEV keeps 0.720 and wins the AIC by 19.3. The difference sits in the tail, where design values live: at 24 m/s, 6 of the maxima exceed, 1.5%. The 95% parameter-uncertainty band of the GEV from parameter_uncertainty_band covers that share, 0.69% to 2.38%; the normal band, 0.30% to 0.94%, does not. Limitation: one simulated sample and one seed, and the Kolmogorov-Smirnov test, which weighs the tails less, stays at 0.065 even after calibration, just above 5%. Bridge: when the data observe the model's output instead of the input, the input law comes from calibration."
+  },
+  {
+   "id": "s9",
+   "type": "kanit",
    "kicker": "Evidence · calibration",
    "headline": "MCMC stays within 7% of the exact spread; mean-field ADVI misses 40%",
    "fields": {
@@ -157,7 +175,7 @@
    "notes": "Inverse problems are judged against an answer that is known exactly: a straight-line model with Gaussian noise and a Gaussian prior, whose posterior is conjugate. Laplace is exact here by construction. The three Markov chain samplers recover the posterior standard deviation within 7%. Mean-field ADVI underestimates it by 40%, because it ignores the correlation between intercept and slope; the full-rank variant does not. The library reports this instead of hiding it. Limitation: quick mode, 2 seeds. Bridge: from one simulator to a whole system."
   },
   {
-   "id": "s9",
+   "id": "s10",
    "type": "kanit",
    "kicker": "Evidence · systems engineering",
    "headline": "The transponder causes 90% of the lander's mission failures",
@@ -176,7 +194,7 @@
    "breathing": true
   },
   {
-   "id": "s10",
+   "id": "s11",
    "type": "baglam",
    "kicker": "Applied statistics",
    "headline": "Every input distribution needs data, and data raise 9 more questions",
@@ -189,7 +207,7 @@
    "notes": "The load and the strength of the quick-start study were declared as distributions, but in practice each is estimated from test records, and those records raise their own questions. The README lists them: is there an effect, do groups differ, how does a response depend on predictors, what about counts and categories, grouped or repeated measurements, smooth unknown shapes, many correlated variables, time, and censored, missing, or confounded data. The statistical core answers them with linear and generalized mixed models, robust and quantile regression, Poisson, negative binomial, zero-inflated, and ordinal models, splines and additive models, principal components and discriminants, and ARIMA, GARCH, VAR, unit-root tests, and change points. The discipline is the same as for the simulator: every estimator reports its standard errors, degrees of freedom, and convergence, cites its source, and each guide lists the pitfalls of its methods; Track S of the learning path orders them. Bridge: one of these questions, grouped measurements, shows why the estimate of a batch depends on how many tests it has."
   },
   {
-   "id": "s11",
+   "id": "s12",
    "type": "kanit",
    "kicker": "Evidence · mixed models, simulated batches",
    "headline": "2 tests keep 12% of a batch's deviation, 30 tests keep 66%",
@@ -208,7 +226,7 @@
    "breathing": true
   },
   {
-   "id": "s12",
+   "id": "s13",
    "type": "yontem",
    "kicker": "Verification",
    "headline": "Five checks stand between a formula and a release",
@@ -241,7 +259,7 @@
    "notes": "Each check is enforced by a test, not by a promise. The documentation contract fails when a function's references section names no source key or an equation identifier is missing from the registry. Tests use independent oracles: closed forms, exact enumeration, published values, a multiple-precision reference, or statistical checks whose tolerance comes from the Monte Carlo standard error, so they hold on every platform. Figures follow one semantic theme in a light and a dark palette. Continuous integration runs lint, strict type checking, the tests, the quick benchmark, and all 33 labs on 3 Python versions. Design choices are recorded in 100+ decision records. Bridge: the benchmarks score methods against exact answers."
   },
   {
-   "id": "s13",
+   "id": "s14",
    "type": "kanit",
    "kicker": "Evidence · benchmarks",
    "headline": "Sobol' points cut the error of the mean ×66 at equal cost",
@@ -259,7 +277,7 @@
    "notes": "The benchmark suite has 11 problems with exact or quadrature reference answers and records 124 method results, each with its error, cost, and interval coverage. This row is the cleanest: the same 256 runs, four designs. Plain Monte Carlo misses the Ishigami mean by 7.8%; scrambled Sobol' points by 0.12%. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover."
   },
   {
-   "id": "s14",
+   "id": "s15",
    "type": "sinirlamalar",
    "kicker": "Limitations",
    "headline": "Three limits apply to these results",
@@ -269,10 +287,10 @@
     "Benchmarks: probstat 0.17.0, quick mode, 2 to 5 seeds; coverage is coarse.",
     "Monte Carlo digits move with the seed; each carries its 95% interval."
    ],
-   "notes": "On the four-branch series system of the benchmark, a limit state with several design points, FORM and both SORM variants stop without an answer; AK-MCS reaches it with about 26 runs at a relative error of 16%. Quick mode runs few seeds, so coverage statistics are indicative only; the full benchmark mode runs more. The benchmark file was recorded with an earlier release than the study. And every Monte Carlo number moves with the seed, which is why each one carries its interval. The pooling example uses simulated batches with a known spread: with 12 batches, REML puts the between-batch standard deviation at 0.11 kN against a true 0.15 kN, and every shrinkage share inherits that uncertainty. Bridge: what to keep."
+   "notes": "On the four-branch series system of the benchmark, a limit state with several design points, FORM and both SORM variants stop without an answer; AK-MCS reaches it with about 26 runs at a relative error of 16%. Quick mode runs few seeds, so coverage statistics are indicative only; the full benchmark mode runs more. The benchmark file was recorded with an earlier release than the study. And every Monte Carlo number moves with the seed, which is why each one carries its interval. The pooling example uses simulated batches with a known spread: with 12 batches, REML puts the between-batch standard deviation at 0.11 kN against a true 0.15 kN, and every shrinkage share inherits that uncertainty. The fitting example is one simulated sample as well: with 199 refits the smallest attainable bootstrap p-value is 0.005, so the normal fit's value is a bound, not an estimate. Bridge: what to keep."
   },
   {
-   "id": "s15",
+   "id": "s16",
    "type": "sonuc",
    "kicker": "Conclusion",
    "headline": "Yes: one model answered every question from one seed",
@@ -282,32 +300,32 @@
     "MCMC matched an exact posterior within 7%; mean-field ADVI missed.",
     "The transponder causes 90% of the lander's failures."
    ],
-   "notes": "Return to the question: yes, forward, reliability, and risk came from one seeded study, the inverse result from a benchmark with an exact answer, and the systems result from an exact diagram. The inputs those questions start from are estimated by the statistical core, where partial pooling let a batch with 2 tests keep only 12% of its own deviation. No new numbers here; each one appeared earlier. The next question is yours: which of your simulators would you declare first? Bridge: sources, then how to start."
+   "notes": "Return to the question: yes, forward, reliability, and risk came from one seeded study, the inverse result from a benchmark with an exact answer, and the systems result from an exact diagram. The inputs those questions start from come from data: a calibrated test rejected a normal law for wind maxima at p = 0.005 that a naive test accepted, and in the statistical core partial pooling let a batch with 2 tests keep only 12% of its own deviation. No new numbers here; each one appeared earlier. The next question is yours: which of your simulators would you declare first? Bridge: sources, then how to start."
   },
   {
-   "id": "s16",
+   "id": "s17",
    "type": "kaynaklar",
    "kicker": "Sources",
    "headline": "Every method on these slides traces to a primary source",
    "fields": {
     "kaynaklar": [
      "Hasofer, Lind (1974). Exact and invariant second-moment code format. J. Eng. Mech. Div.",
-     "Breitung (1984). Asymptotic approximations for multinormal integrals. J. Eng. Mech.",
-     "Hohenbichler, Rackwitz (1988). Improvement of second-order reliability estimates. J. Eng. Mech.",
+     "Breitung (1984); Hohenbichler, Rackwitz (1988). Asymptotic approximations for multinormal integrals; Improvement of second-order reliability estimates. J. Eng. Mech.",
      "Saltelli et al. (2010). Variance based sensitivity analysis of model output. Comput. Phys. Commun.",
      "Owen (1995). Randomly permuted (t,m,s)-nets and (t,s)-sequences. Springer.",
      "Rockafellar, Uryasev (2000). Optimization of conditional value-at-risk. J. Risk.",
      "Kucukelbir et al. (2017). Automatic differentiation variational inference. JMLR.",
      "Bryant (1986). Graph-based algorithms for Boolean function manipulation. IEEE Trans. Comput.",
      "Rausand, Høyland (2004). System reliability theory. Wiley.",
+     "Stephens (1974). EDF statistics for goodness of fit and some comparisons. J. Am. Stat. Assoc.",
      "Henderson (1975). Best linear unbiased estimation and prediction under a selection model. Biometrics."
     ]
    },
    "bullets": [],
-   "notes": "These are the primary sources of the methods on the slides: FORM, the two SORM corrections, the Sobol total-effect estimator, scrambled nets, CVaR, ADVI, binary decision diagrams, system reliability theory, and best linear unbiased prediction in mixed models. Each has a key in the bibliography that the code cites in its docstrings, and every equation the code evaluates has an identifier in the registry. Bridge: how to start."
+   "notes": "These are the primary sources of the methods on the slides: FORM, the two SORM corrections, the Sobol total-effect estimator, scrambled nets, CVaR, ADVI, goodness of fit with estimated parameters, binary decision diagrams, system reliability theory, and best linear unbiased prediction in mixed models. Each has a key in the bibliography that the code cites in its docstrings, and every equation the code evaluates has an identifier in the registry. Bridge: how to start."
   },
   {
-   "id": "s17",
+   "id": "s18",
    "type": "kapanis",
    "kicker": "Questions welcome",
    "headline": "One model answers every question: start with three commands",
@@ -318,7 +336,7 @@
    "notes": "Close on the claim and leave this slide up during questions. The third command runs a complete study on a cantilever beam and writes its report and figures; the learning paths order every guide with its laboratory. The core library needs nothing beyond the Python standard library; Matplotlib is only for figures."
   },
   {
-   "id": "s18",
+   "id": "s19",
    "type": "ek",
    "kicker": "Appendix · backup slide",
    "headline": "Sampling methods report their spread; analytic ones need no seed",
