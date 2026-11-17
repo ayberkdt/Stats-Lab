@@ -320,7 +320,7 @@ Descriptive statistics, one-pass streaming summaries, and historical data sets.
 | `DATASETS` | constant |  |
 | `empirical_cdf` | function | Evaluate the empirical cumulative distribution function at ``x``. |
 | `ExceedanceCounter` | class | Mergeable streaming event or exceedance proportion with a Wilson interval. |
-| `excess_kurtosis` | function | Return the sample moment excess kurtosis ``g2 = m4 / m2^2 - 3``. |
+| `excess_kurtosis` | function | Return the sample excess kurtosis under one of three Joanes-Gill conventions. |
 | `gaussian_kde` | function | Return a Gaussian kernel density estimate of a univariate sample. |
 | `gaussian_kde_multivariate` | function | Return a Gaussian KDE whose kernel covariance is ``h^2 R``. |
 | `interquartile_range` | function | Return the type-7 interquartile range ``Q(0.75) - Q(0.25)``. |
@@ -349,7 +349,7 @@ Descriptive statistics, one-pass streaming summaries, and historical data sets.
 | `RunningMoments` | class | Mergeable one-pass count, mean, variance, skewness, and kurtosis. |
 | `RUTHERFORD_GEIGER_SCINTILLATIONS` | constant |  |
 | `select_kde_bandwidth` | function | Select a Gaussian-kernel bandwidth by cross-validation. |
-| `skewness` | function | Return the sample moment skewness ``g1 = m3 / m2^(3/2)``. |
+| `skewness` | function | Return the sample skewness under one of three Joanes-Gill conventions. |
 | `spearman_correlation` | function | Return Spearman's rank correlation (Pearson correlation of ranks). |
 | `standard_deviation` | function | Return the non-negative square root of finite-sample variance. |
 | `StreamingRunResult` | class | Outcome of :func:`run_until`, a relative-error-targeted running mean. |
