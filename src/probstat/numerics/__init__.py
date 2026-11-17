@@ -19,6 +19,10 @@ Main entry points:
         with the dimension.
     ``GradientEvaluator``: value-and-gradient oracle that chooses between
         the differentiation modes.
+    ``integrate_to_event``: fixed-step explicit Euler, Heun, or RK4
+        integration of an ODE until an event function reaches zero, with
+        the crossing located on the last step (first grid point, linear,
+        or cubic Hermite interpolation).
 
 Assumptions:
     Integrands return finite real numbers wherever the rule places weight,
@@ -52,7 +56,9 @@ References:
     [REF-PIESSENS-QUADPACK-1983] (Gauss-Kronrod and its error estimate),
     [REF-TAKAHASI-MORI-1974] and [REF-MORI-SUGIHARA-2001]
     (double-exponential rules), [REF-DAVIS-RABINOWITZ-1984] (composite
-    rules), [REF-GRIEWANK-WALTHER-2008] (automatic differentiation).
+    rules), [REF-GRIEWANK-WALTHER-2008] (automatic differentiation),
+    [REF-HAIRER-NORSETT-WANNER-1993] (explicit ODE integration and event
+    location).
 
 """
 
@@ -74,6 +80,13 @@ from .gradient_oracle import GRADIENT_OPTIONS, GradientEvaluator
 from .integration import integrate
 from .integration_result import IntegrationResult
 from .networks import ACTIVATIONS, MLP
+from .ode import (
+    EVENT_LOCATIONS,
+    METHOD_ORDERS,
+    ODE_METHODS,
+    EventSolution,
+    integrate_to_event,
+)
 from .profiles import (
     DataProfile,
     PerformanceProfile,
@@ -172,4 +185,9 @@ __all__ = [
     "reference_regularized_gamma_p",
     "reference_regularized_gamma_q",
     "ulp_error",
+    "EVENT_LOCATIONS",
+    "METHOD_ORDERS",
+    "ODE_METHODS",
+    "EventSolution",
+    "integrate_to_event",
 ]
