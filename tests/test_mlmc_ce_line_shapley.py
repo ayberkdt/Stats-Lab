@@ -349,7 +349,9 @@ class ComparisonIntegrationTests(unittest.TestCase):
     def test_default_methods_unchanged_and_opt_in_rows(self) -> None:
         """Defaults keep five methods; 'ce' and 'line' add CE-IS and Line rows."""
         self.assertEqual(METHODS, ("form", "sorm", "is", "subset", "mc"))
-        self.assertEqual(set(AVAILABLE_METHODS) - set(METHODS), {"ce", "line"})
+        self.assertEqual(
+            set(AVAILABLE_METHODS) - set(METHODS), {"ce", "line", "acs", "hmc-ss"}
+        )
         state, exact = lognormal_state()
         comparison = compare_reliability_methods(
             state,

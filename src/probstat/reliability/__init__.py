@@ -27,7 +27,9 @@ Main entry points:
     improved HL-RF iteration.
     ``sorm``: Breitung and Hohenbichler-Rackwitz corrections at a converged
     FORM design point.
-    ``subset_simulation``: small failure probabilities without a design point.
+    ``subset_simulation``: small failure probabilities without a design point,
+    with modified Metropolis, conditional-sampling, adaptive conditional-sampling,
+    or Hamiltonian Monte Carlo chains (``SUBSET_SAMPLERS``).
     ``moving_particles``: last-particle splitting with an exact Poisson
     interval.
     ``directional_simulation``: radial chi integration along random
@@ -179,6 +181,7 @@ from .simulation import (
     AVAILABLE_METHODS,
     METHODS,
     OPTIONAL_METHODS,
+    SUBSET_SAMPLERS,
     DesignPointImportanceResult,
     MethodComparison,
     MethodComparisonRow,
@@ -257,6 +260,7 @@ __all__ = [
     "SIDES",
     "SORMResult",
     "SeriesSystemBounds",
+    "SUBSET_SAMPLERS",
     "SubsetSimulationResult",
     "SystemReliabilityResult",
     "TERMINATIONS",

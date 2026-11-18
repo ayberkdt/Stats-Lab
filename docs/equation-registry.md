@@ -16356,3 +16356,86 @@ user-supplied weight function `w`.
   event `Y > c`, rather than with the whole output distribution.
 - Code: `sensitivity.hsic_indices` (`target=`).
 - Source: [REF-MARREL-CHABRIDON-2021].
+
+### EQ-REL-SUBSET-004 — Conditional-sampling step for subset simulation
+
+`v_i = rho_i u_i + sigma_i z_i` with `z_i ~ N(0, 1)` and
+`rho_i = sqrt(1 - sigma_i^2)`; the state moves to `v` if `G(v) <= b_j` and
+repeats otherwise. Plain conditional sampling uses one fixed `rho` for every
+coordinate (default `0.8`).
+
+- Domain: independent standard-normal coordinates, `0 <= rho_i < 1`
+  (`0 < sigma_i <= 1`), current state in `F_j = {G <= b_j}`.
+- Meaning: the proposal is reversible with respect to the standard normal
+  law, so no density ratio is needed and the stationary law is
+  `phi_n(u) I(u in F_j) / P(F_j)`; unlike a random walk, the acceptance rate
+  does not decay with the dimension.
+- Code: `reliability.subset_simulation` (`sampler="cs"` and `"acs"`).
+- Source: [REF-PAPAIOANNOU-BETZ-ZWIRGLMAIER-STRAUB-2015],
+  [REF-COTTER-ROBERTS-STUART-WHITE-2013].
+
+### EQ-REL-SUBSET-005 — Adaptive conditional sampling (aCS)
+
+The `N_s = N p0` seeds are randomly permuted and each starts a chain of
+`floor(N / N_s)` states (the remainder goes to the first chains).
+`sigma_i = min(lambda sigma_0i, 1)`, `rho_i = sqrt(1 - sigma_i^2)`, with
+`sigma_0i = 1` or the sample standard deviation of coordinate `i` over the
+seeds. After every `N_a = ceil(100 N_s / N)` chains,
+`a_hat = N_a^-1 sum min(1, a_c)` over their acceptance rates `a_c` and
+`ln lambda <- ln lambda + (a_hat - a*) / sqrt(i + 1)`, `i = 0, 1, ...`
+counting the updates of the level; `a* = 0.44`, `lambda = 0.6` at the first
+conditional level and carried over to the next level.
+
+- Domain: `lambda > 0`, `0 < a* < 1`, `N_a >= 1`.
+- Meaning: a Robbins-Monro type adaptation of the conditional-sampling
+  spread toward the acceptance rate that balances step length and
+  rejections; a decreasing gain keeps the kernel nearly fixed late in a
+  level.
+- Code: `reliability.subset_simulation` (`sampler="acs"`).
+- Source: [REF-PAPAIOANNOU-BETZ-ZWIRGLMAIER-STRAUB-2015].
+
+### EQ-REL-SUBSET-006 — Level c.o.v. with chains of unequal length
+
+`delta_j^2 = (1 - P_j) / (N P_j) (1 + gamma_j)`,
+`gamma_j = 2 sum_{k >= 1} (n_k / N) rho_j(k)`, `n_k = sum_c max(0, L_c - k)`,
+`R_j(k) = n_k^-1 sum_chains sum_l I_l I_{l+k} - P_j^2`,
+`rho_j(k) = R_j(k) / (P_j (1 - P_j))`, for chains of lengths `L_c` summing
+to `N`.
+
+- Domain: `0 < P_j < 1`, `L_c >= 1`; with equal lengths `L_c = N_s`,
+  `n_k / N = 1 - k / N_s` and the formula is [EQ-REL-SUBSET-003].
+- Meaning: the variance of the mean of correlated indicators when chain
+  lengths differ, counting each lag by its number of state pairs.
+- Code: `reliability.subset_simulation` (`_level_cov`).
+- Source: [REF-AU-BECK-2001] and
+  [REF-PAPAIOANNOU-BETZ-ZWIRGLMAIER-STRAUB-2015].
+
+### EQ-REL-HMCSS-001 — Rejection-sampling Hamiltonian step in standard space
+
+With potential `U(u) = ||u||^2 / 2 - ln I(u in F_j)` and a unit mass
+matrix, the Gaussian part of the Hamiltonian flow is exact:
+`u(t) = p sin t + u_0 cos t`, `p ~ N(0, I)` drawn afresh for every step;
+the end point `u(t_f)` is accepted if `G(u(t_f)) <= b_j` and the chain
+repeats `u_0` otherwise.
+
+- Domain: `0 < t_f <= pi/2`, current state in `F_j`; full momentum refresh
+  (no partial refreshment).
+- Meaning: the flow preserves the standard normal law, so rejecting end
+  points outside `F_j` leaves the conditional law invariant without a
+  gradient; the step equals conditional sampling with `rho = cos t_f`.
+- Code: `reliability.subset_simulation` (`sampler="hmc"`).
+- Source: [REF-WANG-BROCCARDO-SONG-2019] and [REF-NEAL-2011].
+
+### EQ-REL-HMCSS-002 — Trajectory-time adaptation for RS-HMC
+
+`t_f` starts at `pi/4`. After every `N_a` chains with mean acceptance `a`:
+if `a < 0.3`, `t_f <- arcsin(sin t_f exp((a - 0.3)/2))`; if `a > 0.5`,
+`t_f <- arcsin(min(1, sin t_f exp((a - 0.5)/2)))`; otherwise `t_f` is kept.
+
+- Domain: `0 < t_f <= pi/2`, `N_a >= 1`; the adapted value is carried to
+  the next level.
+- Meaning: shortens the trajectory when too many end points leave `F_j` and
+  lengthens it when nearly all stay inside, holding the acceptance rate in
+  the band `[0.3, 0.5]`.
+- Code: `reliability.subset_simulation` (`sampler="hmc"`).
+- Source: [REF-WANG-BROCCARDO-SONG-2019].

@@ -4474,3 +4474,22 @@ Alfred Inselberg. "The Plane with Parallel Coordinates." *The Visual
 Computer* 1(2), 69-91, 1985. Parallel-coordinate displays of
 multivariate data (the cobweb plot of sensitivity analysis).
 DOI: [10.1007/BF01898350](https://doi.org/10.1007/BF01898350).
+
+## REF-PAPAIOANNOU-BETZ-ZWIRGLMAIER-STRAUB-2015
+
+Iason Papaioannou, Wolfgang Betz, Kilian Zwirglmaier, and Daniel Straub.
+"MCMC Algorithms for Subset Simulation." *Probabilistic Engineering
+Mechanics* 41, 89-103, 2015. Conditional sampling in standard normal space
+and its adaptive variant, which scales the proposal by a factor adapted
+toward an acceptance rate of 0.44.
+DOI: [10.1016/j.probengmech.2015.06.006](https://doi.org/10.1016/j.probengmech.2015.06.006).
+
+## REF-WANG-BROCCARDO-SONG-2019
+
+Ziqi Wang, Marco Broccardo, and Junho Song. "Hamiltonian Monte Carlo Methods
+for Subset Simulation in Reliability Analysis." *Structural Safety* 76,
+51-67, 2019. Rejection-sampling and basic-bouncing Hamiltonian Monte Carlo
+for the conditional levels, with the exact Gaussian flow in standard normal
+space and an adaptive trajectory time.
+DOI: [10.1016/j.strusafe.2018.05.005](https://doi.org/10.1016/j.strusafe.2018.05.005).
+Preprint: [arXiv:1706.01435](https://arxiv.org/abs/1706.01435).

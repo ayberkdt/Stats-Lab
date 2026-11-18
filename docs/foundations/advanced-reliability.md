@@ -106,6 +106,98 @@ exact value ranged from 0.33 to 2.40, with mean 1.01. The independence c.o.v.
 was 0.33-0.36 and the upper c.o.v. was 0.70-0.78. The observed spread matches
 the upper value better.
 
+### Markov-chain kernels for the conditional levels
+
+`subset_simulation(..., sampler=...)` selects the kernel that turns the
+`N p0` seeds of a level into `N` conditional samples. All kernels keep the
+seed as the first state of its chain and leave the standard normal law
+restricted to `F_j = {G <= b_j}` invariant; they differ in the proposal and
+in whether its scale adapts. `SUBSET_SAMPLERS` lists the names.
+
+| `sampler` | Move | Scale | Reported in `level_scales` |
+| --- | --- | --- | --- |
+| `"mma"` (default) | component-wise modified Metropolis [EQ-REL-SUBSET-002] | fixed spread `s` (`proposal_spread=1`) | `s` |
+| `"cs"` | conditional sampling `v = rho u + sqrt(1 - rho^2) z` [EQ-REL-SUBSET-004] | fixed `rho` (`correlation=0.8`) | `rho` |
+| `"acs"` | conditional sampling with `sigma_i = min(lambda sigma_0i, 1)` | `lambda` adapted toward acceptance 0.44 [EQ-REL-SUBSET-005] | final `lambda` |
+| `"hmc"` | exact Gaussian flow `u(t_f) = p sin t_f + u_0 cos t_f` [EQ-REL-HMCSS-001] | `t_f` adapted into the band 0.3-0.5 [EQ-REL-HMCSS-002] | final `t_f` |
+
+The default kernel and its seeded results are unchanged, so every number
+quoted elsewhere in this guide still holds.
+
+**Conditional sampling.** The proposal is reversible with respect to the
+standard normal law, so the only test is whether `v` stays in `F_j`. There is
+no per-coordinate density ratio, and the acceptance rate does not decay with
+the dimension the way a full-vector random walk does. A fixed `rho`, however,
+is a fixed step: at deep levels `F_j` is a thin region and the step becomes
+too long.
+
+**Adaptive conditional sampling (aCS).** The seeds are randomly permuted and
+each chain gets `floor(N / N_s)` states, the remainder going to the first
+chains, so `N p0` need not divide `N` (this also holds for `"cs"` and
+`"hmc"`). The proposal spread is
+`sigma_i = min(lambda sigma_0i, 1)` with `rho_i = sqrt(1 - sigma_i^2)`;
+`sigma_0i = 1` by default, or the seed standard deviation of coordinate `i`
+with `scale_reference="seeds"`. After every `N_a = ceil(100 p0)` chains
+(`adaptation_chains`), the mean acceptance `a_hat` of those chains updates
+`ln lambda <- ln lambda + (a_hat - 0.44) / sqrt(i + 1)`. `lambda` starts at
+`initial_scale=0.6` and is carried to the next level, so a deep level starts
+from the scale that suited the level above it. Unequal chain lengths enter
+the level c.o.v. through the pair-count weights of [EQ-REL-SUBSET-006].
+
+**Hamiltonian Monte Carlo (RS-HMC).** With a unit mass matrix the Gaussian
+part of the Hamiltonian flow is solved exactly, so one step draws a momentum
+`p ~ N(0, I)` and moves to `p sin t_f + u_0 cos t_f`; the end point is kept if
+it lies in `F_j`. No gradient is needed, and the step coincides with
+conditional sampling at `rho = cos t_f`. `t_f` starts at
+`trajectory_time=pi/4`. After every `N_a` chains an acceptance below 0.3
+shortens it and one above 0.5 lengthens it; the value is carried to the next
+level. The bouncing variant of Wang, Broccardo and Song, which reflects the
+momentum on the limit-state surface and needs the gradient of `G` and a
+hitting-time search, is not provided.
+
+**When each kernel helps.** In a few dimensions the default is robust and
+needs no tuning. In high dimension, and especially for small `P_f` with many
+levels, the modified Metropolis acceptance rate falls level after level and
+consecutive levels become strongly correlated; the adaptive kernels hold the
+acceptance rate near their target by shrinking the step. Plain conditional
+sampling sits in between: it needs no density ratio but keeps a step that is
+too long at deep levels.
+
+`compare_reliability_methods` adds the opt-in rows `Subset-aCS`
+(`methods=(..., "acs")`) and `Subset-HMC` (`"hmc-ss"`); the default rows are
+unchanged.
+
+**Comparison in 100 dimensions.** `G = beta - sum_i u_i / 10` with
+`u in R^100`, so `P_f = Phi(-beta)` exactly. Each kernel ran with `N = 1000`,
+`p0 = 0.1`, and seeds 1 to 50; "observed c.o.v." is the standard deviation of
+the 50 estimates divided by their mean, and "reported c.o.v." is the mean of
+the runs' own `coefficient_of_variation`.
+
+| `beta` (exact `P_f`) | `sampler` | mean `P_f` | mean / exact | observed c.o.v. | reported c.o.v. | mean calls |
+| --- | --- | --- | --- | --- | --- | --- |
+| 3 (`1.3499e-3`) | `"mma"` | `1.402e-3` | 1.039 | 0.284 | 0.221 | 2890 |
+| 3 | `"cs"` | `1.384e-3` | 1.025 | 0.222 | 0.220 | 2890 |
+| 3 | `"acs"` | `1.422e-3` | 1.053 | 0.233 | 0.222 | 2890 |
+| 3 | `"hmc"` | `1.463e-3` | 1.083 | 0.220 | 0.227 | 2890 |
+| 5 (`2.8665e-7`) | `"mma"` | `2.636e-7` | 0.920 | 0.699 | 0.455 | 6436 |
+| 5 | `"cs"` | `2.870e-7` | 1.001 | 0.471 | 0.440 | 6418 |
+| 5 | `"acs"` | `3.099e-7` | 1.081 | 0.444 | 0.374 | 6400 |
+| 5 | `"hmc"` | `3.293e-7` | 1.149 | 0.454 | 0.397 | 6436 |
+
+In the `beta = 5` run with seed 1000, the modified Metropolis acceptance fell
+from 0.54 at the first conditional level to 0.09 at the sixth, while aCS
+stayed between 0.39 and 0.47; its `lambda` rose to 0.75 at the first level and
+then shrank to 0.31. Fifty runs pin an observed
+c.o.v. only roughly: a second block of 40 seeds (1000 to 1039) at `beta = 5`
+gave 0.59 for `"mma"`, 0.57 for `"cs"`, 0.38 for `"acs"`, and 0.42 for
+`"hmc"`. The ordering of the adaptive kernels against the default is stable;
+plain conditional sampling with `rho = 0.8` is not reliably better than the
+default at deep levels. The standard error of a mean-to-exact ratio is about
+the observed c.o.v. divided by `sqrt(50)`, 0.03 to 0.10 here. Wang, Broccardo
+and Song report, from 500 runs of the same problem, observed c.o.v. values of
+0.27 (modified Metropolis) and 0.25 (RS-HMC) at `beta = 3` and 0.62 and 0.43
+at `beta = 5`.
+
 ## 5. Systems of limit states
 
 `system_failure_probability` estimates series systems (`min_k g_k <= 0`) and
@@ -345,7 +437,8 @@ Sources: [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011], [REF-WALTER-2015],
 - [REF-HASOFER-LIND-1974], [REF-RACKWITZ-FIESSLER-1978],
   [REF-ZHANG-DERKIUREGHIAN-1995], [REF-DERKIUREGHIAN-2005].
 - [REF-BREITUNG-1984], [REF-HOHENBICHLER-RACKWITZ-1988].
-- [REF-AU-BECK-2001].
+- [REF-AU-BECK-2001], [REF-PAPAIOANNOU-BETZ-ZWIRGLMAIER-STRAUB-2015],
+  [REF-WANG-BROCCARDO-SONG-2019].
 - [REF-CORNELL-1967], [REF-DITLEVSEN-1979], [REF-GENZ-2004],
   [REF-DREZNER-WESOLOWSKY-1990].
 - [REF-DERKIUREGHIAN-ZHANG-LI-1994], [REF-TU-CHOI-PARK-1999].
