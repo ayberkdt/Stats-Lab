@@ -4296,3 +4296,50 @@ Uncertainty Analysis for Computer Models." *Proceedings of the First
 International Symposium on Uncertainty Modeling and Analysis (ISUMA'90)*,
 398-403, 1990.
 DOI: [10.1109/ISUMA.1990.151285](https://doi.org/10.1109/ISUMA.1990.151285).
+
+## REF-SALTELLI-2002
+
+Andrea Saltelli. "Making Best Use of Model Evaluations to Compute
+Sensitivity Indices." *Computer Physics Communications* 145(2), 280-297,
+2002. The first-order and total estimators of the R function `sobol2002`.
+DOI: [10.1016/S0010-4655(02)00280-1](https://doi.org/10.1016/S0010-4655(02)00280-1).
+
+## REF-SOBOL-ETAL-2007
+
+I. M. Sobol', S. Tarantola, D. Gatelli, S. S. Kucherenko, and W. Mauntz.
+"Estimating the Approximation Error When Fixing Unessential Factors in
+Global Sensitivity Analysis." *Reliability Engineering & System Safety*
+92(7), 957-960, 2007. The estimators of the R function `sobol2007`.
+DOI: [10.1016/j.ress.2006.07.001](https://doi.org/10.1016/j.ress.2006.07.001).
+
+## REF-JANON-ETAL-2014
+
+Alexandre Janon, Thierry Klein, Agnès Lagnoux, Maëlle Nodet, and
+Clémentine Prieur. "Asymptotic Normality and Efficiency of Two Sobol Index
+Estimators." *ESAIM: Probability and Statistics* 18, 342-364, 2014. The
+estimator `T_N` and its asymptotic variance (Proposition 2.2).
+DOI: [10.1051/ps/2013040](https://doi.org/10.1051/ps/2013040).
+
+## REF-BAUDIN-ETAL-2016
+
+Michael Baudin, Khalid Boumhaout, Thibault Delage, Bertrand Iooss, and
+Jean-Marc Martinez. "Numerical Stability of Sobol' Indices Estimation
+Formula." *8th International Conference on Sensitivity Analysis of Model
+Output (SAMO 2016)*, Réunion Island, 2016. States the Martinez correlation
+estimator and its Fisher-z asymptotic intervals and compares the
+conditioning of the Sobol-Saltelli, Mauntz, Jansen, and Martinez formulas.
+
+## REF-FISHER-1921
+
+R. A. Fisher. "On the 'Probable Error' of a Coefficient of Correlation
+Deduced from a Small Sample." *Metron* 1, 3-32, 1921. The `z = atanh(r)`
+transform with variance `1/(n-3)`.
+
+## REF-R-SENSITIVITY
+
+Bertrand Iooss, Sébastien Da Veiga, Alexandre Janon, Gilles Pujol, et al.
+*sensitivity: Global Sensitivity Analysis of Model Outputs and Importance
+Measures*. R package. The estimator formulas of `sobol2002`, `sobol2007`,
+`soboljansen`, `sobolmartinez`, and `sobolEff`, read from the package
+sources.
+DOI: [10.32614/CRAN.package.sensitivity](https://doi.org/10.32614/CRAN.package.sensitivity).

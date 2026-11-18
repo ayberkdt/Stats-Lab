@@ -5,11 +5,15 @@ Sobol indices of its mean response and an intrinsic-noise index.
 
 Main entry points:
     ``sobol_analysis``: first-order and total Sobol indices of one QoI of a
-        probabilistic model, with optional intervals.
+        probabilistic model, with optional intervals and a choice of
+        estimator (``SOBOL_ESTIMATORS``).
     ``sobol_analysis_all``: the same indices for several QoIs at the cost of
         one design.
-    ``morris_screening``: Morris elementary effects (``mu*``, ``sigma``) for
-        cheap screening.
+    ``morris_screening``: Morris elementary effects (``mu``, ``mu*``,
+        ``sigma``) for cheap screening.
+    ``taylor_importance_factors``: quadratic-sum (first-order Taylor)
+        importance factors of a model QoI around one point;
+        ``quadratic_sum_importance`` does the same for a plain function.
     ``shapley_effects``: Shapley variance shares that remain valid for
         dependent inputs.
     ``dgsm``: derivative-based global sensitivity measures.
@@ -22,7 +26,9 @@ Assumptions:
     need mutually independent inputs and a square-integrable scalar QoI with
     non-zero variance. Shapley effects accept independent or Gaussian-copula
     inputs. Local derivatives describe one point and one step size, not the
-    input distribution.
+    input distribution; quadratic-sum importance factors inherit that
+    locality and are trustworthy only for a model close to linear over the
+    range of the inputs.
 
 Common pitfalls:
     - ``sobol_analysis`` and ``morris_screening`` raise ``ValueError`` when
@@ -53,6 +59,7 @@ References:
 
 """
 
+from ._sobol_estimators import SOBOL_ESTIMATORS
 from .analysis import (
     LocalSensitivityResult,
     SensitivityDecision,
@@ -78,8 +85,14 @@ from .shapley import (
     shapley_effects,
 )
 from .stochastic import StochasticSobolResult, stochastic_sobol_indices
+from .taylor import (
+    TaylorImportanceResult,
+    quadratic_sum_importance,
+    taylor_importance_factors,
+)
 
 __all__ = [
+    "SOBOL_ESTIMATORS",
     "StochasticSobolResult",
     "stochastic_sobol_indices",
     "IndexInterval",
@@ -103,4 +116,7 @@ __all__ = [
     "given_data_first_order",
     "poincare_constant",
     "sobol_analysis_all",
+    "TaylorImportanceResult",
+    "quadratic_sum_importance",
+    "taylor_importance_factors",
 ]

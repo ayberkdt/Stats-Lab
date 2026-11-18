@@ -2093,7 +2093,7 @@ quantiles of the replicates.
 
 ### EQ-SENS-MORRIS-001 — Morris elementary effects
 
-`EE_i = [f(x + Delta e_i) - f(x)] / Delta`, `mu*_i = mean |EE_i|`,
+`EE_i = [f(x + Delta e_i) - f(x)] / Delta`, `mu_i = mean EE_i`, `mu*_i = mean |EE_i|`,
 `sigma_i = sd(EE_i)` over `r` one-at-a-time trajectories on a `p`-level grid
 with `Delta = p / (2(p-1))` in the unit (probability) scale.
 
@@ -15901,3 +15901,130 @@ mid-ranks, two-sided normal p-values, adjusted by [EQ-INF-MT-001] or
   of `P(g <= 0) ~ 2.22e-3`.
 - Code: `modeling.four_branch`, `modeling.four_branch_model`.
 - Source: [REF-WAARTS-2000], [REF-ECHARD-GAYTON-LEMAIRE-2011].
+
+### EQ-SENS-EST-001 — Saltelli (2002) product estimator of Sobol indices
+
+With `y_A=f(A)`, `y_B=f(B)`, `y_i=f(A_B^(i))` (`A` with column `i` from
+`B`), `N` rows and `V_A` the sample variance of `y_A`:
+`S_i=[sum_k y_B,k y_i,k/(N-1) - (1/N) sum_k y_A,k y_B,k]/V_A` and
+`S_Ti=1-[sum_k y_A,k y_i,k/(N-1) - mean(y_A)^2]/V_A`.
+
+- Domain: [EQ-SENS-ANOVA-001]; rows of `A` and `B` independent draws of the
+  input law; `V_A > 0`.
+- Meaning: the squared output mean is estimated by the cross product of the
+  two independent samples. Differences of large products make the estimator
+  inaccurate when the output mean is large compared with its spread.
+- Code: `sensitivity.estimate_sobol_indices`, `sensitivity.sobol_analysis`
+  (`estimator="saltelli2002"`).
+- Source: [REF-SALTELLI-2002], formulas as in `sobol2002` of
+  [REF-R-SENSITIVITY].
+
+### EQ-SENS-EST-002 — Sobol et al. (2007) estimator of Sobol indices
+
+`S_i=sum_k y_B,k (y_i,k - y_A,k)/((N-1) V_A)` and
+`S_Ti=sum_k y_A,k (y_A,k - y_i,k)/((N-1) V_A)`, notation of
+[EQ-SENS-EST-001].
+
+- Domain: as [EQ-SENS-EST-001].
+- Meaning: products of an output with a difference of outputs, so the
+  output mean cancels in expectation but not in the sampling error; the
+  total index estimates the approximation error of fixing `x_i`.
+- Code: `sensitivity.estimate_sobol_indices`, `sensitivity.sobol_analysis`
+  (`estimator="sobol2007"`).
+- Source: [REF-SOBOL-ETAL-2007], formulas as in `sobol2007` of
+  [REF-R-SENSITIVITY].
+
+### EQ-SENS-EST-003 — Jansen estimators of first-order and total indices
+
+`S_i=1-sum_k (y_B,k - y_i,k)^2/((2N-1) V_A)` and
+`S_Ti=sum_k (y_A,k - y_i,k)^2/((2N-1) V_A)`, notation of
+[EQ-SENS-EST-001].
+
+- Domain: as [EQ-SENS-EST-001].
+- Meaning: half the mean squared difference of two outputs that share `x_i`
+  (respectively all inputs but `x_i`) estimates the variance left
+  unexplained; squared differences make both estimators insensitive to the
+  output mean. The `2N - 1` divisor follows the R function `soboljansen`.
+- Code: `sensitivity.estimate_sobol_indices`, `sensitivity.sobol_analysis`
+  (`estimator="jansen"`).
+- Source: [REF-JANSEN-1999], [REF-BAUDIN-ETAL-2016], [REF-R-SENSITIVITY].
+
+### EQ-SENS-EST-004 — Martinez correlation estimator of Sobol indices
+
+`S_i=rho(y_B, y_i)` and `S_Ti=1-rho(y_A, y_i)` with `rho` the sample
+Pearson correlation computed from centred products.
+
+- Domain: as [EQ-SENS-EST-001]; non-constant outputs.
+- Meaning: for independent inputs `Cov(Y, Y')=Var(E[Y|X_u])` when `Y` and
+  `Y'` share only `X_u`, and both have variance `Var(Y)`, so the index is a
+  correlation. The centred, well-conditioned formula is robust to a large
+  output mean and to small indices.
+- Code: `sensitivity.estimate_sobol_indices`, `sensitivity.sobol_analysis`
+  (`estimator="martinez"`).
+- Source: [REF-BAUDIN-ETAL-2016], formulas as in `sobolmartinez` of
+  [REF-R-SENSITIVITY].
+
+### EQ-SENS-EST-005 — Fisher-z interval for the Martinez estimator
+
+`S_i in [tanh(atanh(S_i_hat) - z/sqrt(N-3)), tanh(atanh(S_i_hat) + z/sqrt(N-3))]`
+and `S_Ti in [1 - tanh(atanh(1 - S_Ti_hat) + z/sqrt(N-3)),
+1 - tanh(atanh(1 - S_Ti_hat) - z/sqrt(N-3))]` with `z` the standard normal
+`(1+c)/2` quantile.
+
+- Domain: [EQ-SENS-EST-004] with `N >= 4` independent rows; the coverage is
+  exact asymptotically for a bivariate normal pair and approximate
+  otherwise.
+- Meaning: Fisher's transform makes a sample correlation approximately
+  normal with variance `1/(N-3)`, giving intervals with no resampling.
+- Code: `sensitivity.sobol_analysis` (`estimator="martinez"`,
+  `asymptotic=True`).
+- Source: [REF-FISHER-1921], [REF-BAUDIN-ETAL-2016].
+
+### EQ-SENS-EST-006 — Janon et al. estimator of a closed Sobol index
+
+For outputs `y, y'` that share the inputs `X_u`, with
+`c=(1/N) sum_k (y_k + y'_k)/2`:
+`T_N=[(1/N) sum_k y_k y'_k - c^2]/[(1/N) sum_k (y_k^2 + y'_k^2)/2 - c^2]`;
+`S_i=T_N(y_B, y_i)` and `S_Ti=1-T_N(y_A, y_i)`.
+
+- Domain: as [EQ-SENS-EST-001]; non-constant pooled pair.
+- Meaning: both outputs of the pair estimate the mean and the variance, so
+  the first-order estimator has the smallest asymptotic variance among
+  regular estimators built from the pair. The code centres both outputs on
+  `c` first, which is algebraically identical and numerically stable.
+- Code: `sensitivity.estimate_sobol_indices`, `sensitivity.sobol_analysis`
+  (`estimator="janon"`).
+- Source: [REF-JANON-ETAL-2014], [REF-R-SENSITIVITY].
+
+### EQ-SENS-EST-007 — Asymptotic interval of the Janon estimator
+
+`sqrt(N)(T_N - S_u) -> Normal(0, Var(U)/Var(Y)^2)` with
+`U=(Y - E Y)(Y' - E Y) - (S_u/2)((Y - E Y)^2 + (Y' - E Y)^2)`; the code
+plugs in the pair mean, the pooled pair variance, and `T_N`, and reports
+`T_N -+ z sd(U)/(sqrt(N) s^2)`.
+
+- Domain: [EQ-SENS-EST-006] with independent rows and finite fourth
+  moments of `Y`.
+- Meaning: a normal-theory interval at no extra model cost; the total-index
+  bounds are `1 -` the reversed closed-index bounds.
+- Code: `sensitivity.sobol_analysis` (`estimator="janon"`,
+  `asymptotic=True`).
+- Source: [REF-JANON-ETAL-2014].
+
+### EQ-SENS-TAYLOR-001 — Quadratic-sum (first-order Taylor) importance factors
+
+`g(X) ~= g(x0) + sum_i dg/dx_i(x0)(X_i - x0_i)` gives
+`V_T=sum_i (dg/dx_i(x0))^2 sigma_i^2` and
+`eta_i^2=(dg/dx_i(x0))^2 sigma_i^2/V_T`.
+
+- Domain: mutually independent inputs with standard deviations `sigma_i`,
+  a differentiable model at `x0`, and `V_T > 0`; with dependent inputs the
+  full sandwich `J Sigma J'` of [EQ-MVN-DELTA-001] is needed instead.
+- Meaning: local importance measure that sums to one; it equals the Sobol
+  first-order index for a linear model and can be badly wrong for a model
+  that is not close to linear over the range of the inputs. Central
+  differences use `h_i = c |x0_i|` (`c` where `x0_i = 0`) and `2d` runs.
+- Code: `sensitivity.taylor_importance_factors`,
+  `sensitivity.quadratic_sum_importance`.
+- Source: [REF-SALTELLI-2008, Chapter 1], [REF-CASELLA-BERGER-2002, Section
+  5.5.4].

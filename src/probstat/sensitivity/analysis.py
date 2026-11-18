@@ -12,6 +12,8 @@ from probstat.foundations.validation import (
     require_non_negative_integer,
 )
 
+from ._sobol_estimators import alternative_indices, check_estimator, closed_index
+
 
 @dataclass(frozen=True, slots=True)
 class LocalSensitivityResult:
@@ -47,9 +49,7 @@ class LocalSensitivityResult:
         steps = _finite_tuple(self.steps, "steps")
         if any(step <= 0.0 for step in steps):
             raise ValueError("steps must be positive")
-        evaluations = require_non_negative_integer(
-            self.evaluations, name="evaluations"
-        )
+        evaluations = require_non_negative_integer(self.evaluations, name="evaluations")
         if evaluations != 2 * len(point):
             raise ValueError("evaluations must equal two per coordinate")
         object.__setattr__(self, "point", point)
@@ -149,12 +149,8 @@ class SobolResult:
         variance = require_finite_real(self.output_variance, name="output_variance")
         if variance <= 0.0:
             raise ValueError("output_variance must be positive")
-        sample_size = require_non_negative_integer(
-            self.sample_size, name="sample_size"
-        )
-        evaluations = require_non_negative_integer(
-            self.evaluations, name="evaluations"
-        )
+        sample_size = require_non_negative_integer(self.sample_size, name="sample_size")
+        evaluations = require_non_negative_integer(self.evaluations, name="evaluations")
         # Cached design points are not new runs, so ``evaluations`` may be
         # below ``sample_size``; only the design size has a lower bound.
         if sample_size < 2:
@@ -259,27 +255,63 @@ def estimate_sobol_indices(
     model: Callable[[tuple[float, ...]], float],
     sample_a: Iterable[Sequence[object]],
     sample_b: Iterable[Sequence[object]],
+    *,
+    estimator: str = "saltelli2010",
 ) -> SobolResult:
     """Estimate first-, second-, and total-effect Sobol indices by pick-freeze.
+
+    With ``y_A = f(A)``, ``y_B = f(B)`` and ``y_i = f(A_B^(i))`` (``A`` with
+    column ``i`` from ``B``), every estimator uses the same ``N (d + 2)``
+    runs plus ``N`` runs per input pair for the second-order indices:
+
+    * ``"saltelli2010"`` (default): ``S_i = mean((y_B - m)(y_i - y_A)) / V``
+      with ``m`` and ``V`` the mean and population variance of the pooled
+      ``y_A, y_B``; ``S_Ti = mean((y_A - y_i)^2) / (2 V)`` (Jansen).
+    * ``"saltelli2002"``: ``S_i = [sum y_B y_i / (N-1) - mean(y_A y_B)] / V_A``,
+      ``S_Ti = 1 - [sum y_A y_i / (N-1) - mean(y_A)^2] / V_A``.
+    * ``"sobol2007"``: ``S_i = sum y_B (y_i - y_A) / ((N-1) V_A)``,
+      ``S_Ti = sum y_A (y_A - y_i) / ((N-1) V_A)``.
+    * ``"jansen"``: ``S_i = 1 - sum (y_B - y_i)^2 / ((2N-1) V_A)``,
+      ``S_Ti = sum (y_A - y_i)^2 / ((2N-1) V_A)``.
+    * ``"martinez"``: ``S_i = corr(y_B, y_i)``, ``S_Ti = 1 - corr(y_A, y_i)``.
+    * ``"janon"``: ``S_i = J(y_B, y_i)``, ``S_Ti = 1 - J(y_A, y_i)`` with
+      ``J(y, y') = [mean(y y') - c^2] / [mean((y^2 + y'^2) / 2) - c^2]`` and
+      ``c = mean((y + y') / 2)``.
+
+    ``V_A`` is the sample variance (denominator ``N - 1``) of ``y_A``, as in
+    the R package ``sensitivity``, and is the reported ``output_variance`` of
+    the non-default estimators. Second-order indices apply the estimator's
+    first-order formula to the pair hybrid and subtract both main effects.
 
     Args:
         model: Deterministic scalar model of mutually independent inputs.
         sample_a: Independent base sample matrix.
         sample_b: Equally shaped independent base sample matrix.
+        estimator: One of ``"saltelli2010"``, ``"saltelli2002"``,
+            ``"sobol2007"``, ``"jansen"``, ``"martinez"``, ``"janon"``.
 
     Returns:
         Unclipped indices, output variance, sample size, and full model-call cost.
 
+    Raises:
+        TypeError: If ``model`` is not callable.
+        ValueError: If the matrices are invalid, the estimator is unknown, or
+            the output variance is zero.
+
     Equation:
         [EQ-SENS-ANOVA-001], [EQ-SENS-FIRST-001], [EQ-SENS-SECOND-001],
-        [EQ-SENS-TOTAL-001].
+        [EQ-SENS-TOTAL-001], [EQ-SENS-EST-001], [EQ-SENS-EST-002],
+        [EQ-SENS-EST-003], [EQ-SENS-EST-004], [EQ-SENS-EST-006].
 
     References:
-        [REF-SOBOL-1993], [REF-SALTELLI-2010].
+        [REF-SOBOL-1993], [REF-SALTELLI-2010], [REF-SALTELLI-2002],
+        [REF-SOBOL-ETAL-2007], [REF-JANSEN-1999], [REF-BAUDIN-ETAL-2016],
+        [REF-JANON-ETAL-2014], [REF-R-SENSITIVITY].
 
     """
     if not callable(model):
         raise TypeError("model must be callable")
+    estimator = check_estimator(estimator)
     a = _matrix(sample_a, "sample_a")
     b = _matrix(sample_b, "sample_b")
     if len(a) != len(b) or len(a[0]) != len(b[0]):
@@ -289,6 +321,8 @@ def estimate_sobol_indices(
     n, dimension = len(a), len(a[0])
     ya = tuple(_evaluate(model, row) for row in a)
     yb = tuple(_evaluate(model, row) for row in b)
+    if estimator != "saltelli2010":
+        return _alternative_sobol(model, a, b, ya, yb, estimator)
     variance = statistics.pvariance(ya + yb)
     # Centre f_B before the Saltelli product: adding a constant c to the
     # model adds c * mean(f_ABi - f_A) to the raw estimator, whose variance
@@ -339,6 +373,74 @@ def estimate_sobol_indices(
         variance,
         n,
         evaluations,
+    )
+
+
+def _alternative_sobol(
+    model: Callable[[tuple[float, ...]], float],
+    a: tuple[tuple[float, ...], ...],
+    b: tuple[tuple[float, ...], ...],
+    ya: tuple[float, ...],
+    yb: tuple[float, ...],
+    estimator: str,
+) -> SobolResult:
+    """Score a pick-freeze design with a non-default Sobol estimator.
+
+    Args:
+        model: Deterministic scalar model.
+        a: Validated matrix A.
+        b: Validated matrix B.
+        ya: Outputs on A.
+        yb: Outputs on B.
+        estimator: Validated name other than ``"saltelli2010"``.
+
+    Returns:
+        First, second-order, and total indices with the sample variance of
+        ``ya`` and the full evaluation count.
+
+    Raises:
+        ValueError: If the output variance is zero or a pair is constant.
+
+    Equation:
+        [EQ-SENS-SECOND-001], [EQ-SENS-EST-001], [EQ-SENS-EST-002],
+        [EQ-SENS-EST-003], [EQ-SENS-EST-004], [EQ-SENS-EST-006].
+
+    References:
+        [REF-R-SENSITIVITY], [REF-SALTELLI-2002], [REF-SOBOL-ETAL-2007],
+        [REF-JANSEN-1999], [REF-BAUDIN-ETAL-2016], [REF-JANON-ETAL-2014].
+
+    """
+    n, dimension = len(a), len(a[0])
+    yab = [
+        tuple(
+            _evaluate(model, a_row[:i] + (b_row[i],) + a_row[i + 1 :])
+            for a_row, b_row in zip(a, b, strict=True)
+        )
+        for i in range(dimension)
+    ]
+    first, total, variance = alternative_indices(estimator, ya, yb, yab)
+    second = [[0.0] * dimension for _ in range(dimension)]
+    for i in range(dimension):
+        for j in range(i + 1, dimension):
+            values = tuple(
+                _evaluate(
+                    model,
+                    tuple(
+                        b_row[k] if k in (i, j) else a_row[k] for k in range(dimension)
+                    ),
+                )
+                for a_row, b_row in zip(a, b, strict=True)
+            )
+            closed = closed_index(estimator, ya, yb, values, variance)
+            second[i][j] = second[j][i] = closed - first[i] - first[j]
+    pairs = dimension * (dimension - 1) // 2
+    return SobolResult(
+        tuple(first),
+        tuple(total),
+        tuple(tuple(row) for row in second),
+        variance,
+        n,
+        n * (2 + dimension) + n * pairs,
     )
 
 
