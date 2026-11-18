@@ -113,6 +113,7 @@ LAB_REGRESSION_TESTS: dict[str, tuple[str, str]] = {
         "test_uq4_reliability.py",
         "estimate_directional_failure_probability",
     ),
+    "risk_analysis_lab": ("test_rare_event_methods.py", "moving_particles"),
     "sensitivity_lab": ("test_uq5_sensitivity.py", "estimate_sobol_indices"),
     "statistical_fitting_lab": (
         "test_uq1_modeling_and_inference.py",
