@@ -16521,7 +16521,9 @@ the weights `w` by Adam [EQ-OPT-ADAM-002] on mini-batches.
 - Meaning: the negative log-likelihood is a proper scoring rule, so it is
   minimized by the true conditional mean and variance; the variance output
   absorbs the noise the network cannot explain. The clip and the floor keep
-  `sigma^2` and its inverse finite (computational choices).
+  `sigma^2` and its inverse finite (computational choices). The source
+  passes the variance output through a softplus with a `1e-6` floor; the
+  log-variance form is a parameterization choice with the same optimum.
 - Code: `surrogates.fit_deep_ensemble`,
   `surrogates.DeepEnsemble.member_predictions`.
 - Source: [REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017, Section 2.2.1 and
