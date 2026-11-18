@@ -58,6 +58,25 @@ structural-reliability practice.
   function 100 runs give an error about four orders of magnitude below the
   full 288-run least-squares expansion.
 - **Plots:** `plot_cobweb` and `plot_input_scatter` (lowess smoother).
+- **Universal kriging and PC-Kriging:** `fit_universal_kriging` (GLS trend,
+  concentrated likelihood with an analytic gradient, trend-aware predictive
+  variance, closed-form leave-one-out) and `fit_pc_kriging`, whose trend is
+  a LAR-selected sparse PCE (sequential and optimal variants), plus a
+  Matern 3/2 kernel. On the Branin function with 30 runs optimal PC-Kriging is
+  about 18 times more accurate than a plain Gaussian process and 600 times
+  more accurate than the sparse PCE.
+- **Deep ensembles:** `fit_deep_ensemble` trains small Gaussian
+  mean-variance networks in pure Python and splits the predictive variance
+  into aleatoric and epistemic parts; it plugs into AK-MCS through the
+  surrogate protocol. Measured costs and the supported range (about 50
+  inputs and 500 runs) are in the surrogate guide.
+- **Laboratories:** `examples/risk_analysis_lab.py` (four-branch limit
+  state: FORM missing half of the probability, four-point FORM, directional
+  simulation, subset simulation, moving particles, Wilks bounds, and
+  certification) and `examples/flood_sensitivity_lab.py` (Taylor factors,
+  Morris, regression, Sobol estimators, HSIC on the flood model, where the
+  regression coefficient of the dike height on the cost is 0.006 while its
+  Sobol index is 0.12). Six new guide figures (99 in two palettes).
 
 ### Changed
 
