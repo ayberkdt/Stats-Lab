@@ -1117,8 +1117,9 @@ def _save(name: str, draw: Callable[[], tuple[Any, dict[str, str]]]) -> None:
         [REF-MATPLOTLIB]. No equation is evaluated.
 
     """
-    figure, _ = draw()
-    path = save_figure(figure, OUTPUT / f"{name}.png")
+    with theme.chart_theme(theme.active_palette()):
+        figure, _ = draw()
+        path = save_figure(figure, OUTPUT / f"{name}.png")
     theme.pyplot().close(figure)
     print(f"  figure: {path.relative_to(Path(__file__).parent)}")
 
