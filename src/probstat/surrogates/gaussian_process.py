@@ -53,6 +53,7 @@ from probstat.linalg import (
 from probstat.modeling import ProbabilisticModel
 from probstat.optimization import minimize_bfgs
 from probstat.propagation import make_design
+from .adapter import ProbabilisticSurrogate
 
 KERNELS = ("squared_exponential", "matern52")
 _SQRT5 = math.sqrt(5.0)
@@ -1620,3 +1621,116 @@ def fit_gaussian_process_to_model(
         seed=root,
         regularization=regularization,
     )
+
+
+@dataclass(frozen=True)
+class GaussianProcessFactory:
+    """Refit hook that fits a GP by maximum likelihood on every call.
+
+    A :class:`~probstat.surrogates.SurrogateFactory` for generic
+    active-learning loops: the first call (``previous=None``) runs
+    :func:`fit_gaussian_process` with ``restarts`` starts; later calls start
+    a single BFGS run from the previous GP's ``log_parameters`` and fall back
+    to ``restarts`` starts if that fit fails. Restart perturbations of the
+    call with ``n`` training points use the child stream ``("factory", n)``
+    of ``seed``. Every call costs a full likelihood optimization, so a loop
+    that adds one point per call pays one fit per point; the incremental
+    path of ``reliability.ak_mcs`` refits only after geometric growth.
+
+    Args:
+        kernel: ``"matern52"`` or ``"squared_exponential"``.
+        nugget: Diagonal variance in standardized units.
+        restarts: Optimizer starts of the first (and fallback) fit.
+        regularization: Optional :class:`GaussianProcessRegularization`.
+        seed: Integer seed, stream, or ``None`` for fresh entropy.
+
+    References:
+        [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4],
+        [REF-ECHARD-GAYTON-LEMAIRE-2011].
+
+    """
+
+    kernel: str = "matern52"
+    nugget: float = 1e-10
+    restarts: int = 3
+    regularization: GaussianProcessRegularization | None = None
+    seed: int | RandomStream | None = None
+
+    def __post_init__(self) -> None:
+        """Validate the kernel, nugget, and restart count.
+
+        Raises:
+            ValueError: If an option is invalid.
+
+        References:
+            Project validation policy [REF-PROBSTAT-VALIDATION]. No equation
+            is evaluated.
+
+        """
+        if self.kernel not in KERNELS:
+            raise ValueError(f"kernel must be one of {KERNELS}")
+        if require_finite_real(self.nugget, name="nugget") <= 0.0:
+            raise ValueError("nugget must be positive")
+        if (
+            isinstance(self.restarts, bool)
+            or not isinstance(self.restarts, int)
+            or self.restarts < 1
+        ):
+            raise ValueError("restarts must be a positive integer")
+
+    def __call__(
+        self,
+        points: Sequence[Sequence[float]],
+        values: Sequence[float],
+        previous: ProbabilisticSurrogate | None,
+    ) -> GaussianProcessRegression:
+        """Fit a GP to ``points`` and ``values``, warm-started from ``previous``.
+
+        Args:
+            points: Training inputs.
+            values: Training responses.
+            previous: Surrogate being replaced; its ``log_parameters`` start
+                the fit when it is a :class:`GaussianProcessRegression`.
+
+        Returns:
+            Fitted Gaussian process.
+
+        Raises:
+            ValueError: As :func:`fit_gaussian_process`.
+
+        Equation:
+            [EQ-SUR-GP-004].
+
+        References:
+            [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
+
+        """
+        stream = resolve_stream(self.seed).child("factory", len(points))
+        start = (
+            previous.log_parameters
+            if isinstance(previous, GaussianProcessRegression)
+            else None
+        )
+        try:
+            return fit_gaussian_process(
+                points,
+                values,
+                kernel=self.kernel,
+                nugget=self.nugget,
+                restarts=self.restarts if start is None else 1,
+                seed=stream,
+                initial_log_parameters=start,
+                regularization=self.regularization,
+            )
+        except ValueError:
+            if start is None:
+                raise
+            return fit_gaussian_process(
+                points,
+                values,
+                kernel=self.kernel,
+                nugget=self.nugget,
+                restarts=self.restarts,
+                seed=stream,
+                regularization=self.regularization,
+            )

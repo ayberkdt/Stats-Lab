@@ -487,7 +487,7 @@ def plot_ak_mcs_classification(
     if lowest < 0 or surrogate_nodes < 2:
         raise ValueError("lowest must be non-negative and surrogate_nodes >= 2")
     surrogate = result.surrogate
-    if len(surrogate.points[0]) != 2:
+    if len(result.training_points[0]) != 2:
         raise ValueError("only two-dimensional AK-MCS runs can be drawn")
     pool = _population_points(population, result.population)
     means: list[float] = []
@@ -497,7 +497,7 @@ def plot_ak_mcs_classification(
         means.append(mean)
         sd = math.sqrt(variance)
         learning.append(abs(mean) / sd if sd > 0.0 else math.inf)
-    training = [(float(p[0]), float(p[1])) for p in surrogate.points]
+    training = [(float(p[0]), float(p[1])) for p in result.training_points]
     trained = set(training)
     candidates = [i for i, p in enumerate(pool) if p not in trained]
     flagged = [i for i in candidates if learning[i] < learning_threshold]

@@ -19,6 +19,10 @@ Main entry points:
         hyperparameters away from degenerate optima.
     ``surrogate_probabilistic_model``: a new probabilistic model whose forward
         map is the fitted surrogate.
+    ``ProbabilisticSurrogate`` and ``SurrogateFactory``: the predictive
+        mean-and-variance interface and the refit hook that active-learning
+        reliability methods accept (``GaussianProcessFactory`` implements the
+        hook for a GP).
 
 Assumptions:
     The response is a smooth deterministic function of the inputs (a GP with
@@ -58,10 +62,17 @@ References:
 
 """
 
-from .adapter import Surrogate, SurrogateModel, surrogate_probabilistic_model
+from .adapter import (
+    ProbabilisticSurrogate,
+    Surrogate,
+    SurrogateFactory,
+    SurrogateModel,
+    surrogate_probabilistic_model,
+)
 from .gaussian_process import (
     KERNELS,
     GaussianProcessConditioningWarning,
+    GaussianProcessFactory,
     GaussianProcessHyperparameters,
     GaussianProcessJitterWarning,
     GaussianProcessLOO,
@@ -89,6 +100,7 @@ __all__ = [
     "BASES",
     "KERNELS",
     "GaussianProcessConditioningWarning",
+    "GaussianProcessFactory",
     "GaussianProcessHyperparameters",
     "GaussianProcessJitterWarning",
     "GaussianProcessLOO",
@@ -96,7 +108,9 @@ __all__ = [
     "GaussianProcessRegularization",
     "PolynomialChaosExpansion",
     "PolynomialChaosSobol",
+    "ProbabilisticSurrogate",
     "Surrogate",
+    "SurrogateFactory",
     "SurrogateModel",
     "fit_gaussian_process",
     "fit_gaussian_process_to_model",
