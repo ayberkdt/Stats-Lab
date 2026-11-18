@@ -3,6 +3,67 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.24.0] — 2026-11-18
+
+Risk analysis and sensitivity analysis gain the methods of the ATHENS
+third-day courses, and the rare-event and surrogate toolset gains the
+modern adaptive samplers and sparse expansions used in current
+structural-reliability practice.
+
+### Added
+
+- **Benchmark models** in `probstat.modeling`: the flood (dike overflow and
+  maintenance cost) model with its truncated Gumbel, truncated normal,
+  triangular, and uniform inputs (quantiles checked against R's `evd`), the
+  four-branch series limit state (`P_f = 2.2245e-3` for `k = 7` from
+  `2 x 10^8` draws), the Ishigami function with its analytic Sobol indices,
+  the non-linear oscillator (`P_f = 2.8555e-2`), and the modified Rastrigin
+  limit state (`P_f = 7.2983e-2`).
+- **Rare events:** `moving_particles` (last-particle multilevel splitting,
+  estimator `(1 - 1/N)^M` with an exact Poisson interval),
+  `directional_simulation` (model-based, several roots per ray), and the
+  ideal-splitting theory `optimal_splitting` /
+  `splitting_coefficient_of_variation` (optimal conditional level
+  probability 0.2032, about `-0.63 ln p` levels).
+- **Subset-simulation kernels:** `subset_simulation(sampler=...)` adds
+  conditional sampling, adaptive conditional sampling (aCS, Papaioannou et
+  al. 2015), and rejection-sampling Hamiltonian Monte Carlo (Wang,
+  Broccardo and Song 2019) beside the default modified Metropolis, whose
+  seeded results are unchanged (ADR-0106). On a 100-dimensional linear limit
+  state with `beta = 5`, the observed coefficient of variation over 50 runs
+  falls from 0.70 (modified Metropolis) to 0.44 (aCS) and 0.45 (HMC).
+- **Active learning:** AK-MCS gains the EFF and H learning functions, a
+  bound-based stopping rule, a maximin Latin-hypercube initial design, seed
+  points, and a surrogate protocol (`ProbabilisticSurrogate`,
+  `SurrogateFactory`) so that any model with a predictive variance can drive
+  the learning loop (ADR-0107). Default AK-MCS runs are bit-identical.
+- **Guarantee by simulation:** Wilks order-statistic bounds
+  (`wilks_rank`, `wilks_sample_size`, `wilks_bound`,
+  `wilks_tolerance_interval`; 59, 93, 124, 153 runs at 95 %/95 % for orders
+  1-4) and Monte Carlo certification of a failure probability
+  (`certification_probability`, `certification_sample_size`,
+  `moving_particles_certification_probability`), exact for samples up to
+  `10^10`, with a Clopper-Pearson rule that bounds the false-certification
+  probability at every sample size. All values checked against base R.
+- **Sensitivity analysis:** a choice of Sobol estimators
+  (`saltelli2010`, `saltelli2002`, `sobol2007`, `jansen`, `martinez`,
+  `janon`, with asymptotic intervals for the last two), quadratic-sum
+  Taylor importance factors, the signed Morris mean, regression measures
+  (SRC, PCC, SRRC, PRCC with Student and Fisher tests), and HSIC dependence
+  indices with permutation and Gamma tests and a target (failure-region)
+  variant.
+- **Sparse polynomial chaos:** hybrid least-angle regression and orthogonal
+  matching pursuit with the corrected leave-one-out error and degree and
+  q-norm adaptivity (`fit_sparse_polynomial_chaos`); on the Ishigami
+  function 100 runs give an error about four orders of magnitude below the
+  full 288-run least-squares expansion.
+- **Plots:** `plot_cobweb` and `plot_input_scatter` (lowess smoother).
+
+### Changed
+
+- `AKMCSResult.surrogate` is typed as a `ProbabilisticSurrogate` and
+  `initial_size` counts design and seed points.
+
 ## [0.23.0] — 2026-11-16
 
 probstat is checked case by case against R, gains an end-to-end
