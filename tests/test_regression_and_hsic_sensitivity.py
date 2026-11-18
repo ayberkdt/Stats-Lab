@@ -92,7 +92,9 @@ class RegressionSensitivityTests(unittest.TestCase):
         self.assertAlmostEqual(result.rank_r_squared, 0.680929940142417, places=12)
         self.assertEqual(result.ranking(), ("x2", "x1", "x3"))
         self.assertEqual(result.significant(), ("x1", "x2"))
-        self.assertAlmostEqual(result.as_mapping()["x2"], 0.728256629304666**2, places=9)
+        self.assertAlmostEqual(
+            result.as_mapping()["x2"], 0.728256629304666**2, places=9
+        )
 
     def test_linear_model_recovers_variance_shares(self) -> None:
         """For y = sum a_i x_i + e, SRC_i^2 ~ a_i^2 Var(X_i) / Var(Y)."""
@@ -100,7 +102,8 @@ class RegressionSensitivityTests(unittest.TestCase):
         coefficients = (3.0, -2.0, 0.5)
         rows = [tuple(rng.uniform(0.0, 1.0) for _ in range(3)) for _ in range(3000)]
         y = [
-            sum(a * x for a, x in zip(coefficients, row, strict=True)) + rng.gauss(0.0, 0.2)
+            sum(a * x for a, x in zip(coefficients, row, strict=True))
+            + rng.gauss(0.0, 0.2)
             for row in rows
         ]
         total = sum(a * a / 12.0 for a in coefficients) + 0.04
@@ -122,7 +125,9 @@ class RegressionSensitivityTests(unittest.TestCase):
         rows = [(rng.uniform(-1.0, 1.0), rng.uniform(-1.0, 1.0)) for _ in range(500)]
         quadratic = regression_sensitivity(rows, [x * x for x, _ in rows])
         self.assertLess(quadratic.r_squared, 0.1)
-        self.assertTrue(any("R^2" in note and "< 0.7" in note for note in quadratic.notes))
+        self.assertTrue(
+            any("R^2" in note and "< 0.7" in note for note in quadratic.notes)
+        )
         monotone = regression_sensitivity(
             rows, [math.exp(5.0 * x) + 0.1 * z for x, z in rows], rank=True
         )
@@ -187,7 +192,9 @@ class RegressionSensitivityTests(unittest.TestCase):
         with self.assertRaises(KeyError):
             model_regression_sensitivity(flood_model(), "missing", 100, seed=1)
         with self.assertRaises(ValueError):
-            model_regression_sensitivity(flood_model(), "cost", 100, seed=1, design="grid")
+            model_regression_sensitivity(
+                flood_model(), "cost", 100, seed=1, design="grid"
+            )
 
 
 class HSICTests(unittest.TestCase):
@@ -206,25 +213,34 @@ class HSICTests(unittest.TestCase):
         """
         biased = hsic_indices(SMALL_X, SMALL_Y, test="gamma")
         for got, want in zip(
-            biased.hsic, (0.0349804141035602, 0.0437115917081807, 0.0183577252380831)
+            biased.hsic,
+            (0.0349804141035602, 0.0437115917081807, 0.0183577252380831),
+            strict=False,
         ):
             self.assertAlmostEqual(got, want, places=12)
         for got, want in zip(
-            biased.r2_hsic, (0.389033092350672, 0.472845707443485, 0.197526243038563)
+            biased.r2_hsic,
+            (0.389033092350672, 0.472845707443485, 0.197526243038563),
+            strict=False,
         ):
             self.assertAlmostEqual(got, want, places=12)
         for got, want in zip(
-            biased.p_values, (0.0521872718546866, 0.0174748681327473, 0.406662656287804)
+            biased.p_values,
+            (0.0521872718546866, 0.0174748681327473, 0.406662656287804),
+            strict=False,
         ):
             self.assertAlmostEqual(got, want, places=9)
         unbiased = hsic_indices(SMALL_X, SMALL_Y, estimator="unbiased", test="gamma")
         for got, want in zip(
             unbiased.hsic,
             (0.01908642712611315, 0.03415788926763728, 0.00417171991333297),
+            strict=False,
         ):
             self.assertAlmostEqual(got, want, places=12)
         for got, want in zip(
-            unbiased.r2_hsic, (0.2102118897825649, 0.3605352919198909, 0.0434254816433921)
+            unbiased.r2_hsic,
+            (0.2102118897825649, 0.3605352919198909, 0.0434254816433921),
+            strict=False,
         ):
             self.assertAlmostEqual(got, want, places=12)
         # The Gamma test always uses the biased statistic.
@@ -242,7 +258,9 @@ class HSICTests(unittest.TestCase):
         v_stat = (
             sum(k[i][j] * l_[i][j] for i in idx for j in idx) / n**2
             + sum(map(sum, k)) * sum(map(sum, l_)) / n**4
-            - 2.0 * sum(k[i][j] * l_[i][q] for i in idx for j in idx for q in idx) / n**3
+            - 2.0
+            * sum(k[i][j] * l_[i][q] for i in idx for j in idx for q in idx)
+            / n**3
         )
         quads = list(itertools.permutations(idx, 4))
         u_stat = sum(
@@ -259,7 +277,9 @@ class HSICTests(unittest.TestCase):
             places=13,
         )
 
-    def test_square_of_symmetric_input_has_zero_correlation_but_strong_hsic(self) -> None:
+    def test_square_of_symmetric_input_has_zero_correlation_but_strong_hsic(
+        self,
+    ) -> None:
         """Y = X^2 with X symmetric: Pearson ~ 0, HSIC rejects independence."""
         rng = random.Random(8)
         half = [rng.uniform(0.0, 1.0) for _ in range(150)]
@@ -307,7 +327,9 @@ class HSICTests(unittest.TestCase):
         for _ in range(200):
             x = [[rng.gauss(0.0, 1.0)] for _ in range(20)]
             y = [rng.gauss(0.0, 1.0) for _ in range(20)]
-            unbiased.append(hsic_indices(x, y, estimator="unbiased", test="gamma").hsic[0])
+            unbiased.append(
+                hsic_indices(x, y, estimator="unbiased", test="gamma").hsic[0]
+            )
             biased.append(hsic_indices(x, y, test="gamma").hsic[0])
         mean_u = sum(unbiased) / 200
         spread = math.sqrt(sum((v - mean_u) ** 2 for v in unbiased) / 199)

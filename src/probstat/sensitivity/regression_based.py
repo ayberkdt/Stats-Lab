@@ -282,9 +282,7 @@ def _standardized_fit(
     for index, scale in enumerate(scales):
         if not scale > 0.0:
             raise ValueError(f"input column {index} is constant")
-    design = [
-        (1.0, *(column[k] for column in columns)) for k in range(n)
-    ]
+    design = [(1.0, *(column[k] for column in columns)) for k in range(n)]
     fit = fit_linear_model(design, y)
     df = fit.df_residual
     factor = StudentT(float(df)).quantile(0.5 + 0.5 * confidence)

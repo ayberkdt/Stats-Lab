@@ -50,7 +50,9 @@ def _columns(
 
     """
     rows = tuple(
-        tuple(require_finite_real(v, name=f"samples[{k}][{j}]") for j, v in enumerate(r))
+        tuple(
+            require_finite_real(v, name=f"samples[{k}][{j}]") for j, v in enumerate(r)
+        )
         for k, r in enumerate(samples)
     )
     if len(rows) < 2:
@@ -209,7 +211,11 @@ def plot_cobweb(
         # The threshold on the output axis, in the scaled coordinate.
         output_column = scaled[-1]
         boundary = max(
-            (value for value, mark in zip(output_column, flagged, strict=True) if not mark),
+            (
+                value
+                for value, mark in zip(output_column, flagged, strict=True)
+                if not mark
+            ),
             default=0.0,
         )
         axes.plot(
@@ -237,7 +243,9 @@ def plot_cobweb(
     axes.set_xlim(-0.25, positions[-1] + 0.25)
     axes.set_ylim(-0.04, 1.04)
     axes.set_yticks((0.0, 0.5, 1.0))
-    axes.set_yticklabels(("min", "median", "max") if scale == "rank" else ("0", "0.5", "1"))
+    axes.set_yticklabels(
+        ("min", "median", "max") if scale == "rank" else ("0", "0.5", "1")
+    )
     axes.grid(axis="y", visible=False)
     axis_labels(
         axes,
@@ -260,7 +268,8 @@ def plot_cobweb(
         title_block(
             axes,
             title or f"Each line is one of {n} runs across {len(labels)} inputs",
-            subtitle or "Columns mapped to [0, 1]; crossings between axes hint at interactions",
+            subtitle
+            or "Columns mapped to [0, 1]; crossings between axes hint at interactions",
         )
     return axes
 
@@ -356,7 +365,9 @@ def plot_input_scatter(
     if smoother not in ("lowess", None):
         raise ValueError("smoother must be 'lowess' or None")
     inputs = _columns(samples, names)
-    values = tuple(require_finite_real(v, name=f"output[{k}]") for k, v in enumerate(output))
+    values = tuple(
+        require_finite_real(v, name=f"output[{k}]") for k, v in enumerate(output)
+    )
     n, dimension = len(values), len(inputs)
     if len(inputs[0]) != n:
         raise ValueError("output must have one value per sample row")
@@ -390,7 +401,9 @@ def plot_input_scatter(
     )
     trends: list[tuple[float, float]] = []
     point_size = 5.0 if n > 300 else 12.0
-    for index, (axes, column, name) in enumerate(zip(panels, inputs, names, strict=True)):
+    for index, (axes, column, name) in enumerate(
+        zip(panels, inputs, names, strict=True)
+    ):
         style_axes(axes)
         axes.scatter(
             column,
@@ -408,7 +421,9 @@ def plot_input_scatter(
             xs = [column[k] for k in chosen]
             fit = loess(xs, [values[k] for k in chosen], span=span, degree=1)
             line(axes, xs, list(fit.fitted), entity="smoothed", zorder=4)
-            trends.append((fit.fitted[-1] - fit.fitted[0], max(fit.fitted) - min(fit.fitted)))
+            trends.append(
+                (fit.fitted[-1] - fit.fitted[0], max(fit.fitted) - min(fit.fitted))
+            )
         else:
             trends.append((0.0, 0.0))
         axes.xaxis.set_major_locator(MaxNLocator(nbins=4))
@@ -440,9 +455,7 @@ def plot_input_scatter(
         if smoother == "lowess":
             key = max(range(dimension), key=lambda i: trends[i][1])
             spread = max(values) - min(values)
-            flat = [
-                names[i] for i in range(dimension) if trends[i][1] < 0.05 * spread
-            ]
+            flat = [names[i] for i in range(dimension) if trends[i][1] < 0.05 * spread]
             direction = "rises" if trends[key][0] >= 0 else "falls"
             title = f"{output_name} {direction} most clearly with {names[key]}"
             if flat:

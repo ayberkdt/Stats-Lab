@@ -250,7 +250,9 @@ def _gram(values: Sequence[float], bandwidth: float, *, keep_full: bool) -> _Gra
     return _Gram(tuple(upper[:-1]), tuple(sums), math.fsum(sums), tuple(full))
 
 
-def _upper_inner(left: Sequence[array[float]], right: Sequence[Sequence[float]]) -> float:
+def _upper_inner(
+    left: Sequence[array[float]], right: Sequence[Sequence[float]]
+) -> float:
     """Return ``<K, L>`` from strict upper triangles (unit diagonals).
 
     References:
@@ -287,11 +289,9 @@ def _statistic(
     k_off = k_total - n
     l_off = l_total - n
     off_cross = cross - math.fsum(k_sums) - math.fsum(l_sums) + n
-    return (
-        trace
-        + k_off * l_off / ((n - 1) * (n - 2))
-        - 2.0 * off_cross / (n - 2)
-    ) / (n * (n - 3))
+    return (trace + k_off * l_off / ((n - 1) * (n - 2)) - 2.0 * off_cross / (n - 2)) / (
+        n * (n - 3)
+    )
 
 
 def _gamma_p_value(x: _Gram, y: _Gram, biased: float) -> float:
@@ -452,7 +452,9 @@ def hsic_indices(
             raise ValueError("bandwidth values must number d + 1 (inputs, output)")
     if min(y) == max(y):
         raise ValueError("the (transformed) output is constant; HSIC is zero")
-    widths = tuple(_bandwidth(column, rule) for column, rule in zip(columns, rules))
+    widths = tuple(
+        _bandwidth(column, rule) for column, rule in zip(columns, rules, strict=False)
+    )
     output_width = _bandwidth(y, rules[-1])
     gram_y = _gram(y, output_width, keep_full=test == "permutation")
     self_y = _statistic(
@@ -471,7 +473,12 @@ def hsic_indices(
         gram_x = _gram(column, width, keep_full=False)
         inner = _upper_inner(gram_x.upper, gram_y.upper)
         value = _statistic(
-            inner, gram_x.row_sums, gram_x.total, gram_y.row_sums, gram_y.total, estimator
+            inner,
+            gram_x.row_sums,
+            gram_x.total,
+            gram_y.row_sums,
+            gram_y.total,
+            estimator,
         )
         self_x = _statistic(
             _upper_inner(gram_x.upper, gram_x.upper),
@@ -482,7 +489,9 @@ def hsic_indices(
             estimator,
         )
         denominator = self_x * self_y
-        normalized.append(value / math.sqrt(denominator) if denominator > 0.0 else math.nan)
+        normalized.append(
+            value / math.sqrt(denominator) if denominator > 0.0 else math.nan
+        )
         values.append(value)
         if test == "gamma":
             biased = (
