@@ -16507,3 +16507,42 @@ truncation set `A_(p,q)` of [EQ-SUR-PCE-004], each refitted by
   `surrogates.fit_sparse_polynomial_chaos`,
   `surrogates.SparseChaosSelection`.
 - Source: [REF-BLATMAN-SUDRET-2011].
+
+### EQ-SUR-DE-001 — Gaussian negative log-likelihood of a mean-variance network
+
+`l(theta; x, y) = (log(2 pi sigma^2(x)) + (y - mu(x))^2 / sigma^2(x)) / 2`
+with `(mu(x), s(x))` the two outputs of an MLP [EQ-NN-MLP-001] and
+`sigma^2(x) = exp(clip(s(x), -20, 20)) + 1e-6` (standardized units); a
+homoscedastic member replaces `s(x)` by one learned scalar. Each member
+minimizes `L(theta) = mean_i l(theta; x_i, y_i) + (lambda / 2) sum w^2` over
+the weights `w` by Adam [EQ-OPT-ADAM-002] on mini-batches.
+
+- Domain: standardized inputs and outputs; `lambda >= 0`.
+- Meaning: the negative log-likelihood is a proper scoring rule, so it is
+  minimized by the true conditional mean and variance; the variance output
+  absorbs the noise the network cannot explain. The clip and the floor keep
+  `sigma^2` and its inverse finite (computational choices).
+- Code: `surrogates.fit_deep_ensemble`,
+  `surrogates.DeepEnsemble.member_predictions`.
+- Source: [REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017, Section 2.2.1 and
+  Algorithm 1]; [REF-GOODFELLOW-BENGIO-COURVILLE-2016, Section 7.1.1] for the
+  weight penalty.
+
+### EQ-SUR-DE-002 — Deep-ensemble mixture prediction and variance split
+
+`mu*(x) = (1/M) sum_m mu_m(x)`,
+`sigma*^2(x) = (1/M) sum_m (sigma_m^2(x) + mu_m^2(x)) - mu*^2(x)
+= (1/M) sum_m sigma_m^2(x) + (1/M) sum_m (mu_m(x) - mu*(x))^2`.
+
+- Domain: `M >= 1` members fitted by [EQ-SUR-DE-001]; all quantities in
+  original units after undoing the output standardization.
+- Meaning: the mean and variance of the uniform mixture of the member
+  Gaussians. The first term (aleatoric) is the noise the members attribute
+  to the data; the second (epistemic) is the disagreement between members,
+  which is small where the data constrain the networks and grows away from
+  them. Neither term is a guaranteed bound on the actual error.
+- Code: `surrogates.DeepEnsemble.predict_decomposed`,
+  `surrogates.DeepEnsemble.predict_with_variance`,
+  `surrogates.DeepEnsemble.epistemic_variance`,
+  `surrogates.DeepEnsemble.aleatoric_variance`.
+- Source: [REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017, Section 2.4].

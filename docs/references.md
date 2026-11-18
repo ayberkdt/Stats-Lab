@@ -4509,3 +4509,13 @@ Small Sample Regression." *Machine Learning* 48(1-3), 9-23, 2002.
 Small-sample correction of error estimates for linear regression, the basis
 of the corrected leave-one-out error of sparse polynomial chaos.
 DOI: [10.1023/A:1013943418833](https://doi.org/10.1023/A:1013943418833).
+
+## REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017
+
+Balaji Lakshminarayanan, Alexander Pritzel, and Charles Blundell. "Simple and
+Scalable Predictive Uncertainty Estimation using Deep Ensembles." In
+*Advances in Neural Information Processing Systems 30* (NIPS 2017),
+6402-6413, 2017. Networks with a Gaussian mean-variance output trained on the
+negative log-likelihood (a proper scoring rule) from independent random
+initializations, combined as a uniformly weighted Gaussian mixture.
+Preprint: [arXiv:1612.01474](https://arxiv.org/abs/1612.01474).

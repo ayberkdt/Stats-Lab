@@ -4,7 +4,9 @@
 and analytic moments and Sobol indices; ``sparse_chaos`` selects a sparse PCE
 basis by hybrid least-angle regression or orthogonal matching pursuit with
 degree and q-norm adaptivity; ``gaussian_process`` fits GP
-regression with ARD kernels by maximum marginal likelihood; ``adapter`` wraps
+regression with ARD kernels by maximum marginal likelihood; ``ensemble``
+fits deep ensembles of Gaussian mean-variance networks whose predictive
+variance splits into aleatoric and epistemic parts; ``adapter`` wraps
 any fitted surrogate as a forward model so it can replace the original model
 inside :class:`probstat.modeling.ProbabilisticModel`.
 
@@ -22,6 +24,11 @@ Main entry points:
         marginal likelihood.
     ``GaussianProcessRegularization``: opt-in bounds and prior that keep GP
         hyperparameters away from degenerate optima.
+    ``fit_deep_ensemble``: deep ensemble of small neural networks trained on
+        the Gaussian negative log-likelihood; ``DeepEnsemble`` exposes
+        ``predict``, ``predict_with_variance``, and ``epistemic_variance``.
+    ``fit_deep_ensemble_to_model``: deep-ensemble surrogate of one QoI on a
+        design of the model.
     ``surrogate_probabilistic_model``: a new probabilistic model whose forward
         map is the fitted surrogate.
 
@@ -53,6 +60,10 @@ Common pitfalls:
     - A sparse PCE is scored on the same runs that chose its basis, so its
       corrected leave-one-out error is still somewhat optimistic; the
       ``selection`` path shows how flat the error is around the chosen set.
+    - A deep ensemble is trained in scalar Python: training costs seconds
+      to minutes (see the guide's cost table), its epistemic variance is
+      member disagreement rather than a calibrated error, and its aleatoric
+      variance on a deterministic simulator only reflects the misfit.
     - Every fitter defaults to ``seed=None`` (not reproducible); pass a seed
       or ``RandomStream``. Results computed on a surrogate inherit its error
       silently, so report its leave-one-out error with them.
@@ -62,11 +73,18 @@ Guide: docs/foundations/surrogate-models.md
 References:
     [REF-XIU-KARNIADAKIS-2002], [REF-SUDRET-2008],
     [REF-BLATMAN-SUDRET-2011], [REF-EFRON-HASTIE-JOHNSTONE-TIBSHIRANI-2004],
-    [REF-RASMUSSEN-WILLIAMS-2006, Chapters 2, 4, and 5].
+    [REF-RASMUSSEN-WILLIAMS-2006, Chapters 2, 4, and 5],
+    [REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017].
 
 """
 
 from .adapter import Surrogate, SurrogateModel, surrogate_probabilistic_model
+from .ensemble import (
+    DeepEnsemble,
+    DeepEnsemblePrediction,
+    fit_deep_ensemble,
+    fit_deep_ensemble_to_model,
+)
 from .gaussian_process import (
     KERNELS,
     GaussianProcessConditioningWarning,
@@ -105,6 +123,8 @@ from .sparse_chaos import (
 __all__ = [
     "BASES",
     "KERNELS",
+    "DeepEnsemble",
+    "DeepEnsemblePrediction",
     "GaussianProcessConditioningWarning",
     "GaussianProcessHyperparameters",
     "GaussianProcessJitterWarning",
@@ -119,6 +139,8 @@ __all__ = [
     "SparseChaosSelection",
     "Surrogate",
     "SurrogateModel",
+    "fit_deep_ensemble",
+    "fit_deep_ensemble_to_model",
     "fit_gaussian_process",
     "fit_gaussian_process_to_model",
     "fit_polynomial_chaos",
