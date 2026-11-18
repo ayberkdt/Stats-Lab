@@ -193,7 +193,13 @@ class DefaultBehaviourTests(unittest.TestCase):
         self.assertEqual(result.added, 17)
         self.assertEqual(result.refits, 4)
         self.assertEqual(len(result.history), 19)
-        self.assertEqual(float(result.min_learning).hex(), "0x1.5f88906cb068cp+1")
+        # min U goes through the GP likelihood (exp, log, sqrt); its last
+        # bits differ between the Windows and Linux C libraries.
+        self.assertAlmostEqual(
+            float(result.min_learning) / float.fromhex("0x1.5f88906cb068cp+1"),
+            1.0,
+            places=9,
+        )
         self.assertEqual(result.message, "min U >= threshold and c.o.v. target met")
         explicit = ak_mcs(
             make_state(four_branch_seven, 2),

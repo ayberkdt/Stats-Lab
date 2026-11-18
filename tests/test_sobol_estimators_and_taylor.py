@@ -102,21 +102,41 @@ class DefaultEstimatorUnchangedTests(unittest.TestCase):
             self.assertEqual(result.output_variance, PINNED_VARIANCE)
             self.assertEqual(result.evaluations, 128)
 
-    def test_model_based_default_is_bitwise_unchanged(self) -> None:
+    def assert_close(
+        self, actual: tuple[float, ...], expected: tuple[float, ...]
+    ) -> None:
+        """Compare to a relative 1e-12, the libm difference between platforms.
+
+        The model-based values go through ``math.sin`` and the input
+        transforms, whose last bits differ between the Windows and Linux C
+        libraries; equality would test the platform, not the estimator.
+
+        References:
+            [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
+
+        """
+        self.assertEqual(len(actual), len(expected))
+        for value, pinned in zip(actual, expected, strict=True):
+            self.assertTrue(
+                math.isclose(value, pinned, rel_tol=1e-12, abs_tol=1e-15),
+                f"{value!r} != {pinned!r}",
+            )
+
+    def test_model_based_default_is_unchanged(self) -> None:
         """Model-based estimates and both interval methods are unchanged."""
         model = ishigami_model()
         plain = sobol_analysis(model, "y", 64, seed=3)
-        self.assertEqual(plain.result.first_order, PINNED_MODEL_FIRST)
-        self.assertEqual(plain.result.total_effect, PINNED_MODEL_TOTAL)
+        self.assert_close(plain.result.first_order, PINNED_MODEL_FIRST)
+        self.assert_close(plain.result.total_effect, PINNED_MODEL_TOTAL)
         self.assertEqual(plain.estimator, "saltelli2010")
         boot = sobol_analysis(model, "y", 64, design="mc", seed=3, bootstrap=20)
         first = boot.first_order[0]
-        self.assertEqual(
+        self.assert_close(
             (first.estimate, first.lower, first.upper), PINNED_BOOT_FIRST_0
         )
         repl = sobol_analysis(model, "y", 64, seed=3, bootstrap=1)
         total = repl.total_effect[2]
-        self.assertEqual(
+        self.assert_close(
             (total.estimate, total.lower, total.upper), PINNED_REPL_TOTAL_2
         )
 
