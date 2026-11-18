@@ -210,7 +210,9 @@ class DefaultBehaviourTests(unittest.TestCase):
         self.assertEqual(result.learning, "U")
         self.assertEqual(result.learning_threshold, 2.0)
         self.assertEqual(len(result.training_points), result.evaluations)
-        self.assertEqual(result.training_values[0], state.standard(result.training_points[0]))
+        self.assertEqual(
+            result.training_values[0], state.standard(result.training_points[0])
+        )
 
     def test_invalid_options(self) -> None:
         """Unknown learning, stopping, and design names are rejected."""
@@ -385,7 +387,9 @@ class SurrogateProtocolTests(unittest.TestCase):
         self.assertEqual(posterior.variances, fresh.variances)
         self.assertEqual(len(posterior.training_points), 9)
         batch = GaussianProcessPopulationPosterior(gp, second)
-        for point, mean, variance in zip(second, batch.means, batch.variances, strict=True):
+        for point, mean, variance in zip(
+            second, batch.means, batch.variances, strict=True
+        ):
             expected_mean, expected_variance = gp.predict_with_variance(point)
             self.assertAlmostEqual(mean, expected_mean, delta=1e-9)
             self.assertAlmostEqual(max(variance, 0.0), expected_variance, delta=1e-9)
@@ -444,13 +448,15 @@ class BenchmarkModelTests(unittest.TestCase):
     """Oscillator and modified Rastrigin limit states and their references."""
 
     def test_oscillator_formula_and_model(self) -> None:
-        """g = 3 r - |2 F1 / (m w0^2) sin(w0 t1 / 2)| at the mean inputs."""
+        """The oscillator ``g = 3 r - |z_max|`` at the mean inputs."""
         omega = math.sqrt(1.1)
         expected = 1.5 - abs(2.0 / 1.1 * math.sin(omega / 2.0))
         self.assertAlmostEqual(oscillator(1.0, 1.0, 0.1, 0.5, 1.0, 1.0), expected, 15)
         model = oscillator_model()
         self.assertEqual(model.inputs.names, OSCILLATOR_INPUT_NAMES)
-        nominal = dict(zip(OSCILLATOR_INPUT_NAMES, (1.0, 1.0, 0.1, 0.5, 1.0, 1.0), strict=True))
+        nominal = dict(
+            zip(OSCILLATOR_INPUT_NAMES, (1.0, 1.0, 0.1, 0.5, 1.0, 1.0), strict=True)
+        )
         self.assertAlmostEqual(model.evaluate(nominal)["g"], expected, 15)
         with self.assertRaises(ValueError):
             oscillator_model(force_std=0.0)
@@ -458,14 +464,13 @@ class BenchmarkModelTests(unittest.TestCase):
             oscillator(0.0, 1.0, 0.1, 0.5, 1.0, 1.0)
 
     def test_rastrigin_formula_and_model(self) -> None:
-        """g(0, 0) = 20 and g(0.5, 0.5) = 10 - 2 (0.25 + 5)."""
+        """The Rastrigin ``g(0, 0) = 20`` and ``g(0.5, 0.5) = 10 - 2 (0.25 + 5)``."""
         self.assertEqual(rastrigin(0.0, 0.0), 20.0)
         self.assertAlmostEqual(rastrigin(0.5, 0.5), 10.0 - 2.0 * 5.25, 14)
         self.assertEqual(rastrigin_model().evaluate({"x1": 0.0, "x2": 0.0})["g"], 20.0)
 
     def test_references_agree_with_literature_and_a_small_sample(self) -> None:
-        """Stored references lie within the MC error of the literature values
-        and of a 40 000-draw check."""
+        """References agree with the literature and a 40 000-draw check."""
         self.assertLess(abs(OSCILLATOR_REFERENCE_PROBABILITY - 2.86e-2), 3 * 2.4e-5)
         self.assertLess(abs(RASTRIGIN_REFERENCE_PROBABILITY - 7.30e-2), 3 * 2.6e-5)
         generator = random.Random(11)

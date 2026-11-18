@@ -191,6 +191,11 @@ from .particles import (
     moving_particles,
     moving_particles_interval,
 )
+from .population_posterior import (
+    GaussianProcessPopulationPosterior,
+    PopulationPosterior,
+    SurrogatePopulationPosterior,
+)
 from .simulation import (
     AVAILABLE_METHODS,
     METHODS,
@@ -213,11 +218,6 @@ from .splitting import (
     moving_particles_coefficient_of_variation,
     optimal_splitting,
     splitting_coefficient_of_variation,
-)
-from .population_posterior import (
-    GaussianProcessPopulationPosterior,
-    PopulationPosterior,
-    SurrogatePopulationPosterior,
 )
 from .systems import (
     SeriesSystemBounds,

@@ -411,7 +411,9 @@ class SurrogatePopulationPosterior:
 
         """
         if not isinstance(surrogate, ProbabilisticSurrogate):
-            raise TypeError("the surrogate must provide predict and predict_with_variance")
+            raise TypeError(
+                "the surrogate must provide predict and predict_with_variance"
+            )
         return surrogate
 
     def _refit(self, previous: ProbabilisticSurrogate | None) -> ProbabilisticSurrogate:

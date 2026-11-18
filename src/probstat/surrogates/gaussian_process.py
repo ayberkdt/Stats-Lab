@@ -53,6 +53,7 @@ from probstat.linalg import (
 from probstat.modeling import ProbabilisticModel
 from probstat.optimization import minimize_bfgs
 from probstat.propagation import make_design
+
 from .adapter import ProbabilisticSurrogate
 
 KERNELS = ("squared_exponential", "matern52")

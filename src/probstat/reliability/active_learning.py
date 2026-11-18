@@ -97,8 +97,6 @@ def _require_positive(value: object, name: str) -> float:
     return checked
 
 
-
-
 @dataclass(frozen=True, slots=True)
 class AKMCSIteration:
     """State of AK-MCS after one learning step or population change.
@@ -526,7 +524,9 @@ def ak_mcs(
         model = gp
         posterior = GaussianProcessPopulationPosterior(gp, points)
     else:
-        generic = SurrogatePopulationPosterior(surrogate, training_u, training_g, points)
+        generic = SurrogatePopulationPosterior(
+            surrogate, training_u, training_g, points
+        )
         posterior = generic
         model = generic.surrogate
     incremental = generic is None
