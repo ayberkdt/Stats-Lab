@@ -341,11 +341,11 @@ model, like `fit_gaussian_process_to_model`. The result has `predict(x)`, so
 on `[0, 6]`. The ensembles are tiny: 3 members with one hidden layer of 8
 units, 1500 full-batch iterations at learning rate 0.02, and seeds 1 to 8.
 The validation error is the RMSE at the 19 midpoints divided by the output
-standard deviation. The variance ratio is the mean epistemic variance at
+standard deviation. The epistemic ratio is the mean epistemic variance at
 `x = -3, -2, 8, 9` over its mean at the training runs:
 
-| training | median error | worst error | smallest variance ratio |
-|---|---|---|---|
+| training | median error | worst error | smallest epistemic ratio |
+|---|---:|---:|---:|
 | likelihood only (`warmup_fraction=0`) | 0.046 | 0.124 | 6 |
 | warm-up 0.3 (default) | 0.006 | 0.020 | 747 |
 | `heteroscedastic=False`, no warm-up | 0.005 | 0.007 | 1464 |
@@ -360,29 +360,61 @@ the warm-up. Over seeds 1 to 6, the predicted aleatoric standard deviation at
 **Measured cost.** All arithmetic is scalar Python. The table gives seconds
 per training epoch of one member (`hidden=(32, 32)`, heteroscedastic, batch
 32, median of 3 runs). It also gives the cost of predicting one point with 5
-members, and, for comparison, one GP log-likelihood evaluation with gradient
-(Matérn 5/2), of which a GP fit needs many. Measured on Python 3.12.1 and an
-Intel Core (family 6, model 158) desktop; repeated runs differed by tens of
-percent.
+members, and, for comparison, one GP log-likelihood evaluation with
+gradient (Matérn 5/2, in ms), of which a GP fit needs many. Measured on
+Python 3.12.1 and an Intel Core (family 6, model 158) desktop; repeated runs
+differed by tens of percent.
 
-| `d` | `n` | parameters per member | steps per epoch | s per epoch | ms per step | predict, 5 members (ms) | one GP likelihood (s) |
-|---|---|---|---|---|---|---|---|
-| 2 | 50 | 1218 | 2 | 0.025 | 12 | 0.33 | 0.009 |
-| 2 | 200 | 1218 | 7 | 0.077 | 11 | 0.31 | 0.40 |
-| 2 | 500 | 1218 | 16 | 0.17 | 10 | 0.33 | 4.7 |
-| 10 | 50 | 1474 | 2 | 0.018 | 9 | 0.61 | 0.018 |
-| 10 | 200 | 1474 | 7 | 0.073 | 10 | 0.38 | 0.48 |
-| 10 | 500 | 1474 | 16 | 0.23 | 15 | 0.79 | 7.1 |
-| 50 | 50 | 2754 | 2 | 0.040 | 20 | 0.87 | 0.066 |
-| 50 | 200 | 2754 | 7 | 0.14 | 21 | 1.8 | 2.3 |
-| 50 | 500 | 2754 | 16 | 0.66 | 41 | 0.97 | 17 |
+| `d` | `n` | parameters per member | steps per epoch | epoch (s) | step (ms) | predict, 5 members (ms) | one GP likelihood (ms) |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2 | 50 | 1218 | 2 | 0.025 | 12 | 0.33 | 9 |
+| 2 | 200 | 1218 | 7 | 0.077 | 11 | 0.31 | 401 |
+| 2 | 500 | 1218 | 16 | 0.166 | 10 | 0.33 | 4725 |
+| 10 | 50 | 1474 | 2 | 0.018 | 9 | 0.61 | 18 |
+| 10 | 200 | 1474 | 7 | 0.073 | 10 | 0.38 | 478 |
+| 10 | 500 | 1474 | 16 | 0.233 | 15 | 0.79 | 7077 |
+| 50 | 50 | 2754 | 2 | 0.040 | 20 | 0.87 | 66 |
+| 50 | 200 | 2754 | 7 | 0.144 | 21 | 1.81 | 2319 |
+| 50 | 500 | 2754 | 16 | 0.661 | 41 | 0.97 | 17250 |
 
 An Adam step costs 10 to 40 ms and does not depend on `n`. A fit therefore
-costs `members x iterations` steps whatever the design size, and the
-defaults (5 x 2000) take about E2E_TIME. E2E_SENTENCE
-Supported range: up to about 50 inputs and 500 training runs. Beyond that,
-a fit takes many minutes. Prediction over a candidate pool of `10^5` points
-takes about one to three minutes per active-learning iteration.
+costs `members x iterations` steps whatever the design size. The default
+architecture (5 members of 32 x 32, 2000 steps each) took 131 to 156 s at
+`d = 10`; by the step costs above, it takes roughly 3 to 7 minutes at
+`d = 50`. A one-layer network is much
+cheaper: `hidden=(16,)` took 25 s at `d = 10`.
+
+The same `d = 10` fits show what to expect from the predictions. The
+function is `g(x) = sin(x_1 + ... + x_10) + 0.1 (x_1^2 + ... + x_10^2)` with
+independent uniform inputs on `[-1, 1]`. There are 200 training runs and 500
+validation runs, and the ensemble seed is 3. The error is the validation
+RMSE divided by the validation standard deviation. The variance ratio is the
+mean predictive variance over the mean squared error on 100 validation runs:
+a value of 1 would mean the variance matches the error on average.
+
+| surrogate | fit (s) | validation error | variance ratio |
+|---|---:|---:|---:|
+| deep ensemble, `weight_decay=1e-2` | 150 | 0.16 | 0.44 |
+| deep ensemble, `hidden=(16,)`, `weight_decay=1e-3` | 25 | 0.22 | 1.11 |
+| deep ensemble, defaults | 131 | 0.25 | 0.44 |
+| deep ensemble, `heteroscedastic=False` | 155 | 0.32 | — |
+| GP, Matérn 5/2, unregularized defaults (114 likelihood evaluations) | 100 | 0.81 | — |
+
+A dash marks a ratio that was not measured.
+
+With the defaults the training error was 0.015 against 0.25 on validation,
+so the 32 x 32 members overfit 200 runs in ten dimensions. A stronger weight
+penalty or a smaller network did better. The default ensemble's variance
+was less than half the actual squared error, so its spread is too narrow
+away from the data. This is one function and one seed, not a ranking of
+methods: on this ridge-shaped function the stationary GP did poorly, and on
+smooth low-dimensional responses (section 3) a GP is far more accurate.
+
+Supported range: up to about 50 inputs and 500 training runs; beyond that a
+fit takes many minutes. Predicting a candidate pool of `10^5` points with 5
+members takes half a minute to three minutes per active-learning iteration.
+Check the error on held-out runs, and tune `weight_decay` and `hidden`
+against it.
 
 **Out of scope.** Physics-informed neural networks fit a network to the
 residual of a known PDE. They need the governing equations, not a black-box
@@ -391,8 +423,8 @@ Full Bayesian neural networks sample the posterior over the weights, for
 example by Hamiltonian Monte Carlo. With thousands of weights, each
 log-density gradient costs a full pass over the data, and HMC needs
 thousands of such gradients even for a modest sample. That is impractical in
-scalar Python. A deep ensemble gives a usable predictive
-spread at a fixed, known cost instead. Its epistemic variance measures member
+scalar Python. A deep ensemble gives a usable predictive spread at a fixed,
+known cost instead. Its epistemic variance measures member
 disagreement, not the true error, and is not calibrated.
 
 ## Limitations
