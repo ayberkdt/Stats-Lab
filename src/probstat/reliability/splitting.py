@@ -212,7 +212,7 @@ def moving_particles_coefficient_of_variation(
         [EQ-REL-MP-001].
 
     References:
-        [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011], [REF-WALTER-2015].
+        [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011], [REF-WALTER-2015].
 
     """
     p = _require_probability_open(probability)
@@ -247,7 +247,7 @@ class OptimalSplittingResult:
             equals the budget.
 
     References:
-        [REF-LAGNOUX-2006], [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011].
+        [REF-LAGNOUX-2006], [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011].
 
     """
 
@@ -292,7 +292,7 @@ def optimal_splitting(probability: float, budget: int) -> OptimalSplittingResult
         [EQ-REL-SPLIT-001], [EQ-REL-SPLIT-002], [EQ-REL-MP-001].
 
     References:
-        [REF-LAGNOUX-2006], [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011].
+        [REF-LAGNOUX-2006], [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011].
 
     """
     p = _require_probability_open(probability)

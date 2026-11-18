@@ -15950,7 +15950,7 @@ so `E[p_hat]=p`, `Var(p_hat)=p^2(p^{-1/N}-1)` and
   evaluations with `Q` Markov steps per move.
 - Code: `reliability.moving_particles`,
   `reliability.moving_particles_coefficient_of_variation`.
-- Source: [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011], [REF-WALTER-2015].
+- Source: [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011], [REF-WALTER-2015].
 
 ### EQ-REL-MP-002 — Exact Poisson interval of the moving-particles estimate
 
@@ -15965,7 +15965,7 @@ With `alpha=1-confidence`, `lambda_lo=chi2_{alpha/2}(2M)/2` (`0` when
   nominal level under ideal sampling.
 - Code: `reliability.moving_particles_interval`,
   `reliability.moving_particles`.
-- Source: [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011], [REF-GARWOOD-1936].
+- Source: [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011], [REF-GARWOOD-1936].
 
 ### EQ-REL-PCN-001 — Conditional preconditioned Crank-Nicolson move
 
@@ -16000,3 +16000,115 @@ variant averages the directions `A` and `-A`.
 - Code: `reliability.directional_simulation`,
   `reliability.default_radius_max`.
 - Source: [REF-BJERAGER-1988], [REF-DITLEVSEN-MADSEN-1996].
+
+### EQ-PROP-WILKS-001 — Wilks one-sided order-statistic bound of a quantile
+
+`P(Y_(k) >= q_a) = P(Binomial(n, a) <= k - 1) = sum_(j=0)^(k-1) C(n, j) a^j (1 - a)^(n - j)`;
+the upper Wilks rank is the smallest `k` with this probability at least
+`beta`. Lower bound: `P(Y_(k) <= q_a) = P(Binomial(n, a) >= k)`, largest `k`
+with this probability at least `beta`.
+
+- Domain: `n` independent draws of one law, `0 < a < 1`, `0 < beta < 1`;
+  exact for a continuous law, conservative (confidence at least `beta`) for
+  a law with atoms; undefined (error) when even `Y_(n)` (or `Y_(1)`) falls
+  short.
+- Meaning: the number of draws below `q_a` is `Binomial(n, a)` whatever the
+  law, so a fixed order statistic bounds the quantile with a known,
+  law-free confidence; the whole risk `1 - beta` sits on one side, unlike
+  the equal-tailed interval of EQ-PROP-QCI-001. With `n = 1000` and
+  `a = beta = 0.95` the upper rank is `k = 962`.
+- Code: `propagation.wilks_rank`, `propagation.wilks_bound`,
+  `propagation.wilks._upper_confidence`,
+  `propagation.wilks._lower_confidence`.
+- Source: [REF-WILKS-1941], [REF-DAVID-NAGARAJA-2003, Section 7.1].
+
+### EQ-PROP-WILKS-002 — Wilks sample size for an order-m quantile bound
+
+Upper bound by the `m`-th largest value: smallest `n` with
+`P(Binomial(n, a) <= n - m) >= beta`; for `m = 1`,
+`n = ceil(ln(1 - beta) / ln a)`. Lower bound by the `m`-th smallest value:
+smallest `n` with `P(Binomial(n, a) >= m) >= beta`.
+
+- Domain: `0 < a < 1`, `0 < beta < 1`, integer `m >= 1`; independent draws
+  of a continuous law.
+- Meaning: the number of code runs needed before the `m`-th extreme value is
+  a `beta`-confidence bound of the `a`-quantile; `a = beta = 0.95` gives 59,
+  93, 124, and 153 runs for `m = 1..4`, and the median needs 5 runs at
+  `beta = 0.95`. The upper case equals the success-run sample size with
+  `m - 1` allowed failures (EQ-REL-DATA-004).
+- Code: `propagation.wilks_sample_size`.
+- Source: [REF-WILKS-1941], [REF-NUTT-WALLIS-2004].
+
+### EQ-PROP-WILKS-003 — Two-sided distribution-free tolerance interval
+
+The content `C = F(Y_(n-m+1)) - F(Y_(m))` of `[Y_(m), Y_(n-m+1)]` follows
+`Beta(n - 2m + 1, 2m)`, so
+`P(C >= gamma) = 1 - I_gamma(n - 2m + 1, 2m) = P(Binomial(n, gamma) <= n - 2m)`.
+
+- Domain: `n` independent draws of a continuous law `F`, `0 < gamma < 1`,
+  `0 < beta < 1`, `1 <= m <= n/2`.
+- Meaning: the interval between the `m`-th smallest and `m`-th largest
+  values contains at least a fraction `gamma` of the law with the stated
+  probability; a two-sided order `m` costs as many runs as a one-sided order
+  `2m` (93 runs for `gamma = beta = 0.95`, `m = 1`).
+- Code: `propagation.wilks_tolerance_interval`,
+  `propagation.wilks_sample_size`.
+- Source: [REF-WILKS-1942], [REF-DAVID-NAGARAJA-2003, Section 7.2].
+
+### EQ-REL-CERT-001 — Monte Carlo certification rule and normal margin
+
+Certify when `p_hat_n + c(n, alpha, beta) <= alpha` with
+`p_hat_n = (1/n) sum_i 1{y(x_i) > S}` and
+`c(n, alpha, beta) = z_(1-beta) sqrt(alpha (1 - alpha) / n)`;
+`max_(p_f >= alpha) P(certify) -> beta` as `n -> infinity`.
+
+- Domain: `n` independent model runs, acceptable risk `0 < alpha < 1`,
+  false-certification probability `0 < beta < 1`, `z_(1-beta)` the
+  standard-normal quantile.
+- Meaning: the margin turns the estimate into a decision whose probability
+  of accepting a system with `p_f >= alpha` is asymptotically `beta`; for
+  small `n alpha` it is only approximate.
+- Code: `reliability.certification_margin`,
+  `reliability.certification_probability`,
+  `reliability.certification._certifies`,
+  `reliability.certification._max_failures`.
+- Source: [REF-ROSS-2019, Section 8.3].
+
+### EQ-REL-CERT-002 — Exact certification probability under a binomial count
+
+With `X ~ Binomial(n, p_f)` failures and `k_n` the largest certifying count,
+`P(certify) = P(X <= k_n) = I_(1-p_f)(n - k_n, k_n + 1)`. Normal rule:
+`k_n = max{k <= n : k/n + c(n, alpha, beta) <= alpha}`. Clopper-Pearson
+rule: `k_n = max{k : P(Binomial(n, alpha) <= k) <= beta}`, which gives
+`P(certify) <= beta` for every `p_f >= alpha` and every `n`.
+
+- Domain: integer `n >= 1`, `0 <= p_f <= 1`, `0 < alpha, beta < 1`;
+  `k_n = -1` (probability zero) when no count certifies.
+- Meaning: the decision depends on the failure count only through a
+  threshold, so its probability is a binomial distribution function,
+  evaluated through the regularized incomplete beta function for `n` up to
+  `1e10`; `P(certify)` is not monotone in `n` because `k_n` is an integer.
+- Code: `reliability.certification_probability`,
+  `reliability.certification_sample_size`,
+  `reliability.certification._certifies`,
+  `reliability.certification._max_failures`.
+- Source: [REF-CLOPPER-PEARSON-1934], [REF-NIST-DLMF-BETA, Section 8.17].
+
+### EQ-REL-CERT-003 — Moving-particles certification under a Poisson count
+
+`M ~ Poisson(-N ln p_f)`, `p_hat = (1 - 1/N)^M`; certify when the
+`1 - beta` upper bound `exp(-lambda_L(M)/N)` is at most `alpha`, i.e.
+`M >= m* = min{m : P(Poisson(-N ln alpha) >= m) <= beta}`, so
+`P(certify) = P(Poisson(-N ln p_f) >= m*)`; expected model calls
+`N (1 - Q ln p_f)` with `Q` calls per move.
+
+- Domain: `N >= 1` particles of an idealized moving-particles run with
+  exact conditional sampling, `0 <= p_f <= 1`, `0 < alpha, beta < 1`,
+  integer `Q >= 1`.
+- Meaning: the move count of the particle method is Poisson with mean
+  growing like `-ln p_f` instead of `1/p_f`, so far fewer model calls give
+  the same certification probability as crude Monte Carlo for small `p_f`;
+  the false-certification probability stays at most `beta` for
+  `p_f >= alpha`.
+- Code: `reliability.moving_particles_certification_probability`.
+- Source: [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011], [REF-WALTER-2015].

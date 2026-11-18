@@ -60,7 +60,7 @@ class MovingParticlesResult:
     than reported.
 
     References:
-        [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011], [REF-WALTER-2015],
+        [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011], [REF-WALTER-2015],
         [REF-GARWOOD-1936].
 
     """
@@ -102,7 +102,7 @@ class MovingParticlesResult:
             [EQ-REL-MP-001].
 
         References:
-            [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011].
+            [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011].
 
         """
         return (self.probability * self.coefficient_of_variation) ** 2
@@ -139,7 +139,7 @@ def moving_particles_interval(
         [EQ-REL-MP-002], [EQ-INF-COUNT-003].
 
     References:
-        [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011], [REF-GARWOOD-1936].
+        [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011], [REF-GARWOOD-1936].
 
     """
     if isinstance(moves, bool) or not isinstance(moves, int) or moves < 0:
@@ -234,7 +234,7 @@ def moving_particles(
         [EQ-REL-MP-001], [EQ-REL-MP-002], [EQ-REL-PCN-001].
 
     References:
-        [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011], [REF-WALTER-2015],
+        [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011], [REF-WALTER-2015],
         [REF-COTTER-ROBERTS-STUART-WHITE-2013].
 
     """

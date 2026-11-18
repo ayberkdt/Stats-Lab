@@ -335,7 +335,7 @@ c.o.v. 0.11 with 4507 calls, where crude Monte Carlo would have c.o.v. 0.32.
 On this function `G(u) = G(-u)`, so antithetic pairs repeat the same ray
 value and give no variance reduction.
 
-Sources: [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011], [REF-WALTER-2015],
+Sources: [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011], [REF-WALTER-2015],
 [REF-LAGNOUX-2006], [REF-COTTER-ROBERTS-STUART-WHITE-2013],
 [REF-GARWOOD-1936], [REF-BJERAGER-1988], [REF-DITLEVSEN-MADSEN-1996],
 [REF-WAARTS-2000].

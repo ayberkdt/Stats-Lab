@@ -5,7 +5,7 @@ with an exact answer at a tolerance set by the estimator's own error scale,
 or checks a structural property of the run.
 
 References:
-    [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011], [REF-WALTER-2015],
+    [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011], [REF-WALTER-2015],
     [REF-BJERAGER-1988], [REF-LAGNOUX-2006].
 
 """

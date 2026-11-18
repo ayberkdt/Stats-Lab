@@ -4297,12 +4297,37 @@ International Symposium on Uncertainty Modeling and Analysis (ISUMA'90)*,
 398-403, 1990.
 DOI: [10.1109/ISUMA.1990.151285](https://doi.org/10.1109/ISUMA.1990.151285).
 
-## REF-GUYADER-HENGARTNER-MATZNERLOBER-2011
+## REF-WILKS-1941
+
+S. S. Wilks. "Determination of Sample Sizes for Setting Tolerance Limits."
+*The Annals of Mathematical Statistics* 12(1), 91-96, 1941. The binomial
+order-statistic argument behind distribution-free quantile bounds and the
+59-run 95 %/95 % sample size.
+DOI: [10.1214/aoms/1177731788](https://doi.org/10.1214/aoms/1177731788).
+
+## REF-WILKS-1942
+
+S. S. Wilks. "Statistical Prediction with Special Reference to the Problem
+of Tolerance Limits." *The Annals of Mathematical Statistics* 13(4),
+400-409, 1942. Two-sided distribution-free tolerance intervals and the Beta
+law of their content.
+DOI: [10.1214/aoms/1177731537](https://doi.org/10.1214/aoms/1177731537).
+
+## REF-NUTT-WALLIS-2004
+
+William T. Nutt and Graham B. Wallis. "Evaluation of Nuclear Safety from the
+Outputs of Computer Codes in the Presence of Uncertainties." *Reliability
+Engineering and System Safety* 83, 57-77, 2004. Higher-order Wilks sample
+sizes (59, 93, 124, 153 runs at 95 %/95 %) in best-estimate-plus-uncertainty
+safety analysis.
+
+## REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011
 
 Arnaud Guyader, Nicolas Hengartner, and Eric Matzner-Løber. "Simulation and
 Estimation of Extreme Quantiles and Extreme Probabilities." *Applied
-Mathematics & Optimization* 64(2), 171-196, 2011. The last-particle
-algorithm, the estimator `(1 - 1/N)^M`, and its Poisson-process analysis.
+Mathematics and Optimization* 64(2), 171-196, 2011. The idealized
+last-particle (moving-particles) algorithm, whose move count is Poisson with
+mean `-N ln p`.
 DOI: [10.1007/s00245-011-9135-z](https://doi.org/10.1007/s00245-011-9135-z).
 
 ## REF-WALTER-2015
@@ -4334,3 +4359,7 @@ Agnès Lagnoux. "Rare Event Simulation." *Probability in the Engineering and
 Informational Sciences* 20(1), 45-66, 2006. Optimal number of levels and
 conditional probabilities of ideal splitting (about 0.2 per level).
 DOI: [10.1017/S0269964806060025](https://doi.org/10.1017/S0269964806060025).
+
+Algorithms." *Structural Safety* 55, 10-25, 2015. The moving-particles
+estimator `(1 - 1/N)^M` and its Poisson confidence bounds.
+DOI: [10.1016/j.strusafe.2015.02.002](https://doi.org/10.1016/j.strusafe.2015.02.002).

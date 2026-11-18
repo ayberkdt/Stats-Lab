@@ -16,6 +16,9 @@ cost-optimal allocation. ``particles`` implements moving particles (the
 last-particle multilevel splitting algorithm), ``directional`` model-based
 directional simulation with several roots per ray, and ``splitting`` the
 coefficient of variation and optimal level count of ideal splitting.
+``certification`` decides whether a simulated
+failure probability is below an acceptable risk with a bounded
+false-certification probability (crude Monte Carlo and moving particles).
 
 Main entry points:
     ``ModelLimitState``: one model output and a threshold as a limit state
@@ -69,7 +72,7 @@ Guide: docs/foundations/advanced-reliability.md
 References:
     [REF-MELCHERS-BECK-2018], [REF-HASOFER-LIND-1974],
     [REF-DERKIUREGHIAN-2005], [REF-BREITUNG-1984], [REF-AU-BECK-2001],
-    [REF-WILSON-1927], [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011],
+    [REF-WILSON-1927], [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011],
     [REF-BJERAGER-1988], [REF-LAGNOUX-2006].
 
 """
@@ -110,6 +113,18 @@ from .analysis import (
     estimate_failure_probability,
     estimate_weighted_failure_probability,
     linear_normal_form,
+)
+from .certification import (
+    CERTIFICATION_MAX_SIZE,
+    CERTIFICATION_RULES,
+    CERTIFICATION_SCAN_PLATEAUS,
+    CertificationProbability,
+    CertificationSampleSize,
+    MovingParticlesCertification,
+    certification_margin,
+    certification_probability,
+    certification_sample_size,
+    moving_particles_certification_probability,
 )
 from .data import (
     SIDES,
@@ -198,10 +213,15 @@ __all__ = [
     "AKMCS_GP_REGULARIZATION",
     "AVAILABLE_METHODS",
     "AllocationResult",
+    "CERTIFICATION_MAX_SIZE",
+    "CERTIFICATION_RULES",
+    "CERTIFICATION_SCAN_PLATEAUS",
     "CE_COVARIANCE_FLOOR",
     "CE_MAX_UNCOVERED_ELITE_FRACTION",
     "CE_MIN_FAILURE_ESS_FRACTION",
     "CE_MIN_MEAN_NORM",
+    "CertificationProbability",
+    "CertificationSampleSize",
     "CrossEntropyResult",
     "CrowAMSAAFit",
     "DemandFailureEstimate",
@@ -225,6 +245,7 @@ __all__ = [
     "ModelLimitState",
     "ModelMonteCarloResult",
     "MovingParticlesResult",
+    "MovingParticlesCertification",
     "MultiPointFORMResult",
     "MultipleDesignPointsResult",
     "OPTIMAL_LEVELS_PER_LOG",
@@ -245,6 +266,9 @@ __all__ = [
     "arinc_allocation",
     "bivariate_normal_cdf",
     "bulge_value",
+    "certification_margin",
+    "certification_probability",
+    "certification_sample_size",
     "compare_reliability_methods",
     "correlated_importance",
     "cost_optimal_allocation",
@@ -276,6 +300,7 @@ __all__ = [
     "moving_particles",
     "moving_particles_coefficient_of_variation",
     "moving_particles_interval",
+    "moving_particles_certification_probability",
     "multi_point_form",
     "optimal_splitting",
     "principal_curvatures",
