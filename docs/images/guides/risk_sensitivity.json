@@ -1,0 +1,62 @@
+{
+  "advanced-reliability-directional-rays": {
+    "guide": "advanced-reliability",
+    "alt": "Standard-normal map of the four-branch limit state with 200 rays from the origin and the roots where they enter the failure domain",
+    "facts": {
+      "rays": "200",
+      "pf": "1.93e-03",
+      "cov": "0.11",
+      "calls": "4,507",
+      "inner": "74%"
+    }
+  },
+  "advanced-reliability-moving-particles": {
+    "guide": "advanced-reliability",
+    "alt": "Standard-normal map of the four-branch limit state with 100 initial particles, the final particles, and two intermediate level sets",
+    "facts": {
+      "particles": "100",
+      "moves": "623",
+      "pf": "1.91e-03",
+      "interval": "[1.18e-03, 3.18e-03]"
+    }
+  },
+  "propagation-wilks-quantiles": {
+    "guide": "uncertainty-propagation",
+    "alt": "Empirical CDFs over replicates of the empirical 0.95-quantile and of the Wilks upper bound, with the true quantile",
+    "facts": {
+      "empirical": "52.2%",
+      "wilks": "3.9%",
+      "rank": "962",
+      "replicates": "1,000"
+    }
+  },
+  "reliability-certification-probability": {
+    "guide": "reliability-analysis",
+    "alt": "Probability of certifying a failure probability against the number of runs times the acceptable risk, for three true probabilities and two rules",
+    "facts": {
+      "small": "6.0",
+      "half": "33.5",
+      "near": "1,041"
+    }
+  },
+  "sensitivity-flood-cost-measures": {
+    "guide": "sensitivity-analysis",
+    "alt": "Four panels of Taylor importance factors, squared regression coefficients, first-order Sobol indices, and HSIC indices of the flood-model cost for eight inputs",
+    "facts": {
+      "src": "0.006",
+      "sobol": "0.12",
+      "hsic": "0.11",
+      "taylor": "0.04",
+      "r2": "0.73"
+    }
+  },
+  "sensitivity-flood-top-decile": {
+    "guide": "sensitivity-analysis",
+    "alt": "Eight scatterplots of the flood-model overflow against each input for 1,000 runs, with the top decile of the overflow highlighted",
+    "facts": {
+      "count": "100",
+      "threshold": "-9.48 m",
+      "drivers": "low Ks, high Q, low Hd and high Zv"
+    }
+  }
+}

@@ -522,7 +522,7 @@ limit states, direct failure probability, importance weighting, affine FORM,
 the reliability index, design-point geometry, and directional sampling.
 
 - Requires: U4
-- Lab: [`examples/reliability_lab.py`](../examples/reliability_lab.py)
+- Lab: [`examples/reliability_lab.py`](../examples/reliability_lab.py), [`examples/risk_analysis_lab.py`](../examples/risk_analysis_lab.py)
 - Decision record: [ADR-0011](adr/ADR-0011-reliability-domain-and-form-scope.md)
 
 ### U6 — Sensitivity analysis (UQ-5)
@@ -533,7 +533,7 @@ ranking, dimension reduction, uncertainty-reduction decisions, and Shapley
 effects for dependent inputs.
 
 - Requires: U3
-- Lab: [`examples/sensitivity_lab.py`](../examples/sensitivity_lab.py)
+- Lab: [`examples/sensitivity_lab.py`](../examples/sensitivity_lab.py), [`examples/flood_sensitivity_lab.py`](../examples/flood_sensitivity_lab.py)
 - Decision record: [ADR-0012](adr/ADR-0012-sensitivity-estimator-boundaries.md)
 
 ### U7 — Inverse problems and Bayesian calibration (UQ-6)

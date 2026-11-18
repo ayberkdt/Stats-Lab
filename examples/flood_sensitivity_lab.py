@@ -86,8 +86,8 @@ Cost and error:
       from each run; the HSIC Gamma test costs ``O(n^2)`` per input.
     - Sobol: ``N (d + 2) = 40 960`` calls per estimator for both outputs
       (``N = 4096``); replicate half-widths are at most about 0.02 here.
-    - The laboratory runs in about one minute; it prints its wall-clock
-      time.
+    - The laboratory runs in about two minutes, most of it in the four Sobol
+      designs and the HSIC Gram matrices; it prints its wall-clock time.
 
 References:
     REF-IOOSS-LEMAITRE-2015: the flood model and its input laws.
@@ -610,10 +610,70 @@ def figure_cobweb() -> tuple[Any, dict[str, str]]:
         output_name="S",
         title=f"The {facts['count']} runs with the highest overflow (S > "
         f"{facts['threshold']}) come from {facts['drivers']}",
-        subtitle=f"Each line is one of {len(sample.rows):,} Monte Carlo runs; "
-        "columns are scaled ranks · coloured: top decile of S; grey: the others",
+        subtitle=f"Each line is one of {len(sample.rows):,} Monte Carlo runs on "
+        "scaled ranks · coloured: top decile of S; grey: the others",
     )
     return ax.figure, facts
+
+
+def figure_top_decile_scatter() -> tuple[Any, dict[str, str]]:
+    """Draw the overflow against each input with its top decile highlighted.
+
+    The same runs and threshold as the cobweb plot, drawn as one scatterplot
+    per input: the highlighted runs sit at one end of the inputs that drive
+    the overflow and spread over the whole range of the others.
+
+    References:
+        [EQ-MOD-FLOOD-001], [REF-HELTON-ETAL-2006], [REF-SALTELLI-2008].
+
+    """
+    sample = forward_sample()
+    cut = sample.overflow_threshold
+    values = sample.outputs["overflow"]
+    flagged = [value > cut for value in values]
+    drivers = _top_decile_drivers(sample)
+    words = [f"{'high' if shift > 0 else 'low'} {name}" for name, shift in drivers]
+    facts = {
+        "count": f"{sum(flagged)}",
+        "threshold": f"{cut:.2f} m",
+        "drivers": ", ".join(words[:-1]) + f" and {words[-1]}",
+    }
+    from matplotlib.ticker import MaxNLocator
+
+    plt = theme.pyplot()
+    figure, grid = plt.subplots(2, 4, figsize=(7.4, 4.8), sharey=True)
+    palette = theme.active_palette()
+    highlight = theme.entity_colour("failed samples")
+    threshold = theme.entity_colour("threshold")
+    for index, ax in enumerate(grid.flat):
+        theme.style_axes(ax)
+        column = [row[index] for row in sample.rows]
+        for chosen, colour, size, alpha, order in (
+            (False, palette.muted, 3.0, 0.35, 2.0),
+            (True, highlight, 5.0, 0.8, 3.0),
+        ):
+            xs = [x for x, mark in zip(column, flagged, strict=True) if mark is chosen]
+            ys = [y for y, mark in zip(values, flagged, strict=True) if mark is chosen]
+            ax.scatter(xs, ys, s=size, color=colour, alpha=alpha,
+                       edgecolors="none", zorder=order)  # fmt: skip
+        ax.axhline(cut, color=threshold, linewidth=theme.REFERENCE_WIDTH,
+                   linestyle=theme.REFERENCE, zorder=4)  # fmt: skip
+        name = FLOOD_INPUT_NAMES[index]
+        unit = INPUT_UNITS[index]
+        theme.axis_labels(ax, name, x_unit=unit or None)
+        ax.xaxis.set_major_locator(MaxNLocator(3))
+        ax.grid(axis="x", visible=False)
+    for ax in grid[:, 0]:
+        theme.axis_labels(ax, None, OUTPUT_LABELS["overflow"], y_unit="m")
+    figure.subplots_adjust(wspace=0.12, hspace=0.62)
+    theme.title_block(
+        grid[0][0],
+        f"The {facts['count']} runs with the highest overflow (S > "
+        f"{facts['threshold']}) come from {facts['drivers']}",
+        f"{len(sample.rows):,} Monte Carlo runs · coloured: top decile of S · "
+        "dashed: its threshold",
+    )
+    return figure, facts
 
 
 def figure_input_scatter(output: str = "cost") -> tuple[Any, dict[str, str]]:
@@ -851,6 +911,7 @@ def main() -> None:
     _save("flood-measures-cost", lambda: figure_measure_comparison("cost"))
     _save("flood-morris", figure_morris)
     _save("flood-cobweb-overflow", figure_cobweb)
+    _save("flood-top-decile-overflow", figure_top_decile_scatter)
     _save("flood-input-scatter-cost", lambda: figure_input_scatter("cost"))
     print(f"\nWall-clock time: {time.perf_counter() - start:.1f} s")
 

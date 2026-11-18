@@ -245,6 +245,12 @@ Run `python examples/sensitivity_lab.py`. The Ishigami benchmark contains a
 strong interaction: its third input has essentially no first-order effect but a
 substantial total effect.
 
+`python examples/flood_sensitivity_lab.py` applies every measure of this
+guide to the flood model: Taylor importance factors with finite differences
+checked against exact derivatives, Morris screening, regression and rank
+regression, Sobol indices with four estimators, and HSIC, including target
+HSIC of the top overflow decile, for both the overflow and the cost.
+
 <picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/ishigami-sobol-indices-dark.png"><img alt="Dumbbell chart of first-order and total Sobol indices of the three Ishigami inputs on a common zero to one scale" src="../images/guides/ishigami-sobol-indices.png"></picture>
 
 *With two 50,000-row pick-freeze designs, x3 has a first-order index of 0.01 but a total index of 0.25 (analytic values 0 and 0.2437): ranking by main effects alone would mark it for fixing, while the total effect, which includes its interaction with x1, keeps it.*
@@ -479,6 +485,20 @@ hsic.ranking()[:4]   # ('Q', 'Hd', 'Zv', 'Ks')
 round(hsic.r2_hsic[4], 3)   # 0.128
 hsic.independent(0.05)   # ('Zm', 'L', 'B')
 ```
+
+The two figures below come from `examples/flood_sensitivity_lab.py`, which
+draws one plain Monte Carlo sample of 1000 runs (seed 2026) and evaluates
+both outputs on it, so its regression and HSIC values differ from the table
+above, which uses the separate samples of the two wrappers, by the sampling
+error of 1000 runs.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/sensitivity-flood-top-decile-dark.png"><img alt="Eight scatterplots of the flood-model overflow against each input for 1,000 runs, with the top decile of the overflow highlighted" src="../images/guides/sensitivity-flood-top-decile.png"></picture>
+
+*The 100 runs above the 0.9-quantile of the overflow, S > -9.48 m, are coloured. Their median rank departs from the middle by more than 0.15 for four inputs, and the title names them: they come from low Ks, high Q, low Hd and high Zv. On `Zm`, `Cb`, `L` and `B` the coloured runs spread over the whole range, in line with the target HSIC p-values of these inputs. The laboratory also draws the same runs as a cobweb plot (`visualization.plot_cobweb`), where the coloured bundle crosses the low end of the `Ks` and `Hd` axes.*
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/sensitivity-flood-cost-measures-dark.png"><img alt="Four panels of Taylor importance factors, squared regression coefficients, first-order Sobol indices, and HSIC indices of the flood-model cost for eight inputs" src="../images/guides/sensitivity-flood-cost-measures.png"></picture>
+
+*Four measures of the cost `C`, with the inputs ordered by their total Sobol index. The linear fit explains R^2 = 0.73 of the variance and gives the dike height `Hd` an `SRC^2` of only 0.006, while the first-order Sobol index (0.12) and `R2_HSIC` (0.11) keep it among the four leading inputs. A low dike lets the river overflow and a high dike costs more to maintain, so the cost first falls and then rises with `Hd`; a straight line through that V is nearly flat. The quadratic sum gives 0.04 because its expansion point, the nominal `Hd = 8` m, lies near the bottom of the V, where the slope is small. Morris screening flags the same effect through a signed mean `mu` far below `mu*`. For the overflow, which is nearly linear, the laboratory's same four panels agree.*
 
 Sources: [REF-SALTELLI-2008, Chapter 1], [REF-HELTON-ETAL-2006],
 [REF-IMAN-CONOVER-1979], [REF-GRETTON-ETAL-2005], [REF-GRETTON-ETAL-2008],

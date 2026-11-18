@@ -52,7 +52,7 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-3.8 | Monte Carlo convergence | Implemented | UQ-2 | `probstat.monte_carlo` | `src/probstat/monte_carlo/estimation.py`; `src/probstat/visualization/foundation_plots.py` |
 | ATHENS-3.9 | Estimation error and estimator confidence intervals | Implemented | UQ-2 | `probstat.monte_carlo` | `src/probstat/monte_carlo/estimation.py`; `src/probstat/inference/confidence.py` |
 | ATHENS-3.10 | Computational cost and sample-budget tradeoffs | Implemented | UQ-2 | `probstat.monte_carlo` | `src/probstat/monte_carlo/estimation.py`; `src/probstat/propagation/forward.py` |
-| ATHENS-3.11 | Threshold and exceedance probabilities | Implemented | UQ-2 | `probstat.propagation` | `src/probstat/propagation/forward.py` |
+| ATHENS-3.11 | Threshold and exceedance probabilities | Implemented | UQ-2 | `probstat.propagation` | `src/probstat/propagation/forward.py`; `src/probstat/propagation/wilks.py`; `tests/test_wilks_and_certification.py` |
 | ATHENS-4.1 | Standard Monte Carlo simulation | Implemented | UQ-3 | `probstat.monte_carlo` | `src/probstat/monte_carlo/estimation.py`; `examples/basic_monte_carlo_lab.py` |
 | ATHENS-4.2 | Monte Carlo estimation of pi | Implemented | UQ-3 | `examples.monte_carlo` | `examples/basic_monte_carlo_lab.py` |
 | ATHENS-4.3 | Variance-reduction principles | Implemented | UQ-3 | `probstat.monte_carlo.variance_reduction` | `src/probstat/monte_carlo/variance_reduction.py`; `docs/foundations/advanced-monte-carlo.md` |
@@ -67,26 +67,26 @@ status, ownership, target, and evidence-path integrity.
 | ATHENS-4.12 | Importance sampling | Implemented | UQ-3 | `probstat.monte_carlo.importance_sampling` | `src/probstat/monte_carlo/variance_reduction.py` |
 | ATHENS-5.1 | Reliability as probability of satisfactory performance | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py`; `docs/foundations/reliability-analysis.md` |
 | ATHENS-5.2 | Limit-state functions | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py` |
-| ATHENS-5.3 | Failure probability | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py` |
-| ATHENS-5.4 | Rare-event probability estimation | Implemented | UQ-4 | `probstat.reliability.rare_events` | `src/probstat/reliability/analysis.py`; `examples/reliability_lab.py`; `src/probstat/reliability/simulation.py` |
-| ATHENS-5.5 | Direct Monte Carlo reliability estimation | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py` |
-| ATHENS-5.6 | Binomial confidence intervals for failure probability | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py`; `src/probstat/inference/confidence.py` |
-| ATHENS-5.7 | First-order reliability method (FORM) | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py`; `src/probstat/reliability/model_based.py`; `docs/foundations/advanced-reliability.md` |
+| ATHENS-5.3 | Failure probability | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py`; `src/probstat/reliability/certification.py`; `examples/risk_analysis_lab.py` |
+| ATHENS-5.4 | Rare-event probability estimation | Implemented | UQ-4 | `probstat.reliability.rare_events` | `src/probstat/reliability/analysis.py`; `examples/reliability_lab.py`; `src/probstat/reliability/simulation.py`; `src/probstat/reliability/particles.py`; `src/probstat/reliability/splitting.py`; `src/probstat/modeling/benchmarks.py`; `tests/test_rare_event_methods.py`; `examples/risk_analysis_lab.py` |
+| ATHENS-5.5 | Direct Monte Carlo reliability estimation | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py`; `examples/risk_analysis_lab.py` |
+| ATHENS-5.6 | Binomial confidence intervals for failure probability | Implemented | UQ-4 | `probstat.reliability` | `src/probstat/reliability/analysis.py`; `src/probstat/inference/confidence.py`; `src/probstat/reliability/certification.py`; `tests/test_wilks_and_certification.py` |
+| ATHENS-5.7 | First-order reliability method (FORM) | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py`; `src/probstat/reliability/model_based.py`; `docs/foundations/advanced-reliability.md`; `examples/risk_analysis_lab.py` |
 | ATHENS-5.8 | Reliability index beta | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py`; `src/probstat/reliability/model_based.py` |
 | ATHENS-5.9 | Constrained optimization for reliability analysis | Implemented | UQ-4 | `probstat.optimization` | `src/probstat/reliability/analysis.py`; `docs/foundations/reliability-analysis.md`; `src/probstat/reliability/model_based.py` |
-| ATHENS-5.10 | Most-probable failure point and design point | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py`; `src/probstat/reliability/model_based.py` |
-| ATHENS-5.11 | Directional sampling and reliability-method comparison | Implemented | UQ-4 | `probstat.reliability.directional` | `src/probstat/reliability/analysis.py`; `examples/reliability_lab.py`; `src/probstat/reliability/simulation.py` |
-| ATHENS-6.1 | Local sensitivity analysis | Implemented | UQ-5 | `probstat.sensitivity.local` | `src/probstat/sensitivity/analysis.py` |
-| ATHENS-6.2 | Global sensitivity analysis | Implemented | UQ-5 | `probstat.sensitivity.global_` | `src/probstat/sensitivity/analysis.py`; `docs/foundations/sensitivity-analysis.md` |
-| ATHENS-6.3 | Variance-based sensitivity decomposition | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `src/probstat/sensitivity/analysis.py` |
-| ATHENS-6.4 | Functional ANOVA decomposition | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `docs/foundations/sensitivity-analysis.md`; `docs/equation-registry.md` |
-| ATHENS-6.5 | First-order Sobol indices | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `src/probstat/sensitivity/analysis.py` |
+| ATHENS-5.10 | Most-probable failure point and design point | Implemented | UQ-4 | `probstat.reliability.form` | `src/probstat/reliability/analysis.py`; `src/probstat/reliability/model_based.py`; `src/probstat/reliability/design_points.py`; `examples/risk_analysis_lab.py` |
+| ATHENS-5.11 | Directional sampling and reliability-method comparison | Implemented | UQ-4 | `probstat.reliability.directional` | `src/probstat/reliability/analysis.py`; `examples/reliability_lab.py`; `src/probstat/reliability/simulation.py`; `src/probstat/reliability/directional.py`; `tests/test_rare_event_methods.py`; `examples/risk_analysis_lab.py` |
+| ATHENS-6.1 | Local sensitivity analysis | Implemented | UQ-5 | `probstat.sensitivity.local` | `src/probstat/sensitivity/analysis.py`; `src/probstat/sensitivity/taylor.py`; `tests/test_sobol_estimators_and_taylor.py`; `examples/flood_sensitivity_lab.py` |
+| ATHENS-6.2 | Global sensitivity analysis | Implemented | UQ-5 | `probstat.sensitivity.global_` | `src/probstat/sensitivity/analysis.py`; `docs/foundations/sensitivity-analysis.md`; `src/probstat/sensitivity/regression_based.py`; `src/probstat/sensitivity/hsic.py`; `tests/test_regression_and_hsic_sensitivity.py`; `examples/flood_sensitivity_lab.py` |
+| ATHENS-6.3 | Variance-based sensitivity decomposition | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `src/probstat/sensitivity/analysis.py`; `src/probstat/sensitivity/model_based.py`; `examples/flood_sensitivity_lab.py` |
+| ATHENS-6.4 | Functional ANOVA decomposition | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `docs/foundations/sensitivity-analysis.md`; `docs/equation-registry.md`; `src/probstat/sensitivity/model_based.py` |
+| ATHENS-6.5 | First-order Sobol indices | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `src/probstat/sensitivity/analysis.py`; `src/probstat/sensitivity/_sobol_estimators.py`; `tests/test_sobol_estimators_and_taylor.py`; `examples/flood_sensitivity_lab.py` |
 | ATHENS-6.6 | Second-order Sobol indices | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `src/probstat/sensitivity/analysis.py` |
-| ATHENS-6.7 | Total-effect Sobol indices | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `src/probstat/sensitivity/analysis.py` |
-| ATHENS-6.8 | Monte Carlo estimation of sensitivity indices | Implemented | UQ-5 | `probstat.sensitivity.estimation` | `src/probstat/sensitivity/analysis.py`; `tests/test_uq5_sensitivity.py` |
-| ATHENS-6.9 | Input-importance ranking | Implemented | UQ-5 | `probstat.sensitivity` | `src/probstat/sensitivity/analysis.py`; `examples/sensitivity_lab.py` |
-| ATHENS-6.10 | Dimension reduction using sensitivity results | Implemented | UQ-5 | `probstat.sensitivity` | `src/probstat/sensitivity/analysis.py` |
-| ATHENS-6.11 | Uncertainty-reduction strategy | Implemented | UQ-5 | `probstat.sensitivity` | `src/probstat/sensitivity/analysis.py`; `docs/foundations/sensitivity-analysis.md` |
+| ATHENS-6.7 | Total-effect Sobol indices | Implemented | UQ-5 | `probstat.sensitivity.sobol` | `src/probstat/sensitivity/analysis.py`; `src/probstat/sensitivity/_sobol_estimators.py`; `examples/flood_sensitivity_lab.py` |
+| ATHENS-6.8 | Monte Carlo estimation of sensitivity indices | Implemented | UQ-5 | `probstat.sensitivity.estimation` | `src/probstat/sensitivity/analysis.py`; `tests/test_uq5_sensitivity.py`; `src/probstat/sensitivity/_sobol_estimators.py`; `tests/test_sobol_estimators_and_taylor.py` |
+| ATHENS-6.9 | Input-importance ranking | Implemented | UQ-5 | `probstat.sensitivity` | `src/probstat/sensitivity/analysis.py`; `examples/sensitivity_lab.py`; `src/probstat/sensitivity/model_based.py`; `examples/flood_sensitivity_lab.py` |
+| ATHENS-6.10 | Dimension reduction using sensitivity results | Implemented | UQ-5 | `probstat.sensitivity` | `src/probstat/sensitivity/analysis.py`; `examples/flood_sensitivity_lab.py` |
+| ATHENS-6.11 | Uncertainty-reduction strategy | Implemented | UQ-5 | `probstat.sensitivity` | `src/probstat/sensitivity/analysis.py`; `docs/foundations/sensitivity-analysis.md`; `examples/flood_sensitivity_lab.py` |
 | ATHENS-7.1 | Forward versus inverse formulation | Implemented | UQ-6 | `probstat.inverse` | `docs/foundations/inverse-problems-and-calibration.md` |
 | ATHENS-7.2 | Observation models | Implemented | UQ-6 | `probstat.inverse.observation` | `src/probstat/inverse/observation.py` |
 | ATHENS-7.3 | Measurement-noise models | Implemented | UQ-6 | `probstat.inverse.observation` | `src/probstat/inverse/observation.py` |

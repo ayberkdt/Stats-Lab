@@ -888,11 +888,26 @@ def figure_directional_rays(
     """
     data = directional_study() if study is None else study
     result = data.result
+    # Share of the estimate from rays whose first root lies on one of the two
+    # inner (curved) branches rather than on the outer (straight) ones.
+    inner = 0.0
+    for (a1, a2), roots, share in zip(
+        data.directions, result.roots, result.ray_probabilities, strict=True
+    ):
+        if roots:
+            u1, u2 = roots[0] * a1, roots[0] * a2
+            curved = 3.0 + (u1 - u2) ** 2 / 10.0 - abs(u1 + u2) / math.sqrt(2.0)
+            straight = K / math.sqrt(2.0) - abs(u1 - u2)
+            if abs(curved) < abs(straight):
+                inner += share
+    counts = {len(roots) for roots in result.roots}
+    each = "one root each" if counts == {1} else "1 to " + str(max(counts)) + " roots"
     facts = {
         "rays": f"{result.rays}",
         "pf": f"{result.probability:.2e}",
         "cov": f"{result.coefficient_of_variation:.2f}",
         "calls": f"{result.evaluations:,}",
+        "inner": f"{100.0 * inner / math.fsum(result.ray_probabilities):.0f}%",
     }
     ax = theme.new_axes(figsize=(6.4, 6.6))
     palette = theme.active_palette()
@@ -910,9 +925,10 @@ def figure_directional_rays(
     theme.points(ax, xs, ys, entity="failed samples", size=16.0, zorder=4)
     theme.title_block(
         ax,
-        f"{facts['rays']} rays, one root each, give Pf = {facts['pf']} with "
+        f"{facts['rays']} rays, {each}, give Pf = {facts['pf']} with "
         f"c.o.v. {facts['cov']} for {facts['calls']} calls",
-        "Grey: ray to its root · green: root r, weight exp(-r^2/2) · shaded: failure",
+        f"Green: root r, weight exp(-r^2/2) · roots on the curved branches carry "
+        f"{facts['inner']} of Pf",
     )
     return ax.figure, facts
 
@@ -1232,9 +1248,10 @@ def main() -> None:
     )
     tolerance = wilks.tolerance
     print(
-        f"  two-sided 0.95/0.95 tolerance interval drops m = {tolerance.lower_rank} "
-        f"values per end: [{tolerance.lower:.3f}, {tolerance.upper:.3f}], "
-        f"confidence {tolerance.achieved_confidence:.4f}"
+        f"  two-sided 0.95/0.95 tolerance interval [Y_({tolerance.lower_rank}), "
+        f"Y_({tolerance.upper_rank})], {tolerance.lower_rank - 1} values dropped "
+        f"per end: [{tolerance.lower:.3f}, {tolerance.upper:.3f}], confidence "
+        f"{tolerance.achieved_confidence:.4f}"
     )
     print(
         f"  {WILKS_REPLICATES} replicates: empirical quantile below "
