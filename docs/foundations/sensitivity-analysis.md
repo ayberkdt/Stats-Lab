@@ -204,8 +204,8 @@ HSIC values depend on the kernels; compare inputs through
 `R2_HSIC = HSIC(X, Y) / sqrt(HSIC(X, X) HSIC(Y, Y))` and through the
 p-values of `H0: X_i independent of Y`, obtained either by permuting the
 output ([EQ-SENS-HSIC-004], exact level, `O(n^2)` per permutation and input,
-about 5 s per input for 200 permutations at `n = 1000`) or by the Gamma
-approximation to the null law of `n HSIC_b` ([EQ-SENS-HSIC-003], about 0.6 s
+about 6 s per input for 200 permutations at `n = 1000`) or by the Gamma
+approximation to the null law of `n HSIC_b` ([EQ-SENS-HSIC-003], about 0.7 s
 per input at `n = 1000`). `target=c` replaces `Y` by `1{Y > c}`
 ([EQ-SENS-HSIC-005]) and measures the influence of each input on the
 occurrence of the critical event rather than on the whole output

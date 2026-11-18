@@ -37,7 +37,7 @@ p-values are comparable across inputs measured in different units.
 Cost. Each input needs one ``n x n`` Gram matrix, so time and memory are
 ``O(n^2)`` per input (about 0.2 s and 4 MB for ``n = 1000`` in pure
 Python); a permutation test adds ``O(n^2)`` per permutation and input,
-shared output permutations keep it to roughly ``0.02 s`` per permutation and
+shared output permutations keep it to roughly ``0.03 s`` per permutation and
 input at ``n = 1000``.
 """
 
