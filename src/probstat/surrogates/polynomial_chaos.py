@@ -31,6 +31,7 @@ from probstat.distributions import Uniform
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import require_finite_real
 from probstat.linalg import (
+    HouseholderQR,
     Matrix,
     Vector,
     as_vector,
@@ -96,8 +97,16 @@ def multi_indices(
     if not 0.0 < q <= 1.0:
         raise ValueError("q_norm must lie in (0, 1]")
 
-    def compositions(total: int, slots: int) -> list[MultiIndex]:
-        """Return all non-negative integer vectors of a given sum.
+    tolerance = 1e-12 * max(1.0, degree)
+    # Prune on the q-th power budget: for q <= 1 the cheapest way to spend m
+    # remaining units on any number of slots is one slot (m^q is subadditive),
+    # so a prefix whose cost plus (remaining)^q exceeds p^q has no admissible
+    # completion. The slack keeps the pruning strictly looser than the exact
+    # leaf test below, so the selected set is unchanged.
+    budget = (degree + tolerance) ** q * (1.0 + 1e-9) + 1e-12
+
+    def compositions(total: int, slots: int, spent: float) -> list[MultiIndex]:
+        """Return the admissible vectors of a given sum in reverse-lex order.
 
         References:
             [EQ-SUR-PCE-004], [REF-SUDRET-2008].
@@ -107,15 +116,18 @@ def multi_indices(
             return [(total,)]
         result: list[MultiIndex] = []
         for first in range(total, -1, -1):
+            cost = spent + (first**q if first else 0.0)
+            remaining = total - first
+            if cost + (remaining**q if remaining else 0.0) > budget:
+                continue
             result.extend(
-                (first, *rest) for rest in compositions(total - first, slots - 1)
+                (first, *rest) for rest in compositions(remaining, slots - 1, cost)
             )
         return result
 
-    tolerance = 1e-12 * max(1.0, degree)
     selected: list[MultiIndex] = []
     for total in range(degree + 1):
-        for alpha in compositions(total, dimension):
+        for alpha in compositions(total, dimension, 0.0):
             norm = (
                 math.fsum(a**q for a in alpha if a > 0) ** (1.0 / q) if total else 0.0
             )
@@ -205,6 +217,96 @@ class PolynomialChaosSobol:
     variance: float
 
 
+@dataclass(frozen=True, slots=True)
+class SparseChaosCandidate:
+    """Basis-selection path on one truncation set of a sparse PCE fit.
+
+    The constant term is always in the model and is not ranked. Step ``k``
+    of the path is the least-squares refit on the constant plus the first
+    ``k`` entries of ``entry_order``.
+
+    Args:
+        degree: Maximal total degree ``p`` of the truncation set.
+        q_norm: Hyperbolic norm ``q`` of the truncation set.
+        candidate_size: Number of terms ``P`` in the truncation set,
+            including the constant.
+        entry_order: Non-constant multi-indices in the order the selection
+            method (LAR or OMP) added them; with early stopping the ranking
+            ends where the path was cut.
+        loo_path: Relative corrected leave-one-out error of step
+            ``k = 0, ..., len(entry_order)``; ``inf`` where the refit has no
+            finite estimate.
+        selected_terms: Number ``k*`` of entered terms kept.
+        corrected_loo_error: ``loo_path[selected_terms]``.
+
+    References:
+        [REF-BLATMAN-SUDRET-2011], [REF-EFRON-HASTIE-JOHNSTONE-TIBSHIRANI-2004].
+
+    """
+
+    degree: int
+    q_norm: float
+    candidate_size: int
+    entry_order: tuple[MultiIndex, ...]
+    loo_path: Vector
+    selected_terms: int
+    corrected_loo_error: float
+
+
+@dataclass(frozen=True, slots=True)
+class SparseChaosSelection:
+    """Diagnostics of a sparse PCE fit over degrees and hyperbolic norms.
+
+    Args:
+        method: ``"lar"`` (hybrid least-angle regression) or ``"omp"``
+            (orthogonal matching pursuit).
+        candidates: One selection path per visited truncation set, in the
+            order they were fitted.
+        best: Position in ``candidates`` of the retained truncation set.
+
+    References:
+        [REF-BLATMAN-SUDRET-2011], [REF-EFRON-HASTIE-JOHNSTONE-TIBSHIRANI-2004].
+
+    """
+
+    method: str
+    candidates: tuple[SparseChaosCandidate, ...]
+    best: int
+
+    @property
+    def chosen(self) -> SparseChaosCandidate:
+        """Return the retained truncation set's selection path.
+
+        References:
+            [REF-BLATMAN-SUDRET-2011].
+
+        """
+        return self.candidates[self.best]
+
+    @property
+    def entry_order(self) -> tuple[MultiIndex, ...]:
+        """Return the ranking of non-constant terms on the retained set.
+
+        References:
+            [REF-EFRON-HASTIE-JOHNSTONE-TIBSHIRANI-2004].
+
+        """
+        return self.chosen.entry_order
+
+    @property
+    def loo_path(self) -> Vector:
+        """Return the corrected LOO error per step on the retained set.
+
+        Equation:
+            [EQ-SUR-SPCE-003].
+
+        References:
+            [REF-BLATMAN-SUDRET-2011].
+
+        """
+        return self.chosen.loo_path
+
+
 @dataclass(frozen=True)
 class PolynomialChaosExpansion:
     """A fitted polynomial chaos surrogate of one quantity of interest.
@@ -223,10 +325,18 @@ class PolynomialChaosExpansion:
             / Var(y)``.
         degree: Maximal total degree ``p``.
         q_norm: Hyperbolic truncation norm ``q``.
+        corrected_loo_error: ``loo_error`` times the small-sample factor
+            ``T = N/(N-P) (1 + tr((Psi'Psi)^-1))`` of the fitted basis;
+            ``nan`` when not computed.
+        candidate_size: Size of the truncation set the terms were selected
+            from (equal to ``size`` for a full least-squares fit; ``None``
+            when not recorded).
+        selection: Basis-selection diagnostics of a sparse fit
+            (:class:`SparseChaosSelection`); ``None`` for a full fit.
 
     References:
         [REF-XIU-KARNIADAKIS-2002], [REF-SUDRET-2008],
-        [REF-BLATMAN-SUDRET-2011].
+        [REF-BLATMAN-SUDRET-2011], [REF-CHAPELLE-VAPNIK-BENGIO-2002].
 
     """
 
@@ -241,6 +351,9 @@ class PolynomialChaosExpansion:
     empirical_error: float
     degree: int
     q_norm: float
+    corrected_loo_error: float = math.nan
+    candidate_size: int | None = None
+    selection: SparseChaosSelection | None = None
 
     @property
     def size(self) -> int:
@@ -514,7 +627,7 @@ def polynomial_chaos_from_samples(
         quantity: Label of the approximated quantity.
 
     Returns:
-        Fitted expansion with LOO and empirical errors.
+        Fitted expansion with LOO, corrected LOO, and empirical errors.
 
     Raises:
         ValueError: If there are fewer samples than basis terms, the design
@@ -523,10 +636,11 @@ def polynomial_chaos_from_samples(
 
     Equation:
         [EQ-SUR-PCE-001], [EQ-SUR-PCE-004], [EQ-SUR-PCE-005],
-        [EQ-SUR-PCE-006].
+        [EQ-SUR-PCE-006], [EQ-SUR-SPCE-003].
 
     References:
         [REF-BLATMAN-SUDRET-2011], [REF-SUDRET-2008],
+        [REF-CHAPELLE-VAPNIK-BENGIO-2002],
         [REF-GOLUB-VANLOAN-2013, Section 5.3].
 
     """
@@ -556,6 +670,110 @@ def polynomial_chaos_from_samples(
             "dependent on earlier columns (|R_jj| <= 1e-10 ||psi_j|| in the "
             "Householder QR of Psi); increase the design size or lower the degree"
         )
+    coefficients, loo, empirical, corrected = _least_squares_errors(
+        rows, responses, factor
+    )
+    return PolynomialChaosExpansion(
+        inputs,
+        basis,
+        indices,
+        coefficients,
+        quantity,
+        design,
+        responses,
+        loo,
+        empirical,
+        degree,
+        q_norm,
+        corrected_loo_error=corrected,
+        candidate_size=terms,
+    )
+
+
+def _inverse_upper_frobenius_squared(upper: Matrix) -> float:
+    """Return ``||R^-1||_F^2 = tr((R'R)^-1)`` for an upper-triangular ``R``.
+
+    Column ``j`` of ``X = R^-1`` is upper triangular and found by back
+    substitution, ``X_jj = 1/R_jj`` and
+    ``X_ij = -sum_(k=i+1..j) R_ik X_kj / R_ii``, about ``P^3/6`` products.
+
+    Args:
+        upper: Non-singular ``P`` by ``P`` upper-triangular matrix.
+
+    Returns:
+        Sum of squared entries of ``R^-1``.
+
+    Equation:
+        [EQ-SUR-SPCE-003].
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 3.1].
+
+    """
+    size = len(upper)
+    total: list[float] = []
+    for j in range(size):
+        column = [0.0] * (j + 1)
+        column[j] = 1.0 / upper[j][j]
+        for i in range(j - 1, -1, -1):
+            row = upper[i]
+            column[i] = -_dot(row[i + 1 : j + 1], column[i + 1 : j + 1]) / row[i]
+        total.append(_dot(column, column))
+    return math.fsum(total)
+
+
+def _corrected_loo_factor(count: int, terms: int, trace: float) -> float:
+    """Return the small-sample LOO correction ``T(P, N)``.
+
+    ``T = N/(N-P) (1 + tr((Psi'Psi)^-1))``, equivalently
+    ``N/(N-P) (1 + tr(C^-1)/N)`` with ``C = Psi'Psi/N``. For an orthonormal
+    design ``tr(C^-1) ~= P`` and ``T ~= (N+P)/(N-P)``; the factor inflates the
+    plain LOO error when ``P`` is not small next to ``N``.
+
+    Args:
+        count: Number of samples ``N``.
+        terms: Number of regressors ``P``.
+        trace: ``tr((Psi'Psi)^-1)``.
+
+    Returns:
+        ``T``, or ``inf`` when ``N <= P``.
+
+    Equation:
+        [EQ-SUR-SPCE-003].
+
+    References:
+        [REF-BLATMAN-SUDRET-2011], [REF-CHAPELLE-VAPNIK-BENGIO-2002].
+
+    """
+    if count <= terms:
+        return math.inf
+    return count / (count - terms) * (1.0 + trace)
+
+
+def _least_squares_errors(
+    rows: Sequence[Sequence[float]], responses: Vector, factor: HouseholderQR
+) -> tuple[Vector, float, float, float]:
+    """Return coefficients and relative LOO, empirical, and corrected LOO errors.
+
+    Args:
+        rows: Design-matrix rows ``psi_i``.
+        responses: Responses ``y_i``.
+        factor: Full-rank Householder factorization of the design matrix.
+
+    Returns:
+        ``(c, epsilon_LOO, epsilon_emp, T epsilon_LOO)``.
+
+    Raises:
+        ValueError: If the responses are constant.
+
+    Equation:
+        [EQ-SUR-PCE-005], [EQ-SUR-PCE-006], [EQ-SUR-SPCE-003].
+
+    References:
+        [REF-BLATMAN-SUDRET-2011], [REF-GOLUB-VANLOAN-2013, Section 5.3].
+
+    """
+    count = len(responses)
     q_columns = list(zip(*factor.q, strict=True))
     projected = tuple(_dot(column, responses) for column in q_columns)
     coefficients = solve_upper(factor.r, projected)
@@ -574,19 +792,11 @@ def polynomial_chaos_from_samples(
             squared_loo.append(math.inf)
         else:
             squared_loo.append((residual / (1.0 - leverage)) ** 2)
-    return PolynomialChaosExpansion(
-        inputs,
-        basis,
-        indices,
-        coefficients,
-        quantity,
-        design,
-        responses,
-        math.fsum(squared_loo) / count / output_variance,
-        math.fsum(squared_residuals) / count / output_variance,
-        degree,
-        q_norm,
-    )
+    loo = math.fsum(squared_loo) / count / output_variance
+    empirical = math.fsum(squared_residuals) / count / output_variance
+    trace = _inverse_upper_frobenius_squared(factor.r)
+    corrected = loo * _corrected_loo_factor(count, len(factor.r), trace)
+    return coefficients, loo, empirical, corrected
 
 
 def fit_polynomial_chaos(

@@ -16439,3 +16439,71 @@ if `a < 0.3`, `t_f <- arcsin(sin t_f exp((a - 0.3)/2))`; if `a > 0.5`,
   the band `[0.3, 0.5]`.
 - Code: `reliability.subset_simulation` (`sampler="hmc"`).
 - Source: [REF-WANG-BROCCARDO-SONG-2019].
+
+### EQ-SUR-SPCE-001 — Least-angle regression step
+
+On centred unit-norm columns `X` with correlations `c = X'(y - mu)`,
+`C = max_j |c_j|`, active set `A` and signs `s_j = sign(c_j)`:
+`G_A = X_A' X_A`, `A_A = (s' G_A^-1 s)^(-1/2)`,
+`u_A = A_A X_A G_A^-1 s`, `a = X' u_A`, and `mu <- mu + gamma u_A` with
+`gamma = min+_(j not in A) {(C - c_j)/(A_A - a_j), (C + c_j)/(A_A + a_j)}`,
+or `gamma = C / A_A` (least squares on `A`) when no column may enter.
+
+- Domain: `N >= 2` rows; columns constant on the rows, or numerically in
+  the span of the active ones, never enter; at most `min(m, N - 1)` steps.
+- Meaning: every active column keeps the same absolute correlation with
+  the residual, which falls until an inactive column ties; the entry order
+  ranks the regressors. Centring absorbs the intercept (the constant PCE
+  term, which is always kept and not ranked).
+- Code: `surrogates.least_angle_regression`,
+  `surrogates.sparse_polynomial_chaos_from_samples`.
+- Source: [REF-EFRON-HASTIE-JOHNSTONE-TIBSHIRANI-2004].
+
+### EQ-SUR-SPCE-002 — Orthogonal matching pursuit selection
+
+`j_(k+1) = argmax_(j not in A_k) |psi_j' r_k| / ||psi_j - mean(psi_j)||`,
+`r_k = y - Psi_(A_k) c_(A_k)` the least-squares residual on the constant
+and the `k` terms selected so far.
+
+- Domain: as [EQ-SUR-SPCE-001]; the residual is recomputed by least squares
+  after every addition.
+- Meaning: greedy forward selection of the term most correlated with what
+  the current fit misses; the nested sets are then scored by
+  [EQ-SUR-SPCE-003] exactly as for LAR. It fits the training runs more
+  aggressively than LAR, so its corrected LOO error is more optimistic.
+- Code: `surrogates.sparse_polynomial_chaos_from_samples` (`method="omp"`).
+- Source: [REF-BLATMAN-SUDRET-2011] for the LOO-based choice of the nested
+  set; the selection rule is the standard orthogonal matching pursuit.
+
+### EQ-SUR-SPCE-003 — Corrected leave-one-out error
+
+`epsilon*_LOO = T(P, N) epsilon_LOO` with
+`T(P, N) = N/(N-P) (1 + tr((Psi'Psi)^-1)) = N/(N-P) (1 + tr(C^-1)/N)`,
+`C = Psi'Psi / N`, and `tr((Psi'Psi)^-1) = ||R^-1||_F^2` for `Psi = Q R`.
+
+- Domain: `N > P`, full-rank `Psi`; `epsilon_LOO` from [EQ-SUR-PCE-006].
+- Meaning: the plain LOO error is optimistic when `P` is not small next to
+  `N`; for an orthonormal design `tr(C^-1) ~= P` and `T ~= (N+P)/(N-P)`.
+- Code: `surrogates.PolynomialChaosExpansion.corrected_loo_error`,
+  `surrogates.polynomial_chaos_from_samples`,
+  `surrogates.SparseChaosSelection.loo_path`.
+- Source: [REF-BLATMAN-SUDRET-2011] and [REF-CHAPELLE-VAPNIK-BENGIO-2002].
+
+### EQ-SUR-SPCE-004 — Hybrid LAR selection over degrees and q-norms
+
+`(p*, q*, k*) = argmin epsilon*_LOO(A_k(p, q))` over the requested degrees
+`p`, norms `q`, and steps `k`, where `A_k(p, q)` is the constant plus the
+first `k` terms ranked by [EQ-SUR-SPCE-001] (or [EQ-SUR-SPCE-002]) on the
+truncation set `A_(p,q)` of [EQ-SUR-PCE-004], each refitted by
+[EQ-SUR-PCE-005].
+
+- Domain: `N >= 3`; `k <= N - 2`, so the set may be larger than the design.
+- Meaning: LAR only ranks the terms; ordinary least squares on each nested
+  set removes the LAR shrinkage, and the corrected LOO error chooses the
+  sparsity, the degree, and the norm. Early stopping (a computational
+  choice) cuts a path after `max(10, ceil(0.1 k_max))` steps without
+  improvement and the degree loop after two degrees without improvement.
+- Code: `surrogates.sparse_polynomial_chaos_from_samples`,
+  `surrogates.fit_sparse_polynomial_chaos`,
+  `surrogates.SparseChaosSelection`.
+- Source: [REF-BLATMAN-SUDRET-2011].

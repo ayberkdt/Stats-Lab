@@ -77,7 +77,128 @@ variance to the independent Nataf variables rather than to the physical
 inputs, so `sobol_indices()` raises for dependent inputs instead of returning
 misleading numbers.
 
-## 2. Gaussian-process regression
+## 2. Sparse polynomial chaos
+
+A full least-squares fit needs more runs than basis terms: 288 for the
+degree-10 Ishigami fit above, and more than 286 for a cubic in ten inputs.
+Most of those coefficients are usually negligible. `fit_sparse_polynomial_chaos`
+keeps only the terms that matter, following the hybrid least-angle
+regression of Blatman and Sudret:
+
+1. **Ranking.** Least-angle regression (LAR) [EQ-SUR-SPCE-001] runs on the
+   centred, unit-norm basis columns. Each step moves the fit along the
+   direction equiangular to all active columns until an inactive column is
+   as correlated with the residual as they are; that column enters next.
+   The constant term is always kept and is not ranked (centring removes it
+   from the LAR problem). `method="omp"` ranks by orthogonal matching
+   pursuit instead [EQ-SUR-SPCE-002]: each step adds the column most
+   correlated with the current least-squares residual.
+2. **Hybrid refit.** Every nested set, the constant plus the first `k`
+   ranked terms, is refitted by ordinary least squares, which removes the
+   LAR shrinkage. Each refit is scored by the corrected leave-one-out error
+   [EQ-SUR-SPCE-003], `T epsilon_LOO` with
+   `T = N/(N-P) (1 + tr((Psi'Psi)^-1))`. The factor penalizes sets whose
+   size `P` is not small next to `N`. The nested refits share one
+   Gram-Schmidt factorization that grows by a column per step, so a whole
+   path costs about one least-squares fit of its largest set.
+3. **Adaptivity.** The selection runs on the truncation set `A_(p,q)` of
+   every requested degree and norm (`degrees=range(...)`, `q_norms=(...)`),
+   and the `(p, q, k)` with the smallest corrected error wins
+   [EQ-SUR-SPCE-004]. The winner is refitted by Householder QR.
+
+At most `N - 2` terms enter, so the truncation set may be larger than the
+design. With `early_stop=True` (the default) a path stops after
+`max(10, ceil(0.1 k_max))` steps without improvement, and the degree loop
+stops after two degrees without improvement. Errors below `1e-20` count as
+an exact fit, so among exact sets the sparsest is kept. These thresholds are
+computational choices. The full fit of section 1 now also reports
+`corrected_loo_error`.
+
+The result is an ordinary `PolynomialChaosExpansion`: `mean`, `variance`,
+`sobol_indices()`, `predict`, and `surrogate_probabilistic_model` work on the
+selected terms. `candidate_size` is the size of the truncation set the terms
+came from. `selection` records every visited set: its LAR (or OMP) entry
+order, which ranks the basis terms, the corrected LOO error of every step,
+and the step kept. `least_angle_regression(matrix, response)` returns the
+LAR path of any regressors, with the entry order, the correlation level, and
+the coefficients at every knot.
+
+```python
+from probstat.modeling import flood_model
+from probstat.surrogates import fit_sparse_polynomial_chaos
+
+flood = fit_sparse_polynomial_chaos(
+    flood_model(), "overflow", size=150, degrees=range(1, 6), q_norms=(0.75,), seed=1
+)
+flood.degree, flood.candidate_size, flood.size  # (5, 237, 30)
+flood.corrected_loo_error                       # 0.0030
+flood.selection.entry_order[:2]                 # ((1, 0, 0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 1, 0, 0, 0))
+```
+
+The first two ranked terms are the linear terms in `Q` and `Hd`, the two
+inputs with the largest Sobol indices. The visited degrees 1 to 5 have
+corrected errors 0.046, 0.036, 0.0078, 0.0067, and 0.0030.
+
+**Exactness check.** Ten independent standard normals and an exact
+expansion with four non-constant Hermite terms of degree at most 3
+(`x_1`, `x_3^2`, `x_5 x_8`, `x_7^3`): from 60 LHS runs (`seed=1`), fewer
+than the 286 terms of the cubic set, LAR and OMP both select exactly the
+four terms and the constant and reproduce the coefficients to `4.4e-16`,
+with corrected LOO error below `1e-30`. Exact recovery is not guaranteed at
+that size: with `seed=4`, LAR ranked an interaction `x_5 x_6 x_7` before the
+cubic term; it stays in the selected exact set with a refitted coefficient
+of `9e-17`.
+
+**Ishigami** (Legendre basis, LHS, `seed=1`, `degrees=range(2, 17)`,
+`q_norms=(0.5, 0.75)`). The validation error is the relative mean squared
+error on 5000 independent Monte Carlo points (`make_design("mc", 5000, 3,
+seed=resolve_stream(999))`); the index error is the largest absolute error
+among the six first-order and total indices against the analytic values:
+
+| fit | runs | `p` / `q` | candidate terms | kept | LOO | corrected LOO | validation | index error |
+|---|---|---|---|---|---|---|---|---|
+| full OLS (section 1) | 288 | 10 / 0.75 | 144 | 144 | 1.8e-3 | 1.8e-2 | 7.9e-4 | 6e-4 |
+| LAR | 100 | 14 / 0.75 | 325 | 50 | 2.9e-8 | 1.4e-7 | 9.0e-8 | 1.6e-5 |
+| LAR | 150 | 14 / 0.75 | 325 | 58 | 5.1e-10 | 1.6e-9 | 3.6e-9 | 5.2e-6 |
+| LAR | 200 | 16 / 0.75 | 445 | 39 | 1.4e-9 | 2.2e-9 | 1.6e-9 | 1.2e-6 |
+| OMP | 150 | 16 / 0.75 | 445 | 82 | 2.8e-11 | 1.7e-10 | 6.7e-9 | 3.9e-6 |
+
+With 100 runs the sparse fit is four orders of magnitude more accurate than
+the full fit with 288, because it can afford degree 14 while keeping only
+50 terms.
+
+**Flood overflow** (Hermite basis on the Nataf transform of the eight
+non-Gaussian inputs, LHS, `seed=1`, `degrees=range(1, 9)`,
+`q_norms=(0.5, 0.75)`; first-order / total indices). The reference columns
+are the sampled Sobol estimates of the
+[sensitivity guide](sensitivity-analysis.md) (4096 runs, 8 replicates,
+half-widths at most 0.003):
+
+| fit | runs | `p` / `q` | kept | corrected LOO | validation | `Q` | `Hd` | `Zv` | `Ks` | `Cb` |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Sobol sampling | | | | | | 0.344 / 0.352 | 0.284 / 0.284 | 0.190 / 0.190 | 0.134 / 0.142 | 0.036 / 0.036 |
+| LAR | 100 | 7 / 0.5 | 28 | 3.9e-3 | 5.4e-3 | 0.348 / 0.357 | 0.283 / 0.283 | 0.185 / 0.185 | 0.137 / 0.145 | 0.036 / 0.036 |
+| LAR | 150 | 5 / 0.5 | 27 | 2.9e-3 | 1.9e-3 | 0.344 / 0.352 | 0.285 / 0.285 | 0.189 / 0.189 | 0.133 / 0.140 | 0.036 / 0.036 |
+| LAR | 200 | 7 / 0.5 | 41 | 6.7e-4 | 5.4e-4 | 0.344 / 0.353 | 0.283 / 0.283 | 0.190 / 0.190 | 0.134 / 0.143 | 0.036 / 0.036 |
+| OMP | 150 | 7 / 0.75 | 70 | 2.2e-4 | 3.0e-3 | 0.340 / 0.350 | 0.287 / 0.287 | 0.189 / 0.190 | 0.135 / 0.144 | 0.034 / 0.034 |
+
+From 100 to 200 runs every index is within 0.006 of the sampled estimate.
+Two points about the error estimates:
+
+- **LAR.** The corrected LOO error stays within a factor of 2.3 of the
+  validation error in these runs, on either side (3.9e-3 against 5.4e-3 at
+  100 flood runs, 2.9e-3 against 1.9e-3 at 150, 1.6e-9 against 3.6e-9 at
+  150 Ishigami runs). The terms are chosen on the
+  same runs that score them, so the estimate is not unbiased.
+- **OMP.** OMP fits the training runs more aggressively: its corrected LOO
+  error is 14 times below the validation error on the flood model and 40
+  times below it on Ishigami. Its accuracy is comparable to that of LAR,
+  but its error estimate is not trustworthy; prefer `method="lar"`.
+
+For the full fit with `P / N = 0.5` the correction runs the other way: the
+corrected error, 1.8e-2, is 23 times the validation error.
+
+## 3. Gaussian-process regression
 
 A GP prior `f ~ GP(0, k)` conditioned on training runs gives a Gaussian
 predictive law: the mean interpolates the data, and the variance grows away
@@ -152,7 +273,7 @@ construction, whatever the optimizer does. The default of
 `fit_gaussian_process` is still the unregularized fit, so existing results do
 not change; `reliability.ak_mcs` uses the regularized fit by default.
 
-## 3. Surrogates inside the central model
+## 4. Surrogates inside the central model
 
 `surrogate_probabilistic_model(model, {"y": surrogate})` wraps any object with
 `predict(x)` in a `SurrogateModel` forward model. The result is a new
@@ -171,10 +292,13 @@ computed on a surrogate.
 
 ## Limitations
 
-- PCE: ordinary least squares on a fixed truncation only. There is no sparse
-  regression (LARS/OMP), no adaptive degree selection, no arbitrary
-  Wiener-Askey families beyond Hermite and Legendre, and no quadrature
-  projection.
+- PCE: Hermite and Legendre bases only (no other Wiener-Askey families) and
+  no quadrature projection. Sparse selection offers LAR without the lasso
+  modification and OMP; there is no Bayesian compressive sensing or subspace
+  pursuit. Its error estimate is computed on the runs that chose the basis,
+  and its early-stopping thresholds are computational choices. All algebra
+  is dense pure Python and a LAR or OMP step costs `O(N P)`; each Ishigami
+  fit above (29 truncation sets of up to 445 terms) took 5 to 7 s here.
 - GP: constant (centered) mean only, no universal kriging trend, stationary
   kernels, dense `O(n^3)` algebra, and hyperparameters restricted to
   `|log theta| <= 25` (narrower, data-dependent bounds with `regularization`;
@@ -195,6 +319,10 @@ computed on a surrogate.
 - **Read the leave-one-out error first.** A PCE whose `loo_error` exceeds one
   predicts held-out points worse than the output mean, and its moments and
   indices are not usable.
+- **Sparse fits.** Report `corrected_loo_error`, not `loo_error`, for a
+  sparse fit. Prefer `method="lar"`: the OMP error estimate was more than an
+  order of magnitude too optimistic in the benchmarks above. A selected
+  degree at the top of `degrees` suggests the range may be too small.
 - **Basis and inputs.** `basis="hermite"` is the default for every input law;
   `basis="legendre"` is refused unless all inputs are independent uniforms.
 - **Seeds.** The fitters default to `seed=None`, which is not reproducible.
@@ -229,5 +357,7 @@ refused  # "the Legendre basis requires Uniform marginals; 'x' is not uniform"
 
 - [REF-XIU-KARNIADAKIS-2002], [REF-SUDRET-2008], [REF-SUDRET-2007],
   [REF-BLATMAN-SUDRET-2011], [REF-NIST-DLMF-ORTHOGONAL].
+- [REF-EFRON-HASTIE-JOHNSTONE-TIBSHIRANI-2004] for least-angle regression and
+  [REF-CHAPELLE-VAPNIK-BENGIO-2002] for the corrected leave-one-out error.
 - [REF-RASMUSSEN-WILLIAMS-2006, Chapters 2, 4, and 5].
 - [REF-SALTELLI-2008, Chapter 4] for the Ishigami benchmark.
