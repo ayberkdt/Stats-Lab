@@ -4296,3 +4296,41 @@ Uncertainty Analysis for Computer Models." *Proceedings of the First
 International Symposium on Uncertainty Modeling and Analysis (ISUMA'90)*,
 398-403, 1990.
 DOI: [10.1109/ISUMA.1990.151285](https://doi.org/10.1109/ISUMA.1990.151285).
+
+## REF-GUYADER-HENGARTNER-MATZNERLOBER-2011
+
+Arnaud Guyader, Nicolas Hengartner, and Eric Matzner-Løber. "Simulation and
+Estimation of Extreme Quantiles and Extreme Probabilities." *Applied
+Mathematics & Optimization* 64(2), 171-196, 2011. The last-particle
+algorithm, the estimator `(1 - 1/N)^M`, and its Poisson-process analysis.
+DOI: [10.1007/s00245-011-9135-z](https://doi.org/10.1007/s00245-011-9135-z).
+
+## REF-WALTER-2015
+
+Clément Walter. "Moving Particles: A Parallel Optimal Multilevel Splitting
+Method with Application in Quantiles Estimation and Meta-Model Based
+Algorithms." *Structural Safety* 55, 10-25, 2015. Moving particles in
+structural reliability, the Poisson law of the number of moves, and its
+confidence intervals.
+DOI: [10.1016/j.strusafe.2015.02.002](https://doi.org/10.1016/j.strusafe.2015.02.002).
+
+## REF-BJERAGER-1988
+
+Peter Bjerager. "Probability Integration by Directional Simulation."
+*Journal of Engineering Mechanics* (ASCE) 114(8), 1285-1302, 1988.
+DOI: [10.1061/(ASCE)0733-9399(1988)114:8(1285)](https://doi.org/10.1061/(ASCE)0733-9399(1988)114:8(1285)).
+
+## REF-COTTER-ROBERTS-STUART-WHITE-2013
+
+Simon L. Cotter, Gareth O. Roberts, Andrew M. Stuart, and David White.
+"MCMC Methods for Functions: Modifying Old Algorithms to Make Them Faster."
+*Statistical Science* 28(3), 424-446, 2013. The preconditioned
+Crank-Nicolson proposal.
+DOI: [10.1214/13-STS421](https://doi.org/10.1214/13-STS421).
+
+## REF-LAGNOUX-2006
+
+Agnès Lagnoux. "Rare Event Simulation." *Probability in the Engineering and
+Informational Sciences* 20(1), 45-66, 2006. Optimal number of levels and
+conditional probabilities of ideal splitting (about 0.2 per level).
+DOI: [10.1017/S0269964806060025](https://doi.org/10.1017/S0269964806060025).

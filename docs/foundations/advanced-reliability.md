@@ -197,6 +197,149 @@ and correlations `(0.6, 0.8, 0)`. Its bounds and estimate:
 - Ditlevsen bounds: `[0.011813, 0.011829]`.
 - Mixture importance sampling (20000 draws, `seed=3`): `0.01195 +/- 0.00014`.
 
+## 8. Conditioned sampling, moving particles, and directional simulation
+
+### Conditioned sampling and its optimal strategy
+
+Write the failure event as the last of nested events
+`{G <= b_1} ⊃ {G <= b_2} ⊃ ... ⊃ {G <= b_M = 0}`. Then
+`P(G <= 0) = prod_m P_m` with `P_m = P(G <= b_m | G <= b_{m-1})`, and each
+`P_m` is a moderate probability that a modest sample can estimate. If the
+levels are chosen so that every `P_m = p^(1/M)` and each one is estimated
+from `N/M` independent draws of the conditional law, each level estimate has
+squared coefficient of variation `delta_0^2 = (p^(-1/M) - 1) M / N`, and the
+product has `delta^2 = (delta_0^2 + 1)^M - 1` [EQ-REL-SPLIT-001]. One level is
+crude Monte Carlo, `delta^2 = (1 - p)/(p N)`.
+
+For a large budget, `delta^2 ~ (ln p)^2 (e^x - 1)/(x^2 N)` with
+`x = -ln(p)/M`. The minimum is at the root `x* = 1.5936` of
+`x e^x = 2(e^x - 1)`: about `M = -0.6275 ln p` levels, each with conditional
+probability `exp(-x*) = 0.2032`, whatever `p` and `N` are
+[EQ-REL-SPLIT-002]. `optimal_splitting(p, budget)` returns the integer
+optimum of the exact formula, the continuous optimum, and, for the same
+budget, the crude Monte Carlo c.o.v. and the ideal moving-particles c.o.v.
+`splitting_coefficient_of_variation(p, levels, budget)` evaluates the
+formula for any level count.
+
+For `p = 2.2245e-3` and `N = 10000`, `optimal_splitting` gives `M = 4`
+levels (`p^(1/4) = 0.217`) and c.o.v. 0.076; the continuous optimum is
+`M = 3.83`. Crude Monte Carlo with the same budget has c.o.v. 0.212.
+
+The optimum is a benchmark, not a recipe. It needs the thresholds `b_m`,
+which depend on the unknown `p`, and it assumes independent exact draws from
+each conditional law. Practical methods set the levels adaptively from the
+sample (subset simulation with `p_0 = 0.1`, moving particles) and draw the
+conditional samples by Markov chains, whose correlation inflates the
+variance above the ideal value.
+
+### Moving particles
+
+`moving_particles(state, particles=N, steps=Q, correlation=rho, seed=...)`
+is the last-particle algorithm: the extreme case of adaptive splitting in
+which each level discards a single particle. `N` standard-normal particles
+are drawn. While the largest value `L = max G` is positive, that particle is
+replaced by a draw from the standard normal law restricted to `G < L`,
+obtained by a chain of `Q` steps started from another particle chosen at
+random. Each step proposes `v = rho u + sqrt(1 - rho^2) z` and accepts it
+exactly when `G(v) < L` [EQ-REL-PCN-001]; the proposal is reversible with
+respect to the standard normal law, so the restricted law is invariant.
+After `M` moves every particle fails and `p_hat = (1 - 1/N)^M`.
+
+With exact conditional sampling, the levels form a Poisson process in
+`-ln P(G <= L)` with intensity `N`. Then `M ~ Poisson(-N ln p)`, the
+estimator is unbiased, `Var(p_hat) = p^2 (p^(-1/N) - 1)`, and the c.o.v. is
+close to `sqrt(-ln(p)/N)` [EQ-REL-MP-001]. Garwood's exact interval
+`(lambda_lo, lambda_hi)` for the Poisson mean of `M` (quantiles
+`chi2_{alpha/2}(2M)/2` and `chi2_{1-alpha/2}(2M+2)/2`) maps to
+`[exp(-lambda_hi/N), exp(-lambda_lo/N)]` for `p`. The endpoints swap because
+`p = exp(-lambda/N)` decreases in `lambda` [EQ-REL-MP-002]. The result
+carries the estimate, this interval, `M`, the model evaluations `N + M Q`,
+the level sequence, the mean acceptance rate, and the final particles. The
+interval and the c.o.v. assume ideal sampling: a chain with few steps or a
+low acceptance rate leaves the new particle correlated with its starting
+particle, and the real spread is then larger than reported.
+
+The expected cost is `N (1 - Q ln p)` calls. At equal cost, crude Monte Carlo
+has squared c.o.v. `(1 - p)/(p N (1 - Q ln p))` against `-ln(p)/N` for moving
+particles, so moving particles gains only when `Q (ln p)^2` is well below
+`1/p`. At `p ~ 2e-3` with `Q = 20` crude Monte Carlo is better (its c.o.v. is
+0.77 times that of moving particles); at `p = 1e-6` moving particles needs
+about 260 times fewer calls for the same c.o.v.
+
+### Model-based directional simulation
+
+`directional_simulation(state, directions, radius_max=None, grid=20,
+antithetic=False, seed=...)` writes `U = R A`, with `R^2 ~ chi-square_d`
+independent of the uniform direction `A`, and averages `P(R in F_A)` over
+random directions [EQ-REL-DIR-002]. For each direction it evaluates `G(r a)`
+on `grid + 1` radii in `[0, radius_max]`, refines every sign change with
+Brent's method (the grid values at the bracket ends are reused, not
+recomputed), and adds the chi-square mass
+`Q(d/2, r_in^2/2) - Q(d/2, r_out^2/2)` of every failure segment. A failing
+origin opens a segment at `r = 0`; a ray still failing at `radius_max` is
+taken to fail out to infinity. The default `radius_max` leaves a chi mass
+below `1e-15` beyond it (8.31 for `d = 2`). `G(0)` is computed once for all
+rays. The estimate is a mean over independent directions with a
+central-limit interval; `antithetic=True` pairs each direction with its
+opposite. Unlike `estimate_directional_failure_probability`, which needs a
+caller-supplied entry radius and a star-shaped failure set, this function
+handles several crossings per ray. Two crossings inside one grid interval
+are missed, so the grid must be finer than the narrowest radial segment. For
+a sphere `G = r_0 - ||u||` every ray gives the exact answer and the variance
+is zero.
+
+### Worked example: the four-branch function
+
+`ModelLimitState(four_branch_model(), "g", 0.0, "below")` with `k = 7`
+[EQ-REL-WAARTS-001] has reference probability `2.2245e-3`
+(`FOUR_BRANCH_REFERENCE_PROBABILITY`, crude Monte Carlo with `2e8` draws).
+In the rotated coordinates `z_1 = (u_1 + u_2)/sqrt 2` and
+`z_2 = (u_1 - u_2)/sqrt 2` the four branches fail when
+`|z_1| >= 3 + z_2^2/5` or `|z_2| >= 3.5`. The failure set has four design
+points: two at distance 3 on the `z_1` axis and two at distance 3.5 on the
+`z_2` axis.
+
+FORM sees one of them. `form_hlrf` started at the origin raises an error:
+`G(0) = 3` sits on the kinks of `|u_1 + u_2|` and `|u_1 - u_2|`, the
+symmetric finite-difference gradient there is exactly zero, and the HL-RF
+direction is undefined. Started at `(0.5, 0.5)` it converges in 10 calls to
+`u* = (2.121, 2.121)`, `beta = 3`, and `P_f = Phi(-3) = 1.35e-3`, which is
+61 % of the reference. Started at `(1, -1)` it finds a `beta = 3.5` point
+instead (`Phi(-3.5) = 2.33e-4`). Single-point FORM ignores the opposite
+design point, the two outer branches, and the curvature of the inner
+branches. `find_design_points(state, 4, first=form_hlrf(state, start=(0.1,
+0.0)))` locates all four points (`beta = 3, 3, 3.5, 3.5`, 1775 calls), and
+`multi_point_form` gives the probability of the union of the four tangent
+half-spaces, `3.164e-3`, close to `2 Phi(-3) + 2 Phi(-3.5)`. That
+overestimates the reference by 42 %, because the inner branches
+`|z_1| >= 3 + z_2^2/5` curve away from the origin and lie inside their
+tangent half-spaces.
+
+Sampling methods, all with `seed=2026`:
+
+| Method | settings | `P_f` | uncertainty | calls |
+| --- | --- | --- | --- | --- |
+| Moving particles | `N = 100`, `Q = 20`, `rho = 0.8` | 1.91e-3 | 95 % Poisson `[1.18e-3, 3.18e-3]`, c.o.v. 0.25 | 12560 |
+| Moving particles | `N = 200`, `Q = 20`, `rho = 0.8` | 2.95e-3 | 95 % Poisson `[2.13e-3, 4.17e-3]`, c.o.v. 0.17 | 23440 |
+| Directional simulation | 200 directions, `grid = 20` | 1.93e-3 | SE 2.1e-4, c.o.v. 0.11 | 4507 |
+| Directional simulation | 50 directions, `grid = 20` | 1.83e-3 | SE 4.1e-4, c.o.v. 0.22 | 1130 |
+| Subset simulation | `N = 1000`, `p_0 = 0.1` | 2.23e-3 | c.o.v. 0.23 | 2580 |
+
+The `N = 100` run needed `M = 623` moves (`-N ln p = 611` expected) with a
+mean acceptance rate of 0.45. Both moving-particles intervals contain the
+reference; the `N = 200` estimate lies 1.9 ideal standard deviations above
+it. Crude Monte Carlo with 12560 calls would have c.o.v. 0.19, so at this
+moderate probability moving particles brings no gain, as the cost comparison
+above predicts. Directional simulation found one root per ray and reached
+c.o.v. 0.11 with 4507 calls, where crude Monte Carlo would have c.o.v. 0.32.
+On this function `G(u) = G(-u)`, so antithetic pairs repeat the same ray
+value and give no variance reduction.
+
+Sources: [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011], [REF-WALTER-2015],
+[REF-LAGNOUX-2006], [REF-COTTER-ROBERTS-STUART-WHITE-2013],
+[REF-GARWOOD-1936], [REF-BJERAGER-1988], [REF-DITLEVSEN-MADSEN-1996],
+[REF-WAARTS-2000].
+
 ## Sources
 
 - [REF-HASOFER-LIND-1974], [REF-RACKWITZ-FIESSLER-1978],
@@ -208,7 +351,7 @@ and correlations `(0.6, 0.8, 0)`. Its bounds and estimate:
 - [REF-DERKIUREGHIAN-ZHANG-LI-1994], [REF-TU-CHOI-PARK-1999].
 - [REF-MELCHERS-BECK-2018, Chapters 5 and 6], [REF-DITLEVSEN-MADSEN-1996].
 
-## 8. Cross-entropy importance sampling and line sampling
+## 9. Cross-entropy importance sampling and line sampling
 
 Two further estimators in `probstat.reliability.adaptive` work on the same
 `ModelLimitState` in standard-normal space. Both are opt-in rows of

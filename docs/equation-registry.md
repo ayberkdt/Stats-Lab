@@ -15901,3 +15901,102 @@ mid-ranks, two-sided normal p-values, adjusted by [EQ-INF-MT-001] or
   of `P(g <= 0) ~ 2.22e-3`.
 - Code: `modeling.four_branch`, `modeling.four_branch_model`.
 - Source: [REF-WAARTS-2000], [REF-ECHARD-GAYTON-LEMAIRE-2011].
+
+### EQ-REL-SPLIT-001 — Relative variance of ideal splitting with equal levels
+
+`P(G<=0)=prod_{m=1}^M P_m`, `P_m=P(G<=b_m | G<=b_{m-1})`; with
+`P_m=p^{1/M}` and `N/M` independent ideal draws per level,
+`delta_0^2=(p^{-1/M}-1)M/N` and `delta^2=(delta_0^2+1)^M-1`.
+
+- Domain: `0 < p < 1`, integer `M >= 1`, total budget `N >= M`; exact
+  (independent) conditional sampling at every level.
+- Meaning: each level is a binomial estimate with squared c.o.v.
+  `delta_0^2`; the independent unbiased level estimates multiply, so the
+  relative variances compound. `M = 1` is crude Monte Carlo,
+  `delta^2=(1-p)/(pN)`. Markov-chain sampling inflates the real variance.
+- Code: `reliability.splitting_coefficient_of_variation`,
+  `reliability.optimal_splitting`.
+- Source: [REF-LAGNOUX-2006], [REF-AU-BECK-2001].
+
+### EQ-REL-SPLIT-002 — Optimal number of splitting levels
+
+For large `N`, `delta^2 ~ M^2(p^{-1/M}-1)/N = (ln p)^2 (e^x-1)/(x^2 N)` with
+`x=-ln(p)/M`; the minimum is at the root `x*=1.5936` of `x e^x=2(e^x-1)`,
+so `M* ~ -ln(p)/x* = -0.6275 ln p`, `P_m=exp(-x*)=0.2032` and
+`delta^2 ~ (ln p)^2 e^{x*}/(2 x* N) = 1.544 (ln p)^2/N`.
+
+- Domain: the model of [EQ-REL-SPLIT-001] with `M` treated as continuous and
+  terms of order `1/N` dropped.
+- Meaning: the optimal conditional probability per level does not depend on
+  `p` or `N`; in practice `p` is unknown, so the thresholds cannot be set in
+  advance and adaptive levels (subset simulation with `p_0 = 0.1` or
+  `0.2`, moving particles) approximate the optimum.
+- Code: `reliability.optimal_splitting`, `reliability.OPTIMAL_LEVEL_EXPONENT`.
+- Source: [REF-LAGNOUX-2006].
+
+### EQ-REL-MP-001 — Moving-particles (last-particle) estimator
+
+With `N` particles and `M` moves until every particle satisfies `G<=0`,
+`p_hat=(1-1/N)^M`. Under exact conditional sampling `M ~ Poisson(-N ln p)`,
+so `E[p_hat]=p`, `Var(p_hat)=p^2(p^{-1/N}-1)` and
+`c.o.v. = sqrt(p^{-1/N}-1) ~ sqrt(-ln(p)/N)`.
+
+- Domain: `N >= 2`, a continuous distribution of `G(U)` (no atoms), and
+  exact sampling from the standard normal law restricted to `G < L` at each
+  level `L`.
+- Meaning: the levels `-ln P(G<=L_k)` form a Poisson process of intensity
+  `N`; the scheme is the limit of ideal splitting in which each level
+  discards a single particle, at an expected cost of `N(1 - Q ln p)`
+  evaluations with `Q` Markov steps per move.
+- Code: `reliability.moving_particles`,
+  `reliability.moving_particles_coefficient_of_variation`.
+- Source: [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011], [REF-WALTER-2015].
+
+### EQ-REL-MP-002 — Exact Poisson interval of the moving-particles estimate
+
+With `alpha=1-confidence`, `lambda_lo=chi2_{alpha/2}(2M)/2` (`0` when
+`M=0`) and `lambda_hi=chi2_{1-alpha/2}(2M+2)/2` (Garwood interval of
+[EQ-INF-COUNT-003] for one count), the interval for `p` is
+`[exp(-lambda_hi/N), exp(-lambda_lo/N)]`.
+
+- Domain: the assumptions of [EQ-REL-MP-001]; `0 < confidence < 1`.
+- Meaning: `p=exp(-lambda/N)` is decreasing in `lambda`, so the upper
+  Poisson limit gives the lower probability limit; coverage is at least the
+  nominal level under ideal sampling.
+- Code: `reliability.moving_particles_interval`,
+  `reliability.moving_particles`.
+- Source: [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011], [REF-GARWOOD-1936].
+
+### EQ-REL-PCN-001 — Conditional preconditioned Crank-Nicolson move
+
+`v = rho u + sqrt(1-rho^2) z`, `z ~ N(0, I)`; the new state is `v` if
+`G(v) < L` and `u` otherwise.
+
+- Domain: `0 <= rho < 1`, current state `u` with `G(u) < L` (or on the
+  level after a tie).
+- Meaning: the proposal is reversible with respect to the standard normal
+  law, so accepting exactly the proposals inside `{G < L}` leaves the
+  standard normal law restricted to that set invariant; the Gaussian
+  density ratio cancels, so no per-coordinate accept step is needed, and
+  `rho` trades step length against acceptance.
+- Code: `reliability.moving_particles`.
+- Source: [REF-COTTER-ROBERTS-STUART-WHITE-2013], [REF-WALTER-2015].
+
+### EQ-REL-DIR-002 — Directional simulation with several roots per ray
+
+`P_f=E_A[sum_k (Q(d/2, r_{k,in}^2/2) - Q(d/2, r_{k,out}^2/2))]`, where
+`[r_{k,in}, r_{k,out}]` are the failure segments of
+`F_A={r>=0 : G(rA)<=0}`, `r_{1,in}=0` when the origin fails, and
+`r_{k,out}=inf` when the ray still fails at the scan radius. The antithetic
+variant averages the directions `A` and `-A`.
+
+- Domain: independent standard-normal space, `U=RA` with
+  `R^2 ~ chi-square_d` independent of the uniform direction `A`; boundary
+  crossings at least one radial grid step apart.
+- Meaning: integrates the radial chi law exactly over every failure segment
+  of the ray, so non-star-shaped failure sets (several roots per direction,
+  failing origin) are handled; only the direction is sampled, and a
+  spherical limit state has zero variance.
+- Code: `reliability.directional_simulation`,
+  `reliability.default_radius_max`.
+- Source: [REF-BJERAGER-1988], [REF-DITLEVSEN-MADSEN-1996].

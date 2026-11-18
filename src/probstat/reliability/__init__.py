@@ -12,7 +12,10 @@ process surrogate from :mod:`probstat.surrogates`. ``data`` estimates
 component parameters from test and field data (Beta/Gamma posteriors,
 chi-square bounds, demonstration tests, Crow-AMSAA growth) and
 ``allocation`` apportions a system reliability target to units, including
-cost-optimal allocation.
+cost-optimal allocation. ``particles`` implements moving particles (the
+last-particle multilevel splitting algorithm), ``directional`` model-based
+directional simulation with several roots per ray, and ``splitting`` the
+coefficient of variation and optimal level count of ideal splitting.
 
 Main entry points:
     ``ModelLimitState``: one model output and a threshold as a limit state
@@ -22,6 +25,13 @@ Main entry points:
     ``sorm``: Breitung and Hohenbichler-Rackwitz corrections at a converged
     FORM design point.
     ``subset_simulation``: small failure probabilities without a design point.
+    ``moving_particles``: last-particle splitting with an exact Poisson
+    interval.
+    ``directional_simulation``: radial chi integration along random
+    directions, every boundary crossing of each ray included.
+    ``optimal_splitting``: number of splitting levels that minimizes the
+    c.o.v. for a fixed budget (``splitting_coefficient_of_variation`` for a
+    given level count).
     ``compare_reliability_methods``: FORM, SORM, importance sampling, subset
     simulation, and crude Monte Carlo on one limit state.
     ``find_design_points``: several design points of one limit state.
@@ -59,7 +69,8 @@ Guide: docs/foundations/advanced-reliability.md
 References:
     [REF-MELCHERS-BECK-2018], [REF-HASOFER-LIND-1974],
     [REF-DERKIUREGHIAN-2005], [REF-BREITUNG-1984], [REF-AU-BECK-2001],
-    [REF-WILSON-1927].
+    [REF-WILSON-1927], [REF-GUYADER-HENGARTNER-MATZNERLOBER-2011],
+    [REF-BJERAGER-1988], [REF-LAGNOUX-2006].
 
 """
 
@@ -123,6 +134,12 @@ from .design_points import (
     mixture_importance_sampling,
     multi_point_form,
 )
+from .directional import (
+    RADIUS_TAIL_PROBABILITY,
+    DirectionalSimulationResult,
+    default_radius_max,
+    directional_simulation,
+)
 from .model_based import (
     DesignParameterResult,
     FORMResult,
@@ -138,6 +155,11 @@ from .model_based import (
     second_order_probabilities,
     sorm,
 )
+from .particles import (
+    MovingParticlesResult,
+    moving_particles,
+    moving_particles_interval,
+)
 from .simulation import (
     AVAILABLE_METHODS,
     METHODS,
@@ -151,6 +173,15 @@ from .simulation import (
     design_point_importance_sampling,
     model_monte_carlo,
     subset_simulation,
+)
+from .splitting import (
+    OPTIMAL_LEVEL_EXPONENT,
+    OPTIMAL_LEVEL_PROBABILITY,
+    OPTIMAL_LEVELS_PER_LOG,
+    OptimalSplittingResult,
+    moving_particles_coefficient_of_variation,
+    optimal_splitting,
+    splitting_coefficient_of_variation,
 )
 from .systems import (
     SeriesSystemBounds,
@@ -178,6 +209,7 @@ __all__ = [
     "DesignPointImportanceResult",
     "DirectReliabilityResult",
     "DirectionalSamplingResult",
+    "DirectionalSimulationResult",
     "FORMResult",
     "FailureRateBounds",
     "FailureRateEstimate",
@@ -192,9 +224,15 @@ __all__ = [
     "MixtureImportanceResult",
     "ModelLimitState",
     "ModelMonteCarloResult",
+    "MovingParticlesResult",
     "MultiPointFORMResult",
     "MultipleDesignPointsResult",
+    "OPTIMAL_LEVELS_PER_LOG",
+    "OPTIMAL_LEVEL_EXPONENT",
+    "OPTIMAL_LEVEL_PROBABILITY",
     "OPTIONAL_METHODS",
+    "OptimalSplittingResult",
+    "RADIUS_TAIL_PROBABILITY",
     "SIDES",
     "SORMResult",
     "SeriesSystemBounds",
@@ -213,10 +251,12 @@ __all__ = [
     "cost_optimal_series_allocation",
     "cross_entropy_importance_sampling",
     "crow_amsaa_fit",
+    "default_radius_max",
     "demand_failure_probability",
     "demonstration_test_time",
     "design_for_target_beta",
     "design_point_importance_sampling",
+    "directional_simulation",
     "equal_apportionment",
     "estimate_directional_failure_probability",
     "estimate_failure_probability",
@@ -233,11 +273,16 @@ __all__ = [
     "linear_normal_form",
     "mixture_importance_sampling",
     "model_monte_carlo",
+    "moving_particles",
+    "moving_particles_coefficient_of_variation",
+    "moving_particles_interval",
     "multi_point_form",
+    "optimal_splitting",
     "principal_curvatures",
     "second_order_probabilities",
     "series_system_bounds",
     "sorm",
+    "splitting_coefficient_of_variation",
     "subset_simulation",
     "success_run_sample_size",
     "system_failure_probability",
