@@ -4474,3 +4474,54 @@ Alfred Inselberg. "The Plane with Parallel Coordinates." *The Visual
 Computer* 1(2), 69-91, 1985. Parallel-coordinate displays of
 multivariate data (the cobweb plot of sensitivity analysis).
 DOI: [10.1007/BF01898350](https://doi.org/10.1007/BF01898350).
+
+## REF-BICHON-ETAL-2008
+
+B. J. Bichon, M. S. Eldred, L. P. Swiler, S. Mahadevan, and J. M.
+McFarland. "Efficient Global Reliability Analysis for Nonlinear Implicit
+Performance Functions." *AIAA Journal* 46(10), 2459-2468, 2008. The
+expected feasibility function (EFF) with `epsilon = 2 sigma` and the stopping
+value `max EFF <= 0.001`.
+DOI: [10.2514/1.34321](https://doi.org/10.2514/1.34321).
+
+## REF-LV-LU-WANG-2015
+
+Zhaoyan Lv, Zhenzhou Lu, and Pan Wang. "A New Learning Function for Kriging
+and Its Applications to Solve Reliability Problems in Engineering."
+*Computers & Mathematics with Applications* 70(5), 1182-1197, 2015. The
+information-entropy learning function `H` of a Kriging prediction on the
+band `|G| <= 2 sigma`.
+DOI: [10.1016/j.camwa.2015.07.004](https://doi.org/10.1016/j.camwa.2015.07.004).
+
+## REF-DU-XU-2023
+
+Yunjie Du and Jun Xu. "Structural Reliability Analysis with Epistemic and
+Aleatory Uncertainties via AK-MCS with a New Learning Function." *Disaster
+Prevention and Resilience* 2(3), 15, 2023. Restates the closed form of `H`
+with its derivation and uses the stopping value `max H <= 0.5`.
+DOI: [10.20517/dpr.2023.18](https://doi.org/10.20517/dpr.2023.18).
+
+## REF-SCHOBI-SUDRET-MARELLI-2017
+
+R. Schöbi, B. Sudret, and S. Marelli. "Rare Event Estimation Using
+Polynomial-Chaos Kriging." *ASCE-ASME Journal of Risk and Uncertainty in
+Engineering Systems, Part A: Civil Engineering* 3(2), D4016002, 2017.
+Failure-probability bounds from `mu -/+ 1.96 sigma` and the relative-width
+stopping rule of active learning.
+DOI: [10.1061/AJRUA6.0000870](https://doi.org/10.1061/AJRUA6.0000870).
+
+## REF-GAYTON-BOURINET-LEMAIRE-2003
+
+N. Gayton, J. M. Bourinet, and M. Lemaire. "CQ2RS: A New Statistical
+Approach to the Response Surface Method for Reliability Analysis."
+*Structural Safety* 25(1), 99-121, 2003. The non-linear oscillator under a
+rectangular pulse load with six normal inputs.
+DOI: [10.1016/S0167-4730(02)00045-0](https://doi.org/10.1016/S0167-4730(02)00045-0).
+
+## REF-ECHARD-GAYTON-LEMAIRE-RELUN-2013
+
+B. Echard, N. Gayton, M. Lemaire, and N. Relun. "A Combined Importance
+Sampling and Kriging Reliability Method for Small Failure Probabilities with
+Time-Demanding Numerical Models." *Reliability Engineering & System Safety*
+111, 232-240, 2013. AK-IS; the oscillator with smaller pulse loads.
+DOI: [10.1016/j.ress.2012.10.008](https://doi.org/10.1016/j.ress.2012.10.008).
