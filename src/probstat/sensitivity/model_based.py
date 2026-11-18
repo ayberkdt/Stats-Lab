@@ -27,6 +27,12 @@ from probstat.propagation import DESIGNS, make_design
 from probstat.sampling import SOBOL_MAX_DIMENSION
 from probstat.statistics import quantile
 
+from ._sobol_estimators import (
+    ASYMPTOTIC_ESTIMATORS,
+    alternative_indices,
+    asymptotic_intervals,
+    check_estimator,
+)
 from .analysis import SobolResult
 
 DEFAULT_REPLICATES = 8
@@ -37,8 +43,9 @@ class IndexInterval:
     """Point estimate and confidence interval for one index.
 
     The interval is a bootstrap percentile interval (plain Monte Carlo
-    designs) or a Student-t interval over independent randomizations of a
-    quasi-random design; ``ModelSobolResult.interval_method`` says which.
+    designs), a Student-t interval over independent randomizations of a
+    quasi-random design, or an asymptotic interval of the Martinez or Janon
+    estimator; ``ModelSobolResult.interval_method`` says which.
 
     Args:
         estimate: Index estimate (mean of the replicates for replicate
@@ -77,6 +84,7 @@ class ModelSobolResult:
             ``"none"``.
         replicates: Number of independent randomizations (0 unless
             ``interval_method == "replicates"``).
+        estimator: Sobol estimator name (see :func:`sobol_analysis`).
 
     References:
         [REF-SALTELLI-2010], [REF-ARCHER-SALTELLI-SOBOL-1997],
@@ -94,6 +102,7 @@ class ModelSobolResult:
     confidence: float
     interval_method: str = "none"
     replicates: int = 0
+    estimator: str = "saltelli2010"
 
     @property
     def evaluations(self) -> int:
@@ -203,6 +212,7 @@ def _indices(
     yb: Sequence[float],
     yab: Sequence[Sequence[float]],
     rows: Sequence[int],
+    estimator: str = "saltelli2010",
 ) -> tuple[list[float], list[float], float]:
     """Compute first and total indices on a subset of design rows.
 
@@ -211,20 +221,32 @@ def _indices(
         yb: Outputs on matrix B.
         yab: Outputs on A with column i taken from B, per input.
         rows: Row indices (with repetition for bootstrap).
+        estimator: Validated Sobol estimator name.
 
     Returns:
-        First-order list, total-effect list, and pooled output variance.
+        First-order list, total-effect list, and the output variance (pooled
+        population variance for ``"saltelli2010"``, sample variance of the
+        A outputs otherwise).
 
     Raises:
-        ValueError: If the pooled variance is zero.
+        ValueError: If the variance is zero or an estimator pair is constant.
 
     Equation:
-        [EQ-SENS-FIRST-001], [EQ-SENS-TOTAL-001].
+        [EQ-SENS-FIRST-001], [EQ-SENS-TOTAL-001], [EQ-SENS-EST-001],
+        [EQ-SENS-EST-002], [EQ-SENS-EST-003], [EQ-SENS-EST-004],
+        [EQ-SENS-EST-006].
 
     References:
-        [REF-SALTELLI-2010], [REF-JANSEN-1999].
+        [REF-SALTELLI-2010], [REF-JANSEN-1999], [REF-R-SENSITIVITY].
 
     """
+    if estimator != "saltelli2010":
+        return alternative_indices(
+            estimator,
+            [ya[k] for k in rows],
+            [yb[k] for k in rows],
+            [[column[k] for k in rows] for column in yab],
+        )
     n = len(rows)
     pooled = [ya[k] for k in rows] + [yb[k] for k in rows]
     mean = math.fsum(pooled) / len(pooled)
@@ -235,9 +257,7 @@ def _indices(
     total: list[float] = []
     for column in yab:
         first.append(
-            math.fsum((yb[k] - mean) * (column[k] - ya[k]) for k in rows)
-            / n
-            / variance
+            math.fsum((yb[k] - mean) * (column[k] - ya[k]) for k in rows) / n / variance
         )
         total.append(
             0.5 * math.fsum((ya[k] - column[k]) ** 2 for k in rows) / n / variance
@@ -310,6 +330,7 @@ def _percentile_intervals(
     bootstrap: int,
     confidence: float,
     stream: RandomStream,
+    estimator: str = "saltelli2010",
 ) -> tuple[list[IndexInterval], list[IndexInterval]]:
     """Return row-bootstrap percentile intervals (valid for i.i.d. rows only).
 
@@ -326,7 +347,7 @@ def _percentile_intervals(
     for _ in range(bootstrap):
         rows = [generator.randrange(size) for _ in range(size)]
         try:
-            replicate_first, replicate_total, _ = _indices(ya, yb, yab, rows)
+            replicate_first, replicate_total, _ = _indices(ya, yb, yab, rows, estimator)
         except ValueError:
             continue
         for i in range(dimension):
@@ -374,6 +395,8 @@ def _validated_settings(
     confidence: float,
     replicates: int | None,
     design: str,
+    estimator: str = "saltelli2010",
+    asymptotic: bool = False,
 ) -> tuple[str, int]:
     """Validate shared Sobol settings; return the interval method and ``R``.
 
@@ -381,6 +404,9 @@ def _validated_settings(
         Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
 
     """
+    check_estimator(estimator)
+    if not isinstance(asymptotic, bool):
+        raise TypeError("asymptotic must be a bool")
     if not model.inputs.is_independent:
         raise ValueError(
             "variance-based Sobol indices require independent inputs; "
@@ -394,6 +420,18 @@ def _validated_settings(
         raise ValueError("confidence must lie in (0, 1)")
     if design not in DESIGNS:
         raise ValueError(f"design must be one of {DESIGNS}")
+    if asymptotic:
+        if estimator not in ASYMPTOTIC_ESTIMATORS:
+            raise ValueError(
+                f"asymptotic intervals need estimator in {ASYMPTOTIC_ESTIMATORS}"
+            )
+        if design != "mc":
+            raise ValueError("asymptotic intervals assume i.i.d. rows; use design='mc'")
+        if bootstrap or replicates is not None:
+            raise ValueError("asymptotic intervals exclude bootstrap and replicates")
+        if size < 4:
+            raise ValueError("asymptotic intervals need at least four rows")
+        return "asymptotic", 1
     if replicates is not None:
         if (
             isinstance(replicates, bool)
@@ -426,6 +464,8 @@ def sobol_analysis_all(
     bootstrap: int = 0,
     confidence: float = 0.95,
     replicates: int | None = None,
+    estimator: str = "saltelli2010",
+    asymptotic: bool = False,
 ) -> MultiQuantitySobolResult:
     """Estimate Sobol indices of several QoIs from one shared pick-freeze design.
 
@@ -443,6 +483,8 @@ def sobol_analysis_all(
         bootstrap: Request intervals; see :func:`sobol_analysis`.
         confidence: Nominal interval level.
         replicates: Independent randomizations for replicate intervals.
+        estimator: Sobol estimator; see :func:`sobol_analysis`.
+        asymptotic: Asymptotic intervals; see :func:`sobol_analysis`.
 
     Returns:
         One :class:`ModelSobolResult` per QoI and the shared evaluation count.
@@ -450,14 +492,17 @@ def sobol_analysis_all(
     Raises:
         ValueError: For invalid settings, dependent inputs, or a QoI with zero
             variance.
+        TypeError: If ``asymptotic`` is not a bool.
         KeyError: For an unknown QoI name.
 
     Equation:
         [EQ-SENS-FIRST-001], [EQ-SENS-TOTAL-001], [EQ-SENS-BOOT-001],
-        [EQ-SENS-RQMC-001].
+        [EQ-SENS-RQMC-001], [EQ-SENS-EST-001], [EQ-SENS-EST-002],
+        [EQ-SENS-EST-003], [EQ-SENS-EST-004], [EQ-SENS-EST-005],
+        [EQ-SENS-EST-006], [EQ-SENS-EST-007].
 
     References:
-        [REF-SALTELLI-2010], [REF-L-ECUYER-2018].
+        [REF-SALTELLI-2010], [REF-L-ECUYER-2018], [REF-R-SENSITIVITY].
 
     """
     names = model.quantity_names if quantities is None else tuple(quantities)
@@ -468,7 +513,7 @@ def sobol_analysis_all(
     for name in names:
         model.quantity(name)
     interval, count = _validated_settings(
-        model, size, bootstrap, confidence, replicates, design
+        model, size, bootstrap, confidence, replicates, design, estimator, asymptotic
     )
     dimension = model.dimension
     root = resolve_stream(seed)
@@ -484,9 +529,15 @@ def sobol_analysis_all(
         evaluations = model.evaluations - before
         for name in names:
             first, total, variance = _indices(
-                ya[name], yb[name], yab[name], tuple(range(size))
+                ya[name], yb[name], yab[name], tuple(range(size)), estimator
             )
-            if interval == "bootstrap":
+            if interval == "asymptotic":
+                first_triples, total_triples = asymptotic_intervals(
+                    estimator, ya[name], yb[name], yab[name], confidence
+                )
+                first_intervals = [IndexInterval(*item) for item in first_triples]
+                total_intervals = [IndexInterval(*item) for item in total_triples]
+            elif interval == "bootstrap":
                 first_intervals, total_intervals = _percentile_intervals(
                     ya[name],
                     yb[name],
@@ -496,6 +547,7 @@ def sobol_analysis_all(
                     bootstrap,
                     confidence,
                     root.child("sobol-bootstrap"),
+                    estimator,
                 )
             else:
                 first_intervals = [IndexInterval(v, math.nan, math.nan) for v in first]
@@ -513,6 +565,7 @@ def sobol_analysis_all(
                 confidence,
                 interval,
                 0,
+                estimator,
             )
         return MultiQuantitySobolResult(MappingProxyType(results), evaluations)
     rows = size // count
@@ -525,7 +578,7 @@ def sobol_analysis_all(
         )
         for name in names:
             replicate_values[name].append(
-                _indices(ya[name], yb[name], yab[name], tuple(range(rows)))
+                _indices(ya[name], yb[name], yab[name], tuple(range(rows)), estimator)
             )
     evaluations = model.evaluations - before
     for name in names:
@@ -557,6 +610,7 @@ def sobol_analysis_all(
             confidence,
             "replicates",
             count,
+            estimator,
         )
     return MultiQuantitySobolResult(MappingProxyType(results), evaluations)
 
@@ -571,6 +625,8 @@ def sobol_analysis(
     bootstrap: int = 0,
     confidence: float = 0.95,
     replicates: int | None = None,
+    estimator: str = "saltelli2010",
+    asymptotic: bool = False,
 ) -> ModelSobolResult:
     """Estimate first-order and total Sobol indices of a model QoI.
 
@@ -595,7 +651,23 @@ def sobol_analysis(
       replicate remain) when only ``bootstrap > 0`` asks for intervals; the
       ``bootstrap`` count is then not used. Powers of two for ``size // R``
       suit Sobol designs.
+    * ``"asymptotic"``: with ``asymptotic=True`` on a ``"mc"`` design and
+      ``estimator`` ``"martinez"`` (Fisher z transform of each correlation,
+      [EQ-SENS-EST-005]) or ``"janon"`` (asymptotic normal law,
+      [EQ-SENS-EST-007]); no resampling and no extra model run. The Fisher-z
+      interval is exact only for Gaussian outputs.
     * ``"none"``: no interval (``lower`` and ``upper`` are ``nan``).
+
+    Estimators (``estimator``; formulas in
+    :func:`~probstat.sensitivity.estimate_sobol_indices`): ``"saltelli2010"``
+    (default; centred Saltelli first order, Jansen total), ``"saltelli2002"``
+    and ``"sobol2007"`` (product forms of the R functions ``sobol2002`` and
+    ``sobol2007``; they lose accuracy when the output mean is large compared
+    with its spread), ``"jansen"`` (squared differences for both orders),
+    ``"martinez"`` (correlations; robust to the output mean and to small
+    indices), and ``"janon"`` (asymptotically efficient first order). All
+    read the same ``size (d + 2)`` evaluations and support every interval
+    method above.
 
     Second-order indices are not estimated here; ``result.second_order`` is
     ``None`` (use :func:`estimate_sobol_indices` for them).
@@ -612,22 +684,30 @@ def sobol_analysis(
         confidence: Nominal interval level.
         replicates: Number ``R >= 2`` of independent randomizations for
             replicate intervals (any design).
+        estimator: Sobol estimator name (default ``"saltelli2010"``).
+        asymptotic: Report asymptotic intervals (``"martinez"`` or
+            ``"janon"`` on a ``"mc"`` design, with ``bootstrap=0``).
 
     Returns:
-        Indices with optional intervals, the interval method, and the
-        evaluation count.
+        Indices with optional intervals, the interval method, the estimator,
+        and the evaluation count.
 
     Raises:
         ValueError: If inputs are dependent, ``size < 2``, settings are
             invalid, or the QoI has zero variance.
+        TypeError: If ``asymptotic`` is not a bool.
 
     Equation:
         [EQ-SENS-ANOVA-001], [EQ-SENS-FIRST-001], [EQ-SENS-TOTAL-001],
-        [EQ-SENS-BOOT-001], [EQ-SENS-RQMC-001].
+        [EQ-SENS-BOOT-001], [EQ-SENS-RQMC-001], [EQ-SENS-EST-001],
+        [EQ-SENS-EST-002], [EQ-SENS-EST-003], [EQ-SENS-EST-004],
+        [EQ-SENS-EST-005], [EQ-SENS-EST-006], [EQ-SENS-EST-007].
 
     References:
         [REF-SALTELLI-2010], [REF-JANSEN-1999], [REF-ARCHER-SALTELLI-SOBOL-1997],
-        [REF-L-ECUYER-2018].
+        [REF-L-ECUYER-2018], [REF-SALTELLI-2002], [REF-SOBOL-ETAL-2007],
+        [REF-BAUDIN-ETAL-2016], [REF-JANON-ETAL-2014], [REF-FISHER-1921],
+        [REF-R-SENSITIVITY].
 
     """
     model.quantity(quantity)
@@ -640,6 +720,8 @@ def sobol_analysis(
         bootstrap=bootstrap,
         confidence=confidence,
         replicates=replicates,
+        estimator=estimator,
+        asymptotic=asymptotic,
     ).results[quantity]
 
 
@@ -653,6 +735,11 @@ class MorrisResult:
         sigma: Standard deviation of elementary effects per input.
         trajectories: Number of one-at-a-time trajectories.
         evaluations: Forward-model evaluations, ``r (d + 1)``.
+        mu: Signed mean elementary effect per input. ``|mu|`` close to
+            ``mu*`` means effects of one sign (a monotone input); ``|mu|``
+            much smaller than ``mu*`` means effects that cancel (a
+            non-monotone response or interactions). Empty only for results
+            built without it.
 
     References:
         [REF-MORRIS-1991], [REF-CAMPOLONGO-CARIBONI-SALTELLI-2007].
@@ -664,6 +751,7 @@ class MorrisResult:
     sigma: tuple[float, ...]
     trajectories: int
     evaluations: int
+    mu: tuple[float, ...] = ()
 
     def ranking(self) -> tuple[str, ...]:
         """Return input names in descending ``mu*`` order.
@@ -697,6 +785,16 @@ def morris_screening(
     ``[-pi, pi]``) shows zero elementary effects for it; cross-check with
     :func:`sobol_analysis`.
 
+    Relation to the R function ``sensitivity::morris`` with
+    ``design = list(type = "oat", levels = p, grid.jump = k)``: both run
+    ``r`` one-at-a-time trajectories of ``d + 1`` points on a ``p``-level
+    grid and report the signed mean ``mu``, ``mu*``, and ``sigma``. Here the
+    jump is fixed at ``k = p / 2`` (``Delta = p / (2 (p - 1))``, the choice
+    recommended by Morris), whereas ``grid.jump = 1`` moves by
+    ``1 / (p - 1)``; and the grid lives on each input's probability scale
+    rather than on a ``[binf, bsup]`` box. Rankings usually agree; the
+    numerical values of the effects do not.
+
     Args:
         model: Probabilistic model with independent inputs.
         quantity: QoI name.
@@ -705,7 +803,8 @@ def morris_screening(
         seed: Root seed or stream.
 
     Returns:
-        ``mu*`` and ``sigma`` per input with evaluation count ``r (d + 1)``.
+        ``mu``, ``mu*``, and ``sigma`` per input with evaluation count
+        ``r (d + 1)``.
 
     Raises:
         ValueError: If arguments are invalid or inputs are dependent.
@@ -757,6 +856,7 @@ def morris_screening(
             scaled_step = step * (1.0 - 1.0 / levels)
             effects[index].append((following - current) / scaled_step)
             current = following
+    mu = tuple(math.fsum(column) / len(column) for column in effects)
     mu_star = tuple(
         math.fsum(abs(e) for e in column) / len(column) for column in effects
     )
@@ -768,5 +868,10 @@ def morris_screening(
         for column in effects
     )
     return MorrisResult(
-        model.inputs.names, mu_star, sigma, trajectories, model.evaluations - before
+        model.inputs.names,
+        mu_star,
+        sigma,
+        trajectories,
+        model.evaluations - before,
+        mu,
     )

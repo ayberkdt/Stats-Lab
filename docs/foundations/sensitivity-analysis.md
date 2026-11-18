@@ -30,6 +30,207 @@ The current estimator assumes independent inputs. For dependent inputs use the
 Shapley effects described below. Replicated stochastic simulators and
 streaming evaluation remain future extensions.
 
+## Choosing a Sobol estimator
+
+A pick-freeze design produces three blocks of outputs on `N` rows:
+`y_A = f(A)`, `y_B = f(B)`, and `y_i = f(A_B^(i))`, where `A_B^(i)` is `A`
+with column `i` taken from `B`. The pair `(y_B, y_i)` shares only `x_i` and
+carries the first-order index; the pair `(y_A, y_i)` shares every input
+except `x_i` and carries the total index. Every estimator below reads the
+same `N (d + 2)` runs, so the choice costs no model evaluations and several
+estimators can be compared on one design. `estimate_sobol_indices`,
+`sobol_analysis`, and `sobol_analysis_all` take `estimator=`, one of
+`SOBOL_ESTIMATORS`; bootstrap and replicate intervals work for all of them.
+
+With `V_A` the sample variance of `y_A` (denominator `N - 1`):
+
+| `estimator` | first order `S_i` | total `S_Ti` | equation |
+| --- | --- | --- | --- |
+| `"saltelli2010"` (default) | `mean((y_B - m)(y_i - y_A)) / V`, `m`, `V` from the pooled `y_A, y_B` | `mean((y_A - y_i)^2) / (2 V)` | [EQ-SENS-FIRST-001], [EQ-SENS-TOTAL-001] |
+| `"saltelli2002"` | `[sum y_B y_i / (N-1) - mean(y_A y_B)] / V_A` | `1 - [sum y_A y_i / (N-1) - mean(y_A)^2] / V_A` | [EQ-SENS-EST-001] |
+| `"sobol2007"` | `sum y_B (y_i - y_A) / ((N-1) V_A)` | `sum y_A (y_A - y_i) / ((N-1) V_A)` | [EQ-SENS-EST-002] |
+| `"jansen"` | `1 - sum (y_B - y_i)^2 / ((2N-1) V_A)` | `sum (y_A - y_i)^2 / ((2N-1) V_A)` | [EQ-SENS-EST-003] |
+| `"martinez"` | `corr(y_B, y_i)` | `1 - corr(y_A, y_i)` | [EQ-SENS-EST-004] |
+| `"janon"` | `J(y_B, y_i)` | `1 - J(y_A, y_i)` | [EQ-SENS-EST-006] |
+
+Here `J(y, y') = [mean(y y') - c^2] / [mean((y^2 + y'^2) / 2) - c^2]` with
+`c = mean((y + y') / 2)`. The non-default formulas follow the functions
+`sobol2002`, `sobol2007`, `soboljansen`, `sobolmartinez`, and `sobolEff` of
+the R package `sensitivity` [REF-R-SENSITIVITY], including their `N - 1` and
+`2N - 1` divisors, so results can be checked against analyses done in R.
+
+When each one helps:
+
+- `"saltelli2010"` centres `y_B` on the pooled mean, which removes the
+  dependence of the error on the output mean. It is the default and keeps
+  the numbers of earlier releases.
+- `"saltelli2002"` [REF-SALTELLI-2002] and `"sobol2007"`
+  [REF-SOBOL-ETAL-2007] multiply raw outputs. Their error grows with the
+  squared ratio of the output mean to its standard deviation; adding
+  `10^4` to Ishigami moves their first-order estimates by more than `0.05`
+  on 512 rows while the four other estimators do not move. Use them to
+  reproduce a published R analysis, not as a first choice.
+- `"jansen"` [REF-JANSEN-1999] uses squared differences and is a good total
+  estimator. Its first-order estimate subtracts a residual from the
+  variance, so its error does not shrink with the index; it had the widest
+  first-order intervals in the comparison below.
+- `"martinez"` [REF-BAUDIN-ETAL-2016] writes both indices as correlations.
+  It is invariant to the output's location and scale and accurate for small
+  indices. With `asymptotic=True` on a `"mc"` design it reports Fisher-z
+  intervals [EQ-SENS-EST-005] without resampling; they are exact only for a
+  Gaussian output.
+- `"janon"` [REF-JANON-ETAL-2014] has the smallest asymptotic variance among
+  regular first-order estimators built from the pair. The total index is
+  one minus the same estimator applied to the complementary pair.
+  `asymptotic=True` reports intervals from its central limit theorem
+  [EQ-SENS-EST-007].
+
+On the Ishigami function (`a = 7`, `b = 0.1`; analytic
+`S = (0.3139, 0.4424, 0)` and `S_T = (0.5576, 0.4424, 0.2437)`), the same
+runs give first-order estimates of `x1` from 0.290 to 0.351 depending on the
+formula, while the Martinez and Janon rows agree to 0.001. One Monte Carlo
+design of `N = 4096` rows with seed 2026 (20480 runs shared by all six
+estimators):
+
+| `estimator` | `S_1` | `S_2` | `S_3` | `S_T1` | `S_T2` | `S_T3` |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `"saltelli2010"` | 0.331 | 0.461 | -0.016 | 0.570 | 0.462 | 0.251 |
+| `"saltelli2002"` | 0.351 | 0.487 | -0.025 | 0.533 | 0.436 | 0.247 |
+| `"sobol2007"` | 0.351 | 0.487 | -0.025 | 0.533 | 0.436 | 0.247 |
+| `"jansen"` | 0.290 | 0.437 | -0.052 | 0.570 | 0.463 | 0.251 |
+| `"martinez"` | 0.304 | 0.438 | -0.037 | 0.560 | 0.462 | 0.248 |
+| `"janon"` | 0.303 | 0.438 | -0.037 | 0.560 | 0.462 | 0.248 |
+
+The spread between rows is the Monte Carlo error of each formula on the same
+runs. On a scrambled Sobol design of the same size split into 8 independent
+replicates (seed 2026), the 95% half-width of `S_1` was 0.008 for
+`"martinez"` and `"janon"`, 0.011 for `"saltelli2002"` and `"sobol2007"`,
+0.013 for `"saltelli2010"`, and 0.019 for `"jansen"`; for `S_T3` the
+half-widths ranged from 0.0035 (`"jansen"`) to 0.0059 (`"saltelli2010"`).
+The Fisher-z interval of `S_3` on the Monte Carlo design is
+`[-0.067, -0.006]`, which misses the true zero: the Ishigami output is far
+from Gaussian, so prefer replicate intervals when that assumption is doubtful.
+
+```python
+from probstat.modeling import ishigami_model
+from probstat.sensitivity import SOBOL_ESTIMATORS, sobol_analysis
+
+ishigami = ishigami_model()
+by_estimator = {
+    name: sobol_analysis(ishigami, "y", 4096, design="mc", seed=2026, estimator=name)
+    for name in SOBOL_ESTIMATORS
+}
+by_estimator["saltelli2010"].result.first_order   # (0.331, 0.461, -0.016)
+by_estimator["martinez"].result.first_order   # (0.304, 0.438, -0.037)
+by_estimator["martinez"].evaluations   # 20480
+fisher = sobol_analysis(
+    ishigami, "y", 4096, design="mc", seed=2026, estimator="martinez", asymptotic=True
+)
+(fisher.first_order[0].lower, fisher.first_order[0].upper)   # (0.276, 0.331)
+fisher.interval_method   # 'asymptotic'
+```
+
+## Quadratic sum: Taylor importance factors
+
+Linearizing the model around a representative point `x0`,
+`g(X) ~= g(x0) + sum_i dg/dx_i(x0) (X_i - x0_i)`, gives for independent
+inputs the first-order Taylor variance `V_T = sum_i (dg/dx_i(x0))^2 sigma_i^2`
+and the importance factors
+
+`eta_i^2 = (dg/dx_i(x0))^2 sigma_i^2 / V_T`   [EQ-SENS-TAYLOR-001].
+
+`taylor_importance_factors(model, quantity)` expands around the input means
+with the standard deviations of the input law; `point=` and
+`standard_deviations=` accept vectors or mappings by input name.
+Derivatives come from central differences with step `h_i = c |x0_i|`
+(`relative_step=c`, default `0.01`, that is a 1% perturbation; `h_i = c`
+where `x0_i = 0`), at a cost of `2d` runs, or from `gradient=`, either the
+values at `x0` or a callable. `quadratic_sum_importance` does the same for a
+plain function of a tuple.
+
+The factors are local. They see only the slope at `x0` and are faithful
+when the model is nearly linear over the range in which the inputs vary.
+Sobol indices average over the whole input law; a gap between `eta_i^2` and
+`S_i` measures the curvature and the interactions the linearization misses.
+
+For the flood model the overflow is `S = Zv + H - Hd - Cb` with
+`H = (Q / (Ks B sqrt((Zm - Zv) / L)))^0.6` [EQ-MOD-FLOOD-001]. Its exact
+derivatives are `dS/dQ = 0.6 H / Q`, `dS/dKs = -0.6 H / Ks`,
+`dS/dZv = 1 + 0.3 H / (Zm - Zv)`, `dS/dZm = -0.3 H / (Zm - Zv)`,
+`dS/dHd = dS/dCb = -1`, `dS/dL = 0.3 H / L`, and `dS/dB = -0.6 H / B`. At
+`FLOOD_NOMINAL` (`H = 2.525` m) with `FLOOD_NOMINAL_STANDARD_DEVIATIONS`,
+the 1% finite differences reproduce the exact importance factors to within
+`2e-4`, and both rank the inputs as the Sobol indices do (rows in
+decreasing `eta^2`):
+
+| input | `dS/dx` exact | 1% FD relative error | `eta^2` (1% FD) | `eta^2` (exact) | `eta^2` (law means) | Sobol `S_i` | Sobol `S_Ti` |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `Q` | 1.118e-3 | 9.3e-6 | 0.3482 | 0.3483 | 0.3470 | 0.3440 | 0.3523 |
+| `Hd` | -1.000e+0 | 2.1e-14 | 0.2962 | 0.2963 | 0.2960 | 0.2844 | 0.2843 |
+| `Zv` | 1.152e+0 | 6.6e-4 | 0.1984 | 0.1982 | 0.1964 | 0.1897 | 0.1902 |
+| `Ks` | -4.968e-2 | 6.9e-5 | 0.1163 | 0.1163 | 0.1201 | 0.1338 | 0.1420 |
+| `Cb` | -1.000e+0 | 5.6e-16 | 0.0373 | 0.0374 | 0.0370 | 0.0361 | 0.0355 |
+| `Zm` | -1.515e-1 | 6.1e-3 | 0.0035 | 0.0034 | 0.0034 | 0.0030 | 0.0038 |
+| `B` | -5.051e-3 | 6.9e-5 | 0.0001 | 0.0001 | 0.0001 | 0.0001 | 0.0001 |
+| `L` | 1.515e-4 | 2.0e-5 | 0.0000 | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
+
+The Sobol columns come from `sobol_analysis(flood_model(), "overflow", 4096,
+seed=2026, replicates=8)` on the full input law; their 95% half-widths are
+at most 0.003. Three points stand out:
+
+- **Finite differences.** In `Q`, `Ks`, `L`, and `B` the overflow is a power
+  law `x^p`, for which the 1% central quotient equals the derivative times
+  `((1.01)^p - (0.99)^p) / (0.02 p)`: a relative error of `9.3e-6` for
+  `p = 0.6` and `6.9e-5` for `p = -0.6`. The largest error, 0.6% for `Zm`,
+  arises because 1% of `Zm = 55` m is a step of 0.55 m against a gap
+  `Zm - Zv` of only 5 m. Even there the factor moves by less than `1e-4`, so a
+  1% step is adequate for this model.
+- **Agreement with Sobol.** The overflow is close to linear over the input
+  ranges: the factors rank the inputs as the Sobol indices do
+  (`Q`, `Hd`, `Zv`, `Ks`, `Cb`, then the negligible `Zm`, `B`, `L`), the
+  first-order Sobol indices sum to 0.991, and `V_T = 1.125` against a
+  sampled variance of 1.172.
+- **Where linearization falls short.** `Ks` has a coefficient of variation
+  of about 24% and enters through `Ks^-0.6`, a convex function: its Sobol
+  index (0.134, total 0.142) exceeds its Taylor factor (0.116 to 0.120).
+  `V_T` also falls about 4% short of the sampled variance; a first-order
+  expansion has no term for such curvature.
+
+The locality is plain on Ishigami. At the input means `(0, 0, 0)` the
+derivatives are `(1, 0, 0)`, so the quadratic sum assigns all variance to
+`x1`, whereas `x2` has the largest first-order Sobol index (0.4424) and `x3`
+a total index of 0.2437. Expanding at a single point cannot see a response
+whose slope vanishes there or changes sign across the input range.
+
+```python
+import math
+
+from probstat.modeling import (
+    FLOOD_NOMINAL,
+    FLOOD_NOMINAL_STANDARD_DEVIATIONS,
+    flood_model,
+    ishigami_model,
+)
+from probstat.sensitivity import taylor_importance_factors
+
+def overflow_gradient(x):
+    q, ks, zv, zm, hd, cb, length, width = x
+    height = (q / (ks * width * math.sqrt((zm - zv) / length))) ** 0.6
+    gap = zm - zv
+    return (0.6 * height / q, -0.6 * height / ks, 1 + 0.3 * height / gap,
+            -0.3 * height / gap, -1.0, -1.0, 0.3 * height / length, -0.6 * height / width)
+
+flood = flood_model()
+nominal = {"point": FLOOD_NOMINAL, "standard_deviations": FLOOD_NOMINAL_STANDARD_DEVIATIONS}
+by_differences = taylor_importance_factors(flood, "overflow", **nominal)
+by_differences.ranking()   # ('Q', 'Hd', 'Zv', 'Ks', 'Cb', 'Zm', 'B', 'L')
+by_differences.importance_factors[:3]   # (0.348, 0.116, 0.198)
+(by_differences.taylor_variance, by_differences.evaluations)   # (1.125, 16)
+exact = taylor_importance_factors(flood, "overflow", gradient=overflow_gradient, **nominal)
+exact.gradient[3], by_differences.gradient[3]   # (-0.1515, -0.1524)
+taylor_importance_factors(ishigami_model(), "y").importance_factors   # (1.0, 0.0, 0.0)
+```
+
 ## Ranking and decisions
 
 Inputs are ranked by total effect because it includes interactions. The declared
