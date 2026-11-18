@@ -1,15 +1,15 @@
 {
  "meta": {
   "schema": 1,
-  "probstat_version": "0.23.0",
+  "probstat_version": "0.24.0",
   "seed": 2026
  },
  "repository": {
   "licence": "BSD-3-Clause",
   "figure_text_floor_pt": 9.0,
-  "tests_floor": 2600,
-  "equations_floor": 1150,
-  "references_floor": 650,
+  "tests_floor": 2700,
+  "equations_floor": 1200,
+  "references_floor": 700,
   "adrs_floor": 100,
   "questions": 8,
   "statistics_questions": 10,
