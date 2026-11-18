@@ -188,7 +188,11 @@ class _LeastAngle:
         self.knot_correlations: list[float] = []
         self.knot_coefficients: list[Vector] = []
         initial = max(
-            (abs(c) for c, ok in zip(self.correlations, self.available, strict=True) if ok),
+            (
+                abs(c)
+                for c, ok in zip(self.correlations, self.available, strict=True)
+                if ok
+            ),
             default=0.0,
         )
         self.stop_level = 1e-12 * initial
@@ -277,7 +281,9 @@ class _LeastAngle:
         scale = 1.0 / math.sqrt(_dot(signs, direction))
         weights = [scale * value for value in direction]
         equiangular = [_dot(row, weights) for row in self.active_rows]
-        inner = [_dot(column, equiangular) if column else 0.0 for column in self.columns]
+        inner = [
+            _dot(column, equiangular) if column else 0.0 for column in self.columns
+        ]
         gamma = level / scale
         entering: int | None = None
         if len(self.active) < self.max_active:
@@ -468,8 +474,10 @@ class _NestedLeastSquares:
         self.trace += _dot(new_column, new_column)
         self.inverse_columns.append(new_column)
         self.q.append(unit)
-        inner = _dot(unit, self.response)
-        self.residual = [r - inner * u for r, u in zip(self.residual, unit, strict=True)]
+        weight = _dot(unit, self.response)
+        self.residual = [
+            r - weight * u for r, u in zip(self.residual, unit, strict=True)
+        ]
         self.leverage = [h + u * u for h, u in zip(self.leverage, unit, strict=True)]
         for row, value in zip(self.q_rows, unit, strict=True):
             row.append(value)
@@ -795,7 +803,9 @@ def sparse_polynomial_chaos_from_samples(
     full_set = sets[(chosen.degree, chosen.q_norm)]
     kept = set(chosen.entry_order[: chosen.selected_terms])
     selected = full_set[:1] + tuple(alpha for alpha in full_set[1:] if alpha in kept)
-    rows = [list(row) for row in zip(*(column(alpha) for alpha in selected), strict=True)]
+    rows = [
+        list(row) for row in zip(*(column(alpha) for alpha in selected), strict=True)
+    ]
     factor = householder_qr(tuple(tuple(row) for row in rows))
     if not factor.full_rank:
         raise ValueError(

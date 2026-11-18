@@ -4474,3 +4474,19 @@ Alfred Inselberg. "The Plane with Parallel Coordinates." *The Visual
 Computer* 1(2), 69-91, 1985. Parallel-coordinate displays of
 multivariate data (the cobweb plot of sensitivity analysis).
 DOI: [10.1007/BF01898350](https://doi.org/10.1007/BF01898350).
+
+## REF-EFRON-HASTIE-JOHNSTONE-TIBSHIRANI-2004
+
+Bradley Efron, Trevor Hastie, Iain Johnstone, and Robert Tibshirani. "Least
+Angle Regression." *The Annals of Statistics* 32(2), 407-499, 2004. The
+least-angle regression path: equiangular steps between the knots where a new
+regressor becomes as correlated with the residual as the active ones.
+DOI: [10.1214/009053604000000067](https://doi.org/10.1214/009053604000000067).
+
+## REF-CHAPELLE-VAPNIK-BENGIO-2002
+
+Olivier Chapelle, Vladimir Vapnik, and Yoshua Bengio. "Model Selection for
+Small Sample Regression." *Machine Learning* 48(1-3), 9-23, 2002.
+Small-sample correction of error estimates for linear regression, the basis
+of the corrected leave-one-out error of sparse polynomial chaos.
+DOI: [10.1023/A:1013943418833](https://doi.org/10.1023/A:1013943418833).

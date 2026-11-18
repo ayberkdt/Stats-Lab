@@ -200,8 +200,7 @@ class CorrectedLeaveOneOutTests(unittest.TestCase):
             )
             chosen = expansion.selection.chosen
             self.assertAlmostEqual(
-                chosen.loo_path[chosen.selected_terms]
-                / expansion.corrected_loo_error,
+                chosen.loo_path[chosen.selected_terms] / expansion.corrected_loo_error,
                 1.0,
                 delta=1e-8,
             )
@@ -217,7 +216,7 @@ class SparseRecoveryTests(unittest.TestCase):
     """An exact sparse expansion is recovered from fewer runs than terms."""
 
     def test_exact_sparse_polynomial_with_fewer_runs_than_terms(self) -> None:
-        """d = 10, 4 active terms of degree <= 3, N = 60 < P = 286."""
+        """Ten inputs, 4 active terms of degree <= 3, N = 60 < P = 286."""
         inputs = _normal_inputs(DIMENSION)
         unit = make_design("lhs", 60, DIMENSION, seed=resolve_stream(1))
         points = inputs.sample_design(unit)
