@@ -202,9 +202,9 @@ corrected error, 1.8e-2, is 23 times the validation error.
 
 A GP prior `f ~ GP(0, k)` conditioned on training runs gives a Gaussian
 predictive law: the mean interpolates the data, and the variance grows away
-from it [EQ-SUR-GP-003]. Two ARD kernels are provided: squared exponential
-[EQ-SUR-GP-001] and Matérn 5/2 [EQ-SUR-GP-002], with one length scale per
-input.
+from it [EQ-SUR-GP-003]. Three ARD kernels are provided: squared exponential
+[EQ-SUR-GP-001], Matérn 5/2 [EQ-SUR-GP-002], and Matérn 3/2
+[EQ-SUR-GP-008], with one length scale per input.
 
 `fit_gaussian_process` standardizes the outputs, then maximizes the log
 marginal likelihood [EQ-SUR-GP-004] over log hyperparameters. It uses BFGS
@@ -273,7 +273,132 @@ construction, whatever the optimizer does. The default of
 `fit_gaussian_process` is still the unregularized fit, so existing results do
 not change; `reliability.ak_mcs` uses the regularized fit by default.
 
-## 4. Surrogates inside the central model
+## 4. Universal kriging and PC-Kriging
+
+`fit_gaussian_process` centres the outputs and puts a zero-mean process on
+them. **Universal kriging** adds a regression trend: `Y(x) = f(x)' beta +
+sigma^2 Z(x)`, with regressors `f(x)` of your choice and a unit-variance
+stationary process `Z` with correlation `R(x, x'; ell)`.
+`fit_universal_kriging(points, values, regressors=...)` accepts `None` (a
+constant: ordinary kriging), a callable that returns the regressor vector,
+or a sequence of scalar callables. The kernels are those of section 3 plus
+Matérn 3/2 [EQ-SUR-GP-008], which `fit_gaussian_process` also accepts.
+
+For given length scales the trend is the generalized least-squares estimate
+`beta = (F'R^-1F)^-1 F'R^-1 Y` and the process variance has the closed form
+`sigma^2 = (Y - F beta)'R^-1(Y - F beta) / N` [EQ-SUR-UK-001]. Both are
+profiled out, so the length scales alone minimize `sigma^2 det(R)^(1/N)`, the
+concentrated likelihood [EQ-SUR-UK-002]. BFGS runs with its exact gradient
+from seeded starts inside `log ell_i in [log(0.01 E_i), log(20 E_i)]`
+(`E_i` the extent of input `i`); `estimate_nugget=True` also fits a nugget.
+The prediction [EQ-SUR-UK-003] is `mu(x) = f' beta + r'R^-1(Y - F beta)`.
+Its variance carries a third term, `sigma^2 u'(F'R^-1F)^-1 u` with
+`u = F'R^-1 r - f`, for the uncertainty of `beta`. `leave_one_out()` returns
+the closed-form leave-one-out means and variances,
+`mu_(-i) = Y_i - alpha_i / P_ii` [EQ-SUR-UK-004], and `loo_error` the
+relative error. A trend that reproduces the data to `1e-10` relative leaves
+no residual process to learn; `exact_trend` is then set and the length
+scales stay at the first start.
+
+```python
+from probstat.surrogates import fit_universal_kriging
+
+xs = [(0.0,), (1.0,), (2.0,), (3.0,), (4.0,), (5.0,)]
+ys = [1.0 + 2.0 * x[0] - 0.5 * x[0] ** 2 for x in xs]
+quadratic = fit_universal_kriging(
+    xs, ys, regressors=lambda x: (1.0, x[0], x[0] ** 2), seed=1
+)
+quadratic.exact_trend                 # True
+round(quadratic.predict((10.0,)), 9)  # -29.0, the polynomial extrapolated
+ordinary = fit_universal_kriging(xs, ys, seed=1)
+round(ordinary.predict((10.0,)), 2)   # -12.98
+round(ordinary.predict_with_variance((10.0,))[1], 2)  # 21.1
+```
+
+The quadratic trend extrapolates the quadratic exactly, with a predictive
+variance below `1e-28`. Ordinary kriging on the same six runs predicts
+-12.98 at `x = 10` instead of -29, with variance 21.1.
+
+**PC-Kriging** (Schöbi, Sudret and Wiart) takes the trend from a sparse PCE.
+`fit_pc_kriging(model, size=..., degrees=..., basis=..., variant=...)` (or
+`fit_pc_kriging((inputs, points, values), ...)` for existing runs) first
+runs the hybrid LAR selection of section 2. Then:
+
+- `variant="sequential"` fits one universal kriging model whose trend is the
+  constant plus every selected polynomial;
+- `variant="optimal"` adds the selected polynomials one at a time in their
+  LAR order, fits a kriging model for each trend size, and keeps the one
+  with the smallest leave-one-out error [EQ-SUR-PCK-001]. The full trend is
+  fitted with all optimizer starts, exactly as the sequential model, so the
+  optimal error is never larger; each smaller trend starts from the optimum
+  of the previous size to save time.
+
+The polynomials and the correlation function both act on the standardized
+PCE variables (`xi in [-1, 1]^d` for Legendre, the standard-normal `u` for
+Hermite). The length scales are therefore dimensionless and comparable
+across inputs. The paper also allows physical coordinates for the
+correlation; this implementation uses one coordinate system for both parts.
+The result, a `PCKriging`, has `predict` and `predict_with_variance` on
+physical inputs, `leave_one_out()`, `loo_error`, `trend_indices` (constant
+first, then LAR order), `candidate_loo_errors` (one per trend size of the
+optimal variant), the fitted `kriging` model with its `length_scales`, and
+the sparse `expansion`. Any object with `predict` can replace the model
+through `surrogate_probabilistic_model`.
+
+**Benchmarks.** Legendre basis, Matérn 5/2, `restarts=3`, LHS designs with
+`seed=1`. The validation error is the relative mean squared error on
+independent Monte Carlo points (`make_design("mc", n, d,
+seed=resolve_stream(999))`, 1000 points for Ishigami and 2000 for Branin).
+The plain GP is `fit_gaussian_process(design, responses, seed=1)` on the
+same runs, and the sparse PCE is the one the PC-Kriging fit selected from.
+Ishigami uses `degrees=range(1, 13)` and `q_norms=(0.5, 0.75, 1.0)`; the
+Branin function, rescaled to the unit square, uses `degrees=range(1, 16)`.
+All entries are given to three significant digits.
+
+*Validation error: PC-Kriging is the most accurate surrogate in every run.*
+
+| function | runs | PCK sequential | PCK optimal | sparse PCE | plain GP | trend terms (sequential / optimal) |
+|---|---:|---:|---:|---:|---:|---:|
+| Ishigami | 40 | 1.95e-1 | 1.95e-1 | 1.98e-1 | 4.12e-1 | 20 / 20 |
+| Ishigami | 50 | 5.65e-3 | 5.65e-3 | 5.68e-3 | 2.94e-1 | 33 / 33 |
+| Ishigami | 60 | 6.74e-4 | 6.74e-4 | 6.80e-4 | 2.12e-1 | 31 / 31 |
+| Branin | 20 | 1.20e-3 | 1.20e-3 | 3.61e-2 | 3.65e-3 | 11 / 11 |
+| Branin | 30 | 6.32e-5 | 4.06e-5 | 2.58e-2 | 7.14e-4 | 13 / 9 |
+| Branin | 40 | 1.91e-6 | 1.91e-6 | 1.85e-2 | 6.28e-5 | 8 / 8 |
+
+*Leave-one-out estimates (corrected for the sparse PCE): too low on
+Ishigami, too high on Branin.*
+
+| function | runs | PCK sequential | PCK optimal | sparse PCE | plain GP |
+|---|---:|---:|---:|---:|---:|
+| Ishigami | 40 | 1.73e-2 | 1.73e-2 | 7.20e-2 | 6.87e-1 |
+| Ishigami | 50 | 9.05e-4 | 9.05e-4 | 1.18e-2 | 3.84e-1 |
+| Ishigami | 60 | 1.55e-4 | 1.55e-4 | 9.71e-4 | 2.77e-1 |
+| Branin | 20 | 1.07e-2 | 1.07e-2 | 9.12e-2 | 4.29e-2 |
+| Branin | 30 | 3.55e-3 | 2.18e-4 | 3.63e-2 | 9.76e-4 |
+| Branin | 40 | 1.68e-5 | 1.68e-5 | 4.10e-2 | 5.48e-4 |
+
+What the runs show:
+
+- **Branin.** A polynomial in both inputs plus a cosine in `x1` suits the
+  split: PC-Kriging is 3 to 33 times more accurate than the plain GP and 30
+  to 9700 times more accurate than the sparse PCE. At 30 runs the optimal
+  variant drops four of the thirteen polynomials and lowers both errors.
+- **Ishigami.** PC-Kriging is within 1.5 % of the sparse PCE (slightly
+  better in all three runs) and 2 to 300 times more accurate than the GP.
+  The fitted length scales end on the bounds of their box (at 60 runs, 0.02
+  on `x2` at the lower bound and 39 on `x3` at the upper): the residual
+  process adds little to the polynomial trend, and `kriging.at_bound` says
+  so. The optimal variant kept the full trend in all three cases.
+- **Error estimates.** The kriging leave-one-out error is not a
+  calibrated estimate of the validation error. On Ishigami it is 4 to 11
+  times too low (1.5e-4 against 6.7e-4 at 60 runs); on Branin it is 5 to 56
+  times too high (1.1e-2 against 1.2e-3 at 20 runs). The trend is chosen on
+  the same runs that score it.
+- **Cost.** A sequential fit took 0.5 to 4 s here, an optimal fit up to
+  19 s (one kriging fit per trend size, 33 sizes at 50 Ishigami runs).
+
+## 5. Surrogates inside the central model
 
 `surrogate_probabilistic_model(model, {"y": surrogate})` wraps any object with
 `predict(x)` in a `SurrogateModel` forward model. The result is a new
@@ -299,10 +424,18 @@ computed on a surrogate.
   and its early-stopping thresholds are computational choices. All algebra
   is dense pure Python and a LAR or OMP step costs `O(N P)`; each Ishigami
   fit above (29 truncation sets of up to 445 terms) took 5 to 7 s here.
-- GP: constant (centered) mean only, no universal kriging trend, stationary
+- GP: `fit_gaussian_process` has a constant (centered) mean only, stationary
   kernels, dense `O(n^3)` algebra, and hyperparameters restricted to
   `|log theta| <= 25` (narrower, data-dependent bounds with `regularization`;
   their factors are computational choices, not estimated).
+- Universal kriging and PC-Kriging: stationary kernels, maximum likelihood
+  (no restricted likelihood or Bayesian treatment of the trend), dense
+  pure-Python algebra whatever the active linear-algebra backend, and
+  length-scale bounds `[0.01 E_i, 20 E_i]` that are computational choices.
+  PC-Kriging takes its candidate polynomials from one LAR selection and
+  correlates on the standardized PCE variables only; the optimal variant
+  costs one kriging fit per trend size. There is no adaptive design
+  (PC-Kriging inside active learning) in this module.
 
 ## Common pitfalls
 
@@ -323,6 +456,10 @@ computed on a surrogate.
   sparse fit. Prefer `method="lar"`: the OMP error estimate was more than an
   order of magnitude too optimistic in the benchmarks above. A selected
   degree at the top of `degrees` suggests the range may be too small.
+- **PC-Kriging length scales.** They live on the standardized PCE
+  variables, not in physical units. A length scale on the lower bound of
+  its box (see `kriging.at_bound`) means a nearly white residual process:
+  the surrogate is then essentially the sparse PCE plus spikes at the runs.
 - **Basis and inputs.** `basis="hermite"` is the default for every input law;
   `basis="legendre"` is refused unless all inputs are independent uniforms.
 - **Seeds.** The fitters default to `seed=None`, which is not reproducible.
@@ -360,4 +497,7 @@ refused  # "the Legendre basis requires Uniform marginals; 'x' is not uniform"
 - [REF-EFRON-HASTIE-JOHNSTONE-TIBSHIRANI-2004] for least-angle regression and
   [REF-CHAPELLE-VAPNIK-BENGIO-2002] for the corrected leave-one-out error.
 - [REF-RASMUSSEN-WILLIAMS-2006, Chapters 2, 4, and 5].
+- [REF-SCHOBI-SUDRET-WIART-2015] for universal kriging with a polynomial
+  chaos trend (PC-Kriging), its closed-form leave-one-out error, and the
+  sequential and optimal variants.
 - [REF-SALTELLI-2008, Chapter 4] for the Ishigami benchmark.

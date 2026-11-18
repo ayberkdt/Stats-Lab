@@ -4509,3 +4509,15 @@ Small Sample Regression." *Machine Learning* 48(1-3), 9-23, 2002.
 Small-sample correction of error estimates for linear regression, the basis
 of the corrected leave-one-out error of sparse polynomial chaos.
 DOI: [10.1023/A:1013943418833](https://doi.org/10.1023/A:1013943418833).
+
+## REF-SCHOBI-SUDRET-WIART-2015
+
+Roland Schöbi, Bruno Sudret, and Joe Wiart. "Polynomial-Chaos-Based
+Kriging." *International Journal for Uncertainty Quantification* 5(2),
+171-193, 2015. Universal kriging whose trend is a sparse set of orthonormal
+polynomials selected by least-angle regression, in a sequential and an
+optimal variant, with the generalized least-squares trend, the profiled
+process variance, the concentrated likelihood, the bordered-matrix
+prediction variance, and the closed-form leave-one-out error.
+DOI: [10.1615/Int.J.UncertaintyQuantification.2015012467](https://doi.org/10.1615/Int.J.UncertaintyQuantification.2015012467).
+Preprint: [arXiv:1502.03939](https://arxiv.org/abs/1502.03939).

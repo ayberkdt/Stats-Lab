@@ -54,8 +54,9 @@ from probstat.modeling import ProbabilisticModel
 from probstat.optimization import minimize_bfgs
 from probstat.propagation import make_design
 
-KERNELS = ("squared_exponential", "matern52")
+KERNELS = ("squared_exponential", "matern52", "matern32")
 _SQRT5 = math.sqrt(5.0)
+_SQRT3 = math.sqrt(3.0)
 _LOG_TWO_PI = math.log(2.0 * math.pi)
 _LOG_PARAMETER_BOUND = 25.0
 _BOUND_TOLERANCE = 0.01
@@ -301,11 +302,12 @@ def kernel_value(
     """Evaluate a stationary ARD covariance kernel.
 
     Squared exponential: ``sigma_f^2 exp(-r^2 / 2)``; Matern 5/2:
-    ``sigma_f^2 (1 + sqrt(5) r + 5 r^2 / 3) exp(-sqrt(5) r)``, with
+    ``sigma_f^2 (1 + sqrt(5) r + 5 r^2 / 3) exp(-sqrt(5) r)``; Matern 3/2:
+    ``sigma_f^2 (1 + sqrt(3) r) exp(-sqrt(3) r)``, with
     ``r^2 = sum_i ((x_i - x'_i) / ell_i)^2``.
 
     Args:
-        kernel: ``"squared_exponential"`` or ``"matern52"``.
+        kernel: ``"squared_exponential"``, ``"matern52"``, or ``"matern32"``.
         left: First input vector.
         right: Second input vector.
         length_scales: Positive length scales.
@@ -318,7 +320,7 @@ def kernel_value(
         ValueError: If the kernel name is unknown.
 
     Equation:
-        [EQ-SUR-GP-001], [EQ-SUR-GP-002].
+        [EQ-SUR-GP-001], [EQ-SUR-GP-002], [EQ-SUR-GP-008].
 
     References:
         [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
@@ -338,7 +340,7 @@ def _correlation(kernel: str, squared: float) -> float:
         ValueError: If the kernel name is unknown.
 
     Equation:
-        [EQ-SUR-GP-001], [EQ-SUR-GP-002].
+        [EQ-SUR-GP-001], [EQ-SUR-GP-002], [EQ-SUR-GP-008].
 
     References:
         [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
@@ -349,6 +351,9 @@ def _correlation(kernel: str, squared: float) -> float:
     if kernel == "matern52":
         r = math.sqrt(squared)
         return (1.0 + _SQRT5 * r + 5.0 * squared / 3.0) * math.exp(-_SQRT5 * r)
+    if kernel == "matern32":
+        r = math.sqrt(squared)
+        return (1.0 + _SQRT3 * r) * math.exp(-_SQRT3 * r)
     raise ValueError(f"kernel must be one of {KERNELS}")
 
 
@@ -356,10 +361,11 @@ def _length_scale_factor(kernel: str, squared: float) -> float:
     """Return ``(dk/d log ell_i) / (sigma_f^2 (Delta_i/ell_i)^2)``.
 
     Squared exponential: ``exp(-r^2/2)``. Matern 5/2:
-    ``(5/3)(1 + sqrt(5) r) exp(-sqrt(5) r)``. Both are finite at ``r = 0``.
+    ``(5/3)(1 + sqrt(5) r) exp(-sqrt(5) r)``. Matern 3/2:
+    ``3 exp(-sqrt(3) r)``. All are finite at ``r = 0``.
 
     Equation:
-        [EQ-SUR-GP-004].
+        [EQ-SUR-GP-004], [EQ-SUR-GP-008].
 
     References:
         [REF-RASMUSSEN-WILLIAMS-2006, Sections 4.2 and 5.4].
@@ -368,6 +374,8 @@ def _length_scale_factor(kernel: str, squared: float) -> float:
     if kernel == "squared_exponential":
         return math.exp(-0.5 * squared)
     r = math.sqrt(squared)
+    if kernel == "matern32":
+        return 3.0 * math.exp(-_SQRT3 * r)
     return (5.0 / 3.0) * (1.0 + _SQRT5 * r) * math.exp(-_SQRT5 * r)
 
 
@@ -655,7 +663,7 @@ def _assemble(
         of :func:`_length_scale_factor`.
 
     Equation:
-        [EQ-SUR-GP-001], [EQ-SUR-GP-002], [EQ-SUR-GP-004].
+        [EQ-SUR-GP-001], [EQ-SUR-GP-002], [EQ-SUR-GP-004], [EQ-SUR-GP-008].
 
     References:
         [REF-RASMUSSEN-WILLIAMS-2006, Sections 4.2 and 5.4].
@@ -667,6 +675,7 @@ def _assemble(
     factors: list[list[float]] = []
     matrix: list[list[float]] = []
     squared_exponential = kernel == "squared_exponential"
+    matern32 = kernel == "matern32"
     for i in range(count):
         row_parts: list[tuple[float, ...]] = []
         row_corr: list[float] = []
@@ -682,6 +691,11 @@ def _assemble(
             if squared_exponential:
                 value = math.exp(-0.5 * squared)
                 factor = value
+            elif matern32:
+                r = math.sqrt(squared)
+                decay = math.exp(-_SQRT3 * r)
+                value = (1.0 + _SQRT3 * r) * decay
+                factor = 3.0 * decay
             else:
                 r = math.sqrt(squared)
                 decay = math.exp(-_SQRT5 * r)
@@ -1258,7 +1272,7 @@ def fit_gaussian_process(
     Args:
         points: Training inputs (at least two distinct points).
         values: Training outputs (not all equal).
-        kernel: ``"squared_exponential"`` or ``"matern52"``.
+        kernel: ``"squared_exponential"``, ``"matern52"``, or ``"matern32"``.
         nugget: Explicit positive diagonal variance in standardized units.
         estimate_noise: Also estimate a noise variance above the nugget.
         optimize: Maximize the likelihood; ``False`` keeps the first start
