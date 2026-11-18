@@ -16580,3 +16580,102 @@ With `D_+ = (2 sigma - mu) / sigma` and `D_- = (-2 sigma - mu) / sigma`:
 - Meaning: many small, scattered failure regions; `P(g <= 0) ~ 7.30e-2`.
 - Code: `modeling.rastrigin`, `modeling.rastrigin_model`.
 - Source: [REF-ECHARD-GAYTON-LEMAIRE-2011].
+
+### EQ-SUR-GP-008 — Matern-3/2 ARD kernel
+
+`k(x,x') = sigma_f^2 (1 + sqrt(3) r) exp(-sqrt(3) r)`,
+`r^2 = sum_i ((x_i - x'_i)/ell_i)^2`; `dk/d log ell_i = 3 sigma_f^2
+(Delta_i/ell_i)^2 exp(-sqrt(3) r)`.
+
+- Domain: as [EQ-SUR-GP-001].
+- Meaning: once mean-square differentiable prior, rougher than Matern 5/2;
+  the derivative factor is finite at `r = 0`.
+- Code: `surrogates.kernel_value`, `surrogates.fit_gaussian_process`
+  (`kernel="matern32"`), `surrogates.fit_universal_kriging`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
+
+### EQ-SUR-UK-001 — Universal kriging trend and process variance
+
+`Y(x) = f(x)' beta + sigma^2 Z(x)` with `Z` a unit-variance stationary
+process of correlation `R(x, x'; ell)`; for `N` runs, regression matrix
+`F` (`N x P`) and correlation matrix `R` (diagonal `1 + nugget`):
+`beta = (F'R^-1F)^-1 F'R^-1 Y`,
+`sigma^2 = (1/N) (Y - F beta)' R^-1 (Y - F beta)`; computed with
+`R = L L'`, `F~ = L^-1 F`, `Y~ = L^-1 Y` as the least-squares problem
+`min ||Y~ - F~ beta||`.
+
+- Domain: `N > P`; `R` positive definite; `F~` of full column rank (a
+  whitened column whose squared sine to the earlier ones is below `1e-12`
+  is refused).
+- Meaning: generalized least squares for the trend and the maximum
+  likelihood process variance for given length scales; a constant regressor
+  gives ordinary kriging.
+- Code: `surrogates.UniversalKriging`, `surrogates.fit_universal_kriging`.
+- Source: [REF-SCHOBI-SUDRET-WIART-2015].
+
+### EQ-SUR-UK-002 — Concentrated kriging likelihood and gradient
+
+`psi(theta) = (1/2)(N log sigma^2(theta) + log det R(theta))`, minimized over
+`theta = (log ell_1..d[, log nugget])`, which is minimizing
+`sigma^2 det(R)^(1/N)`; `d psi / d theta_j = (1/2) tr(W dR/d theta_j)` with
+`W = R^-1 - alpha alpha' / sigma^2`, `alpha = R^-1 (Y - F beta)`; the trend
+coefficients do not contribute because they minimize the quadratic form.
+The concentrated log-likelihood is
+`-(N/2)(log(2 pi sigma^2) + 1) - (1/2) log det R`.
+
+- Domain: `log ell_i in [log(0.01 E_i), log(20 E_i)]` with `E_i` the extent
+  of input `i`; an estimated nugget in `[nugget, 1]` (computational choices).
+- Meaning: maximum likelihood with `beta` and `sigma^2` profiled out; BFGS
+  with the exact gradient and seeded multi-starts.
+- Code: `surrogates.fit_universal_kriging`, `surrogates.UniversalKriging`.
+- Source: [REF-SCHOBI-SUDRET-WIART-2015]; the trace form of the gradient as
+  in [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
+
+### EQ-SUR-UK-003 — Universal kriging prediction
+
+`mu(x) = f(x)' beta + r(x)' R^-1 (Y - F beta)`;
+`s^2(x) = sigma^2 (1 - [f' r'] [[0, F'], [F, R]]^-1 [f; r])
+= sigma^2 (1 - r'R^-1 r + u'(F'R^-1F)^-1 u)`, `u = F'R^-1 r - f`.
+
+- Domain: as [EQ-SUR-UK-001]; `r(x)` the correlations with the training runs.
+- Meaning: the best linear unbiased predictor; the last term is the variance
+  added by estimating `beta`, which grows when `x` leaves the region where
+  the trend is well determined.
+- Code: `surrogates.UniversalKriging.predict_with_variance`,
+  `surrogates.UniversalKriging.predict`, `surrogates.UniversalKriging.trend`,
+  `surrogates.PCKriging.predict_with_variance`.
+- Source: [REF-SCHOBI-SUDRET-WIART-2015].
+
+### EQ-SUR-UK-004 — Closed-form kriging leave-one-out
+
+`B = [[sigma^2 R, F], [F', 0]]^-1`; `mu_(-i) = Y_i - sum_j (B_ij / B_ii) Y_j`,
+`s^2_(-i) = 1 / B_ii`; with `P = R^-1 - R^-1 F (F'R^-1F)^-1 F'R^-1` the
+top-left block of `B` is `P / sigma^2` and `P Y = alpha`, so
+`mu_(-i) = Y_i - alpha_i / P_ii` and `s^2_(-i) = sigma^2 / P_ii`;
+`epsilon_LOO = (1/N) sum_i (Y_i - mu_(-i))^2 / Var(Y)`.
+
+- Domain: fixed length scales and `sigma^2`; `beta` is re-estimated in every
+  fold.
+- Meaning: cross-validation without refitting; the error used to choose the
+  trend of optimal PC-Kriging.
+- Code: `surrogates.UniversalKriging.leave_one_out`,
+  `surrogates.UniversalKriging.loo_error`, `surrogates.PCKriging.loo_error`.
+- Source: [REF-SCHOBI-SUDRET-WIART-2015].
+
+### EQ-SUR-PCK-001 — Sequential and optimal PC-Kriging
+
+`M(x) ~= sum_(alpha in A) beta_alpha Psi_alpha(xi(x)) + sigma^2 Z(xi(x))`:
+universal kriging [EQ-SUR-UK-001] with orthonormal polynomial regressors.
+Sequential: `A` is the set chosen by hybrid LAR [EQ-SUR-SPCE-004]. Optimal:
+with the LAR order `alpha_1, alpha_2, ...` of that set,
+`A* = argmin_k epsilon_LOO({0, alpha_1, ..., alpha_k})` [EQ-SUR-UK-004].
+
+- Domain: as [EQ-SUR-UK-001]; `xi(x)` the standardized PCE variables, used
+  for the polynomials and the correlation alike.
+- Meaning: the polynomials capture the global behaviour and the process the
+  local residual. The full trend is fitted with all optimizer starts,
+  exactly as the sequential model, so the optimal error is never larger;
+  each smaller trend starts from the optimum of the previous size.
+- Code: `surrogates.fit_pc_kriging`, `surrogates.pc_kriging_from_samples`,
+  `surrogates.PCKriging`, `surrogates.ChaosTrend`.
+- Source: [REF-SCHOBI-SUDRET-WIART-2015].

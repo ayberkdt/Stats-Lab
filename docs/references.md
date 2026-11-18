@@ -4560,3 +4560,15 @@ Sampling and Kriging Reliability Method for Small Failure Probabilities with
 Time-Demanding Numerical Models." *Reliability Engineering & System Safety*
 111, 232-240, 2013. AK-IS; the oscillator with smaller pulse loads.
 DOI: [10.1016/j.ress.2012.10.008](https://doi.org/10.1016/j.ress.2012.10.008).
+
+## REF-SCHOBI-SUDRET-WIART-2015
+
+Roland Schöbi, Bruno Sudret, and Joe Wiart. "Polynomial-Chaos-Based
+Kriging." *International Journal for Uncertainty Quantification* 5(2),
+171-193, 2015. Universal kriging whose trend is a sparse set of orthonormal
+polynomials selected by least-angle regression, in a sequential and an
+optimal variant, with the generalized least-squares trend, the profiled
+process variance, the concentrated likelihood, the bordered-matrix
+prediction variance, and the closed-form leave-one-out error.
+DOI: [10.1615/Int.J.UncertaintyQuantification.2015012467](https://doi.org/10.1615/Int.J.UncertaintyQuantification.2015012467).
+Preprint: [arXiv:1502.03939](https://arxiv.org/abs/1502.03939).
