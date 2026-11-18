@@ -8,7 +8,10 @@ importance sampling, subset simulation, cross-entropy importance sampling,
 line sampling, system reliability, and inverse design. ``design_points``
 finds multiple design points and combines them (multi-point FORM, mixture
 importance sampling); ``active_learning`` implements AK-MCS on a Gaussian
-process surrogate from :mod:`probstat.surrogates`. ``data`` estimates
+process surrogate from :mod:`probstat.surrogates` (or any probabilistic
+surrogate through a refit hook), with the learning functions and stopping
+rules of ``learning`` and the candidate-population posteriors of
+``population_posterior``. ``data`` estimates
 component parameters from test and field data (Beta/Gamma posteriors,
 chi-square bounds, demonstration tests, Crow-AMSAA growth) and
 ``allocation`` apportions a system reliability target to units, including
@@ -40,7 +43,8 @@ Main entry points:
     ``compare_reliability_methods``: FORM, SORM, importance sampling, subset
     simulation, and crude Monte Carlo on one limit state.
     ``find_design_points``: several design points of one limit state.
-    ``ak_mcs``: Gaussian-process active learning for expensive models.
+    ``ak_mcs``: Gaussian-process active learning for expensive models
+    (learning functions ``U``, ``EFF``, ``H``; learning or bound stopping).
     ``estimate_failure_probability``: direct Monte Carlo on explicit vectors.
 
 Assumptions:
@@ -80,6 +84,7 @@ References:
 """
 
 from .active_learning import (
+    AKMCS_DESIGNS,
     AKMCS_GP_REGULARIZATION,
     AKMCSIteration,
     AKMCSResult,
@@ -157,6 +162,17 @@ from .directional import (
     default_radius_max,
     directional_simulation,
 )
+from .learning import (
+    BOUNDS_QUANTILE,
+    LEARNING_FUNCTIONS,
+    LEARNING_THRESHOLDS,
+    STOPPING_RULES,
+    bounds_satisfied,
+    learning_value,
+    probability_bounds,
+    select_learning_point,
+    stopping_satisfied,
+)
 from .model_based import (
     DesignParameterResult,
     FORMResult,
@@ -176,6 +192,11 @@ from .particles import (
     MovingParticlesResult,
     moving_particles,
     moving_particles_interval,
+)
+from .population_posterior import (
+    GaussianProcessPopulationPosterior,
+    PopulationPosterior,
+    SurrogatePopulationPosterior,
 )
 from .simulation import (
     AVAILABLE_METHODS,
@@ -315,4 +336,17 @@ __all__ = [
     "subset_simulation",
     "success_run_sample_size",
     "system_failure_probability",
+    "AKMCS_DESIGNS",
+    "BOUNDS_QUANTILE",
+    "LEARNING_FUNCTIONS",
+    "LEARNING_THRESHOLDS",
+    "STOPPING_RULES",
+    "bounds_satisfied",
+    "learning_value",
+    "probability_bounds",
+    "select_learning_point",
+    "stopping_satisfied",
+    "GaussianProcessPopulationPosterior",
+    "PopulationPosterior",
+    "SurrogatePopulationPosterior",
 ]

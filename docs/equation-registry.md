@@ -16507,3 +16507,76 @@ truncation set `A_(p,q)` of [EQ-SUR-PCE-004], each refitted by
   `surrogates.fit_sparse_polynomial_chaos`,
   `surrogates.SparseChaosSelection`.
 - Source: [REF-BLATMAN-SUDRET-2011].
+
+## Active-learning reliability: learning functions, stopping, benchmarks
+
+### EQ-REL-AL-EFF-001 — Expected feasibility function
+
+With `G(x) ~ N(mu, sigma^2)`, `epsilon = 2 sigma`, `t = -mu / sigma`,
+`t_-+ = (-+epsilon - mu) / sigma`:
+`EFF = mu [2 Phi(t) - Phi(t_-) - Phi(t_+)] - sigma [2 phi(t) - phi(t_-) -
+phi(t_+)] + epsilon [Phi(t_+) - Phi(t_-)]`, which equals
+`E[(epsilon - |G|)_+]`; next point `argmax EFF`, stop when
+`max EFF <= 0.001`.
+
+- Domain: `sigma > 0` (`EFF = 0` for `sigma = 0`); in the units of `G`, so
+  the threshold assumes `G` of order one.
+- Meaning: expected amount by which the prediction falls inside the band
+  `|G| <= 2 sigma` around the limit state.
+- Code: `reliability.learning_value`, `reliability.select_learning_point`,
+  `reliability.ak_mcs`.
+- Source: [REF-BICHON-ETAL-2008].
+
+### EQ-REL-AL-H-001 — Information-entropy learning function
+
+With `D_+ = (2 sigma - mu) / sigma` and `D_- = (-2 sigma - mu) / sigma`:
+`H = |(ln(sqrt(2 pi) sigma) + 1/2) [Phi(D_+) - Phi(D_-)] -
+[(D_+ / 2) phi(D_+) - (D_- / 2) phi(D_-)]|`, the absolute value of
+`-int_(-2 sigma)^(2 sigma) f ln f dg` for the predictive density `f` of
+`G`; next point `argmax H`, stop when `max H <= 0.5`.
+
+- Domain: `sigma > 0` (`H = 0` for `sigma = 0`); contains `ln sigma`, so it
+  depends on the scale of `G`.
+- Meaning: uncertainty (differential entropy) of the prediction restricted
+  to the band around the limit state.
+- Code: `reliability.learning_value`, `reliability.select_learning_point`,
+  `reliability.ak_mcs`.
+- Source: [REF-LV-LU-WANG-2015]; closed form and stopping value as restated
+  in [REF-DU-XU-2023].
+
+### EQ-REL-AL-BOUNDS-001 — Failure-probability bounds and bound stopping
+
+`P_f^0 = #{mu_i <= 0} / N`, `P_f^- = #{mu_i + k sigma_i <= 0} / N`,
+`P_f^+ = #{mu_i - k sigma_i <= 0} / N` with `k = 1.96`; stop learning when
+`(P_f^+ - P_f^-) / P_f^0 <= tolerance` (default `0.1`).
+
+- Domain: a candidate population with predictive means and variances; with
+  `P_f^0 = 0` the rule holds only if `P_f^+ = 0`.
+- Meaning: the estimate cannot move by more than the tolerance (relative)
+  when every sign that is uncertain at level `k` is flipped.
+- Code: `reliability.probability_bounds`, `reliability.bounds_satisfied`,
+  `reliability.ak_mcs`.
+- Source: [REF-SCHOBI-SUDRET-MARELLI-2017].
+
+### EQ-MOD-OSC-001 — Non-linear oscillator limit state
+
+`g = 3 r - |2 F_1 / (m omega_0^2) sin(omega_0 t_1 / 2)|`,
+`omega_0 = sqrt((c_1 + c_2) / m)`.
+
+- Domain: `m > 0`, `c_1 + c_2 > 0`; inputs `m ~ N(1, 0.05)`,
+  `c_1 ~ N(1, 0.1)`, `c_2 ~ N(0.1, 0.01)`, `r ~ N(0.5, 0.05)`,
+  `F_1 ~ N(1, 0.2)`, `t_1 ~ N(1, 0.2)`, independent.
+- Meaning: peak displacement of an undamped oscillator under a rectangular
+  pulse against three times the yield displacement; `P(g <= 0) ~ 2.86e-2`.
+- Code: `modeling.oscillator`, `modeling.oscillator_model`.
+- Source: [REF-GAYTON-BOURINET-LEMAIRE-2003],
+  [REF-ECHARD-GAYTON-LEMAIRE-2011].
+
+### EQ-MOD-RASTRIGIN-001 — Modified Rastrigin limit state
+
+`g = 10 - sum_(i=1,2) (x_i^2 - 5 cos(2 pi x_i))`.
+
+- Domain: two independent standard-normal inputs.
+- Meaning: many small, scattered failure regions; `P(g <= 0) ~ 7.30e-2`.
+- Code: `modeling.rastrigin`, `modeling.rastrigin_model`.
+- Source: [REF-ECHARD-GAYTON-LEMAIRE-2011].

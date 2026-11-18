@@ -149,8 +149,9 @@ so the first FORM run is started at `(0.3, 0.1)`.
 1. Draw a Monte Carlo population in `u` space.
 2. Fit a GP to `G` on a small space-filling design.
 3. Repeatedly add the population point with the smallest
-   `U = |mu| / sigma`.
-4. Stop when `min U >= 2` [EQ-REL-AKMCS-001].
+   `U = |mu| / sigma` (or the largest `EFF` or `H`, §4.1).
+4. Stop when `min U >= 2` [EQ-REL-AKMCS-001] (or on the `P_f` bounds,
+   §4.2).
 5. Estimate `P_f = N_f / N` from the predicted signs, and enlarge the
    population while its c.o.v. exceeds the target [EQ-REL-AKMCS-002].
 
@@ -219,6 +220,157 @@ needed 34 and 26 calls and matched crude MC on the same population
 (`P_f = 5.8e-3` and `4.2e-3`, nothing misclassified), with and without
 regularization. The Matérn kernel remains the default.
 
+### 4.1 Learning functions
+
+The learning function rates every population point from the surrogate's
+predictive law `G(u) ~ N(mu, sigma^2)`. The next model call goes to the best
+rated point, and learning stops when the best rating is no longer worth a
+call. `ak_mcs(learning=...)` offers three functions; `learning_value`,
+`select_learning_point`, and `stopping_satisfied` in `probstat.reliability`
+expose them for other candidate pools.
+
+| `learning` | value | next point | default stop | source |
+| --- | --- | --- | --- | --- |
+| `"U"` (default) | `abs(mu) / sigma` | smallest | `min U >= 2` | [EQ-REL-AKMCS-001] |
+| `"EFF"` | `E[(epsilon - abs(G))_+]`, `epsilon = 2 sigma` | largest | `max EFF <= 0.001` | [EQ-REL-AL-EFF-001] |
+| `"H"` | entropy of `G` on `abs(G) <= 2 sigma` | largest | `max H <= 0.5` | [EQ-REL-AL-H-001] |
+
+`learning_threshold=None` takes the default of the chosen function, so a
+caller that passes `2.0` with `U` gets the same run as before. `U` is
+scale-free. `EFF` is in the units of `G`, and `H` contains `ln sigma`, so
+their published thresholds assume a limit state of order one; rescale `G` or
+pass a threshold when it is not. `EFF` [REF-BICHON-ETAL-2008] is the expected
+amount by which the prediction falls inside the band `abs(G) <= 2 sigma`.
+`H` [REF-LV-LU-WANG-2015] is the differential entropy of the prediction on
+the same band; the stopping value 0.5 is the one used by Du and Xu
+[REF-DU-XU-2023].
+
+```python
+from probstat.reliability import LEARNING_THRESHOLDS, learning_value
+
+LEARNING_THRESHOLDS["EFF"]               # 0.001
+learning_value("U", 0.3, 0.2)            # 1.5
+learning_value("EFF", 0.3, 0.2)          # 0.1278
+learning_value("H", 0.3, 0.2)            # 0.2212
+```
+
+Four-branch system (`k = 6`), `N = 10^4`, `target_cov = 1`, seeds 1-5 (model
+calls / misclassified population points against crude MC on the same
+population):
+
+| seed | `U` | `EFF` | `H` | `U` + bound stop | `U` + maximin design |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 35 / 0 | 42 / 0 | 34 / 5 | 31 / 0 | 33 / 0 |
+| 2 | 34 / 0 | 40 / 0 | 31 / 3 | 33 / 0 | 36 / 0 |
+| 3 | 43 / 0 | 51 / 0 | 50 / 0 | 39 / 2 | 43 / 0 |
+| 4 | 37 / 0 | 43 / 0 | 34 / 6 | 35 / 0 | 45 / 0 |
+| 5 | 41 / 1 | 50 / 0 | 43 / 0 | 38 / 1 | 37 / 0 |
+
+`EFF` spent 6-9 more calls than `U` and misclassified nothing. `H` stopped
+earlier on three seeds and then left 3-6 signs wrong out of `10^4` (seed 4:
+`P_f = 4.6e-3` against `4.8e-3`): with this limit state, `max H <= 0.5` is a
+looser stop than `min U >= 2`. On the oscillator benchmark (`N = 10^4`, seed
+1, six inputs, 14-point design) `U` used 47 calls and `EFF` 46; both gave
+`P_f = 2.90e-2`, equal to crude MC on the same population, with nothing
+misclassified.
+
+### 4.2 Stopping on the failure-probability bounds
+
+`stopping="bounds"` replaces the pointwise threshold with a statement about
+the estimate itself [REF-SCHOBI-SUDRET-MARELLI-2017]. Counting a population
+point as failed when `mu + 1.96 sigma <= 0` gives `P_f^-`, when
+`mu - 1.96 sigma <= 0` gives `P_f^+`, and learning stops when
+`(P_f^+ - P_f^-) / P_f^0 <= bounds_tolerance` (default `0.1`)
+[EQ-REL-AL-BOUNDS-001]. The learning function still chooses the points. Every
+`AKMCSIteration` and the result carry `lower_probability` and
+`upper_probability` under either rule.
+
+```python
+from probstat.reliability import bounds_satisfied, probability_bounds
+
+bounds = probability_bounds([-1.0, -0.1, 0.1, 1.0], [0.01] * 4)
+bounds                                   # (0.25, 0.5, 0.75)
+bounds_satisfied(*bounds, tolerance=0.1) # False
+```
+
+In the table above the bound rule saved 1-4 calls on every seed and stopped
+with `min U` between 0.94 and 2.0. Seeds 3 and 5 then misclassified two and
+one points, and the same-population MC value lay just above the upper bound
+(seed 3: `5.1e-3` against `[4.7e-3, 5.0e-3]`). The bounds describe the
+surrogate's own uncertainty, so they are as overconfident as its `sigma`;
+the rule accepts up to 10% relative uncertainty in `P_f` and is not a
+guarantee for every point.
+
+### 4.3 The surrogate protocol
+
+`ak_mcs` reads only a predictive mean and variance per population point
+(ADR-0107). `surrogates.ProbabilisticSurrogate` is that interface
+(`predict` and `predict_with_variance(x) -> (mean, variance)`), and
+`surrogates.SurrogateFactory` is the refit hook
+`(points, values, previous) -> surrogate`. Passing `surrogate=factory` makes
+`ak_mcs` call the factory on the initial design and after every added point
+and re-predict the population with the returned surrogate.
+`GaussianProcessFactory` implements the hook with a warm-started likelihood
+fit per call.
+
+The population side is `PopulationPosterior`: `population`, `means`,
+`variances`, and `training_points`, updated by `add_training`,
+`add_population`, and `replace_population`. The default path uses
+`GaussianProcessPopulationPosterior`, the incremental rank-one update above;
+the factory path uses `SurrogatePopulationPosterior`, which refits and
+re-predicts everything. Both keep their training data when the candidate pool
+is replaced, which a method with a new pool per stage needs.
+
+With `GaussianProcessFactory(regularization=GaussianProcessRegularization(),
+seed=1)` on the four-branch system (`N = 10^4`, seed 1) the factory path used
+36 calls and 25 fits and gave `P_f = 4.5e-3` with nothing misclassified, the
+same estimate as the incremental path (35 calls). It ran for 78 s: each step
+pays a full likelihood fit and `10^4` predictions, where the incremental path
+pays `O(n)` per point between geometric refits.
+
+### 4.4 Initial design and multiple failure regions
+
+The learning function sees only where the surrogate is uncertain. A failure
+region that no training point is near can be predicted safe with a small
+`sigma`, and then no learning function will ever propose a point there. The
+four-branch system has four separate failure regions, so the initial design
+decides whether they are all seen. Seed 3, `N = 10^4`, population capped at
+`10^4`:
+
+| initial design | calls | `P_f` | misclassified | result |
+| --- | --- | --- | --- | --- |
+| LHS through `Phi^-1` (`design_bound=None`) | 12 | 0 | 51 | not converged: no failure predicted |
+| maximin LHS through `Phi^-1` | 12 | 0 | 51 | not converged: no failure predicted |
+| LHS through `Phi^-1` + 4 design points | 58 | 5.1e-3 | 0 | converged |
+| LHS in `[-5, 5]^2` (default) | 43 | 5.1e-3 | 0 | converged |
+| LHS in `[-5, 5]^2` + 4 design points | 53 | 5.1e-3 | 0 | converged |
+
+Crude MC on the same population gives `5.1e-3`. Twelve points mapped through
+`Phi^-1` stay inside `abs(u) < 2`, and spreading them better (maximin) does
+not move them outwards. Three remedies are available:
+
+- The box design (`design_bound`, default 5) covers the tails up to
+  `abs(u) = b`, so distant regions get training points.
+- `design="lhs-maximin"` (Morris-Mitchell maximin LHS,
+  [REF-MORRIS-MITCHELL-1995]) spreads the few points evenly over the box; in
+  the table of §4.1 it misclassified nothing on seeds 1-5 (33-45 calls).
+- `extra_points` adds standard-space points to the design, for example the
+  `design_point_u` of each FORM result of `find_design_points`. The four
+  design points of this function (all at `beta = 3`) cost 633 calls of the
+  bulged HL-RF search, which `ak_mcs` does not count, plus one call each
+  inside `ak_mcs`. They rescued the `Phi^-1` design, but added calls to the
+  box design.
+
+None of these is a guarantee: a region far outside the box, or one missed by
+the design-point search, can still be invisible. Comparing against crude MC
+on the same population (`compare_with_monte_carlo=True`) is the only check
+that does not rely on the surrogate, and it costs `N` model calls.
+
+The modified Rastrigin limit state (`modeling.rastrigin_model`, crude MC
+`P_f = 7.2983e-2` from `10^8` draws) is the harder test of this point: its
+failure set is a union of many small regions, and published AK-MCS runs on it
+use about 400 calls [REF-ECHARD-GAYTON-LEMAIRE-2011].
+
 ## Limitations
 
 - Bulging can only find modes that some start reaches. The axes rule costs
@@ -244,6 +396,10 @@ regularization. The Matérn kernel remains the default.
   `mixture_importance_sampling` when several regions are possible.
 - **Line sampling assumes one crossing per line.** A line with no root inside
   `max_distance` (default `10.0`) contributes exactly 0 or 1.
+- **`EFF` and `H` thresholds depend on the scale of `G`.** `max EFF <= 0.001`
+  is in the units of `G` and `H` contains `ln sigma`; for a limit state far
+  from order one, rescale it or pass `learning_threshold`. The convergence
+  plot takes the threshold as an argument: pass `result.learning_threshold`.
 - **The AK-MCS c.o.v. excludes misclassification.** It is the Monte Carlo
   error of the population. `misclassified` is `-1` unless
   `compare_with_monte_carlo=True`, which spends extra true-model calls.
@@ -266,6 +422,8 @@ inspect.signature(ak_mcs).parameters["compare_with_monte_carlo"].default   # Fal
 
 ## Sources
 
-[REF-ECHARD-GAYTON-LEMAIRE-2011], [REF-DERKIUREGHIAN-DAKESSIAN-1998],
+[REF-ECHARD-GAYTON-LEMAIRE-2011], [REF-BICHON-ETAL-2008],
+[REF-LV-LU-WANG-2015], [REF-DU-XU-2023], [REF-SCHOBI-SUDRET-MARELLI-2017],
+[REF-MORRIS-MITCHELL-1995], [REF-DERKIUREGHIAN-DAKESSIAN-1998],
 [REF-KOUTSOURELAKIS-PRADLWARTER-SCHUELLER-2004], [REF-GENZ-BRETZ-2009],
 [REF-OWEN-2013], [REF-RASMUSSEN-WILLIAMS-2006].

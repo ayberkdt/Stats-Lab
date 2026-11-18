@@ -40,6 +40,65 @@ class Surrogate(Protocol):
         ...
 
 
+@runtime_checkable
+class ProbabilisticSurrogate(Surrogate, Protocol):
+    """Structural interface of a surrogate with a Gaussian predictive law.
+
+    Active-learning reliability methods (``reliability.ak_mcs`` and the
+    population posteriors of ``reliability.population_posterior``) read only
+    the predictive mean ``mu(x)`` and variance ``sigma^2(x)`` of the latent
+    response at an input ``x`` and treat ``G(x) ~ N(mu(x), sigma^2(x))``
+    (ADR-0107). A Gaussian process, a polynomial-chaos Kriging model, or an
+    ensemble whose spread is summarized by a mean and a variance all fit.
+
+    References:
+        [REF-RASMUSSEN-WILLIAMS-2006, Chapter 2],
+        [REF-ECHARD-GAYTON-LEMAIRE-2011].
+
+    """
+
+    def predict_with_variance(self, x: Sequence[float]) -> tuple[float, float]:
+        """Return the predictive mean and non-negative variance at ``x``.
+
+        References:
+            [REF-RASMUSSEN-WILLIAMS-2006, Section 2.2]. No equation is
+            evaluated by the protocol.
+
+        """
+        ...
+
+
+@runtime_checkable
+class SurrogateFactory(Protocol):
+    """Refit hook of an active-learning loop: training data to a surrogate.
+
+    The loop calls the factory with every training input, the matching
+    responses, and the surrogate it replaces (``None`` on the first call), so
+    an implementation can warm-start its hyperparameters or keep them fixed
+    between full refits.
+
+    References:
+        [REF-ECHARD-GAYTON-LEMAIRE-2011]. No equation is evaluated by the
+        protocol.
+
+    """
+
+    def __call__(
+        self,
+        points: Sequence[Sequence[float]],
+        values: Sequence[float],
+        previous: ProbabilisticSurrogate | None,
+    ) -> ProbabilisticSurrogate:
+        """Return a surrogate fitted to ``points`` and ``values``.
+
+        References:
+            [REF-ECHARD-GAYTON-LEMAIRE-2011]. No equation is evaluated by the
+            protocol.
+
+        """
+        ...
+
+
 @dataclass(frozen=True)
 class SurrogateModel:
     """A forward model whose outputs come from fitted surrogates.

@@ -29,9 +29,11 @@ Main entry points:
         C- or D-vine.
     ``RandomFieldInput``: truncated Karhunen-Loeve field as standard-normal
         inputs.
-    ``flood_model``, ``four_branch_model``, ``ishigami_model``: published
-        benchmark models (dike overflow and cost, the four-branch series
-        limit state, the Ishigami function) with their input laws.
+    ``flood_model``, ``four_branch_model``, ``ishigami_model``,
+        ``oscillator_model``, ``rastrigin_model``: published benchmark models
+        (dike overflow and cost, the four-branch series limit state, the
+        Ishigami function, the non-linear oscillator, the modified Rastrigin
+        limit state) with their input laws.
 
 Assumptions:
     Each marginal is a law with ``pdf``, ``cdf``, ``quantile``, ``mean``, and
@@ -79,6 +81,9 @@ from .benchmarks import (
     FOUR_BRANCH_REFERENCE_PROBABILITY,
     ISHIGAMI_FIRST_ORDER,
     ISHIGAMI_TOTAL,
+    OSCILLATOR_INPUT_NAMES,
+    OSCILLATOR_REFERENCE_PROBABILITY,
+    RASTRIGIN_REFERENCE_PROBABILITY,
     flood_cost,
     flood_model,
     flood_overflow,
@@ -86,6 +91,10 @@ from .benchmarks import (
     four_branch_model,
     ishigami,
     ishigami_model,
+    oscillator,
+    oscillator_model,
+    rastrigin,
+    rastrigin_model,
 )
 from .copulas import (
     ArchimedeanCopula,
@@ -149,6 +158,9 @@ __all__ = [
     "FOUR_BRANCH_REFERENCE_PROBABILITY",
     "ISHIGAMI_FIRST_ORDER",
     "ISHIGAMI_TOTAL",
+    "OSCILLATOR_INPUT_NAMES",
+    "OSCILLATOR_REFERENCE_PROBABILITY",
+    "RASTRIGIN_REFERENCE_PROBABILITY",
     "flood_cost",
     "flood_model",
     "flood_overflow",
@@ -156,6 +168,10 @@ __all__ = [
     "four_branch_model",
     "ishigami",
     "ishigami_model",
+    "oscillator",
+    "oscillator_model",
+    "rastrigin",
+    "rastrigin_model",
     "ArchimedeanCopula",
     "CVineCopula",
     "ClaytonCopula",
