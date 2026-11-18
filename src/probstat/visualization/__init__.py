@@ -14,6 +14,10 @@ Main entry points:
         embedded text alternative.
     ``plot_monte_carlo_convergence``: Monte Carlo estimates and their
         reported intervals against sample size.
+    ``plot_input_scatter``: output against each input of a sample of model
+        runs, one panel per input, with a lowess smoother.
+    ``plot_cobweb``: cobweb (parallel-coordinate) plot of the runs with
+        the threshold-exceeding runs highlighted over grey context.
 
 Assumptions:
     Matplotlib is an optional dependency (the ``visualization`` extra); the
@@ -41,7 +45,7 @@ Guide: docs/foundations/visual-language.md
 
 References:
     [REF-MATPLOTLIB], [REF-W3C-WCAG21-2018], [REF-PNG-SPEC-2003],
-    [REF-FRITSCH-CARLSON-1980].
+    [REF-FRITSCH-CARLSON-1980], [REF-INSELBERG-1985], [REF-CLEVELAND-1979].
 
 """
 
@@ -62,6 +66,7 @@ from .foundation_plots import (
     plot_refinement_convergence,
     plot_waiting_count_pmfs,
 )
+from .sensitivity_plots import plot_cobweb, plot_input_scatter
 from .theme import (
     GRAPHITE,
     PORCELAIN,
@@ -93,4 +98,6 @@ __all__ = [
     "plot_random_variable_pmf",
     "plot_refinement_convergence",
     "plot_waiting_count_pmfs",
+    "plot_cobweb",
+    "plot_input_scatter",
 ]

@@ -16239,3 +16239,120 @@ plugs in the pair mean, the pooled pair variance, and `T_N`, and reports
   `sensitivity.quadratic_sum_importance`.
 - Source: [REF-SALTELLI-2008, Chapter 1], [REF-CASELLA-BERGER-2002, Section
   5.5.4].
+
+## Sampling-based sensitivity: regression coefficients and HSIC
+
+### EQ-SENS-SRC-001 — Standardized regression coefficients and R squared
+
+`y_k = b_0 + sum_i b_i x_ki + e_k` fitted by least squares;
+`SRC_i = b_i s_i / s_y` with sample standard deviations `s_i`, `s_y`;
+`R^2 = 1 - RSS / TSS`;
+`sum_i SRC_i^2 = R^2 - 2 sum_{i<j} SRC_i SRC_j r_ij`, `r_ij` the sample
+correlation of inputs `i` and `j`.
+
+- Domain: `n >= d + 3` i.i.d. rows, no constant or linearly dependent input
+  column, non-constant output.
+- Meaning: for a linear model with independent inputs,
+  `SRC_i^2 = b_i^2 Var(X_i) / Var(Y)` is the share of output variance due
+  to `X_i` and `sum_i SRC_i^2 = R^2 = 1`; a small `R^2` means the indices
+  describe only the linear part of the response, and correlated inputs make
+  the squared coefficients share variance.
+- Code: `sensitivity.regression_sensitivity`,
+  `sensitivity.model_regression_sensitivity`.
+- Source: [REF-SALTELLI-2008, Chapter 1] and [REF-HELTON-ETAL-2006].
+
+### EQ-SENS-PCC-001 — Partial correlation coefficient from the t statistic
+
+`PCC_i = corr(y - y_hat_(-i), x_i - x_hat_i(-i)) = t_i / sqrt(t_i^2 + n - d - 1)`,
+where `y_hat_(-i)` and `x_hat_i(-i)` are the least-squares fits on the other
+`d - 1` inputs and `t_i = b_i / se(b_i)` is the OLS t statistic of the full
+fit.
+
+- Domain: as [EQ-SENS-SRC-001]; `PCC_i` is in `[-1, 1]`.
+- Meaning: strength of the linear relation between `x_i` and `y` once the
+  linear effect of every other input is removed from both; it ranks inputs
+  but does not apportion variance.
+- Code: `sensitivity.regression_sensitivity`.
+- Source: [REF-HELTON-ETAL-2006] and [REF-MONTGOMERY-PECK-VINING-2021,
+  Chapter 3].
+
+### EQ-SENS-RANK-001 — Rank-transformed coefficients SRRC and PRCC
+
+Replace every input column and the output by their mid-ranks
+([EQ-STAT-RANK-001]) and apply [EQ-SENS-SRC-001] and [EQ-SENS-PCC-001]:
+`SRRC_i`, `PRCC_i`, and the rank `R^2`.
+
+- Domain: as [EQ-SENS-SRC-001]; ties receive average ranks.
+- Meaning: measures of monotone association; a rank `R^2` well above the
+  raw `R^2` signals a monotone but nonlinear response. The Student
+  p-values of the rank fit are nominal.
+- Code: `sensitivity.regression_sensitivity` (`rank=True`).
+- Source: [REF-IMAN-CONOVER-1979] and [REF-HELTON-ETAL-2006].
+
+### EQ-SENS-HSIC-001 — Biased HSIC estimator and the normalized index
+
+`K_ab = exp(-(x_a - x_b)^2 / (2 h_x^2))`, `L_ab = exp(-(y_a - y_b)^2 / (2 h_y^2))`,
+`H = I - 11'/n`; `HSIC_b(X, Y) = tr(K H L H) / n^2`;
+`R2_HSIC = HSIC(X, Y) / sqrt(HSIC(X, X) HSIC(Y, Y))`.
+
+- Domain: `n >= 6` i.i.d. pairs, bandwidths `h > 0` (default the sample
+  standard deviation; alternatively the median pairwise distance).
+- Meaning: squared Hilbert-Schmidt norm of the cross-covariance operator;
+  with the characteristic Gaussian kernel it vanishes if and only if `X`
+  and `Y` are independent. `R2_HSIC` lies in `[0, 1]` for the biased
+  estimator and compares inputs on one scale.
+- Code: `sensitivity.hsic_indices`, `sensitivity.model_hsic_indices`.
+- Source: [REF-GRETTON-ETAL-2005] and [REF-DA-VEIGA-2015].
+
+### EQ-SENS-HSIC-002 — Unbiased HSIC estimator
+
+With `K~` and `L~` the Gram matrices whose diagonals are set to zero,
+`HSIC_u = [tr(K~ L~) + (1'K~1)(1'L~1) / ((n - 1)(n - 2))
+- 2 / (n - 2) 1'K~L~1] / (n (n - 3))`.
+
+- Domain: `n >= 6` i.i.d. pairs.
+- Meaning: the U-statistic of HSIC; unbiased for every `n` and centred at
+  zero under independence, so small negative values occur for
+  unimportant inputs.
+- Code: `sensitivity.hsic_indices` (`estimator="unbiased"`).
+- Source: [REF-SONG-ETAL-2012].
+
+### EQ-SENS-HSIC-003 — Gamma approximation to the null law of n HSIC_b
+
+`n HSIC_b ~ Gamma(shape = m^2 / v, scale = n v / m)` under independence,
+with `m = (1 + mu_x mu_y - mu_x - mu_y) / n`,
+`mu_x = sum_{a != b} K_ab / (n (n - 1))` (likewise `mu_y`), and
+`v = 2 (n - 4)(n - 5) / (n (n - 1)(n - 2)(n - 3))
+sum_{a != b} (Kc_ab Lc_ab)^2 / (n (n - 1))` with the centred Gram
+matrices `Kc = HKH` and `Lc = HLH`; the p-value is the upper-tail Gamma
+probability of the observed `n HSIC_b`.
+
+- Domain: `n >= 6` i.i.d. pairs, kernels with unit diagonal (Gaussian).
+- Meaning: a two-moment fit to the null distribution that needs no
+  resampling; it is asymptotic and slightly anti-conservative or
+  conservative at small `n`.
+- Code: `sensitivity.hsic_indices` (`test="gamma"`).
+- Source: [REF-GRETTON-ETAL-2008].
+
+### EQ-SENS-HSIC-004 — Permutation p-value of an HSIC statistic
+
+`p = (1 + #{b : T(X, Y_pi_b) >= T(X, Y)}) / (B + 1)` for `B` random
+permutations `pi_b` of the output rows, `T` the chosen HSIC estimator.
+
+- Domain: exchangeable (i.i.d.) rows under `H0: X independent of Y`.
+- Meaning: an exact-level Monte Carlo test; the `+1` terms keep it valid
+  and the p-value positive, so its smallest value is `1 / (B + 1)`.
+- Code: `sensitivity.hsic_indices` (`test="permutation"`).
+- Source: [REF-GRETTON-ETAL-2008] and [REF-PHIPSON-SMYTH-2010].
+
+### EQ-SENS-HSIC-005 — Target transform for goal-oriented sensitivity
+
+`HSIC(X_i, w(Y))` with `w(y) = 1{y > c}` for a threshold `c`, or a
+user-supplied weight function `w`.
+
+- Domain: `w(Y)` not constant on the sample (at least one exceedance and
+  one non-exceedance for the indicator).
+- Meaning: dependence of each input with the occurrence of the critical
+  event `Y > c`, rather than with the whole output distribution.
+- Code: `sensitivity.hsic_indices` (`target=`).
+- Source: [REF-MARREL-CHABRIDON-2021].

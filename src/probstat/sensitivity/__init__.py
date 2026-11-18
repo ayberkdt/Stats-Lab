@@ -1,4 +1,4 @@
-"""Local and global sensitivity: Sobol, Morris, DGSM, given-data, Shapley.
+"""Local and global sensitivity: Sobol, Morris, DGSM, given-data, Shapley, HSIC.
 
 ``stochastic`` decomposes the output variance of a stochastic simulator into
 Sobol indices of its mean response and an intrinsic-noise index.
@@ -20,6 +20,14 @@ Main entry points:
     ``estimate_sobol_indices``: pick-freeze estimator on caller-supplied base
         matrices, including second-order indices.
     ``central_difference_gradient``: local derivatives at one point.
+    ``regression_sensitivity``: SRC, SRC^2, PCC (and SRRC, PRCC with
+        ``rank=True``), ``R^2``, Student and Fisher tests from an existing
+        input-output sample; ``model_regression_sensitivity`` samples and
+        runs a model first.
+    ``hsic_indices``: HSIC dependence measures, normalized ``R2_HSIC``, and
+        permutation or Gamma independence tests from an existing sample,
+        optionally of a target transform ``1{Y > c}``;
+        ``model_hsic_indices`` samples and runs a model first.
 
 Assumptions:
     Sobol indices, Morris screening, and the functional ANOVA behind them
@@ -44,6 +52,12 @@ Common pitfalls:
       broken design. The cost is ``size (d + 2)`` model runs.
     - Rank by total effect: an input that acts only through interactions has
       a first-order index near zero but a clearly positive total index.
+    - ``SRC^2`` are variance shares only for a near-linear model with
+      independent inputs: read ``R^2`` (and the result's ``notes``) first;
+      with ``R^2 < 0.7`` the indices miss the nonlinear part of the output.
+    - HSIC values depend on the kernel bandwidth and are not variance
+      shares; compare inputs through ``r2_hsic`` and the p-values. The
+      permutation test costs ``O(n^2)`` per permutation and input.
     - Morris effects are measured on a grid whose step is half of each
       input's quantile range, so a response periodic with that period (for
       example ``sin(x)**2`` with ``x`` uniform on ``[-pi, pi]``) shows
@@ -55,7 +69,8 @@ References:
     [REF-SOBOL-1993], [REF-SALTELLI-2010], [REF-JANSEN-1999],
     [REF-MORRIS-1991], [REF-CAMPOLONGO-CARIBONI-SALTELLI-2007],
     [REF-SOBOL-KUCHERENKO-2009], [REF-OWEN-2014],
-    [REF-SONG-NELSON-STAUM-2016].
+    [REF-SONG-NELSON-STAUM-2016], [REF-HELTON-ETAL-2006],
+    [REF-DA-VEIGA-2015], [REF-GRETTON-ETAL-2008].
 
 """
 
@@ -69,6 +84,7 @@ from .analysis import (
 )
 from .derivative_based import DGSMResult, dgsm, poincare_constant
 from .given_data import GivenDataSensitivityResult, given_data_first_order
+from .hsic import HSICResult, hsic_indices, model_hsic_indices
 from .model_based import (
     IndexInterval,
     ModelSobolResult,
@@ -77,6 +93,11 @@ from .model_based import (
     morris_screening,
     sobol_analysis,
     sobol_analysis_all,
+)
+from .regression_based import (
+    RegressionSensitivityResult,
+    model_regression_sensitivity,
+    regression_sensitivity,
 )
 from .shapley import (
     ShapleyResult,
@@ -119,4 +140,10 @@ __all__ = [
     "TaylorImportanceResult",
     "quadratic_sum_importance",
     "taylor_importance_factors",
+    "HSICResult",
+    "RegressionSensitivityResult",
+    "hsic_indices",
+    "model_hsic_indices",
+    "model_regression_sensitivity",
+    "regression_sensitivity",
 ]
