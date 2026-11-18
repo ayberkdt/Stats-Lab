@@ -244,7 +244,8 @@ finite variance `sigma^2`.
 - Domain: three independent unit-density uniform coordinates on `[-pi,pi]`.
 - Meaning: teaching benchmark whose third input acts through interaction with
   the first and therefore distinguishes first-order from total-effect ranking.
-- Code: `examples.sensitivity_lab.ishigami`.
+- Code: `examples.sensitivity_lab.ishigami`, `modeling.ishigami`,
+  `modeling.ishigami_model`.
 - Source: [REF-SALTELLI-2008, Chapter 4].
 
 ### EQ-SENS-LOCAL-001 — Central finite-difference sensitivity
@@ -15867,3 +15868,36 @@ mid-ranks, two-sided normal p-values, adjusted by [EQ-INF-MT-001] or
   pooled ranks of all groups, not separate two-sample rankings.
 - Code: `inference.dunn_test`.
 - Source: [REF-DUNN-1964] and [REF-HOLLANDER-WOLFE-CHICKEN-2014, Chapter 6].
+
+### EQ-MOD-FLOOD-001 — Dike overflow of the flood model
+
+`S=Z_v+H-H_d-C_b` with `H=(Q/(K_s B sqrt((Z_m-Z_v)/L)))^0.6`.
+
+- Domain: `Q, K_s, B, L > 0` and `Z_m > Z_v`.
+- Meaning: water level above the dike crest of a river section under a
+  one-dimensional steady-flow (Manning-Strickler) approximation; `S > 0` is
+  an overflow.
+- Code: `modeling.flood_overflow`, `modeling.flood_model`.
+- Source: [REF-IOOSS-LEMAITRE-2015].
+
+### EQ-MOD-FLOOD-002 — Dike maintenance cost of the flood model
+
+`C=1{S>0}+[0.2+0.8(1-exp(-1000/S^4))]1{S<=0}+max(H_d,8)/20`.
+
+- Domain: the overflow `S` of [EQ-MOD-FLOOD-001]; the `S <= 0` branch tends
+  to one as `S -> 0`, the value used at `S = 0`.
+- Meaning: annual maintenance cost (million euros) that jumps when the dike
+  overflows and grows with the dike height above 8 m.
+- Code: `modeling.flood_cost`, `modeling.flood_model`.
+- Source: [REF-IOOSS-LEMAITRE-2015].
+
+### EQ-REL-WAARTS-001 — Four-branch series limit state
+
+`g(u)=min(3+(u_1-u_2)^2/10-|u_1+u_2|/sqrt(2), k/sqrt(2)-|u_1-u_2|)`.
+
+- Domain: two independent standard-normal coordinates and `k > 0`.
+- Meaning: series system of four branches; with `k = 7` two design points
+  lie at distance 3 and two at 3.5, so single-point FORM misses about half
+  of `P(g <= 0) ~ 2.22e-3`.
+- Code: `modeling.four_branch`, `modeling.four_branch_model`.
+- Source: [REF-WAARTS-2000], [REF-ECHARD-GAYTON-LEMAIRE-2011].

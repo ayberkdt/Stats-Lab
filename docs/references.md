@@ -4273,3 +4273,26 @@ Probability Theory Group (Formerly: E1071), TU Wien*. R package version
 3 after Joanes and Gill; type 3 is the default), read from the package help
 pages of version 1.7-17.
 DOI: [10.32614/CRAN.package.e1071](https://doi.org/10.32614/CRAN.package.e1071).
+
+## REF-IOOSS-LEMAITRE-2015
+
+Bertrand Iooss and Paul Lemaître. "A Review on Global Sensitivity Analysis
+Methods." In G. Dellino and C. Meloni (eds.), *Uncertainty Management in
+Simulation-Optimization of Complex Systems*, Springer, 101-122, 2015. The
+flood (dike overflow and maintenance cost) model and its input laws.
+DOI: [10.1007/978-1-4899-7547-8_5](https://doi.org/10.1007/978-1-4899-7547-8_5).
+
+## REF-WAARTS-2000
+
+Paul H. Waarts. *Structural Reliability Using Finite Element Methods: An
+Appraisal of DARS (Directional Adaptive Response Surface Sampling)*. PhD
+thesis, Delft University of Technology, 2000. The four-branch series limit
+state used as a reliability benchmark.
+
+## REF-ISHIGAMI-HOMMA-1990
+
+T. Ishigami and T. Homma. "An Importance Quantification Technique in
+Uncertainty Analysis for Computer Models." *Proceedings of the First
+International Symposium on Uncertainty Modeling and Analysis (ISUMA'90)*,
+398-403, 1990.
+DOI: [10.1109/ISUMA.1990.151285](https://doi.org/10.1109/ISUMA.1990.151285).

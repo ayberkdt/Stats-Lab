@@ -29,6 +29,9 @@ Main entry points:
         C- or D-vine.
     ``RandomFieldInput``: truncated Karhunen-Loeve field as standard-normal
         inputs.
+    ``flood_model``, ``four_branch_model``, ``ishigami_model``: published
+        benchmark models (dike overflow and cost, the four-branch series
+        limit state, the Ishigami function) with their input laws.
 
 Assumptions:
     Each marginal is a law with ``pdf``, ``cdf``, ``quantile``, ``mean``, and
@@ -69,6 +72,21 @@ References:
 
 """
 
+from .benchmarks import (
+    FLOOD_INPUT_NAMES,
+    FLOOD_NOMINAL,
+    FLOOD_NOMINAL_STANDARD_DEVIATIONS,
+    FOUR_BRANCH_REFERENCE_PROBABILITY,
+    ISHIGAMI_FIRST_ORDER,
+    ISHIGAMI_TOTAL,
+    flood_cost,
+    flood_model,
+    flood_overflow,
+    four_branch,
+    four_branch_model,
+    ishigami,
+    ishigami_model,
+)
 from .copulas import (
     ArchimedeanCopula,
     ClaytonCopula,
@@ -125,6 +143,19 @@ from .vines import (
 )
 
 __all__ = [
+    "FLOOD_INPUT_NAMES",
+    "FLOOD_NOMINAL",
+    "FLOOD_NOMINAL_STANDARD_DEVIATIONS",
+    "FOUR_BRANCH_REFERENCE_PROBABILITY",
+    "ISHIGAMI_FIRST_ORDER",
+    "ISHIGAMI_TOTAL",
+    "flood_cost",
+    "flood_model",
+    "flood_overflow",
+    "four_branch",
+    "four_branch_model",
+    "ishigami",
+    "ishigami_model",
     "ArchimedeanCopula",
     "CVineCopula",
     "ClaytonCopula",
