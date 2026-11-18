@@ -19,6 +19,9 @@ Main entry points:
         model.
     ``expectation_by_quadrature``: one-dimensional expectation on explicit
         finite bounds.
+    ``wilks_rank``, ``wilks_sample_size``, ``wilks_bound``,
+        ``wilks_tolerance_interval``: distribution-free one-sided quantile
+        bounds and two-sided tolerance intervals from order statistics.
 
 Assumptions:
     Without ``replicates`` the error statements treat the outputs as
@@ -50,7 +53,7 @@ Guide: docs/foundations/uncertainty-propagation.md
 References:
     [REF-SMITH-UQ-2024, Chapters 3-4], [REF-L-ECUYER-2018],
     [REF-OWEN-2013, Chapter 17], [REF-HYNDMAN-FAN-1996], [REF-WILSON-1927],
-    [REF-FERSON-ET-AL-2003].
+    [REF-FERSON-ET-AL-2003], [REF-WILKS-1941], [REF-WILKS-1942].
 
 """
 
@@ -78,6 +81,15 @@ from .study import (
     replicate_interval,
     summarize,
 )
+from .wilks import (
+    WilksBound,
+    WilksRank,
+    WilksToleranceInterval,
+    wilks_bound,
+    wilks_rank,
+    wilks_sample_size,
+    wilks_tolerance_interval,
+)
 
 __all__ = [
     "DESIGNS",
@@ -89,6 +101,9 @@ __all__ = [
     "PropagationResult",
     "PropagationStudy",
     "QuantileInterval",
+    "WilksBound",
+    "WilksRank",
+    "WilksToleranceInterval",
     "compare_designs",
     "expectation_by_quadrature",
     "make_design",
@@ -98,4 +113,8 @@ __all__ = [
     "propagate_samples",
     "replicate_interval",
     "summarize",
+    "wilks_bound",
+    "wilks_rank",
+    "wilks_sample_size",
+    "wilks_tolerance_interval",
 ]

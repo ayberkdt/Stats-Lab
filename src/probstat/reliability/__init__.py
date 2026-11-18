@@ -12,7 +12,9 @@ process surrogate from :mod:`probstat.surrogates`. ``data`` estimates
 component parameters from test and field data (Beta/Gamma posteriors,
 chi-square bounds, demonstration tests, Crow-AMSAA growth) and
 ``allocation`` apportions a system reliability target to units, including
-cost-optimal allocation.
+cost-optimal allocation. ``certification`` decides whether a simulated
+failure probability is below an acceptable risk with a bounded
+false-certification probability (crude Monte Carlo and moving particles).
 
 Main entry points:
     ``ModelLimitState``: one model output and a threshold as a limit state
@@ -100,6 +102,18 @@ from .analysis import (
     estimate_weighted_failure_probability,
     linear_normal_form,
 )
+from .certification import (
+    CERTIFICATION_MAX_SIZE,
+    CERTIFICATION_RULES,
+    CERTIFICATION_SCAN_PLATEAUS,
+    CertificationProbability,
+    CertificationSampleSize,
+    MovingParticlesCertification,
+    certification_margin,
+    certification_probability,
+    certification_sample_size,
+    moving_particles_certification_probability,
+)
 from .data import (
     SIDES,
     TERMINATIONS,
@@ -167,10 +181,15 @@ __all__ = [
     "AKMCS_GP_REGULARIZATION",
     "AVAILABLE_METHODS",
     "AllocationResult",
+    "CERTIFICATION_MAX_SIZE",
+    "CERTIFICATION_RULES",
+    "CERTIFICATION_SCAN_PLATEAUS",
     "CE_COVARIANCE_FLOOR",
     "CE_MAX_UNCOVERED_ELITE_FRACTION",
     "CE_MIN_FAILURE_ESS_FRACTION",
     "CE_MIN_MEAN_NORM",
+    "CertificationProbability",
+    "CertificationSampleSize",
     "CrossEntropyResult",
     "CrowAMSAAFit",
     "DemandFailureEstimate",
@@ -192,6 +211,7 @@ __all__ = [
     "MixtureImportanceResult",
     "ModelLimitState",
     "ModelMonteCarloResult",
+    "MovingParticlesCertification",
     "MultiPointFORMResult",
     "MultipleDesignPointsResult",
     "OPTIONAL_METHODS",
@@ -207,6 +227,9 @@ __all__ = [
     "arinc_allocation",
     "bivariate_normal_cdf",
     "bulge_value",
+    "certification_margin",
+    "certification_probability",
+    "certification_sample_size",
     "compare_reliability_methods",
     "correlated_importance",
     "cost_optimal_allocation",
@@ -233,6 +256,7 @@ __all__ = [
     "linear_normal_form",
     "mixture_importance_sampling",
     "model_monte_carlo",
+    "moving_particles_certification_probability",
     "multi_point_form",
     "principal_curvatures",
     "second_order_probabilities",

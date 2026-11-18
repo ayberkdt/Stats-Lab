@@ -68,6 +68,71 @@ analytic affine reference.
 
 *Both sampling intervals cover the exact value 0.01695; directional sampling (estimate 0.01689) integrates the radial tail of each ray analytically, so its 30,000 rays give an interval 2.2 times narrower than 100,000 direct draws.*
 
+## Certifying a failure probability
+
+Deciding that a system is safe enough involves two probabilities: the
+acceptable risk `alpha` on the failure probability `p_f`, and the
+probability `beta` of certifying a system that does not meet it. With the
+Monte Carlo estimate `p_hat_n` of `n` runs, the system is certified when
+`p_hat_n + c(n, alpha, beta) <= alpha`. The central limit theorem suggests
+`c = z_(1-beta) sqrt(alpha (1 - alpha) / n)` [EQ-REL-CERT-001], for which the
+largest certification probability over `p_f >= alpha` tends to `beta`.
+
+The rule certifies exactly when the failure count `X ~ Binomial(n, p_f)` is
+at most an integer threshold `k_n`, so the certification probability is the
+binomial distribution function `P(X <= k_n)` [EQ-REL-CERT-002].
+`reliability.certification_probability` evaluates it through the
+regularized incomplete beta function, which stays fast and accurate for
+`n = 1e10`. Two consequences follow.
+
+- **The normal margin is approximate for small `n alpha`.** With
+  `n = 3000`, `alpha = p_f = 0.01`, and `beta = 0.05`, the normal rule
+  certifies with probability 0.0536. The `rule="clopper-pearson"` option
+  certifies when the exact one-sided upper bound is at most `alpha`, which
+  keeps the false-certification probability at most `beta` for every `n`
+  (here 0.0346).
+- **The certification probability is not monotone in `n`.** It jumps up when
+  `k_n` increases and decreases in between. `reliability.certification_sample_size`
+  therefore returns the smallest `n` from which the probability stays at or
+  above the requested power (`size`), and the first `n` at which it reaches
+  that power (`first_size`).
+
+The required size scales with `1/alpha`. At 95 % power and `beta = 0.05`,
+the normal rule needs `n alpha` of about 6.0, 33.5, and 1042 for
+`p_f = alpha/10`, `alpha/2`, and `0.9 alpha`, at every `alpha` from `1e-2` to
+`1e-6`; the Clopper-Pearson rule needs 6.3, 34.9, and 1046. In round
+numbers, `n` of about `10/alpha`, `50/alpha`, and `1000/alpha` certifies with
+probabilities of about 0.996, 0.994, and 0.94 to 0.95. For `alpha = 1e-6` and
+`p_f = alpha/10` this is six million model runs.
+
+Conditioned sampling reduces this cost. In an idealized moving-particles run
+with `N` particles the number of moves is `M ~ Poisson(-N ln p_f)` and the
+estimate is `(1 - 1/N)^M`. Certifying when the exact Poisson upper bound of
+`p_f` is at most `alpha` gives a certification probability that is again a
+Poisson tail [EQ-REL-CERT-003]. `reliability.moving_particles_certification_probability`
+counts `N` initial draws plus `steps` model calls per move, an expected
+`N (1 - steps ln p_f)` calls. With 10 calls per move, 32 particles certify
+`p_f = 1e-7` against `alpha = 1e-6` with probability 0.955 for about 5,190
+expected calls, more than a thousand times fewer than crude Monte Carlo. At
+`alpha = 1e-2` the advantage disappears (about 910 expected calls against
+602 runs), because the cost grows like `-ln p_f` rather than `1/p_f`.
+
+```python
+from probstat.reliability import (
+    certification_probability,
+    certification_sample_size,
+    moving_particles_certification_probability,
+)
+
+round(certification_probability(3000, 0.01, 0.01).probability, 4)   # 0.0536
+exact = certification_probability(3000, 0.01, 0.01, rule="clopper-pearson")
+exact.max_failures, round(exact.probability, 4)    # (20, 0.0346)
+crude = certification_sample_size(1e-7, 1e-6)
+crude.size, crude.max_failures                     # (6043694, 2)
+particles = moving_particles_certification_probability(32, 1e-7, 1e-6)
+round(particles.probability, 3), round(particles.expected_calls)   # (0.955, 5190)
+```
+
 ## Common pitfalls
 
 - **The boundary is failure.** `LimitState.failed` is `g(x) <= 0`, so a sample
@@ -101,3 +166,4 @@ linear_normal_form(-3.0, (1.0, 0.0)).reliability_index   # -3.0
 - [REF-MELCHERS-BECK-2018, Chapters 2-6].
 - [REF-OWEN-2013, Chapter 9].
 - [REF-WILSON-1927].
+- [REF-CLOPPER-PEARSON-1934], [REF-WALTER-2015].
