@@ -1191,8 +1191,8 @@ def main() -> None:
         f"  directional simulation: Pf = {directional.probability:.3e}, "
         f"SE {directional.standard_error:.2e}, c.o.v. "
         f"{directional.coefficient_of_variation:.3f}, {directional.rays} rays, "
-        f"{directional.evaluations} calls, roots per ray "
-        f"{min(map(len, directional.roots))} to {max(map(len, directional.roots))}"
+        f"{directional.evaluations} calls, roots per ray: min "
+        f"{min(map(len, directional.roots))}, max {max(map(len, directional.roots))}"
     )
     subset = subset_study()
     thresholds = ", ".join(f"{value:.3f}" for value in subset.thresholds)
