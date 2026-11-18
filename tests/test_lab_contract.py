@@ -82,6 +82,10 @@ LAB_REGRESSION_TESTS: dict[str, tuple[str, str]] = {
     "experimental_design_lab": ("test_experimental_design.py", "greedy_design"),
     "extremes_lab": ("test_extreme_value_analysis.py", "block_maxima"),
     "filtering_lab": ("test_uq7_filtering.py", "bootstrap_particle_filter"),
+    "flood_sensitivity_lab": (
+        "test_regression_and_hsic_sensitivity.py",
+        "hsic_indices",
+    ),
     "forecast_calibration_lab": ("test_forecast_calibration.py", "brier_decomposition"),
     "generate_foundation_figures": (
         "test_generating_functions_and_protocols.py",
@@ -113,6 +117,7 @@ LAB_REGRESSION_TESTS: dict[str, tuple[str, str]] = {
         "test_uq4_reliability.py",
         "estimate_directional_failure_probability",
     ),
+    "risk_analysis_lab": ("test_rare_event_methods.py", "moving_particles"),
     "sensitivity_lab": ("test_uq5_sensitivity.py", "estimate_sobol_indices"),
     "statistical_fitting_lab": (
         "test_uq1_modeling_and_inference.py",

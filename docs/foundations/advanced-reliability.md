@@ -427,6 +427,18 @@ c.o.v. 0.11 with 4507 calls, where crude Monte Carlo would have c.o.v. 0.32.
 On this function `G(u) = G(-u)`, so antithetic pairs repeat the same ray
 value and give no variance reduction.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/advanced-reliability-moving-particles-dark.png"><img alt="Standard-normal map of the four-branch limit state with 100 initial particles, the final particles, and two intermediate level sets" src="../images/guides/advanced-reliability-moving-particles.png"></picture>
+
+*The 100 initial particles (grey) fill the safe region around the origin; each of the 623 moves replaces the particle with the largest `g` by a draw below that level, so the level sets `g = L` (thin lines) expand toward `g = 0`. The final particles crowd the two inner design points at distance 3 and a few cross the straight outer branches, the regions that carry the failure probability: Pf = 1.91e-03 with the exact 95% Poisson interval [1.18e-03, 3.18e-03].*
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/advanced-reliability-directional-rays-dark.png"><img alt="Standard-normal map of the four-branch limit state with 200 rays from the origin and the roots where they enter the failure domain" src="../images/guides/advanced-reliability-directional-rays.png"></picture>
+
+*Each of the 200 random rays (grey) is scanned on 20 radial steps and its sign change refined to a root on `g = 0`; the ray contributes the chi-square tail `exp(-r^2/2)` beyond that root. Roots on the two curved inner branches, which come as close as radius 3, carry 74% of the estimate; the straight outer branches, at radius 3.5 and beyond, carry the rest, which one-point FORM ignores. The mean over rays is Pf = 1.93e-03 with c.o.v. 0.11 for 4,507 calls.*
+
+`examples/risk_analysis_lab.py` runs every method of this example, draws the
+two figures above, and continues with the optimal-splitting benchmark, Wilks
+bounds, and certification.
+
 Sources: [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011], [REF-WALTER-2015],
 [REF-LAGNOUX-2006], [REF-COTTER-ROBERTS-STUART-WHITE-2013],
 [REF-GARWOOD-1936], [REF-BJERAGER-1988], [REF-DITLEVSEN-MADSEN-1996],

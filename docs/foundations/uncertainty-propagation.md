@@ -133,6 +133,13 @@ bound = wilks_bound([float(i) for i in range(1, 60)], 0.95, 0.95)
 bound.bound, round(bound.empirical_quantile, 1)    # (59.0, 56.1)
 ```
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/propagation-wilks-quantiles-dark.png"><img alt="Empirical CDFs over replicates of the empirical 0.95-quantile and of the Wilks upper bound, with the true quantile" src="../images/guides/propagation-wilks-quantiles.png"></picture>
+
+*Each of 1,000 replicates draws 1000 standard normal values and computes both the type-7 empirical 0.95-quantile and the Wilks bound, the order statistic of rank 962. The empirical quantile is centred on the true value 1.645 and falls below it in 52.2% of the replicates, as a point estimate should; the Wilks bound falls below it in only 3.9%, within the designed risk of 1 - 0.9567. The price of the guarantee is the horizontal gap between the two curves: the bound is a conservative value, not an estimate of the quantile.*
+
+`examples/risk_analysis_lab.py` runs this replicate study after its
+reliability estimates.
+
 ## Common pitfalls
 
 - **Different defaults for the same step.** `propagation.propagate` defaults

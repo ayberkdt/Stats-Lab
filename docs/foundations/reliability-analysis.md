@@ -133,6 +133,13 @@ particles = moving_particles_certification_probability(32, 1e-7, 1e-6)
 round(particles.probability, 3), round(particles.expected_calls)   # (0.955, 5190)
 ```
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/reliability-certification-probability-dark.png"><img alt="Probability of certifying a failure probability against the number of runs times the acceptable risk, for three true probabilities and two rules" src="../images/guides/reliability-certification-probability.png"></picture>
+
+*With `alpha = 0.001` and `beta = 0.05`, nothing can be certified below `n alpha` of about 3, and each curve then climbs as a saw tooth: it jumps when the admissible failure count `k_n` grows and sinks while `k_n` stays fixed. The dots mark the size from which the probability never falls below 0.95 again: `n alpha` = 6.0, 33.5 and 1,041 for `p_f` = 0.1, 0.5 and 0.9 `alpha`. The dashed Clopper-Pearson curves lie just to the right of the normal ones; that small delay is the price of a false-certification probability that stays below `beta` at every `n`.*
+
+`examples/risk_analysis_lab.py` reproduces these numbers together with the
+moving-particles certification at `alpha = 1e-3` and `1e-6`.
+
 ## Common pitfalls
 
 - **The boundary is failure.** `LimitState.failed` is `g(x) <= 0`, so a sample
