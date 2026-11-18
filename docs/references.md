@@ -4296,3 +4296,67 @@ Uncertainty Analysis for Computer Models." *Proceedings of the First
 International Symposium on Uncertainty Modeling and Analysis (ISUMA'90)*,
 398-403, 1990.
 DOI: [10.1109/ISUMA.1990.151285](https://doi.org/10.1109/ISUMA.1990.151285).
+
+## REF-HELTON-ETAL-2006
+
+Jon C. Helton, Jay D. Johnson, Cédric J. Sallaberry, and Curtis B. Storlie.
+"Survey of Sampling-Based Methods for Uncertainty and Sensitivity Analysis."
+*Reliability Engineering & System Safety* 91(10-11), 1175-1209, 2006.
+Scatterplots, standardized (rank) regression and partial (rank) correlation
+coefficients, and their use on Monte Carlo and Latin hypercube samples.
+DOI: [10.1016/j.ress.2005.11.017](https://doi.org/10.1016/j.ress.2005.11.017).
+
+## REF-IMAN-CONOVER-1979
+
+Ronald L. Iman and W. J. Conover. "The Use of the Rank Transform in
+Regression." *Technometrics* 21(4), 499-509, 1979. Regression on the ranks
+of every variable for monotone nonlinear relations.
+DOI: [10.1080/00401706.1979.10489820](https://doi.org/10.1080/00401706.1979.10489820).
+
+## REF-GRETTON-ETAL-2005
+
+Arthur Gretton, Olivier Bousquet, Alex Smola, and Bernhard Schölkopf.
+"Measuring Statistical Dependence with Hilbert-Schmidt Norms." In
+*Algorithmic Learning Theory (ALT 2005)*, Lecture Notes in Artificial
+Intelligence 3734, Springer, 63-77, 2005. Definition of the
+Hilbert-Schmidt independence criterion and its biased empirical estimate.
+DOI: [10.1007/11564089_7](https://doi.org/10.1007/11564089_7).
+
+## REF-GRETTON-ETAL-2008
+
+Arthur Gretton, Kenji Fukumizu, Choon Hui Teo, Le Song, Bernhard Schölkopf,
+and Alex J. Smola. "A Kernel Statistical Test of Independence." In
+*Advances in Neural Information Processing Systems 20 (NIPS 2007)*,
+585-592, 2008. The HSIC independence test with the Gamma approximation to
+the null law of `n HSIC_b` and the median bandwidth heuristic.
+
+## REF-SONG-ETAL-2012
+
+Le Song, Alex Smola, Arthur Gretton, Justin Bedo, and Karsten Borgwardt.
+"Feature Selection via Dependence Maximization." *Journal of Machine
+Learning Research* 13, 1393-1434, 2012. The unbiased (U-statistic) HSIC
+estimator.
+
+## REF-DA-VEIGA-2015
+
+Sébastien Da Veiga. "Global Sensitivity Analysis with Dependence Measures."
+*Journal of Statistical Computation and Simulation* 85(7), 1283-1305, 2015.
+HSIC-based sensitivity indices, the normalized index `R2_HSIC`, and the
+standard-deviation bandwidth of the Gaussian kernel.
+DOI: [10.1080/00949655.2014.945932](https://doi.org/10.1080/00949655.2014.945932).
+
+## REF-MARREL-CHABRIDON-2021
+
+Amandine Marrel and Vincent Chabridon. "Statistical Developments for Target
+and Conditional Sensitivity Analysis: Application on Safety Studies for
+Nuclear Reactor." *Reliability Engineering & System Safety* 214, 107711,
+2021. Target sensitivity analysis: HSIC of the inputs with a transform of
+the output that isolates a critical region.
+DOI: [10.1016/j.ress.2021.107711](https://doi.org/10.1016/j.ress.2021.107711).
+
+## REF-INSELBERG-1985
+
+Alfred Inselberg. "The Plane with Parallel Coordinates." *The Visual
+Computer* 1(2), 69-91, 1985. Parallel-coordinate displays of
+multivariate data (the cobweb plot of sensitivity analysis).
+DOI: [10.1007/BF01898350](https://doi.org/10.1007/BF01898350).
