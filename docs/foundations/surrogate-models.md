@@ -415,6 +415,143 @@ The emulator's answers inherit the surrogate's approximation error, which
 none of these workflows can see. Report the LOO error next to any result
 computed on a surrogate.
 
+## 6. Deep ensembles of neural networks
+
+Active-learning reliability methods need a surrogate that returns a
+predictive variance as well as a mean. A GP provides one, but every
+likelihood evaluation costs `O(n^3)` and the optimizer needs many of them, so
+a GP becomes slow beyond a few hundred runs or a few tens of inputs. A
+**deep ensemble** [REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017] is the simplest
+neural alternative. `fit_deep_ensemble(points, values)` trains `M` small
+MLPs (`members=5`, `hidden=(32, 32)`, `tanh`) on the same data. Each starts
+from its own Glorot initialization; `bootstrap=True` also gives each member a
+bootstrap resample. Each member outputs a mean and a log-variance
+(`heteroscedastic=True`) or a mean and one shared variance
+(`heteroscedastic=False`). It minimizes the Gaussian negative log-likelihood
+plus a weight penalty `(lambda / 2) sum w^2` (`weight_decay=1e-4`) by Adam on
+mini-batches of 32 [EQ-SUR-DE-001]. Inputs and outputs are standardized
+first. The gradient comes from a closed-form backward pass. The tests check
+it against reverse-mode differentiation of `MLP.forward` to `1e-12`.
+
+Two training details go beyond the original method. Both are computational
+choices, and setting them to `0` recovers the original procedure:
+
+- `warmup_fraction=0.3` spends the first 30% of the iterations on the mean
+  alone, with the variance held at one, before the full likelihood takes
+  over. Without it the variance output absorbs the early misfit and the
+  mean stays underfitted (table below).
+- `tail_fraction=0.2` averages the last 20% of the Adam iterates. Without it,
+  in a 1-D run with 3 members and learning rate 0.02, one member finished on
+  a noisy last iterate that was overconfident at a training point; its
+  training loss was 67 against about -2.4 for the other two members.
+
+**Uncertainty decomposition.** The ensemble predicts the uniform mixture of
+the member Gaussians [EQ-SUR-DE-002]. Its mean is the average member mean.
+Its variance `mean_m (sigma_m^2 + mu_m^2) - mu*^2` splits exactly into two
+parts. The **aleatoric** part, `mean_m sigma_m^2`, is the noise the members
+attribute to the data. The **epistemic** part, `mean_m (mu_m - mu*)^2`, is
+the disagreement between members, and it grows where no data constrain the
+networks. `predict_decomposed(x)` returns both parts and the member values.
+`predict_with_variance(x)` returns the mean and the total variance, and
+`include_aleatoric=False` gives the epistemic part alone.
+`epistemic_variance(x)` and `aleatoric_variance(x)` return one part each. For
+a deterministic simulator the aleatoric part measures the misfit, not noise.
+Whether a learning function should include it is a modelling choice: the
+epistemic part is the counterpart of a GP's latent variance.
+`fit_deep_ensemble_to_model(model, size=...)` trains on an LHS design of the
+model, like `fit_gaussian_process_to_model`. The result has `predict(x)`, so
+`surrogate_probabilistic_model` accepts it.
+
+**Worked example.** The data are 20 equally spaced runs of `sin(x) + 0.3 x`
+on `[0, 6]`. The ensembles are tiny: 3 members with one hidden layer of 8
+units, 1500 full-batch iterations at learning rate 0.02, and seeds 1 to 8.
+The validation error is the RMSE at the 19 midpoints divided by the output
+standard deviation. The epistemic ratio is the mean epistemic variance at
+`x = -3, -2, 8, 9` over its mean at the training runs:
+
+| training | median error | worst error | smallest epistemic ratio |
+|---|---:|---:|---:|
+| likelihood only (`warmup_fraction=0`) | 0.046 | 0.124 | 6 |
+| warm-up 0.3 (default) | 0.006 | 0.020 | 747 |
+| `heteroscedastic=False`, no warm-up | 0.005 | 0.007 | 1464 |
+
+In every run the member means agree on the data and disagree away from it,
+so the epistemic variance grows outside `[0, 6]`, as it should. The second
+test is heteroscedastic: 200 runs of `y = 2x + e` with
+`sd(e) = 0.05 + 0.4 x` on `[0, 1]`, trained with the same tiny settings and
+the warm-up. Over seeds 1 to 6, the predicted aleatoric standard deviation at
+`x = 0.1, 0.3, ..., 0.9` was between 0.87 and 1.22 times the true one.
+
+**Measured cost.** All arithmetic is scalar Python. The table gives seconds
+per training epoch of one member (`hidden=(32, 32)`, heteroscedastic, batch
+32, median of 3 runs). It also gives the cost of predicting one point with 5
+members, and, for comparison, one GP log-likelihood evaluation with
+gradient (Matérn 5/2, in ms), of which a GP fit needs many. Measured on
+Python 3.12.1 and an Intel Core (family 6, model 158) desktop; repeated runs
+differed by tens of percent.
+
+| `d` | `n` | parameters per member | steps per epoch | epoch (s) | step (ms) | predict, 5 members (ms) | one GP likelihood (ms) |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2 | 50 | 1218 | 2 | 0.025 | 12 | 0.33 | 9 |
+| 2 | 200 | 1218 | 7 | 0.077 | 11 | 0.31 | 401 |
+| 2 | 500 | 1218 | 16 | 0.166 | 10 | 0.33 | 4725 |
+| 10 | 50 | 1474 | 2 | 0.018 | 9 | 0.61 | 18 |
+| 10 | 200 | 1474 | 7 | 0.073 | 10 | 0.38 | 478 |
+| 10 | 500 | 1474 | 16 | 0.233 | 15 | 0.79 | 7077 |
+| 50 | 50 | 2754 | 2 | 0.040 | 20 | 0.87 | 66 |
+| 50 | 200 | 2754 | 7 | 0.144 | 21 | 1.81 | 2319 |
+| 50 | 500 | 2754 | 16 | 0.661 | 41 | 0.97 | 17250 |
+
+An Adam step costs 10 to 40 ms and does not depend on `n`. A fit therefore
+costs `members x iterations` steps whatever the design size. The default
+architecture (5 members of 32 x 32, 2000 steps each) took 131 to 156 s at
+`d = 10`; by the step costs above, it takes roughly 3 to 7 minutes at
+`d = 50`. A one-layer network is much
+cheaper: `hidden=(16,)` took 25 s at `d = 10`.
+
+The same `d = 10` fits show what to expect from the predictions. The
+function is `g(x) = sin(x_1 + ... + x_10) + 0.1 (x_1^2 + ... + x_10^2)` with
+independent uniform inputs on `[-1, 1]`. There are 200 training runs and 500
+validation runs, and the ensemble seed is 3. The error is the validation
+RMSE divided by the validation standard deviation. The variance ratio is the
+mean predictive variance over the mean squared error on 100 validation runs:
+a value of 1 would mean the variance matches the error on average.
+
+| surrogate | fit (s) | validation error | variance ratio |
+|---|---:|---:|---:|
+| deep ensemble, `weight_decay=1e-2` | 150 | 0.16 | 0.44 |
+| deep ensemble, `hidden=(16,)`, `weight_decay=1e-3` | 25 | 0.22 | 1.11 |
+| deep ensemble, defaults | 131 | 0.25 | 0.44 |
+| deep ensemble, `heteroscedastic=False` | 155 | 0.32 | — |
+| GP, Matérn 5/2, unregularized defaults (114 likelihood evaluations) | 100 | 0.81 | — |
+
+A dash marks a ratio that was not measured.
+
+With the defaults the training error was 0.015 against 0.25 on validation,
+so the 32 x 32 members overfit 200 runs in ten dimensions. A stronger weight
+penalty or a smaller network did better. The default ensemble's variance
+was less than half the actual squared error, so its spread is too narrow
+away from the data. This is one function and one seed, not a ranking of
+methods: on this ridge-shaped function the stationary GP did poorly, and on
+smooth low-dimensional responses (section 3) a GP is far more accurate.
+
+Supported range: up to about 50 inputs and 500 training runs; beyond that a
+fit takes many minutes. Predicting a candidate pool of `10^5` points with 5
+members takes half a minute to three minutes per active-learning iteration.
+Check the error on held-out runs, and tune `weight_decay` and `hidden`
+against it.
+
+**Out of scope.** Physics-informed neural networks fit a network to the
+residual of a known PDE. They need the governing equations, not a black-box
+performance function, so they are not reliability surrogates in this sense.
+Full Bayesian neural networks sample the posterior over the weights, for
+example by Hamiltonian Monte Carlo. With thousands of weights, each
+log-density gradient costs a full pass over the data, and HMC needs
+thousands of such gradients even for a modest sample. That is impractical in
+scalar Python. A deep ensemble gives a usable predictive spread at a fixed,
+known cost instead. Its epistemic variance measures member
+disagreement, not the true error, and is not calibrated.
+
 ## Limitations
 
 - PCE: Hermite and Legendre bases only (no other Wiener-Askey families) and
@@ -436,6 +573,13 @@ computed on a surrogate.
   correlates on the standardized PCE variables only; the optimal variant
   costs one kriging fit per trend size. There is no adaptive design
   (PC-Kriging inside active learning) in this module.
+- Deep ensembles: scalar-Python training at 10 to 40 ms per Adam step,
+  measured up to 50 inputs and 500 runs; a fixed learning rate with no early
+  stopping or validation split; no adversarial training (an optional part of
+  the original method). The warm-up and iterate averaging are computational
+  choices. The epistemic variance is member disagreement, not a calibrated
+  error. Physics-informed networks and full Bayesian networks are not
+  provided.
 
 ## Common pitfalls
 

@@ -4572,3 +4572,13 @@ process variance, the concentrated likelihood, the bordered-matrix
 prediction variance, and the closed-form leave-one-out error.
 DOI: [10.1615/Int.J.UncertaintyQuantification.2015012467](https://doi.org/10.1615/Int.J.UncertaintyQuantification.2015012467).
 Preprint: [arXiv:1502.03939](https://arxiv.org/abs/1502.03939).
+
+## REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017
+
+Balaji Lakshminarayanan, Alexander Pritzel, and Charles Blundell. "Simple and
+Scalable Predictive Uncertainty Estimation using Deep Ensembles." In
+*Advances in Neural Information Processing Systems 30* (NIPS 2017),
+6402-6413, 2017. Networks with a Gaussian mean-variance output trained on the
+negative log-likelihood (a proper scoring rule) from independent random
+initializations, combined as a uniformly weighted Gaussian mixture.
+Preprint: [arXiv:1612.01474](https://arxiv.org/abs/1612.01474).

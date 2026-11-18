@@ -6,7 +6,9 @@ basis by hybrid least-angle regression or orthogonal matching pursuit with
 degree and q-norm adaptivity; ``gaussian_process`` fits GP
 regression with ARD kernels by maximum marginal likelihood; ``pc_kriging``
 fits universal kriging with an arbitrary regression trend and PC-Kriging, a
-universal kriging model whose trend is a LAR-selected sparse PCE; ``adapter`` wraps
+universal kriging model whose trend is a LAR-selected sparse PCE; ``ensemble``
+fits deep ensembles of Gaussian mean-variance networks whose predictive
+variance splits into aleatoric and epistemic parts; ``adapter`` wraps
 any fitted surrogate as a forward model so it can replace the original model
 inside :class:`probstat.modeling.ProbabilisticModel`.
 
@@ -28,6 +30,11 @@ Main entry points:
         kriging for a constant), GLS trend and concentrated likelihood.
     ``fit_pc_kriging``: PC-Kriging of a model or of given samples, in the
         ``"sequential"`` or ``"optimal"`` variant.
+    ``fit_deep_ensemble``: deep ensemble of small neural networks trained on
+        the Gaussian negative log-likelihood; ``DeepEnsemble`` exposes
+        ``predict``, ``predict_with_variance``, and ``epistemic_variance``.
+    ``fit_deep_ensemble_to_model``: deep-ensemble surrogate of one QoI on a
+        design of the model.
     ``surrogate_probabilistic_model``: a new probabilistic model whose forward
         map is the fitted surrogate.
     ``ProbabilisticSurrogate`` and ``SurrogateFactory``: the predictive
@@ -68,6 +75,10 @@ Common pitfalls:
       ``length_scales`` are dimensionless, not in physical units. A length
       scale at the lower bound of its box means the residual process is
       close to white noise and the surrogate is essentially the sparse PCE.
+    - A deep ensemble is trained in scalar Python: training costs seconds
+      to minutes (see the guide's cost table), its epistemic variance is
+      member disagreement rather than a calibrated error, and its aleatoric
+      variance on a deterministic simulator only reflects the misfit.
     - Every fitter defaults to ``seed=None`` (not reproducible); pass a seed
       or ``RandomStream``. Results computed on a surrogate inherit its error
       silently, so report its leave-one-out error with them.
@@ -78,7 +89,8 @@ References:
     [REF-XIU-KARNIADAKIS-2002], [REF-SUDRET-2008],
     [REF-BLATMAN-SUDRET-2011], [REF-EFRON-HASTIE-JOHNSTONE-TIBSHIRANI-2004],
     [REF-RASMUSSEN-WILLIAMS-2006, Chapters 2, 4, and 5],
-    [REF-SCHOBI-SUDRET-WIART-2015].
+    [REF-SCHOBI-SUDRET-WIART-2015],
+    [REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017].
 
 """
 
@@ -88,6 +100,12 @@ from .adapter import (
     SurrogateFactory,
     SurrogateModel,
     surrogate_probabilistic_model,
+)
+from .ensemble import (
+    DeepEnsemble,
+    DeepEnsemblePrediction,
+    fit_deep_ensemble,
+    fit_deep_ensemble_to_model,
 )
 from .gaussian_process import (
     KERNELS,
@@ -139,6 +157,8 @@ __all__ = [
     "BASES",
     "ChaosTrend",
     "KERNELS",
+    "DeepEnsemble",
+    "DeepEnsemblePrediction",
     "GaussianProcessConditioningWarning",
     "GaussianProcessFactory",
     "GaussianProcessHyperparameters",
@@ -160,6 +180,8 @@ __all__ = [
     "SurrogateFactory",
     "SurrogateModel",
     "UniversalKriging",
+    "fit_deep_ensemble",
+    "fit_deep_ensemble_to_model",
     "fit_gaussian_process",
     "fit_gaussian_process_to_model",
     "fit_pc_kriging",
