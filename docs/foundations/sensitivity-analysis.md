@@ -145,6 +145,145 @@ with standard errors of about `0.02` (0.022, 0.018 and 0.021), in 8200 calls.
 Sources: [REF-OWEN-2014], [REF-SONG-NELSON-STAUM-2016],
 [REF-OWEN-PRIEUR-2017], [REF-IOOSS-PRIEUR-2019].
 
+## Sampling-based measures: regression coefficients and HSIC
+
+A forward propagation already provides an i.i.d. sample `(x_k, y_k)` of
+inputs and outputs. The measures below are computed from that sample alone,
+without the structured designs of Sobol or Morris, and accept dependent
+inputs (they then describe total association, not causal shares).
+
+**Look first.** `visualization.plot_input_scatter` draws the output against
+each input, one panel per input with a shared output axis and a lowess
+smoother (local linear fit on two thirds of the points). A flat smoother
+marks an input without first-order effect; a curved one, an effect that a
+linear index will understate. `visualization.plot_cobweb` draws every run as
+a polyline across the inputs (scaled ranks in `[0, 1]`) and colours the runs
+whose output exceeds a threshold over grey context: a coloured bundle that
+crosses one end of an axis names an input that drives the exceedance, and
+crossing patterns between neighbouring axes hint at interactions, which the
+marginal scatterplots cannot show.
+
+**Linear regression.** `sensitivity.regression_sensitivity` fits
+`y = b_0 + sum_i b_i x_i + e` by least squares and reports:
+
+- the standardized regression coefficient `SRC_i = b_i s_i / s_y`
+  ([EQ-SENS-SRC-001]); for a linear model with independent inputs,
+  `SRC_i^2 = b_i^2 Var(X_i) / Var(Y)` is the share of variance due to `X_i`
+  and `sum_i SRC_i^2 = R^2 = 1`;
+- the partial correlation coefficient `PCC_i = t_i / sqrt(t_i^2 + n - d - 1)`,
+  the correlation of `y` and `x_i` once both are cleared of the other inputs
+  ([EQ-SENS-PCC-001]). It ranks inputs but is not a variance share: an input
+  with a small spread and a precise effect has a small `SRC` and a large
+  `PCC`;
+- with `rank=True`, the same quantities on the mid-ranks of every column
+  (SRRC, PRCC, rank `R^2`, [EQ-SENS-RANK-001]), which measure monotone
+  rather than linear association;
+- the Student test of each slope (`H0: b_i^2 Var(X_i) = 0`) and the overall
+  Fisher test, both exact only for normal errors of constant variance.
+
+Two numbers decide whether the indices can be read as shares. `R^2` is the
+fraction of output variance that the linear fit explains: the result adds a
+note when `R^2 < 0.7`, because nonlinear effects and interactions are then
+missing from the indices. `sum_i SRC_i^2` differs from `R^2` by
+`2 sum_{i<j} SRC_i SRC_j r_ij`, where `r_ij` are the sample correlations of
+the inputs: with independent inputs this term is noise of order
+`1/sqrt(n)`, with correlated inputs the squared coefficients overlap.
+A rank `R^2` well above `R^2` signals a monotone nonlinear response, for
+which SRRC and PRCC are the better summaries.
+
+**HSIC.** `sensitivity.hsic_indices` estimates the Hilbert-Schmidt
+independence criterion between each input and the output with Gaussian
+kernels `exp(-(x - x')^2 / (2 h^2))`; the default bandwidth `h` is the
+sample standard deviation, and `bandwidth="median"` uses the median
+pairwise distance instead. HSIC is zero if and only if `X_i` and `Y` are
+independent, so it detects nonmonotone effects: for `Y = X^2` with a
+symmetric `X` the correlation is zero but HSIC is large. The biased estimate
+is `tr(K H L H) / n^2` ([EQ-SENS-HSIC-001]); `estimator="unbiased"` gives the
+U-statistic ([EQ-SENS-HSIC-002]), centred at zero under independence. Raw
+HSIC values depend on the kernels; compare inputs through
+`R2_HSIC = HSIC(X, Y) / sqrt(HSIC(X, X) HSIC(Y, Y))` and through the
+p-values of `H0: X_i independent of Y`, obtained either by permuting the
+output ([EQ-SENS-HSIC-004], exact level, `O(n^2)` per permutation and input,
+about 5 s per input for 200 permutations at `n = 1000`) or by the Gamma
+approximation to the null law of `n HSIC_b` ([EQ-SENS-HSIC-003], about 0.6 s
+per input at `n = 1000`). `target=c` replaces `Y` by `1{Y > c}`
+([EQ-SENS-HSIC-005]) and measures the influence of each input on the
+occurrence of the critical event rather than on the whole output
+distribution. `model_regression_sensitivity` and `model_hsic_indices` draw
+the sample from a `ProbabilisticModel` first (plain Monte Carlo by default,
+which keeps the rows i.i.d. as both tests assume).
+
+### Flood model: numbers computed with this release
+
+`modeling.flood_model()`, 1000 plain Monte Carlo runs, seed 2026 (the
+regression and the HSIC wrappers draw their samples from separate child
+streams of the seed). Overflow `S` (m) and maintenance cost `C` (million
+euros); HSIC uses the biased estimator and the standard-deviation
+bandwidth, permutation p-values use 200 permutations (smallest attainable
+value `1/201 = 0.005`).
+
+| input | `S`: `SRC^2` | `S`: `R2_HSIC` | `S`: HSIC p (Gamma / perm.) | `C`: `SRC^2` | `C`: `R2_HSIC` | `C`: HSIC p (Gamma / perm.) |
+| --- | --- | --- | --- | --- | --- | --- |
+| `Q` | 0.330 | 0.200 | 5e-72 / 0.005 | 0.324 | 0.226 | 9e-63 / 0.005 |
+| `Ks` | 0.127 | 0.057 | 1e-25 / 0.005 | 0.151 | 0.082 | 1e-35 / 0.005 |
+| `Zv` | 0.198 | 0.091 | 8e-40 / 0.005 | 0.173 | 0.102 | 6e-42 / 0.005 |
+| `Zm` | 0.003 | 0.003 | 0.23 / 0.19 | 0.007 | 0.002 | 0.50 / 0.41 |
+| `Hd` | 0.291 | 0.236 | 5e-95 / 0.005 | 0.005 | 0.128 | 1e-54 / 0.005 |
+| `Cb` | 0.035 | 0.023 | 4e-10 / 0.005 | 0.029 | 0.015 | 5e-06 / 0.005 |
+| `L` | 0.000 | 0.001 | 0.78 / 0.83 | 0.000 | 0.001 | 0.71 / 0.68 |
+| `B` | 0.000 | 0.003 | 0.38 / 0.29 | 0.001 | 0.001 | 0.90 / 0.92 |
+
+Fit summaries: for `S`, `R^2 = 0.980`, `sum SRC^2 = 0.984` and rank
+`R^2 = 0.948`; for `C`, `R^2 = 0.687`, `sum SRC^2 = 0.690` and rank
+`R^2 = 0.725`. Base R `lm` on the same `S` and `C` samples gives the same
+`R^2`, SRC and partial correlations (checked to nine decimal places in
+`tests/test_regression_and_hsic_sensitivity.py`).
+
+Reading the table:
+
+- The overflow is close to linear in its inputs over their ranges, so the
+  squared coefficients are variance shares: `Q`, `Hd`, `Zv` and `Ks` carry
+  about 95 % of the variance, `L` and `B` almost none.
+- The cost fit explains only 69 % of the variance and the result carries the
+  low-`R^2` note. The dike height shows why: its `SRC^2` is 0.005, yet it is
+  the second input by `R2_HSIC` (0.128). Over the range of `Hd` the cost
+  first falls and then rises, a V shape that a straight line averages away
+  and that the scatterplot of `C` against `Hd` shows directly.
+- `Zm` illustrates the opposite limit. Its effect on `S` is linear and
+  small (`SRC^2 = 0.003`); the Student test detects it (`p = 2e-35`)
+  because the residual variance of the near-perfect fit is tiny, while the
+  marginal HSIC test, which does not remove the effect of the other inputs,
+  does not (`p = 0.19`).
+- Goal-oriented HSIC of the event `S > -9.64` (the 0.9-quantile of the HSIC
+  sample, 10 % of the runs) keeps the same leading inputs but changes their
+  weights: `R2_HSIC` is 0.143 for `Q` and 0.048, 0.048 and 0.040 for `Ks`,
+  `Hd` and `Zv`, with Gamma p-values below `1e-8`; `L` and `B` stay at
+  `p > 0.79`.
+
+```python
+from probstat.modeling import flood_model
+from probstat.sensitivity import model_hsic_indices, model_regression_sensitivity
+
+overflow = model_regression_sensitivity(flood_model(), "overflow", 1000, seed=2026, rank=True)
+round(overflow.r_squared, 3)   # 0.98
+round(overflow.sum_src_squared, 3)   # 0.984
+overflow.ranking()   # ('Q', 'Hd', 'Zv', 'Ks', 'Cb', 'Zm', 'B', 'L')
+[round(value, 3) for value in overflow.src_squared]   # [0.33, 0.127, 0.198, 0.003, 0.291, 0.035, 0.0, 0.0]
+cost = model_regression_sensitivity(flood_model(), "cost", 1000, seed=2026)
+round(cost.r_squared, 3)   # 0.687
+round(cost.src_squared[4], 4)   # 0.0052
+len(cost.notes)   # 1
+hsic = model_hsic_indices(flood_model(), "cost", 1000, seed=2026, test="gamma")
+hsic.ranking()[:4]   # ('Q', 'Hd', 'Zv', 'Ks')
+round(hsic.r2_hsic[4], 3)   # 0.128
+hsic.independent(0.05)   # ('Zm', 'L', 'B')
+```
+
+Sources: [REF-SALTELLI-2008, Chapter 1], [REF-HELTON-ETAL-2006],
+[REF-IMAN-CONOVER-1979], [REF-GRETTON-ETAL-2005], [REF-GRETTON-ETAL-2008],
+[REF-SONG-ETAL-2012], [REF-DA-VEIGA-2015], [REF-MARREL-CHABRIDON-2021],
+[REF-INSELBERG-1985], [REF-CLEVELAND-1979].
+
 ## Common pitfalls
 
 - **Dependent inputs.** `sensitivity.sobol_analysis` and
