@@ -1,85 +1,135 @@
-﻿"""GPS positioning laboratory: the law of a receiver position from five ranges.
+"""GPS positioning laboratory: the law of a receiver position from five ranges.
 
 Five satellites ``S_1, ..., S_5`` broadcast signals; the receiver reads the
 pseudo-ranges ``D_k = c tau + ||S_k - R|| + e_k`` and must deduce its own
-position ``R``. Three sources of uncertainty enter every reading: an
-unknown clock shift ``tau`` common to all satellites, the satellite
-positions (known only to lie in small spheres around their broadcast
-centres), and the range reading itself. Following a classical V&V-UQ
-teaching example, the laboratory computes the density of ``R`` given one set
-of readings,
+position ``R``. The laboratory has two parts.
+
+Part 1 follows a classical uncertainty-quantification teaching example.
+Three sources of uncertainty enter every reading: a small clock shift
+``tau`` common to all satellites, the satellite positions (known only to lie
+in small spheres around their broadcast centres), and the range reading
+itself. The laboratory computes the density of ``R`` given one set of
+readings,
 
     f_R(r) proportional to E_{tau, S}[ prod_k f_e(D_k - c tau - ||r - S_k||) ],
 
 its mean ``E[R]`` and the radius of the sphere around ``E[R]`` that holds 90%
-of the probability, by self-normalized importance sampling. It then
-propagates the same three sources through a nonlinear least-squares fix (one
-solve per draw), splits the position error by source, checks the
-linearization through the geometry matrix, and shows how the satellite
-geometry (dilution of precision) scales the error.
+of the probability, by self-normalized importance sampling with the inner
+expectation evaluated in closed form (satellite offsets) and by Gauss-Legendre
+quadrature (clock shift). It then propagates the same three sources through
+a nonlinear least-squares fix (one solve per draw), splits the position
+error by source, checks the linearization through the geometry matrix, and
+shows how the satellite geometry scales the error.
+
+Part 2 is the standard single-point receiver: the clock offset is large and
+unknown, so it is estimated as a fourth unknown next to the position. The
+laboratory recovers position and clock from exact readings, computes the
+dilution-of-precision family (GDOP, PDOP, HDOP, VDOP, TDOP), compares the
+ordinary and the weighted least-squares fix under elevation-dependent
+errors, and uses the one redundant reading for a residual-based fault
+detection test (receiver autonomous integrity monitoring, RAIM).
 
 Definitions:
     local frame: East, North, Up coordinates in metres with the true receiver
         ``R0`` at the origin on a spherical Earth of radius 6371 km; every
         satellite sits on a 26 560 km orbit radius, 20 000 to 25 000 km
         away, at a stated azimuth and elevation.
-    sources: clock shift ``tau ~ Uniform(-1e-9, 1e-9)`` s (so ``c tau`` is
-        within 0.30 m); satellite position uniform in a ball of radius 2 m
-        around its broadcast centre; range error ``e_k ~ Uniform(-10, 10)`` m,
-        independent across satellites.
-    geometry matrix ``G``: rows ``g_k = (R0 - S_k) / ||R0 - S_k||``, the unit
-        lines of sight; ``A = (G'G)^-1 G'`` maps range errors to position
-        errors to first order.
-    position dilution of precision ``PDOP = sqrt(trace((G'G)^-1))``.
+    Part 1 sources: clock shift ``tau ~ Uniform(-1e-9, 1e-9)`` s (so
+        ``c tau`` is within ``b = 0.30`` m); satellite position uniform in a
+        ball of radius ``a = 2`` m around its broadcast centre; range error
+        ``e_k ~ Uniform(-h, h)`` with ``h = 10`` m, independent across
+        satellites.
+    geometry matrix: rows ``g_k = (R0 - S_k) / ||R0 - S_k||`` (unit lines of
+        sight, clock known) or ``(g_k, 1)`` (clock unknown);
+        ``A = (G'G)^-1 G'`` maps range errors to fix errors to first order.
+    dilution of precision: with ``H = (G'G)^-1`` for the four-column ``G``,
+        ``GDOP = sqrt(trace H)``, ``PDOP = sqrt(H_EE + H_NN + H_UU)``,
+        ``HDOP = sqrt(H_EE + H_NN)``, ``VDOP = sqrt(H_UU)``,
+        ``TDOP = sqrt(H_bb)``; the known-clock PDOP uses the three-column
+        ``G`` of Part 1.
     90% radius: the radius ``rho`` of the sphere around ``E[R]`` (posterior)
         or around ``R0`` (least-squares fix) holding probability 0.9.
+    Part 2 errors: ``e_k ~ Normal(0, sigma_k^2)`` with
+        ``sigma_k = sigma_0 / sin(elevation_k)``, ``sigma_0 = 2`` m; receiver
+        clock offset 0.25 ms (75 km of range), unknown to the receiver.
+    RAIM statistic: ``T = sum_k (r_k / sigma_k)^2`` from the weighted fix
+        residuals; an alarm is raised when ``T`` exceeds the
+        ``1 - P_FA`` quantile of ``chi^2(n - 4)``, ``P_FA = 0.01``.
+    minimal detectable bias: the range fault on one satellite that the test
+        detects with probability 0.9.
 
 Assumptions:
-    - The three sources are independent; the clock shift is the same for all
-      five readings; the receiver knows the broadcast centres, not the true
-      satellite positions.
-    - The fix solves for the three position coordinates only; the clock
-      shift is a nuisance integrated out in the posterior and ignored (set to
-      zero) by the least-squares fix, which is defensible because ``c tau``
-      is at most 0.3 m against 10 m range errors.
-    - The posterior uses a flat prior on ``R``; the inner expectation over
-      ``(tau, S)`` uses ``INNER_DRAWS`` common draws for every candidate
-      position (common random numbers).
-    - Signal travel time, Earth rotation, and atmospheric delays are left out.
+    - Part 1: the three sources are independent; the clock shift is the same
+      for all five readings; the receiver knows the broadcast centres, not
+      the true satellite positions. The least-squares fix solves for the
+      three position coordinates only and treats ``c tau`` (at most 0.3 m
+      against 10 m range errors) as zero; the posterior integrates it out.
+    - The posterior uses a flat prior on ``R``. Its likelihood replaces
+      ``||r - S_k||`` by ``||r - C_k|| + u_k'(S_k - C_k)`` (line-of-sight
+      component of the offset), an error below ``a^2 / ||r - C_k||``, about
+      2e-7 m.
+    - Part 2: errors are Gaussian, independent, and of known variance; the
+      fault test assumes a single faulty satellite. With five satellites and
+      four unknowns there is one redundant reading: a fault can be detected
+      but not attributed to a satellite (no exclusion).
+    - Signal travel time, Earth rotation, and atmospheric delays are left out;
+      ``P_FA = 0.01`` is a teaching value, far above aviation integrity
+      requirements.
 
 Equations:
+    EQ-LAB-GPS-001: pseudorange likelihood with ball-uniform satellite offset,
+        uniform reading error, and uniform clock shift.
+    EQ-LAB-GPS-002: first-order covariance of a pseudorange fix and the
+        dilution of precision.
+    EQ-LAB-GPS-003: residual fault-detection test and its detection
+        probability.
     EQ-OPT-LM-001: Levenberg-Marquardt solve of each least-squares fix.
     EQ-OPT-LM-002: Gauss-Newton covariance ``s^2 (J'J)^-1`` of the fix.
+    EQ-PROC-QUAD-001: Gauss-Legendre rule over the clock shift.
     EQ-FILT-PF-002: effective sample size of the importance weights.
     EQ-STAT-QUANT-001: sample quantiles of the radial error.
+    EQ-DIST-CHI2-001: chi-square threshold of the fault test.
+    EQ-OPT-BRENT-001: root search for the minimal detectable bias.
 
 Diagnostics:
-    - Noise-free readings recover the true position to below a micrometre.
-    - The linearized covariance ``A Sigma_e A'`` agrees with the Monte Carlo
-      covariance of the fix within its standard error; the three
-      single-source runs add up to the all-source run.
+    - Exact readings recover the true position (and, in Part 2, the clock
+      offset) to below a micrometre.
+    - The linearized covariance agrees with the Monte Carlo covariance of the
+      fix within its standard error; the three single-source runs add up to
+      the all-source run; the library Gauss-Newton covariance equals the
+      geometry-matrix formula.
     - Importance sampling reports its effective sample size, the share of
-      proposals with positive weight, and whether any weighted proposal
-      touches the edge of the proposal box (it must not).
-    - Each 90% radius carries a batch standard error from ``BATCHES``
-      independent batches.
+      proposals with positive weight, whether any weighted proposal touches
+      the edge of either proposal box (none may), and the largest relative
+      change of the likelihood when the clock quadrature goes from 16 to 64
+      nodes.
+    - Each 90% radius and posterior mean carries a batch standard error from
+      ``BATCHES`` independent batches of proposals or draws.
+    - The fault test's simulated false-alarm rate and detection rates are
+      compared with ``P_FA`` and with the closed-form detection probability.
 
 Cost and error:
-    - About 30 to 60 seconds in pure Python; the run prints its wall-clock
-      time. Most of it goes to ``FIX_DRAWS`` least-squares fixes per scenario
-      and ``PROPOSALS x INNER_DRAWS`` likelihood terms.
+    - About 2 minutes in pure Python; the run prints its wall-clock time.
+      Most of it goes to the 39 200 least-squares fixes (27 200 in Part 1,
+      7 000 weighted and 5 000 ordinary in Part 2) at about 2.5 ms each.
+    - The posterior likelihood carries no Monte Carlo error of its own (the
+      inner expectation is exact up to the quadrature check above); only the
+      importance sampling over ``R`` is random.
     - Monte Carlo standard errors are printed next to every simulated
       number; differences smaller than two standard errors are not findings.
 
 References:
-    [REF-SMITH-UQ-2024], [REF-OWEN-2013], [REF-NOCEDAL-WRIGHT-2006],
-    [REF-SEBER-WILD-2003], [REF-DOUCET-JOHANSEN-2011], [REF-HYNDMAN-FAN-1996],
-    [REF-MATPLOTLIB].
+    [REF-SMITH-UQ-2024], [REF-MISRA-ENGE-2006],
+    [REF-TEUNISSEN-MONTENBRUCK-2017], [REF-BROWN-1992], [REF-OWEN-2013],
+    [REF-NOCEDAL-WRIGHT-2006], [REF-SEBER-WILD-2003],
+    [REF-DOUCET-JOHANSEN-2011], [REF-HYNDMAN-FAN-1996],
+    [REF-GOLUB-WELSCH-1969], [REF-MATPLOTLIB].
 
 """
 
 from __future__ import annotations
 
+import functools
 import math
 import random
 import time
@@ -88,9 +138,25 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from probstat.distributions import ChiSquare
 from probstat.filtering import effective_sample_size
-from probstat.optimization import gauss_newton_covariance, least_squares
-from probstat.statistics import quantile
+from probstat.inference import standard_normal_cdf
+from probstat.linalg import (
+    Matrix,
+    cholesky,
+    inverse_spd,
+    matmul,
+    symmetric_eigen,
+    transpose,
+)
+from probstat.optimization import (
+    LeastSquaresResult,
+    brent_root,
+    gauss_newton_covariance,
+    least_squares,
+)
+from probstat.processes import gauss_legendre
+from probstat.statistics import covariance, quantile
 from probstat.visualization import save_figure, theme
 
 # Seed of every random stream in the laboratory.
@@ -98,11 +164,13 @@ SEED = 2031
 
 SPEED_OF_LIGHT = 299_792_458.0  # m/s
 CLOCK_HALF_WIDTH = 1e-9  # s
+CLOCK_RANGE = SPEED_OF_LIGHT * CLOCK_HALF_WIDTH  # m, half-width b of c tau
 SATELLITE_RADIUS = 2.0  # m
 RANGE_HALF_WIDTH = 10.0  # m
 EARTH_RADIUS = 6_371_000.0  # m
 ORBIT_RADIUS = 26_560_000.0  # m
 LEVEL = 0.9
+ORIGIN: tuple[float, float, float] = (0.0, 0.0, 0.0)
 
 # Azimuth and elevation in degrees: a well-spread sky and a clustered one.
 GOOD_SKY = ((20.0, 78.0), (75.0, 28.0), (160.0, 42.0), (245.0, 22.0), (320.0, 50.0))
@@ -111,10 +179,21 @@ POOR_SKY = ((60.0, 35.0), (85.0, 48.0), (100.0, 30.0), (120.0, 55.0), (140.0, 38
 FIX_DRAWS = 4000
 GEOMETRY_DRAWS = 600
 RANDOM_GEOMETRIES = 10
-PROPOSALS = 30000
-INNER_DRAWS = 48
+PROPOSALS = 160_000
+PILOT_SHARE = 0.25
+BOX_MARGIN = 1.25
+CLOCK_NODES = 8
+CHECK_NODES = 16
 BATCHES = 10
-PILOT_MINIMUM = 400
+
+# Part 2: the standard receiver with an unknown clock offset.
+RECEIVER_CLOCK_OFFSET = 2.5e-4  # s
+CLOCK_BIAS = SPEED_OF_LIGHT * RECEIVER_CLOCK_OFFSET  # m
+ZENITH_SIGMA = 2.0  # m
+CLOCK_FIX_DRAWS = 2000
+FALSE_ALARM = 0.01
+DETECTION_LEVEL = 0.9
+DETECTION_DRAWS = 250
 
 Vector3 = tuple[float, float, float]
 SOURCES = ("clock", "satellite", "range")
@@ -130,7 +209,8 @@ def satellite_centre(azimuth: float, elevation: float) -> Vector3:
 
     The satellite lies on the orbit sphere of radius ``ORBIT_RADIUS`` around
     the Earth centre ``(0, 0, -EARTH_RADIUS)``; its range ``rho`` along the
-    unit direction ``u`` solves ``||rho u + (0, 0, EARTH_RADIUS)|| = ORBIT_RADIUS``.
+    unit direction ``u`` solves
+    ``||rho u + (0, 0, EARTH_RADIUS)|| = ORBIT_RADIUS``.
 
     Args:
         azimuth: Degrees clockwise from North.
@@ -140,7 +220,7 @@ def satellite_centre(azimuth: float, elevation: float) -> Vector3:
         Satellite centre in metres.
 
     References:
-        [REF-SMITH-UQ-2024]. No equation is evaluated.
+        [REF-MISRA-ENGE-2006, Chapter 4]. No equation is evaluated.
 
     """
     az, el = math.radians(azimuth), math.radians(elevation)
@@ -160,7 +240,7 @@ def constellation(sky: Sequence[tuple[float, float]]) -> tuple[Vector3, ...]:
         Satellite centres in metres.
 
     References:
-        [REF-SMITH-UQ-2024]. No equation is evaluated.
+        [REF-MISRA-ENGE-2006, Chapter 4]. No equation is evaluated.
 
     """
     return tuple(satellite_centre(az, el) for az, el in sky)
@@ -196,7 +276,7 @@ def ball_point(rng: random.Random, radius: float) -> Vector3:
 
 @dataclass(frozen=True)
 class SourceDraw:
-    """One draw of the three uncertainty sources.
+    """One draw of the three uncertainty sources of Part 1.
 
     Attributes:
         clock_range: ``c tau`` in metres.
@@ -215,6 +295,9 @@ def draw_sources(
 ) -> SourceDraw:
     """Draw the clock shift, satellite offsets, and range errors.
 
+    Every source is drawn whether active or not, so switching a source off
+    leaves the random stream of the others unchanged.
+
     Args:
         rng: Random stream.
         count: Number of satellites.
@@ -229,7 +312,9 @@ def draw_sources(
     """
     clock = SPEED_OF_LIGHT * rng.uniform(-CLOCK_HALF_WIDTH, CLOCK_HALF_WIDTH)
     offsets = tuple(ball_point(rng, SATELLITE_RADIUS) for _ in range(count))
-    errors = tuple(rng.uniform(-RANGE_HALF_WIDTH, RANGE_HALF_WIDTH) for _ in range(count))
+    errors = tuple(
+        rng.uniform(-RANGE_HALF_WIDTH, RANGE_HALF_WIDTH) for _ in range(count)
+    )
     return SourceDraw(
         clock if "clock" in active else 0.0,
         offsets if "satellite" in active else tuple((0.0, 0.0, 0.0) for _ in offsets),
@@ -243,7 +328,8 @@ def readings(
     """Return the pseudo-ranges ``D_k = c tau + ||S_k - R|| + e_k``.
 
     References:
-        [REF-SMITH-UQ-2024]. No equation is evaluated.
+        [REF-SMITH-UQ-2024], [REF-MISRA-ENGE-2006, Chapter 5].
+        No equation is evaluated.
 
     """
     return tuple(
@@ -257,16 +343,16 @@ def readings(
 
 
 # --------------------------------------------------------------------------
-# Least-squares fix and its linearization
+# Least-squares fix with a known clock and its linearization
 # --------------------------------------------------------------------------
 
 
 def solve_fix(
     centres: Sequence[Vector3],
     observed: Sequence[float],
-    start: Sequence[float] = (0.0, 0.0, 0.0),
-) -> Any:
-    """Return the least-squares position fix from pseudo-ranges.
+    start: Sequence[float] = ORIGIN,
+) -> LeastSquaresResult:
+    """Return the three-unknown least-squares position fix from pseudo-ranges.
 
     Minimizes ``sum_k (||r - S_k|| - D_k)^2`` over ``r`` with the broadcast
     centres ``S_k`` and the analytic Jacobian (rows: unit vectors from the
@@ -302,72 +388,60 @@ def solve_fix(
     return least_squares(residual, start, jacobian=jacobian, tolerance=1e-12)
 
 
-def geometry_matrix(centres: Sequence[Vector3], receiver: Vector3) -> list[list[float]]:
+def geometry_matrix(centres: Sequence[Vector3], receiver: Vector3) -> Matrix:
     """Return the unit lines of sight ``g_k = (R - S_k) / ||R - S_k||``.
 
     References:
-        [REF-SEBER-WILD-2003, Section 2.1]. No equation is evaluated.
+        [REF-MISRA-ENGE-2006, Chapter 6]. No equation is evaluated.
 
     """
     rows = []
     for centre in centres:
         size = distance(receiver, centre)
-        rows.append([(receiver[i] - centre[i]) / size for i in range(3)])
-    return rows
+        rows.append(tuple((receiver[i] - centre[i]) / size for i in range(3)))
+    return tuple(rows)
 
 
-def _inverse3(m: Sequence[Sequence[float]]) -> list[list[float]]:
-    """Return the inverse of a 3 x 3 matrix by cofactors."""
-    a, b, c = m[0]
-    d, e, f = m[1]
-    g, h, i = m[2]
-    det = a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)
-    return [
-        [(e * i - f * h) / det, (c * h - b * i) / det, (b * f - c * e) / det],
-        [(f * g - d * i) / det, (a * i - c * g) / det, (c * d - a * f) / det],
-        [(d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det],
-    ]
-
-
-def error_map(g: Sequence[Sequence[float]]) -> list[list[float]]:
-    """Return ``A = (G'G)^-1 G'`` (3 x k), range errors to position errors.
+def error_map(g: Matrix) -> Matrix:
+    """Return ``A = (G'G)^-1 G'``, range errors to fix errors (``p x k``).
 
     References:
-        [REF-SEBER-WILD-2003, Section 2.1]. No equation is evaluated.
+        [EQ-LAB-GPS-002], [REF-SEBER-WILD-2003, Section 2.1].
 
     """
-    k = len(g)
-    gram = [[sum(g[n][i] * g[n][j] for n in range(k)) for j in range(3)] for i in range(3)]
-    inverse = _inverse3(gram)
-    return [[sum(inverse[i][j] * g[n][j] for j in range(3)) for n in range(k)] for i in range(3)]
+    gt = transpose(g)
+    return matmul(inverse_spd(matmul(gt, g)), gt)
 
 
-def pdop(centres: Sequence[Vector3], receiver: Vector3 = (0.0, 0.0, 0.0)) -> float:
-    """Return the position dilution of precision ``sqrt(trace((G'G)^-1))``.
+def pdop_known_clock(centres: Sequence[Vector3], receiver: Vector3 = ORIGIN) -> float:
+    """Return the known-clock position dilution ``sqrt(trace((G'G)^-1))``.
+
+    Uses the three-column geometry matrix of Part 1. It is smaller than the
+    standard PDOP of :func:`dilution_of_precision`, which also estimates the
+    clock.
 
     References:
-        [REF-SEBER-WILD-2003, Section 2.1]. No equation is evaluated.
+        [EQ-LAB-GPS-002], [REF-MISRA-ENGE-2006, Chapter 6].
 
     """
     g = geometry_matrix(centres, receiver)
-    gram = [[sum(row[i] * row[j] for row in g) for j in range(3)] for i in range(3)]
-    inverse = _inverse3(gram)
+    inverse = inverse_spd(matmul(transpose(g), g))
     return math.sqrt(inverse[0][0] + inverse[1][1] + inverse[2][2])
 
 
 def source_variances() -> dict[str, float]:
     """Return the per-reading variance each source contributes, in m^2.
 
-    ``(c a)^2 / 3`` for the clock (shared by all readings), ``r^2 / 5`` for
-    the line-of-sight component of a point uniform in a ball of radius
-    ``r``, and ``h^2 / 3`` for a range error uniform on ``[-h, h]``.
+    ``b^2 / 3`` for the clock (shared by all readings), ``a^2 / 5`` for the
+    line-of-sight component of a point uniform in a ball of radius ``a``,
+    and ``h^2 / 3`` for a range error uniform on ``[-h, h]``.
 
     References:
         [REF-SMITH-UQ-2024]. No equation is evaluated.
 
     """
     return {
-        "clock": (SPEED_OF_LIGHT * CLOCK_HALF_WIDTH) ** 2 / 3.0,
+        "clock": CLOCK_RANGE**2 / 3.0,
         "satellite": SATELLITE_RADIUS**2 / 5.0,
         "range": RANGE_HALF_WIDTH**2 / 3.0,
     }
@@ -375,7 +449,7 @@ def source_variances() -> dict[str, float]:
 
 def linearized_covariance(
     centres: Sequence[Vector3],
-    receiver: Vector3 = (0.0, 0.0, 0.0),
+    receiver: Vector3 = ORIGIN,
     active: Sequence[str] = SOURCES,
 ) -> list[list[float]]:
     """Return the first-order covariance ``A Sigma_e A'`` of the position fix.
@@ -394,11 +468,13 @@ def linearized_covariance(
         3 x 3 covariance in m^2.
 
     References:
-        [REF-SEBER-WILD-2003, Section 2.1].
+        [EQ-LAB-GPS-002], [REF-SEBER-WILD-2003, Section 2.1].
 
     """
     variances = source_variances()
-    independent = sum(variances[name] for name in ("satellite", "range") if name in active)
+    independent = sum(
+        variances[name] for name in ("satellite", "range") if name in active
+    )
     common = variances["clock"] if "clock" in active else 0.0
     a = error_map(geometry_matrix(centres, receiver))
     k = len(centres)
@@ -445,6 +521,14 @@ def _batch_se(values: Sequence[float]) -> float:
     return math.sqrt(math.fsum((v - centre) ** 2 for v in values) / (m - 1) / m)
 
 
+def _mean_se(values: Sequence[float]) -> tuple[float, float]:
+    """Return the sample mean and its standard error."""
+    n = len(values)
+    centre = math.fsum(values) / n
+    spread = math.fsum((v - centre) ** 2 for v in values) / (n - 1)
+    return centre, math.sqrt(spread / n)
+
+
 def study_fix(
     centres: Sequence[Vector3],
     draws: int,
@@ -467,48 +551,184 @@ def study_fix(
 
     """
     rng = random.Random(seed)
-    receiver: Vector3 = (0.0, 0.0, 0.0)
     errors = []
     for _ in range(draws):
-        observed = readings(centres, receiver, draw_sources(rng, len(centres), active))
+        observed = readings(centres, ORIGIN, draw_sources(rng, len(centres), active))
         fix = solve_fix(centres, observed).x
         errors.append((fix[0], fix[1], fix[2]))
     norms = [math.sqrt(e[0] ** 2 + e[1] ** 2 + e[2] ** 2) for e in errors]
-    squares = [n * n for n in norms]
     size = draws // BATCHES
     batches = [norms[b * size : (b + 1) * size] for b in range(BATCHES)]
-    mean_square = math.fsum(squares) / draws
-    spread = math.fsum((s - mean_square) ** 2 for s in squares) / (draws - 1)
+    mean_square, mean_square_se = _mean_se([n * n for n in norms])
     return FixStudy(
         tuple(errors),
         quantile(norms, LEVEL),
         _batch_se([quantile(batch, LEVEL) for batch in batches]),
         mean_square,
-        math.sqrt(spread / draws),
+        mean_square_se,
     )
 
 
-def sample_covariance(points: Sequence[Vector3]) -> list[list[float]]:
-    """Return the unbiased sample covariance of three-dimensional points.
+def sample_covariance(points: Sequence[Sequence[float]]) -> list[list[float]]:
+    """Return the unbiased sample covariance matrix of vector draws.
 
     References:
-        [REF-OWEN-2013, Chapter 2]. No equation is evaluated.
+        [REF-OWEN-2013, Chapter 2]. No equation is evaluated here; the
+        entries come from :func:`probstat.statistics.covariance`.
 
     """
+    size = len(points[0])
+    columns = [[p[i] for p in points] for i in range(size)]
+    return [
+        [covariance(columns[i], columns[j], ddof=1) for j in range(size)]
+        for i in range(size)
+    ]
+
+
+def _covariance_se(points: Sequence[Vector3]) -> list[list[float]]:
+    """Return the standard error of each sample-covariance entry."""
     n = len(points)
     means = [math.fsum(p[i] for p in points) / n for i in range(3)]
     return [
         [
-            math.fsum((p[i] - means[i]) * (p[j] - means[j]) for p in points) / (n - 1)
+            _mean_se([(p[i] - means[i]) * (p[j] - means[j]) for p in points])[1]
             for j in range(3)
         ]
         for i in range(3)
     ]
 
 
+def _linear_radius(covariance_matrix: Sequence[Sequence[float]], seed: int) -> float:
+    """Return the 90% radius of a centred normal law with this covariance.
+
+    Estimated from 20 000 normal draws (standard error near 0.4% of the
+    radius).
+    """
+    factor = cholesky(covariance_matrix)
+    rng = random.Random(seed)
+    norms = []
+    for _ in range(20000):
+        z = (rng.gauss(0.0, 1.0), rng.gauss(0.0, 1.0), rng.gauss(0.0, 1.0))
+        x = [sum(factor[i][j] * z[j] for j in range(i + 1)) for i in range(3)]
+        norms.append(math.sqrt(x[0] ** 2 + x[1] ** 2 + x[2] ** 2))
+    return quantile(norms, LEVEL)
+
+
 # --------------------------------------------------------------------------
-# Posterior density of R by importance sampling (the course formula)
+# Posterior density of R by importance sampling
 # --------------------------------------------------------------------------
+
+
+def offset_cdf(x: float) -> float:
+    """Return the CDF of one coordinate of a point uniform in the satellite ball.
+
+    ``G(x) = 1/2 + 3x/(4a) - x^3/(4a^3)`` on ``[-a, a]``: the projection of a
+    uniform ball of radius ``a`` has density ``3 (a^2 - x^2) / (4 a^3)``.
+
+    References:
+        [EQ-LAB-GPS-001].
+
+    """
+    a = SATELLITE_RADIUS
+    if x <= -a:
+        return 0.0
+    if x >= a:
+        return 1.0
+    t = x / a
+    return 0.5 + 0.75 * t - 0.25 * t * t * t
+
+
+def residual_density(z: float) -> float:
+    """Return the density of ``X + e`` (line-of-sight offset plus range error).
+
+    ``f_z(z) = (G(z + h) - G(z - h)) / (2h)``; it equals ``1 / (2h)`` for
+    ``|z| <= h - a`` and vanishes for ``|z| >= h + a``.
+
+    References:
+        [EQ-LAB-GPS-001].
+
+    """
+    h = RANGE_HALF_WIDTH
+    return (offset_cdf(z + h) - offset_cdf(z - h)) / (2.0 * h)
+
+
+# Largest |D_k - ||r - C_k||| with positive likelihood.
+REACH = RANGE_HALF_WIDTH + SATELLITE_RADIUS + CLOCK_RANGE
+
+
+_KINKS = (
+    -RANGE_HALF_WIDTH - SATELLITE_RADIUS,
+    -RANGE_HALF_WIDTH + SATELLITE_RADIUS,
+    RANGE_HALF_WIDTH - SATELLITE_RADIUS,
+    RANGE_HALF_WIDTH + SATELLITE_RADIUS,
+)
+
+
+@functools.cache
+def _unit_rule(nodes: int) -> tuple[tuple[float, ...], tuple[float, ...]]:
+    """Return the Gauss-Legendre rule on ``[-1, 1]`` (computed once per size)."""
+    points, weights = gauss_legendre(nodes)
+    return tuple(points), tuple(weights)
+
+
+def marginal_likelihood(
+    r: Sequence[float],
+    centres: Sequence[Vector3],
+    observed: Sequence[float],
+    nodes: int = CLOCK_NODES,
+) -> float:
+    """Return ``E_{tau, S}[prod_k f_e(D_k - c tau - ||r - S_k||)]``.
+
+    The satellite offsets are integrated in closed form
+    (:func:`residual_density`), the clock shift ``beta = c tau`` over
+    ``[-b, b]``: ``L(r) = (1/2b) int prod_k f_z(D_k - beta - d_k) dbeta``.
+    Each ``f_z`` is a polynomial of degree at most 3 between its kinks
+    ``z = +-h +- a``, so the integrand is a polynomial of degree at most
+    ``3k = 15`` between the kinks that fall inside ``[-b, b]``; a
+    Gauss-Legendre rule with ``nodes >= 8`` on every such panel is exact up
+    to rounding.
+
+    Args:
+        r: Candidate receiver position.
+        centres: Broadcast satellite centres.
+        observed: Pseudo-ranges.
+        nodes: Gauss-Legendre nodes per panel.
+
+    Returns:
+        Likelihood of ``r`` in m^-k.
+
+    References:
+        [EQ-LAB-GPS-001], [REF-SMITH-UQ-2024], [REF-GOLUB-WELSCH-1969].
+
+    """
+    gaps = []
+    for centre, d in zip(centres, observed, strict=True):
+        gap = d - distance(r, centre)
+        if abs(gap) >= REACH:
+            return 0.0
+        gaps.append(gap)
+    breaks = sorted(
+        {-CLOCK_RANGE, CLOCK_RANGE}
+        | {
+            gap - kink
+            for gap in gaps
+            for kink in _KINKS
+            if -CLOCK_RANGE < gap - kink < CLOCK_RANGE
+        }
+    )
+    unit_nodes, unit_weights = _unit_rule(nodes)
+    total = 0.0
+    for low, high in zip(breaks[:-1], breaks[1:], strict=True):
+        middle, half = 0.5 * (low + high), 0.5 * (high - low)
+        for t, weight in zip(unit_nodes, unit_weights, strict=True):
+            beta = middle + half * t
+            product = half * weight
+            for gap in gaps:
+                product *= residual_density(gap - beta)
+                if product == 0.0:
+                    break
+            total += product
+    return total / (2.0 * CLOCK_RANGE)
 
 
 @dataclass(frozen=True)
@@ -518,15 +738,20 @@ class PosteriorStudy:
     Attributes:
         observed: The pseudo-ranges conditioned on.
         fix: Least-squares fix from the same readings.
-        points: Proposals with positive weight.
+        points: Main-stage proposals with positive weight.
         weights: Their normalized weights.
         mean: Posterior mean ``E[R]``.
+        mean_se: Batch standard error of each coordinate of ``mean``.
         radius: 90% radius around ``E[R]``.
         radius_se: Batch standard error of ``radius``.
         ess: Effective sample size of the weights.
-        positive_share: Share of proposals with positive weight.
-        edge_hits: Weighted proposals within 2% of the box edge.
-        box: Half-widths of the uniform proposal box.
+        proposals: Number of main-stage proposals.
+        positive_share: Share of main-stage proposals with positive weight.
+        edge_hits: Weighted proposals within 2% of the edge of the pilot box
+            and of the main box.
+        quadrature_gap: Largest relative change of the likelihood from
+            ``CLOCK_NODES`` to ``CHECK_NODES`` clock nodes.
+        half_widths: Half-widths of the main (rotated) proposal box.
 
     """
 
@@ -535,15 +760,20 @@ class PosteriorStudy:
     points: tuple[Vector3, ...]
     weights: tuple[float, ...]
     mean: Vector3
+    mean_se: Vector3
     radius: float
     radius_se: float
     ess: float
+    proposals: int
     positive_share: float
-    edge_hits: int
-    box: Vector3
+    edge_hits: tuple[int, int]
+    quadrature_gap: float
+    half_widths: Vector3
 
 
-def _weighted_quantile(values: Sequence[float], weights: Sequence[float], level: float) -> float:
+def _weighted_quantile(
+    values: Sequence[float], weights: Sequence[float], level: float
+) -> float:
     """Return the smallest value whose weighted CDF reaches ``level``."""
     order = sorted(range(len(values)), key=values.__getitem__)
     total = math.fsum(weights)
@@ -560,31 +790,89 @@ def _weighted_radius(
 ) -> tuple[Vector3, float]:
     """Return the weighted mean and the 90% radius around it."""
     total = math.fsum(weights)
-    mean = tuple(math.fsum(w * p[i] for w, p in zip(weights, points, strict=True)) / total for i in range(3))
+    mean = tuple(
+        math.fsum(w * p[i] for w, p in zip(weights, points, strict=True)) / total
+        for i in range(3)
+    )
     radii = [distance(p, mean) for p in points]
     return (mean[0], mean[1], mean[2]), _weighted_quantile(radii, weights, LEVEL)
+
+
+@dataclass(frozen=True)
+class _BoxSample:
+    """Proposals with positive likelihood from one uniform box."""
+
+    points: list[Vector3]
+    likelihoods: list[float]
+    batches: list[int]
+    edge_hits: int
+
+
+def _sample_box(
+    rng: random.Random,
+    count: int,
+    centre: Sequence[float],
+    axes: Sequence[Sequence[float]],
+    half_widths: Sequence[float],
+    likelihood: Callable[[Vector3], float],
+) -> _BoxSample:
+    """Draw uniform proposals ``centre + sum_i w_i u_i q_i`` and keep L > 0.
+
+    Args:
+        rng: Random stream.
+        count: Number of proposals.
+        centre: Box centre.
+        axes: Orthonormal box axes ``q_i``.
+        half_widths: Half-widths ``w_i``.
+        likelihood: Likelihood of a position.
+
+    Returns:
+        The kept points, their likelihoods, the batch of each proposal, and
+        the number of kept points within 2% of the box edge.
+
+    """
+    kept = _BoxSample([], [], [], 0)
+    hits = 0
+    for index in range(count):
+        u = [rng.uniform(-1.0, 1.0) for _ in range(3)]
+        r = tuple(
+            centre[i] + sum(half_widths[j] * u[j] * axes[j][i] for j in range(3))
+            for i in range(3)
+        )
+        point: Vector3 = (r[0], r[1], r[2])
+        value = likelihood(point)
+        if value > 0.0:
+            kept.points.append(point)
+            kept.likelihoods.append(value)
+            kept.batches.append(index * BATCHES // count)
+            if max(abs(v) for v in u) > 0.98:
+                hits += 1
+    return _BoxSample(kept.points, kept.likelihoods, kept.batches, hits)
 
 
 def study_posterior(
     centres: Sequence[Vector3],
     seed: int,
     proposals: int = PROPOSALS,
-    inner_draws: int = INNER_DRAWS,
+    nodes: int = CLOCK_NODES,
 ) -> PosteriorStudy:
     """Estimate ``f_R``, ``E[R]``, and the 90% radius from one set of readings.
 
-    The readings come from one draw of the three sources at ``R0``. The
-    proposal is uniform on a box around the least-squares fix whose
-    half-widths ``2 (h + c a + r) sum_k |A_ik|`` contain, to first order,
-    every position compatible with the readings. The weight of a proposal
-    is the inner average over ``inner_draws`` common draws of ``(tau, S)``
-    of ``prod_k f_e(D_k - c tau - ||r - S_k||)``.
+    The readings come from one draw of the three sources at ``R0``. A pilot
+    stage samples uniformly a box around the least-squares fix whose
+    half-widths ``2 (h + a + b) sum_k |A_ik|`` contain, to first order,
+    every position compatible with the readings. The main stage samples
+    uniformly the box aligned with the principal axes of the pilot's
+    weighted points, enlarged by ``BOX_MARGIN``. The proposal density is
+    constant on each box, so the weight of a main-stage proposal is its
+    likelihood (:func:`marginal_likelihood`); only the main stage enters the
+    estimates.
 
     Args:
         centres: Broadcast satellite centres.
-        seed: Seed of the readings, the inner draws, and the proposals.
-        proposals: Number of proposals.
-        inner_draws: Number of common inner draws.
+        seed: Seed of the readings and the proposals.
+        proposals: Total number of proposals (pilot and main stage).
+        nodes: Gauss-Legendre nodes over the clock shift.
 
     Returns:
         The importance-sampling summary.
@@ -594,82 +882,445 @@ def study_posterior(
 
     """
     rng = random.Random(seed)
-    k = len(centres)
-    observed = readings(centres, (0.0, 0.0, 0.0), draw_sources(rng, k))
+    observed = readings(centres, ORIGIN, draw_sources(rng, len(centres)))
     fit = solve_fix(centres, observed).x
     fix: Vector3 = (fit[0], fit[1], fit[2])
+
+    def likelihood(r: Vector3) -> float:
+        """Return the likelihood of a candidate position."""
+        return marginal_likelihood(r, centres, observed, nodes)
+
     a = error_map(geometry_matrix(centres, fix))
-    bound = 2.0 * (RANGE_HALF_WIDTH + SPEED_OF_LIGHT * CLOCK_HALF_WIDTH + SATELLITE_RADIUS)
-    box = tuple(bound * sum(abs(v) for v in a[i]) for i in range(3))
-    inner = []
-    for _ in range(inner_draws):
-        source = draw_sources(rng, k)
-        moved = tuple(
-            tuple(c + o for c, o in zip(centre, offset, strict=True))
-            for centre, offset in zip(centres, source.offsets, strict=True)
-        )
-        inner.append((source.clock_range, moved))
-    density = 1.0 / (2.0 * RANGE_HALF_WIDTH)
+    first = tuple(2.0 * REACH * sum(abs(v) for v in a[i]) for i in range(3))
+    unit = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
+    pilot_count = int(PILOT_SHARE * proposals)
+    pilot = _sample_box(rng, pilot_count, fix, unit, first, likelihood)
 
-    def sample(
-        count: int, half: Sequence[float]
-    ) -> tuple[list[Vector3], list[float], int]:
-        """Draw uniform proposals in a box and keep those with positive weight."""
-        kept: list[Vector3] = []
-        kept_weights: list[float] = []
-        hits = 0
-        for _ in range(count):
-            u = (rng.uniform(-1.0, 1.0), rng.uniform(-1.0, 1.0), rng.uniform(-1.0, 1.0))
-            r = (fix[0] + half[0] * u[0], fix[1] + half[1] * u[1], fix[2] + half[2] * u[2])
-            accepted = 0
-            for clock, moved in inner:
-                for satellite, d in zip(moved, observed, strict=True):
-                    if abs(d - clock - distance(r, satellite)) > RANGE_HALF_WIDTH:
-                        break
-                else:
-                    accepted += 1
-            if accepted:
-                kept.append(r)
-                kept_weights.append(accepted * density**k / inner_draws)
-                if max(abs(v) for v in u) > 0.98:
-                    hits += 1
-        return kept, kept_weights, hits
-
-    # Pilot stage on the first-order box; the main stage uses the box that
-    # bounds the pilot's support, widened by half, when the pilot kept at
-    # least PILOT_MINIMUM points (it never grows past the first-order box).
-    # Only the main stage enters the estimates, so the weights stay those of
-    # one uniform proposal.
-    pilot, _, _ = sample(proposals // 4, box)
-    if len(pilot) >= PILOT_MINIMUM:
-        box = tuple(
-            min(box[i], 1.5 * max(abs(p[i] - fix[i]) for p in pilot)) for i in range(3)
-        )
-    points, weights, edge_hits = sample(proposals - proposals // 4, box)
-    proposals -= proposals // 4
-    total = math.fsum(weights)
-    normalized = tuple(w / total for w in weights)
-    mean, radius = _weighted_radius(points, normalized)
-    size = len(points) // BATCHES
-    # Proposals are i.i.d., so batches of consecutive accepted points are
-    # independent replicates of the estimator.
-    batch_radii = [
-        _weighted_radius(points[b * size : (b + 1) * size], normalized[b * size : (b + 1) * size])[1]
-        for b in range(BATCHES)
+    # Principal axes of the pilot's weighted points; the main box spans
+    # their extent along each axis, enlarged by BOX_MARGIN.
+    pilot_mean, _ = _weighted_radius(pilot.points, pilot.likelihoods)
+    total = math.fsum(pilot.likelihoods)
+    spread = [
+        [
+            math.fsum(
+                w * (p[i] - pilot_mean[i]) * (p[j] - pilot_mean[j])
+                for w, p in zip(pilot.likelihoods, pilot.points, strict=True)
+            )
+            / total
+            for j in range(3)
+        ]
+        for i in range(3)
     ]
+    _, vectors = symmetric_eigen(spread)
+    axes = [tuple(vectors[i][j] for i in range(3)) for j in range(3)]
+    centre = list(pilot_mean)
+    half = []
+    for axis in axes:
+        projections = [
+            sum((p[i] - pilot_mean[i]) * axis[i] for i in range(3))
+            for p in pilot.points
+        ]
+        low, high = min(projections), max(projections)
+        for i in range(3):
+            centre[i] += 0.5 * (low + high) * axis[i]
+        half.append(BOX_MARGIN * 0.5 * (high - low))
+    main_count = proposals - pilot_count
+    main = _sample_box(rng, main_count, centre, axes, half, likelihood)
+
+    total = math.fsum(main.likelihoods)
+    normalized = tuple(w / total for w in main.likelihoods)
+    mean, radius = _weighted_radius(main.points, normalized)
+    batch_means: list[Vector3] = []
+    batch_radii: list[float] = []
+    for b in range(BATCHES):
+        chosen = [i for i, batch in enumerate(main.batches) if batch == b]
+        batch_mean, batch_radius = _weighted_radius(
+            [main.points[i] for i in chosen], [normalized[i] for i in chosen]
+        )
+        batch_means.append(batch_mean)
+        batch_radii.append(batch_radius)
+    mean_se = tuple(_batch_se([m[i] for m in batch_means]) for i in range(3))
+    step = max(1, len(main.points) // 400)
+    gap = max(
+        abs(
+            marginal_likelihood(main.points[i], centres, observed, CHECK_NODES)
+            / main.likelihoods[i]
+            - 1.0
+        )
+        for i in range(0, len(main.points), step)
+    )
     return PosteriorStudy(
         observed,
         fix,
-        tuple(points),
+        tuple(main.points),
         normalized,
         mean,
+        (mean_se[0], mean_se[1], mean_se[2]),
         radius,
         _batch_se(batch_radii),
         effective_sample_size(normalized),
-        len(points) / proposals,
-        edge_hits,
-        (box[0], box[1], box[2]),
+        main_count,
+        len(main.points) / main_count,
+        (pilot.edge_hits, main.edge_hits),
+        gap,
+        (half[0], half[1], half[2]),
     )
+
+
+# --------------------------------------------------------------------------
+# Part 2: unknown receiver clock, dilution of precision, weighted fix, RAIM
+# --------------------------------------------------------------------------
+
+
+def elevation_sigmas(sky: Sequence[tuple[float, float]]) -> tuple[float, ...]:
+    """Return the range-error standard deviations ``sigma_0 / sin(elevation)``.
+
+    References:
+        [REF-TEUNISSEN-MONTENBRUCK-2017, Chapter 22]. No equation is evaluated.
+
+    """
+    return tuple(ZENITH_SIGMA / math.sin(math.radians(el)) for _, el in sky)
+
+
+def clock_geometry_matrix(centres: Sequence[Vector3], receiver: Vector3) -> Matrix:
+    """Return the four-column geometry matrix with rows ``(g_k, 1)``.
+
+    References:
+        [EQ-LAB-GPS-002], [REF-MISRA-ENGE-2006, Chapter 6].
+
+    """
+    return tuple((*row, 1.0) for row in geometry_matrix(centres, receiver))
+
+
+def solve_clock_fix(
+    centres: Sequence[Vector3],
+    observed: Sequence[float],
+    sigmas: Sequence[float] | None = None,
+    start: Sequence[float] = (0.0, 0.0, 0.0, 0.0),
+) -> LeastSquaresResult:
+    """Return the four-unknown (position and clock) least-squares fix.
+
+    Minimizes ``sum_k ((||r - S_k|| + beta - D_k) / sigma_k)^2`` over the
+    position ``r`` and the clock range ``beta``; ``sigmas=None`` gives the
+    ordinary (unweighted) fix. The residuals are whitened, so
+    ``2 * result.cost`` is the fault-test statistic ``T`` of the weighted fix
+    and ``gauss_newton_covariance(result, noise_variance=1)`` its covariance
+    ``(G' W G)^-1``.
+
+    Args:
+        centres: Satellite centres.
+        observed: Pseudo-ranges in metres.
+        sigmas: Range-error standard deviations, or ``None``.
+        start: Starting ``(E, N, U, beta)``.
+
+    Returns:
+        The :class:`probstat.optimization.LeastSquaresResult`.
+
+    References:
+        [REF-MISRA-ENGE-2006, Chapter 6], [REF-NOCEDAL-WRIGHT-2006,
+        Section 10.3].
+
+    """
+    scales = [1.0] * len(centres) if sigmas is None else list(sigmas)
+
+    def residual(x: Sequence[float]) -> tuple[float, ...]:
+        """Return whitened pseudorange residuals."""
+        return tuple(
+            (distance(x, centre) + x[3] - d) / s
+            for centre, d, s in zip(centres, observed, scales, strict=True)
+        )
+
+    def jacobian(x: Sequence[float]) -> tuple[tuple[float, ...], ...]:
+        """Return whitened rows ``(g_k, 1) / sigma_k``."""
+        rows = []
+        for centre, s in zip(centres, scales, strict=True):
+            size = distance(x, centre)
+            rows.append((*((x[i] - centre[i]) / (size * s) for i in range(3)), 1.0 / s))
+        return tuple(rows)
+
+    return least_squares(residual, start, jacobian=jacobian, tolerance=1e-12)
+
+
+@dataclass(frozen=True)
+class DilutionOfPrecision:
+    """Dilution-of-precision family of one constellation (clock unknown)."""
+
+    gdop: float
+    pdop: float
+    hdop: float
+    vdop: float
+    tdop: float
+
+
+def dilution_of_precision(
+    centres: Sequence[Vector3], receiver: Vector3 = ORIGIN
+) -> DilutionOfPrecision:
+    """Return GDOP, PDOP, HDOP, VDOP, and TDOP from ``H = (G'G)^-1``.
+
+    References:
+        [EQ-LAB-GPS-002], [REF-MISRA-ENGE-2006, Chapter 6].
+
+    """
+    g = clock_geometry_matrix(centres, receiver)
+    h = inverse_spd(matmul(transpose(g), g))
+    return DilutionOfPrecision(
+        math.sqrt(h[0][0] + h[1][1] + h[2][2] + h[3][3]),
+        math.sqrt(h[0][0] + h[1][1] + h[2][2]),
+        math.sqrt(h[0][0] + h[1][1]),
+        math.sqrt(h[2][2]),
+        math.sqrt(h[3][3]),
+    )
+
+
+def _whitened(centres: Sequence[Vector3], sigmas: Sequence[float]) -> Matrix:
+    """Return ``W^(1/2) G`` for the four-column geometry matrix."""
+    g = clock_geometry_matrix(centres, ORIGIN)
+    return tuple(tuple(v / s for v in row) for row, s in zip(g, sigmas, strict=True))
+
+
+def clock_fix_covariance(
+    centres: Sequence[Vector3], sigmas: Sequence[float], *, weighted: bool
+) -> Matrix:
+    """Return the first-order covariance of the four-unknown fix.
+
+    Weighted: ``(G' W G)^-1`` with ``W = diag(sigma_k^-2)``. Ordinary:
+    ``A Sigma A'`` with ``A = (G'G)^-1 G'`` and ``Sigma = W^-1``.
+
+    References:
+        [EQ-LAB-GPS-002], [REF-TEUNISSEN-MONTENBRUCK-2017, Chapter 22],
+        [REF-SEBER-WILD-2003, Section 2.1].
+
+    """
+    if weighted:
+        gw = _whitened(centres, sigmas)
+        return inverse_spd(matmul(transpose(gw), gw))
+    a = error_map(clock_geometry_matrix(centres, ORIGIN))
+    return tuple(
+        tuple(
+            sum(a[i][n] * a[j][n] * sigmas[n] ** 2 for n in range(len(sigmas)))
+            for j in range(4)
+        )
+        for i in range(4)
+    )
+
+
+def residual_projector(centres: Sequence[Vector3], sigmas: Sequence[float]) -> Matrix:
+    """Return ``S = I - G~ (G~'G~)^-1 G~'`` with ``G~ = W^(1/2) G``.
+
+    The whitened residuals of the weighted fix are ``S W^(1/2) e`` to first
+    order; ``S`` has rank ``n - 4``.
+
+    References:
+        [EQ-LAB-GPS-003], [REF-BROWN-1992].
+
+    """
+    gw = _whitened(centres, sigmas)
+    hat = matmul(matmul(gw, inverse_spd(matmul(transpose(gw), gw))), transpose(gw))
+    n = len(centres)
+    return tuple(
+        tuple((1.0 if i == j else 0.0) - hat[i][j] for j in range(n)) for i in range(n)
+    )
+
+
+def raim_threshold(probability: float = FALSE_ALARM, degrees: int = 1) -> float:
+    """Return the alarm threshold, the ``1 - P_FA`` quantile of ``chi^2(n - 4)``.
+
+    References:
+        [EQ-LAB-GPS-003], [REF-BROWN-1992].
+
+    """
+    return ChiSquare(degrees).quantile(1.0 - probability)
+
+
+def detection_probability(noncentrality: float, threshold: float) -> float:
+    """Return ``P(chi^2_1(lambda) > T) = Phi(sqrt(l) - sqrt(T)) + Phi(-sqrt(l) - sqrt(T))``.
+
+    With one redundant reading the statistic is ``(Z + sqrt(lambda))^2``.
+
+    References:
+        [EQ-LAB-GPS-003].
+
+    """
+    root, cut = math.sqrt(noncentrality), math.sqrt(threshold)
+    return standard_normal_cdf(root - cut) + standard_normal_cdf(-root - cut)
+
+
+def fault_noncentrality(
+    projector: Matrix, sigmas: Sequence[float], index: int, bias: float
+) -> float:
+    """Return ``lambda = (bias / sigma_k)^2 S_kk`` of a fault on satellite ``k``.
+
+    References:
+        [EQ-LAB-GPS-003].
+
+    """
+    return (bias / sigmas[index]) ** 2 * projector[index][index]
+
+
+def minimal_detectable_bias(
+    projector: Matrix,
+    sigmas: Sequence[float],
+    index: int,
+    threshold: float,
+    level: float = DETECTION_LEVEL,
+) -> float:
+    """Return the fault on satellite ``k`` detected with probability ``level``.
+
+    Solves ``detection_probability(lambda, T) = level`` for ``sqrt(lambda)``
+    with :func:`probstat.optimization.brent_root`, then
+    ``bias = sigma_k sqrt(lambda / S_kk)``.
+
+    References:
+        [EQ-LAB-GPS-003], [REF-BROWN-1992].
+
+    """
+    root = brent_root(
+        lambda s: detection_probability(s * s, threshold) - level, 0.0, 40.0
+    ).root
+    return sigmas[index] * root / math.sqrt(projector[index][index])
+
+
+def fault_position_shift(
+    centres: Sequence[Vector3], sigmas: Sequence[float], index: int, bias: float
+) -> tuple[float, float, float, float]:
+    """Return the change of the weighted fix caused by a fault on satellite ``k``.
+
+    ``bias (G'WG)^-1 (g_k, 1)' / sigma_k^2`` (East, North, Up, clock range).
+
+    References:
+        [EQ-LAB-GPS-002], [REF-BROWN-1992].
+
+    """
+    cov = clock_fix_covariance(centres, sigmas, weighted=True)
+    row = clock_geometry_matrix(centres, ORIGIN)[index]
+    shift = [
+        bias * sum(cov[i][j] * row[j] for j in range(4)) / sigmas[index] ** 2
+        for i in range(4)
+    ]
+    return (shift[0], shift[1], shift[2], shift[3])
+
+
+def clock_readings(
+    centres: Sequence[Vector3],
+    sigmas: Sequence[float],
+    rng: random.Random,
+    fault: tuple[int, float] | None = None,
+) -> tuple[float, ...]:
+    """Return pseudo-ranges ``||S_k|| + c dt + e_k`` with Gaussian errors.
+
+    Args:
+        centres: Satellite centres.
+        sigmas: Error standard deviations.
+        rng: Random stream.
+        fault: Optional ``(satellite index, bias in m)``.
+
+    References:
+        [REF-MISRA-ENGE-2006, Chapter 6]. No equation is evaluated.
+
+    """
+    values = [
+        distance(centre, ORIGIN) + CLOCK_BIAS + rng.gauss(0.0, s)
+        for centre, s in zip(centres, sigmas, strict=True)
+    ]
+    if fault is not None:
+        values[fault[0]] += fault[1]
+    return tuple(values)
+
+
+@dataclass(frozen=True)
+class ClockFixStudy:
+    """Monte Carlo errors of the ordinary and weighted four-unknown fixes.
+
+    Attributes:
+        ols_errors: ``(E, N, U, beta - c dt)`` errors of the ordinary fix.
+        wls_errors: The same for the weighted fix.
+        statistics: Fault-test statistic ``T`` of every fault-free draw.
+        false_alarm: Share of fault-free draws with ``T`` above threshold.
+        false_alarm_se: Its standard error.
+
+    """
+
+    ols_errors: tuple[tuple[float, ...], ...]
+    wls_errors: tuple[tuple[float, ...], ...]
+    statistics: tuple[float, ...]
+    false_alarm: float
+    false_alarm_se: float
+
+
+def study_clock_fix(
+    centres: Sequence[Vector3],
+    sigmas: Sequence[float],
+    draws: int,
+    seed: int,
+    threshold: float,
+) -> ClockFixStudy:
+    """Simulate fault-free readings and solve the ordinary and weighted fixes.
+
+    References:
+        [REF-TEUNISSEN-MONTENBRUCK-2017, Chapter 22], [REF-BROWN-1992].
+
+    """
+    rng = random.Random(seed)
+    truth = (0.0, 0.0, 0.0, CLOCK_BIAS)
+    ols, wls, stats = [], [], []
+    for _ in range(draws):
+        observed = clock_readings(centres, sigmas, rng)
+        plain = solve_clock_fix(centres, observed).x
+        weighted = solve_clock_fix(centres, observed, sigmas)
+        ols.append(tuple(v - t for v, t in zip(plain, truth, strict=True)))
+        wls.append(tuple(v - t for v, t in zip(weighted.x, truth, strict=True)))
+        stats.append(2.0 * weighted.cost)
+    alarms = [1.0 if t > threshold else 0.0 for t in stats]
+    rate, rate_se = _mean_se(alarms)
+    return ClockFixStudy(tuple(ols), tuple(wls), tuple(stats), rate, rate_se)
+
+
+def detection_rate(
+    centres: Sequence[Vector3],
+    sigmas: Sequence[float],
+    fault: tuple[int, float],
+    draws: int,
+    seed: int,
+    threshold: float,
+) -> tuple[float, float]:
+    """Return the simulated detection rate of a fault and its standard error.
+
+    References:
+        [REF-BROWN-1992]. No equation is evaluated.
+
+    """
+    rng = random.Random(seed)
+    alarms = []
+    for _ in range(draws):
+        observed = clock_readings(centres, sigmas, rng, fault)
+        statistic = 2.0 * solve_clock_fix(centres, observed, sigmas).cost
+        alarms.append(1.0 if statistic > threshold else 0.0)
+    return _mean_se(alarms)
+
+
+@dataclass(frozen=True)
+class RaimRow:
+    """Fault-detection summary of one satellite.
+
+    Attributes:
+        index: Satellite index (0-based).
+        elevation: Elevation in degrees.
+        sigma: Range-error standard deviation.
+        redundancy: Diagonal entry ``S_kk`` of the residual projector.
+        bias: Minimal detectable bias at ``DETECTION_LEVEL``.
+        horizontal_error: Horizontal fix shift that this bias causes.
+        checks: ``(bias, closed form, simulated rate, standard error)`` at
+            the biases detected with probability 0.5 and 0.9.
+
+    """
+
+    index: int
+    elevation: float
+    sigma: float
+    redundancy: float
+    bias: float
+    horizontal_error: float
+    checks: tuple[tuple[float, float, float, float], ...]
 
 
 # --------------------------------------------------------------------------
@@ -679,7 +1330,7 @@ def study_posterior(
 
 @dataclass(frozen=True)
 class GeometryPoint:
-    """Dilution of precision and simulated 90% radius of one constellation."""
+    """Known-clock PDOP and simulated 90% radius of one constellation."""
 
     label: str
     pdop: float
@@ -704,42 +1355,87 @@ class LabResults:
     no_range_radius: float
     no_range_radius_se: float
     geometries: tuple[GeometryPoint, ...]
+    sigmas: tuple[float, ...]
+    clock_noise_free: tuple[float, float]
+    three_unknown_error: float
+    dops: dict[str, DilutionOfPrecision]
+    known_clock_pdops: dict[str, float]
+    clock_study: ClockFixStudy
+    ols_covariance: Matrix
+    wls_covariance: Matrix
+    threshold: float
+    raim: tuple[RaimRow, ...]
     seconds: float
 
 
-def _covariance_se(points: Sequence[Vector3]) -> list[list[float]]:
-    """Return the standard error of each sample-covariance entry."""
-    n = len(points)
-    means = [math.fsum(p[i] for p in points) / n for i in range(3)]
-    out = []
-    for i in range(3):
-        row = []
-        for j in range(3):
-            products = [(p[i] - means[i]) * (p[j] - means[j]) for p in points]
-            centre = math.fsum(products) / n
-            spread = math.fsum((v - centre) ** 2 for v in products) / (n - 1)
-            row.append(math.sqrt(spread / n))
-        out.append(row)
-    return out
+def run_part_two(seed: int, *, draws: int = CLOCK_FIX_DRAWS) -> dict[str, Any]:
+    """Run the unknown-clock fix, the DOP family, and the fault-detection test.
 
+    Args:
+        seed: Base seed of Part 2.
+        draws: Fault-free draws of the ordinary and weighted fixes.
 
-def _linear_radius(covariance: Sequence[Sequence[float]], seed: int) -> float:
-    """Return the 90% radius of a centred normal law with this covariance."""
-    l11 = math.sqrt(covariance[0][0])
-    l21 = covariance[1][0] / l11
-    l22 = math.sqrt(covariance[1][1] - l21 * l21)
-    l31 = covariance[2][0] / l11
-    l32 = (covariance[2][1] - l31 * l21) / l22
-    l33 = math.sqrt(covariance[2][2] - l31 * l31 - l32 * l32)
-    rng = random.Random(seed)
-    norms = []
-    for _ in range(20000):
-        z = (rng.gauss(0.0, 1.0), rng.gauss(0.0, 1.0), rng.gauss(0.0, 1.0))
-        x = l11 * z[0]
-        y = l21 * z[0] + l22 * z[1]
-        w = l31 * z[0] + l32 * z[1] + l33 * z[2]
-        norms.append(math.sqrt(x * x + y * y + w * w))
-    return quantile(norms, LEVEL)
+    Returns:
+        The Part 2 fields of :class:`LabResults`.
+
+    References:
+        [REF-MISRA-ENGE-2006, Chapter 6], [REF-BROWN-1992].
+
+    """
+    centres = constellation(GOOD_SKY)
+    sigmas = elevation_sigmas(GOOD_SKY)
+    exact = tuple(distance(c, ORIGIN) + CLOCK_BIAS for c in centres)
+    solved = solve_clock_fix(centres, exact).x
+    noise_free = (distance(solved, ORIGIN), abs(solved[3] - CLOCK_BIAS))
+    three = distance(solve_fix(centres, exact).x, ORIGIN)
+    threshold = raim_threshold()
+    study = study_clock_fix(centres, sigmas, draws, seed, threshold)
+    projector = residual_projector(centres, sigmas)
+    rows = []
+    for k in range(len(centres)):
+        checks = []
+        for level in (0.5, DETECTION_LEVEL):
+            bias = minimal_detectable_bias(projector, sigmas, k, threshold, level)
+            rate, rate_se = detection_rate(
+                centres,
+                sigmas,
+                (k, bias),
+                DETECTION_DRAWS,
+                seed + 1 + 2 * k + (level > 0.5),
+                threshold,
+            )
+            checks.append((bias, level, rate, rate_se))
+        mdb = checks[-1][0]
+        shift = fault_position_shift(centres, sigmas, k, mdb)
+        rows.append(
+            RaimRow(
+                k,
+                GOOD_SKY[k][1],
+                sigmas[k],
+                projector[k][k],
+                mdb,
+                math.hypot(shift[0], shift[1]),
+                tuple(checks),
+            )
+        )
+    skies = {"well spread": GOOD_SKY, "clustered": POOR_SKY}
+    return {
+        "sigmas": sigmas,
+        "clock_noise_free": noise_free,
+        "three_unknown_error": three,
+        "dops": {
+            name: dilution_of_precision(constellation(sky))
+            for name, sky in skies.items()
+        },
+        "known_clock_pdops": {
+            name: pdop_known_clock(constellation(sky)) for name, sky in skies.items()
+        },
+        "clock_study": study,
+        "ols_covariance": clock_fix_covariance(centres, sigmas, weighted=False),
+        "wls_covariance": clock_fix_covariance(centres, sigmas, weighted=True),
+        "threshold": threshold,
+        "raim": tuple(rows),
+    }
 
 
 def run_analysis(seed: int = SEED, *, fix_draws: int = FIX_DRAWS) -> LabResults:
@@ -747,7 +1443,7 @@ def run_analysis(seed: int = SEED, *, fix_draws: int = FIX_DRAWS) -> LabResults:
 
     Args:
         seed: Base seed; each part uses its own offset stream.
-        fix_draws: Draws of each least-squares scenario.
+        fix_draws: Draws of each Part 1 least-squares scenario.
 
     Returns:
         The laboratory results.
@@ -758,7 +1454,7 @@ def run_analysis(seed: int = SEED, *, fix_draws: int = FIX_DRAWS) -> LabResults:
     """
     started = time.perf_counter()
     centres = constellation(GOOD_SKY)
-    exact = readings(centres, (0.0, 0.0, 0.0), draw_sources(random.Random(seed), 5, ()))
+    exact = readings(centres, ORIGIN, draw_sources(random.Random(seed), 5, ()))
     noise_free = solve_fix(centres, exact, start=(3000.0, -4000.0, 1500.0)).x
     posterior = study_posterior(centres, seed + 1)
     fix_all = study_fix(centres, fix_draws, seed + 2)
@@ -775,7 +1471,9 @@ def run_analysis(seed: int = SEED, *, fix_draws: int = FIX_DRAWS) -> LabResults:
     rng = random.Random(seed + 8)
     skies = [("well spread", GOOD_SKY), ("clustered", POOR_SKY)]
     for index in range(RANDOM_GEOMETRIES):
-        sky = tuple((rng.uniform(0.0, 360.0), rng.uniform(15.0, 80.0)) for _ in range(5))
+        sky = tuple(
+            (rng.uniform(0.0, 360.0), rng.uniform(15.0, 80.0)) for _ in range(5)
+        )
         skies.append((f"random {index + 1}", sky))
     for index, (label, sky) in enumerate(skies):
         sats = constellation(sky)
@@ -783,15 +1481,16 @@ def run_analysis(seed: int = SEED, *, fix_draws: int = FIX_DRAWS) -> LabResults:
         geometries.append(
             GeometryPoint(
                 label,
-                pdop(sats),
+                pdop_known_clock(sats),
                 study.radius,
                 study.radius_se,
                 _linear_radius(linearized_covariance(sats), seed + 60 + index),
             )
         )
+    part_two = run_part_two(seed + 100)
     return LabResults(
         centres,
-        distance(noise_free, (0.0, 0.0, 0.0)),
+        distance(noise_free, ORIGIN),
         posterior,
         fix_all,
         by_source,
@@ -802,7 +1501,8 @@ def run_analysis(seed: int = SEED, *, fix_draws: int = FIX_DRAWS) -> LabResults:
         no_range.radius,
         no_range.radius_se,
         tuple(geometries),
-        time.perf_counter() - started,
+        seconds=time.perf_counter() - started,
+        **part_two,
     )
 
 
@@ -817,7 +1517,7 @@ def gauss_newton_check(centres: Sequence[Vector3]) -> float:
         [REF-SEBER-WILD-2003, Section 2.1].
 
     """
-    exact = readings(centres, (0.0, 0.0, 0.0), draw_sources(random.Random(0), 5, ()))
+    exact = readings(centres, ORIGIN, draw_sources(random.Random(0), 5, ()))
     result = solve_fix(centres, exact)
     variances = source_variances()
     library = gauss_newton_covariance(
@@ -827,11 +1527,32 @@ def gauss_newton_check(centres: Sequence[Vector3]) -> float:
     return max(abs(library[i][j] - lab[i][j]) for i in range(3) for j in range(3))
 
 
+def weighted_covariance_check(
+    centres: Sequence[Vector3], sigmas: Sequence[float]
+) -> float:
+    """Return the largest gap between the library and the lab ``(G'WG)^-1``.
+
+    References:
+        [REF-SEBER-WILD-2003, Section 2.1].
+
+    """
+    exact = tuple(distance(c, ORIGIN) + CLOCK_BIAS for c in centres)
+    result = solve_clock_fix(centres, exact, sigmas)
+    library = gauss_newton_covariance(result, noise_variance=1.0)
+    lab = clock_fix_covariance(centres, sigmas, weighted=True)
+    return max(abs(library[i][j] - lab[i][j]) for i in range(4) for j in range(4))
+
+
+def _trace3(matrix: Sequence[Sequence[float]]) -> float:
+    """Return the trace of the leading 3 x 3 block."""
+    return matrix[0][0] + matrix[1][1] + matrix[2][2]
+
+
 def print_report(results: LabResults) -> None:
     """Print the laboratory's numbers with their Monte Carlo errors.
 
     References:
-        [REF-SMITH-UQ-2024].
+        [REF-SMITH-UQ-2024], [REF-MISRA-ENGE-2006].
 
     """
     post = results.posterior
@@ -839,22 +1560,35 @@ def print_report(results: LabResults) -> None:
     for centre in results.centres:
         print(
             f"  ({centre[0] / 1e3:9.1f}, {centre[1] / 1e3:9.1f}, {centre[2] / 1e3:9.1f})"
-            f"  {distance(centre, (0.0, 0.0, 0.0)) / 1e3:8.1f}"
+            f"  {distance(centre, ORIGIN) / 1e3:8.1f}"
         )
-    print(f"PDOP of the well-spread sky: {pdop(results.centres):.2f}")
-    print(f"\nNoise-free fix error: {results.noise_free_error:.2e} m")
+    print("\n=== Part 1: known clock, three uncertainty sources ===")
+    print(f"Known-clock PDOP of the well-spread sky: {pdop_known_clock(results.centres):.2f}")
+    print(f"Noise-free fix error: {results.noise_free_error:.2e} m")
     print(
         "Gauss-Newton covariance vs A Sigma_e A' (no clock), largest gap: "
         f"{gauss_newton_check(results.centres):.1e} m^2"
     )
     print("\nPosterior f_R by importance sampling (one set of readings):")
-    print(f"  E[R] = ({post.mean[0]:.2f}, {post.mean[1]:.2f}, {post.mean[2]:.2f}) m")
-    print(f"  least-squares fix = ({post.fix[0]:.2f}, {post.fix[1]:.2f}, {post.fix[2]:.2f}) m")
-    print(f"  ||E[R] - R0|| = {distance(post.mean, (0.0, 0.0, 0.0)):.2f} m")
+    print(
+        f"  E[R] = ({post.mean[0]:.2f}, {post.mean[1]:.2f}, {post.mean[2]:.2f}) m, "
+        f"batch SE ({post.mean_se[0]:.2f}, {post.mean_se[1]:.2f}, "
+        f"{post.mean_se[2]:.2f})"
+    )
+    print(
+        f"  least-squares fix = ({post.fix[0]:.2f}, {post.fix[1]:.2f}, "
+        f"{post.fix[2]:.2f}) m"
+    )
+    print(f"  ||E[R] - R0|| = {distance(post.mean, ORIGIN):.2f} m")
     print(f"  90% radius around E[R]: {post.radius:.2f} m (batch SE {post.radius_se:.2f})")
     print(
-        f"  ESS {post.ess:.0f} of {PROPOSALS - PROPOSALS // 4} main-stage proposals; positive weight "
-        f"{100 * post.positive_share:.1f}%; edge hits {post.edge_hits}"
+        f"  ESS {post.ess:.0f} of {post.proposals} main-stage proposals; positive "
+        f"weight {100 * post.positive_share:.1f}%; edge hits (pilot, main) "
+        f"{post.edge_hits}"
+    )
+    print(
+        f"  clock quadrature {CLOCK_NODES} vs {CHECK_NODES} nodes, largest relative "
+        f"likelihood change: {post.quadrature_gap:.1e}"
     )
     fix = results.fix_all
     print(f"\nLeast-squares fix, {FIX_DRAWS} draws of all sources:")
@@ -877,16 +1611,97 @@ def print_report(results: LabResults) -> None:
             f"  share {100 * results.linear_by_source[name] / total:5.1f}%"
         )
     added = sum(results.fix_by_source[name].mean_square for name in SOURCES)
-    print(f"  sum of single-source runs {added:.2f} vs all-source run {fix.mean_square:.2f}")
+    added_se = math.sqrt(
+        sum(results.fix_by_source[name].mean_square_se ** 2 for name in SOURCES)
+    )
+    print(
+        f"  sum of single-source runs {added:.2f} (SE {added_se:.2f}) vs all-source "
+        f"run {fix.mean_square:.2f} (SE {fix.mean_square_se:.2f})"
+    )
     print(
         "  90% radius without the range error (clock and satellites only): "
         f"{results.no_range_radius:.2f} m (SE {results.no_range_radius_se:.2f})"
     )
-    print("\nGeometry: PDOP and 90% radius (Monte Carlo, SE, linearized normal) [m]:")
+    print(
+        "\nGeometry: known-clock PDOP and 90% radius "
+        "(Monte Carlo, SE, linearized normal) [m]:"
+    )
     for point in results.geometries:
         print(
             f"  {point.label:12s} PDOP {point.pdop:5.2f}  {point.radius:6.2f} "
             f"({point.radius_se:.2f})  {point.linear_radius:6.2f}"
+        )
+
+    print("\n=== Part 2: unknown receiver clock, weighted fix, fault detection ===")
+    position_gap, clock_gap = results.clock_noise_free
+    print(
+        f"Clock offset {RECEIVER_CLOCK_OFFSET * 1e3:.2f} ms = {CLOCK_BIAS / 1e3:.1f} km "
+        "of range."
+    )
+    print(
+        f"  four-unknown fix from exact readings: position error {position_gap:.1e} m, "
+        f"clock error {clock_gap:.1e} m"
+    )
+    print(
+        "  three-unknown fix from the same readings (clock ignored): position "
+        f"error {results.three_unknown_error / 1e3:.1f} km"
+    )
+    print("Dilution of precision (clock unknown; last column: known-clock PDOP):")
+    print("  sky          GDOP  PDOP  HDOP  VDOP  TDOP   PDOP|clock")
+    for name, dop in results.dops.items():
+        print(
+            f"  {name:12s} {dop.gdop:5.2f} {dop.pdop:5.2f} {dop.hdop:5.2f} "
+            f"{dop.vdop:5.2f} {dop.tdop:5.2f}   {results.known_clock_pdops[name]:5.2f}"
+        )
+    sigma_text = ", ".join(f"{s:.2f}" for s in results.sigmas)
+    print(f"Range-error SD sigma_0 / sin(elevation) [m]: {sigma_text}")
+    study = results.clock_study
+    print(
+        "  weighted (G'WG)^-1 vs library Gauss-Newton covariance, largest gap: "
+        f"{weighted_covariance_check(results.centres, results.sigmas):.1e}"
+    )
+    print(
+        f"  {CLOCK_FIX_DRAWS} draws: Monte Carlo (SE) vs first order "
+        "[position m^2 | clock m]"
+    )
+    for label, errors, cov in (
+        ("ordinary", study.ols_errors, results.ols_covariance),
+        ("weighted", study.wls_errors, results.wls_covariance),
+    ):
+        mse, mse_se = _mean_se([e[0] ** 2 + e[1] ** 2 + e[2] ** 2 for e in errors])
+        clock_values = [e[3] for e in errors]
+        clock_sd = math.sqrt(covariance(clock_values, clock_values, ddof=1))
+        print(
+            f"  {label:9s} position MSE {mse:6.2f} ({mse_se:.2f}) vs "
+            f"{_trace3(cov):6.2f} | clock SD {clock_sd:5.2f} vs "
+            f"{math.sqrt(cov[3][3]):5.2f}"
+        )
+    mean_t, mean_t_se = _mean_se(study.statistics)
+    print(
+        f"Fault test: threshold chi2(1) quantile {1 - FALSE_ALARM:.2f} = "
+        f"{results.threshold:.2f}; mean T {mean_t:.3f} (SE {mean_t_se:.3f}, "
+        "expected 1)"
+    )
+    print(
+        f"  false-alarm rate {100 * study.false_alarm:.2f}% "
+        f"(SE {100 * study.false_alarm_se:.2f}) vs {100 * FALSE_ALARM:.0f}%"
+    )
+    print(
+        "  sat  elev  sigma   S_kk   MDB(90%)  horizontal shift   "
+        "detection at MDB: simulated (SE)"
+    )
+    for row in results.raim:
+        bias, level, rate, rate_se = row.checks[-1]
+        print(
+            f"  S{row.index + 1}  {row.elevation:4.0f}  {row.sigma:5.2f}  "
+            f"{row.redundancy:5.3f}  {row.bias:7.1f} m  {row.horizontal_error:7.1f} m"
+            f"          {rate:.3f} ({rate_se:.3f}) vs {level:.1f}"
+        )
+    for row in results.raim:
+        bias, level, rate, rate_se = row.checks[0]
+        print(
+            f"  S{row.index + 1} at {bias:5.1f} m: simulated {rate:.3f} ({rate_se:.3f}) "
+            f"vs {level:.1f}"
         )
 
 
@@ -988,13 +1803,31 @@ def figure_radial_cdf(results: LabResults) -> Any:
     ax.plot(xs, ys, color=palette.observed, linewidth=theme.LINE_WIDTH)
     fix_norms = sorted(math.sqrt(sum(v * v for v in e)) for e in results.fix_all.errors)
     n = len(fix_norms)
-    ax.plot(fix_norms, [(i + 1) / n for i in range(n)], color=palette.model, linewidth=theme.LINE_WIDTH)
+    ax.plot(
+        fix_norms,
+        [(i + 1) / n for i in range(n)],
+        color=palette.model,
+        linewidth=theme.LINE_WIDTH,
+    )
     ax.axhline(LEVEL, color=palette.muted, linewidth=theme.REFERENCE_WIDTH, linestyle="--")
-    _label(ax, post.radius, LEVEL, f"Posterior: {post.radius:.1f} m", palette.observed,
-           xytext=(-6.0, 10.0), ha="right")
+    _label(
+        ax,
+        post.radius,
+        LEVEL,
+        f"Posterior: {post.radius:.1f} m",
+        palette.observed,
+        xytext=(-6.0, 10.0),
+        ha="right",
+    )
     fix = results.fix_all
-    _label(ax, fix.radius, LEVEL, f"Least-squares fix: {fix.radius:.1f} m", palette.model,
-           xytext=(6.0, -12.0))
+    _label(
+        ax,
+        fix.radius,
+        LEVEL,
+        f"Least-squares fix: {fix.radius:.1f} m",
+        palette.model,
+        xytext=(6.0, -12.0),
+    )
     ax.set_ylim(0.0, 1.02)
     ax.set_xlim(0.0, max(fix_norms[-1], xs[-1]) * 1.02)
     theme.axis_labels(ax, "Distance from centre", "Probability within", x_unit="m")
@@ -1013,35 +1846,66 @@ def figure_sensitivity(results: LabResults) -> Any:
         [REF-MATPLOTLIB].
 
     """
+    from matplotlib.ticker import FuncFormatter, NullFormatter
+
     palette = theme.active_palette()
     figure, ax = _axes((7.2, 3.6))
     names = list(SOURCES)
-    labels = {"clock": "Clock shift", "satellite": "Satellite position", "range": "Range reading"}
+    labels = {
+        "clock": "Clock shift",
+        "satellite": "Satellite position",
+        "range": "Range reading",
+    }
     for row, name in enumerate(names):
         study = results.fix_by_source[name]
         low = max(study.mean_square - 2 * study.mean_square_se, 1e-6)
-        ax.plot([low, study.mean_square + 2 * study.mean_square_se], [row, row],
-                color=palette.observed, linewidth=3.0, solid_capstyle="butt")
+        ax.plot(
+            [low, study.mean_square + 2 * study.mean_square_se],
+            [row, row],
+            color=palette.observed,
+            linewidth=3.0,
+            solid_capstyle="butt",
+        )
         ax.plot([study.mean_square], [row], marker="o", markersize=7, color=palette.observed)
-        ax.plot([results.linear_by_source[name]], [row], marker="|", markersize=16,
-                mew=2.0, color=palette.model)
+        ax.plot(
+            [results.linear_by_source[name]],
+            [row],
+            marker="|",
+            markersize=16,
+            mew=2.0,
+            color=palette.model,
+        )
     ax.set_xscale("log")
     ax.set_yticks(range(len(names)), [labels[n] for n in names])
     ax.set_ylim(-0.6, len(names) - 0.2)
     top = len(names) - 1
-    _label(ax, results.fix_by_source[names[top]].mean_square, top,
-           "Monte Carlo Â± 2 SE", palette.observed, xytext=(0.0, 12.0), ha="right", va="bottom")
-    _label(ax, results.linear_by_source[names[top]], top,
-           "Linearized", palette.model, xytext=(0.0, -14.0), ha="center", va="top")
-    from matplotlib.ticker import FuncFormatter, NullFormatter
-
+    _label(
+        ax,
+        results.fix_by_source[names[top]].mean_square,
+        top,
+        "Monte Carlo ± 2 SE",
+        palette.observed,
+        xytext=(0.0, 12.0),
+        ha="right",
+        va="bottom",
+    )
+    _label(
+        ax,
+        results.linear_by_source[names[top]],
+        top,
+        "Linearized",
+        palette.model,
+        xytext=(0.0, -14.0),
+        ha="center",
+        va="top",
+    )
     ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:g}"))
     ax.xaxis.set_minor_formatter(NullFormatter())
     ax.grid(axis="x", color=palette.rule, linewidth=0.7)
     ax.grid(axis="y", visible=False)
     total = sum(results.linear_by_source.values())
     share = 100 * results.linear_by_source["range"] / total
-    theme.axis_labels(ax, "Mean squared position error", None, x_unit="mÂ²")
+    theme.axis_labels(ax, "Mean squared position error", None, x_unit="m²")
     theme.title_block(
         ax,
         f"The range reading carries {share:.0f}% of the position error",
@@ -1051,7 +1915,7 @@ def figure_sensitivity(results: LabResults) -> Any:
 
 
 def figure_geometry(results: LabResults) -> Any:
-    """Draw the 90% radius against the position dilution of precision.
+    """Draw the 90% radius against the known-clock position dilution.
 
     References:
         [REF-MATPLOTLIB].
@@ -1060,27 +1924,113 @@ def figure_geometry(results: LabResults) -> Any:
     palette = theme.active_palette()
     figure, ax = _axes()
     points = sorted(results.geometries, key=lambda p: p.pdop)
-    slope = math.fsum(p.linear_radius * p.pdop for p in points) / math.fsum(p.pdop**2 for p in points)
+    slope = math.fsum(p.linear_radius * p.pdop for p in points) / math.fsum(
+        p.pdop**2 for p in points
+    )
     top = points[-1].pdop * 1.05
-    ax.plot([0.0, top], [0.0, slope * top], color=palette.model, linewidth=theme.REFERENCE_WIDTH)
+    ax.plot(
+        [0.0, top], [0.0, slope * top], color=palette.model, linewidth=theme.REFERENCE_WIDTH
+    )
     for p in points:
-        ax.plot([p.pdop, p.pdop], [p.radius - 2 * p.radius_se, p.radius + 2 * p.radius_se],
-                color=palette.observed, linewidth=1.5)
-    ax.plot([p.pdop for p in points], [p.radius for p in points], "o",
-            color=palette.observed, markersize=6)
+        ax.plot(
+            [p.pdop, p.pdop],
+            [p.radius - 2 * p.radius_se, p.radius + 2 * p.radius_se],
+            color=palette.observed,
+            linewidth=1.5,
+        )
+    ax.plot(
+        [p.pdop for p in points],
+        [p.radius for p in points],
+        "o",
+        color=palette.observed,
+        markersize=6,
+    )
     for p in points:
         if p.label in {"well spread", "clustered"}:
-            _label(ax, p.pdop, p.radius, p.label.capitalize(), palette.ink,
-                   xytext=(8.0, -8.0) if p.label == "clustered" else (8.0, -10.0))
-    _label(ax, top, slope * top, f"Linearized: {slope:.1f} m per PDOP unit",
-           palette.model, xytext=(-4.0, 8.0), ha="right", va="bottom")
+            _label(
+                ax,
+                p.pdop,
+                p.radius,
+                p.label.capitalize(),
+                palette.ink,
+                xytext=(8.0, -8.0) if p.label == "clustered" else (8.0, -10.0),
+            )
+    _label(
+        ax,
+        top,
+        slope * top,
+        f"Linearized: {slope:.1f} m per PDOP unit",
+        palette.model,
+        xytext=(-4.0, 8.0),
+        ha="right",
+        va="bottom",
+    )
     ax.set_xlim(0.0, top * 1.02)
     ax.set_ylim(0.0, max(p.radius + 2 * p.radius_se for p in points) * 1.08)
-    theme.axis_labels(ax, "Position dilution of precision (PDOP)", "90% radius", y_unit="m")
+    theme.axis_labels(ax, "Position dilution of precision, clock known", "90% radius", y_unit="m")
     theme.title_block(
         ax,
         "Error radius grows in proportion to the dilution of precision",
-        f"Least-squares fix, {GEOMETRY_DRAWS} draws per constellation, bars Â± 2 SE",
+        f"Least-squares fix, {GEOMETRY_DRAWS} draws per constellation, bars ± 2 SE",
+    )
+    return figure
+
+
+def figure_raim(results: LabResults) -> Any:
+    """Draw the detection probability of a range fault against its size.
+
+    References:
+        [REF-MATPLOTLIB].
+
+    """
+    palette = theme.active_palette()
+    figure, ax = _axes()
+    centres = results.centres
+    sigmas = results.sigmas
+    projector = residual_projector(centres, sigmas)
+    hardest = max(results.raim, key=lambda row: row.bias)
+    top = hardest.bias * 1.15
+    grid = [top * i / 200 for i in range(201)]
+    items = []
+    for row in results.raim:
+        colour = palette.accent if row is hardest else palette.muted
+        width = theme.LINE_WIDTH if row is hardest else theme.REFERENCE_WIDTH
+        curve = [
+            detection_probability(
+                fault_noncentrality(projector, sigmas, row.index, b), results.threshold
+            )
+            for b in grid
+        ]
+        ax.plot(grid, curve, color=colour, linewidth=width)
+        for bias, _, rate, rate_se in row.checks:
+            ax.plot(
+                [bias, bias],
+                [rate - 2 * rate_se, rate + 2 * rate_se],
+                color=palette.observed,
+                linewidth=1.2,
+            )
+            ax.plot([bias], [rate], "o", color=palette.observed, markersize=4)
+        end = min(range(len(curve)), key=lambda i: abs(curve[i] - 0.98))
+        items.append(
+            (
+                grid[end] if row is not hardest else grid[-1],
+                curve[end] if row is not hardest else curve[-1],
+                f"S{row.index + 1} ({row.elevation:.0f}°)",
+                palette.accent if row is hardest else palette.ink,
+            )
+        )
+    ax.axhline(
+        DETECTION_LEVEL, color=palette.rule, linewidth=theme.REFERENCE_WIDTH, linestyle="--"
+    )
+    ax.set_xlim(0.0, top * 1.12)
+    ax.set_ylim(0.0, 1.04)
+    for x, y, text, colour in items:
+        _label(ax, x, y, text, colour, xytext=(4.0, 0.0))
+    theme.axis_labels(ax, "Range fault on one satellite", "Detection probability", x_unit="m")
+    theme.title_block(
+        ax,
+        f"A {hardest.bias:.0f} m fault on S{hardest.index + 1} is needed for 90% detection",
+        f"Residual test, P_FA = {FALSE_ALARM:g}; dots: simulation ± 2 SE",
     )
     return figure
 
@@ -1090,6 +2040,7 @@ FIGURES: tuple[tuple[str, Callable[[LabResults], Any]], ...] = (
     ("gps_radial_cdf.png", figure_radial_cdf),
     ("gps_sensitivity.png", figure_sensitivity),
     ("gps_geometry.png", figure_geometry),
+    ("gps_raim_detection.png", figure_raim),
 )
 
 
@@ -1125,15 +2076,18 @@ def main() -> None:
 
     """
     started = time.perf_counter()
-    print("Propagating clock, satellite, and range uncertainty (under a minute)...")
+    print("Simulating five-satellite position fixes (about 2 minutes)...")
     results = run_analysis()
     print_report(results)
     output = Path(__file__).parent / "generated"
     written = write_figures(results, output)
     post = results.posterior
+    hardest = max(results.raim, key=lambda row: row.bias)
     print(
-        f"\nResult: E[R] lies {distance(post.mean, (0.0, 0.0, 0.0)):.1f} m from the true "
-        f"position; 90% of f_R lies within {post.radius:.1f} m of E[R]."
+        f"\nResult: E[R] lies {distance(post.mean, ORIGIN):.1f} m from the true "
+        f"position; 90% of f_R lies within {post.radius:.1f} m of E[R]. With the "
+        f"clock unknown, a fault must reach {hardest.bias:.0f} m on "
+        f"S{hardest.index + 1} to be detected 90% of the time."
     )
     folder = output.relative_to(Path(__file__).parent.parent)
     print(

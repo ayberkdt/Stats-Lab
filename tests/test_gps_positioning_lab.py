@@ -1,4 +1,4 @@
-﻿"""Regression tests for ``examples/gps_positioning_lab.py``.
+"""Regression tests for ``examples/gps_positioning_lab.py``.
 
 Oracles: exact recovery of the true position from noise-free readings; the
 library Gauss-Newton covariance ``s^2 (J'J)^-1``
