@@ -146,7 +146,9 @@ class MaximumLikelihoodTests(unittest.TestCase):
         """Unknown filters, nonlinear models with the KF, and bad names raise."""
         data = [(1.0,), (0.5,)]
         with self.assertRaises(ValueError):
-            fit_state_space_mle(lambda t: _ar1(t[0], 1.0, 1.0), (0.5,), data, filter="x")
+            fit_state_space_mle(
+                lambda t: _ar1(t[0], 1.0, 1.0), (0.5,), data, filter="x"
+            )
         with self.assertRaises(TypeError):
             fit_state_space_mle(
                 lambda t: _ar1(t[0], 1.0, 1.0).as_nonlinear(), (0.5,), data
@@ -172,9 +174,7 @@ class ExpectationMaximizationTests(unittest.TestCase):
             variances.append(phi * phi * variances[-1] + q)
         size = len(data) + 1
         covariance = tuple(
-            tuple(
-                phi ** abs(i - j) * variances[min(i, j)] for j in range(size)
-            )
+            tuple(phi ** abs(i - j) * variances[min(i, j)] for j in range(size))
             for i in range(size)
         )
         mean = tuple(0.2 * phi**k for k in range(size))
@@ -414,7 +414,9 @@ class ParticleMarginalMetropolisHastingsTests(unittest.TestCase):
                 build, flat, (0.5,), self.data, particle_filter="x", **common
             )
         with self.assertRaises(ValueError):
-            particle_marginal_metropolis_hastings(build, flat, (1.5,), self.data, **common)
+            particle_marginal_metropolis_hastings(
+                build, flat, (1.5,), self.data, **common
+            )
         with self.assertRaises(ValueError):
             particle_marginal_metropolis_hastings(
                 build,
