@@ -23,6 +23,9 @@ Main entry points:
         integration of an ODE until an event function reaches zero, with
         the crossing located on the last step (first grid point, linear,
         or cubic Hermite interpolation).
+    ``integrate_fixed_step``: the same fixed-step methods over a fixed
+        horizon, returning the grid trajectory; written as plain
+        arithmetic so automatic differentiation passes through it.
 
 Assumptions:
     Integrands return finite real numbers wherever the rule places weight,
@@ -85,6 +88,8 @@ from .ode import (
     METHOD_ORDERS,
     ODE_METHODS,
     EventSolution,
+    FixedStepTrajectory,
+    integrate_fixed_step,
     integrate_to_event,
 )
 from .profiles import (
@@ -189,5 +194,7 @@ __all__ = [
     "METHOD_ORDERS",
     "ODE_METHODS",
     "EventSolution",
+    "FixedStepTrajectory",
+    "integrate_fixed_step",
     "integrate_to_event",
 ]
