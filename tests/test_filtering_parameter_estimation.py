@@ -328,13 +328,13 @@ def _pmmh_problem() -> tuple[list[tuple[float, ...]], float, float]:
         return math.exp(kalman_filter(_ar1(phi, 1.0, 0.5), data).log_likelihood - peak)
 
     grid = 400
-    mass = composite_simpson(density, -1.0, 1.0, intervals=grid).estimate
+    mass = composite_simpson(density, -1.0, 1.0, intervals=grid).value
     first = composite_simpson(
         lambda phi: phi * density(phi), -1.0, 1.0, intervals=grid
-    ).estimate
+    ).value
     second = composite_simpson(
         lambda phi: phi * phi * density(phi), -1.0, 1.0, intervals=grid
-    ).estimate
+    ).value
     mean = first / mass
     return data, mean, second / mass - mean * mean
 

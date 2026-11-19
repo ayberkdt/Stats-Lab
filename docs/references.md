@@ -694,6 +694,50 @@ Arnaud Doucet and Adam M. Johansen. "A Tutorial on Particle Filtering and
 Smoothing: Fifteen Years Later." In D. Crisan and B. Rozovskii (eds.), *The
 Oxford Handbook of Nonlinear Filtering*. Oxford University Press, 2011.
 
+## REF-PITT-SHEPHARD-1999
+
+Michael K. Pitt and Neil Shephard. "Filtering via Simulation: Auxiliary
+Particle Filters." *Journal of the American Statistical Association* 94(446),
+590-599, 1999. The auxiliary particle filter: previous particles are
+resampled with first-stage weights that look ahead to the next observation,
+and second-stage weights correct for the look-ahead.
+DOI: [10.1080/01621459.1999.10474153](https://doi.org/10.1080/01621459.1999.10474153).
+
+## REF-DOUCET-GODSILL-ANDRIEU-2000
+
+Arnaud Doucet, Simon Godsill, and Christophe Andrieu. "On Sequential Monte
+Carlo Sampling Methods for Bayesian Filtering." *Statistics and Computing*
+10(3), 197-208, 2000. The proposal `p(x_k | x_(k-1), y_k)` that minimizes the
+conditional variance of the importance weights, and its closed form for
+Gaussian models with a linear observation equation.
+DOI: [10.1023/A:1008935410038](https://doi.org/10.1023/A:1008935410038).
+
+## REF-GODSILL-DOUCET-WEST-2004
+
+Simon J. Godsill, Arnaud Doucet, and Mike West. "Monte Carlo Smoothing for
+Nonlinear Time Series." *Journal of the American Statistical Association*
+99(465), 156-168, 2004. Forward filtering, backward simulation of whole state
+trajectories from stored particle-filter output.
+DOI: [10.1198/016214504000000151](https://doi.org/10.1198/016214504000000151).
+
+## REF-SHUMWAY-STOFFER-1982
+
+R. H. Shumway and D. S. Stoffer. "An Approach to Time Series Smoothing and
+Forecasting Using the EM Algorithm." *Journal of Time Series Analysis* 3(4),
+253-264, 1982. EM estimation of the matrices of a linear-Gaussian
+state-space model with the Kalman smoother and lag-one covariances in the
+E-step and closed-form updates in the M-step.
+DOI: [10.1111/j.1467-9892.1982.tb00349.x](https://doi.org/10.1111/j.1467-9892.1982.tb00349.x).
+
+## REF-ANDRIEU-DOUCET-HOLENSTEIN-2010
+
+Christophe Andrieu, Arnaud Doucet, and Roman Holenstein. "Particle Markov
+Chain Monte Carlo Methods." *Journal of the Royal Statistical Society:
+Series B* 72(3), 269-342, 2010. Particle marginal Metropolis-Hastings: an
+unbiased particle estimate of the likelihood inside a Metropolis-Hastings
+ratio leaves the exact posterior invariant.
+DOI: [10.1111/j.1467-9868.2009.00736.x](https://doi.org/10.1111/j.1467-9868.2009.00736.x).
+
 ## REF-EVENSEN-1994
 
 Geir Evensen. "Sequential Data Assimilation with a Nonlinear Quasi-Geostrophic

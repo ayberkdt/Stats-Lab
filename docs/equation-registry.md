@@ -3163,6 +3163,99 @@ With one `U ~ Uniform[0,1)`, ancestor `j` is the smallest `i` with
 - Code: `filtering.systematic_resample`.
 - Source: [REF-KITAGAWA-1996] and [REF-DOUCET-JOHANSEN-2011].
 
+### EQ-FILT-APF-001 — Auxiliary particle filter weights and likelihood
+
+First stage `lambda^i ∝ W_(k-1)^i g(y_k | mu_k^i)` with
+`mu_k^i = f(x_(k-1)^i)` and `g(y | x) = N(y; h(x), R)`; ancestors
+`a_j ~ lambda`, `x_k^j = mu_k^(a_j) + w_k^j`; second stage
+`w_k^j = g(y_k | x_k^j) / g(y_k | mu_k^(a_j))`, `W_k^j ∝ w_k^j`;
+`p_hat(y_k | y_1:k-1) = [sum_i W_(k-1)^i g(y_k | mu_k^i)] (1/N) sum_j w_k^j`.
+
+- Domain: [EQ-FILT-SSM-002]; normalized previous weights.
+- Meaning: resampling looks ahead to `y_k` through the predictive mean; the
+  product of the increments is an unbiased estimate of `p(y_1:T)`. The
+  point-estimate first stage has light tails, so the second-stage weights can
+  be variable when `R` is small relative to the predictive spread.
+- Code: `filtering.auxiliary_particle_filter`.
+- Source: [REF-PITT-SHEPHARD-1999] and [REF-DOUCET-JOHANSEN-2011, Section 4.2].
+
+### EQ-FILT-OPT-001 — Locally optimal proposal for a linear observation
+
+For `y_k = H x_k + v_k`: `mu = f(x_(k-1))`, `S = H Q H' + R`,
+`K = Q H' S^-1`, `p(x_k | x_(k-1), y_k) = N(mu + K (y_k - H mu), Sigma)`,
+`Sigma = (I - K H) Q (I - K H)' + K R K'`; weight
+`W_k^i ∝ W_(k-1)^i N(y_k; H mu^i, S)`;
+`p_hat(y_k | y_1:k-1) = sum_i W_(k-1)^i N(y_k; H mu^i, S)`.
+
+- Domain: additive Gaussian noise, linear `H`, positive-definite `S`.
+- Meaning: the proposal that minimizes the variance of the weights given the
+  past; the weight `p(y_k | x_(k-1))` does not depend on the new particle.
+- Code: `filtering.optimal_proposal_particle_filter`.
+- Source: [REF-DOUCET-GODSILL-ANDRIEU-2000] and
+  [REF-DOUCET-JOHANSEN-2011, Section 4.1].
+
+### EQ-FILT-FFBS-001 — Forward-filtering backward-smoothing weights
+
+`x~_T ~ sum_i W_T^i delta(x_T^i)`; for `k = T-1, ..., 0`:
+`W_(k|k+1)^i ∝ W_k^i N(x~_(k+1); f(x_k^i) + B u_(k+1), Q)` and
+`x~_k = x_k^i` with probability `W_(k|k+1)^i`.
+
+- Domain: stored filter clouds `{x_k^i, W_k^i}` for `k = 0..T`;
+  positive-definite `Q`.
+- Meaning: each drawn trajectory is approximately distributed as
+  `p(x_0:T | y_1:T)`; the cost is `O(N T)` per trajectory.
+- Code: `filtering.ffbs_particle_smoother`.
+- Source: [REF-GODSILL-DOUCET-WEST-2004] and
+  [REF-DOUCET-JOHANSEN-2011, Section 5.2].
+
+### EQ-FILT-MLE-001 — Filter maximum likelihood and observed information
+
+`theta_hat = argmax_theta sum_k log N(v_k(theta); 0, S_k(theta))`,
+`Cov(theta_hat) ~= [-d^2 l / d theta d theta'](theta_hat)^-1`.
+
+- Domain: a parametrized model whose filter likelihood is finite near
+  `theta_hat`; exact for the Kalman filter, an approximation for the EKF and
+  UKF.
+- Meaning: prediction-error decomposition maximized numerically; the inverse
+  observed information is the asymptotic covariance when `theta_hat` is an
+  interior point.
+- Code: `filtering.fit_state_space_mle`.
+- Source: [REF-DURBIN-KOOPMAN-2012, Chapter 7] and
+  [REF-SARKKA-2013, Chapter 12].
+
+### EQ-FILT-EM-001 — EM M-step for a linear-Gaussian model
+
+With smoothed `m^s_k, P^s_k` and gains `G_k`:
+`P^s_(k,k-1) = P^s_k G_(k-1)'`,
+`Sigma = T^-1 sum_(k=1..T) (P^s_k + m^s_k m^s_k')`,
+`Phi = T^-1 sum_(k=1..T) (P^s_(k-1) + m^s_(k-1) m^s_(k-1)')`,
+`C = T^-1 sum_(k=1..T) (P^s_(k,k-1) + m^s_k m^s_(k-1)')`; over the `T_o`
+observed steps `Sigma_o = T_o^-1 sum (P^s_k + m^s_k m^s_k')`,
+`B = T_o^-1 sum y_k m^s_k'`, `D = T_o^-1 sum y_k y_k'`. Updates:
+`F = C Phi^-1`, `Q = Sigma - C F' - F C' + F Phi F'`, `H = B Sigma_o^-1`,
+`R = D - H B' - B H' + H Sigma_o H'`, `m_0 = m^s_0`, `P_0 = P^s_0`.
+
+- Domain: [EQ-FILT-SSM-001] without controls; positive-definite `Phi` and
+  `Sigma_o`.
+- Meaning: each update maximizes the expected complete-data log-likelihood
+  given the blocks held fixed, so the exact log-likelihood never decreases.
+- Code: `filtering.linear_gaussian_em`, `filtering.smoothed_lag_one_covariances`.
+- Source: [REF-SHUMWAY-STOFFER-1982] and [REF-SARKKA-2013, Chapter 12].
+
+### EQ-FILT-PMMH-001 — Particle marginal Metropolis-Hastings acceptance
+
+`theta' = theta + L z`, `z ~ N(0, I)`; accept with probability
+`min(1, p(theta') p_hat(y_1:T | theta') / (p(theta) p_hat(y_1:T | theta)))`,
+where `p_hat(y_1:T | theta)` is the stored estimate of the current state.
+
+- Domain: `p_hat` a non-negative unbiased particle estimate; symmetric
+  proposal.
+- Meaning: an exact Metropolis-Hastings chain on parameters and filter
+  randomness whose `theta`-marginal is the exact posterior for any particle
+  count; re-estimating the current state would break this.
+- Code: `filtering.particle_marginal_metropolis_hastings`.
+- Source: [REF-ANDRIEU-DOUCET-HOLENSTEIN-2010].
+
 ### EQ-DA-ENKF-001 — Stochastic ensemble Kalman analysis
 
 `C_xy = (N-1)^-1 sum_i (x_i^f - xbar)(h(x_i^f) - hbar)'`,
