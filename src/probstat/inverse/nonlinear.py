@@ -820,15 +820,18 @@ def _error_group(
     log_det = 0.0
     if structure.is_known:
         shape = structure.correlation_matrix(points or tuple(0.0 for _ in positions))
-        try:
-            factor = cholesky(shape)
-        except ValueError as error:
-            raise ValueError(
-                f"the error correlation matrix of {quantity!r} is not numerically "
-                "positive definite (a correlation length that is long compared "
-                "with the spacing of the conditions)"
-            ) from error
         if item.discrepancy_variance == 0.0:
+            # With a nugget the covariance sigma^2 M + sigma_delta^2 I is
+            # positive definite for the positive-semidefinite kernel matrix M.
+            try:
+                factor = cholesky(shape)
+            except ValueError as error:
+                raise ValueError(
+                    f"the error correlation matrix of {quantity!r} is not "
+                    "numerically positive definite (a correlation length that is "
+                    "long compared with the spacing of the conditions); declare a "
+                    "discrepancy_variance (nugget) or a shorter length"
+                ) from error
             lower = factor
             log_det = 2.0 * math.fsum(
                 math.log(factor[i][i]) for i in range(len(factor))
@@ -1937,7 +1940,7 @@ class CalibrationProblem:
             [EQ-CAL-CORR-003], [EQ-CAL-WLS-001].
 
         References:
-            [REF-SEBER-WILD-2003, Section 2.1.4 and Chapter 6].
+            [REF-SEBER-WILD-2003, Chapters 2 and 6].
 
         """
         weights = tuple(
@@ -2002,7 +2005,7 @@ class CalibrationProblem:
             [EQ-CAL-CORR-003].
 
         References:
-            [REF-SEBER-WILD-2003, Section 2.1.4], [REF-GOLUB-VANLOAN-2013,
+            [REF-SEBER-WILD-2003, Chapters 2 and 6], [REF-GOLUB-VANLOAN-2013,
             Section 4.2].
 
         """

@@ -7,7 +7,9 @@ model at those draws under new conditions ``c*``:
 * latent prediction ``g_q(theta^(s); c*)`` carries parameter uncertainty only;
 * an observation prediction adds one independent noise draw
   ``e^(s)`` (Gaussian or Student-t, scale ``sqrt(sigma^2 + sigma_delta^2)``,
-  with ``sigma`` taken from the draw when it was calibrated).
+  with ``sigma`` taken from the draw when it was calibrated), or, for a
+  quantity with a kernel error correlation, one joint Gaussian error vector
+  across the prediction conditions.
 
 The two are kept separate so a user can see how much of a predictive interval
 is parameter uncertainty and how much is measurement noise.
@@ -26,6 +28,7 @@ from probstat.foundations.validation import (
     require_finite_real,
     require_non_negative_integer,
 )
+from probstat.linalg import cholesky, matvec
 from probstat.modeling import ProbabilisticModel
 from probstat.statistics import quantile
 from probstat.uq import evaluate_model
@@ -205,6 +208,103 @@ def _noise_draw(
     return scale * z / math.sqrt(chi_square / degrees_of_freedom)
 
 
+def _correlated_conditions(
+    requested: Sequence[str],
+    overrides: Mapping[str, float],
+    noise_models: Mapping[str, NoiseModel],
+    conditions: Sequence[Mapping[str, float]],
+    fixed: Mapping[str, float],
+    samples: Sequence[Mapping[str, float]],
+) -> dict[str, tuple[float, ...]]:
+    """Return the kernel condition values of each correlated requested QoI.
+
+    Raises:
+        ValueError: For a declared-matrix correlation (undefined at new
+            conditions), a missing condition value, repeated condition values
+            without a discrepancy variance, or draws without ``length[q]``.
+
+    References:
+        [EQ-CAL-CORR-001], [EQ-CAL-PRED-001].
+
+    """
+    selected: dict[str, tuple[float, ...]] = {}
+    for quantity in requested:
+        if quantity in overrides or quantity not in noise_models:
+            continue
+        item = noise_models[quantity]
+        structure = item.correlation
+        if structure is None:
+            continue
+        if structure.condition is None:
+            raise ValueError(
+                f"the error covariance of {quantity!r} is a declared matrix over "
+                "the calibration experiments and does not define errors at new "
+                "conditions; use include_noise=False or give "
+                "noise_standard_deviations for it"
+            )
+        name = structure.condition
+        points: list[float] = []
+        for index, condition in enumerate(conditions):
+            if name in condition:
+                points.append(float(condition[name]))
+            elif name in fixed:
+                points.append(float(fixed[name]))
+            else:
+                raise ValueError(
+                    f"prediction condition {index} lacks {name!r}, needed for the "
+                    f"correlated noise of {quantity!r}"
+                )
+        if item.discrepancy_variance == 0.0 and len(set(points)) < len(points):
+            raise ValueError(
+                f"repeated values of {name!r} make the correlated noise of "
+                f"{quantity!r} singular across the prediction conditions"
+            )
+        if not structure.is_known and f"length[{quantity}]" not in samples[0]:
+            raise ValueError(f"draws lack length[{quantity}] for noise draws")
+        selected[quantity] = tuple(points)
+    return selected
+
+
+def _correlated_draw(
+    generator: random.Random,
+    item: NoiseModel,
+    points: Sequence[float],
+    sample: Mapping[str, float],
+) -> tuple[float, ...]:
+    """Draw one joint Gaussian error vector across the prediction conditions.
+
+    ``e = L z`` with ``L L' = sigma^2 M + sigma_delta^2 I`` and ``z`` standard
+    normal, ``M`` the kernel matrix of the prediction conditions.
+
+    References:
+        [EQ-CAL-CORR-002], [REF-RASMUSSEN-WILLIAMS-2006, Section A.2].
+
+    """
+    structure = item.correlation
+    assert structure is not None
+    sigma = (
+        item.standard_deviation
+        if item.standard_deviation is not None
+        else sample[f"sigma[{item.quantity}]"]
+    )
+    length = (
+        structure.length
+        if structure.length is not None
+        else sample[f"length[{item.quantity}]"]
+    )
+    shape = structure.correlation_matrix(points, length)
+    covariance = tuple(
+        tuple(
+            sigma * sigma * shape[i][j] + (item.discrepancy_variance if i == j else 0.0)
+            for j in range(len(points))
+        )
+        for i in range(len(points))
+    )
+    lower = cholesky(covariance)
+    normals = tuple(generator.gauss(0.0, 1.0) for _ in points)
+    return matvec(lower, normals)
+
+
 def predict(
     source: CalibrationProblem | ProbabilisticModel,
     posterior: CalibrationPosterior | Sequence[Mapping[str, float]],
@@ -228,6 +328,15 @@ def predict(
     discrepancy variance); otherwise ``noise_standard_deviations`` gives a
     Gaussian scale, which also overrides/extends the problem's noise models.
 
+    For a quantity with a kernel :class:`ErrorCorrelation` the errors of one
+    draw are drawn jointly across the prediction conditions from the same
+    kernel (and the draw's ``sigma[q]`` and ``length[q]`` when calibrated),
+    as a new measurement series that is independent of the calibration
+    series: they are not conditioned on the calibration residuals. A
+    declared-matrix correlation is defined only for the calibration
+    experiments, so noise draws for such a quantity raise unless
+    ``noise_standard_deviations`` gives an independent scale.
+
     Args:
         source: Calibration problem or bare probabilistic model.
         posterior: Calibration posterior or named parameter draws.
@@ -245,10 +354,11 @@ def predict(
     Raises:
         TypeError: If ``source`` or ``posterior`` has the wrong type.
         ValueError: If draws are missing parameters, a QoI is unknown, a
-            condition shadows a parameter, or a noise scale is unavailable.
+            condition shadows a parameter, a noise scale is unavailable, or
+            correlated noise is requested where it is not defined.
 
     Equation:
-        [EQ-CAL-PRED-001], [EQ-UQ-001].
+        [EQ-CAL-PRED-001], [EQ-UQ-001], [EQ-CAL-CORR-002].
 
     References:
         [REF-GELMAN-ETAL-2013, Section 6.3], [REF-SMITH-UQ-2024, Chapter 8],
@@ -307,6 +417,13 @@ def predict(
                 f"sigma[{quantity}]" not in samples[0]
             ):
                 raise ValueError(f"draws lack sigma[{quantity}] for noise draws")
+    correlated = (
+        _correlated_conditions(
+            requested, overrides, noise_models, condition_list, model.fixed, samples
+        )
+        if include_noise
+        else {}
+    )
     generator = resolve_stream(seed).generator()
     start = model.evaluations
     latent: dict[tuple[int, str], list[float]] = {
@@ -314,6 +431,12 @@ def predict(
     }
     observed: dict[tuple[int, str], list[float]] = {key: [] for key in latent}
     for sample in samples:
+        joint = {
+            quantity: _correlated_draw(
+                generator, noise_models[quantity], points, sample
+            )
+            for quantity, points in correlated.items()
+        }
         for c_index, condition in enumerate(condition_list):
             values: dict[str, float] = dict(model.fixed)
             values.update(condition)
@@ -327,6 +450,8 @@ def predict(
                     continue
                 if quantity in overrides:
                     error = _noise_draw(generator, float(overrides[quantity]), None)
+                elif quantity in joint:
+                    error = joint[quantity][c_index]
                 else:
                     item = noise_models[quantity]
                     sigma = (

@@ -4912,3 +4912,12 @@ Approximate Bayesian Computation." *Biometrika* 96(4), 983-990, 2009. ABC
 population Monte Carlo with importance weights and a Gaussian kernel of
 twice the weighted population variance.
 DOI: [10.1093/biomet/asp052](https://doi.org/10.1093/biomet/asp052).
+
+## REF-ZHANG-2004
+
+H. Zhang. "Inconsistent Estimation and Asymptotically Equal Interpolations
+in Model-Based Geostatistics." *Journal of the American Statistical
+Association* 99(465), 250-261, 2004. Under infill asymptotics on a fixed
+domain the variance and the range of a Matern covariance cannot both be
+estimated consistently; only their combination `sigma^2 / ell^(2 nu)` can.
+DOI: [10.1198/016214504000000241](https://doi.org/10.1198/016214504000000241).
