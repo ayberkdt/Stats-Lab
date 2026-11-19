@@ -51,7 +51,7 @@ nine definitions [EQ-STAT-QUANT-001], [EQ-STAT-QUANT-002]; `quantile` and
 | 5 | `p_k = (k - 1/2) / n`, midpoints of the CDF steps | hydrology conventions |
 | 6 | `p_k = k / (n + 1) = E[F(X_(k))]` (Minitab, SPSS) | matching Minitab or SPSS; Weibull's plotting positions |
 | 7 | `p_k = (k - 1) / (n - 1)` (R, NumPy, and probstat default) | matching R's and NumPy's defaults |
-| 8 | `p_k = (k - 1/3) / (n + 1/3)`, approximately median-unbiased | a definition-free choice; Hyndman and Fan recommend it |
+| 8 | `p_k = (k - 1/3) / (n + 1/3)`, approximately median-unbiased | the distribution is unknown; Hyndman and Fan recommend it |
 | 9 | `p_k = (k - 3/8) / (n + 1/4)` | normal data (approximately unbiased for normal order statistics) |
 
 Types 1-3 are step functions of `p`; types 4-9 interpolate linearly between
@@ -59,7 +59,10 @@ the points `(p_k, x_(k))`. The differences matter in small samples and in the
 tails, and vanish as `n` grows. When `p` is the floating-point value of a
 level at which the position is an integer, the position is that integer:
 with `n = 100` and `p = 0.07`, type 1 returns `x_(7)` although
-`100 * 0.07` rounds to `7.000000000000001`.
+`100 * 0.07` rounds to `7.000000000000001`. R compares the rounded product,
+so `quantile(1:100, 0.07, type = 1)` returns 8 there (and type 2 returns 8
+instead of 7.5); away from such levels the two agree to rounding, as the
+R parity cases for all nine types check.
 
 Skewness and excess kurtosis have three conventions in common use
 [REF-JOANES-GILL-1998], selected by `type=` as in R's e1071 package

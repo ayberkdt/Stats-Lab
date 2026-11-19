@@ -38,6 +38,7 @@ from probstat.inference import (
     brown_forsythe_test,
     chi_square_goodness_of_fit,
     chi_square_independence_test,
+    fisher_exact_rxc_test,
     fisher_exact_test,
     fit_distribution,
     fit_distribution_moments,
@@ -46,6 +47,7 @@ from probstat.inference import (
     fit_linear_model,
     fit_negative_binomial_regression,
     fit_robust_linear_model,
+    fligner_killeen_test,
     friedman_test,
     kolmogorov_smirnov_test,
     kolmogorov_smirnov_two_sample_test,
@@ -64,6 +66,7 @@ from probstat.inference import (
     t_test_power,
     tukey_hsd_test,
     two_sample_t_test,
+    welch_anova,
     wilcoxon_signed_rank_test,
     wilson_score_interval,
 )
@@ -266,7 +269,7 @@ def _studentized_range(case: dict[str, Any]) -> Values:
 # -------------------------------------------------------------- descriptive
 
 
-@adapter("descriptive.quantile.type1", "descriptive.quantile.type7")
+@adapter(*(f"descriptive.quantile.type{kind}" for kind in range(1, 10)))
 def _quantile(case: dict[str, Any]) -> Values:
     """Compute the probstat side of the cases named in its decorator."""
     spec = case["probstat"]
@@ -274,6 +277,17 @@ def _quantile(case: dict[str, Any]) -> Values:
         column("sleep", "extra"), spec["probabilities"], method=spec["method"]
     )
     return {"values": values}
+
+
+@adapter("descriptive.quantile.all_types.faithful")
+def _quantile_all_types(case: dict[str, Any]) -> Values:
+    """Compute the probstat side of case ``descriptive.quantile.all_types.faithful``."""
+    levels = case["probstat"]["probabilities"]
+    eruptions = column("faithful", "eruptions")
+    return {
+        f"type{kind}": quantiles(eruptions, levels, method=kind)
+        for kind in range(1, 10)
+    }
 
 
 @adapter("descriptive.variance")
@@ -344,6 +358,22 @@ def _skewness(case: dict[str, Any]) -> Values:
 def _kurtosis(case: dict[str, Any]) -> Values:
     """Compute the probstat side of case ``descriptive.kurtosis.type1``."""
     return {"excess_kurtosis": excess_kurtosis(column("faithful", "eruptions"))}
+
+
+@adapter("descriptive.skewness.type2", "descriptive.skewness.type3")
+def _skewness_types(case: dict[str, Any]) -> Values:
+    """Compute the probstat side of the cases named in its decorator."""
+    kind = case["probstat"]["type"]
+    return {"skewness": skewness(column("faithful", "eruptions"), type=kind)}
+
+
+@adapter("descriptive.kurtosis.type2", "descriptive.kurtosis.type3")
+def _kurtosis_types(case: dict[str, Any]) -> Values:
+    """Compute the probstat side of the cases named in its decorator."""
+    kind = case["probstat"]["type"]
+    return {
+        "excess_kurtosis": excess_kurtosis(column("faithful", "eruptions"), type=kind)
+    }
 
 
 @adapter("descriptive.bandwidth.nrd0", "descriptive.bandwidth.nrd")
@@ -496,6 +526,32 @@ def _fisher_two_sided(case: dict[str, Any]) -> Values:
     return {"p_value": fisher_exact_test(table("convictions")).p_value}
 
 
+@adapter("tests.fisher.rxc.job_satisfaction")
+def _fisher_rxc_job(case: dict[str, Any]) -> Values:
+    """Compute the probstat side of case ``tests.fisher.rxc.job_satisfaction``."""
+    return {"p_value": fisher_exact_rxc_test(table("job_satisfaction")).p_value}
+
+
+@adapter("tests.fisher.rxc.mtcars")
+def _fisher_rxc_mtcars(case: dict[str, Any]) -> Values:
+    """Compute the probstat side of case ``tests.fisher.rxc.mtcars``."""
+    pairs = list(zip(column("mtcars", "cyl"), column("mtcars", "am"), strict=True))
+    counts = [
+        [
+            sum(1 for pair in pairs if pair == (cylinders, transmission))
+            for transmission in (0.0, 1.0)
+        ]
+        for cylinders in (4.0, 6.0, 8.0)
+    ]
+    return {"p_value": fisher_exact_rxc_test(counts).p_value}
+
+
+@adapter("tests.fisher.rxc.large_counts")
+def _fisher_rxc_large(case: dict[str, Any]) -> Values:
+    """Compute the probstat side of case ``tests.fisher.rxc.large_counts``."""
+    return {"p_value": fisher_exact_rxc_test(table("party_by_gender")).p_value}
+
+
 def chi_values(result: Any) -> dict[str, Any]:
     """Return the R-named numeric parts of a chi-square-type result.
 
@@ -615,6 +671,26 @@ def _brown_forsythe(case: dict[str, Any]) -> Values:
     """Compute the probstat side of case ``tests.levene.median``."""
     groups = split("chickwts", "weight", "feed")
     return chi_values(brown_forsythe_test(*groups.values()))
+
+
+@adapter("tests.anova.welch.plantgrowth", "tests.anova.welch.chickwts")
+def _welch_anova(case: dict[str, Any]) -> Values:
+    """Compute the probstat side of the cases named in its decorator."""
+    if case["id"] == "tests.anova.welch.plantgrowth":
+        groups = split("PlantGrowth", "weight", "group")
+    else:
+        groups = split("chickwts", "weight", "feed")
+    return chi_values(welch_anova(*groups.values()))
+
+
+@adapter("tests.fligner.insectsprays", "tests.fligner.plantgrowth")
+def _fligner(case: dict[str, Any]) -> Values:
+    """Compute the probstat side of the cases named in its decorator."""
+    if case["id"] == "tests.fligner.insectsprays":
+        groups = split("InsectSprays", "count", "spray")
+    else:
+        groups = split("PlantGrowth", "weight", "group")
+    return chi_values(fligner_killeen_test(*groups.values()))
 
 
 @adapter("tests.anova.one_way")

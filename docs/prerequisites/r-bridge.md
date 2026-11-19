@@ -138,8 +138,9 @@ dnbinom(3, 2, 0.4)     0.13824
 | `cor(x, y)` | `pearson_correlation(x, y)` | |
 | `cor(x, y, method = "spearman")` | `spearman_correlation(x, y)` | |
 | `median(x)` | `median(x)` | |
-| `quantile(x, p, type = k)` | `quantile(x, p, method=k)`, `quantiles(x, ps, method=k)` | all nine Hyndman-Fan types, type 7 by default in both [REF-HYNDMAN-FAN-1996] |
+| `quantile(x, p, type = k)` | `quantile(x, p, method=k)`, `quantiles(x, ps, method=k)` | all nine Hyndman-Fan types, type 7 by default in both [REF-HYNDMAN-FAN-1996]; where `n p` is an integer only in exact arithmetic (`n = 100`, `p = 0.07`), R's step types 1-3 follow the rounded product and probstat the level as written |
 | `IQR(x)` | `interquartile_range(x)` | type 7 in both |
+| `e1071::skewness(x, type = k)`, `e1071::kurtosis(x, type = k)` | `skewness(x, type=k)`, `excess_kurtosis(x, type=k)` | **e1071 defaults to type 3 (`b1`, `b2`), probstat to type 1 (`g1`, `g2`)**; type 2 is `G1`, `G2` [REF-JOANES-GILL-1998] |
 | `mad(x)` | `median_absolute_deviation(x)` | R multiplies by `constant = 1.4826`; `probstat` uses `1/qnorm(0.75) = 1.482602...`, a relative difference of about `1.5e-6` |
 | `scale(x)` | `z_scores(x, ddof=1)` | R centers and divides by `sd`, i.e. `n - 1` |
 | `ecdf(x)(t)` | `empirical_cdf(x, t)` | right-continuous step function |
@@ -183,7 +184,10 @@ differs from the value above by about `3e-6` because of the rounded constant.
 | `alternative = "two.sided"/"greater"/"less"` | `alternative="two-sided"/"greater"/"less"` | hyphen instead of dot |
 | `chisq.test(tab)` | `chi_square_independence_test(tab, yates_correction=...)` | **R applies Yates' correction to 2 x 2 tables by default (`correct = TRUE`); `probstat` defaults to `False`.** Pass `yates_correction=True` to match R on 2 x 2 tables |
 | `chisq.test(x, p = p)` | `chi_square_goodness_of_fit(x, p)` | `estimated_parameters=` reduces the degrees of freedom; R has no such argument |
-| `fisher.test(tab)` | `fisher_exact_test(tab)` | same two-sided rule (sum of tables no more probable than observed, relative tolerance `1e-7`); **R reports the conditional MLE of the odds ratio, `probstat` the sample odds ratio `ad/(bc)`**; `probstat` handles 2 x 2 tables only |
+| `fisher.test(tab)` | `fisher_exact_test(tab)` | same two-sided rule (sum of tables no more probable than observed, relative tolerance `1e-7`); **R reports the conditional MLE of the odds ratio, `probstat` the sample odds ratio `ad/(bc)`**; `fisher_exact_test` takes 2 x 2 tables |
+| `fisher.test(tab)` on an r x c table | `fisher_exact_rxc_test(tab)` | exact Freeman-Halton p-value by a network algorithm in both; probstat raises `ValueError` past `max_evaluations` where R raises a workspace error; `simulate.p.value = TRUE, B = b` is `simulate=True, replicates=b` (different random streams) |
+| `oneway.test(y ~ g)` | `welch_anova(*groups)` | Welch's test is the default of `oneway.test` (`var.equal = FALSE`); `var.equal = TRUE` is `one_way_anova(*groups)` |
+| `fligner.test(y ~ g)` | `fligner_killeen_test(*groups)` | median-centred normal-score statistic and chi-square p-value in both |
 | `binom.test(x, n, p)` | `binomial_test(x, n, null_probability=p)` | same two-sided rule (outcomes with mass at most the observed mass, relative tolerance `1e-7`) |
 | `wilcox.test(x, y, paired = TRUE)` / `wilcox.test(x, mu = m)` | `wilcoxon_signed_rank_test(x, y)` / `(x, null_value=m)` | statistic `V` = sum of positive ranks in both; zero differences are dropped |
 | `wilcox.test(x, y)` | `mann_whitney_u_test(x, y)` | R's `W` equals `U` of the first sample (rank sum minus `n_x (n_x + 1)/2`) |

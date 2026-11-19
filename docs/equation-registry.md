@@ -2075,49 +2075,6 @@ and `b2 = m4 / s^4 - 3 = (g2 + 3)(1 - 1/n)^2 - 3`, with
 - Code: `examples.input_modeling_lab.describe`.
 - Source: [REF-JOANES-GILL-1998], [REF-R-E1071].
 
-### EQ-STAT-QUANT-002 — The nine Hyndman-Fan sample quantiles
-
-Every type is `Q(p) = (1 - gamma) x_(j) + gamma x_(j+1)` with
-`x_(0) = x_(1)` and `x_(n+1) = x_(n)`. Discontinuous types use
-`j = floor(n p + m)`, `g = n p + m - j`: type 1 (`m = 0`, `gamma = 0` if
-`g = 0`, else 1), type 2 (`m = 0`, `gamma = 1/2` if `g = 0`, else 1), type 3
-(`m = -1/2`, `gamma = 0` if `g = 0` and `j` is even, else 1). Continuous types
-interpolate between the plotting positions `p_k = (k - alpha)/(n + 1 -
-alpha - beta)`: `h = alpha + p (n + 1 - alpha - beta)`, `j = floor(h)`,
-`gamma = h - j`, with `(alpha, beta) = (0, 1)` (type 4), `(1/2, 1/2)` (5),
-`(0, 0)` (6), `(1, 1)` (7), `(1/3, 1/3)` (8), and `(3/8, 3/8)` (9).
-
-- Domain: non-empty finite sample and `p in [0,1]`; the position is formed
-  in exact rational arithmetic and taken to be the integer `k` when `p` is
-  the floating-point value of the level at which it equals `k`.
-- Meaning: types 1-3 are step functions of `p` (inverse empirical CDF,
-  averaged at the jumps, nearest even order statistic); types 4-9 are
-  continuous. Types 2 and 5-9 give the usual median and satisfy
-  `Q_x(p) = -Q_(-x)(1 - p)`; type 8 is approximately median-unbiased for any
-  continuous law and type 9 approximately unbiased for normal data.
-- Code: `statistics.quantile`, `statistics.quantiles`.
-- Source: [REF-HYNDMAN-FAN-1996].
-
-### EQ-STAT-SHAPE-002 — Bias-adjusted skewness and kurtosis (G1, G2, b1, b2)
-
-With `g1 = m3 / m2^(3/2)` and `g2 = m4 / m2^2 - 3` [EQ-STAT-SHAPE-001]:
-`G1 = g1 sqrt(n (n - 1)) / (n - 2)`,
-`G2 = ((n + 1) g2 + 6)(n - 1) / ((n - 2)(n - 3))`,
-`b1 = g1 ((n - 1)/n)^(3/2) = m3 / s^3`, and
-`b2 = (g2 + 3)(1 - 1/n)^2 - 3 = m4 / s^4 - 3`, where `s^2` has divisor
-`n - 1`.
-
-- Domain: positive `m2`; `n >= 3` for `G1` and `n >= 4` for `G2`.
-- Meaning: `G1 = k3 / k2^(3/2)` and `G2 = k4 / k2^2` are ratios of the
-  unbiased cumulant estimators (k-statistics); `b1` and `b2` standardize by
-  the sample standard deviation. The three conventions agree as `n` grows.
-  Under normality every skewness has mean zero by symmetry, and of the
-  kurtosis measures only `G2` is unbiased (`E[g2] = -6/(n + 1)`). e1071
-  types 1, 2, and 3 are `g`, `G`, and `b`; SAS and SPSS report `G`, MINITAB
-  and BMDP `b`.
-- Code: `statistics.skewness`, `statistics.excess_kurtosis`.
-- Source: [REF-JOANES-GILL-1998].
-
 ## Model-based sensitivity analysis
 
 ### EQ-SENS-BOOT-001 — Bootstrap percentile intervals for Sobol indices
@@ -16763,3 +16720,105 @@ the weights `w` by Adam [EQ-OPT-ADAM-002] on mini-batches.
   `surrogates.DeepEnsemble.epistemic_variance`,
   `surrogates.DeepEnsemble.aleatoric_variance`.
 - Source: [REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017, Section 2.4].
+
+## Quantile conventions, shape conventions, and further classical tests
+
+### EQ-STAT-QUANT-002 — The nine Hyndman-Fan sample quantiles
+
+Every type is `Q(p) = (1 - gamma) x_(j) + gamma x_(j+1)` with
+`x_(0) = x_(1)` and `x_(n+1) = x_(n)`. Discontinuous types use
+`j = floor(n p + m)`, `g = n p + m - j`: type 1 (`m = 0`, `gamma = 0` if
+`g = 0`, else 1), type 2 (`m = 0`, `gamma = 1/2` if `g = 0`, else 1), type 3
+(`m = -1/2`, `gamma = 0` if `g = 0` and `j` is even, else 1). Continuous types
+interpolate between the plotting positions `p_k = (k - alpha)/(n + 1 -
+alpha - beta)`: `h = alpha + p (n + 1 - alpha - beta)`, `j = floor(h)`,
+`gamma = h - j`, with `(alpha, beta) = (0, 1)` (type 4), `(1/2, 1/2)` (5),
+`(0, 0)` (6), `(1, 1)` (7), `(1/3, 1/3)` (8), and `(3/8, 3/8)` (9).
+
+- Domain: non-empty finite sample and `p in [0,1]`; the position is formed
+  in exact rational arithmetic and taken to be the integer `k` when `p` is
+  the floating-point value of the level at which it equals `k`.
+- Meaning: types 1-3 are step functions of `p` (inverse empirical CDF,
+  averaged at the jumps, nearest even order statistic); types 4-9 are
+  continuous. Types 2 and 5-9 give the usual median and satisfy
+  `Q_x(p) = -Q_(-x)(1 - p)`; type 8 is approximately median-unbiased for any
+  continuous law and type 9 approximately unbiased for normal data.
+- Code: `statistics.quantile`, `statistics.quantiles`.
+- Source: [REF-HYNDMAN-FAN-1996].
+
+### EQ-STAT-SHAPE-002 — Bias-adjusted skewness and kurtosis (G1, G2, b1, b2)
+
+With `g1 = m3 / m2^(3/2)` and `g2 = m4 / m2^2 - 3` [EQ-STAT-SHAPE-001]:
+`G1 = g1 sqrt(n (n - 1)) / (n - 2)`,
+`G2 = ((n + 1) g2 + 6)(n - 1) / ((n - 2)(n - 3))`,
+`b1 = g1 ((n - 1)/n)^(3/2) = m3 / s^3`, and
+`b2 = (g2 + 3)(1 - 1/n)^2 - 3 = m4 / s^4 - 3`, where `s^2` has divisor
+`n - 1`.
+
+- Domain: positive `m2`; `n >= 3` for `G1` and `n >= 4` for `G2`.
+- Meaning: `G1 = k3 / k2^(3/2)` and `G2 = k4 / k2^2` are ratios of the
+  unbiased cumulant estimators (k-statistics); `b1` and `b2` standardize by
+  the sample standard deviation. The three conventions agree as `n` grows.
+  Under normality every skewness has mean zero by symmetry, and of the
+  kurtosis measures only `G2` is unbiased (`E[g2] = -6/(n + 1)`). e1071
+  types 1, 2, and 3 are `g`, `G`, and `b`; SAS and SPSS report `G`, MINITAB
+  and BMDP `b`.
+- Code: `statistics.skewness`, `statistics.excess_kurtosis`.
+- Source: [REF-JOANES-GILL-1998].
+
+### EQ-INF-FISHER-RXC-001 — Fisher-Freeman-Halton exact test for an r x c table
+
+`P(x) = prod_i r_i! prod_j c_j! / (N! prod_ij x_ij!)` for a table `x` with
+row totals `r_i`, column totals `c_j`, and total `N`; two-sided
+`p = sum_{y : P(y) <= P(x)(1 + 1e-7)} P(y)` over the tables `y` with the
+observed margins. Monte Carlo estimate
+`p = (1 + #{b : P(y_b) <= P(x)(1 + 1e-7)}) / (B + 1)` over `B` tables drawn
+from the same law.
+
+- Domain: non-negative integer cells; rows and columns with a zero total are
+  dropped, after which at least two rows and two columns remain.
+- Meaning: the conditional (multiple hypergeometric) law of the table given
+  both margins under independence; the p-value is the probability of a table
+  no more probable than the observed one. The sum is computed exactly on the
+  network of partial column sums: a node with remaining row totals `R_i`,
+  column totals `c_k`, and total `n` carries the summed completion weight
+  `sum prod 1/x! = n! / (prod R_i! prod c_k!)` and the largest and smallest
+  completion weights, so whole sub-networks are added or discarded without
+  listing their tables. For a 2 x 2 table it equals [EQ-INF-FISHER-001].
+- Code: `inference.fisher_exact_rxc_test`.
+- Source: [REF-FREEMAN-HALTON-1951]; [REF-MEHTA-PATEL-1983] for the network
+  algorithm; [REF-PHIPSON-SMYTH-2010] for the Monte Carlo estimate.
+
+### EQ-INF-FLIGNER-001 — Fligner-Killeen median-centred test of equal variances
+
+With `d_ij = |x_ij - med_i|`, `r_ij` the mid-rank of `d_ij` among all `N`
+deviations, scores `a_ij = Phi^-1((1 + r_ij / (N + 1)) / 2)`, mean score
+`abar`, group mean scores `abar_i`, and `V = sum (a_ij - abar)^2 / (N - 1)`:
+`X^2 = sum_i n_i (abar_i - abar)^2 / V`, referred to chi-square with `k - 1`
+degrees of freedom.
+
+- Domain: `k >= 2` non-empty groups, `N >= 2`, and `V > 0` (not every
+  deviation equal).
+- Meaning: a rank test of equal spread; centring on the group medians and
+  scoring the ranks with normal quantiles keeps its level for skewed and
+  heavy-tailed data. `X^2` is the between-group sum of squares of the scores
+  divided by their total variance, so the chi-square law is an approximation
+  for large groups.
+- Code: `inference.fligner_killeen_test`.
+- Source: [REF-FLIGNER-KILLEEN-1976]; [REF-CONOVER-JOHNSON-JOHNSON-1981] for
+  the median-centred version with chi-square reference.
+
+### EQ-INF-WELCH-ANOVA-001 — Welch's one-way ANOVA for unequal variances
+
+With `w_i = n_i / s_i^2`, `W = sum w_i`, `xbar_w = sum w_i xbar_i / W`, and
+`A = sum (1 - w_i / W)^2 / (n_i - 1)`:
+`F = [sum w_i (xbar_i - xbar_w)^2 / (k - 1)] / [1 + 2 (k - 2) A / (k^2 - 1)]`,
+referred to `F(k - 1, f)` with `f = (k^2 - 1) / (3 A)`.
+
+- Domain: `k >= 2` groups, each with `n_i >= 2` and `s_i^2 > 0`.
+- Meaning: tests equal normal means without assuming equal variances; the
+  denominator degrees of freedom `f` are fractional. For `k = 2`, `F` is the
+  square of the Welch `t` statistic and `f` its Welch-Satterthwaite degrees
+  of freedom [EQ-INF-T-003].
+- Code: `inference.welch_anova`.
+- Source: [REF-WELCH-1951].

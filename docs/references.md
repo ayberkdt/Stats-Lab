@@ -4582,3 +4582,47 @@ Scalable Predictive Uncertainty Estimation using Deep Ensembles." In
 negative log-likelihood (a proper scoring rule) from independent random
 initializations, combined as a uniformly weighted Gaussian mixture.
 Preprint: [arXiv:1612.01474](https://arxiv.org/abs/1612.01474).
+
+## REF-FREEMAN-HALTON-1951
+
+G. H. Freeman and J. H. Halton. "Note on an Exact Treatment of Contingency,
+Goodness of Fit and Other Problems of Significance." *Biometrika* 38(1-2),
+141-149, 1951. The exact conditional test of independence in an r x c
+table: the sum of the multiple hypergeometric probabilities of the tables
+with the observed margins that are no more probable than the observed one.
+DOI: [10.1093/biomet/38.1-2.141](https://doi.org/10.1093/biomet/38.1-2.141).
+
+## REF-MEHTA-PATEL-1983
+
+Cyrus R. Mehta and Nitin R. Patel. "A Network Algorithm for Performing
+Fisher's Exact Test in r x c Contingency Tables." *Journal of the American
+Statistical Association* 78(382), 427-434, 1983. The network of partial
+column sums with the longest and shortest path bounds that add or discard
+whole sets of tables without listing them.
+DOI: [10.1080/01621459.1983.10477989](https://doi.org/10.1080/01621459.1983.10477989).
+
+## REF-FLIGNER-KILLEEN-1976
+
+Michael A. Fligner and Timothy J. Killeen. "Distribution-Free Two-Sample
+Tests for Scale." *Journal of the American Statistical Association* 71(353),
+210-213, 1976. Rank tests for scale built on normal scores of the ranked
+absolute deviations.
+DOI: [10.1080/01621459.1976.10481517](https://doi.org/10.1080/01621459.1976.10481517).
+
+## REF-CONOVER-JOHNSON-JOHNSON-1981
+
+W. J. Conover, Mark E. Johnson, and Myrle M. Johnson. "A Comparative Study
+of Tests for Homogeneity of Variances, with Applications to the Outer
+Continental Shelf Bidding Data." *Technometrics* 23(4), 351-361, 1981. A
+simulation comparison of tests of equal variances, in which the
+median-centred Fligner-Killeen test with a chi-square reference
+(FK:med X^2) was the most robust to departures from normality.
+DOI: [10.1080/00401706.1981.10487680](https://doi.org/10.1080/00401706.1981.10487680).
+
+## REF-WELCH-1951
+
+B. L. Welch. "On the Comparison of Several Mean Values: An Alternative
+Approach." *Biometrika* 38(3-4), 330-336, 1951. The weighted one-way F test
+for normal groups with unequal variances and its approximate degrees of
+freedom.
+DOI: [10.1093/biomet/38.3-4.330](https://doi.org/10.1093/biomet/38.3-4.330).

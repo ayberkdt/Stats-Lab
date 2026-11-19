@@ -11,7 +11,7 @@
     "e1071": "1.7.17"
   },
   "comparison": "A value passes when |probstat - R| <= absolute + relative * |R|.",
-  "case_count": 136,
+  "case_count": 155,
   "helpers": {
     "htest_values": "function (r) \n{\n    out <- list(statistic = unname(r$statistic))\n    if (!is.null(r$parameter)) \n        out$df <- unname(r$parameter)\n    out$p_value <- r$p.value\n    if (!is.null(r$conf.int)) \n        out$conf_int <- as.numeric(r$conf.int)\n    out\n}",
     "abs_deviation_anova": "function (y, g, centre) \n{\n    d <- abs(y - ave(y, g, FUN = centre))\n    a <- anova(lm(d ~ g))\n    list(statistic = a[[\"F value\"]][1], df = a[[\"Df\"]], p_value = a[[\"Pr(>F)\"]][1])\n}"
@@ -119,6 +119,12 @@
     "convictions": [
       [2, 15],
       [10, 3]
+    ],
+    "job_satisfaction": [
+      [1, 3, 10, 6],
+      [2, 3, 10, 7],
+      [1, 6, 14, 12],
+      [0, 1, 9, 11]
     ],
     "party_by_gender": [
       [762, 327, 468],
@@ -1216,6 +1222,101 @@
       }
     },
     {
+      "id": "descriptive.quantile.type2",
+      "area": "descriptive",
+      "target": "probstat.statistics.quantiles",
+      "r_call": "list(values = quantile(sleep$extra, probs = c(0, 0.1, 0.25, 0.5, 0.75, 0.9, 1), type = 2))",
+      "inputs": ["sleep"],
+      "r_value": {
+        "values": [-1.6, -0.7, -0.05, 0.9500000000000001, 3.4, 4.5, 5.5]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 1e-14
+      },
+      "tolerance_reason": "Hyndman-Fan definition evaluated as the same order-statistic interpolation on both sides.",
+      "probstat": {
+        "method": 2,
+        "probabilities": [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+      }
+    },
+    {
+      "id": "descriptive.quantile.type3",
+      "area": "descriptive",
+      "target": "probstat.statistics.quantiles",
+      "r_call": "list(values = quantile(sleep$extra, probs = c(0, 0.1, 0.25, 0.5, 0.75, 0.9, 1), type = 3))",
+      "inputs": ["sleep"],
+      "r_value": {
+        "values": [-1.6, -1.2, -0.1, 0.8, 3.4, 4.4, 5.5]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 1e-14
+      },
+      "tolerance_reason": "Hyndman-Fan definition evaluated as the same order-statistic interpolation on both sides.",
+      "probstat": {
+        "method": 3,
+        "probabilities": [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+      }
+    },
+    {
+      "id": "descriptive.quantile.type4",
+      "area": "descriptive",
+      "target": "probstat.statistics.quantiles",
+      "r_call": "list(values = quantile(sleep$extra, probs = c(0, 0.1, 0.25, 0.5, 0.75, 0.9, 1), type = 4))",
+      "inputs": ["sleep"],
+      "r_value": {
+        "values": [-1.6, -1.2, -0.1, 0.8, 3.4, 4.4, 5.5]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 1e-14
+      },
+      "tolerance_reason": "Hyndman-Fan definition evaluated as the same order-statistic interpolation on both sides.",
+      "probstat": {
+        "method": 4,
+        "probabilities": [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+      }
+    },
+    {
+      "id": "descriptive.quantile.type5",
+      "area": "descriptive",
+      "target": "probstat.statistics.quantiles",
+      "r_call": "list(values = quantile(sleep$extra, probs = c(0, 0.1, 0.25, 0.5, 0.75, 0.9, 1), type = 5))",
+      "inputs": ["sleep"],
+      "r_value": {
+        "values": [-1.6, -0.7, -0.05, 0.9500000000000001, 3.4, 4.5, 5.5]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 1e-14
+      },
+      "tolerance_reason": "Hyndman-Fan definition evaluated as the same order-statistic interpolation on both sides.",
+      "probstat": {
+        "method": 5,
+        "probabilities": [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+      }
+    },
+    {
+      "id": "descriptive.quantile.type6",
+      "area": "descriptive",
+      "target": "probstat.statistics.quantiles",
+      "r_call": "list(values = quantile(sleep$extra, probs = c(0, 0.1, 0.25, 0.5, 0.75, 0.9, 1), type = 6))",
+      "inputs": ["sleep"],
+      "r_value": {
+        "values": [-1.6, -1.0999999999999999, -0.07500000000000001, 0.9500000000000001, 3.4, 4.58, 5.5]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 1e-14
+      },
+      "tolerance_reason": "Hyndman-Fan definition evaluated as the same order-statistic interpolation on both sides.",
+      "probstat": {
+        "method": 6,
+        "probabilities": [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+      }
+    },
+    {
       "id": "descriptive.quantile.type7",
       "area": "descriptive",
       "target": "probstat.statistics.quantiles",
@@ -1232,6 +1333,71 @@
       "probstat": {
         "method": 7,
         "probabilities": [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+      }
+    },
+    {
+      "id": "descriptive.quantile.type8",
+      "area": "descriptive",
+      "target": "probstat.statistics.quantiles",
+      "r_call": "list(values = quantile(sleep$extra, probs = c(0, 0.1, 0.25, 0.5, 0.75, 0.9, 1), type = 8))",
+      "inputs": ["sleep"],
+      "r_value": {
+        "values": [-1.6, -0.8333333333333329, -0.058333333333333307, 0.9500000000000006, 3.4, 4.526666666666667, 5.5]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 1e-14
+      },
+      "tolerance_reason": "Hyndman-Fan definition evaluated as the same order-statistic interpolation on both sides.",
+      "probstat": {
+        "method": 8,
+        "probabilities": [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+      }
+    },
+    {
+      "id": "descriptive.quantile.type9",
+      "area": "descriptive",
+      "target": "probstat.statistics.quantiles",
+      "r_call": "list(values = quantile(sleep$extra, probs = c(0, 0.1, 0.25, 0.5, 0.75, 0.9, 1), type = 9))",
+      "inputs": ["sleep"],
+      "r_value": {
+        "values": [-1.6, -0.8, -0.05625, 0.9500000000000001, 3.4, 4.5200000000000005, 5.5]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 1e-14
+      },
+      "tolerance_reason": "Hyndman-Fan definition evaluated as the same order-statistic interpolation on both sides.",
+      "probstat": {
+        "method": 9,
+        "probabilities": [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+      }
+    },
+    {
+      "id": "descriptive.quantile.all_types.faithful",
+      "area": "descriptive",
+      "target": "probstat.statistics.quantiles",
+      "r_call": "setNames(lapply(1:9, function(t) quantile(faithful$eruptions, probs = c(0.01, 0.05, 0.3333333333333333, 0.37, 0.5, 0.63, 0.95, 0.99), type = t)), paste0(\"type\", 1:9))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "type1": [1.7, 1.8, 2.417, 3.333, 4, 4.25, 4.817, 5.033],
+        "type2": [1.7, 1.8, 2.417, 3.333, 4, 4.25, 4.817, 5.033],
+        "type3": [1.7, 1.8, 2.417, 3.333, 4, 4.25, 4.817, 5],
+        "type4": [1.6907599999999998, 1.8, 2.417, 3.333, 4, 4.25, 4.817, 5.009239999999999],
+        "type5": [1.70726, 1.8, 2.427999999999999, 3.3377600000000003, 4, 4.25, 4.817, 5.025739999999999],
+        "type6": [1.69109, 1.8, 2.417, 3.33334, 4, 4.25, 4.8225999999999996, 5.04218],
+        "type7": [1.72343, 1.8, 2.4389999999999996, 3.34218, 4, 4.25, 4.817, 5.009570000000001],
+        "type8": [1.70187, 1.8, 2.4243333333333337, 3.336286666666667, 4, 4.25, 4.8178, 5.03113],
+        "type9": [1.7032174999999998, 1.8, 2.4252499999999997, 3.3366550000000004, 4, 4.25, 4.8172, 5.0297825]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 1e-14
+      },
+      "tolerance_reason": "Hyndman-Fan definition evaluated as the same order-statistic interpolation on both sides.",
+      "note": "Where n p is an integer in exact arithmetic but the floating-point product is not (n = 100, p = 0.07), R compares the rounded product and its step types 1-3 can return the next order statistic; probstat forms the position from the level as written. The levels here avoid that case.",
+      "probstat": {
+        "probabilities": [0.01, 0.05, 0.3333333333333333, 0.37, 0.5, 0.63, 0.95, 0.99]
       }
     },
     {
@@ -1374,6 +1540,82 @@
       },
       "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
       "note": "e1071 type 1 is g2 = m4 / m2^2 - 3, probstat's definition."
+    },
+    {
+      "id": "descriptive.skewness.type2",
+      "area": "descriptive",
+      "target": "probstat.statistics.skewness",
+      "r_call": "list(skewness = e1071::skewness(faithful$eruptions, type = 2))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "skewness": [-0.4181504713408317]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "note": "e1071 types 2 and 3 are Joanes and Gill's G1 and b1, probstat's skewness(type = 2) and skewness(type = 3).",
+      "probstat": {
+        "type": 2
+      }
+    },
+    {
+      "id": "descriptive.kurtosis.type2",
+      "area": "descriptive",
+      "target": "probstat.statistics.excess_kurtosis",
+      "r_call": "list(excess_kurtosis = e1071::kurtosis(faithful$eruptions, type = 2))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "excess_kurtosis": [-1.5061670982138067]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "note": "e1071 types 2 and 3 are Joanes and Gill's G2 and b2, probstat's excess_kurtosis(type = 2) and excess_kurtosis(type = 3).",
+      "probstat": {
+        "type": 2
+      }
+    },
+    {
+      "id": "descriptive.skewness.type3",
+      "area": "descriptive",
+      "target": "probstat.statistics.skewness",
+      "r_call": "list(skewness = e1071::skewness(faithful$eruptions, type = 3))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "skewness": [-0.4135498214209648]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "note": "e1071 types 2 and 3 are Joanes and Gill's G1 and b1, probstat's skewness(type = 2) and skewness(type = 3).",
+      "probstat": {
+        "type": 3
+      }
+    },
+    {
+      "id": "descriptive.kurtosis.type3",
+      "area": "descriptive",
+      "target": "probstat.statistics.excess_kurtosis",
+      "r_call": "list(excess_kurtosis = e1071::kurtosis(faithful$eruptions, type = 3))",
+      "inputs": ["faithful"],
+      "r_value": {
+        "excess_kurtosis": [-1.511605089597921]
+      },
+      "tolerance": {
+        "relative": 1e-12,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form; only floating-point rounding differs.",
+      "note": "e1071 types 2 and 3 are Joanes and Gill's G2 and b2, probstat's excess_kurtosis(type = 2) and excess_kurtosis(type = 3).",
+      "probstat": {
+        "type": 3
+      }
     },
     {
       "id": "descriptive.bandwidth.nrd0",
@@ -1666,6 +1908,53 @@
       "tolerance_reason": "Exact hypergeometric sum over tables no more probable than the observed one (relative tolerance 1e-7) on both sides."
     },
     {
+      "id": "tests.fisher.rxc.job_satisfaction",
+      "area": "tests",
+      "target": "probstat.inference.fisher_exact_rxc_test",
+      "r_call": "list(p_value = fisher.test(job_satisfaction)$p.value)",
+      "inputs": ["job_satisfaction"],
+      "r_value": {
+        "p_value": [0.7826849389656388]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides sum the exact multiple hypergeometric probabilities of the tables no more probable than the observed one; R's FEXACT and probstat's network sum add the floating-point terms in different orders (they agree to about 1e-12 here).",
+      "note": "The 4 x 4 job-satisfaction table of the fisher.test help page (N = 96)."
+    },
+    {
+      "id": "tests.fisher.rxc.mtcars",
+      "area": "tests",
+      "target": "probstat.inference.fisher_exact_rxc_test",
+      "r_call": "list(p_value = fisher.test(table(mtcars$cyl, mtcars$am))$p.value)",
+      "inputs": ["mtcars"],
+      "r_value": {
+        "p_value": [0.009104701681417375]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides sum the exact multiple hypergeometric probabilities of the tables no more probable than the observed one, adding the floating-point terms in different orders.",
+      "note": "Cylinders by transmission, a 3 x 2 table with N = 32 built from the columns cyl and am."
+    },
+    {
+      "id": "tests.fisher.rxc.large_counts",
+      "area": "tests",
+      "target": "probstat.inference.fisher_exact_rxc_test",
+      "r_call": "list(p_value = fisher.test(party_by_gender)$p.value)",
+      "inputs": ["party_by_gender"],
+      "r_value": {
+        "p_value": [3.027479806393701e-07]
+      },
+      "tolerance": {
+        "relative": 1e-09,
+        "absolute": 0
+      },
+      "tolerance_reason": "A 2 x 3 table with N = 2757. The log factorials reach 2e4, so each table probability carries a relative rounding error near 1e-12 on both sides; R's FEXACT result differs by 3e-10 relative from a full enumeration of the 476,499 tables in the tail (3.02747980552e-07), which probstat reproduces to 4e-12."
+    },
+    {
       "id": "tests.chisq.independence",
       "area": "tests",
       "target": "probstat.inference.chi_square_independence_test",
@@ -1951,6 +2240,76 @@
         "absolute": 0
       },
       "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.anova.welch.plantgrowth",
+      "area": "tests",
+      "target": "probstat.inference.welch_anova",
+      "r_call": "htest_values(oneway.test(weight ~ group, data = PlantGrowth))",
+      "inputs": ["PlantGrowth"],
+      "r_value": {
+        "statistic": [5.180972408113189],
+        "df": [2, 17.12841861664413],
+        "p_value": [0.01739282149017]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side.",
+      "note": "oneway.test defaults to var.equal = FALSE, Welch's test."
+    },
+    {
+      "id": "tests.anova.welch.chickwts",
+      "area": "tests",
+      "target": "probstat.inference.welch_anova",
+      "r_call": "htest_values(oneway.test(weight ~ feed, data = chickwts, var.equal = FALSE))",
+      "inputs": ["chickwts"],
+      "r_value": {
+        "statistic": [19.66172436083694],
+        "df": [5, 29.952036386104158],
+        "p_value": [1.177059716066491e-08]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Both sides evaluate the same closed form through the regularized incomplete beta or gamma function, accurate to near machine precision on each side."
+    },
+    {
+      "id": "tests.fligner.insectsprays",
+      "area": "tests",
+      "target": "probstat.inference.fligner_killeen_test",
+      "r_call": "htest_values(fligner.test(count ~ spray, data = InsectSprays))",
+      "inputs": ["InsectSprays"],
+      "r_value": {
+        "statistic": [14.482781038458608],
+        "df": [5],
+        "p_value": [0.012816779189709193]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Same mid-ranks, normal scores from the inverse normal CDF (Wichura's AS 241 on both sides), and chi-square tail through the regularized incomplete gamma function.",
+      "note": "The counts are heavily tied, which exercises the mid-ranks of the absolute deviations."
+    },
+    {
+      "id": "tests.fligner.plantgrowth",
+      "area": "tests",
+      "target": "probstat.inference.fligner_killeen_test",
+      "r_call": "htest_values(fligner.test(weight ~ group, data = PlantGrowth))",
+      "inputs": ["PlantGrowth"],
+      "r_value": {
+        "statistic": [2.3499371311581996],
+        "df": [2],
+        "p_value": [0.30882868738638647]
+      },
+      "tolerance": {
+        "relative": 1e-10,
+        "absolute": 0
+      },
+      "tolerance_reason": "Same mid-ranks, normal scores from the inverse normal CDF (Wichura's AS 241 on both sides), and chi-square tail through the regularized incomplete gamma function."
     },
     {
       "id": "tests.tukey.difference_and_p",
@@ -2743,24 +3102,8 @@
       "reason": "probstat's simple and Holt exponential smoothing concentrate the initial level and trend out by least squares, while HoltWinters starts from the first observations (l.start = x[1], or x[2] and x[2] - x[1]); the fitted smoothing parameters and SSE differ by construction."
     },
     {
-      "r_function": "e1071::skewness / e1071::kurtosis types 2 and 3",
-      "reason": "probstat implements only the moment ratios g1 and g2 (e1071 type 1); the bias-adjusted G1/G2 (type 2) and b1/b2 (type 3) have no probstat function."
-    },
-    {
       "r_function": "fisher.test conditional odds ratio",
       "reason": "probstat reports the sample odds ratio ad/bc rather than R's conditional maximum-likelihood estimate; the p-values are compared."
-    },
-    {
-      "r_function": "fisher.test on r x c tables",
-      "reason": "probstat's fisher_exact_test is defined for 2 x 2 tables only."
-    },
-    {
-      "r_function": "fligner.test",
-      "reason": "probstat has no Fligner-Killeen test."
-    },
-    {
-      "r_function": "oneway.test(var.equal = FALSE)",
-      "reason": "probstat has no Welch one-way ANOVA."
     },
     {
       "r_function": "mgcv::gam",
@@ -2781,10 +3124,6 @@
     {
       "r_function": "MASS::rlm standard errors",
       "reason": "summary.rlm scales sqrt(sum(psi^2) / (n - p)) by Huber's correction factor kappa / mean(psi') and uses (X'WX)^-1; probstat reports the sandwich s^2 n / (n - p) A^-1 B A^-1, so only coefficients and scale are compared."
-    },
-    {
-      "r_function": "quantile types 2-6, 8, 9",
-      "reason": "probstat.statistics.quantile implements Hyndman-Fan types 1 and 7 only; both are compared."
     },
     {
       "r_function": "fitdistrplus standard errors",
