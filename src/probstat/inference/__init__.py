@@ -54,8 +54,11 @@ Main entry points:
     ``fit_quantile_regression``: exact linear quantile regression with
         pairs-bootstrap intervals.
     ``kruskal_wallis_test``, ``friedman_test``, ``shapiro_wilk_test``,
-        ``levene_test``, ``tukey_hsd_test``, ``dunn_test``: k-sample,
-        blocked, normality, variance, and post hoc tests.
+        ``levene_test``, ``fligner_killeen_test``, ``welch_anova``,
+        ``tukey_hsd_test``, ``dunn_test``: k-sample, blocked, normality,
+        variance, and post hoc tests.
+    ``fisher_exact_rxc_test``: Fisher-Freeman-Halton exact test of
+        independence for r x c tables.
 
 Assumptions:
     Every test states its sampling model: t tests assume independent normal
@@ -150,6 +153,7 @@ from .classical_tests import (
     brown_forsythe_test,
     cochran_q_test,
     dunn_test,
+    fligner_killeen_test,
     friedman_test,
     kruskal_wallis_test,
     levene_test,
@@ -157,6 +161,7 @@ from .classical_tests import (
     shapiro_wilk_test,
     sign_test,
     tukey_hsd_test,
+    welch_anova,
 )
 from .clustering import KMeansResult, kmeans, silhouette_samples, silhouette_score
 from .confidence import (
@@ -229,6 +234,7 @@ from .estimator_properties import (
     poisson_zero_rao_blackwell,
     uniform_maximum_risks,
 )
+from .fisher_rxc import FisherExactRxCResult, fisher_exact_rxc_test
 from .fitting import (
     BETA_FAMILY,
     EXPONENTIAL_FAMILY,
@@ -594,6 +600,7 @@ __all__ = [
     "ElasticNetResult",
     "EquivalenceTestResult",
     "FisherExactResult",
+    "FisherExactRxCResult",
     "FitResult",
     "FittableDistribution",
     "GAMMA_FAMILY",
@@ -672,6 +679,7 @@ __all__ = [
     "elastic_net_path",
     "f_sf",
     "family_by_name",
+    "fisher_exact_rxc_test",
     "fisher_exact_test",
     "fit_distribution",
     "fit_elastic_net",
@@ -859,6 +867,7 @@ __all__ = [
     "brown_forsythe_test",
     "cochran_q_test",
     "dunn_test",
+    "fligner_killeen_test",
     "friedman_test",
     "kruskal_wallis_test",
     "levene_test",
@@ -866,6 +875,7 @@ __all__ = [
     "shapiro_wilk_test",
     "sign_test",
     "tukey_hsd_test",
+    "welch_anova",
     "QuantileRegressionResult",
     "check_loss",
     "fit_quantile_regression",
