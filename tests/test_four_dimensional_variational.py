@@ -343,6 +343,58 @@ class LinearGaussianEquivalenceTests(unittest.TestCase):
         )
         _assert_close(self, limited.analysis, result.analysis, rel=1e-14)
 
+    def test_analytic_jacobian_and_central_tangents_keep_the_equivalence(self) -> None:
+        """Covariances built from ``dh/dx`` or finite differences agree."""
+        observations = _data()
+        selection = ((1.0, 0.0),)
+        exact = rts_smoother(
+            kalman_filter(_constant_velocity(0.0), observations)
+        ).smoothed
+        strong = four_dimensional_variational(
+            PRIOR_MEAN,
+            PRIOR_COVARIANCE,
+            observations,
+            _step,
+            _position,
+            R_POSITION,
+            observation_jacobian=lambda x: selection,
+        )
+        _assert_close(self, strong.analysis, exact[0].mean)
+        for k, state in enumerate(exact):
+            _assert_close(self, strong.trajectory_covariances[k], state.covariance)
+        central = incremental_four_dimensional_variational(
+            PRIOR_MEAN,
+            PRIOR_COVARIANCE,
+            observations,
+            _step,
+            _position,
+            R_POSITION,
+            tangent_linear="central",
+        )
+        _assert_close(self, central.analysis, exact[0].mean, rel=1e-7, abs_tol=1e-8)
+        _assert_close(
+            self,
+            central.analysis_covariance,
+            exact[0].covariance,
+            rel=1e-7,
+            abs_tol=1e-9,
+        )
+        model = _constant_velocity(0.05)
+        noisy = rts_smoother(kalman_filter(model, observations)).smoothed
+        weak = weak_constraint_four_dimensional_variational(
+            PRIOR_MEAN,
+            PRIOR_COVARIANCE,
+            observations,
+            _step,
+            _position,
+            R_POSITION,
+            model.process_covariance,
+            observation_jacobian=lambda x: selection,
+        )
+        for k, state in enumerate(noisy):
+            _assert_close(self, weak.trajectory[k], state.mean, abs_tol=1e-8)
+            _assert_close(self, weak.trajectory_covariances[k], state.covariance)
+
     def test_window_without_observations_returns_the_background(self) -> None:
         """Missing observations everywhere leave ``x_b`` and ``B``."""
         result = four_dimensional_variational(
