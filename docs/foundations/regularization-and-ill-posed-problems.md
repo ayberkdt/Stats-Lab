@@ -107,6 +107,10 @@ The ratios (indices 1, 4, 7, 10, 13) fall and then explode; from about
 index 11 the data coefficients stay near the noise standard deviation
 `s = 0.0063` instead of decaying.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/regularization-picard-plot-dark.png"><img alt="Singular values, data coefficients, and their ratios of the backward heat problem against the index on a log axis, with the noise level" src="../images/guides/regularization-picard-plot.png"></picture>
+
+*Picard plot of the seeded heat data: the ratio `|u_i'b| / sigma_i` is smallest at `i = 10`; beyond it the mean `|u_i'b|` is 0.0056, at the noise level `s = 0.0063`, while `sigma_i` keeps falling to 3.7e-10.*
+
 ## 3. Filtering: truncated SVD and Tikhonov
 
 A regularization method multiplies each term by a *filter factor*,

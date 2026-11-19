@@ -1,9 +1,10 @@
-"""Figure of the regularization and ill-posed problems guide.
+"""Figures of the regularization and ill-posed problems guide.
 
-The figure runs the seeded backward heat example of the guide (ADR-0110):
-Tikhonov solutions on a grid of regularization parameters, their true
-relative errors, and the parameters chosen by the L-curve, generalized
-cross-validation, and the discrepancy principle. The facts are the numbers
+The figures run the seeded backward heat example of the guide (ADR-0110):
+the Picard plot of the noisy data, and Tikhonov solutions on a grid of
+regularization parameters, their true relative errors, and the parameters
+chosen by the L-curve, generalized cross-validation, and the discrepancy
+principle. The facts are the numbers
 the caption in the guide quotes.
 
 References:
@@ -24,6 +25,7 @@ from probstat.inverse import (
     discrepancy_principle,
     generalized_cross_validation,
     l_curve,
+    picard_coefficients,
     tikhonov,
 )
 from probstat.linalg import singular_value_decomposition
@@ -43,11 +45,14 @@ def _norm(vector: Any) -> float:
 
 
 @functools.cache
-def _heat_example() -> dict[str, Any]:
-    """Run the guide's example: heat problem, 1% noise, seed 2026.
+def _noisy_heat() -> tuple[Any, Any, tuple[float, ...], float, float]:
+    """Return the heat problem, its SVD, noisy data, noise sd, and noise norm.
+
+    The guide's data: ``n = 32``, diffusion time 0.005, 1% white noise from
+    seed 2026 (child stream ``noise``).
 
     References:
-        [EQ-INV-REG-001], [EQ-INV-REG-003], [EQ-INV-REG-004], [EQ-INV-REG-005].
+        [EQ-INV-REG-PROB-001], [EQ-LINALG-SVD-001], [REF-HANSEN-2008].
 
     """
     problem = backward_heat_problem(32, time=0.005)
@@ -57,7 +62,18 @@ def _heat_example() -> dict[str, Any]:
     generator = RandomStream(2026).child("noise").generator()
     noise = [generator.gauss(0.0, scale) for _ in exact_data]
     data = tuple(b + e for b, e in zip(exact_data, noise, strict=True))
-    delta = _norm(noise)
+    return problem, svd, data, scale, _norm(noise)
+
+
+@functools.cache
+def _heat_example() -> dict[str, Any]:
+    """Run the guide's example: heat problem, 1% noise, seed 2026.
+
+    References:
+        [EQ-INV-REG-001], [EQ-INV-REG-003], [EQ-INV-REG-004], [EQ-INV-REG-005].
+
+    """
+    problem, svd, data, _, delta = _noisy_heat()
 
     def error(solution: Any) -> float:
         """Return the relative error against the exact initial state.
@@ -156,6 +172,87 @@ def _parameter_choice() -> tuple[Any, dict[str, str]]:
     return axes.figure, facts
 
 
+def _picard_plot() -> tuple[Any, dict[str, str]]:
+    """Draw the Picard plot of the noisy backward heat data.
+
+    References:
+        [EQ-INV-REG-007], [EQ-LINALG-SVD-001], [REF-HANSEN-2008, Section 2.4].
+
+    """
+    problem, svd, data, noise_sd, _ = _noisy_heat()
+    picard = picard_coefficients(problem.operator, data, decomposition=svd)
+    sigma = picard.singular_values
+    beta = picard.data_coefficients
+    ratio = picard.solution_coefficients
+    turn = min(range(len(ratio)), key=lambda i: ratio[i]) + 1
+    tail = beta[turn:]
+    facts = {
+        "noise": f"{noise_sd:.4f}",
+        "turn": f"{turn}",
+        "tail": f"{math.fsum(tail) / len(tail):.4f}",
+        "smallest": f"{sigma[-1]:.1e}",
+    }
+    index = list(range(1, len(sigma) + 1))
+    axes = theme.new_axes(figsize=(7.2, 4.2))
+    palette = theme.active_palette()
+    series = (
+        ("sigma_i", sigma, palette.muted, "o", theme.CONTEXT_WIDTH, None),
+        ("|u_i'b|", beta, theme.role_colour("observed"), "s", theme.LINE_WIDTH, None),
+        (
+            "|u_i'b| / sigma_i",
+            ratio,
+            theme.role_colour("model"),
+            "^",
+            theme.LINE_WIDTH,
+            theme.FITTED,
+        ),
+    )
+    labels = []
+    for name, values, colour, marker, width, dashes in series:
+        theme.line(axes, index, values, color=colour, width=width, dashes=dashes)
+        theme.points(axes, index, values, color=colour, marker=marker, size=22.0)
+        labels.append((index[-1], values[-1], name, colour))
+    axes.set_yscale("log")
+    axes.set_xlim(0.5, len(sigma) + 0.5)
+    axes.set_ylim(1e-11, 1e9)
+    axes.set_yticks([1e-10, 1e-6, 1e-2, 1e2, 1e6])
+    axes.minorticks_off()
+    theme.reference_line(axes, y=noise_sd, entity="threshold")
+    axes.annotate(
+        f"noise sd s = {facts['noise']}",
+        xy=(1.0, noise_sd),
+        xycoords=("data", "data"),
+        xytext=(0.0, -8.0),
+        textcoords="offset points",
+        ha="left",
+        va="top",
+        fontsize=theme.ANNOTATION_SIZE,
+        color=theme.entity_colour("threshold"),
+    )
+    theme.reference_line(axes, x=turn + 0.5, color=palette.muted)
+    axes.annotate(
+        f"noise takes over after i = {turn}",
+        xy=(turn + 0.5, 1e7),
+        xytext=(5.0, 0.0),
+        textcoords="offset points",
+        ha="left",
+        va="center",
+        fontsize=theme.ANNOTATION_SIZE,
+        color=palette.ink,
+    )
+    theme.direct_labels(axes, labels, gap_points=13.0)
+    axes.grid(axis="x", visible=False)
+    theme.axis_labels(axes, "Index i", "Coefficient (log scale)")
+    theme.title_block(
+        axes,
+        f"The data coefficients fall faster than the singular values up to "
+        f"i = {turn},\nthen flatten at the noise level and the ratios explode",
+        "Backward heat problem, n = 32, 1% noise (seed 2026) · the Picard "
+        "condition holds only while |u_i'b| falls faster than sigma_i",
+    )
+    return axes.figure, facts
+
+
 FIGURES = [
     GuideFigure(
         name="regularization-parameter-choice",
@@ -166,5 +263,14 @@ FIGURES = [
             "parameters chosen by the L-curve, GCV, and the discrepancy principle"
         ),
         draw=_parameter_choice,
+    ),
+    GuideFigure(
+        name="regularization-picard-plot",
+        guide="regularization-and-ill-posed-problems",
+        alt=(
+            "Singular values, data coefficients, and their ratios of the backward "
+            "heat problem against the index on a log axis, with the noise level"
+        ),
+        draw=_picard_plot,
     ),
 ]
