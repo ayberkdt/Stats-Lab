@@ -36,9 +36,11 @@ from probstat.cost import (
 from probstat.distributions import LogNormal, Normal, Weibull
 from probstat.inference.confidence import wilson_score_interval
 from probstat.modeling import (
+    FOUR_BRANCH_REFERENCE_PROBABILITY,
     JointInput,
     ProbabilisticModel,
     RandomInput,
+    four_branch_model,
     gauss_hermite,
     standard_normal_cdf,
 )
@@ -46,7 +48,9 @@ from probstat.reliability import (
     LimitState,
     ModelLimitState,
     ak_mcs,
+    ak_ss,
     compare_reliability_methods,
+    directional_simulation,
     estimate_directional_failure_probability,
     estimate_failure_probability,
     failure_rate_estimate,
@@ -54,8 +58,10 @@ from probstat.reliability import (
     form_hlrf,
     linear_normal_form,
     mixture_importance_sampling,
+    moving_particles,
     multi_point_form,
     sorm,
+    subset_simulation,
 )
 from probstat.risk import (
     DiscreteImpact,
@@ -665,6 +671,261 @@ def draw_ak_mcs_learning() -> tuple[Any, dict[str, str]]:
         f"{facts['calls']} model calls instead of {facts['population']}",
     )
     return figure, facts
+
+
+# Same seeds and sizes as the four-branch case of
+# examples/modern_reliability_lab.py, so the caption and the lab agree.
+_COST_SEED = 2026
+_COST_STYLES: dict[str, tuple[str, str]] = {
+    "Subset (MMA)": ("observed", "o"),
+    "Subset (aCS)": ("observed", "s"),
+    "Subset (HMC)": ("observed", "^"),
+    "Moving particles": ("series-3", "v"),
+    "Directional simulation": ("series-6", "P"),
+    "AK-MCS": ("model", "X"),
+    "AK-SS": ("model", "h"),
+}
+
+
+@functools.lru_cache(maxsize=1)
+def _rare_event_cost_study() -> tuple[tuple[str, float, float, int], ...]:
+    """Run seven rare-event methods on the four-branch system (``k = 7``).
+
+    Returns ``(method, mean calls, mean relative error, seeds)`` per method:
+    subset simulation with three kernels (``N = 500``), moving particles (50
+    particles, 5 steps), and directional simulation (100 directions) over
+    ten seeds; AK-MCS (population ``10^4``) and AK-SS (``N = 300``) over
+    three.
+
+    References:
+        [EQ-REL-SUBSET-001], [EQ-REL-SUBSET-005], [EQ-REL-HMCSS-001],
+        [EQ-REL-MP-001], [EQ-REL-DIR-002], [EQ-REL-AKMCS-002],
+        [EQ-REL-AKSS-001], [REF-AU-BECK-2001], [REF-HUANG-CHEN-ZHU-2016].
+
+    """
+
+    def state() -> ModelLimitState:
+        """Return a fresh four-branch limit state.
+
+        References:
+            [EQ-REL-WAARTS-001], [REF-WAARTS-2000].
+
+        """
+        return ModelLimitState(four_branch_model(7.0), "g", 0.0, "below")
+
+    def subset(sampler: str) -> Callable[[ModelLimitState, int], tuple[float, int]]:
+        """Return a subset-simulation runner with one kernel.
+
+        References:
+            [EQ-REL-SUBSET-001], [REF-AU-BECK-2001].
+
+        """
+
+        def run(limit_state: ModelLimitState, seed: int) -> tuple[float, int]:
+            """Run one seed.
+
+            References:
+                [EQ-REL-SUBSET-001].
+
+            """
+            result = subset_simulation(
+                limit_state, samples_per_level=500, sampler=sampler, seed=seed
+            )
+            return result.probability, result.evaluations
+
+        return run
+
+    def particles(limit_state: ModelLimitState, seed: int) -> tuple[float, int]:
+        """Run moving particles for one seed.
+
+        References:
+            [EQ-REL-MP-001], [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011].
+
+        """
+        result = moving_particles(limit_state, 50, steps=5, seed=seed)
+        return result.probability, result.evaluations
+
+    def directional(limit_state: ModelLimitState, seed: int) -> tuple[float, int]:
+        """Run directional simulation for one seed.
+
+        References:
+            [EQ-REL-DIR-002], [REF-BJERAGER-1988].
+
+        """
+        result = directional_simulation(limit_state, 100, seed=seed)
+        return result.probability, result.evaluations
+
+    def active(limit_state: ModelLimitState, seed: int) -> tuple[float, int]:
+        """Run AK-MCS on a ``10^4`` population for one seed.
+
+        References:
+            [EQ-REL-AKMCS-002], [REF-ECHARD-GAYTON-LEMAIRE-2011].
+
+        """
+        result = ak_mcs(
+            limit_state, 10_000, max_population=10_000, target_cov=1.0, seed=seed
+        )
+        return result.probability, result.evaluations
+
+    def active_subset(limit_state: ModelLimitState, seed: int) -> tuple[float, int]:
+        """Run AK-SS with ``N = 300`` for one seed.
+
+        References:
+            [EQ-REL-AKSS-001], [REF-HUANG-CHEN-ZHU-2016].
+
+        """
+        result = ak_ss(limit_state, samples_per_level=300, seed=seed)
+        return result.probability, result.evaluations
+
+    plan: tuple[
+        tuple[str, Callable[[ModelLimitState, int], tuple[float, int]], int], ...
+    ]
+    plan = (
+        ("Subset (MMA)", subset("mma"), 10),
+        ("Subset (aCS)", subset("acs"), 10),
+        ("Subset (HMC)", subset("hmc"), 10),
+        ("Moving particles", particles, 10),
+        ("Directional simulation", directional, 10),
+        ("AK-MCS", active, 3),
+        ("AK-SS", active_subset, 3),
+    )
+    reference = FOUR_BRANCH_REFERENCE_PROBABILITY
+    rows = []
+    for name, runner, seeds in plan:
+        runs = [runner(state(), _COST_SEED + index) for index in range(seeds)]
+        rows.append(
+            (
+                name,
+                math.fsum(calls for _, calls in runs) / seeds,
+                math.fsum(abs(p / reference - 1.0) for p, _ in runs) / seeds,
+                seeds,
+            )
+        )
+    return tuple(rows)
+
+
+def _label_points(axes: Any, items: list[tuple[float, float, str]]) -> None:
+    """Label points to their right; spread the labels of nearby points.
+
+    Points closer than 90 points horizontally form one group whose labels
+    are at least 13 points apart; a displaced label gets a thin leader.
+
+    References:
+        [REF-MATPLOTLIB]. No equation is evaluated.
+
+    """
+    palette = active_palette()
+    axes.get_xlim()
+    axes.get_ylim()
+    scale = axes.figure.dpi / 72.0
+    to_display = axes.transData.transform
+    entries = sorted(
+        ((*to_display((x, y)), x, y, text) for x, y, text in items),
+        key=lambda entry: entry[0],
+    )
+    groups: list[list[tuple[float, float, float, float, str]]] = []
+    for entry in entries:
+        if groups and entry[0] - groups[-1][-1][0] < 90.0 * scale:
+            groups[-1].append(entry)
+        else:
+            groups.append([entry])
+    for group in groups:
+        group.sort(key=lambda entry: entry[1])
+        targets = [entry[1] for entry in group]
+        for index in range(1, len(targets)):
+            targets[index] = max(targets[index], targets[index - 1] + 13.0 * scale)
+        right = max(entry[0] for entry in group)
+        for (display_x, display_y, x, y, text), target in zip(
+            group, targets, strict=True
+        ):
+            dx = (right - display_x) / scale + 10.0
+            dy = (target - display_y) / scale
+            axes.annotate(
+                text,
+                xy=(x, y),
+                xytext=(dx, dy),
+                textcoords="offset points",
+                ha="left",
+                va="center",
+                fontsize=ANNOTATION_SIZE,
+                color=palette.ink,
+                annotation_clip=False,
+                arrowprops=(
+                    {
+                        "arrowstyle": "-",
+                        "color": palette.muted,
+                        "linewidth": 0.7,
+                        "shrinkA": 1.0,
+                        "shrinkB": 5.0,
+                        "relpos": (0.0, 0.5),
+                    }
+                    if abs(dy) > 4.0 or dx > 14.0
+                    else None
+                ),
+            )
+
+
+def draw_rare_event_cost() -> tuple[Any, dict[str, str]]:
+    """Mean relative error against mean model calls of seven rare-event methods.
+
+    References:
+        [EQ-REL-SUBSET-001], [EQ-REL-MP-001], [EQ-REL-DIR-002],
+        [EQ-REL-AKMCS-002], [EQ-REL-AKSS-001],
+        [REF-ECHARD-GAYTON-LEMAIRE-2011], [REF-HUANG-CHEN-ZHU-2016].
+
+    """
+    from matplotlib.ticker import LogLocator, NullFormatter, ScalarFormatter
+
+    rows = {
+        name: (calls, error, seeds)
+        for name, calls, error, seeds in _rare_event_cost_study()
+    }
+    axes = _figure(7.2, 4.4)
+    items: list[tuple[float, float, str]] = []
+    for name, (calls, error, _) in rows.items():
+        role, marker = _COST_STYLES[name]
+        points(
+            axes,
+            [calls],
+            [100.0 * error],
+            color=role_colour(role),
+            marker=marker,
+            size=70.0,
+        )
+        items.append((calls, 100.0 * error, name))
+    axes.set_xscale("log")
+    axes.set_yscale("log")
+    low, high = axes.get_xlim()
+    axes.set_xlim(low / 1.5, high * 8.0)
+    errors = [100.0 * error for _, error, _ in rows.values()]
+    axes.set_ylim(min(errors) / 1.6, max(errors) * 1.8)
+    _plain_log(axes.xaxis, subs=(1.0, 3.0))
+    axes.yaxis.set_major_locator(LogLocator(base=10.0, subs=(1.0, 2.0, 5.0)))
+    axes.yaxis.set_major_formatter(ScalarFormatter())
+    axes.yaxis.set_minor_formatter(NullFormatter())
+    axis_labels(axes, axis_title("model_evaluations"), "Mean relative error [%]")
+    samplers = [rows[name] for name in rows if not name.startswith("AK")]
+    facts = {
+        "akmcs_calls": f"{rows['AK-MCS'][0]:.0f}",
+        "akmcs_error": f"{100.0 * rows['AK-MCS'][1]:.0f}%",
+        "akss_calls": f"{rows['AK-SS'][0]:.0f}",
+        "akss_error": f"{100.0 * rows['AK-SS'][1]:.0f}%",
+        "sampler_calls_min": f"{min(c for c, _, _ in samplers):,.0f}",
+        "sampler_calls_max": f"{max(c for c, _, _ in samplers):,.0f}",
+        "sampler_error_min": f"{100.0 * min(e for _, e, _ in samplers):.0f}%",
+        "sampler_error_max": f"{100.0 * max(e for _, e, _ in samplers):.0f}%",
+    }
+    title_block(
+        axes,
+        f"AK-MCS ({facts['akmcs_error']} error) and AK-SS ({facts['akss_error']}) "
+        f"use {facts['akmcs_calls']} and {facts['akss_calls']} model calls; the "
+        f"samplers use {facts['sampler_calls_min']} to {facts['sampler_calls_max']} "
+        f"for {facts['sampler_error_min']} to {facts['sampler_error_max']}",
+        "Four-branch system, k = 7 · marker: mean over 10 seeds (AK methods: 3) "
+        "· lower left is better",
+    )
+    _label_points(axes, items)
+    return axes.figure, facts
 
 
 # --------------------------------------------------------------------------
@@ -1467,6 +1728,13 @@ FIGURES: list[GuideFigure] = [
         "Standard-normal map of the four-branch limit state with four design "
         "points, FORM tangents, the beta circle, and mixture samples",
         draw_design_points,
+    ),
+    GuideFigure(
+        "adaptive-reliability-cost-accuracy",
+        "adaptive-reliability",
+        "Mean relative error against mean model calls on log axes for seven "
+        "rare-event methods on the four-branch system, one labelled marker each",
+        draw_rare_event_cost,
     ),
     GuideFigure(
         "adaptive-reliability-ak-mcs-learning",
