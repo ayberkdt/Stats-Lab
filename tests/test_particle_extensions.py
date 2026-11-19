@@ -46,6 +46,7 @@ class HistoryFlagTests(unittest.TestCase):
     """The opt-in particle history does not change the bootstrap filter."""
 
     def test_history_is_opt_in_and_leaves_every_number_unchanged(self) -> None:
+        """History is opt in and leaves every number unchanged."""
         model = _ar1()
         data = simulate(model, 6, seed=1).observations
         plain = bootstrap_particle_filter(model, data, particles=50, seed=3)
@@ -73,6 +74,7 @@ class ExactCaseTests(unittest.TestCase):
     """Degenerate noise makes the particle estimates deterministic and exact."""
 
     def test_noise_free_dynamics_reproduce_the_kalman_likelihood(self) -> None:
+        """Noise free dynamics reproduce the kalman likelihood."""
         # With Q = 0 and P_0 = 0 every particle follows the same deterministic
         # path, so the first-stage and second-stage weights, the predictive
         # density of the optimal proposal, and the bootstrap weights are all
@@ -95,6 +97,7 @@ class ExactCaseTests(unittest.TestCase):
             self.assertTrue(math.isclose(run.log_likelihood, exact, rel_tol=1e-12))
 
     def test_optimal_proposal_is_exact_for_one_step_from_a_point_prior(self) -> None:
+        """Optimal proposal is exact for one step from a point prior."""
         # From x_0 = m_0 the optimal-proposal increment is p(y_1 | m_0), which
         # is the exact Kalman likelihood of the first observation.
         model = _ar1(p0=0.0)
@@ -113,11 +116,13 @@ class UnbiasednessTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        """Simulate one data set and its exact Kalman log-likelihood."""
         cls.model = _ar1(q=0.3, r=2.0)
         cls.data = simulate(cls.model, 6, seed=4).observations
         cls.exact = kalman_filter(cls.model, cls.data).log_likelihood
 
     def test_auxiliary_filter_likelihood_is_unbiased(self) -> None:
+        """Auxiliary filter likelihood is unbiased."""
         estimates = [
             auxiliary_particle_filter(
                 self.model, self.data, particles=40, seed=seed
@@ -129,6 +134,7 @@ class UnbiasednessTests(unittest.TestCase):
         self.assertLess(error, 0.05)
 
     def test_optimal_proposal_likelihood_is_unbiased(self) -> None:
+        """Optimal proposal likelihood is unbiased."""
         estimates = [
             optimal_proposal_particle_filter(
                 self.model, self.data, particles=40, seed=seed
@@ -140,6 +146,7 @@ class UnbiasednessTests(unittest.TestCase):
         self.assertLess(error, 0.05)
 
     def test_optimal_proposal_beats_the_bootstrap_on_informative_data(self) -> None:
+        """Optimal proposal beats the bootstrap on informative data."""
         # Precise observations (r = 0.5 against q = 1) make the transition
         # prior a poor proposal; the optimal proposal's weights do not depend
         # on the new particle.
@@ -169,12 +176,14 @@ class OptimalProposalInterfaceTests(unittest.TestCase):
     """The closed-form proposal needs a linear observation operator."""
 
     def test_nonlinear_model_needs_an_observation_matrix(self) -> None:
+        """Nonlinear model needs an observation matrix."""
         linear = _ar1()
         nonlinear = linear.as_nonlinear()
         with self.assertRaisesRegex(ValueError, "linear observation operator"):
             optimal_proposal_particle_filter(nonlinear, [(1.0,)], particles=4)
 
     def test_a_nonlinear_observation_map_is_rejected(self) -> None:
+        """A nonlinear observation map is rejected."""
         squared = NonlinearStateSpace(
             lambda x: (0.9 * x[0],),
             lambda x: (x[0] ** 2,),
@@ -193,6 +202,7 @@ class OptimalProposalInterfaceTests(unittest.TestCase):
     def test_nonlinear_dynamics_with_a_linear_sensor_match_the_linear_model(
         self,
     ) -> None:
+        """Nonlinear dynamics with a linear sensor match the linear model."""
         linear = _ar1()
         data = simulate(linear, 5, seed=2).observations
         reference = optimal_proposal_particle_filter(linear, data, particles=20, seed=6)
@@ -209,6 +219,7 @@ class OptimalProposalInterfaceTests(unittest.TestCase):
             self.assertTrue(math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-12))
 
     def test_invalid_arguments_raise(self) -> None:
+        """Invalid arguments raise."""
         model = _ar1()
         with self.assertRaises(ValueError):
             auxiliary_particle_filter(model, [(1.0,)], particles=1)
@@ -224,6 +235,7 @@ class OptimalProposalInterfaceTests(unittest.TestCase):
             )
 
     def test_missing_observations_contribute_nothing(self) -> None:
+        """Missing observations contribute nothing."""
         model = _ar1()
         data = [(0.4,), None, (1.0,)]
         for run in (
@@ -240,6 +252,7 @@ class ParticleSmootherTests(unittest.TestCase):
     """FFBS trajectories approach the RTS smoothing marginals."""
 
     def test_ffbs_moments_approach_the_rts_smoother(self) -> None:
+        """Ffbs moments approach the rts smoother."""
         model = _ar1(phi=0.9, q=0.5, r=1.0)
         data = simulate(model, 6, seed=8).observations
         exact = rts_smoother(kalman_filter(model, data)).smoothed
@@ -278,6 +291,7 @@ class ParticleSmootherTests(unittest.TestCase):
                 )
 
     def test_ffbs_runs_on_the_auxiliary_filter(self) -> None:
+        """Ffbs runs on the auxiliary filter."""
         model = _ar1()
         data = simulate(model, 4, seed=3).observations
         forward = auxiliary_particle_filter(
@@ -293,6 +307,7 @@ class ParticleSmootherTests(unittest.TestCase):
                 self.assertIn(point, forward.particle_history[k])
 
     def test_invalid_inputs_raise(self) -> None:
+        """Invalid inputs raise."""
         model = _ar1()
         data = simulate(model, 3, seed=3).observations
         without = bootstrap_particle_filter(model, data, particles=10, seed=1)
