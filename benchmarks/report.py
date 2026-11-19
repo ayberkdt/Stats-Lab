@@ -676,7 +676,14 @@ def render(
         "machine-independent and are the cost measure to compare. Seeds per "
         f"category: {', '.join(f'{k} {v}' for k, v in seeds.items())}; deterministic "
         "methods (FORM, SORM, bounds, closed forms) run once. Quick mode uses small "
-        "budgets and few seeds: its numbers show behaviour, not converged accuracy.",
+        "budgets and few seeds: its numbers show behaviour, not converged accuracy."
+        + (
+            " Problems run in full mode only (omitted here): "
+            + ", ".join(f"`{key}`" for key in meta["omitted_problems"])
+            + "."
+            if meta.get("omitted_problems")
+            else ""
+        ),
         "",
         "**Columns.** *Rel. error*: median over seeds of |estimate - reference| / "
         "|reference|. *Median abs z*: |estimate - reference| / (the method's own "

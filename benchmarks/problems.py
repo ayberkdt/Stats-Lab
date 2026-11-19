@@ -18,7 +18,12 @@ from typing import Any
 from benchmarks import references as ref
 from probstat.distributions import LogNormal, Normal, Uniform
 from probstat.inverse import CalibrationProblem, Experiment, NoiseModel
-from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
+from probstat.modeling import (
+    JointInput,
+    ProbabilisticModel,
+    RandomInput,
+    oscillator_model,
+)
 from probstat.reliability import ModelLimitState
 from probstat.uq import QuantityOfInterest
 
@@ -32,6 +37,23 @@ FOUR_BRANCH_MC = {
     "seed": 20261012,
     "probability": 0.0044378,
     "standard_error": 2.101929097557765e-05,
+}
+
+#: Load of the rare oscillator variant, ``F1 ~ N(0.6, 0.2)``.
+OSCILLATOR_RARE_LOAD = (0.6, 0.2)
+#: FORM design point of that variant in standard-normal space (order m, c1,
+#: c2, r, F1, t1; ``beta = 3.234``, 182 calls of ``probstat.reliability.
+#: form_hlrf``), used only as the centre of the reference importance density.
+OSCILLATOR_RARE_CENTER = (-0.2631, -0.6894, -0.0689, -1.4358, 2.3139, 1.5787)
+#: Importance-sampling reference of the rare oscillator, executed once with
+#: ``references.oscillator_importance_sampling(5_000_000, 20261119, 0.6, 0.2,
+#: OSCILLATOR_RARE_CENTER)``. The estimator is unbiased for any centre, so the
+#: design point found by probstat cannot bias it.
+OSCILLATOR_RARE_IS = {
+    "samples": 5_000_000,
+    "seed": 20261119,
+    "probability": 0.0005455360314258797,
+    "standard_error": 4.832765009525669e-07,
 }
 
 
@@ -85,6 +107,8 @@ class Problem:
             ``"scaled"`` (absolute error divided by :attr:`Reference.scale`).
         tags: Free labels used by method applicability rules.
         dimension: Number of random inputs.
+        full_only: Run only in full mode; quick mode omits the problem (and
+            says so) because even one seed of it costs too much for CI.
 
     """
 
@@ -98,6 +122,7 @@ class Problem:
     error_kinds: Mapping[str, str]
     tags: frozenset[str] = frozenset()
     dimension: int = 0
+    full_only: bool = False
 
 
 def quantity_group(quantity: str) -> str:
@@ -175,38 +200,56 @@ def _build_parabolic(seed: int) -> Instance:
     )
 
 
-def _build_four_branch(seed: int) -> Instance:
-    """Build the four-branch system with the minimum and each branch as QoIs."""
-    del seed
+def _four_branch(k: float) -> Callable[[int], Instance]:
+    """Return a builder of the four-branch system with outer offset ``k``."""
+    offset = k / ref.SQRT2
 
-    def response(p: Mapping[str, float]) -> dict[str, float]:
-        """Evaluate the system margin and the four branch margins."""
-        x1, x2 = p["u1"], p["u2"]
-        s = 0.1 * (x1 - x2) ** 2
-        branches = (
-            3.0 + s - (x1 + x2) / ref.SQRT2,
-            3.0 + s + (x1 + x2) / ref.SQRT2,
-            (x1 - x2) + 6.0 / ref.SQRT2,
-            (x2 - x1) + 6.0 / ref.SQRT2,
+    def build(seed: int) -> Instance:
+        """Build the system with the minimum and each branch as QoIs."""
+        del seed
+
+        def response(p: Mapping[str, float]) -> dict[str, float]:
+            """Evaluate the system margin and the four branch margins."""
+            x1, x2 = p["u1"], p["u2"]
+            s = 0.1 * (x1 - x2) ** 2
+            branches = (
+                3.0 + s - (x1 + x2) / ref.SQRT2,
+                3.0 + s + (x1 + x2) / ref.SQRT2,
+                (x1 - x2) + offset,
+                (x2 - x1) + offset,
+            )
+            out = {"g": min(branches)}
+            out.update({f"g{i + 1}": value for i, value in enumerate(branches)})
+            return out
+
+        quantities = (QuantityOfInterest("g", "system margin"),) + tuple(
+            QuantityOfInterest(f"g{i}", f"branch {i} margin") for i in range(1, 5)
         )
-        out = {"g": min(branches)}
-        out.update({f"g{i + 1}": value for i, value in enumerate(branches)})
-        return out
+        model = ProbabilisticModel(
+            _standard_inputs(2), response, quantities, "four-branch"
+        )
+        components = tuple(
+            ModelLimitState(model, f"g{i}", 0.0, "below") for i in range(1, 5)
+        )
+        return Instance(
+            model,
+            {
+                "limit_state": ModelLimitState(model, "g", 0.0, "below"),
+                "components": components,
+            },
+        )
 
-    quantities = (QuantityOfInterest("g", "system margin"),) + tuple(
-        QuantityOfInterest(f"g{i}", f"branch {i} margin") for i in range(1, 5)
-    )
-    model = ProbabilisticModel(_standard_inputs(2), response, quantities, "four-branch")
-    components = tuple(
-        ModelLimitState(model, f"g{i}", 0.0, "below") for i in range(1, 5)
-    )
-    return Instance(
-        model,
-        {
-            "limit_state": ModelLimitState(model, "g", 0.0, "below"),
-            "components": components,
-        },
-    )
+    return build
+
+
+_build_four_branch = _four_branch(6.0)
+
+
+def _build_oscillator(seed: int) -> Instance:
+    """Build the six-input oscillator with the rare load ``F1 ~ N(0.6, 0.2)``."""
+    del seed
+    model = oscillator_model(*OSCILLATOR_RARE_LOAD)
+    return Instance(model, {"limit_state": ModelLimitState(model, "g", 0.0, "below")})
 
 
 LN_CAPACITY = (math.log(15.0), 0.15)
@@ -460,6 +503,19 @@ def registry() -> tuple[Problem, ...]:
             10,
         ),
         Problem(
+            "linear-100d",
+            "reliability",
+            "Linear limit state, d = 100",
+            "G = 3.5 - sum(u)/sqrt 100 in standard normal space (full mode only).",
+            "Exact: P_f = Phi(-3.5).",
+            _linear(3.5, 100),
+            _constant({"Pf": ref.linear_failure_probability(3.5)}),
+            pf,
+            frozenset({"linear", "high-dimensional"}),
+            100,
+            full_only=True,
+        ),
+        Problem(
             "parabolic",
             "reliability",
             "Parabolic limit state",
@@ -495,6 +551,21 @@ def registry() -> tuple[Problem, ...]:
             2,
         ),
         Problem(
+            "four-branch-k7",
+            "reliability",
+            "Four-branch system, k = 7",
+            "min of four branches with the outer offset k = 7 (Waarts 2000); "
+            "design points at distance 3 (two) and 3.5 (two).",
+            "1-D quadrature in rotated coordinates (Simpson, 4000 panels); "
+            "crude Monte Carlo with 2 x 10^8 draws gives 2.2245e-3 +/- 3.3e-6 "
+            "(probstat.modeling.FOUR_BRANCH_REFERENCE_PROBABILITY).",
+            _four_branch(7.0),
+            _constant({"Pf": ref.four_branch_failure_probability(7.0)}),
+            pf,
+            frozenset({"multimodal"}),
+            2,
+        ),
+        Problem(
             "lognormal-rs",
             "reliability",
             "Lognormal capacity-demand",
@@ -507,6 +578,23 @@ def registry() -> tuple[Problem, ...]:
             pf,
             frozenset({"non-normal"}),
             2,
+        ),
+        Problem(
+            "oscillator-rare",
+            "reliability",
+            "Non-linear oscillator, F1 ~ N(0.6, 0.2)",
+            "g = 3 r - |2 F1 / (m w0^2) sin(w0 t1 / 2)|, six independent normal "
+            "inputs, rare load variant (Echard et al. 2013).",
+            "Design-point importance sampling with "
+            f"{OSCILLATOR_RARE_IS['samples']:,} samples (seed "
+            f"{OSCILLATOR_RARE_IS['seed']}, standard-library code): "
+            f"{OSCILLATOR_RARE_IS['probability']:.4e} +/- "
+            f"{OSCILLATOR_RARE_IS['standard_error']:.1e}.",
+            _build_oscillator,
+            _constant({"Pf": OSCILLATOR_RARE_IS["probability"]}),
+            pf,
+            frozenset({"rare"}),
+            6,
         ),
         Problem(
             "ishigami-indices",

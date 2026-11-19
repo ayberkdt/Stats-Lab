@@ -127,6 +127,72 @@ def four_branch_monte_carlo(samples: int, seed: int) -> tuple[float, float]:
     return probability, math.sqrt(probability * (1.0 - probability) / samples)
 
 
+#: Means and standard deviations of the oscillator inputs except the load
+#: ``F1``: mass, the two spring constants, the yield displacement, and the
+#: pulse duration (Gayton, Bourinet, and Lemaire 2003).
+OSCILLATOR_FIXED_LAWS = {
+    "m": (1.0, 0.05),
+    "c1": (1.0, 0.1),
+    "c2": (0.1, 0.01),
+    "r": (0.5, 0.05),
+    "t1": (1.0, 0.2),
+}
+
+
+def oscillator(m: float, c1: float, c2: float, r: float, f1: float, t1: float) -> float:
+    """Return the non-linear oscillator limit state ``3 r - |peak displacement|``.
+
+    ``g = 3 r - |2 F1 / (m w0^2) sin(w0 t1 / 2)|`` with
+    ``w0 = sqrt((c1 + c2) / m)``; failure is ``g <= 0``.
+    """
+    omega = math.sqrt((c1 + c2) / m)
+    return 3.0 * r - abs(2.0 * f1 / (m * omega * omega) * math.sin(omega * t1 / 2.0))
+
+
+def oscillator_importance_sampling(
+    samples: int,
+    seed: int,
+    force_mean: float,
+    force_std: float,
+    center: Sequence[float],
+) -> tuple[float, float]:
+    """Return an importance-sampling ``(P_f, standard error)`` of the oscillator.
+
+    The six inputs ``(m, c1, c2, r, F1, t1)`` are independent normals, written
+    as ``x_i = mu_i + sigma_i u_i`` with standard normal ``u``. Samples are
+    drawn from ``N(center, I)`` in ``u`` and weighted by
+    ``phi(u) / phi(u - c) = exp(|c|^2 / 2 - u . c)``. The estimator is
+    unbiased for any ``center``; a centre at the design point keeps its
+    variance small. Uses :class:`random.Random` only (no probstat code).
+    """
+    laws = (
+        OSCILLATOR_FIXED_LAWS["m"],
+        OSCILLATOR_FIXED_LAWS["c1"],
+        OSCILLATOR_FIXED_LAWS["c2"],
+        OSCILLATOR_FIXED_LAWS["r"],
+        (force_mean, force_std),
+        OSCILLATOR_FIXED_LAWS["t1"],
+    )
+    shift = tuple(center)
+    half_norm = 0.5 * math.fsum(c * c for c in shift)
+    generator = random.Random(seed)
+    gauss = generator.gauss
+    total = 0.0
+    squares = 0.0
+    for _ in range(samples):
+        u = [c + gauss(0.0, 1.0) for c in shift]
+        x = [mu + sd * value for (mu, sd), value in zip(laws, u, strict=True)]
+        if oscillator(*x) <= 0.0:
+            weight = math.exp(
+                half_norm - math.fsum(a * c for a, c in zip(u, shift, strict=True))
+            )
+            total += weight
+            squares += weight * weight
+    probability = total / samples
+    variance = max(squares / samples - probability * probability, 0.0)
+    return probability, math.sqrt(variance / (samples - 1))
+
+
 def lognormal_failure_probability(
     mu_r: float, sigma_r: float, mu_s: float, sigma_s: float
 ) -> float:

@@ -153,10 +153,21 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("--seeds must be at least 1")
         seeds = {category: arguments.seeds for category in problems.CATEGORIES}
     chosen = select(problems.registry(), arguments.only)
+    omitted: tuple[Any, ...] = ()
+    if mode == "quick":
+        omitted = tuple(p for p in chosen if p.full_only)
+        chosen = tuple(p for p in chosen if not p.full_only)
+        if not chosen:
+            raise SystemExit("--only matched only full-mode problems; drop --quick")
     command = "python benchmarks/run.py" + "".join(
         f" {item}" for item in (sys.argv[1:] if argv is None else argv)
     )
     print(f"probstat benchmarks, {mode} mode: {len(chosen)} problems", flush=True)
+    if omitted:
+        print(
+            "  full mode only, omitted: " + ", ".join(p.key for p in omitted),
+            flush=True,
+        )
     start = time.perf_counter()
     records = harness.run_benchmarks(
         chosen,
@@ -173,6 +184,7 @@ def main(argv: list[str] | None = None) -> int:
         "command": command,
         "mode": mode,
         "seeds": seeds or sizes["seeds"],
+        "omitted_problems": [p.key for p in omitted],
         "sizes": {k: v for k, v in sizes.items() if k != "seeds"},
         "total_time_s": elapsed,
         "generated_utc": datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC"),

@@ -98,12 +98,66 @@ class ReliabilityReferenceTests(unittest.TestCase):
         estimate, error = references.four_branch_monte_carlo(200_000, 7)
         self.assertLess(abs(estimate - value), 4.0 * error)
 
+    def test_four_branch_k7_quadrature_matches_the_library_constant(self) -> None:
+        """The k = 7 quadrature is converged and agrees with 2 x 10^8 MC draws."""
+        from probstat.modeling import FOUR_BRANCH_REFERENCE_PROBABILITY
+
+        value = reference("four-branch-k7", "Pf")
+        self.assertAlmostEqual(
+            references.four_branch_failure_probability(7.0, panels=8000) / value,
+            1.0,
+            places=12,
+        )
+        self.assertLess(abs(FOUR_BRANCH_REFERENCE_PROBABILITY - value), 3.0 * 3.3e-6)
+        self.assertLess(value, reference("four-branch", "Pf"))
+
+    def test_oscillator_reference_is_reproduced_by_a_fresh_run(self) -> None:
+        """A 40 000-sample IS run with another seed lies within 4 combined SE."""
+        recorded = problems.OSCILLATOR_RARE_IS
+        self.assertEqual(reference("oscillator-rare", "Pf"), recorded["probability"])
+        estimate, error = references.oscillator_importance_sampling(
+            40_000, 3, *problems.OSCILLATOR_RARE_LOAD, problems.OSCILLATOR_RARE_CENTER
+        )
+        combined = math.hypot(error, recorded["standard_error"])
+        self.assertLess(abs(estimate - recorded["probability"]), 4.0 * combined)
+        self.assertLess(recorded["standard_error"], 1e-3 * recorded["probability"])
+
+    def test_oscillator_reference_function_matches_the_library_model(self) -> None:
+        """The standard-library oscillator equals probstat's at random points."""
+        from probstat.modeling import oscillator
+
+        generator = random.Random(11)
+        for _ in range(20):
+            point = (
+                generator.uniform(0.8, 1.2),
+                generator.uniform(0.7, 1.3),
+                generator.uniform(0.07, 0.13),
+                generator.uniform(0.35, 0.65),
+                generator.uniform(0.0, 1.5),
+                generator.uniform(0.4, 1.6),
+            )
+            self.assertAlmostEqual(
+                references.oscillator(*point), oscillator(*point), places=12
+            )
+
+    def test_high_dimensional_linear_reference_is_phi_minus_beta(self) -> None:
+        """The d = 100 hyperplane runs only in full mode and has P_f = Phi(-3.5)."""
+        problem = REGISTRY["linear-100d"]
+        self.assertTrue(problem.full_only)
+        self.assertEqual(problem.dimension, 100)
+        self.assertEqual(reference("linear-100d", "Pf"), references.normal_tail(3.5))
+        self.assertEqual(
+            [p.key for p in problems.registry() if p.full_only], ["linear-100d"]
+        )
+
     def test_lognormal_closed_form_matches_quadrature(self) -> None:
         """P(R <= S) by conditioning on ln S equals the closed form."""
         (mu_r, s_r), (mu_s, s_s) = problems.LN_CAPACITY, problems.LN_DEMAND
         integral = references.simpson(
-            lambda z: references.normal_pdf(z)
-            * (1.0 - references.normal_tail((mu_s + s_s * z - mu_r) / s_r)),
+            lambda z: (
+                references.normal_pdf(z)
+                * (1.0 - references.normal_tail((mu_s + s_s * z - mu_r) / s_r))
+            ),
             -12.0,
             12.0,
             4000,
@@ -377,6 +431,66 @@ class HarnessTests(unittest.TestCase):
         )
         self.assertEqual(form["status"], "failed")
         self.assertIsNotNone(form["expected_failure"])
+
+    def test_modern_rare_event_methods_are_registered_with_budgets(self) -> None:
+        """aCS, HMC, moving particles, and directional runs record their cost."""
+        chosen = {m.name: m for m in methods.registry()}
+        names = (
+            "Subset (aCS)",
+            "Subset (HMC)",
+            "Moving particles",
+            "Directional simulation",
+            "AK-SS",
+        )
+        records = harness.run_benchmarks(
+            (REGISTRY["linear-2d"],),
+            tuple(chosen[name] for name in names),
+            self.sizes,
+            seeds={"reliability": 1},
+        )
+        by_method = {r["method"]: r for r in records}
+        for name in names[:4]:
+            with self.subTest(method=name):
+                record = by_method[name]
+                self.assertEqual(record["status"], "ok", record["error"])
+                self.assertGreater(record["evaluations"], 0)
+                self.assertIsNotNone(record["standard_error"])
+                self.assertLess(record["rel_error"], 1.0)
+        self.assertEqual(by_method["AK-SS"]["status"], "skipped")
+        self.assertIn("full mode", by_method["AK-SS"]["notes"][0])
+        full = methods.SIZES["full"]
+        self.assertIsNone(methods._akss_skip(REGISTRY["four-branch-k7"], full))
+        self.assertIn("budget", methods._akss_skip(REGISTRY["linear-10d"], full) or "")
+        skip = chosen["Crude MC"].skip(REGISTRY["linear-100d"], full)
+        self.assertIn("budget", skip or "")
+        self.assertIsNone(chosen["Crude MC"].skip(REGISTRY["linear-10d"], full))
+        for name in ("FORM", "Line sampling", "IS at design point"):
+            self.assertIn(("four-branch-k7", name), methods.EXPECTED_FAILURES)
+
+    def test_quick_mode_omits_full_only_problems(self) -> None:
+        """--quick drops the d = 100 problem and records the omission."""
+        with tempfile.TemporaryDirectory() as folder:
+            json_path = Path(folder) / "out.json"
+            buffer = StringIO()
+            with redirect_stdout(buffer):
+                status = runner.main(
+                    [
+                        "--quick",
+                        "--seeds",
+                        "1",
+                        "--only",
+                        "linear-100d,lognormal-rs",
+                        "--json",
+                        str(json_path),
+                        "--report",
+                        "-",
+                    ]
+                )
+            self.assertEqual(status, 0, buffer.getvalue())
+            payload = json.loads(json_path.read_text("utf-8"))
+            self.assertEqual(payload["meta"]["omitted_problems"], ["linear-100d"])
+            self.assertEqual([p["key"] for p in payload["problems"]], ["lognormal-rs"])
+            self.assertIn("full mode only, omitted: linear-100d", buffer.getvalue())
 
     def test_calibration_records(self) -> None:
         """Laplace on the linear-Gaussian problem is exact and covers the truth."""

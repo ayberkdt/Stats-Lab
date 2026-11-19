@@ -20,11 +20,14 @@ from probstat.inference import advi
 from probstat.propagation import propagate
 from probstat.reliability import (
     ak_mcs,
+    ak_ss,
     compare_reliability_methods,
+    directional_simulation,
     find_design_points,
     form_hlrf,
     mixture_importance_sampling,
     model_monte_carlo,
+    moving_particles,
     multi_point_form,
     series_system_bounds,
     system_failure_probability,
@@ -57,6 +60,12 @@ SIZES: dict[str, dict[str, Any]] = {
         "akmcs_max_population": 2_000,
         "akmcs_target_cov": 1.0,
         "akmcs_max_dimension": 2,
+        "mp_particles": 50,
+        "mp_steps": 5,
+        "ds_directions": 100,
+        "akss_samples": 500,
+        "akss_max_dimension": 0,
+        "dimension_budget": {"Crude MC": 10, "Multi-point FORM": 10, "Mixture IS": 10},
         "sobol_size": 256,
         "bootstrap": 50,
         "pce_degree": {
@@ -93,6 +102,12 @@ SIZES: dict[str, dict[str, Any]] = {
         "akmcs_max_population": 50_000,
         "akmcs_target_cov": 0.1,
         "akmcs_max_dimension": 10,
+        "mp_particles": 100,
+        "mp_steps": 20,
+        "ds_directions": 500,
+        "akss_samples": 1_000,
+        "akss_max_dimension": 6,
+        "dimension_budget": {"Crude MC": 10, "Multi-point FORM": 10, "Mixture IS": 10},
         "sobol_size": 2_048,
         "bootstrap": 200,
         "pce_degree": {
@@ -124,7 +139,8 @@ _ORIGIN_KINK = (
     "search inherits this",
 )
 EXPECTED_FAILURES: dict[tuple[str, str], tuple[str, str]] = {
-    ("four-branch", name): _ORIGIN_KINK
+    (problem, name): _ORIGIN_KINK
+    for problem in ("four-branch", "four-branch-k7")
     for name in (
         "FORM",
         "SORM (Breitung)",
@@ -332,6 +348,120 @@ def _akmcs(
         notes.append("not converged: " + result.message)
     return MethodOutput(
         {"Pf": Estimate(result.probability, result.standard_error)}, tuple(notes)
+    )
+
+
+def _dimension_budget(name: str) -> Callable[[Problem, Mapping[str, Any]], str | None]:
+    """Return a skip rule for a method whose cost grows quickly with ``d``.
+
+    The limit is ``sizes["dimension_budget"][name]``; a method without an
+    entry is never skipped.
+    """
+
+    def skip(problem: Problem, sizes: Mapping[str, Any]) -> str | None:
+        """Skip above the mode's dimension budget for this method."""
+        limit = sizes["dimension_budget"].get(name)
+        if limit is not None and problem.dimension > limit:
+            return (
+                f"skipped: d = {problem.dimension} exceeds this mode's {name} "
+                f"budget (d <= {limit})"
+            )
+        return None
+
+    return skip
+
+
+def _moving_particles(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Run moving particles; report its ideal c.o.v. and its Poisson interval."""
+    del problem
+    result = moving_particles(
+        instance["limit_state"],
+        sizes["mp_particles"],
+        steps=sizes["mp_steps"],
+        seed=seed,
+    )
+    notes = [
+        f"{result.moves} moves, acceptance {result.acceptance_rate:.2f}; the "
+        "reported error assumes exact conditional sampling"
+    ]
+    if not result.converged:
+        notes.append("not converged: max_moves reached (estimate biased upward)")
+    lower, upper = result.confidence_interval
+    return MethodOutput(
+        {
+            "Pf": Estimate(
+                result.probability,
+                result.coefficient_of_variation * result.probability,
+                (lower, upper),
+                result.confidence,
+            )
+        },
+        tuple(notes),
+    )
+
+
+def _directional(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Run directional simulation with its central-limit interval."""
+    del problem
+    result = directional_simulation(
+        instance["limit_state"], sizes["ds_directions"], seed=seed
+    )
+    lower, upper = result.confidence_interval
+    return MethodOutput(
+        {
+            "Pf": Estimate(
+                result.probability,
+                result.standard_error,
+                (lower, upper),
+                result.confidence,
+            )
+        },
+        (f"{result.rays} rays, radius_max {result.radius_max:.2f}",),
+    )
+
+
+def _akss_skip(problem: Problem, sizes: Mapping[str, Any]) -> str | None:
+    """Skip AK-SS outside its mode budget (seconds to minutes per run)."""
+    limit = sizes["akss_max_dimension"]
+    if limit < 1:
+        return (
+            "skipped: AK-SS runs only in full mode at this budget (seconds to "
+            "minutes per run in pure Python)"
+        )
+    if problem.dimension > limit:
+        return (
+            f"skipped: d = {problem.dimension} exceeds this mode's AK-SS budget "
+            f"(d <= {limit})"
+        )
+    return None
+
+
+def _akss(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Run AK-SS; its SE is the subset c.o.v. of the run on the surrogate."""
+    del problem
+    result = ak_ss(
+        instance["limit_state"], samples_per_level=sizes["akss_samples"], seed=seed
+    )
+    notes = [
+        f"{result.added} points added in {result.rounds} rounds, "
+        f"{result.levels} levels; SE excludes surrogate misclassification"
+    ]
+    if not result.converged:
+        notes.append("not converged: " + result.message)
+    return MethodOutput(
+        {
+            "Pf": Estimate(
+                result.probability,
+                result.coefficient_of_variation * result.probability,
+            )
+        },
+        tuple(notes),
     )
 
 
@@ -714,6 +844,7 @@ def registry() -> tuple[Method, ...]:
             "reliability",
             _multi_form,
             "approximation",
+            skip=_dimension_budget("Multi-point FORM"),
             deterministic=True,
         ),
         Method(
@@ -724,13 +855,28 @@ def registry() -> tuple[Method, ...]:
             _is_system,
             deterministic=True,
         ),
-        Method("Crude MC", "reliability", _crude_mc),
+        Method(
+            "Crude MC",
+            "reliability",
+            _crude_mc,
+            skip=_dimension_budget("Crude MC"),
+        ),
         Method("IS at design point", "reliability", _compare("is", "IS")),
-        Method("Mixture IS", "reliability", _mixture),
+        Method(
+            "Mixture IS",
+            "reliability",
+            _mixture,
+            skip=_dimension_budget("Mixture IS"),
+        ),
         Method("Subset simulation", "reliability", _compare("subset", "Subset")),
+        Method("Subset (aCS)", "reliability", _compare("acs", "Subset-aCS")),
+        Method("Subset (HMC)", "reliability", _compare("hmc-ss", "Subset-HMC")),
+        Method("Moving particles", "reliability", _moving_particles),
+        Method("Directional simulation", "reliability", _directional),
         Method("Line sampling", "reliability", _compare("line", "Line")),
         Method("CE-IS", "reliability", _compare("ce", "CE-IS")),
         Method("AK-MCS", "reliability", _akmcs, skip=_akmcs_skip),
+        Method("AK-SS", "reliability", _akss, skip=_akss_skip),
         Method("System MC", "reliability", _system("mc"), applies=_is_system),
         Method("System IS", "reliability", _system("is"), applies=_is_system),
         Method(
