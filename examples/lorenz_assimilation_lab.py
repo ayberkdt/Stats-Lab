@@ -616,9 +616,11 @@ def trajectory_figure(short: dict[str, Any], long: dict[str, Any]) -> str:
     theme.line(right, span, [s[0] for s in long["cycled"]], color=model)
     draw_truth(right, long["truth"], long["observations"])
     for window in range(1, LONG // SHORT):
-        right.axvline(
-            step * SHORT * window, color=palette.rule, linewidth=0.8, zorder=0
-        )
+        # The rules stop below the panel note.
+        right.vlines(
+            step * SHORT * window, -17.0, 17.0, color=palette.rule, linewidth=0.8,
+            zorder=0,
+        )  # fmt: skip
     theme.direct_labels(
         right,
         [
@@ -628,18 +630,21 @@ def trajectory_figure(short: dict[str, Any], long: dict[str, Any]) -> str:
         gap_points=13.0,
     )
     right.set_xlim(0.0, step * LONG)
+    # Head room above the highest grid line for the two panel notes.
+    right.set_ylim(-17.0, 24.0)
+    right.set_yticks([-15.0, -10.0, -5.0, 0.0, 5.0, 10.0, 15.0])
     theme.axis_labels(right, "Time (model units)", None)
     right.text(
         0.02, 0.97,
-        f"{LONG} intervals, seed {long['seed']}:\none window stops at J = "
-        f"{long['long'].cost:.0f},\nJ(truth) = {long['reference']:.0f}",
+        f"{LONG} intervals, seed {long['seed']}\nJ = {long['long'].cost:.0f}\n"
+        f"J(truth) = {long['reference']:.0f}",
         transform=right.transAxes, ha="left", va="top",
         fontsize=theme.ANNOTATION_SIZE, color=palette.ink,
     )  # fmt: skip
     theme.title_block(
         left,
-        "A short 4D-Var window pulls the background onto the truth; one long\n"
-        "window stops in a wrong minimum that four cycled short windows avoid",
+        "One long 4D-Var window stops in a wrong minimum;\nfour cycled short "
+        "windows track the truth",
         "Dashed accent: truth · dots: observed x, R = 0.25 · grey rules: starts "
         "of the cycled windows",
     )

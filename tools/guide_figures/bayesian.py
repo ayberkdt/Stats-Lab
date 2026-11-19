@@ -819,7 +819,9 @@ def _esmda_line_problem() -> tuple[Any, tuple[float, ...], Any]:
     model = ProbabilisticModel(prior, line, (QuantityOfInterest("y", "line"),))
     problem = CalibrationProblem(
         model,
-        tuple(Experiment({"y": y}, {"x": x}) for x, y in zip(ESMDA_X, data, strict=True)),
+        tuple(
+            Experiment({"y": y}, {"x": x}) for x, y in zip(ESMDA_X, data, strict=True)
+        ),
         (NoiseModel("y", standard_deviation=ESMDA_NOISE),),
     )
     rows = [(1.0, x) for x in ESMDA_X]
@@ -900,7 +902,9 @@ def _esmda_convergence() -> dict[str, Any]:
             distances.append(
                 math.sqrt(
                     math.fsum(
-                        d[i] * precision[i][j] * d[j] for i in range(2) for j in range(2)
+                        d[i] * precision[i][j] * d[j]
+                        for i in range(2)
+                        for j in range(2)
                     )
                 )
             )

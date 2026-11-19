@@ -9,7 +9,7 @@ adaptive Metropolis, ES-MDA, and ensemble Kalman inversion (EKI) with
 discrepancy stopping. Then the inverse crime is measured, and the pCN and
 random-walk acceptance rates are compared as the truncation grows. With
 Matplotlib two figures are written to ``examples/generated/``. Every random
-step is seeded; the run takes about two minutes in pure Python.
+step is seeded; the run takes about a minute and a half in pure Python.
 
 Definitions:
     Darcy problem: ``-(k(x) u'(x))' = 1`` on ``[0, 1]`` with ``u(0) = u(1) =
@@ -56,6 +56,8 @@ Equations:
     EQ-MCMC-PCN-002: warm-up adaptation of the pCN step.
     EQ-MCMC-AM-001: adaptive Metropolis proposal covariance.
     EQ-MCMC-MH-001: random-walk Metropolis acceptance (truncation study).
+    EQ-MCMC-ESS-002: bulk effective sample size of each coefficient.
+    EQ-MCMC-RHAT-002: rank-normalized R-hat of each coefficient.
     EQ-INV-ESMDA-001: ES-MDA update with inflated noise.
     EQ-INV-EKI-001: ensemble Kalman inversion update.
     EQ-INV-EKI-002: discrepancy-principle stopping of EKI.
@@ -77,7 +79,7 @@ Diagnostics:
       crime would matter with a coarser solver or fewer modes, where it hides
       a model error the noise model does not carry.
     - With ``SEED`` pCN mixes worse than adaptive Metropolis (smallest bulk
-      ESS 14 against 88, from more forward runs): seven precise readings make
+      ESS 14 against 89, from more forward runs): seven precise readings make
       the posterior much narrower than the prior in the leading modes, the
       regime in which the isotropic pCN move is slow. Its advantage is the
       truncation section: fixed-step acceptance rates of pCN and random-walk
@@ -86,13 +88,13 @@ Diagnostics:
 Cost and error:
     - One forward run is one Thomas solve on 64 cells plus the KL sum; the
       counts include the Laplace start of both MCMC runs.
-    - pCN: 4 chains x (1000 warm-up + 5000 draws); adaptive Metropolis: 4 x
+    - pCN: 4 chains x (1000 warm-up + 4000 draws); adaptive Metropolis: 4 x
       (1000 + 3000); ES-MDA: 200 members x 5 evaluations; EKI: 50 members,
       at most 20 updates. MCMC bands carry Monte Carlo error that the ESS
       quantifies; one data set and one truth (``SEED``) are shown.
     - Coverage is a fraction over 64 strongly correlated cells of one truth,
       not a coverage probability.
-    - Truncation study: one chain of 500 warm-up and 1500 draws per sampler
+    - Truncation study: one chain of 300 warm-up and 1200 draws per sampler
       and ``M``, from the prior mean; acceptance rates carry the error of one
       short run.
 
@@ -127,8 +129,10 @@ from typing import Any
 from probstat.foundations import RandomStream
 from probstat.inference import (
     ConvergenceWarning,
+    bulk_effective_sample_size,
     preconditioned_crank_nicolson,
     random_walk_metropolis,
+    rank_normalized_rhat,
 )
 from probstat.inverse import (
     CalibrationProblem,
@@ -542,20 +546,25 @@ def methods_section(inversion: Inversion, truth: Truth) -> list[FieldSummary]:
     """
     problem = inversion.problem
     summaries = []
+    seconds: list[float] = []
     print("2. Four inversions of the same data (12 KL coefficients)")
-    for method, draws in (("pcn", 5000), ("adaptive-metropolis", 3000)):
+    for method, draws in (("pcn", 4000), ("adaptive-metropolis", 3000)):
         with warnings.catch_warnings():
             # Short chains are part of the comparison; their ESS and R-hat
             # are printed instead of raised.
             warnings.simplefilter("ignore", ConvergenceWarning)
+            began = time.perf_counter()
             posterior, runs = inversion.counted(
                 lambda method=method, draws=draws: problem.sample_posterior(
                     method=method, draws=draws, warmup=1000, chains=4, seed=SEED
                 )
             )
-        summary = posterior.summary()
-        ess = min(item.effective_sample_size for item in summary)
-        rhat = max(item.rank_normalized_rhat for item in summary)
+            seconds.append(time.perf_counter() - began)
+        # Bulk ESS and rank-normalized R-hat only: the full summary adds
+        # tail and quantile diagnostics that cost more than the chains.
+        columns = [posterior.mcmc.chain_columns(name) for name in posterior.mcmc.names]
+        ess = min(bulk_effective_sample_size(chains) for chains in columns)
+        rhat = max(rank_normalized_rhat(chains) for chains in columns)
         label = "pCN" if method == "pcn" else "adaptive Metropolis"
         note = (
             f"acceptance {posterior.mcmc.acceptance_rate:.3f}, min bulk ESS "
@@ -576,17 +585,21 @@ def methods_section(inversion: Inversion, truth: Truth) -> list[FieldSummary]:
                 inversion, thinned(posterior.mcmc.pooled(), 2000), label, runs, short
             )
         )
+    began = time.perf_counter()
     smoother, runs = inversion.counted(
         lambda: ensemble_smoother_mda(
             problem, ensemble_size=200, inflation_coefficients=(4.0,) * 4, seed=SEED
         )
     )
+    seconds.append(time.perf_counter() - began)
     summaries.append(summarize(inversion, smoother.ensemble, "ES-MDA", runs, "N = 200"))
+    began = time.perf_counter()
     eki, runs = inversion.counted(
         lambda: ensemble_kalman_inversion(
             problem, ensemble_size=50, iterations=20, seed=SEED, stopping="discrepancy"
         )
     )
+    seconds.append(time.perf_counter() - began)
     note = (
         f"N = 50, stopped by {eki.stopped_by} after {eki.updates} updates "
         f"(misfit {eki.misfit_history[-1]:.2f} <= {eki.discrepancy_threshold:.2f})"
@@ -595,13 +608,17 @@ def methods_section(inversion: Inversion, truth: Truth) -> list[FieldSummary]:
     summaries.append(
         summarize(inversion, eki.ensemble, "EKI", runs, f"{eki.updates} updates")
     )
-    print("   method               runs   RMSE of mean   90% coverage   band width")
-    for item in summaries:
+    print(
+        "   method               runs   seconds   RMSE of mean   90% coverage   "
+        "band width"
+    )
+    for item, elapsed in zip(summaries, seconds, strict=True):
         print(
-            f"   {item.name:19s} {item.runs:6d}   {item.rmse(truth.coarse):12.3f}   "
-            f"{item.coverage(truth.coarse):12.3f}   {item.width():10.3f}"
+            f"   {item.name:19s} {item.runs:6d}   {elapsed:7.1f}   "
+            f"{item.rmse(truth.coarse):12.3f}   {item.coverage(truth.coarse):12.3f}   "
+            f"{item.width():10.3f}"
         )
-    print(f"   prior (mean 0)      {0:6d}   {rms(truth.coarse):12.3f}\n")
+    print(f"   prior (mean 0)      {0:6d}   {0.0:7.1f}   {rms(truth.coarse):12.3f}\n")
     return summaries
 
 
@@ -663,7 +680,7 @@ def truncation_section(
         problem = inversion.problem
         start = tuple(0.0 for _ in range(terms))
         pcn = preconditioned_crank_nicolson(
-            problem.standard_log_likelihood, start, draws=1500, warmup=500, chains=1,
+            problem.standard_log_likelihood, start, draws=1200, warmup=300, chains=1,
             step=0.2, adapt=False, seed=SEED + 1, check_convergence=False,
         )  # fmt: skip
         covariance = [
@@ -671,7 +688,7 @@ def truncation_section(
         ]
         walk = random_walk_metropolis(
             problem.standard_log_posterior, start, proposal_covariance=covariance,
-            draws=1500, warmup=500, chains=1, seed=SEED + 1, check_convergence=False,
+            draws=1200, warmup=300, chains=1, seed=SEED + 1, check_convergence=False,
         )  # fmt: skip
         pcn_rates.append(pcn.acceptance_rate)
         walk_rates.append(walk.acceptance_rate)
@@ -745,13 +762,13 @@ def field_figure(truth: Truth, summaries: Sequence[FieldSummary]) -> str:
             color=palette.muted, marker="^", size=30.0,
         )  # fmt: skip
         axes.set_xlim(0.0, 1.0)
-        axes.set_ylim(bottom, high + 1.5)
+        axes.set_ylim(bottom, high + 2.4)
         axes.set_xticks([0.0, 0.25, 0.5, 0.75, 1.0])
         axes.set_xticklabels(["0.00", "0.25", "0.50", "0.75", "1.00"])
         axes.text(
             0.03, 0.97,
-            f"{summary.name} · {summary.runs} runs · {summary.note}\n"
-            f"RMSE {summary.rmse(truth.coarse):.2f} · band covers "
+            f"{summary.name} · {summary.runs} runs\n{summary.note} · "
+            f"RMSE {summary.rmse(truth.coarse):.2f}\nband covers "
             f"{summary.coverage(truth.coarse):.0%} of cells",
             transform=axes.transAxes, ha="left", va="top",
             fontsize=theme.ANNOTATION_SIZE, fontweight="semibold", color=palette.ink,
@@ -763,10 +780,9 @@ def field_figure(truth: Truth, summaries: Sequence[FieldSummary]) -> str:
     errors = [s.rmse(truth.coarse) for s in summaries]
     theme.title_block(
         grid[0][0],
-        f"All four methods recover the large-scale field (RMSE {min(errors):.2f}-"
-        f"{max(errors):.2f});\nES-MDA and EKI need {summaries[2].runs} and "
-        f"{summaries[3].runs} forward runs, MCMC over "
-        f"{min(summaries[0].runs, summaries[1].runs) // 1000 * 1000}",
+        "All four methods recover the large-scale field\n"
+        f"(RMSE {min(errors):.2f}-{max(errors):.2f}); the ensembles use "
+        f"{summaries[3].runs}-{summaries[2].runs} runs",
         "Band: 90% pointwise (EKI: ensemble spread) · dashed: true field, 256 "
         "cells · triangles: the 7 readings",
     )
@@ -818,7 +834,7 @@ def acceptance_figure(rates: dict[str, tuple[float, ...]]) -> str:
         axes,
         f"Adding prior-dominated modes leaves pCN near {rates['pcn'][-1]:.2f}; the "
         f"random walk falls from {rates['walk'][0]:.2f} to {rates['walk'][-1]:.2f}",
-        "Darcy inversion, same data · one chain per point, 500 warm-up + 1500 "
+        "Darcy inversion, same data · one chain per point, 300 warm-up + 1200 "
         f"draws from the prior mean, seed {SEED + 1}",
     )
     return save(axes.figure, "field-inversion-acceptance.png")
