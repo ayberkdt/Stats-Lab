@@ -3,7 +3,14 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
-## [Unreleased]
+## [0.25.0] — 2026-11-19
+
+AK-SS brings active learning to very small failure probabilities, a
+laboratory and a benchmark compare the modern rare-event methods on equal
+terms, two new laboratories work the parachute V&V-UQ and GPS positioning
+examples end to end, and the R parity suite grows to 155 cases with all nine
+quantile definitions, the r x c Fisher test, Fligner-Killeen, and Welch's
+ANOVA.
 
 ### Added
 
