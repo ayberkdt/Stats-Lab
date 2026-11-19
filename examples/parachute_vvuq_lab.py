@@ -8,17 +8,24 @@ horizontal wind ``s_w``. The modelled landing abscissa ``y_mod`` solves
 
 and the simulated abscissa ``y_sim`` replaces the exact solution by explicit
 Euler steps of size ``dt`` (the example of the ATHENS course "Introduction to
-V&V-UQ"). The laboratory answers the course's three questions with the
-library and with checks whose answers are known:
+V&V-UQ", REF-PERRIN-ATHENS-VVUQ). The laboratory answers the course's three
+questions with the library and with checks whose answers are known:
 
 1. **Verification.** Does ``y_sim`` converge to ``y_mod`` as ``dt -> 0``, at
-   which order, and how should ``dt`` be chosen? Euler with the ground
-   crossing interpolated linearly in the last step is compared with a
-   fourth-order Runge-Kutta (RK4) reference whose crossing is located on the
-   cubic Hermite interpolant; the observed order, Richardson extrapolation,
-   and the Grid Convergence Index (GCI) come from ``probstat.uq``; ``dt`` is
-   the largest step whose verified error bound stays below 5% of the
-   parametric standard deviation and inside the Euler stability limit.
+   which order, and how should ``dt`` be chosen? *Code verification* first
+   checks the solver against exact solutions of simplified models: linear
+   drag (closed form through the Lambert W function) must show the
+   theoretical orders 1, 2, and 4 of Euler, Heun, and fourth-order
+   Runge-Kutta (RK4); the drag-free parabola must be reproduced; the
+   quadratic-drag package must land at its terminal speed. *Solution
+   verification* then estimates the error of Euler, with the ground crossing
+   interpolated linearly in the last step, on the real model, which has no
+   closed form: the observed order, Richardson extrapolation, and the Grid
+   Convergence Index (GCI) come from ``probstat.uq`` and are checked against
+   an RK4 reference whose crossing is located on the cubic Hermite
+   interpolant. ``dt`` is the largest step whose verified error bound stays
+   below 5% of the parametric standard deviation and inside the Euler
+   stability limit.
 2. **Propagation.** Stated laws (wind aleatory; dropping position, plane
    speed, mass, and drag epistemic) are pushed through the simulator with a
    randomized Sobol design: the 90% landing interval ``I_alpha`` and the
@@ -42,6 +49,14 @@ Definitions:
     ``y_mod``: exact landing abscissa of the model; ``y_sim(dt)``: Euler
         approximation; the RK4 Hermite solution at ``dt = 0.001 s`` stands in
         for ``y_mod``.
+    code verification: comparison of the solver with exact solutions of
+        simplified models (linear drag ``m x'' = m g - k (x' - s_w)`` with
+        ``k = 10 kg/s``; no drag); the observed order against an exact
+        value is ``log2(|e(dt)| / |e(dt/2)|)``.
+    solution verification: estimation of the numerical error of the real
+        model from the solutions on several steps, without an exact value.
+    terminal speed ``v_t = sqrt(m g / A)``: the fall speed relative to the
+        air at which quadratic drag balances weight.
     event location: "first step below ground" reports the first grid point
         with ``z <= 0``; "linear" interpolates the last step; "Hermite"
         uses the cubic Hermite interpolant of the step.
@@ -77,6 +92,12 @@ Assumptions:
       the predictive variance of each drop plus the measurement variance;
       their priors are ``N(0, 30^2)`` m for the bias and ``N(0, 15^2)`` s for
       the wind coefficient.
+    - The order-statistic intervals of the limits of ``I_alpha`` treat the
+      randomized Sobol points as independent draws; they are read as
+      approximate.
+    - Code verification on linear drag tests the solver, not the drag law:
+      the same ``integrate_to_event`` code runs both models, and only the
+      right-hand side differs.
     - The calibration campaign that fits the model error and the validation
       campaign that judges it are separate draws.
 
@@ -88,6 +109,7 @@ Equations:
     EQ-LAB-PARA-003: power-law wind profile of the synthetic truth.
     EQ-LAB-PARA-004: Euler stability limit of the drag transient.
     EQ-LAB-PARA-005: verified error bound of a production step.
+    EQ-LAB-PARA-006: terminal speed under quadratic drag.
     EQ-VV-001: observed order under uniform refinement.
     EQ-VV-002: Richardson extrapolation.
     EQ-VV-GCI-002: three-grid observed order.
@@ -107,7 +129,11 @@ Equations:
     EQ-STAT-QUANT-001: sample quantiles of the predictive laws.
 
 Diagnostics:
-    - Verification: the error ratio under halving (2 for Euler, 16 for
+    - Code verification: the observed orders under linear drag must lie
+      within about 0.3 of 1, 2, and 4; Heun and RK4 with Hermite location
+      reproduce the drag-free landing to rounding; the landing speed equals
+      ``sqrt(m g / A)`` and the drift relative to the air vanishes.
+    - Solution verification: the error ratio under halving (2 for Euler, 16 for
       RK4), the observed order of successive triplets, the asymptotic-range
       warnings of ``verify_solution``, and whether the GCI band contains the
       RK4 reference.
@@ -123,10 +149,13 @@ Diagnostics:
       truth landings with its binomial standard error.
 
 Cost and error:
-    - About 30 to 60 s in pure Python; the run prints its wall-clock time.
-      Euler at ``dt = 0.05 s`` takes about 650 steps (1.5 ms) per landing.
-    - Verification: 6 steps x 4 schemes at the nominal inputs and
-      5 steps x 17 corner points for the step choice.
+    - About 100 s in pure Python on a desktop computer; the run prints its
+      wall-clock time. Euler at ``dt = 0.05 s`` takes about 650 steps per
+      landing.
+    - Code verification: 4 steps x 3 schemes under linear drag, 6 drag-free
+      runs, and one reference run. Solution verification: 6 steps x 4
+      schemes at the nominal inputs and 5 steps x 17 points for the step
+      choice.
     - Propagation: 1024 Sobol points (plus 1024 reference runs); Sobol
       indices: 512 rows x 8 = 4096 runs in 8 randomizations.
     - Validation: 2 campaigns x 12 drops x 200 predictive runs, 3 winds x
@@ -140,6 +169,8 @@ References:
     REF-PERRIN-ATHENS-VVUQ: the parachuted-package example and its questions.
     REF-HAIRER-NORSETT-WANNER-1993: explicit Runge-Kutta methods, dense
         output, and event location.
+    REF-HAIRER-WANNER-1996: stability limit of explicit methods.
+    REF-DOWELL-JARRATT-1971: Illinois root finding inside the last step.
     REF-ROACHE-1998: grid convergence index and Richardson extrapolation.
     REF-CELIK-ETAL-2008: the three-grid procedure.
     REF-ECA-HOEKSTRA-2014: least-squares observed order.
@@ -190,7 +221,6 @@ from probstat.uq import (
     verify_solution,
 )
 from probstat.validation import (
-    AdditiveGaussianDiscrepancy,
     ValidationAssessment,
     ValidationExperiment,
     assess_predictions,
@@ -207,6 +237,8 @@ NOMINAL = {"x0": 0.0, "z_a": 300.0, "s_p": 60.0, "s_w": 5.0, "m": 100.0, "A": 10
 STEP_LADDER = (0.2, 0.1, 0.05, 0.025, 0.0125, 0.00625)
 CANDIDATE_STEPS = (0.1, 0.05, 0.025)
 REFERENCE_STEP = 0.001
+CODE_LADDER = (0.2, 0.1, 0.05, 0.025)
+LINEAR_DAMPING = 10.0
 TOLERANCE_FRACTION = 0.05
 ALPHA = 0.10
 WIND_MEAN = 5.0
@@ -234,6 +266,11 @@ SCHEMES = (
     ("Euler, linear", "euler", "linear"),
     ("Euler, first step below", "euler", "step"),
     ("RK4, first step below", "rk4", "step"),
+    ("RK4, Hermite", "rk4", "hermite"),
+)
+CODE_SCHEMES = (
+    ("Euler, linear", "euler", "linear"),
+    ("Heun, Hermite", "heun", "hermite"),
     ("RK4, Hermite", "rk4", "hermite"),
 )
 STRUCTURES = ("parametric only", "Gaussian inflation", "constant bias", "bias ~ wind")
@@ -513,6 +550,30 @@ def linear_drag_landing(
     return x0 + wind * landing + (plane_speed - wind) * tau * decay, landing
 
 
+def terminal_speed(mass: float, drag: float) -> float:
+    """Return the terminal speed of quadratic drag in still air relative to it.
+
+    ``v_t = sqrt(m g / A)``: the speed at which drag balances weight. Once
+    the horizontal relative velocity has decayed, the package falls at
+    ``v_t`` relative to the air.
+
+    Args:
+        mass: Mass (kg).
+        drag: Drag factor ``A`` (kg/m).
+
+    Returns:
+        Terminal speed (m/s).
+
+    Equation:
+        [EQ-LAB-PARA-006].
+
+    References:
+        [EQ-LAB-PARA-006], [REF-HALLIDAY-RESNICK-WALKER-2014].
+
+    """
+    return math.sqrt(mass * GRAVITY / drag)
+
+
 def stability_limit(parameters: Mapping[str, float]) -> float:
     """Return the largest stable Euler step at the start of the fall.
 
@@ -531,7 +592,7 @@ def stability_limit(parameters: Mapping[str, float]) -> float:
         [EQ-LAB-PARA-004].
 
     References:
-        [EQ-LAB-PARA-004], [REF-HAIRER-NORSETT-WANNER-1993, Section II.1].
+        [EQ-LAB-PARA-004], [REF-HAIRER-WANNER-1996, Section IV.2].
 
     """
     relative = abs(parameters["s_p"] - parameters["s_w"])
@@ -585,8 +646,107 @@ def probabilistic_model(dt: float, *, conditional: bool = False) -> Probabilisti
 
 
 @dataclass(frozen=True)
+class CodeVerification:
+    """Code verification: the solver against closed-form solutions.
+
+    Args:
+        linear_exact: Exact landing abscissa under linear drag (m).
+        linear_errors: Error of each scheme of ``CODE_SCHEMES`` on
+            ``CODE_LADDER`` under linear drag (m).
+        linear_orders: Observed order ``log2(|e(dt)| / |e(dt/2)|)`` of each
+            scheme for each halving.
+        drag_free: ``(scheme, dt, error)`` without drag or wind, against the
+            closed form (m).
+        terminal: Vertical speed at landing of the quadratic-drag reference
+            and the terminal speed ``sqrt(m g / A)`` (m/s).
+        drift: Horizontal speed relative to the air at landing (m/s).
+
+    References:
+        [EQ-LAB-PARA-001], [EQ-LAB-PARA-002], [EQ-LAB-PARA-006],
+        [REF-ROACHE-1998].
+
+    """
+
+    linear_exact: float
+    linear_errors: dict[str, tuple[float, ...]]
+    linear_orders: dict[str, tuple[float, ...]]
+    drag_free: tuple[tuple[str, float, float], ...]
+    terminal: tuple[float, float]
+    drift: float
+
+
+def run_code_verification() -> CodeVerification:
+    """Compare the solver with exact solutions of simplified models.
+
+    Linear drag ``m x'' = m g - k (x' - s_w)`` has the closed-form landing
+    of :func:`linear_drag_landing`, so the error of each scheme is known
+    exactly and its observed order must match the theoretical one (Euler 1,
+    Heun 2, RK4 with Hermite location 4). Without drag the trajectory is a
+    parabola, which the cubic Hermite interpolant reproduces to rounding.
+    The quadratic-drag reference must land at the terminal speed.
+
+    Returns:
+        The code-verification evidence.
+
+    References:
+        [EQ-LAB-PARA-001], [EQ-LAB-PARA-002], [EQ-LAB-PARA-006],
+        [EQ-NUM-ODE-001], [EQ-NUM-ODE-002], [REF-ROACHE-1998].
+
+    """
+    linear = {**NOMINAL, "A": LINEAR_DAMPING}
+    exact, _ = linear_drag_landing(
+        linear["x0"],
+        linear["z_a"],
+        linear["s_p"],
+        linear["s_w"],
+        linear["m"],
+        LINEAR_DAMPING,
+    )
+    errors = {
+        label: tuple(
+            landing_abscissa(
+                linear, dt=dt, method=method, location=location, drag="linear"
+            )
+            - exact
+            for dt in CODE_LADDER
+        )
+        for label, method, location in CODE_SCHEMES
+    }
+    orders = {
+        label: tuple(
+            math.log2(abs(values[i]) / abs(values[i + 1]))
+            for i in range(len(values) - 1)
+        )
+        for label, values in errors.items()
+    }
+    free = drag_free_landing(NOMINAL["x0"], NOMINAL["z_a"], NOMINAL["s_p"])
+    vacuum = {**NOMINAL, "A": 0.0, "s_w": 0.0}
+    drag_free = tuple(
+        (
+            label,
+            dt,
+            landing_abscissa(vacuum, dt=dt, method=method, location=location) - free,
+        )
+        for label, method, location in CODE_SCHEMES
+        for dt in (0.1, 0.05)
+    )
+    landing = simulate_drop(
+        NOMINAL, dt=REFERENCE_STEP, method="rk4", location="hermite"
+    )
+    _, _, u, w = landing.state
+    return CodeVerification(
+        exact,
+        errors,
+        orders,
+        drag_free,
+        (-w, terminal_speed(NOMINAL["m"], NOMINAL["A"])),
+        u - NOMINAL["s_w"],
+    )
+
+
+@dataclass(frozen=True)
 class Verification:
-    """Convergence study at the nominal inputs.
+    """Solution verification at the nominal inputs.
 
     Args:
         reference: RK4 Hermite landing abscissa at ``REFERENCE_STEP``.
@@ -598,8 +758,6 @@ class Verification:
         gci: Three-grid GCI of the same triplet.
         least_squares: Least-squares order of the four finest Euler grids.
         richardson: Richardson extrapolation of the two finest Euler grids.
-        drag_free: ``(scheme, dt, error)`` without drag, against the closed
-            form.
 
     References:
         [EQ-VV-001], [EQ-VV-GCI-004], [REF-ROACHE-1998].
@@ -614,7 +772,6 @@ class Verification:
     gci: GridConvergenceResult
     least_squares: LeastSquaresConvergence
     richardson: float
-    drag_free: tuple[tuple[str, float, float], ...]
 
 
 def run_verification() -> Verification:
@@ -660,17 +817,6 @@ def run_verification() -> Verification:
     richardson = richardson_extrapolation(
         euler[-2], euler[-1], refinement_ratio=2.0, order=1.0
     )
-    exact = drag_free_landing(NOMINAL["x0"], NOMINAL["z_a"], NOMINAL["s_p"])
-    vacuum = {**NOMINAL, "A": 0.0, "s_w": 0.0}
-    drag_free = tuple(
-        (
-            f"{method}, {location}",
-            dt,
-            landing_abscissa(vacuum, dt=dt, method=method, location=location) - exact,
-        )
-        for method, location in (("euler", "linear"), ("rk4", "linear"), ("rk4", "hermite"))
-        for dt in (0.1, 0.05)
-    )
     return Verification(
         reference,
         abs(coarser - reference),
@@ -680,7 +826,6 @@ def run_verification() -> Verification:
         gci,
         least_squares,
         richardson,
-        drag_free,
     )
 
 
@@ -745,14 +890,18 @@ def box_points() -> list[dict[str, float]]:
     """
     wind = Normal(WIND_MEAN, WIND_SD)
     points = [dict(NOMINAL)]
-    for speed, drag, mass, level in product((55.0, 65.0), (8.0, 12.0), (95.0, 105.0), (0.05, 0.95)):
+    for speed, drag, mass, level in product(
+        (55.0, 65.0), (8.0, 12.0), (95.0, 105.0), (0.05, 0.95)
+    ):
         points.append(
             {**NOMINAL, "s_p": speed, "A": drag, "m": mass, "s_w": wind.quantile(level)}
         )
     return points
 
 
-def step_bound(parameters: Mapping[str, float], dt: float) -> tuple[float, SolutionVerification]:
+def step_bound(
+    parameters: Mapping[str, float], dt: float
+) -> tuple[float, SolutionVerification]:
     """Return the verified error bound ``B(dt)`` of a production step.
 
     ``B(dt) = |y(dt) - y_ext| + U`` with ``y_ext`` and ``U`` from
@@ -775,7 +924,9 @@ def step_bound(parameters: Mapping[str, float], dt: float) -> tuple[float, Solut
     spacings = (dt, dt / 2.0, dt / 4.0)
     values = [landing_abscissa(parameters, dt=h) for h in spacings]
     statement = verify_solution("y", spacings, values, theoretical_order=1.0)
-    extrapolated = statement.extrapolated if statement.extrapolated is not None else values[-1]
+    extrapolated = (
+        statement.extrapolated if statement.extrapolated is not None else values[-1]
+    )
     return abs(values[0] - extrapolated) + statement.expanded_uncertainty, statement
 
 
@@ -794,11 +945,17 @@ def choose_step(seed: RandomStream) -> StepChoice:
     """
     pilot = ProbabilisticModel(
         input_law(),
-        lambda p: {"y": landing_abscissa(p, dt=TRUTH_STEP, method="rk4", location="hermite")},
+        lambda p: {
+            "y": landing_abscissa(p, dt=TRUTH_STEP, method="rk4", location="hermite")
+        },
         (QOI,),
         name="rk4-pilot",
     )
-    pilot_sd = UQStudy(pilot, seed=seed).propagate(PILOT_SIZE, design="lhs")["y"].standard_deviation
+    pilot_sd = (
+        UQStudy(pilot, seed=seed)
+        .propagate(PILOT_SIZE, design="lhs")["y"]
+        .standard_deviation
+    )
     tolerance = TOLERANCE_FRACTION * pilot_sd
     points = box_points()
     stability = min(stability_limit(point) for point in points)
@@ -815,7 +972,9 @@ def choose_step(seed: RandomStream) -> StepChoice:
             errors.append(abs(landing_abscissa(point, dt=dt) - reference))
         holds = sum(b >= e for b, e in zip(bounds, errors, strict=True))
         candidates.append(
-            StepCandidate(dt, max(bounds), max(errors), holds, len(points), dt < stability)
+            StepCandidate(
+                dt, max(bounds), max(errors), holds, len(points), dt < stability
+            )
         )
     admissible = [c.step for c in candidates if c.stable and c.bound <= tolerance]
     chosen = max(admissible) if admissible else min(CANDIDATE_STEPS)
@@ -856,7 +1015,9 @@ class Propagation:
     evaluations: int
 
 
-def sobol_index(sobol: ModelSobolResult, name: str) -> tuple[IndexInterval, IndexInterval]:
+def sobol_index(
+    sobol: ModelSobolResult, name: str
+) -> tuple[IndexInterval, IndexInterval]:
     """Return the first-order and total-effect intervals of one input.
 
     References:
@@ -955,7 +1116,11 @@ def true_landing(drop: Mapping[str, float]) -> float:
 
     """
     return landing_abscissa(
-        drop, dt=TRUTH_STEP, method="rk4", location="hermite", wind_profile=power_law_wind
+        drop,
+        dt=TRUTH_STEP,
+        method="rk4",
+        location="hermite",
+        wind_profile=power_law_wind,
     )
 
 
@@ -1081,13 +1246,16 @@ class ErrorStructure:
         if self.inflation:
             return f"delta ~ N(0, {self.inflation:.1f}^2) m"
         if self.slope[1]:
-            return f"delta = beta s_w, beta = {self.slope[0]:.2f} +/- {self.slope[1]:.2f} s"
+            mean, sd = self.slope
+            return f"delta = beta s_w, beta = {mean:.2f} +/- {sd:.2f} s"
         if self.offset[1]:
             return f"delta = b, b = {self.offset[0]:.1f} +/- {self.offset[1]:.1f} m"
         return "delta = 0"
 
 
-def fit_structures(campaign: Campaign, seed: RandomStream) -> tuple[ErrorStructure, ...]:
+def fit_structures(
+    campaign: Campaign, seed: RandomStream
+) -> tuple[ErrorStructure, ...]:
     """Fit the three model-error structures on the calibration campaign.
 
     The bias terms use the conjugate posterior of a Gaussian linear model
@@ -1210,7 +1378,9 @@ def coverage(values: Sequence[float], interval: tuple[float, float]) -> float:
     return sum(low <= value <= high for value in values) / len(values)
 
 
-def run_validation(dt: float, propagation: Propagation, root: RandomStream) -> Validation:
+def run_validation(
+    dt: float, propagation: Propagation, root: RandomStream
+) -> Validation:
     """Compare the simulator with the synthetic truth and fit the model error.
 
     Args:
@@ -1232,7 +1402,8 @@ def run_validation(dt: float, propagation: Propagation, root: RandomStream) -> V
     truth = tuple(true_landing(draw_drop(truth_rng)) for _ in range(TRUTH_DROPS))
     unit = Normal(0.0, 1.0)
     test_winds = tuple(
-        WIND_MEAN + WIND_SD * unit.quantile(level) for level in (1.0 / 6.0, 0.5, 5.0 / 6.0)
+        WIND_MEAN + WIND_SD * unit.quantile(level)
+        for level in (1.0 / 6.0, 0.5, 5.0 / 6.0)
     )
     conditional_model = probabilistic_model(dt, conditional=True)
     conditional_predictions = [
@@ -1258,7 +1429,9 @@ def run_validation(dt: float, propagation: Propagation, root: RandomStream) -> V
         rng = root.child("model-error", index).generator()
         corrected = [
             [y + structure.draw(wind, rng) for y in sample]
-            for sample, wind in zip(validation.predictions, validation.winds, strict=True)
+            for sample, wind in zip(
+                validation.predictions, validation.winds, strict=True
+            )
         ]
         assessment = assess_predictions(
             "y",
@@ -1271,17 +1444,23 @@ def run_validation(dt: float, propagation: Propagation, root: RandomStream) -> V
         )
         unconditional = [
             y + structure.draw(wind, rng)
-            for y, wind in zip(propagation.output.values, propagation.winds, strict=True)
+            for y, wind in zip(
+                propagation.output.values, propagation.winds, strict=True
+            )
         ]
         interval = equal_tailed(unconditional)
         conditional = tuple(
-            coverage(observed, equal_tailed([y + structure.draw(wind, rng) for y in sample]))
+            coverage(
+                observed, equal_tailed([y + structure.draw(wind, rng) for y in sample])
+            )
             for sample, observed, wind in zip(
                 conditional_predictions, conditional_truth, test_winds, strict=True
             )
         )
         checks.append(
-            StructureCheck(structure, assessment, interval, coverage(truth, interval), conditional)
+            StructureCheck(
+                structure, assessment, interval, coverage(truth, interval), conditional
+            )
         )
     return Validation(
         calibration,
@@ -1305,7 +1484,8 @@ class LabResults:
     """Every result of the laboratory.
 
     Args:
-        verification: Convergence study.
+        code: Code verification against closed forms.
+        verification: Solution verification at the nominal inputs.
         step: Step choice.
         propagation: Forward propagation at the chosen step.
         validation: Validation and model-error structures.
@@ -1315,6 +1495,7 @@ class LabResults:
 
     """
 
+    code: CodeVerification
     verification: Verification
     step: StepChoice
     propagation: Propagation
@@ -1335,11 +1516,12 @@ def run_analysis(seed: int = SEED) -> LabResults:
 
     """
     root = RandomStream(seed)
+    code = run_code_verification()
     verification = run_verification()
     step = choose_step(root.child("pilot"))
     propagation = run_propagation(step.chosen, root.child("study"))
     validation = run_validation(step.chosen, propagation, root)
-    return LabResults(verification, step, propagation, validation)
+    return LabResults(code, verification, step, propagation, validation)
 
 
 def binomial_se(fraction: float, count: int) -> float:
@@ -1359,8 +1541,31 @@ def print_report(results: LabResults) -> None:
         [REF-PERRIN-ATHENS-VVUQ].
 
     """
+    c = results.code
+    print("1a. Code verification against closed-form solutions")
+    print(
+        f"   linear drag (k = {LINEAR_DAMPING:g} kg/s), exact landing "
+        f"{c.linear_exact:.6f} m (Lambert W)"
+    )
+    print("   dt [s]   " + "".join(f"{label:>16}" for label, _, _ in CODE_SCHEMES))
+    for index, dt in enumerate(CODE_LADDER):
+        row = "".join(
+            f"{c.linear_errors[label][index]:>16.3e}" for label, _, _ in CODE_SCHEMES
+        )
+        print(f"   {dt:<9g}{row}")
+    for label, _, _ in CODE_SCHEMES:
+        orders = ", ".join(f"{p:.2f}" for p in c.linear_orders[label])
+        print(f"   observed order, {label}: {orders}")
+    for label, dt, error in c.drag_free:
+        print(f"   no drag, {label}, dt = {dt:g} s: error {error:+.2e} m")
+    speed, limit = c.terminal
+    print(
+        f"   quadratic drag: landing speed {speed:.6f} m/s against terminal speed "
+        f"sqrt(m g / A) = {limit:.6f} m/s; drift relative to the air {c.drift:+.1e} m/s"
+    )
+
     v = results.verification
-    print("1. Verification at the nominal inputs")
+    print("\n1b. Solution verification at the nominal inputs")
     print(
         f"   reference y_mod = {v.reference:.4f} m (RK4 Hermite, dt = "
         f"{REFERENCE_STEP:g} s; change on doubling dt {v.reference_change:.1e} m)"
@@ -1372,13 +1577,24 @@ def print_report(results: LabResults) -> None:
         print(f"   {dt:<9g}{row}")
     for label, _, _ in SCHEMES:
         errors = v.errors[label]
-        ratios = ", ".join(f"{errors[i] / errors[i + 1]:.2f}" for i in range(1, len(errors) - 1))
+        ratios = ", ".join(
+            f"{errors[i] / errors[i + 1]:.2f}" for i in range(1, len(errors) - 1)
+        )
         print(f"   error ratio under halving, {label}: {ratios}")
     print(
         "   observed Euler order of successive triplets: "
         + ", ".join(f"{p:.2f}" for p in v.euler_orders)
     )
     print(f"   {v.statement.summary()}")
+    band = (
+        v.statement.fine_value - v.statement.expanded_uncertainty,
+        v.statement.fine_value + v.statement.expanded_uncertainty,
+    )
+    inside = band[0] <= v.reference <= band[1]
+    print(
+        f"   band [{band[0]:.4f}, {band[1]:.4f}] m "
+        f"{'contains' if inside else 'misses'} the RK4 reference"
+    )
     print(
         f"   GCI (dt = {STEP_LADDER[-1]:g} s): {v.gci.gci_fine:.3f} m; true error "
         f"{abs(v.errors['Euler, linear'][-1]):.3f} m; extrapolated "
@@ -1393,8 +1609,6 @@ def print_report(results: LabResults) -> None:
         f"(error {v.richardson - v.reference:+.4f} m, against "
         f"{v.errors['Euler, linear'][-1]:+.4f} m for the finest grid)"
     )
-    for label, dt, error in v.drag_free:
-        print(f"   drag-free check, {label}, dt = {dt:g} s: error {error:+.2e} m")
 
     s = results.step
     print("\n   Step choice over 17 points of the input box")
@@ -1427,8 +1641,9 @@ def print_report(results: LabResults) -> None:
     for name in p.sobol.ranking():
         first, total = sobol_index(p.sobol, name)
         print(
-            f"   {name:>4}: S1 = {first.estimate:.3f} [{first.lower:.3f}, {first.upper:.3f}]"
-            f", ST = {total.estimate:.3f} [{total.lower:.3f}, {total.upper:.3f}]"
+            f"   {name:>4}: S1 = {first.estimate:.3f} "
+            f"[{first.lower:.3f}, {first.upper:.3f}], ST = {total.estimate:.3f} "
+            f"[{total.lower:.3f}, {total.upper:.3f}]"
         )
     print(f"   simulator runs: {p.evaluations}")
 
@@ -1445,7 +1660,8 @@ def print_report(results: LabResults) -> None:
             f"{a.u_pooling.area:.3f}, KS p = {a.u_pooling.ks.p_value:.3g}, "
             f"{'consistent' if a.consistent else 'inconsistent'}\n"
             f"      I_alpha = [{check.interval[0]:.1f}, {check.interval[1]:.1f}] m, "
-            f"coverage {check.coverage:.3f} +/- {binomial_se(check.coverage, count):.3f}; "
+            f"coverage {check.coverage:.3f} +/- "
+            f"{binomial_se(check.coverage, count):.3f}; "
             f"at winds {', '.join(f'{w:.2f}' for w in val.test_winds)} m/s: {cond}"
         )
     print(
@@ -1594,28 +1810,106 @@ def draw_convergence(results: LabResults) -> Any:
     ax.set_xlim(0.0045, 0.4)
     ax.set_ylim(1e-6, 30.0)
     _plain_log(ax.xaxis)
-    _label(ax, steps[0], abs(v.errors["Euler, linear"][1]), "Euler, linear (slope 1)",
-           theme.role_colour("model"), offset=(6.0, 8.0))  # fmt: skip
-    _label(ax, steps[0], abs(v.errors["Euler, first step below"][1]),
-           "Euler, first step below", theme.role_colour("context"),
-           offset=(6.0, -9.0))  # fmt: skip
-    _label(ax, steps[0], abs(v.errors["RK4, first step below"][1]),
-           "RK4, first step below (capped at 1)", theme.role_colour("series-4"),
-           offset=(6.0, -2.0))  # fmt: skip
-    _label(ax, steps[0], abs(v.errors["RK4, Hermite"][1]), "RK4, Hermite (slope 4)",
-           theme.role_colour("observed"), offset=(6.0, 2.0))  # fmt: skip
+    _label(
+        ax,
+        steps[0],
+        abs(v.errors["Euler, linear"][1]),
+        "Euler, linear (slope 1)",
+        theme.role_colour("model"),
+        offset=(6.0, 8.0),
+    )
+    _label(
+        ax,
+        steps[0],
+        abs(v.errors["Euler, first step below"][1]),
+        "Euler, first step below",
+        theme.role_colour("context"),
+        offset=(6.0, -9.0),
+    )
+    _label(
+        ax,
+        steps[0],
+        abs(v.errors["RK4, first step below"][1]),
+        "RK4, first step below (capped at 1)",
+        theme.role_colour("series-4"),
+        offset=(6.0, -2.0),
+    )
+    _label(
+        ax,
+        steps[0],
+        abs(v.errors["RK4, Hermite"][1]),
+        "RK4, Hermite (slope 4)",
+        theme.role_colour("observed"),
+        offset=(6.0, 2.0),
+    )
     theme.reference_line(ax, x=results.step.chosen)
-    _label(ax, results.step.chosen, 1.5e-6, f"chosen dt = {results.step.chosen:g} s",
-           theme.role_colour("reference"), offset=(-4.0, 6.0), ha="right",
-           va="bottom")  # fmt: skip
-    theme.axis_labels(ax, "Time step dt", "Error of the landing abscissa", x_unit="s",
-                      y_unit="m")  # fmt: skip
+    _label(
+        ax,
+        results.step.chosen,
+        1.5e-6,
+        f"chosen dt = {results.step.chosen:g} s",
+        theme.role_colour("reference"),
+        offset=(-4.0, 6.0),
+        ha="right",
+        va="bottom",
+    )
+    theme.axis_labels(
+        ax, "Time step dt", "Error of the landing abscissa", x_unit="s", y_unit="m"
+    )
     theme.title_block(
         ax,
         "Euler converges at order 1; stopping at the first step below ground "
         "caps RK4 at order 1 too",
         "Absolute error against RK4 with Hermite event location at dt = 0.001 s; "
         "nominal inputs",
+    )
+    return figure
+
+
+def draw_code_verification(results: LabResults) -> Any:
+    """Draw the error against the exact linear-drag landing on log-log axes.
+
+    References:
+        [EQ-LAB-PARA-002], [EQ-NUM-ODE-001], [REF-ROACHE-1998].
+
+    """
+    c = results.code
+    figure, (ax,) = _panels(height=4.6)
+    steps = list(CODE_LADDER)
+    roles = {
+        "Euler, linear": "model",
+        "Heun, Hermite": "series-4",
+        "RK4, Hermite": "observed",
+    }
+    for label, _, _ in CODE_SCHEMES:
+        errors = [abs(e) for e in c.linear_errors[label]]
+        colour = theme.role_colour(roles[label])
+        theme.line(ax, steps, errors, color=colour)
+        theme.points(ax, steps, errors, color=colour, size=22.0)
+        order = c.linear_orders[label][-1]
+        _label(
+            ax,
+            steps[-1],
+            errors[-1],
+            f"{label}: order {order:.1f}",
+            colour,
+            offset=(-8.0, 0.0),
+            ha="right",
+        )
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlim(0.012, 0.3)
+    ax.set_ylim(1e-11, 30.0)
+    _plain_log(ax.xaxis)
+    ax.set_xticks(steps)
+    theme.axis_labels(
+        ax, "Time step dt", "Error against the exact landing", x_unit="s", y_unit="m"
+    )
+    theme.title_block(
+        ax,
+        "Code verification: each scheme converges at its theoretical order",
+        f"Linear drag k = {LINEAR_DAMPING:g} kg/s, exact landing from the Lambert W "
+        "function; labels give the order of the last halving",
     )
     return figure
 
@@ -1638,30 +1932,65 @@ def draw_step_choice(results: LabResults) -> Any:
     theme.line(ax, steps, errors, color=observed, dashes=theme.FITTED)
     theme.points(ax, steps, errors, color=observed, size=26.0)
     theme.reference_line(ax, y=s.tolerance)
-    ax.axvline(s.stability, color=theme.role_colour("context"), linewidth=theme.REFERENCE_WIDTH,
-               linestyle=(0, (2.0, 2.0)))  # fmt: skip
+    ax.axvline(
+        s.stability,
+        color=theme.role_colour("context"),
+        linewidth=theme.REFERENCE_WIDTH,
+        linestyle=(0, (2.0, 2.0)),
+    )
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlim(0.018, 0.17)
     _plain_log(ax.xaxis)
     _plain_log(ax.yaxis)
     ax.set_xticks(steps)
-    _label(ax, steps[0], bounds[0], "verified bound B(dt)", model, offset=(-6.0, 6.0),
-           ha="right", va="bottom")  # fmt: skip
-    _label(ax, steps[0], errors[0], "error against RK4", observed, offset=(-6.0, -8.0),
-           ha="right", va="top")  # fmt: skip
-    _label(ax, 0.02, s.tolerance, f"{TOLERANCE_FRACTION:.0%} of the parametric sd",
-           theme.role_colour("reference"), offset=(0.0, 6.0), va="bottom")  # fmt: skip
-    _label(ax, s.stability, bounds[-1], "Euler stability limit",
-           theme.role_colour("context"), offset=(-4.0, 0.0), ha="right")  # fmt: skip
-    theme.axis_labels(ax, "Time step dt", "Largest error over the input box", x_unit="s",
-                      y_unit="m")  # fmt: skip
+    _label(
+        ax,
+        steps[0],
+        bounds[0],
+        "verified bound B(dt)",
+        model,
+        offset=(-6.0, 6.0),
+        ha="right",
+        va="bottom",
+    )
+    _label(
+        ax,
+        steps[0],
+        errors[0],
+        "error against RK4",
+        observed,
+        offset=(-6.0, -8.0),
+        ha="right",
+        va="top",
+    )
+    _label(
+        ax,
+        0.02,
+        s.tolerance,
+        f"{TOLERANCE_FRACTION:.0%} of the parametric sd",
+        theme.role_colour("reference"),
+        offset=(0.0, 6.0),
+        va="bottom",
+    )
+    _label(
+        ax,
+        s.stability,
+        bounds[-1],
+        "Euler stability limit",
+        theme.role_colour("context"),
+        offset=(-4.0, 0.0),
+        ha="right",
+    )
+    theme.axis_labels(
+        ax, "Time step dt", "Largest error over the input box", x_unit="s", y_unit="m"
+    )
     theme.title_block(
         ax,
         f"dt = {s.chosen:g} s is the largest step whose verified bound stays "
         f"below {s.tolerance:.1f} m",
-        f"Worst case over the nominal point and 16 corners of the input box; "
-        f"bound from the grids dt, dt/2, dt/4",
+        "Worst case over the nominal point and 16 corners of the input box; "
+        "bound from the grids dt, dt/2, dt/4",
     )
     return figure
 
@@ -1676,23 +2005,54 @@ def draw_propagation(results: LabResults) -> Any:
     p, val = results.propagation, results.validation
     figure, (ax,) = _panels()
     edges = [-100.0 + 15.0 * k for k in range(37)]
-    ax.hist(p.output.values, bins=edges, density=True, histtype="step",
-            linewidth=theme.LINE_WIDTH, color=theme.role_colour("model"))  # fmt: skip
-    ax.hist(val.truth, bins=edges, density=True, histtype="step",
-            linewidth=theme.CONTEXT_WIDTH, color=theme.role_colour("observed"),
-            linestyle=(0, (4.0, 2.0)))  # fmt: skip
+    ax.hist(
+        p.output.values,
+        bins=edges,
+        density=True,
+        histtype="step",
+        linewidth=theme.LINE_WIDTH,
+        color=theme.role_colour("model"),
+    )
+    ax.hist(
+        val.truth,
+        bins=edges,
+        density=True,
+        histtype="step",
+        linewidth=theme.CONTEXT_WIDTH,
+        color=theme.role_colour("observed"),
+        linestyle=(0, (4.0, 2.0)),
+    )
     low, high = p.interval
     ax.axvspan(low, high, color=theme.role_colour("model"), alpha=0.08, zorder=0)
     ax.set_xlim(-100.0, 440.0)
     top = ax.get_ylim()[1]
     ax.set_ylim(0.0, top * 1.18)
-    _label(ax, 0.5 * (low + high), top * 1.08,
-           f"I_alpha = [{low:.0f}, {high:.0f}] m (90%)", theme.role_colour("model"),
-           offset=(0.0, 0.0), ha="center")  # fmt: skip
-    _label(ax, 60.0, 0.0045, "simulator y_sim", theme.role_colour("model"),
-           offset=(-6.0, 0.0), ha="right")  # fmt: skip
-    _label(ax, 330.0, 0.0035, "truth (wind grows with height)",
-           theme.role_colour("observed"), offset=(4.0, 0.0))  # fmt: skip
+    _label(
+        ax,
+        0.5 * (low + high),
+        top * 1.08,
+        f"I_alpha = [{low:.0f}, {high:.0f}] m (90%)",
+        theme.role_colour("model"),
+        offset=(0.0, 0.0),
+        ha="center",
+    )
+    _label(
+        ax,
+        60.0,
+        0.0045,
+        "simulator y_sim",
+        theme.role_colour("model"),
+        offset=(-6.0, 0.0),
+        ha="right",
+    )
+    _label(
+        ax,
+        330.0,
+        0.0035,
+        "truth (wind grows with height)",
+        theme.role_colour("observed"),
+        offset=(4.0, 0.0),
+    )
     theme.axis_labels(ax, "Landing abscissa", theme.axis_title("density"), x_unit="m")
     coverage_raw = val.checks[0].coverage
     theme.title_block(
@@ -1724,25 +2084,50 @@ def draw_sobol(results: LabResults) -> Any:
         ):
             colour = theme.role_colour(style.role)
             if math.isfinite(index.lower):
-                ax.hlines(position + offset, max(index.lower, -0.02), index.upper,
-                          color=colour, linewidth=theme.CONTEXT_WIDTH)  # fmt: skip
-            theme.points(ax, [index.estimate], [position + offset], color=colour,
-                         marker=style.marker, size=34.0)  # fmt: skip
+                ax.hlines(
+                    position + offset,
+                    max(index.lower, -0.02),
+                    index.upper,
+                    color=colour,
+                    linewidth=theme.CONTEXT_WIDTH,
+                )
+            theme.points(
+                ax,
+                [index.estimate],
+                [position + offset],
+                color=colour,
+                marker=style.marker,
+                size=34.0,
+            )
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names)
     ax.set_ylim(-0.6, len(names) - 0.4)
     ax.set_xlim(-0.02, 1.0)
     ax.grid(axis="y", visible=False)
     top = sobol.ranking()[0]
-    _label(ax, sobol_index(sobol, top)[0].estimate, len(names) - 1 + 0.14, "first order",
-           theme.role_colour(first_style.role), offset=(-8.0, 0.0), ha="right")  # fmt: skip
-    _label(ax, sobol_index(sobol, top)[1].estimate, len(names) - 1 - 0.14, "total effect",
-           theme.role_colour(total_style.role), offset=(-8.0, 0.0), ha="right")  # fmt: skip
+    _label(
+        ax,
+        sobol_index(sobol, top)[0].estimate,
+        len(names) - 1 + 0.14,
+        "first order",
+        theme.role_colour(first_style.role),
+        offset=(-8.0, 0.0),
+        ha="right",
+    )
+    _label(
+        ax,
+        sobol_index(sobol, top)[1].estimate,
+        len(names) - 1 - 0.14,
+        "total effect",
+        theme.role_colour(total_style.role),
+        offset=(-8.0, 0.0),
+        ha="right",
+    )
     theme.axis_labels(ax, "Sobol index", "Input")
     theme.title_block(
         ax,
         f"The wind explains {sobol_index(sobol, top)[0].estimate:.0%} of the landing "
-        "variance; mass and height barely matter",
+        "variance; plane speed, mass, and height barely matter",
         f"{SOBOL_SIZE} rows x 8 randomized Sobol replicates; bars: Student-t 95% "
         "intervals over the replicates",
     )
@@ -1758,28 +2143,72 @@ def draw_residuals(results: LabResults) -> Any:
     """
     val = results.validation
     figure, (ax,) = _panels()
-    for campaign, colour, name in (
-        (val.calibration, theme.role_colour("observed"), "calibration drops"),
-        (val.validation, theme.role_colour("context"), "validation drops"),
+    for campaign, colour, marker, name in (
+        (val.calibration, theme.role_colour("observed"), "o", "calibration"),
+        (val.validation, theme.role_colour("context"), "s", "validation"),
     ):
         residuals, variances = campaign.residuals()
-        ax.errorbar(campaign.winds, residuals, yerr=[1.96 * math.sqrt(v) for v in variances],
-                    fmt="none", ecolor=colour, elinewidth=1.0, alpha=0.6)  # fmt: skip
-        theme.points(ax, list(campaign.winds), residuals, color=colour, size=30.0)
+        ax.errorbar(
+            campaign.winds,
+            residuals,
+            yerr=[1.96 * math.sqrt(v) for v in variances],
+            fmt="none",
+            ecolor=colour,
+            elinewidth=1.0,
+            alpha=0.6,
+        )
+        theme.points(
+            ax, list(campaign.winds), residuals, color=colour, marker=marker, size=30.0
+        )
+        lowest = min(range(len(residuals)), key=lambda i: campaign.winds[i])
+        _label(
+            ax,
+            campaign.winds[lowest],
+            residuals[lowest],
+            name,
+            colour,
+            offset=(-8.0, 0.0),
+            ha="right",
+        )
     grid = [0.0 + 0.1 * k for k in range(101)]
     offset = val.checks[2].structure.offset[0]
     slope = val.checks[3].structure.slope[0]
-    theme.line(ax, grid, [offset] * len(grid), color=theme.role_colour("series-4"),
-               dashes=theme.FITTED)  # fmt: skip
+    theme.line(
+        ax,
+        grid,
+        [offset] * len(grid),
+        color=theme.role_colour("series-4"),
+        dashes=theme.FITTED,
+    )
     theme.line(ax, grid, [slope * w for w in grid], color=theme.role_colour("model"))
     theme.reference_line(ax, y=0.0)
     ax.set_xlim(0.0, 10.0)
-    _label(ax, 9.6, slope * 9.6, f"beta s_w, beta = {slope:.1f} s", theme.role_colour("model"),
-           offset=(0.0, 10.0), ha="right", va="bottom")  # fmt: skip
-    _label(ax, 0.3, offset, f"constant b = {offset:.0f} m", theme.role_colour("series-4"),
-           offset=(0.0, 8.0), va="bottom")  # fmt: skip
-    theme.axis_labels(ax, "Measured 10 m wind s_w", "Measured minus predicted landing",
-                      x_unit="m/s", y_unit="m")  # fmt: skip
+    _label(
+        ax,
+        9.6,
+        slope * 9.6,
+        f"beta s_w, beta = {slope:.1f} s",
+        theme.role_colour("model"),
+        offset=(0.0, 10.0),
+        ha="right",
+        va="bottom",
+    )
+    _label(
+        ax,
+        0.3,
+        offset,
+        f"constant b = {offset:.0f} m",
+        theme.role_colour("series-4"),
+        offset=(0.0, 8.0),
+        va="bottom",
+    )
+    theme.axis_labels(
+        ax,
+        "Measured 10 m wind s_w",
+        "Measured minus predicted landing",
+        x_unit="m/s",
+        y_unit="m",
+    )
     theme.title_block(
         ax,
         "The model error grows with the wind: the simulator misses the stronger "
@@ -1809,8 +2238,13 @@ def draw_coverage(results: LabResults) -> Any:
         colour = theme.role_colour(roles[row])
         xs = [k + (row - 1.5) * 0.16 for k in range(len(values))]
         for x, c, n in zip(xs, values, counts, strict=True):
-            ax.vlines(x, c - 1.96 * binomial_se(c, n), c + 1.96 * binomial_se(c, n),
-                      color=colour, linewidth=theme.CONTEXT_WIDTH)  # fmt: skip
+            ax.vlines(
+                x,
+                c - 1.96 * binomial_se(c, n),
+                c + 1.96 * binomial_se(c, n),
+                color=colour,
+                linewidth=theme.CONTEXT_WIDTH,
+            )
         theme.points(ax, xs, values, color=colour, marker=markers[row], size=32.0)
     theme.reference_line(ax, y=1.0 - ALPHA)
     ax.set_xticks(range(len(columns)))
@@ -1820,14 +2254,21 @@ def draw_coverage(results: LabResults) -> Any:
     ax.grid(axis="x", visible=False)
     ys = [0.06, 0.14, 0.22, 0.30]
     for row, name in enumerate(names):
-        _label(ax, len(columns) - 0.55, ys[row], name, theme.role_colour(roles[row]),
-               offset=(0.0, 0.0), ha="right")  # fmt: skip
+        _label(
+            ax,
+            len(columns) - 0.55,
+            ys[row],
+            name,
+            theme.role_colour(roles[row]),
+            offset=(0.0, 0.0),
+            ha="right",
+        )
     theme.axis_labels(ax, "Truth landings", theme.axis_title("empirical_coverage"))
     best = val.checks[3]
     theme.title_block(
         ax,
-        f"Only the wind-proportional bias restores 90% coverage at every wind "
-        f"({min(best.conditional):.2f} to {max(best.conditional):.2f})",
+        f"Only the wind-proportional bias reaches 90% coverage overall and at "
+        f"every wind ({min(best.conditional):.2f} to {max(best.conditional):.2f})",
         f"Coverage of 90% intervals: {val.truth_count} truth landings for all "
         f"winds, {CONDITIONAL_TRUTH_DROPS} per fixed wind; bars: +/- 1.96 "
         "binomial standard errors",
@@ -1836,6 +2277,7 @@ def draw_coverage(results: LabResults) -> Any:
 
 
 FIGURES: tuple[tuple[str, Callable[[LabResults], Any]], ...] = (
+    ("parachute-code-verification.png", draw_code_verification),
     ("parachute-convergence.png", draw_convergence),
     ("parachute-step-choice.png", draw_step_choice),
     ("parachute-propagation.png", draw_propagation),
@@ -1879,8 +2321,10 @@ def main() -> None:
 
     """
     started = time.perf_counter()
-    print("Verifying, propagating, and validating the parachuted package "
-          "(about a minute)...")  # fmt: skip
+    print(
+        "Verifying, propagating, and validating the parachuted package "
+        "(about a minute)..."
+    )
     results = run_analysis()
     print_report(results)
     written = write_figures(results, OUTPUT)

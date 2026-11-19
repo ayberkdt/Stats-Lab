@@ -4582,3 +4582,44 @@ Scalable Predictive Uncertainty Estimation using Deep Ensembles." In
 negative log-likelihood (a proper scoring rule) from independent random
 initializations, combined as a uniformly weighted Gaussian mixture.
 Preprint: [arXiv:1612.01474](https://arxiv.org/abs/1612.01474).
+
+## REF-PERRIN-ATHENS-VVUQ
+
+Guillaume Perrin. "Introduction to V&V-UQ." Lecture slides, ATHENS course
+ENPC04 *Uncertainty Quantification in Numerical Simulations*, Université
+Gustave Eiffel; supplied with the ATHENS 2026 curriculum. Slides 17-20
+pose the parachuted-package example: the drag model, the explicit Euler
+simulator, the six inputs with their aleatory or epistemic nature, and the
+verification and validation questions.
+
+## REF-HAIRER-WANNER-1996
+
+Ernst Hairer and Gerhard Wanner. *Solving Ordinary Differential Equations
+II: Stiff and Differential-Algebraic Problems*. Second revised edition.
+Springer Series in Computational Mathematics 14. Springer, Berlin,
+Heidelberg, 1996. ISBN 978-3-540-60452-5. Section IV.2 gives the stability
+analysis of explicit Runge-Kutta methods, including the stability region
+`|1 + h lambda| <= 1` of explicit Euler.
+
+## REF-DOWELL-JARRATT-1971
+
+M. Dowell and P. Jarratt. "A Modified Regula Falsi Method for Computing the
+Root of an Equation." *BIT Numerical Mathematics* 11, 168-174, 1971. The
+Illinois method: regula falsi that halves the retained end-point value when
+the same end is kept twice, restoring superlinear convergence.
+DOI: [10.1007/BF01934364](https://doi.org/10.1007/BF01934364).
+
+## REF-CORLESS-ETAL-1996
+
+Robert M. Corless, Gaston H. Gonnet, David E. G. Hare, David J. Jeffrey, and
+Donald E. Knuth. "On the Lambert W Function." *Advances in Computational
+Mathematics* 5, 329-359, 1996. Branches, the branch-point series, and
+Halley's iteration.
+DOI: [10.1007/BF02124750](https://doi.org/10.1007/BF02124750).
+
+## REF-PETERSON-HENNESSEY-1978
+
+E. W. Peterson and J. P. Hennessey Jr. "On the Use of Power Laws for
+Estimates of Wind Power Potential." *Journal of Applied Meteorology* 17,
+390-394, 1978. Cited for the power-law wind profile
+`u(z) = u_r (z / z_r)^alpha` used to extrapolate a reference-height wind.

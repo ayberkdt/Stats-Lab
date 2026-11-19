@@ -110,6 +110,7 @@ LAB_REGRESSION_TESTS: dict[str, tuple[str, str]] = {
     ),
     "nonlinear_calibration_lab": ("test_workflow_study.py", "UQStudy"),
     "optimal_transport_lab": ("test_transport_and_geometry.py", "sinkhorn"),
+    "parachute_vvuq_lab": ("test_ode.py", "integrate_to_event"),
     "ppl_lab": ("test_probabilistic_programming.py", "Beta"),
     "random_field_lab": ("test_stochastic_processes.py", "karhunen_loeve_inputs"),
     "real_data_fitting_lab": ("test_real_data_case_studies.py", "fit_poisson_counts"),

@@ -19,11 +19,19 @@ order of accuracy that a solution-verification study can observe:
   found by the Illinois method. The interpolation error is ``O(h^4)``, so
   the event inherits the order of every method offered here.
 
+The step is fixed on purpose: it is the numerical parameter whose effect a
+convergence study measures, so there is no adaptive error control. Explicit
+methods are only stable for steps below a limit set by the stiffest
+eigenvalue of the Jacobian of ``f`` (``|1 + h lambda| <= 1`` for Euler);
+larger steps diverge rather than lose accuracy gracefully.
+
 Guide: docs/foundations/vv-uq-foundations.md
 
 References:
     [REF-HAIRER-NORSETT-WANNER-1993, Sections II.1 and II.6] (Runge-Kutta
     methods, dense output, and event location),
+    [REF-HAIRER-WANNER-1996, Section IV.2] (stability of explicit
+    Runge-Kutta methods),
     [REF-DOWELL-JARRATT-1971] (Illinois root finding).
 
 """
@@ -162,19 +170,23 @@ def _advance(
     """
     size = len(y)
     if method == "euler":
-        return [a + h * k for a, k in zip(y, slope)], 0
+        return [a + h * k for a, k in zip(y, slope, strict=True)], 0
     if method == "heun":
-        k2 = _slope(rhs, t + h, [a + h * k for a, k in zip(y, slope)], size)
+        k2 = _slope(
+            rhs, t + h, [a + h * k for a, k in zip(y, slope, strict=True)], size
+        )
         half = 0.5 * h
-        return [a + half * (k1 + k) for a, k1, k in zip(y, slope, k2)], 1
+        return [a + half * (k1 + k) for a, k1, k in zip(y, slope, k2, strict=True)], 1
     half = 0.5 * h
-    k2 = _slope(rhs, t + half, [a + half * k for a, k in zip(y, slope)], size)
-    k3 = _slope(rhs, t + half, [a + half * k for a, k in zip(y, k2)], size)
-    k4 = _slope(rhs, t + h, [a + h * k for a, k in zip(y, k3)], size)
+    k2 = _slope(
+        rhs, t + half, [a + half * k for a, k in zip(y, slope, strict=True)], size
+    )
+    k3 = _slope(rhs, t + half, [a + half * k for a, k in zip(y, k2, strict=True)], size)
+    k4 = _slope(rhs, t + h, [a + h * k for a, k in zip(y, k3, strict=True)], size)
     sixth = h / 6.0
     return [
         a + sixth * (p + 2.0 * q + 2.0 * r + s)
-        for a, p, q, r, s in zip(y, slope, k2, k3, k4)
+        for a, p, q, r, s in zip(y, slope, k2, k3, k4, strict=True)
     ], 3
 
 
@@ -255,6 +267,47 @@ def _illinois(
     return 0.5 * (a + b)
 
 
+def _locate_on_cubic(
+    event: Event,
+    t: float,
+    h: float,
+    start: tuple[Sequence[float], Sequence[float]],
+    end: tuple[Sequence[float], Sequence[float]],
+    values: tuple[float, float],
+) -> tuple[float, list[float]]:
+    """Locate the root of ``g`` on the cubic Hermite interpolant of one step.
+
+    Args:
+        event: Event function ``g(t, y)``.
+        t: Start of the step.
+        h: Step size.
+        start: ``(y_n, f(t_n, y_n))``.
+        end: ``(y_{n+1}, f(t_{n+1}, y_{n+1}))``.
+        values: ``(g_n, g_{n+1})`` with ``g_n > 0 >= g_{n+1}``.
+
+    Returns:
+        The event time and the interpolated state there.
+
+    References:
+        [EQ-NUM-ODE-002], [REF-HAIRER-NORSETT-WANNER-1993, Section II.6],
+        [REF-DOWELL-JARRATT-1971].
+
+    """
+    (y, slope), (new, new_slope) = start, end
+
+    def on_cubic(theta: float) -> float:
+        """Return ``g`` on the Hermite interpolant at fraction ``theta``.
+
+        References:
+            [EQ-NUM-ODE-002].
+
+        """
+        return float(event(t + theta * h, _hermite(theta, h, y, slope, new, new_slope)))
+
+    theta = _illinois(on_cubic, *values)
+    return t + theta * h, _hermite(theta, h, y, slope, new, new_slope)
+
+
 def integrate_to_event(
     rhs: Rhs,
     initial_state: Sequence[float],
@@ -313,9 +366,7 @@ def integrate_to_event(
     if method not in ODE_METHODS:
         raise ValueError(f"method must be one of {ODE_METHODS}, got {method!r}")
     if location not in EVENT_LOCATIONS:
-        raise ValueError(
-            f"location must be one of {EVENT_LOCATIONS}, got {location!r}"
-        )
+        raise ValueError(f"location must be one of {EVENT_LOCATIONS}, got {location!r}")
     if isinstance(max_steps, bool) or not isinstance(max_steps, int) or max_steps < 1:
         raise ValueError(f"max_steps must be a positive integer, got {max_steps!r}")
     t = float(start)
@@ -352,21 +403,9 @@ def integrate_to_event(
             else:
                 new_slope = _slope(rhs, t_new, new, size)
                 evaluations += 1
-
-                def on_cubic(theta: float) -> float:
-                    """Return ``g`` on the Hermite interpolant at fraction ``theta``.
-
-                    References:
-                        [EQ-NUM-ODE-002].
-
-                    """
-                    return float(
-                        event(t + theta * h, _hermite(theta, h, y, slope, new, new_slope))
-                    )
-
-                theta = _illinois(on_cubic, g, g_new)
-                time = t + theta * h
-                state = _hermite(theta, h, y, slope, new, new_slope)
+                time, state = _locate_on_cubic(
+                    event, t, h, (y, slope), (new, new_slope), (g, g_new)
+                )
             if record:
                 path.append((time, tuple(state)))
             return EventSolution(

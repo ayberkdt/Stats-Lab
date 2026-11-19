@@ -16720,3 +16720,123 @@ the weights `w` by Adam [EQ-OPT-ADAM-002] on mini-batches.
   `surrogates.DeepEnsemble.epistemic_variance`,
   `surrogates.DeepEnsemble.aleatoric_variance`.
 - Source: [REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017, Section 2.4].
+
+## Ordinary differential equations and the parachuted-package laboratory (ADR-0109)
+
+### EQ-NUM-ODE-001 — Explicit one-step methods
+
+`y_{n+1} = y_n + h Phi(t_n, y_n; h)`, `t_n = t_0 + n h`, with
+`k_1 = f(t_n, y_n)` and: explicit Euler `Phi = k_1`; Heun
+`k_2 = f(t_n + h, y_n + h k_1)`, `Phi = (k_1 + k_2) / 2`; classical
+Runge-Kutta `k_2 = f(t_n + h/2, y_n + h k_1 / 2)`,
+`k_3 = f(t_n + h/2, y_n + h k_2 / 2)`, `k_4 = f(t_n + h, y_n + h k_3)`,
+`Phi = (k_1 + 2 k_2 + 2 k_3 + k_4) / 6`.
+
+- Domain: `f` sufficiently smooth (Lipschitz in `y`) on the solution path;
+  fixed step `h > 0`; for a stiff `f` the step must also lie in the stability
+  region of the method (`|1 + h lambda| <= 1` for Euler and each eigenvalue
+  `lambda` of the Jacobian).
+- Meaning: the global error at a fixed time is `O(h^p)` with `p = 1, 2, 4`.
+  The grid times are computed as `t_0 + n h`, not by repeated addition.
+- Code: `numerics.ode.integrate_to_event`.
+- Source: [REF-HAIRER-NORSETT-WANNER-1993, Section II.1];
+  [REF-HAIRER-WANNER-1996, Section IV.2] for the stability region.
+
+### EQ-NUM-ODE-002 — Event location inside the last step
+
+With `g(t_n, y_n) > 0 >= g(t_{n+1}, y_{n+1})`: first step
+`t* = t_{n+1}`; linear `theta = g_n / (g_n - g_{n+1})`,
+`y* = y_n + theta (y_{n+1} - y_n)`; cubic Hermite
+`u(theta) = h00 y_n + h10 h f_n + h01 y_{n+1} + h11 h f_{n+1}` with
+`h00 = 2 theta^3 - 3 theta^2 + 1`, `h10 = theta^3 - 2 theta^2 + theta`,
+`h01 = -2 theta^3 + 3 theta^2`, `h11 = theta^3 - theta^2`, and `theta*` the
+root of `g(t_n + theta h, u(theta)) = 0` on `[0, 1]` found by the Illinois
+method; `t* = t_n + theta* h`, `y* = u(theta*)`.
+
+- Domain: `g` continuous and positive at the start; the event is the first
+  sign change on the grid (a pair of roots inside one step is missed).
+- Meaning: the location error is `O(h)` for the first step, `O(h^2)` for
+  linear interpolation, and `O(h^4)` for the cubic Hermite interpolant, so
+  only the Hermite location keeps the order of every method of
+  [EQ-NUM-ODE-001].
+- Code: `numerics.ode.integrate_to_event`.
+- Source: [REF-HAIRER-NORSETT-WANNER-1993, Section II.6] (dense output and
+  event location); [REF-DOWELL-JARRATT-1971] (Illinois method).
+
+### EQ-LAB-PARA-001 — Drag-free landing abscissa
+
+`y = x_0 + s_p sqrt(2 z_a / g)`.
+
+- Domain: no drag and no wind, release with horizontal speed `s_p` and zero
+  vertical speed from height `z_a > 0`, constant gravity `g`.
+- Meaning: the trajectory is a parabola, so Heun and RK4 integrate it
+  exactly and the cubic Hermite interpolant locates the landing to
+  rounding; explicit Euler errs at order 1.
+- Code: `examples.parachute_vvuq_lab.drag_free_landing`.
+- Source: [REF-HALLIDAY-RESNICK-WALKER-2014, projectile motion].
+
+### EQ-LAB-PARA-002 — Linear-drag landing through the Lambert W function
+
+With `m x'' = m g - k (x' - s_w)` and `tau = m / k`:
+`X(t) = x_0 + s_w t + (s_p - s_w) tau (1 - e^(-t/tau))`,
+`Z(t) = z_a - g tau t + g tau^2 (1 - e^(-t/tau))`; `Z(T) = 0` at
+`T = tau (1 + c + W_0(-e^(-(1 + c))))` with `c = z_a / (g tau^2)`, and the
+landing abscissa is `X(T)`. `W_0` is computed by Halley's iteration from
+the branch-point series `-1 + p - p^2/3 + 11 p^3/72`,
+`p = sqrt(2 (e x + 1))`.
+
+- Domain: `m, k, z_a > 0`, constant wind `s_w`; the principal branch gives
+  the positive root (the branch `W_{-1}` gives a root at negative time).
+- Meaning: an exact solution with drag, used for code verification of the
+  integrator: the observed orders against it must be 1, 2, and 4.
+- Code: `examples.parachute_vvuq_lab.linear_drag_landing`,
+  `examples.parachute_vvuq_lab.lambert_w0`.
+- Source: [REF-CORLESS-ETAL-1996].
+
+### EQ-LAB-PARA-003 — Power-law wind profile of the synthetic truth
+
+`s_w(z) = s_w,10 (max(z, 1) / 10)^alpha`, `alpha = 0.1`.
+
+- Domain: height `z` in metres; the reference wind is measured at 10 m;
+  below 1 m the profile is frozen.
+- Meaning: the synthetic truth of the laboratory has a stronger wind aloft
+  than the 10 m wind the simulator uses, which creates a model-form error
+  that grows with the wind. The exponent is a teaching choice.
+- Code: `examples.parachute_vvuq_lab.power_law_wind`.
+- Source: [REF-PETERSON-HENNESSEY-1978].
+
+### EQ-LAB-PARA-004 — Euler stability limit of the drag transient
+
+`dt <= m / (A |v_r|)`, `|v_r| = |s_p - s_w|` at release.
+
+- Domain: quadratic drag `-(A/m) |v_r| v_r`, whose Jacobian
+  `-(A/m) (|v_r| I + v_r v_r^T / |v_r|)` has eigenvalues `-(A/m)|v_r|` and
+  `-2 (A/m)|v_r|`; the relative speed is largest at release.
+- Meaning: explicit Euler is stable for `|1 + dt lambda| <= 1`, so the
+  stiffest eigenvalue `-2 (A/m)|v_r|` bounds the step.
+- Code: `examples.parachute_vvuq_lab.stability_limit`.
+- Source: [REF-HAIRER-WANNER-1996, Section IV.2].
+
+### EQ-LAB-PARA-005 — Verified error bound of a production step
+
+`B(dt) = |y(dt) - y_ext| + U`, with the extrapolated value `y_ext` and the
+expanded numerical uncertainty `U` of the finest grid from the solution
+verification of the grids `dt, dt/2, dt/4` [EQ-VV-UNUM-001].
+
+- Domain: three grids in the asymptotic range; outside it `B` can
+  underestimate the error, which the laboratory checks against a reference.
+- Meaning: an error bound for the coarse production step obtained from two
+  extra runs, so that the step can be chosen against a tolerance.
+- Code: `examples.parachute_vvuq_lab.step_bound`.
+- Source: [REF-ROACHE-1998, Chapters 4-5]; [REF-ROY-OBERKAMPF-2011].
+
+### EQ-LAB-PARA-006 — Terminal speed under quadratic drag
+
+`v_t = sqrt(m g / A)`.
+
+- Domain: drag `A |v_r| v_r` with `A > 0`, constant gravity, air velocity
+  constant along the path.
+- Meaning: the speed relative to the air at which drag balances weight;
+  after the release transient the package falls at `v_t`.
+- Code: `examples.parachute_vvuq_lab.terminal_speed`.
+- Source: [REF-HALLIDAY-RESNICK-WALKER-2014, drag force and terminal speed].
