@@ -38,7 +38,7 @@ from probstat.linalg import Matrix, Vector
 from .enkf import Ensemble, EnsembleAnalysis, _stochastic_update
 from .square_root import (
     EnsembleTransformAnalysis,
-    _apply_weights,
+    _identity,
     _local_weights,
     _observation_images,
 )
@@ -388,6 +388,7 @@ def _letkf(
     observation_function: Callable[[Vector], Sequence[float]],
     observation_covariance: Sequence[Sequence[float]],
     local_sets: tuple[tuple[tuple[int, ...], tuple[float, ...]], ...],
+    transforms: bool,
 ) -> EnsembleTransformAnalysis:
     """Run the local analyses of the LETKF from precomputed local sets.
 
@@ -407,26 +408,25 @@ def _letkf(
         [image[row] - predicted[row] for image in images] for row in range(len(y))
     ]
     innovation = tuple(a - b for a, b in zip(y, predicted, strict=True))
-    identity = tuple(
-        tuple(1.0 if i == j else 0.0 for j in range(count)) for i in range(count)
-    )
     columns = []
-    transforms = []
+    weights_list: list[Matrix] = []
     for component, (indices, tapers) in enumerate(local_sets):
         values = [member[component] for member in ensemble.members]
         if not indices:
             columns.append(values)
-            transforms.append(identity)
+            if transforms:
+                weights_list.append(_identity(count))
             continue
-        mean, transform = _local_weights(
-            anomalies, innovation, noise, indices, tapers, count
-        )
-        updated, weights = _apply_weights(values, mean, transform)
-        columns.append(updated)
-        transforms.append(weights)
+        weights = _local_weights(anomalies, innovation, noise, indices, tapers, count)
+        columns.append(weights.apply(values))
+        if transforms:
+            weights_list.append(weights.transform())
     members = tuple(tuple(column[i] for column in columns) for i in range(count))
     return EnsembleTransformAnalysis(
-        Ensemble._trusted(members), innovation, tuple(transforms), "letkf"
+        Ensemble._trusted(members),
+        innovation,
+        tuple(weights_list) if transforms else None,
+        "letkf",
     )
 
 
@@ -436,6 +436,8 @@ def letkf_analysis(
     observation_function: Callable[[Vector], Sequence[float]],
     observation_covariance: Sequence[Sequence[float]],
     localization: Localization,
+    *,
+    transforms: bool = False,
 ) -> EnsembleTransformAnalysis:
     """Update a forecast ensemble by the local ensemble transform Kalman filter.
 
@@ -456,9 +458,11 @@ def letkf_analysis(
         observation_function: Measurement map ``h``.
         observation_covariance: Positive-definite ``R``.
         localization: Coordinates and half-width.
+        transforms: Also return one ``N`` by ``N`` transform per state
+            component.
 
     Returns:
-        Analysis ensemble, innovation, and one transform per state component.
+        Analysis ensemble, innovation, and (on request) the transforms.
 
     Raises:
         ValueError: If shapes disagree or a local block of ``R`` is not
@@ -478,4 +482,5 @@ def letkf_analysis(
         observation_function,
         observation_covariance,
         _local_sets(localization.state_observation_weights()),
+        transforms,
     )

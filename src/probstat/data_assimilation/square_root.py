@@ -55,7 +55,8 @@ class EnsembleTransformAnalysis:
         transforms: Ensemble transforms with ``E^a_j = E^f_j T_j`` for the
             row ``j`` of the member matrix ``E`` (state component ``j``
             over the members): one shared ``N`` by ``N`` matrix for a
-            global analysis, one per state component for a local one.
+            global analysis, one per state component for a local one;
+            ``None`` unless requested.
         method: ``"etkf"``, ``"eakf"``, or ``"letkf"``.
 
     References:
@@ -66,7 +67,7 @@ class EnsembleTransformAnalysis:
 
     ensemble: Ensemble
     innovation: Vector
-    transforms: tuple[Matrix, ...]
+    transforms: tuple[Matrix, ...] | None
     method: str
 
     def transform_for(self, component: int) -> Matrix:
@@ -78,10 +79,15 @@ class EnsembleTransformAnalysis:
         Returns:
             The ``N`` by ``N`` transform of that component.
 
+        Raises:
+            ValueError: If the analysis was run without transforms.
+
         References:
             [EQ-DA-ENKS-001].
 
         """
+        if self.transforms is None:
+            raise ValueError("the analysis was run with transforms=False")
         if len(self.transforms) == 1:
             return self.transforms[0]
         return self.transforms[component]
@@ -151,9 +157,112 @@ def _whiten(lower: Matrix, rows: Sequence[Sequence[float]]) -> list[list[float]]
     return solved
 
 
+@dataclass(frozen=True, slots=True)
+class _Weights:
+    """ETKF weights ``wbar^a`` and ``W^a``, dense or in factored form.
+
+    ``dense`` holds ``W`` as rows (ensemble-space branch); otherwise
+    ``W = I + B diag(corrections) B'`` with ``basis = B`` (``N`` by ``p``).
+
+    References:
+        [EQ-DA-ETKF-001].
+
+    """
+
+    mean: tuple[float, ...]
+    dense: tuple[tuple[float, ...], ...] | None
+    basis: tuple[tuple[float, ...], ...]
+    corrections: tuple[float, ...]
+
+    def apply(self, values: Sequence[float]) -> list[float]:
+        """Return ``x_i^a = xbar + sum_k X_k (wbar_k + W_ki)`` for one component.
+
+        Args:
+            values: Forecast values of the component, one per member.
+
+        Returns:
+            The analysis values.
+
+        References:
+            [EQ-DA-ETKF-001], [REF-HUNT-KOSTELICH-SZUNYOGH-2007].
+
+        """
+        count = len(values)
+        center = math.fsum(values) / count
+        anomalies = [value - center for value in values]
+        base = center + math.fsum(
+            x * w for x, w in zip(anomalies, self.mean, strict=True)
+        )
+        if self.dense is not None:
+            dense = self.dense
+            return [
+                base + math.fsum(anomalies[k] * dense[k][i] for k in range(count))
+                for i in range(count)
+            ]
+        basis = self.basis
+        projected = [
+            c * math.fsum(anomalies[i] * basis[i][k] for i in range(count))
+            for k, c in enumerate(self.corrections)
+        ]
+        return [
+            base
+            + anomalies[i]
+            + math.fsum(b * q for b, q in zip(basis[i], projected, strict=True))
+            for i in range(count)
+        ]
+
+    def transform(self) -> Matrix:
+        """Return ``T = 11'/N + (I - 11'/N)(wbar 1' + W)`` with ``E^a = E^f T``.
+
+        References:
+            [EQ-DA-ETKF-001], [EQ-DA-ENKS-001].
+
+        """
+        count = len(self.mean)
+        if self.dense is not None:
+            square = [list(row) for row in self.dense]
+        else:
+            square = [
+                [
+                    (1.0 if i == j else 0.0)
+                    + math.fsum(
+                        b * c * d
+                        for b, c, d in zip(
+                            self.basis[i], self.corrections, self.basis[j], strict=True
+                        )
+                    )
+                    for j in range(count)
+                ]
+                for i in range(count)
+            ]
+        combined = [
+            [self.mean[k] + square[k][i] for i in range(count)] for k in range(count)
+        ]
+        column_means = [
+            math.fsum(combined[k][i] for k in range(count)) / count
+            for i in range(count)
+        ]
+        return tuple(
+            tuple(1.0 / count + combined[k][i] - column_means[i] for i in range(count))
+            for k in range(count)
+        )
+
+
+def _identity(count: int) -> Matrix:
+    """Return the ``count`` by ``count`` identity.
+
+    References:
+        [EQ-DA-ENKS-001]. No further equation is evaluated.
+
+    """
+    return tuple(
+        tuple(1.0 if i == j else 0.0 for j in range(count)) for i in range(count)
+    )
+
+
 def _transform_weights(
     whitened: Sequence[Sequence[float]], innovation: Sequence[float], count: int
-) -> tuple[list[float], list[list[float]]]:
+) -> _Weights:
     """Return the ETKF mean weights ``wbar^a`` and symmetric transform ``W^a``.
 
     With ``Yhat`` the ``p`` by ``N`` whitened (and possibly tapered)
@@ -166,7 +275,8 @@ def _transform_weights(
     diagonalized instead and ``W = I + sqrt(a) B g(S) B'``,
     ``wbar = B (a I + S)^-1 U' dhat`` with ``B = Yhat' U`` and
     ``g(s) = -1 / (sqrt(a) sqrt(a + s) (sqrt(a) + sqrt(a + s)))``, the same
-    matrices written without cancellation for small ``s``.
+    matrices written without cancellation for small ``s`` and kept in
+    factored form.
 
     Args:
         whitened: ``Yhat`` as ``p`` rows of length ``N``.
@@ -174,7 +284,7 @@ def _transform_weights(
         count: Ensemble size ``N``.
 
     Returns:
-        ``wbar^a`` and ``W^a`` (as rows).
+        The weights.
 
     Raises:
         ValueError: If an eigenvalue of ``a I + Yhat' Yhat`` is not positive.
@@ -191,9 +301,7 @@ def _transform_weights(
     root_a = math.sqrt(a)
     p = len(whitened)
     if p == 0:
-        return [0.0] * count, [
-            [1.0 if i == j else 0.0 for j in range(count)] for i in range(count)
-        ]
+        return _Weights(tuple(0.0 for _ in range(count)), None, (), ())
     if p >= count:
         columns = list(zip(*whitened, strict=True))
         matrix = tuple(
@@ -215,21 +323,21 @@ def _transform_weights(
             math.fsum(vectors[i][k] * projected[i] for i in range(count)) / values[k]
             for k in range(count)
         ]
-        mean = [
+        mean = tuple(
             math.fsum(vectors[i][k] * coefficients[k] for k in range(count))
             for i in range(count)
-        ]
+        )
         scales = [root_a / math.sqrt(value) for value in values]
-        transform = [
-            [
+        dense = tuple(
+            tuple(
                 math.fsum(
                     vectors[i][k] * scales[k] * vectors[j][k] for k in range(count)
                 )
                 for j in range(count)
-            ]
+            )
             for i in range(count)
-        ]
-        return mean, transform
+        )
+        return _Weights(mean, dense, (), ())
     gram = tuple(
         tuple(
             math.fsum(u * v for u, v in zip(whitened[i], whitened[j], strict=True))
@@ -241,72 +349,25 @@ def _transform_weights(
     shifted = [a + value for value in values]
     if any(value <= 0.0 for value in shifted):
         raise ValueError("the ETKF analysis matrix is not positive definite")
-    basis = [
-        [
+    basis = tuple(
+        tuple(
             math.fsum(whitened[row][i] * vectors[row][k] for row in range(p))
             for k in range(p)
-        ]
+        )
         for i in range(count)
-    ]
+    )
     coefficients = [
         math.fsum(vectors[row][k] * innovation[row] for row in range(p)) / shifted[k]
         for k in range(p)
     ]
-    mean = [
+    mean = tuple(
         math.fsum(basis[i][k] * coefficients[k] for k in range(p)) for i in range(count)
-    ]
-    corrections = [
+    )
+    corrections = tuple(
         -root_a / (root_a * math.sqrt(value) * (root_a + math.sqrt(value)))
         for value in shifted
-    ]
-    transform = [
-        [
-            (1.0 if i == j else 0.0)
-            + math.fsum(basis[i][k] * corrections[k] * basis[j][k] for k in range(p))
-            for j in range(count)
-        ]
-        for i in range(count)
-    ]
-    return mean, transform
-
-
-def _apply_weights(
-    values: Sequence[float], mean: Sequence[float], transform: Sequence[Sequence[float]]
-) -> tuple[list[float], Matrix]:
-    """Update one state component of every member and return its transform.
-
-    ``x_i^a = xbar + sum_k X_k (wbar_k + W_ki)`` for the forecast values
-    ``x`` of one component over the members; the transform is
-    ``T = 11'/N + (I - 11'/N)(wbar 1' + W)`` [EQ-DA-ETKF-001].
-
-    Args:
-        values: Forecast values of the component, one per member.
-        mean: ``wbar^a``.
-        transform: ``W^a`` as rows.
-
-    Returns:
-        The analysis values and ``T``.
-
-    References:
-        [EQ-DA-ETKF-001], [EQ-DA-ENKS-001], [REF-HUNT-KOSTELICH-SZUNYOGH-2007].
-
-    """
-    count = len(values)
-    center = math.fsum(values) / count
-    anomalies = [value - center for value in values]
-    combined = [[mean[k] + transform[k][i] for i in range(count)] for k in range(count)]
-    updated = [
-        center + math.fsum(anomalies[k] * combined[k][i] for k in range(count))
-        for i in range(count)
-    ]
-    column_means = [
-        math.fsum(combined[k][i] for k in range(count)) / count for i in range(count)
-    ]
-    weights = tuple(
-        tuple(1.0 / count + combined[k][i] - column_means[i] for i in range(count))
-        for k in range(count)
     )
-    return updated, weights
+    return _Weights(mean, None, basis, corrections)
 
 
 def _local_weights(
@@ -316,7 +377,7 @@ def _local_weights(
     indices: Sequence[int],
     tapers: Sequence[float],
     count: int,
-) -> tuple[list[float], list[list[float]]]:
+) -> _Weights:
     """Return ETKF weights from a (tapered) subset of the observations.
 
     The rows ``indices`` of the observation anomalies and of the innovation
@@ -335,7 +396,7 @@ def _local_weights(
         count: Ensemble size ``N``.
 
     Returns:
-        ``wbar^a`` and ``W^a``.
+        The weights.
 
     Raises:
         ValueError: If the block of ``R`` is not positive definite.
@@ -370,6 +431,8 @@ def etkf_analysis(
     observation: Sequence[float],
     observation_function: Callable[[Vector], Sequence[float]],
     observation_covariance: Sequence[Sequence[float]],
+    *,
+    transforms: bool = False,
 ) -> EnsembleTransformAnalysis:
     """Update a forecast ensemble with one observation by the ETKF.
 
@@ -388,9 +451,11 @@ def etkf_analysis(
         observation: Observation ``y``.
         observation_function: Measurement map ``h``.
         observation_covariance: Positive-definite ``R``.
+        transforms: Also return the ``N`` by ``N`` transform (``O(N^2)``
+            work and memory).
 
     Returns:
-        Analysis ensemble, innovation, and the shared transform.
+        Analysis ensemble, innovation, and (on request) the shared transform.
 
     Raises:
         ValueError: If shapes disagree or ``R`` is not positive definite.
@@ -411,19 +476,19 @@ def etkf_analysis(
     ]
     innovation = tuple(a - b for a, b in zip(y, predicted, strict=True))
     indices = tuple(range(len(y)))
-    mean, transform = _local_weights(
+    weights = _local_weights(
         anomalies, innovation, noise, indices, tuple(1.0 for _ in indices), count
     )
-    columns = []
-    weights: Matrix = ()
-    for component in range(len(ensemble.members[0])):
-        values, weights = _apply_weights(
-            [member[component] for member in ensemble.members], mean, transform
-        )
-        columns.append(values)
+    columns = [
+        weights.apply([member[component] for member in ensemble.members])
+        for component in range(len(ensemble.members[0]))
+    ]
     members = tuple(tuple(column[i] for column in columns) for i in range(count))
     return EnsembleTransformAnalysis(
-        Ensemble._trusted(members), innovation, (weights,), "etkf"
+        Ensemble._trusted(members),
+        innovation,
+        (weights.transform(),) if transforms else None,
+        "etkf",
     )
 
 
@@ -432,6 +497,8 @@ def eakf_analysis(
     observation: Sequence[float],
     observation_function: Callable[[Vector], Sequence[float]],
     observation_covariance: Sequence[Sequence[float]],
+    *,
+    transforms: bool = False,
 ) -> EnsembleTransformAnalysis:
     """Assimilate the observation components one at a time by the serial EAKF.
 
@@ -451,9 +518,12 @@ def eakf_analysis(
         observation: Observation ``y``.
         observation_function: Measurement map ``h``.
         observation_covariance: Diagonal positive-definite ``R``.
+        transforms: Also return the ``N`` by ``N`` transform, obtained by
+            applying the same updates to the rows of the identity
+            (``O(N^2)`` extra work per observation).
 
     Returns:
-        Analysis ensemble, innovation, and the shared transform.
+        Analysis ensemble, innovation, and (on request) the shared transform.
 
     Raises:
         ValueError: If shapes disagree, ``R`` is not diagonal with positive
@@ -479,9 +549,11 @@ def eakf_analysis(
     dimension = len(ensemble.members[0])
     state_rows = [[member[j] for member in ensemble.members] for j in range(dimension)]
     observed_rows = [[image[j] for image in images] for j in range(size)]
-    identity_rows = [
-        [1.0 if i == j else 0.0 for i in range(count)] for j in range(count)
-    ]
+    identity_rows = (
+        [[1.0 if i == j else 0.0 for i in range(count)] for j in range(count)]
+        if transforms
+        else []
+    )
     rows = state_rows + observed_rows + identity_rows
     for index in range(size):
         prior = rows[dimension + index]
@@ -513,8 +585,10 @@ def eakf_analysis(
     members = tuple(
         tuple(state_rows[j][i] for j in range(dimension)) for i in range(count)
     )
-    transform = tuple(tuple(row) for row in identity_rows)
     innovation = tuple(a - b for a, b in zip(y, predicted, strict=True))
     return EnsembleTransformAnalysis(
-        Ensemble._trusted(members), innovation, (transform,), "eakf"
+        Ensemble._trusted(members),
+        innovation,
+        (tuple(tuple(row) for row in identity_rows),) if transforms else None,
+        "eakf",
     )

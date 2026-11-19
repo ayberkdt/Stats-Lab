@@ -13,11 +13,13 @@ no backward integration of the model is needed.
 The smoother reuses the filter cycle of
 :func:`~probstat.data_assimilation.ensemble_kalman_filter` with the same
 streams, so its filter part is identical to a filter run with the same
-seed. With a localized analysis (Schur-localized stochastic or LETKF) and
-with RTPS relaxation the transform differs between state components; each
-lagged component is then updated with the transform of its own component,
-an implementation choice that reduces to [EQ-DA-ENKS-001] without
-localization.
+seed. With a localized analysis (Schur-localized stochastic or LETKF) the
+transform differs between state components; each lagged component is then
+updated with the transform of its own component. A relaxation acts on the
+augmented state: every lagged ensemble is relaxed towards itself before the
+update, as the current analysis is relaxed towards its forecast. Both are
+implementation choices that reduce to [EQ-DA-ENKS-001] without
+localization and relaxation.
 
 References:
     [REF-EVENSEN-VANLEEUWEN-2000], [REF-EVENSEN-2003, Appendix D].
@@ -26,7 +28,6 @@ References:
 
 from __future__ import annotations
 
-import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
@@ -79,14 +80,27 @@ def _transform(ensemble: Ensemble, transforms: tuple[Matrix, ...]) -> Ensemble:
         weights = transforms[0] if shared else transforms[j]
         values = [member[j] for member in members]
         columns.append(
-            [
-                math.fsum(values[a] * weights[a][i] for a in range(count))
-                for i in range(count)
-            ]
+            [sum(values[a] * weights[a][i] for a in range(count)) for i in range(count)]
         )
     return Ensemble._trusted(
         tuple(tuple(column[i] for column in columns) for i in range(count))
     )
+
+
+def _relax(
+    relaxation: Relaxation | None, before: Ensemble, after: Ensemble
+) -> Ensemble:
+    """Relax an updated lagged ensemble towards its state before the update.
+
+    The relaxation acts on the augmented state ``(x_t, ..., x_k)``: each
+    lagged ensemble is relaxed towards itself before the update, exactly as
+    the current analysis is relaxed towards its forecast.
+
+    References:
+        [EQ-DA-RELAX-001], [EQ-DA-RELAX-002], [EQ-DA-ENKS-001].
+
+    """
+    return after if relaxation is None else relaxation.apply(before, after)
 
 
 def ensemble_kalman_smoother(
@@ -170,7 +184,10 @@ def ensemble_kalman_smoother(
             final.append(window.pop(0)[1])
         if cycle.transforms is not None:
             weights = cycle.transforms
-            window = [(when, _transform(past, weights)) for when, past in window]
+            window = [
+                (when, _relax(settings.relaxation, past, _transform(past, weights)))
+                for when, past in window
+            ]
         window.append((time, ensemble))
     final.extend(past for _, past in window)
     record = EnsembleKalmanResult(

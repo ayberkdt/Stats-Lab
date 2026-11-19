@@ -41,9 +41,11 @@ for a later 4D-Var.
    R-localization ([EQ-DA-LETKF-001]), and the stochastic analysis with or
    without Schur-product localization ([EQ-DA-LOC-002]) all return, or can
    return, the matrices `T_j` with `E^a_j = E^f_j T_j` (one shared matrix
-   for a global analysis, one per state component for a local one).
-   Relaxation folds into the same matrices. This one representation is what
-   the ensemble smoother needs.
+   for a global analysis, one per state component for a local one). This
+   one representation is what the ensemble smoother needs. The transforms
+   are built only on request (`transforms=True`, or by the smoother): they
+   cost `O(N^2)` per component, while the ETKF members are updated from
+   factored weights in `O(N p)`.
 4. **One filter function with options, not one function per variant.**
    `ensemble_kalman_filter` gains `analysis="stochastic" | "etkf" | "eakf"
    | "letkf"`, `localization=`, and `relaxation=`, all keyword-only with
@@ -86,9 +88,15 @@ for a later 4D-Var.
    iterates the same private cycle generator as the filter (same streams,
    so its filter part is identical) and multiplies the stored ensembles of
    the last `lag` times by each analysis' transforms ([EQ-DA-ENKS-001]).
-   With a localized analysis or RTPS each lagged component is updated with
-   the transform of its own component; this reduces to the published EnKS
-   without localization and is documented as an implementation choice.
+   With a localized analysis each lagged component is updated with the
+   transform of its own component, and a relaxation acts on the augmented
+   state: each updated lagged ensemble is relaxed towards itself before the
+   update, as the current analysis is relaxed towards its forecast. (Folding
+   RTPS into the lagged transforms instead multiplies the lagged spread by
+   the current spread ratio at every step and was rejected after it
+   inflated the smoothed variance above the filtered one in a test.) Both
+   choices reduce to the published EnKS without localization and
+   relaxation.
 9. **Conventions of ADR-0018 unchanged.** Time indexing, `None` as a missing
    observation, Cholesky solves for every `R^-1` (whitening by the factor
    of the local block of `R`), `ValueError` for indefinite matrices

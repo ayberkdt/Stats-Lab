@@ -27,7 +27,6 @@ import math
 from dataclasses import dataclass
 
 from probstat.foundations.validation import require_finite_real
-from probstat.linalg import Matrix
 
 from .enkf import Ensemble, _mean
 
@@ -96,70 +95,6 @@ class Relaxation:
         if self.method == "rtpp":
             return relax_to_prior_perturbations(forecast, analysis, self.factor)
         return relax_to_prior_spread(forecast, analysis, self.factor)
-
-    def compose(
-        self,
-        forecast: Ensemble,
-        analysis: Ensemble,
-        transforms: tuple[Matrix, ...],
-    ) -> tuple[Matrix, ...]:
-        """Fold the relaxation into ensemble transforms ``E^a_j = E^f_j T_j``.
-
-        RTPP gives ``T 11'/N + (1 - alpha) T Q + alpha Q`` with
-        ``Q = I - 11'/N``; RTPS gives ``T (11'/N + f_j Q)`` per component,
-        with ``f_j`` the spread ratio of [EQ-DA-RELAX-002].
-
-        Args:
-            forecast: Forecast ensemble.
-            analysis: Unrelaxed analysis ensemble.
-            transforms: One shared or one per-component transform.
-
-        Returns:
-            Transforms of the relaxed analysis.
-
-        Equation:
-            [EQ-DA-RELAX-001], [EQ-DA-RELAX-002], [EQ-DA-ENKS-001].
-
-        References:
-            [REF-ZHANG-SNYDER-SUN-2004], [REF-WHITAKER-HAMILL-2012],
-            [REF-EVENSEN-2003].
-
-        """
-        count = forecast.size
-        alpha = self.factor
-        if self.method == "rtpp":
-            return tuple(
-                _blend(transform, 1.0 - alpha, alpha, count) for transform in transforms
-            )
-        factors = _spread_factors(forecast, analysis, alpha)
-        return tuple(
-            _blend(
-                transforms[0] if len(transforms) == 1 else transforms[j],
-                factor,
-                0.0,
-                count,
-            )
-            for j, factor in enumerate(factors)
-        )
-
-
-def _blend(transform: Matrix, scale: float, prior: float, count: int) -> Matrix:
-    """Return ``T 11'/N + scale T Q + prior Q`` with ``Q = I - 11'/N``.
-
-    References:
-        [EQ-DA-RELAX-001], [EQ-DA-ENKS-001].
-
-    """
-    row_means = [math.fsum(row) / count for row in transform]
-    return tuple(
-        tuple(
-            row_means[a]
-            + scale * (transform[a][i] - row_means[a])
-            + prior * ((1.0 if a == i else 0.0) - 1.0 / count)
-            for i in range(count)
-        )
-        for a in range(count)
-    )
 
 
 def _factor(value: float) -> float:

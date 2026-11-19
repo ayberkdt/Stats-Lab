@@ -99,8 +99,9 @@ class _Cycle:
         forecast: Forecast ensemble after inflation.
         analysis: Analysis ensemble after relaxation (the forecast when the
             observation is missing).
-        transforms: Ensemble transforms ``E^a_j = E^f_j T_j`` of the cycle,
-            or ``None`` when no analysis took place or none was requested.
+        transforms: Ensemble transforms ``E^a_j = E^f_j T_j`` of the
+            analysis before relaxation, or ``None`` when no analysis took
+            place or none was requested.
 
     References:
         [EQ-DA-ENKS-001].
@@ -239,19 +240,22 @@ def _cycles(
             updated = outcome.ensemble
         else:
             if settings.analysis == "etkf":
-                result = etkf_analysis(forecast, observation, model.observe, noise)
+                result = etkf_analysis(
+                    forecast, observation, model.observe, noise, transforms=transforms
+                )
             elif settings.analysis == "eakf":
-                result = eakf_analysis(forecast, observation, model.observe, noise)
+                result = eakf_analysis(
+                    forecast, observation, model.observe, noise, transforms=transforms
+                )
             else:
                 assert local_sets is not None
-                result = _letkf(forecast, observation, model.observe, noise, local_sets)
+                result = _letkf(
+                    forecast, observation, model.observe, noise, local_sets, transforms
+                )
             updated = result.ensemble
-            weights = result.transforms if transforms else None
+            weights = result.transforms
         if settings.relaxation is not None:
-            relaxed = settings.relaxation.apply(forecast, updated)
-            if weights is not None:
-                weights = settings.relaxation.compose(forecast, updated, weights)
-            updated = relaxed
+            updated = settings.relaxation.apply(forecast, updated)
         ensemble = updated
         yield _Cycle(forecast, updated, weights)
 
