@@ -33,6 +33,7 @@ from probstat.inverse import (
     Experiment,
     NoiseModel,
     calibrate_linear_gaussian,
+    predict,
 )
 from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
 from probstat.multivariate import MultivariateNormal
@@ -856,6 +857,10 @@ class CalibrationWiringTests(unittest.TestCase):
         sample = posterior.standard_space.chains[0].samples[0]
         physical = posterior.mcmc.chains[0].samples[0]
         self.assertAlmostEqual(math.exp(sample[2]), physical[2], delta=1e-12)
+        prediction = predict(
+            problem, posterior, conditions=({"x": 1.0},), include_noise=True, seed=1
+        )
+        self.assertEqual(prediction.draws, 300)
 
     def test_unknown_method_and_default_unchanged(self) -> None:
         """An unknown method raises; the default path still runs."""
