@@ -756,6 +756,99 @@ Geir Evensen. "The Ensemble Kalman Filter: Theoretical Formulation and
 Practical Implementation." *Ocean Dynamics* 53(4), 343-367, 2003.
 DOI: [10.1007/s10236-003-0036-9](https://doi.org/10.1007/s10236-003-0036-9).
 
+## REF-LORENZ-1963
+
+Edward N. Lorenz. "Deterministic Nonperiodic Flow." *Journal of the
+Atmospheric Sciences* 20(2), 130-141, 1963. The three-variable convection
+model with `sigma = 10`, `b = 8/3`, `r = 28` and the time step `0.01`.
+DOI: [10.1175/1520-0469(1963)020<0130:DNF>2.0.CO;2](https://doi.org/10.1175/1520-0469(1963)020%3C0130:DNF%3E2.0.CO;2).
+
+## REF-LORENZ-2006
+
+Edward N. Lorenz. "Predictability -- A Problem Partly Solved." In Tim Palmer
+and Renate Hagedorn (eds.), *Predictability of Weather and Climate*,
+Chapter 3, 40-58. Cambridge University Press, Cambridge, 2006. First
+presented at the ECMWF Seminar on Predictability, 4-8 September 1995
+(proceedings vol. 1, 1-18); the cyclic model with forcing `F` integrated by
+fourth-order Runge-Kutta with the step `0.05` (six hours).
+DOI: [10.1017/CBO9780511617652.004](https://doi.org/10.1017/CBO9780511617652.004).
+
+## REF-LORENZ-EMANUEL-1998
+
+Edward N. Lorenz and Kerry A. Emanuel. "Optimal Sites for Supplementary
+Weather Observations: Simulation with a Small Model." *Journal of the
+Atmospheric Sciences* 55(3), 399-414, 1998. The setting `J = 40`, `F = 8`,
+Runge-Kutta step `0.05`.
+DOI: [10.1175/1520-0469(1998)055<0399:OSFSWO>2.0.CO;2](https://doi.org/10.1175/1520-0469(1998)055%3C0399:OSFSWO%3E2.0.CO;2).
+
+## REF-BISHOP-ETHERTON-MAJUMDAR-2001
+
+Craig H. Bishop, Brian J. Etherton, and Sharanya J. Majumdar. "Adaptive
+Sampling with the Ensemble Transform Kalman Filter. Part I: Theoretical
+Aspects." *Monthly Weather Review* 129(3), 420-436, 2001.
+DOI: [10.1175/1520-0493(2001)129<0420:ASWTET>2.0.CO;2](https://doi.org/10.1175/1520-0493(2001)129%3C0420:ASWTET%3E2.0.CO;2).
+
+## REF-HUNT-KOSTELICH-SZUNYOGH-2007
+
+Brian R. Hunt, Eric J. Kostelich, and Istvan Szunyogh. "Efficient Data
+Assimilation for Spatiotemporal Chaos: A Local Ensemble Transform Kalman
+Filter." *Physica D: Nonlinear Phenomena* 230(1-2), 112-126, 2007. Section
+and equation numbers cited here follow the arXiv version
+physics/0511236v2.
+DOI: [10.1016/j.physd.2006.11.008](https://doi.org/10.1016/j.physd.2006.11.008).
+
+## REF-ANDERSON-2001
+
+Jeffrey L. Anderson. "An Ensemble Adjustment Kalman Filter for Data
+Assimilation." *Monthly Weather Review* 129(12), 2884-2903, 2001.
+DOI: [10.1175/1520-0493(2001)129<2884:AEAKFF>2.0.CO;2](https://doi.org/10.1175/1520-0493(2001)129%3C2884:AEAKFF%3E2.0.CO;2).
+
+## REF-ANDERSON-JL-2003
+
+Jeffrey L. Anderson. "A Local Least Squares Framework for Ensemble
+Filtering." *Monthly Weather Review* 131(4), 634-642, 2003. The two-step
+form of the serial EAKF: a scalar update in observation space followed by
+linear regression onto the state.
+DOI: [10.1175/1520-0493(2003)131<0634:ALLSFF>2.0.CO;2](https://doi.org/10.1175/1520-0493(2003)131%3C0634:ALLSFF%3E2.0.CO;2).
+
+## REF-GASPARI-COHN-1999
+
+Gregory Gaspari and Stephen E. Cohn. "Construction of Correlation Functions
+in Two and Three Dimensions." *Quarterly Journal of the Royal Meteorological
+Society* 125(554), 723-757, 1999. The fifth-order piecewise rational
+function, their Equation (4.10).
+DOI: [10.1002/qj.49712555417](https://doi.org/10.1002/qj.49712555417).
+
+## REF-HOUTEKAMER-MITCHELL-2001
+
+P. L. Houtekamer and Herschel L. Mitchell. "A Sequential Ensemble Kalman
+Filter for Atmospheric Data Assimilation." *Monthly Weather Review* 129(1),
+123-137, 2001. Schur-product localization of the ensemble covariances in the
+gain.
+DOI: [10.1175/1520-0493(2001)129<0123:ASEKFF>2.0.CO;2](https://doi.org/10.1175/1520-0493(2001)129%3C0123:ASEKFF%3E2.0.CO;2).
+
+## REF-ZHANG-SNYDER-SUN-2004
+
+F. Zhang, Chris Snyder, and Juanzhen Sun. "Impacts of Initial Estimate and
+Observation Availability on Convective-Scale Data Assimilation with an
+Ensemble Kalman Filter." *Monthly Weather Review* 132(5), 1238-1253, 2004.
+Relaxation to prior perturbations, their Equation (5).
+DOI: [10.1175/1520-0493(2004)132<1238:IOIEAO>2.0.CO;2](https://doi.org/10.1175/1520-0493(2004)132%3C1238:IOIEAO%3E2.0.CO;2).
+
+## REF-WHITAKER-HAMILL-2012
+
+Jeffrey S. Whitaker and Thomas M. Hamill. "Evaluating Methods to Account
+for System Errors in Ensemble Data Assimilation." *Monthly Weather Review*
+140(9), 3078-3089, 2012. Relaxation to prior spread, their Equations (2) and
+(3).
+DOI: [10.1175/MWR-D-11-00276.1](https://doi.org/10.1175/MWR-D-11-00276.1).
+
+## REF-EVENSEN-VANLEEUWEN-2000
+
+Geir Evensen and Peter Jan van Leeuwen. "An Ensemble Kalman Smoother for
+Nonlinear Dynamics." *Monthly Weather Review* 128(6), 1852-1867, 2000.
+DOI: [10.1175/1520-0493(2000)128<1852:AEKSFN>2.0.CO;2](https://doi.org/10.1175/1520-0493(2000)128%3C1852:AEKSFN%3E2.0.CO;2).
+
 ## REF-LORENC-1986
 
 A. C. Lorenc. "Analysis Methods for Numerical Weather Prediction." *Quarterly

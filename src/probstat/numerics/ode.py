@@ -1,4 +1,4 @@
-"""Fixed-step explicit integration of an ordinary differential equation to an event.
+"""Fixed-step explicit integration of an ordinary differential equation.
 
 A simulator that stops "when the package reaches the ground" or "when the
 tank is empty" integrates ``y' = f(t, y)`` until an event function
@@ -25,6 +25,12 @@ methods are only stable for steps below a limit set by the stiffest
 eigenvalue of the Jacobian of ``f`` (``|1 + h lambda| <= 1`` for Euler);
 larger steps diverge rather than lose accuracy gracefully.
 
+:func:`integrate_fixed_step` uses the same steps over a fixed horizon and
+returns the whole grid trajectory. It does nothing but arithmetic on the
+state entries, so reverse- or forward-mode automatic differentiation passes
+through it; the dynamical test systems of :mod:`probstat.filtering` (the
+Lorenz-63 and Lorenz-96 models) are built on it.
+
 Guide: docs/foundations/vv-uq-foundations.md
 
 References:
@@ -32,7 +38,9 @@ References:
     methods, dense output, and event location),
     [REF-HAIRER-WANNER-1996, Section IV.2] (stability of explicit
     Runge-Kutta methods),
-    [REF-DOWELL-JARRATT-1971] (Illinois root finding).
+    [REF-DOWELL-JARRATT-1971] (Illinois root finding),
+    [REF-GRIEWANK-WALTHER-2008, Chapter 3] (differentiating through the
+    fixed-step trajectory).
 
 """
 
@@ -422,3 +430,127 @@ def integrate_to_event(
         slope = _slope(rhs, t, y, size)
         evaluations += 1
     raise RuntimeError(f"no event within {max_steps} steps of size {h!r}")
+
+
+@dataclass(frozen=True, slots=True)
+class FixedStepTrajectory:
+    """Grid solution of an ordinary differential equation over a fixed horizon.
+
+    Args:
+        times: Grid times ``t_n = t_0 + n h`` for ``n = 0..steps``.
+        states: States ``y_n`` at the grid times; ``states[0]`` is ``y_0``.
+        method: Integration method, one of :data:`ODE_METHODS`.
+        step: Step size ``h``.
+        evaluations: Number of right-hand-side evaluations.
+
+    References:
+        [EQ-NUM-ODE-001], [EQ-NUM-ODE-003].
+
+    """
+
+    times: tuple[float, ...]
+    states: tuple[tuple[float, ...], ...]
+    method: str
+    step: float
+    evaluations: int
+
+    @property
+    def final_state(self) -> tuple[float, ...]:
+        """Return ``y_N``, the state at the end of the horizon.
+
+        References:
+            [EQ-NUM-ODE-003].
+
+        """
+        return self.states[-1]
+
+
+def _is_real(value: object) -> bool:
+    """Return whether a state entry is a plain real number (not an AD variable).
+
+    References:
+        [REF-HAIRER-NORSETT-WANNER-1993, Section II.1]. No equation is
+        evaluated.
+
+    """
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def integrate_fixed_step(
+    rhs: Rhs,
+    t0: float,
+    y0: Sequence[float],
+    *,
+    step: float,
+    steps: int,
+    method: str = "rk4",
+) -> FixedStepTrajectory:
+    """Integrate ``y' = f(t, y)`` over ``steps`` fixed steps and keep every state.
+
+    The explicit method of [EQ-NUM-ODE-001] advances
+    ``y_{n+1} = y_n + h Phi(t_n, y_n; h)`` on the grid ``t_n = t_0 + n h``
+    ([EQ-NUM-ODE-003]). The update is plain arithmetic on the state entries,
+    so the entries may be automatic-differentiation variables
+    (:class:`~probstat.numerics.ReverseVariable` inside
+    :func:`~probstat.numerics.reverse_gradient`, or forward-mode duals): the
+    trajectory, and any functional of it, is then differentiated exactly
+    through every stage of every step. Only entries that are plain real
+    numbers are checked for finiteness; the right-hand side must also be
+    written with arithmetic operators (or ``admath``) for this to work.
+
+    Args:
+        rhs: Right-hand side ``f(t, y)`` returning a vector of the length of
+            the state.
+        t0: Initial time.
+        y0: Initial state ``y(t0)``.
+        step: Fixed step ``h > 0``.
+        steps: Number of steps ``N >= 0``; the horizon is ``t0 + N h``.
+        method: ``"euler"``, ``"heun"``, or ``"rk4"``.
+
+    Returns:
+        Grid times, the ``N + 1`` states, and the work done.
+
+    Raises:
+        ValueError: If the step, the number of steps, or the method is
+            invalid, the state is empty, a slope has the wrong length, or a
+            real-valued state becomes non-finite.
+
+    Equation:
+        [EQ-NUM-ODE-001], [EQ-NUM-ODE-003].
+
+    References:
+        [EQ-NUM-ODE-001], [EQ-NUM-ODE-003],
+        [REF-HAIRER-NORSETT-WANNER-1993, Section II.1],
+        [REF-GRIEWANK-WALTHER-2008, Chapter 3].
+
+    """
+    h = float(step)
+    if not (math.isfinite(h) and h > 0.0):
+        raise ValueError(f"step must be finite and positive, got {step!r}")
+    if isinstance(steps, bool) or not isinstance(steps, int) or steps < 0:
+        raise ValueError(f"steps must be a non-negative integer, got {steps!r}")
+    if method not in ODE_METHODS:
+        raise ValueError(f"method must be one of {ODE_METHODS}, got {method!r}")
+    start = float(t0)
+    if not math.isfinite(start):
+        raise ValueError(f"t0 must be finite, got {t0!r}")
+    y = list(y0)
+    size = len(y)
+    if size == 0:
+        raise ValueError("y0 must not be empty")
+    if not all(math.isfinite(value) for value in y if _is_real(value)):
+        raise ValueError(f"y0 is not finite: {y}")
+    times = [start]
+    states = [tuple(y)]
+    evaluations = 0
+    t = start
+    for index in range(1, steps + 1):
+        slope = _slope(rhs, t, y, size)
+        y, extra = _advance(rhs, method, t, y, slope, h)
+        evaluations += 1 + extra
+        if not all(math.isfinite(value) for value in y if _is_real(value)):
+            raise ValueError(f"state is not finite after step {index}: {y}")
+        t = start + index * h
+        times.append(t)
+        states.append(tuple(y))
+    return FixedStepTrajectory(tuple(times), tuple(states), method, h, evaluations)

@@ -5,9 +5,10 @@
 Riccati solution; ``extended`` provides the EKF and UKF; ``particle`` provides
 the bootstrap particle filter; ``particle_proposals`` the auxiliary and
 locally optimal particle filters; ``particle_smoothing`` the
-forward-filtering backward-smoothing particle smoother; and
+forward-filtering backward-smoothing particle smoother;
 ``parameter_estimation`` maximum likelihood, EM, and particle marginal
-Metropolis-Hastings for static parameters. Ensemble and variational data
+Metropolis-Hastings for static parameters; and ``benchmark_models`` the
+Lorenz-63 and Lorenz-96 test systems. Ensemble and variational data
 assimilation live in :mod:`probstat.data_assimilation`.
 
 Main entry points:
@@ -31,6 +32,9 @@ Main entry points:
     ``particle_marginal_metropolis_hastings``: exact-posterior MCMC with a
     particle likelihood estimate.
     ``simulate``: seeded true trajectory and observations.
+    ``lorenz63``, ``lorenz96``: chaotic test systems as nonlinear models
+    whose transition is classical Runge-Kutta over one assimilation
+    interval (raw tendencies: ``lorenz63_rhs``, ``lorenz96_rhs``).
 
 Assumptions:
     Process and measurement noise are additive, Gaussian, zero-mean, and
@@ -70,10 +74,19 @@ References:
     [REF-KALMAN-1960], [REF-RAUCH-TUNG-STRIEBEL-1965], [REF-SARKKA-2013],
     [REF-JULIER-UHLMANN-2004], [REF-GORDON-SALMOND-SMITH-1993],
     [REF-PITT-SHEPHARD-1999], [REF-GODSILL-DOUCET-WEST-2004],
-    [REF-SHUMWAY-STOFFER-1982], [REF-ANDRIEU-DOUCET-HOLENSTEIN-2010].
+    [REF-SHUMWAY-STOFFER-1982], [REF-ANDRIEU-DOUCET-HOLENSTEIN-2010],
+    [REF-LORENZ-1963], [REF-LORENZ-EMANUEL-1998].
 
 """
 
+from .benchmark_models import (
+    LORENZ63_STEP,
+    LORENZ96_STEP,
+    lorenz63,
+    lorenz63_rhs,
+    lorenz96,
+    lorenz96_rhs,
+)
 from .extended import (
     UnscentedTransformResult,
     UnscentedWeights,
@@ -126,6 +139,8 @@ from .state_space import (
 
 __all__ = [
     "EMResult",
+    "LORENZ63_STEP",
+    "LORENZ96_STEP",
     "GaussianState",
     "KalmanFilterResult",
     "LinearGaussianStateSpace",
@@ -153,6 +168,10 @@ __all__ = [
     "kalman_update",
     "linear_gaussian_em",
     "linear_gaussian_update",
+    "lorenz63",
+    "lorenz63_rhs",
+    "lorenz96",
+    "lorenz96_rhs",
     "optimal_proposal_particle_filter",
     "particle_marginal_metropolis_hastings",
     "rts_smoother",

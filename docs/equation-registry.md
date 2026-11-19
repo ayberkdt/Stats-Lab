@@ -3300,6 +3300,187 @@ inflation `x_i <- xbar + sqrt(lambda)(x_i - xbar)` gives
 - Code: `data_assimilation.three_dimensional_variational`.
 - Source: [REF-LORENC-1986].
 
+### EQ-FILT-LORENZ-001 — Lorenz-63 system
+
+`dx/dt = sigma (y - x)`, `dy/dt = x (rho - z) - y`, `dz/dt = x y - beta z`;
+classical parameters `sigma = 10`, `rho = 28`, `beta = 8/3`. Fixed points
+`(0, 0, 0)` and, for `rho > 1`,
+`(+-sqrt(beta (rho - 1)), +-sqrt(beta (rho - 1)), rho - 1)`.
+
+- Domain: real `sigma`, `rho`, `beta`; the state-space transition advances
+  the system by `substeps` classical Runge-Kutta steps of size `step`
+  ([EQ-NUM-ODE-003]); the default step `0.01` is the step of Lorenz (1963),
+  who integrated with a second-order scheme.
+- Meaning: a truncated convection model whose classical parameters give a
+  chaotic attractor; the standard three-variable test of nonlinear filters.
+- Code: `filtering.lorenz63_rhs`, `filtering.lorenz63`.
+- Source: [REF-LORENZ-1963, Equations 25-27 and Section 7].
+
+### EQ-FILT-LORENZ-002 — Lorenz-96 system
+
+`dx_i/dt = (x_(i+1) - x_(i-2)) x_(i-1) - x_i + F`, `i = 0..J-1`, indices
+modulo `J`; conventionally `J = 40`, `F = 8`, and a fourth-order Runge-Kutta
+step of `0.05` time units (six hours).
+
+- Domain: `J >= 4`, finite `F`; the state-space transition advances the
+  system by `substeps` classical Runge-Kutta steps ([EQ-NUM-ODE-003]).
+- Meaning: advection (quadratic, energy conserving), damping, and forcing
+  on a latitude circle. `x_i = F` for all `i` is a fixed point (unstable
+  for `F = 8`), and the equations commute with cyclic shifts of the index.
+- Code: `filtering.lorenz96_rhs`, `filtering.lorenz96`.
+- Source: [REF-LORENZ-2006] (the model and the Runge-Kutta step `0.05`) and
+  [REF-LORENZ-EMANUEL-1998, Equation 1] (`J = 40`, `F = 8`).
+
+### EQ-DA-ETKF-001 — Ensemble transform Kalman analysis (symmetric square root)
+
+With forecast members `x_i`, mean `xbar`, anomalies `X = [x_i - xbar]`,
+observed anomalies `Y = [h(x_i) - ybar]`, and `a = N - 1`:
+`Ptilde = (a I + Y' R^-1 Y)^-1`, `wbar = Ptilde Y' R^-1 (y - ybar)`,
+`W = (a Ptilde)^(1/2)` (symmetric square root), and
+`x_i^a = xbar + X (wbar + W_i)`. As a transform of the member matrix,
+`E^a = E^f T` with `T = 11'/N + (I - 11'/N)(wbar 1' + W)`.
+
+- Domain: at least two members, positive-definite `R`. `R^-1` is applied
+  through the Cholesky factor `R = L L'` (`Yhat = L^-1 Y`); for `p < N`
+  observations the `p` by `p` matrix `Yhat Yhat' = U S U'` is diagonalized
+  instead of the `N` by `N` one, with `W = I + sqrt(a) B g(S) B'`,
+  `wbar = B (a I + S)^-1 U' L^-1 (y - ybar)`, `B = Yhat' U`, and
+  `g(s) = -1 / (sqrt(a) sqrt(a + s) (sqrt(a) + sqrt(a + s)))`.
+- Meaning: a deterministic square-root update. For linear `h` the analysis
+  mean and sample covariance equal the Kalman update of the forecast
+  ensemble mean and covariance exactly; the symmetric square root keeps the
+  anomalies centred and changes them as little as possible.
+- Code: `data_assimilation.etkf_analysis`,
+  `data_assimilation.ensemble_kalman_filter`.
+- Source: [REF-BISHOP-ETHERTON-MAJUMDAR-2001] (the ensemble transform) and
+  [REF-HUNT-KOSTELICH-SZUNYOGH-2007, Sections 2.3 and 3] (the symmetric
+  square-root form); the `p < N` form is an exact rewriting by the Woodbury
+  identity, an implementation choice of this library.
+
+### EQ-DA-EAKF-001 — Serial ensemble adjustment Kalman update
+
+For each scalar observation `y_o` with error variance `r`: prior observed
+ensemble `y_i` with mean `ybar` and variance `s_p` (divisor `N - 1`);
+`s_a = (1/s_p + 1/r)^-1`, `ybar^a = s_a (ybar / s_p + y_o / r)`,
+`y_i^a = ybar^a + sqrt(r / (r + s_p)) (y_i - ybar)`; every state and
+remaining observed component `z` receives
+`z_i <- z_i + (cov(z, y) / s_p)(y_i^a - y_i)`.
+
+- Domain: diagonal positive-definite `R` (independent observation errors);
+  `s_p > 0` for every observed component.
+- Meaning: a deterministic adjustment in observation space followed by
+  linear regression onto the joint state-observation ensemble. For linear
+  `h` the serial result equals the Kalman update of the forecast ensemble
+  moments. Applying the same updates to the rows of the identity gives the
+  transform `T` with `E^a = E^f T`.
+- Code: `data_assimilation.eakf_analysis`,
+  `data_assimilation.ensemble_kalman_filter`.
+- Source: [REF-ANDERSON-2001] (the ensemble adjustment Kalman filter) and
+  [REF-ANDERSON-JL-2003, Section 3b] (the two-step scalar form).
+
+### EQ-DA-LOC-001 — Gaspari-Cohn compactly supported correlation
+
+With `z = |d| / c`: `rho = -z^5/4 + z^4/2 + 5z^3/8 - 5z^2/3 + 1` for
+`0 <= z <= 1`; `rho = z^5/12 - z^4/2 + 5z^3/8 + 5z^2/3 - 5z + 4 - 2/(3z)` for
+`1 < z <= 2`; `rho = 0` for `z > 2`. Distances are Euclidean, periodic per
+axis when a period is given.
+
+- Domain: half-width `c > 0` (`c = infinity` gives `rho = 1`); support
+  `|d| <= 2c`.
+- Meaning: a fifth-order piecewise rational function that is a correlation
+  function in up to three dimensions, with `rho(0) = 1`, `rho(c) = 5/24`,
+  and `rho(2c) = 0`; it mimics a Gaussian correlation of length about
+  `c / sqrt(10/3)`.
+- Code: `data_assimilation.gaspari_cohn`,
+  `data_assimilation.localization_matrix`,
+  `data_assimilation.Localization.state_observation_weights`.
+- Source: [REF-GASPARI-COHN-1999, Equation 4.10].
+
+### EQ-DA-LOC-002 — Schur-product localization of the ensemble gain
+
+`K = (rho_xy o C_xy)(rho_yy o C_yy + R)^-1`, with `rho_xy` the
+state-observation and `rho_yy` the observation-observation weights of
+[EQ-DA-LOC-001] and `o` the entrywise product; each member receives
+`x_i^a = x_i^f + K (y + e_i - h(x_i^f))` as in [EQ-DA-ENKF-001]. Component
+`j` of the members is then `E^a_j = E^f_j T_j` with
+`T_j = I + Y' diag(rho_j) (rho_yy o C_yy + R)^-1 D / (N - 1)`, `D` the
+perturbed innovations.
+
+- Domain: [EQ-DA-ENKF-001]; `rho_yy o C_yy + R` positive definite.
+- Meaning: damps spurious long-range sample covariances; the Schur product
+  of two positive-semidefinite matrices is positive semidefinite.
+- Code: `data_assimilation.localized_ensemble_analysis`,
+  `data_assimilation.ensemble_kalman_filter`.
+- Source: [REF-HOUTEKAMER-MITCHELL-2001].
+
+### EQ-DA-LETKF-001 — LETKF with R-localization
+
+For state component `j`, the local observations are those with
+`rho_jl = rho(d(s_j, o_l)) > 0` ([EQ-DA-LOC-001]); with
+`D_j = diag(rho_jl)` the local analysis is [EQ-DA-ETKF-001] with
+`R_loc^-1` replaced by `D_j^(1/2) R_loc^-1 D_j^(1/2)` (each inverse error
+variance multiplied by `rho_jl` for a diagonal `R`); only component `j` is
+updated with the local weights.
+
+- Domain: positive-definite `R`; a component without local observations
+  keeps its forecast.
+- Meaning: observations far from a grid point lose influence smoothly
+  rather than being cut off, and every grid point is analysed in the
+  `N`-dimensional ensemble space. With `c = infinity` every local analysis
+  is the global ETKF.
+- Code: `data_assimilation.letkf_analysis`,
+  `data_assimilation.ensemble_kalman_filter`.
+- Source: [REF-HUNT-KOSTELICH-SZUNYOGH-2007, Sections 2.3 and 3].
+
+### EQ-DA-RELAX-001 — Relaxation to prior perturbations (RTPP)
+
+`x_i^a <- xbar^a + (1 - alpha)(x_i^a - xbar^a) + alpha (x_i^f - xbar^f)`,
+`0 <= alpha <= 1`.
+
+- Domain: forecast and analysis ensembles with the same member order.
+- Meaning: restores part of the forecast anomalies after the analysis; the
+  analysis mean is unchanged.
+- Code: `data_assimilation.relax_to_prior_perturbations`,
+  `data_assimilation.Relaxation.apply`.
+- Source: [REF-ZHANG-SNYDER-SUN-2004, Equation 5].
+
+### EQ-DA-RELAX-002 — Relaxation to prior spread (RTPS)
+
+For each state component, with forecast and analysis spreads `sigma^f`
+and `sigma^a` (divisor `N - 1`):
+`x_i^a <- xbar^a + (alpha (sigma^f - sigma^a) / sigma^a + 1)(x_i^a - xbar^a)`,
+so that `sigma^a <- (1 - alpha) sigma^a + alpha sigma^f`.
+
+- Domain: `0 <= alpha <= 1`; a component with `sigma^a = 0` is left as it
+  is.
+- Meaning: inflates the analysis spread in proportion to how much the
+  observations reduced it, so densely observed regions get more
+  inflation; the analysis mean is unchanged.
+- Code: `data_assimilation.relax_to_prior_spread`,
+  `data_assimilation.Relaxation.apply`.
+- Source: [REF-WHITAKER-HAMILL-2012, Equations 2-3].
+
+### EQ-DA-ENKS-001 — Ensemble Kalman smoother update
+
+If the analysis at time `k` is `E^a_k = E^f_k T_k` (componentwise
+`E^a_(k,j) = E^f_(k,j) T_(k,j)`), the ensembles of earlier times in the lag
+window are updated with the same combination:
+`E_(t|k) = E_(t|k-1) T_k` for `k - lag <= t < k`.
+
+- Domain: members paired by position over time (every forecast keeps the
+  member order); a missing observation leaves the window unchanged.
+- Meaning: the lagged ensembles and the current one stay a joint sample,
+  so the update is the ensemble analysis of the augmented state
+  `(x_t, ..., x_k)`; for a linear-Gaussian model and large `N` it
+  approaches the Rauch-Tung-Striebel smoother. With a localized analysis
+  each lagged component uses the transform of its own component, and a
+  relaxation ([EQ-DA-RELAX-001], [EQ-DA-RELAX-002]) relaxes each updated
+  lagged ensemble towards itself before the update; both are
+  implementation choices of this library.
+- Code: `data_assimilation.ensemble_kalman_smoother`.
+- Source: [REF-EVENSEN-VANLEEUWEN-2000, Section 3c] and
+  [REF-EVENSEN-2003, Appendix D].
+
 ### EQ-SUR-PCE-001 — Polynomial chaos expansion
 
 `Y ~= sum_(alpha in A) c_alpha Psi_alpha(xi)`,
@@ -16855,6 +17036,23 @@ method; `t* = t_n + theta* h`, `y* = u(theta*)`.
 - Code: `numerics.ode.integrate_to_event`.
 - Source: [REF-HAIRER-NORSETT-WANNER-1993, Section II.6] (dense output and
   event location); [REF-DOWELL-JARRATT-1971] (Illinois method).
+
+### EQ-NUM-ODE-003 — Fixed-step trajectory over a fixed horizon
+
+`t_n = t_0 + n h` and `y_(n+1) = y_n + h Phi(t_n, y_n; h)` for
+`n = 0..N-1`, with the increment `Phi` of [EQ-NUM-ODE-001]; the trajectory
+is `(t_n, y_n)` for `n = 0..N`.
+
+- Domain: [EQ-NUM-ODE-001]; `N >= 0` steps. Only state entries that are
+  plain real numbers are checked for finiteness, so the entries may be
+  automatic-differentiation variables.
+- Meaning: the discrete flow map `y_0 -> y_N` is a composition of
+  arithmetic operations, so reverse-mode differentiation of a functional of
+  `y_N` gives the exact gradient of the discrete map (the adjoint of the
+  Runge-Kutta scheme), not an approximation of the continuous adjoint.
+- Code: `numerics.integrate_fixed_step`, `numerics.FixedStepTrajectory`.
+- Source: [REF-HAIRER-NORSETT-WANNER-1993, Section II.1];
+  [REF-GRIEWANK-WALTHER-2008, Chapter 3] for differentiating through it.
 
 ### EQ-LAB-PARA-001 — Drag-free landing abscissa
 

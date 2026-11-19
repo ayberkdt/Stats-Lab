@@ -285,28 +285,160 @@ that split, so this would need a new model class (ADR-0113).
 Data assimilation combines a model forecast with observations to estimate the
 state of a large system. `probstat.data_assimilation` consumes the same model
 objects structurally (it does not import `probstat.filtering`).
+`ensemble_kalman_filter` runs every ensemble method of the package through
+one forecast-analysis cycle: forecast each member with its own process noise,
+apply the declared multiplicative inflation to the forecast anomalies,
+analyse the observation (skipped for `None`), and apply the optional
+relaxation. `analysis=` selects the update, and the result records the
+analysis, localization, and relaxation that were used. The default options
+reproduce the stochastic filter of earlier releases bit for bit.
 
-**Stochastic ensemble Kalman filter.** `ensemble_kalman_filter` replaces the
-Kalman covariance with the sample covariance of `N` model runs. Each member
-is forecast with its own process noise and updated with its own perturbed
-observation `y + e_i`, `e_i ~ N(0, R)` [EQ-DA-ENKF-001]. Without the
-perturbation the analysis ensemble would be too narrow. On the
-constant-velocity model (`q = 0.05`, `r = 1`, the same prior, 5 steps,
-`seed=7` data, `seed=0` filter), the final analysis compared with the exact
-filter is:
+**Stochastic ensemble Kalman filter.** The default `analysis="stochastic"`
+replaces the Kalman covariance with the sample covariance of `N` model runs.
+Each member is updated with its own perturbed observation `y + e_i`,
+`e_i ~ N(0, R)` [EQ-DA-ENKF-001]. Without the perturbation the analysis
+ensemble would be too narrow. On the constant-velocity model (`q = 0.05`,
+`r = 1`, the same prior, 5 steps, `seed=7` data, `seed=0` filter), the final
+analysis compared with the exact filter is:
 
 | | mean (pos, vel) | variance (pos, vel) |
 |---|---|---|
 | Kalman filter | (4.738, 0.636) | (0.537, 0.138) |
 | EnKF, `N = 50` | (4.609, 0.675) | (0.670, 0.121) |
 | EnKF, `N = 1000` | (4.716, 0.651) | (0.527, 0.135) |
+| ETKF, `N = 50` | (4.829, 0.685) | (0.521, 0.105) |
+| ETKF, `N = 1000` | (4.727, 0.637) | (0.537, 0.132) |
 
 The ensemble covariance has rank at most `N - 1` and relative error of order
 `N^-1/2` [EQ-DA-ENKF-002]. Small ensembles therefore produce sampling error,
-spurious long-range correlations, and usually under-dispersion. The library
-exposes multiplicative inflation (`inflation >= 1`, applied to forecast
-anomalies) as an explicit parameter. It does not inflate or localize anything
-silently, and localization is not implemented.
+spurious long-range correlations, and usually under-dispersion. Nothing is
+inflated, localized, or relaxed unless the corresponding argument is given.
+
+### Square-root filters
+
+A square-root filter updates the ensemble deterministically, so the analysis
+moments equal the Kalman update of the forecast ensemble moments exactly for
+a linear `h`, not only in expectation.
+
+- `analysis="etkf"` is the ensemble transform Kalman filter of Bishop,
+  Etherton & Majumdar in the symmetric-square-root form of Hunt, Kostelich &
+  Szunyogh [EQ-DA-ETKF-001]: with forecast anomalies `X`, observed anomalies
+  `Y`, and `a = N - 1`, `Ptilde = (a I + Y' R^-1 Y)^-1`,
+  `wbar = Ptilde Y' R^-1 (y - ybar)`, `W = (a Ptilde)^(1/2)`, and
+  `x_i^a = xbar + X (wbar + W_i)`. The symmetric root keeps the anomalies
+  centred. `R^-1` is applied through its Cholesky factor, and the
+  eigen-decomposition (`linalg.symmetric_eigen`) is done in the smaller of
+  the ensemble space and the observation space.
+- `analysis="eakf"` is the serial ensemble adjustment Kalman filter of
+  Anderson in its two-step form [EQ-DA-EAKF-001]: each scalar observation
+  shifts and shrinks the observed ensemble deterministically,
+  `y_i^a = ybar^a + sqrt(r / (r + s_p)) (y_i - ybar)`, and the increments are
+  regressed onto the state and the remaining observed components. It needs a
+  diagonal `R`.
+
+On the example above the EAKF agrees with the ETKF row to the three decimals
+shown. One analysis gives both the same mean and covariance, but different
+members, so the forecast noise of later cycles makes them drift apart in the
+fourth digit.
+`tests/test_data_assimilation_advanced.py` checks one ETKF and one EAKF
+analysis against the Kalman update of the ensemble mean and covariance to
+`1e-10`, with fewer and with more observations than members. The table also
+shows the price of determinism: the square-root filters carry no
+perturbation noise, but their spread still comes from `N` members, and at
+`N = 50` the velocity variance 0.105 is 24% below the exact 0.138.
+
+### Localization and the LETKF
+
+`Localization(state_coordinates, observation_coordinates, half_width,
+period=None)` assigns one point to every state and observation component.
+Weights come from the fifth-order Gaspari-Cohn function [EQ-DA-LOC-001]:
+`rho(0) = 1`, `rho(c) = 5/24`, and `rho = 0` from `d = 2c` on, so
+`half_width` is `c`, half of the cut-off. A `period` makes every axis
+periodic (the Lorenz-96 circle has period `J`), and `half_width=math.inf`
+switches localization off with weights of exactly one.
+
+- With `analysis="stochastic"`, a localization tapers the ensemble
+  covariances of the gain entrywise,
+  `K = (rho_xy o C_xy)(rho_yy o C_yy + R)^-1` (Houtekamer & Mitchell,
+  [EQ-DA-LOC-002]).
+- `analysis="letkf"` runs an ETKF at every state component with only the
+  nearby observations, each with its inverse error variance multiplied by
+  `rho` (R-localization, [EQ-DA-LETKF-001]). A component with no
+  observation within `2c` keeps its forecast. With an infinite half-width
+  the LETKF reproduces the ETKF exactly.
+
+### Inflation and relaxation
+
+`inflation=` stays a multiplicative covariance factor applied to the
+forecast anomalies. `relaxation=Relaxation("rtpp", alpha)` blends the
+analysis anomalies with the forecast anomalies,
+`x'^a <- (1 - alpha) x'^a + alpha x'^f` (Zhang, Snyder & Sun,
+[EQ-DA-RELAX-001]); `Relaxation("rtps", alpha)` rescales the anomalies of
+every component so that its spread becomes
+`(1 - alpha) sigma^a + alpha sigma^f` (Whitaker & Hamill,
+[EQ-DA-RELAX-002]). Both act after the analysis, keep the analysis mean, and
+leave a step without an observation alone. RTPS inflates most where the
+observations reduced the spread most.
+
+### Ensemble smoothing
+
+Every analysis above is a linear combination of the forecast members:
+component `j` of the analysis ensemble is `E^f_j T_j` for an `N` by `N`
+transform `T_j`. `ensemble_kalman_smoother(..., lag=L)` runs the same filter
+cycle (with the same streams, so its `filter` record equals a filter run with
+the same seed) and multiplies the stored ensembles of the last `L` times by
+each new transform [EQ-DA-ENKS-001], following Evensen & van Leeuwen. A
+localized analysis updates each lagged component with the transform of its
+own component, and a relaxation relaxes each updated lagged ensemble towards
+itself before the update. On the constant-velocity model over 10 steps
+(`seed=7` data, `N = 1000`, `seed=0`), the smoothed initial state is:
+
+| `x_0` | mean (pos, vel) | variance (pos, vel) |
+|---|---|---|
+| prior `N(m_0, P_0)` | (0.000, 1.000) | (1.000, 0.500) |
+| RTS smoother | (1.339, 0.791) | (0.447, 0.102) |
+| EnKS, stochastic, `lag = 2` | (0.531, 1.662) | (0.575, 0.256) |
+| EnKS, stochastic, `lag = 10` | (1.240, 0.797) | (0.444, 0.100) |
+| EnKS, ETKF, `lag = 10` | (1.362, 0.776) | (0.453, 0.102) |
+
+With `lag = 10` every observation reaches `x_0` and the EnKS approaches the
+RTS smoother; with `lag = 2` only the first two do.
+
+### The Lorenz test systems
+
+`filtering.lorenz63` and `filtering.lorenz96` return `NonlinearStateSpace`
+models whose transition is `substeps` classical Runge-Kutta steps of size
+`step` over one assimilation interval, built on
+`numerics.integrate_fixed_step` [EQ-NUM-ODE-003]. The defaults are the
+published settings: `sigma = 10`, `rho = 28`, `beta = 8/3` and step `0.01`
+for Lorenz-63 [EQ-FILT-LORENZ-001]; `J = 40`, `F = 8` and one step of `0.05`
+(six hours) for Lorenz-96 [EQ-FILT-LORENZ-002], observing every
+`observe_every`-th component. Both are perfect models by default (`Q = 0`)
+with `R = P_0 = I`; the transition Jacobian is the exact derivative of the
+discrete map. The trajectory integrator is plain arithmetic, so
+`numerics.reverse_gradient` differentiates through it.
+
+**Twin experiment.** The Lorenz-96 truth starts from a state spun up for 400
+steps from `x_i = 8` (with `x_0 = 8.01`), with prior `N(spun-up state, I)`;
+every component is observed with `R = I` (`simulate(model, 40, seed=1)`),
+and each filter uses `N = 20` members (`seed=101`). The time-averaged
+analysis RMSE over cycles 16-40 is:
+
+| filter | analysis RMSE |
+|---|---|
+| observations alone | 1.0 (by construction) |
+| stochastic EnKF, no localization | 2.18 |
+| ETKF + RTPS 0.5, no localization | 0.71 |
+| stochastic EnKF, Gaspari-Cohn `c = 2` + RTPS 0.5 | 0.34 |
+| LETKF, `c = 2`, + RTPS 0.5 | 0.33 |
+
+Twenty members cannot represent the covariance of a 40-variable chaotic
+system: without localization the stochastic EnKF diverges to about twice the
+observation error, and the global ETKF with relaxation stays at 0.71. With
+localization both the stochastic EnKF and the LETKF track the truth at a
+third of the observation error. Over seeds 1-4 the LETKF ranged from 0.31 to
+0.36 and the non-localized EnKF from 2.0 to 2.4; one LETKF cycle takes about
+0.15 s in pure Python.
 
 **3D-Var.** `three_dimensional_variational` minimizes the background plus
 observation cost [EQ-DA-3DVAR-001] by BFGS with an analytic gradient. For a
@@ -328,9 +460,12 @@ to rounding error (about `2e-16`). For the nonlinear operator `h(x) = x^2` with 
   two-filter or fixed-lag smoother), and there is no Rao-Blackwellization.
   Parameter estimation has no gradient of the particle likelihood, so
   maximum likelihood is for Gaussian filters and particle models use PMMH.
-- The EnKF is the stochastic perturbed-observation variant; there are no
-  square-root or deterministic variants, no localization, and no adaptive
-  inflation.
+- The ensemble filters have fixed multiplicative inflation and RTPP/RTPS
+  relaxation but no adaptive inflation (such as Anderson's 2007 and 2009
+  schemes); the serial EAKF is not localized and needs a diagonal `R`;
+  localization uses one Gaspari-Cohn half-width for all components.
+- The ensemble smoother is the fixed-lag EnKS; there is no iterative or
+  ensemble-variational smoother.
 - 3D-Var is a single-time analysis; 4D-Var is not implemented.
 
 ## Common pitfalls
@@ -344,7 +479,8 @@ to rounding error (about `2e-16`). For the nonlinear operator `h(x) = x^2` with 
   entry more than `predicted`.
 - **Inflation is a covariance factor.** `inflation=1.0` (the default) means no
   inflation; the anomalies are scaled by `sqrt(inflation)`, and a value below
-  one raises. Nothing is localized.
+  one raises. Nothing is localized or relaxed unless `localization=` or
+  `relaxation=` is passed.
 - **Unseeded runs differ.** `simulate`, `bootstrap_particle_filter`, and
   `ensemble_kalman_filter` default to `seed=None`.
 
@@ -368,6 +504,7 @@ except TypeError as error:
     message = str(error)
 message                                           # 'observation must be iterable'
 inspect.signature(ensemble_kalman_filter).parameters["inflation"].default   # 1.0
+inspect.signature(ensemble_kalman_filter).parameters["analysis"].default    # 'stochastic'
 ```
 
 ## Sources
@@ -384,3 +521,9 @@ inspect.signature(ensemble_kalman_filter).parameters["inflation"].default   # 1.
   [REF-ANDRIEU-DOUCET-HOLENSTEIN-2010].
 - [REF-EVENSEN-1994], [REF-BURGERS-VANLEEUWEN-EVENSEN-1998],
   [REF-EVENSEN-2003], [REF-LORENC-1986].
+- [REF-BISHOP-ETHERTON-MAJUMDAR-2001], [REF-HUNT-KOSTELICH-SZUNYOGH-2007],
+  [REF-ANDERSON-2001], [REF-ANDERSON-JL-2003].
+- [REF-GASPARI-COHN-1999], [REF-HOUTEKAMER-MITCHELL-2001],
+  [REF-ZHANG-SNYDER-SUN-2004], [REF-WHITAKER-HAMILL-2012].
+- [REF-EVENSEN-VANLEEUWEN-2000].
+- [REF-LORENZ-1963], [REF-LORENZ-2006], [REF-LORENZ-EMANUEL-1998].
