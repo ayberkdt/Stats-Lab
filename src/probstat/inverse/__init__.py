@@ -18,7 +18,8 @@ Main entry points:
     experiments, one ``NoiseModel`` per observed quantity.
     ``Experiment``: observed values with the conditions they were taken at.
     ``NoiseModel``: known or uncertain Gaussian or Student-t measurement
-    noise, with an optional discrepancy variance.
+    noise, with an optional discrepancy variance and, for Gaussian noise,
+    an optional ``ErrorCorrelation`` of the errors across experiments.
     ``predict``: posterior predictions under new conditions, latent or with
     measurement noise.
     ``DiscrepancyCalibration``: calibration with a Gaussian-process
@@ -42,8 +43,10 @@ Main entry points:
 
 Assumptions:
     The forward model is deterministic given its inputs. Measurement errors
-    are independent across observations (``DiscrepancyCalibration`` adds a
-    correlated discrepancy, not correlated measurement errors). The prior is
+    are independent across observations unless a ``NoiseModel`` declares an
+    ``ErrorCorrelation`` (Gaussian, per quantity, across experiments);
+    ``DiscrepancyCalibration`` adds a correlated model discrepancy, not
+    correlated measurement errors. The prior is
     the model's joint input law. The Fisher diagnostic is local and assumes
     Gaussian errors; the Laplace approximation is a Gaussian at the mode.
     Predictions outside the calibration domain are conditional mathematics;
@@ -109,7 +112,13 @@ from .ensemble_inversion import (
     ensemble_kalman_inversion,
     ensemble_smoother_mda,
 )
+from .error_correlation import (
+    ERROR_CORRELATION_KERNELS,
+    ErrorCorrelation,
+    error_correlation_kernel,
+)
 from .nonlinear import (
+    CALIBRATION_GRADIENTS,
     CalibrationPosterior,
     CalibrationProblem,
     Experiment,
@@ -154,8 +163,11 @@ __all__ = [
     "EnsembleInversionResult",
     "ensemble_kalman_inversion",
     "ensemble_smoother_mda",
+    "CALIBRATION_GRADIENTS",
+    "ERROR_CORRELATION_KERNELS",
     "CalibrationPosterior",
     "CalibrationProblem",
+    "ErrorCorrelation",
     "Experiment",
     "FisherIdentifiability",
     "ForwardResponse",
@@ -170,6 +182,7 @@ __all__ = [
     "PredictionTarget",
     "calibrate_linear_gaussian",
     "diagnose_linear_identifiability",
+    "error_correlation_kernel",
     "fisher_identifiability",
     "predict",
     "DiscreteIllPosedProblem",

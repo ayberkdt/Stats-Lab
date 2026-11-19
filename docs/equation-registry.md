@@ -17886,3 +17886,83 @@ covariances of [EQ-INV-EKI-001] recomputed from the current ensemble, and
   approximation.
 - Code: `inverse.ensemble_smoother_mda`.
 - Source: [REF-EMERICK-REYNOLDS-2013].
+
+### EQ-CAL-CORR-001 — Stationary correlation of measurement errors
+
+`M_ij = rho(|c_i - c_j| / ell)` over a numeric experimental condition `c`,
+with `rho(h) = exp(-h)` (exponential, Matern 1/2),
+`rho(h) = (1 + sqrt(3) h) exp(-sqrt(3) h)` (Matern 3/2), or
+`rho(h) = (1 + sqrt(5) h + 5 h^2 / 3) exp(-sqrt(5) h)` (Matern 5/2).
+
+- Domain: `ell > 0`; distinct condition values, or a positive discrepancy
+  variance (nugget), for a positive-definite `M`.
+- Meaning: errors of one quantity measured under nearby conditions (times,
+  loads, positions) are correlated, with correlation decaying over the
+  length `ell`; `rho(0) = 1`, so `sigma_q` stays the marginal standard
+  deviation.
+- Code: `inverse.error_correlation_kernel`,
+  `inverse.ErrorCorrelation.correlation_matrix`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2] (Matern class with
+  `nu = 1/2, 3/2, 5/2`).
+
+### EQ-CAL-CORR-002 — Correlated Gaussian calibration log-likelihood
+
+For the `n_q` observations of a correlated quantity with residual vector
+`r_q`, `Sigma_q = sigma_q^2 M_q + sigma_delta_q^2 I = L L'` and
+`log p(y_q | theta) = -0.5 (n_q log 2 pi + log det Sigma_q
++ r_q' Sigma_q^-1 r_q) = -0.5 n_q log 2 pi - sum_i log L_ii
+- 0.5 |L^-1 r_q|^2`; the log-likelihood adds this term for every
+correlated quantity to the independent terms of [EQ-CAL-LIK-001]. With
+`sigma_delta_q = 0` the factor is `sigma_q L_M` with `M_q = L_M L_M'`
+computed once.
+
+- Domain: `sigma_q > 0`, `M_q` symmetric positive definite, Gaussian
+  errors (a Student-t law is not combined with correlation).
+- Meaning: generalized least squares in likelihood form; `M_q = I`
+  reproduces the independent Gaussian likelihood.
+- Code: `inverse.CalibrationProblem.log_likelihood`,
+  `inverse.CalibrationProblem.standard_log_posterior`,
+  `inverse.predict`.
+- Source: [REF-SEBER-WILD-2003, Chapter 6] (nonlinear regression with
+  correlated errors) and [REF-GOLUB-VANLOAN-2013, Section 4.2] (Cholesky
+  evaluation).
+
+### EQ-CAL-CORR-003 — Whitened residuals
+
+`e = W r` with `W' W = Sigma^-1`: `e_i = r_i / s_i` for independent
+observations and `e_q = L^-1 r_q` for a correlated quantity
+(`Sigma_q = L L'`), so `|e|^2 = r' Sigma^-1 r`. Least squares minimizes
+`0.5 |e(theta)|^2`, its Gauss-Newton covariance is `(J_e' J_e)^-1` with
+`J_e = -W J`, and an unknown scale of a correlated quantity with
+`Sigma_q = sigma_q^2 M_q` is re-estimated as
+`s_q^2 = (|L_M^-1 r_q|^2 / n_q) n / (n - d)`.
+
+- Domain: positive-definite `Sigma`; closed-form scale update only without
+  a discrepancy variance on a correlated quantity.
+- Meaning: generalized least squares by prewhitening; `J_e' J_e` is the
+  Fisher information of `theta` under correlated Gaussian errors.
+- Code: `inverse.CalibrationProblem.whitened_residuals`,
+  `inverse.CalibrationProblem.fit_least_squares`,
+  `inverse.CalibrationProblem.identifiability`.
+- Source: [REF-SEBER-WILD-2003, Chapters 2 and 6].
+
+### EQ-CAL-AD-001 — First derivative of the prior's standard-normal map
+
+For `x_i = F_i^-1(Phi(z_i))` with `z = L u`,
+`d x_i / d u_k = phi(z_i) / f_i(x_i) L_ik`, and for the normal score
+`z_i = Phi^-1(F_i(x_i))`, `d z_i / d x_i = f_i(x_i) / phi(z_i)`. A
+reverse-mode variable takes its value from the float map and this
+derivative through `x~ = x_0 + (g - g_0)` with `g = c sum_k L_ik u_k`
+([EQ-DIST-AD-001]).
+
+- Domain: continuous marginals with `f_i(x_i) > 0`; independence or a
+  Gaussian copula; first derivatives only (second derivatives through the
+  map are refused, not approximated).
+- Meaning: the inverse-function rule differentiates the Nataf map without
+  differentiating quantile functions, so the calibration log posterior is
+  traceable in reverse mode for every continuous prior family.
+- Code: `inverse.CalibrationProblem.standard_log_posterior_and_gradient`,
+  `inverse.CalibrationProblem.log_posterior_and_gradient`.
+- Source: [REF-CASELLA-BERGER-2002, Section 2.1] (derivative of an inverse
+  transformation), [REF-LIU-DERKIUREGHIAN-1986] (Nataf map) and
+  [REF-GRIEWANK-WALTHER-2008, Chapter 3] (reverse mode).

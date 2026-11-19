@@ -41,9 +41,7 @@ class GaussianObservationModel:
 
         """
         inputs = coerce_finite_sample(self.inputs, name="inputs")
-        observations = coerce_finite_sample(
-            self.observations, name="observations"
-        )
+        observations = coerce_finite_sample(self.observations, name="observations")
         if len(inputs) != len(observations):
             raise ValueError("inputs and observations must have equal length")
         observation_variance = require_finite_real(
@@ -152,7 +150,5 @@ class GaussianObservationModel:
 
         """
         residuals = self.residuals(forward_model, parameters)
-        mean_square = math.fsum(value * value for value in residuals) / len(
-            residuals
-        )
+        mean_square = math.fsum(value * value for value in residuals) / len(residuals)
         return math.sqrt(mean_square)

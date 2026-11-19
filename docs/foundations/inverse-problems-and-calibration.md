@@ -131,8 +131,15 @@ GCV, and discrepancy-principle choices of the regularization parameter) is
 covered in
 [regularization and ill-posed problems](regularization-and-ill-posed-problems.md)
 (ADR-0110), which also states when Tikhonov regularization coincides with
-the Gaussian posterior mean of Section 3. Correlated measurement-error
-models remain open.
+the Gaussian posterior mean of Section 3.
+
+Correlated Gaussian measurement errors (a declared matrix or an exponential
+or Matern kernel over an experimental condition, with known or uncertain
+length) and reverse-mode gradients for the Laplace approximation, HMC, and
+NUTS are covered in Section 15 of
+[nonlinear calibration and MCMC](nonlinear-calibration-and-mcmc.md)
+(ADR-0114). Correlated errors with heavy tails (a multivariate Student-t)
+remain open.
 
 ## Common pitfalls
 
