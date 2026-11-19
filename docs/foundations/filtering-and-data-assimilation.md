@@ -151,6 +151,135 @@ The likelihood estimate is unbiased, but its logarithm is biased downward and
 its error falls only like `N^-1/2`. Particle filters degenerate in high state
 or observation dimension.
 
+**Proposals that look at `y_k`.** The bootstrap filter moves particles blind
+to the new observation, so precise observations leave few particles with
+weight. Two classical remedies return the same `ParticleFilterResult`:
+
+- `auxiliary_particle_filter` [EQ-FILT-APF-001] (Pitt and Shephard)
+  resamples the previous particles with first-stage weights
+  `W_(k-1)^i g(y_k | f(x_(k-1)^i))`, propagates, and corrects with
+  second-stage weights `g(y_k | x_k^j) / g(y_k | f(x_(k-1)^(a_j)))`. Its
+  likelihood increment is `[sum_i W_(k-1)^i g(y_k | mu^i)] (1/N) sum_j w_k^j`
+  [REF-DOUCET-JOHANSEN-2011, Section 4.2].
+- `optimal_proposal_particle_filter` [EQ-FILT-OPT-001] samples
+  `p(x_k | x_(k-1), y_k)` exactly. For a linear observation operator it is a
+  Gaussian with the Kalman gain `K = Q H' (H Q H' + R)^-1`, and the weight is
+  the predictive density `N(y_k; H f(x_(k-1)), H Q H' + R)`, which does not
+  depend on the new particle. A nonlinear `h` raises `ValueError`; a
+  `NonlinearStateSpace` whose `h` is linear passes `observation_matrix=H`,
+  which is checked against `h`.
+
+On an AR(1) with precise observations (`F = 0.9`, `q = 1`, `r = 0.5`, 10
+steps, `simulate(..., seed=4)`, exact log-likelihood -18.4401), 100 runs with
+`N = 100` and seeds 0-99 give:
+
+| filter | mean log-likelihood | sd of log-likelihood | mean of `exp(estimate - exact)` |
+|---|---|---|---|
+| bootstrap | -18.6027 | 0.4175 | 0.927 ± 0.040 |
+| auxiliary | -18.8829 | 0.7901 | 0.950 ± 0.133 |
+| optimal proposal | -18.4756 | 0.1869 | 0.982 ± 0.019 |
+
+(± is one standard error over the 100 runs.) The optimal proposal cuts the
+standard deviation of the log-likelihood by more than half. The auxiliary
+filter is worse than the bootstrap here: its look-ahead `g(y_k | mu)` uses
+only `R = 0.5`, while the true predictive `p(y_k | x_(k-1))` has variance
+`q + r = 1.5`, so the second-stage weights are heavy-tailed. Doucet and
+Johansen warn about exactly this point-estimate first stage; the auxiliary
+filter helps when `R` dominates the predictive spread. All three ratio means
+are consistent with 1 (unbiasedness); the shortfall of the bootstrap and
+auxiliary means is the right skew of the ratio, whose sample mean falls below
+its expectation in most finite samples. `tests/test_particle_extensions.py`
+checks unbiasedness with 200 replications and four standard errors.
+
+**Particle smoothing.** `ffbs_particle_smoother` [EQ-FILT-FFBS-001]
+(Godsill, Doucet, and West) needs a filter run made with
+`store_history=True`, which keeps the weighted cloud of every step (the flag
+changes no random draw and no returned number). Each trajectory is drawn
+backwards: `x~_T` from the last cloud, then `x~_k = x_k^i` with weights
+`W_k^i N(x~_(k+1); f(x_k^i), Q)`. The cost is `O(N T)` per trajectory, and
+`Q` must be positive definite. On the AR(1) above (bootstrap filter `N = 500`,
+`seed=3`; 200 trajectories, `seed=4`):
+
+| `k` | filter mean, variance | FFBS mean, variance | RTS mean, variance |
+|---|---|---|---|
+| 0 | 0.0993, 0.9059 | 0.8802, 0.6055 | 0.8710, 0.6313 |
+| 5 | 0.8049, 0.3704 | 1.0342, 0.2980 | 1.0982, 0.2978 |
+| 10 | 3.2662, 0.3617 | 3.2424, 0.3372 | 3.3427, 0.3605 |
+
+At `k = 0` the smoother moves the prior mean 0.10 to 0.88 using all ten
+observations, as the RTS smoother does. The differences between FFBS and RTS
+are Monte Carlo error of one run; the tests average 30 independent runs and
+compare means and variances with the RTS values within four standard errors.
+
+## Parameter estimation in state-space models
+
+The filters above assume known `F, Q, H, R`. `probstat.filtering` estimates
+static parameters `theta` three ways, all built on the filter likelihood
+`l(theta) = log p(y_1:T | theta)`.
+
+**Maximum likelihood.** `fit_state_space_mle(builder, theta_0, y)` takes a
+builder `theta -> model`, minimizes `-l(theta)` with `minimize_bfgs`
+(Kalman filter by default; `filter="ekf"` or `"ukf"` for nonlinear models,
+whose likelihood is then approximate), and inverts the observed information
+from `central_hessian` [EQ-FILT-MLE-001]. Variances are best passed on the
+log scale. For the Nile series (100 annual flows) with the local-level model
+`x_k = x_(k-1) + w_k`, `y_k = x_k + v_k`, and R's `StructTS` initialization
+`x_0 ~ N(y_1, 1e4 var(y))`, the fit from `log(var(y)/100)` converges in 20
+BFGS iterations to
+
+| | level variance `q` | noise variance `r` | log-likelihood |
+|---|---|---|---|
+| `fit_state_space_mle` | 1469.17 | 15098.52 | -643.200988 |
+| R `StructTS(Nile, "level")` | 1469.15 | 15098.58 | -643.200988 |
+
+The two optimizers stop at slightly different points of a flat likelihood
+(the log-likelihoods differ by `2e-10`). The standard error of `log q` is
+0.87, against 0.21 for `log r`: the level variance is poorly determined from
+100 points.
+
+**EM.** `linear_gaussian_em(model, y, estimate=...)` is the algorithm of
+Shumway and Stoffer [EQ-FILT-EM-001]. The E-step is the RTS smoother with the
+lag-one covariances `Cov(x_k, x_(k-1) | y_1:T) = P^s_k G_(k-1)'`
+(`smoothed_lag_one_covariances`); the M-step updates any subset of
+`"transition"`, `"observation"`, `"process_covariance"`,
+`"observation_covariance"`, and `"initial"` in closed form. Each step can
+only raise the exact log-likelihood, and the returned trace lets you check
+that. On an AR(1) plus noise (`F = 0.8`, `q = 1`, `r = 0.5`, 100 steps,
+`simulate(..., seed=2026)`), estimating `F`, `Q`, `R` from `(0.5, 0.5, 1)`
+raises the log-likelihood from -184.0309 to -167.94368 in 161 iterations
+(tolerance `1e-10`); BFGS reaches the same maximum:
+
+| | `F` | `q` | `r` |
+|---|---|---|---|
+| EM | 0.77879 | 0.96884 | 0.50151 |
+| `fit_state_space_mle` | 0.77875 | 0.96906 | 0.50135 |
+| truth | 0.8 | 1.0 | 0.5 |
+
+EM is simple and stable but converges linearly: on the Nile model it needs
+211 iterations to reach tolerance `1e-10` from `(1000, 10000)`, where BFGS
+needs 20.
+
+**Particle marginal Metropolis-Hastings.** For nonlinear models, or to get a
+posterior instead of a point estimate,
+`particle_marginal_metropolis_hastings(builder, log_prior, theta_0, y, ...)`
+[EQ-FILT-PMMH-001] runs random-walk Metropolis-Hastings with a fresh
+particle-filter estimate `p_hat(y | theta')` at each proposal. The estimate of
+the current state is stored and reused, never recomputed; with an unbiased
+`p_hat` this makes the chain target the exact posterior for any particle count
+(Andrieu, Doucet, and Holenstein). Fewer particles make the estimate noisier,
+which shows up as a lower acceptance rate and stickier chains, not as bias.
+The result is an `inference.MCMCResult`, so `summary()` and the convergence
+diagnostics apply. `tests/test_filtering_parameter_estimation.py` samples the
+AR coefficient of a 12-step AR(1) plus noise with a uniform prior, 20
+particles, and the optimal proposal, and compares the posterior mean and
+variance with quadrature of the exact Kalman posterior within four Monte
+Carlo standard errors.
+
+**Out of scope: Rao-Blackwellized particle filters.** They sample only the
+nonlinear part of the state and handle a conditionally linear-Gaussian part
+with one Kalman filter per particle. `StateSpaceModel` has no way to declare
+that split, so this would need a new model class (ADR-0113).
+
 ## 6. Data assimilation
 
 Data assimilation combines a model forecast with observations to estimate the
@@ -193,9 +322,12 @@ to rounding error (about `2e-16`). For the nonlinear operator `h(x) = x^2` with 
 
 - Gaussian filters assume additive Gaussian noise; the EKF and UKF are
   approximations whose error is not estimated.
-- The particle filter uses the transition prior as proposal; there are no
-  auxiliary or optimal proposals, no particle smoothing, and no
-  Rao-Blackwellization.
+- The particle filters cover the transition-prior (bootstrap), auxiliary,
+  and locally optimal proposals; the optimal proposal needs a linear
+  observation operator. Particle smoothing is FFBS only (`O(M N T)`, no
+  two-filter or fixed-lag smoother), and there is no Rao-Blackwellization.
+  Parameter estimation has no gradient of the particle likelihood, so
+  maximum likelihood is for Gaussian filters and particle models use PMMH.
 - The EnKF is the stochastic perturbed-observation variant; there are no
   square-root or deterministic variants, no localization, and no adaptive
   inflation.
@@ -246,5 +378,9 @@ inspect.signature(ensemble_kalman_filter).parameters["inflation"].default   # 1.
 - [REF-JULIER-UHLMANN-2004].
 - [REF-GORDON-SALMOND-SMITH-1993], [REF-KITAGAWA-1996],
   [REF-DOUCET-JOHANSEN-2011].
+- [REF-PITT-SHEPHARD-1999], [REF-DOUCET-GODSILL-ANDRIEU-2000],
+  [REF-GODSILL-DOUCET-WEST-2004].
+- [REF-SHUMWAY-STOFFER-1982], [REF-DURBIN-KOOPMAN-2012],
+  [REF-ANDRIEU-DOUCET-HOLENSTEIN-2010].
 - [REF-EVENSEN-1994], [REF-BURGERS-VANLEEUWEN-EVENSEN-1998],
   [REF-EVENSEN-2003], [REF-LORENC-1986].

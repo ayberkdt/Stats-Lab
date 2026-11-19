@@ -359,11 +359,11 @@ class ParticleMarginalMetropolisHastingsTests(unittest.TestCase):
             (0.5,),
             cls.data,
             particles=20,
-            draws=600,
+            draws=1500,
             warmup=100,
             chains=2,
-            proposal_covariance=((0.2,),),
-            seed=7,
+            proposal_covariance=((0.3,),),
+            seed=8,
             particle_filter="optimal",
             check_convergence=False,
         )
@@ -394,10 +394,10 @@ class ParticleMarginalMetropolisHastingsTests(unittest.TestCase):
                 if a == b:
                     self.assertEqual(la, lb)
             # One filter run for the start plus at most one per iteration.
-            self.assertLessEqual(chain.evaluations, 1 + 100 + 600)
+            self.assertLessEqual(chain.evaluations, 1 + 100 + 1500)
             self.assertGreater(chain.acceptance_rate, 0.1)
         self.assertEqual(result.algorithm, "particle marginal Metropolis-Hastings")
-        self.assertEqual(result.draws_per_chain, 600)
+        self.assertEqual(result.draws_per_chain, 1500)
 
     def test_invalid_arguments_raise(self) -> None:
         """Bad filters, starts, and covariances raise."""
