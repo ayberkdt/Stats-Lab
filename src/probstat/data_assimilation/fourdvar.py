@@ -33,6 +33,9 @@ Gaussian errors the strong-constraint analysis of ``x_0`` and its
 Gauss-Newton covariance equal the Rauch-Tung-Striebel smoother at time 0
 of a filter without process noise, and the weak-constraint analysis equals
 the smoother over the whole window (Carrassi et al. 2018, Section 3.2.1).
+Design decisions: docs/adr/ADR-0116-four-dimensional-variational.md.
+
+Guide: docs/foundations/filtering-and-data-assimilation.md
 
 References:
     [REF-LE-DIMET-TALAGRAND-1986], [REF-COURTIER-THEPAUT-HOLLINGSWORTH-1994],
