@@ -15,8 +15,8 @@ correlated. Treating them as independent overstates the information in the
 data: on the straight-line problem of the tests (13 points, exponential
 correlation of length 0.6 over `x`, noise 0.3, seed 5) the independent
 posterior standard deviations of intercept and slope are `0.156` and
-`0.088`, against the exact `0.254` and `0.132`, and the means move by
-about half an exact standard deviation. The foundations guide listed
+`0.088`, against the exact `0.254` and `0.132`, and the means move by 0.35
+and 0.48 exact standard deviations. The foundations guide listed
 correlated measurement-error models as open.
 
 Gradient-based samplers in calibration (`method="hmc"` or `"nuts"`) took
@@ -131,7 +131,7 @@ float-only quantile functions (ADR-0090, Decision 4).
   at rounding level.
 - The correlation length and a discrepancy process compete for the same
   structure in the residuals, and under infill the scale and length of a
-  Matern correlation are not separately identifiable ([REF-ZHANG-2004]);
+  Matern correlation are not separately identifiable (H. Zhang, *Journal of the American Statistical Association* 99, 250-261, 2004, doi:10.1198/016214504000000241);
   the guide documents both caveats.
 
 ## Rejected alternatives
@@ -182,6 +182,6 @@ fewer than a third of the forward-model runs; and the unsupported cases.
 ## References
 
 [REF-SEBER-WILD-2003, Chapter 6], [REF-RASMUSSEN-WILLIAMS-2006,
-Section 4.2], [REF-ZHANG-2004], [REF-BRYNJARSDOTTIR-OHAGAN-2014],
+Section 4.2], [REF-BRYNJARSDOTTIR-OHAGAN-2014],
 [REF-GRIEWANK-WALTHER-2008, Chapter 3], [REF-LIU-DERKIUREGHIAN-1986],
 [REF-CASELLA-BERGER-2002, Section 2.1].

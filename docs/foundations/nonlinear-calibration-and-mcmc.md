@@ -630,6 +630,163 @@ needs 61542 simulations, so this one-dimensional problem gains nothing from
 the population scheme; it pays off when the prior is much wider than the
 posterior in several directions.
 
+## 14. Correlated measurement errors and reverse-mode gradients
+
+### Correlated errors across experiments
+
+Measurements of one quantity along a time axis, a load ramp, or a traverse
+often share drift, warm-up, or alignment errors, so the errors of
+neighbouring experiments are correlated. A `NoiseModel` declares this with
+`correlation=ErrorCorrelation(...)`: the errors of that quantity are jointly
+Gaussian across the experiments that observe it, with covariance
+`Sigma_q = sigma_q^2 M_q + sigma_delta_q^2 I`, where `sigma_q` is the noise
+scale (known or uncertain, as before) and the discrepancy variance acts as an
+independent nugget. `M_q` is either a declared positive-definite matrix
+(`ErrorCorrelation(matrix=M)`, rows in experiment order; a fully known
+covariance `C` is `matrix=C` with `standard_deviation=1.0`) or a stationary
+kernel over a numeric condition, `M_ij = rho(|c_i - c_j| / ell)`, with the
+exponential, Matern 3/2, or Matern 5/2 correlation ([EQ-CAL-CORR-001]) and a
+known `length` or a `length_prior`. The likelihood adds
+`-0.5 (n log 2 pi + log det Sigma_q + r_q' Sigma_q^-1 r_q)` per correlated
+quantity, evaluated by Cholesky ([EQ-CAL-CORR-002]); least squares and the
+Fisher diagnostic use the whitened residuals `L^-1 r` ([EQ-CAL-CORR-003]),
+so `fit_least_squares` becomes generalized least squares. Correlated errors
+are Gaussian only: a Student-t `NoiseModel` with `correlation` raises.
+
+Ignoring the correlation overstates the information in the data. A straight
+line `a + b x` observed at 13 points `x = 0, 0.25, ..., 3` with errors of
+standard deviation 0.3 and exponential correlation of length 0.6 (simulated
+with seed 5; priors `a ~ N(0, 2^2)`, `b ~ N(1, 1)`):
+
+```python
+from probstat.distributions import Normal
+from probstat.inverse import ErrorCorrelation
+from probstat.linalg import cholesky, matvec
+
+def line(p):
+    return {"y": p["a"] + p["b"] * p["x"]}
+
+xs = tuple(0.25 * i for i in range(13))
+structure = ErrorCorrelation(condition="x", length=0.6)
+shape = structure.correlation_matrix(xs)
+line_rng = random.Random(5)
+errors = matvec(
+    cholesky(tuple(tuple(0.09 * m for m in row) for row in shape)),
+    tuple(line_rng.gauss(0.0, 1.0) for _ in xs),
+)
+line_experiments = tuple(
+    Experiment({"y": 1.0 + 0.7 * x + e}, {"x": x}) for x, e in zip(xs, errors)
+)
+line_model = ProbabilisticModel(
+    JointInput.independent(RandomInput("a", Normal(0.0, 2.0)),
+                           RandomInput("b", Normal(1.0, 1.0))),
+    line, (QuantityOfInterest("y", "line"),),
+)
+correlated = CalibrationProblem(line_model, line_experiments, (
+    NoiseModel("y", standard_deviation=0.3, correlation=structure),))
+independent = CalibrationProblem(line_model, line_experiments, (
+    NoiseModel("y", standard_deviation=0.3),))
+exact = correlated.laplace_posterior()      # exact for a linear-Gaussian problem
+naive = independent.laplace_posterior()
+[round(exact.mode[i], 3) for i in range(2)]                     # [0.556, 0.83]
+[round(math.sqrt(exact.covariance[i][i]), 3) for i in range(2)]  # [0.254, 0.132]
+[round(naive.mode[i], 3) for i in range(2)]                     # [0.467, 0.894]
+[round(math.sqrt(naive.covariance[i][i]), 3) for i in range(2)]  # [0.156, 0.088]
+gls = correlated.fit_least_squares()
+[round(value, 3) for value in gls.standard_errors]              # [0.258, 0.134]
+```
+
+The independent model reports posterior standard deviations a third to 40 %
+smaller than the exact ones and moves the means by 0.35 (intercept) and
+0.48 (slope) exact standard deviations. The Laplace result of the correlated problem equals the
+conjugate posterior computed by Gaussian conditioning (the tests check
+this, and MCMC within 4 MCSE).
+
+**Correlated errors versus a discrepancy process.** Both produce smoothly
+correlated residuals, but they belong to different parts of the
+observation model. A correlated measurement error belongs to the instrument
+or the test series: it is present in the data, absent from the physical
+quantity, and is *not* added to a prediction of the true response. A
+discrepancy process ([model discrepancy](model-discrepancy.md)) belongs to
+the model: it corrects the simulator and *is* part of the predicted true
+response. With a single data set the two are not separately identifiable,
+for the same reason as the Brynjarsdottir-O'Hagan point of that guide: a
+long error-correlation length and a smooth discrepancy explain the same
+residual structure, and each trades off against `theta`. Declare a
+correlation only when it is known to come from the measurement (repeated
+calibration runs of the instrument, a drift model), and prefer a known
+length estimated from such runs. Within one series the scale and the length
+of a Matern correlation are themselves only weakly identified: under infill
+on a fixed domain only `sigma^2 / ell^(2 nu)` can be estimated consistently
+(H. Zhang, *Journal of the American Statistical Association* 99, 250-261, 2004, doi:10.1198/016214504000000241). A length prior that rules out lengths beyond the spacing
+of the data matters for that reason, and also because a very long length
+makes `M` numerically singular (known structures then raise; a sampled
+length gets log-likelihood `-inf`).
+
+An uncertain length is sampled as `log ell` after the log noise scales
+(`log_length[q]` in `vector_names`, `length[q]` in the physical chains).
+`predict(include_noise=True)` draws the noise of a kernel-correlated quantity
+jointly across the prediction conditions, as a new measurement series that
+is not conditioned on the calibration residuals; a declared matrix has no
+meaning at new conditions, so noise draws for it raise unless
+`noise_standard_deviations` supplies an independent scale.
+
+### Reverse-mode gradients
+
+`laplace_posterior(gradient="reverse")` and
+`sample_posterior(method="hmc" | "nuts", gradient="reverse")` differentiate
+the log posterior by reverse-mode automatic differentiation instead of
+central differences (the default `gradient="central"` reproduces earlier
+results exactly). The forward model must then be written with operators and
+`numerics.admath`, because it is called with reverse-mode variables. The
+prior's standard-normal map keeps its float value; its derivative comes
+from the inverse-function rule `dx_i/dz_i = phi(z_i) / f_i(x_i)`
+([EQ-CAL-AD-001]), so every continuous prior family with independence or a
+Gaussian copula is supported. Discrete inputs, other copulas, and a model
+that calls `math` functions raise `AutodiffUnsupportedError` before anything
+runs; there is no silent fallback to differences.
+
+```python
+from probstat.numerics import admath
+
+def traced_decay(p):
+    return {"y": p["A"] * admath.exp(-p["k"] * p["t"])}
+
+traced = CalibrationProblem(
+    ProbabilisticModel(prior, traced_decay, (QuantityOfInterest("y", "signal"),)),
+    experiments, (NoiseModel("y", standard_deviation=0.1),))
+point = (0.2, -0.1)
+value, slope = traced.standard_log_posterior_and_gradient(point)
+step = 1e-5
+central = [
+    (traced.standard_log_posterior((point[0] + step * (i == 0), point[1] + step * (i == 1)))
+     - traced.standard_log_posterior((point[0] - step * (i == 0), point[1] - step * (i == 1))))
+    / (2 * step)
+    for i in range(2)
+]
+max(abs(a - b) / abs(b) for a, b in zip(slope, central)) < 1e-6   # True
+```
+
+**Cost.** Central differences cost `2n` extra posterior evaluations per
+gradient, each one forward-model run per experiment; one reverse-mode
+recording costs one run per experiment and a backward sweep whose work is a
+small multiple of the recorded evaluation, independent of `n`. On the
+exponential-decay problem of Section 2 with the `admath` model (21
+experiments, known noise, `n = 2`; NUTS, 2 chains, 200 + 250 iterations,
+seed 21):
+
+| Gradient | Mean `A` (MCSE) | Mean `k` (MCSE) | ESS `A`, `k` | Forward-model runs |
+|---|---|---|---|---:|
+| central | 5.0070 (0.0052) | 0.30143 (0.00048) | 189, 194 | 542 850 |
+| reverse | 5.0091 (0.0046) | 0.30148 (0.00046) | 211, 192 | 105 861 |
+
+The ratio 5.1 is the `2n + 1 = 5` of a two-parameter problem and grows
+linearly with the number of calibrated parameters and unknown noise
+parameters. Wall-clock time falls by less, because taping a Python
+evaluation costs more than a float evaluation; the saving grows with the
+cost of the forward model. `DiscrepancyCalibration` still uses central
+differences.
+
 ## Common pitfalls
 
 - **Conditions never name a parameter.** An `Experiment` whose conditions

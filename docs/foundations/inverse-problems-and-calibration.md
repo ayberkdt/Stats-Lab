@@ -125,7 +125,13 @@ MCMC with convergence diagnostics are now covered in
 (`DiscrepancyCalibration`, `LogLinearNoise`) are covered in
 [model discrepancy and heteroscedastic noise](model-discrepancy.md), and
 experimental design in [experimental design](experimental-design.md).
-Correlated measurement-error models remain open.
+Correlated Gaussian measurement errors (a declared matrix or an exponential
+or Matern kernel over an experimental condition, with known or uncertain
+length) and reverse-mode gradients for the Laplace approximation, HMC, and
+NUTS are covered in Section 14 of
+[nonlinear calibration and MCMC](nonlinear-calibration-and-mcmc.md)
+(ADR-0114). Correlated errors with heavy tails (a multivariate Student-t)
+remain open.
 
 ## Common pitfalls
 

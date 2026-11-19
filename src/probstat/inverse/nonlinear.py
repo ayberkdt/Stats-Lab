@@ -392,10 +392,11 @@ class CalibrationPosterior:
 
     Args:
         parameter_names: Calibration-parameter names.
-        noise_names: ``sigma[q]`` names of unknown noise scales.
+        noise_names: ``sigma[q]`` names of unknown noise scales, then
+            ``length[q]`` names of uncertain error-correlation lengths.
         mcmc: Chains on the physical scale ``(theta, sigma)``.
         standard_space: Raw chains in the sampling coordinates
-            ``(u, log sigma)``.
+            ``(u, log sigma, log length)``.
         laplace: Laplace approximation in sampling coordinates used to start
             the chains (``None`` if the Hessian was not positive definite).
         sampler: HMC/NUTS diagnostics (divergences, tree depths, step sizes)
@@ -1642,7 +1643,9 @@ class CalibrationProblem:
         + sum_q [log p_sigma(e^eta_q) + eta_q] + const``.
 
         Args:
-            coordinates: ``(u, log sigma_unknown)``.
+            coordinates: ``(u, log sigma_unknown, log length_unknown)``; the
+                log-length block is empty without uncertain error-correlation
+                lengths, which enter like noise scales ([EQ-CAL-CORR-002]).
 
         Returns:
             Log posterior up to an additive constant.
