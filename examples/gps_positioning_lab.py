@@ -890,9 +890,7 @@ def support_vertices(
             delta = lu_solve(rows, (planes[i][1], planes[j][1], planes[k][1]))
         except ValueError:
             continue
-        if all(
-            sum(n[m] * delta[m] for m in range(3)) <= c + 1e-9 for n, c in planes
-        ):
+        if all(sum(n[m] * delta[m] for m in range(3)) <= c + 1e-9 for n, c in planes):
             vertices.append((fix[0] + delta[0], fix[1] + delta[1], fix[2] + delta[2]))
     return vertices
 
@@ -1176,7 +1174,9 @@ def raim_threshold(probability: float = FALSE_ALARM, degrees: int = 1) -> float:
 
 
 def detection_probability(noncentrality: float, threshold: float) -> float:
-    """Return ``P(chi^2_1(lambda) > T) = Phi(sqrt(l) - sqrt(T)) + Phi(-sqrt(l) - sqrt(T))``.
+    """Return the detection probability ``P(chi^2_1(lambda) > T)``.
+
+    ``Phi(sqrt(lambda) - sqrt(T)) + Phi(-sqrt(lambda) - sqrt(T))``.
 
     With one redundant reading the statistic is ``(Z + sqrt(lambda))^2``.
 
@@ -1506,7 +1506,9 @@ def run_analysis(seed: int = SEED, *, fix_draws: int = FIX_DRAWS) -> LabResults:
         for index, name in enumerate(SOURCES)
     }
     linear_by_source = {
-        name: sum(linearized_covariance(centres, active=(name,))[i][i] for i in range(3))
+        name: sum(
+            linearized_covariance(centres, active=(name,))[i][i] for i in range(3)
+        )
         for name in SOURCES
     }
     no_range = study_fix(centres, fix_draws, seed + 7, ("clock", "satellite"))
@@ -1602,11 +1604,15 @@ def print_report(results: LabResults) -> None:
     print("Satellites (East, North, Up) [km] and range to the receiver [km]:")
     for centre in results.centres:
         print(
-            f"  ({centre[0] / 1e3:9.1f}, {centre[1] / 1e3:9.1f}, {centre[2] / 1e3:9.1f})"
+            f"  ({centre[0] / 1e3:9.1f}, {centre[1] / 1e3:9.1f}, "
+            f"{centre[2] / 1e3:9.1f})"
             f"  {distance(centre, ORIGIN) / 1e3:8.1f}"
         )
     print("\n=== Part 1: known clock, three uncertainty sources ===")
-    print(f"Known-clock PDOP of the well-spread sky: {pdop_known_clock(results.centres):.2f}")
+    print(
+        "Known-clock PDOP of the well-spread sky: "
+        f"{pdop_known_clock(results.centres):.2f}"
+    )
     print(f"Noise-free fix error: {results.noise_free_error:.2e} m")
     print(
         "Gauss-Newton covariance vs A Sigma_e A' (no clock), largest gap: "
@@ -1623,7 +1629,9 @@ def print_report(results: LabResults) -> None:
         f"{post.fix[2]:.2f}) m"
     )
     print(f"  ||E[R] - R0|| = {distance(post.mean, ORIGIN):.2f} m")
-    print(f"  90% radius around E[R]: {post.radius:.2f} m (batch SE {post.radius_se:.2f})")
+    print(
+        f"  90% radius around E[R]: {post.radius:.2f} m (batch SE {post.radius_se:.2f})"
+    )
     print(
         f"  ESS {post.ess:.0f} of {post.proposals} proposals; positive "
         f"weight {100 * post.positive_share:.1f}%; edge hits {post.edge_hits}"
@@ -1634,21 +1642,28 @@ def print_report(results: LabResults) -> None:
     )
     fix = results.fix_all
     print(f"\nLeast-squares fix, {FIX_DRAWS} draws of all sources:")
-    print(f"  90% radius of ||R_hat - R0||: {fix.radius:.2f} m (batch SE {fix.radius_se:.2f})")
-    print(f"  mean squared error: {fix.mean_square:.2f} m^2 (SE {fix.mean_square_se:.2f})")
+    print(
+        f"  90% radius of ||R_hat - R0||: {fix.radius:.2f} m "
+        f"(batch SE {fix.radius_se:.2f})"
+    )
+    print(
+        f"  mean squared error: {fix.mean_square:.2f} m^2 (SE {fix.mean_square_se:.2f})"
+    )
     print("  covariance entry: Monte Carlo (SE) vs linearized [m^2]")
     for i, a in enumerate("ENU"):
         for j in range(i, 3):
             print(
                 f"    {a}{'ENU'[j]}: {results.mc_covariance[i][j]:7.2f} "
-                f"({results.covariance_se[i][j]:.2f})  {results.linear_covariance[i][j]:7.2f}"
+                f"({results.covariance_se[i][j]:.2f})  "
+                f"{results.linear_covariance[i][j]:7.2f}"
             )
     print("\nSensitivity split of the mean squared error [m^2]:")
     total = sum(results.linear_by_source.values())
     for name in SOURCES:
         study = results.fix_by_source[name]
         print(
-            f"  {name:9s}: Monte Carlo {study.mean_square:8.3f} (SE {study.mean_square_se:.3f})"
+            f"  {name:9s}: Monte Carlo {study.mean_square:8.3f} "
+            f"(SE {study.mean_square_se:.3f})"
             f"  linearized {results.linear_by_source[name]:8.3f}"
             f"  share {100 * results.linear_by_source[name] / total:5.1f}%"
         )
@@ -1677,7 +1692,8 @@ def print_report(results: LabResults) -> None:
     print("\n=== Part 2: unknown receiver clock, weighted fix, fault detection ===")
     position_gap, clock_gap = results.clock_noise_free
     print(
-        f"Clock offset {RECEIVER_CLOCK_OFFSET * 1e3:.2f} ms = {CLOCK_BIAS / 1e3:.1f} km "
+        f"Clock offset {RECEIVER_CLOCK_OFFSET * 1e3:.2f} ms = "
+        f"{CLOCK_BIAS / 1e3:.1f} km "
         "of range."
     )
     print(
@@ -1742,7 +1758,8 @@ def print_report(results: LabResults) -> None:
     for row in results.raim:
         bias, level, rate, rate_se = row.checks[0]
         print(
-            f"  S{row.index + 1} at {bias:5.1f} m: simulated {rate:.3f} ({rate_se:.3f}) "
+            f"  S{row.index + 1} at {bias:5.1f} m: simulated {rate:.3f} "
+            f"({rate_se:.3f}) "
             f"vs {level:.1f}"
         )
 
@@ -1860,7 +1877,9 @@ def figure_radial_cdf(results: LabResults) -> Any:
         color=palette.model,
         linewidth=theme.LINE_WIDTH,
     )
-    ax.axhline(LEVEL, color=palette.muted, linewidth=theme.REFERENCE_WIDTH, linestyle="--")
+    ax.axhline(
+        LEVEL, color=palette.muted, linewidth=theme.REFERENCE_WIDTH, linestyle="--"
+    )
     _label(
         ax,
         post.radius,
@@ -1884,8 +1903,10 @@ def figure_radial_cdf(results: LabResults) -> Any:
     theme.axis_labels(ax, "Distance from centre", "Probability within", x_unit="m")
     theme.title_block(
         ax,
-        f"90% radius: {post.radius:.1f} m for the posterior, {fix.radius:.1f} m for the fix",
-        "Posterior: ||R - E[R]|| for one set of readings; fix: ||R_hat - R0|| over draws",
+        f"90% radius: {post.radius:.1f} m for the posterior, "
+        f"{fix.radius:.1f} m for the fix",
+        "Posterior: ||R - E[R]|| for one set of readings; "
+        "fix: ||R_hat - R0|| over draws",
     )
     return figure
 
@@ -1917,7 +1938,9 @@ def figure_sensitivity(results: LabResults) -> Any:
             linewidth=3.0,
             solid_capstyle="butt",
         )
-        ax.plot([study.mean_square], [row], marker="o", markersize=7, color=palette.observed)
+        ax.plot(
+            [study.mean_square], [row], marker="o", markersize=7, color=palette.observed
+        )
         ax.plot(
             [results.linear_by_source[name]],
             [row],
@@ -1980,7 +2003,10 @@ def figure_geometry(results: LabResults) -> Any:
     )
     top = points[-1].pdop * 1.05
     ax.plot(
-        [0.0, top], [0.0, slope * top], color=palette.model, linewidth=theme.REFERENCE_WIDTH
+        [0.0, top],
+        [0.0, slope * top],
+        color=palette.model,
+        linewidth=theme.REFERENCE_WIDTH,
     )
     for p in points:
         ax.plot(
@@ -2019,7 +2045,9 @@ def figure_geometry(results: LabResults) -> Any:
     )
     ax.set_xlim(0.0, top * 1.02)
     ax.set_ylim(0.0, max(p.radius + 2 * p.radius_se for p in points) * 1.08)
-    theme.axis_labels(ax, "Position dilution of precision, clock known", "90% radius", y_unit="m")
+    theme.axis_labels(
+        ax, "Position dilution of precision, clock known", "90% radius", y_unit="m"
+    )
     theme.title_block(
         ax,
         "Error radius grows in proportion to the dilution of precision",
@@ -2062,7 +2090,10 @@ def figure_raim(results: LabResults) -> Any:
             )
             ax.plot([bias], [rate], "o", color=palette.observed, markersize=4)
     ax.axhline(
-        DETECTION_LEVEL, color=palette.rule, linewidth=theme.REFERENCE_WIDTH, linestyle="--"
+        DETECTION_LEVEL,
+        color=palette.rule,
+        linewidth=theme.REFERENCE_WIDTH,
+        linestyle="--",
     )
     ax.set_xlim(0.0, top * 1.12)
     ax.set_ylim(0.0, 1.04)
@@ -2091,10 +2122,13 @@ def figure_raim(results: LabResults) -> Any:
         xytext=(14.0, -8.0),
         va="top",
     )
-    theme.axis_labels(ax, "Range fault on one satellite", "Detection probability", x_unit="m")
+    theme.axis_labels(
+        ax, "Range fault on one satellite", "Detection probability", x_unit="m"
+    )
     theme.title_block(
         ax,
-        f"A {hardest.bias:.0f} m fault on S{hardest.index + 1} is needed for 90% detection",
+        f"A {hardest.bias:.0f} m fault on S{hardest.index + 1} is needed "
+        "for 90% detection",
         f"Closed-form detection probability per satellite, P_FA = {FALSE_ALARM:g}; "
         "dots: simulation ± 2 SE",
     )

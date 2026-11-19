@@ -140,18 +140,16 @@ class LinearizationTests(unittest.TestCase):
         self.assertLess(abs(lab.pdop_known_clock(centres) ** 2 / trace - 1.0), 1e-12)
 
     def test_dilution_of_precision_identities(self) -> None:
-        """``GDOP^2 = PDOP^2 + TDOP^2``, ``PDOP^2 = HDOP^2 + VDOP^2``, and
+        """The DOP family is consistent and the clock costs precision.
+
+        ``GDOP^2 = PDOP^2 + TDOP^2``, ``PDOP^2 = HDOP^2 + VDOP^2``, and
         estimating the clock never improves the position dilution.
         """
         for sky in (lab.GOOD_SKY, lab.POOR_SKY):
             centres = lab.constellation(sky)
             dop = lab.dilution_of_precision(centres)
-            self.assertLess(
-                abs((dop.pdop**2 + dop.tdop**2) / dop.gdop**2 - 1.0), 1e-12
-            )
-            self.assertLess(
-                abs((dop.hdop**2 + dop.vdop**2) / dop.pdop**2 - 1.0), 1e-12
-            )
+            self.assertLess(abs((dop.pdop**2 + dop.tdop**2) / dop.gdop**2 - 1.0), 1e-12)
+            self.assertLess(abs((dop.hdop**2 + dop.vdop**2) / dop.pdop**2 - 1.0), 1e-12)
             self.assertGreater(dop.pdop, lab.pdop_known_clock(centres))
 
     def test_small_noise_monte_carlo_covariance_matches_linearization(self) -> None:
@@ -335,10 +333,14 @@ class FaultDetectionTests(unittest.TestCase):
             1e-9,
         )
         for k in range(5):
-            bias = lab.minimal_detectable_bias(self.projector, self.sigmas, k, self.threshold)
+            bias = lab.minimal_detectable_bias(
+                self.projector, self.sigmas, k, self.threshold
+            )
             lam = lab.fault_noncentrality(self.projector, self.sigmas, k, bias)
             self.assertLess(
-                abs(lab.detection_probability(lam, self.threshold) - lab.DETECTION_LEVEL),
+                abs(
+                    lab.detection_probability(lam, self.threshold) - lab.DETECTION_LEVEL
+                ),
                 1e-9,
             )
 
@@ -353,7 +355,9 @@ class FaultDetectionTests(unittest.TestCase):
     def test_simulated_detection_matches_closed_form(self) -> None:
         """At the 90% minimal detectable bias the simulated rate agrees (4 SE)."""
         k = 1
-        bias = lab.minimal_detectable_bias(self.projector, self.sigmas, k, self.threshold)
+        bias = lab.minimal_detectable_bias(
+            self.projector, self.sigmas, k, self.threshold
+        )
         rate, _ = lab.detection_rate(
             self.centres, self.sigmas, (k, bias), 400, 22, self.threshold
         )
@@ -361,7 +365,7 @@ class FaultDetectionTests(unittest.TestCase):
         self.assertLess(abs(rate - level), 4.0 * math.sqrt(level * (1 - level) / 400))
 
     def test_fault_shift_is_linear(self) -> None:
-        """A fault moves the weighted fix by ``bias (G'WG)^-1 (g_k, 1)' / sigma_k^2``."""
+        """A fault shifts the weighted fix by ``b (G'WG)^-1 (g_k, 1)' / sigma_k^2``."""
         k, bias = 3, 30.0
         exact = [lab.distance(c, ORIGIN) + lab.CLOCK_BIAS for c in self.centres]
         exact[k] += bias
