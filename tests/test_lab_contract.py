@@ -91,6 +91,7 @@ LAB_REGRESSION_TESTS: dict[str, tuple[str, str]] = {
         "test_generating_functions_and_protocols.py",
         "Categorical",
     ),
+    "gps_positioning_lab": ("test_gps_positioning_lab.py", "gauss_newton_covariance"),
     "hierarchical_lab": (
         "test_hierarchical_and_ppc.py",
         "hierarchical_normal_posterior",

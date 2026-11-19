@@ -100,9 +100,9 @@ Diagnostics:
       geometry-matrix formula.
     - Importance sampling reports its effective sample size, the share of
       proposals with positive weight, whether any weighted proposal touches
-      the edge of either proposal box (none may), and the largest relative
-      change of the likelihood when the clock quadrature goes from 16 to 64
-      nodes.
+      the edge of the proposal box (none may), and the largest relative
+      change of the likelihood when the clock quadrature goes from 8 to 16
+      nodes per panel (exact rules: rounding only).
     - Each 90% radius and posterior mean carries a batch standard error from
       ``BATCHES`` independent batches of proposals or draws.
     - The fault test's simulated false-alarm rate and detection rates are
@@ -130,6 +130,7 @@ References:
 from __future__ import annotations
 
 import functools
+import itertools
 import math
 import random
 import time
@@ -145,6 +146,7 @@ from probstat.linalg import (
     Matrix,
     cholesky,
     inverse_spd,
+    lu_solve,
     matmul,
     symmetric_eigen,
     transpose,
@@ -179,9 +181,8 @@ POOR_SKY = ((60.0, 35.0), (85.0, 48.0), (100.0, 30.0), (120.0, 55.0), (140.0, 38
 FIX_DRAWS = 4000
 GEOMETRY_DRAWS = 600
 RANDOM_GEOMETRIES = 10
-PROPOSALS = 160_000
-PILOT_SHARE = 0.25
-BOX_MARGIN = 1.25
+PROPOSALS = 120_000
+BOX_MARGIN = 1.05
 CLOCK_NODES = 8
 CHECK_NODES = 16
 BATCHES = 10
@@ -738,20 +739,19 @@ class PosteriorStudy:
     Attributes:
         observed: The pseudo-ranges conditioned on.
         fix: Least-squares fix from the same readings.
-        points: Main-stage proposals with positive weight.
+        points: Proposals with positive weight.
         weights: Their normalized weights.
         mean: Posterior mean ``E[R]``.
         mean_se: Batch standard error of each coordinate of ``mean``.
         radius: 90% radius around ``E[R]``.
         radius_se: Batch standard error of ``radius``.
         ess: Effective sample size of the weights.
-        proposals: Number of main-stage proposals.
-        positive_share: Share of main-stage proposals with positive weight.
-        edge_hits: Weighted proposals within 2% of the edge of the pilot box
-            and of the main box.
+        proposals: Number of proposals.
+        positive_share: Share of proposals with positive weight.
+        edge_hits: Weighted proposals within 2% of the box edge.
         quadrature_gap: Largest relative change of the likelihood from
             ``CLOCK_NODES`` to ``CHECK_NODES`` clock nodes.
-        half_widths: Half-widths of the main (rotated) proposal box.
+        half_widths: Half-widths of the (rotated) proposal box.
 
     """
 
@@ -766,7 +766,7 @@ class PosteriorStudy:
     ess: float
     proposals: int
     positive_share: float
-    edge_hits: tuple[int, int]
+    edge_hits: int
     quadrature_gap: float
     half_widths: Vector3
 
@@ -850,6 +850,51 @@ def _sample_box(
     return _BoxSample(kept.points, kept.likelihoods, kept.batches, hits)
 
 
+def support_vertices(
+    centres: Sequence[Vector3], observed: Sequence[float], fix: Vector3
+) -> list[Vector3]:
+    """Return the vertices of the linearized support of the likelihood.
+
+    ``L(r) > 0`` requires ``|D_k - ||r - C_k||| < h + a + b`` for every
+    satellite. With ``||r - C_k|| ~ d_k + u_k'(r - fix)`` (``u_k`` the unit
+    vector from ``C_k`` to the fix) this is a polytope of ``2k`` half-spaces;
+    its vertices are the feasible intersections of three bounding planes.
+    The linearization error is about ``||r - fix||^2 / ||C_k||``, near
+    1e-5 m here.
+
+    Args:
+        centres: Broadcast satellite centres.
+        observed: Pseudo-ranges.
+        fix: Linearization point (the least-squares fix).
+
+    Returns:
+        The polytope vertices.
+
+    References:
+        [EQ-LAB-GPS-001], [REF-STRANG-2016].
+
+    """
+    planes = []
+    for centre, d in zip(centres, observed, strict=True):
+        size = distance(fix, centre)
+        u = tuple((fix[i] - centre[i]) / size for i in range(3))
+        gap = d - size
+        planes.append((u, gap + REACH))
+        planes.append((tuple(-v for v in u), REACH - gap))
+    vertices: list[Vector3] = []
+    for i, j, k in itertools.combinations(range(len(planes)), 3):
+        rows = (planes[i][0], planes[j][0], planes[k][0])
+        try:
+            delta = lu_solve(rows, (planes[i][1], planes[j][1], planes[k][1]))
+        except ValueError:
+            continue
+        if all(
+            sum(n[m] * delta[m] for m in range(3)) <= c + 1e-9 for n, c in planes
+        ):
+            vertices.append((fix[0] + delta[0], fix[1] + delta[1], fix[2] + delta[2]))
+    return vertices
+
+
 def study_posterior(
     centres: Sequence[Vector3],
     seed: int,
@@ -858,20 +903,17 @@ def study_posterior(
 ) -> PosteriorStudy:
     """Estimate ``f_R``, ``E[R]``, and the 90% radius from one set of readings.
 
-    The readings come from one draw of the three sources at ``R0``. A pilot
-    stage samples uniformly a box around the least-squares fix whose
-    half-widths ``2 (h + a + b) sum_k |A_ik|`` contain, to first order,
-    every position compatible with the readings. The main stage samples
-    uniformly the box aligned with the principal axes of the pilot's
-    weighted points, enlarged by ``BOX_MARGIN``. The proposal density is
-    constant on each box, so the weight of a main-stage proposal is its
-    likelihood (:func:`marginal_likelihood`); only the main stage enters the
-    estimates.
+    The readings come from one draw of the three sources at ``R0``. The
+    likelihood vanishes outside the polytope of :func:`support_vertices`;
+    proposals are uniform on the box aligned with the principal axes of its
+    vertices, spanning their extent enlarged by ``BOX_MARGIN``. The
+    proposal density is constant on the box, so the weight of a proposal
+    is its likelihood (:func:`marginal_likelihood`).
 
     Args:
         centres: Broadcast satellite centres.
         seed: Seed of the readings and the proposals.
-        proposals: Total number of proposals (pilot and main stage).
+        proposals: Number of proposals.
         nodes: Gauss-Legendre nodes over the clock shift.
 
     Returns:
@@ -890,42 +932,37 @@ def study_posterior(
         """Return the likelihood of a candidate position."""
         return marginal_likelihood(r, centres, observed, nodes)
 
-    a = error_map(geometry_matrix(centres, fix))
-    first = tuple(2.0 * REACH * sum(abs(v) for v in a[i]) for i in range(3))
-    unit = ((1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
-    pilot_count = int(PILOT_SHARE * proposals)
-    pilot = _sample_box(rng, pilot_count, fix, unit, first, likelihood)
-
-    # Principal axes of the pilot's weighted points; the main box spans
-    # their extent along each axis, enlarged by BOX_MARGIN.
-    pilot_mean, _ = _weighted_radius(pilot.points, pilot.likelihoods)
-    total = math.fsum(pilot.likelihoods)
-    spread = [
+    vertices = support_vertices(centres, observed, fix)
+    centroid = [math.fsum(v[i] for v in vertices) / len(vertices) for i in range(3)]
+    scatter = [
         [
-            math.fsum(
-                w * (p[i] - pilot_mean[i]) * (p[j] - pilot_mean[j])
-                for w, p in zip(pilot.likelihoods, pilot.points, strict=True)
-            )
-            / total
+            math.fsum((v[i] - centroid[i]) * (v[j] - centroid[j]) for v in vertices)
             for j in range(3)
         ]
         for i in range(3)
     ]
-    _, vectors = symmetric_eigen(spread)
+    _, vectors = symmetric_eigen(scatter)
     axes = [tuple(vectors[i][j] for i in range(3)) for j in range(3)]
-    centre = list(pilot_mean)
+    centre = list(centroid)
     half = []
     for axis in axes:
         projections = [
-            sum((p[i] - pilot_mean[i]) * axis[i] for i in range(3))
-            for p in pilot.points
+            sum((v[i] - centroid[i]) * axis[i] for i in range(3)) for v in vertices
         ]
         low, high = min(projections), max(projections)
         for i in range(3):
             centre[i] += 0.5 * (low + high) * axis[i]
         half.append(BOX_MARGIN * 0.5 * (high - low))
-    main_count = proposals - pilot_count
-    main = _sample_box(rng, main_count, centre, axes, half, likelihood)
+    sample = _sample_box(rng, proposals, centre, axes, half, likelihood)
+    # Safety net: if a weighted proposal touches the box edge (the support
+    # reaches beyond the linearized polytope), the box grows by half and
+    # the sample is redrawn, so the estimates always come from one box.
+    for _ in range(4):
+        if sample.edge_hits == 0:
+            break
+        half = [1.5 * w for w in half]
+        sample = _sample_box(rng, proposals, centre, axes, half, likelihood)
+    main = sample
 
     total = math.fsum(main.likelihoods)
     normalized = tuple(w / total for w in main.likelihoods)
@@ -959,9 +996,9 @@ def study_posterior(
         radius,
         _batch_se(batch_radii),
         effective_sample_size(normalized),
-        main_count,
-        len(main.points) / main_count,
-        (pilot.edge_hits, main.edge_hits),
+        proposals,
+        len(main.points) / proposals,
+        main.edge_hits,
         gap,
         (half[0], half[1], half[2]),
     )
@@ -975,8 +1012,12 @@ def study_posterior(
 def elevation_sigmas(sky: Sequence[tuple[float, float]]) -> tuple[float, ...]:
     """Return the range-error standard deviations ``sigma_0 / sin(elevation)``.
 
+    Propagation errors grow at low elevation, where the signal crosses more
+    atmosphere; the ``1 / sin`` form is a modelling choice of this
+    laboratory.
+
     References:
-        [REF-TEUNISSEN-MONTENBRUCK-2017, Chapter 22]. No equation is evaluated.
+        [REF-MISRA-ENGE-2006, Chapter 5]. No equation is evaluated.
 
     """
     return tuple(ZENITH_SIGMA / math.sin(math.radians(el)) for _, el in sky)
@@ -1583,8 +1624,7 @@ def print_report(results: LabResults) -> None:
     print(f"  90% radius around E[R]: {post.radius:.2f} m (batch SE {post.radius_se:.2f})")
     print(
         f"  ESS {post.ess:.0f} of {post.proposals} main-stage proposals; positive "
-        f"weight {100 * post.positive_share:.1f}%; edge hits (pilot, main) "
-        f"{post.edge_hits}"
+        f"weight {100 * post.positive_share:.1f}%; edge hits {post.edge_hits}"
     )
     print(
         f"  clock quadrature {CLOCK_NODES} vs {CHECK_NODES} nodes, largest relative "
