@@ -7,6 +7,8 @@ from collections.abc import Iterable
 
 from probstat.foundations import coerce_finite_sample, require_probability
 
+from ._hyndman_fan import hyndman_fan_quantile
+
 
 def _sorted_sample(values: Iterable[float], *, minimum: int = 1) -> tuple[float, ...]:
     """Materialize, validate, and sort a finite sample.
@@ -87,23 +89,48 @@ def _largest_count_within(size: int, proportion: float) -> int:
 def quantile(values: Iterable[float], probability: float, *, method: int = 7) -> float:
     """Return a sample quantile under an explicit Hyndman-Fan definition.
 
+    Every type is ``(1 - gamma) x_(j) + gamma x_(j+1)`` for adjacent order
+    statistics; the types differ in the position and the weight ``gamma``.
+    Types 1-3 are step functions of ``p``, types 4-9 interpolate linearly
+    between the plotting positions ``p_k = (k - alpha)/(n + 1 - alpha -
+    beta)``. When ``p`` is the floating-point value of a level at which the
+    position is an integer, the position is that integer (``n = 100`` and
+    ``p = 0.07`` select ``x_(7)`` exactly although ``100 * 0.07`` rounds to
+    ``7.000000000000001``).
+
     Args:
         values: Non-empty finite sample.
         probability: Level in ``[0, 1]``.
-        method: ``7`` (linear interpolation of order statistics, the default
-            in R and NumPy) or ``1`` (inverse of the empirical CDF,
-            ``x_(j)`` with the smallest ``j`` such that ``j / n >= p``; when
-            ``n p`` is an integer, ``j = n p`` exactly, so the 7th of 100
-            sorted values is the type-1 quantile at ``p = 0.07``).
+        method: Hyndman-Fan type, numbered as R's ``quantile(type = )``:
+
+            - ``1``: inverse of the empirical CDF, ``x_(j)`` with the
+              smallest ``j`` such that ``j / n >= p``.
+            - ``2``: as type 1, but the average of ``x_(j)`` and
+              ``x_(j+1)`` where ``n p = j`` is an integer (the SAS
+              default).
+            - ``3``: the nearest even order statistic to ``n p``, a former
+              SAS default.
+            - ``4``: linear interpolation of the empirical CDF,
+              ``p_k = k / n``.
+            - ``5``: ``p_k = (k - 1/2) / n``, the midpoints of the CDF steps.
+            - ``6``: ``p_k = k / (n + 1)``, so ``p_k = E[F(X_(k))]``
+              (Minitab, SPSS).
+            - ``7`` (default, as in R and NumPy): ``p_k = (k - 1)/(n - 1)``.
+            - ``8``: ``p_k = (k - 1/3)/(n + 1/3)``, approximately
+              median-unbiased for any continuous law (Hyndman and Fan's
+              recommendation).
+            - ``9``: ``p_k = (k - 3/8)/(n + 1/4)``, approximately unbiased
+              for the expected order statistics of a normal law.
 
     Returns:
         Sample quantile.
 
     Raises:
-        ValueError: If the sample is empty or ``method`` is unsupported.
+        ValueError: If the sample is empty or ``method`` is not an integer
+            from 1 to 9.
 
     Equation:
-        [EQ-STAT-QUANT-001].
+        [EQ-STAT-QUANT-001], [EQ-STAT-QUANT-002].
 
     References:
         [REF-HYNDMAN-FAN-1996].
@@ -112,12 +139,14 @@ def quantile(values: Iterable[float], probability: float, *, method: int = 7) ->
     ordered = _sorted_sample(values)
     p = require_probability(probability, name="probability")
     n = len(ordered)
+    if isinstance(method, bool) or method not in range(1, 10):
+        raise ValueError("method must be an integer from 1 to 9")
     if method == 1:
         if p == 0.0:
             return ordered[0]
         return ordered[_smallest_index_reaching(n, p) - 1]
     if method != 7:
-        raise ValueError("method must be 1 or 7")
+        return hyndman_fan_quantile(ordered, p, int(method))
     position = (n - 1) * p
     lower = math.floor(position)
     upper = min(lower + 1, n - 1)
@@ -133,13 +162,17 @@ def quantiles(
     Args:
         values: Non-empty finite sample.
         probabilities: Levels in ``[0, 1]``.
-        method: Hyndman-Fan definition, ``7`` or ``1``.
+        method: Hyndman-Fan type from 1 to 9 (see ``quantile``); default 7.
 
     Returns:
         Quantiles in the order of ``probabilities``.
 
+    Raises:
+        ValueError: If the sample is empty or ``method`` is not an integer
+            from 1 to 9.
+
     Equation:
-        [EQ-STAT-QUANT-001].
+        [EQ-STAT-QUANT-001], [EQ-STAT-QUANT-002].
 
     References:
         [REF-HYNDMAN-FAN-1996].
@@ -251,62 +284,131 @@ def median_absolute_deviation(
     return raw * 1.482602218505602 if normal_consistent else raw
 
 
-def skewness(values: Iterable[float]) -> float:
-    """Return the sample moment skewness ``g1 = m3 / m2^(3/2)``.
+def _shape_type(kind: int) -> int:
+    """Validate a Joanes-Gill shape-statistic convention.
 
     Args:
-        values: Finite sample with at least two distinct values.
+        kind: ``1`` (``g``), ``2`` (``G``), or ``3`` (``b``).
 
     Returns:
-        Moment-ratio skewness (biased, population-style).
+        The convention as an integer.
 
     Raises:
-        ValueError: If the sample has zero variance.
+        ValueError: If ``kind`` is not 1, 2, or 3.
+
+    References:
+        [EQ-STAT-SHAPE-002], [REF-JOANES-GILL-1998].
+
+    """
+    if isinstance(kind, bool) or kind not in (1, 2, 3):
+        raise ValueError("type must be 1, 2, or 3")
+    return int(kind)
+
+
+def skewness(values: Iterable[float], *, type: int = 1) -> float:
+    """Return the sample skewness under one of three Joanes-Gill conventions.
+
+    With central moments ``m_k = n^-1 sum (x_i - xbar)^k`` and ``g1 = m3 /
+    m2^(3/2)``:
+
+    - ``type=1`` (default): ``g1``, the moment ratio (e1071 type 1, older
+      textbooks).
+    - ``type=2``: ``G1 = g1 sqrt(n (n - 1)) / (n - 2)``, the ratio of the
+      unbiased cumulant estimators ``k3 / k2^(3/2)`` (SAS and SPSS; e1071
+      type 2).
+    - ``type=3``: ``b1 = m3 / s^3 = g1 ((n - 1) / n)^(3/2)`` with ``s`` the
+      standard deviation with divisor ``n - 1`` (MINITAB, BMDP; e1071's
+      default type 3).
+
+    Args:
+        values: Finite sample with at least two distinct values (three for
+            ``type=2``).
+        type: Convention ``1``, ``2``, or ``3``, numbered as in e1071 and
+            Joanes and Gill.
+
+    Returns:
+        Sample skewness.
+
+    Raises:
+        ValueError: If the sample has zero variance, ``type`` is not 1, 2,
+            or 3, or ``type=2`` has fewer than three observations.
 
     Equation:
-        [EQ-STAT-SHAPE-001].
+        [EQ-STAT-SHAPE-001], [EQ-STAT-SHAPE-002].
 
     References:
         [REF-JOANES-GILL-1998].
 
     """
+    kind = _shape_type(type)
     sample = _sorted_sample(values, minimum=2)
     n = len(sample)
+    if kind == 2 and n < 3:
+        raise ValueError("type 2 skewness needs at least three observations")
     center = math.fsum(sample) / n
     m2 = math.fsum((v - center) ** 2 for v in sample) / n
     if m2 == 0.0:
         raise ValueError("skewness is undefined for zero variance")
     m3 = math.fsum((v - center) ** 3 for v in sample) / n
-    return float(m3 / m2**1.5)
+    g1 = float(m3 / m2**1.5)
+    if kind == 2:
+        return g1 * math.sqrt(n * (n - 1)) / (n - 2)
+    if kind == 3:
+        return g1 * float(((n - 1) / n) ** 1.5)
+    return g1
 
 
-def excess_kurtosis(values: Iterable[float]) -> float:
-    """Return the sample moment excess kurtosis ``g2 = m4 / m2^2 - 3``.
+def excess_kurtosis(values: Iterable[float], *, type: int = 1) -> float:
+    """Return the sample excess kurtosis under one of three Joanes-Gill conventions.
+
+    With central moments ``m_k = n^-1 sum (x_i - xbar)^k`` and ``g2 = m4 /
+    m2^2 - 3``:
+
+    - ``type=1`` (default): ``g2``, the moment ratio (e1071 type 1).
+    - ``type=2``: ``G2 = ((n + 1) g2 + 6)(n - 1) / ((n - 2)(n - 3))``, the
+      ratio of the unbiased cumulant estimators ``k4 / k2^2`` (SAS and
+      SPSS; e1071 type 2), the only one of the three that is unbiased for
+      normal data.
+    - ``type=3``: ``b2 = m4 / s^4 - 3 = (g2 + 3)(1 - 1/n)^2 - 3`` with ``s``
+      the standard deviation with divisor ``n - 1`` (MINITAB, BMDP; e1071's
+      default type 3).
 
     Args:
-        values: Finite sample with at least two distinct values.
+        values: Finite sample with at least two distinct values (four for
+            ``type=2``).
+        type: Convention ``1``, ``2``, or ``3``, numbered as in e1071 and
+            Joanes and Gill.
 
     Returns:
         Excess kurtosis (zero for a normal law in expectation, asymptotically).
 
     Raises:
-        ValueError: If the sample has zero variance.
+        ValueError: If the sample has zero variance, ``type`` is not 1, 2,
+            or 3, or ``type=2`` has fewer than four observations.
 
     Equation:
-        [EQ-STAT-SHAPE-001].
+        [EQ-STAT-SHAPE-001], [EQ-STAT-SHAPE-002].
 
     References:
         [REF-JOANES-GILL-1998].
 
     """
+    kind = _shape_type(type)
     sample = _sorted_sample(values, minimum=2)
     n = len(sample)
+    if kind == 2 and n < 4:
+        raise ValueError("type 2 kurtosis needs at least four observations")
     center = math.fsum(sample) / n
     m2 = math.fsum((v - center) ** 2 for v in sample) / n
     if m2 == 0.0:
         raise ValueError("kurtosis is undefined for zero variance")
     m4 = math.fsum((v - center) ** 4 for v in sample) / n
-    return m4 / (m2 * m2) - 3.0
+    g2 = m4 / (m2 * m2) - 3.0
+    if kind == 2:
+        return ((n + 1) * g2 + 6.0) * (n - 1) / ((n - 2) * (n - 3))
+    if kind == 3:
+        return (g2 + 3.0) * (1.0 - 1.0 / n) ** 2 - 3.0
+    return g2
 
 
 def ranks(values: Iterable[float]) -> tuple[float, ...]:

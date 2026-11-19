@@ -2075,6 +2075,49 @@ and `b2 = m4 / s^4 - 3 = (g2 + 3)(1 - 1/n)^2 - 3`, with
 - Code: `examples.input_modeling_lab.describe`.
 - Source: [REF-JOANES-GILL-1998], [REF-R-E1071].
 
+### EQ-STAT-QUANT-002 — The nine Hyndman-Fan sample quantiles
+
+Every type is `Q(p) = (1 - gamma) x_(j) + gamma x_(j+1)` with
+`x_(0) = x_(1)` and `x_(n+1) = x_(n)`. Discontinuous types use
+`j = floor(n p + m)`, `g = n p + m - j`: type 1 (`m = 0`, `gamma = 0` if
+`g = 0`, else 1), type 2 (`m = 0`, `gamma = 1/2` if `g = 0`, else 1), type 3
+(`m = -1/2`, `gamma = 0` if `g = 0` and `j` is even, else 1). Continuous types
+interpolate between the plotting positions `p_k = (k - alpha)/(n + 1 -
+alpha - beta)`: `h = alpha + p (n + 1 - alpha - beta)`, `j = floor(h)`,
+`gamma = h - j`, with `(alpha, beta) = (0, 1)` (type 4), `(1/2, 1/2)` (5),
+`(0, 0)` (6), `(1, 1)` (7), `(1/3, 1/3)` (8), and `(3/8, 3/8)` (9).
+
+- Domain: non-empty finite sample and `p in [0,1]`; the position is formed
+  in exact rational arithmetic and taken to be the integer `k` when `p` is
+  the floating-point value of the level at which it equals `k`.
+- Meaning: types 1-3 are step functions of `p` (inverse empirical CDF,
+  averaged at the jumps, nearest even order statistic); types 4-9 are
+  continuous. Types 2 and 5-9 give the usual median and satisfy
+  `Q_x(p) = -Q_(-x)(1 - p)`; type 8 is approximately median-unbiased for any
+  continuous law and type 9 approximately unbiased for normal data.
+- Code: `statistics.quantile`, `statistics.quantiles`.
+- Source: [REF-HYNDMAN-FAN-1996].
+
+### EQ-STAT-SHAPE-002 — Bias-adjusted skewness and kurtosis (G1, G2, b1, b2)
+
+With `g1 = m3 / m2^(3/2)` and `g2 = m4 / m2^2 - 3` [EQ-STAT-SHAPE-001]:
+`G1 = g1 sqrt(n (n - 1)) / (n - 2)`,
+`G2 = ((n + 1) g2 + 6)(n - 1) / ((n - 2)(n - 3))`,
+`b1 = g1 ((n - 1)/n)^(3/2) = m3 / s^3`, and
+`b2 = (g2 + 3)(1 - 1/n)^2 - 3 = m4 / s^4 - 3`, where `s^2` has divisor
+`n - 1`.
+
+- Domain: positive `m2`; `n >= 3` for `G1` and `n >= 4` for `G2`.
+- Meaning: `G1 = k3 / k2^(3/2)` and `G2 = k4 / k2^2` are ratios of the
+  unbiased cumulant estimators (k-statistics); `b1` and `b2` standardize by
+  the sample standard deviation. The three conventions agree as `n` grows.
+  Under normality every skewness has mean zero by symmetry, and of the
+  kurtosis measures only `G2` is unbiased (`E[g2] = -6/(n + 1)`). e1071
+  types 1, 2, and 3 are `g`, `G`, and `b`; SAS and SPSS report `G`, MINITAB
+  and BMDP `b`.
+- Code: `statistics.skewness`, `statistics.excess_kurtosis`.
+- Source: [REF-JOANES-GILL-1998].
+
 ## Model-based sensitivity analysis
 
 ### EQ-SENS-BOOT-001 — Bootstrap percentile intervals for Sobol indices

@@ -138,7 +138,7 @@ dnbinom(3, 2, 0.4)     0.13824
 | `cor(x, y)` | `pearson_correlation(x, y)` | |
 | `cor(x, y, method = "spearman")` | `spearman_correlation(x, y)` | |
 | `median(x)` | `median(x)` | |
-| `quantile(x, p)` (type 7) | `quantile(x, p)`, `quantiles(x, ps)` | only Hyndman-Fan types 7 (default) and 1 (`method=1`) [REF-HYNDMAN-FAN-1996] |
+| `quantile(x, p, type = k)` | `quantile(x, p, method=k)`, `quantiles(x, ps, method=k)` | all nine Hyndman-Fan types, type 7 by default in both [REF-HYNDMAN-FAN-1996] |
 | `IQR(x)` | `interquartile_range(x)` | type 7 in both |
 | `mad(x)` | `median_absolute_deviation(x)` | R multiplies by `constant = 1.4826`; `probstat` uses `1/qnorm(0.75) = 1.482602...`, a relative difference of about `1.5e-6` |
 | `scale(x)` | `z_scores(x, ddof=1)` | R centers and divides by `sd`, i.e. `n - 1` |
@@ -485,9 +485,9 @@ Beyond the porting traps above:
 - **`trimmed_mean` trims by default.** It removes `floor(0.1 n)` values from
   each end unless `proportion` is given, so for ten or more observations it
   differs from `mean`.
-- **Only two quantile types exist.** `quantile` and `quantiles` accept
-  `method=7` and `method=1`; any other type raises `ValueError` rather than
-  falling back to a default.
+- **A quantile type outside 1-9 raises.** `quantile` and `quantiles`
+  accept the Hyndman-Fan types `method=1` to `method=9`; any other value
+  raises `ValueError` rather than falling back to type 7.
 - **Out-of-range counting arguments raise.** `combinations(n, r)` and
   `permutations(n, r)` raise `ValueError` for `r > n` instead of returning 0.
 
@@ -497,7 +497,7 @@ from probstat.statistics import quantile, trimmed_mean
 
 print(Normal().sample(3, seed=root.child("inputs")) == first)
 print(f"{trimmed_mean(data):.4f} {mean(data):.4f}")
-for call in (lambda: quantile(data, 0.5, method=6), lambda: combinations(3, 5)):
+for call in (lambda: quantile(data, 0.5, method=10), lambda: combinations(3, 5)):
     try:
         call()
     except ValueError as error:
@@ -507,7 +507,7 @@ for call in (lambda: quantile(data, 0.5, method=6), lambda: combinations(3, 5)):
 ```text
 True
 3.6875 3.7500
-method must be 1 or 7
+method must be an integer from 1 to 9
 r must not exceed n
 ```
 

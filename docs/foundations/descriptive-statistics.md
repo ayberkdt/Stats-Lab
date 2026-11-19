@@ -33,6 +33,64 @@ distribution. It is the bridge from observed data to distributional thinking.
 
 *The mean 1.30 is pulled right by the long upper tail and sits above the median 0.96, so 66% of the 200 draws fall below it; the empirical CDF follows the LogNormal(0, 0.8) CDF closely without assuming it.*
 
+## Quantile and shape conventions
+
+A sample quantile is a weighted average of two adjacent order statistics,
+`Q(p) = (1 - gamma) x_(j) + gamma x_(j+1)`, and statistical packages
+disagree on `j` and `gamma`. Hyndman and Fan [REF-HYNDMAN-FAN-1996] list
+nine definitions [EQ-STAT-QUANT-001], [EQ-STAT-QUANT-002]; `quantile` and
+`quantiles` take them as `method=1` to `method=9`, numbered as R's
+`quantile(type = )`, with type 7 as the default.
+
+| Type | Definition | Use it when |
+|---|---|---|
+| 1 | inverse empirical CDF, `x_(j)` with the smallest `j / n >= p` | the quantile must be an observed value |
+| 2 | type 1, averaged where `n p` is an integer (SAS default) | an observed value or a midpoint, with the usual median |
+| 3 | nearest even order statistic to `n p` | reproducing older SAS output |
+| 4 | linear interpolation of the empirical CDF, `p_k = k / n` | a continuous version of type 1 |
+| 5 | `p_k = (k - 1/2) / n`, midpoints of the CDF steps | hydrology conventions |
+| 6 | `p_k = k / (n + 1) = E[F(X_(k))]` (Minitab, SPSS) | matching Minitab or SPSS; Weibull's plotting positions |
+| 7 | `p_k = (k - 1) / (n - 1)` (R, NumPy, and probstat default) | matching R's and NumPy's defaults |
+| 8 | `p_k = (k - 1/3) / (n + 1/3)`, approximately median-unbiased | a definition-free choice; Hyndman and Fan recommend it |
+| 9 | `p_k = (k - 3/8) / (n + 1/4)` | normal data (approximately unbiased for normal order statistics) |
+
+Types 1-3 are step functions of `p`; types 4-9 interpolate linearly between
+the points `(p_k, x_(k))`. The differences matter in small samples and in the
+tails, and vanish as `n` grows. When `p` is the floating-point value of a
+level at which the position is an integer, the position is that integer:
+with `n = 100` and `p = 0.07`, type 1 returns `x_(7)` although
+`100 * 0.07` rounds to `7.000000000000001`.
+
+Skewness and excess kurtosis have three conventions in common use
+[REF-JOANES-GILL-1998], selected by `type=` as in R's e1071 package
+[EQ-STAT-SHAPE-001], [EQ-STAT-SHAPE-002]: type 1 is the moment ratio
+`g1 = m3 / m2^(3/2)`, `g2 = m4 / m2^2 - 3` (the default); type 2 is the ratio
+of unbiased cumulant estimators, `G1 = g1 sqrt(n (n - 1)) / (n - 2)` and
+`G2 = ((n + 1) g2 + 6)(n - 1) / ((n - 2)(n - 3))` (SAS, SPSS); type 3
+standardizes by the sample standard deviation, `b1 = g1 ((n - 1) / n)^(3/2)`
+and `b2 = (g2 + 3)(1 - 1/n)^2 - 3` (MINITAB, BMDP, and e1071's default). Of
+the three kurtosis measures only `G2` is unbiased for normal data.
+
+```python
+from probstat.statistics import excess_kurtosis, quantile, skewness
+
+x = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0]
+tuple(quantile(x, 0.25, method=k) for k in range(1, 10))
+# (1.0, 1.5, 1.0, 1.0, 1.5, 1.25, 1.75, 1.4167, 1.4375)
+tuple(quantile(x, 0.5, method=k) for k in range(1, 10))
+# (3.0, 3.5, 3.0, 3.0, 3.5, 3.5, 3.5, 3.5, 3.5)
+
+y = [1.0, 2.0, 3.0, 10.0]
+tuple(skewness(y, type=k) for k in (1, 2, 3))  # (1.0182, 1.7636, 0.6614)
+tuple(excess_kurtosis(y, type=k) for k in (1, 2, 3))  # (-0.7696, 3.228, -1.7454)
+```
+
+With eight observations the lower quartile ranges from 1.0 to 1.75 across
+the nine definitions, and only types 2 and 5-9 return the conventional
+median 3.5. With four observations the three kurtosis conventions do not
+even agree in sign: at `n = 4`, `G2 = 7.5 g2 + 9` and
+`b2 = 0.5625 (g2 + 3) - 3`.
+
 ## Paired variation
 
 Covariance [EQ-STAT-006] measures joint centered movement in the product of the
@@ -209,9 +267,12 @@ References: [REF-WELFORD-1962], [REF-WEST-1979],
 - **The default trimmed mean may trim nothing.** `trimmed_mean` removes
   `floor(0.1 n)` values from each end, so for fewer than ten observations it
   equals the arithmetic mean, outlier included.
-- **Only two quantile definitions exist.** `quantile` accepts `method=7`
-  (default, linear interpolation) and `method=1` (inverse empirical CDF);
-  any other value raises `ValueError`.
+- **Quantile and shape conventions differ between packages.** `quantile`
+  defaults to Hyndman-Fan type 7 (R and NumPy); SAS uses type 2 and Minitab
+  type 6, so pass `method=` to match them. `skewness` and `excess_kurtosis`
+  default to `type=1` (`g1`, `g2`), whereas `e1071::skewness` and
+  `e1071::kurtosis` default to type 3 (`b1`, `b2`); call R with
+  `type = 1` or probstat with `type=3` before comparing.
 - **`P2Quantile` cannot be merged.** Only `RunningMoments`,
   `WeightedRunningMoments`, `RunningCovariance`, and `ExceedanceCounter`
   have `merge`; keep a `ReservoirSampler` when chunks must be combined.
