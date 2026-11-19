@@ -237,42 +237,6 @@ class EnsembleAnalysis:
     innovation_covariance: Matrix
 
 
-@dataclass(frozen=True, slots=True)
-class EnsembleKalmanResult:
-    """Forward-pass record of a stochastic ensemble Kalman filter.
-
-    Args:
-        analysis_means: Analysis means for ``k = 0..T`` (index 0 is the
-            initial ensemble).
-        analysis_covariances: Analysis ensemble covariances for ``k = 0..T``.
-        forecast_means: Forecast means for ``k = 1..T`` (after inflation).
-        forecast_covariances: Forecast covariances for ``k = 1..T``.
-        ensemble: Final analysis ensemble.
-        inflation: Multiplicative covariance inflation factor used.
-
-    References:
-        [REF-EVENSEN-1994], [REF-EVENSEN-2003].
-
-    """
-
-    analysis_means: tuple[Vector, ...]
-    analysis_covariances: tuple[Matrix, ...]
-    forecast_means: tuple[Vector, ...]
-    forecast_covariances: tuple[Matrix, ...]
-    ensemble: Ensemble
-    inflation: float
-
-    @property
-    def ensemble_size(self) -> int:
-        """Return the number of members.
-
-        References:
-            [REF-EVENSEN-2003].
-
-        """
-        return self.ensemble.size
-
-
 def _mean(members: Sequence[Vector]) -> Vector:
     """Return the arithmetic mean vector of equally long members.
 
@@ -491,6 +455,60 @@ def ensemble_analysis(
         [REF-BURGERS-VANLEEUWEN-EVENSEN-1998], [REF-EVENSEN-2003].
 
     """
+    return _stochastic_update(
+        ensemble, observation, observation_function, observation_covariance, seed
+    )[0]
+
+
+def _stochastic_update(
+    ensemble: Ensemble,
+    observation: Sequence[float],
+    observation_function: Callable[[Vector], Sequence[float]],
+    observation_covariance: Sequence[Sequence[float]],
+    seed: int | RandomStream | None,
+    *,
+    state_weights: Matrix | None = None,
+    observation_weights: Matrix | None = None,
+    transforms: bool = False,
+) -> tuple[EnsembleAnalysis, tuple[Matrix, ...] | None]:
+    """Perturbed-observation analysis, optionally Schur-localized.
+
+    Without weights this is exactly the arithmetic of
+    :func:`ensemble_analysis`. With localization weights ``rho_xy`` (``n`` by
+    ``m``) and ``rho_yy`` (``m`` by ``m``) the gain is
+    ``K = (rho_xy o C_xy)(rho_yy o C_yy + R)^-1`` ([EQ-DA-LOC-002]). The
+    ensemble transforms ``E^a_j = E^f_j T_j`` with
+    ``T_j = I + Y' diag(rho_j) S^-1 D / (N - 1)`` (``Y`` the anomalies of
+    ``h(x)``, ``D`` the perturbed innovations) are returned on request for
+    the ensemble smoother ([EQ-DA-ENKS-001]).
+
+    Args:
+        ensemble: Forecast ensemble.
+        observation: Observation ``y``.
+        observation_function: Measurement map ``h``.
+        observation_covariance: Positive-definite ``R``.
+        seed: Integer seed or stream for the observation perturbations.
+        state_weights: Optional ``rho_xy``.
+        observation_weights: Optional ``rho_yy``; required with
+            ``state_weights``.
+        transforms: Also return the ensemble transforms (one shared matrix
+            without localization, one per state component with it).
+
+    Returns:
+        The analysis and the transforms (or ``None``).
+
+    Raises:
+        ValueError: If shapes disagree or a covariance is not positive
+            definite.
+
+    Equation:
+        [EQ-DA-ENKF-001], [EQ-DA-LOC-002], [EQ-DA-ENKS-001].
+
+    References:
+        [REF-BURGERS-VANLEEUWEN-EVENSEN-1998], [REF-EVENSEN-2003],
+        [REF-HOUTEKAMER-MITCHELL-2001].
+
+    """
     noise = symmetrize(observation_covariance, name="observation_covariance")
     y = as_vector(observation, name="observation")
     if len(noise) != len(y):
@@ -506,9 +524,15 @@ def ensemble_analysis(
     if any(len(image) != len(y) for image in images):
         raise ValueError("h(x) length must equal the observation length")
     cross = _cross_covariance(ensemble.members, images)
+    image_covariance = _cross_covariance(images, images)
+    if state_weights is not None:
+        if observation_weights is None:
+            raise ValueError("observation_weights are required with state_weights")
+        cross = _schur(cross, state_weights)
+        image_covariance = _schur(image_covariance, observation_weights)
     innovation_covariance = tuple(
         tuple(c + r for c, r in zip(row_c, row_r, strict=True))
-        for row_c, row_r in zip(_cross_covariance(images, images), noise, strict=True)
+        for row_c, row_r in zip(image_covariance, noise, strict=True)
     )
     try:
         lower = cholesky(innovation_covariance)
@@ -517,11 +541,13 @@ def ensemble_analysis(
     gain = tuple(cholesky_solve(lower, row) for row in cross)
     gauss = resolve_stream(seed).generator().gauss
     members = []
+    residuals = []
     for member, image in zip(ensemble.members, images, strict=True):
         perturbation = _gaussian_noise(gauss, noise_factor)
         residual = tuple(
             yi + ei - hi for yi, ei, hi in zip(y, perturbation, image, strict=True)
         )
+        residuals.append(residual)
         members.append(
             tuple(
                 x + sum(k * r for k, r in zip(row, residual, strict=True))
@@ -530,95 +556,69 @@ def ensemble_analysis(
         )
     predicted = _mean(images)
     innovation = tuple(a - b for a, b in zip(y, predicted, strict=True))
-    return EnsembleAnalysis(
+    analysis = EnsembleAnalysis(
         Ensemble._trusted(tuple(members)), gain, innovation, innovation_covariance
     )
+    if not transforms:
+        return analysis, None
+    count = ensemble.size
+    anomalies = tuple(
+        tuple(value - mean for value, mean in zip(image, predicted, strict=True))
+        for image in images
+    )
+    solved = tuple(cholesky_solve(lower, residual) for residual in residuals)
+    rows: tuple[Vector | None, ...] = (
+        (None,) if state_weights is None else tuple(state_weights)
+    )
+    result = []
+    for weights in rows:
+        scaled = (
+            anomalies
+            if weights is None
+            else tuple(
+                tuple(a * w for a, w in zip(anomaly, weights, strict=True))
+                for anomaly in anomalies
+            )
+        )
+        result.append(
+            tuple(
+                tuple(
+                    (1.0 if a == i else 0.0)
+                    + sum(u * v for u, v in zip(scaled[a], solved[i], strict=True))
+                    / (count - 1)
+                    for i in range(count)
+                )
+                for a in range(count)
+            )
+        )
+    return analysis, tuple(result)
 
 
-def ensemble_kalman_filter(
-    model: AdditiveGaussianModel,
-    observations: Sequence[Sequence[float] | None],
-    *,
-    ensemble_size: int,
-    inflation: float = 1.0,
-    seed: int | RandomStream | None = None,
-    controls: Sequence[Sequence[float] | None] | None = None,
-) -> EnsembleKalmanResult:
-    """Run the stochastic ensemble Kalman filter over an observation record.
-
-    Each step forecasts the ensemble, applies the declared multiplicative
-    inflation to the forecast anomalies, and performs a perturbed-observation
-    analysis (skipped for a ``None`` observation). Stream children
-    ``"initial"``, ``("forecast", k)``, and ``("analysis", k)`` keep every
-    random source reproducible and separate.
+def _schur(matrix: Matrix, weights: Matrix) -> Matrix:
+    """Return the entrywise (Schur) product of two equally shaped matrices.
 
     Args:
-        model: Additive-Gaussian state-space model.
-        observations: Observations ``y_1..y_T`` (``None`` if missing).
-        ensemble_size: Number of members ``N >= 2``.
-        inflation: Covariance inflation factor ``>= 1``.
-        seed: Integer seed or stream.
-        controls: Optional controls (linear models only).
+        matrix: Covariance block.
+        weights: Localization weights of the same shape.
 
     Returns:
-        Forecast and analysis moments for every step and the final ensemble.
+        ``weights o matrix``.
 
     Raises:
-        ValueError: If arguments are invalid.
+        ValueError: If the shapes differ.
 
     Equation:
-        [EQ-DA-ENKF-001], [EQ-DA-ENKF-002], [EQ-FILT-BAYES-001].
+        [EQ-DA-LOC-002].
 
     References:
-        [REF-EVENSEN-1994], [REF-BURGERS-VANLEEUWEN-EVENSEN-1998],
-        [REF-EVENSEN-2003].
+        [REF-HOUTEKAMER-MITCHELL-2001].
 
     """
-    data = tuple(observations)
-    if not data:
-        raise ValueError("observations must be non-empty")
-    if controls is None:
-        plan: tuple[Sequence[float] | None, ...] = tuple(None for _ in data)
-    else:
-        plan = tuple(controls)
-        if len(plan) != len(data):
-            raise ValueError("controls must contain one entry per time step")
-    factor = require_finite_real(inflation, name="inflation")
-    if factor < 1.0:
-        raise ValueError("inflation must be at least one")
-    root = resolve_stream(seed)
-    ensemble = initial_ensemble(model, ensemble_size, seed=root.child("initial"))
-    noise = as_matrix(model.observation_covariance, name="observation_covariance")
-    analysis_means = [ensemble.mean]
-    analysis_covariances = [ensemble.covariance]
-    forecast_means: list[Vector] = []
-    forecast_covariances: list[Matrix] = []
-    for step, (observation, control) in enumerate(zip(data, plan, strict=True)):
-        forecast = inflate(
-            ensemble_forecast(
-                model, ensemble, seed=root.child("forecast", step), control=control
-            ),
-            factor,
-        )
-        forecast_means.append(forecast.mean)
-        forecast_covariances.append(forecast.covariance)
-        if observation is None:
-            ensemble = forecast
-        else:
-            ensemble = ensemble_analysis(
-                forecast,
-                observation,
-                model.observe,
-                noise,
-                seed=root.child("analysis", step),
-            ).ensemble
-        analysis_means.append(ensemble.mean)
-        analysis_covariances.append(ensemble.covariance)
-    return EnsembleKalmanResult(
-        tuple(analysis_means),
-        tuple(analysis_covariances),
-        tuple(forecast_means),
-        tuple(forecast_covariances),
-        ensemble,
-        factor,
+    if len(weights) != len(matrix) or any(
+        len(row_w) != len(row_m) for row_w, row_m in zip(weights, matrix, strict=True)
+    ):
+        raise ValueError("localization weights do not match the covariance shape")
+    return tuple(
+        tuple(c * w for c, w in zip(row_c, row_w, strict=True))
+        for row_c, row_w in zip(matrix, weights, strict=True)
     )

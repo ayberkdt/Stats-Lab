@@ -3,8 +3,9 @@
 ``state_space`` defines linear-Gaussian and nonlinear additive-noise models;
 ``kalman`` provides the exact Kalman filter, RTS smoother, and steady-state
 Riccati solution; ``extended`` provides the EKF and UKF; ``particle`` provides
-the bootstrap particle filter. Ensemble and variational data assimilation live
-in :mod:`probstat.data_assimilation`.
+the bootstrap particle filter; ``benchmark_models`` provides the Lorenz-63 and
+Lorenz-96 test systems. Ensemble and variational data assimilation live in
+:mod:`probstat.data_assimilation`.
 
 Main entry points:
     ``LinearGaussianStateSpace``: linear dynamics and observations with
@@ -17,6 +18,9 @@ Main entry points:
     ``unscented_kalman_filter``: sigma-point filter for nonlinear models.
     ``bootstrap_particle_filter``: sequential Monte Carlo filter.
     ``simulate``: seeded true trajectory and observations.
+    ``lorenz63``, ``lorenz96``: chaotic test systems as nonlinear models
+    whose transition is classical Runge-Kutta over one assimilation
+    interval (raw tendencies: ``lorenz63_rhs``, ``lorenz96_rhs``).
 
 Assumptions:
     Process and measurement noise are additive, Gaussian, zero-mean, and
@@ -44,10 +48,19 @@ Guide: docs/foundations/filtering-and-data-assimilation.md
 
 References:
     [REF-KALMAN-1960], [REF-RAUCH-TUNG-STRIEBEL-1965], [REF-SARKKA-2013],
-    [REF-JULIER-UHLMANN-2004], [REF-GORDON-SALMOND-SMITH-1993].
+    [REF-JULIER-UHLMANN-2004], [REF-GORDON-SALMOND-SMITH-1993],
+    [REF-LORENZ-1963], [REF-LORENZ-EMANUEL-1998].
 
 """
 
+from .benchmark_models import (
+    LORENZ63_STEP,
+    LORENZ96_STEP,
+    lorenz63,
+    lorenz63_rhs,
+    lorenz96,
+    lorenz96_rhs,
+)
 from .extended import (
     UnscentedTransformResult,
     UnscentedWeights,
@@ -86,6 +99,8 @@ from .state_space import (
 )
 
 __all__ = [
+    "LORENZ63_STEP",
+    "LORENZ96_STEP",
     "GaussianState",
     "KalmanFilterResult",
     "LinearGaussianStateSpace",
@@ -107,6 +122,10 @@ __all__ = [
     "kalman_predict",
     "kalman_update",
     "linear_gaussian_update",
+    "lorenz63",
+    "lorenz63_rhs",
+    "lorenz96",
+    "lorenz96_rhs",
     "rts_smoother",
     "simulate",
     "steady_state_kalman",
