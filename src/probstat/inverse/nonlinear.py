@@ -49,10 +49,13 @@ from __future__ import annotations
 
 import math
 import random
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
+from typing import Any, cast
 
+from probstat.distributions._autodiff import admath as _admath
+from probstat.distributions._autodiff import any_variable, primal, real_argument
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
@@ -80,6 +83,7 @@ from probstat.linalg import (
     matmul,
     matvec,
     scale_matrix,
+    solve_lower,
     symmetric_eigen,
     transpose,
 )
@@ -89,6 +93,7 @@ from probstat.modeling import (
     ProbabilisticModel,
     RandomInput,
 )
+from probstat.numerics import AutodiffUnsupportedError, reverse_value_and_gradient
 from probstat.optimization import (
     LeastSquaresResult,
     central_jacobian,
@@ -96,6 +101,9 @@ from probstat.optimization import (
     least_squares,
 )
 from probstat.uq import evaluate_model
+
+from . import _traced
+from .error_correlation import ErrorCorrelation, error_correlation_kernel
 
 _LOG_TWO_PI = math.log(2.0 * math.pi)
 
@@ -163,6 +171,12 @@ class NoiseModel:
     ``s^2 = sigma^2 + sigma_delta^2`` (same semantics as
     ``validation.AdditiveGaussianDiscrepancy.variance``).
 
+    With ``correlation`` the errors of this quantity are jointly Gaussian
+    across the experiments that observe it, with covariance
+    ``sigma^2 M + sigma_delta^2 I`` (:class:`ErrorCorrelation`,
+    [EQ-CAL-CORR-002]). Correlated errors are Gaussian only. Without
+    ``correlation`` (the default) every number is that of independent noise.
+
     Args:
         quantity: Observed QoI name.
         standard_deviation: Known positive noise scale.
@@ -170,12 +184,16 @@ class NoiseModel:
             noise scale.
         degrees_of_freedom: Optional positive Student-t degrees of freedom.
         discrepancy_variance: Non-negative additive discrepancy variance.
+        correlation: Optional correlation of the errors across experiments.
 
     Raises:
-        ValueError: For an invalid combination or non-positive values.
+        TypeError: If ``correlation`` is not an :class:`ErrorCorrelation`.
+        ValueError: For an invalid combination or non-positive values, or a
+            Student-t law combined with correlated errors.
 
     References:
-        [REF-KENNEDY-OHAGAN-2001], [REF-LANGE-LITTLE-TAYLOR-1989].
+        [REF-KENNEDY-OHAGAN-2001], [REF-LANGE-LITTLE-TAYLOR-1989],
+        [REF-SEBER-WILD-2003, Chapter 6].
 
     """
 
@@ -184,6 +202,7 @@ class NoiseModel:
     standard_deviation_prior: ContinuousMarginal | None = None
     degrees_of_freedom: float | None = None
     discrepancy_variance: float = 0.0
+    correlation: ErrorCorrelation | None = None
 
     def __post_init__(self) -> None:
         """Validate the noise declaration.
@@ -220,6 +239,15 @@ class NoiseModel:
         if variance < 0.0:
             raise ValueError("discrepancy_variance must be non-negative")
         object.__setattr__(self, "discrepancy_variance", variance)
+        if self.correlation is not None:
+            if not isinstance(self.correlation, ErrorCorrelation):
+                raise TypeError("correlation must be an ErrorCorrelation")
+            if self.degrees_of_freedom is not None:
+                raise ValueError(
+                    "correlated measurement errors are Gaussian only; a "
+                    "Student-t law (degrees_of_freedom) cannot be combined "
+                    "with correlation"
+                )
 
     @property
     def is_known(self) -> bool:
@@ -237,6 +265,10 @@ class NoiseModel:
         Args:
             residual: Observed minus predicted value.
             sigma: Noise scale (known or current unknown value).
+
+        For a correlated quantity this is the marginal density of one
+        error; the joint density of the correlated errors is evaluated by
+        :meth:`CalibrationProblem.log_likelihood`.
 
         Returns:
             Gaussian ``-0.5(log(2 pi s^2) + r^2/s^2)`` or Student-t
@@ -553,6 +585,267 @@ def fisher_identifiability(
 
 
 # ---------------------------------------------------------------------------
+# Correlated measurement errors
+# ---------------------------------------------------------------------------
+
+CALIBRATION_GRADIENTS = ("central", "reverse")
+"""Gradient options of ``laplace_posterior`` and HMC/NUTS ``sample_posterior``."""
+
+
+def _check_gradient_option(gradient: str) -> None:
+    """Raise for a gradient option other than ``"central"`` or ``"reverse"``.
+
+    References:
+        [EQ-AD-REVERSE-001], [EQ-OPT-FD-001]. No equation is evaluated.
+
+    """
+    if gradient not in CALIBRATION_GRADIENTS:
+        raise ValueError("gradient must be 'central' or 'reverse'")
+
+
+@dataclass(frozen=True, slots=True)
+class _ErrorGroup:
+    """Observations of one quantity whose errors are jointly Gaussian.
+
+    ``positions`` index the problem's observation list (experiment order);
+    ``points`` are the condition values of a kernel structure. For a known
+    structure ``shape`` is the matrix ``M``; with no discrepancy variance
+    also its Cholesky factor and log-determinant are cached, so the
+    likelihood costs one triangular solve per evaluation.
+
+    References:
+        [EQ-CAL-CORR-001], [EQ-CAL-CORR-002], [REF-SEBER-WILD-2003, Chapter 6].
+
+    """
+
+    quantity: str
+    positions: tuple[int, ...]
+    points: tuple[float, ...]
+    structure: ErrorCorrelation
+    discrepancy_variance: float
+    shape: Matrix | None
+    shape_lower: Matrix | None
+    shape_log_det: float
+
+    @property
+    def size(self) -> int:
+        """Return the number of correlated observations.
+
+        References:
+            [EQ-CAL-CORR-002]. No equation is evaluated.
+
+        """
+        return len(self.positions)
+
+    def matrix(self, length: float | None) -> Matrix:
+        """Return the shape matrix ``M`` (cached when the structure is known).
+
+        References:
+            [EQ-CAL-CORR-001]. No new equation is introduced.
+
+        """
+        if self.shape is not None:
+            return self.shape
+        return self.structure.correlation_matrix(self.points, length)
+
+    def covariance(self, sigma: float, length: float | None) -> Matrix:
+        """Return ``Sigma = sigma^2 M + sigma_delta^2 I``.
+
+        References:
+            [EQ-CAL-CORR-002]. No new equation is introduced.
+
+        """
+        shape = self.matrix(length)
+        variance = sigma * sigma
+        return tuple(
+            tuple(
+                variance * shape[i][j] + (self.discrepancy_variance if i == j else 0.0)
+                for j in range(self.size)
+            )
+            for i in range(self.size)
+        )
+
+    def factor(self, sigma: float, length: float | None) -> tuple[Matrix, float]:
+        """Return a lower factor ``F`` and divisor ``c`` with ``Sigma = c^2 F F'``.
+
+        Raises:
+            ValueError: If ``Sigma`` is not numerically positive definite.
+
+        References:
+            [EQ-CAL-CORR-003], [REF-GOLUB-VANLOAN-2013, Section 4.2].
+
+        """
+        if self.discrepancy_variance == 0.0 and self.shape_lower is not None:
+            return self.shape_lower, sigma
+        return cholesky(self.covariance(sigma, length)), 1.0
+
+    def log_density(
+        self, residuals: Sequence[float], sigma: float, length: float | None
+    ) -> float:
+        """Return the joint Gaussian log-density of the group's residuals.
+
+        ``-0.5 (n log 2 pi + log det Sigma + r' Sigma^-1 r)`` by Cholesky; a
+        covariance that is not numerically positive definite (possible only
+        for a sampled correlation length) gives ``-inf``.
+
+        Equation:
+            [EQ-CAL-CORR-002].
+
+        References:
+            [REF-SEBER-WILD-2003, Chapter 6], [REF-GOLUB-VANLOAN-2013,
+            Section 4.2].
+
+        """
+        count = self.size
+        if self.discrepancy_variance == 0.0 and self.shape_lower is not None:
+            whitened = solve_lower(self.shape_lower, tuple(residuals))
+            variance = sigma * sigma
+            quadratic = math.fsum(w * w for w in whitened) / variance
+            log_det = count * math.log(variance) + self.shape_log_det
+        else:
+            try:
+                lower = cholesky(self.covariance(sigma, length))
+            except ValueError:
+                return -math.inf
+            whitened = solve_lower(lower, tuple(residuals))
+            quadratic = math.fsum(w * w for w in whitened)
+            log_det = 2.0 * math.fsum(math.log(lower[i][i]) for i in range(count))
+        return -0.5 * (count * _LOG_TWO_PI + log_det + quadratic)
+
+    def traced_log_density(
+        self, residuals: Sequence[float], sigma: float, length: float | None
+    ) -> float:
+        """Return :meth:`log_density` for reverse-mode variables.
+
+        Equation:
+            [EQ-CAL-CORR-002], [EQ-AD-REVERSE-001].
+
+        References:
+            [REF-GRIEWANK-WALTHER-2008, Chapter 3].
+
+        """
+        count = self.size
+        if self.discrepancy_variance == 0.0 and self.shape_lower is not None:
+            whitened = _traced.solve_lower(self.shape_lower, residuals)
+            variance = sigma * sigma
+            quadratic = _admath.fsum(w * w for w in whitened) / variance
+            log_det = count * _admath.log(variance) + self.shape_log_det
+        else:
+            if self.shape is not None:
+                shape: Sequence[Sequence[float]] = self.shape
+            else:
+                if length is None:
+                    raise ValueError("a correlation length is required")
+                kernel = self.structure.kernel
+                shape = [
+                    [
+                        1.0
+                        if i == j
+                        else error_correlation_kernel(kernel, abs(a - b) / length)
+                        for j, b in enumerate(self.points)
+                    ]
+                    for i, a in enumerate(self.points)
+                ]
+            variance = sigma * sigma
+            covariance = [
+                [
+                    variance * shape[i][j]
+                    + (self.discrepancy_variance if i == j else 0.0)
+                    for j in range(count)
+                ]
+                for i in range(count)
+            ]
+            lower = _traced.cholesky_lower(covariance)
+            if lower is None:
+                return -math.inf
+            whitened = _traced.solve_lower(lower, residuals)
+            quadratic = _admath.fsum(w * w for w in whitened)
+            log_det = 2.0 * _admath.fsum(_admath.log(lower[i][i]) for i in range(count))
+        return -0.5 * (count * _LOG_TWO_PI + log_det + quadratic)
+
+
+def _error_group(
+    item: NoiseModel,
+    positions: tuple[int, ...],
+    bases: Sequence[Mapping[str, float]],
+    pairs: Sequence[tuple[int, str, float]],
+    parameters: set[str],
+) -> _ErrorGroup:
+    """Validate a correlated quantity against the experiments and cache ``M``.
+
+    Raises:
+        ValueError: If a declared matrix has the wrong size, the condition is
+            missing or names a parameter, condition values repeat without a
+            discrepancy variance, or a known ``M`` is not positive definite.
+
+    References:
+        [EQ-CAL-CORR-001], [REF-GOLUB-VANLOAN-2013, Section 4.2].
+
+    """
+    structure = item.correlation
+    assert structure is not None
+    quantity = item.quantity
+    points: tuple[float, ...] = ()
+    if structure.condition is not None:
+        name = structure.condition
+        if name in parameters:
+            raise ValueError(
+                f"the error correlation of {quantity!r} uses {name!r}, which is a "
+                "calibration parameter, not an experimental condition"
+            )
+        values: list[float] = []
+        for position in positions:
+            experiment = pairs[position][0]
+            if name not in bases[experiment]:
+                raise ValueError(
+                    f"experiment {experiment} lacks the condition {name!r} used by "
+                    f"the error correlation of {quantity!r}"
+                )
+            values.append(float(bases[experiment][name]))
+        points = tuple(values)
+        if item.discrepancy_variance == 0.0 and len(set(points)) < len(points):
+            raise ValueError(
+                f"repeated values of {name!r} make the error correlation of "
+                f"{quantity!r} singular; declare a discrepancy_variance (nugget) "
+                "or distinct conditions"
+            )
+    elif structure.matrix is not None and len(structure.matrix) != len(positions):
+        raise ValueError(
+            f"the error correlation matrix of {quantity!r} has "
+            f"{len(structure.matrix)} rows but {len(positions)} experiments "
+            "observe it"
+        )
+    shape: Matrix | None = None
+    lower: Matrix | None = None
+    log_det = 0.0
+    if structure.is_known:
+        shape = structure.correlation_matrix(points or tuple(0.0 for _ in positions))
+        try:
+            factor = cholesky(shape)
+        except ValueError as error:
+            raise ValueError(
+                f"the error correlation matrix of {quantity!r} is not numerically "
+                "positive definite (a correlation length that is long compared "
+                "with the spacing of the conditions)"
+            ) from error
+        if item.discrepancy_variance == 0.0:
+            lower = factor
+            log_det = 2.0 * math.fsum(
+                math.log(factor[i][i]) for i in range(len(factor))
+            )
+    return _ErrorGroup(
+        quantity,
+        positions,
+        points,
+        structure,
+        item.discrepancy_variance,
+        shape,
+        lower,
+        log_det,
+    )
+
+
+# ---------------------------------------------------------------------------
 # The calibration problem
 # ---------------------------------------------------------------------------
 
@@ -595,6 +888,10 @@ class CalibrationProblem:
         init=False, repr=False, compare=False
     )
     _noise_inputs: JointInput | None = field(init=False, repr=False, compare=False)
+    _groups: tuple[_ErrorGroup, ...] = field(init=False, repr=False, compare=False)
+    _independent: tuple[int, ...] = field(init=False, repr=False, compare=False)
+    _unknown_lengths: tuple[str, ...] = field(init=False, repr=False, compare=False)
+    _prior_lower: Matrix | None = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         """Validate the declarations and cache the observation layout.
@@ -641,6 +938,18 @@ class CalibrationProblem:
             for item in noise
             if item.standard_deviation_prior is not None
         )
+        lengths = tuple(
+            item.quantity
+            for item in noise
+            if item.correlation is not None
+            and item.correlation.length_prior is not None
+        )
+        priors = priors + tuple(
+            RandomInput(f"length[{item.quantity}]", item.correlation.length_prior)
+            for item in noise
+            if item.correlation is not None
+            and item.correlation.length_prior is not None
+        )
         object.__setattr__(self, "experiments", experiments)
         object.__setattr__(self, "noise", noise)
         object.__setattr__(self, "_pairs", tuple(pairs))
@@ -656,6 +965,30 @@ class CalibrationProblem:
             base.update(experiment.conditions)
             bases.append(MappingProxyType(base))
         object.__setattr__(self, "_bases", tuple(bases))
+        groups: list[_ErrorGroup] = []
+        grouped: set[int] = set()
+        for item in noise:
+            if item.correlation is None:
+                continue
+            positions = tuple(
+                position
+                for position, (_, quantity, _) in enumerate(pairs)
+                if quantity == item.quantity
+            )
+            if not positions:
+                continue
+            groups.append(_error_group(item, positions, bases, pairs, parameters))
+            grouped.update(positions)
+        object.__setattr__(self, "_groups", tuple(groups))
+        object.__setattr__(
+            self,
+            "_independent",
+            tuple(
+                position for position in range(len(pairs)) if position not in grouped
+            ),
+        )
+        object.__setattr__(self, "_unknown_lengths", lengths)
+        object.__setattr__(self, "_prior_lower", _traced.prior_lower(self.model.inputs))
 
     # -- layout -------------------------------------------------------------
 
@@ -671,23 +1004,33 @@ class CalibrationProblem:
 
     @property
     def noise_names(self) -> tuple[str, ...]:
-        """Return ``sigma[q]`` names of unknown noise scales.
+        """Return names of the uncertain noise parameters.
+
+        ``sigma[q]`` for every unknown noise scale, followed by ``length[q]``
+        for every uncertain error-correlation length (none unless a
+        :class:`ErrorCorrelation` declares a ``length_prior``).
 
         References:
             [REF-GELMAN-ETAL-2013, Section 14.2]. No equation is evaluated.
 
         """
-        return tuple(f"sigma[{q}]" for q in self._unknown)
+        return tuple(f"sigma[{q}]" for q in self._unknown) + tuple(
+            f"length[{q}]" for q in self._unknown_lengths
+        )
 
     @property
     def vector_names(self) -> tuple[str, ...]:
-        """Return names of the full vector ``(theta, log sigma)``.
+        """Return names of the full vector ``(theta, log sigma, log length)``.
 
         References:
             Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
-        return self.parameter_names + tuple(f"log_sigma[{q}]" for q in self._unknown)
+        return (
+            self.parameter_names
+            + tuple(f"log_sigma[{q}]" for q in self._unknown)
+            + tuple(f"log_length[{q}]" for q in self._unknown_lengths)
+        )
 
     @property
     def dimension(self) -> int:
@@ -697,7 +1040,17 @@ class CalibrationProblem:
             Project API policy [REF-PROBSTAT-API]. No equation is evaluated.
 
         """
-        return self.model.dimension + len(self._unknown)
+        return self.model.dimension + len(self._unknown) + len(self._unknown_lengths)
+
+    @property
+    def has_correlated_errors(self) -> bool:
+        """Return whether any observed quantity has correlated errors.
+
+        References:
+            [EQ-CAL-CORR-002]. No equation is evaluated.
+
+        """
+        return bool(self._groups)
 
     @property
     def observation_count(self) -> int:
@@ -747,6 +1100,53 @@ class CalibrationProblem:
             eta = vector[d + offset]
             sigmas[quantity] = math.exp(eta) if eta < 709.0 else math.inf
         return vector[:d], MappingProxyType(sigmas)
+
+    def correlation_lengths(self, parameters: Sequence[float]) -> Mapping[str, float]:
+        """Return the error-correlation length of every kernel-correlated QoI.
+
+        Args:
+            parameters: Full vector ``(theta, log sigma, log length)``.
+
+        Returns:
+            Known lengths and ``exp(log length)`` of uncertain ones, keyed by
+            quantity; empty without kernel correlations.
+
+        Raises:
+            ValueError: If the length is wrong.
+
+        References:
+            [EQ-CAL-CORR-001]. No new equation is introduced.
+
+        """
+        vector = as_vector(parameters, name="parameters")
+        if len(vector) != self.dimension:
+            raise ValueError(f"parameters must have length {self.dimension}")
+        return self._lengths(vector[self.model.dimension + len(self._unknown) :])
+
+    def _known_lengths(self) -> dict[str, float]:
+        """Return the declared (known) error-correlation lengths.
+
+        References:
+            [EQ-CAL-CORR-001]. No equation is evaluated.
+
+        """
+        return {
+            item.quantity: item.correlation.length
+            for item in self.noise
+            if item.correlation is not None and item.correlation.length is not None
+        }
+
+    def _lengths(self, log_lengths: Sequence[float]) -> Mapping[str, float]:
+        """Map log-length coordinates to the lengths of every kernel structure.
+
+        References:
+            [EQ-CAL-CORR-001]. No new equation is introduced.
+
+        """
+        lengths = self._known_lengths()
+        for quantity, eta in zip(self._unknown_lengths, log_lengths, strict=True):
+            lengths[quantity] = _admath.exp(eta) if primal(eta) < 709.0 else math.inf
+        return MappingProxyType(lengths)
 
     # -- forward evaluation -------------------------------------------------
 
@@ -846,34 +1246,331 @@ class CalibrationProblem:
     def log_likelihood(self, parameters: Sequence[float]) -> float:
         """Return ``log p(y | theta, sigma)`` for a full parameter vector.
 
+        Without correlated errors this is the sum of independent Gaussian or
+        Student-t log-densities. Each quantity with an
+        :class:`ErrorCorrelation` contributes one joint Gaussian log-density
+        ``-0.5 (n log 2 pi + log det Sigma_q + r_q' Sigma_q^-1 r_q)``
+        evaluated by Cholesky; a sampled correlation length whose covariance
+        is not numerically positive definite gives ``-inf``.
+
         Args:
-            parameters: ``(theta, log sigma_unknown)``.
+            parameters: ``(theta, log sigma_unknown, log length_unknown)``.
 
         Returns:
-            Sum of independent Gaussian or Student-t log-densities.
+            Log-likelihood.
 
         Equation:
-            [EQ-CAL-LIK-001].
+            [EQ-CAL-LIK-001], [EQ-CAL-CORR-002].
 
         References:
-            [REF-GELMAN-ETAL-2013, Section 3.2], [REF-LANGE-LITTLE-TAYLOR-1989].
+            [REF-GELMAN-ETAL-2013, Section 3.2], [REF-LANGE-LITTLE-TAYLOR-1989],
+            [REF-SEBER-WILD-2003, Chapter 6].
 
         """
         theta, sigmas = self.split(parameters)
-        return self._log_likelihood(theta, sigmas)
+        if not self._groups:
+            return self._log_likelihood(theta, sigmas)
+        return self._log_likelihood(theta, sigmas, self.correlation_lengths(parameters))
 
-    def _log_likelihood(self, theta: Vector, sigmas: Mapping[str, float]) -> float:
+    def _log_likelihood(
+        self,
+        theta: Vector,
+        sigmas: Mapping[str, float],
+        lengths: Mapping[str, float] | None = None,
+    ) -> float:
         """Evaluate the likelihood for split parameters.
 
         References:
-            [EQ-CAL-LIK-001], [REF-GELMAN-ETAL-2013, Section 3.2].
+            [EQ-CAL-LIK-001], [EQ-CAL-CORR-002], [REF-GELMAN-ETAL-2013,
+            Section 3.2].
 
         """
         residuals = self.residuals(theta)
-        return math.fsum(
-            self._noise_by_name[quantity].log_density(residual, sigmas[quantity])
-            for (_, quantity, _), residual in zip(self._pairs, residuals, strict=True)
+        if not self._groups:
+            return math.fsum(
+                self._noise_by_name[quantity].log_density(residual, sigmas[quantity])
+                for (_, quantity, _), residual in zip(
+                    self._pairs, residuals, strict=True
+                )
+            )
+        scales = {} if lengths is None else lengths
+        terms = [
+            self._noise_by_name[self._pairs[i][1]].log_density(
+                residuals[i], sigmas[self._pairs[i][1]]
+            )
+            for i in self._independent
+        ]
+        for group in self._groups:
+            sigma = sigmas[group.quantity]
+            if not 0.0 < sigma < math.inf:
+                return -math.inf
+            terms.append(
+                group.log_density(
+                    tuple(residuals[i] for i in group.positions),
+                    sigma,
+                    scales.get(group.quantity),
+                )
+            )
+        return math.fsum(terms)
+
+    def _traced_log_likelihood(
+        self,
+        theta: Sequence[float],
+        sigmas: Mapping[str, float],
+        lengths: Mapping[str, float],
+    ) -> float:
+        """Evaluate the likelihood on reverse-mode variables.
+
+        The forward model is called with variables in place of the
+        parameters; a model that converts them to ``float`` (``math.exp``
+        and similar) raises :class:`~probstat.numerics.AutodiffUnsupportedError`.
+
+        References:
+            [EQ-CAL-LIK-001], [EQ-CAL-CORR-002], [EQ-AD-REVERSE-001],
+            [REF-GRIEWANK-WALTHER-2008, Chapter 3].
+
+        """
+        named = dict(zip(self.model.inputs.names, theta, strict=True))
+        outputs: list[Mapping[str, float]] = []
+        for base in self._bases:
+            values = dict(base)
+            values.update(named)
+            self.model.counter.add()
+            try:
+                result = self.model.model(MappingProxyType(values))
+            except TypeError as error:
+                raise AutodiffUnsupportedError(
+                    "the forward model does not accept reverse-mode variables; "
+                    "write it with operators and probstat.numerics.admath "
+                    f"instead of math ({type(error).__name__}: {error})"
+                ) from error
+            if not isinstance(result, Mapping):
+                raise TypeError("model output must be a mapping")
+            outputs.append(result)
+        residuals: list[float] = []
+        for index, quantity, value in self._pairs:
+            if quantity not in outputs[index]:
+                raise ValueError(f"model output is missing QoI {quantity!r}")
+            center = real_argument(
+                outputs[index][quantity], name=f"output[{quantity!r}]"
+            )
+            residuals.append(value - center)
+        terms: list[float] = []
+        for i in self._independent:
+            item = self._noise_by_name[self._pairs[i][1]]
+            terms.append(
+                _traced.observation_log_density(
+                    residuals[i],
+                    sigmas[item.quantity],
+                    item.discrepancy_variance,
+                    item.degrees_of_freedom,
+                )
+            )
+        for group in self._groups:
+            sigma = sigmas[group.quantity]
+            if not 0.0 < primal(sigma) < math.inf:
+                return -math.inf
+            length = lengths.get(group.quantity)
+            if length is not None and not 0.0 < primal(length) < math.inf:
+                return -math.inf
+            terms.append(
+                group.traced_log_density(
+                    [residuals[i] for i in group.positions], sigma, length
+                )
+            )
+        return _admath.fsum(terms)
+
+    def _traced_noise(
+        self, coordinates: Sequence[float]
+    ) -> tuple[float, dict[str, float], Mapping[str, float]]:
+        """Return the noise prior, scales and lengths of log-noise coordinates.
+
+        The prior is ``sum log p(e^eta) + eta`` written with ``admath``;
+        ``-inf`` where the float version is ``-inf``.
+
+        References:
+            [EQ-CAL-POST-001], [EQ-AD-REVERSE-001].
+
+        """
+        total: float = 0.0
+        for prior, eta in zip(self._sigma_priors, coordinates, strict=True):
+            if primal(eta) >= 709.0:
+                return -math.inf, {}, {}
+            scale = _admath.exp(eta)
+            if not 0.0 < primal(scale) < math.inf:
+                return -math.inf, {}, {}
+            law: Any = prior.distribution
+            method = getattr(law, "log_pdf", None)
+            if method is None:
+                raise AutodiffUnsupportedError(
+                    f"the prior of {prior.name} has no log_pdf to differentiate"
+                )
+            try:
+                density = method(scale)
+            except ValueError:
+                return -math.inf, {}, {}
+            if not math.isfinite(primal(density)):
+                return -math.inf, {}, {}
+            total = total + density + eta
+        sigmas: dict[str, float] = {}
+        for item in self.noise:
+            if item.standard_deviation is not None:
+                sigmas[item.quantity] = item.standard_deviation
+        count = len(self._unknown)
+        for quantity, eta in zip(self._unknown, coordinates[:count], strict=True):
+            sigmas[quantity] = _admath.exp(eta)
+        return total, sigmas, self._lengths(coordinates[count:])
+
+    def _traced_standard_log_posterior(self, coordinates: Sequence[float]) -> float:
+        """Return :meth:`standard_log_posterior`, traceable in reverse mode.
+
+        For floats it is :meth:`standard_log_posterior` itself.
+
+        References:
+            [EQ-CAL-STD-001], [EQ-CAL-AD-001], [EQ-AD-REVERSE-001].
+
+        """
+        vector = tuple(coordinates)
+        if not any_variable(*vector):
+            return self.standard_log_posterior(vector)
+        if len(vector) != self.dimension:
+            raise ValueError(f"coordinates must have length {self.dimension}")
+        d = self.model.dimension
+        u = vector[:d]
+        noise_prior, sigmas, lengths = self._traced_noise(vector[d:])
+        if primal(noise_prior) == -math.inf:
+            return -math.inf
+        theta = _traced.from_standard_normal(self.model.inputs, self._prior_lower, u)
+        return (
+            self._traced_log_likelihood(theta, sigmas, lengths)
+            - 0.5 * _admath.fsum(value * value for value in u)
+            + noise_prior
         )
+
+    def _traced_log_posterior(self, parameters: Sequence[float]) -> float:
+        """Return :meth:`log_posterior`, traceable in reverse mode.
+
+        For floats it is :meth:`log_posterior` itself.
+
+        References:
+            [EQ-CAL-POST-001], [EQ-CAL-AD-001], [EQ-AD-REVERSE-001].
+
+        """
+        vector = tuple(parameters)
+        if not any_variable(*vector):
+            return self.log_posterior(vector)
+        if len(vector) != self.dimension:
+            raise ValueError(f"parameters must have length {self.dimension}")
+        d = self.model.dimension
+        prior = _traced.log_prior(self.model.inputs, vector[:d])
+        if primal(prior) == -math.inf:
+            return -math.inf
+        noise_prior, sigmas, lengths = self._traced_noise(vector[d:])
+        if primal(noise_prior) == -math.inf:
+            return -math.inf
+        return (
+            prior
+            + noise_prior
+            + self._traced_log_likelihood(vector[:d], sigmas, lengths)
+        )
+
+    def _reverse(
+        self, function: Callable[[Sequence[float]], float], point: Sequence[float]
+    ) -> tuple[float, Vector]:
+        """Return value and reverse-mode gradient with a calibration-level error.
+
+        Raises:
+            AutodiffUnsupportedError: If the prior, the noise priors, or the
+                forward model cannot be traced.
+
+        References:
+            [EQ-AD-REVERSE-001], [REF-GRIEWANK-WALTHER-2008, Chapter 3].
+
+        """
+        reason = _traced.supports_prior_map(self.model.inputs)
+        if reason is not None:
+            raise AutodiffUnsupportedError(
+                f"gradient='reverse' is unavailable: {reason}"
+            )
+        try:
+            return reverse_value_and_gradient(cast(Any, function), point)
+        except TypeError as error:
+            raise AutodiffUnsupportedError(
+                "gradient='reverse' cannot trace this calibration problem "
+                f"(no finite-difference fallback is used): {error}"
+            ) from error
+
+    def standard_log_posterior_and_gradient(
+        self, coordinates: Sequence[float]
+    ) -> tuple[float, Vector]:
+        """Return :meth:`standard_log_posterior` and its reverse-mode gradient.
+
+        One recording of the forward model on reverse-mode variables (one run
+        per experiment) and one backward sweep give the whole gradient,
+        instead of the ``2 n`` extra posterior evaluations of central
+        differences (``n`` = :attr:`dimension`). The prior map
+        ``T^-1(u)`` takes its derivative from the inverse-function rule
+        ``phi(z_i) / f_i(x_i)`` ([EQ-CAL-AD-001]); the forward model must be
+        written with operators and :class:`~probstat.numerics.admath`.
+
+        Args:
+            coordinates: ``(u, log sigma, log length)`` of length
+                :attr:`dimension`.
+
+        Returns:
+            ``(log posterior, gradient)`` in sampling coordinates.
+
+        Raises:
+            AutodiffUnsupportedError: If the prior (discrete inputs, a
+                non-Gaussian copula), a noise or length prior, or the forward
+                model cannot be traced. There is no silent fallback.
+            NonDifferentiableError: Where the prior map has an unbounded
+                derivative.
+
+        Equation:
+            [EQ-CAL-STD-001], [EQ-CAL-AD-001], [EQ-AD-REVERSE-001].
+
+        References:
+            [REF-GRIEWANK-WALTHER-2008, Chapter 3], [REF-BAYDIN-ETAL-2018,
+            Section 3.2], [REF-LIU-DERKIUREGHIAN-1986].
+
+        """
+        point = as_vector(coordinates, name="coordinates")
+        if len(point) != self.dimension:
+            raise ValueError(f"coordinates must have length {self.dimension}")
+        return self._reverse(self._traced_standard_log_posterior, point)
+
+    def log_posterior_and_gradient(
+        self, parameters: Sequence[float]
+    ) -> tuple[float, Vector]:
+        """Return :meth:`log_posterior` and its reverse-mode gradient.
+
+        The prior is differentiated through the marginal ``log_pdf`` methods
+        (and, for a Gaussian copula, the normal scores with the derivative
+        ``f_i / phi(z_i)``); see :meth:`standard_log_posterior_and_gradient`
+        for the forward-model requirements.
+
+        Args:
+            parameters: ``(theta, log sigma, log length)``.
+
+        Returns:
+            ``(log posterior, gradient)`` in physical coordinates.
+
+        Raises:
+            AutodiffUnsupportedError: If the problem cannot be traced.
+
+        Equation:
+            [EQ-CAL-POST-001], [EQ-CAL-AD-001], [EQ-AD-REVERSE-001].
+
+        References:
+            [REF-GRIEWANK-WALTHER-2008, Chapter 3], [REF-NELSEN-2006,
+            Section 2.3].
+
+        """
+        point = as_vector(parameters, name="parameters")
+        if len(point) != self.dimension:
+            raise ValueError(f"parameters must have length {self.dimension}")
+        return self._reverse(self._traced_log_posterior, point)
 
     def _log_noise_prior(self, log_sigmas: Sequence[float]) -> float:
         """Return the log-scale prior of unknown noise scales with Jacobian.
@@ -964,11 +1661,13 @@ class CalibrationProblem:
             return -math.inf
         theta = self.model.inputs.from_standard_normal(u)
         _, sigmas = self.split(theta + vector[d:])
-        return (
-            self._log_likelihood(theta, sigmas)
-            - 0.5 * math.fsum(value * value for value in u)
-            + noise_prior
-        )
+        if self._groups:
+            likelihood = self._log_likelihood(
+                theta, sigmas, self._lengths(vector[d + len(self._unknown) :])
+            )
+        else:
+            likelihood = self._log_likelihood(theta, sigmas)
+        return likelihood - 0.5 * math.fsum(value * value for value in u) + noise_prior
 
     def to_physical(self, coordinates: Sequence[float]) -> Vector:
         """Map sampling coordinates ``(u, log sigma)`` to ``(theta, sigma)``.
@@ -1039,9 +1738,27 @@ class CalibrationProblem:
         for item in self.noise:
             if item.standard_deviation is not None:
                 sigmas[item.quantity] = item.standard_deviation
-        for quantity, value in zip(self._unknown, scales, strict=True):
+        count = len(self._unknown)
+        for quantity, value in zip(self._unknown, scales[:count], strict=True):
             sigmas[quantity] = value
-        return self._log_likelihood(theta, MappingProxyType(sigmas))
+        if not self._groups:
+            return self._log_likelihood(theta, MappingProxyType(sigmas))
+        lengths = self._known_lengths()
+        lengths.update(zip(self._unknown_lengths, scales[count:], strict=True))
+        return self._log_likelihood(theta, MappingProxyType(sigmas), lengths)
+
+    def _whitened_names(self) -> tuple[str, ...]:
+        """Return names of the fully standardized coordinates ``(u, w)``.
+
+        References:
+            [EQ-CAL-STD-002]. No equation is evaluated.
+
+        """
+        return (
+            tuple(f"u[{name}]" for name in self.parameter_names)
+            + tuple(f"w[{q}]" for q in self._unknown)
+            + tuple(f"w[length[{q}]]" for q in self._unknown_lengths)
+        )
 
     def _whitened_to_sampling(self, coordinates: Sequence[float]) -> Vector:
         """Map ``(u, w)`` to the sampling coordinates ``(u, log sigma)``.
@@ -1124,9 +1841,7 @@ class CalibrationProblem:
             """
             return -0.5 * math.fsum(value * value for value in point)
 
-        names = tuple(f"u[{name}]" for name in self.parameter_names) + tuple(
-            f"w[{q}]" for q in self._unknown
-        )
+        names = self._whitened_names()
         return sequential_monte_carlo(
             prior_draw,
             standard_normal_log_prior,
@@ -1202,19 +1917,112 @@ class CalibrationProblem:
 
     # -- estimation -----------------------------------------------------------
 
-    def _weighted_jacobian(
-        self, theta: Vector, scales: Mapping[str, float]
-    ) -> tuple[Matrix, int]:
-        """Return the Jacobian of predictions divided by total noise scales.
+    def _whitener(
+        self,
+        scales: Mapping[str, float],
+        lengths: Mapping[str, float] | None = None,
+    ) -> Callable[[Vector], Vector]:
+        """Return the linear map ``v -> W v`` with ``W' W = Sigma^-1``.
+
+        Independent observations are divided by their total scale
+        ``sqrt(sigma^2 + sigma_delta^2)``; the observations of a correlated
+        quantity are replaced by ``L^-1 v_q`` with ``Sigma_q = L L'``
+        (placed at the positions of that quantity), so the sum of squares of
+        whitened residuals is the generalized residual sum of squares.
+
+        Raises:
+            ValueError: If a correlated covariance is not positive definite.
+
+        Equation:
+            [EQ-CAL-CORR-003], [EQ-CAL-WLS-001].
 
         References:
-            [EQ-CAL-FISHER-001], [EQ-OPT-FD-001].
+            [REF-SEBER-WILD-2003, Section 2.1.4 and Chapter 6].
 
         """
         weights = tuple(
             math.sqrt(scales[q] ** 2 + self._noise_by_name[q].discrepancy_variance)
             for _, q, _ in self._pairs
         )
+        if not self._groups:
+
+            def independent(values: Vector) -> Vector:
+                """Divide each entry by its total noise scale.
+
+                References:
+                    [EQ-CAL-WLS-001]. No new equation is introduced.
+
+                """
+                return tuple(v / w for v, w in zip(values, weights, strict=True))
+
+            return independent
+        available = {} if lengths is None else lengths
+        factors = tuple(
+            group.factor(scales[group.quantity], available.get(group.quantity))
+            for group in self._groups
+        )
+
+        def correlated(values: Vector) -> Vector:
+            """Whiten independent entries and correlated groups.
+
+            References:
+                [EQ-CAL-CORR-003]. No new equation is introduced.
+
+            """
+            output = [v / w for v, w in zip(values, weights, strict=True)]
+            for group, (lower, divisor) in zip(self._groups, factors, strict=True):
+                solved = solve_lower(lower, tuple(values[i] for i in group.positions))
+                for position, value in zip(group.positions, solved, strict=True):
+                    output[position] = value / divisor
+            return tuple(output)
+
+        return correlated
+
+    def whitened_residuals(self, parameters: Sequence[float]) -> Vector:
+        """Return residuals whitened by the full noise covariance.
+
+        For independent noise ``r_i / s_i``; for a correlated quantity
+        ``L_q^-1 r_q`` with ``Sigma_q = L_q L_q'`` ([EQ-CAL-CORR-003]). Their
+        sum of squares is ``r' Sigma^-1 r``, the Gaussian quadratic form of
+        the log-likelihood.
+
+        Args:
+            parameters: Full vector ``(theta, log sigma, log length)``.
+
+        Returns:
+            Whitened residuals aligned with :attr:`observed` (for a
+            correlated quantity the entries are the components of
+            ``L_q^-1 r_q``, not per-observation values).
+
+        Raises:
+            ValueError: If the length is wrong or a covariance is not
+                positive definite.
+
+        Equation:
+            [EQ-CAL-CORR-003].
+
+        References:
+            [REF-SEBER-WILD-2003, Section 2.1.4], [REF-GOLUB-VANLOAN-2013,
+            Section 4.2].
+
+        """
+        theta, sigmas = self.split(parameters)
+        lengths = self.correlation_lengths(parameters)
+        return self._whitener(sigmas, lengths)(self.residuals(theta))
+
+    def _weighted_jacobian(
+        self,
+        theta: Vector,
+        scales: Mapping[str, float],
+        lengths: Mapping[str, float] | None = None,
+    ) -> tuple[Matrix, int]:
+        """Return the Jacobian of whitened predictions.
+
+        References:
+            [EQ-CAL-FISHER-001], [EQ-CAL-CORR-003], [EQ-OPT-FD-001].
+
+        """
+        whiten = self._whitener(scales, lengths)
 
         def weighted(point: Vector) -> Vector:
             """Return weighted predictions.
@@ -1223,9 +2031,7 @@ class CalibrationProblem:
                 [EQ-CAL-WLS-001]. No new equation is introduced.
 
             """
-            return tuple(
-                p / w for p, w in zip(self.predictions(point), weights, strict=True)
-            )
+            return whiten(self.predictions(point))
 
         return central_jacobian(weighted, theta)
 
@@ -1238,7 +2044,9 @@ class CalibrationProblem:
     ) -> FisherIdentifiability:
         """Diagnose local identifiability at ``theta`` (default: prior means).
 
-        Unknown noise scales are replaced by their prior medians.
+        Unknown noise scales (and uncertain error-correlation lengths) are
+        replaced by their prior medians; correlated errors enter through the
+        whitened Jacobian ``L^-1 J`` ([EQ-CAL-CORR-003]).
 
         Args:
             theta: Linearization point.
@@ -1259,8 +2067,14 @@ class CalibrationProblem:
         point = (
             self.model.nominal() if theta is None else as_vector(theta, name="theta")
         )
-        _, sigmas = self.split(point + self._default_log_sigmas())
-        jacobian, _ = self._weighted_jacobian(point, sigmas)
+        full = point + self._default_log_sigmas()
+        _, sigmas = self.split(full)
+        if self._groups:
+            jacobian, _ = self._weighted_jacobian(
+                point, sigmas, self.correlation_lengths(full)
+            )
+        else:
+            jacobian, _ = self._weighted_jacobian(point, sigmas)
         scales = self.model.inputs.standard_deviations() if prior_scaled else None
         return fisher_identifiability(
             jacobian,
@@ -1288,6 +2102,12 @@ class CalibrationProblem:
         for robust inference. This is the frequentist estimate: the prior
         enters only through the starting point.
 
+        Correlated errors are whitened: the objective is
+        ``0.5 r' Sigma^-1 r`` (generalized least squares) through the
+        Cholesky factor of each correlated quantity ([EQ-CAL-CORR-003]), and
+        an unknown scale of such a quantity is re-estimated from the
+        generalized residual sum of squares ``r_q' M_q^-1 r_q``.
+
         Args:
             initial: Starting ``theta``; defaults to the prior means.
             tolerance: Levenberg-Marquardt tolerance.
@@ -1299,10 +2119,15 @@ class CalibrationProblem:
 
         Raises:
             ValueError: If there are no more observations than parameters when
-                noise must be estimated, or ``J'J`` is singular.
+                noise must be estimated, or ``J'J`` is singular; if an
+                error-correlation length is uncertain (least squares does not
+                estimate it); or if an unknown scale of a correlated quantity
+                is combined with a discrepancy variance (no closed-form
+                scale update).
 
         Equation:
-            [EQ-CAL-WLS-001], [EQ-OPT-LM-001], [EQ-OPT-LM-002].
+            [EQ-CAL-WLS-001], [EQ-CAL-CORR-003], [EQ-OPT-LM-001],
+            [EQ-OPT-LM-002].
 
         References:
             [REF-SEBER-WILD-2003, Chapter 2], [REF-MORE-1978].
@@ -1315,6 +2140,22 @@ class CalibrationProblem:
         n, d = self.observation_count, self.model.dimension
         if self._unknown and n <= d:
             raise ValueError("estimating noise needs more observations than parameters")
+        groups = {group.quantity: group for group in self._groups}
+        if self._unknown_lengths:
+            raise ValueError(
+                "fit_least_squares does not estimate error-correlation lengths; "
+                "declare a known length or use laplace_posterior or "
+                "sample_posterior"
+            )
+        for quantity in self._unknown:
+            if quantity in groups and groups[quantity].discrepancy_variance > 0.0:
+                raise ValueError(
+                    f"the unknown noise scale of the correlated quantity "
+                    f"{quantity!r} cannot be re-estimated in closed form with a "
+                    "discrepancy variance; use laplace_posterior or "
+                    "sample_posterior"
+                )
+        lengths = self._known_lengths()
         scales: dict[str, float] = {
             item.quantity: (
                 item.standard_deviation if item.standard_deviation is not None else 1.0
@@ -1342,8 +2183,24 @@ class CalibrationProblem:
                     r / w for r, w in zip(self.residuals(point), weights, strict=True)
                 )
 
+            objective: Callable[[Vector], Vector] = weighted_residuals
+            if self._groups:
+                whiten = self._whitener(scales, lengths)
+
+                def whitened_residuals(
+                    point: Vector, whiten: Callable[[Vector], Vector] = whiten
+                ) -> Vector:
+                    """Return residuals whitened by the noise covariance.
+
+                    References:
+                        [EQ-CAL-CORR-003]. No new equation is introduced.
+
+                    """
+                    return whiten(self.residuals(point))
+
+                objective = whitened_residuals
             result = least_squares(
-                weighted_residuals,
+                objective,
                 theta,
                 tolerance=tolerance,
                 max_iterations=max_iterations,
@@ -1359,6 +2216,10 @@ class CalibrationProblem:
                     for (_, q, _), r in zip(self._pairs, raw, strict=True)
                     if q == quantity
                 ]
+                if quantity in groups:
+                    shape_lower = groups[quantity].shape_lower
+                    assert shape_lower is not None
+                    values = list(solve_lower(shape_lower, tuple(values)))
                 total = math.fsum(r * r for r in values) / len(values) * n / (n - d)
                 sigma2 = max(
                     total - self._noise_by_name[quantity].discrepancy_variance,
@@ -1390,7 +2251,7 @@ class CalibrationProblem:
         )
 
     def laplace_posterior(
-        self, initial: Sequence[float] | None = None
+        self, initial: Sequence[float] | None = None, *, gradient: str = "central"
     ) -> LaplaceApproximation:
         """Return the Laplace approximation of the posterior of ``(theta, log sigma)``.
 
@@ -1398,32 +2259,52 @@ class CalibrationProblem:
         ``theta`` (and log-noise) coordinates; the covariance is the inverse
         finite-difference Hessian there. Names follow :attr:`vector_names`.
         The approximation is exact for linear-Gaussian problems with Gaussian
-        priors and known noise.
+        priors and known noise (independent or correlated).
+
+        With ``gradient="reverse"`` BFGS receives value and gradient of
+        :meth:`log_posterior` from one reverse-mode recording
+        (:meth:`log_posterior_and_gradient`, one forward-model run per
+        experiment) instead of ``2 n`` extra evaluations per gradient, and
+        the Hessian is forward over reverse when the prior is independent;
+        with a Gaussian-copula prior, whose normal scores are differentiated
+        to first order only, it falls back to central differences of the
+        log posterior (recorded in ``fallback_reason``). The default
+        ``"central"`` reproduces earlier results exactly.
 
         Args:
             initial: Full starting vector; defaults to prior means and log
                 prior medians of unknown noise scales.
+            gradient: ``"central"`` (default) or ``"reverse"``.
 
         Returns:
             Laplace approximation (mode = MAP estimate).
 
         Raises:
-            ValueError: If the start has zero density or the Hessian is not
-                positive definite.
+            ValueError: If the start has zero density, the Hessian is not
+                positive definite, or ``gradient`` is unknown.
+            AutodiffUnsupportedError: With ``gradient="reverse"`` for a
+                problem that cannot be traced (no silent fallback).
 
         Equation:
-            [EQ-LAPLACE-001], [EQ-CAL-POST-001].
+            [EQ-LAPLACE-001], [EQ-CAL-POST-001], [EQ-AD-REVERSE-001].
 
         References:
-            [REF-TIERNEY-KADANE-1986], [REF-GELMAN-ETAL-2013, Section 4.1].
+            [REF-TIERNEY-KADANE-1986], [REF-GELMAN-ETAL-2013, Section 4.1],
+            [REF-GRIEWANK-WALTHER-2008, Chapter 3].
 
         """
+        _check_gradient_option(gradient)
         start = (
             self.model.nominal() + self._default_log_sigmas()
             if initial is None
             else as_vector(initial, name="initial")
         )
-        return laplace_approximation(self.log_posterior, start)
+        if gradient == "central":
+            return laplace_approximation(self.log_posterior, start)
+        self.log_posterior_and_gradient(start)
+        return laplace_approximation(
+            self._traced_log_posterior, start, gradient="reverse"
+        )
 
     def sample_posterior(
         self,
@@ -1437,6 +2318,7 @@ class CalibrationProblem:
         method: str = "adaptive-metropolis",
         particles: int = 1000,
         mutation_steps: int = 10,
+        gradient: str = "central",
     ) -> CalibrationPosterior:
         """Sample the posterior by MCMC or SMC in standard-normal space.
 
@@ -1458,6 +2340,17 @@ class CalibrationProblem:
         runs per experiment; divergences are reported in ``sampler``. The
         default reproduces the adaptive-Metropolis results of earlier
         versions exactly.
+
+        ``gradient="reverse"`` (HMC and NUTS only) differentiates
+        :meth:`standard_log_posterior` by reverse-mode automatic
+        differentiation instead: one recording of the forward model (one run
+        per experiment) gives value and gradient of a leapfrog step, and
+        BFGS of step (1) uses the same gradient. It needs a forward model
+        written with operators and :class:`~probstat.numerics.admath` and a
+        continuous prior with independence or a Gaussian copula; otherwise
+        :class:`~probstat.numerics.AutodiffUnsupportedError` is raised before
+        sampling (no silent fallback). The default ``"central"`` reproduces
+        earlier results exactly.
 
         With ``method="pcn"`` step (3) is preconditioned Crank-Nicolson on
         :meth:`standard_log_likelihood` in the fully standardized coordinates
@@ -1487,32 +2380,45 @@ class CalibrationProblem:
             particles: SMC particles (``method="smc"`` only).
             mutation_steps: SMC moves per particle and stage
                 (``method="smc"`` only).
+            gradient: ``"central"`` (default) or ``"reverse"`` (HMC and NUTS
+                only).
 
         Returns:
             Posterior with physical and sampling-space chains.
 
         Raises:
-            ValueError: For invalid run arguments or an unknown ``method``.
+            ValueError: For invalid run arguments, an unknown ``method`` or
+                ``gradient``, or ``gradient="reverse"`` with a method other
+                than HMC or NUTS.
+            AutodiffUnsupportedError: With ``gradient="reverse"`` for a
+                problem that cannot be traced.
 
         Equation:
             [EQ-CAL-STD-001], [EQ-CAL-STD-002], [EQ-MCMC-AM-001],
             [EQ-MCMC-MH-001], [EQ-HMC-LEAPFROG-001], [EQ-NUTS-SLICE-001],
-            [EQ-MCMC-PCN-001], [EQ-SMC-TEMPER-001].
+            [EQ-MCMC-PCN-001], [EQ-SMC-TEMPER-001], [EQ-AD-REVERSE-001].
 
         References:
             [REF-HAARIO-SAKSMAN-TAMMINEN-2001], [REF-GELMAN-RUBIN-1992],
             [REF-LIU-DERKIUREGHIAN-1986], [REF-HOFFMAN-GELMAN-2014],
             [REF-NEAL-2011], [REF-COTTER-ROBERTS-STUART-WHITE-2013],
-            [REF-DELMORAL-DOUCET-JASRA-2006].
+            [REF-DELMORAL-DOUCET-JASRA-2006], [REF-GRIEWANK-WALTHER-2008,
+            Chapter 3].
 
         """
         if method not in ("adaptive-metropolis", "hmc", "nuts", "pcn", "smc"):
             raise ValueError(
                 "method must be 'adaptive-metropolis', 'hmc', 'nuts', 'pcn', or 'smc'"
             )
+        _check_gradient_option(gradient)
+        reverse = gradient == "reverse"
+        if reverse and method not in ("hmc", "nuts"):
+            raise ValueError("gradient='reverse' applies to method='hmc' or 'nuts'")
         stream = resolve_stream(seed)
-        sampling_names = tuple(f"u[{name}]" for name in self.parameter_names) + tuple(
-            f"log_sigma[{q}]" for q in self._unknown
+        sampling_names = (
+            tuple(f"u[{name}]" for name in self.parameter_names)
+            + tuple(f"log_sigma[{q}]" for q in self._unknown)
+            + tuple(f"log_length[{q}]" for q in self._unknown_lengths)
         )
         physical_names = self.parameter_names + self.noise_names
         if method == "smc":
@@ -1532,8 +2438,15 @@ class CalibrationProblem:
         origin = tuple(0.0 for _ in range(self.model.dimension))
         origin = origin + self._default_log_sigmas()
         laplace: LaplaceApproximation | None
+        if reverse:
+            self.standard_log_posterior_and_gradient(origin)
         try:
-            laplace = laplace_approximation(self.standard_log_posterior, origin)
+            if reverse:
+                laplace = laplace_approximation(
+                    self._traced_standard_log_posterior, origin, gradient="reverse"
+                )
+            else:
+                laplace = laplace_approximation(self.standard_log_posterior, origin)
         except ValueError:
             laplace = None
         if laplace is not None:
@@ -1567,8 +2480,7 @@ class CalibrationProblem:
                 chains=chains,
                 thin=thin,
                 seed=stream.child("chains"),
-                names=tuple(f"u[{name}]" for name in self.parameter_names)
-                + tuple(f"w[{q}]" for q in self._unknown),
+                names=self._whitened_names(),
             )
             return CalibrationPosterior(
                 self.parameter_names,
@@ -1590,6 +2502,22 @@ class CalibrationProblem:
                 seed=stream.child("chains"),
                 names=sampling_names,
             )
+        elif reverse:
+            run = no_u_turn_sampler if method == "nuts" else hamiltonian_monte_carlo
+            sampler = run(
+                self._traced_standard_log_posterior,
+                tuple(starts),
+                gradient="reverse",
+                draws=draws,
+                warmup=warmup,
+                chains=chains,
+                thin=thin,
+                metric="diag",
+                initial_inverse_metric=covariance,
+                seed=stream.child("chains"),
+                names=sampling_names,
+            )
+            sampled = sampler.mcmc
         else:
             run = no_u_turn_sampler if method == "nuts" else hamiltonian_monte_carlo
             sampler = run(
