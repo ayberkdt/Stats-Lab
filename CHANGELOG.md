@@ -3,6 +3,112 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.26.0] — 2026-11-19
+
+Inverse problems and data assimilation grow from a teaching core into a
+working toolkit: classical regularization with its parameter-choice rules,
+dimension-robust and tempered samplers with evidence estimates,
+likelihood-free inference, correlated measurement errors and reverse-mode
+gradients for calibration, ensemble Kalman inversion, square-root and
+localized ensemble filters, ensemble smoothing, 4D-Var, particle-filter
+extensions, and parameter estimation in state-space models.
+
+### Added
+
+- **Singular value decomposition:** `linalg.singular_value_decomposition`
+  (one-sided Jacobi after a Householder QR, thin factors, exact zero
+  singular values kept), `pseudo_inverse`, and `numerical_rank`, checked
+  against R `svd()` (ADR-0110).
+- **Classical regularization** (`probstat.inverse`): `tikhonov` by QR of the
+  stacked matrix `[A; lambda L]` with filter factors, `truncated_svd`,
+  `picard_coefficients`, the parameter-choice rules `l_curve` (maximum
+  curvature), `generalized_cross_validation`, and `discrepancy_principle`,
+  `nonlinear_tikhonov` by Levenberg-Marquardt, and two test problems with
+  exact solutions (`backward_heat_problem`, `second_derivative_problem`).
+  Tikhonov with `L = I` equals the Gaussian posterior mean, and a test
+  checks it. New guide: regularization and ill-posed problems (ADR-0110).
+- **Dimension-robust, tempered, and likelihood-free sampling**
+  (`probstat.inference`): `preconditioned_crank_nicolson` (acceptance
+  0.204, 0.187, 0.186 at dimensions 10, 50, 200 where a fixed random walk
+  falls from 0.245 to 0.060), `sequential_monte_carlo` with adaptive
+  likelihood tempering and a log-evidence estimate with the Lee-Whiteley
+  error estimate, `abc_rejection`, and `abc_smc` (ABC population Monte
+  Carlo). `CalibrationProblem.sample_posterior` accepts `method="pcn"` and
+  `"smc"`, and `CalibrationProblem.log_evidence` returns the evidence for
+  model comparison; unknown noise scales are mapped through their prior
+  quantile so that both methods see an `N(0, I)` prior (ADR-0111).
+- **Correlated measurement errors and reverse-mode gradients for
+  calibration:** `NoiseModel(correlation=ErrorCorrelation(...))` declares a
+  known correlation matrix or an exponential or Matern kernel over an
+  experimental condition with a known or uncertain length; likelihood,
+  generalized least squares, the Fisher diagnostic, the Laplace
+  approximation, every sampler, and prediction follow it.
+  `laplace_posterior` and `sample_posterior(method="hmc"|"nuts")` accept
+  `gradient="reverse"` (reverse-mode autodiff through the model and the
+  prior's Nataf map); on the guide's NUTS example it needs 105,861
+  forward-model runs instead of 542,850 (ADR-0114).
+- **Ensemble Kalman inversion and ES-MDA:** `ensemble_kalman_inversion` with
+  discrepancy-principle stopping and `ensemble_smoother_mda` work on a
+  `CalibrationProblem` in the prior's standard-normal space without model
+  derivatives. ES-MDA reproduces the conjugate posterior of a
+  linear-Gaussian problem as the ensemble grows; EKI is documented as a
+  regularizing optimizer whose ensemble collapses (ADR-0115).
+- **Square-root and localized ensemble filters:** `ensemble_kalman_filter`
+  gains `analysis="etkf" | "eakf" | "letkf"` next to the default stochastic
+  filter (its seeded results are unchanged), Gaspari-Cohn `Localization`
+  for Schur-product and LETKF observation localization, and RTPP/RTPS
+  `Relaxation`; `ensemble_kalman_smoother` is a fixed-lag EnKS for every
+  variant. On Lorenz-96 (40 variables, 20 members, observation error 1) the
+  LETKF with RTPS reaches an analysis RMSE of 0.31-0.36 where the
+  unlocalized stochastic EnKF stays at 2.0-2.4 (ADR-0112).
+- **Lorenz test systems and fixed-step trajectories:**
+  `filtering.lorenz63` and `filtering.lorenz96` as `NonlinearStateSpace`
+  models with an RK4 transition and an exact Jacobian, and
+  `numerics.integrate_fixed_step`, which reverse-mode autodiff can
+  differentiate (ADR-0112).
+- **4D-Var:** `four_dimensional_variational` (strong constraint, adjoint by
+  reverse-mode autodiff over the whole window),
+  `incremental_four_dimensional_variational` (Gauss-Newton outer loops with
+  an exact inner solve), and `weak_constraint_four_dimensional_variational`
+  (model error `Q`), with Gauss-Newton analysis covariances. On a linear
+  model the strong form equals the RTS smoother with `Q = 0` and the weak
+  form equals it with `Q > 0`, both to rounding error (ADR-0116).
+- **Particle-filter extensions:** `auxiliary_particle_filter`,
+  `optimal_proposal_particle_filter` (linear observation operator; one
+  tenth of the bootstrap filter's log-likelihood variance on informative
+  data), `ffbs_particle_smoother`, and an opt-in `store_history` flag on
+  `bootstrap_particle_filter` (ADR-0113).
+- **Parameter estimation in state-space models:** `fit_state_space_mle`
+  (Kalman, EKF, or UKF likelihood with an observed-information covariance;
+  matches R `StructTS` on the Nile series), `linear_gaussian_em`
+  (Shumway-Stoffer EM with a non-decreasing likelihood trace),
+  `smoothed_lag_one_covariances`, and
+  `particle_marginal_metropolis_hastings`, which stores and reuses the
+  current likelihood estimate (ADR-0113).
+- **Laboratories:** `examples/regularization_lab.py` (backward heat
+  equation, the three parameter-choice rules against the error-optimal
+  `lambda`, the Bayesian reading) and `examples/state_space_learning_lab.py`
+  (MLE and EM, PMMH against the exact posterior, particle-filter likelihood
+  variance, FFBS against RTS).
+- **Field inversion laboratory** (`examples/field_inversion_lab.py`): a
+  Karhunen-Loeve log-permeability field of 1-D Darcy flow inverted from seven
+  pressure readings by pCN, adaptive Metropolis, ES-MDA (1000 forward runs),
+  and EKI with discrepancy stopping (150 runs), with the inverse crime
+  measured and pCN acceptance shown to stay flat as the truncation grows.
+- **Lorenz assimilation laboratory** (`examples/lorenz_assimilation_lab.py`):
+  stochastic, localized, ETKF, and LETKF filters and the EnKS on Lorenz-96,
+  and strong-constraint and incremental 4D-Var on Lorenz-63 with a measured
+  long-window local minimum.
+- **Benchmarks:** new `inverse` (Tikhonov with each parameter-choice rule and
+  truncated SVD against exact solutions) and `assimilation` (Kalman-filter
+  reference for EnKF, ETKF, and LETKF; a full-mode Lorenz-96 twin
+  experiment) categories.
+- **Guide figures:** Tikhonov error against `lambda` with the three rules,
+  the Picard plot, pCN against random-walk acceptance over dimension, the
+  SMC tempering schedule, Lorenz-96 RMSE against ensemble size, ES-MDA
+  against the exact posterior, and the 4D-Var window length against the rate
+  of local minima.
+
 ## [0.25.0] — 2026-11-19
 
 AK-SS brings active learning to very small failure probabilities, a

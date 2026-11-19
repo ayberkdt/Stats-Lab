@@ -1,21 +1,21 @@
 {
  "meta": {
   "schema": 1,
-  "probstat_version": "0.25.0",
+  "probstat_version": "0.26.0",
   "seed": 2026
  },
  "repository": {
   "licence": "BSD-3-Clause",
   "figure_text_floor_pt": 9.0,
-  "tests_floor": 2800,
-  "equations_floor": 1200,
-  "references_floor": 700,
-  "adrs_floor": 100,
+  "tests_floor": 3000,
+  "equations_floor": 1250,
+  "references_floor": 750,
+  "adrs_floor": 110,
   "questions": 8,
   "statistics_questions": 10,
   "packages": 33,
   "runtime_dependencies": 0,
-  "labs": 39,
+  "labs": 43,
   "ci_python_first": "3.11",
   "ci_python_last": "3.13",
   "ci_python_count": 3
