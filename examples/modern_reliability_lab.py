@@ -739,7 +739,8 @@ def cost_figure(case: Case, summaries: Sequence[Summary]) -> str:
     low, high = axes.get_xlim()
     axes.set_xlim(low / 1.5, high * 8.0)
     axes.set_ylim(min(shown_values) / 2.0, max(shown_values) * 2.5)
-    _plain_log(axes.xaxis)
+    decades = math.log10(high * 8.0 / (low / 1.5))
+    _plain_log(axes.xaxis, (1.0,) if decades > 3.5 else (1.0, 3.0))
     _plain_log(axes.yaxis, (1.0, 2.0, 5.0))
     theme.axis_labels(
         axes, theme.axis_title("model_evaluations"), "Mean relative error [%]"
