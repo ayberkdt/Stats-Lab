@@ -4694,3 +4694,20 @@ Approach." *Biometrika* 38(3-4), 330-336, 1951. The weighted one-way F test
 for normal groups with unequal variances and its approximate degrees of
 freedom.
 DOI: [10.1093/biomet/38.3-4.330](https://doi.org/10.1093/biomet/38.3-4.330).
+
+## REF-HUANG-CHEN-ZHU-2016
+
+Xiaoxu Huang, Jianqiao Chen, and Hongping Zhu. "Assessing Small Failure
+Probabilities by AK-SS: An Active Learning Method Combining Kriging and
+Subset Simulation." *Structural Safety* 59, 86-95, 2016. Subset simulation
+run on the Kriging predictor, with the samples of the subset levels as the
+candidates of active learning by the `U` function.
+DOI: [10.1016/j.strusafe.2015.12.003](https://doi.org/10.1016/j.strusafe.2015.12.003).
+
+## REF-BECT-LI-VAZQUEZ-2017
+
+Julien Bect, Ling Li, and Emmanuel Vazquez. "Bayesian Subset Simulation."
+*SIAM/ASA Journal on Uncertainty Quantification* 5(1), 762-786, 2017. A
+related sequential design that combines a Gaussian-process prior with subset
+simulation.
+DOI: [10.1137/16M1078276](https://doi.org/10.1137/16M1078276).

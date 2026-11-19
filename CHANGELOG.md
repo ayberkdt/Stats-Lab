@@ -67,6 +67,23 @@ while the public API remains pre-1.0 and experimental.
 - **R parity:** 19 new cases (155 in total) cover the nine quantile types,
   e1071 skewness and kurtosis types 2 and 3, `fisher.test` on three r x c
   tables (up to `N = 2757`), `fligner.test`, and `oneway.test`.
+- **AK-SS:** `reliability.ak_ss` combines Gaussian-process active learning
+  with subset simulation run on the surrogate (Huang, Chen and Zhu 2016):
+  the distinct samples of all subset levels are the candidates of the `U`
+  (or `EFF`, `H`) learning function, and the iteration stops when the
+  relative bounds of the last level's failure count from
+  `mu -/+ 1.96 sigma` are within `bounds_tolerance` (ADR-0108). Every subset
+  kernel of `SUBSET_SAMPLERS` and any `SurrogateFactory` can be used;
+  `check_population` and `check_levels` count sign errors against the true
+  model. On the four-branch function (`k = 7`) five seeds used 53-76 model
+  calls and averaged `2.25e-3` (reference `2.2245e-3`); a linear limit
+  state with `P_f = Phi(-4.5) = 3.40e-6` took 12-18 calls, and the
+  oscillator with `F1 ~ N(0.6, 0.1)` 85-114 calls.
+- `AKSSResult`, `AKSSRound`, and `AKSS_GP_REGULARIZATION` (the ADR-0054
+  bounds plus a log-normal length-scale prior).
+- `GaussianProcessPopulationPosterior.replace_population(points,
+  reuse=True)` keeps the posterior state of candidates that stay in the
+  pool; the default is unchanged.
 
 ## [0.24.0] — 2026-11-18
 

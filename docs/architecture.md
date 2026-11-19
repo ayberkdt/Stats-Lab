@@ -90,7 +90,7 @@ Carlo, LHS, Halton, Sobol). See ADR-0014 and
 | `generative` | Normalizing flows, energy-based models, score matching, Langevin sampling, normalizing-constant diagnostics | Shared networks, derivatives, and optimizers (`numerics`, `optimization`) |
 | `propagation` | Design-based propagation, output distributions | Distribution implementations |
 | `inverse` | Observation/noise models, calibration problems, Kennedy-O'Hagan discrepancy, posterior prediction | Validation claims |
-| `reliability` | Limit states, FORM/SORM, multiple design points, IS, subset and line sampling, AK-MCS, systems | Generic probability foundations |
+| `reliability` | Limit states, FORM/SORM, multiple design points, IS, subset and line sampling, AK-MCS, AK-SS, systems | Generic probability foundations |
 | `sensitivity` | Local derivatives, Sobol, Morris, ranking and screening | Input-distribution implementations |
 | `surrogates` | PCE and GP emulators and the surrogate forward-model adapter | Analyses on the emulator |
 | `validation` | Discrepancy and validation evidence, proper scoring rules, forecast calibration, distribution-shift tests | Parameter inference |
@@ -112,8 +112,9 @@ supported.
 
 Sibling packages in one layer may import each other only when that does not
 create a cycle and an ADR justifies it; the default is that they do not. The one
-justified case so far: `reliability.active_learning` (AK-MCS) imports
-`surrogates` for its Gaussian-process limit state (ADR-0041); `surrogates`
+justified case so far: `reliability.active_learning` (AK-MCS), and with it
+`reliability.ak_subset` (AK-SS) and `reliability.population_posterior`, import
+`surrogates` for their Gaussian-process limit state (ADR-0041); `surrogates`
 must therefore never import `reliability`.
 Cross-cutting code moves down only when it is truly domain-independent.
 

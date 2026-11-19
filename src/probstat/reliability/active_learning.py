@@ -229,6 +229,35 @@ def _unit_design(
     return make_design(design, size, dimension, seed=seed)
 
 
+def _design_points(
+    design: str,
+    size: int,
+    dimension: int,
+    design_bound: float | None,
+    seed: RandomStream,
+) -> list[Vector]:
+    """Return the initial design in standard-normal space.
+
+    The unit-cube design is mapped affinely to ``[-b, b]^d`` with
+    ``b = design_bound``, or through ``Phi^-1`` when ``design_bound`` is
+    ``None``.
+
+    Raises:
+        ValueError: If ``design_bound`` is not a positive finite real.
+
+    References:
+        [EQ-SAMP-LHS-001], [EQ-SAMP-MAXIMIN-001], [REF-MORRIS-MITCHELL-1995].
+
+    """
+    unit = _unit_design(design, size, dimension, seed)
+    if design_bound is None:
+        return [
+            tuple(standard_normal_quantile(p) for p in point) for point in unit.points
+        ]
+    bound = _require_positive(design_bound, "design_bound")
+    return [tuple(bound * (2.0 * p - 1.0) for p in point) for point in unit.points]
+
+
 def _extra_points(
     points: Sequence[Sequence[float]] | None, dimension: int
 ) -> list[Vector]:
@@ -465,16 +494,9 @@ def ak_mcs(
         ]
 
     before = state.model.evaluations
-    unit = _unit_design(design, first_size, dimension, root.child("ak-mcs", "design"))
-    if design_bound is None:
-        training_u: list[Vector] = [
-            tuple(standard_normal_quantile(p) for p in point) for point in unit.points
-        ]
-    else:
-        bound = _require_positive(design_bound, "design_bound")
-        training_u = [
-            tuple(bound * (2.0 * p - 1.0) for p in point) for point in unit.points
-        ]
+    training_u = _design_points(
+        design, first_size, dimension, design_bound, root.child("ak-mcs", "design")
+    )
     training_u.extend(seeds)
     training_g: list[float] = [state.standard(u) for u in training_u]
     refits = 0

@@ -327,18 +327,44 @@ class GaussianProcessPopulationPosterior:
                 scale * scale * (self.signal - math.fsum(map(operator.mul, v, v)))
             )
 
-    def replace_population(self, points: Sequence[Sequence[float]]) -> None:
+    def replace_population(
+        self, points: Sequence[Sequence[float]], *, reuse: bool = False
+    ) -> None:
         """Drop the candidates and predict at ``points``, keeping the training set.
+
+        With ``reuse=True`` a new candidate equal to a current one keeps its
+        state (``v``, ``mu``, ``sigma^2``), which the rank-one updates have
+        kept conditioned on every training point; only the other candidates
+        are solved afresh. The kept values equal a fresh solve up to
+        rounding, so ``reuse=False`` (the default) is the bit-reproducible
+        choice and ``reuse=True`` the cheap one when consecutive pools
+        overlap, as with common random numbers across subset runs.
 
         References:
             [EQ-SUR-GP-003], [REF-RASMUSSEN-WILLIAMS-2006, Algorithm 2.1].
 
         """
+        known: dict[Vector, int] = {}
+        if reuse:
+            known = {point: index for index, point in enumerate(self._population)}
+        old_v, old_mu, old_var = list(self.v), list(self.mu), list(self.var)
+        # The lists are emptied in place: callers may hold references to them.
         self._population.clear()
         self.v.clear()
         self.mu.clear()
         self.var.clear()
-        self.add_population(points)
+        for raw in points:
+            x = tuple(raw)
+            # Each old state is handed out once, so repeated points never
+            # share one ``v`` list (``add_training`` appends to every list).
+            index = known.pop(x, -1)
+            if index < 0:
+                self.add_population([x])
+                continue
+            self._population.append(x)
+            self.v.append(old_v[index])
+            self.mu.append(old_mu[index])
+            self.var.append(old_var[index])
 
 
 class SurrogatePopulationPosterior:
