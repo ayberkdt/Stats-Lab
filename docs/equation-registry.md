@@ -16840,3 +16840,87 @@ verification of the grids `dt, dt/2, dt/4` [EQ-VV-UNUM-001].
   after the release transient the package falls at `v_t`.
 - Code: `examples.parachute_vvuq_lab.terminal_speed`.
 - Source: [REF-HALLIDAY-RESNICK-WALKER-2014, drag force and terminal speed].
+
+### EQ-LAB-GPS-001 — Pseudorange likelihood with uniform satellite, range, and clock errors
+
+For `D_k = beta + ||S_k - r|| + e_k` with `beta ~ Uniform(-b, b)` common to
+all satellites, `S_k = C_k + o_k` with `o_k` uniform in a ball of radius
+`a`, and `e_k ~ Uniform(-h, h)`, all independent:
+`L(r) = (1 / 2b) int_{-b}^{b} prod_k f_z(D_k - beta - ||r - C_k||) dbeta`,
+`f_z(z) = (G(z + h) - G(z - h)) / (2h)`,
+`G(x) = 1/2 + 3x/(4a) - x^3/(4a^3)` on `[-a, a]` (0 below, 1 above).
+
+- Domain: `h > a > 0`, `b > 0`; `||r - C_k||` much larger than `a`.
+- Meaning: `G` is the CDF of the line-of-sight component of `o_k` (the
+  projection of a uniform ball has density `3 (a^2 - x^2) / (4a^3)`), and
+  `f_z` the density of that component plus the range error; the satellite
+  offsets are integrated in closed form and the clock shift by quadrature.
+  Replacing `||r - S_k||` by `||r - C_k||` plus the line-of-sight component
+  errs by less than `a^2 / ||r - C_k||`. Each `f_z` is a cubic between its
+  kinks `z = +-h +- a`, so the integrand is a polynomial of degree at most
+  `3k` between kinks and Gauss-Legendre panels with `ceil((3k + 1) / 2)`
+  nodes are exact. `L(r) > 0` only inside the polytope
+  `|D_k - ||r - C_k||| < h + a + b`, which bounds the importance-sampling
+  box.
+- Code: `examples.gps_positioning_lab.offset_cdf`,
+  `examples.gps_positioning_lab.residual_density`,
+  `examples.gps_positioning_lab.marginal_likelihood`,
+  `examples.gps_positioning_lab.support_vertices`.
+- Source: [REF-SMITH-UQ-2024] for the posterior of the receiver position
+  from five pseudoranges; [REF-GOLUB-WELSCH-1969] for the quadrature.
+
+### EQ-LAB-GPS-002 — First-order covariance and dilution of precision of a pseudorange fix
+
+Linearized model `delta D = G delta x + e` at the fix. Known clock: rows
+`g_k = (r - C_k)' / ||r - C_k||`, `x = r`. Unknown clock: rows `(g_k, 1)`,
+`x = (r, beta)`. Ordinary least squares: `A = (G'G)^-1 G'`,
+`Cov(x_hat) = A Sigma A'`; weighted least squares with
+`W = diag(sigma_k^-2)`: `Cov(x_hat) = (G'WG)^-1`. With `H = (G'G)^-1` for
+the four-column `G` in East-North-Up coordinates:
+`GDOP = sqrt(trace H)`, `PDOP = sqrt(H_EE + H_NN + H_UU)`,
+`HDOP = sqrt(H_EE + H_NN)`, `VDOP = sqrt(H_UU)`, `TDOP = sqrt(H_bb)`.
+
+- Domain: at least four satellites (three with a known clock) not all on
+  one cone around the receiver, so `G'G` is invertible; `Sigma` the
+  covariance of the reading errors.
+- Meaning: with independent errors of common variance `sigma^2` the fix
+  covariance is `sigma^2 H` and the DOPs scale `sigma` into position, clock,
+  and combined standard errors. A clock error common to all readings adds
+  `s_clock^2 (A 1)(A 1)'` to the known-clock covariance and is absorbed by
+  the fourth unknown otherwise. Estimating the clock never lowers the
+  position dilution. `(G'WG)^-1` is the smallest covariance of any linear
+  unbiased fix (Gauss-Markov) and equals the Gauss-Newton covariance
+  [EQ-OPT-LM-002] of the whitened residuals with unit noise variance.
+- Code: `examples.gps_positioning_lab.error_map`,
+  `examples.gps_positioning_lab.linearized_covariance`,
+  `examples.gps_positioning_lab.pdop_known_clock`,
+  `examples.gps_positioning_lab.dilution_of_precision`,
+  `examples.gps_positioning_lab.clock_fix_covariance`,
+  `examples.gps_positioning_lab.fault_position_shift`.
+- Source: [REF-MISRA-ENGE-2006, Chapter 6];
+  [REF-TEUNISSEN-MONTENBRUCK-2017, Chapters 21 and 22];
+  [REF-SEBER-WILD-2003, Section 2.1].
+
+### EQ-LAB-GPS-003 — Residual fault-detection test of a redundant pseudorange fix
+
+`T = || W^(1/2) (D - D_hat) ||^2 = e' W^(1/2) S W^(1/2) e` with
+`S = I - G~ (G~'G~)^-1 G~'`, `G~ = W^(1/2) G`; alarm when
+`T > chi^2_(n-4, 1 - P_FA)`. A bias `b` on satellite `k` makes
+`T ~ chi^2_(n-4)(lambda)` with `lambda = (b / sigma_k)^2 S_kk`; for
+`n - 4 = 1`: `P_D(lambda) = Phi(sqrt(lambda) - sqrt(T_a)) +
+Phi(-sqrt(lambda) - sqrt(T_a))`, `T_a` the threshold. The minimal
+detectable bias solves `P_D(lambda) = P` for `b`.
+
+- Domain: Gaussian, independent errors of known variances; `n > 4`
+  satellites; at most one faulty satellite.
+- Meaning: `S` projects onto the `n - 4` redundant directions; a fault on a
+  satellite with small `S_kk` barely shows in the residuals and moves the
+  fix by `b (G'WG)^-1 (g_k, 1)' / sigma_k^2` [EQ-LAB-GPS-002] before it is
+  detected. With one redundant reading a fault can be detected but not
+  attributed to a satellite.
+- Code: `examples.gps_positioning_lab.residual_projector`,
+  `examples.gps_positioning_lab.raim_threshold`,
+  `examples.gps_positioning_lab.detection_probability`,
+  `examples.gps_positioning_lab.fault_noncentrality`,
+  `examples.gps_positioning_lab.minimal_detectable_bias`.
+- Source: [REF-BROWN-1992].

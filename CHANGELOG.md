@@ -29,6 +29,24 @@ while the public API remains pre-1.0 and experimental.
   judged on another. The interval from the parametric uncertainty alone
   covers 75% of the true landings; a bias proportional to the wind restores
   90%.
+- **GPS positioning laboratory:** `examples/gps_positioning_lab.py` locates a
+  receiver from five simulated pseudoranges. Part 1 follows the classical
+  uncertainty-quantification example with a small clock shift, satellite
+  positions known to 2 m, and 10 m range errors: the posterior of the
+  receiver position by importance sampling, with the inner expectation over
+  the satellite offsets in closed form and over the clock shift by exact
+  piecewise Gauss-Legendre quadrature, so only the outer sampling is random
+  (90% radius 12.36 m, batch standard error 0.03 m); the least-squares fix
+  propagated by Monte Carlo, split by source (the range reading carries 98%
+  of the mean squared error), and checked against its linearized covariance
+  and the library Gauss-Newton covariance. Part 2 is the standard receiver
+  with a 0.25 ms clock offset estimated as a fourth unknown: the
+  dilution-of-precision family (GDOP 3.04, PDOP 2.62 for the well-spread
+  sky against a known-clock PDOP of 1.44), ordinary against weighted least
+  squares under elevation-dependent errors, and residual-based fault
+  detection with its closed-form detection probability; a fault on the
+  28-degree satellite must reach 104 m to be detected nine times in ten.
+  Checked by `tests/test_gps_positioning_lab.py`.
 
 ## [0.24.0] — 2026-11-18
 

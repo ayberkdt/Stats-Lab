@@ -4623,3 +4623,30 @@ E. W. Peterson and J. P. Hennessey Jr. "On the Use of Power Laws for
 Estimates of Wind Power Potential." *Journal of Applied Meteorology* 17,
 390-394, 1978. Cited for the power-law wind profile
 `u(z) = u_r (z / z_r)^alpha` used to extrapolate a reference-height wind.
+
+## REF-MISRA-ENGE-2006
+
+Pratap Misra and Per Enge. *Global Positioning System: Signals,
+Measurements, and Performance*. 2nd edition. Ganga-Jamuna Press, 2006.
+Chapter 4 (coordinate frames and satellite orbits), Chapter 5 (pseudorange
+measurement model and error sources), and Chapter 6 (position, velocity,
+and time estimation from pseudoranges: the linearized fix with the receiver
+clock bias as a fourth unknown, its weighted least-squares solution, and the
+dilution of precision).
+
+## REF-TEUNISSEN-MONTENBRUCK-2017
+
+Peter J. G. Teunissen and Oliver Montenbruck (editors). *Springer Handbook of
+Global Navigation Satellite Systems*. Springer, 2017. Chapter 21 (the
+linearized positioning model and single point positioning) and Chapter 22
+(least-squares estimation and Kalman filtering, by S. Verhagen and
+P. J. G. Teunissen).
+DOI: [10.1007/978-3-319-42928-1](https://doi.org/10.1007/978-3-319-42928-1).
+
+## REF-BROWN-1992
+
+R. Grover Brown. "A Baseline GPS RAIM Scheme and a Note on the Equivalence
+of Three RAIM Methods." *Navigation, Journal of the Institute of Navigation*
+39(3), 301-316, 1992. Fault detection from the least-squares residuals of a
+redundant pseudorange solution; the range-comparison, residual, and parity
+methods give identical decisions at equal alarm rates.
