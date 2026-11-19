@@ -495,6 +495,19 @@ of `10^4`-`10^5` is simpler, and its estimate can be compared point by point
 with crude Monte Carlo on the same population. AK-SS pays off when `P_f` is
 `10^-4` or smaller, where the population AK-MCS would need is out of reach.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/adaptive-reliability-cost-accuracy-dark.png"><img alt="Mean relative error against mean model calls on log axes for seven rare-event methods on the four-branch system, one labelled marker each" src="../images/guides/adaptive-reliability-cost-accuracy.png"></picture>
+
+*On the four-branch system (`k = 7`) the two active-learning methods need
+a few dozen model calls where the samplers need more than a thousand.
+AK-MCS used 50 calls for a mean relative error of 12% (population `10^4`,
+3 seeds) and AK-SS 52 calls for 28% (`N = 300` per level, 3 seeds; most of
+its error is the subset-sampling error of its last run on the surrogate).
+Subset simulation with the MMA, aCS, and HMC kernels (`N = 500`), moving
+particles (50 particles, 5 steps), and directional simulation (100
+directions) used 1,338 to 2,256 calls for 13% to 36% over 10 seeds. The runs
+are those of the four-branch case of `examples/modern_reliability_lab.py`,
+which repeats the comparison in `d = 100` and at `P_f = 3.4e-6`.*
+
 **Cost.** A round costs about `m N` evaluations of the surrogate mean at
 `O(n)` each (`m` levels, `n` training points), `O(n^2)` for each new pool
 point, `O(n)` per pool point for each added training point, and a likelihood

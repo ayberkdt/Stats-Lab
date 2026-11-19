@@ -8,6 +8,20 @@
       "population": "10,000"
     }
   },
+  "adaptive-reliability-cost-accuracy": {
+    "guide": "adaptive-reliability",
+    "alt": "Mean relative error against mean model calls on log axes for seven rare-event methods on the four-branch system, one labelled marker each",
+    "facts": {
+      "akmcs_calls": "50",
+      "akmcs_error": "12%",
+      "akss_calls": "52",
+      "akss_error": "28%",
+      "sampler_calls_min": "1,338",
+      "sampler_calls_max": "2,256",
+      "sampler_error_min": "13%",
+      "sampler_error_max": "36%"
+    }
+  },
   "adaptive-reliability-design-points": {
     "guide": "adaptive-reliability",
     "alt": "Standard-normal map of the four-branch limit state with four design points, FORM tangents, the beta circle, and mixture samples",

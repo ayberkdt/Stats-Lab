@@ -15,7 +15,7 @@
   "statistics_questions": 10,
   "packages": 33,
   "runtime_dependencies": 0,
-  "labs": 38,
+  "labs": 39,
   "ci_python_first": "3.11",
   "ci_python_last": "3.13",
   "ci_python_count": 3
@@ -316,10 +316,10 @@
   }
  },
  "benchmark": {
-  "probstat_version": "0.17.0",
-  "generated": "2026-11-11",
-  "problems": 11,
-  "rows": 124,
+  "probstat_version": "0.24.0",
+  "generated": "2026-11-19",
+  "problems": 13,
+  "rows": 181,
   "seeds_propagation": 5,
   "seeds_calibration": 2,
   "sampling": {

@@ -23,7 +23,8 @@ Definitions:
     Mean relative error: ``mean_s |P_s / P_f - 1|`` over the seeds ``s``.
     Observed c.o.v.: sample standard deviation of the estimates over the
     seeds divided by their mean; reported c.o.v.: the mean of the c.o.v. each
-    run reports about itself.
+    run reports about itself (runs that found no failure report an infinite
+    c.o.v. and are left out of that mean).
 
 Assumptions:
     - Inputs are independent standard normals, so every reference is exact,
@@ -583,7 +584,7 @@ def cheapest_accurate(summaries: Sequence[Summary]) -> Summary | None:
 # --------------------------------------------------------------------------
 
 
-def _plain_log(axis: Any) -> None:
+def _plain_log(axis: Any, subs: tuple[float, ...] = (1.0, 3.0)) -> None:
     """Label a logarithmic axis with plain numbers (no ``10^k`` notation).
 
     References:
@@ -603,7 +604,7 @@ def _plain_log(axis: Any) -> None:
             return f"{value:,.0f}"
         return f"{value:.6f}".rstrip("0").rstrip(".")
 
-    axis.set_major_locator(LogLocator(base=10.0, subs=(1.0, 2.0, 5.0)))
+    axis.set_major_locator(LogLocator(base=10.0, subs=subs))
     axis.set_major_formatter(FuncFormatter(plain))
     axis.set_minor_formatter(NullFormatter())
 
@@ -623,7 +624,7 @@ METHOD_STYLES: dict[str, tuple[str, str]] = {
 
 
 def label_points(
-    axes: Any, items: Sequence[tuple[float, float, str]], *, cluster: float = 90.0
+    axes: Any, items: Sequence[tuple[float, float, str]], *, cluster: float = 50.0
 ) -> None:
     """Label points to their right, pushing apart labels of nearby points.
 
@@ -739,7 +740,7 @@ def cost_figure(case: Case, summaries: Sequence[Summary]) -> str:
     axes.set_xlim(low / 1.5, high * 8.0)
     axes.set_ylim(min(shown_values) / 2.0, max(shown_values) * 2.5)
     _plain_log(axes.xaxis)
-    _plain_log(axes.yaxis)
+    _plain_log(axes.yaxis, (1.0, 2.0, 5.0))
     theme.axis_labels(
         axes, theme.axis_title("model_evaluations"), "Mean relative error [%]"
     )
@@ -811,16 +812,19 @@ def lessons_section(results: Mapping[str, Sequence[Summary]]) -> None:
             f"obs./rep. c.o.v. {summary.observed_cov:.2f}/{summary.reported_cov:.2f}"
         )
     directional = by["linear-100d"]["Directional simulation"]
+    estimates = ", ".join(f"{run.probability:.1e}" for run in directional.runs)
     print(
-        f"   Directional simulation in d = 100: rel. error "
-        f"{directional.mean_relative_error:.3f} with reported c.o.v. "
-        f"{directional.reported_cov:.2f}; in d = 2 (beta = 4.5): "
+        f"   Directional simulation in d = 100: estimates {estimates} against "
+        f"{directional.reference:.2e} (rel. error "
+        f"{directional.mean_relative_error:.3f}); in d = 2 (beta = 4.5): "
         f"{by['linear-rare']['Directional simulation'].mean_relative_error:.3f}."
     )
     print(
-        "   The radial integral is exact on every ray, but in d = 100 almost every"
-        " direction misses the small cap around the design point, so the mean"
-        " over 50 rays is dominated by rays that never fail."
+        "   The radial integral is exact on every ray, but in d = 100 a ray"
+        " crosses the plane at r = beta / cos(angle to the design direction),"
+        " mostly far beyond the radii near 10 where chi_100 has its mass; the"
+        " few rays close to the design direction carry the probability, and 50"
+        " random rays rarely include one."
     )
     for key in ("four-branch", "linear-rare"):
         summary = by[key]["Moving particles"]

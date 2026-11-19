@@ -84,6 +84,36 @@ while the public API remains pre-1.0 and experimental.
 - `GaussianProcessPopulationPosterior.replace_population(points,
   reuse=True)` keeps the posterior state of candidates that stay in the
   pool; the default is unchanged.
+- **Modern reliability laboratory** (`examples/modern_reliability_lab.py`):
+  a seeded cost-against-accuracy study of FORM, subset simulation with the
+  MMA, aCS, and HMC kernels, moving particles, directional simulation,
+  AK-MCS, and AK-SS on three problems, reporting mean relative error,
+  observed and reported c.o.v., and mean model calls. On the four-branch
+  system (`k = 7`) AK-MCS used 50 calls (12% mean error) and AK-SS 52 (28%),
+  against 1,338-2,256 calls (13-36%) for the samplers. In `d = 100`
+  directional simulation returned 0 on two of three seeds and `7.5e-9` on
+  the third (reference `2.3e-4`), while the subset kernels kept acceptance
+  rates of 0.32-0.41. At `P_f = 3.4e-6`
+  AK-MCS on a `10^4` population found no failure and AK-SS needed 13 calls.
+  The lab also compares GP, PC-Kriging, and a deep ensemble inside AK-MCS
+  (the ensemble's uncalibrated spread never satisfies the `U` rule and
+  leaves 11 points misclassified) and shows a central initial design that
+  misses all four failure regions of the four-branch system. Seed counts
+  (3 to 10 per method) are set by the lab's runtime of about 2.5 minutes.
+- **Guide figure** `adaptive-reliability-cost-accuracy` (model calls against
+  mean relative error on log axes, one labelled marker per method) in the
+  AK-SS section of the adaptive-reliability guide.
+- **Benchmarks:** three reliability problems, the four-branch system with
+  `k = 7`, the oscillator with the rare load `F1 ~ N(0.6, 0.2)`, and the
+  hyperplane in `d = 100` (`P_f = Phi(-3.5)`, full mode only; quick mode
+  omits it and says so), and five methods: subset simulation with aCS and
+  with HMC, moving particles, directional simulation, and AK-SS (full mode
+  only). The oscillator reference, `5.4554e-4 +/- 4.8e-7`, comes from
+  design-point importance sampling with `5 x 10^6` samples in
+  standard-library code (`benchmarks.references.oscillator_importance_sampling`).
+  Crude MC, multi-point FORM, and mixture IS skip problems above `d = 10`
+  (recorded as budget skips), and FORM-based methods on the `k = 7`
+  system are listed as expected failures (the kink at the origin).
 
 ## [0.24.0] — 2026-11-18
 

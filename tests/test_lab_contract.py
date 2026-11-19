@@ -109,6 +109,7 @@ LAB_REGRESSION_TESTS: dict[str, tuple[str, str]] = {
         "test_generic_fitting_model_selection.py",
         "select_distribution",
     ),
+    "modern_reliability_lab": ("test_ak_subset.py", "ak_ss"),
     "nonlinear_calibration_lab": ("test_workflow_study.py", "UQStudy"),
     "optimal_transport_lab": ("test_transport_and_geometry.py", "sinkhorn"),
     "parachute_vvuq_lab": ("test_ode.py", "integrate_to_event"),

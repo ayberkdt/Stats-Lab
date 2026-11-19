@@ -627,10 +627,13 @@ sampling, and line sampling.
 
 [Adaptive reliability](foundations/adaptive-reliability.md): a guard for
 covariance-adapted CE-IS, line sampling, multiple design points, and AK-MCS
-active learning for rare events.
+active learning for rare events. The modern reliability lab compares the cost
+and accuracy of subset simulation (three kernels), moving particles,
+directional simulation, AK-MCS, and AK-SS on three problems, and shows the
+surrogate choice inside AK-MCS and the blind spot of a central design.
 
 - Requires: U14
-- Lab: [`examples/adaptive_reliability_lab.py`](../examples/adaptive_reliability_lab.py)
+- Lab: [`examples/adaptive_reliability_lab.py`](../examples/adaptive_reliability_lab.py), [`examples/modern_reliability_lab.py`](../examples/modern_reliability_lab.py)
 - Decision record: [ADR-0041](adr/ADR-0041-adaptive-reliability.md)
 
 ### U16 — Surrogate models

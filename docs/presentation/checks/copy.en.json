@@ -214,7 +214,7 @@
    "body": [],
    "bullets": [],
    "labels": [],
-   "notes": "Each check is enforced by a test, not by a promise. The documentation contract fails when a function's references section names no source key or an equation identifier is missing from the registry. Tests use independent oracles: closed forms, exact enumeration, published values, a multiple-precision reference, or statistical checks whose tolerance comes from the Monte Carlo standard error, so they hold on every platform. Figures follow one semantic theme in a light and a dark palette. Continuous integration runs lint, strict type checking, the tests, the quick benchmark, and all 38 labs on 3 Python versions. Design choices are recorded in 100+ decision records. Bridge: the benchmarks score methods against exact answers.",
+   "notes": "Each check is enforced by a test, not by a promise. The documentation contract fails when a function's references section names no source key or an equation identifier is missing from the registry. Tests use independent oracles: closed forms, exact enumeration, published values, a multiple-precision reference, or statistical checks whose tolerance comes from the Monte Carlo standard error, so they hold on every platform. Figures follow one semantic theme in a light and a dark palette. Continuous integration runs lint, strict type checking, the tests, the quick benchmark, and all 39 labs on 3 Python versions. Design choices are recorded in 100+ decision records. Bridge: the benchmarks score methods against exact answers.",
    "font_px": {
     "headline": 60,
     "body": 34,
@@ -231,7 +231,7 @@
    "body": [],
    "bullets": [],
    "labels": [],
-   "notes": "The benchmark suite has 11 problems with exact or quadrature reference answers and records 124 method results, each with its error, cost, and interval coverage. This row is the cleanest: the same 256 runs, four designs. Plain Monte Carlo misses the Ishigami mean by 7.8%; scrambled Sobol' points by 0.12%. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover.",
+   "notes": "The benchmark suite has 13 problems with exact or quadrature reference answers and records 181 method results, each with its error, cost, and interval coverage. This row is the cleanest: the same 256 runs, four designs. Plain Monte Carlo misses the Ishigami mean by 7.8%; scrambled Sobol' points by 0.12%. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover.",
    "font_px": {
     "headline": 60,
     "body": 34,
@@ -248,7 +248,7 @@
    "body": [],
    "bullets": [
     "FORM and SORM fail on the four-branch system benchmark.",
-    "Benchmarks: probstat 0.17.0, quick mode, 2 to 5 seeds; coverage is coarse.",
+    "Benchmarks: probstat 0.24.0, quick mode, 2 to 5 seeds; coverage is coarse.",
     "Monte Carlo digits move with the seed; each carries its 95% interval."
    ],
    "labels": [],
