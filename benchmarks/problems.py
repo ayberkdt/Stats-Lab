@@ -4,7 +4,9 @@ Each :class:`Problem` builds a *fresh* instance per run (so the model's
 evaluation counter starts at zero) and supplies reference values from
 :mod:`benchmarks.references`, which never imports probstat. The calibration
 problem regenerates its data from the seed, so its references depend on the
-seed; all other references are constants.
+seed; so do the inverse-problem noise and the tracking data of the
+assimilation category. Problems without a probabilistic model (inverse and
+assimilation) count their cost on a :class:`CostCounter` instead.
 """
 
 from __future__ import annotations
@@ -17,17 +19,37 @@ from typing import Any
 
 from benchmarks import references as ref
 from probstat.distributions import LogNormal, Normal, Uniform
-from probstat.inverse import CalibrationProblem, Experiment, NoiseModel
+from probstat.filtering import (
+    LinearGaussianStateSpace,
+    lorenz96,
+    lorenz96_rhs,
+    simulate,
+)
+from probstat.inverse import (
+    CalibrationProblem,
+    Experiment,
+    NoiseModel,
+    backward_heat_problem,
+    second_derivative_problem,
+)
 from probstat.modeling import (
     JointInput,
     ProbabilisticModel,
     RandomInput,
     oscillator_model,
 )
+from probstat.numerics import integrate_fixed_step
 from probstat.reliability import ModelLimitState
 from probstat.uq import QuantityOfInterest
 
-CATEGORIES = ("reliability", "sensitivity", "propagation", "calibration")
+CATEGORIES = (
+    "reliability",
+    "sensitivity",
+    "propagation",
+    "calibration",
+    "inverse",
+    "assimilation",
+)
 
 #: Large seeded Monte Carlo run of the four-branch system, executed once with
 #: ``references.four_branch_monte_carlo(10_000_000, 20261012)`` (20.9 s). It is
@@ -72,18 +94,35 @@ class Reference:
     scale: float | None = None
 
 
+@dataclass
+class CostCounter:
+    """Evaluation counter of a problem without a probabilistic model.
+
+    The adapter adds what its method spent: candidate regularization
+    parameters for the inverse problems, member forecasts (members times
+    cycles) for the ensemble filters.
+
+    Args:
+        evaluations: Count so far.
+
+    """
+
+    evaluations: int = 0
+
+
 @dataclass(frozen=True)
 class Instance:
     """One freshly built problem instance.
 
     Args:
-        model: Probabilistic model whose counter measures evaluations.
+        model: Probabilistic model (or :class:`CostCounter`) whose counter
+            measures evaluations.
         payload: Category-specific objects (limit state, calibration problem,
             quantity names, ...).
 
     """
 
-    model: ProbabilisticModel
+    model: ProbabilisticModel | CostCounter
     payload: Mapping[str, Any] = field(default_factory=dict)
 
     def __getitem__(self, key: str) -> Any:
@@ -463,6 +502,134 @@ def _calibration_references(seed: int) -> Mapping[str, Reference]:
 
 
 # ---------------------------------------------------------------------------
+# Inverse problems
+# ---------------------------------------------------------------------------
+
+INV_SIZE = 32
+INV_NOISE_FRACTION = 0.01
+_INV_BUILDERS = {
+    "heat": (lambda: backward_heat_problem(INV_SIZE, time=0.005), 11),
+    "deriv2": (lambda: second_derivative_problem(INV_SIZE), 13),
+}
+
+
+def inverse_data(name: str, seed: int) -> tuple[Any, tuple[float, ...], float]:
+    """Return a test problem, its noisy data, and the realized noise norm.
+
+    White noise with standard deviation 1 % of the root-mean-square of the
+    exact data, drawn from ``random.Random`` seeded by ``seed`` and the
+    problem.
+    """
+    build, offset = _INV_BUILDERS[name]
+    problem = build()
+    exact = problem.exact_data
+    scale = INV_NOISE_FRACTION * math.sqrt(math.fsum(b * b for b in exact) / len(exact))
+    generator = random.Random(3_000_017 * seed + offset)
+    noise = [generator.gauss(0.0, scale) for _ in exact]
+    data = tuple(b + e for b, e in zip(exact, noise, strict=True))
+    return problem, data, math.sqrt(math.fsum(e * e for e in noise))
+
+
+def _inverse(
+    name: str, exact: Callable[[int], tuple[float, ...]]
+) -> Callable[[int], Instance]:
+    """Return the builder of one Tikhonov benchmark instance."""
+
+    def build(seed: int) -> Instance:
+        """Build the problem, its noisy data, and the independent exact solution."""
+        problem, data, noise_norm = inverse_data(name, seed)
+        return Instance(
+            CostCounter(),
+            {
+                "problem": problem,
+                "data": data,
+                "noise_norm": noise_norm,
+                "exact": exact(INV_SIZE),
+            },
+        )
+
+    return build
+
+
+# ---------------------------------------------------------------------------
+# Data assimilation
+# ---------------------------------------------------------------------------
+
+TRACK_STEPS = 20
+TRACK_Q = 0.05
+TRACK_R = 1.0
+TRACK_F = ((1.0, 1.0), (0.0, 1.0))
+TRACK_Q_MATRIX = ((TRACK_Q / 3.0, TRACK_Q / 2.0), (TRACK_Q / 2.0, TRACK_Q))
+TRACK_M0 = (0.0, 1.0)
+TRACK_P0 = ((1.0, 0.0), (0.0, 0.5))
+
+
+def tracking_model() -> LinearGaussianStateSpace:
+    """Return the constant-velocity model observed through its position."""
+    return LinearGaussianStateSpace(
+        TRACK_F, TRACK_Q_MATRIX, ((1.0, 0.0),), ((TRACK_R,),), TRACK_M0, TRACK_P0
+    )
+
+
+def tracking_data(seed: int) -> tuple[float, ...]:
+    """Simulate the tracking observations with ``random.Random`` (no probstat)."""
+    generator = random.Random(2_000_003 * seed + 29)
+    x0 = TRACK_M0[0] + math.sqrt(TRACK_P0[0][0]) * generator.gauss(0.0, 1.0)
+    x1 = TRACK_M0[1] + math.sqrt(TRACK_P0[1][1]) * generator.gauss(0.0, 1.0)
+    # Cholesky factor of Q = q [[1/3, 1/2], [1/2, 1]].
+    l00 = math.sqrt(TRACK_Q_MATRIX[0][0])
+    l10 = TRACK_Q_MATRIX[1][0] / l00
+    l11 = math.sqrt(TRACK_Q_MATRIX[1][1] - l10 * l10)
+    observations = []
+    for _ in range(TRACK_STEPS):
+        z0, z1 = generator.gauss(0.0, 1.0), generator.gauss(0.0, 1.0)
+        x0, x1 = x0 + x1 + l00 * z0, x1 + l10 * z0 + l11 * z1
+        observations.append(x0 + math.sqrt(TRACK_R) * generator.gauss(0.0, 1.0))
+    return tuple(observations)
+
+
+def _build_tracking(seed: int) -> Instance:
+    """Build the tracking problem for one data set."""
+    return Instance(
+        CostCounter(),
+        {"state_space": tracking_model(), "observations": tracking_data(seed)},
+    )
+
+
+def _tracking_references(seed: int) -> Mapping[str, Reference]:
+    """Return the exact final Kalman mean and standard deviations."""
+    mean, covariance = ref.kalman_filter_2d(
+        TRACK_F, TRACK_Q_MATRIX, TRACK_R, TRACK_M0, TRACK_P0, tracking_data(seed)
+    )
+    values: dict[str, Reference] = {}
+    for i, name in enumerate(("pos", "vel")):
+        sd = math.sqrt(covariance[i][i])
+        values[f"mean[{name}]"] = Reference(mean[i], sd)
+        values[f"sd[{name}]"] = Reference(sd)
+    return values
+
+
+L96_DIMENSION = 40
+L96_CYCLES = 40
+L96_BURN = 15
+
+
+def _lorenz96_spun_up() -> tuple[float, ...]:
+    """Return the Lorenz-96 state after 400 steps from ``x_i = 8, x_0 = 8.01``."""
+    start = tuple(8.0 + (0.01 if i == 0 else 0.0) for i in range(L96_DIMENSION))
+    return integrate_fixed_step(
+        lorenz96_rhs, 0.0, start, step=0.05, steps=400
+    ).final_state
+
+
+def _build_lorenz96(seed: int) -> Instance:
+    """Build one Lorenz-96 twin experiment (truth simulated from ``seed``)."""
+    model = lorenz96(initial_mean=_lorenz96_spun_up())
+    truth = simulate(model, L96_CYCLES, seed=seed)
+    return Instance(CostCounter(), {"state_space": model, "truth": truth})
+
+
+# ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
@@ -681,5 +848,72 @@ def registry() -> tuple[Problem, ...]:
             {"mean": "scaled", "sd": "relative", "theta": "scaled"},
             frozenset({"calibration"}),
             2,
+        ),
+        Problem(
+            "heat-tikhonov",
+            "inverse",
+            "Backward heat problem, n = 32",
+            "Recover the initial temperature (27/4) s (1 - s)^2 from its state "
+            "after diffusion time 0.005 (singular values exp(-T mu_k), condition "
+            "number 2.6e9), 1 % white noise drawn per seed; the error is "
+            "||x - x_exact|| / ||x_exact||.",
+            "Exact solution in closed form (benchmarks.references); the error-"
+            "optimal Tikhonov row scans 121 log-spaced lambda in [1e-6, 1] against "
+            "it. Cost: candidate lambda values evaluated (grid points of the "
+            "rule, plus one solve).",
+            _inverse("heat", ref.backward_heat_solution),
+            _constant({"relerr": 0.0}),
+            {"relerr": "absolute"},
+            frozenset({"severely-ill-posed"}),
+            INV_SIZE,
+        ),
+        Problem(
+            "deriv2-tikhonov",
+            "inverse",
+            "deriv2 (second-derivative kernel), n = 32",
+            "Recover f(t) = t from the midpoint discretization of the Green's "
+            "function of the second derivative (singular values ~ k^-2), 1 % "
+            "white noise drawn per seed; the error is ||x - x_exact|| / "
+            "||x_exact||.",
+            "Exact solution f(t_i) = t_i (benchmarks.references); same oracle "
+            "scan and cost as the heat problem.",
+            _inverse("deriv2", ref.deriv2_solution),
+            _constant({"relerr": 0.0}),
+            {"relerr": "absolute"},
+            frozenset({"mildly-ill-posed"}),
+            INV_SIZE,
+        ),
+        Problem(
+            "linear-tracking",
+            "assimilation",
+            "Constant-velocity tracking, 20 steps",
+            "x_k = F x_(k-1) + w_k with F = [[1, 1], [0, 1]], white-acceleration "
+            f"Q (q = {TRACK_Q}), position observed with r = {TRACK_R}; data "
+            "simulated per seed with the standard library. Quantities: final "
+            "analysis mean (error in exact posterior sd) and sd.",
+            "Exact Kalman filter written with plain 2 x 2 algebra "
+            "(benchmarks.references.kalman_filter_2d). Cost: member forecasts.",
+            _build_tracking,
+            _tracking_references,
+            {"mean": "scaled", "sd": "relative"},
+            frozenset({"linear-tracking"}),
+            2,
+        ),
+        Problem(
+            "lorenz96-twin",
+            "assimilation",
+            "Lorenz-96 twin experiment, J = 40",
+            "F = 8, every component observed with R = I each 0.05 time units, "
+            "truth simulated from a spun-up state per seed. Quantities: analysis "
+            "RMSE against the truth (observation error 1) and spread / RMSE "
+            "(1 for a calibrated ensemble), averaged over cycles 16-40 of 40.",
+            "The simulated truth itself (RMSE reference 0, spread ratio 1); "
+            "no threshold applies, so the findings skip this problem.",
+            _build_lorenz96,
+            _constant({"rmse": 0.0, "spread_ratio": 1.0}),
+            {"rmse": "absolute", "spread_ratio": "relative"},
+            frozenset({"lorenz96", "unscored"}),
+            L96_DIMENSION,
+            full_only=True,
         ),
     )

@@ -18,7 +18,12 @@ if str(ROOT) not in sys.path:
 
 from benchmarks import harness, methods, problems, references, report  # noqa: E402
 from benchmarks import run as runner  # noqa: E402
-from probstat.inverse import calibrate_linear_gaussian  # noqa: E402
+from probstat.filtering import kalman_filter  # noqa: E402
+from probstat.inverse import (  # noqa: E402
+    backward_heat_problem,
+    calibrate_linear_gaussian,
+    second_derivative_problem,
+)
 from probstat.modeling import gauss_hermite, standard_normal_cdf  # noqa: E402
 from probstat.multivariate import MultivariateNormal  # noqa: E402
 from probstat.reliability import gauss_legendre  # noqa: E402
@@ -332,6 +337,60 @@ class CalibrationReferenceTests(unittest.TestCase):
         self.assertAlmostEqual(references.normal_quantile(0.95), 1.6448536269514722)
 
 
+class InverseAndAssimilationReferenceTests(unittest.TestCase):
+    """Closed-form solutions and the plain Kalman filter match the library."""
+
+    def test_exact_solutions_match_the_test_problems(self) -> None:
+        """The independent closed forms equal the library's exact solutions."""
+        pairs = (
+            (references.backward_heat_solution(32), backward_heat_problem(32)),
+            (references.deriv2_solution(32), second_derivative_problem(32)),
+        )
+        for independent, problem in pairs:
+            with self.subTest(problem=problem.name):
+                self.assertEqual(len(independent), len(problem.exact_solution))
+                for a, b in zip(independent, problem.exact_solution, strict=True):
+                    self.assertAlmostEqual(a, b, delta=1e-14)
+
+    def test_plain_kalman_filter_matches_the_library(self) -> None:
+        """The 2 x 2 reference filter equals kalman_filter to 1e-10."""
+        for seed in (1, 2, 3):
+            observations = problems.tracking_data(seed)
+            final = kalman_filter(
+                problems.tracking_model(), [(y,) for y in observations]
+            ).filtered[-1]
+            refs = REGISTRY["linear-tracking"].references(seed)
+            for i, name in enumerate(("pos", "vel")):
+                with self.subTest(seed=seed, component=name):
+                    self.assertAlmostEqual(
+                        refs[f"mean[{name}]"].value, final.mean[i], delta=1e-10
+                    )
+                    self.assertAlmostEqual(
+                        refs[f"sd[{name}]"].value,
+                        math.sqrt(final.covariance[i][i]),
+                        delta=1e-10,
+                    )
+
+    def test_noise_and_tracking_data_are_seeded(self) -> None:
+        """Equal seeds reproduce the data; different seeds change them."""
+        self.assertEqual(problems.tracking_data(3), problems.tracking_data(3))
+        self.assertNotEqual(problems.tracking_data(3), problems.tracking_data(4))
+        _, first, norm = problems.inverse_data("heat", 2)
+        _, again, _ = problems.inverse_data("heat", 2)
+        self.assertEqual(first, again)
+        self.assertGreater(norm, 0.0)
+
+    def test_every_category_has_seed_counts_and_a_title(self) -> None:
+        """New categories are wired into both modes and the report."""
+        self.assertIn("inverse", problems.CATEGORIES)
+        self.assertIn("assimilation", problems.CATEGORIES)
+        for mode in ("quick", "full"):
+            self.assertEqual(
+                set(methods.SIZES[mode]["seeds"]), set(problems.CATEGORIES)
+            )
+        self.assertEqual(set(report.CATEGORY_TITLES), set(problems.CATEGORIES))
+
+
 def _broken(*args: object) -> methods.MethodOutput:
     """Raise like a buggy method would."""
     raise RuntimeError("deliberate failure for the test")
@@ -505,6 +564,71 @@ class HarnessTests(unittest.TestCase):
         self.assertLess(by_quantity["mean[a]"]["scaled_error"], 1e-5)
         self.assertLess(abs(by_quantity["sd[b]"]["rel_error"]), 1e-5)
         self.assertIsNotNone(by_quantity["theta[a]"]["covered"])
+
+    def test_inverse_records(self) -> None:
+        """The oracle bounds every rule; the discrepancy rule is near it."""
+        chosen = {m.name: m for m in methods.registry()}
+        names = (
+            "Tikhonov, error-optimal lambda (oracle)",
+            "Tikhonov + discrepancy principle",
+            "TSVD + discrepancy principle",
+        )
+        records = harness.run_benchmarks(
+            (REGISTRY["heat-tikhonov"],),
+            tuple(chosen[name] for name in names),
+            self.sizes,
+            seeds={"inverse": 1},
+        )
+        by_method = {r["method"]: r for r in records}
+        for name in names:
+            with self.subTest(method=name):
+                self.assertEqual(by_method[name]["status"], "ok")
+                self.assertGreater(by_method[name]["evaluations"], 0)
+        oracle = by_method[names[0]]["abs_error"]
+        discrepancy = by_method[names[1]]["abs_error"]
+        self.assertGreater(oracle, 0.0)
+        # The oracle minimizes over a grid; the rule cannot beat it by more
+        # than the grid spacing allows, and stays within a factor of three.
+        self.assertLess(oracle, 1.05 * discrepancy)
+        self.assertLess(discrepancy, 3.0 * oracle)
+        text = report.render(
+            {
+                "command": "test",
+                "mode": "quick",
+                "generated_utc": "now",
+                "total_time_s": 0.0,
+                "platform": "test",
+                "python": "3",
+                "seeds": {"inverse": 1},
+            },
+            (REGISTRY["heat-tikhonov"],),
+            harness.aggregate(records, (REGISTRY["heat-tikhonov"],)),
+        )
+        self.assertIn("## Inverse problems: regularization", text)
+        self.assertIn("Relative error (median)", text)
+
+    def test_tracking_records(self) -> None:
+        """The library Kalman filter is exact; the ETKF is close at N = 50."""
+        chosen = {m.name: m for m in methods.registry()}
+        records = harness.run_benchmarks(
+            (REGISTRY["linear-tracking"],),
+            (chosen["Kalman filter (library)"], chosen["ETKF"]),
+            self.sizes,
+            seeds={"assimilation": 1},
+        )
+        kalman = {
+            r["quantity"]: r
+            for r in records
+            if r["method"] == "Kalman filter (library)"
+        }
+        self.assertLess(kalman["mean[pos]"]["scaled_error"], 1e-8)
+        self.assertLess(kalman["sd[vel]"]["rel_error"], 1e-8)
+        etkf = {r["quantity"]: r for r in records if r["method"] == "ETKF"}
+        self.assertEqual(etkf["mean[pos]"]["status"], "ok")
+        self.assertEqual(etkf["mean[pos]"]["evaluations"], 50 * 20)
+        # Sampling error of 50 members: well under two posterior sds.
+        self.assertLess(etkf["mean[pos]"]["scaled_error"], 2.0)
+        self.assertLess(etkf["sd[pos]"]["rel_error"], 0.5)
 
     def test_command_line_end_to_end(self) -> None:
         """run.py writes JSON and Markdown and exits 0 on a small selection."""
