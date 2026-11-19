@@ -482,8 +482,8 @@ Index, numerical uncertainty, prediction with separate uncertainty
 components, and forward versus inverse problems.
 
 - Requires: none
-- Lab: [`examples/uq_workflow_lab.py`](../examples/uq_workflow_lab.py)
-- Decision record: [ADR-0007](adr/ADR-0007-auditable-vv-uq-curriculum.md), [ADR-0026](adr/ADR-0026-solution-verification-and-uncertainty-components.md)
+- Lab: [`examples/uq_workflow_lab.py`](../examples/uq_workflow_lab.py), [`examples/parachute_vvuq_lab.py`](../examples/parachute_vvuq_lab.py) (the course's parachuted package: code and solution verification of an ODE simulator, step choice, propagation, and model-error structures)
+- Decision record: [ADR-0007](adr/ADR-0007-auditable-vv-uq-curriculum.md), [ADR-0026](adr/ADR-0026-solution-verification-and-uncertainty-components.md), [ADR-0109](adr/ADR-0109-ode-integration.md)
 
 ### U2 — Uncertainty modeling and fitting (UQ-1)
 

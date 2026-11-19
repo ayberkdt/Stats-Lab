@@ -3,6 +3,33 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [Unreleased]
+
+### Added
+
+- **ODE integration to an event:** `numerics.integrate_to_event` advances
+  `y' = f(t, y)` with a fixed step by explicit Euler, Heun, or classical
+  fourth-order Runge-Kutta until an event function changes sign, and locates
+  the crossing at the first grid point, by linear interpolation, or on the
+  cubic Hermite interpolant of the last step (Illinois root finding). Only
+  the Hermite location keeps the order of every method; the other two are
+  offered so that a verification study can expose them. Returns an
+  `EventSolution` with the event time and state, work counts, and
+  optionally the path (ADR-0109).
+- **Parachuted-package laboratory** (`examples/parachute_vvuq_lab.py`): the
+  example of the ATHENS course "Introduction to V&V-UQ" worked end to end.
+  Code verification against the closed-form landing under linear drag
+  (Lambert W; observed orders 1.0, 2.0, and 4.3 for Euler, Heun, and RK4),
+  the drag-free parabola, and the terminal speed; solution verification of
+  the quadratic-drag Euler simulator with the GCI, least squares, and
+  Richardson extrapolation; choice of the step from a verified error bound
+  and the Euler stability limit; randomized Sobol propagation and Sobol
+  indices; validation against a synthetic truth with a power-law wind
+  profile, with three model-error structures fitted on one campaign and
+  judged on another. The interval from the parametric uncertainty alone
+  covers 75% of the true landings; a bias proportional to the wind restores
+  90%.
+
 ## [0.24.0] — 2026-11-18
 
 Risk analysis and sensitivity analysis gain the methods of the ATHENS

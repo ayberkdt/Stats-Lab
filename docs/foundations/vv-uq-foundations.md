@@ -83,6 +83,52 @@ grid-refinement study is then a designed computational experiment in which
 only one setting varies; `refinement_study` runs it and hands the QoI sequence
 to `verify_solution`.
 
+## Code verification of a time integrator
+
+Code verification asks whether the solver converges at its theoretical order
+on a problem whose exact solution is known; solution verification then
+estimates the error on the real problem, which has none. For a simulator
+that integrates `y' = f(t, y)` until an event (the package reaches the
+ground, the tank is empty), `numerics.integrate_to_event` offers explicit
+Euler, Heun, and classical Runge-Kutta steps [EQ-NUM-ODE-001] and three ways
+of locating the event in the last step [EQ-NUM-ODE-002]. The location rule
+matters as much as the method: stopping at the first grid point past the
+event caps every method at order one, linear interpolation at order two, and
+only the cubic Hermite interpolant keeps order four.
+
+```python
+import math
+from probstat.numerics import integrate_to_event
+
+
+def decay(t, y):
+    return [-y[0]]
+
+
+def half(t, y):
+    return y[0] - 0.5
+
+
+def observed_order(location):
+    errors = [
+        abs(
+            integrate_to_event(decay, [1.0], half, step=h, location=location).time
+            - math.log(2.0)
+        )
+        for h in (0.1, 0.05)
+    ]
+    return math.log2(errors[0] / errors[1])
+
+
+round(observed_order("hermite"), 1)   # 4.2
+round(observed_order("linear"), 1)    # 1.1 here: irregular, far below 4
+```
+
+`examples/parachute_vvuq_lab.py` applies both steps to the parachuted
+package of [REF-PERRIN-ATHENS-VVUQ]: code verification against the
+closed-form landing under linear drag, then solution verification, step
+choice, propagation, and validation of the quadratic-drag model.
+
 ## Solution verification: the Grid Convergence Index
 
 `grid_convergence_index` implements the three-grid procedure of Celik et al.

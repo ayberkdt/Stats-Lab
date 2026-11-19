@@ -83,7 +83,7 @@ one at the precision shown.
 | Check | Scale | Enforced by |
 |---|---|---|
 | Tests | 2,500+ test cases, run in CI on Python 3.11 to 3.13 with lint and strict type checks | [`tests/`](https://github.com/ayberkdt/Stats-Lab/tree/main/tests), [CI workflow](https://github.com/ayberkdt/Stats-Lab/blob/main/.github/workflows/ci.yml) |
-| Equations | 1,209 entries in the [equation registry](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/equation-registry.md), each with symbols, assumptions, and a code location | every docstring cites an `EQ-` or `REF-` key that must exist |
+| Equations | 1,217 entries in the [equation registry](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/equation-registry.md), each with symbols, assumptions, and a code location | every docstring cites an `EQ-` or `REF-` key that must exist |
 | Sources | 600+ primary sources in the [bibliography](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/references.md), each cited at least once | no unused or unknown reference key |
 | Decisions | 100+ decision records in [`docs/adr/`](https://github.com/ayberkdt/Stats-Lab/tree/main/docs/adr), each with its verification evidence | [contribution contract](https://github.com/ayberkdt/Stats-Lab/blob/main/CONTRIBUTING.md) |
 | Documentation | 50+ Markdown files whose Python examples run, with quoted values compared | [`tests/test_documentation_examples.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/test_documentation_examples.py) |
@@ -196,7 +196,7 @@ of the learning path.
 ## Visual tour: every figure states its finding in its title
 
 Every lab in [`examples/`](https://github.com/ayberkdt/Stats-Lab/tree/main/examples)
-(37 of them) is seeded and reproducible and writes its figures to
+(38 of them) is seeded and reproducible and writes its figures to
 `examples/generated/`; every guide in
 [`docs/foundations/`](https://github.com/ayberkdt/Stats-Lab/tree/main/docs/foundations)
 shows its own checked figures. All figures share one theme: colour follows
@@ -236,7 +236,7 @@ A package imports only from its own layer or a lower one, and the
 architecture test rejects every upward import and import cycle. The diagram
 is generated from that test's layer map by
 [`tools/build_readme_figures.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/tools/build_readme_figures.py).
-33 packages and 1,816 public names, all documented in the
+33 packages and 1,821 public names, all documented in the
 [API reference](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/api-reference.md).
 
 | Area | Packages | Highlights |
