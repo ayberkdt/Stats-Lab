@@ -302,7 +302,8 @@ def ensemble_kalman_inversion(
         Final ensemble with its iteration history.
 
     Raises:
-        TypeError: If ``problem`` is not a :class:`CalibrationProblem`.
+        TypeError: If ``problem`` is not a :class:`CalibrationProblem` or
+            ``perturb_observations`` is not a bool.
         ValueError: For unknown-noise or Student-t problems, ``N < 2``,
             ``iterations < 1``, an unknown ``stopping`` rule,
             ``discrepancy_factor < 1``, or a non-positive ``noise_level``.
@@ -389,7 +390,8 @@ def ensemble_smoother_mda(
         its misfit).
 
     Raises:
-        TypeError: If ``problem`` is not a :class:`CalibrationProblem`.
+        TypeError: If ``problem`` is not a :class:`CalibrationProblem` or
+            ``inflation_coefficients`` is a string.
         ValueError: For unknown-noise or Student-t problems, ``N < 2``, an
             empty, non-positive, or non-finite inflation sequence, or
             ``sum 1/alpha_i != 1``.
