@@ -33,7 +33,7 @@ import math
 from collections.abc import Callable, Sequence
 from typing import Any
 
-from probstat.linalg import Matrix, Vector
+from probstat.linalg import Matrix, Vector, as_matrix, as_vector
 from probstat.numerics import integrate_fixed_step, jacobian
 
 from .state_space import NonlinearStateSpace
@@ -267,12 +267,16 @@ def _assemble(
     return NonlinearStateSpace(
         transition,
         observation,
-        _diagonal(size, 0.0) if process_covariance is None else process_covariance,
+        _diagonal(size, 0.0)
+        if process_covariance is None
+        else as_matrix(process_covariance, name="process_covariance"),
         _diagonal(observed, 1.0)
         if observation_covariance is None
-        else observation_covariance,
-        initial_mean,
-        _diagonal(size, 1.0) if initial_covariance is None else initial_covariance,
+        else as_matrix(observation_covariance, name="observation_covariance"),
+        as_vector(initial_mean, name="initial_mean"),
+        _diagonal(size, 1.0)
+        if initial_covariance is None
+        else as_matrix(initial_covariance, name="initial_covariance"),
         state_dimension=size,
         observation_dimension=observed,
         transition_jacobian_function=transition_jacobian,

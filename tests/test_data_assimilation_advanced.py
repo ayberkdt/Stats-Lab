@@ -163,13 +163,11 @@ def _random_problem(seed: int, size: int, dimension: int, observed: int):
     stream = random.Random(seed)
     ensemble = Ensemble(
         tuple(
-            tuple(stream.gauss(0.0, 1.0) for _ in range(dimension))
-            for _ in range(size)
+            tuple(stream.gauss(0.0, 1.0) for _ in range(dimension)) for _ in range(size)
         )
     )
     operator = tuple(
-        tuple(stream.gauss(0.0, 1.0) for _ in range(dimension))
-        for _ in range(observed)
+        tuple(stream.gauss(0.0, 1.0) for _ in range(dimension)) for _ in range(observed)
     )
     noise = tuple(
         tuple(0.3 + 0.1 * i if i == j else 0.0 for j in range(observed))
@@ -181,7 +179,9 @@ def _random_problem(seed: int, size: int, dimension: int, observed: int):
 
 def _apply(operator):
     """Return the linear map ``x -> A x``."""
-    return lambda x: tuple(sum(a * b for a, b in zip(row, x)) for row in operator)
+    return lambda x: tuple(
+        sum(a * b for a, b in zip(row, x, strict=True)) for row in operator
+    )
 
 
 def _kalman_from_ensemble(ensemble, operator, noise, data) -> GaussianState:
@@ -222,7 +222,10 @@ class SquareRootAnalysisTests(unittest.TestCase):
                 _close(self, analysis.ensemble.mean, exact.mean, rel=1e-10)
                 _close(self, analysis.ensemble.covariance, exact.covariance, rel=1e-10)
                 _close(
-                    self, _transformed(ensemble, analysis), analysis.ensemble.members, 1e-10
+                    self,
+                    _transformed(ensemble, analysis),
+                    analysis.ensemble.members,
+                    1e-10,
                 )
                 self.assertEqual(analysis.method, "etkf")
 
@@ -247,7 +250,10 @@ class SquareRootAnalysisTests(unittest.TestCase):
                 _close(self, analysis.ensemble.mean, exact.mean, rel=1e-10)
                 _close(self, analysis.ensemble.covariance, exact.covariance, rel=1e-10)
                 _close(
-                    self, _transformed(ensemble, analysis), analysis.ensemble.members, 1e-10
+                    self,
+                    _transformed(ensemble, analysis),
+                    analysis.ensemble.members,
+                    1e-10,
                 )
 
     def test_eakf_requires_diagonal_noise_and_spread(self) -> None:
@@ -275,7 +281,9 @@ class SquareRootAnalysisTests(unittest.TestCase):
         ensemble, operator, noise, data = _random_problem(6, 6, 3, 1)
         localization = Localization((0.0, 1.0, 50.0), (0.0,), 2.0)
         analysis = letkf_analysis(ensemble, data, _apply(operator), noise, localization)
-        for before, after in zip(ensemble.members, analysis.ensemble.members):
+        for before, after in zip(
+            ensemble.members, analysis.ensemble.members, strict=True
+        ):
             self.assertEqual(before[2], after[2])
             self.assertNotEqual(before[0], after[0])
 
@@ -298,7 +306,7 @@ class LocalizationTests(unittest.TestCase):
         self.assertAlmostEqual(gaspari_cohn(0.5 * c, c), 263.0 / 384.0, places=13)
         self.assertAlmostEqual(gaspari_cohn(1.5 * c, c), 19.0 / 1152.0, places=13)
         values = [gaspari_cohn(0.01 * c * k, c) for k in range(201)]
-        self.assertTrue(all(a >= b for a, b in zip(values, values[1:])))
+        self.assertTrue(all(a >= b for a, b in zip(values, values[1:], strict=False)))
         self.assertEqual(gaspari_cohn(1e6, math.inf), 1.0)
         with self.assertRaises(ValueError):
             gaspari_cohn(1.0, 0.0)
@@ -388,7 +396,9 @@ class RelaxationTests(unittest.TestCase):
     def test_rtpp(self) -> None:
         """The mean is kept; alpha = 0 and 1 give analysis and forecast anomalies."""
         analysis = self.analysis.ensemble
-        self.assertIs(relax_to_prior_perturbations(self.forecast, analysis, 0.0), analysis)
+        self.assertIs(
+            relax_to_prior_perturbations(self.forecast, analysis, 0.0), analysis
+        )
         relaxed = relax_to_prior_perturbations(self.forecast, analysis, 1.0)
         _close(self, relaxed.mean, analysis.mean, rel=1e-12)
         _close(self, relaxed.covariance, self.forecast.covariance, rel=1e-10)
@@ -485,7 +495,9 @@ class FilterOptionTests(unittest.TestCase):
         local = ensemble_kalman_filter(
             model, data, ensemble_size=6, seed=8, analysis="letkf", localization=wide
         )
-        global_ = ensemble_kalman_filter(model, data, ensemble_size=6, seed=8, analysis="etkf")
+        global_ = ensemble_kalman_filter(
+            model, data, ensemble_size=6, seed=8, analysis="etkf"
+        )
         self.assertEqual(local.ensemble.members, global_.ensemble.members)
         self.assertEqual(local.analysis_means, global_.analysis_means)
 
@@ -493,8 +505,12 @@ class FilterOptionTests(unittest.TestCase):
         """Both square-root filters give the same moments for diagonal ``R``."""
         model, _ = _two_tracks()
         data = simulate(model, 5, seed=4).observations
-        etkf = ensemble_kalman_filter(model, data, ensemble_size=8, seed=1, analysis="etkf")
-        eakf = ensemble_kalman_filter(model, data, ensemble_size=8, seed=1, analysis="eakf")
+        etkf = ensemble_kalman_filter(
+            model, data, ensemble_size=8, seed=1, analysis="etkf"
+        )
+        eakf = ensemble_kalman_filter(
+            model, data, ensemble_size=8, seed=1, analysis="eakf"
+        )
         _close(self, eakf.analysis_means, etkf.analysis_means, rel=1e-8)
         _close(self, eakf.analysis_covariances, etkf.analysis_covariances, rel=1e-8)
 
@@ -531,7 +547,12 @@ class SmootherTests(unittest.TestCase):
             for size in (100, 1600):
                 with self.subTest(analysis=analysis, size=size):
                     result = ensemble_kalman_smoother(
-                        model, data, ensemble_size=size, lag=10, seed=5, analysis=analysis
+                        model,
+                        data,
+                        ensemble_size=size,
+                        lag=10,
+                        seed=5,
+                        analysis=analysis,
                     )
                     for k in (0, 5, 10):
                         for i in range(2):
@@ -580,7 +601,9 @@ class FixedStepTrajectoryTests(unittest.TestCase):
         self.assertEqual(trajectory.evaluations, 40)
         t = trajectory.times[-1]
         _close(self, trajectory.final_state, (t - 0.5, t * t), rel=1e-13)
-        empty = integrate_fixed_step(lambda t, y: (y[0],), 0.0, (1.0,), step=0.1, steps=0)
+        empty = integrate_fixed_step(
+            lambda t, y: (y[0],), 0.0, (1.0,), step=0.1, steps=0
+        )
         self.assertEqual(empty.states, ((1.0,),))
         for kwargs in (
             {"step": 0.0, "steps": 1},
@@ -601,8 +624,10 @@ class FixedStepTrajectoryTests(unittest.TestCase):
             final = integrate_fixed_step(
                 lorenz63_rhs, 0.0, start, step=0.2 / steps, steps=steps
             ).final_state
-            errors.append(max(abs(a - b) for a, b in zip(final, reference)))
-        for coarse, fine in zip(errors, errors[1:]):
+            errors.append(
+                max(abs(a - b) for a, b in zip(final, reference, strict=True))
+            )
+        for coarse, fine in zip(errors, errors[1:], strict=False):
             self.assertGreater(math.log2(coarse / fine), 3.6)
             self.assertLess(math.log2(coarse / fine), 4.4)
 
@@ -632,7 +657,7 @@ class LorenzModelTests(unittest.TestCase):
 
     def test_lorenz63_fixed_points(self) -> None:
         """The origin and ``C+-`` are equilibria of the tendency."""
-        sigma, rho, beta = 10.0, 28.0, 8.0 / 3.0
+        rho, beta = 28.0, 8.0 / 3.0
         root = math.sqrt(beta * (rho - 1.0))
         self.assertEqual(lorenz63_rhs(0.0, (0.0, 0.0, 0.0)), (0.0, 0.0, 0.0))
         for sign in (1.0, -1.0):
@@ -660,7 +685,9 @@ class LorenzModelTests(unittest.TestCase):
             self.assertEqual(model.transition(rolled), expected)
             self.assertEqual(
                 lorenz96_rhs(0.0, rolled),
-                tuple(lorenz96_rhs(0.0, state)[shift:] + lorenz96_rhs(0.0, state)[:shift]),
+                tuple(
+                    lorenz96_rhs(0.0, state)[shift:] + lorenz96_rhs(0.0, state)[:shift]
+                ),
             )
         sparse = lorenz96(observe_every=4)
         self.assertEqual(sparse.observation_dimension, 10)
@@ -711,7 +738,9 @@ class LorenzTwinExperimentTests(unittest.TestCase):
                 math.sqrt(
                     sum(
                         (a - b) ** 2
-                        for a, b in zip(result.analysis_means[k], truth.states[k])
+                        for a, b in zip(
+                            result.analysis_means[k], truth.states[k], strict=True
+                        )
                     )
                     / 40
                 )

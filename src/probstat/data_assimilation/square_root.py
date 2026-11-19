@@ -262,9 +262,7 @@ def _transform_weights(
     transform = [
         [
             (1.0 if i == j else 0.0)
-            + math.fsum(
-                basis[i][k] * corrections[k] * basis[j][k] for k in range(p)
-            )
+            + math.fsum(basis[i][k] * corrections[k] * basis[j][k] for k in range(p))
             for j in range(count)
         ]
         for i in range(count)
@@ -296,9 +294,7 @@ def _apply_weights(
     count = len(values)
     center = math.fsum(values) / count
     anomalies = [value - center for value in values]
-    combined = [
-        [mean[k] + transform[k][i] for i in range(count)] for k in range(count)
-    ]
+    combined = [[mean[k] + transform[k][i] for i in range(count)] for k in range(count)]
     updated = [
         center + math.fsum(anomalies[k] * combined[k][i] for k in range(count))
         for i in range(count)
@@ -307,9 +303,7 @@ def _apply_weights(
         math.fsum(combined[k][i] for k in range(count)) / count for i in range(count)
     ]
     weights = tuple(
-        tuple(
-            1.0 / count + combined[k][i] - column_means[i] for i in range(count)
-        )
+        tuple(1.0 / count + combined[k][i] - column_means[i] for i in range(count))
         for k in range(count)
     )
     return updated, weights
@@ -507,7 +501,8 @@ def eakf_analysis(
         for row in rows:
             row_center = math.fsum(row) / count
             covariance = math.fsum(
-                (value - row_center) * d for value, d in zip(row, deviations, strict=True)
+                (value - row_center) * d
+                for value, d in zip(row, deviations, strict=True)
             ) / (count - 1)
             slope = covariance / spread
             if slope != 0.0:

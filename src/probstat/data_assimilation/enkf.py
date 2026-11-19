@@ -25,7 +25,6 @@ from probstat.foundations.validation import require_finite_real
 from probstat.linalg import (
     Matrix,
     Vector,
-    as_matrix,
     as_vector,
     cholesky,
     cholesky_semidefinite,

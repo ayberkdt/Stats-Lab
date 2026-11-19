@@ -162,7 +162,9 @@ def _settings(
     if factor < 1.0:
         raise ValueError("inflation must be at least one")
     if analysis not in ANALYSIS_METHODS:
-        raise ValueError(f"analysis must be one of {ANALYSIS_METHODS}, got {analysis!r}")
+        raise ValueError(
+            f"analysis must be one of {ANALYSIS_METHODS}, got {analysis!r}"
+        )
     if localization is not None:
         if not isinstance(localization, Localization):
             raise TypeError("localization must be a Localization")

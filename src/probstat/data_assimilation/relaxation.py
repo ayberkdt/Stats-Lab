@@ -235,14 +235,14 @@ def relax_to_prior_perturbations(
                 m + (1.0 - alpha) * (a - m) + alpha * (f - p)
                 for a, m, f, p in zip(member, center, previous, prior, strict=True)
             )
-            for member, previous in zip(
-                analysis.members, forecast.members, strict=True
-            )
+            for member, previous in zip(analysis.members, forecast.members, strict=True)
         )
     )
 
 
-def _spread_factors(forecast: Ensemble, analysis: Ensemble, alpha: float) -> list[float]:
+def _spread_factors(
+    forecast: Ensemble, analysis: Ensemble, alpha: float
+) -> list[float]:
     """Return the RTPS factors ``alpha (sigma^f - sigma^a) / sigma^a + 1``.
 
     A component with zero analysis spread has zero anomalies, which no
