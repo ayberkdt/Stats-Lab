@@ -96,6 +96,16 @@
       "physical": "0.590"
     }
   },
+  "pcn-acceptance-dimension": {
+    "guide": "nonlinear-calibration-and-mcmc",
+    "alt": "Acceptance rates of preconditioned Crank-Nicolson and random-walk Metropolis against the dimension of a discretized random field",
+    "facts": {
+      "pcn_10": "0.204",
+      "pcn_200": "0.186",
+      "rwm_10": "0.245",
+      "rwm_200": "0.060"
+    }
+  },
   "ppl-beta-binomial-posterior": {
     "guide": "probabilistic-programming",
     "alt": "Histogram of NUTS draws of a success probability over the exact Beta posterior density and the dashed Beta prior",
@@ -111,6 +121,17 @@
     "facts": {
       "exact": "4.8425",
       "gap": "0.021"
+    }
+  },
+  "smc-tempering-schedule": {
+    "guide": "nonlinear-calibration-and-mcmc",
+    "alt": "Two panels: SMC temperature against stage on a log axis, and the effective sample size fraction and acceptance rate per stage",
+    "facts": {
+      "stages": "7",
+      "first": "0.0010",
+      "growth": "3.5",
+      "evidence": "13.24",
+      "se": "0.088"
     }
   },
   "transport-plane-coupling": {

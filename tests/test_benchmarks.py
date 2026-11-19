@@ -152,7 +152,8 @@ class ReliabilityReferenceTests(unittest.TestCase):
         self.assertEqual(problem.dimension, 100)
         self.assertEqual(reference("linear-100d", "Pf"), references.normal_tail(3.5))
         self.assertEqual(
-            [p.key for p in problems.registry() if p.full_only], ["linear-100d"]
+            [p.key for p in problems.registry() if p.full_only],
+            ["linear-100d", "lorenz96-twin"],
         )
 
     def test_lognormal_closed_form_matches_quadrature(self) -> None:

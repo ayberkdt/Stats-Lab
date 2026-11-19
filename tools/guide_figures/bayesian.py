@@ -42,6 +42,7 @@ from probstat.inference import (
     posterior_predictive,
     posterior_predictive_check,
     ppl,
+    preconditioned_crank_nicolson,
     random_walk_metropolis,
     rank_normalized_rhat,
     select_gaussian_mixture,
@@ -554,6 +555,227 @@ def _decay_prediction() -> tuple[Any, dict[str, str]]:
             "times as uncertain as the mean response"
         ),
         ax=axes,
+    )
+    return figure, facts
+
+
+# Sine-series field observed at three points (guide section 13, pCN table).
+FIELD_POINTS = (0.25, 0.5, 0.75)
+FIELD_DATA = (0.6, 0.9, 0.4)
+FIELD_NOISE = 0.2
+FIELD_DIMENSIONS = (10, 20, 50, 100, 200)
+
+
+def _field_log_likelihood(dimension: int) -> Callable[[Sequence[float]], float]:
+    """Return the log-likelihood of a field with mode weights ``1/k``.
+
+    References:
+        [EQ-MCMC-PCN-001], [REF-COTTER-ROBERTS-STUART-WHITE-2013].
+
+    """
+    basis = [
+        [
+            math.sqrt(2.0) * math.sin((k + 1) * math.pi * s) / (k + 1)
+            for k in range(dimension)
+        ]
+        for s in FIELD_POINTS
+    ]
+
+    def log_likelihood(u: Sequence[float]) -> float:
+        """Return the Gaussian log-likelihood of the three observations.
+
+        References:
+            [EQ-MCMC-PCN-001]. No other equation is evaluated.
+
+        """
+        total = 0.0
+        for row, y in zip(basis, FIELD_DATA, strict=True):
+            value = math.fsum(a * b for a, b in zip(row, u, strict=True))
+            total += -0.5 * ((y - value) / FIELD_NOISE) ** 2
+        return total
+
+    return log_likelihood
+
+
+@functools.lru_cache(maxsize=1)
+def _acceptance_by_dimension() -> tuple[tuple[float, ...], tuple[float, ...]]:
+    """Return pCN and random-walk acceptance rates on the refined field.
+
+    Both samplers start from the same prior draw (seed 1) and use seed 7;
+    pCN keeps ``beta = 0.3`` (1000 draws), the random walk step 0.3 (200
+    draws), as in the guide's table.
+
+    References:
+        [EQ-MCMC-PCN-001], [REF-COTTER-ROBERTS-STUART-WHITE-2013].
+
+    """
+    pcn_rates, rwm_rates = [], []
+    for dimension in FIELD_DIMENSIONS:
+        log_likelihood = _field_log_likelihood(dimension)
+        generator = random.Random(1)
+        start = [generator.gauss(0.0, 1.0) for _ in range(dimension)]
+        pcn = preconditioned_crank_nicolson(
+            log_likelihood, start, draws=1000, warmup=0, chains=1, step=0.3,
+            adapt=False, seed=7, check_convergence=False,
+        )  # fmt: skip
+        pcn_rates.append(pcn.acceptance_rate)
+
+        def target(
+            u: Sequence[float],
+            log_likelihood: Callable[[Sequence[float]], float] = log_likelihood,
+        ) -> float:
+            """Return the log-likelihood plus the standard-normal log prior.
+
+            References:
+                [REF-COTTER-ROBERTS-STUART-WHITE-2013]. No equation is evaluated.
+
+            """
+            return log_likelihood(u) - 0.5 * math.fsum(x * x for x in u)
+
+        covariance = [
+            [0.09 if i == j else 0.0 for j in range(dimension)]
+            for i in range(dimension)
+        ]
+        rwm = random_walk_metropolis(
+            target, start, proposal_covariance=covariance, draws=200, chains=1,
+            seed=7, check_convergence=False,
+        )  # fmt: skip
+        rwm_rates.append(rwm.acceptance_rate)
+    return tuple(pcn_rates), tuple(rwm_rates)
+
+
+def _pcn_acceptance() -> tuple[Any, dict[str, str]]:
+    """Draw pCN and random-walk acceptance against the field dimension.
+
+    References:
+        [EQ-MCMC-PCN-001], [REF-COTTER-ROBERTS-STUART-WHITE-2013].
+
+    """
+    pcn, rwm = _acceptance_by_dimension()
+    first, last = FIELD_DIMENSIONS.index(10), FIELD_DIMENSIONS.index(200)
+    facts = {
+        "pcn_10": f"{pcn[first]:.3f}",
+        "pcn_200": f"{pcn[last]:.3f}",
+        "rwm_10": f"{rwm[first]:.3f}",
+        "rwm_200": f"{rwm[last]:.3f}",
+    }
+    axes = theme.new_axes(figsize=FIGSIZE)
+    palette = theme.active_palette()
+    styles = (
+        ("pCN, beta = 0.3", pcn, theme.role_colour("model"), "s", None),
+        (
+            "random walk, step 0.3",
+            rwm,
+            theme.role_colour("context"),
+            "o",
+            theme.FITTED,
+        ),
+    )
+    labels = []
+    for name, rates, colour, marker, dashes in styles:
+        theme.line(axes, FIELD_DIMENSIONS, rates, color=colour, dashes=dashes)
+        theme.points(
+            axes, FIELD_DIMENSIONS, rates, color=colour, marker=marker, size=46.0
+        )
+        labels.append((FIELD_DIMENSIONS[-1], rates[-1], name, colour))
+    axes.set_xscale("log")
+    axes.set_xticks(list(FIELD_DIMENSIONS))
+    axes.set_xticklabels([str(d) for d in FIELD_DIMENSIONS])
+    axes.minorticks_off()
+    axes.set_xlim(8.0, 260.0)
+    axes.set_ylim(0.0, 0.3)
+    axes.grid(axis="x", visible=False)
+    axes.grid(axis="y", color=palette.rule, linewidth=0.7)
+    theme.direct_labels(axes, labels, gap_points=13.0)
+    theme.axis_labels(axes, "Dimension d of the discretized field", "Acceptance rate")
+    theme.title_block(
+        axes,
+        f"Refining the field leaves the pCN acceptance near {facts['pcn_200']};"
+        f"\nthe random walk falls from {facts['rwm_10']} to {facts['rwm_200']}",
+        "Sine-series field, three observations, noise 0.2 · one chain per point, "
+        "same prior start, seed 7 · pCN 1000 draws, random walk 200",
+    )
+    return axes.figure, facts
+
+
+@functools.lru_cache(maxsize=1)
+def _tempering_run() -> Any:
+    """Return the tempered SMC run on the decay calibration (seed 5).
+
+    1000 particles, 10 random-walk moves per stage, ESS target one half.
+
+    References:
+        [EQ-SMC-TEMPER-001], [EQ-SMC-TEMPER-002], [EQ-SMC-EVID-001].
+
+    """
+    problem, _, _, _ = _decay_problem()
+    return problem.log_evidence(particles=1000, mutation_steps=10, seed=5)
+
+
+def _smc_tempering() -> tuple[Any, dict[str, str]]:
+    """Draw the adaptive temperature ladder and the per-stage ESS.
+
+    References:
+        [EQ-SMC-TEMPER-001], [EQ-SMC-TEMPER-002], [EQ-SMC-EVID-002],
+        [REF-LEE-WHITELEY-2018].
+
+    """
+    result = _tempering_run()
+    temperatures = list(result.temperatures[1:])
+    stages = list(range(1, len(temperatures) + 1))
+    particles = len(result.particles)
+    ess = [value / particles for value in result.effective_sample_sizes]
+    growth = (temperatures[-2] / temperatures[0]) ** (1.0 / (len(temperatures) - 2))
+    facts = {
+        "stages": f"{result.stages}",
+        "first": f"{temperatures[0]:.4f}",
+        "growth": f"{growth:.1f}",
+        "evidence": f"{result.log_evidence:.2f}",
+        "se": f"{result.log_evidence_standard_error:.3f}",
+    }
+    plt = theme.pyplot()
+    figure, (left, right) = plt.subplots(
+        1, 2, figsize=WIDE, gridspec_kw={"wspace": 0.32}
+    )
+    palette = theme.active_palette()
+    for axes in (left, right):
+        theme.style_axes(axes)
+        axes.set_xticks(stages)
+        axes.set_xlim(0.5, stages[-1] + 0.5)
+        axes.grid(axis="x", visible=False)
+    model = theme.role_colour("model")
+    theme.line(left, stages, temperatures, color=model)
+    theme.points(left, stages, temperatures, color=model, marker="s", size=40.0)
+    left.set_yscale("log")
+    left.set_ylim(5e-4, 2.0)
+    left.set_yticks([1e-3, 1e-2, 1e-1, 1.0])
+    left.set_yticklabels(["0.001", "0.01", "0.1", "1"])
+    left.minorticks_off()
+    theme.axis_labels(left, "SMC stage t", "Temperature beta_t")
+    observed = theme.role_colour("observed")
+    theme.line(right, stages, ess, color=observed)
+    theme.points(right, stages, ess, color=observed, marker="o", size=40.0)
+    rates = list(result.acceptance_rates)
+    other = theme.role_colour("series-5")
+    theme.line(right, stages, rates, color=other, dashes=theme.FITTED)
+    theme.points(right, stages, rates, color=other, marker="^", size=40.0)
+    right.set_ylim(0.0, 1.0)
+    theme.reference_line(right, y=0.5, color=palette.muted)
+    theme.direct_labels(
+        right,
+        [
+            (stages[-1], ess[-1], "ESS / N", observed),
+            (stages[-1], rates[-1], "move acceptance", other),
+        ],
+        gap_points=13.0,
+    )
+    theme.axis_labels(right, "SMC stage t", "Fraction")
+    theme.title_block(
+        left,
+        f"Adaptive tempering reaches the posterior in {facts['stages']} stages, "
+        f"raising beta about {facts['growth']}-fold per stage",
+        "Decay calibration, 1000 particles, seed 5 · each beta keeps the ESS at "
+        "half of N (dashed line) before resampling",
     )
     return figure, facts
 
@@ -1284,6 +1506,24 @@ FIGURES = [
             "random-walk chains on a target with two separated modes"
         ),
         draw=_trace_convergence,
+    ),
+    GuideFigure(
+        name="pcn-acceptance-dimension",
+        guide="nonlinear-calibration-and-mcmc",
+        alt=(
+            "Acceptance rates of preconditioned Crank-Nicolson and random-walk "
+            "Metropolis against the dimension of a discretized random field"
+        ),
+        draw=_pcn_acceptance,
+    ),
+    GuideFigure(
+        name="smc-tempering-schedule",
+        guide="nonlinear-calibration-and-mcmc",
+        alt=(
+            "Two panels: SMC temperature against stage on a log axis, and the "
+            "effective sample size fraction and acceptance rate per stage"
+        ),
+        draw=_smc_tempering,
     ),
     GuideFigure(
         name="calibration-decay-prediction",
