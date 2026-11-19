@@ -391,6 +391,7 @@ class LocalizationTests(unittest.TestCase):
 
 MEAN_BAND = 10.0
 VARIANCE_BAND = 6.0
+SMOOTHER_MEAN_BAND = 12.0
 
 
 class RelaxationTests(unittest.TestCase):
@@ -534,8 +535,11 @@ class SmootherTests(unittest.TestCase):
     def test_smoother_approaches_rts(self) -> None:
         """Fixed-interval EnKS moments lie within k standard errors of RTS.
 
-        Bands as in the localized-filter test; offline runs over seeds 0-3
-        reached SMOOTHER_REACH (means, variances) of these units.
+        Units as in the localized-filter test. Offline runs over seeds 0-3
+        reached 7.9 (means) and 2.8 (variances): a smoothed early state
+        collects the sampling error of every later analysis, hence the wider
+        SMOOTHER_MEAN_BAND. The unsmoothed (filtered) position of ``x_0``
+        is 19 units from the RTS mean at ``N = 100`` and 38 at ``N = 400``.
         """
         model = _constant_velocity()
         data = simulate(model, 6, seed=7).observations
@@ -556,7 +560,7 @@ class SmootherTests(unittest.TestCase):
                             variance = smoothed[k].covariance[i][i]
                             self.assertLess(
                                 abs(result.smoothed_means[k][i] - smoothed[k].mean[i]),
-                                MEAN_BAND * math.sqrt(variance / size),
+                                SMOOTHER_MEAN_BAND * math.sqrt(variance / size),
                             )
                             self.assertLess(
                                 abs(result.smoothed_covariances[k][i][i] - variance),
