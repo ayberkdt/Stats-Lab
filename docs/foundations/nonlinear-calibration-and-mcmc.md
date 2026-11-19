@@ -630,6 +630,133 @@ needs 61542 simulations, so this one-dimensional problem gains nothing from
 the population scheme; it pays off when the prior is much wider than the
 posterior in several directions.
 
+## 14. Ensemble Kalman inversion and ES-MDA
+
+The samplers above evaluate a log-posterior one point at a time and, for HMC
+and NUTS, need its gradient. Ensemble Kalman methods need neither: they move
+a whole ensemble of parameter vectors towards the data with a Kalman-type
+update whose gain is estimated from the ensemble itself (ADR-0115). The
+models and seeds of this section are those of
+`tests/test_ensemble_inversion.py`.
+
+### The update
+
+`inverse.ensemble_kalman_inversion` and `inverse.ensemble_smoother_mda` work
+on a `CalibrationProblem` in the Nataf standard-normal coordinates `u` of the
+prior, where the prior is exactly `N(0, I)`. They draw `N` members
+`u_j ~ N(0, I)`, map each to `theta_j = T^-1(u_j)`, run the forward model,
+and update
+
+`u_j <- u_j + C^up (C^pp + alpha Gamma)^-1 (y + sqrt(alpha) Gamma^1/2 z_j - G(u_j))`
+
+with `C^up` the ensemble cross-covariance of parameters and predictions,
+`C^pp` the ensemble covariance of the predictions, `Gamma` the
+observation-error covariance, and `z_j ~ N(0, I)` a perturbation of the data
+for each member ([EQ-INV-EKI-001]). No derivative of the model appears: the
+ensemble covariances play the role of the Jacobian. The `N` forward runs of
+one iteration are independent and can run in parallel, and the cost is
+counted in whole ensemble evaluations: `N (updates + 1)` forward evaluations,
+each running the model once per experiment (`forward_evaluations` and
+`model_calls` of the result).
+
+`Gamma` must be a fixed matrix, so only known-scale Gaussian noise models are
+accepted; its diagonal is `sigma_q^2 + sigma_delta_q^2` (noise plus declared
+discrepancy variance). An unknown noise scale or a Student-t model raises
+`ValueError` with the reason; such problems belong to `sample_posterior`.
+
+### ES-MDA: exact for linear-Gaussian problems
+
+ES-MDA (Emerick and Reynolds 2013) assimilates the same data `N_a` times with
+inflated covariances `alpha_i Gamma` and requires `sum 1/alpha_i = 1`
+([EQ-INV-ESMDA-001]). The product of the tempered likelihoods
+`L^(1/alpha_i)` is then the full likelihood. When the forward model is affine
+in `u`, as it is for Gaussian priors and a model linear in `theta`, each step
+is an exact Gaussian conditioning and the ensemble samples the posterior as
+`N` grows; a single `alpha = 1` is the one-step ensemble smoother.
+
+On the straight-line problem of Section 5 the conjugate posterior has mean
+`(0.6417, 0.7875)`, variances `0.04099` and `0.01260`, and covariance
+`-0.01885`. ES-MDA with `N = 1000` and `alpha = (2, 2)` (seed 17) gives mean
+`(0.6470, 0.7827)`, variances `0.04200` and `0.01334`, and covariance
+`-0.01990` from 3000 forward evaluations. The deviations are of the order of
+the ensemble sampling error (`0.2 / sqrt(1000) = 0.006` for the mean of `a`).
+
+For a nonlinear model each step linearizes through the ensemble, and the
+result is an approximation. On the exponential decay of Section 2 the MCMC
+posterior of Section 8 has mean `(5.0073, 0.3011)` and standard deviations
+`(0.0710, 0.0065)`. ES-MDA with `N = 200` (seed 1) gives:
+
+| `alpha` | Forward evaluations | Mean of `A`, `k` | Spread of `A`, `k` |
+|---|---:|---:|---:|
+| `(4, 4, 4, 4)` | 1000 | 4.9975, 0.3003 | 0.0790, 0.0093 |
+| `(8,) * 8` | 1800 | 5.0053, 0.3008 | 0.0712, 0.0074 |
+
+The means agree to a fraction of a posterior standard deviation. The spread
+of `k` is 43 % too wide with four steps and 14 % with eight: smaller steps
+reduce the linearization error. The ensemble spread of a nonlinear problem is
+an approximation to check, not a guaranteed posterior uncertainty.
+
+### Ensemble Kalman inversion: an optimizer whose ensemble collapses
+
+Ensemble Kalman inversion (Iglesias, Law and Stuart 2013) repeats the update
+with `alpha = 1` for as many iterations as requested. Every member stays in
+the affine span of the initial ensemble, and the ensemble contracts: in the
+linear case each update conditions on the same data again, so `n`
+iterations with perturbed data approximate the posterior of the likelihood
+raised to the power `n`, and Schillings and Stuart (2017)
+prove the collapse for the unperturbed continuous-time limit. The method is
+a derivative-free minimizer of the data misfit, **not** a posterior sampler;
+use the ensemble mean as a point estimate.
+
+On the decay problem (`N = 50`, 20 iterations, seed 1) the whitened misfit of
+the mean prediction falls from 20.02 to 3.890 (the noise-level value is about
+`sqrt(21) = 4.58`), the mean reaches `(5.0016, 0.3006)`, and the spreads
+shrink from `(2.458, 0.874)` to `(0.0153, 0.0014)`, about a fifth of the
+posterior standard deviations, at a cost of 1050 forward evaluations.
+
+Iterating to convergence fits the noise when the problem is ill-posed. The
+discrepancy principle ([EQ-INV-EKI-002], Iglesias 2016) stops before the
+first update at which `|Gamma^-1/2 (y - mean_j G(u_j))| <= tau eta`, with the
+noise level `eta` (default `sqrt(M)` for `M` observations) and `tau = 1.5` by
+default. On the decay problem (seed 1) it stops after two updates at misfit
+3.961 below the threshold 6.874, with mean `(4.9651, 0.2969)` after 150
+forward evaluations. Early stopping is the regularization: the number of
+iterations acts as the regularization parameter.
+
+```python
+from probstat.inverse import ensemble_kalman_inversion, ensemble_smoother_mda
+
+smoother = ensemble_smoother_mda(
+    problem, ensemble_size=200, inflation_coefficients=(4.0, 4.0, 4.0, 4.0), seed=1
+)
+smoother.forward_evaluations          # 1000
+smoother.model_calls                  # 21000
+round(smoother.mean()["A"], 1)        # 5.0
+eki = ensemble_kalman_inversion(problem, ensemble_size=50, iterations=20, seed=1)
+eki.misfit_history[-1] < 0.25 * eki.misfit_history[0]                  # True
+eki.spread_history[-1][0] < 0.01 * eki.spread_history[0][0]            # True
+stopped = ensemble_kalman_inversion(
+    problem, ensemble_size=50, iterations=20, seed=1, stopping="discrepancy"
+)
+stopped.stopped_by                    # 'discrepancy'
+stopped.misfit_history[-1] <= stopped.discrepancy_threshold            # True
+```
+
+### When to prefer which method
+
+- **ES-MDA** when the forward model is expensive, gradients are unavailable,
+  the model is close to linear over the posterior, and an approximate
+  posterior ensemble from a few hundred parallel runs is acceptable.
+- **Ensemble Kalman inversion** when a regularized point estimate is the
+  goal, for example a high-dimensional field calibrated from few data,
+  stopped by the discrepancy principle.
+- **MCMC, pCN, or SMC** (Sections 6, 12, and 13) when the posterior is
+  non-Gaussian, multimodal, or strongly nonlinear, when the noise scale is
+  unknown or the errors are Student-t, or when calibrated uncertainty or the
+  evidence is required. They cost more forward runs but converge to the
+  exact posterior; ensemble Kalman methods do not, except for ES-MDA in the
+  linear-Gaussian limit.
+
 ## Common pitfalls
 
 - **Conditions never name a parameter.** An `Experiment` whose conditions

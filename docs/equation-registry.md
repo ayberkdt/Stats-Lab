@@ -17737,3 +17737,70 @@ solution `x_j = t_j`, `b = A x`.
 - Code: `inverse.second_derivative_problem`.
 - Source: [REF-HANSEN-2008, Chapter 4, deriv2] (kernel and the case
   `f(t) = t`).
+
+## Ensemble Kalman inversion and ES-MDA (ADR-0115)
+
+### EQ-INV-EKI-001 — Ensemble Kalman inversion update
+
+For members `u_j`, `j = 1..N`, in the prior's standard-normal coordinates
+with predictions `g_j = G(T^-1(u_j))`, ensemble means `u_bar`, `g_bar` and
+`C^up = sum_j (u_j - u_bar)(g_j - g_bar)' / (N - 1)`,
+`C^pp = sum_j (g_j - g_bar)(g_j - g_bar)' / (N - 1)`:
+`u_j <- u_j + C^up (C^pp + Gamma)^-1 (y + eta_j - g_j)` with
+`eta_j ~ N(0, Gamma)` drawn afresh at every iteration (or `eta_j = 0`
+without perturbation). In whitened form, with `A` and `B` the deviations of
+`u` and of `Gamma^-1/2 g` from their means,
+`C^up (C^pp + alpha Gamma)^-1 = A'B (B'B + alpha (N - 1) I)^-1 Gamma^-1/2
+= A' (B B' + alpha (N - 1) I)^-1 B Gamma^-1/2`.
+
+- Domain: `N >= 2`; `Gamma` symmetric positive definite (here diagonal with
+  entries `sigma_q^2 + sigma_delta_q^2` of known Gaussian noise); `alpha > 0`.
+- Meaning: a derivative-free iteration that decreases the data misfit; each
+  member stays in the affine span of the initial ensemble and the ensemble
+  covariance collapses as the iterations proceed, so the method is an
+  optimizer and iterative regularizer, not a posterior sampler. Iglesias,
+  Law and Stuart normalize the covariances by `N`; this library uses
+  `N - 1` in both, as in the ensemble Kalman filter.
+- Code: `inverse.ensemble_kalman_inversion`, `inverse.ensemble_smoother_mda`.
+- Source: [REF-IGLESIAS-LAW-STUART-2013, Algorithm 1];
+  [REF-SCHILLINGS-STUART-2017] (gradient-flow limit and collapse);
+  [REF-EVENSEN-2003] (ensemble gain).
+
+### EQ-INV-EKI-002 — Discrepancy-principle stopping of ensemble Kalman inversion
+
+Stop before the first update at which
+`|Gamma^-1/2 (y - g_bar_n)| <= tau eta`, where `g_bar_n` is the ensemble
+mean of the predictions at iteration `n`, `eta = |Gamma^-1/2 (y - G(u_true))|`
+is the noise level, and `tau > 1`.
+
+- Domain: `tau >= 1` (enforced); `eta > 0`. When the noise realization is
+  unknown the library uses `eta = sqrt(M)` for `M` observations, the root of
+  `E |Gamma^-1/2 eps|^2 = M` for Gaussian errors; the default `tau = 1.5` is
+  a library choice.
+- Meaning: iterating past the noise level fits the noise of an ill-posed
+  problem; stopping there makes the iteration a regularization method. The
+  criterion tests the mean of the predictions, not the prediction at the
+  mean, so it needs no extra forward run.
+- Code: `inverse.ensemble_kalman_inversion(stopping="discrepancy")`,
+  `inverse.EnsembleInversionResult.misfit_history`.
+- Source: [REF-IGLESIAS-2016, Algorithm 1, Eq. (6)] (criterion on the mean
+  prediction, `tau > 1 / rho`); [REF-IGLESIAS-LAW-STUART-2013, Section 2.3]
+  (discrepancy principle with `tau > 1`).
+
+### EQ-INV-ESMDA-001 — ES-MDA update and inflation condition
+
+For `i = 1..N_a`: `u_j <- u_j + C^up (C^pp + alpha_i Gamma)^-1
+(y + sqrt(alpha_i) Gamma^1/2 z_ij - g_j)`, `z_ij ~ N(0, I)`, with the
+covariances of [EQ-INV-EKI-001] recomputed from the current ensemble, and
+`sum_{i=1}^{N_a} 1 / alpha_i = 1`.
+
+- Domain: `alpha_i > 0` finite; the sum condition is checked to a relative
+  tolerance of `1e-9`; Gaussian errors with known `Gamma`.
+- Meaning: the product of the tempered likelihoods `L^(1/alpha_i)` is the
+  full likelihood, so for a forward model affine in `u` the composition of
+  the `N_a` Gaussian conditionings is the exact Bayesian update and the
+  ensemble samples the posterior as `N -> infinity`; `N_a = 1`, `alpha = 1`
+  is the one-step ensemble smoother. For nonlinear models it is an
+  approximation.
+- Code: `inverse.ensemble_smoother_mda`.
+- Source: [REF-EMERICK-REYNOLDS-2013].

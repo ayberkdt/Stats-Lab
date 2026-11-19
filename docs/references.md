@@ -4973,3 +4973,40 @@ as a Method for Choosing a Good Ridge Parameter." *Technometrics* 21(2),
 215-223, 1979. Generalized cross-validation for ridge (Tikhonov)
 regression.
 DOI: [10.1080/00401706.1979.10489751](https://doi.org/10.1080/00401706.1979.10489751).
+
+## REF-IGLESIAS-LAW-STUART-2013
+
+Marco A. Iglesias, Kody J. H. Law, and Andrew M. Stuart. "Ensemble Kalman
+Methods for Inverse Problems." *Inverse Problems* 29(4), 045001, 2013. The
+iterative ensemble Kalman method with perturbed data `y + eta_j`,
+`eta_j ~ N(0, Gamma)`, the invariant-subspace property of the ensemble, and
+its use as a derivative-free optimizer (Algorithm 1, Section 2).
+DOI: [10.1088/0266-5611/29/4/045001](https://doi.org/10.1088/0266-5611/29/4/045001).
+
+## REF-IGLESIAS-2016
+
+Marco A. Iglesias. "A Regularizing Iterative Ensemble Kalman Method for
+PDE-Constrained Inverse Problems." *Inverse Problems* 32(2), 025002, 2016.
+Algorithm 1: the discrepancy principle
+`|Gamma^-1/2 (y - mean_j G(u_j))| <= tau eta` applied to the ensemble mean of
+the predictions, with a Levenberg-Marquardt choice of the regularization
+parameter.
+DOI: [10.1088/0266-5611/32/2/025002](https://doi.org/10.1088/0266-5611/32/2/025002).
+
+## REF-EMERICK-REYNOLDS-2013
+
+Alexandre A. Emerick and Albert C. Reynolds. "Ensemble Smoother with
+Multiple Data Assimilation." *Computers & Geosciences* 55, 3-15, 2013.
+Repeated assimilation of the same data with inflated error covariances
+`alpha_i C_D`, `sum 1/alpha_i = 1`, exact for linear-Gaussian problems in the
+large-ensemble limit.
+DOI: [10.1016/j.cageo.2012.03.011](https://doi.org/10.1016/j.cageo.2012.03.011).
+
+## REF-SCHILLINGS-STUART-2017
+
+Claudia Schillings and Andrew M. Stuart. "Analysis of the Ensemble Kalman
+Filter for Inverse Problems." *SIAM Journal on Numerical Analysis* 55(3),
+1264-1290, 2017. Continuous-time limit of ensemble Kalman inversion as
+preconditioned gradient flows of the data misfit; ensemble collapse and
+over-fitting of noisy data for linear forward models (Sections 3 and 4).
+DOI: [10.1137/16M105959X](https://doi.org/10.1137/16M105959X).
