@@ -35,6 +35,16 @@
       "coverage": "93%"
     }
   },
+  "lorenz96-ensemble-size": {
+    "guide": "filtering-and-data-assimilation",
+    "alt": "Time-averaged analysis RMSE of three ensemble filters on Lorenz-96 against the ensemble size, with the observation error as reference",
+    "facts": {
+      "plain_10": "4.00",
+      "plain_80": "0.39",
+      "localized_10": "0.34",
+      "letkf_10": "0.33"
+    }
+  },
   "missing-data-interval-coverage": {
     "guide": "missing-data",
     "alt": "Three panels of 95% intervals for the mean of x1 over 60 samples: complete cases, mean imputation, and multiple imputation",

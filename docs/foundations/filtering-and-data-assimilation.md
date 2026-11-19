@@ -273,7 +273,8 @@ diagnostics apply. `tests/test_filtering_parameter_estimation.py` samples the
 AR coefficient of a 12-step AR(1) plus noise with a uniform prior, 20
 particles, and the optimal proposal, and compares the posterior mean and
 variance with quadrature of the exact Kalman posterior within four Monte
-Carlo standard errors.
+Carlo standard errors. `examples/state_space_learning_lab.py` runs MLE, EM,
+PMMH, the three particle likelihoods, and FFBS on the AR(1) data above.
 
 **Out of scope: Rao-Blackwellized particle filters.** They sample only the
 nonlinear part of the state and handle a conditionally linear-Gaussian part
@@ -439,6 +440,10 @@ localization both the stochastic EnKF and the LETKF track the truth at a
 third of the observation error. Over seeds 1-4 the LETKF ranged from 0.31 to
 0.36 and the non-localized EnKF from 2.0 to 2.4; one LETKF cycle takes about
 0.15 s in pure Python.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/lorenz96-ensemble-size-dark.png"><img alt="Time-averaged analysis RMSE of three ensemble filters on Lorenz-96 against the ensemble size, with the observation error as reference" src="../images/guides/lorenz96-ensemble-size.png"></picture>
+
+*The same twin experiment for `N = 10, 20, 40, 80`, mean of filter seeds 101 and 102 (40 cycles, RMSE over cycles 16-40; both localized filters use `c = 2` and RTPS 0.5): at `N = 10` the LETKF reaches 0.33 and the localized EnKF 0.34, while the EnKF without localization sits at 4.00 and needs `N = 80` to reach 0.39.*
 
 **3D-Var.** `three_dimensional_variational` minimizes the background plus
 observation cost [EQ-DA-3DVAR-001] by BFGS with an analytic gradient. For a

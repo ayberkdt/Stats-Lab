@@ -8,7 +8,7 @@ the exact posterior by quadrature. Then the three particle filters are
 compared by the spread of their likelihood estimates, and the FFBS particle
 smoother by its distance from the exact RTS smoother. With Matplotlib three
 figures are written to ``examples/generated/``. Every random step is seeded;
-the run takes about a minute in pure Python.
+the run takes about a minute and a half in pure Python.
 
 Definitions:
     Model: ``x_k = phi x_(k-1) + w_k``, ``w_k ~ N(0, q)``, ``y_k = x_k + v_k``,

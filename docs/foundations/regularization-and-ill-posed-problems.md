@@ -244,6 +244,17 @@ to the conjugate and MCMC tools of
 [inverse problems and Bayesian calibration](inverse-problems-and-calibration.md)
 and [nonlinear calibration and MCMC](nonlinear-calibration-and-mcmc.md).
 
+`examples/regularization_lab.py` runs the seeded heat example of this guide
+end to end and adds the posterior band. With the prior scale
+`tau_x = s / lambda` set by the discrepancy choice, the posterior standard
+deviation is 0.082-0.092 at every grid point and the 95% band holds the exact
+initial state at all 32 points. The band is wide because in the directions
+the data do not determine, the posterior keeps the prior standard deviation
+`tau_x = 0.096`. Choosing `lambda` by maximizing the
+marginal likelihood of that prior instead gives `lambda = 0.0052` and
+relative error 0.144, close to the L-curve: estimating the prior scale does
+not repair a prior that does not fit the solution.
+
 ## 6. Nonlinear Tikhonov
 
 For a nonlinear residual `r(x)`, `nonlinear_tikhonov` minimizes

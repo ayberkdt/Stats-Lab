@@ -5,7 +5,7 @@ number is printed; with Matplotlib installed two figures are written to
 ``examples/generated/``: the reconstructions at the chosen regularization
 parameters against the exact initial temperature, and the L-curve with the
 three parameter choices. The noise is drawn from ``SEED``, so repeated runs
-print identical values; the run takes a few seconds.
+print identical values; the run takes about half a minute.
 
 Definitions:
     ``A``: the ``32 x 32`` backward heat operator (diffusion time 0.005)
@@ -59,9 +59,10 @@ Diagnostics:
       against the discrepancy target.
 
 Cost and error:
-    - One ``32 x 32`` Jacobi SVD (the dominant cost, well under a second) is
-      shared by all linear methods; each Tikhonov solve is one QR of the
-      stacked ``64 x 32`` matrix.
+    - One ``32 x 32`` Jacobi SVD (about 0.2 s) is shared by all linear
+      methods; each Tikhonov solve is one Householder QR of the stacked
+      ``64 x 32`` matrix (about 0.03 s), so the 601-point error scan and the
+      301 solves of the L-curve figure take most of the run time.
     - All numbers are for one noise realization (``SEED``); across seeds the
       ratio of chosen to error-optimal ``lambda`` varies, see
       ``docs/foundations/regularization-and-ill-posed-problems.md``.
