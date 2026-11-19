@@ -1502,11 +1502,14 @@ class LabResults:
     validation: Validation
 
 
-def run_analysis(seed: int = SEED) -> LabResults:
+def run_analysis(
+    seed: int = SEED, progress: Callable[[str], None] | None = None
+) -> LabResults:
     """Run verification, propagation, and validation with one root seed.
 
     Args:
         seed: Root seed.
+        progress: Called with the name of each stage before it starts.
 
     Returns:
         Every result of the laboratory.
@@ -1515,11 +1518,17 @@ def run_analysis(seed: int = SEED) -> LabResults:
         [REF-PERRIN-ATHENS-VVUQ], [REF-ROY-OBERKAMPF-2011].
 
     """
+    report = progress if progress is not None else (lambda stage: None)
     root = RandomStream(seed)
+    report("code verification")
     code = run_code_verification()
+    report("solution verification")
     verification = run_verification()
+    report("step choice")
     step = choose_step(root.child("pilot"))
+    report("propagation and Sobol indices")
     propagation = run_propagation(step.chosen, root.child("study"))
+    report("validation campaigns and truth landings")
     validation = run_validation(step.chosen, propagation, root)
     return LabResults(code, verification, step, propagation, validation)
 
@@ -2339,9 +2348,20 @@ def main() -> None:
     started = time.perf_counter()
     print(
         "Verifying, propagating, and validating the parachuted package "
-        "(about a minute)..."
+        "(one to two minutes)."
     )
-    results = run_analysis()
+
+    def stage(name: str) -> None:
+        """Print the stage that starts and the time elapsed so far.
+
+        References:
+            [REF-PERRIN-ATHENS-VVUQ].
+
+        """
+        print(f"  [{time.perf_counter() - started:5.0f} s] {name}", flush=True)
+
+    results = run_analysis(progress=stage)
+    print()
     print_report(results)
     written = write_figures(results, OUTPUT)
     raw, best = results.validation.checks[0], results.validation.checks[3]
@@ -2350,6 +2370,7 @@ def main() -> None:
         f"I_alpha covers {raw.coverage:.1%} of true landings without a model-error "
         f"term and {best.coverage:.1%} with a wind-proportional bias."
     )
+    print(f"Figures: {OUTPUT}")
     print(f"Wrote {len(written)} figures in {time.perf_counter() - started:.0f} s.")
 
 
