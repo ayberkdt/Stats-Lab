@@ -11,7 +11,8 @@ importance sampling); ``active_learning`` implements AK-MCS on a Gaussian
 process surrogate from :mod:`probstat.surrogates` (or any probabilistic
 surrogate through a refit hook), with the learning functions and stopping
 rules of ``learning`` and the candidate-population posteriors of
-``population_posterior``. ``data`` estimates
+``population_posterior``; ``ak_subset`` combines the same learning with
+subset simulation on the surrogate (AK-SS). ``data`` estimates
 component parameters from test and field data (Beta/Gamma posteriors,
 chi-square bounds, demonstration tests, Crow-AMSAA growth) and
 ``allocation`` apportions a system reliability target to units, including
@@ -45,6 +46,8 @@ Main entry points:
     ``find_design_points``: several design points of one limit state.
     ``ak_mcs``: Gaussian-process active learning for expensive models
     (learning functions ``U``, ``EFF``, ``H``; learning or bound stopping).
+    ``ak_ss``: the same active learning on the levels of a subset simulation
+    run on the surrogate, for very small failure probabilities.
     ``estimate_failure_probability``: direct Monte Carlo on explicit vectors.
 
 Assumptions:
@@ -100,6 +103,7 @@ from .adaptive import (
     cross_entropy_importance_sampling,
     line_sampling,
 )
+from .ak_subset import AKSS_GP_REGULARIZATION, AKSSResult, AKSSRound, ak_ss
 from .allocation import (
     AllocationResult,
     MettasCost,
@@ -235,6 +239,9 @@ __all__ = [
     "AKMCSIteration",
     "AKMCSResult",
     "AKMCS_GP_REGULARIZATION",
+    "AKSSResult",
+    "AKSSRound",
+    "AKSS_GP_REGULARIZATION",
     "AVAILABLE_METHODS",
     "AllocationResult",
     "CERTIFICATION_MAX_SIZE",
@@ -288,6 +295,7 @@ __all__ = [
     "WeightedFailureResult",
     "agree_allocation",
     "ak_mcs",
+    "ak_ss",
     "arinc_allocation",
     "bivariate_normal_cdf",
     "bulge_value",

@@ -16720,3 +16720,48 @@ the weights `w` by Adam [EQ-OPT-ADAM-002] on mini-batches.
   `surrogates.DeepEnsemble.epistemic_variance`,
   `surrogates.DeepEnsemble.aleatoric_variance`.
 - Source: [REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017, Section 2.4].
+
+### EQ-REL-AKSS-001 — AK-SS: active learning on surrogate subset levels
+
+Round `r`: subset simulation on the surrogate mean `mu_r(u)` with `N`
+samples per level and level probability `p0` gives
+`P_r = p0^(m-1) #{i : mu_r(u_i^(m)) <= 0} / N` over the `N` samples
+`u_i^(m)` of the last level; the pool `C_r` is the set of distinct samples
+of all levels. While `min_(u in C_r \ T) U(u) < 2` with
+`U = |mu| / sigma`, the model is evaluated at the arg min, which joins the
+training set `T`, and the posterior over `C_r` is updated; then round
+`r + 1` starts. The iteration stops with `P_r` when the stop of
+[EQ-REL-AKSS-002] holds or when `C_r` needs no addition, in both cases on a
+GP fitted to all of `T`.
+
+- Domain: GP surrogate of `G` in standard-normal space; every round uses the
+  same random stream for the subset run (common random numbers).
+- Meaning: the subset levels place the candidates on the path from the bulk
+  of the input law to the failure domain, so a few thousand candidates per
+  level stand for a failure probability far below `1 / (number of
+  candidates)`. `P_r` estimates `P(mu_r <= 0)`; its subset c.o.v. excludes
+  the misclassification by the surrogate.
+- Code: `reliability.ak_ss`.
+- Source: [REF-HUANG-CHEN-ZHU-2016] (subset simulation on the Kriging
+  predictor, level samples as candidates); [REF-ECHARD-GAYTON-LEMAIRE-2011]
+  (`U` and `min U >= 2`); [REF-AU-BECK-2001] (subset levels). The pool
+  definition, the common random numbers, and the stopping logic are
+  implementation choices of this library.
+
+### EQ-REL-AKSS-002 — AK-SS stop on the last level's failure-count bounds
+
+`P^- = p0^(m-1) #{i : mu(u_i^(m)) + 1.96 sigma(u_i^(m)) <= 0} / N`,
+`P^+ = p0^(m-1) #{i : mu(u_i^(m)) - 1.96 sigma(u_i^(m)) <= 0} / N` over the
+`N` samples of the last level (chain repetitions counted); stop when the run
+reached the threshold `0`, `P_r > 0`, and `(P^+ - P^-) / P_r <= tolerance`
+(default `0.05`).
+
+- Domain: a subset run on the surrogate mean with predictive variances at
+  its last-level samples.
+- Meaning: flipping every last-level sign that is uncertain at level 1.96
+  moves the estimate by at most the tolerance (relative), given the levels.
+  The bounds are as overconfident as the surrogate's `sigma` and do not see
+  failure regions that the subset run never sampled.
+- Code: `reliability.ak_ss`.
+- Source: the bound rule of [REF-SCHOBI-SUDRET-MARELLI-2017], applied here
+  to the last subset level (an implementation choice of this library).

@@ -1,4 +1,4 @@
-# Adaptive Reliability: Lines, Multiple Design Points, and AK-MCS
+# Adaptive Reliability: Lines, Multiple Design Points, AK-MCS, and AK-SS
 
 This guide extends [model-based reliability](advanced-reliability.md). All
 methods work on a `ModelLimitState` in independent standard-normal space `u`,
@@ -371,6 +371,156 @@ The modified Rastrigin limit state (`modeling.rastrigin_model`, crude MC
 failure set is a union of many small regions, and published AK-MCS runs on it
 use about 400 calls [REF-ECHARD-GAYTON-LEMAIRE-2011].
 
+## 5. AK-SS: active learning on subset-simulation levels
+
+AK-MCS needs a population with enough failures for its c.o.v.: about
+`(1 - P_f) / (P_f cov^2)` points, so `P_f = 3.4e-6` at a c.o.v. of 0.3 needs
+`3.3 * 10^6` candidates, far more than a pure-Python GP can predict over.
+`ak_ss` follows the scheme of Huang, Chen, and Zhu
+[REF-HUANG-CHEN-ZHU-2016]: subset simulation [REF-AU-BECK-2001] runs on the
+surrogate mean, and the samples of its levels are the candidates of active
+learning with `U` [REF-ECHARD-GAYTON-LEMAIRE-2011]. The levels place the
+candidates on the path from the bulk of the input law to the failure domain,
+so a few thousand candidates per level stand for a failure probability of
+`10^-6` [EQ-REL-AKSS-001].
+
+Each round:
+
+1. Run subset simulation on `mu(u)` (no model calls) with `N =
+   samples_per_level`, `p0 = level_probability`, and any kernel of
+   `SUBSET_SAMPLERS` (default `"acs"`). The estimate is
+   `P_r = p0^(m-1) #{mu <= 0} / N` over the last level; the distinct samples
+   of all levels form the pool.
+2. Count the last level's samples with `mu + 1.96 sigma <= 0` and
+   `mu - 1.96 sigma <= 0` to get `P^-` and `P^+`. Stop with `P_r` if the run
+   reached the threshold 0 and `(P^+ - P^-) / P_r <= bounds_tolerance`
+   (default 0.05) [EQ-REL-AKSS-002].
+3. Otherwise add the pool point with the smallest `U` (or largest `EFF` or
+   `H`) until `min U >= 2` on the pool, and start the next round. A pool that
+   needs no addition also ends the run.
+
+A stop is accepted only on a GP fitted to all training points; if points were
+added since the last fit, the GP is refitted and the round repeated, so the
+estimate and `result.surrogate` agree.
+
+Implementation choices that are not part of the published scheme:
+
+- Every subset run uses the same random stream (common random numbers).
+  Where the surrogate has not changed, consecutive runs and pools coincide.
+- The stop of step 2 applies the bound rule of §4.2 to the last level. A
+  fresh pool almost always holds a few candidates with `U < 2` near the limit
+  state, so a rule that requires `min U >= 2` on a new run rarely stops. On
+  the four-branch function (`N = 1000`, seeds 1-3, GP without the prior
+  below) that rule converged on one run after 18 rounds, the other two hit
+  `max_rounds`, and the runs used 94-98 calls; the bound rule converged on
+  all three after 5-7 rounds and 61-75 calls (ADR-0108).
+- The GP uses `AKSS_GP_REGULARIZATION`: the bounds of §4 plus a log-normal
+  length-scale prior centred on the training extent ([EQ-SUR-GP-006]).
+  Subset levels put many training points on nearly the same coordinate,
+  which shrinks the smallest-gap lower bound. With the bounds alone, seed 5
+  of the four-branch function fitted a white-noise GP (length scale of `u1`
+  below `10^-3`), used 211 calls, and its last subset run did not reach the
+  failure threshold; with the prior it used 76 calls.
+- The pool posterior is the rank-one update of §4. Candidates that reappear
+  in the next pool keep their state
+  (`GaussianProcessPopulationPosterior.replace_population(..., reuse=True)`),
+  and the subset run evaluates the posterior mean at `O(n)` per point.
+
+```python
+import math
+from probstat.distributions import Normal
+from probstat.modeling import (
+    JointInput, ProbabilisticModel, RandomInput, standard_normal_cdf,
+)
+from probstat.reliability import ModelLimitState, ak_ss
+from probstat.uq import QuantityOfInterest
+
+def margin(p):
+    return {"g": 4.5 - (p["u1"] + p["u2"]) / math.sqrt(2.0)}
+
+inputs = JointInput.independent(
+    RandomInput("u1", Normal(0.0, 1.0)), RandomInput("u2", Normal(0.0, 1.0))
+)
+model = ProbabilisticModel(inputs, margin, (QuantityOfInterest("g", "margin"),))
+rare = ak_ss(ModelLimitState(model, "g", 0.0, "below"),
+             samples_per_level=1000, seed=2)
+reference = standard_normal_cdf(-4.5)
+rare.converged                                              # True
+rare.levels                                                 # 6
+rare.evaluations < 50                                       # True
+abs(rare.probability / reference - 1.0) < 3.0 * rare.coefficient_of_variation  # True
+```
+
+Numbers from runs of `ak_ss` with default settings except `N`. "Same-stream
+SS" is subset simulation on the true limit state with the random stream that
+AK-SS uses, which shows how much of the deviation from the reference is
+subset-sampling luck shared by both. "Pool errors" counts final-pool points
+whose surrogate sign differs from the true sign (`check_levels=True`), and
+"MC errors" the sign errors on a crude Monte Carlo check population of
+`10^4` points (`check_population=10_000`); neither check is counted in
+"calls".
+
+| case | `N` | seed | calls | rounds | `P_f` AK-SS | subset c.o.v. | same-stream SS (calls) | pool errors | MC errors |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| four-branch `k = 7` | 1000 | 1 | 63 | 7 | 2.600e-3 | 0.192 | 3.090e-3 (2800) | 2 / 1756 | 0 |
+| four-branch `k = 7` | 1000 | 2 | 68 | 9 | 2.100e-3 | 0.209 | 2.180e-3 (2800) | 1 / 1775 | 1 |
+| four-branch `k = 7` | 1000 | 3 | 53 | 4 | 2.480e-3 | 0.199 | 2.710e-3 (2800) | 0 / 1773 | 0 |
+| four-branch `k = 7` | 1000 | 4 | 55 | 4 | 2.210e-3 | 0.207 | 1.750e-3 (2800) | 5 / 1754 | 0 |
+| four-branch `k = 7` | 1000 | 5 | 76 | 9 | 1.850e-3 | 0.196 | 1.980e-3 (2800) | 0 / 1782 | 0 |
+| four-branch `k = 7` | 2000 | 1 | 84 | 5 | 3.000e-3 | 0.145 | 3.360e-3 (5600) | 0 / 3543 | 0 |
+| four-branch `k = 7` | 2000 | 2 | 74 | 5 | 3.005e-3 | 0.141 | 2.770e-3 (5600) | 1 / 3524 | 0 |
+| four-branch `k = 7` | 2000 | 3 | 83 | 6 | 2.660e-3 | 0.152 | 2.525e-3 (5600) | 0 / 3519 | 0 |
+| linear, `beta = 4.5`, `d = 2` | 1000 | 1 | 12 | 1 | 3.760e-6 | 0.344 | 3.750e-6 (5500) | 0 / 2916 | - |
+| linear, `beta = 4.5`, `d = 2` | 1000 | 2 | 14 | 3 | 3.310e-6 | 0.335 | 3.310e-6 (5500) | 0 / 2926 | - |
+| linear, `beta = 4.5`, `d = 2` | 1000 | 3 | 18 | 2 | 4.130e-6 | 0.335 | 4.120e-6 (5500) | 1 / 2904 | - |
+| oscillator, `F1 ~ N(0.6, 0.1)` | 1000 | 1 | 114 | 9 | 7.590e-6 | 0.321 | 7.060e-6 (5500) | 0 / 2924 | - |
+| oscillator, `F1 ~ N(0.6, 0.1)` | 1000 | 2 | 85 | 8 | 1.680e-5 | 0.326 | 2.340e-5 (4600) | 0 / 2529 | - |
+
+References: four-branch `2.2245e-3` (`FOUR_BRANCH_REFERENCE_PROBABILITY`);
+linear `Phi(-4.5) = 3.398e-6`; oscillator `9.141e-6` from design-point
+importance sampling with `10^6` samples (standard error `2.1e-8`, seed
+20261119). The four-branch runs used 53-84 calls against 2800-5600 for subset
+simulation on the true model with the same stream; the rare cases used 12-114
+calls where crude Monte Carlo would need about `3 * 10^6`. Over seeds 1-5 the
+`N = 1000` estimates average `2.25e-3`. On the oscillator, seed 2 lies 2.6
+c.o.v. above the reference, and the same-stream subset run on the true model
+lies even higher: the deviation is subset-sampling error, not surrogate
+error, and the subset c.o.v. (an approximation that ignores the correlation
+between levels) understates it. Runs took 12-33 s for the four-branch
+function (including the checks) and 48-100 s for the oscillator in pure
+Python.
+
+**When to use which.** For `P_f` above about `10^-3` AK-MCS on a population
+of `10^4`-`10^5` is simpler, and its estimate can be compared point by point
+with crude Monte Carlo on the same population. AK-SS pays off when `P_f` is
+`10^-4` or smaller, where the population AK-MCS would need is out of reach.
+
+**Cost.** A round costs about `m N` evaluations of the surrogate mean at
+`O(n)` each (`m` levels, `n` training points), `O(n^2)` for each new pool
+point, `O(n)` per pool point for each added training point, and a likelihood
+fit when the training set has grown by `refit_growth` or before a stop.
+`samples_per_level` defaults to 2000; values from 1000 to 10 000 trade
+subset c.o.v. against run time.
+
+**The blind spot remains.** The subset run follows the surrogate mean, so a
+failure region where the mean is confidently positive is never sampled, and
+neither the learning function nor the bounds can see it. Seed 5, 8-point
+initial design, `N = 1000`, crude MC on a `10^4` check population
+`P_f = 1.9e-3`:
+
+| initial design | calls | `P_f` AK-SS | converged | MC errors |
+| --- | --- | --- | --- | --- |
+| LHS through `Phi^-1` (`design="lhs"`, `design_bound=None`) | 25 | 1.330e-4 | yes | 18 |
+| maximin LHS in `[-5, 5]^2` (default) | 61 | 1.800e-3 | yes | 0 |
+| LHS through `Phi^-1` + the 4 design points | 67 | 2.560e-3 | yes | 0 |
+
+The first run reports convergence with an estimate 17 times too small: its
+eight initial points lie within `abs(u_i) <= 2.67`, and the failure regions
+that the surrogate predicts safe are never visited. The box design and
+`extra_points` (here the analytic design points of the four branches, at
+distances 3 and 3.5) remove the blind spot; `check_population`
+detects it when `P_f` times the check size gives several failures.
+
 ## Limitations
 
 - Bulging can only find modes that some start reaches. The axes rule costs
@@ -382,8 +532,14 @@ use about 400 calls [REF-ECHARD-GAYTON-LEMAIRE-2011].
 - AK-MCS cost grows with `N` times the training size (posterior updates) plus
   the GP likelihood fits. It is meant for expensive models and populations up
   to about `10^5` in pure Python. Its c.o.v. is the Monte Carlo error of the
-  population and excludes misclassification. Very small `P_f` needs importance
-  or subset variants of AK-MCS, which are not implemented.
+  population and excludes misclassification. Very small `P_f` needs AK-SS
+  (§5); an importance-sampling variant (AK-IS) is not implemented.
+- AK-SS reports the subset c.o.v. of its last run on the surrogate, which
+  excludes misclassification and, like every subset c.o.v. here, ignores the
+  correlation between levels. Its stop relies on the surrogate's `sigma` on
+  the last level, and it inherits the blind spot of the initial design.
+  Pure-Python runs take seconds to minutes, so it only pays off for
+  expensive models.
 
 ## Common pitfalls
 
@@ -403,6 +559,11 @@ use about 400 calls [REF-ECHARD-GAYTON-LEMAIRE-2011].
 - **The AK-MCS c.o.v. excludes misclassification.** It is the Monte Carlo
   error of the population. `misclassified` is `-1` unless
   `compare_with_monte_carlo=True`, which spends extra true-model calls.
+- **AK-SS convergence is not correctness.** `converged=True` says that the
+  surrogate is sure about the last level it sampled, not that every failure
+  region was sampled (§5, seed 5 of the blind-spot table). Use the box
+  design or `extra_points`, and `check_population` or `check_levels` when
+  the model allows the extra calls.
 
 ```python
 import inspect
@@ -426,4 +587,6 @@ inspect.signature(ak_mcs).parameters["compare_with_monte_carlo"].default   # Fal
 [REF-LV-LU-WANG-2015], [REF-DU-XU-2023], [REF-SCHOBI-SUDRET-MARELLI-2017],
 [REF-MORRIS-MITCHELL-1995], [REF-DERKIUREGHIAN-DAKESSIAN-1998],
 [REF-KOUTSOURELAKIS-PRADLWARTER-SCHUELLER-2004], [REF-GENZ-BRETZ-2009],
-[REF-OWEN-2013], [REF-RASMUSSEN-WILLIAMS-2006].
+[REF-OWEN-2013], [REF-RASMUSSEN-WILLIAMS-2006], [REF-HUANG-CHEN-ZHU-2016],
+[REF-AU-BECK-2001], [REF-PAPAIOANNOU-BETZ-ZWIRGLMAIER-STRAUB-2015],
+[REF-BECT-LI-VAZQUEZ-2017].
