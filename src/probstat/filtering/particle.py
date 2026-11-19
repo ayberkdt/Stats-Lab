@@ -46,6 +46,13 @@ class ParticleFilterResult:
         particles: Final particle locations.
         weights: Final normalized weights.
         particle_count: Number of particles ``N``.
+        particle_history: Optional weighted particle clouds approximating
+            ``p(x_k | y_1:k)`` for ``k = 0..T`` (after weighting, before any
+            resampling); ``None`` unless the filter ran with
+            ``store_history=True``. Needed by
+            :func:`probstat.filtering.ffbs_particle_smoother`.
+        weight_history: Normalized weights matching ``particle_history``, or
+            ``None``.
 
     References:
         [REF-GORDON-SALMOND-SMITH-1993], [REF-DOUCET-JOHANSEN-2011].
@@ -60,6 +67,8 @@ class ParticleFilterResult:
     particles: tuple[Vector, ...]
     weights: tuple[float, ...]
     particle_count: int
+    particle_history: tuple[tuple[Vector, ...], ...] | None = None
+    weight_history: tuple[tuple[float, ...], ...] | None = None
 
     @property
     def log_likelihood(self) -> float:
@@ -215,6 +224,7 @@ def bootstrap_particle_filter(
     resample_threshold: float = 0.5,
     seed: int | RandomStream | None = None,
     controls: Sequence[Sequence[float] | None] | None = None,
+    store_history: bool = False,
 ) -> ParticleFilterResult:
     """Run the bootstrap particle filter with ESS-triggered resampling.
 
@@ -234,6 +244,9 @@ def bootstrap_particle_filter(
         seed: Integer seed or stream (children ``"initial"``,
             ``"propagation"``, ``"resampling"``).
         controls: Optional controls (linear models only).
+        store_history: Keep every weighted particle cloud (memory ``N T``)
+            for particle smoothing; the random draws and every returned
+            number are the same either way.
 
     Returns:
         Particle moments, ESS history, resampling flags, and log-likelihood.
@@ -289,6 +302,8 @@ def bootstrap_particle_filter(
     mean, covariance = _weighted_moments(cloud, weights)
     means = [mean]
     covariances = [covariance]
+    cloud_history: list[tuple[Vector, ...]] = [tuple(cloud)] if store_history else []
+    weight_history: list[tuple[float, ...]] = [weights] if store_history else []
     ess_history: list[float] = []
     resampled: list[bool] = []
     terms: list[float] = []
@@ -323,6 +338,9 @@ def bootstrap_particle_filter(
         mean, covariance = _weighted_moments(cloud, weights)
         means.append(mean)
         covariances.append(covariance)
+        if store_history:
+            cloud_history.append(tuple(cloud))
+            weight_history.append(weights)
         ess = effective_sample_size(weights)
         ess_history.append(ess)
         if ess < threshold * particles:
@@ -341,4 +359,6 @@ def bootstrap_particle_filter(
         tuple(as_vector(x, name="particle") for x in cloud),
         weights,
         particles,
+        tuple(cloud_history) if store_history else None,
+        tuple(weight_history) if store_history else None,
     )
