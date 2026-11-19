@@ -30,7 +30,7 @@ Warm-up adaptation
     ``eta_k = eta_{k-1} + k^(-0.6) (alpha_k - alpha*)``, where ``alpha_k`` is
     the acceptance *probability* of iteration ``k`` (less noisy than the
     accept indicator) and ``alpha*`` the target ([EQ-MCMC-PCN-002]; Andrieu
-    and Thoms 2008, Section 4). The step is frozen at the end of warm-up, so
+    and Thoms 2008). The step is frozen at the end of warm-up, so
     every kept draw comes from one time-homogeneous kernel and the
     diagnostics of :mod:`probstat.inference.mcmc` apply unchanged.
 

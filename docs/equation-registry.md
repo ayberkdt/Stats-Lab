@@ -17071,3 +17071,181 @@ reached the threshold `0`, `P_r > 0`, and `(P^+ - P^-) / P_r <= tolerance`
 - Code: `reliability.ak_ss`.
 - Source: the bound rule of [REF-SCHOBI-SUDRET-MARELLI-2017], applied here
   to the last subset level (an implementation choice of this library).
+
+## Preconditioned Crank-Nicolson, tempered SMC, evidence, and ABC (ADR-0111)
+
+### EQ-MCMC-PCN-001 — Preconditioned Crank-Nicolson proposal and acceptance
+
+For the target `pi(u) proportional to L(u) N(u; 0, I)` with
+`Phi(u) = -log L(u)`: propose `v = sqrt(1 - beta^2) u + beta xi`,
+`xi ~ N(0, I)`, and accept with probability
+`min(1, exp(Phi(u) - Phi(v)))`.
+
+- Domain: `0 < beta <= 1`; the reference law must be exactly `N(0, I)` in
+  the sampled coordinates; `L(u) >= 0` (zero likelihood is always rejected).
+- Meaning: the AR(1) proposal is reversible with respect to `N(0, I)`, so
+  the Gaussian factors cancel and only the likelihood enters the ratio. The
+  acceptance rate for a fixed `beta` has a limit as the dimension of a
+  discretized field grows, whereas a random walk needs a step of order
+  `d^(-1/2)`; `beta = 1` is the independence sampler from the prior.
+- Code: `inference.preconditioned_crank_nicolson`,
+  `inference.sequential_monte_carlo(mutation="pcn")`,
+  `inverse.CalibrationProblem.sample_posterior(method="pcn")`.
+- Source: [REF-COTTER-ROBERTS-STUART-WHITE-2013];
+  [REF-HAIRER-STUART-VOLLMER-2014] (dimension-independent spectral gap).
+
+### EQ-MCMC-PCN-002 — Warm-up adaptation of the pCN step on its log-odds
+
+`beta_k = 1 / (1 + exp(-eta_k))`,
+`eta_k = eta_{k-1} + k^(-0.6) (alpha_k - alpha*)`, where
+`alpha_k = min(1, exp(Phi(u_{k-1}) - Phi(v_k)))` is the acceptance
+probability of warm-up iteration `k`; `beta` is frozen at the end of
+warm-up. Between SMC stages the pCN mutation uses
+`eta_{t+1} = eta_t + 4 (r_t - alpha*)` with the stage acceptance rate `r_t`.
+
+- Domain: `0 < alpha* < 1` (default 0.25); warm-up iterations only, so
+  the kept chain is time-homogeneous.
+- Meaning: a Robbins-Monro recursion that drives the expected acceptance
+  probability to `alpha*`; the log-odds keep `beta` inside `(0, 1)`. The
+  default 0.25 follows the tuning practice of Cotter et al. (about 0.234 to
+  0.25); no optimal-scaling theorem fixes it for pCN.
+- Code: `inference.preconditioned_crank_nicolson`,
+  `inference.sequential_monte_carlo`.
+- Source: [REF-ANDRIEU-THOMS-2008] (stochastic-approximation
+  adaptation); [REF-COTTER-ROBERTS-STUART-WHITE-2013, Section 5]
+  (acceptance targets used in practice). The gain exponent 0.6 and the
+  between-stage gain 4 are implementation choices of this library.
+
+### EQ-SMC-TEMPER-001 — Tempered targets and incremental weights
+
+`pi_t(x) proportional to p(x) L(x)^beta_t`, `0 = beta_0 < ... < beta_T = 1`;
+moving from `beta_{t-1}` to `beta_t` the particle `x_i` receives the
+incremental weight `w_{t,i} = L(x_i)^(beta_t - beta_{t-1})`, the population
+is resampled with probabilities proportional to `w_{t,i}`, and each
+particle is moved by a Markov kernel that leaves `pi_t` invariant.
+
+- Domain: a proper prior that can be sampled; `L` finite or zero; the
+  mutation kernel is random-walk Metropolis with covariance
+  `s^2 (Sigma_t + eps I)` (`Sigma_t` the weighted particle covariance,
+  `s = 2.38 / sqrt(d)` by default) or pCN for an `N(0, I)` prior.
+- Meaning: an SMC sampler with the backward kernel that makes the
+  incremental weight the ratio `pi_t / pi_{t-1}` of unnormalized targets; the
+  final equally weighted population approximates the posterior.
+- Code: `inference.sequential_monte_carlo`,
+  `inverse.CalibrationProblem.sample_posterior(method="smc")`.
+- Source: [REF-DELMORAL-DOUCET-JASRA-2006];
+  [REF-CHOPIN-2002] (sequential particle filter for static models).
+
+### EQ-SMC-TEMPER-002 — Adaptive temperature by effective-sample-size bisection
+
+`beta_t = sup { beta in (beta_{t-1}, 1] :
+ESS(beta) >= f N_fin }`, with
+`ESS(beta) = (sum_i w_i)^2 / sum_i w_i^2`,
+`w_i = exp((beta - beta_{t-1}) l_i)`, `l_i = log L(x_i)`, and `N_fin` the
+number of particles with finite `l_i`.
+
+- Domain: `0 < f < 1` (default 0.5); at least two finite `l_i`.
+- Meaning: `ESS(beta)` is non-increasing in `beta` (its log-derivative is
+  twice the difference of the means of `l` under the tilts `w` and `w^2`), so
+  bisection finds the largest admissible step; the schedule adapts to the
+  information in the likelihood and ends when the full step keeps the ESS
+  above the target.
+- Code: `inference.sequential_monte_carlo`.
+- Source: [REF-JASRA-STEPHENS-DOUCET-TSAGARIS-2011] (adaptive
+  tempering by ESS); [EQ-FILT-PF-002] for the ESS.
+
+### EQ-SMC-EVID-001 — SMC estimate of the evidence
+
+`log Z_hat = sum_{t=1}^{T} log( (1/N) sum_i w_{t,i} )`, an estimate of
+`log Z = log integral p(x) L(x) dx`.
+
+- Domain: the incremental weights of [EQ-SMC-TEMPER-001]; `L` must include
+  every normalizing constant of the data density for `Z` to be the
+  marginal likelihood `p(y)`.
+- Meaning: for fixed temperatures and kernels `Z_hat` is unbiased for `Z`
+  (so `log Z_hat` is biased low by about half its variance); ratios of `Z`
+  between models for the same data are Bayes factors.
+- Code: `inference.sequential_monte_carlo`, `inference.SMCResult.log_evidence`,
+  `inverse.CalibrationProblem.log_evidence`.
+- Source: [REF-DELMORAL-DOUCET-JASRA-2006];
+  [REF-LEE-WHITELEY-2018, Proposition 1] (lack of bias).
+
+### EQ-SMC-EVID-002 — Lee-Whiteley relative variance of the evidence estimate
+
+`v = 1 - (N / (N - 1))^T (sum_{i,j: E_i != E_j} w_i w_j) / (sum_i w_i)^2
+= 1 - (N / (N - 1))^T (1 - sum_e W_e^2)`, where `w_i` are the incremental
+weights of the last stage `T`, `E_i` the index of the stage-zero particle
+from which particle `i` descends, and `W_e` the normalized weight of the
+particles with `E_i = e`; the reported standard error of `log Z_hat` is
+`sqrt(v)` when `v >= 0`.
+
+- Domain: multinomial resampling at every stage (not computed for
+  systematic resampling); fixed temperatures and kernels for the theorem.
+- Meaning: `Z_hat^2 v` estimates `Var(Z_hat)` without bias and `N v` is
+  consistent for the asymptotic relative variance, from one run. Adaptive
+  temperatures and proposal scales are outside the theorem; `v` degenerates
+  when all particles share a few ancestors and ignores the bias of a
+  poorly mixing mutation kernel.
+- Code: `inference.sequential_monte_carlo`,
+  `inference.SMCResult.log_evidence_standard_error`.
+- Source: [REF-LEE-WHITELEY-2018, equation (4) and Theorem 1] with
+  `phi = G_{T-1}`, the last incremental weight.
+
+### EQ-ABC-REJ-001 — ABC rejection posterior
+
+Keep `theta ~ p(theta)` when `rho(s(y_sim), s(y_obs)) <= eps` for
+`y_sim ~ p(y | theta)`; the kept draws follow
+`pi_eps(theta | s_obs) proportional to
+p(theta) P(rho(s(y_sim), s_obs) <= eps | theta)`.
+
+- Domain: a prior and a simulator that can be sampled; a summary `s` and a
+  distance `rho >= 0`; `eps >= 0` fixed, or the `ceil(n / q)`-sample
+  order statistic for the quantile rule.
+- Meaning: `pi_eps` tends to `p(theta | s_obs)` as `eps -> 0`, and equals
+  `p(theta | y_obs)` in that limit only for a sufficient summary; the
+  acceptance probability, hence the cost, scales like `eps^q` for a
+  `q`-dimensional summary.
+- Code: `inference.abc_rejection`, `inference.euclidean_distance`.
+- Source: [REF-PRITCHARD-ETAL-1999] (rejection ABC with summaries).
+
+### EQ-ABC-PMC-001 — ABC population Monte Carlo weights and kernel
+
+Generation `t >= 2`: `eps_t = max(eps_min, Q_q(rho_{t-1}))`; draw `theta*`
+from `{theta_j^(t-1), w_j^(t-1)}`, propose
+`theta ~ N(theta*, 2 Sigma_{t-1})` with
+`Sigma_{t-1} = sum_j w_j^(t-1) (theta_j - m)(theta_j - m)'`, keep it when
+`rho <= eps_t`, and weight
+`w_i^(t) proportional to p(theta_i) / sum_j w_j^(t-1)
+N(theta_i; theta_j^(t-1), 2 Sigma_{t-1})`.
+
+- Domain: a prior density that can be evaluated; a nonsingular population
+  covariance; `0 < q < 1`.
+- Meaning: importance sampling from the kernel mixture keeps each
+  generation a weighted sample of `pi_{eps_t}` while the tolerance
+  decreases; twice the weighted covariance is the kernel scale proposed by
+  Beaumont et al. The quantile schedule is an adaptive choice.
+- Code: `inference.abc_smc`.
+- Source: [REF-BEAUMONT-CORNUET-MARIN-ROBERT-2009] (ABC-PMC
+  with the `2 Sigma` kernel). The quantile tolerance schedule is an
+  implementation choice of this library.
+
+### EQ-CAL-STD-002 — Fully standardized calibration coordinates
+
+`v = (u, w)` with `theta = T^-1(u)` (Nataf map of the prior) and
+`sigma_q = F_q^-1(Phi(w_q))` for every unknown noise scale; the prior of
+`v` is `N(0, I)`, the posterior is
+`L(T^-1(u), sigma(w)) N(v; 0, I) / p(y)`, and
+`p(y) = integral L(T^-1(u), sigma(w)) N(v; 0, I) dv` is the marginal
+likelihood of the original problem.
+
+- Domain: continuous priors with a Gaussian copula for `theta`, continuous
+  noise-scale priors; Gaussian or Student-t noise densities with their
+  normalizing constants.
+- Meaning: the change of variables makes pCN and the SMC evidence
+  applicable to unknown-noise problems without changing the posterior; draws
+  are mapped back to `(u, log sigma)` and `(theta, sigma)`.
+- Code: `inverse.CalibrationProblem.standard_log_likelihood`,
+  `inverse.CalibrationProblem.log_evidence`,
+  `inverse.CalibrationProblem.sample_posterior`.
+- Source: [REF-LIU-DERKIUREGHIAN-1986] (Nataf transformation);
+  [REF-CASELLA-BERGER-2002, Section 4.3] (change of variables).

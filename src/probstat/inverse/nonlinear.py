@@ -1178,7 +1178,7 @@ class CalibrationProblem:
 
         References:
             [REF-DELMORAL-DOUCET-JASRA-2006], [REF-LEE-WHITELEY-2018],
-            [REF-GELMAN-ETAL-2013, Section 7.4].
+            [REF-GELMAN-ETAL-2013, Chapter 7].
 
         """
         return self._run_smc(
