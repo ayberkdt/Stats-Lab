@@ -854,6 +854,48 @@ DOI: [10.1175/1520-0493(2000)128<1852:AEKSFN>2.0.CO;2](https://doi.org/10.1175/1
 A. C. Lorenc. "Analysis Methods for Numerical Weather Prediction." *Quarterly
 Journal of the Royal Meteorological Society* 112(474), 1177-1194, 1986.
 
+## REF-LE-DIMET-TALAGRAND-1986
+
+François-Xavier Le Dimet and Olivier Talagrand. "Variational Algorithms for
+Analysis and Assimilation of Meteorological Observations: Theoretical
+Aspects." *Tellus A* 38(2), 97-110, 1986. The four-dimensional variational
+cost over a time window and its gradient by the adjoint equations.
+DOI: [10.1111/j.1600-0870.1986.tb00459.x](https://doi.org/10.1111/j.1600-0870.1986.tb00459.x).
+
+## REF-COURTIER-THEPAUT-HOLLINGSWORTH-1994
+
+P. Courtier, J.-N. Thépaut, and A. Hollingsworth. "A Strategy for
+Operational Implementation of 4D-Var, Using an Incremental Approach."
+*Quarterly Journal of the Royal Meteorological Society* 120(519),
+1367-1387, 1994. Incremental 4D-Var: outer loops with the nonlinear model,
+quadratic inner problems with the linearized model.
+DOI: [10.1002/qj.49712051912](https://doi.org/10.1002/qj.49712051912).
+
+## REF-LAWLESS-GRATTON-NICHOLS-2005
+
+A. S. Lawless, S. Gratton, and N. K. Nichols. "An Investigation of
+Incremental 4D-Var Using Non-Tangent Linear Models." *Quarterly Journal of
+the Royal Meteorological Society* 131(606), 459-476, 2005. Incremental
+4D-Var written as a Gauss-Newton iteration.
+DOI: [10.1256/qj.04.20](https://doi.org/10.1256/qj.04.20).
+
+## REF-TREMOLET-2006
+
+Yannick Trémolet. "Accounting for an Imperfect Model in 4D-Var." *Quarterly
+Journal of the Royal Meteorological Society* 132(621), 2483-2504, 2006.
+Weak-constraint 4D-Var with a model-error term.
+DOI: [10.1256/qj.05.224](https://doi.org/10.1256/qj.05.224).
+
+## REF-CARRASSI-ETAL-2018
+
+Alberto Carrassi, Marc Bocquet, Laurent Bertino, and Geir Evensen. "Data
+Assimilation in the Geosciences: An Overview of Methods, Issues, and
+Perspectives." *WIREs Climate Change* 9(5), e535, 2018. Section 3.2.1
+(weak- and strong-constraint 4D-Var, their gradient, and the equivalence
+with the Kalman smoother for linear models) and Appendix D (incremental
+4D-Var); equation numbers refer to the preprint arXiv:1709.02798v3.
+DOI: [10.1002/wcc.535](https://doi.org/10.1002/wcc.535).
+
 ## REF-XIU-KARNIADAKIS-2002
 
 Dongbin Xiu and George Em Karniadakis. "The Wiener-Askey Polynomial Chaos for
