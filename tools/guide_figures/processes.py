@@ -1,9 +1,9 @@
 """Figures of the process, design, and effect-estimation guides (ADR-0105).
 
-Thirteen figures for nine guides: time series (forecast intervals, GARCH
+Fourteen figures for nine guides: time series (forecast intervals, GARCH
 volatility, PELT change points), stochastic processes (strong convergence of
-SDE schemes, Karhunen-Loeve fields), filtering (the unmeasured velocity and
-the Lorenz-96 ensemble size),
+SDE schemes, Karhunen-Loeve fields), filtering (the unmeasured velocity, the
+Lorenz-96 ensemble size, and the 4D-Var window length),
 causal inference (double robustness), the visual language (the encoding
 rules on one fit), missing data (interval coverage), experimental design
 (the equivalence theorem), survival analysis (censoring), and extreme values
@@ -35,6 +35,8 @@ from probstat.data_assimilation import (
     Localization,
     Relaxation,
     ensemble_kalman_filter,
+    four_dimensional_variational,
+    four_dimensional_variational_cost,
 )
 from probstat.design import (
     ApproximateDesign,
@@ -46,6 +48,8 @@ from probstat.distributions import GeneralizedExtremeValue
 from probstat.filtering import (
     LinearGaussianStateSpace,
     kalman_filter,
+    lorenz63,
+    lorenz63_rhs,
     lorenz96,
     lorenz96_rhs,
     rts_smoother,
@@ -706,6 +710,130 @@ def _draw_lorenz96_ensemble_size() -> tuple[Any, dict[str, str]]:
     return axes.figure, facts
 
 
+# Lorenz-63 4D-Var twin of the guide: 5 RK4 steps of 0.01 per observation,
+# truth spun up 1000 steps from (1, 1, 1), background truth + N(0, 4 I),
+# R = 0.25 I, observations 3 and 7 missing, draws from random.Random(seed).
+FOURDVAR_WINDOWS = (10, 20, 30, 40, 50, 60)
+FOURDVAR_SEEDS = tuple(range(20))
+FOURDVAR_ITERATIONS = 200
+
+
+@functools.cache
+def _fourdvar_windows() -> dict[int, tuple[float, ...]]:
+    """Return ``J(analysis) / J(truth)`` per window length and seed.
+
+    BFGS starts from the background and stops at its gradient tolerance or
+    after 200 iterations; a ratio above 2 is a spurious local minimum.
+
+    References:
+        [EQ-DA-4DVAR-001], [EQ-DA-4DVAR-002], [EQ-FILT-LORENZ-001].
+
+    """
+    model = lorenz63(substeps=5)
+    spun = integrate_fixed_step(
+        lorenz63_rhs, 0.0, (1.0, 1.0, 1.0), step=0.01, steps=1000
+    ).final_state
+    b = tuple(tuple(4.0 if i == j else 0.0 for j in range(3)) for i in range(3))
+    r = tuple(tuple(0.25 if i == j else 0.0 for j in range(3)) for i in range(3))
+    ratios: dict[int, tuple[float, ...]] = {}
+    for window in FOURDVAR_WINDOWS:
+        values = []
+        for seed in FOURDVAR_SEEDS:
+            generator = random.Random(seed)
+            truth = [tuple(spun)]
+            for _ in range(window):
+                truth.append(tuple(model.transition_function(truth[-1])))
+            background = tuple(v + 2.0 * generator.gauss(0.0, 1.0) for v in truth[0])
+            observations: list[tuple[float, ...] | None] = [
+                tuple(v + 0.5 * generator.gauss(0.0, 1.0) for v in truth[k])
+                for k in range(1, window + 1)
+            ]
+            observations[2] = None
+            observations[6] = None
+            result = four_dimensional_variational(
+                background, b, observations, model.transition_function,
+                model.observation_function, r, max_iterations=FOURDVAR_ITERATIONS,
+            )  # fmt: skip
+            cost = four_dimensional_variational_cost(
+                background, b, observations, model.transition_function,
+                model.observation_function, r,
+            )  # fmt: skip
+            values.append(result.cost / float(cost(truth[0])))
+        ratios[window] = tuple(values)
+    return ratios
+
+
+def _draw_fourdvar_windows() -> tuple[Any, dict[str, str]]:
+    """Draw the final-cost ratio of every 4D-Var run against the window length.
+
+    References:
+        [EQ-DA-4DVAR-001], [REF-CARRASSI-ETAL-2018, Section 3.2],
+        [REF-LE-DIMET-TALAGRAND-1986].
+
+    """
+    ratios = _fourdvar_windows()
+    stuck = {window: sum(v > 2.0 for v in values) for window, values in ratios.items()}
+    count = len(FOURDVAR_SEEDS)
+    clean = FOURDVAR_WINDOWS[0]
+    for window in FOURDVAR_WINDOWS:
+        if stuck[window]:
+            break
+        clean = window
+    longer = [w for w in FOURDVAR_WINDOWS if w > clean]
+    trapped = [v for w in longer for v in ratios[w] if v > 2.0]
+    facts = {
+        "clean": f"K = {clean}",
+        "trapped": f"{len(trapped)} of {count * len(longer)}",
+        "ratio": f"{min(trapped):.0f} to {max(trapped):.0f}" if trapped else "none",
+    }
+    axes = theme.new_axes(figsize=FIGSIZE)
+    palette = theme.active_palette()
+    good = theme.role_colour("model")
+    bad = theme.role_colour("series-4")
+    for window, values in ratios.items():
+        for index, value in enumerate(values):
+            offset = (index - (count - 1) / 2.0) * 0.3
+            local = value > 2.0
+            theme.points(
+                axes, [window + offset], [value], color=bad if local else good,
+                marker="^" if local else "o", size=34.0, alpha=0.85,
+            )  # fmt: skip
+        axes.annotate(
+            f"{stuck[window]}/{count}", xy=(window, 3.0e4), ha="center",
+            va="bottom", fontsize=theme.ANNOTATION_SIZE, fontweight="bold",
+            color=bad if stuck[window] else palette.muted,
+        )  # fmt: skip
+    theme.reference_line(axes, y=2.0, entity="threshold")
+    axes.annotate(
+        "J = 2 J(truth)", xy=(6.0, 2.0), xytext=(0.0, 4.0),
+        textcoords="offset points", ha="left", va="bottom",
+        fontsize=theme.ANNOTATION_SIZE, color=theme.entity_colour("threshold"),
+    )  # fmt: skip
+    axes.set_yscale("log")
+    axes.set_ylim(0.3, 1.0e5)
+    axes.set_yticks([1.0, 10.0, 100.0, 1000.0, 10000.0])
+    axes.set_yticklabels(["1", "10", "100", "1000", "10000"])
+    axes.minorticks_off()
+    axes.set_xticks(list(FOURDVAR_WINDOWS))
+    axes.set_xlim(5.0, 65.0)
+    axes.grid(axis="x", visible=False)
+    axes.grid(axis="y", color=palette.rule, linewidth=0.7)
+    theme.axis_labels(
+        axes,
+        "Window length K (observation intervals of 0.05)",
+        "J(analysis) / J(truth)",
+    )
+    theme.title_block(
+        axes,
+        f"Up to {facts['clean']} every 4D-Var run finds the truth's basin; beyond "
+        f"it {facts['trapped']}\nruns stop in a local minimum at {facts['ratio']} "
+        "times the truth's cost",
+        "Lorenz-63 twin seeds 0-19 · triangles: J > 2 J(truth) · BFGS from the "
+        "background, at most 200 iterations",
+    )
+    return axes.figure, facts
+
+
 # --------------------------------------------------------------------------
 # Causal inference
 # --------------------------------------------------------------------------
@@ -1337,6 +1465,15 @@ FIGURES: list[GuideFigure] = [
             "against the ensemble size, with the observation error as reference"
         ),
         draw=_draw_lorenz96_ensemble_size,
+    ),
+    GuideFigure(
+        name="fourdvar-window-local-minima",
+        guide="filtering-and-data-assimilation",
+        alt=(
+            "Ratio of the final to the true-state 4D-Var cost for twenty Lorenz-63 "
+            "twin runs at each of six window lengths, on a log axis"
+        ),
+        draw=_draw_fourdvar_windows,
     ),
     GuideFigure(
         name="causal-double-robustness",

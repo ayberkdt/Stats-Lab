@@ -35,6 +35,16 @@
       "koh": "0.3274..0.4712"
     }
   },
+  "esmda-exact-posterior": {
+    "guide": "nonlinear-calibration-and-mcmc",
+    "alt": "Two panels: 90% regions of two ES-MDA ensembles and the exact posterior, and the mean and covariance errors against ensemble size",
+    "facts": {
+      "small": "0.285",
+      "large": "0.032",
+      "cov_small": "0.26",
+      "cov_large": "0.036"
+    }
+  },
   "generative-flow-versus-gaussian": {
     "guide": "generative-models",
     "alt": "Two panels of banana-shaped training points with the 50% and 90% density contours of one Gaussian and of a normalizing flow",

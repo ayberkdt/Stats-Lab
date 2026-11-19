@@ -689,6 +689,10 @@ On the straight-line problem of Section 5 the conjugate posterior has mean
 `-0.01990` from 3000 forward evaluations. The deviations are of the order of
 the ensemble sampling error (`0.2 / sqrt(1000) = 0.006` for the mean of `a`).
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/esmda-exact-posterior-dark.png"><img alt="Two panels: 90% regions of two ES-MDA ensembles and the exact posterior, and the mean and covariance errors against ensemble size" src="../images/guides/esmda-exact-posterior.png"></picture>
+
+*ES-MDA with `alpha = (2, 2)` on the same problem, averaged over seeds 0-19: the distance of the ensemble mean from the exact posterior mean, in posterior standard deviations, falls from 0.285 at `N = 25` to 0.032 at `N = 1600`, and the relative covariance error from 0.26 to 0.036, both close to the Monte Carlo rate `N^-1/2`.*
+
 For a nonlinear model each step linearizes through the ensemble, and the
 result is an approximation. On the exponential decay of Section 2 the MCMC
 posterior of Section 8 has mean `(5.0073, 0.3011)` and standard deviations
@@ -764,6 +768,10 @@ stopped.misfit_history[-1] <= stopped.discrepancy_threshold            # True
   evidence is required. They cost more forward runs but converge to the
   exact posterior; ensemble Kalman methods do not, except for ES-MDA in the
   linear-Gaussian limit.
+
+`examples/field_inversion_lab.py` runs pCN, adaptive Metropolis, ES-MDA, and
+EKI side by side on a Karhunen-Loeve log-permeability field inverted from
+pressure data, with their forward-run counts and the inverse crime measured.
 
 ## 15. Correlated measurement errors and reverse-mode gradients
 

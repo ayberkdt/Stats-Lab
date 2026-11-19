@@ -81,6 +81,7 @@ LAB_REGRESSION_TESTS: dict[str, tuple[str, str]] = {
     ),
     "experimental_design_lab": ("test_experimental_design.py", "greedy_design"),
     "extremes_lab": ("test_extreme_value_analysis.py", "block_maxima"),
+    "field_inversion_lab": ("test_ensemble_inversion.py", "ensemble_smoother_mda"),
     "filtering_lab": ("test_uq7_filtering.py", "bootstrap_particle_filter"),
     "flood_sensitivity_lab": (
         "test_regression_and_hsic_sensitivity.py",
@@ -103,6 +104,10 @@ LAB_REGRESSION_TESTS: dict[str, tuple[str, str]] = {
     ),
     "interactive_explainers_lab": ("test_interactive_explainers.py", "clt_explainer"),
     "limit_theorems_lab": ("test_limit_theorems.py", "simulate_clt_distance"),
+    "lorenz_assimilation_lab": (
+        "test_four_dimensional_variational.py",
+        "four_dimensional_variational",
+    ),
     "missing_data_lab": ("test_missing_data.py", "fit_incomplete_multivariate_normal"),
     "mission_systems_lab": ("test_mission_assessment.py", "LifeCycleCostModel"),
     "model_selection_lab": (
