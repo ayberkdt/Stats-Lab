@@ -445,6 +445,10 @@ third of the observation error. Over seeds 1-4 the LETKF ranged from 0.31 to
 
 *The same twin experiment for `N = 10, 20, 40, 80`, mean of filter seeds 101 and 102 (40 cycles, RMSE over cycles 16-40; both localized filters use `c = 2` and RTPS 0.5): at `N = 10` the LETKF reaches 0.33 and the localized EnKF 0.34, while the EnKF without localization sits at 4.00 and needs `N = 80` to reach 0.39.*
 
+`examples/lorenz_assimilation_lab.py` runs this twin experiment with the
+ensemble spread of each filter next to its RMSE and an ensemble Kalman
+smoother, and the Lorenz-63 4D-Var windows of the next subsection.
+
 **3D-Var.** `three_dimensional_variational` minimizes the background plus
 observation cost [EQ-DA-3DVAR-001] by BFGS with an analytic gradient. For a
 linear observation operator the minimizer equals one Kalman update. With the
@@ -537,6 +541,10 @@ truth (`J` above 22000 against about 120), one of them at the 500-iteration
 limit. A long chaotic window makes the cost multimodal, and BFGS returns
 a minimum near its start: shorten the window, improve `x_b`, or use the
 weak constraint.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/fourdvar-window-local-minima-dark.png"><img alt="Ratio of the final to the true-state 4D-Var cost for twenty Lorenz-63 twin runs at each of six window lengths, on a log axis" src="../images/guides/fourdvar-window-local-minima.png"></picture>
+
+*The same twin for seeds 0-19 and six window lengths, BFGS from `x_b` with at most 200 iterations: up to K = 20 every run reaches the basin of the truth; from `K = 30` to `K = 60`, 8 of 80 runs stop in a local minimum whose cost is 234 to 524 times the cost of the true initial state.*
 
 **Cost per iteration.** One gradient costs one recorded model run plus
 one backward sweep, independent of the size of the control vector. On the

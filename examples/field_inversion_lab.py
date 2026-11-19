@@ -70,9 +70,18 @@ Diagnostics:
     - Every method prints its forward-model runs, the RMSE of its mean field,
       the coverage of its 90 % band, and the mean band width.
     - The inverse-crime section prints the ES-MDA RMSE with data from the
-      inversion's own model against the honest data.
-    - The truncation section prints acceptance rates of fixed-step pCN and
-      random-walk Metropolis for ``M = 12, 32, 64``.
+      inversion's own model against the honest data. With ``SEED`` the
+      64-cell solver is off by at most 0.013 noise standard deviations and
+      the 12 modes keep 0.9942 of the variance, so the crime moves the RMSE
+      only from 0.377 to 0.362: here the honest set-up costs little, and the
+      crime would matter with a coarser solver or fewer modes, where it hides
+      a model error the noise model does not carry.
+    - With ``SEED`` pCN mixes worse than adaptive Metropolis (smallest bulk
+      ESS 14 against 88, from more forward runs): seven precise readings make
+      the posterior much narrower than the prior in the leading modes, the
+      regime in which the isotropic pCN move is slow. Its advantage is the
+      truncation section: fixed-step acceptance rates of pCN and random-walk
+      Metropolis for ``M = 12, 32, 64``.
 
 Cost and error:
     - One forward run is one Thomas solve on 64 cells plus the KL sum; the
@@ -295,7 +304,9 @@ def truncate(expansion: KarhunenLoeveExpansion, terms: int) -> KarhunenLoeveExpa
     )
 
 
-def projection(expansion: KarhunenLoeveExpansion, field: Sequence[float]) -> list[float]:
+def projection(
+    expansion: KarhunenLoeveExpansion, field: Sequence[float]
+) -> list[float]:
     """Return the weighted least-squares projection of a field on the modes.
 
     References:
@@ -303,11 +314,16 @@ def projection(expansion: KarhunenLoeveExpansion, field: Sequence[float]) -> lis
 
     """
     coefficients = [
-        math.fsum(w * g * p for w, g, p in zip(expansion.weights, field, mode, strict=True))
+        math.fsum(
+            w * g * p for w, g, p in zip(expansion.weights, field, mode, strict=True)
+        )
         for mode in expansion.eigenvectors
     ]
     return [
-        math.fsum(c * mode[i] for c, mode in zip(coefficients, expansion.eigenvectors, strict=True))
+        math.fsum(
+            c * mode[i]
+            for c, mode in zip(coefficients, expansion.eigenvectors, strict=True)
+        )
         for i in range(len(field))
     ]
 
@@ -373,7 +389,10 @@ def build_inversion(
     model = ProbabilisticModel(
         field.joint_input(),
         forward,
-        tuple(QuantityOfInterest(name, f"pressure at x = {x}") for name, x in zip(names, OBSERVED, strict=True)),
+        tuple(
+            QuantityOfInterest(name, f"pressure at x = {x}")
+            for name, x in zip(names, OBSERVED, strict=True)
+        ),
     )
     problem = CalibrationProblem(
         model,
@@ -433,7 +452,9 @@ class FieldSummary:
             [REF-KAIPIO-SOMERSALO-2007]. No equation is evaluated.
 
         """
-        return statistics.fmean(b - a for a, b in zip(self.lower, self.upper, strict=True))
+        return statistics.fmean(
+            b - a for a, b in zip(self.lower, self.upper, strict=True)
+        )
 
 
 def summarize(
@@ -489,7 +510,7 @@ def setup_section(truth: Truth, full: KarhunenLoeveExpansion) -> KarhunenLoeveEx
     best = projection(expansion, truth.coarse)
     print("1. Darcy problem, prior, and data")
     print(
-        f"   pressures at x = 1/8..7/8: "
+        "   pressures at x = 1/8..7/8: "
         + ", ".join(f"{v:.4f}" for v in truth.clean)
         + f"; noise sd {truth.noise_sd:.4f}"
     )
@@ -501,9 +522,10 @@ def setup_section(truth: Truth, full: KarhunenLoeveExpansion) -> KarhunenLoeveEx
         "   discretization error of the 64-cell solver at the data points: "
         f"at most {max(abs(v) for v in truth.discretization):.3f} noise sd"
     )
+    floor = rms([a - b for a, b in zip(truth.coarse, best, strict=True)])
     print(
         f"   RMS of the coarse truth {rms(truth.coarse):.3f}; best RMSE in the "
-        f"{TERMS}-mode span (projection) {rms([a - b for a, b in zip(truth.coarse, best, strict=True)]):.3f}\n"
+        f"{TERMS}-mode span (projection) {floor:.3f}\n"
     )
     return expansion
 
@@ -545,19 +567,21 @@ def methods_section(inversion: Inversion, truth: Truth) -> list[FieldSummary]:
                 math.sqrt(chain.proposal_covariance[0][0])
                 for chain in posterior.standard_space.chains
             ]
-            print("   pCN frozen beta per chain: " + ", ".join(f"{b:.3f}" for b in steps))
+            print(
+                "   pCN frozen beta per chain: " + ", ".join(f"{b:.3f}" for b in steps)
+            )
         short = f"ESS {ess:.0f}, R-hat {rhat:.2f}"
         summaries.append(
-            summarize(inversion, thinned(posterior.mcmc.pooled(), 2000), label, runs, short)
+            summarize(
+                inversion, thinned(posterior.mcmc.pooled(), 2000), label, runs, short
+            )
         )
     smoother, runs = inversion.counted(
         lambda: ensemble_smoother_mda(
             problem, ensemble_size=200, inflation_coefficients=(4.0,) * 4, seed=SEED
         )
     )
-    summaries.append(
-        summarize(inversion, smoother.ensemble, "ES-MDA", runs, "N = 200")
-    )
+    summaries.append(summarize(inversion, smoother.ensemble, "ES-MDA", runs, "N = 200"))
     eki, runs = inversion.counted(
         lambda: ensemble_kalman_inversion(
             problem, ensemble_size=50, iterations=20, seed=SEED, stopping="discrepancy"
@@ -571,13 +595,13 @@ def methods_section(inversion: Inversion, truth: Truth) -> list[FieldSummary]:
     summaries.append(
         summarize(inversion, eki.ensemble, "EKI", runs, f"{eki.updates} updates")
     )
-    print("   method               forward runs   RMSE of mean   90% coverage   band width")
+    print("   method               runs   RMSE of mean   90% coverage   band width")
     for item in summaries:
         print(
-            f"   {item.name:20s} {item.runs:12d}   {item.rmse(truth.coarse):12.3f}   "
+            f"   {item.name:19s} {item.runs:6d}   {item.rmse(truth.coarse):12.3f}   "
             f"{item.coverage(truth.coarse):12.3f}   {item.width():10.3f}"
         )
-    print(f"   prior (mean 0)       {0:12d}   {rms(truth.coarse):12.3f}\n")
+    print(f"   prior (mean 0)      {0:6d}   {rms(truth.coarse):12.3f}\n")
     return summaries
 
 
@@ -607,12 +631,14 @@ def inverse_crime_section(
     crime = summarize(inversion, smoother.ensemble, "ES-MDA", 0, "")
     print("3. The inverse crime (ES-MDA, same noise, same seed)")
     print(
-        f"   honest data (256-cell untruncated truth): RMSE {honest.rmse(truth.coarse):.3f} "
-        f"against the coarse truth, coverage {honest.coverage(truth.coarse):.3f}"
+        "   honest data (256-cell untruncated truth): RMSE "
+        f"{honest.rmse(truth.coarse):.3f} against the coarse truth, coverage "
+        f"{honest.coverage(truth.coarse):.3f}"
     )
     print(
         f"   criminal data (64-cell model of the 12-mode truth): RMSE "
-        f"{crime.rmse(best):.3f} against its own truth, coverage {crime.coverage(best):.3f}\n"
+        f"{crime.rmse(best):.3f} against its own truth, coverage "
+        f"{crime.coverage(best):.3f}\n"
     )
 
 
@@ -640,7 +666,9 @@ def truncation_section(
             problem.standard_log_likelihood, start, draws=1500, warmup=500, chains=1,
             step=0.2, adapt=False, seed=SEED + 1, check_convergence=False,
         )  # fmt: skip
-        covariance = [[0.2**2 if i == j else 0.0 for j in range(terms)] for i in range(terms)]
+        covariance = [
+            [0.2**2 if i == j else 0.0 for j in range(terms)] for i in range(terms)
+        ]
         walk = random_walk_metropolis(
             problem.standard_log_posterior, start, proposal_covariance=covariance,
             draws=1500, warmup=500, chains=1, seed=SEED + 1, check_convergence=False,
@@ -648,10 +676,15 @@ def truncation_section(
         pcn_rates.append(pcn.acceptance_rate)
         walk_rates.append(walk.acceptance_rate)
         print(
-            f"   M = {terms:2d} (variance kept {expansion.explained_variance_fraction:.4f}): "
+            f"   M = {terms:2d} (variance kept "
+            f"{expansion.explained_variance_fraction:.4f}): "
             f"pCN {pcn.acceptance_rate:.3f}, random walk {walk.acceptance_rate:.3f}"
         )
-    print()
+    print(
+        f"   pCN acceptance stays between {min(pcn_rates):.3f} and "
+        f"{max(pcn_rates):.3f} as M grows {STUDY_TERMS[0]} -> {STUDY_TERMS[-1]}; "
+        f"the random walk falls by a factor {walk_rates[0] / walk_rates[-1]:.1f}\n"
+    )
     return {"pcn": tuple(pcn_rates), "walk": tuple(walk_rates)}
 
 
@@ -688,7 +721,7 @@ def field_figure(truth: Truth, summaries: Sequence[FieldSummary]) -> str:
     plt = theme.pyplot()
     figure, grid = plt.subplots(
         2, 2, figsize=(7.6, 5.6), sharex=True, sharey=True,
-        gridspec_kw={"hspace": 0.18, "wspace": 0.12},
+        gridspec_kw={"hspace": 0.18, "wspace": 0.2},
     )  # fmt: skip
     palette = theme.active_palette()
     cells = [(i + 0.5) / COARSE for i in range(COARSE)]
@@ -714,7 +747,7 @@ def field_figure(truth: Truth, summaries: Sequence[FieldSummary]) -> str:
         axes.set_xlim(0.0, 1.0)
         axes.set_ylim(bottom, high + 1.5)
         axes.set_xticks([0.0, 0.25, 0.5, 0.75, 1.0])
-        axes.set_xticklabels(["0", "0.25", "0.5", "0.75", "1"])
+        axes.set_xticklabels(["0.00", "0.25", "0.50", "0.75", "1.00"])
         axes.text(
             0.03, 0.97,
             f"{summary.name} · {summary.runs} runs · {summary.note}\n"
@@ -731,12 +764,11 @@ def field_figure(truth: Truth, summaries: Sequence[FieldSummary]) -> str:
     theme.title_block(
         grid[0][0],
         f"All four methods recover the large-scale field (RMSE {min(errors):.2f}-"
-        f"{max(errors):.2f}); the ensemble methods\nneed {summaries[3].runs} and "
-        f"{summaries[2].runs} forward runs, the MCMC samplers over "
+        f"{max(errors):.2f});\nES-MDA and EKI need {summaries[2].runs} and "
+        f"{summaries[3].runs} forward runs, MCMC over "
         f"{min(summaries[0].runs, summaries[1].runs) // 1000 * 1000}",
-        "Line and band: mean and 90% pointwise band of g on 64 cells · dashed: "
-        "true field (256 cells, untruncated)\nTriangles: the 7 pressure readings "
-        "· EKI band: ensemble spread, not a posterior",
+        "Band: 90% pointwise (EKI: ensemble spread) · dashed: true field, 256 "
+        "cells · triangles: the 7 readings",
     )
     return save(figure, "field-inversion-posteriors.png")
 
@@ -773,7 +805,11 @@ def acceptance_figure(rates: dict[str, tuple[float, ...]]) -> str:
     axes.set_xticklabels([str(t) for t in terms])
     axes.minorticks_off()
     axes.set_xlim(9.0, 100.0)
-    axes.set_ylim(0.0, max(max(rates["pcn"]), max(rates["walk"])) * 1.25)
+    top = max(max(rates["pcn"]), max(rates["walk"])) * 1.25
+    axes.set_ylim(0.0, top)
+    ticks = [0.05 * k for k in range(int(top / 0.05) + 1)]
+    axes.set_yticks(ticks)
+    axes.set_yticklabels([f"{t:.2f}" for t in ticks])
     axes.grid(axis="x", visible=False)
     axes.grid(axis="y", color=palette.rule, linewidth=0.7)
     theme.direct_labels(axes, labels, gap_points=13.0)

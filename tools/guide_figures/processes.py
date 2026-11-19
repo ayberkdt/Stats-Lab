@@ -828,8 +828,8 @@ def _draw_fourdvar_windows() -> tuple[Any, dict[str, str]]:
         f"Up to {facts['clean']} every 4D-Var run finds the truth's basin; beyond "
         f"it {facts['trapped']}\nruns stop in a local minimum at {facts['ratio']} "
         "times the truth's cost",
-        "Lorenz-63, one dot per twin seed 0-19 (triangles: J > 2 J(truth)) · BFGS "
-        "from the background, adjoint gradient, at most 200 iterations",
+        "Lorenz-63 twin seeds 0-19 · triangles: J > 2 J(truth) · BFGS from the "
+        "background, at most 200 iterations",
     )
     return axes.figure, facts
 
@@ -1470,7 +1470,7 @@ FIGURES: list[GuideFigure] = [
         name="fourdvar-window-local-minima",
         guide="filtering-and-data-assimilation",
         alt=(
-            "Ratio of the final to the true-state 4D-Var cost for ten Lorenz-63 "
+            "Ratio of the final to the true-state 4D-Var cost for twenty Lorenz-63 "
             "twin runs at each of six window lengths, on a log axis"
         ),
         draw=_draw_fourdvar_windows,

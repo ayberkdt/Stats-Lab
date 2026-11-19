@@ -35,6 +35,15 @@
       "coverage": "93%"
     }
   },
+  "fourdvar-window-local-minima": {
+    "guide": "filtering-and-data-assimilation",
+    "alt": "Ratio of the final to the true-state 4D-Var cost for twenty Lorenz-63 twin runs at each of six window lengths, on a log axis",
+    "facts": {
+      "clean": "K = 20",
+      "trapped": "8 of 80",
+      "ratio": "234 to 524"
+    }
+  },
   "lorenz96-ensemble-size": {
     "guide": "filtering-and-data-assimilation",
     "alt": "Time-averaged analysis RMSE of three ensemble filters on Lorenz-96 against the ensemble size, with the observation error as reference",

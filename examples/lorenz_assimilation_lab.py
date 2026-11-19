@@ -155,7 +155,9 @@ def diagonal(size: int, value: float) -> tuple[tuple[float, ...], ...]:
         [REF-CARRASSI-ETAL-2018]. No equation is evaluated.
 
     """
-    return tuple(tuple(value if i == j else 0.0 for j in range(size)) for i in range(size))
+    return tuple(
+        tuple(value if i == j else 0.0 for j in range(size)) for i in range(size)
+    )
 
 
 def rmse(estimate: Sequence[float], truth: Sequence[float]) -> float:
@@ -166,7 +168,8 @@ def rmse(estimate: Sequence[float], truth: Sequence[float]) -> float:
 
     """
     return math.sqrt(
-        math.fsum((a - b) ** 2 for a, b in zip(estimate, truth, strict=True)) / len(truth)
+        math.fsum((a - b) ** 2 for a, b in zip(estimate, truth, strict=True))
+        / len(truth)
     )
 
 
@@ -185,7 +188,9 @@ def lorenz96_section() -> dict[str, Any]:
 
     """
     start = tuple(8.0 + (0.01 if i == 0 else 0.0) for i in range(40))
-    spun = integrate_fixed_step(lorenz96_rhs, 0.0, start, step=0.05, steps=400).final_state
+    spun = integrate_fixed_step(
+        lorenz96_rhs, 0.0, start, step=0.05, steps=400
+    ).final_state
     model = lorenz96(initial_mean=spun)
     truth = simulate(model, CYCLES, seed=1)
     localization = Localization(range(40), range(40), 2.0, period=40)
@@ -194,7 +199,11 @@ def lorenz96_section() -> dict[str, Any]:
         "EnKF": {},
         "EnKF, localized": {"localization": localization, "relaxation": relaxation},
         "ETKF": {"analysis": "etkf", "relaxation": relaxation},
-        "LETKF": {"analysis": "letkf", "localization": localization, "relaxation": relaxation},
+        "LETKF": {
+            "analysis": "letkf",
+            "localization": localization,
+            "relaxation": relaxation,
+        },
     }
     print(
         f"1. Lorenz-96 twin (J = 40, F = 8, R = I, N = {MEMBERS}, {CYCLES} cycles, "
@@ -208,15 +217,24 @@ def lorenz96_section() -> dict[str, Any]:
             model, truth.observations, ensemble_size=MEMBERS, seed=SEED, **options
         )
         seconds = time.perf_counter() - began
-        errors = [rmse(result.analysis_means[k], truth.states[k]) for k in range(1, CYCLES + 1)]
+        errors = [
+            rmse(result.analysis_means[k], truth.states[k])
+            for k in range(1, CYCLES + 1)
+        ]
         spreads = [
-            math.sqrt(math.fsum(result.analysis_covariances[k][i][i] for i in range(40)) / 40)
+            math.sqrt(
+                math.fsum(result.analysis_covariances[k][i][i] for i in range(40)) / 40
+            )
             for k in range(1, CYCLES + 1)
         ]
         series[name] = (errors, spreads)
-        error, spread = statistics.fmean(errors[BURN:]), statistics.fmean(spreads[BURN:])
+        error, spread = (
+            statistics.fmean(errors[BURN:]),
+            statistics.fmean(spreads[BURN:]),
+        )
         print(
-            f"   {name:16s}  {error:5.3f}   {spread:5.3f}    {spread / error:6.2f}      "
+            f"   {name:16s}  {error:5.3f}   {spread:5.3f}    {spread / error:6.2f}"
+            "      "
             f"{seconds:5.1f}"
         )
     smoother = ensemble_kalman_smoother(
@@ -224,7 +242,9 @@ def lorenz96_section() -> dict[str, Any]:
         **settings["LETKF"],
     )  # fmt: skip
     window = range(BURN + 1, CYCLES + 1 - LAG)
-    smoothed = statistics.fmean(rmse(smoother.smoothed_means[k], truth.states[k]) for k in window)
+    smoothed = statistics.fmean(
+        rmse(smoother.smoothed_means[k], truth.states[k]) for k in window
+    )
     filtered = statistics.fmean(
         rmse(smoother.filter.analysis_means[k], truth.states[k]) for k in window
     )
@@ -247,7 +267,9 @@ B = diagonal(3, 4.0)
 R = diagonal(3, 0.25)
 
 
-def twin(seed: int, window: int) -> tuple[list[tuple[float, ...]], tuple[float, ...], list[tuple[float, ...]]]:
+def twin(
+    seed: int, window: int
+) -> tuple[list[tuple[float, ...]], tuple[float, ...], list[tuple[float, ...]]]:
     """Return the truth ``x_0..x_K``, the background, and the observations.
 
     References:
@@ -287,11 +309,18 @@ def strong(background: Sequence[float], observations: Sequence[Any]) -> Any:
 
     """
     return four_dimensional_variational(
-        background, B, observations, L63.transition_function, L63.observation_function, R
+        background,
+        B,
+        observations,
+        L63.transition_function,
+        L63.observation_function,
+        R,
     )
 
 
-def truth_cost(background: Sequence[float], observations: Sequence[Any], state: Sequence[float]) -> float:
+def truth_cost(
+    background: Sequence[float], observations: Sequence[Any], state: Sequence[float]
+) -> float:
     """Return the 4D-Var cost at a given initial state.
 
     References:
@@ -299,7 +328,12 @@ def truth_cost(background: Sequence[float], observations: Sequence[Any], state: 
 
     """
     cost = four_dimensional_variational_cost(
-        background, B, observations, L63.transition_function, L63.observation_function, R
+        background,
+        B,
+        observations,
+        L63.transition_function,
+        L63.observation_function,
+        R,
     )
     return float(cost(tuple(state)))
 
@@ -315,10 +349,19 @@ def short_window_section() -> dict[str, Any]:
     truth, background, observations = twin(0, SHORT)
     result = strong(background, observations)
     incremental = incremental_four_dimensional_variational(
-        background, B, observations, L63.transition_function, L63.observation_function, R
+        background,
+        B,
+        observations,
+        L63.transition_function,
+        L63.observation_function,
+        R,
     )
-    gap = max(abs(a - b) for a, b in zip(incremental.analysis, result.analysis, strict=True))
-    print(f"2. Lorenz-63 strong-constraint 4D-Var, {SHORT}-interval window (twin seed 0)")
+    gap = max(
+        abs(a - b) for a, b in zip(incremental.analysis, result.analysis, strict=True)
+    )
+    print(
+        f"2. Lorenz-63 strong-constraint 4D-Var, {SHORT}-interval window (twin seed 0)"
+    )
     print(
         f"   x_0 error: background {math.dist(background, truth[0]):.3f}, analysis "
         f"{math.dist(result.analysis, truth[0]):.3f}; end of window: background "
@@ -335,10 +378,17 @@ def short_window_section() -> dict[str, Any]:
         + ", ".join(f"{c:.1f}" for c in incremental.outer_costs[:5])
         + f", ...; max |x_inc - x_BFGS| = {gap:.1e}\n"
     )
-    return {"truth": truth, "background": background, "observations": observations, "result": result}
+    return {
+        "truth": truth,
+        "background": background,
+        "observations": observations,
+        "result": result,
+    }
 
 
-def cycled(background: Sequence[float], observations: Sequence[Any], windows: int) -> list[tuple[float, ...]]:
+def cycled(
+    background: Sequence[float], observations: Sequence[Any], windows: int
+) -> list[tuple[float, ...]]:
     """Assimilate ``windows`` consecutive short windows, cycling the background.
 
     Each window's background is the previous analysis run forward to the
@@ -384,16 +434,21 @@ def long_window_section() -> dict[str, Any]:
         local = result.cost > 2.0 * reference
         stuck += local
         print(
-            f"   {seed:4d}   {result.cost:11.1f}   {reference:8.1f}   {result.iterations:10d}   "
+            f"   {seed:4d}   {result.cost:11.1f}   {reference:8.1f}   "
+            f"{result.iterations:10d}   "
             f"{math.dist(result.trajectory[-1], truth[-1]):15.3f}   "
-            f"{math.dist(path[-1], truth[-1]):6.3f}" + ("   local minimum" if local else "")
+            f"{math.dist(path[-1], truth[-1]):6.3f}"
+            + ("   local minimum" if local else "")
         )
         if local and not shown:
             shown = {
                 "seed": seed, "truth": truth, "observations": observations,
                 "long": result, "cycled": path, "reference": reference,
             }  # fmt: skip
-    print(f"   {stuck} of {len(TWIN_SEEDS)} long windows end in a local minimum (J > 2 J(truth))\n")
+    print(
+        f"   {stuck} of {len(TWIN_SEEDS)} long windows end in a local minimum "
+        "(J > 2 J(truth))\n"
+    )
     return shown
 
 
@@ -436,7 +491,9 @@ def rmse_figure(part: dict[str, Any]) -> str:
     cycles = list(range(1, CYCLES + 1))
     error_colour = theme.role_colour("model")
     spread_colour = theme.role_colour("series-5")
-    for axes, (name, (errors, spreads)) in zip(grid.flat, part["series"].items(), strict=True):
+    for axes, (name, (errors, spreads)) in zip(
+        grid.flat, part["series"].items(), strict=True
+    ):
         theme.style_axes(axes)
         theme.reference_line(axes, y=1.0, entity="threshold")
         theme.line(axes, cycles, errors, color=error_colour)
@@ -466,9 +523,8 @@ def rmse_figure(part: dict[str, Any]) -> str:
         first,
         f"Localization keeps 20 members on Lorenz-96 at RMSE {letkf:.2f}; the "
         f"plain EnKF diverges to {plain:.2f} with a collapsed spread",
-        "Solid: analysis RMSE · dashed: ensemble spread · line at 1: observation "
-        f"error\nShaded: cycles 1-{BURN}, left out of the averages · truth seed 1, "
-        f"filter seed {SEED}",
+        "Solid: analysis RMSE · dashed: spread · line at 1: observation error · "
+        f"shaded: cycles 1-{BURN}, not averaged",
     )
     return save(figure, "lorenz96-rmse-spread.png")
 
@@ -484,7 +540,7 @@ def trajectory_figure(short: dict[str, Any], long: dict[str, Any]) -> str:
 
     plt = theme.pyplot()
     figure, (left, right) = plt.subplots(
-        1, 2, figsize=(7.6, 4.2), sharey=True, gridspec_kw={"wspace": 0.08,
+        1, 2, figsize=(7.6, 4.2), sharey=True, gridspec_kw={"wspace": 0.42,
         "width_ratios": (1.0, 2.0)},
     )  # fmt: skip
     palette = theme.active_palette()
@@ -503,7 +559,9 @@ def trajectory_figure(short: dict[str, Any], long: dict[str, Any]) -> str:
         """
         return [step * k for k in range(count)]
 
-    def draw_truth(axes: Any, truth: Sequence[Sequence[float]], observations: Any) -> None:
+    def draw_truth(
+        axes: Any, truth: Sequence[Sequence[float]], observations: Any
+    ) -> None:
         """Draw the true x-component and the observations of it.
 
         References:
@@ -522,7 +580,13 @@ def trajectory_figure(short: dict[str, Any], long: dict[str, Any]) -> str:
     theme.style_axes(left)
     result = short["result"]
     background_path = forecast(short["background"], SHORT)
-    theme.line(left, times(SHORT + 1), [s[0] for s in background_path], color=context, dashes=theme.FITTED)
+    theme.line(
+        left,
+        times(SHORT + 1),
+        [s[0] for s in background_path],
+        color=context,
+        dashes=theme.FITTED,
+    )
     theme.line(left, times(SHORT + 1), [s[0] for s in result.trajectory], color=model)
     draw_truth(left, short["truth"], short["observations"])
     theme.direct_labels(
@@ -534,42 +598,50 @@ def trajectory_figure(short: dict[str, Any], long: dict[str, Any]) -> str:
         gap_points=13.0,
     )
     left.set_xlim(0.0, step * SHORT)
-    theme.axis_labels(left, "Time", "x-component of Lorenz-63")
+    theme.axis_labels(left, "Time (model units)", "x-component of Lorenz-63")
     left.text(
-        0.03, 0.03, f"{SHORT} intervals, seed 0", transform=left.transAxes,
-        ha="left", va="bottom", fontsize=theme.ANNOTATION_SIZE, color=palette.ink,
+        0.04, 0.97, f"{SHORT} intervals, seed 0", transform=left.transAxes,
+        ha="left", va="top", fontsize=theme.ANNOTATION_SIZE, color=palette.ink,
     )  # fmt: skip
 
     theme.style_axes(right)
     span = times(LONG + 1)
-    theme.line(right, span, [s[0] for s in long["long"].trajectory], color=other, dashes=theme.FITTED)
+    theme.line(
+        right,
+        span,
+        [s[0] for s in long["long"].trajectory],
+        color=other,
+        dashes=theme.FITTED,
+    )
     theme.line(right, span, [s[0] for s in long["cycled"]], color=model)
     draw_truth(right, long["truth"], long["observations"])
     for window in range(1, LONG // SHORT):
-        right.axvline(step * SHORT * window, color=palette.rule, linewidth=0.8, zorder=0)
+        right.axvline(
+            step * SHORT * window, color=palette.rule, linewidth=0.8, zorder=0
+        )
     theme.direct_labels(
         right,
         [
             (step * LONG, long["long"].trajectory[-1][0], "one long window", other),
-            (step * LONG, long["cycled"][-1][0], "4 cycled windows", model),
+            (step * LONG, long["cycled"][-1][0], "4D-Var, 4 cycled windows", model),
         ],
         gap_points=13.0,
     )
     right.set_xlim(0.0, step * LONG)
-    theme.axis_labels(right, "Time", None)
+    theme.axis_labels(right, "Time (model units)", None)
     right.text(
-        0.02, 0.03,
-        f"{LONG} intervals, seed {long['seed']}: J = {long['long'].cost:.0f} against "
-        f"J(truth) = {long['reference']:.0f}",
-        transform=right.transAxes, ha="left", va="bottom",
+        0.02, 0.97,
+        f"{LONG} intervals, seed {long['seed']}:\none window stops at J = "
+        f"{long['long'].cost:.0f},\nJ(truth) = {long['reference']:.0f}",
+        transform=right.transAxes, ha="left", va="top",
         fontsize=theme.ANNOTATION_SIZE, color=palette.ink,
     )  # fmt: skip
     theme.title_block(
         left,
-        "A short window pulls the background onto the truth; a long window "
-        "converges to a wrong trajectory that cycling short windows avoids",
-        "Dashed accent: truth · dots: observations of x (R = 0.25) · grey rules: "
-        "window boundaries of the cycled analysis · B = 4 I",
+        "A short 4D-Var window pulls the background onto the truth; one long\n"
+        "window stops in a wrong minimum that four cycled short windows avoid",
+        "Dashed accent: truth · dots: observed x, R = 0.25 · grey rules: starts "
+        "of the cycled windows",
     )
     return save(figure, "lorenz63-4dvar-trajectories.png")
 
