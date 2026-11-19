@@ -5,8 +5,9 @@ identifiability diagnostic. ``nonlinear`` declares a calibration problem on a
 :class:`~probstat.modeling.ProbabilisticModel` whose joint input law is the
 prior, with least squares, Fisher identifiability, the Laplace approximation,
 and MCMC. ``discrepancy`` adds a Gaussian-process model discrepancy
-(Kennedy-O'Hagan) and heteroscedastic noise, and ``prediction`` pushes
-posterior draws through the forward model.
+(Kennedy-O'Hagan) and heteroscedastic noise, ``prediction`` pushes
+posterior draws through the forward model, and ``ensemble_inversion`` holds
+the derivative-free ensemble Kalman inversion and ES-MDA.
 
 Main entry points:
     ``CalibrationProblem``: nonlinear calibration of model parameters from
@@ -22,6 +23,10 @@ Main entry points:
     Fisher information.
     ``calibrate_linear_gaussian``: conjugate posterior of an intercept and a
     slope under known noise.
+    ``ensemble_kalman_inversion``: derivative-free misfit minimization by
+    iterated ensemble Kalman updates, with discrepancy-principle stopping.
+    ``ensemble_smoother_mda``: ES-MDA, exact for linear-Gaussian problems as
+    the ensemble grows; ``EnsembleInversionResult`` holds either run.
 
 Assumptions:
     The forward model is deterministic given its inputs. Measurement errors
@@ -45,12 +50,17 @@ Common pitfalls:
       ``identifiability.warning``, and no Python warning is emitted.
     - ``sample_posterior`` and ``predict`` default to ``seed=None`` (fresh
       entropy); pass an integer seed to reproduce draws.
+    - ``ensemble_kalman_inversion`` is an optimizer: its ensemble collapses,
+      so its spread is not a posterior uncertainty. Both ensemble methods
+      accept known-scale Gaussian noise only and raise ``ValueError``
+      otherwise.
 
 Guide: docs/foundations/inverse-problems-and-calibration.md
 
 References:
     [REF-TARANTOLA-2005], [REF-GELMAN-ETAL-2013], [REF-KENNEDY-OHAGAN-2001],
-    [REF-BRYNJARSDOTTIR-OHAGAN-2014], [REF-HAARIO-SAKSMAN-TAMMINEN-2001].
+    [REF-BRYNJARSDOTTIR-OHAGAN-2014], [REF-HAARIO-SAKSMAN-TAMMINEN-2001],
+    [REF-IGLESIAS-LAW-STUART-2013], [REF-EMERICK-REYNOLDS-2013].
 
 """
 
@@ -72,6 +82,11 @@ from .discrepancy import (
     KnownNoise,
     LogLinearNoise,
     discrepancy_kernel,
+)
+from .ensemble_inversion import (
+    EnsembleInversionResult,
+    ensemble_kalman_inversion,
+    ensemble_smoother_mda,
 )
 from .nonlinear import (
     CalibrationPosterior,
@@ -96,6 +111,9 @@ __all__ = [
     "KnownNoise",
     "LogLinearNoise",
     "discrepancy_kernel",
+    "EnsembleInversionResult",
+    "ensemble_kalman_inversion",
+    "ensemble_smoother_mda",
     "CalibrationPosterior",
     "CalibrationProblem",
     "Experiment",
