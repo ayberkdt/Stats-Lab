@@ -1668,6 +1668,13 @@ def print_report(results: LabResults) -> None:
         f"   reference-solver I_alpha covers {val.reference_coverage:.3f} of the "
         f"{count} truth landings"
     )
+    law = input_law()
+    stated = law.standard_deviations()[law.names.index("x0")]
+    print(
+        "   at a fixed wind the corrected intervals over-cover: the stated law of "
+        f"x0 has sd {stated:.1f} m against the truth's drop scatter of "
+        f"{DROP_SCATTER['x0'][1]:.1f} m"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1720,6 +1727,7 @@ def _label(
     offset: tuple[float, float] = (6.0, 0.0),
     ha: str = "left",
     va: str = "center",
+    contrast: float = 4.5,
 ) -> None:
     """Write a direct label in a legible tone of its series colour.
 
@@ -1736,7 +1744,7 @@ def _label(
         va=va,
         fontsize=theme.ANNOTATION_SIZE,
         fontweight="bold",
-        color=_legible(colour),
+        color=_legible(colour, contrast),
         annotation_clip=False,
     )
 
@@ -1780,6 +1788,12 @@ def _plain_log(axis: Any) -> None:
     axis.set_minor_formatter(NullFormatter())
 
 
+STRUCTURE_ROLES = {
+    "parametric only": "model",
+    "Gaussian inflation": "series-3",
+    "constant bias": "series-4",
+    "bias ~ wind": "series-5",
+}
 SCHEME_ROLES = {
     "Euler, linear": "model",
     "Euler, first step below": "context",
@@ -1798,17 +1812,19 @@ def draw_convergence(results: LabResults) -> Any:
     v = results.verification
     figure, (ax,) = _panels(height=4.6)
     steps = list(STEP_LADDER[1:])
-    labels = []
-    for label, _, _ in SCHEMES:
+    for label, _, location in SCHEMES:
         errors = [abs(e) for e in v.errors[label][1:]]
         colour = theme.role_colour(SCHEME_ROLES[label])
-        theme.line(ax, steps, errors, color=colour)
-        theme.points(ax, steps, errors, color=colour, size=22.0)
-        labels.append((steps[0], errors[0], label, colour))
+        if location == "step":
+            theme.line(ax, steps, errors, color=colour, dashes=theme.FITTED)
+        else:
+            theme.line(ax, steps, errors, color=colour)
+            theme.points(ax, steps, errors, color=colour, size=22.0)
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlim(0.0045, 0.4)
-    ax.set_ylim(1e-6, 30.0)
+    ax.set_ylim(5e-8, 30.0)
+    ax.set_yticks([1e-7, 1e-5, 1e-3, 1e-1, 1e1])
     _plain_log(ax.xaxis)
     _label(
         ax,
@@ -1830,7 +1846,7 @@ def draw_convergence(results: LabResults) -> Any:
         ax,
         steps[0],
         abs(v.errors["RK4, first step below"][1]),
-        "RK4, first step below (capped at 1)",
+        "RK4, first step below (erratic)",
         theme.role_colour("series-4"),
         offset=(6.0, -2.0),
     )
@@ -1846,7 +1862,7 @@ def draw_convergence(results: LabResults) -> Any:
     _label(
         ax,
         results.step.chosen,
-        1.5e-6,
+        1e-7,
         f"chosen dt = {results.step.chosen:g} s",
         theme.role_colour("reference"),
         offset=(-4.0, 6.0),
@@ -1858,8 +1874,7 @@ def draw_convergence(results: LabResults) -> Any:
     )
     theme.title_block(
         ax,
-        "Euler converges at order 1; stopping at the first step below ground "
-        "caps RK4 at order 1 too",
+        "Euler converges at order 1; without event interpolation RK4 loses its order 4",
         "Absolute error against RK4 with Hermite event location at dt = 0.001 s; "
         "nominal inputs",
     )
@@ -1887,19 +1902,12 @@ def draw_code_verification(results: LabResults) -> Any:
         theme.line(ax, steps, errors, color=colour)
         theme.points(ax, steps, errors, color=colour, size=22.0)
         order = c.linear_orders[label][-1]
-        _label(
-            ax,
-            steps[-1],
-            errors[-1],
-            f"{label}: order {order:.1f}",
-            colour,
-            offset=(-8.0, 0.0),
-            ha="right",
-        )
+        _label(ax, steps[0], errors[0], f"{label}: order {order:.1f}", colour)
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlim(0.012, 0.3)
-    ax.set_ylim(1e-11, 30.0)
+    ax.set_xlim(0.018, 0.25)
+    ax.set_ylim(3e-11, 30.0)
+    ax.set_yticks([1e-10, 1e-8, 1e-6, 1e-4, 1e-2, 1e0])
     _plain_log(ax.xaxis)
     ax.set_xticks(steps)
     theme.axis_labels(
@@ -1909,7 +1917,7 @@ def draw_code_verification(results: LabResults) -> Any:
         ax,
         "Code verification: each scheme converges at its theoretical order",
         f"Linear drag k = {LINEAR_DAMPING:g} kg/s, exact landing from the Lambert W "
-        "function; labels give the order of the last halving",
+        "function; labels give the order of the finest halving",
     )
     return figure
 
@@ -1928,9 +1936,9 @@ def draw_step_choice(results: LabResults) -> Any:
     errors = [c.error for c in s.candidates]
     model, observed = theme.role_colour("model"), theme.role_colour("observed")
     theme.line(ax, steps, bounds, color=model)
-    theme.points(ax, steps, bounds, color=model, size=34.0)
+    theme.points(ax, steps, bounds, color=model, size=34.0, alpha=0.75)
     theme.line(ax, steps, errors, color=observed, dashes=theme.FITTED)
-    theme.points(ax, steps, errors, color=observed, size=26.0)
+    theme.points(ax, steps, errors, color=observed, size=26.0, alpha=0.75)
     theme.reference_line(ax, y=s.tolerance)
     ax.axvline(
         s.stability,
@@ -1940,17 +1948,19 @@ def draw_step_choice(results: LabResults) -> Any:
     )
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlim(0.018, 0.17)
+    ax.set_xlim(0.011, 0.17)
+    ax.set_ylim(0.5, 10.0)
     _plain_log(ax.xaxis)
     _plain_log(ax.yaxis)
     ax.set_xticks(steps)
+    ax.set_yticks([0.5, 1.0, 2.0, 5.0, 10.0])
     _label(
         ax,
         steps[0],
         bounds[0],
         "verified bound B(dt)",
         model,
-        offset=(-6.0, 6.0),
+        offset=(-8.0, 5.0),
         ha="right",
         va="bottom",
     )
@@ -1960,13 +1970,13 @@ def draw_step_choice(results: LabResults) -> Any:
         errors[0],
         "error against RK4",
         observed,
-        offset=(-6.0, -8.0),
+        offset=(-8.0, -5.0),
         ha="right",
         va="top",
     )
     _label(
         ax,
-        0.02,
+        0.012,
         s.tolerance,
         f"{TOLERANCE_FRACTION:.0%} of the parametric sd",
         theme.role_colour("reference"),
@@ -1987,8 +1997,8 @@ def draw_step_choice(results: LabResults) -> Any:
     )
     theme.title_block(
         ax,
-        f"dt = {s.chosen:g} s is the largest step whose verified bound stays "
-        f"below {s.tolerance:.1f} m",
+        f"The largest step whose verified bound stays below {s.tolerance:.1f} m "
+        f"is dt = {s.chosen:g} s",
         "Worst case over the nominal point and 16 corners of the input box; "
         "bound from the grids dt, dt/2, dt/4",
     )
@@ -2035,11 +2045,12 @@ def draw_propagation(results: LabResults) -> Any:
         theme.role_colour("model"),
         offset=(0.0, 0.0),
         ha="center",
+        contrast=5.2,
     )
     _label(
         ax,
         60.0,
-        0.0045,
+        0.0025,
         "simulator y_sim",
         theme.role_colour("model"),
         offset=(-6.0, 0.0),
@@ -2107,7 +2118,7 @@ def draw_sobol(results: LabResults) -> Any:
     top = sobol.ranking()[0]
     _label(
         ax,
-        sobol_index(sobol, top)[0].estimate,
+        sobol_index(sobol, top)[0].lower,
         len(names) - 1 + 0.14,
         "first order",
         theme.role_colour(first_style.role),
@@ -2116,7 +2127,7 @@ def draw_sobol(results: LabResults) -> Any:
     )
     _label(
         ax,
-        sobol_index(sobol, top)[1].estimate,
+        sobol_index(sobol, top)[1].lower,
         len(names) - 1 - 0.14,
         "total effect",
         theme.role_colour(total_style.role),
@@ -2143,9 +2154,9 @@ def draw_residuals(results: LabResults) -> Any:
     """
     val = results.validation
     figure, (ax,) = _panels()
-    for campaign, colour, marker, name in (
-        (val.calibration, theme.role_colour("observed"), "o", "calibration"),
-        (val.validation, theme.role_colour("context"), "s", "validation"),
+    for campaign, colour, marker, hollow in (
+        (val.calibration, theme.role_colour("observed"), "o", None),
+        (val.validation, theme.role_colour("context"), "s", True),
     ):
         residuals, variances = campaign.residuals()
         ax.errorbar(
@@ -2157,18 +2168,16 @@ def draw_residuals(results: LabResults) -> Any:
             elinewidth=1.0,
             alpha=0.6,
         )
-        theme.points(
-            ax, list(campaign.winds), residuals, color=colour, marker=marker, size=30.0
-        )
-        lowest = min(range(len(residuals)), key=lambda i: campaign.winds[i])
-        _label(
-            ax,
-            campaign.winds[lowest],
-            residuals[lowest],
-            name,
-            colour,
-            offset=(-8.0, 0.0),
-            ha="right",
+        ax.scatter(
+            campaign.winds,
+            residuals,
+            s=30.0,
+            marker=marker,
+            facecolors=colour if hollow is None else "none",
+            edgecolors=colour,
+            linewidths=1.4,
+            alpha=0.75,
+            zorder=4.0,
         )
     grid = [0.0 + 0.1 * k for k in range(101)]
     offset = val.checks[2].structure.offset[0]
@@ -2177,10 +2186,15 @@ def draw_residuals(results: LabResults) -> Any:
         ax,
         grid,
         [offset] * len(grid),
-        color=theme.role_colour("series-4"),
+        color=theme.role_colour(STRUCTURE_ROLES["constant bias"]),
         dashes=theme.FITTED,
     )
-    theme.line(ax, grid, [slope * w for w in grid], color=theme.role_colour("model"))
+    theme.line(
+        ax,
+        grid,
+        [slope * w for w in grid],
+        color=theme.role_colour(STRUCTURE_ROLES["bias ~ wind"]),
+    )
     theme.reference_line(ax, y=0.0)
     ax.set_xlim(0.0, 10.0)
     _label(
@@ -2188,7 +2202,7 @@ def draw_residuals(results: LabResults) -> Any:
         9.6,
         slope * 9.6,
         f"beta s_w, beta = {slope:.1f} s",
-        theme.role_colour("model"),
+        theme.role_colour(STRUCTURE_ROLES["bias ~ wind"]),
         offset=(0.0, 10.0),
         ha="right",
         va="bottom",
@@ -2198,7 +2212,7 @@ def draw_residuals(results: LabResults) -> Any:
         0.3,
         offset,
         f"constant b = {offset:.0f} m",
-        theme.role_colour("series-4"),
+        theme.role_colour(STRUCTURE_ROLES["constant bias"]),
         offset=(0.0, 8.0),
         va="bottom",
     )
@@ -2213,8 +2227,9 @@ def draw_residuals(results: LabResults) -> Any:
         ax,
         "The model error grows with the wind: the simulator misses the stronger "
         "wind aloft",
-        f"{CAMPAIGN_SIZE} calibration and {CAMPAIGN_SIZE} validation drops; bars: "
-        "+/- 1.96 predictive sd; lines fitted on the calibration drops",
+        f"Dots: {CAMPAIGN_SIZE} calibration drops; open squares: {CAMPAIGN_SIZE} "
+        "validation drops; bars: +/- 1.96 predictive sd; lines fitted on the "
+        "calibration drops",
     )
     return figure
 
@@ -2230,7 +2245,7 @@ def draw_coverage(results: LabResults) -> Any:
     figure, (ax,) = _panels(height=4.6)
     names = list(STRUCTURES)
     columns = ["all winds"] + [f"s_w = {w:.1f} m/s" for w in val.test_winds]
-    roles = ("model", "series-3", "context", "series-4")
+    roles = tuple(STRUCTURE_ROLES[name] for name in names)
     markers = ("o", "s", "^", "D")
     for row, check in enumerate(val.checks):
         values = [check.coverage, *check.conditional]
@@ -2267,8 +2282,9 @@ def draw_coverage(results: LabResults) -> Any:
     best = val.checks[3]
     theme.title_block(
         ax,
-        f"Only the wind-proportional bias reaches 90% coverage overall and at "
-        f"every wind ({min(best.conditional):.2f} to {max(best.conditional):.2f})",
+        "Only the wind-proportional bias reaches 90% coverage overall and at "
+        f"every wind ({best.coverage:.3f} overall, at least "
+        f"{min(best.conditional):.3f} per wind)",
         f"Coverage of 90% intervals: {val.truth_count} truth landings for all "
         f"winds, {CONDITIONAL_TRUTH_DROPS} per fixed wind; bars: +/- 1.96 "
         "binomial standard errors",
