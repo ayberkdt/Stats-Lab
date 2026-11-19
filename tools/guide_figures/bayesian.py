@@ -62,8 +62,10 @@ from probstat.inverse import (
     KnownNoise,
     NoiseModel,
     calibrate_linear_gaussian,
+    ensemble_smoother_mda,
     predict,
 )
+from probstat.linalg import cholesky, inverse_spd, solve_spd
 from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
 from probstat.multivariate import MultivariateNormal
 from probstat.propagation import compare_designs
@@ -776,6 +778,296 @@ def _smc_tempering() -> tuple[Any, dict[str, str]]:
         f"raising beta about {facts['growth']}-fold per stage",
         "Decay calibration, 1000 particles, seed 5 · each beta keeps the ESS at "
         "half of N (dashed line) before resampling",
+    )
+    return figure, facts
+
+
+# Straight-line problem of guide section 14 (tests/test_ensemble_inversion.py):
+# y = a + b x at seven points, noise 0.3, priors a ~ N(0, 2^2), b ~ N(1, 1).
+ESMDA_X = (0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0)
+ESMDA_NOISE = 0.3
+ESMDA_PRIOR = ((0.0, 1.0), (2.0, 1.0))
+ESMDA_SIZES = (25, 50, 100, 200, 400, 800, 1600)
+ESMDA_SEEDS = tuple(range(20))
+ESMDA_ALPHA = (2.0, 2.0)
+CHI2_2_90 = -2.0 * math.log(0.1)
+
+
+def _esmda_line_problem() -> tuple[Any, tuple[float, ...], Any]:
+    """Return the line calibration, its exact posterior mean and covariance.
+
+    References:
+        [EQ-CAL-NL-001], [REF-TARANTOLA-2005, Section 3.2].
+
+    """
+    generator = random.Random(5)
+    data = [1.0 + 0.7 * x + generator.gauss(0.0, ESMDA_NOISE) for x in ESMDA_X]
+
+    def line(parameters: Any) -> dict[str, float]:
+        """Return the straight-line response.
+
+        References:
+            [EQ-CAL-NL-001]. No other equation is evaluated.
+
+        """
+        return {"y": parameters["a"] + parameters["b"] * parameters["x"]}
+
+    (mean_a, mean_b), (sd_a, sd_b) = ESMDA_PRIOR
+    prior = JointInput.independent(
+        RandomInput("a", Normal(mean_a, sd_a)), RandomInput("b", Normal(mean_b, sd_b))
+    )
+    model = ProbabilisticModel(prior, line, (QuantityOfInterest("y", "line"),))
+    problem = CalibrationProblem(
+        model,
+        tuple(Experiment({"y": y}, {"x": x}) for x, y in zip(ESMDA_X, data, strict=True)),
+        (NoiseModel("y", standard_deviation=ESMDA_NOISE),),
+    )
+    rows = [(1.0, x) for x in ESMDA_X]
+    precision = tuple(
+        tuple(
+            math.fsum(r[i] * r[j] for r in rows) / ESMDA_NOISE**2
+            + (1.0 / ESMDA_PRIOR[1][i] ** 2 if i == j else 0.0)
+            for j in range(2)
+        )
+        for i in range(2)
+    )
+    rhs = tuple(
+        math.fsum(r[i] * y for r, y in zip(rows, data, strict=True)) / ESMDA_NOISE**2
+        + ESMDA_PRIOR[0][i] / ESMDA_PRIOR[1][i] ** 2
+        for i in range(2)
+    )
+    return problem, solve_spd(precision, rhs), precision
+
+
+def _ensemble_moments(
+    members: Sequence[Sequence[float]],
+) -> tuple[tuple[float, float], tuple[tuple[float, float], tuple[float, float]]]:
+    """Return the sample mean and covariance of two-dimensional members.
+
+    References:
+        [EQ-MC-MEAN-001]. Unbiased sample covariance.
+
+    """
+    count = len(members)
+    mean = (
+        math.fsum(m[0] for m in members) / count,
+        math.fsum(m[1] for m in members) / count,
+    )
+
+    def entry(i: int, j: int) -> float:
+        """Return one covariance entry.
+
+        References:
+            [EQ-MC-MEAN-001]. No other equation is evaluated.
+
+        """
+        return math.fsum((m[i] - mean[i]) * (m[j] - mean[j]) for m in members) / (
+            count - 1
+        )
+
+    return mean, ((entry(0, 0), entry(0, 1)), (entry(1, 0), entry(1, 1)))
+
+
+@functools.cache
+def _esmda_convergence() -> dict[str, Any]:
+    """Run ES-MDA with ``alpha = (2, 2)`` for every size and seed.
+
+    The mean error is the Mahalanobis distance of the ensemble mean from the
+    exact posterior mean in the posterior metric; the covariance error is
+    the relative Frobenius error of the ensemble covariance. Both are
+    averaged over seeds 0-19.
+
+    References:
+        [EQ-INV-ESMDA-001], [REF-EMERICK-REYNOLDS-2013].
+
+    """
+    problem, mean, precision = _esmda_line_problem()
+    covariance = inverse_spd(precision)
+    scale = math.sqrt(math.fsum(v * v for row in covariance for v in row))
+    mean_errors, covariance_errors = [], []
+    ensembles = {}
+    for size in ESMDA_SIZES:
+        distances, relative = [], []
+        for seed in ESMDA_SEEDS:
+            result = ensemble_smoother_mda(
+                problem,
+                ensemble_size=size,
+                inflation_coefficients=ESMDA_ALPHA,
+                seed=seed,
+            )
+            centre, spread = _ensemble_moments(result.ensemble)
+            d = (centre[0] - mean[0], centre[1] - mean[1])
+            distances.append(
+                math.sqrt(
+                    math.fsum(
+                        d[i] * precision[i][j] * d[j] for i in range(2) for j in range(2)
+                    )
+                )
+            )
+            relative.append(
+                math.sqrt(
+                    math.fsum(
+                        (spread[i][j] - covariance[i][j]) ** 2
+                        for i in range(2)
+                        for j in range(2)
+                    )
+                )
+                / scale
+            )
+            if seed == 0:
+                ensembles[size] = (centre, spread)
+        mean_errors.append(math.fsum(distances) / len(distances))
+        covariance_errors.append(math.fsum(relative) / len(relative))
+    return {
+        "mean": mean,
+        "covariance": covariance,
+        "ensembles": ensembles,
+        "mean_errors": tuple(mean_errors),
+        "covariance_errors": tuple(covariance_errors),
+    }
+
+
+def _ellipse(
+    centre: Sequence[float], covariance: Sequence[Sequence[float]]
+) -> tuple[list[float], list[float]]:
+    """Return the boundary of the 90% region of a bivariate normal.
+
+    References:
+        [EQ-LINALG-001]. Cholesky map of a circle of radius sqrt(chi2_2(0.9)).
+
+    """
+    lower = cholesky(covariance)
+    radius = math.sqrt(CHI2_2_90)
+    xs, ys = [], []
+    for k in range(121):
+        angle = 2.0 * math.pi * k / 120
+        u, v = radius * math.cos(angle), radius * math.sin(angle)
+        xs.append(centre[0] + lower[0][0] * u)
+        ys.append(centre[1] + lower[1][0] * u + lower[1][1] * v)
+    return xs, ys
+
+
+def _esmda_exact_posterior() -> tuple[Any, dict[str, str]]:
+    """Draw ES-MDA ellipses against the exact posterior and the error decay.
+
+    References:
+        [EQ-INV-ESMDA-001], [REF-EMERICK-REYNOLDS-2013].
+
+    """
+    study = _esmda_convergence()
+    small, large = ESMDA_SIZES[0], ESMDA_SIZES[-1]
+    facts = {
+        "small": f"{study['mean_errors'][0]:.3f}",
+        "large": f"{study['mean_errors'][-1]:.3f}",
+        "cov_small": f"{study['covariance_errors'][0]:.2f}",
+        "cov_large": f"{study['covariance_errors'][-1]:.3f}",
+    }
+    plt = theme.pyplot()
+    figure, (left, right) = plt.subplots(
+        1, 2, figsize=WIDE, gridspec_kw={"wspace": 0.34}
+    )
+    palette = theme.active_palette()
+    theme.style_axes(left)
+    theme.style_axes(right)
+    exact = theme.entity_style("closed form")
+    styles = (
+        (f"N = {small}", study["ensembles"][small], palette.muted, theme.FITTED),
+        (f"N = {large}", study["ensembles"][large], palette.model, None),
+    )
+    # The N = 25 label sits beyond the lower tip of its region; the two
+    # coinciding regions get labels in the empty upper right with leader
+    # lines to their upper flank.
+    curves = [
+        (name, _ellipse(centre, spread), colour, dashes, theme.LINE_WIDTH)
+        for name, (centre, spread), colour, dashes in styles
+    ]
+    curves.append(
+        (
+            "exact posterior",
+            _ellipse(study["mean"], study["covariance"]),
+            exact.colour(),
+            exact.dashes,
+            exact.width,
+        )
+    )
+    placements = ((1.0, 0.0, 0.0), (0.72, 0.97, 1.11), (0.80, 0.90, 1.03))
+    for (name, (xs, ys), colour, dashes, width), (px, py, height) in zip(
+        curves, placements, strict=True
+    ):
+        theme.line(left, xs, ys, color=colour, dashes=dashes, width=width)
+        if height == 0.0:
+            tip = min(range(len(ys)), key=lambda k: ys[k])
+            left.annotate(
+                name, xy=(xs[tip], ys[tip]), xytext=(8.0, 0.0),
+                textcoords="offset points", ha="left", va="center",
+                fontsize=theme.ANNOTATION_SIZE, fontweight="bold", color=colour,
+            )  # fmt: skip
+            continue
+        near = min(range(len(xs)), key=lambda k: (xs[k] - px) ** 2 + (ys[k] - py) ** 2)
+        left.annotate(
+            name, xy=(xs[near], ys[near]), xytext=(1.02, height), textcoords="data",
+            ha="left", va="center", fontsize=theme.ANNOTATION_SIZE,
+            fontweight="bold", color=colour,
+            arrowprops={
+                "arrowstyle": "-", "color": palette.muted, "linewidth": 0.7,
+                "shrinkA": 2.0, "shrinkB": 2.0, "relpos": (0.0, 0.5),
+            },
+        )  # fmt: skip
+    theme.points(
+        left, [study["mean"][0]], [study["mean"][1]], color=exact.colour(),
+        marker="P", size=50.0, zorder=5.0,
+    )  # fmt: skip
+    left.set_xlim(-0.2, 1.5)
+    left.set_ylim(0.4, 1.2)
+    theme.axis_labels(left, "Intercept a", "Slope b")
+    sizes = list(ESMDA_SIZES)
+    rows = (
+        ("mean error", study["mean_errors"], palette.model, "s", None),
+        (
+            "covariance error",
+            study["covariance_errors"],
+            theme.role_colour("series-5"),
+            "^",
+            theme.FITTED,
+        ),
+    )
+    labels = []
+    for name, values, colour, marker, dashes in rows:
+        theme.line(right, sizes, values, color=colour, dashes=dashes)
+        theme.points(right, sizes, values, color=colour, marker=marker, size=40.0)
+        labels.append((sizes[-1], values[-1], name, colour))
+    anchor = study["mean_errors"][0] * 1.6
+    theme.line(
+        right,
+        [sizes[0], sizes[-1]],
+        [anchor, anchor * math.sqrt(sizes[0] / sizes[-1])],
+        color=palette.muted,
+        width=theme.CONTEXT_WIDTH,
+        dashes=theme.REFERENCE,
+    )
+    right.annotate(
+        "slope -1/2", xy=(sizes[2], anchor * math.sqrt(sizes[0] / sizes[2])),
+        xytext=(4.0, 4.0), textcoords="offset points", ha="left", va="bottom",
+        fontsize=theme.ANNOTATION_SIZE, color=palette.muted,
+    )  # fmt: skip
+    right.set_xscale("log")
+    right.set_yscale("log")
+    right.set_xticks(sizes)
+    right.set_xticklabels([str(size) for size in sizes])
+    right.set_yticks([0.02, 0.05, 0.1, 0.2, 0.5])
+    right.set_yticklabels(["0.02", "0.05", "0.1", "0.2", "0.5"])
+    right.minorticks_off()
+    right.set_xlim(18.0, 2900.0)
+    right.set_ylim(0.012, 0.8)
+    right.grid(axis="x", visible=False)
+    theme.direct_labels(right, labels, gap_points=13.0)
+    theme.axis_labels(right, "Ensemble size N", "Error (mean of 20 seeds)")
+    theme.title_block(
+        left,
+        f"ES-MDA converges to the exact posterior: the mean error falls from "
+        f"{facts['small']} at N = {small} to {facts['large']} at N = {large}",
+        "Left: 90% regions, seed 0 · right: mean error in posterior standard "
+        "deviations, relative covariance error · alpha = (2, 2), seeds 0-19",
     )
     return figure, facts
 
@@ -1524,6 +1816,15 @@ FIGURES = [
             "effective sample size fraction and acceptance rate per stage"
         ),
         draw=_smc_tempering,
+    ),
+    GuideFigure(
+        name="esmda-exact-posterior",
+        guide="nonlinear-calibration-and-mcmc",
+        alt=(
+            "Two panels: 90% regions of two ES-MDA ensembles and the exact "
+            "posterior, and the mean and covariance errors against ensemble size"
+        ),
+        draw=_esmda_exact_posterior,
     ),
     GuideFigure(
         name="calibration-decay-prediction",

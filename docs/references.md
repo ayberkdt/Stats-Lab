@@ -5052,3 +5052,14 @@ Filter for Inverse Problems." *SIAM Journal on Numerical Analysis* 55(3),
 preconditioned gradient flows of the data misfit; ensemble collapse and
 over-fitting of noisy data for linear forward models (Sections 3 and 4).
 DOI: [10.1137/16M105959X](https://doi.org/10.1137/16M105959X).
+
+## REF-KAIPIO-SOMERSALO-2007
+
+Jari Kaipio and Erkki Somersalo. "Statistical Inverse Problems:
+Discretization, Model Reduction and Inverse Crimes." *Journal of
+Computational and Applied Mathematics* 198(2), 493-504, 2007. Simulating
+data with the same discretization that inverts them (the inverse crime)
+hides the discretization and truncation error and makes reconstructions look
+better than they are; the approximation error should be modelled or the data
+generated with a finer model.
+DOI: [10.1016/j.cam.2005.09.027](https://doi.org/10.1016/j.cam.2005.09.027).
