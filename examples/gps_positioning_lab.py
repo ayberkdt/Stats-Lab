@@ -109,9 +109,11 @@ Diagnostics:
       compared with ``P_FA`` and with the closed-form detection probability.
 
 Cost and error:
-    - About 2 minutes in pure Python; the run prints its wall-clock time.
-      Most of it goes to the 39 200 least-squares fixes (27 200 in Part 1,
-      7 000 weighted and 5 000 ordinary in Part 2) at about 2.5 ms each.
+    - About 1 to 1.5 minutes in pure Python; the run prints its wall-clock
+      time.
+      Most of it goes to the 27 500 least-squares fixes (21 000 in Part 1;
+      4 500 weighted and 2 000 ordinary in Part 2) at about 2 ms each; the
+      120 000 importance-sampling proposals take about 3 seconds.
     - The posterior likelihood carries no Monte Carlo error of its own (the
       inner expectation is exact up to the quadrature check above); only the
       importance sampling over ``R`` is random.
@@ -178,8 +180,8 @@ ORIGIN: tuple[float, float, float] = (0.0, 0.0, 0.0)
 GOOD_SKY = ((20.0, 78.0), (75.0, 28.0), (160.0, 42.0), (245.0, 22.0), (320.0, 50.0))
 POOR_SKY = ((60.0, 35.0), (85.0, 48.0), (100.0, 30.0), (120.0, 55.0), (140.0, 38.0))
 
-FIX_DRAWS = 4000
-GEOMETRY_DRAWS = 600
+FIX_DRAWS = 3000
+GEOMETRY_DRAWS = 500
 RANDOM_GEOMETRIES = 10
 PROPOSALS = 120_000
 BOX_MARGIN = 1.05
@@ -1623,7 +1625,7 @@ def print_report(results: LabResults) -> None:
     print(f"  ||E[R] - R0|| = {distance(post.mean, ORIGIN):.2f} m")
     print(f"  90% radius around E[R]: {post.radius:.2f} m (batch SE {post.radius_se:.2f})")
     print(
-        f"  ESS {post.ess:.0f} of {post.proposals} main-stage proposals; positive "
+        f"  ESS {post.ess:.0f} of {post.proposals} proposals; positive "
         f"weight {100 * post.positive_share:.1f}%; edge hits {post.edge_hits}"
     )
     print(
@@ -1802,7 +1804,16 @@ def figure_posterior_cloud(results: LabResults) -> Any:
     )
     ax.plot([0.0], [0.0], marker="+", markersize=12, color=palette.model, mew=2.0)
     ax.plot([post.mean[0]], [post.mean[1]], marker="o", markersize=6, color=palette.ink)
-    _label(ax, 0.0, 0.0, "True position", palette.model, xytext=(8.0, -10.0))
+    _label(
+        ax,
+        0.0,
+        0.0,
+        "True position",
+        palette.model,
+        xytext=(-8.0, 8.0),
+        ha="right",
+        va="bottom",
+    )
     _label(ax, post.mean[0], post.mean[1], "E[R]", palette.ink, xytext=(8.0, 8.0))
     _label(
         ax,
@@ -1995,15 +2006,16 @@ def figure_geometry(results: LabResults) -> Any:
                 palette.ink,
                 xytext=(8.0, -8.0) if p.label == "clustered" else (8.0, -10.0),
             )
+    anchor = 0.7 * top
     _label(
         ax,
-        top,
-        slope * top,
+        anchor,
+        slope * anchor,
         f"Linearized: {slope:.1f} m per PDOP unit",
         palette.model,
-        xytext=(-4.0, 8.0),
-        ha="right",
-        va="bottom",
+        xytext=(10.0, -10.0),
+        ha="left",
+        va="top",
     )
     ax.set_xlim(0.0, top * 1.02)
     ax.set_ylim(0.0, max(p.radius + 2 * p.radius_se for p in points) * 1.08)
@@ -2031,7 +2043,6 @@ def figure_raim(results: LabResults) -> Any:
     hardest = max(results.raim, key=lambda row: row.bias)
     top = hardest.bias * 1.15
     grid = [top * i / 200 for i in range(201)]
-    items = []
     for row in results.raim:
         colour = palette.accent if row is hardest else palette.muted
         width = theme.LINE_WIDTH if row is hardest else theme.REFERENCE_WIDTH
@@ -2050,27 +2061,42 @@ def figure_raim(results: LabResults) -> Any:
                 linewidth=1.2,
             )
             ax.plot([bias], [rate], "o", color=palette.observed, markersize=4)
-        end = min(range(len(curve)), key=lambda i: abs(curve[i] - 0.98))
-        items.append(
-            (
-                grid[end] if row is not hardest else grid[-1],
-                curve[end] if row is not hardest else curve[-1],
-                f"S{row.index + 1} ({row.elevation:.0f}°)",
-                palette.accent if row is hardest else palette.ink,
-            )
-        )
     ax.axhline(
         DETECTION_LEVEL, color=palette.rule, linewidth=theme.REFERENCE_WIDTH, linestyle="--"
     )
     ax.set_xlim(0.0, top * 1.12)
     ax.set_ylim(0.0, 1.04)
-    for x, y, text, colour in items:
-        _label(ax, x, y, text, colour, xytext=(4.0, 0.0))
+    others = [row for row in results.raim if row is not hardest]
+    widest = max(others, key=lambda row: row.bias)
+    names = ", ".join(f"S{row.index + 1}" for row in others)
+    _label(
+        ax,
+        widest.bias,
+        0.62,
+        f"{names}:\n90% at {min(row.bias for row in others):.0f} to "
+        f"{widest.bias:.0f} m",
+        palette.ink,
+        xytext=(6.0, 0.0),
+    )
+    half_bias = hardest.checks[0][0]
+    _label(
+        ax,
+        half_bias,
+        detection_probability(
+            fault_noncentrality(projector, sigmas, hardest.index, half_bias),
+            results.threshold,
+        ),
+        f"S{hardest.index + 1} ({hardest.elevation:.0f}° elevation)",
+        palette.accent,
+        xytext=(14.0, -8.0),
+        va="top",
+    )
     theme.axis_labels(ax, "Range fault on one satellite", "Detection probability", x_unit="m")
     theme.title_block(
         ax,
         f"A {hardest.bias:.0f} m fault on S{hardest.index + 1} is needed for 90% detection",
-        f"Residual test, P_FA = {FALSE_ALARM:g}; dots: simulation ± 2 SE",
+        f"Closed-form detection probability per satellite, P_FA = {FALSE_ALARM:g}; "
+        "dots: simulation ± 2 SE",
     )
     return figure
 
@@ -2116,7 +2142,7 @@ def main() -> None:
 
     """
     started = time.perf_counter()
-    print("Simulating five-satellite position fixes (about 2 minutes)...")
+    print("Simulating five-satellite position fixes (about a minute)...")
     results = run_analysis()
     print_report(results)
     output = Path(__file__).parent / "generated"

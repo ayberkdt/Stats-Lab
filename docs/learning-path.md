@@ -86,7 +86,7 @@ truncation-rounding trade-off, BFGS, Nelder-Mead, Levenberg-Marquardt least
 squares with its Gauss-Newton covariance, and Brent root finding.
 
 - Requires: M2
-- Lab: none; snippets run in [`tests/test_documentation_examples.py`](../tests/test_documentation_examples.py)
+- Lab: [`examples/gps_positioning_lab.py`](../examples/gps_positioning_lab.py)
 - Decision record: [ADR-0028](adr/ADR-0028-prerequisite-bridges.md)
 
 ### M5 — Numerical integration
@@ -502,7 +502,7 @@ integrals, deterministic quadrature, Monte Carlo estimators, sampling error,
 evaluation cost, and threshold probabilities.
 
 - Requires: U2
-- Lab: [`examples/basic_monte_carlo_lab.py`](../examples/basic_monte_carlo_lab.py)
+- Lab: [`examples/basic_monte_carlo_lab.py`](../examples/basic_monte_carlo_lab.py), [`examples/gps_positioning_lab.py`](../examples/gps_positioning_lab.py)
 - Decision record: [ADR-0009](adr/ADR-0009-propagation-cost-and-error-separation.md)
 
 ### U4 — Advanced Monte Carlo (UQ-3)
