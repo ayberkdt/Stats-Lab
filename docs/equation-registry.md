@@ -17540,3 +17540,200 @@ likelihood of the original problem.
   `inverse.CalibrationProblem.sample_posterior`.
 - Source: [REF-LIU-DERKIUREGHIAN-1986] (Nataf transformation);
   [REF-CASELLA-BERGER-2002, Section 4.3] (change of variables).
+
+## Singular value decomposition and classical regularization (ADR-0110)
+
+### EQ-LINALG-SVD-001 — Thin SVD by one-sided Jacobi rotations
+
+`A = U diag(sigma) V'` with `U` (`m x k`) and `V` (`n x k`) having
+orthonormal columns, `k = min(m, n)`, `sigma_1 >= ... >= sigma_k >= 0`. For
+`m >= n` (after `A = Q R` when `m > n`, so the rotations act on `R`), each
+pair of columns `(a_p, a_q)` with `alpha = ||a_p||^2`, `beta = ||a_q||^2`,
+`gamma = a_p'a_q` is rotated by
+`zeta = (beta - alpha) / (2 gamma)`, `t = sign(zeta) / (|zeta| + sqrt(1 + zeta^2))`,
+`c = 1 / sqrt(1 + t^2)`, `s = c t`,
+`[a_p, a_q] <- [c a_p - s a_q, s a_p + c a_q]`, and the same rotation is
+accumulated in `V`, until `|gamma| <= tol sqrt(alpha beta)` for every pair.
+Then `sigma_j = ||a_j||` and `u_j = a_j / sigma_j`. A wide matrix uses
+`A' = V diag(sigma) U'`. The condition number is `sigma_1 / sigma_k`.
+
+- Domain: finite `m x n` matrix; relative tolerance `tol` in `(0, 1)`
+  (default `1e-15`) and at most `max_sweeps` sweeps (default 60), otherwise
+  `ValueError`.
+- Meaning: each rotation makes one pair of columns orthogonal; at
+  convergence `A V` has orthogonal columns, so their norms are the singular
+  values. An exactly zero column gives `sigma_j = 0`, whose `u_j` completes
+  an orthonormal set (Gram-Schmidt on coordinate vectors). Signs are fixed
+  only up to a joint flip of `u_j` and `v_j`.
+- Code: `linalg.singular_value_decomposition`,
+  `linalg.SingularValueDecomposition.reconstruct`,
+  `linalg.SingularValueDecomposition.condition_number`.
+- Source: [REF-HESTENES-1958]; [REF-GOLUB-VANLOAN-2013, Sections 8.5-8.6]
+  (Jacobi rotations and computing the SVD).
+
+### EQ-LINALG-SVD-002 — Truncated pseudo-inverse and numerical rank
+
+`A^+ = sum_(sigma_i > tau sigma_1) v_i u_i' / sigma_i`,
+`rank(A) = #{i : sigma_i > tau sigma_1}`, default `tau = max(m, n) 2^-52`.
+
+- Domain: the SVD of [EQ-LINALG-SVD-001]; relative tolerance `tau` in
+  `[0, 1)`.
+- Meaning: with `tau = 0` and no zero singular value this is the
+  Moore-Penrose inverse (the unique matrix with `A A^+ A = A`,
+  `A^+ A A^+ = A^+`, and symmetric `A A^+` and `A^+ A`); the cut-off treats
+  singular values at rounding level as zero. `A^+ b` is the minimum-norm
+  least-squares solution.
+- Code: `linalg.pseudo_inverse`, `linalg.numerical_rank`,
+  `linalg.SingularValueDecomposition.pseudo_inverse`,
+  `linalg.SingularValueDecomposition.rank`.
+- Source: [REF-PENROSE-1955]; [REF-GOLUB-VANLOAN-2013, Section 5.5].
+
+### EQ-INV-REG-001 — Tikhonov functional and its stacked least-squares form
+
+`x_lambda = argmin_x ||A x - b||^2 + lambda^2 ||L (x - x_bar)||^2`, computed
+as the least-squares solution of `[A; lambda L] x = [b; lambda L x_bar]`
+(for the linear solver `x_bar = 0`) by Householder QR [EQ-LINALG-009]. For
+`L = I` it equals the posterior mean of `x ~ N(0, (s^2 / lambda^2) I)` given
+`b = A x + e`, `e ~ N(0, s^2 I)`. The nonlinear version minimizes
+`||r(x)||^2 + lambda^2 ||L (x - x_bar)||^2` by Levenberg-Marquardt on the
+stacked residual `[r(x); lambda L (x - x_bar)]` [EQ-OPT-LM-001].
+
+- Domain: `lambda >= 0`; the null spaces of `A` and `L` intersect only in
+  zero (otherwise the stacked matrix is rank deficient and the solve
+  raises); `lambda = 0` needs `A` of full column rank.
+- Meaning: the penalty selects, among the solutions that fit the data about
+  equally well, one with small (semi)norm; `lambda` sets the trade-off. The
+  normal equations `(A'A + lambda^2 L'L) x = A'b` are never formed, so the
+  solve sees the condition number of the stacked matrix, not its square.
+- Code: `inverse.tikhonov`, `inverse.nonlinear_tikhonov`,
+  `inverse.regularization._stacked_qr`.
+- Source: [REF-TIKHONOV-1963]; [REF-HANSEN-2008, Sections 2.2 and 2.7.1]
+  (functional with `x_bar`, stacked form); [REF-TARANTOLA-2005, Chapter 3]
+  (Gaussian interpretation).
+
+### EQ-INV-REG-002 — Tikhonov filter factors
+
+For `L = I` and the SVD of `A`,
+`x_lambda = sum_i f_i (u_i'b / sigma_i) v_i` with
+`f_i = sigma_i^2 / (sigma_i^2 + lambda^2)` (`f_i = 0` when `sigma_i = 0`).
+
+- Domain: `lambda >= 0`; the SVD of [EQ-LINALG-SVD-001].
+- Meaning: components with `sigma_i >> lambda` pass almost unchanged
+  (`f_i ~ 1`), those with `sigma_i << lambda` are damped (`f_i ~
+  sigma_i^2 / lambda^2`); a discarded component still contributes about
+  `sigma_i (u_i'b) / lambda^2`.
+- Code: `inverse.tikhonov`, `inverse.TikhonovSolution.filter_factors`,
+  `inverse.regularization._filter_factors`.
+- Source: [REF-HANSEN-2008, Section 2.4, eq. (2.18)].
+
+### EQ-INV-REG-003 — Generalized cross-validation function
+
+`G(lambda) = ||A x_lambda - b||^2 / trace(I_m - A A^#)^2`, where
+`x_lambda = A^# b`. For `L = I`, `trace(I_m - A A^#) = m - sum_i f_i`; for a
+general `L`, with `[A; lambda L] = Q R` and `Q_1` the first `m` rows of `Q`,
+`A A^# = Q_1 Q_1'`, so `trace(I_m - A A^#) = m - ||Q_1||_F^2`.
+
+- Domain: `lambda > 0` on a grid (default geometric from
+  `max(sigma_k, 16 eps sigma_1)` to `sigma_1`, divided by the extreme
+  nonzero singular values of `L` for a general `L`); the grid minimum is
+  refined by golden-section search in `log lambda`.
+- Meaning: an estimate of the predictive risk that needs no noise level.
+  For a square operator `G` tends to a finite limit as `lambda -> 0`, which
+  can undercut the interior minimum and give a far too small `lambda`.
+- Code: `inverse.generalized_cross_validation`, `inverse.regularization._gcv`,
+  `inverse.regularization._Curve.point`.
+- Source: [REF-CRAVEN-WAHBA-1979]; [REF-GOLUB-HEATH-WAHBA-1979];
+  [REF-HANSEN-2008, Section 2.9, eqs. (2.62)-(2.63)]. The `Q_1` trace form
+  follows from `A = Q_1 R` (derived for this library).
+
+### EQ-INV-REG-004 — L-curve curvature
+
+With `rho = ||A x_lambda - b||^2`, `eta = ||L x_lambda||^2`, and hats for
+`log sqrt(.)`, the curvature of `(rho_hat, eta_hat)` is
+`kappa = (rho_hat' eta_hat'' - rho_hat'' eta_hat') / ((rho_hat')^2 + (eta_hat')^2)^(3/2)`
+(primes: derivatives in `lambda`). Using `rho' = -lambda^2 eta'` and
+`eta' = (4 / lambda) (L x)'(L z)`, `z = (A'A + lambda^2 L'L)^-1 A'(A x - b)`
+(for `L = I`: `eta' = -(4 / lambda) sum_i f_i^2 (1 - f_i) (u_i'b)^2 / sigma_i^2`),
+`kappa = 2 rho eta (lambda^2 eta' rho + 2 lambda rho eta + lambda^4 eta eta')
+/ (|eta'| (lambda^4 eta^2 + rho^2)^(3/2))`.
+
+- Domain: `lambda > 0` with `rho, eta, eta' != 0` (otherwise `nan`); same
+  grid and refinement as [EQ-INV-REG-003], maximizing `kappa`.
+- Meaning: the corner where the curve turns from the steep branch (noise
+  dominated) to the flat branch (regularization dominated). The closed form
+  is checked against finite differences of the log norms in the tests.
+- Code: `inverse.l_curve`, `inverse.regularization._curvature`,
+  `inverse.regularization._Curve.point`.
+- Source: [REF-HANSEN-OLEARY-1993, Section 5.1, eq. (8)] (curvature in log
+  norms, corner at maximum curvature); [REF-HANSEN-2008, Sections 2.5 and
+  2.9]. The reduction to `rho`, `eta`, `eta'` is derived for this library
+  from `x' = (2 / lambda) z`.
+
+### EQ-INV-REG-005 — Discrepancy principle
+
+Choose `lambda` with `||A x_lambda - b|| = tau delta`, `delta ~ ||e||`,
+`tau >= 1`; the root is found by Brent's method [EQ-OPT-BRENT-001] in
+`log lambda` after bracketing on the grid.
+
+- Domain: `||A x_lambda - b||` increases from the least-squares residual
+  (`lambda -> 0`) to `||b||` (`lambda -> inf`, for `L = I`); a target
+  outside that range raises `ValueError`.
+- Meaning: fit the data no better than the noise allows. An underestimated
+  `delta` gives an under-regularized solution with a large norm, an
+  overestimated one an over-smoothed solution.
+- Code: `inverse.discrepancy_principle`.
+- Source: [REF-MOROZOV-1966]; [REF-HANSEN-2008, Section 2.9, eq. (2.61)].
+
+### EQ-INV-REG-006 — Truncated SVD solution
+
+`x_k = sum_(i <= k) (u_i'b / sigma_i) v_i`,
+`||A x_k - b||^2 = sum_(i > k) (u_i'b)^2 + ||b - U U'b||^2`.
+
+- Domain: `1 <= k <= min(m, n)` with `sigma_k > 0`.
+- Meaning: filter factors `1` for `i <= k` and `0` otherwise; `x_k` is the
+  minimum-norm least-squares solution for the closest rank-`k` matrix
+  `A_k`.
+- Code: `inverse.truncated_svd`.
+- Source: [REF-HANSEN-2008, Section 2.7.3, eqs. (2.42)-(2.45)].
+
+### EQ-INV-REG-007 — Discrete Picard coefficients
+
+`(sigma_i, |u_i'b|, |u_i'b| / sigma_i)` for `i = 1, ..., k`.
+
+- Domain: the SVD of [EQ-LINALG-SVD-001]; `inf` for `sigma_i = 0 < |u_i'b|`
+  and `nan` when both vanish.
+- Meaning: the discrete Picard condition holds when `|u_i'b|` decays on
+  average faster than `sigma_i`; noise makes `|u_i'b|` level off near its
+  standard deviation, and from there on the ratios grow.
+- Code: `inverse.picard_coefficients`.
+- Source: [REF-HANSEN-2008, Section 2.4].
+
+### EQ-INV-REG-PROB-001 — Discrete backward heat operator
+
+`A = V diag(exp(-T mu_k)) V'`, `V_jk = sqrt(2 h) sin(j k pi h)`,
+`mu_k = (4 / h^2) sin^2(k pi h / 2)`, `h = 1 / (n + 1)`, `s_j = j h`;
+exact solution `x(s) = (27 / 4) s (1 - s)^2` and `b = A x`.
+
+- Domain: `n >= 2` interior points, `T > 0`.
+- Meaning: `V diag(mu) V'` is the second-difference matrix with zero
+  boundary values, so `A = exp(-T D)` advances the semi-discrete heat
+  equation by `T`; its singular values `exp(-T mu_k)` are known exactly and
+  decay like `exp(-T pi^2 k^2)`.
+- Code: `inverse.backward_heat_problem`.
+- Source: [REF-HANSEN-2008, Sections 2.1 and 2.3] (discrete ill-posed
+  problems); the eigenpairs are verified in `tests/test_regularization.py`.
+
+### EQ-INV-REG-PROB-002 — Midpoint discretization of deriv2
+
+`A_ij = h K(s_i, t_j)`, `s_i = t_i = (i - 1/2) h`, `h = 1 / n`,
+`K(s, t) = s (t - 1)` for `s < t` and `t (s - 1)` for `s >= t`; exact
+solution `x_j = t_j`, `b = A x`.
+
+- Domain: `n >= 2`.
+- Meaning: the Green's function of the second derivative on `[0, 1]`; the
+  continuous data for `f(t) = t` are `g(s) = (s^3 - s) / 6`, which `A x`
+  matches up to the `O(h^2)` quadrature error. Regularization Tools uses a
+  Galerkin discretization, so its matrix differs.
+- Code: `inverse.second_derivative_problem`.
+- Source: [REF-HANSEN-2008, Chapter 4, deriv2] (kernel and the case
+  `f(t) = t`).

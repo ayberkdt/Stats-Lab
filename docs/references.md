@@ -4912,3 +4912,64 @@ Approximate Bayesian Computation." *Biometrika* 96(4), 983-990, 2009. ABC
 population Monte Carlo with importance weights and a Gaussian kernel of
 twice the weighted population variance.
 DOI: [10.1093/biomet/asp052](https://doi.org/10.1093/biomet/asp052).
+
+## REF-HESTENES-1958
+
+Magnus R. Hestenes. "Inversion of Matrices by Biorthogonalization and
+Related Results." *Journal of the Society for Industrial and Applied
+Mathematics* 6(1), 51-90, 1958. Biorthogonalization of the columns of a
+matrix, the origin to which the one-sided Jacobi singular value
+decomposition is usually attributed.
+DOI: [10.1137/0106005](https://doi.org/10.1137/0106005).
+
+## REF-PENROSE-1955
+
+Roger Penrose. "A Generalized Inverse for Matrices." *Mathematical
+Proceedings of the Cambridge Philosophical Society* 51(3), 406-413, 1955.
+The unique generalized inverse of any rectangular matrix defined by four
+equations (the Moore-Penrose pseudo-inverse).
+DOI: [10.1017/S0305004100030401](https://doi.org/10.1017/S0305004100030401).
+
+## REF-TIKHONOV-1963
+
+Andrei N. Tikhonov. "On the Solution of Ill-Posed Problems and the Method of
+Regularization." *Doklady Akademii Nauk SSSR* 151(3), 501-504, 1963 (in
+Russian); English translation "Solution of Incorrectly Formulated Problems
+and the Regularization Method," *Soviet Mathematics Doklady* 4, 1035-1038,
+1963. The penalized least-squares regularization named after him.
+
+## REF-MOROZOV-1966
+
+Vladimir A. Morozov. "On the Solution of Functional Equations by the Method
+of Regularization." *Doklady Akademii Nauk SSSR* 167(3), 510-512, 1966 (in
+Russian). The choice of the regularization parameter from the noise level,
+known as the discrepancy principle.
+
+## REF-HANSEN-OLEARY-1993
+
+Per Christian Hansen and Dianne Prost O'Leary. "The Use of the L-Curve in
+the Regularization of Discrete Ill-Posed Problems." *SIAM Journal on
+Scientific Computing* 14(6), 1487-1503, 1993. The corner of the log-log
+L-curve as the point of maximum curvature (Section 5.1, eq. (8)) and its
+comparison with generalized cross-validation.
+DOI: [10.1137/0914086](https://doi.org/10.1137/0914086).
+
+## REF-HANSEN-2008
+
+Per Christian Hansen. *Regularization Tools: A Matlab Package for Analysis
+and Solution of Discrete Ill-Posed Problems*, Version 4.1 for Matlab 7.3.
+Manual, Informatics and Mathematical Modelling, Technical University of
+Denmark, March 2008; the package is described in *Numerical Algorithms*
+46(2), 189-194, 2007. Chapter 2 covers ill-posedness, Tikhonov
+regularization and its stacked least-squares form, filter factors, the
+discrete Picard condition, truncated SVD, the L-curve, generalized
+cross-validation, and the discrepancy principle; Chapter 4 documents the
+test problem `deriv2`.
+
+## REF-GOLUB-HEATH-WAHBA-1979
+
+Gene H. Golub, Michael Heath, and Grace Wahba. "Generalized Cross-Validation
+as a Method for Choosing a Good Ridge Parameter." *Technometrics* 21(2),
+215-223, 1979. Generalized cross-validation for ridge (Tikhonov)
+regression.
+DOI: [10.1080/00401706.1979.10489751](https://doi.org/10.1080/00401706.1979.10489751).

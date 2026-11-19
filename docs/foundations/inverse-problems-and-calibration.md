@@ -125,7 +125,14 @@ MCMC with convergence diagnostics are now covered in
 (`DiscrepancyCalibration`, `LogLinearNoise`) are covered in
 [model discrepancy and heteroscedastic noise](model-discrepancy.md), and
 experimental design in [experimental design](experimental-design.md).
-Correlated measurement-error models remain open.
+Deterministic regularization of ill-posed linear and nonlinear problems
+(Tikhonov, truncated SVD, the discrete Picard condition, and the L-curve,
+GCV, and discrepancy-principle choices of the regularization parameter) is
+covered in
+[regularization and ill-posed problems](regularization-and-ill-posed-problems.md)
+(ADR-0110), which also states when Tikhonov regularization coincides with
+the Gaussian posterior mean of Section 3. Correlated measurement-error
+models remain open.
 
 ## Common pitfalls
 

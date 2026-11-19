@@ -32,7 +32,7 @@ requirements point only backwards, and that every named laboratory exists.
    estimation, testing, Bayesian inference, modelling, model criticism,
    mixed models, count and categorical regression, robust and quantile
    regression, smoothing, and multivariate analysis.
-4. [Uncertainty quantification](#track-u--uncertainty-quantification) (U1-U16):
+4. [Uncertainty quantification](#track-u--uncertainty-quantification) (U1-U17):
    the ATHENS verification, validation, and UQ sequence, then the integrated
    toolset on one model.
 5. [Systems engineering](#track-e--systems-engineering) (E1-E6): reliability,
@@ -471,7 +471,8 @@ U1-U9 follow the ATHENS 2026 verification, validation, and UQ sequence
 [ATHENS 2026 coverage matrix](curriculum/athens-2026-coverage.md). U10-U16
 extend the sequence with validation, discrepancy, figures, and the integrated
 toolset in which `probstat.workflow.UQStudy` runs every method on one model
-with one seed and produces a single report.
+with one seed and produces a single report; U17 adds deterministic
+regularization of ill-posed inverse problems.
 
 ### U1 — VV-UQ foundations (UQ-0)
 
@@ -646,6 +647,18 @@ an expensive forward model inside a new model.
 - Requires: U13
 - Lab: [`examples/surrogate_lab.py`](../examples/surrogate_lab.py)
 - Decision record: [ADR-0019](adr/ADR-0019-surrogate-models.md)
+
+### U17 — Regularization and ill-posed problems
+
+[Regularization and ill-posed problems](foundations/regularization-and-ill-posed-problems.md):
+Hadamard ill-posedness, the SVD and the discrete Picard condition, truncated
+SVD and Tikhonov filter factors, the L-curve, generalized cross-validation,
+and the discrepancy principle, the Bayesian reading of the penalty, and
+nonlinear Tikhonov.
+
+- Requires: U7, M2
+- Lab: none; numbers asserted in [`tests/test_regularization.py`](../tests/test_regularization.py) and [`tests/test_linalg_svd.py`](../tests/test_linalg_svd.py)
+- Decision record: [ADR-0110](adr/ADR-0110-svd-and-regularization.md)
 
 ## Track E — Systems engineering
 
