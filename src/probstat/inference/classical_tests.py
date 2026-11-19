@@ -5,9 +5,11 @@ Kruskal-Wallis for independent samples (with an exact permutation law for
 small designs) and Friedman for complete blocks, with Dunn's pairwise
 follow-up. The sign test is the exact binomial test of the signs of paired
 differences. Levene's and the Brown-Forsythe tests compare spreads by an
-ANOVA of absolute deviations from the group means or medians; Bartlett's
-test is the normal-theory likelihood-ratio test of equal variances and is
-not robust to non-normality. Shapiro-Wilk follows Royston's algorithm
+ANOVA of absolute deviations from the group means or medians, and the
+Fligner-Killeen test ranks the absolute deviations from the group medians;
+Bartlett's test is the normal-theory likelihood-ratio test of equal
+variances and is not robust to non-normality. Welch's ANOVA compares means
+without assuming equal variances. Shapiro-Wilk follows Royston's algorithm
 AS R94. Cochran's Q compares several matched binary outcomes. Tukey's HSD
 compares all pairs of means with the studentized range distribution
 (Tukey-Kramer for unequal sizes).
@@ -35,7 +37,7 @@ from ._hypothesis import Alternative, check_alternative, check_level, clamp_prob
 from .confidence import ConfidenceInterval
 from .hypothesis_tests import BinomialTestResult, binomial_test, one_way_anova
 from .multiple_testing import AdjustmentMethod, MultipleTestingResult, adjust_p_values
-from .sampling_distributions import chi_square_sf, standard_normal_sf
+from .sampling_distributions import chi_square_sf, f_sf, standard_normal_sf
 from .studentized_range import studentized_range_quantile, studentized_range_sf
 
 _KRUSKAL_EXACT_LIMIT = 100_000
@@ -521,6 +523,137 @@ def bartlett_test(*groups: Iterable[object]) -> ClassicalTestResult:
         "Bartlett test (chi-square approximation)",
         False,
         tuple(len(sample) for sample in samples),
+    )
+
+
+def fligner_killeen_test(*groups: Iterable[object]) -> ClassicalTestResult:
+    """Run the Fligner-Killeen (median-centred) test of equal variances.
+
+    Each observation is centred on its group median and the absolute
+    deviations of all ``N`` observations are ranked together (mid-ranks for
+    ties). The rank ``r`` receives the normal score
+    ``a = Phi^-1((1 + r / (N + 1)) / 2)``, and with ``abar`` the mean score
+    and ``V = sum (a - abar)^2 / (N - 1)`` the statistic is
+    ``X^2 = sum_i n_i (abar_i - abar)^2 / V``, referred to chi-square with
+    ``k - 1`` degrees of freedom. The test is the ``FK:med X^2`` variant
+    that Conover, Johnson, and Johnson found robust to non-normality, the
+    version computed by R's ``fligner.test``.
+
+    Args:
+        *groups: At least two non-empty groups with at least two
+            observations in total.
+
+    Returns:
+        ``X^2``, its p-value, and ``df = (k - 1,)``.
+
+    Raises:
+        TypeError: If observations are not real.
+        ValueError: If fewer than two groups or an empty group is supplied,
+            or every absolute deviation from the group medians is equal
+            (the scores have zero variance).
+
+    Equation:
+        [EQ-INF-FLIGNER-001].
+
+    References:
+        [REF-FLIGNER-KILLEEN-1976], [REF-CONOVER-JOHNSON-JOHNSON-1981].
+
+    """
+    samples = _groups(groups)
+    k = len(samples)
+    deviations = [
+        abs(x - centre)
+        for sample in samples
+        for centre in (median(sample),)
+        for x in sample
+    ]
+    n = len(deviations)
+    normal = NormalDist()
+    scores = [normal.inv_cdf((1.0 + r / (n + 1)) / 2.0) for r in ranks(deviations)]
+    mean_score = math.fsum(scores) / n
+    spread = math.fsum((a - mean_score) ** 2 for a in scores) / (n - 1)
+    if not spread > 0.0:
+        raise ValueError(
+            "every absolute deviation from the group medians is equal; "
+            "the Fligner-Killeen statistic is undefined"
+        )
+    statistic = 0.0
+    start = 0
+    for sample in samples:
+        size = len(sample)
+        group_mean = math.fsum(scores[start : start + size]) / size - mean_score
+        statistic += size * group_mean * group_mean
+        start += size
+    statistic /= spread
+    return ClassicalTestResult(
+        statistic,
+        chi_square_sf(statistic, k - 1),
+        (float(k - 1),),
+        "Fligner-Killeen test (median-centred, chi-square approximation)",
+        False,
+        tuple(len(sample) for sample in samples),
+    )
+
+
+def welch_anova(*groups: Iterable[object]) -> ClassicalTestResult:
+    """Compare several means without assuming equal variances (Welch's F test).
+
+    With weights ``w_i = n_i / s_i^2``, ``W = sum w_i``, the weighted mean
+    ``xbar_w = sum w_i xbar_i / W``, and
+    ``A = sum (1 - w_i / W)^2 / (n_i - 1)``, the statistic is
+    ``F = [sum w_i (xbar_i - xbar_w)^2 / (k - 1)] /
+    [1 + 2 (k - 2) A / (k^2 - 1)]``, referred to ``F(k - 1, f)`` with
+    ``f = (k^2 - 1) / (3 A)``. For two groups ``F`` is the square of the
+    Welch ``t`` statistic and ``f`` its Welch-Satterthwaite degrees of
+    freedom. This is R's ``oneway.test(var.equal = FALSE)``.
+
+    Args:
+        *groups: At least two groups, each with at least two observations
+            and positive variance.
+
+    Returns:
+        ``F``, its p-value, and ``df = (k - 1, f)`` (``f`` fractional).
+
+    Raises:
+        TypeError: If observations are not real.
+        ValueError: If fewer than two groups are supplied or a group has
+            fewer than two observations or zero variance.
+
+    Equation:
+        [EQ-INF-WELCH-ANOVA-001], [EQ-INF-DIST-F-001].
+
+    References:
+        [REF-WELCH-1951].
+
+    """
+    samples = _groups(groups, minimum=2)
+    k = len(samples)
+    sizes = [len(sample) for sample in samples]
+    means = [statistics.fmean(sample) for sample in samples]
+    variances = [statistics.variance(sample) for sample in samples]
+    if any(v <= 0.0 for v in variances):
+        raise ValueError("every group needs a positive variance")
+    weights = [n / v for n, v in zip(sizes, variances, strict=True)]
+    total_weight = math.fsum(weights)
+    weighted_mean = (
+        math.fsum(w * m for w, m in zip(weights, means, strict=True)) / total_weight
+    )
+    spread = math.fsum(
+        (1.0 - w / total_weight) ** 2 / (n - 1)
+        for w, n in zip(weights, sizes, strict=True)
+    ) / (k * k - 1)
+    between = math.fsum(
+        w * (m - weighted_mean) ** 2 for w, m in zip(weights, means, strict=True)
+    )
+    statistic = between / ((k - 1) * (1.0 + 2.0 * (k - 2) * spread))
+    denominator_df = 1.0 / (3.0 * spread)
+    return ClassicalTestResult(
+        statistic,
+        f_sf(statistic, k - 1, denominator_df),
+        (float(k - 1), denominator_df),
+        "Welch one-way ANOVA (unequal variances)",
+        False,
+        tuple(sizes),
     )
 
 

@@ -7,7 +7,10 @@ sets with their provenance.
 
 Main entry points:
     ``variance``: sample variance with an explicit ``ddof``.
-    ``quantile``: Hyndman-Fan type 7 (default) or type 1 sample quantile.
+    ``quantile``: sample quantile of Hyndman-Fan types 1-9 (type 7 by
+        default).
+    ``skewness`` / ``excess_kurtosis``: shape statistics in the ``g``
+        (default), ``G``, or ``b`` convention of Joanes and Gill.
     ``median_absolute_deviation``: robust scale, normal-consistent by
         default.
     ``pearson_correlation``: linear association of paired samples.
@@ -37,20 +40,23 @@ Common pitfalls:
     - ``RunningMoments.variance()`` also defaults to ``ddof=0``, but
       ``RunningMoments.standard_error()`` uses ``ddof=1``.
     - ``median_absolute_deviation`` multiplies by about ``1.4826`` unless
-      ``normal_consistent=False``; ``skewness`` and ``excess_kurtosis`` are
-      the uncorrected sample moment ratios (``g1``, ``g2``).
+      ``normal_consistent=False``; ``skewness`` and ``excess_kurtosis``
+      default to the uncorrected sample moment ratios (``g1``, ``g2``).
     - ``trimmed_mean`` trims ``floor(proportion * n)`` values from each end
       with ``proportion=0.1`` by default, so it equals the plain mean for
       fewer than ten observations.
-    - ``quantile`` supports only ``method=7`` and ``method=1``, and
-      ``P2Quantile`` cannot be merged (only the moment, covariance, and
+    - ``skewness`` and ``excess_kurtosis`` default to ``type=1`` while R's
+      ``e1071`` defaults to type 3; ``quantile`` defaults to type 7 while
+      SAS uses type 2.
+    - ``P2Quantile`` cannot be merged (only the moment, covariance, and
       exceedance accumulators have ``merge``).
 
 Guide: docs/foundations/descriptive-statistics.md
 
 References:
     [REF-NIST-EDA] (descriptive statistics), [REF-HYNDMAN-FAN-1996]
-    (sample quantiles), [REF-WELFORD-1962] (one-pass moments),
+    (sample quantiles), [REF-JOANES-GILL-1998] (skewness and kurtosis),
+    [REF-WELFORD-1962] (one-pass moments),
     [REF-JAIN-CHLAMTAC-1985] (P-square quantile), [REF-VITTER-1985]
     (reservoir sampling).
 

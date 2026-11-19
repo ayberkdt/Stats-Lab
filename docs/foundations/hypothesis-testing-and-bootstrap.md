@@ -100,6 +100,30 @@ alternative was tested, together with Cohen's `d` (pooled for two samples,
 - `fisher_exact_test` (EQ-INF-FISHER-001). Fisher's tea-tasting table
   `[[3, 1], [1, 3]]` gives two-sided `p = 34/70 = 0.486` and one-sided
   `p = 17/70`.
+- `fisher_exact_rxc_test` (EQ-INF-FISHER-RXC-001) is the Freeman-Halton
+  extension to `r x c` tables: it sums the multiple hypergeometric
+  probabilities of every table with the observed margins that is no more
+  probable than the observed one. The sum is exact and is computed with
+  Mehta and Patel's network algorithm, so the tables are never listed one by
+  one. Its work is capped by `max_evaluations` (two million by default, a few
+  seconds); a larger table raises `ValueError` instead of running for hours,
+  and `simulate=True` returns a seeded Monte Carlo p-value with its standard
+  error.
+
+```python
+from probstat.inference import fisher_exact_rxc_test
+
+# Cylinders (4, 6, 8) by transmission (automatic, manual) in R's mtcars.
+cylinders_by_transmission = [[3, 8], [4, 3], [12, 2]]
+fisher_exact_rxc_test(cylinders_by_transmission).p_value   # 0.00910
+estimate = fisher_exact_rxc_test(
+    cylinders_by_transmission, simulate=True, replicates=4000, seed=1
+)
+estimate.exact                                             # False
+```
+
+  Three of the six expected counts are below five, so the chi-square test
+  would warn; the exact p-value needs no large-sample argument.
 - `binomial_test` (EQ-INF-BINOM-001). Seven successes in 20 trials against
   `p_0 = 0.3` give two-sided `p = 0.629`. The two-sided rule sums every
   outcome no more probable than the observed one. The result includes the
@@ -257,8 +281,15 @@ closed forms) are in `tests/test_classical_tests.py` (ADR-0101).
   non-zero differences.
 - `levene_test` and `brown_forsythe_test` (EQ-INF-LEVENE-001) are the
   one-way ANOVA of absolute deviations from the group means or medians;
-  `bartlett_test` (EQ-INF-BARTLETT-001) is the normal-theory likelihood-ratio
-  test.
+  `fligner_killeen_test` (EQ-INF-FLIGNER-001) ranks the absolute deviations
+  from the group medians and scores the ranks with normal quantiles (R's
+  `fligner.test`); `bartlett_test` (EQ-INF-BARTLETT-001) is the
+  normal-theory likelihood-ratio test.
+- `welch_anova` (EQ-INF-WELCH-ANOVA-001) compares means without assuming
+  equal variances, weighting each group by `n_i / s_i^2` and referring the
+  statistic to an F law with fractional denominator degrees of freedom (R's
+  `oneway.test`, whose default is `var.equal = FALSE`). For two groups it is
+  the square of the Welch t test.
 - `shapiro_wilk_test` (EQ-INF-SW-001) follows Royston's algorithm AS R94 for
   `3 <= n <= 5000`; its polynomial constants were checked against the
   published Fortran listing, and `W` and the p-value agree with SciPy's
@@ -273,15 +304,18 @@ closed forms) are in `tests/test_classical_tests.py` (ADR-0101).
 
 ```python
 from probstat.inference import (
-    bartlett_test, brown_forsythe_test, cochran_q_test, dunn_test, friedman_test,
-    kruskal_wallis_test, levene_test, one_way_anova, sign_test,
-    studentized_range_quantile, tukey_hsd_test,
+    bartlett_test, brown_forsythe_test, cochran_q_test, dunn_test,
+    fligner_killeen_test, friedman_test, kruskal_wallis_test, levene_test,
+    one_way_anova, sign_test, studentized_range_quantile, tukey_hsd_test,
+    welch_anova,
 )
 
 a = (2.9, 3.0, 2.5, 2.6, 3.2, 3.0)
 b = (3.8, 2.7, 4.0, 2.4, 3.0)
 c = (2.8, 3.4, 3.7, 2.2, 2.0, 4.1, 3.9)
 one_way_anova(a, b, c).p_value               # 0.665
+welch_anova(a, b, c).p_value                 # 0.529, unequal variances
+welch_anova(a, b, c).df[1]                   # 7.68
 kruskal = kruskal_wallis_test(a, b, c)
 kruskal.statistic                            # 0.5641, tie-corrected H
 kruskal.p_value                              # 0.754
@@ -290,6 +324,7 @@ kruskal.exact                                # False; there are 14702688 assignm
 levene_test(a, b, c).p_value                 # 0.0125, mean-centred
 brown_forsythe_test(a, b, c).p_value         # 0.114, median-centred
 bartlett_test(a, b, c).p_value               # 0.0734
+fligner_killeen_test(a, b, c).p_value        # 0.136, rank-based
 
 hsd = tukey_hsd_test(a, b, c)
 hsd.comparison(0, 1).p_value                 # 0.7155
@@ -309,7 +344,7 @@ cochran_q_test([(1, 1, 0), (1, 0, 0), (1, 1, 1), (0, 1, 0),
 ```
 
 The three groups give conflicting variance verdicts: Levene's mean-centred
-test rejects at 5%, Brown-Forsythe and Bartlett do not. The tests differ
+test rejects at 5%, Brown-Forsythe, Fligner-Killeen, and Bartlett do not. The tests differ
 only in how they centre and weigh the deviations, so a borderline verdict
 should not be read as firm evidence either way; Brown and Forsythe found the
 median-centred version to keep its level under skewed and heavy-tailed
@@ -335,7 +370,7 @@ copies of classic R datasets (`sleep`, `ToothGrowth`, `PlantGrowth`,
 `warpbreaks`, `mtcars`, `airquality`, `faithful`, `InsectSprays`,
 `chickwts`, `stackloss`, `esoph`, `lh`, `LakeHuron`, `Puromycin`,
 `aml`, `portpirie`, and small examples from the R help pages). It writes
-`tests/data/r_parity.json`, which records 136 parity cases: for each, the
+`tests/data/r_parity.json`, which records 155 parity cases: for each, the
 probstat target, the exact R call, the R values, the tolerance, and the
 reason for that tolerance, under a header with the R and package versions.
 `tests/test_r_parity.py` repeats every case in probstat and needs no R.
@@ -346,14 +381,15 @@ Rscript tools/r_oracles/parity.R
 ```
 
 The cases cover the d/p/q functions of 17 distribution families at central
-and tail points, the noncentral t and studentized range laws, quantile types
-1 and 7, variance, MAD, IQR, the trimmed mean, Pearson, Spearman, and Kendall
-correlation, e1071 type-1 skewness and kurtosis, the `bw.nrd0`, `bw.nrd`,
-`bw.ucv`, and `bw.bcv` bandwidths; the t tests and their power, exact and
-normal-approximation Wilcoxon tests, the binomial, Wilson, Fisher,
-chi-square, McNemar, Kolmogorov-Smirnov, Shapiro-Wilk, Kruskal-Wallis,
-Friedman, Bartlett, Levene, and Brown-Forsythe tests, one-way ANOVA, Tukey
-HSD, and `p.adjust`; `lm` with its diagnostics and sequential ANOVA, binomial
+and tail points, the noncentral t and studentized range laws, all nine
+quantile types, variance, MAD, IQR, the trimmed mean, Pearson, Spearman, and
+Kendall correlation, e1071 skewness and kurtosis of types 1-3, the
+`bw.nrd0`, `bw.nrd`, `bw.ucv`, and `bw.bcv` bandwidths; the t tests and
+their power, exact and normal-approximation Wilcoxon tests, the binomial,
+Wilson, Fisher (2 x 2 and r x c), chi-square, McNemar, Kolmogorov-Smirnov,
+Shapiro-Wilk, Kruskal-Wallis, Friedman, Bartlett, Levene, Brown-Forsythe,
+and Fligner-Killeen tests, one-way ANOVA with and without equal variances,
+Tukey HSD, and `p.adjust`; `lm` with its diagnostics and sequential ANOVA, binomial
 (also grouped), Poisson, and Gamma `glm`, `MASS::glm.nb`, `MASS::rlm`,
 `nls`, and `nlme::lme` (REML); Kaplan-Meier, the log-rank test, and Cox
 models with Efron and Breslow ties; `acf`, `pacf`, `ar.yw`, and ML `arima`;
@@ -370,15 +406,21 @@ unrounded constant `1/qnorm(0.75)`, `rlm` with the Huber constant rescaled
 to probstat's MAD constant, `survfit` with log-log intervals, the
 differenced series instead of `arima`'s approximate diffuse prior, and `glm`
 refitted from its converged coefficients so that `vcov` uses the final
-working weights. Comparisons that do not exist (quantile types 2-6, 8, and
-9, `HoltWinters`, `mgcv::gam`) are listed with their reasons under
-`skipped` in the JSON file.
+working weights. Comparisons that do not exist (`HoltWinters`, `mgcv::gam`,
+the conditional odds ratio of `fisher.test`) are listed with their reasons
+under `skipped` in the JSON file.
 
 ## Limitations
 
 - Exact rank and permutation branches are pure-Python enumerations. They are
   limited to moderate sizes (`max(m, n) <= 50` for automatic exact rank
   tests, `max_exact` relabelings for permutations).
+- The exact `r x c` Fisher test runs in pure Python and its cost grows
+  quickly with the number of cells and the counts: a 2 x 3 table with
+  `N = 2757` or a 4 x 4 table with `N = 96` takes a few seconds, while a
+  5 x 5 table with about 120 observations already exceeds the default
+  `max_evaluations` (after about ten seconds). Use `simulate=True` for such
+  tables.
 - The two-sided binomial and Fisher tests use the minimum-likelihood
   convention. Other conventions, such as doubling the smaller tail, give
   different p-values.

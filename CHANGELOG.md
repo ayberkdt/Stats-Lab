@@ -47,6 +47,26 @@ while the public API remains pre-1.0 and experimental.
   detection with its closed-form detection probability; a fault on the
   28-degree satellite must reach 104 m to be detected nine times in ten.
   Checked by `tests/test_gps_positioning_lab.py`.
+- **Quantile definitions:** `statistics.quantile` and `statistics.quantiles`
+  accept all nine Hyndman-Fan types (`method=1` to `method=9`, numbered as
+  R's `quantile(type = )`). Type 7 remains the default and types 1 and 7
+  are unchanged.
+- **Shape conventions:** `statistics.skewness` and
+  `statistics.excess_kurtosis` take `type=1` (`g1`, `g2`, the default and
+  the previous behaviour), `type=2` (`G1`, `G2`, the ratios of k-statistics
+  used by SAS and SPSS), or `type=3` (`b1`, `b2`, standardized by the
+  sample standard deviation; e1071's default), as in R's e1071.
+- **`inference.fisher_exact_rxc_test`:** the Fisher-Freeman-Halton exact
+  test of independence for r x c tables, summed exactly with Mehta and
+  Patel's network algorithm under a `max_evaluations` work limit, with a
+  seeded Monte Carlo alternative (`simulate=True`).
+- **`inference.fligner_killeen_test`:** the median-centred Fligner-Killeen
+  test of equal variances (R's `fligner.test`).
+- **`inference.welch_anova`:** Welch's one-way ANOVA for unequal variances
+  (R's `oneway.test` default).
+- **R parity:** 19 new cases (155 in total) cover the nine quantile types,
+  e1071 skewness and kurtosis types 2 and 3, `fisher.test` on three r x c
+  tables (up to `N = 2757`), `fligner.test`, and `oneway.test`.
 
 ## [0.24.0] — 2026-11-18
 

@@ -362,6 +362,7 @@ rounding_times <- matrix(c(
   5.70, 5.65, 5.55, 6.30, 6.30, 6.25), nrow = 22, byrow = TRUE)
 tea_tasting <- matrix(c(3, 1, 1, 3), nrow = 2)
 convictions <- matrix(c(2, 10, 15, 3), nrow = 2)
+job_satisfaction <- matrix(c(1, 2, 1, 0, 3, 3, 6, 1, 10, 10, 14, 9, 6, 7, 12, 11), nrow = 4)
 party_by_gender <- rbind(c(762, 327, 468), c(484, 239, 477))
 ucb_admissions <- rbind(c(1198, 557), c(1493, 1278))
 performance <- matrix(c(794, 86, 150, 570), nrow = 2)
@@ -580,8 +581,8 @@ add_case("dist.studentized_range.cdf", "distributions",
 # ============================================================== descriptive
 
 quantile_probs <- c(0, 0.1, 0.25, 0.5, 0.75, 0.9, 1)
-# probstat.statistics.quantile implements Hyndman-Fan types 1 and 7 only.
-for (type in c(1, 7)) {
+# All nine Hyndman-Fan types of probstat.statistics.quantile.
+for (type in 1:9) {
   add_case(sprintf("descriptive.quantile.type%d", type), "descriptive",
            "probstat.statistics.quantiles",
            sprintf("list(values = quantile(sleep$extra, probs = c(%s), type = %d))",
@@ -591,6 +592,18 @@ for (type in c(1, 7)) {
            inputs = "sleep",
            probstat = list(method = type, probabilities = I(quantile_probs)))
 }
+# Levels at which n p is not an integer for n = 272, so the step types do not
+# depend on how the product n p rounds (see the note).
+quantile_levels_faithful <- c(0.01, 0.05, 1 / 3, 0.37, 0.5, 0.63, 0.95, 0.99)
+add_case("descriptive.quantile.all_types.faithful", "descriptive",
+         "probstat.statistics.quantiles",
+         sprintf("setNames(lapply(1:9, function(t) quantile(faithful$eruptions, probs = c(%s), type = t)), paste0(\"type\", 1:9))",
+                 num_list(quantile_levels_faithful)),
+         1e-12, 1e-14,
+         "Hyndman-Fan definition evaluated as the same order-statistic interpolation on both sides.",
+         inputs = "faithful",
+         note = "Where n p is an integer in exact arithmetic but the floating-point product is not (n = 100, p = 0.07), R compares the rounded product and its step types 1-3 can return the next order statistic; probstat forms the position from the level as written. The levels here avoid that case.",
+         probstat = list(probabilities = I(quantile_levels_faithful)))
 add_case("descriptive.variance", "descriptive", "probstat.statistics.variance",
          "list(variance = var(mtcars$mpg), standard_deviation = sd(mtcars$mpg))",
          1e-12, 0, same_closed_form, inputs = "mtcars",
@@ -624,6 +637,20 @@ add_case("descriptive.kurtosis.type1", "descriptive", "probstat.statistics.exces
          "list(excess_kurtosis = e1071::kurtosis(faithful$eruptions, type = 1))", 1e-12, 0,
          same_closed_form, inputs = "faithful",
          note = "e1071 type 1 is g2 = m4 / m2^2 - 3, probstat's definition.")
+for (type in 2:3) {
+  add_case(sprintf("descriptive.skewness.type%d", type), "descriptive",
+           "probstat.statistics.skewness",
+           sprintf("list(skewness = e1071::skewness(faithful$eruptions, type = %d))", type),
+           1e-12, 0, same_closed_form, inputs = "faithful",
+           note = "e1071 types 2 and 3 are Joanes and Gill's G1 and b1, probstat's skewness(type = 2) and skewness(type = 3).",
+           probstat = list(type = type))
+  add_case(sprintf("descriptive.kurtosis.type%d", type), "descriptive",
+           "probstat.statistics.excess_kurtosis",
+           sprintf("list(excess_kurtosis = e1071::kurtosis(faithful$eruptions, type = %d))", type),
+           1e-12, 0, same_closed_form, inputs = "faithful",
+           note = "e1071 types 2 and 3 are Joanes and Gill's G2 and b2, probstat's excess_kurtosis(type = 2) and excess_kurtosis(type = 3).",
+           probstat = list(type = type))
+}
 add_case("descriptive.bandwidth.nrd0", "descriptive", "probstat.statistics.kde_bandwidth",
          "list(bandwidth = bw.nrd0(faithful$eruptions))", 1e-12, 0, same_closed_form,
          inputs = "faithful", probstat = list(rule = "silverman"))
@@ -696,6 +723,23 @@ add_case("tests.fisher.two_sided", "tests", "probstat.inference.fisher_exact_tes
          1e-12, 0,
          "Exact hypergeometric sum over tables no more probable than the observed one (relative tolerance 1e-7) on both sides.",
          inputs = "convictions")
+add_case("tests.fisher.rxc.job_satisfaction", "tests", "probstat.inference.fisher_exact_rxc_test",
+         "list(p_value = fisher.test(job_satisfaction)$p.value)",
+         1e-10, 0,
+         "Both sides sum the exact multiple hypergeometric probabilities of the tables no more probable than the observed one; R's FEXACT and probstat's network sum add the floating-point terms in different orders (they agree to about 1e-12 here).",
+         inputs = "job_satisfaction",
+         note = "The 4 x 4 job-satisfaction table of the fisher.test help page (N = 96).")
+add_case("tests.fisher.rxc.mtcars", "tests", "probstat.inference.fisher_exact_rxc_test",
+         "list(p_value = fisher.test(table(mtcars$cyl, mtcars$am))$p.value)",
+         1e-10, 0,
+         "Both sides sum the exact multiple hypergeometric probabilities of the tables no more probable than the observed one, adding the floating-point terms in different orders.",
+         inputs = "mtcars",
+         note = "Cylinders by transmission, a 3 x 2 table with N = 32 built from the columns cyl and am.")
+add_case("tests.fisher.rxc.large_counts", "tests", "probstat.inference.fisher_exact_rxc_test",
+         "list(p_value = fisher.test(party_by_gender)$p.value)",
+         1e-9, 0,
+         "A 2 x 3 table with N = 2757. The log factorials reach 2e4, so each table probability carries a relative rounding error near 1e-12 on both sides; R's FEXACT result differs by 3e-10 relative from a full enumeration of the 476,499 tables in the tail (3.02747980552e-07), which probstat reproduces to 4e-12.",
+         inputs = "party_by_gender")
 add_case("tests.chisq.independence", "tests", "probstat.inference.chi_square_independence_test",
          "htest_values(chisq.test(party_by_gender))",
          1e-10, 0, same_special, inputs = "party_by_gender")
@@ -760,6 +804,24 @@ add_case("tests.levene.median", "tests", "probstat.inference.brown_forsythe_test
 add_case("tests.anova.one_way", "tests", "probstat.inference.one_way_anova",
          "htest_values(oneway.test(weight ~ group, data = PlantGrowth, var.equal = TRUE))",
          1e-10, 0, same_special, inputs = "PlantGrowth")
+add_case("tests.anova.welch.plantgrowth", "tests", "probstat.inference.welch_anova",
+         "htest_values(oneway.test(weight ~ group, data = PlantGrowth))",
+         1e-10, 0, same_special, inputs = "PlantGrowth",
+         note = "oneway.test defaults to var.equal = FALSE, Welch's test.")
+add_case("tests.anova.welch.chickwts", "tests", "probstat.inference.welch_anova",
+         "htest_values(oneway.test(weight ~ feed, data = chickwts, var.equal = FALSE))",
+         1e-10, 0, same_special, inputs = "chickwts")
+add_case("tests.fligner.insectsprays", "tests", "probstat.inference.fligner_killeen_test",
+         "htest_values(fligner.test(count ~ spray, data = InsectSprays))",
+         1e-10, 0,
+         "Same mid-ranks, normal scores from the inverse normal CDF (Wichura's AS 241 on both sides), and chi-square tail through the regularized incomplete gamma function.",
+         inputs = "InsectSprays",
+         note = "The counts are heavily tied, which exercises the mid-ranks of the absolute deviations.")
+add_case("tests.fligner.plantgrowth", "tests", "probstat.inference.fligner_killeen_test",
+         "htest_values(fligner.test(weight ~ group, data = PlantGrowth))",
+         1e-10, 0,
+         "Same mid-ranks, normal scores from the inverse normal CDF (Wichura's AS 241 on both sides), and chi-square tail through the regularized incomplete gamma function.",
+         inputs = "PlantGrowth")
 add_case("tests.tukey.difference_and_p", "tests", "probstat.inference.tukey_hsd_test",
          "local({ tk <- TukeyHSD(aov(weight ~ group, data = PlantGrowth))$group; list(difference = tk[, \"diff\"], p_value = tk[, \"p adj\"]) })",
          0, 1e-10,
@@ -978,14 +1040,8 @@ add_case("fitting.gev.mle", "fitting", "probstat.risk.fit_gev",
 
 add_skip("HoltWinters",
          "probstat's simple and Holt exponential smoothing concentrate the initial level and trend out by least squares, while HoltWinters starts from the first observations (l.start = x[1], or x[2] and x[2] - x[1]); the fitted smoothing parameters and SSE differ by construction.")
-add_skip("e1071::skewness / e1071::kurtosis types 2 and 3",
-         "probstat implements only the moment ratios g1 and g2 (e1071 type 1); the bias-adjusted G1/G2 (type 2) and b1/b2 (type 3) have no probstat function.")
 add_skip("fisher.test conditional odds ratio",
          "probstat reports the sample odds ratio ad/bc rather than R's conditional maximum-likelihood estimate; the p-values are compared.")
-add_skip("fisher.test on r x c tables",
-         "probstat's fisher_exact_test is defined for 2 x 2 tables only.")
-add_skip("fligner.test", "probstat has no Fligner-Killeen test.")
-add_skip("oneway.test(var.equal = FALSE)", "probstat has no Welch one-way ANOVA.")
 add_skip("mgcv::gam",
          "probstat's additive models use Eilers-Marx P-splines with their own knot placement and identifiability constraint; mgcv's default thin-plate regression splines (and its bs = \"ps\" variant with different knot conventions) do not define the same penalized fit.")
 add_skip("lme4::lmer", "lme4 is not installed; nlme::lme is used for the REML comparison.")
@@ -993,8 +1049,6 @@ add_skip("quantreg::rq", "quantreg is not installed.")
 add_skip("car::leveneTest", "car is not installed; the base-R ANOVA of absolute deviations is used instead.")
 add_skip("MASS::rlm standard errors",
          "summary.rlm scales sqrt(sum(psi^2) / (n - p)) by Huber's correction factor kappa / mean(psi') and uses (X'WX)^-1; probstat reports the sandwich s^2 n / (n - p) A^-1 B A^-1, so only coefficients and scale are compared.")
-add_skip("quantile types 2-6, 8, 9",
-         "probstat.statistics.quantile implements Hyndman-Fan types 1 and 7 only; both are compared.")
 add_skip("fitdistrplus standard errors",
          "fitdist inverts optim's finite-difference Hessian (ndeps = 1e-3), 1.2e-3 relative from the exact gamma information on airquality$Ozone; the exact Fisher information evaluated in base R is the reference instead.")
 add_skip("ismev::gev.fit standard errors",
@@ -1022,6 +1076,7 @@ datasets_json <- list(
   rounding_times = lapply(seq_len(nrow(rounding_times)), function(i) I(rounding_times[i, ])),
   tea_tasting = lapply(1:2, function(i) I(tea_tasting[i, ])),
   convictions = lapply(1:2, function(i) I(convictions[i, ])),
+  job_satisfaction = lapply(1:4, function(i) I(job_satisfaction[i, ])),
   party_by_gender = lapply(1:2, function(i) I(party_by_gender[i, ])),
   ucb_admissions = lapply(1:2, function(i) I(ucb_admissions[i, ])),
   performance = lapply(1:2, function(i) I(performance[i, ])),
