@@ -322,9 +322,7 @@ def _zero_log_density(point: Vector) -> float:
     return 0.0
 
 
-def _multinomial(
-    weights: Sequence[float], generator: random.Random
-) -> tuple[int, ...]:
+def _multinomial(weights: Sequence[float], generator: random.Random) -> tuple[int, ...]:
     """Draw ``N`` ancestor indices with probabilities ``weights``.
 
     References:
@@ -462,9 +460,7 @@ def sequential_monte_carlo(
     if mutation == "rwm" and not callable(log_prior):
         raise TypeError("mutation='rwm' needs a callable log_prior")
     if mutation == "pcn" and log_prior is not None:
-        raise ValueError(
-            "mutation='pcn' assumes an N(0, I) prior; pass log_prior=None"
-        )
+        raise ValueError("mutation='pcn' assumes an N(0, I) prior; pass log_prior=None")
     if resampling not in RESAMPLING_SCHEMES:
         raise ValueError("resampling must be 'multinomial' or 'systematic'")
     steps = require_non_negative_integer(mutation_steps, name="mutation_steps")
@@ -492,14 +488,18 @@ def sequential_monte_carlo(
     if len(labels) != dimension or len(set(labels)) != dimension:
         raise ValueError("names must be distinct and match the dimension")
     if mutation == "rwm":
-        scale = 2.38 / math.sqrt(dimension) if proposal_scale is None else (
-            require_finite_real(proposal_scale, name="proposal_scale")
+        scale = (
+            2.38 / math.sqrt(dimension)
+            if proposal_scale is None
+            else (require_finite_real(proposal_scale, name="proposal_scale"))
         )
         if scale <= 0.0:
             raise ValueError("proposal_scale must be positive")
     else:
-        scale = 0.5 if proposal_scale is None else require_finite_real(
-            proposal_scale, name="proposal_scale"
+        scale = (
+            0.5
+            if proposal_scale is None
+            else require_finite_real(proposal_scale, name="proposal_scale")
         )
         if not 0.0 < scale <= 1.0:
             raise ValueError("pCN proposal_scale must lie in (0, 1]")
@@ -652,7 +652,7 @@ def sequential_monte_carlo(
         temperatures.append(new_beta)
         beta = new_beta
     log_evidence = math.fsum(increments)
-    error = (
+    standard_error = (
         math.sqrt(relative_variance)
         if not math.isnan(relative_variance) and relative_variance >= 0.0
         else math.nan
@@ -669,7 +669,7 @@ def sequential_monte_carlo(
         log_evidence,
         tuple(increments),
         relative_variance,
-        error,
+        standard_error,
         mutation,
         resampling,
         steps,

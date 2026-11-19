@@ -432,7 +432,8 @@ def _log_kernel_mixture(
     """
     terms = [
         log_weight
-        - 0.5 * math.fsum((a - b) * (a - b) for a, b in zip(whitened, center, strict=True))
+        - 0.5
+        * math.fsum((a - b) * (a - b) for a, b in zip(whitened, center, strict=True))
         for log_weight, center in zip(log_weights, previous, strict=True)
     ]
     top = max(terms)
@@ -591,9 +592,7 @@ def abc_smc(
                 break
             center = proposal_generator.choices(points, cum_weights=cumulative)[0]
             z = tuple(proposal_generator.gauss(0.0, 1.0) for _ in center)
-            theta = tuple(
-                a + b for a, b in zip(center, matvec(lower, z), strict=True)
-            )
+            theta = tuple(a + b for a, b in zip(center, matvec(lower, z), strict=True))
             prior_value = checked_prior(theta)
             if prior_value == -math.inf:
                 continue
