@@ -1,8 +1,9 @@
 """Figures of the process, design, and effect-estimation guides (ADR-0105).
 
-Twelve figures for nine guides: time series (forecast intervals, GARCH
+Thirteen figures for nine guides: time series (forecast intervals, GARCH
 volatility, PELT change points), stochastic processes (strong convergence of
-SDE schemes, Karhunen-Loeve fields), filtering (the unmeasured velocity),
+SDE schemes, Karhunen-Loeve fields), filtering (the unmeasured velocity and
+the Lorenz-96 ensemble size),
 causal inference (double robustness), the visual language (the encoding
 rules on one fit), missing data (interval coverage), experimental design
 (the equivalence theorem), survival analysis (censoring), and extreme values
@@ -30,6 +31,11 @@ from probstat.causal import (
     estimate_ipw,
     estimate_regression_adjustment,
 )
+from probstat.data_assimilation import (
+    Localization,
+    Relaxation,
+    ensemble_kalman_filter,
+)
 from probstat.design import (
     ApproximateDesign,
     d_optimal_design,
@@ -40,6 +46,8 @@ from probstat.distributions import GeneralizedExtremeValue
 from probstat.filtering import (
     LinearGaussianStateSpace,
     kalman_filter,
+    lorenz96,
+    lorenz96_rhs,
     rts_smoother,
     simulate,
 )
@@ -59,6 +67,7 @@ from probstat.inference.survival import (
     survival_data,
 )
 from probstat.multivariate import MultivariateNormal
+from probstat.numerics import integrate_fixed_step
 from probstat.processes import (
     CovarianceKernel,
     GeometricBrownianMotion,
@@ -535,6 +544,166 @@ def _draw_hidden_velocity() -> tuple[Any, dict[str, str]]:
         f"{facts['coverage']} of 150 steps. Only position is observed (r = 4)",
     )
     return figure, facts
+
+
+L96_SIZES = (10, 20, 40, 80)
+L96_FILTER_SEEDS = (101, 102)
+L96_CYCLES, L96_BURN = 40, 15
+
+
+@functools.cache
+def _lorenz96_twin() -> dict[str, tuple[float, ...]]:
+    """Run the guide's Lorenz-96 twin experiment for several ensemble sizes.
+
+    Truth: ``J = 40``, ``F = 8``, spun up for 400 steps from ``x_i = 8``
+    (``x_0 = 8.01``), 40 cycles simulated with seed 1, every component
+    observed with ``R = I``. Each filter runs with seeds 101 and 102; the
+    analysis RMSE is averaged over cycles 16-40 and then over the seeds.
+
+    References:
+        [EQ-FILT-LORENZ-002], [EQ-DA-ENKF-001], [EQ-DA-LOC-002],
+        [EQ-DA-LETKF-001], [EQ-DA-RELAX-002].
+
+    """
+    start = tuple(8.0 + (0.01 if i == 0 else 0.0) for i in range(40))
+    spun = integrate_fixed_step(
+        lorenz96_rhs, 0.0, start, step=0.05, steps=400
+    ).final_state
+    model = lorenz96(initial_mean=spun)
+    truth = simulate(model, L96_CYCLES, seed=1)
+    localization = Localization(range(40), range(40), 2.0, period=40)
+    relaxation = Relaxation("rtps", 0.5)
+    settings: dict[str, dict[str, Any]] = {
+        "stochastic EnKF": {},
+        "localized EnKF": {"localization": localization, "relaxation": relaxation},
+        "LETKF": {
+            "analysis": "letkf",
+            "localization": localization,
+            "relaxation": relaxation,
+        },
+    }
+
+    def rmse(means: Any) -> float:
+        """Return the analysis RMSE averaged over cycles 16-40.
+
+        References:
+            [REF-EVENSEN-2003]. No equation is evaluated.
+
+        """
+        errors = [
+            math.sqrt(
+                math.fsum(
+                    (a - b) ** 2 for a, b in zip(means[k], truth.states[k], strict=True)
+                )
+                / 40
+            )
+            for k in range(L96_BURN + 1, L96_CYCLES + 1)
+        ]
+        return math.fsum(errors) / len(errors)
+
+    results: dict[str, tuple[float, ...]] = {}
+    for name, options in settings.items():
+        values = []
+        for size in L96_SIZES:
+            runs = [
+                rmse(
+                    ensemble_kalman_filter(
+                        model,
+                        truth.observations,
+                        ensemble_size=size,
+                        seed=seed,
+                        **options,
+                    ).analysis_means
+                )
+                for seed in L96_FILTER_SEEDS
+            ]
+            values.append(statistics.fmean(runs))
+        results[name] = tuple(values)
+    return results
+
+
+def _draw_lorenz96_ensemble_size() -> tuple[Any, dict[str, str]]:
+    """Draw time-averaged analysis RMSE against ensemble size, three filters.
+
+    References:
+        [EQ-DA-LOC-002], [EQ-DA-LETKF-001], [EQ-DA-RELAX-002],
+        [REF-HUNT-KOSTELICH-SZUNYOGH-2007], [REF-HOUTEKAMER-MITCHELL-2001].
+
+    """
+    results = _lorenz96_twin()
+    plain, localized, letkf = (
+        results["stochastic EnKF"],
+        results["localized EnKF"],
+        results["LETKF"],
+    )
+    facts = {
+        "plain_10": f"{plain[0]:.2f}",
+        "plain_80": f"{plain[-1]:.2f}",
+        "localized_10": f"{localized[0]:.2f}",
+        "letkf_10": f"{letkf[0]:.2f}",
+    }
+    axes = theme.new_axes(figsize=FIGSIZE)
+    palette = theme.active_palette()
+    styles = (
+        (
+            "EnKF, no localization",
+            plain,
+            theme.role_colour("context"),
+            "o",
+            theme.FITTED,
+            1.0,
+        ),
+        (
+            "EnKF, Gaspari-Cohn + RTPS",
+            localized,
+            theme.role_colour("series-5"),
+            "^",
+            theme.SIMULATED,
+            0.93,
+        ),
+        ("LETKF + RTPS", letkf, theme.role_colour("model"), "s", None, 1.07),
+    )
+    labels = []
+    # The two localized filters nearly coincide: their markers are offset
+    # sideways by 7% so that neither hides the other.
+    for name, values, colour, marker, dashes, shift in styles:
+        sizes = [size * shift for size in L96_SIZES]
+        theme.line(axes, sizes, values, color=colour, dashes=dashes)
+        theme.points(axes, sizes, values, color=colour, marker=marker, size=46.0)
+        labels.append((L96_SIZES[-1] * 1.07, values[-1], name, colour))
+    axes.set_xscale("log", base=2)
+    axes.set_yscale("log")
+    axes.set_xticks(list(L96_SIZES))
+    axes.set_xticklabels([str(size) for size in L96_SIZES])
+    axes.set_yticks([0.25, 0.5, 1.0, 2.0, 4.0])
+    axes.set_yticklabels(["0.25", "0.5", "1", "2", "4"])
+    axes.minorticks_off()
+    axes.set_xlim(8.0, 100.0)
+    axes.set_ylim(0.2, 6.0)
+    axes.grid(axis="x", visible=False)
+    axes.grid(axis="y", color=palette.rule, linewidth=0.7)
+    theme.reference_line(axes, y=1.0, entity="threshold")
+    axes.annotate(
+        "observation error",
+        xy=(8.0, 1.0),
+        xytext=(4.0, 4.0),
+        textcoords="offset points",
+        ha="left",
+        va="bottom",
+        fontsize=theme.ANNOTATION_SIZE,
+        color=theme.entity_colour("threshold"),
+    )
+    theme.direct_labels(axes, labels, gap_points=13.0)
+    theme.axis_labels(axes, "Ensemble size N", "Time-averaged analysis RMSE")
+    theme.title_block(
+        axes,
+        f"With localization 10 members track Lorenz-96 at RMSE {facts['letkf_10']};"
+        f"\nwithout it the EnKF needs 80 members to come close (RMSE "
+        f"{facts['plain_80']})",
+        "J = 40, every component observed, R = I · truth seed 1, filter seeds "
+        "101-102, 40 cycles, RMSE over cycles 16-40 · localized markers offset",
+    )
+    return axes.figure, facts
 
 
 # --------------------------------------------------------------------------
@@ -1159,6 +1328,15 @@ FIGURES: list[GuideFigure] = [
             "smoothed velocity over 150 time steps"
         ),
         draw=_draw_hidden_velocity,
+    ),
+    GuideFigure(
+        name="lorenz96-ensemble-size",
+        guide="filtering-and-data-assimilation",
+        alt=(
+            "Time-averaged analysis RMSE of three ensemble filters on Lorenz-96 "
+            "against the ensemble size, with the observation error as reference"
+        ),
+        draw=_draw_lorenz96_ensemble_size,
     ),
     GuideFigure(
         name="causal-double-robustness",

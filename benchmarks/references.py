@@ -375,3 +375,57 @@ def normal_quantile(probability: float) -> float:
         else:
             upper = middle
     return 0.5 * (lower + upper)
+
+
+# ---------------------------------------------------------------------------
+# Inverse problems and data assimilation
+# ---------------------------------------------------------------------------
+
+
+def backward_heat_solution(size: int) -> tuple[float, ...]:
+    """Return the exact initial state ``(27/4) s (1 - s)^2`` at ``s_j = j/(n+1)``."""
+    h = 1.0 / (size + 1)
+    return tuple(6.75 * s * (1.0 - s) ** 2 for s in ((j + 1) * h for j in range(size)))
+
+
+def deriv2_solution(size: int) -> tuple[float, ...]:
+    """Return the exact ``deriv2`` solution ``f(t) = t`` at the midpoints."""
+    return tuple((i + 0.5) / size for i in range(size))
+
+
+Matrix2 = tuple[tuple[float, float], tuple[float, float]]
+
+
+def kalman_filter_2d(
+    transition: Matrix2,
+    process: Matrix2,
+    observation_variance: float,
+    initial_mean: tuple[float, float],
+    initial_covariance: Matrix2,
+    observations: Sequence[float],
+) -> tuple[tuple[float, float], Matrix2]:
+    """Return the final filtered mean and covariance of a 2-state model.
+
+    The state is observed through its first component, ``y_k = x_k[0] + v_k``;
+    each step predicts ``m = F m``, ``P = F P F' + Q`` and updates with the
+    scalar gain ``K = P[:, 0] / (P[0][0] + r)`` (plain 2 x 2 algebra).
+    """
+    (f00, f01), (f10, f11) = transition
+    m0, m1 = initial_mean
+    (p00, p01), (_, p11) = initial_covariance
+    for y in observations:
+        m0, m1 = f00 * m0 + f01 * m1, f10 * m0 + f11 * m1
+        # F P F' + Q, P symmetric.
+        a00 = f00 * p00 + f01 * p01
+        a01 = f00 * p01 + f01 * p11
+        a10 = f10 * p00 + f11 * p01
+        a11 = f10 * p01 + f11 * p11
+        p00 = a00 * f00 + a01 * f01 + process[0][0]
+        p01 = a00 * f10 + a01 * f11 + process[0][1]
+        p11 = a10 * f10 + a11 * f11 + process[1][1]
+        s = p00 + observation_variance
+        k0, k1 = p00 / s, p01 / s
+        innovation = y - m0
+        m0, m1 = m0 + k0 * innovation, m1 + k1 * innovation
+        p00, p01, p11 = (1.0 - k0) * p00, (1.0 - k0) * p01, p11 - k1 * p01
+    return (m0, m1), ((p00, p01), (p01, p11))

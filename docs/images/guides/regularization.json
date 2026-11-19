@@ -9,5 +9,15 @@
       "gcv": "0.0649",
       "lcurve": "0.123"
     }
+  },
+  "regularization-picard-plot": {
+    "guide": "regularization-and-ill-posed-problems",
+    "alt": "Singular values, data coefficients, and their ratios of the backward heat problem against the index on a log axis, with the noise level",
+    "facts": {
+      "noise": "0.0063",
+      "turn": "10",
+      "tail": "0.0056",
+      "smallest": "3.7e-10"
+    }
   }
 }

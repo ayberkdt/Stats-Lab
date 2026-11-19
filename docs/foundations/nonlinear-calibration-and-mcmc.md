@@ -529,6 +529,10 @@ points with noise 0.2, both samplers started from the same prior draw
 
 The pCN rate is flat; the random-walk rate falls by a factor of four.
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/pcn-acceptance-dimension-dark.png"><img alt="Acceptance rates of preconditioned Crank-Nicolson and random-walk Metropolis against the dimension of a discretized random field" src="../images/guides/pcn-acceptance-dimension.png"></picture>
+
+*The table's runs with `d = 20` and `d = 100` added: pCN accepts 0.204 of its moves at `d = 10` and 0.186 at `d = 200`, while the random walk falls from 0.245 to 0.060.*
+
 During warm-up `beta` is adapted by a Robbins-Monro recursion on its log-odds
 towards the target acceptance ([EQ-MCMC-PCN-002]) and is then frozen, as for
 adaptive Metropolis. The default target 0.25 follows the practice of Cotter et
@@ -593,6 +597,10 @@ separate the two noise levels.
 `sample_posterior(method="smc")` returns the final particles as one pseudo
 chain plus the full SMC result in `smc`. Means and quantiles of the particles
 are valid; R-hat and ESS of a pseudo chain are not.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/smc-tempering-schedule-dark.png"><img alt="Two panels: SMC temperature against stage on a log axis, and the effective sample size fraction and acceptance rate per stage" src="../images/guides/smc-tempering-schedule.png"></picture>
+
+*`log_evidence(particles=1000, seed=5)` on the decay calibration of Section 2: 7 stages from a first temperature of 0.0010, about 3.5-fold per stage, ending at `log p(y) = 13.24` with standard error 0.088.*
 
 ### Approximate Bayesian computation
 

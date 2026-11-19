@@ -35,7 +35,20 @@ CATEGORY_TITLES = {
     "sensitivity": "Sensitivity indices",
     "propagation": "Propagation and integration",
     "calibration": "Bayesian calibration",
+    "inverse": "Inverse problems: regularization",
+    "assimilation": "Data assimilation: ensemble filters",
 }
+#: Column headers of :func:`error_table` per quantity group. Groups listed
+#: in ``RATIO_GROUPS`` show the mean of estimate / reference, the others the
+#: median (over seeds) of the worst error of the group.
+ERROR_COLUMNS = {
+    "relerr": "Relative error (median)",
+    "mean": "Mean error (Kalman sd, median)",
+    "sd": "SD ratio (mean)",
+    "rmse": "RMSE (median)",
+    "spread_ratio": "Spread / RMSE (mean)",
+}
+RATIO_GROUPS = frozenset({"sd", "spread_ratio"})
 DASH = "-"
 #: Error at or below which a method "solves" a problem instance in the
 #: performance profiles: the *accurate* thresholds of "What the numbers say".
@@ -315,6 +328,49 @@ def calibration_table(problem: Problem, rows: Sequence[Row]) -> list[str]:
     return [*table(header, body), ""]
 
 
+def error_table(problem: Problem, rows: Sequence[Row]) -> list[str]:
+    """Return one row per method with one column per quantity group.
+
+    Used for the inverse and assimilation problems, whose quantities are
+    errors against an exact solution or a Kalman filter rather than scalar
+    estimates with a reported standard error.
+    """
+    groups = [g for g in problem.error_kinds if any(r.get("group") == g for r in rows)]
+    header = (
+        "Method",
+        *(ERROR_COLUMNS.get(group, group) for group in groups),
+        "Evals (mean)",
+        "Time (mean)",
+    )
+    body: list[list[str]] = []
+    for method in _unique(r["method"] for r in rows):
+        group_rows = {r.get("group"): r for r in rows if r["method"] == method}
+        any_row = next(iter(group_rows.values()))
+        label = status_text(any_row)
+        if label is not None:
+            body.append([method, label, *([DASH] * (len(header) - 2))])
+            continue
+        cells = []
+        for group in groups:
+            row = group_rows.get(group)
+            if row is None:
+                cells.append(DASH)
+            elif group in RATIO_GROUPS:
+                cells.append(number(row["ratio_mean"]))
+            else:
+                cells.append(number(row["error"]))
+        name = method + (" (reference)" if any_row["kind"] == "reference" else "")
+        body.append(
+            [
+                name,
+                *cells,
+                count(any_row["evaluations"]),
+                seconds(any_row["wall_time_s"]),
+            ]
+        )
+    return [*table(header, body), ""]
+
+
 def _unique(values: Iterable[str]) -> list[str]:
     """Return distinct values in first-seen order."""
     return list(dict.fromkeys(values))
@@ -344,10 +400,12 @@ class CategoryProfiles:
 
 def _instances(problem: Problem) -> list[tuple[str, str]]:
     """Return the (group, error kind) pairs of a problem that are scored."""
+    if "unscored" in problem.tags:
+        return []
     return [
         (group, kind)
         for group, kind in problem.error_kinds.items()
-        if problem.category != "calibration" or group == "mean"
+        if problem.category not in ("calibration", "assimilation") or group == "mean"
     ]
 
 
@@ -510,6 +568,8 @@ def findings(problems: Sequence[Problem], summary: Sequence[Row]) -> list[str]:
     accurate, inaccurate, cheapest = [], [], []
     under, conservative, failures = [], [], []
     for problem in problems:
+        if "unscored" in problem.tags:
+            continue
         rows = [r for r in summary if r["problem"] == problem.key]
         for group, kind in problem.error_kinds.items():
             scored = [
@@ -589,9 +649,12 @@ def findings(problems: Sequence[Problem], summary: Sequence[Row]) -> list[str]:
     lines.append(
         "Computed from the summary above with fixed thresholds: *accurate* means "
         f"median relative error <= {ACCURATE_REL:.0%} (absolute error <= 0.02 for "
-        "indices, <= 0.05 posterior sd for calibration means); *inaccurate* means > "
-        f"{INACCURATE_REL:.0%} (> 0.05 for indices, > 0.1 posterior sd for "
-        f"calibration means); *under-reports* means median abs z > {UNDER_REPORT_Z:g} "
+        "indices and for the relative solution error of the inverse problems, "
+        "<= 0.05 posterior sd for calibration and Kalman means); *inaccurate* "
+        f"means > {INACCURATE_REL:.0%} (> 0.05 for indices and inverse problems, "
+        "> 0.1 posterior sd for calibration and Kalman means; the Lorenz-96 twin "
+        "experiment has no threshold and is not scored); *under-reports* means "
+        f"median abs z > {UNDER_REPORT_Z:g} "
         "or the reported interval covered the reference in fewer than half of at "
         "least four cases; *conservative* means median abs z < "
         f"{OVER_CONSERVATIVE_Z:g} over at least four cases (excluding methods whose "
@@ -715,7 +778,14 @@ def render(
         "handful of instances per category the profiles are coarse.",
         "",
     ]
-    for category in ("reliability", "sensitivity", "propagation", "calibration"):
+    for category in (
+        "reliability",
+        "sensitivity",
+        "propagation",
+        "calibration",
+        "inverse",
+        "assimilation",
+    ):
         chosen = [p for p in problems if p.category == category]
         if not chosen:
             continue
@@ -731,8 +801,10 @@ def render(
                 lines.extend(scalar_tables(problem, rows))
             elif category == "sensitivity":
                 lines.extend(index_table(problem, rows))
-            else:
+            elif category == "calibration":
                 lines.extend(calibration_table(problem, rows))
+            else:
+                lines.extend(error_table(problem, rows))
             notes = notes_block(rows)
             if notes:
                 lines.extend(notes)

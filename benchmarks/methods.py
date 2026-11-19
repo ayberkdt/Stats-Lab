@@ -14,9 +14,22 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from benchmarks.problems import Instance, Problem
+from benchmarks.problems import L96_BURN, L96_CYCLES, Instance, Problem
 from benchmarks.references import normal_quantile
+from probstat.data_assimilation import (
+    Localization,
+    Relaxation,
+    ensemble_kalman_filter,
+)
+from probstat.filtering import kalman_filter
 from probstat.inference import advi
+from probstat.inverse import (
+    discrepancy_principle,
+    generalized_cross_validation,
+    l_curve,
+    truncated_svd,
+)
+from probstat.linalg import singular_value_decomposition
 from probstat.propagation import propagate
 from probstat.reliability import (
     ak_mcs,
@@ -48,6 +61,8 @@ SIZES: dict[str, dict[str, Any]] = {
             "sensitivity": 2,
             "propagation": 5,
             "calibration": 2,
+            "inverse": 2,
+            "assimilation": 2,
         },
         "mc_samples": 5_000,
         "is_samples": 1_000,
@@ -83,6 +98,8 @@ SIZES: dict[str, dict[str, Any]] = {
         "hmc_draws": 100,
         "chains": 2,
         "advi_iterations": 2_000,
+        "enkf_members": 50,
+        "l96_members": 20,
     },
     "full": {
         "seeds": {
@@ -90,6 +107,8 @@ SIZES: dict[str, dict[str, Any]] = {
             "sensitivity": 10,
             "propagation": 30,
             "calibration": 20,
+            "inverse": 10,
+            "assimilation": 10,
         },
         "mc_samples": 100_000,
         "is_samples": 2_000,
@@ -125,6 +144,8 @@ SIZES: dict[str, dict[str, Any]] = {
         "hmc_draws": 500,
         "chains": 4,
         "advi_iterations": 10_000,
+        "enkf_members": 200,
+        "l96_members": 20,
     },
 }
 
@@ -815,6 +836,227 @@ def _exact_posterior(
     )
 
 
+# ---------------------------------------------------------------------------
+# Inverse problems
+# ---------------------------------------------------------------------------
+
+
+def _relative_error(solution: Any, exact: Any) -> float:
+    """Return ``||x - x_exact|| / ||x_exact||``."""
+    difference = math.fsum((a - b) ** 2 for a, b in zip(solution, exact, strict=True))
+    return math.sqrt(difference / math.fsum(b * b for b in exact))
+
+
+def _tikhonov_rule(rule: str) -> Runner:
+    """Return an adapter choosing the Tikhonov parameter by one rule."""
+
+    def run(
+        instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+    ) -> MethodOutput:
+        """Choose lambda, solve, and score the solution against the truth."""
+        del seed, sizes, problem
+        operator = instance["problem"].operator
+        data = instance["data"]
+        svd = singular_value_decomposition(operator)
+        if rule == "discrepancy":
+            choice = discrepancy_principle(
+                operator, data, instance["noise_norm"], decomposition=svd
+            )
+        elif rule == "gcv":
+            choice = generalized_cross_validation(operator, data, decomposition=svd)
+        else:
+            choice = l_curve(operator, data, decomposition=svd)
+        instance.model.evaluations += len(choice.grid) + 1
+        error = _relative_error(choice.solution.solution, instance["exact"])
+        notes = [f"lambda = {choice.regularization:.3g}"]
+        if choice.at_boundary:
+            notes.append("optimum at the grid boundary")
+        return MethodOutput({"relerr": Estimate(error)}, tuple(notes))
+
+    return run
+
+
+def _tsvd_discrepancy(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Truncate the SVD at the smallest rank whose residual meets the noise norm."""
+    del seed, sizes, problem
+    operator = instance["problem"].operator
+    data = instance["data"]
+    svd = singular_value_decomposition(operator)
+    target = instance["noise_norm"]
+    solution = None
+    for rank in range(1, len(svd.singular_values) + 1):
+        solution = truncated_svd(operator, data, rank, decomposition=svd)
+        instance.model.evaluations += 1
+        if solution.residual_norm <= target:
+            break
+    assert solution is not None
+    error = _relative_error(solution.solution, instance["exact"])
+    return MethodOutput({"relerr": Estimate(error)}, (f"rank k = {solution.rank}",))
+
+
+ORACLE_GRID = tuple(10.0 ** (-6.0 + 6.0 * i / 120) for i in range(121))
+
+
+def _oracle_tikhonov(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Return the smallest Tikhonov error on a lambda grid (needs the truth).
+
+    The solutions come from the SVD filter form
+    ``x = V diag(sigma / (sigma^2 + lambda^2)) U'b``, which equals the QR
+    solution of ``tikhonov`` for ``L = I`` up to rounding and costs one SVD.
+    """
+    del seed, sizes, problem
+    operator = instance["problem"].operator
+    data = instance["data"]
+    svd = singular_value_decomposition(operator)
+    sigma = svd.singular_values
+    beta = [
+        math.fsum(svd.u[r][j] * data[r] for r in range(len(data)))
+        for j in range(len(sigma))
+    ]
+    errors = []
+    for lam in ORACLE_GRID:
+        coefficients = [
+            s * b / (s * s + lam * lam) for s, b in zip(sigma, beta, strict=True)
+        ]
+        solution = [
+            math.fsum(row[i] * coefficients[i] for i in range(len(sigma)))
+            for row in svd.v
+        ]
+        errors.append(_relative_error(solution, instance["exact"]))
+    instance.model.evaluations += len(ORACLE_GRID)
+    best = min(range(len(errors)), key=lambda i: errors[i])
+    return MethodOutput(
+        {"relerr": Estimate(errors[best])},
+        (f"lambda = {ORACLE_GRID[best]:.3g} (uses the exact solution)",),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Data assimilation
+# ---------------------------------------------------------------------------
+
+
+def _is_tracking(problem: Problem) -> bool:
+    """Apply to the linear-Gaussian tracking problem."""
+    return "linear-tracking" in problem.tags
+
+
+def _is_lorenz96(problem: Problem) -> bool:
+    """Apply to the Lorenz-96 twin experiment."""
+    return "lorenz96" in problem.tags
+
+
+def _final_moments(mean: Any, covariance: Any) -> dict[str, Estimate]:
+    """Return the final mean and sd estimates of position and velocity."""
+    estimates: dict[str, Estimate] = {}
+    for i, name in enumerate(("pos", "vel")):
+        estimates[f"mean[{name}]"] = Estimate(mean[i])
+        estimates[f"sd[{name}]"] = Estimate(math.sqrt(covariance[i][i]))
+    return estimates
+
+
+def _kalman_tracking(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Run the library Kalman filter (exact up to rounding)."""
+    del seed, sizes, problem
+    observations = [(y,) for y in instance["observations"]]
+    result = kalman_filter(instance["state_space"], observations)
+    final = result.filtered[-1]
+    return MethodOutput(_final_moments(final.mean, final.covariance))
+
+
+def _ensemble_tracking(analysis: str) -> Runner:
+    """Return an adapter running one ensemble analysis on the tracking problem."""
+
+    def run(
+        instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+    ) -> MethodOutput:
+        """Filter with ``enkf_members`` members and report the final moments."""
+        del problem
+        observations = [[y] for y in instance["observations"]]
+        members = sizes["enkf_members"]
+        options: dict[str, Any] = {"analysis": analysis}
+        notes: tuple[str, ...] = (f"N = {members}",)
+        if analysis == "letkf":
+            # Both state components sit at the observed point: the local
+            # analysis sees the observation with weight one.
+            options["localization"] = Localization((0.0, 0.0), (0.0,), 1.0)
+            notes = (f"N = {members}, Gaspari-Cohn half-width 1 (weight 1)",)
+        result = ensemble_kalman_filter(
+            instance["state_space"],
+            observations,
+            ensemble_size=members,
+            seed=seed,
+            **options,
+        )
+        instance.model.evaluations += members * len(observations)
+        return MethodOutput(
+            _final_moments(result.analysis_means[-1], result.analysis_covariances[-1]),
+            notes,
+        )
+
+    return run
+
+
+def _lorenz96_filter(kind: str) -> Runner:
+    """Return an adapter running one ensemble filter on the Lorenz-96 twin."""
+
+    def run(
+        instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+    ) -> MethodOutput:
+        """Filter the twin experiment; report time-averaged RMSE and spread."""
+        del problem
+        truth = instance["truth"]
+        dimension = len(truth.states[0])
+        members = sizes["l96_members"]
+        options: dict[str, Any] = {}
+        if kind != "plain":
+            options["localization"] = Localization(
+                range(dimension), range(dimension), 2.0, period=dimension
+            )
+            options["relaxation"] = Relaxation("rtps", 0.5)
+        if kind == "letkf":
+            options["analysis"] = "letkf"
+        result = ensemble_kalman_filter(
+            instance["state_space"],
+            truth.observations,
+            ensemble_size=members,
+            seed=seed,
+            **options,
+        )
+        instance.model.evaluations += members * len(truth.observations)
+        errors, spreads = [], []
+        for k in range(L96_BURN + 1, L96_CYCLES + 1):
+            mean = result.analysis_means[k]
+            covariance = result.analysis_covariances[k]
+            errors.append(
+                math.sqrt(
+                    math.fsum(
+                        (a - b) ** 2 for a, b in zip(mean, truth.states[k], strict=True)
+                    )
+                    / dimension
+                )
+            )
+            spreads.append(
+                math.sqrt(
+                    math.fsum(covariance[i][i] for i in range(dimension)) / dimension
+                )
+            )
+        rmse = math.fsum(errors) / len(errors)
+        spread = math.fsum(spreads) / len(spreads)
+        return MethodOutput(
+            {"rmse": Estimate(rmse), "spread_ratio": Estimate(spread / rmse)},
+            (f"N = {members}, mean spread {spread:.3f}",),
+        )
+
+    return run
+
+
 def registry() -> tuple[Method, ...]:
     """Return every benchmarked method in report order."""
     return (
@@ -949,4 +1191,79 @@ def registry() -> tuple[Method, ...]:
         Method("Static HMC", "calibration", _mcmc("hmc", "hmc_draws")),
         Method("ADVI mean-field", "calibration", _advi("mean-field"), "approximation"),
         Method("ADVI full-rank", "calibration", _advi("full-rank"), "approximation"),
+        # Inverse-problem noise changes with the seed, so every rule runs per seed.
+        Method(
+            "Tikhonov, error-optimal lambda (oracle)",
+            "inverse",
+            _oracle_tikhonov,
+            "reference",
+        ),
+        Method(
+            "Tikhonov + discrepancy principle",
+            "inverse",
+            _tikhonov_rule("discrepancy"),
+            "approximation",
+        ),
+        Method("Tikhonov + GCV", "inverse", _tikhonov_rule("gcv"), "approximation"),
+        Method(
+            "Tikhonov + L-curve",
+            "inverse",
+            _tikhonov_rule("l-curve"),
+            "approximation",
+        ),
+        Method(
+            "TSVD + discrepancy principle",
+            "inverse",
+            _tsvd_discrepancy,
+            "approximation",
+        ),
+        Method(
+            "Kalman filter (library)",
+            "assimilation",
+            _kalman_tracking,
+            "approximation",
+            _is_tracking,
+        ),
+        Method(
+            "EnKF (stochastic)",
+            "assimilation",
+            _ensemble_tracking("stochastic"),
+            "approximation",
+            _is_tracking,
+        ),
+        Method(
+            "ETKF",
+            "assimilation",
+            _ensemble_tracking("etkf"),
+            "approximation",
+            _is_tracking,
+        ),  # fmt: skip
+        Method(
+            "LETKF",
+            "assimilation",
+            _ensemble_tracking("letkf"),
+            "approximation",
+            _is_tracking,
+        ),  # fmt: skip
+        Method(
+            "EnKF, no localization",
+            "assimilation",
+            _lorenz96_filter("plain"),
+            "approximation",
+            _is_lorenz96,
+        ),
+        Method(
+            "EnKF, Gaspari-Cohn c = 2 + RTPS 0.5",
+            "assimilation",
+            _lorenz96_filter("localized"),
+            "approximation",
+            _is_lorenz96,
+        ),
+        Method(
+            "LETKF, c = 2 + RTPS 0.5",
+            "assimilation",
+            _lorenz96_filter("letkf"),
+            "approximation",
+            _is_lorenz96,
+        ),
     )
