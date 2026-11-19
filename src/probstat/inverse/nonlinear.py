@@ -20,17 +20,35 @@ log-scale makes noise parameters unconstrained; the prior density is
 transformed with its Jacobian ``|d sigma / d log sigma| = sigma``.
 
 Posterior sampling (:meth:`CalibrationProblem.sample_posterior`) runs adaptive
-Metropolis (default), static HMC, or NUTS in the Nataf standard-normal space
+Metropolis (default), static HMC, NUTS, preconditioned Crank-Nicolson, or
+tempered sequential Monte Carlo in the Nataf standard-normal space
 ``u = T(theta)`` of the prior.
 Because ``T`` pushes the prior forward to ``N(0, I)``, the posterior density in
 ``u`` is ``L(T^-1(u)) phi(u)`` exactly; the prior Jacobian is absorbed by the
 transformation and no determinant needs to be computed. Bounded or skewed
 priors become unbounded and roughly isotropic, which conditions the sampler.
+
+Fully standardized coordinates (``method="pcn"`` or ``"smc"``)
+    Preconditioned Crank-Nicolson and the evidence need a prior that is
+    exactly ``N(0, I)`` in *every* sampled coordinate. The log-noise
+    coordinates ``eta = log sigma`` of the default samplers are not: their
+    prior is ``p_sigma(e^eta) e^eta``. Those two methods therefore also map
+    each unknown noise scale through its own prior quantile transform,
+    ``sigma = F_sigma^-1(Phi(w))`` with ``w ~ N(0, 1)``, and work in
+    ``v = (u, w)`` with target ``L(T^-1(u), sigma(w)) N(v; 0, I)``
+    (:meth:`CalibrationProblem.standard_log_likelihood`). The draws are
+    mapped back to ``(u, log sigma)`` for ``standard_space`` and to
+    ``(theta, sigma)`` for the physical chains, so the result has the same
+    layout for every method. Because the change of variables is exact,
+    ``integral L(T^-1(u), sigma(w)) N(v; 0, I) dv`` equals the marginal
+    likelihood ``p(y)`` of the original problem, which is what
+    :meth:`CalibrationProblem.log_evidence` estimates.
 """
 
 from __future__ import annotations
 
 import math
+import random
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
@@ -43,12 +61,16 @@ from probstat.foundations.validation import (
 from probstat.inference import (
     HamiltonianResult,
     LaplaceApproximation,
+    MarkovChain,
     MCMCResult,
     ParameterSummary,
+    SMCResult,
     adaptive_metropolis,
     hamiltonian_monte_carlo,
     laplace_approximation,
     no_u_turn_sampler,
+    preconditioned_crank_nicolson,
+    sequential_monte_carlo,
 )
 from probstat.linalg import (
     Matrix,
@@ -61,7 +83,12 @@ from probstat.linalg import (
     symmetric_eigen,
     transpose,
 )
-from probstat.modeling import ContinuousMarginal, ProbabilisticModel, RandomInput
+from probstat.modeling import (
+    ContinuousMarginal,
+    JointInput,
+    ProbabilisticModel,
+    RandomInput,
+)
 from probstat.optimization import (
     LeastSquaresResult,
     central_jacobian,
@@ -340,11 +367,17 @@ class CalibrationPosterior:
         laplace: Laplace approximation in sampling coordinates used to start
             the chains (``None`` if the Hessian was not positive definite).
         sampler: HMC/NUTS diagnostics (divergences, tree depths, step sizes)
-            in sampling coordinates; ``None`` for adaptive Metropolis.
+            in sampling coordinates; ``None`` for the other methods.
+        smc: Full sequential Monte Carlo result (temperatures, acceptance
+            rates, log evidence) in the fully standardized coordinates
+            ``(u, w)``; ``None`` unless ``method="smc"``. For SMC, ``mcmc``
+            and ``standard_space`` hold the final particles as one pseudo
+            chain: means and quantiles are valid, but the chain diagnostics
+            (``R-hat``, ESS) of :meth:`summary` do not apply to particles.
 
     References:
         [REF-GELMAN-ETAL-2013, Chapter 11], [REF-KENNEDY-OHAGAN-2001],
-        [REF-HOFFMAN-GELMAN-2014].
+        [REF-HOFFMAN-GELMAN-2014], [REF-DELMORAL-DOUCET-JASRA-2006].
 
     """
 
@@ -354,6 +387,7 @@ class CalibrationPosterior:
     standard_space: MCMCResult
     laplace: LaplaceApproximation | None
     sampler: HamiltonianResult | None = None
+    smc: SMCResult | None = None
 
     @property
     def evaluations(self) -> int:
@@ -560,6 +594,7 @@ class CalibrationProblem:
     _bases: tuple[Mapping[str, float], ...] = field(
         init=False, repr=False, compare=False
     )
+    _noise_inputs: JointInput | None = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         """Validate the declarations and cache the observation layout.
@@ -612,6 +647,9 @@ class CalibrationProblem:
         object.__setattr__(self, "_noise_by_name", MappingProxyType(by_name))
         object.__setattr__(self, "_unknown", unknown)
         object.__setattr__(self, "_sigma_priors", priors)
+        object.__setattr__(
+            self, "_noise_inputs", JointInput.independent(*priors) if priors else None
+        )
         bases = []
         for experiment in experiments:
             base = dict(self.model.fixed)
@@ -949,6 +987,207 @@ class CalibrationProblem:
             math.exp(eta) if eta < 709.0 else math.inf for eta in vector[d:]
         )
 
+    def _noise_from_whitened(self, whitened: Sequence[float]) -> Vector:
+        """Map standard-normal noise coordinates ``w`` to noise scales.
+
+        References:
+            [EQ-MOD-NATAF-001], [REF-LIU-DERKIUREGHIAN-1986].
+
+        """
+        if self._noise_inputs is None:
+            return ()
+        return self._noise_inputs.from_standard_normal(whitened)
+
+    def standard_log_likelihood(self, coordinates: Sequence[float]) -> float:
+        """Return the log-likelihood in fully standardized coordinates.
+
+        For ``v = (u, w)`` with ``theta = T^-1(u)`` (Nataf map of the prior)
+        and ``sigma_q = F_q^-1(Phi(w_q))`` (quantile map of each unknown
+        noise scale's prior), the prior of ``v`` is exactly ``N(0, I)`` and
+        the posterior is ``L(T^-1(u), sigma(w)) N(v; 0, I) / p(y)``. This is
+        the likelihood used by ``method="pcn"`` and ``"smc"`` and by
+        :meth:`log_evidence`. It carries every normalizing constant of the
+        Gaussian or Student-t noise density. Without unknown noise scales
+        ``v = u``.
+
+        Args:
+            coordinates: ``(u, w)`` of length :attr:`dimension`.
+
+        Returns:
+            ``log p(y | theta, sigma)``; ``-inf`` if a mapped noise scale is
+            zero or infinite.
+
+        Raises:
+            ValueError: If the length is wrong.
+
+        Equation:
+            [EQ-CAL-LIK-001], [EQ-MOD-NATAF-001], [EQ-CAL-STD-002].
+
+        References:
+            [REF-LIU-DERKIUREGHIAN-1986], [REF-COTTER-ROBERTS-STUART-WHITE-2013].
+
+        """
+        vector = as_vector(coordinates, name="coordinates")
+        if len(vector) != self.dimension:
+            raise ValueError(f"coordinates must have length {self.dimension}")
+        d = self.model.dimension
+        theta = self.model.inputs.from_standard_normal(vector[:d])
+        scales = self._noise_from_whitened(vector[d:])
+        if any(not 0.0 < value < math.inf for value in scales):
+            return -math.inf
+        sigmas: dict[str, float] = {}
+        for item in self.noise:
+            if item.standard_deviation is not None:
+                sigmas[item.quantity] = item.standard_deviation
+        for quantity, value in zip(self._unknown, scales, strict=True):
+            sigmas[quantity] = value
+        return self._log_likelihood(theta, MappingProxyType(sigmas))
+
+    def _whitened_to_sampling(self, coordinates: Sequence[float]) -> Vector:
+        """Map ``(u, w)`` to the sampling coordinates ``(u, log sigma)``.
+
+        References:
+            [EQ-CAL-STD-002], [REF-LIU-DERKIUREGHIAN-1986].
+
+        """
+        vector = as_vector(coordinates, name="coordinates")
+        d = self.model.dimension
+        return vector[:d] + tuple(
+            math.log(value) for value in self._noise_from_whitened(vector[d:])
+        )
+
+    def _sampling_to_whitened(self, coordinates: Sequence[float]) -> Vector:
+        """Map ``(u, log sigma)`` to fully standardized ``(u, w)``.
+
+        References:
+            [EQ-CAL-STD-002], [REF-LIU-DERKIUREGHIAN-1986].
+
+        """
+        vector = as_vector(coordinates, name="coordinates")
+        d = self.model.dimension
+        if self._noise_inputs is None:
+            return vector
+        return vector[:d] + self._noise_inputs.to_standard_normal(
+            tuple(math.exp(eta) for eta in vector[d:])
+        )
+
+    def _whitened_to_physical(self, coordinates: Sequence[float]) -> Vector:
+        """Map ``(u, w)`` to ``(theta, sigma)``.
+
+        References:
+            [EQ-CAL-STD-002], [EQ-MOD-NATAF-001].
+
+        """
+        vector = as_vector(coordinates, name="coordinates")
+        d = self.model.dimension
+        return self.model.inputs.from_standard_normal(
+            vector[:d]
+        ) + self._noise_from_whitened(vector[d:])
+
+    def _run_smc(
+        self,
+        *,
+        particles: int,
+        mutation_steps: int,
+        ess_fraction: float,
+        stream: RandomStream,
+    ) -> SMCResult:
+        """Run tempered SMC on :meth:`standard_log_likelihood`.
+
+        The prior of ``(u, w)`` is ``N(0, I)``; particles are mutated by
+        random-walk Metropolis with the particle covariance, which adapts to
+        a concentrated, anisotropic posterior better than an isotropic pCN
+        move.
+
+        References:
+            [EQ-SMC-TEMPER-001], [EQ-SMC-EVID-001],
+            [REF-DELMORAL-DOUCET-JASRA-2006].
+
+        """
+        size = self.dimension
+
+        def prior_draw(generator: random.Random) -> Vector:
+            """Draw one ``N(0, I)`` prior point.
+
+            References:
+                [EQ-CAL-STD-002]. No new equation is introduced.
+
+            """
+            return tuple(generator.gauss(0.0, 1.0) for _ in range(size))
+
+        def standard_normal_log_prior(point: Vector) -> float:
+            """Return ``-|v|^2 / 2``, the ``N(0, I)`` log-density up to a constant.
+
+            References:
+                [EQ-CAL-STD-002]. No new equation is introduced.
+
+            """
+            return -0.5 * math.fsum(value * value for value in point)
+
+        names = tuple(f"u[{name}]" for name in self.parameter_names) + tuple(
+            f"w[{q}]" for q in self._unknown
+        )
+        return sequential_monte_carlo(
+            prior_draw,
+            standard_normal_log_prior,
+            self.standard_log_likelihood,
+            particles=particles,
+            mutation="rwm",
+            mutation_steps=mutation_steps,
+            ess_fraction=ess_fraction,
+            seed=stream,
+            names=names,
+        )
+
+    def log_evidence(
+        self,
+        *,
+        particles: int = 1000,
+        mutation_steps: int = 10,
+        ess_fraction: float = 0.5,
+        seed: int | RandomStream | None = None,
+    ) -> SMCResult:
+        """Estimate the marginal likelihood ``log p(y)`` by tempered SMC.
+
+        ``p(y) = integral p(y | theta, sigma) p(theta) p(sigma) d theta
+        d sigma`` is computed in the fully standardized coordinates of
+        :meth:`standard_log_likelihood`, where the prior is ``N(0, I)`` and
+        the change of variables leaves the integral unchanged. The noise
+        densities include all normalizing constants, so the estimate is the
+        density of the observations themselves; ratios between problems with
+        the same observations are Bayes factors.
+
+        Args:
+            particles: Number of SMC particles (at least two).
+            mutation_steps: Random-walk Metropolis moves per particle and
+                stage.
+            ess_fraction: ESS target fraction of the adaptive tempering.
+            seed: Integer seed or stream.
+
+        Returns:
+            The SMC result; ``log_evidence`` is ``log p(y)`` and
+            ``log_evidence_standard_error`` its Lee-Whiteley standard error
+            (see :func:`probstat.inference.sequential_monte_carlo` for its
+            limitations).
+
+        Raises:
+            ValueError: For invalid SMC options.
+
+        Equation:
+            [EQ-SMC-EVID-001], [EQ-SMC-EVID-002], [EQ-CAL-STD-002].
+
+        References:
+            [REF-DELMORAL-DOUCET-JASRA-2006], [REF-LEE-WHITELEY-2018],
+            [REF-GELMAN-ETAL-2013, Chapter 7].
+
+        """
+        return self._run_smc(
+            particles=particles,
+            mutation_steps=mutation_steps,
+            ess_fraction=ess_fraction,
+            stream=resolve_stream(seed),
+        )
+
     def _default_log_sigmas(self) -> Vector:
         """Return log prior medians of unknown noise scales.
 
@@ -1196,8 +1435,10 @@ class CalibrationProblem:
         dispersion: float = 2.0,
         seed: int | RandomStream | None = None,
         method: str = "adaptive-metropolis",
+        particles: int = 1000,
+        mutation_steps: int = 10,
     ) -> CalibrationPosterior:
-        """Sample the posterior by MCMC in standard-normal space.
+        """Sample the posterior by MCMC or SMC in standard-normal space.
 
         Steps: (1) Laplace approximation of :meth:`standard_log_posterior`
         from ``u = 0`` and log prior-median noise; (2) chain starts drawn from
@@ -1218,6 +1459,22 @@ class CalibrationProblem:
         default reproduces the adaptive-Metropolis results of earlier
         versions exactly.
 
+        With ``method="pcn"`` step (3) is preconditioned Crank-Nicolson on
+        :meth:`standard_log_likelihood` in the fully standardized coordinates
+        ``(u, w)`` (module docstring), started from the same over-dispersed
+        points mapped to ``w``; ``beta`` is adapted in warm-up. pCN pays off
+        when the data inform few directions of a high-dimensional prior; for
+        a posterior much narrower than the prior in every direction its
+        isotropic proposal mixes slower than adaptive Metropolis.
+
+        With ``method="smc"`` steps (1) to (3) are replaced by tempered
+        sequential Monte Carlo from the ``N(0, I)`` prior of ``(u, w)`` with
+        ``particles`` particles and ``mutation_steps`` random-walk moves per
+        stage (``draws``, ``warmup``, ``chains``, ``thin`` and ``dispersion``
+        are not used). The final particles form one pseudo chain of
+        ``mcmc`` and ``standard_space``; the full result, including the log
+        evidence, is in ``smc``.
+
         Args:
             draws: Kept draws per chain.
             warmup: Adaptation and burn-in iterations per chain.
@@ -1225,8 +1482,11 @@ class CalibrationProblem:
             thin: Thinning interval.
             dispersion: Start-point spread relative to the Laplace scale.
             seed: Integer seed or stream.
-            method: ``"adaptive-metropolis"`` (default), ``"hmc"``, or
-                ``"nuts"``.
+            method: ``"adaptive-metropolis"`` (default), ``"hmc"``,
+                ``"nuts"``, ``"pcn"``, or ``"smc"``.
+            particles: SMC particles (``method="smc"`` only).
+            mutation_steps: SMC moves per particle and stage
+                (``method="smc"`` only).
 
         Returns:
             Posterior with physical and sampling-space chains.
@@ -1235,24 +1495,39 @@ class CalibrationProblem:
             ValueError: For invalid run arguments or an unknown ``method``.
 
         Equation:
-            [EQ-CAL-STD-001], [EQ-MCMC-AM-001], [EQ-MCMC-MH-001],
-            [EQ-HMC-LEAPFROG-001], [EQ-NUTS-SLICE-001].
+            [EQ-CAL-STD-001], [EQ-CAL-STD-002], [EQ-MCMC-AM-001],
+            [EQ-MCMC-MH-001], [EQ-HMC-LEAPFROG-001], [EQ-NUTS-SLICE-001],
+            [EQ-MCMC-PCN-001], [EQ-SMC-TEMPER-001].
 
         References:
             [REF-HAARIO-SAKSMAN-TAMMINEN-2001], [REF-GELMAN-RUBIN-1992],
             [REF-LIU-DERKIUREGHIAN-1986], [REF-HOFFMAN-GELMAN-2014],
-            [REF-NEAL-2011].
+            [REF-NEAL-2011], [REF-COTTER-ROBERTS-STUART-WHITE-2013],
+            [REF-DELMORAL-DOUCET-JASRA-2006].
 
         """
-        if method not in ("adaptive-metropolis", "hmc", "nuts"):
-            raise ValueError("method must be 'adaptive-metropolis', 'hmc', or 'nuts'")
+        if method not in ("adaptive-metropolis", "hmc", "nuts", "pcn", "smc"):
+            raise ValueError(
+                "method must be 'adaptive-metropolis', 'hmc', 'nuts', 'pcn', or 'smc'"
+            )
+        stream = resolve_stream(seed)
+        sampling_names = tuple(f"u[{name}]" for name in self.parameter_names) + tuple(
+            f"log_sigma[{q}]" for q in self._unknown
+        )
+        physical_names = self.parameter_names + self.noise_names
+        if method == "smc":
+            return self._smc_posterior(
+                particles=particles,
+                mutation_steps=mutation_steps,
+                stream=stream,
+                sampling_names=sampling_names,
+            )
         spread = require_finite_real(dispersion, name="dispersion")
         if spread <= 0.0:
             raise ValueError("dispersion must be positive")
         chain_count = require_non_negative_integer(chains, name="chains")
         if chain_count == 0:
             raise ValueError("chains must be positive")
-        stream = resolve_stream(seed)
         size = self.dimension
         origin = tuple(0.0 for _ in range(self.model.dimension))
         origin = origin + self._default_log_sigmas()
@@ -1282,10 +1557,26 @@ class CalibrationProblem:
                     start = candidate
                     break
             starts.append(start)
-        names = tuple(f"u[{name}]" for name in self.parameter_names) + tuple(
-            f"log_sigma[{q}]" for q in self._unknown
-        )
         sampler: HamiltonianResult | None = None
+        if method == "pcn":
+            whitened = preconditioned_crank_nicolson(
+                self.standard_log_likelihood,
+                tuple(self._sampling_to_whitened(start) for start in starts),
+                draws=draws,
+                warmup=warmup,
+                chains=chains,
+                thin=thin,
+                seed=stream.child("chains"),
+                names=tuple(f"u[{name}]" for name in self.parameter_names)
+                + tuple(f"w[{q}]" for q in self._unknown),
+            )
+            return CalibrationPosterior(
+                self.parameter_names,
+                self.noise_names,
+                whitened.transformed(self._whitened_to_physical, physical_names),
+                whitened.transformed(self._whitened_to_sampling, sampling_names),
+                laplace,
+            )
         if method == "adaptive-metropolis":
             proposal = scale_matrix(covariance, 2.38**2 / size)
             sampled = adaptive_metropolis(
@@ -1297,7 +1588,7 @@ class CalibrationProblem:
                 thin=thin,
                 initial_covariance=proposal,
                 seed=stream.child("chains"),
-                names=names,
+                names=sampling_names,
             )
         else:
             run = no_u_turn_sampler if method == "nuts" else hamiltonian_monte_carlo
@@ -1311,12 +1602,10 @@ class CalibrationProblem:
                 metric="diag",
                 initial_inverse_metric=covariance,
                 seed=stream.child("chains"),
-                names=names,
+                names=sampling_names,
             )
             sampled = sampler.mcmc
-        physical = sampled.transformed(
-            self.to_physical, self.parameter_names + self.noise_names
-        )
+        physical = sampled.transformed(self.to_physical, physical_names)
         return CalibrationPosterior(
             self.parameter_names,
             self.noise_names,
@@ -1324,4 +1613,62 @@ class CalibrationProblem:
             sampled,
             laplace,
             sampler,
+        )
+
+    def _smc_posterior(
+        self,
+        *,
+        particles: int,
+        mutation_steps: int,
+        stream: RandomStream,
+        sampling_names: tuple[str, ...],
+    ) -> CalibrationPosterior:
+        """Run SMC and package its particles as a one-chain posterior.
+
+        The ``log_density`` trace holds ``log L - |v|^2 / 2`` and the
+        ``proposal_covariance`` field the particle covariance (no single
+        proposal produced the particles).
+
+        References:
+            [EQ-SMC-TEMPER-001], [REF-DELMORAL-DOUCET-JASRA-2006].
+
+        """
+        result = self._run_smc(
+            particles=particles,
+            mutation_steps=mutation_steps,
+            ess_fraction=0.5,
+            stream=stream.child("smc"),
+        )
+        trace = tuple(
+            value - 0.5 * math.fsum(x * x for x in point)
+            for value, point in zip(
+                result.log_likelihoods, result.particles, strict=True
+            )
+        )
+        chain = MarkovChain(
+            result.particles,
+            trace,
+            result.acceptance_rates[-1],
+            math.nan,
+            result.covariance(),
+            result.evaluations,
+            stream.seed,
+        )
+        pseudo = MCMCResult(
+            (chain,),
+            result.names,
+            "sequential Monte Carlo (particles, not a chain)",
+            0,
+            1,
+        )
+        return CalibrationPosterior(
+            self.parameter_names,
+            self.noise_names,
+            pseudo.transformed(
+                self._whitened_to_physical, self.parameter_names + self.noise_names
+            ),
+            pseudo.transformed(self._whitened_to_sampling, sampling_names),
+            None,
+            None,
+            result,
         )

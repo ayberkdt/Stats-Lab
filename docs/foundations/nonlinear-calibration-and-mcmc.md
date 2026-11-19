@@ -5,7 +5,8 @@ from straight lines with known noise to general nonlinear forward models,
 unknown or heavy-tailed noise, and sampled posteriors. Every number quoted
 below was computed with this library and the seeds used in
 `tests/test_uq6b_nonlinear_calibration.py` (sections 3-10) and
-`tests/test_hmc_nuts_advi.py` (section 12), so it can be reproduced.
+`tests/test_hmc_nuts_advi.py` (section 12), and with the models and seeds of
+`tests/test_inference_pcn_smc_abc.py` (section 13), so it can be reproduced.
 
 ## 1. What changes when the model is nonlinear
 
@@ -293,7 +294,18 @@ which the tests check to ten decimals.
 
 - Random-walk samplers scale poorly beyond roughly ten to twenty parameters
   and with strongly curved posteriors. Gradient-based samplers (HMC/NUTS) and
-  Gaussian ADVI are described in Section 12.
+  Gaussian ADVI are described in Section 12; pCN, for high-dimensional
+  standard-normal priors that the data inform in few directions, in
+  Section 13.
+- The SMC evidence is as good as its mutation kernel: a kernel that mixes
+  poorly biases `log Z` by more than the reported standard error, which
+  measures Monte Carlo variability only (Section 13).
+- ABC answers a different question: the posterior given a summary within a
+  tolerance. It matches the posterior only for a sufficient summary and a
+  vanishing tolerance.
+- `DiscrepancyCalibration.sample_posterior` offers only adaptive
+  Metropolis, HMC, and NUTS; `method="pcn"`, `"smc"`, and `log_evidence`
+  exist for `CalibrationProblem` only.
 - Adaptation stops at the end of warm-up. A poor warm-up gives a valid but
   inefficient chain; check ESS.
 - Multimodal posteriors can defeat every diagnostic when no chain starts near
@@ -483,6 +495,141 @@ Gaussian `q` underestimates the spread of skewed or heavy-tailed posteriors.
 Use ADVI for fast exploration and starting points, and confirm reported
 uncertainty with MCMC.
 
+## 13. Dimension-robust, tempered, and likelihood-free sampling
+
+Three samplers cover cases the Metropolis and Hamiltonian samplers above do
+not: a high-dimensional prior that the data inform in only a few directions,
+the marginal likelihood needed for model comparison, and models whose
+likelihood cannot be evaluated at all (ADR-0111).
+
+### Preconditioned Crank-Nicolson
+
+`inference.preconditioned_crank_nicolson` targets `L(u) N(u; 0, I)`, a
+likelihood times a standard-normal prior, such as the Nataf space of
+`CalibrationProblem` or the Karhunen-Loeve coefficients of a random field. It
+proposes `v = sqrt(1 - beta^2) u + beta xi` and accepts with probability
+`min(1, L(v) / L(u))` ([EQ-MCMC-PCN-001]). The proposal is an AR(1) step that
+leaves `N(0, I)` invariant, so the prior cancels from the ratio and only the
+likelihood is tested.
+
+That is why it does not degrade with dimension. A random walk must shrink its
+step like `d^-1/2`, because the prior part of its ratio,
+`exp((|u|^2 - |v|^2)/2)`, becomes extreme as `d` grows. For pCN the prior part
+is exactly one, and when the likelihood depends on a few smooth modes the
+acceptance rate for a fixed `beta` tends to a limit as the discretization is
+refined. On a sine-series field with mode weights `1/k`, observed at three
+points with noise 0.2, both samplers started from the same prior draw
+(seed 7, `beta = 0.3` without adaptation, random-walk step 0.3):
+
+| Dimension `d` | pCN acceptance (1000 draws) | Random-walk acceptance (200 draws) |
+|---:|---:|---:|
+| 10 | 0.204 | 0.245 |
+| 50 | 0.187 | 0.120 |
+| 200 | 0.186 | 0.060 |
+
+The pCN rate is flat; the random-walk rate falls by a factor of four.
+
+During warm-up `beta` is adapted by a Robbins-Monro recursion on its log-odds
+towards the target acceptance ([EQ-MCMC-PCN-002]) and is then frozen, as for
+adaptive Metropolis. The default target 0.25 follows the practice of Cotter et
+al. (2013), who tune to about 0.234 or 25 % and report one problem where a
+higher rate converged faster; no optimal-scaling theorem fixes it for pCN.
+
+`CalibrationProblem.sample_posterior(method="pcn")` runs it in fully
+standardized coordinates (next paragraph). On the linear-Gaussian problem of
+Section 5 (4 chains, 500 warm-up, 1500 draws, seed 11) the posterior means of
+`a` and `b` are `0.6366` and `0.7874` (exact `0.6417`, `0.7875`), with MCSE
+`0.0140` and `0.0069`, bulk ESS 243 and 302, and frozen `beta` between 0.157
+and 0.176. Adaptive Metropolis with the same settings reaches ESS 750 and 822:
+when the data pin down every direction, the isotropic pCN move is the slower
+choice. pCN pays off when the prior dimension is large and the likelihood is
+informative in few directions.
+
+**Unknown noise scales.** pCN and the evidence need an `N(0, I)` prior in
+every sampled coordinate, but `log sigma` has the prior
+`p_sigma(e^eta) e^eta`. Both methods therefore map each unknown noise scale
+through its own prior quantile transform, `sigma = F^-1(Phi(w))`, and work in
+`(u, w)` ([EQ-CAL-STD-002], `CalibrationProblem.standard_log_likelihood`). The
+draws are mapped back to `(u, log sigma)` and `(theta, sigma)`, so the result
+has the same layout as for the other methods.
+
+### Sequential Monte Carlo with tempering and the evidence
+
+`inference.sequential_monte_carlo` moves `N` particles from the prior to the
+posterior through `p(x) L(x)^beta_t` with `0 = beta_0 < ... < beta_T = 1`
+([EQ-SMC-TEMPER-001]). Each stage reweights by `L^(beta_t - beta_{t-1})`,
+chooses `beta_t` by bisection so that the effective sample size stays at
+`ess_fraction` (default one half) of the particles ([EQ-SMC-TEMPER-002]),
+resamples, and moves every particle by a few Metropolis steps that leave the
+current tempered law invariant: random walk with the weighted particle
+covariance, or pCN for an `N(0, I)` prior.
+
+The product of the mean incremental weights estimates the evidence
+`Z = integral p(x) L(x) dx` ([EQ-SMC-EVID-001]). It is the marginal
+likelihood only if `L` carries every normalizing constant of the data
+density, which `CalibrationProblem.log_likelihood` does (Gaussian and
+Student-t). Ratios of evidences for the same data are Bayes factors.
+
+The reported standard error is the estimator of Lee and Whiteley (2018),
+computed from the genealogy of one run ([EQ-SMC-EVID-002]): the relative
+variance of `Z_hat` follows from the final weights and from which initial
+particle each final particle descends. Its limits: the theorem assumes fixed
+temperatures and kernels (here both adapt), multinomial resampling (no value
+is reported for systematic resampling), and enough distinct ancestors; it
+measures Monte Carlo variability, not the bias of a mutation kernel that
+mixes poorly.
+
+On the linear-Gaussian problem the exact marginal likelihood is
+`log p(y) = -8.2812`. `CalibrationProblem.log_evidence(particles=1000,
+mutation_steps=10, seed=5)` takes five stages and 51000 likelihood
+evaluations and returns `-8.3273` with standard error `0.0684`; with 400
+particles and 5 moves (seed 5) it returns `-8.2920 +- 0.1251` from 10400
+evaluations. Repeating the 1000-particle run with the noise standard
+deviation declared as 0.6 instead of 0.3 gives `-7.9474 +- 0.0559` (exact
+`-7.9193`). The estimated log Bayes factor `0.380 +- 0.088` (standard errors
+added in quadrature) agrees with the exact `0.362`: seven observations do not
+separate the two noise levels.
+
+`sample_posterior(method="smc")` returns the final particles as one pseudo
+chain plus the full SMC result in `smc`. Means and quantiles of the particles
+are valid; R-hat and ESS of a pseudo chain are not.
+
+### Approximate Bayesian computation
+
+When the likelihood cannot be evaluated but data can be simulated,
+`inference.abc_rejection` keeps prior draws whose simulated summary lies
+within `eps` of the observed one ([EQ-ABC-REJ-001]). The kept draws follow
+the ABC posterior, which equals the posterior given the summary only as
+`eps -> 0`, and the posterior given the data only for a sufficient summary.
+Both caveats are permanent: the tolerance adds bias that costs `eps^-q`
+simulations to remove for a `q`-dimensional summary, and a non-sufficient
+summary loses information that no tolerance recovers. Summaries on different
+scales should be standardized before the Euclidean default distance is used.
+
+For a normal mean (prior `N(0, 1)`, ten unit-variance observations with mean
+0.7 summarized by their sufficient sample mean) the posterior is
+`N(0.6364, 0.0909)`. Rejection with 2000 accepted draws (seed 3) against the
+exact uniform-kernel ABC posterior, computed by quadrature:
+
+| `eps` | Simulations | Mean (exact ABC) | Variance (exact ABC) |
+|---:|---:|---:|---:|
+| 0.5 | 6913 | 0.6018 (0.5899) | 0.1524 (0.1565) |
+| 0.2 | 16818 | 0.6379 (0.6287) | 0.0975 (0.1018) |
+| 0.05 | 65677 | 0.6349 (0.6359) | 0.0914 (0.0916) |
+
+`inference.abc_smc` is the ABC population Monte Carlo algorithm of Beaumont et
+al. (2009) ([EQ-ABC-PMC-001]): each generation perturbs draws of the previous
+weighted population with a Gaussian kernel of twice its weighted covariance,
+keeps proposals within a tolerance set to a quantile (default the median) of
+the previous distances, and corrects with importance weights
+`prior / sum_j w_j K`. With 1000 particles and 7 generations (seed 5) the
+tolerance falls from infinity to `0.0282` in 60579 simulations, and the final
+population (ESS 931) has mean `0.6329` and variance `0.0915` against the exact
+ABC values `0.6362` and `0.0911`. Rejection at the same tolerance (seed 5)
+needs 61542 simulations, so this one-dimensional problem gains nothing from
+the population scheme; it pays off when the prior is much wider than the
+posterior in several directions.
+
 ## Common pitfalls
 
 - **Conditions never name a parameter.** An `Experiment` whose conditions
@@ -494,6 +641,9 @@ uncertainty with MCMC.
   same mode agree with each other (Section 7). Check ESS as well.
 - **MCSE is not the posterior spread.** It is the simulation error of a
   posterior mean.
+- **An evidence needs normalized likelihoods.** Bayes factors from
+  `log_evidence` compare marginal likelihoods of the same observations; a
+  log-likelihood without its normalizing constants gives a meaningless `Z`.
 - **Latent or observation.** `predict` defaults to `include_noise=False`; a
   future measurement needs `include_noise=True` (Section 9).
 

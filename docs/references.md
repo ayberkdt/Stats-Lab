@@ -4755,3 +4755,67 @@ Julien Bect, Ling Li, and Emmanuel Vazquez. "Bayesian Subset Simulation."
 related sequential design that combines a Gaussian-process prior with subset
 simulation.
 DOI: [10.1137/16M1078276](https://doi.org/10.1137/16M1078276).
+
+## REF-DELMORAL-DOUCET-JASRA-2006
+
+Pierre Del Moral, Arnaud Doucet, and Ajay Jasra. "Sequential Monte Carlo
+Samplers." *Journal of the Royal Statistical Society: Series B (Statistical
+Methodology)* 68(3), 411-436, 2006. Tempered sequences of targets, backward
+kernels, and the SMC estimate of normalizing constants.
+DOI: [10.1111/j.1467-9868.2006.00553.x](https://doi.org/10.1111/j.1467-9868.2006.00553.x).
+
+## REF-CHOPIN-2002
+
+N. Chopin. "A Sequential Particle Filter Method for Static Models."
+*Biometrika* 89(3), 539-552, 2002. Reweighting, resampling, and MCMC moves
+for a fixed posterior updated by batches of data.
+DOI: [10.1093/biomet/89.3.539](https://doi.org/10.1093/biomet/89.3.539).
+
+## REF-JASRA-STEPHENS-DOUCET-TSAGARIS-2011
+
+Ajay Jasra, David A. Stephens, Arnaud Doucet, and Theodoros Tsagaris.
+"Inference for Lévy-Driven Stochastic Volatility Models via Adaptive
+Sequential Monte Carlo." *Scandinavian Journal of Statistics* 38(1), 1-22,
+2011. Adaptive choice of the next tempering exponent from the effective
+sample size.
+DOI: [10.1111/j.1467-9469.2010.00723.x](https://doi.org/10.1111/j.1467-9469.2010.00723.x).
+
+## REF-LEE-WHITELEY-2018
+
+Anthony Lee and Nick Whiteley. "Variance Estimation in the Particle
+Filter." *Biometrika* 105(3), 609-625, 2018. Unbiased and consistent
+variance estimators from the genealogy (Eve indices) of one particle run.
+DOI: [10.1093/biomet/asy028](https://doi.org/10.1093/biomet/asy028).
+
+## REF-HAIRER-STUART-VOLLMER-2014
+
+Martin Hairer, Andrew M. Stuart, and Sebastian J. Vollmer. "Spectral Gaps
+for a Metropolis-Hastings Algorithm in Infinite Dimensions." *The Annals of
+Applied Probability* 24(6), 2455-2490, 2014. Dimension-independent spectral
+gap of the preconditioned Crank-Nicolson sampler.
+DOI: [10.1214/13-AAP982](https://doi.org/10.1214/13-AAP982).
+
+## REF-ANDRIEU-THOMS-2008
+
+Christophe Andrieu and Johannes Thoms. "A Tutorial on Adaptive MCMC."
+*Statistics and Computing* 18(4), 343-373, 2008. Stochastic-approximation
+(Robbins-Monro) adaptation of proposal parameters towards a target
+acceptance rate.
+DOI: [10.1007/s11222-008-9110-y](https://doi.org/10.1007/s11222-008-9110-y).
+
+## REF-PRITCHARD-ETAL-1999
+
+J. K. Pritchard, M. T. Seielstad, A. Perez-Lezaun, and M. W. Feldman.
+"Population Growth of Human Y Chromosomes: A Study of Y Chromosome
+Microsatellites." *Molecular Biology and Evolution* 16(12), 1791-1798, 1999.
+Rejection sampling with summary statistics and a tolerance, the origin of
+approximate Bayesian computation in its modern form.
+DOI: [10.1093/oxfordjournals.molbev.a026091](https://doi.org/10.1093/oxfordjournals.molbev.a026091).
+
+## REF-BEAUMONT-CORNUET-MARIN-ROBERT-2009
+
+M. A. Beaumont, J.-M. Cornuet, J.-M. Marin, and C. P. Robert. "Adaptive
+Approximate Bayesian Computation." *Biometrika* 96(4), 983-990, 2009. ABC
+population Monte Carlo with importance weights and a Gaussian kernel of
+twice the weighted population variance.
+DOI: [10.1093/biomet/asp052](https://doi.org/10.1093/biomet/asp052).

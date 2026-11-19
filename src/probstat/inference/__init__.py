@@ -59,6 +59,12 @@ Main entry points:
         variance, and post hoc tests.
     ``fisher_exact_rxc_test``: Fisher-Freeman-Halton exact test of
         independence for r x c tables.
+    ``preconditioned_crank_nicolson``: dimension-robust MCMC for a
+        likelihood times an ``N(0, I)`` prior.
+    ``sequential_monte_carlo``: adaptive likelihood tempering with the
+        evidence ``log Z`` and its Lee-Whiteley error estimate.
+    ``abc_rejection``, ``abc_smc``: likelihood-free rejection and
+        population Monte Carlo approximate Bayesian computation.
 
 Assumptions:
     Every test states its sampling model: t tests assume independent normal
@@ -107,6 +113,7 @@ References:
 """
 
 from ._ml_tools import MarginalEffects
+from .abc import ABCResult, abc_rejection, abc_smc, euclidean_distance
 from .additive_models import (
     AdditiveModelFit,
     AdditiveTerm,
@@ -433,6 +440,7 @@ from .normality import (
     normality_tests,
 )
 from .parameter_bands import ParameterUncertaintyBand, parameter_uncertainty_band
+from .pcn import preconditioned_crank_nicolson
 from .power import (
     SampleSizeResult,
     cohens_d,
@@ -504,6 +512,7 @@ from .sampling_distributions import (
     student_t_two_sided_p,
 )
 from .sbc import SBCResult, rank_statistic, simulation_based_calibration
+from .smc import SMCResult, sequential_monte_carlo
 from .smoothing import (
     IsotonicBlock,
     IsotonicFit,
@@ -896,4 +905,11 @@ __all__ = [
     "fit_distribution_moments",
     "ParameterUncertaintyBand",
     "parameter_uncertainty_band",
+    "preconditioned_crank_nicolson",
+    "SMCResult",
+    "sequential_monte_carlo",
+    "ABCResult",
+    "abc_rejection",
+    "abc_smc",
+    "euclidean_distance",
 ]

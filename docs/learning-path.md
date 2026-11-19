@@ -552,11 +552,12 @@ calibration-versus-prediction boundary.
 [Nonlinear calibration and MCMC](foundations/nonlinear-calibration-and-mcmc.md):
 nonlinear forward models, unknown and robust noise models, Laplace
 approximations, adaptive Metropolis, convergence diagnostics, Fisher-based
-identifiability, and posterior push-forward prediction.
+identifiability, posterior push-forward prediction, preconditioned
+Crank-Nicolson, tempered SMC with the evidence, and ABC.
 
 - Requires: U7, M4
 - Lab: [`examples/nonlinear_calibration_lab.py`](../examples/nonlinear_calibration_lab.py)
-- Decision record: [ADR-0017](adr/ADR-0017-nonlinear-calibration-and-mcmc.md)
+- Decision record: [ADR-0017](adr/ADR-0017-nonlinear-calibration-and-mcmc.md), [ADR-0111](adr/ADR-0111-pcn-smc-abc.md)
 
 ### U9 — Filtering and data assimilation (UQ-7)
 
