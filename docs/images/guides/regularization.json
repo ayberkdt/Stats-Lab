@@ -1,0 +1,13 @@
+{
+  "regularization-parameter-choice": {
+    "guide": "regularization-and-ill-posed-problems",
+    "alt": "Relative error of the Tikhonov solution against the regularization parameter on log axes, with the error-optimal parameter and the parameters chosen by the L-curve, GCV, and the discrepancy principle",
+    "facts": {
+      "best": "0.0211",
+      "best_lambda": "0.104",
+      "discrepancy": "0.0285",
+      "gcv": "0.0649",
+      "lcurve": "0.123"
+    }
+  }
+}

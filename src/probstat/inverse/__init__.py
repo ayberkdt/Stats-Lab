@@ -6,7 +6,10 @@ identifiability diagnostic. ``nonlinear`` declares a calibration problem on a
 prior, with least squares, Fisher identifiability, the Laplace approximation,
 and MCMC. ``discrepancy`` adds a Gaussian-process model discrepancy
 (Kennedy-O'Hagan) and heteroscedastic noise, and ``prediction`` pushes
-posterior draws through the forward model.
+posterior draws through the forward model. ``regularization`` holds the
+classical deterministic methods for ill-posed problems (Tikhonov, truncated
+SVD, and the L-curve, GCV, and discrepancy parameter choices), and
+``test_problems`` discretized ill-posed problems with exact solutions.
 
 Main entry points:
     ``CalibrationProblem``: nonlinear calibration of model parameters from
@@ -22,6 +25,14 @@ Main entry points:
     Fisher information.
     ``calibrate_linear_gaussian``: conjugate posterior of an intercept and a
     slope under known noise.
+    ``tikhonov``: Tikhonov solution by QR of ``[A; lambda L]``, with filter
+    factors for ``L = I``; ``nonlinear_tikhonov`` for a nonlinear residual.
+    ``truncated_svd`` and ``picard_coefficients``: SVD filtering and the
+    discrete Picard condition.
+    ``l_curve``, ``generalized_cross_validation``,
+    ``discrepancy_principle``: choice of the Tikhonov parameter.
+    ``backward_heat_problem``, ``second_derivative_problem``: test problems
+    with exact solutions.
 
 Assumptions:
     The forward model is deterministic given its inputs. Measurement errors
@@ -45,12 +56,21 @@ Common pitfalls:
       ``identifiability.warning``, and no Python warning is emitted.
     - ``sample_posterior`` and ``predict`` default to ``seed=None`` (fresh
       entropy); pass an integer seed to reproduce draws.
+    - ``tikhonov`` takes ``lambda`` and penalizes ``lambda^2 ||L x||^2``: a
+      ridge weight ``alpha`` corresponds to ``lambda = sqrt(alpha)``.
+    - ``discrepancy_principle`` needs the noise NORM ``delta ~ s sqrt(m)``,
+      not the noise standard deviation ``s``.
+    - ``nonlinear_tikhonov`` centers the penalty at ``x0`` unless
+      ``prior_mean`` is given.
 
 Guide: docs/foundations/inverse-problems-and-calibration.md
+(deterministic regularization:
+docs/foundations/regularization-and-ill-posed-problems.md)
 
 References:
     [REF-TARANTOLA-2005], [REF-GELMAN-ETAL-2013], [REF-KENNEDY-OHAGAN-2001],
-    [REF-BRYNJARSDOTTIR-OHAGAN-2014], [REF-HAARIO-SAKSMAN-TAMMINEN-2001].
+    [REF-BRYNJARSDOTTIR-OHAGAN-2014], [REF-HAARIO-SAKSMAN-TAMMINEN-2001],
+    [REF-TIKHONOV-1963], [REF-HANSEN-2008], [REF-HANSEN-OLEARY-1993].
 
 """
 
@@ -84,6 +104,25 @@ from .nonlinear import (
 )
 from .observation import ForwardResponse, GaussianObservationModel, ParameterVector
 from .prediction import PosteriorPrediction, PredictedQuantity, predict
+from .regularization import (
+    NonlinearTikhonovResult,
+    PicardCoefficients,
+    RegularizationParameterChoice,
+    TikhonovSolution,
+    TruncatedSVDSolution,
+    discrepancy_principle,
+    generalized_cross_validation,
+    l_curve,
+    nonlinear_tikhonov,
+    picard_coefficients,
+    tikhonov,
+    truncated_svd,
+)
+from .test_problems import (
+    DiscreteIllPosedProblem,
+    backward_heat_problem,
+    second_derivative_problem,
+)
 
 __all__ = [
     "DISCREPANCY_KERNELS",
@@ -114,4 +153,19 @@ __all__ = [
     "diagnose_linear_identifiability",
     "fisher_identifiability",
     "predict",
+    "DiscreteIllPosedProblem",
+    "NonlinearTikhonovResult",
+    "PicardCoefficients",
+    "RegularizationParameterChoice",
+    "TikhonovSolution",
+    "TruncatedSVDSolution",
+    "backward_heat_problem",
+    "discrepancy_principle",
+    "generalized_cross_validation",
+    "l_curve",
+    "nonlinear_tikhonov",
+    "picard_coefficients",
+    "second_derivative_problem",
+    "tikhonov",
+    "truncated_svd",
 ]

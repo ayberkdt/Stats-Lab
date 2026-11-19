@@ -15,6 +15,8 @@ Main entry points:
         by Jacobi rotations.
     ``householder_qr``: thin QR of a tall matrix that flags numerically
         dependent columns.
+    ``singular_value_decomposition``: thin SVD by one-sided Jacobi
+        rotations, with ``pseudo_inverse`` and ``numerical_rank``.
     ``use_backend``: select a dense backend for the duration of a ``with``
         block.
 
@@ -36,6 +38,11 @@ Common pitfalls:
       ``log_abs_determinant`` and ``lu_solve`` raise ``ValueError``.
     - ``symmetric_eigen`` returns eigenvalues in ascending order and the
       eigenvectors as the COLUMNS of the second result, not its rows.
+      ``singular_value_decomposition`` returns singular values in DESCENDING
+      order, singular vectors as columns, and signs fixed only up to a
+      simultaneous flip of ``u_i`` and ``v_i``.
+    - ``numerical_rank`` and ``pseudo_inverse`` take a tolerance RELATIVE to
+      the largest singular value (default ``max(m, n) * 2^-52``).
     - ``set_backend`` changes the backend for the whole process and
       returns the previous one; prefer ``use_backend``, which restores it.
       ``available_backends`` lists registered names, not whether NumPy
@@ -45,6 +52,8 @@ Guide: docs/prerequisites/linear-algebra.md
 
 References:
     [REF-GOLUB-VANLOAN-2013] (Cholesky, LU, QR, and Jacobi algorithms),
+    [REF-HESTENES-1958] (one-sided Jacobi SVD), [REF-PENROSE-1955]
+    (pseudo-inverse),
     [REF-STRANG-2016] (concepts), [REF-HARRIS-ETAL-2020] (the optional
     NumPy backend).
 
@@ -91,8 +100,16 @@ from .dense import (
     transpose,
 )
 from .qr import DEFAULT_RANK_TOLERANCE, HouseholderQR, householder_qr
+from .svd import (
+    DEFAULT_JACOBI_TOLERANCE,
+    SingularValueDecomposition,
+    numerical_rank,
+    pseudo_inverse,
+    singular_value_decomposition,
+)
 
 __all__ = [
+    "DEFAULT_JACOBI_TOLERANCE",
     "DEFAULT_RANK_TOLERANCE",
     "CholeskyFactorization",
     "DenseBackend",
@@ -100,6 +117,7 @@ __all__ = [
     "Matrix",
     "NumPyBackend",
     "PythonBackend",
+    "SingularValueDecomposition",
     "Vector",
     "add",
     "as_matrix",
@@ -120,11 +138,14 @@ __all__ = [
     "matmul",
     "matvec",
     "norm",
+    "numerical_rank",
     "outer",
+    "pseudo_inverse",
     "quadratic_form",
     "sandwich",
     "scale_matrix",
     "set_backend",
+    "singular_value_decomposition",
     "solve_lower",
     "solve_spd",
     "solve_upper",
