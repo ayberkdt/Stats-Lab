@@ -133,7 +133,7 @@ class GradientTests(unittest.TestCase):
         )
         errors = self._taylor(cost, self.background, (0.3, -0.7, 0.5))
         self.assertLess(errors[-1], 1e-4)
-        for coarse, fine in zip(errors, errors[1:]):
+        for coarse, fine in zip(errors, errors[1:], strict=False):
             self.assertLess(fine, 0.2 * coarse)
 
     def test_taylor_test_weak_constraint(self) -> None:
@@ -155,7 +155,7 @@ class GradientTests(unittest.TestCase):
         direction = tuple(rng.uniform(-1.0, 1.0) for _ in point)
         errors = self._taylor(cost, point, direction)
         self.assertLess(errors[-1], 1e-4)
-        for coarse, fine in zip(errors, errors[1:]):
+        for coarse, fine in zip(errors, errors[1:], strict=False):
             self.assertLess(fine, 0.2 * coarse)
 
     def test_reverse_gradient_matches_central_differences(self) -> None:

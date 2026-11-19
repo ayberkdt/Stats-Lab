@@ -3481,6 +3481,88 @@ window are updated with the same combination:
 - Source: [REF-EVENSEN-VANLEEUWEN-2000, Section 3c] and
   [REF-EVENSEN-2003, Appendix D].
 
+### EQ-DA-4DVAR-001 — Strong-constraint 4D-Var cost
+
+`J(x_0) = (1/2) ||x_0 - x_b||^2_(B^-1)
++ (1/2) sum_(k=1..K) ||y_k - h(M_(0->k)(x_0))||^2_(R^-1)`, where
+`M_(0->k)` applies the one-step model `k` times and
+`||v||^2_(C^-1) = v' C^-1 v = ||L^-1 v||^2` with `C = L L'`. Missing
+observations drop their term. Gauss-Newton analysis covariance
+`(B^-1 + sum_k G_k' R^-1 G_k)^-1` with
+`G_k = d h(M_(0->k)(x_0)) / d x_0`; marginal covariance of `x_k`:
+`T_k P_0 T_k'` with `T_k = d M_(0->k) / d x_0`.
+
+- Domain: positive-definite `B` and `R`; differentiable `M` and `h`; the
+  model is assumed perfect over the window.
+- Meaning: the MAP initial state of a Gaussian background and Gaussian
+  observation errors for a deterministic model. For linear `M` and `h` the
+  minimizer and the covariance equal the Rauch-Tung-Striebel smoother at
+  time 0 of a filter with `Q = 0`; for a chaotic model the cost becomes
+  multimodal as the window grows. The source sums from `k = 0`; here the
+  first observation follows the first transition, the time convention of
+  the filters (ADR-0018).
+- Code: `data_assimilation.four_dimensional_variational`,
+  `data_assimilation.four_dimensional_variational_cost`.
+- Source: [REF-LE-DIMET-TALAGRAND-1986] and
+  [REF-CARRASSI-ETAL-2018, Section 3.2.1, Eq. (30)].
+
+### EQ-DA-4DVAR-002 — Strong-constraint 4D-Var gradient (adjoint)
+
+`grad J(x_0) = B^-1 (x_0 - x_b)
+- sum_k T_k' H_k' R^-1 (y_k - h(x_k))`, `T_k' = M_1' M_2' ... M_k'`
+with `M_j = dM/dx (x_(j-1))` and `H_k = dh/dx (x_k)`; evaluated backwards
+as `lambda_K = H_K' R^-1 d_K`, `lambda_(k-1) = M_k' lambda_k + H_(k-1)'
+R^-1 d_(k-1)` (no observation term at `k = 0`, none for a missing
+observation), `grad J = B^-1 (x_0 - x_b) - lambda_0`.
+
+- Domain: as [EQ-DA-4DVAR-001].
+- Meaning: one backward (adjoint) sweep costs a small multiple of one
+  model run, independent of the state dimension. Reverse-mode automatic
+  differentiation of the recorded window ([EQ-AD-REVERSE-001]) performs
+  exactly this sweep for the discrete model, so no adjoint code is written
+  by hand.
+- Code: `data_assimilation.FourDimensionalVariationalCost.value_and_gradient`.
+- Source: [REF-LE-DIMET-TALAGRAND-1986] and
+  [REF-CARRASSI-ETAL-2018, Section 3.2.1, Eq. (31)].
+
+### EQ-DA-4DVAR-003 — Incremental 4D-Var inner problem
+
+Outer iterate `x^j`, trajectory `x^j_k = M_(0->k)(x^j)`, innovations
+`d_k = y_k - h(x^j_k)`, tangent-linear maps `G_k` at `x^j`:
+`min_dx (1/2) ||dx + x^j - x_b||^2_(B^-1)
++ (1/2) sum_k ||d_k - G_k dx||^2_(R^-1)`, then `x^(j+1) = x^j + dx`.
+Whitened, this is the linear least-squares problem
+`min ||A dx - b||` with `A = [L_B^-1; L_R^-1 G_k]` and
+`b = [L_B^-1 (x_b - x^j); L_R^-1 d_k]`, solved by Householder QR; the
+nonlinear gradient at `x^j` is `-A' b`.
+
+- Domain: as [EQ-DA-4DVAR-001]; `A` has full column rank because `B` is
+  positive definite.
+- Meaning: a Gauss-Newton step on the strong-constraint cost; exact in one
+  outer loop for linear `M` and `h`. Without a line search an outer loop
+  may increase the nonlinear cost. The operational form also simplifies
+  the inner-loop model; this library uses the exact tangent-linear map.
+- Code: `data_assimilation.incremental_four_dimensional_variational`.
+- Source: [REF-COURTIER-THEPAUT-HOLLINGSWORTH-1994],
+  [REF-LAWLESS-GRATTON-NICHOLS-2005], and
+  [REF-CARRASSI-ETAL-2018, Appendix D, Eq. (85)].
+
+### EQ-DA-4DVAR-004 — Weak-constraint 4D-Var cost
+
+`J(x_0, ..., x_K) = (1/2) ||x_0 - x_b||^2_(B^-1)
++ (1/2) sum_(k=1..K) ||x_k - M(x_(k-1))||^2_(Q^-1)
++ (1/2) sum_(k=1..K) ||y_k - h(x_k)||^2_(R^-1)`.
+
+- Domain: positive-definite `B`, `Q`, and `R`; additive model error,
+  uncorrelated in time.
+- Meaning: the MAP trajectory of the additive-Gaussian state-space model;
+  for linear `M` and `h` its minimizer and the diagonal blocks of the
+  inverse Gauss-Newton Hessian are the Rauch-Tung-Striebel smoother means
+  and covariances. The control vector has `n (K + 1)` entries.
+- Code: `data_assimilation.weak_constraint_four_dimensional_variational`.
+- Source: [REF-TREMOLET-2006] and
+  [REF-CARRASSI-ETAL-2018, Section 3.2.1, Eqs. (28)-(29)].
+
 ### EQ-SUR-PCE-001 — Polynomial chaos expansion
 
 `Y ~= sum_(alpha in A) c_alpha Psi_alpha(xi)`,

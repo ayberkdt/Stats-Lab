@@ -450,6 +450,99 @@ to rounding error (about `2e-16`). For the nonlinear operator `h(x) = x^2` with 
 0.1674 and Gauss-Newton analysis variance 0.01237. Unlike the Kalman filter,
 3D-Var keeps `B` fixed instead of propagating it.
 
+### 4D-Var
+
+4D-Var fits all observations of a window `y_1..y_K` at once with one model
+trajectory. The time convention is the filters' one: `x_b` and `B` describe
+`x_0`, and `y_k` observes the state after `k` transitions (`None` = missing).
+
+- **Strong constraint** (`four_dimensional_variational`). The model is
+  taken as perfect, so the control variable is `x_0` alone and
+  `J(x_0) = 1/2 ||x_0 - x_b||^2_(B^-1) + 1/2 sum_k ||y_k - h(M_(0->k)(x_0))||^2_(R^-1)`
+  [EQ-DA-4DVAR-001].
+- **Weak constraint** (`weak_constraint_four_dimensional_variational`). The
+  control variable is the whole trajectory `x_0..x_K`, and the cost adds
+  `1/2 sum_k ||x_k - M(x_(k-1))||^2_(Q^-1)` [EQ-DA-4DVAR-004]. `Q` must be
+  positive definite; a singular `Q` raises and points to the strong form.
+- **Incremental** (`incremental_four_dimensional_variational`, Courtier,
+  Thépaut & Hollingsworth). Each outer loop runs the nonlinear model from
+  the current `x_0`, linearizes `h o M_(0->k)` around that trajectory, and
+  solves the quadratic inner problem [EQ-DA-4DVAR-003] exactly by
+  Householder QR. With the exact tangent-linear model this is Gauss-Newton.
+  `outer_costs` records the nonlinear cost after every outer loop.
+
+**The adjoint is reverse-mode differentiation.** The gradient of the
+strong-constraint cost [EQ-DA-4DVAR-002] needs the transposed
+tangent-linear model run backwards from the end of the window. Here the
+cost of the whole window is recorded on a reverse-mode tape
+(`numerics.reverse_value_and_gradient`) and swept once. That sweep is the
+adjoint of the discrete model, so no adjoint code is written by hand. The
+transition must therefore be plain arithmetic or `admath`: pass a model's
+raw `transition_function` (the Lorenz factories qualify), not its
+validating `transition` method. A model written with `math.sin` raises
+`AutodiffUnsupportedError`. Central differences are used only when
+`gradient="central"` is passed. BFGS (`optimization.minimize_bfgs`)
+minimizes the cost from `x_b` (strong) or from the background trajectory
+(weak). The analysis covariance is the inverse Gauss-Newton Hessian
+`(B^-1 + sum_k G_k' R^-1 G_k)^-1`, formed from a QR factorization of the
+whitened residual Jacobian, and `trajectory_covariances` gives the
+marginal covariance of every `x_k`.
+
+**Equivalence with the Kalman smoother.** For linear `M` and `h` with
+Gaussian errors, 4D-Var and the Rauch-Tung-Striebel smoother give the same
+answer. Take the constant-velocity model of the ensemble-smoother table
+over 10 steps (`simulate(..., seed=7)` data, prior `N((0, 1), diag(1, 0.5))`,
+`r = 1`):
+
+| `x_0` | mean (pos, vel) | variance (pos, vel) | BFGS iterations |
+|---|---|---|---|
+| strong 4D-Var, perfect model | (2.14853, 0.26165) | (0.31412, 0.00893) | 3 |
+| RTS smoother, `Q = 0` | (2.14853, 0.26165) | (0.31412, 0.00893) | |
+| weak 4D-Var, `q = 0.05` | (1.33853, 0.79143) | (0.44716, 0.10179) | 79 |
+| RTS smoother, `q = 0.05` | (1.33853, 0.79143) | (0.44716, 0.10179) | |
+
+Over all 11 times, the strong form matches the `Q = 0` smoother to
+`8e-15` in the means and `2e-15` in the covariances. The weak form matches
+the `q = 0.05` smoother to `2e-11` and `1e-15`; its means are limited by
+the BFGS tolerance on a 22-dimensional control. Incremental 4D-Var solves
+the linear problem in one outer loop, lowering the cost from 52.406 to
+8.779. `tests/test_four_dimensional_variational.py` checks all three
+against `kalman_filter` + `rts_smoother` with a missing observation, plus
+a Taylor test of the gradient and the reverse-versus-central comparison.
+
+**Lorenz-63 and the window length.** Twin setup: Lorenz-63 with 5 RK4
+steps per observation (interval 0.05) and truth spun up 1000 steps from
+`(1, 1, 1)`. The background is truth plus `N(0, 4 I)`, and every component
+is observed with `R = 0.25 I`; observations 3 and 7 are missing. Seeds
+are `random.Random(seed)`. With `K = 10` (0.5 time units) strong 4D-Var
+converges in 15-28 iterations (0.2-0.5 s per run). Over seeds 0-9 the
+error of `x_0` drops to 0.04-0.42 times the background error, mean 0.20.
+For seed 0 the error goes from 3.63 to 0.95, and the end of the window is
+much better determined than its start (error 0.16). The error that
+survives lies along directions the flow contracts, which later
+observations hardly see. Incremental 4D-Var for seed 0 needs 8 outer loops
+(cost 396.6, 31.0, 17.2, 17.1, ...) and agrees with BFGS to `1e-9`. Without
+a line search an outer loop can raise the cost: with `R = I`, seed 1 went
+from 573.7 to 643.0 before converging.
+
+Longer windows show the chaos caveat. Over seeds 0-4 at `K = 40`
+(2 time units), seed 1 stopped in a local minimum with `J = 22327`, where
+the truth has `J = 54`. At `K = 80`, three of five runs ended far from the
+truth (`J` above 22000 against about 120), one of them at the 500-iteration
+limit. A long chaotic window makes the cost multimodal, and BFGS returns
+a minimum near its start: shorten the window, improve `x_b`, or use the
+weak constraint.
+
+**Cost per iteration.** One gradient costs one recorded model run plus
+one backward sweep, independent of the size of the control vector. On the
+development machine, a 10-interval Lorenz-63 cost took 0.74 ms. Reverse
+mode took 6.9 ms (about 9 evaluations, the pure-Python tape overhead) and
+central differences 4.1 ms, cheaper for three unknowns. For the
+33-dimensional weak-constraint control, reverse mode stays at 8.1 ms while
+central differences need 69 ms. Each BFGS iteration costs one or a few
+gradients, and the Gauss-Newton covariance needs one reverse sweep per
+residual.
+
 ## Limitations
 
 - Gaussian filters assume additive Gaussian noise; the EKF and UKF are
@@ -466,7 +559,12 @@ to rounding error (about `2e-16`). For the nonlinear operator `h(x) = x^2` with 
   localization uses one Gaspari-Cohn half-width for all components.
 - The ensemble smoother is the fixed-lag EnKS; there is no iterative or
   ensemble-variational smoother.
-- 3D-Var is a single-time analysis; 4D-Var is not implemented.
+- 3D-Var is a single-time analysis. 4D-Var uses one time-invariant `R`
+  and one `Q` for every step. It has no background-covariance model or
+  control-variable transform, no simplified inner-loop model, and no
+  preconditioning, and its control vector is stored densely. It suits
+  small states and short windows, and its Gauss-Newton covariance is
+  exact only for linear models.
 
 ## Common pitfalls
 
@@ -526,4 +624,7 @@ inspect.signature(ensemble_kalman_filter).parameters["analysis"].default    # 's
 - [REF-GASPARI-COHN-1999], [REF-HOUTEKAMER-MITCHELL-2001],
   [REF-ZHANG-SNYDER-SUN-2004], [REF-WHITAKER-HAMILL-2012].
 - [REF-EVENSEN-VANLEEUWEN-2000].
+- [REF-LE-DIMET-TALAGRAND-1986], [REF-COURTIER-THEPAUT-HOLLINGSWORTH-1994],
+  [REF-LAWLESS-GRATTON-NICHOLS-2005], [REF-TREMOLET-2006],
+  [REF-CARRASSI-ETAL-2018].
 - [REF-LORENZ-1963], [REF-LORENZ-2006], [REF-LORENZ-EMANUEL-1998].
