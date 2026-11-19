@@ -117,7 +117,7 @@ for a later 4D-Var.
 - On that twin experiment (seeds 1-4, 40 cycles) the LETKF with `c = 2` and
   RTPS 0.5 reaches a time-averaged analysis RMSE of 0.31-0.36 against an
   observation error of 1, while the non-localized stochastic EnKF has
-  2.0-2.4. One LETKF cycle takes about 0.18 s in pure Python.
+  2.0-2.4. One LETKF cycle takes about 0.15 s in pure Python.
 - 4D-Var, adaptive inflation (Anderson 2007, 2009), localization of the
   serial EAKF, and model-error schemes other than additive `Q` are not
   implemented. ADR-0109's event integrator is unchanged; this ADR extends
