@@ -120,8 +120,7 @@ updated with the local weights.
 
 - Domain: forecast and analysis ensembles with the same member order.
 - Meaning: restores part of the forecast anomalies after the analysis; the
-  analysis mean is unchanged. As a transform, `T <- T 11'/N +
-  (1 - alpha) T Q + alpha Q` with `Q = I - 11'/N`.
+  analysis mean is unchanged.
 - Code: `data_assimilation.relax_to_prior_perturbations`,
   `data_assimilation.Relaxation.apply`.
 - Source: [REF-ZHANG-SNYDER-SUN-2004, Equation 5].
@@ -141,7 +140,7 @@ so that `sigma^a <- (1 - alpha) sigma^a + alpha sigma^f`.
   observations reduced it, so densely observed regions get more
   inflation; the analysis mean is unchanged.
 - Code: `data_assimilation.relax_to_prior_spread`,
-  `data_assimilation.Relaxation.compose`.
+  `data_assimilation.Relaxation.apply`.
 - Source: [REF-WHITAKER-HAMILL-2012, Equations 2-3].
   - [REF-WHITAKER-HAMILL-2012](../references.md#ref-whitaker-hamill-2012): Jeffrey S. Whitaker and Thomas M. Hamill. "Evaluating Methods to Account for System Errors in Ensemble Data Assimilation." *Monthly Weather Review* 140(9), 3078-3089, 2012. Relaxation to prior spread, their Equations (2) and (3). DOI: [10.1175/MWR-D-11-00276.1](https://doi.org/10.1175/MWR-D-11-00276.1).
 - Registry: [EQ-DA-RELAX-002](../equation-registry.md#eq-da-relax-002--relaxation-to-prior-spread-rtps)
@@ -161,8 +160,10 @@ window are updated with the same combination:
   so the update is the ensemble analysis of the augmented state
   `(x_t, ..., x_k)`; for a linear-Gaussian model and large `N` it
   approaches the Rauch-Tung-Striebel smoother. With a localized analysis
-  each lagged component uses the transform of its own component, an
-  implementation choice of this library.
+  each lagged component uses the transform of its own component, and a
+  relaxation ([EQ-DA-RELAX-001], [EQ-DA-RELAX-002]) relaxes each updated
+  lagged ensemble towards itself before the update; both are
+  implementation choices of this library.
 - Code: `data_assimilation.ensemble_kalman_smoother`.
 - Source: [REF-EVENSEN-VANLEEUWEN-2000, Section 3c] and
   [REF-EVENSEN-2003, Appendix D].
