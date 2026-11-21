@@ -5618,6 +5618,7 @@ DOI: [10.1007/s10851-014-0506-3](https://doi.org/10.1007/s10851-014-0506-3).
 Lénaïc Chizat, Gabriel Peyré, Bernhard Schmitzer, and François-Xavier
 Vialard. "Scaling Algorithms for Unbalanced Optimal Transport Problems."
 *Mathematics of Computation* 87, 2563-2609, 2018. arXiv:1607.05816.
+
 ## REF-PAPAIOANNOU-GEYER-STRAUB-2019
 
 Iason Papaioannou, Sebastian Geyer, and Daniel Straub. "Improved cross

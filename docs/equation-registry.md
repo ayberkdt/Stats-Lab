@@ -20391,6 +20391,7 @@ exp(-g_j/rho)) - eps sum_ij a_i b_j (exp((f_i + g_j - C_ij)/eps) - 1)`;
   `information.UnbalancedSinkhornResult.duality_gap`.
 - Source: [REF-CHIZAT-ETAL-2018] (dual formulation); the closed-form
   translation step is derived here.
+
 ## Smoothed-indicator rare-event methods and BUS (ADR-0124)
 
 ### EQ-REL-ICE-001 — Smoothed failure indicator and intermediate targets
