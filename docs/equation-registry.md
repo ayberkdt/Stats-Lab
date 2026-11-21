@@ -17966,3 +17966,257 @@ derivative through `x~ = x_0 + (g - g_0)` with `g = c sum_k L_ik u_k`
 - Source: [REF-CASELLA-BERGER-2002, Section 2.1] (derivative of an inverse
   transformation), [REF-LIU-DERKIUREGHIAN-1986] (Nataf map) and
   [REF-GRIEWANK-WALTHER-2008, Chapter 3] (reverse mode).
+
+## Robust means, shrinkage covariance, dependence measures, and sliced and unbalanced transport (ADR-0127)
+
+### EQ-STAT-ROB-001 — Median-of-means estimator
+
+Split `x_1..x_n` into `k` disjoint blocks `B_1..B_k` with
+`|B_j| in {floor(n/k), ceil(n/k)}`;
+`mu_hat = median(Z_1, ..., Z_k)`, `Z_j = (1/|B_j|) sum_{i in B_j} x_i`
+(the mean of the two middle values for even `k`).
+
+- Domain: `1 <= k <= n`; the block assignment must not depend on the values
+  (seeded random permutation, or sequential for data whose order carries no
+  information).
+- Meaning: a mean estimator whose deviations have a logarithmic dependence
+  on the confidence level under a finite variance only; `k = 1` is the
+  sample mean and `k = n` the sample median.
+- Code: `statistics.median_of_means`, `statistics.MedianOfMeansResult`.
+- Source: [REF-LUGOSI-MENDELSON-2019].
+
+### EQ-STAT-ROB-002 — Median-of-means deviation bound
+
+For independent observations with mean `mu` and variance at most `sigma^2`
+and `m = min_j |B_j| = floor(n/k)`:
+`P(|mu_hat - mu| > 2 sigma / sqrt(m)) <= exp(-k/8)`, so
+`k = ceil(8 log(1/delta))` gives failure probability at most `delta`.
+Derivation: by Chebyshev `P(|Z_j - mu| > 2 sigma/sqrt(m)) <= 1/4` for every
+block; the median (also the mid-point form for even `k`) can miss by more
+than that only if at least `k/2` blocks do; the blocks are independent, and
+Hoeffding's inequality gives
+`P(Bin(k, 1/4) >= k/2) <= exp(-2 k (1/4)^2) = exp(-k/8)`.
+
+- Domain: independent observations with a common mean, finite variance,
+  blocks chosen independently of the values, `0 < delta < 1`.
+- Meaning: with `k` of order `log(1/delta)` the error is of order
+  `sigma sqrt(log(1/delta)/n)`; the constants of this elementary argument
+  are not sharp.
+- Code: `statistics.median_of_means_block_count`,
+  `statistics.MedianOfMeansResult.deviation_bound`.
+- Source: [REF-LUGOSI-MENDELSON-2019] (the estimator and the argument); the
+  constants printed here are the ones derived above.
+
+### EQ-STAT-ROB-003 — Catoni's M-estimator of the mean
+
+`theta_hat` solves `sum_{i=1}^n psi(a (x_i - theta)) = 0`,
+`psi(x) = sign(x) log(1 + |x| + x^2/2)`.
+
+- Domain: `a > 0`; the left-hand side is continuous and strictly decreasing
+  in `theta`, non-negative at `min x_i` and non-positive at `max x_i`, so
+  the root is unique and lies in the sample range.
+- Meaning: a soft truncation of large deviations; `psi(x) = x - x^3/6 +
+  O(x^4)`, so `theta_hat` tends to the sample mean as `a -> 0`. Translation
+  equivariant; scale equivariant only if `a` is rescaled with the data.
+- Code: `statistics.catoni_mean`, `statistics.catoni_influence`,
+  `statistics.CatoniMeanResult`.
+- Source: [REF-CATONI-2012]; the root is found with [EQ-OPT-BRENT-001].
+
+### EQ-STAT-ROB-004 — Default scale of Catoni's estimator
+
+`a = sqrt(2 log(1/delta) / (n v))`.
+
+- Domain: `n >= 1`, variance bound `v > 0`, `0 < delta < 1`.
+- Meaning: a scale of the order analysed in the source, for which the error
+  is of order `sqrt(v log(1/delta)/n)` with probability `1 - delta`; the
+  source gives the exact constants and conditions, which are not reproduced
+  here. Without a supplied `v` the library plugs in the unbiased sample
+  variance, a heuristic.
+- Code: `statistics.catoni_scale`, `statistics.catoni_mean`.
+- Source: [REF-CATONI-2012].
+
+### EQ-STAT-LW-001 — Ledoit-Wolf linear shrinkage towards a scaled identity
+
+With rows `x_k` in `R^p`, `S = (1/n) sum_k x_k x_k'`,
+`||A||^2 = tr(A A')/p`: `m = tr(S)/p`, `d^2 = ||S - m I||^2`,
+`bbar^2 = (1/n^2) sum_k ||x_k x_k' - S||^2`, `b^2 = min(bbar^2, d^2)`,
+`Sigma_hat = (b^2/d^2) m I + (1 - b^2/d^2) S`.
+Evaluated with `sum_k ||x_k x_k' - S||^2 = (sum_k |x_k|^4 - n tr(S^2))/p`.
+
+- Domain: `n >= 1` rows with mean zero (the source's setting), or `n >= 2`
+  rows centred by their column means (library default; an `O(1/n)` relative
+  effect not analysed in the source); divisor `n`; `d^2 > 0` (for `d^2 = 0`
+  the intensity is set to 0 and `Sigma_hat = S = m I`).
+- Meaning: the eigenvalues of `S` are pulled towards their mean; the result
+  is positive definite when the intensity and `m` are positive, also for
+  `p > n`, and asymptotically minimizes the expected Frobenius loss among
+  linear combinations of `I` and `S`.
+- Code: `statistics.ledoit_wolf_covariance`, `statistics.LedoitWolfResult`.
+- Source: [REF-LEDOIT-WOLF-2004].
+
+### EQ-STAT-DEP-001 — Chatterjee's rank correlation
+
+Order the pairs so that `x_(1) <= ... <= x_(n)` and let `r_i` be the rank of
+the `i`-th `y` in that order: `xi_n = 1 - 3 sum_{i=1}^{n-1} |r_{i+1} - r_i|
+/ (n^2 - 1)`. For a strictly monotone relation `r_i = i` or `n + 1 - i`,
+the sum is `n - 1`, and `xi_n = 1 - 3/(n + 1) = (n - 2)/(n + 1)`.
+
+- Domain: `n >= 2` pairs without ties in `y`; ties in `x` are broken
+  uniformly at random.
+- Meaning: converges to a limit that is 0 if and only if `x` and `y` are
+  independent and 1 if and only if `y` is a measurable function of `x`; not
+  symmetric in its arguments.
+- Code: `statistics.chatterjee_correlation`, `statistics.ChatterjeeResult`.
+- Source: [REF-CHATTERJEE-2021].
+
+### EQ-STAT-DEP-002 — Null distribution of Chatterjee's coefficient
+
+Under independence with continuous `y`: `sqrt(n) xi_n -> N(0, 2/5)` in
+distribution; `z = sqrt(5 n / 2) xi_n`, one-sided `p = 1 - Phi(z)`.
+
+- Domain: independent pairs, no ties in `y`, large `n`.
+- Meaning: an asymptotic test of independence that rejects for large
+  `xi_n`.
+- Code: `statistics.chatterjee_correlation`.
+- Source: [REF-CHATTERJEE-2021].
+
+### EQ-STAT-DEP-003 — Sample distance covariance
+
+`a_kl = |x_k - x_l|`, `A_kl = a_kl - abar_k. - abar_.l + abar_..`, likewise
+`B` from `y`; `dCov_n^2(x, y) = (1/n^2) sum_{k,l} A_kl B_kl`,
+`dVar_n^2(x) = dCov_n^2(x, x)`.
+
+- Domain: `n >= 2` paired observations in `R^p` and `R^q` with Euclidean
+  norms; `O(n^2)` time and memory.
+- Meaning: the V-statistic estimator of the squared distance covariance,
+  non-negative and biased upwards under independence.
+- Code: `statistics.distance_correlation`,
+  `statistics.DistanceCorrelationResult`.
+- Source: [REF-SZEKELY-RIZZO-BAKIROV-2007].
+
+### EQ-STAT-DEP-004 — Distance correlation and its permutation test
+
+`dCor_n = dCov_n(x, y) / sqrt(dVar_n(x) dVar_n(y))` (0 when a distance
+variance is 0); with `R` uniform random permutations `pi_r` of the `y`
+observations, `p = (1 + #{r : dCov_n^2(x, y o pi_r) >= dCov_n^2(x, y)}) /
+(1 + R)`.
+
+- Domain: as [EQ-STAT-DEP-003]; exchangeable pairs for the test.
+- Meaning: `0 <= dCor_n <= 1`, equal to 1 for `y = a + b x` with scalar
+  `b != 0`, invariant to translations, orthogonal transformations, and
+  positive rescaling; the population value is 0 if and only if the vectors
+  are independent (finite first moments).
+- Code: `statistics.distance_correlation`.
+- Source: [REF-SZEKELY-RIZZO-BAKIROV-2007].
+
+### EQ-STAT-DEP-005 — Distance correlation of a bivariate normal pair
+
+`dCor^2 = (rho asin(rho) + sqrt(1 - rho^2) - rho asin(rho/2)
+- sqrt(4 - rho^2) + 1) / (1 + pi/3 - sqrt(3))`.
+Derivation: `dCov^2 = E|X-X'||Y-Y'| + E|X-X'| E|Y-Y'| - 2 E|X-X'||Y-Y''|`
+with independent copies, `E|UV| = (2/pi)(sqrt(1 - r^2) + r asin(r))` for a
+standard bivariate normal pair with correlation `r`, differences of
+variance 2 with correlations `rho` and `rho/2`, and `E|X-X'| = 2/sqrt(pi)`
+give `dCov^2 = (4/pi)` times the numerator; `rho = 1` gives the
+denominator.
+
+- Domain: `-1 <= rho <= 1`; any means and positive scales.
+- Meaning: even and increasing in `|rho|` and at most `|rho|`.
+- Code: `statistics.distance_correlation_bivariate_normal`.
+- Source: [REF-SZEKELY-RIZZO-BAKIROV-2007]; re-derived as stated and
+  checked by quadrature in the tests.
+
+### EQ-OT-SW-001 — One-dimensional Wasserstein distance between discrete laws
+
+For `mu = sum_i a_i delta_{x_i}` and `nu = sum_j b_j delta_{y_j}` on the
+line with unit masses: `W_p^p = int_0^1 |Q_mu(u) - Q_nu(u)|^p du
+= sum_k (c_k - c_{k-1}) |x_(i(k)) - y_(j(k))|^p`, where `c_k` are the merged
+cumulative weights and `i(k)`, `j(k)` the atoms whose quantile level
+contains `(c_{k-1}, c_k)`. For `n` equally weighted atoms each:
+`W_p^p = (1/n) sum_i |x_(i) - y_(i)|^p`.
+
+- Domain: `p >= 1`; non-negative weights normalized to one.
+- Meaning: the monotone coupling is optimal on the line
+  ([EQ-OT-W1D-001]); for step quantile functions the integral is a finite
+  sum after sorting.
+- Code: `information.empirical_wasserstein_1d`,
+  `information.sliced_wasserstein`.
+- Source: [REF-PEYRE-CUTURI-2019]; [REF-VILLANI-2009, Chapter 6].
+
+### EQ-OT-SW-002 — Sliced Wasserstein distance
+
+`SW_p^p(mu, nu) = E_theta[W_p^p(theta_# mu, theta_# nu)]`, `theta` uniform
+on the unit sphere of `R^d`, `theta_#` the push-forward by `x -> theta'x`;
+estimated by `(1/L) sum_l W_p^p(theta_l# mu, theta_l# nu)` with
+`theta_l = z_l/|z_l|`, `z_l ~ N(0, I_d)`, and standard error
+`s/sqrt(L)` from the sample standard deviation `s` of the `L` terms. For
+`nu = mu` translated by `t`: `W_2^2(theta_# mu, theta_# nu) = (theta't)^2`
+and `E[(theta't)^2] = |t|^2/d` (by symmetry `E[theta theta'] = I/d`), so
+`SW_2^2 = |t|^2/d`.
+
+- Domain: discrete measures in `R^d` with unit mass, `p >= 1`, `L >= 2`
+  directions; exact for `d = 1`.
+- Meaning: a metric bounded above by `W_p` that costs a sort per direction;
+  the standard error covers the random directions only.
+- Code: `information.sliced_wasserstein`,
+  `information.SlicedWassersteinResult`.
+- Source: [REF-BONNEEL-ETAL-2015].
+
+### EQ-OT-UB-001 — Unbalanced entropic transport objective
+
+`min_{P >= 0} <C, P> + eps KL(P | a b') + rho KL(P 1 | a) + rho KL(P' 1 | b)`
+with `KL(p | q) = sum_i (p_i log(p_i/q_i) - p_i + q_i)` and `0 log 0 = 0`.
+
+- Domain: non-negative weights `a`, `b` with positive, possibly different,
+  total masses; finite cost; `eps > 0`, `rho > 0`.
+- Meaning: transport with marginals relaxed by Kullback-Leibler penalties;
+  strictly convex, so the minimizer is unique. The entropy is taken
+  relative to `a b'` (the convention of `information.sinkhorn`); the
+  counting-measure convention changes the objective by terms that depend on
+  the marginals.
+- Code: `information.unbalanced_sinkhorn`,
+  `information.UnbalancedSinkhornResult`.
+- Source: [REF-CHIZAT-ETAL-2018].
+
+### EQ-OT-UB-002 — Unbalanced Sinkhorn (scaling) iteration
+
+Stationarity of [EQ-OT-UB-001] in `P_ij`:
+`C_ij + eps log(P_ij/(a_i b_j)) + rho log((P1)_i/a_i)
++ rho log((P'1)_j/b_j) = 0`, so
+`P_ij = a_i b_j exp((f_i + g_j - C_ij)/eps)` with
+`f_i = -rho log((P1)_i/a_i)`, `g_j = -rho log((P'1)_j/b_j)`. Substituting
+the row sum gives `f = lambda T(g)`, `g = lambda T(f)` with
+`lambda = rho/(rho + eps)`,
+`T(g)_i = -eps log sum_j b_j exp((g_j - C_ij)/eps)`,
+`T(f)_j = -eps log sum_i a_i exp((f_i - C_ij)/eps)`; with `u = exp(f/eps)`,
+`v = exp(g/eps)`, `K = exp(-C/eps)`: `u = (1/(K (b v)))^lambda`,
+`v = (1/(K' (a u)))^lambda` (for entropy relative to the counting measure
+the same steps give `u = (a/(K v))^lambda`, `v = (b/(K' u))^lambda`).
+
+- Domain: as [EQ-OT-UB-001]; evaluated with log-sum-exp.
+- Meaning: alternating exact maximization of the dual in `f` and `g`; each
+  half-step is `lambda` times a sup-norm non-expansive map, so the
+  iteration contracts at least by `lambda^2` per pair, and `lambda -> 1`
+  recovers balanced Sinkhorn ([EQ-OT-SINK-001]).
+- Code: `information.unbalanced_sinkhorn`.
+- Source: [REF-CHIZAT-ETAL-2018]; derived as stated for the reference
+  measure `a b'`.
+
+### EQ-OT-UB-003 — Dual objective and translation step
+
+`D(f, g) = rho sum_i a_i (1 - exp(-f_i/rho)) + rho sum_j b_j (1 -
+exp(-g_j/rho)) - eps sum_ij a_i b_j (exp((f_i + g_j - C_ij)/eps) - 1)`;
+`D(f, g) <= min` of [EQ-OT-UB-001] with equality at the fixed point of
+[EQ-OT-UB-002]. Along `(f + c, g - c)` the last term is constant and
+`dD/dc = 0` gives
+`c = (rho/2) log(sum_i a_i exp(-f_i/rho) / sum_j b_j exp(-g_j/rho))`.
+
+- Domain: as [EQ-OT-UB-001].
+- Meaning: the duality gap is a computable optimality certificate; the
+  translation step removes the direction along which the plain iteration
+  contracts only by `lambda^2`, which is close to 1 for `rho >> eps`. A
+  fixed point has `c = 0`.
+- Code: `information.unbalanced_sinkhorn`,
+  `information.UnbalancedSinkhornResult.duality_gap`.
+- Source: [REF-CHIZAT-ETAL-2018] (dual formulation); the closed-form
+  translation step is derived here.

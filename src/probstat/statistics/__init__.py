@@ -23,6 +23,14 @@ Main entry points:
     ``RunningMoments``: mergeable one-pass mean, variance, skewness, and
         kurtosis.
     ``P2Quantile``: fixed-memory streaming estimate of one quantile.
+    ``median_of_means`` / ``catoni_mean``: mean estimators with
+        sub-Gaussian-type deviations under a finite variance only.
+    ``ledoit_wolf_covariance``: linear shrinkage of a sample covariance
+        matrix towards a scaled identity.
+    ``chatterjee_correlation``: rank coefficient of functional dependence
+        with an asymptotic independence test.
+    ``distance_correlation``: distance covariance and correlation of
+        vector observations with a permutation test.
 
 Assumptions:
     Samples are non-empty sequences of finite real numbers (booleans and
@@ -50,6 +58,17 @@ Common pitfalls:
       SAS uses type 2.
     - ``P2Quantile`` cannot be merged (only the moment, covariance, and
       exceedance accumulators have ``merge``).
+    - ``median_of_means`` and ``catoni_mean`` are tuned to one confidence
+      level and are biased for skewed laws at a fixed tuning; the default
+      scale of ``catoni_mean`` plugs in the sample variance, a heuristic.
+    - ``chatterjee_correlation(x, y)`` is not symmetric, equals
+      ``(n - 2)/(n + 1)`` rather than 1 for a monotone relation, and
+      rejects ties in ``y``.
+    - ``distance_correlation`` is positive for independent samples (the
+      squared distance covariance is biased upwards); use the permutation
+      test before reading it as dependence.
+    - ``ledoit_wolf_covariance`` uses the divisor ``n`` and centres the
+      data by default.
 
 Guide: docs/foundations/descriptive-statistics.md
 
@@ -58,7 +77,9 @@ References:
     (sample quantiles), [REF-JOANES-GILL-1998] (skewness and kurtosis),
     [REF-WELFORD-1962] (one-pass moments),
     [REF-JAIN-CHLAMTAC-1985] (P-square quantile), [REF-VITTER-1985]
-    (reservoir sampling).
+    (reservoir sampling), [REF-LUGOSI-MENDELSON-2019], [REF-CATONI-2012]
+    (robust means), [REF-LEDOIT-WOLF-2004] (shrinkage covariance),
+    [REF-CHATTERJEE-2021], [REF-SZEKELY-RIZZO-BAKIROV-2007] (dependence).
 
 """
 
@@ -82,6 +103,13 @@ from .datasets import (
     dataset_by_key,
 )
 from .density import KernelDensity, gaussian_kde, kde_bandwidth
+from .dependence import (
+    ChatterjeeResult,
+    DistanceCorrelationResult,
+    chatterjee_correlation,
+    distance_correlation,
+    distance_correlation_bivariate_normal,
+)
 from .descriptive import (
     covariance,
     empirical_cdf,
@@ -109,6 +137,16 @@ from .order import (
     spearman_correlation,
     trimmed_mean,
 )
+from .robust_mean import (
+    CatoniMeanResult,
+    MedianOfMeansResult,
+    catoni_influence,
+    catoni_mean,
+    catoni_scale,
+    median_of_means,
+    median_of_means_block_count,
+)
+from .shrinkage import LedoitWolfResult, ledoit_wolf_covariance
 from .streaming import (
     ExceedanceCounter,
     P2Quantile,
@@ -168,4 +206,18 @@ __all__ = [
     "multivariate_kde_loo_log_likelihood",
     "oversmoothed_bandwidth",
     "select_kde_bandwidth",
+    "CatoniMeanResult",
+    "ChatterjeeResult",
+    "DistanceCorrelationResult",
+    "LedoitWolfResult",
+    "MedianOfMeansResult",
+    "catoni_influence",
+    "catoni_mean",
+    "catoni_scale",
+    "chatterjee_correlation",
+    "distance_correlation",
+    "distance_correlation_bivariate_normal",
+    "ledoit_wolf_covariance",
+    "median_of_means",
+    "median_of_means_block_count",
 ]
