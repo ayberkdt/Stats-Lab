@@ -5063,3 +5063,76 @@ hides the discretization and truncation error and makes reconstructions look
 better than they are; the approximation error should be modelled or the data
 generated with a finer model.
 DOI: [10.1016/j.cam.2005.09.027](https://doi.org/10.1016/j.cam.2005.09.027).
+
+## REF-RHEE-GLYNN-2015
+
+Chang-han Rhee and Peter W. Glynn. "Unbiased Estimation with Square Root
+Convergence for SDE Models." *Operations Research* 63(5), 1026-1043, 2015.
+DOI: [10.1287/opre.2015.1404](https://doi.org/10.1287/opre.2015.1404).
+Single-term, coupled-sum, and independent-sum randomized estimators.
+
+## REF-MCLEISH-2011
+
+Don McLeish. "A General Method for Debiasing a Monte Carlo Estimator."
+*Monte Carlo Methods and Applications* 17(4), 301-315, 2011.
+arXiv:1005.2228.
+
+## REF-QUENOUILLE-1956
+
+M. H. Quenouille. "Notes on Bias in Estimation." *Biometrika* 43(3/4),
+353-360, 1956. DOI: [10.2307/2332914](https://doi.org/10.2307/2332914).
+
+## REF-MORRIS-WHITE-CROWTHER-2019
+
+Tim P. Morris, Ian R. White, and Michael J. Crowther. "Using Simulation
+Studies to Evaluate Statistical Methods." *Statistics in Medicine* 38(11),
+2074-2102, 2019. DOI: [10.1002/sim.8086](https://doi.org/10.1002/sim.8086).
+The ADEMP structure; Table 6 lists the performance measures and their Monte
+Carlo standard errors.
+
+## REF-PAWEL-KOOK-REEVE-2024
+
+Samuel Pawel, Lucas Kook, and Kelly Reeve. "Pitfalls and Potentials in
+Simulation Studies: Questionable Research Practices in Comparative
+Simulation Studies Allow for Spurious Claims of Superiority of Any Method."
+*Biometrical Journal* 66(1), 2200091, 2024.
+DOI: [10.1002/bimj.202200091](https://doi.org/10.1002/bimj.202200091).
+
+## REF-KARNIN-KOREN-SOMEKH-2013
+
+Zohar Karnin, Tomer Koren, and Oren Somekh. "Almost Optimal Exploration in
+Multi-Armed Bandits." *Proceedings of the 30th International Conference on
+Machine Learning*, PMLR 28(3), 1238-1246, 2013. Sequential halving.
+
+## REF-CARONE-LUEDTKE-VANDERLAAN-2019
+
+Marco Carone, Alexander R. Luedtke, and Mark J. van der Laan. "Toward
+Computerized Efficient Estimation in Infinite-Dimensional Models." *Journal
+of the American Statistical Association* 114(527), 1174-1190, 2019.
+DOI: [10.1080/01621459.2018.1482752](https://doi.org/10.1080/01621459.2018.1482752).
+
+## REF-KENNEDY-2022
+
+Edward H. Kennedy. "Semiparametric Doubly Robust Targeted Double Machine
+Learning: A Review." arXiv:2203.06469, 2022. One-step bias-corrected
+estimators built from influence functions.
+
+## REF-HINES-ETAL-2022
+
+Oliver Hines, Oliver Dukes, Karla Diaz-Ordaz, and Stijn Vansteelandt.
+"Demystifying Statistical Learning Based on Efficient Influence Functions."
+*The American Statistician* 76(3), 292-304, 2022.
+DOI: [10.1080/00031305.2021.2021984](https://doi.org/10.1080/00031305.2021.2021984).
+
+## REF-SCHADEN-ULLMANN-2020
+
+Daniel Schaden and Elisabeth Ullmann. "On Multilevel Best Linear Unbiased
+Estimators." *SIAM/ASA Journal on Uncertainty Quantification* 8(2), 601-635,
+2020. DOI: [10.1137/19M1263534](https://doi.org/10.1137/19M1263534).
+
+## REF-NIST-FIPS-180-4
+
+National Institute of Standards and Technology. *Secure Hash Standard
+(SHS)*. Federal Information Processing Standards Publication 180-4, 2015.
+DOI: [10.6028/NIST.FIPS.180-4](https://doi.org/10.6028/NIST.FIPS.180-4).
+Defines SHA-256.

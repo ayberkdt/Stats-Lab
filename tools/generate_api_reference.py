@@ -77,6 +77,12 @@ GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         ("cost",),
     ),
     (
+        "Method development",
+        "Estimator combinators, certification checks, pre-specified "
+        "simulation studies, and candidate selection.",
+        ("methodlab",),
+    ),
+    (
         "Orchestration and figures",
         "The `UQStudy` workflow and the themed figure library.",
         ("workflow", "visualization"),

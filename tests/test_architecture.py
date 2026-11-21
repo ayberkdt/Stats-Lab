@@ -41,6 +41,7 @@ LAYER = {
     "probstat.generative": 3,
     "probstat.workflow": 7,
     "probstat.timeseries": 7,
+    "probstat.methodlab": 7,
     "probstat.visualization": 9,
 }
 

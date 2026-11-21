@@ -17966,3 +17966,343 @@ derivative through `x~ = x_0 + (g - g_0)` with `g = c sum_k L_ik u_k`
 - Source: [REF-CASELLA-BERGER-2002, Section 2.1] (derivative of an inverse
   transformation), [REF-LIU-DERKIUREGHIAN-1986] (Nataf map) and
   [REF-GRIEWANK-WALTHER-2008, Chapter 3] (reverse mode).
+
+## Method laboratory: estimator construction and certification
+
+### EQ-MLAB-MCSE-001 — Monte Carlo standard error of a replicate mean
+
+`se(Z_bar) = sqrt(S^2 / R)` with `S^2 = sum_r (Z_r - Z_bar)^2 / (R - 1)`.
+
+- Domain: `R >= 2` independent replicates of an estimator with finite
+  variance.
+- Meaning: the uncertainty of an estimated bias or mean that is due to the
+  finite number of replicates.
+- Code: `methodlab.ReplicateSummary.mean_standard_error`,
+  `methodlab.summarize`, `methodlab.check_unbiasedness`.
+- Source: [REF-MORRIS-WHITE-CROWTHER-2019, Table 6].
+
+### EQ-MLAB-MCSE-002 — Standard error of a sample variance without normality
+
+`Var[S^2] = (mu_4 - (R - 3) / (R - 1) sigma^4) / R`, estimated with the
+sample fourth central moment `m_4` and `S^2`.
+
+- Domain: `R >= 4` independent replicates with a finite fourth moment.
+- Meaning: the uncertainty of an empirical variance, valid for non-normal
+  estimators (under normality it reduces to `2 sigma^4 / (R - 1)`).
+- Code: `methodlab.ReplicateSummary.variance_standard_error`,
+  `methodlab.check_variance`, `methodlab.check_efficiency_gain`.
+- Source: [REF-CASELLA-BERGER-2002, Exercise 5.8].
+
+### EQ-MLAB-WNV-001 — Work-normalized variance
+
+`WNV = Var[Z] E[cost(Z)]`; the efficiency gain of `A` over `B` is
+`WNV_B / WNV_A`.
+
+- Domain: unbiased (or equally biased) estimators with finite variance and
+  finite positive expected cost.
+- Meaning: with a computing budget `c` the mean of about `c / E[cost]`
+  replicates has variance near `WNV / c`, so a smaller product means less
+  work for the same accuracy.
+- Code: `methodlab.ReplicateSummary.work_normalized_variance`,
+  `methodlab.check_efficiency_gain`, `methodlab.rank_by_efficiency`.
+- Source: [REF-GLASSERMAN-2003, Section 1.1.3].
+
+### EQ-MLAB-RT-001 — Single-term randomized-truncation estimator
+
+`Z = Delta_N / p_N`, `Delta_n = Y_n - Y_(n-1)`, `Y_(-1) = 0`,
+`P(N = n) = p_n > 0` independent of the differences.
+
+- Domain: `E[Y_n] -> mu`; finite variance requires
+  `sum_n E[Delta_n^2] / p_n < infinity`.
+- Meaning: an estimator with expectation `sum_n E[Delta_n] = mu`, free of
+  the truncation bias of any fixed level, at a random cost.
+- Code: `methodlab.single_term_estimator`, `methodlab.geometric_levels`,
+  `methodlab.finite_levels`, `methodlab.LevelDistribution.probability`.
+- Source: [REF-RHEE-GLYNN-2015]; [REF-MCLEISH-2011].
+
+### EQ-MLAB-RT-002 — Coupled-sum randomized-truncation estimator
+
+`Z = sum_(n=0)^N Delta_n / P(N >= n)`.
+
+- Domain: [EQ-MLAB-RT-001]; finite variance requires convergence of
+  `sum_n E[(Y_(n-1) - Y)^2] / P(N >= n)`.
+- Meaning: every difference up to a random level enters, weighted by the
+  inverse probability that its level is reached.
+- Code: `methodlab.coupled_sum_estimator`,
+  `methodlab.LevelDistribution.tail`.
+- Source: [REF-RHEE-GLYNN-2015].
+
+### EQ-MLAB-RT-003 — Level law minimizing second moment times cost
+
+`(sum_n m_n / p_n)(sum_n p_n c_n) >= (sum_n sqrt(m_n c_n))^2` with equality
+at `p_n` proportional to `sqrt(m_n / c_n)`, where `m_n = E[Delta_n^2]`.
+
+- Domain: positive second moments and costs on finitely many levels.
+- Meaning: the Cauchy-Schwarz bound on the work-normalized second moment of
+  the single-term estimator and the law that attains it; it equals the
+  variance-optimal law only when `mu = 0`.
+- Code: `methodlab.optimal_level_probabilities`,
+  `methodlab.truncation_design`.
+- Source: [REF-RHEE-GLYNN-2015] (work-variance trade-off of the level law).
+
+### EQ-MLAB-RICH-001 — Extrapolation weights for a known bias expansion
+
+`sum_i w_i = 1`, `sum_i w_i h_i^(q_k) = 0` for `k = 1, ..., K`.
+
+- Domain: `K + 1` distinct positive steps, `K` distinct positive exponents,
+  and `E[Y(h)] = mu + sum_k a_k h^(q_k) + higher terms`.
+- Meaning: the combination `sum_i w_i Y(h_i)` has no bias term of the listed
+  orders; for one order and steps `h, h/r` the weights are
+  `(-1, r^q) / (r^q - 1)`.
+- Code: `methodlab.extrapolation_weights`,
+  `methodlab.extrapolated_estimator`.
+- Source: [REF-ROACHE-1998, Chapters 4-5].
+
+### EQ-MLAB-BLUE-001 — Best linear unbiased combination
+
+`w = Sigma^-1 1 / (1' Sigma^-1 1)`, `Var[w' Z] = 1 / (1' Sigma^-1 1)`.
+
+- Domain: estimators with a common expectation and positive-definite
+  covariance `Sigma`; weights fixed independently of the combined draws.
+- Meaning: the unbiased linear combination of smallest variance; never worse
+  than its best component.
+- Code: `methodlab.best_linear_unbiased_weights`,
+  `methodlab.combine_unbiased`.
+- Source: [REF-SCHADEN-ULLMANN-2020].
+
+### EQ-MLAB-CV-001 — Control variate with frozen coefficients
+
+`Z = Y - beta' (C - nu)`, `beta = Var[C]^-1 Cov[C, Y]`,
+`Var[Z] = (1 - R^2) Var[Y]`.
+
+- Domain: controls `C` with known mean `nu` and nonsingular covariance;
+  `beta` fixed independently of the corrected draws.
+- Meaning: subtracting the predictable part of `Y` keeps the expectation and
+  removes the share `R^2` of the variance.
+- Code: `methodlab.control_variate_estimator`.
+- Source: [REF-GLASSERMAN-2003, Section 4.1].
+
+### EQ-MLAB-ANTI-001 — Antithetic pair on the unit cube
+
+`Z = (f(U) + f(1 - U)) / 2`, `Var[Z] = (1 + rho) Var[f(U)] / 2`.
+
+- Domain: square-integrable `f` on `[0, 1]^d`, `U` uniform,
+  `rho = Corr[f(U), f(1 - U)]`.
+- Meaning: an unbiased estimator of the integral that beats two independent
+  draws exactly when `rho < 0`.
+- Code: `methodlab.antithetic_estimator`.
+- Source: [REF-GLASSERMAN-2003, Section 4.2].
+
+### EQ-MLAB-JACK-001 — Jackknife bias correction
+
+`theta_J = n theta_hat - (n - 1) mean_i theta_(i)`.
+
+- Domain: a statistic of `n >= 2` observations whose bias expands in powers
+  of `1 / n`.
+- Meaning: removes the `1 / n` bias term; exact when the bias is exactly
+  `a / n`.
+- Code: `methodlab.jackknife_bias_corrected`.
+- Source: [REF-QUENOUILLE-1956].
+
+### EQ-MLAB-BOOT-001 — Bootstrap bias correction
+
+`theta_B = 2 theta_hat - mean_b theta*_b`.
+
+- Domain: a statistic and `B` resamples drawn with replacement from the
+  data.
+- Meaning: subtracts the bootstrap estimate of bias
+  `mean_b theta*_b - theta_hat`.
+- Code: `methodlab.bootstrap_bias_corrected`.
+- Source: [REF-EFRON-TIBSHIRANI-1993, Chapter 10].
+
+### EQ-MLAB-IF-001 — Empirical influence value
+
+`I_i = d/d eps T((1 - eps) P_n + eps delta_(x_i))` at `eps = 0`.
+
+- Domain: a functional `T` of weighted samples that is differentiable in the
+  weights at the empirical distribution `P_n`.
+- Meaning: the first-order effect of observation `x_i` on the estimate; the
+  values sum to zero.
+- Code: `methodlab.empirical_influence`,
+  `methodlab.InfluenceAnalysis.mean_influence`.
+- Source: [REF-HAMPEL-1974]; [REF-CARONE-LUEDTKE-VANDERLAAN-2019].
+
+### EQ-MLAB-IF-002 — Infinitesimal-jackknife standard error
+
+`se(T(P_n)) = sqrt(sum_i I_i^2) / n`.
+
+- Domain: [EQ-MLAB-IF-001] with independent, identically distributed
+  observations.
+- Meaning: the nonparametric delta-method standard error of a smooth
+  statistic.
+- Code: `methodlab.empirical_influence`.
+- Source: [REF-EFRON-TIBSHIRANI-1993]; [REF-HAMPEL-1974].
+
+### EQ-MLAB-ONESTEP-001 — One-step correction of a plug-in estimate
+
+`psi_1 = psi(P_hat) + (1 / n) sum_i phi(x_i; P_hat)`,
+`se = sd(phi) / sqrt(n)`.
+
+- Domain: an influence function `phi` of the target functional evaluated at
+  the fitted nuisance `P_hat`; asymptotic normality needs second-order
+  remainder `o(n^-1/2)` and sample splitting or a Donsker condition.
+- Meaning: removes the first-order bias of a plug-in estimate.
+- Code: `methodlab.one_step_estimator`.
+- Source: [REF-KENNEDY-2022]; [REF-HINES-ETAL-2022].
+
+### EQ-MLAB-VERDICT-001 — Verdict from a confidence interval
+
+With interval `[L, U]`, target `t`, and tolerance `delta`: supported if
+`t - delta <= L` and `U <= t + delta`; refuted if `U < t - delta` or
+`L > t + delta`; inconclusive otherwise. Without `delta`: refuted if `t` is
+outside `[L, U]`, else not refuted.
+
+- Domain: an interval of confidence `1 - alpha` for the tested quantity and
+  a tolerance declared before the run.
+- Meaning: interval-inclusion equivalence logic; each wrong "refuted" or
+  "supported" has probability at most `alpha`.
+- Code: `methodlab.interval_verdict`, `methodlab.CheckResult`,
+  `methodlab.MethodCard.verdict`, `methodlab.check_coverage`.
+- Source: [REF-SCHUIRMANN-1987]; [REF-LEHMANN-ROMANO-2005].
+
+### EQ-MLAB-STAB-001 — Largest share of the sum of squares
+
+`share = max_r (Z_r - Z_bar)^2 / sum_r (Z_r - Z_bar)^2`.
+
+- Domain: `R` replicates.
+- Meaning: a heuristic symptom of an infinite variance: one replicate
+  carries most of the empirical variance. Not a test.
+- Code: `methodlab.check_variance_stability`.
+- Source: [REF-OWEN-2013, Chapter 9] (diagnostics for heavy-tailed weights).
+
+### EQ-MLAB-RATE-001 — Fitted decay rate of the mean squared error
+
+`r_hat = -sum_i c_i log MSE_i`, `c_i = (x_i - x_bar) / sum_j (x_j - x_bar)^2`,
+`x_i = log n_i`; `Var[r_hat] = sum_i c_i^2 Var[MSE_i] / MSE_i^2`.
+
+- Domain: at least three sizes, independent replicate sets per size.
+- Meaning: least-squares slope of `log MSE` on `log n` with a delta-method
+  standard error.
+- Code: `methodlab.check_convergence_rate`.
+- Source: [REF-OBERKAMPF-ROY-2010] (observed order of accuracy);
+  [REF-MORRIS-WHITE-CROWTHER-2019, Table 6].
+
+### EQ-MLAB-META-001 — Metamorphic relation
+
+`procedure(g(x)) = h(procedure(x))` for an input transformation `g` and the
+implied output transformation `h`.
+
+- Domain: a deterministic procedure and generated inputs `x`.
+- Meaning: a necessary property checkable without knowing the correct
+  output.
+- Code: `methodlab.check_invariance`.
+- Source: [REF-CHEN-ETAL-2018].
+
+### EQ-MLAB-ADEMP-001 — Bias and its Monte Carlo standard error
+
+`bias = theta_bar - theta`, `se = S / sqrt(n)`.
+
+- Domain: `n >= 2` simulated estimates with known estimand `theta`.
+- Meaning: average error of a method over data sets.
+- Code: `methodlab.performance_measures`,
+  `methodlab.repetitions_for_standard_error`.
+- Source: [REF-MORRIS-WHITE-CROWTHER-2019, Table 6].
+
+### EQ-MLAB-ADEMP-002 — Empirical standard error
+
+`EmpSE = S`, `se = S / sqrt(2 (n - 1))`.
+
+- Domain: [EQ-MLAB-ADEMP-001]; the standard error assumes normal estimates.
+- Meaning: the true sampling variability of a method.
+- Code: `methodlab.performance_measures`.
+- Source: [REF-MORRIS-WHITE-CROWTHER-2019, Table 6].
+
+### EQ-MLAB-ADEMP-003 — Mean squared error
+
+`MSE = mean_i (theta_i - theta)^2`,
+`se = sqrt(sum_i ((theta_i - theta)^2 - MSE)^2 / (n (n - 1)))`.
+
+- Domain: [EQ-MLAB-ADEMP-001].
+- Meaning: squared bias plus variance.
+- Code: `methodlab.performance_measures`.
+- Source: [REF-MORRIS-WHITE-CROWTHER-2019, Table 6].
+
+### EQ-MLAB-ADEMP-004 — Average model-based standard error
+
+`ModSE = sqrt(mean_i se_i^2)`, `se = sqrt(Var[se^2] / (4 n ModSE^2))`.
+
+- Domain: every repetition reports a standard error.
+- Meaning: what the method believes its sampling variability is.
+- Code: `methodlab.performance_measures`.
+- Source: [REF-MORRIS-WHITE-CROWTHER-2019, Table 6].
+
+### EQ-MLAB-ADEMP-005 — Relative error of the model-based standard error
+
+`ModSE / EmpSE - 1` with standard error
+`(ModSE / EmpSE) sqrt(Var[se^2] / (4 n ModSE^4) + 1 / (2 (n - 1)))`.
+
+- Domain: [EQ-MLAB-ADEMP-002] and [EQ-MLAB-ADEMP-004].
+- Meaning: whether reported standard errors are calibrated (zero when they
+  are).
+- Code: `methodlab.performance_measures`.
+- Source: [REF-MORRIS-WHITE-CROWTHER-2019, Table 6].
+
+### EQ-MLAB-ADEMP-006 — Coverage and bias-eliminated coverage
+
+`p = mean_i 1{L_i <= theta <= U_i}`, `se = sqrt(p (1 - p) / n)`; the
+bias-eliminated version replaces `theta` by `theta_bar`.
+
+- Domain: every repetition reports an interval.
+- Meaning: how often intervals contain the truth, and how often they would
+  if the method were unbiased.
+- Code: `methodlab.performance_measures`,
+  `methodlab.repetitions_for_standard_error`.
+- Source: [REF-MORRIS-WHITE-CROWTHER-2019, Table 6].
+
+### EQ-MLAB-ADEMP-007 — Paired relative gain in precision
+
+`gain = (EmpSE_ref / EmpSE)^2 - 1`,
+`se = 2 (EmpSE_ref / EmpSE)^2 sqrt((1 - rho^2) / (n - 1))`.
+
+- Domain: two methods applied to the same `n >= 3` data sets; `rho` is the
+  correlation of their estimates.
+- Meaning: relative increase in precision of a method against a reference,
+  sharpened by pairing.
+- Code: `methodlab.SimulationStudyResult.compare_precision`.
+- Source: [REF-MORRIS-WHITE-CROWTHER-2019, Table 6].
+
+### EQ-MLAB-SH-001 — Sequential-halving schedule
+
+Rounds `r = 0, ..., ceil(log2 n) - 1`; each survivor gets
+`floor(T / (|S_r| ceil(log2 n)))` evaluations; the better
+`ceil(|S_r| / 2)` survive.
+
+- Domain: `n >= 2` candidates, budget `T >= n ceil(log2 n)`.
+- Meaning: a fixed-budget selection of the best candidate whose error
+  probability decays exponentially in the budget for bounded losses.
+- Code: `methodlab.sequential_halving`.
+- Source: [REF-KARNIN-KOREN-SOMEKH-2013].
+
+### EQ-MLAB-SUM-001 — Sum of independent estimators
+
+`Z = sum_i Z_i`, `E[Z] = sum_i E[Z_i]`, `Var[Z] = sum_i Var[Z_i]`,
+`cost(Z) = sum_i cost(Z_i)`.
+
+- Domain: estimators drawn on independent streams, each with finite
+  variance.
+- Meaning: a telescoping target can be split into a directly estimated base
+  term and separately estimated corrections.
+- Code: `methodlab.sum_of_estimators`.
+- Source: [REF-GILES-2015]; [REF-RHEE-GLYNN-2015].
+
+### EQ-MLAB-THIN-001 — Thinned estimator
+
+`Z = B Z' / q`, `B ~ Bernoulli(q)` independent of `Z'`;
+`E[Z] = E[Z']`, `Var[Z] = E[Z'^2] / q - E[Z']^2`,
+`E[cost(Z)] = q E[cost(Z')]`.
+
+- Domain: `0 < q <= 1`, `Z'` with finite second moment.
+- Meaning: an expensive correction with a small second moment is evaluated
+  rarely and weighted by the inverse probability, keeping the expectation.
+- Code: `methodlab.thinned_estimator`.
+- Source: [REF-RHEE-GLYNN-2015].

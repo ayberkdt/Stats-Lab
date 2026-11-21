@@ -796,6 +796,19 @@ and neural SDEs fitted by the Euler pseudo-likelihood.
 - Lab: none; numbers asserted in [`tests/test_score_diffusion_neural_sde.py`](../tests/test_score_diffusion_neural_sde.py)
 - Decision record: [ADR-0075](adr/ADR-0075-score-diffusion-and-neural-sdes.md)
 
+### C6 — Developing and certifying a new method
+
+[Developing and certifying a new method](foundations/method-development.md):
+the estimator contract and lineage, construction principles as operations
+(randomized truncation, thinning, extrapolation, best linear unbiased
+combination, control variates, bias corrections, influence functions),
+certification checks with scoped verdicts and method cards, candidate
+selection, and pre-specified simulation studies with a protocol fingerprint.
+
+- Requires: C1, S4
+- Lab: none; numbers asserted in [`tests/test_methodlab.py`](../tests/test_methodlab.py)
+- Decision record: [ADR-0131](adr/ADR-0131-method-laboratory.md)
+
 ## Status
 
 Completion and sequencing live in the [roadmap](roadmap.md). Topics remain on

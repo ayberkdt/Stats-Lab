@@ -61,6 +61,7 @@ PACKAGE_STABILITY: Mapping[str, Stability] = MappingProxyType(
         "systems": "experimental",
         "cost": "experimental",
         "generative": "experimental",
+        "methodlab": "experimental",
     }
 )
 

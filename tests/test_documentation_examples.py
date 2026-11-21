@@ -73,6 +73,7 @@ PACKAGE_GUIDES: dict[str, str] = {
     "information": "foundations/information-theory.md",
     "inverse": "foundations/inverse-problems-and-calibration.md",
     "linalg": "prerequisites/linear-algebra.md",
+    "methodlab": "foundations/method-development.md",
     "modeling": "foundations/probabilistic-modeling.md",
     "monte_carlo": "foundations/advanced-monte-carlo.md",
     "multivariate": "foundations/multivariate-laws.md",

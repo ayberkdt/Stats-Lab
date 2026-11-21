@@ -1,0 +1,12 @@
+{
+  "methodlab-thinning-efficiency": {
+    "guide": "method-development",
+    "alt": "Work-normalized variance of the derived estimator against the evaluation probability of its correction term on a logarithmic horizontal axis: measured points with intervals and the predicted curve",
+    "facts": {
+      "full": "0.540",
+      "tenth": "0.195",
+      "optimum": "0.106",
+      "replicates": "20000"
+    }
+  }
+}
