@@ -505,6 +505,169 @@ Sources: [REF-SALTELLI-2008, Chapter 1], [REF-HELTON-ETAL-2006],
 [REF-SONG-ETAL-2012], [REF-DA-VEIGA-2015], [REF-MARREL-CHABRIDON-2021],
 [REF-INSELBERG-1985], [REF-CLEVELAND-1979].
 
+## Rank statistics, distribution-based indices, kernels, and active subspaces
+
+The measures of this section answer questions that a variance share does not
+(ADR-0123). The first four need only an existing i.i.d. sample or one
+pick-freeze design; the last one needs gradients.
+
+**Rank-based first-order Sobol indices.** Sort the sample by `x_i` and read
+the output in that order, `y_(1), ..., y_(n)`. Neighbouring rows have almost
+the same `x_i` and unrelated values of the other inputs, so they act as the
+pick-freeze pair of `E[E[Y | X_i]^2]`, and
+
+`S_i = [(1/n) sum_j y_(j) y_(j+1) - ybar^2] / [(1/n) sum_j y_j^2 - ybar^2]`
+
+with `y_(n+1) = y_(1)` ([EQ-SENS-RANKSOBOL-001]; Gamboa, Gremaud, Klein and
+Lagnoux 2022). `sensitivity.rank_sobol_indices` returns all `d` indices from
+the same `n` runs, without a class count or a bandwidth to choose;
+`sensitivity.model_rank_sobol_indices` draws the sample from a model. On the
+Ishigami function sixteen replicates give a root-mean-square error of 0.046
+at `n = 500` and 0.017 at `n = 4000`, the `sqrt(n)` rate. Do not bootstrap
+this estimator: a resample repeats rows, repeated rows are neighbours after
+sorting, and their equal outputs inflate the lag-one product (the index of
+the inert Ishigami input rises from about 0 to above 0.25 on a resampled
+table). `blocks=B` instead recomputes the estimator on `B` disjoint blocks
+of rows and reports `sd / sqrt(B)` ([EQ-SENS-RANKSOBOL-002]); over 24
+replicates at `n = 2000` this standard error averaged 0.020, 0.022 and 0.030
+against replicate standard deviations of 0.021, 0.019 and 0.028. It is a
+diagnostic with `B - 1` degrees of freedom; the asymptotic variance of the
+published central limit theorem is not implemented.
+
+**Chatterjee's rank correlation.** `sensitivity.chatterjee_indices` applies
+the same neighbour idea to the ranks `r_j` of the output:
+`xi_n = 1 - 3 sum_j |r_(j+1) - r_(j)| / (n^2 - 1)` ([EQ-SENS-XI-001], with
+the tie-aware form [EQ-SENS-XI-002]). Its limit is 0 if and only if `X_i`
+and `Y` are independent and 1 if and only if `Y` is a function of `X_i`; a
+strictly monotone relation gives exactly `1 - 3 / (n + 1)`. Under
+independence and a continuous output `sqrt(n) xi_n -> N(0, 2/5)`
+([EQ-SENS-XI-003]), which gives a p-value without resampling;
+`test="permutation"` handles outputs with ties. The coefficient measures
+how well `Y` is a *function* of `X_i`, so it is small for an input that acts
+only through interactions, and its test has little power against weak
+smooth effects.
+
+**Moment-independent indices.** Borgonovo's
+`delta_i = (1/2) E[int |f_Y(y) - f_{Y | X_i}(y)| dy]` is the expected
+total-variation distance between the conditional and the unconditional
+output density; PAWN replaces it by the Kolmogorov-Smirnov distance between
+the two distribution functions, summarized over the conditioning values by
+the median, mean or maximum. `sensitivity.borgonovo_delta` and
+`sensitivity.pawn_indices` cut the sample into equal-count classes of `x_i`
+and compare each class with the whole sample ([EQ-SENS-DELTA-001],
+[EQ-SENS-PAWN-001]). With the default histogram on bins of equal pooled
+frequency, and for PAWN always, the result depends on the output only
+through its order, so a strictly increasing transformation of `Y` changes
+nothing. Both estimators are positive for an input without any effect,
+because two estimated distributions never coincide. Set `permutations` to
+obtain the `null_level` (the mean of the index after random reassignment of
+the outputs to the classes, [EQ-SENS-DELTA-002]), a permutation p-value, and
+`corrected = index - null_level`. The correction is a heuristic: for
+`Y = 2 X_1 + X_2` with standard normal inputs the exact values are
+`delta = (0.5055, 0.1604)`; at `n = 4000` the raw histogram estimates are
+`(0.482, 0.180)` and the corrected ones `(0.419, 0.117)`, with an inert
+third input at `0.059` against a null level of `0.063`. Class averaging
+biases the estimate of a strong input downwards, the noise floor biases
+that of a weak input upwards.
+
+**Kernel indices.** A kernel `k` on the output turns the comparison of
+distributions into a comparison of mean embeddings. With `Y^i` sharing only
+`X_i` with `Y` and `Y'` an independent copy,
+
+`S_i^k = (E[k(Y, Y^i)] - E[k(Y, Y')]) / (E[k(Y, Y)] - E[k(Y, Y')])`
+
+is the expected squared maximum mean discrepancy between `P_{Y | X_i}` and
+`P_Y`, normalized ([EQ-SENS-KERNEL-001]; da Veiga 2021).
+`sensitivity.kernel_sobol_indices` estimates it from the pick-freeze outputs
+`y_B` and `y_i = f(A_B^(i))` with `N (d + 1)` runs ([EQ-SENS-KERNEL-002]).
+`kernel="linear"` reproduces the first-order Sobol estimate of
+`estimate_sobol_indices(..., estimator="janon")` to rounding error (a
+difference of `2e-16` on 300 Ishigami rows), which is the check that the
+estimator is the right generalization. The default Gaussian kernel, with the
+median pairwise distance as bandwidth, reacts to any change of the output
+distribution: for `Y = X_1 X_2` with standard normal inputs the first-order
+Sobol indices are zero while the Gaussian-kernel indices are about 0.13.
+Kernel indices depend on the bandwidth and are not variance shares.
+
+**Active subspaces.** With gradients available, the matrix
+`C = E[grad f grad f'] = W Lambda W'` ([EQ-SENS-ACTIVE-001]; Constantine,
+Dow and Wang 2014) shows along which *directions*, not only along which
+coordinates, the function changes: `lambda_j` is the mean squared
+directional derivative along `w_j`. `f = h(a'x)` gives a rank-one `C` with
+`w_1 = a / |a|`, and `f = x'Ax/2` with standard normal inputs gives
+`C = A^2`. `sensitivity.active_subspace` samples a `ProbabilisticModel` in
+its standard-normal space, where every coordinate has unit variance
+(gradients by automatic differentiation with the chain rule
+[EQ-SENS-ACTIVE-004], or by central differences at `2 d + 1` runs per
+point); `sensitivity.active_subspace_from_gradients` takes gradients
+directly. The result reports the eigenvalue gaps, the active dimension (the
+largest gap unless given, a heuristic), activity scores
+`alpha_i = sum_{j <= k} lambda_j w_ij^2` ([EQ-SENS-ACTIVE-002]), bootstrap
+percentile intervals of the eigenvalues, and the mean bootstrap distance
+`|W_1 W_1' - W_1* W_1*'|_2` for each candidate dimension
+([EQ-SENS-ACTIVE-003]). `sufficient_summary()` returns the pairs
+`(w_1'x, f(x))`: plotted, a thin curve supports a one-dimensional active
+subspace.
+
+```python
+import math
+import random
+
+from probstat.modeling.benchmarks import ishigami
+from probstat.sensitivity import (
+    active_subspace_from_gradients,
+    borgonovo_delta,
+    chatterjee_indices,
+    kernel_sobol_indices,
+    pawn_indices,
+    rank_sobol_indices,
+)
+
+rng = random.Random(7)
+rows = [[rng.uniform(-math.pi, math.pi) for _ in range(3)] for _ in range(4000)]
+y = [ishigami(*row) for row in rows]
+
+rank = rank_sobol_indices(rows, y, blocks=10)
+rank.first_order   # (0.295, 0.423, -0.023)
+rank.standard_errors   # (0.018, 0.016, 0.026)
+xi = chatterjee_indices(rows, y)
+xi.xi   # (0.169, 0.353, 0.012)
+xi.dependent()   # ('x0', 'x1')
+delta = borgonovo_delta(rows, y, permutations=50, seed=1)
+delta.delta   # (0.252, 0.377, 0.187)
+round(delta.null_level, 3)   # 0.065
+pawn = pawn_indices(rows, y, permutations=200, seed=1)
+pawn.index   # (0.241, 0.387, 0.093)
+round(pawn.null_level, 3)   # 0.039
+kernel = kernel_sobol_indices(lambda row: ishigami(*row), rows[:400], rows[400:800])
+kernel.indices   # (0.166, 0.313, 0.053)
+
+gradients = [
+    [
+        math.cos(x1) * (1.0 + 0.1 * x3**4),
+        14.0 * math.sin(x2) * math.cos(x2),
+        0.4 * x3**3 * math.sin(x1),
+    ]
+    for x1, x2, x3 in rows[:1000]
+]
+space = active_subspace_from_gradients(gradients, bootstrap=100, seed=1)
+space.eigenvalues   # (24.14, 11.47, 6.85)
+space.eigenvectors[0]   # (-0.029, 0.999, 0.019)
+space.subspace_errors   # (0.043, 0.07)
+```
+
+The third Ishigami input has a first-order Sobol index of exactly zero, and
+neither the rank estimate nor `xi` separates it from zero. The
+distribution-based indices do: `delta = 0.187` against a null level of
+0.065 and PAWN `0.093` against 0.039, because `x3` changes the spread of
+the output through its interaction with `x1`. The Ishigami function has no
+low-dimensional active subspace in these coordinates: the three eigenvalues
+are of the same order and the leading direction is simply `x2`.
+
+Sources: [REF-GAMBOA-ETAL-2022], [REF-CHATTERJEE-2021], [REF-BORGONOVO-2007],
+[REF-PLISCHKE-BORGONOVO-SMITH-2013], [REF-PIANOSI-WAGENER-2015],
+[REF-DA-VEIGA-2021], [REF-JANON-ETAL-2014], [REF-CONSTANTINE-DOW-WANG-2014].
+
 ## Common pitfalls
 
 - **Dependent inputs.** `sensitivity.sobol_analysis` and
@@ -521,6 +684,15 @@ Sources: [REF-SALTELLI-2008, Chapter 1], [REF-HELTON-ETAL-2006],
 - **Rank by total effect.** Estimates are not clipped to `[0, 1]`, and an
   input that acts only through interactions has a first-order index near
   zero.
+- **Resampling rank statistics.** Never bootstrap `rank_sobol_indices` or
+  `chatterjee_indices`; use `blocks` or the built-in tests.
+- **Noise floor of distribution-based indices.** `borgonovo_delta` and
+  `pawn_indices` are positive for an inert input; compare with
+  `null_level`, not with zero.
+- **Scaling of active subspaces.** Eigenvectors change when an input is
+  rescaled; gradients passed to `active_subspace_from_gradients` must be in
+  coordinates of comparable scale (`active_subspace` uses the
+  standard-normal space).
 - **Morris on periodic responses.** One Morris step moves an input by half
   of its quantile range, so `sin(x)**2` with `x ~ Uniform(-pi, pi)` gives
   `mu* = 0` although `x` matters.
