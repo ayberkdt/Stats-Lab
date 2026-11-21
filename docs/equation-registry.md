@@ -20903,3 +20903,190 @@ on a grid and normalized by the trapezoidal rule. Diagnostic:
 - Code: `generative.RatioEstimator.posterior_on_grid`,
   `generative.RatioEstimator.sample_posterior`, `generative.GridPosterior`.
 - Source: [REF-HERMANS-BEGY-LOUPPE-2020].
+## Interacting particle samplers and unscented inversion (ADR-0130)
+
+### EQ-INV-ALDI-001 — Affine-invariant interacting Langevin dynamics
+
+For members `u_j`, `j = 1..J`, in `R^d` with mean `m`, covariance
+`C = sum_k (u_k - m)(u_k - m)' / J` and potential
+`Phi(u) = |Gamma^-1/2 (y - G(u))|^2 / 2 + |u|^2 / 2`:
+`du_j = -C grad Phi(u_j) dt + ((d + 1)/J)(u_j - m) dt + sqrt(2) C^1/2 dW_j`,
+with `C^1/2 = (u_1 - m, ..., u_J - m) / sqrt(J)` a `d x J` matrix and `W_j`
+independent `J`-dimensional Brownian motions. The correction is the
+divergence `div_{u_j} C = ((d + 1)/J)(u_j - m)`.
+
+- Domain: `J >= d + 2` (non-singular `C`); prior `N(0, I)` in `u`; `Gamma`
+  symmetric positive definite (here diagonal, known Gaussian noise).
+- Meaning: the noise of member `j` has covariance `2 C dt` and is
+  independent across members, so the probability flux of member `j` in the
+  Fokker-Planck equation of the ensemble is
+  `rho (-C grad_j Phi + div_j C) - div_j (C rho) = -rho C grad_j Phi - C grad_j rho`,
+  which vanishes at `rho = prod_j exp(-Phi(u_j))`: the product of posteriors
+  is invariant at every finite ensemble size. The dynamics is invariant
+  under affine changes of `u`, so its relaxation rate does not depend on the
+  conditioning of the posterior.
+- Code: `inverse.interacting_langevin_sampler`.
+- Source: [REF-GARBUNO-INIGO-NUSKEN-REICH-2020] (corrected dynamics);
+  [REF-GARBUNO-INIGO-ETAL-2020] (dynamics without the correction). The flux
+  argument is rederived in ADR-0130.
+
+### EQ-INV-ALDI-002 — Gradient-free drift of the interacting Langevin sampler
+
+With `g_k = G(u_k)`, mean `g_bar` and
+`C^ug = sum_k (u_k - m)(g_k - g_bar)' / J`:
+`C grad Phi(u_j) ~ C^ug Gamma^-1 (g_j - y) + C u_j`, i.e. the data part is
+`(1/J) sum_k <g_k - g_bar, g_j - y>_Gamma (u_k - m)` and the prior part
+`C u_j` is exact.
+
+- Domain: as [EQ-INV-ALDI-001].
+- Meaning: for an affine map `G(u) = A u + b`, `C^ug = C A'` and the
+  expression equals `C A' Gamma^-1 (g_j - y) + C u_j = C grad Phi(u_j)`
+  without error, so the invariance of [EQ-INV-ALDI-001] carries over. For a
+  nonlinear map it is a statistical linearization and the stationary law is
+  an approximation of the posterior.
+- Code: `inverse.interacting_langevin_sampler`.
+- Source: [REF-GARBUNO-INIGO-ETAL-2020] and
+  [REF-GARBUNO-INIGO-NUSKEN-REICH-2020].
+
+### EQ-INV-ALDI-003 — Euler-Maruyama step, step rule and time averages
+
+`u_j <- u_j - h_n [C^ug Gamma^-1 (g_j - y) + C u_j - kappa (u_j - m)]
++ sqrt(2 h_n / J) sum_k (u_k - m) xi_jk`, `xi_jk ~ N(0, 1)`,
+`kappa = (d + 1)/J` (or 0 without the correction). Adaptive step
+`h_n = eta / (tr C + tr C^gg)` with
+`C^gg = sum_k Gamma^-1/2 (g_k - g_bar)(g_k - g_bar)' Gamma^-1/2 / J`.
+Estimates: `E[f] ~ sum_n h_n (1/J) sum_j f(u_j^n) / sum_n h_n` over the
+ensembles after the burn-in.
+
+- Domain: `0 < eta < 2`, or a fixed `h > 0`.
+- Meaning: for an affine map the drift matrix is `C (I + A' Gamma^-1 A)`,
+  whose eigenvalues are positive with sum `tr C + tr C^gg`, so
+  `h_n lambda_max <= eta` and the deterministic part of the step is stable;
+  in stationarity `h_n ~ eta / d`. A heuristic, not an error-controlled
+  integrator: the discrete chain has an `O(h)` bias, and because `h_n`
+  depends on the state the averages are weighted by `h_n`.
+- Code: `inverse.interacting_langevin_sampler`,
+  `inverse.InteractingLangevinResult`.
+- Source: library discretization (ADR-0130) of the dynamics of
+  [REF-GARBUNO-INIGO-NUSKEN-REICH-2020]; [REF-GARBUNO-INIGO-ETAL-2020] use
+  an adaptive step inversely proportional to a norm of the drift.
+
+### EQ-INV-ALDI-004 — Covariance deficit without the finite-ensemble correction
+
+Without the term `((d + 1)/J)(u_j - m)` and for a Gaussian posterior
+`N(mu, Sigma)` the invariant density of the ensemble is
+`prod_j pi(u_j) det(C)^(-(d + 1)/2)`, so `J C ~ Wishart(Sigma, J - d - 2)`,
+`m ~ N(mu, Sigma / J)` independently, `E[C] = ((J - d - 2)/J) Sigma`, and the
+pooled covariance of the members is `((J - d - 1)/J) Sigma`.
+
+- Domain: affine forward map; `J > 2 d + 1` for a normalizable density.
+- Meaning: with `rho = prod_j pi(u_j) phi(U)` the flux of
+  [EQ-INV-ALDI-001] without the correction is
+  `-prod pi (C grad_j phi + phi div_j C)`, which vanishes for
+  `grad_j log phi = -((d + 1)/J) C^-1 (u_j - m) = -((d + 1)/2) grad_j log det C`.
+  The uncorrected ensemble Kalman sampler therefore underestimates the
+  posterior covariance, by half for `J = 6`, `d = 2`; the deficit vanishes
+  as `J -> infinity`.
+- Code: `inverse.interacting_langevin_sampler`.
+- Source: derived in ADR-0130 from the dynamics of
+  [REF-GARBUNO-INIGO-ETAL-2020]; the need for the correction is the subject
+  of [REF-GARBUNO-INIGO-NUSKEN-REICH-2020].
+
+### EQ-INV-UKI-001 — Unscented Kalman inversion iteration
+
+Prediction `m^ = m_n`, `C^ = 2 C_n`. Analysis with the augmented map
+`G_a(u) = (G(u), u)`, data `y_a = (y, 0)` and `Gamma_a = diag(Gamma, I)`:
+`m_{n+1} = m^ + C^uy (C^yy + 2 Gamma_a)^-1 (y_a - y^)`,
+`C_{n+1} = C^ - C^uy (C^yy + 2 Gamma_a)^-1 C^uy'`, where `y^`, `C^uy`, `C^yy`
+are the sigma-point moments of `G_a` under `N(m^, C^)`
+([EQ-INV-UKI-002]). Start: `m_0 = 0`, `C_0 = I` (the prior).
+
+- Domain: prior `N(0, I)` in `u`; `Gamma` positive definite.
+- Meaning: the general scheme `m^ = alpha m + (1 - alpha) r_0`,
+  `C^ = alpha^2 C + Sigma_w`, analysis with `Sigma_nu`, specialized to
+  `alpha = 1`, `Sigma_w = C_n`, `Sigma_nu = 2 Gamma_a`, the choice for which
+  the fixed point is the posterior in the affine case
+  ([EQ-INV-UKI-003]). Each iteration costs `2 d + 1` forward evaluations.
+- Code: `inverse.unscented_kalman_inversion`.
+- Source: [REF-HUANG-SCHNEIDER-STUART-2022]; the hyperparameters are
+  rederived in ADR-0130.
+
+### EQ-INV-UKI-002 — Sigma points and weights of the unscented transform
+
+For `N(m, C)` with `C = L L'`: points `m` and `m +/- sqrt(d + kappa) L e_i`,
+`i = 1..d`; weights `kappa / (d + kappa)` for the centre and
+`1 / (2 (d + kappa))` for the others, used for means and covariances alike.
+
+- Domain: `kappa >= 0` (non-negative weights); `C` positive definite.
+- Meaning: the weighted mean and covariance of the points are `m` and `C`
+  exactly, so the moments of an affine map are exact; for a nonlinear map
+  the transform matches the Taylor expansion of the mean to second order.
+- Code: `inverse.unscented_kalman_inversion`.
+- Source: [REF-JULIER-UHLMANN-2004].
+
+### EQ-INV-UKI-003 — Linear fixed point of unscented Kalman inversion
+
+For `G(u) = A u + b`, `P = A' Gamma^-1 A + I`:
+`C_{n+1}^-1 = (C_n^-1 + P) / 2` and
+`C_{n+1}^-1 m_{n+1} = (C_n^-1 m_n + A' Gamma^-1 (y - b)) / 2`.
+
+- Domain: affine forward map.
+- Meaning: the Kalman analysis in information form is
+  `C_{n+1}^-1 = (2 C_n)^-1 + A_a' (2 Gamma_a)^-1 A_a` with
+  `A_a' Gamma_a^-1 A_a = P`. The unique fixed point is `C = P^-1`,
+  `m = P^-1 A' Gamma^-1 (y - b)`, the posterior covariance and mean, and the
+  errors of the precision and of the precision-weighted mean halve at every
+  iteration. With `alpha < 1` and `r_0 = 0` the same computation gives the
+  fixed-point mean `P^-1 A' Gamma^-1 (y - b) / (2 - alpha)`, which is why
+  `alpha = 1` is fixed.
+- Code: `inverse.unscented_kalman_inversion`.
+- Source: derived in ADR-0130 for the scheme of
+  [REF-HUANG-SCHNEIDER-STUART-2022].
+
+### EQ-INV-CBS-001 — Consensus weights and weighted moments
+
+`w_j = exp(-beta Phi(u_j)) / sum_k exp(-beta Phi(u_k))`,
+`m_b = sum_j w_j u_j`, `C_b = sum_j w_j (u_j - m_b)(u_j - m_b)'`,
+`J_eff = 1 / sum_j w_j^2`, with `Phi` of [EQ-INV-ALDI-001].
+
+- Domain: `beta > 0`; the library uses the largest
+  `beta <= inverse_temperature` with `J_eff >= f J` (bisection), a heuristic.
+- Meaning: importance weights of the tempered posterior relative to the
+  current ensemble; only values of `Phi` are needed.
+- Code: `inverse.consensus_based_sampling`.
+- Source: [REF-CARRILLO-ETAL-2022].
+
+### EQ-INV-CBS-002 — Consensus-based sampling update
+
+`u_j <- m_b + alpha (u_j - m_b) + sqrt((1 - alpha^2) / lambda) C_b^1/2 xi_j`,
+`xi_j ~ N(0, I)`, with `lambda = 1 / (1 + beta)` (sampling) or `lambda = 1`
+(optimization).
+
+- Domain: `0 <= alpha < 1`; `C_b` positive definite.
+- Meaning: relaxation towards the weighted mean plus noise shaped by the
+  weighted covariance; `alpha = 0` redraws the ensemble from
+  `N(m_b, C_b / lambda)`.
+- Code: `inverse.consensus_based_sampling`.
+- Source: [REF-CARRILLO-ETAL-2022].
+
+### EQ-INV-CBS-003 — Gaussian fixed point of consensus-based sampling
+
+If the ensemble law is `N(m, C)` and
+`Phi(u) = (u - mu)' Sigma^-1 (u - mu) / 2 + const`, then
+`C_b^-1 = C^-1 + beta Sigma^-1`, `m_b = C_b (C^-1 m + beta Sigma^-1 mu)`, and
+the update of [EQ-INV-CBS-002] gives the law
+`N(m_b + alpha (m - m_b), alpha^2 C + (1 - alpha^2) C_b / lambda)`.
+
+- Domain: mean-field (infinite-ensemble) iteration; quadratic `Phi`.
+- Meaning: a fixed point needs `m = mu` and
+  `(1 - lambda) C^-1 = lambda beta Sigma^-1`. With `lambda = 1 / (1 + beta)`
+  this is `C = Sigma` for every `beta`: the posterior `N(mu, Sigma)` is
+  stationary (the reweighted covariance of the target is
+  `Sigma / (1 + beta)`). With `lambda = 1` only `C = 0` is fixed and the
+  mean tends to the minimizer `mu`. For `J` members `C_b` is low by about
+  `1 / J_eff`, which shifts the fixed point to about
+  `(1 - (1 + beta) / (beta J_eff)) Sigma`. For a non-Gaussian posterior the
+  method is an approximation.
+- Code: `inverse.consensus_based_sampling`.
+- Source: derived in ADR-0130; Gaussian steady states are the subject of
+  [REF-CARRILLO-ETAL-2022].

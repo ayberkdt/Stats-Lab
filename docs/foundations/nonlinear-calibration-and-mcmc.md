@@ -754,6 +754,118 @@ stopped.stopped_by                    # 'discrepancy'
 stopped.misfit_history[-1] <= stopped.discrepancy_threshold            # True
 ```
 
+### Samplers and Gaussian iterations beyond the Kalman update
+
+Three further derivative-free methods work on the same `CalibrationProblem`,
+in the same coordinates `u` with prior `N(0, I)`, with the same whitening by
+`Gamma`, the same seeding of the prior ensemble, and the same accounting of
+forward evaluations (ADR-0130). They target the posterior potential
+`Phi(u) = |Gamma^-1/2 (y - G(u))|^2 / 2 + |u|^2 / 2`. Unlike ensemble Kalman
+inversion none of them collapses, and unlike ES-MDA none is a fixed, short
+sequence of updates: each is iterated until it is stationary.
+
+**Interacting Langevin sampler** (`inverse.interacting_langevin_sampler`).
+Every member follows a Langevin diffusion preconditioned by the ensemble
+covariance `C` (divisor `J`), with the gradient of the misfit replaced by an
+ensemble difference ([EQ-INV-ALDI-001], [EQ-INV-ALDI-002]):
+
+`du_j = -[C^ug Gamma^-1 (G(u_j) - y) + C u_j] dt + ((d + 1)/J)(u_j - m) dt + sqrt(2) C^1/2 dW_j`
+
+with `C^1/2 = (u_1 - m, ..., u_J - m) / sqrt(J)`. For a forward map affine in
+`u` the ensemble difference `C^ug Gamma^-1 (G(u_j) - y)` is exactly
+`C grad Phi_data(u_j)`, and the term `((d + 1)/J)(u_j - m)`, the divergence of
+`C` with respect to `u_j`, makes the probability flux vanish at the product
+of posteriors. The posterior is therefore invariant at every ensemble size
+`J > d + 1`: six members sample the two-parameter straight-line posterior
+without the `O(1/J)` bias of an ensemble Kalman update. Without the
+correction (`correction=False`, the ensemble Kalman sampler) the invariant
+density carries a factor `det(C)^(-(d+1)/2)` and the pooled covariance is
+`(J - d - 1)/J` of the posterior ([EQ-INV-ALDI-004]): one half for `J = 6`,
+`d = 2`. Over eight seeded runs of 1000 steps the tests measure covariance
+ratios of 0.97 with the correction and 0.55 without, each with a replicate
+standard error of about 0.04 (smaller steps bring the uncorrected ratio to
+the predicted value).
+
+The dynamics is discretized by explicit Euler-Maruyama with the step
+`h_n = eta / (tr C + tr C^gg)`, `eta = 0.1` by default
+([EQ-INV-ALDI-003]). For an affine map the denominator bounds the largest
+eigenvalue of the drift matrix, so the deterministic part is stable; the rule
+is a heuristic, the discrete chain has an `O(h)` bias, and the reported
+moments are time averages weighted by `h_n` over the ensembles after the
+burn-in (`posterior_mean`, `posterior_covariance`, `step_history`,
+`sampling_time`). The cost is `J` forward evaluations per step and about
+`d / eta` steps per unit of time, which is the decorrelation time of the
+stationary dynamics: far more model runs than ES-MDA for the same accuracy.
+For a nonlinear model the ensemble difference is a statistical linearization
+and the stationary law is an approximation.
+
+**Unscented Kalman inversion** (`inverse.unscented_kalman_inversion`) carries
+a Gaussian `N(m_n, C_n)` instead of an ensemble ([EQ-INV-UKI-001]). Each
+iteration inflates the covariance to `2 C_n`, pushes `2 d + 1` sigma points
+([EQ-INV-UKI-002]) through the map `u -> (G(u), u)`, and applies a Kalman
+analysis with data `(y, 0)` and error covariance `2 diag(Gamma, I)`. The
+second block is the prior, entered as a pseudo-observation. For an affine
+map the precision obeys `C_{n+1}^-1 = (C_n^-1 + P) / 2` with `P` the
+posterior precision ([EQ-INV-UKI-003]): the fixed point is the exact
+posterior mean and covariance and the error halves per iteration. On the
+straight-line problem it reaches the conjugate posterior to eight digits in
+27 iterations; it
+is deterministic and needs `(2 d + 1)` runs per iteration, 145 in total on
+the decay problem. For a nonlinear model the result is a Gaussian
+approximation; `converged` reports whether the iteration settled.
+
+**Consensus-based sampling** (`inverse.consensus_based_sampling`) uses only
+values of `Phi`. Members are weighted by `w_j ~ exp(-beta Phi(u_j))`, and
+with the weighted mean `m_b` and covariance `C_b`
+
+`u_j <- m_b + alpha (u_j - m_b) + sqrt((1 - alpha^2) / lambda) C_b^1/2 xi_j`
+
+([EQ-INV-CBS-001], [EQ-INV-CBS-002]). A Gaussian `N(mu, Sigma)` reweighted
+by `exp(-beta Phi)` has covariance `Sigma / (1 + beta)`, so with
+`lambda = 1 / (1 + beta)` (`mode="sampling"`) the Gaussian posterior is a
+fixed point of the infinite-ensemble iteration; with `lambda = 1`
+(`mode="optimization"`) the ensemble contracts onto the MAP point
+([EQ-INV-CBS-003]). The posterior of a non-Gaussian problem is not a fixed
+point: the result is an approximation. With `J` members the weighted
+covariance is low by about `1 / J_eff`, and `beta` is reduced automatically
+while the weights would otherwise be carried by fewer than half of the
+members (`inverse_temperature_history`, `effective_size_history`).
+
+Measured on the two problems of this section, averaged over seeds 0-4
+(deviation of the mean in posterior standard deviations, ratio of the
+standard deviations to the reference, both averaged over the two
+parameters; reference: conjugate posterior and the MCMC run of Section 8):
+
+| Method | Forward evaluations | Line: mean, sd ratio | Decay: mean, sd ratio |
+|---|---:|---:|---:|
+| ES-MDA, `N = 200`, `alpha = (8,) * 8` | 1800 | 0.05, 1.00 | 0.07, 1.06 |
+| Interacting Langevin, `J = 8`, 1000 steps | 8008 | 0.07, 1.01 | 0.07, 1.00 |
+| Ensemble Kalman sampler (no correction), `J = 8` | 8008 | 0.08, 0.84 | 0.09, 0.80 |
+| Unscented Kalman inversion | 135 / 145 | 0.00, 1.00 | 0.03, 0.97 |
+| Consensus-based sampling, `J = 200`, 30 updates | 6200 | 0.05, 0.97 | 0.06, 0.93 |
+
+```python
+from probstat.inverse import (
+    consensus_based_sampling,
+    interacting_langevin_sampler,
+    unscented_kalman_inversion,
+)
+
+gaussian = unscented_kalman_inversion(problem)
+gaussian.converged                    # True
+gaussian.forward_evaluations          # 145
+round(gaussian.mean()["A"], 3)        # 5.004
+round(gaussian.spread_history[-1][1], 4)                               # 0.0064
+langevin = interacting_langevin_sampler(problem, ensemble_size=8, steps=400, seed=1)
+langevin.forward_evaluations          # 3208
+round(langevin.mean()["k"], 3)        # 0.301
+langevin.step_history[0] < 1e-3 < langevin.step_history[-1]            # True
+consensus = consensus_based_sampling(problem, ensemble_size=200, iterations=30, seed=1)
+round(consensus.mean()["A"], 2)       # 5.0
+consensus.inverse_temperature_history[0] < 0.01                        # True
+consensus.inverse_temperature_history[-1]                              # 1.0
+```
+
 ### When to prefer which method
 
 - **ES-MDA** when the forward model is expensive, gradients are unavailable,
@@ -762,6 +874,17 @@ stopped.misfit_history[-1] <= stopped.discrepancy_threshold            # True
 - **Ensemble Kalman inversion** when a regularized point estimate is the
   goal, for example a high-dimensional field calibrated from few data,
   stopped by the discrepancy principle.
+- **Unscented Kalman inversion** when the dimension is small enough for
+  `2 d + 1` runs per iteration and a dense covariance, and a Gaussian
+  approximation is acceptable: it has no sampling error and is the cheapest
+  of the methods here, but it cannot represent skewness or several modes.
+- **The interacting Langevin sampler** when only a handful of ensemble
+  members can be held or run in parallel and many sequential steps are
+  affordable; it is worse than ES-MDA in total forward runs.
+- **Consensus-based sampling** when only the value of the misfit is
+  available (no covariance with the predictions is formed) and a
+  Gaussian-like approximation is acceptable; it needs a larger ensemble and
+  more iterations than ES-MDA and its spread is slightly too small.
 - **MCMC, pCN, or SMC** (Sections 6, 12, and 13) when the posterior is
   non-Gaussian, multimodal, or strongly nonlinear, when the noise scale is
   unknown or the errors are Student-t, or when calibrated uncertainty or the

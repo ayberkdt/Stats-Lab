@@ -11,7 +11,10 @@ classical deterministic methods for ill-posed problems (Tikhonov, truncated
 SVD, and the L-curve, GCV, and discrepancy parameter choices),
 ``test_problems`` discretized ill-posed problems with exact solutions, and
 ``ensemble_inversion`` the derivative-free ensemble Kalman inversion and
-ES-MDA.
+ES-MDA. ``interacting_langevin``, ``unscented_inversion`` and
+``consensus_sampling`` hold three further derivative-free methods on the
+same problem: an interacting Langevin sampler, a deterministic sigma-point
+Gaussian iteration, and consensus-based sampling.
 
 Main entry points:
     ``CalibrationProblem``: nonlinear calibration of model parameters from
@@ -40,6 +43,13 @@ Main entry points:
     iterated ensemble Kalman updates, with discrepancy-principle stopping.
     ``ensemble_smoother_mda``: ES-MDA, exact for linear-Gaussian problems as
     the ensemble grows; ``EnsembleInversionResult`` holds either run.
+    ``interacting_langevin_sampler``: gradient-free affine-invariant
+    Langevin ensemble, exact for linear-Gaussian problems at any ensemble
+    size above ``d + 1`` (time-averaged, many forward runs).
+    ``unscented_kalman_inversion``: Gaussian posterior approximation from
+    ``2 d + 1`` sigma points per iteration, exact for linear problems.
+    ``consensus_based_sampling``: weighted-ensemble sampler (Gaussian fixed
+    point) or optimizer using only values of the posterior potential.
 
 Assumptions:
     The forward model is deterministic given its inputs. Measurement errors
@@ -75,6 +85,13 @@ Common pitfalls:
       so its spread is not a posterior uncertainty. Both ensemble methods
       accept known-scale Gaussian noise only and raise ``ValueError``
       otherwise.
+    - ``interacting_langevin_sampler`` reports time averages; its final
+      ensemble holds only ``J`` draws. With ``correction=False`` the
+      covariance is biased low for a small ensemble.
+    - ``unscented_kalman_inversion`` and ``consensus_based_sampling`` return
+      Gaussian-type approximations for nonlinear models; check
+      ``converged`` and compare with ``sample_posterior`` when the
+      posterior may be skewed or multimodal.
 
 Guide: docs/foundations/inverse-problems-and-calibration.md
 (deterministic regularization:
@@ -84,7 +101,9 @@ References:
     [REF-TARANTOLA-2005], [REF-GELMAN-ETAL-2013], [REF-KENNEDY-OHAGAN-2001],
     [REF-BRYNJARSDOTTIR-OHAGAN-2014], [REF-HAARIO-SAKSMAN-TAMMINEN-2001],
     [REF-TIKHONOV-1963], [REF-HANSEN-2008], [REF-HANSEN-OLEARY-1993],
-    [REF-IGLESIAS-LAW-STUART-2013], [REF-EMERICK-REYNOLDS-2013].
+    [REF-IGLESIAS-LAW-STUART-2013], [REF-EMERICK-REYNOLDS-2013],
+    [REF-GARBUNO-INIGO-NUSKEN-REICH-2020], [REF-HUANG-SCHNEIDER-STUART-2022],
+    [REF-CARRILLO-ETAL-2022].
 
 """
 
@@ -95,6 +114,7 @@ from .calibration import (
     calibrate_linear_gaussian,
     diagnose_linear_identifiability,
 )
+from .consensus_sampling import ConsensusSamplingResult, consensus_based_sampling
 from .discrepancy import (
     DISCREPANCY_KERNELS,
     DiscrepancyCalibration,
@@ -116,6 +136,10 @@ from .error_correlation import (
     ERROR_CORRELATION_KERNELS,
     ErrorCorrelation,
     error_correlation_kernel,
+)
+from .interacting_langevin import (
+    InteractingLangevinResult,
+    interacting_langevin_sampler,
 )
 from .nonlinear import (
     CALIBRATION_GRADIENTS,
@@ -148,6 +172,7 @@ from .test_problems import (
     backward_heat_problem,
     second_derivative_problem,
 )
+from .unscented_inversion import UnscentedInversionResult, unscented_kalman_inversion
 
 __all__ = [
     "DISCREPANCY_KERNELS",
@@ -163,6 +188,12 @@ __all__ = [
     "EnsembleInversionResult",
     "ensemble_kalman_inversion",
     "ensemble_smoother_mda",
+    "ConsensusSamplingResult",
+    "InteractingLangevinResult",
+    "UnscentedInversionResult",
+    "consensus_based_sampling",
+    "interacting_langevin_sampler",
+    "unscented_kalman_inversion",
     "CALIBRATION_GRADIENTS",
     "ERROR_CORRELATION_KERNELS",
     "CalibrationPosterior",

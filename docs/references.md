@@ -5704,3 +5704,36 @@ Learning Research*, 2022. Empirical evidence that neural posterior and
 ratio estimators can produce overconfident posteriors, and coverage checks
 to detect it. Preprint arXiv:2110.06581.
 [https://arxiv.org/abs/2110.06581](https://arxiv.org/abs/2110.06581).
+
+## REF-GARBUNO-INIGO-ETAL-2020
+
+Alfredo Garbuno-Inigo, Franca Hoffmann, Wuchen Li, and Andrew M. Stuart.
+"Interacting Langevin Diffusions: Gradient Structure and Ensemble Kalman
+Sampler." *SIAM Journal on Applied Dynamical Systems* 19(1), 412-441, 2020.
+The covariance-preconditioned interacting Langevin diffusion and its
+derivative-free ensemble approximation (the ensemble Kalman sampler).
+[arXiv:1903.08866](https://arxiv.org/abs/1903.08866).
+
+## REF-GARBUNO-INIGO-NUSKEN-REICH-2020
+
+Alfredo Garbuno-Inigo, Nikolas Nüsken, and Sebastian Reich. "Affine Invariant
+Interacting Langevin Dynamics for Bayesian Inference." *SIAM Journal on
+Applied Dynamical Systems*, 2020. The finite-ensemble correction that makes
+the product of posteriors invariant, and the gradient-free formulation.
+[arXiv:1912.02859](https://arxiv.org/abs/1912.02859).
+
+## REF-HUANG-SCHNEIDER-STUART-2022
+
+Daniel Zhengyu Huang, Tapio Schneider, and Andrew M. Stuart. "Iterated Kalman
+Methodology for Inverse Problems." *Journal of Computational Physics* 463,
+111262, 2022. Unscented Kalman inversion: a Gaussian approximation iterated
+by a prediction step and a sigma-point Kalman analysis step.
+DOI: [10.1016/j.jcp.2022.111262](https://doi.org/10.1016/j.jcp.2022.111262).
+
+## REF-CARRILLO-ETAL-2022
+
+José A. Carrillo, Franca Hoffmann, Andrew M. Stuart, and Urbain Vaes.
+"Consensus-Based Sampling." *Studies in Applied Mathematics* 148(3),
+1069-1140, 2022. Weighted-ensemble dynamics with a sampling and an
+optimization mode and Gaussian steady states.
+DOI: [10.1111/sapm.12470](https://doi.org/10.1111/sapm.12470).
