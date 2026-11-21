@@ -930,6 +930,176 @@ evaluation costs more than a float evaluation; the saving grows with the
 cost of the forward model. `DiscrepancyCalibration` still uses central
 differences.
 
+## 16. Importance-sampling diagnostics and further samplers
+
+The samplers of Sections 6, 12, and 13 cover most calibration posteriors.
+This section adds a diagnostic for importance sampling, a convergence
+diagnostic for many short chains, and five samplers for situations in which
+those samplers are awkward (ADR-0122). The numbers quoted here come from the
+seeds of `tests/test_psis.py` and `tests/test_samplers_extended.py` and from
+the example below.
+
+### Pareto-smoothed importance sampling and PSIS-LOO
+
+Importance sampling reweights draws `x_s` from a proposal `g` by the ratios
+`r_s = p(x_s) / g(x_s)`. The self-normalized estimate is dominated by the
+largest ratios, and when their distribution has a heavy tail the estimate
+converges slowly or not at all, while its usual standard error looks fine.
+`inference.pareto_smooth` fits a generalized Pareto distribution to the
+`M = ceil(min(S/5, 3 sqrt(S)))` largest ratios, replaces them by the fitted
+quantiles ([EQ-INF-PSIS-001]), and reports the fitted shape `k-hat`
+([EQ-INF-PSIS-002]). The tail of the ratios has about `1/k` finite moments;
+the estimate is flagged reliable when `k-hat < min(1 - 1/log10(S), 0.7)`
+([EQ-INF-PSIS-003]).
+
+A case with a known answer: proposal `N(0, 1)`, target `N(0, s^2)` with
+`s > 1`. The ratio is proportional to `exp(x^2 (1 - 1/s^2) / 2)`, so
+`P(r > t)` decays like `t^(-1/(1 - 1/s^2))` up to a logarithmic factor and
+the tail shape is `k = 1 - 1/s^2`. The logarithmic factor makes `k-hat`
+approach this value slowly from below.
+
+`inference.psis_loo` applies the same smoothing to the leave-one-out ratios
+`1 / p(y_i | theta_s)` of posterior draws and returns `elpd_loo`, its
+standard error over observations, `p_loo`, and one `k-hat` per observation
+([EQ-INF-PSIS-004]). For a conjugate normal model with 20 observations and
+4000 exact posterior draws the pointwise values agree with the closed-form
+leave-one-out densities to `0.004` and the total to `0.014`
+(`-26.620` against `-26.634`). When one of five observations is an outlier,
+its `k-hat` is `1.1` and its `elpd` term is off by `0.7`; the result lists
+that observation in `flagged`. A flagged term must be recomputed by
+refitting without the observation.
+
+### Nested R-hat
+
+`inference.nested_rhat` is for runs of many short chains. Chains are grouped
+into superchains that share a starting point; the statistic
+`sqrt(1 + B/W)` compares the variance between superchain means with the
+variance inside superchains ([EQ-INF-NRHAT-001]). For stationary chains
+`B/W` is about `1/(M (N + 1))` with `M` chains of `N` draws per superchain,
+so the value can be close to one after a few draws per chain if `M` is
+large. The function cannot check that the chains of a superchain really
+started together, and no universal threshold is built in.
+
+### Slice sampling
+
+`inference.slice_sampler` updates one coordinate at a time by Neal's
+stepping-out and shrinkage procedures ([EQ-INF-SLICE-001]). The interval
+width affects only the cost. It is a single-site sampler: strongly
+correlated coordinates mix slowly. `inference.elliptical_slice_sampler`
+targets a Gaussian prior times a likelihood ([EQ-INF-SLICE-002]); it needs
+only the likelihood and the prior covariance and has no step size. Both
+return an ordinary `MCMCResult` whose `acceptance_rate` is one by
+construction; read `evaluations` for the cost.
+
+### MALA
+
+`inference.metropolis_adjusted_langevin` proposes one Euler step of the
+Langevin diffusion and corrects it by Metropolis-Hastings
+([EQ-INF-MALA-001]). It costs one gradient per iteration. The step is fixed;
+tune it from the acceptance rate. For targets with tails lighter than
+Gaussian a chain started far from the bulk can stick, because the drift
+overshoots.
+
+### The stretch move
+
+`inference.stretch_move_sampler` moves an ensemble of walkers along the
+lines that join pairs of them ([EQ-INF-STRETCH-001]). The sampler is affine
+invariant: a rescaled or rotated target is sampled as easily as the
+original one, and nothing is tuned. With the same random numbers the
+trajectory for `pi(A^-1 (y - b))` is the image of the trajectory for `pi`;
+in the tests the two agree to `1e-9` over 40 sweeps (rounding differences
+grow with the number of sweeps). The walkers are dependent, so the
+effective sample size the result reports is a heuristic, and the sampler
+does not cross between separated modes.
+
+### Parallel tempering
+
+`inference.parallel_tempering` runs one replica per inverse temperature on
+`p(x) L(x)^beta` and exchanges neighbouring states ([EQ-INF-PT-001]) in the
+deterministic even-odd order. Hot replicas move freely between modes and
+pass their states down the ladder. The result holds the cold chain, the
+swap rejection rate of every pair, the number of round trips, and, when
+the ladder starts at `beta = 0` with a normalized prior, a stepping-stone
+estimate of the evidence ([EQ-INF-PT-002]) without a standard error.
+Rejection rates near one for a pair mean the two temperatures are too far
+apart; add a rung between them.
+
+### Stein variational gradient descent
+
+`inference.stein_variational_gradient_descent` moves a set of particles
+deterministically: each particle follows the kernel-weighted scores of its
+neighbours and is pushed away from them ([EQ-INF-SVGD-001],
+[EQ-INF-SVGD-002]). With one particle it is gradient ascent to the mode.
+The particles are not independent draws, and few particles underestimate
+the variance: for a standard normal target, ten particles have a
+per-coordinate variance of `0.81` in one dimension, `0.40` in four, and
+`0.27` in eight. Use it for a quick deterministic summary, and check the
+spread against a sampler.
+
+### Example
+
+```python
+import math
+
+from probstat.foundations.random_streams import RandomStream
+from probstat.inference import pareto_smooth, parallel_tempering
+
+rng = RandomStream(1).generator()
+proposal_draws = [rng.gauss(0.0, 1.0) for _ in range(20000)]
+squares = [x * x for x in proposal_draws]
+
+
+def log_ratios(s):
+    """log N(x; 0, s^2) - log N(x; 0, 1) up to a constant."""
+    return [0.5 * x * x * (1.0 - 1.0 / s**2) for x in proposal_draws]
+
+
+light = pareto_smooth(log_ratios(1.2))       # exact tail shape 0.31
+round(light.pareto_k, 2)                     # 0.27
+light.reliable                               # True
+second_moment = light.expectation(squares)   # exact value 1.44
+round(second_moment.estimate, 3)             # 1.437
+round(second_moment.standard_error, 3)       # 0.025
+heavy = pareto_smooth(log_ratios(3.0))       # exact tail shape 0.89
+round(heavy.pareto_k, 2)                     # 0.79
+heavy.reliable                               # False
+round(heavy.expectation(squares).estimate, 2)   # 4.63  (the exact value is 9)
+
+
+def two_modes(x):
+    """0.3 N(-5, 0.5^2) + 0.7 N(5, 0.5^2), normalized."""
+    a = math.log(0.3) - 0.5 * ((x[0] + 5.0) / 0.5) ** 2
+    b = math.log(0.7) - 0.5 * ((x[0] - 5.0) / 0.5) ** 2
+    top = max(a, b)
+    mixture = top + math.log(math.exp(a - top) + math.exp(b - top))
+    return mixture - math.log(0.5 * math.sqrt(2.0 * math.pi))
+
+
+def wide_prior(x):
+    """N(0, 10^2), normalized."""
+    return -0.5 * (x[0] / 10.0) ** 2 - math.log(10.0 * math.sqrt(2.0 * math.pi))
+
+
+tempered = parallel_tempering(
+    two_modes, wide_prior, [-5.0],
+    betas=[0.0, 0.003, 0.01, 0.03, 0.1, 0.3, 1.0],
+    proposal_scale=[10.0, 8.0, 6.0, 4.0, 2.0, 1.0, 0.6],
+    draws=5000, warmup=500, seed=2,
+)
+right = sum(state[0] > 0.0 for state in tempered.samples) / 5000
+round(right, 2)                              # 0.7
+tempered.round_trips                         # 667
+round(max(tempered.swap_rejection_rates), 2)   # 0.41
+round(tempered.log_evidence, 2)              # -3.38
+```
+
+The exact posterior mass of the right mode is `0.7` and the exact log
+evidence is `-3.347`. A random-walk Metropolis chain with step `0.6` started
+at `-5` stays in the left mode for all of 20000 iterations. For the heavy
+case the importance-sampling estimate `4.63` comes with a standard error of
+`0.45` that does not cover the true value `9`; only `k-hat` shows that the
+estimate cannot be trusted.
+
 ## Common pitfalls
 
 - **Conditions never name a parameter.** An `Experiment` whose conditions
