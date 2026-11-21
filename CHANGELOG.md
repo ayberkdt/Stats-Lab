@@ -138,6 +138,73 @@ library does not contain and for certifying what is claimed about it.
   results holding NaN with `==`, which fails under the field-by-field
   dataclass equality of Python 3.13; it now compares their representations.
 
+### Independent audit
+
+After integration every work package was audited by a reviewer who had not
+written it: the code was re-derived, attacked with new experiments (larger
+replicate counts, other seeds, edge cases, exact enumeration), and compared
+with reference software where its source could be opened (`confseq`,
+`ppi_py`, `posterior`, `loo`, `emcee`, `sensemakr`, `did`, `XICOR`, and the
+ERA rare-event codes). The audit found eleven defects in code, all fixed
+with regression tests that fail on the earlier code:
+
+- `betting_confidence_sequence(bet="agrapa")` lost the true mean on a grid
+  (in 68% of runs in one setting); the sequence is now enclosed by
+  neighbouring grid cells and documented as having no unconditional
+  guarantee. `calibrate_p_value` and `split_likelihood_ratio_test` no
+  longer overflow.
+- `robustness_value(alpha=...)` overstated the value in part of its domain
+  (0.9831 for a true 0.9639 in one case); `group_time_effects` reported a
+  standard error of zero for one-unit groups (now `nan`);
+  `synthetic_control_weights` did not converge for predictors at a large
+  level (now solved in centred predictors).
+- `bayesian_quadrature` ignored `noise_variance` when it fitted the kernel
+  and could report a standard deviation of zero.
+- `mlblue_allocation` rounded small budgets to allocations worse than plain
+  Monte Carlo, or refused feasible budgets.
+- `methodlab.check_unbiasedness` used a normal quantile (false refutations
+  7.1% at five replicates for a nominal 1%; now Student-t, 1.25%);
+  `check_efficiency_gain` and `rank_by_efficiency` ignored the randomness
+  of the cost (false verdicts 23% and 21% for a nominal 0.5% each; now 2%
+  and 2%); `check_convergence_rate` accepted repeated sizes.
+
+It also replaced claims by measurements. A user should know these:
+
+- The flow-matching posterior is overconfident at the tested training
+  sizes: central intervals are 6% too narrow on average, up to 13%.
+- Tuned prediction-powered intervals undercover below about 30 labels
+  (0.84 at 10 labels for a nominal 0.90).
+- Co-kriging intervals cover 69-82% at a nominal 95% with four or five
+  expensive runs; the Bayesian-quadrature standard deviation is not an
+  error bar (errors of 4 to 250 reported standard deviations were
+  measured); stochastic-kriging error estimates need about ten replications
+  per point.
+- Multifidelity standard errors from a pilot of 30 understate the realised
+  variance by factors of 1.6 to 2.9.
+- Double machine learning with nearest-neighbour learners covers 0.90-0.93
+  at a nominal 0.95, and 0.41 with four covariates; group-time standard
+  errors are too small when a comparison group has fewer than about ten
+  units; the weak-instrument flag is unreliable with several endogenous
+  regressors.
+- Improved cross-entropy standard errors are meaningless when the run did
+  not converge (high dimension with too few samples); the heuristic
+  coefficient of variation of sequential importance sampling is about 1.4
+  times too small.
+- The Student-t interval of randomized quasi-Monte Carlo covers 0.80-0.88
+  for discontinuous or singular integrands.
+- `methodlab.coupled_sum_estimator` draws its levels independently and is
+  the independent-sum estimator of the source, not the coupled sum; the
+  stated error probabilities of `check_variance` and
+  `check_convergence_rate` do not hold for skewed or heavy-tailed
+  replicates; `check_variance_stability` misses most infinite-variance
+  estimators.
+- One earlier caution was withdrawn: the restricted-mean variance is not
+  10% low (ratio 0.998 over 8000 replicates).
+
+The audit could not open the papers either. Agreement was established with
+derivations, experiments, and the reference software named above, not with
+the published text.
+
 ### Known limitations
 
 - The sources of this release were confirmed by title, authors, venue, and

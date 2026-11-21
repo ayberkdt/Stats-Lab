@@ -26,6 +26,15 @@ article.
 - **Section and equation locators** were removed from citations that could
   not be checked.
 
+- **An independent audit followed integration.** Reviewers who had not
+  written a package re-derived it, attacked it with new experiments, and
+  compared it with reference software whose source was reachable
+  (`confseq`, `ppi_py`, `posterior`, `loo`, `emcee`, `sensemakr`, `did`,
+  `XICOR`, the ERA rare-event codes). Eleven code defects were found and
+  fixed, and a number of claims were replaced by measurements; the
+  changelog of 0.27.0 lists both. The audit could not open the papers
+  either.
+
 ## 1. What was missing and what was added
 
 | Area | Added in 0.27 | Primary sources | Decision record |
