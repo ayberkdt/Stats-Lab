@@ -5737,6 +5737,7 @@ José A. Carrillo, Franca Hoffmann, Andrew M. Stuart, and Urbain Vaes.
 1069-1140, 2022. Weighted-ensemble dynamics with a sampling and an
 optimization mode and Gaussian steady states.
 DOI: [10.1111/sapm.12470](https://doi.org/10.1111/sapm.12470).
+
 ## REF-GODA-LECUYER-2022
 
 Takashi Goda and Pierre L'Ecuyer. "Construction-free median quasi-Monte

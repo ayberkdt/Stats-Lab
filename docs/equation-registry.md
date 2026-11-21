@@ -21091,6 +21091,7 @@ the update of [EQ-INV-CBS-002] gives the law
 - Code: `inverse.consensus_based_sampling`.
 - Source: derived in ADR-0130; Gaussian steady states are the subject of
   [REF-CARRILLO-ETAL-2022].
+
 ## Lattice rules and median quasi-Monte Carlo
 
 ### EQ-SAMP-LATTICE-001 — Rank-1 lattice points and their random shift
