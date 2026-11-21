@@ -518,3 +518,59 @@ second = uq.propagate(64, design="mc")["margin"].mean
 first == second                                    # False, child k = 1
 UQStudy(model, seed=2026).propagate(64, design="mc")["margin"].mean == first  # True
 ```
+
+## Batch evaluation: the algorithm asks, the simulator owner answers
+
+A simulator that advances thousands of trajectories per call, runs on a
+cluster, or lives in another process cannot be handed to an algorithm as a
+function of one point. `probstat.foundations` therefore defines a small
+contract ([ADR-0132](../adr/ADR-0132-batch-evaluation-contract.md)): an
+algorithm is a *procedure*, a generator that yields
+`probstat.foundations.EvaluationRequest` objects (many points and the label
+of the model that must evaluate them) and receives the outputs in the same
+order. The caller decides how a request is evaluated:
+
+- `probstat.foundations.run_procedure` runs a procedure with one batch
+  callable, or with a mapping from label to batch callable;
+- `probstat.foundations.AskTellSession` drives it by hand when the batch is
+  evaluated elsewhere: `ask()` returns the pending request, `tell(values)`
+  answers it;
+- `probstat.foundations.batch_from_pointwise` wraps an ordinary function.
+
+The three routes give identical results, because a procedure sees only the
+responses. Outputs may be any iterable with one entry per point, so an
+array returned by a vectorised simulator is accepted as it is.
+
+```python
+from probstat.foundations import (
+    AskTellSession,
+    request,
+    run_procedure,
+    scalar_outputs,
+)
+
+
+def two_stage_mean():
+    pilot = yield request([(0.0,), (1.0,), (2.0,)], label="low", stage="pilot")
+    centre = sum(scalar_outputs(pilot, 3)) / 3
+    final = yield request([(centre,), (centre + 1.0,)], label="high")
+    return sum(scalar_outputs(final, 2)) / 2
+
+
+models = {
+    "low": lambda points: [p[0] ** 2 for p in points],
+    "high": lambda points: [3.0 * p[0] for p in points],
+}
+run_procedure(two_stage_mean(), models)  # 6.5
+
+session = AskTellSession(two_stage_mean())
+while (pending := session.ask()) is not None:
+    session.tell(models[pending.label](pending.points))
+session.result  # 6.5
+session.evaluations  # {'low': 3, 'high': 2}
+```
+
+Algorithms that follow the contract issue the largest requests their
+mathematics allows, a whole population or all chains of one Markov step,
+and report the number of requests next to the number of evaluations,
+because for a batch simulator the first is the cost.
