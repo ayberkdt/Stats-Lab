@@ -19888,3 +19888,251 @@ largest round averages form `S_{r+1}`.
 - Code: `risk.sequential_halving`, `risk.SequentialHalvingResult`,
   `risk.HalvingRound`.
 - Source: [REF-KARNIN-KOREN-SOMEKH-2013].
+## Rank-based, moment-independent, kernel and active-subspace sensitivity (ADR-0123)
+
+### EQ-SENS-RANKSOBOL-001 — Rank-based first-order Sobol index
+
+Sort the rows by `x_i`, giving `y_(1), ..., y_(n)`, with `y_(n+1) = y_(1)`:
+`S_i = [(1/n) sum_j y_(j) y_(j+1) - ybar^2] / [(1/n) sum_j y_j^2 - ybar^2]`.
+With `c = y - ybar` this equals `sum_j c_(j) c_(j+1) / sum_j c_j^2`.
+
+- Domain: `n >= 8` i.i.d. rows, a continuous `X_i` (ties are ordered at
+  random), `E[Y^2] < inf`, non-constant output; inputs may be dependent.
+- Meaning: neighbours in the order of `x_i` act as a pick-freeze pair that
+  shares `X_i`, so the lag-one product estimates `E[E[Y | X_i]^2]`; all
+  `d` first-order indices use the same `n` runs and no tuning parameter.
+  The cyclic lag-one autocorrelation form is an exact rewriting.
+- Code: `sensitivity.rank_sobol_indices`,
+  `sensitivity.model_rank_sobol_indices`.
+- Source: [REF-GAMBOA-ETAL-2022]; the neighbour construction is that of
+  [REF-CHATTERJEE-2021].
+
+### EQ-SENS-RANKSOBOL-002 — Disjoint-block standard error of a rank statistic
+
+Cut the rows, in the order given, into `B` disjoint blocks of `m = floor(n / B)`
+rows; with `S^(b)` the estimate of [EQ-SENS-RANKSOBOL-001] on block `b` and
+`Sbar` their mean, `se = sqrt(sum_b (S^(b) - Sbar)^2 / ((B - 1) B))`.
+
+- Domain: i.i.d. rows in an order unrelated to their values, `2 <= B <= n / 8`.
+- Meaning: the standard error of the mean of `B` independent block
+  estimates; it describes the full-sample estimate through the `sqrt(n)`
+  rate of the estimator. It replaces the ordinary bootstrap, which is
+  invalid here because repeated rows become neighbours after sorting and
+  inflate the lag-one product. A diagnostic with `B - 1` degrees of
+  freedom, not the asymptotic variance of the published central limit
+  theorem.
+- Code: `sensitivity.rank_sobol_indices` (`blocks=`),
+  `sensitivity.RankSobolResult`.
+- Source: [REF-GAMBOA-ETAL-2022] (rate and central limit theorem); the
+  block form is the standard error of a mean of independent replicates,
+  [REF-OWEN-2013, Chapter 2].
+
+### EQ-SENS-XI-001 — Chatterjee's rank correlation without ties
+
+Sort the pairs by `x`; with `r_j` the rank of the `j`-th output in that
+order, `xi_n = 1 - 3 sum_{j=1}^{n-1} |r_(j+1) - r_(j)| / (n^2 - 1)`. For a
+strictly monotone relation `sum |r_(j+1) - r_(j)| = n - 1` and
+`xi_n = 1 - 3 / (n + 1)`.
+
+- Domain: `n >= 3` i.i.d. pairs without ties in `y`; ties in `x` are
+  ordered uniformly at random.
+- Meaning: consistent estimator of
+  `xi = int Var(E[1{Y >= t} | X]) dmu(t) / int Var(1{Y >= t}) dmu(t)`
+  (`mu` the law of `Y`), which is 0 if and only if `X` and `Y` are
+  independent and 1 if and only if `Y` is a measurable function of `X`.
+  Not symmetric in `X` and `Y`.
+- Code: `sensitivity.chatterjee_xi`, `sensitivity.chatterjee_indices`.
+- Source: [REF-CHATTERJEE-2021].
+
+### EQ-SENS-XI-002 — Chatterjee's rank correlation with ties
+
+With `r_j = #{k : y_k <= y_(j)}` and `l_j = #{k : y_k >= y_(j)}` in the
+order of `x`: `xi_n = 1 - n sum_{j=1}^{n-1} |r_(j+1) - r_(j)| / (2 sum_j l_j (n - l_j))`.
+Without ties `sum_j l_j (n - l_j) = n (n^2 - 1) / 6`, which gives
+[EQ-SENS-XI-001].
+
+- Domain: `n >= 3` i.i.d. pairs, non-constant `y`.
+- Meaning: the same functional as [EQ-SENS-XI-001] for outputs with atoms.
+  Derivation: `sum_k 1{min(y_(j), y_(j+1)) >= y_k} = min(r_(j), r_(j+1))
+  = (r_(j) + r_(j+1) - |r_(j+1) - r_(j)|) / 2` turns the neighbour
+  estimate of `int E[P(Y >= t | X)^2] dmu(t)` into the sum of rank jumps,
+  and `sum_j l_j (n - l_j) / n^3` estimates `int Var(1{Y >= t}) dmu(t)`.
+  A two-level function of `x` with equal halves gives `1 - 2 / n`.
+- Code: `sensitivity.chatterjee_xi`, `sensitivity.chatterjee_indices`.
+- Source: [REF-CHATTERJEE-2021].
+
+### EQ-SENS-XI-003 — Independence null law and p-value of xi
+
+Under independence and a continuous `Y`, `sqrt(n) xi_n -> N(0, 2/5)`;
+`p = 1 - Phi(xi_n sqrt(5 n / 2))`.
+
+- Domain: i.i.d. pairs, continuous `Y` (no ties); for tied outputs the
+  null variance depends on the tie pattern and the permutation p-value of
+  [EQ-SENS-HSIC-004] applied to `xi_n` is used instead.
+- Meaning: a one-sided test of independence that needs no resampling;
+  simulation at `n = 200` gives `n Var(xi_n) = 0.396`, the asymptotic value
+  being approached from below.
+- Code: `sensitivity.chatterjee_indices`,
+  `sensitivity.ChatterjeeResult.dependent`.
+- Source: [REF-CHATTERJEE-2021].
+
+### EQ-SENS-ACTIVE-001 — Gradient moment matrix and active subspace
+
+`C = E[grad f(X) grad f(X)'] = W Lambda W'`,
+`C_M = (1/M) sum_m grad f(x_m) grad f(x_m)'`,
+`lambda_j = E[(w_j' grad f)^2]`; active variables `y = W_1' x` with `W_1`
+the first `k` eigenvectors.
+
+- Domain: differentiable `f` with square-integrable gradient; `x_m`
+  independent draws of the input density; coordinates of comparable scale.
+- Meaning: the eigenvalue is the mean squared directional derivative, so
+  directions with small eigenvalues leave `f` nearly unchanged on average;
+  `f = h(a'x)` gives a rank-one `C` with `w_1 = a / |a|`, and
+  `f = x'Ax/2` with `X ~ N(0, I)` gives `C = A^2`.
+- Code: `sensitivity.active_subspace_from_gradients`,
+  `sensitivity.active_subspace`,
+  `sensitivity.ActiveSubspaceResult.active_variables`,
+  `sensitivity.ActiveSubspaceResult.sufficient_summary`,
+  `sensitivity.ActiveSubspaceResult.explained_fraction`.
+- Source: [REF-CONSTANTINE-DOW-WANG-2014].
+
+### EQ-SENS-ACTIVE-002 — Activity scores
+
+`alpha_i(k) = sum_{j=1}^{k} lambda_j w_ij^2`; `alpha_i(d) = C_ii = E[(df/dx_i)^2]`.
+
+- Domain: eigenpairs of [EQ-SENS-ACTIVE-001], `1 <= k <= d`.
+- Meaning: the part of the mean squared partial derivative of coordinate
+  `i` that lies in the active subspace; with `k = d` the score is the
+  diagonal of `C`, i.e. the derivative-based measure of
+  [EQ-SENS-DGSM-001] (from `C = sum_j lambda_j w_j w_j'`).
+- Code: `sensitivity.active_subspace_from_gradients`,
+  `sensitivity.ActiveSubspaceResult.as_mapping`.
+- Source: follows from the spectral decomposition in
+  [REF-CONSTANTINE-DOW-WANG-2014] and [REF-GOLUB-VANLOAN-2013, Section 8.1].
+
+### EQ-SENS-ACTIVE-003 — Bootstrap subspace distance and eigenvalue intervals
+
+For a resample of the gradients with eigenvectors `W*`:
+`dist_k = |W_1 W_1' - W_1* W_1*'|_2 = sqrt(1 - sigma_min(W_1' W_1*)^2)`;
+`subspace_error_k = mean over replicates of dist_k`; eigenvalue interval
+`[q_{alpha/2}(lambda_j*), q_{1 - alpha/2}(lambda_j*)]`.
+
+- Domain: `M >= 2` gradients resampled with replacement; `k < d`.
+- Meaning: the distance is the sine of the largest principal angle between
+  the estimated and the resampled `k`-dimensional subspace; it is small
+  where the gap `lambda_k - lambda_{k+1}` is large. A heuristic measure of
+  sampling variability only (sample eigenvalues are biased).
+- Code: `sensitivity.active_subspace_from_gradients` (`bootstrap=`).
+- Source: [REF-CONSTANTINE-DOW-WANG-2014] (bootstrap of the gradient
+  sample), [REF-GOLUB-VANLOAN-2013, Section 2.5.3] (distance between
+  subspaces) and [REF-EFRON-TIBSHIRANI-1993] (percentile interval).
+
+### EQ-SENS-ACTIVE-004 — Gradient in standard-normal space
+
+For independent inputs `x_i = F_i^-1(Phi(u_i))` and `g(u) = f(x(u))`:
+`dg/du_i = (df/dx_i) phi(u_i) / f_i(x_i)`.
+
+- Domain: continuous marginals with `f_i(x_i) > 0`; independent inputs
+  (dependent inputs use central differences of `g` in `u`).
+- Meaning: the chain rule with the inverse-function derivative of the
+  marginal map ([EQ-CAL-AD-001] with `L = I`); every coordinate `u_i` has
+  unit variance, which removes the dependence of the eigenvectors on the
+  physical units.
+- Code: `sensitivity.active_subspace`.
+- Source: [REF-LIU-DERKIUREGHIAN-1986] (the map) and
+  [REF-CASELLA-BERGER-2002, Section 2.1] (derivative of an inverse
+  transformation).
+
+### EQ-SENS-DELTA-001 — Borgonovo's delta and its class-partition estimator
+
+`delta_i = (1/2) E_{X_i}[int |f_Y(y) - f_{Y | X_i}(y)| dy]`; estimator
+`delta_i = (1/2) sum_m (n_m / n) int |f(y) - f_m(y)| dy` over `M`
+equal-count classes of `x_i`, with `int |f - f_m| dy = sum_b |p_b - p_mb|`
+for a histogram on `B` bins of equal pooled frequency
+(`bin(y_k) = floor(B #{j : y_j < y_k} / n)`), or a trapezoidal integral of
+Gaussian kernel density estimates.
+
+- Domain: `n` i.i.d. rows, at least ten rows per class, non-constant
+  output; continuous `x_i`.
+- Meaning: the expected total-variation distance between the conditional
+  and the unconditional output law; in `[0, 1]`, zero if and only if `Y`
+  and `X_i` are independent, invariant under strictly monotone
+  transformations of `Y`. For `Y = a_1 X_1 + a_2 X_2` with standard normal
+  inputs `Y | X_1 = x ~ N(a_1 x, a_2^2)` and `delta_1` is a
+  two-dimensional quadrature (0.5055 for `a = (2, 1)`). The estimator is
+  positive for an irrelevant input (sampling noise of order
+  `sqrt(B / n_m)`) and too low for a strongly influential one (class
+  averaging).
+- Code: `sensitivity.borgonovo_delta`.
+- Source: [REF-BORGONOVO-2007] (index) and
+  [REF-PLISCHKE-BORGONOVO-SMITH-2013] (estimation from given data by class
+  partition).
+
+### EQ-SENS-DELTA-002 — Permutation null level of a partition-based index
+
+For `P` random assignments `pi_p` of the outputs to the classes and an
+index `T`: `null = (1/P) sum_p T(pi_p)`, `corrected = T - null`,
+`p = (1 + #{p : T(pi_p) >= T}) / (P + 1)`.
+
+- Domain: i.i.d. rows; equal class sizes for all inputs, so one set of
+  assignments serves every input.
+- Meaning: the value the estimator takes when the output does not depend
+  on the input; the p-value has exact level. `corrected` is a heuristic
+  that over-corrects influential inputs, whose noise bias is smaller than
+  the null level.
+- Code: `sensitivity.borgonovo_delta`, `sensitivity.pawn_indices`
+  (`permutations=`).
+- Source: [REF-PHIPSON-SMYTH-2010] (p-value); the null-level subtraction
+  is a library choice.
+
+### EQ-SENS-PAWN-001 — PAWN index from a class partition
+
+`KS_m = max_y |F_n(y) - F_m(y)|` with `F_n` the empirical distribution
+function of all outputs and `F_m` that of class `m` of `x_i`;
+`PAWN_i = stat_m KS_m`, `stat` the median, mean, or maximum.
+
+- Domain: `n` i.i.d. rows, `M >= 2` equal-count classes of at least five
+  rows, non-constant output.
+- Meaning: the Kolmogorov-Smirnov distance between the conditional and
+  the unconditional output distribution, summarized over the conditioning
+  classes; depends on the outputs only through their order, hence exactly
+  invariant under strictly monotone transformations of `Y`. Positive for
+  an irrelevant input (order `sqrt(1 / n_m)`).
+- Code: `sensitivity.pawn_indices`.
+- Source: [REF-PIANOSI-WAGENER-2015]; the class-partition estimate from a
+  generic sample is the library's adaptation of their conditional design.
+
+### EQ-SENS-KERNEL-001 — Kernel (MMD) first-order index
+
+`S_i^k = E_{X_i}[MMD_k^2(P_Y, P_{Y | X_i})] / (E[k(Y, Y)] - E[k(Y, Y')])
+= (E[k(Y, Y^i)] - E[k(Y, Y')]) / (E[k(Y, Y)] - E[k(Y, Y')])`,
+with `Y^i` sharing only `X_i` with `Y` and `Y'` an independent copy.
+
+- Domain: independent inputs, a symmetric positive-definite kernel with
+  `E[k(Y, Y)] < inf` and a non-degenerate output.
+- Meaning: with mean embeddings `mu_P = E_P[k(Y, .)]`,
+  `E[k(Y, Y^i)] = E|mu_{Y | X_i}|^2` and `E[k(Y, Y')] = |mu_Y|^2`, so the
+  numerator is `E|mu_{Y | X_i} - mu_Y|^2`. The linear kernel gives the
+  first-order Sobol index [EQ-SENS-FIRST-001]; a characteristic kernel
+  gives an index that vanishes only under independence.
+- Code: `sensitivity.kernel_sobol_indices`,
+  `sensitivity.model_kernel_sobol_indices`.
+- Source: [REF-DA-VEIGA-2021].
+
+### EQ-SENS-KERNEL-002 — Pooled pick-freeze estimator of the kernel index
+
+With `y_B`, `y_i = f(A_B^(i))` and the pooled outputs `z = (y_B, y_i)`:
+`T1 = (1/N) sum_n k(y_B,n, y_i,n)`, `T0 = (1/(2N)^2) sum_{a,b} k(z_a, z_b)`,
+`T2 = (1/(2N)) sum_a k(z_a, z_a)`, `S_i^k = (T1 - T0) / (T2 - T0)`.
+Gaussian kernel `k(y, y') = exp(-(y - y')^2 / (2 h^2))` with `h` the median
+pairwise distance of `y_B` by default.
+
+- Domain: `N >= 4` rows per base matrix, `T2 > T0`.
+- Meaning: a V-statistic with `O(1/N)` bias and `N (d + 1)` model runs; for
+  the linear kernel `T0` is the squared pooled mean and the estimator is
+  exactly that of [EQ-SENS-EST-006].
+- Code: `sensitivity.kernel_sobol_indices`,
+  `sensitivity.model_kernel_sobol_indices`.
+- Source: [REF-DA-VEIGA-2021] (pick-freeze form), [REF-JANON-ETAL-2014]
+  (pooled symmetric estimator) and [REF-GRETTON-ETAL-2008] (median
+  heuristic).

@@ -2,6 +2,9 @@
 
 ``stochastic`` decomposes the output variance of a stochastic simulator into
 Sobol indices of its mean response and an intrinsic-noise index.
+``rank_based``, ``moment_independent``, ``kernel_indices`` and
+``active_subspace`` add rank statistics, distribution-based indices, kernel
+(MMD) indices and gradient-based dimension reduction.
 
 Main entry points:
     ``sobol_analysis``: first-order and total Sobol indices of one QoI of a
@@ -28,6 +31,21 @@ Main entry points:
         permutation or Gamma independence tests from an existing sample,
         optionally of a target transform ``1{Y > c}``;
         ``model_hsic_indices`` samples and runs a model first.
+    ``rank_sobol_indices``: all first-order Sobol indices from one i.i.d.
+        sample by the lag-one rank statistic, with a disjoint-block standard
+        error; ``model_rank_sobol_indices`` samples a model first.
+    ``chatterjee_indices``: Chatterjee's rank correlation ``xi`` of the
+        output on each input with an asymptotic or permutation test of
+        independence; ``chatterjee_xi`` returns one coefficient.
+    ``borgonovo_delta`` and ``pawn_indices``: moment-independent indices
+        (density-based and CDF-based) from an existing sample, with a
+        permutation null level.
+    ``kernel_sobol_indices``: kernel (MMD) first-order indices by
+        pick-freeze; ``model_kernel_sobol_indices`` draws the design.
+    ``active_subspace``: eigen-decomposition of ``E[grad f grad f']`` in the
+        standard-normal space of a model, with eigenvalue gaps, activity
+        scores and bootstrap diagnostics;
+        ``active_subspace_from_gradients`` takes the gradients directly.
 
 Assumptions:
     Sobol indices, Morris screening, and the functional ANOVA behind them
@@ -58,6 +76,18 @@ Common pitfalls:
     - HSIC values depend on the kernel bandwidth and are not variance
       shares; compare inputs through ``r2_hsic`` and the p-values. The
       permutation test costs ``O(n^2)`` per permutation and input.
+    - Do not bootstrap ``rank_sobol_indices`` or ``chatterjee_indices``:
+      repeated rows become neighbours after sorting and inflate both
+      statistics. Use the ``blocks`` standard error or the built-in tests.
+    - ``borgonovo_delta`` and ``pawn_indices`` are positive for an input
+      without effect; read them against ``null_level`` (set
+      ``permutations``), not against zero.
+    - Kernel indices depend on the kernel and its bandwidth and need not sum
+      to at most one; only the linear kernel gives variance shares.
+    - Active-subspace eigenvectors depend on the scaling of the
+      coordinates; ``active_subspace`` works in standard-normal space, and
+      gradients passed to ``active_subspace_from_gradients`` must already
+      be in coordinates of comparable scale.
     - Morris effects are measured on a grid whose step is half of each
       input's quantile range, so a response periodic with that period (for
       example ``sin(x)**2`` with ``x`` uniform on ``[-pi, pi]``) shows
@@ -70,11 +100,18 @@ References:
     [REF-MORRIS-1991], [REF-CAMPOLONGO-CARIBONI-SALTELLI-2007],
     [REF-SOBOL-KUCHERENKO-2009], [REF-OWEN-2014],
     [REF-SONG-NELSON-STAUM-2016], [REF-HELTON-ETAL-2006],
-    [REF-DA-VEIGA-2015], [REF-GRETTON-ETAL-2008].
+    [REF-DA-VEIGA-2015], [REF-GRETTON-ETAL-2008], [REF-GAMBOA-ETAL-2022],
+    [REF-CHATTERJEE-2021], [REF-CONSTANTINE-DOW-WANG-2014],
+    [REF-BORGONOVO-2007], [REF-PIANOSI-WAGENER-2015], [REF-DA-VEIGA-2021].
 
 """
 
 from ._sobol_estimators import SOBOL_ESTIMATORS
+from .active_subspace import (
+    ActiveSubspaceResult,
+    active_subspace,
+    active_subspace_from_gradients,
+)
 from .analysis import (
     LocalSensitivityResult,
     SensitivityDecision,
@@ -85,6 +122,11 @@ from .analysis import (
 from .derivative_based import DGSMResult, dgsm, poincare_constant
 from .given_data import GivenDataSensitivityResult, given_data_first_order
 from .hsic import HSICResult, hsic_indices, model_hsic_indices
+from .kernel_indices import (
+    KernelSobolResult,
+    kernel_sobol_indices,
+    model_kernel_sobol_indices,
+)
 from .model_based import (
     IndexInterval,
     ModelSobolResult,
@@ -93,6 +135,20 @@ from .model_based import (
     morris_screening,
     sobol_analysis,
     sobol_analysis_all,
+)
+from .moment_independent import (
+    BorgonovoResult,
+    PawnResult,
+    borgonovo_delta,
+    pawn_indices,
+)
+from .rank_based import (
+    ChatterjeeResult,
+    RankSobolResult,
+    chatterjee_indices,
+    chatterjee_xi,
+    model_rank_sobol_indices,
+    rank_sobol_indices,
 )
 from .regression_based import (
     RegressionSensitivityResult,
@@ -146,4 +202,20 @@ __all__ = [
     "model_hsic_indices",
     "model_regression_sensitivity",
     "regression_sensitivity",
+    "ActiveSubspaceResult",
+    "BorgonovoResult",
+    "ChatterjeeResult",
+    "KernelSobolResult",
+    "PawnResult",
+    "RankSobolResult",
+    "active_subspace",
+    "active_subspace_from_gradients",
+    "borgonovo_delta",
+    "chatterjee_indices",
+    "chatterjee_xi",
+    "kernel_sobol_indices",
+    "model_kernel_sobol_indices",
+    "model_rank_sobol_indices",
+    "pawn_indices",
+    "rank_sobol_indices",
 ]

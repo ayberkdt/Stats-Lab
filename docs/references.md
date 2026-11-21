@@ -5525,3 +5525,52 @@ Tobacco Control Program." *Journal of the American Statistical Association*
 characteristics, and placebo (permutation) inference based on the ratio of
 post- to pre-treatment prediction error.
 DOI: [10.1198/jasa.2009.ap08746](https://doi.org/10.1198/jasa.2009.ap08746).
+## REF-GAMBOA-ETAL-2022
+
+Fabrice Gamboa, Pierre Gremaud, Thierry Klein and Agnès Lagnoux. "Global
+Sensitivity Analysis: A Novel Generation of Mighty Estimators Based on Rank
+Statistics." *Bernoulli* 28(4), 2345-2374, 2022. First-order Sobol indices
+of all inputs from one i.i.d. sample through the lag-one product of the
+output sorted by an input, with consistency and a central limit theorem.
+DOI: [10.3150/21-BEJ1421](https://doi.org/10.3150/21-BEJ1421).
+
+## REF-CHATTERJEE-2021
+
+Sourav Chatterjee. "A New Coefficient of Correlation." *Journal of the
+American Statistical Association* 116(536), 2009-2022, 2021. The rank
+correlation `xi_n`, its limit (0 under independence, 1 for a functional
+relation), and the `N(0, 2/5)` null law for a continuous response.
+DOI: [10.1080/01621459.2020.1758115](https://doi.org/10.1080/01621459.2020.1758115).
+
+## REF-CONSTANTINE-DOW-WANG-2014
+
+Paul G. Constantine, Eric Dow and Qiqi Wang. "Active Subspace Methods in
+Theory and Practice: Applications to Kriging Surfaces." *SIAM Journal on
+Scientific Computing* 36(4), A1500-A1524, 2014. The matrix
+`E[grad f grad f']`, its eigen-decomposition, Monte Carlo estimation, and
+bootstrap diagnostics of eigenvalues and subspaces.
+DOI: [10.1137/130916138](https://doi.org/10.1137/130916138).
+
+## REF-BORGONOVO-2007
+
+Emanuele Borgonovo. "A New Uncertainty Importance Measure." *Reliability
+Engineering & System Safety* 92(6), 771-784, 2007. The moment-independent
+index `delta_i`, half the expected `L1` distance between the conditional and
+the unconditional output density.
+DOI: [10.1016/j.ress.2006.04.015](https://doi.org/10.1016/j.ress.2006.04.015).
+
+## REF-PIANOSI-WAGENER-2015
+
+Francesca Pianosi and Thorsten Wagener. "A Simple and Efficient Method for
+Global Sensitivity Analysis Based on Cumulative Distribution Functions."
+*Environmental Modelling & Software* 67, 1-11, 2015. The PAWN index: a
+summary statistic of the Kolmogorov-Smirnov distance between conditional and
+unconditional output distribution functions.
+DOI: [10.1016/j.envsoft.2015.01.004](https://doi.org/10.1016/j.envsoft.2015.01.004).
+
+## REF-DA-VEIGA-2021
+
+Sébastien da Veiga. "Kernel-Based ANOVA Decomposition and Shapley Effects -
+Application to Global Sensitivity Analysis." Preprint, 2021. Sensitivity
+indices based on the maximum mean discrepancy and their pick-freeze form.
+[arXiv:2101.05487](https://arxiv.org/abs/2101.05487).
