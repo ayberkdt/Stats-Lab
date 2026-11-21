@@ -319,6 +319,142 @@ Sources: [REF-ASSARAF-CAFFAREL-1999], [REF-MIRA-SOLGI-IMPARATO-2013],
 [REF-OATES-GIROLAMI-CHOPIN-2017], [REF-LIU-LEE-JORDAN-2016],
 [REF-GORHAM-MACKEY-2017], [REF-GARREAU-JITKRITTUM-KANAGAWA-2017].
 
+## Multifidelity estimators
+
+MLMC needs a hierarchy whose corrections shrink. Often the cheap models are
+of another kind: a coarse mesh, a reduced-order model, a regression fit. They
+are correlated with the high-fidelity model `f_0` but have other means, so
+their sample means cannot simply be averaged in. The multifidelity estimators
+use every low-fidelity model `f_i` only through the difference of two sample
+means of the same model, which has expectation zero. The estimate of
+`E[f_0]` therefore stays unbiased whatever the quality of the cheap models;
+their quality decides only how much variance is removed.
+
+All models are functions of one random input. The user supplies the model
+callables (high-fidelity first), `input_sampler(n, stream)` returning `n`
+independent inputs, and the costs `w_i` of one evaluation. Everything is
+planned from the model covariance `C_ij = Cov(f_i, f_j)`:
+
+- `pilot_statistics(models, input_sampler, n, seed=...)` evaluates all models
+  on one pilot sample and returns means, covariance, and correlation
+  [EQ-MC-MF-001]. **The pilot must be independent of the estimation
+  samples.** Unbiasedness holds for weights that are fixed with respect to
+  the estimation samples; the estimators draw from other child streams of
+  the same seed, so one seed for both is safe. Variances predicted from a
+  pilot covariance are estimates, and the pilot cost is not part of the
+  budget.
+
+### Multifidelity Monte Carlo
+
+With nested samples (model `i` uses the first `m_i` of the shared inputs,
+`m_0 <= m_1 <= ...`) the MFMC estimator is [EQ-MC-MF-002]
+
+`s = ybar^0_(m_0) + sum_(i>=1) a_i (ybar^i_(m_i) - ybar^i_(m_(i-1)))`
+
+with variance
+`C_00/m_0 + sum_i (1/m_(i-1) - 1/m_i)(a_i^2 C_ii - 2 a_i C_0i)`. For a budget
+`p` the optimum is in closed form [EQ-MC-MF-003]: `a_i = rho_i s_0 / s_i` and
+`m_i / m_0 = sqrt(w_0 (rho_i^2 - rho_(i+1)^2) / (w_i (1 - rho_1^2)))`, where
+`rho_i` is the correlation of model `i` with `f_0`. It is valid only if the
+models are ordered by decreasing `|rho_i|` and each model is cheap enough for
+its correlation [EQ-MC-MF-004]:
+
+`w_(i-1)/w_i > (rho_(i-1)^2 - rho_i^2) / (rho_i^2 - rho_(i+1)^2)`.
+
+`mfmc_admissible` checks the conditions, `mfmc_allocation` refuses subsets
+that violate them, and `select_mfmc_models` searches all subsets and returns
+the admissible one with the smallest variance (model 0 alone, plain Monte
+Carlo, always qualifies). `mfmc_estimate` runs the estimator.
+
+### Approximate control variates
+
+An approximate control variate (ACV) corrects the high-fidelity mean over `N`
+inputs with `D_i = mean_N f_i - mu_hat_i`, where `mu_hat_i` uses `r_i N`
+inputs: nested ones (`kind="MF"`) or `N` shared plus independent extra ones
+per model (`kind="IS"`). `acv_design` returns the optimal weights
+`alpha = -Cov(D, D)^-1 Cov(D, Q_0)` and the variance [EQ-MC-MF-005]; for
+ACV-MF, `N Cov(D_i, D_j) = C_ij (min(r_i, r_j) - 1) / min(r_i, r_j)`
+[EQ-MC-MF-007]. As the ratios grow the variance approaches the classical
+control-variate limit with known control means, which MFMC cannot reach.
+`acv_allocation` chooses `N` and `r` for a budget by a local, derivative-free
+search over all control subsets; it is a heuristic without an optimality
+certificate. ACV-MF is not uniformly better than MFMC: on a cost hierarchy
+like the one below MFMC wins.
+
+### Multilevel best linear unbiased estimator
+
+MLBLUE treats every *group* of models that is evaluated together as a linear
+observation of the vector of model means and solves the generalized least
+squares problem [EQ-MC-MF-009]:
+
+`Psi = sum_k n_k P_k' C_k^-1 P_k`, `mu_hat = Psi^-1 y`,
+`Var(mu_hat_0) = [Psi^-1]_00`.
+
+MLMC, MFMC, and ACV estimators are linear unbiased estimators on particular
+group structures, so on the same samples MLBLUE is never worse.
+`mlblue_variance` predicts the variance, `mlblue_estimate` runs the
+estimator, and `mlblue_allocation` distributes a budget over all groups (or a
+chosen list). The reference method for the allocation is a semidefinite
+program; this library has no SDP solver and instead minimizes the convex
+objective over the budget shares with BFGS and reports a certified lower
+bound on the optimum [EQ-MC-MF-010]. `converged` is true only when the gap to
+that bound is below the tolerance. The integer rounding is a heuristic.
+
+### Worked numbers
+
+Three models with standard deviations `(1, 1.2, 0.8)`, correlations
+`rho_01 = 0.95`, `rho_02 = 0.85`, `rho_12 = 0.9`, costs `(1, 0.1, 0.01)`, and
+budget 100:
+
+```python
+from probstat.monte_carlo import (
+    compare_multifidelity_estimators,
+    mfmc_allocation,
+    mlblue_allocation,
+)
+
+sigma = (1.0, 1.2, 0.8)
+rho = ((1.0, 0.95, 0.85), (0.95, 1.0, 0.9), (0.85, 0.9, 1.0))
+covariance = [[sigma[i] * sigma[j] * rho[i][j] for j in range(3)] for i in range(3)]
+costs = (1.0, 0.1, 0.01)
+
+plan = mfmc_allocation(covariance, costs, 100.0)
+plan.samples                                        # (58, 252, 1599)
+round(plan.coefficients[1], 4)                      # 0.7917
+round(plan.variance_ratio, 3)                       # 0.285
+
+blue = mlblue_allocation(covariance, costs, 100.0)
+blue.converged                                      # True
+[(g, n) for g, n in zip(blue.groups, blue.samples) if n]
+# [((2,), 1372), ((1, 2), 199), ((0, 1, 2), 58)]
+
+table = compare_multifidelity_estimators(covariance, costs, 100.0)
+[round(row.variance_ratio, 3) for row in table.rows]  # [1.0, 0.285, 0.375, 0.282]
+```
+
+The rows are plain MC, MFMC, ACV-MF, and MLBLUE: the same budget buys a
+3.5 times smaller variance than 100 high-fidelity runs. The ACV-MF search
+keeps only the cheapest model here (86 high-fidelity and 1389 evaluations of
+model 2), because anchoring both controls on the same `N` inputs is less
+efficient than the recursive MFMC differences for this hierarchy.
+
+### Limits
+
+- All predicted variances are functions of the supplied covariance. With a
+  pilot covariance they are estimates, and weights are optimal only for the
+  true covariance; unbiasedness does not depend on it.
+- The estimators target the mean of a scalar output. Vector outputs,
+  variances, and quantiles are not covered.
+- `acv_allocation` is a local search; `select_mfmc_models` and the ACV
+  subset search are exhaustive and limited to 12 models.
+- `mlblue_allocation` is pure Python: 15 groups (4 models) take about 0.1 s,
+  31 groups about 1 s, 63 groups several seconds. Use `max_group_size` or an
+  explicit group list for more models.
+
+Sources: [REF-PEHERSTORFER-WILLCOX-GUNZBURGER-2016],
+[REF-GORODETSKY-GERACI-ELDRED-JAKEMAN-2020], [REF-SCHADEN-ULLMANN-2020],
+[REF-CROCI-WILLCOX-WRIGHT-2023].
+
 ## Common pitfalls
 
 - **No events is not zero uncertainty.** With no observed event the plug-in
@@ -335,6 +471,10 @@ Sources: [REF-ASSARAF-CAFFAREL-1999], [REF-MIRA-SOLGI-IMPARATO-2013],
   `None`, which is not reproducible.
 - **Exact Booleans.** `estimate_probability` rejects `1` and `0`; pass
   `True` and `False`.
+- **Reused pilot samples.** Multifidelity weights computed from the same
+  samples that enter the estimator make it biased. Estimate the covariance
+  from a separate pilot (`pilot_statistics`) and treat the reported
+  `variance` as a prediction from that covariance.
 - **Importance weights.** The estimator is ordinary, not self-normalized, so
   both densities must be normalized. The effective sample size measures weight
   concentration, not the number of useful samples.

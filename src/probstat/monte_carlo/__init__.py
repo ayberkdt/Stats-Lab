@@ -1,4 +1,4 @@
-"""Monte Carlo estimators, diagnostics, cost accounting, MLMC, and Stein methods.
+"""Monte Carlo estimators, cost accounting, MLMC, multifidelity, Stein methods.
 
 Main entry points:
     ``estimate_mean``: sample mean with unbiased variance, standard error,
@@ -11,6 +11,12 @@ Main entry points:
         ``SE^2 * evaluations`` of two estimators.
     ``adaptive_multilevel_monte_carlo``: Giles' MLMC to a target root mean
         square error.
+    ``select_mfmc_models`` and ``mfmc_estimate``: multifidelity Monte Carlo
+        with the closed-form optimal allocation for a cost budget.
+    ``mlblue_allocation`` and ``mlblue_estimate``: multilevel best linear
+        unbiased estimator over model groups with a certified allocation.
+    ``compare_multifidelity_estimators``: predicted variances of plain MC,
+        MFMC, ACV-MF, and MLBLUE for one covariance, cost vector, and budget.
     ``estimate_zero_variance``: zero-variance (Stein) control variates from
         the score of the target density.
     ``kernel_stein_discrepancy``: sample-quality diagnostic against a target
@@ -22,7 +28,10 @@ Assumptions:
     the Stein estimators); intervals are large-sample normal approximations.
     Importance sampling needs normalized target and proposal densities and a
     proposal that is positive wherever the target integrand contributes.
-    Costs are the caller's evaluation counts, not wall time.
+    Costs are the caller's evaluation counts, not wall time. The
+    multifidelity estimators take the model covariance as an input that is
+    independent of the estimation samples; their reported variances are
+    predictions from that covariance.
 
 Common pitfalls:
     - ``estimate_mean`` reports a normal (z) interval even for a handful of
@@ -43,16 +52,29 @@ Common pitfalls:
     - ``estimate_importance_sampling`` is the ordinary (not self-normalized)
       estimator, so unnormalized densities bias it; the effective sample size
       describes weight concentration and is not a sample count.
+    - A pilot covariance used for multifidelity weights must come from
+      samples that are not reused in the estimator, otherwise the estimate
+      is biased; ``variance`` of a ``MultifidelityEstimate`` is a prediction
+      from the supplied covariance, not a sample variance.
 
 Guide: docs/foundations/advanced-monte-carlo.md
 
 References:
     [REF-ROBERT-CASELLA-2004, Chapters 3-4], [REF-OWEN-2013, Chapters 2, 8,
     and 9], [REF-WILSON-1927], [REF-GILES-2008], [REF-GILES-2015],
-    [REF-MIRA-SOLGI-IMPARATO-2013], [REF-GORHAM-MACKEY-2017].
+    [REF-MIRA-SOLGI-IMPARATO-2013], [REF-GORHAM-MACKEY-2017],
+    [REF-PEHERSTORFER-WILLCOX-GUNZBURGER-2016],
+    [REF-GORODETSKY-GERACI-ELDRED-JAKEMAN-2020], [REF-SCHADEN-ULLMANN-2020].
 
 """
 
+from .approximate_control_variates import (
+    ACVAllocation,
+    ACVDesign,
+    acv_allocation,
+    acv_design,
+    acv_estimate,
+)
 from .estimation import (
     MonteCarloEstimate,
     ProbabilityEstimate,
@@ -70,6 +92,19 @@ from .limit_simulation import (
     simulate_running_means,
     simulate_weak_law,
 )
+from .multifidelity import (
+    InputSampler,
+    MFMCAllocation,
+    ModelFunction,
+    MultifidelityEstimate,
+    PilotStatistics,
+    mfmc_admissible,
+    mfmc_allocation,
+    mfmc_estimate,
+    mfmc_variance,
+    pilot_statistics,
+    select_mfmc_models,
+)
 from .multilevel import (
     LevelSampler,
     LevelStatistics,
@@ -78,6 +113,16 @@ from .multilevel import (
     convergence_rates,
     multilevel_monte_carlo,
     optimal_level_allocation,
+)
+from .multilevel_blue import (
+    MLBLUEAllocation,
+    MultifidelityComparison,
+    MultifidelityComparisonRow,
+    compare_multifidelity_estimators,
+    mlblue_allocation,
+    mlblue_estimate,
+    mlblue_groups,
+    mlblue_variance,
 )
 from .stein import (
     ControlFunctionalResult,
@@ -121,6 +166,30 @@ __all__ = [
     "convergence_rates",
     "multilevel_monte_carlo",
     "optimal_level_allocation",
+    "ACVAllocation",
+    "ACVDesign",
+    "InputSampler",
+    "MFMCAllocation",
+    "MLBLUEAllocation",
+    "ModelFunction",
+    "MultifidelityComparison",
+    "MultifidelityComparisonRow",
+    "MultifidelityEstimate",
+    "PilotStatistics",
+    "acv_allocation",
+    "acv_design",
+    "acv_estimate",
+    "compare_multifidelity_estimators",
+    "mfmc_admissible",
+    "mfmc_allocation",
+    "mfmc_estimate",
+    "mfmc_variance",
+    "mlblue_allocation",
+    "mlblue_estimate",
+    "mlblue_groups",
+    "mlblue_variance",
+    "pilot_statistics",
+    "select_mfmc_models",
     "StratifiedEstimate",
     "allocate_stratified_budget",
     "compare_efficiency",
