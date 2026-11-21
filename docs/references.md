@@ -5501,3 +5501,28 @@ Tobacco Control Program." *Journal of the American Statistical Association*
 characteristics, and placebo (permutation) inference based on the ratio of
 post- to pre-treatment prediction error.
 DOI: [10.1198/jasa.2009.ap08746](https://doi.org/10.1198/jasa.2009.ap08746).
+
+## REF-AALEN-JOHANSEN-1978
+
+Odd O. Aalen and Soren Johansen. "An Empirical Transition Matrix for
+Non-Homogeneous Markov Chains Based on Censored Observations."
+*Scandinavian Journal of Statistics* 5(3), 141-150, 1978. The product-limit
+estimator of transition probabilities whose competing-risks special case is
+the cumulative incidence function.
+
+## REF-ADAMS-MACKAY-2007
+
+Ryan Prescott Adams and David J. C. MacKay. "Bayesian Online Changepoint
+Detection." Technical report, University of Cambridge, 2007.
+arXiv: [0710.3742](https://arxiv.org/abs/0710.3742). The run-length
+recursion with growth and change-point probabilities and conjugate
+predictive distributions.
+
+## REF-WICKRAMASURIYA-ATHANASOPOULOS-HYNDMAN-2019
+
+Shanika L. Wickramasuriya, George Athanasopoulos, and Rob J. Hyndman.
+"Optimal Forecast Reconciliation for Hierarchical and Grouped Time Series
+Through Trace Minimization." *Journal of the American Statistical
+Association* 114(526), 804-819, 2019. The minimum-trace (MinT) reconciler
+and its OLS, WLS, and shrinkage variants.
+DOI: [10.1080/01621459.2018.1448825](https://doi.org/10.1080/01621459.2018.1448825).

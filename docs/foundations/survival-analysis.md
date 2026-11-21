@@ -203,11 +203,90 @@ zero. Tie example from the tests (8 subjects, ties at `t = 1, 2, 4`):
 Efron is the default because it is closer to the exact discrete-time
 likelihood.
 
+## 8. Competing risks: cumulative incidence (EQ-SURV-CIF-001..002)
+
+When subjects can fail from several causes, the probability of failing from
+cause `k` by time `t` *in the presence of the other causes* is the
+cumulative incidence function `F_k(t) = P(T <= t, cause = k)`. The
+Aalen-Johansen estimator adds, at every event time, the all-cause
+Kaplan-Meier survival just before it times the cause-specific hazard
+increment:
+
+`F_k(t) = sum_{t_j <= t} S(t_j-) d_kj / n_j`.
+
+The curves of all causes add up to `1 - S(t)` exactly. The variance is the
+delta-method (Greenwood-type) formula [EQ-SURV-CIF-002]; without censoring it
+is the binomial `F (1 - F) / n`, and with a single cause it is Greenwood's
+variance.
+
+Treating the competing events as censoring and reporting `1 - KM` answers a
+different question (failure from cause `k` if the other causes did not
+exist, and only under independent latent times) and is never below `F_k`.
+In the example relapse and death have exponential latent times with rates
+0.6 and 0.9, so the true incidence of relapse at `t = 1` is
+`0.4 (1 - exp(-1.5)) = 0.311`, while `1 - exp(-0.6) = 0.451`.
+
+```python
+import random
+
+from probstat.inference.survival import (
+    compare_restricted_means,
+    cumulative_incidence_curves,
+    kaplan_meier,
+    survival_data,
+)
+
+generator = random.Random(1978)
+times, causes = [], []
+for _ in range(300):
+    relapse, death, end = (
+        generator.expovariate(0.6),
+        generator.expovariate(0.9),
+        generator.uniform(0.5, 3.0),
+    )
+    observed = min(relapse, death, end)
+    times.append(observed)
+    causes.append(0 if observed == end else 1 if observed == relapse else 2)
+curves = cumulative_incidence_curves(times, causes)
+round(curves[1].incidence_at(1.0), 3)                       # 0.295
+tuple(round(v, 3) for v in curves[1].interval_at(1.0))      # (0.242, 0.347)
+naive = kaplan_meier(survival_data(times, [int(c == 1) for c in causes]))
+round(1 - naive.survival_at(1.0), 3)                        # 0.441
+overall = kaplan_meier(survival_data(times, [int(c > 0) for c in causes]))
+round(curves[1].incidence_at(1.0) + curves[2].incidence_at(1.0) + overall.survival_at(1.0), 12)   # 1.0
+```
+
+## 9. Comparing restricted means (EQ-SURV-RMST-002)
+
+`restricted_mean_survival(data, tau)` is the function form of
+`km.restricted_mean(tau)`. For two independent groups
+`compare_restricted_means` reports the difference `mu_1 - mu_2` with
+standard error `sqrt(V_1 + V_2)` and the ratio `mu_1 / mu_2` with a
+log-scale delta-method interval. Both are meaningful without proportional
+hazards, but they depend on `tau`, which has to be fixed in advance and lie
+inside the follow-up of both groups.
+
+```python
+treated = survival_data((2, 3, 5, 6, 7, 8, 9, 9), (1, 0, 1, 1, 0, 1, 0, 0))
+control = survival_data((1, 1, 2, 3, 4, 5, 6, 9), (1, 1, 1, 1, 0, 1, 1, 0))
+contrast = compare_restricted_means(treated, control, 8.0)
+round(contrast.first.estimate, 3), round(contrast.second.estimate, 3)   # (6.521, 4.042)
+round(contrast.difference, 3), round(contrast.difference_standard_error, 3)   # (2.479, 1.176)
+round(contrast.difference_lower, 3), round(contrast.difference_upper, 3)   # (0.175, 4.783)
+round(contrast.ratio, 3), round(contrast.ratio_lower, 3), round(contrast.ratio_upper, 3)   # (1.613, 0.984, 2.646)
+round(contrast.p_value, 3)                                  # 0.035
+```
+
+With eight subjects per arm the normal approximation is rough: the
+difference interval excludes zero while the ratio interval includes one.
+
 ## Limitations
 
 - Only right censoring is supported. Left truncation (delayed entry),
-  interval censoring, time-varying covariates, strata, frailties, and
-  competing risks are not implemented.
+  interval censoring, time-varying covariates, strata, and frailties are
+  not implemented. For competing risks only the nonparametric cumulative
+  incidence is provided: no Gray test and no Fine-Gray or cause-specific
+  regression.
 - All intervals and tests are large-sample approximations: Greenwood, delta
   method, Wald, and chi-square. With few events, treat them as rough.
 - The Kaplan-Meier intervals are pointwise. No simultaneous confidence band
@@ -265,4 +344,5 @@ tied_rows = [[x] for x in (1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 0.0)]
 
 [REF-KAPLAN-MEIER-1958], [REF-GREENWOOD-1926], [REF-NELSON-1972],
 [REF-AALEN-1978], [REF-MANTEL-1966], [REF-COX-1972], [REF-BRESLOW-1974],
-[REF-EFRON-1977], [REF-KLEIN-MOESCHBERGER-2003].
+[REF-EFRON-1977], [REF-KLEIN-MOESCHBERGER-2003],
+[REF-AALEN-JOHANSEN-1978].
