@@ -1,18 +1,22 @@
 # Optimal Transport and Information Geometry
 
-`probstat.information` (layer 2) adds four modules to the entropy and
+`probstat.information` (layer 2) adds six modules to the entropy and
 divergence tools of [information-theory.md](information-theory.md):
 
 | Module | Contents |
 |---|---|
 | `transport` | exact discrete transport with dual certificates, log-domain Sinkhorn, Sinkhorn divergence, cost matrices |
 | `wasserstein` | Gaussian (Bures) `W_2`, quantile-based 1-D `W_p`, `W_2` barycenters |
+| `sliced` | exact 1-D `W_p` between discrete laws, sliced Wasserstein distance |
+| `unbalanced` | entropic transport with KL-relaxed marginals for unequal masses |
 | `geometry` | Fisher information (closed form and numerical), Fisher-Rao distances |
 | `divergences` | total variation, Hellinger, Bhattacharyya, Rényi, alpha-divergences |
 
 Every number below was printed by `examples/optimal_transport_lab.py`
 (seed 2026) or by the checks in `tests/test_transport_and_geometry.py`
-(seed 20261012). Two-sample hypothesis tests built on these distances are
+(seed 20261012); the numbers of sections 8 and 9 come from the code block
+at the end of section 9 and from `tests/test_transport_extensions.py`.
+Two-sample hypothesis tests built on these distances are
 not part of this package.
 
 ## 1. Exact discrete transport (EQ-OT-LP-001, EQ-OT-SIMPLEX-001)
@@ -286,6 +290,105 @@ densities. For `N(0.3, 1.2^2)` against `N(-0.4, 0.7^2)`:
 The Gaussian Rényi divergence differs from KL by `-2.41e-03` at
 `alpha = 1 - 1e-3` and by `-2.41e-05` at `alpha = 1 - 1e-5`.
 
+## 8. Sliced Wasserstein distance (EQ-OT-SW-001, EQ-OT-SW-002)
+
+The exact distance between two point clouds needs the transportation
+simplex. On the line no optimization is needed: the monotone coupling is
+optimal, and for discrete laws the quantile integral of section 3 is a
+finite sum after sorting. `empirical_wasserstein_1d` evaluates that sum
+exactly, with optional weights. (`quantile_wasserstein` would integrate the
+same step functions by quadrature, which converges slowly at the jumps.)
+
+The sliced distance averages this one-dimensional distance over
+projections:
+
+`SW_p^p(mu, nu) = E_theta W_p^p(theta_# mu, theta_# nu)`, `theta` uniform on
+the unit sphere.
+
+`sliced_wasserstein` draws `directions` unit vectors from a seeded stream
+and reports the mean of `W_p^p` over them (`power`), its standard error,
+the distance `power^(1/p)`, and a delta-method standard error for the
+distance. In one dimension the value is exact and no random number is used.
+
+`SW_p` is a metric and `SW_p <= W_p`, but it is a different quantity. For a
+translation by `t`, every projection is a translation by `theta't`, so
+`SW_2^2 = E (theta't)^2 = |t|^2 / d` while `W_2^2 = |t|^2`. The standard
+error describes the random directions only; the clouds are treated as the
+measures of interest.
+
+## 9. Unbalanced entropic transport (EQ-OT-UB-001..003)
+
+Balanced transport needs equal masses and moves every unit.
+`unbalanced_sinkhorn` relaxes both marginal constraints with
+Kullback-Leibler penalties of weight `rho` (`marginal_penalty`):
+
+`min_P <C, P> + eps KL(P | a b') + rho KL(P1 | a) + rho KL(P'1 | b)`,
+`KL(p | q) = sum (p log(p/q) - p + q)`.
+
+Setting the derivative in `P_ij` to zero gives the Gibbs form
+`P_ij = a_i b_j exp((f_i + g_j - C_ij)/eps)` with
+`f_i = -rho log((P1)_i / a_i)` and `g_j = -rho log((P'1)_j / b_j)`.
+Substituting the row and column sums turns these into the damped Sinkhorn
+updates
+
+`f = lambda T(g)`, `g = lambda T(f)`, `lambda = rho / (rho + eps)`,
+
+where `T` is the soft c-transform of section 2. In scaling variables this
+is `u = (1 / K(b v))^lambda`, `v = (1 / K'(a u))^lambda`; the form
+`u = (a / (K v))^lambda` of Chizat et al. (2018) belongs to the entropy
+relative to the counting measure. As `rho -> infinity` the iteration
+becomes balanced Sinkhorn.
+
+The result reports the plan, its two marginals, the transported mass, the
+primal objective above, the dual objective, the largest potential change
+per iteration (`trace`), and two exact residuals of the returned
+potentials: the fixed-point residual and the violation of the first-order
+conditions. `duality_gap` is zero at the solution.
+
+For `rho >> eps` the plain iteration is slow along the direction
+`(f + c, g - c)`, which does not change the plan. By default each iteration
+therefore ends with the exact maximization of the dual along that
+direction, a closed form [EQ-OT-UB-003]. On the three-point problem below
+with `rho = 100` this needs 467 iterations instead of 8742; on the
+equal-mass problem at the end of the block with `rho = 10^6` it needs 54
+where the plain iteration has not converged after 10 000.
+
+```python
+import random
+
+from probstat.information import (
+    empirical_wasserstein_1d,
+    sinkhorn,
+    sliced_wasserstein,
+    squared_euclidean_cost_matrix,
+    unbalanced_sinkhorn,
+)
+
+empirical_wasserstein_1d([0.0, 1.0, 3.0], [1.0, 2.0, 5.0], p=1)  # 1.3333
+
+rng = random.Random(11)
+cloud = [tuple(rng.gauss(0.0, 1.0) for _ in range(3)) for _ in range(50)]
+moved = [(x + 3.0, y, z - 3.0) for x, y, z in cloud]   # |t|^2 / d = 6
+sliced = sliced_wasserstein(cloud, moved, directions=500, seed=2)
+sliced.power, sliced.standard_error                    # (6.011, 0.247)
+
+x, y = [(0.0,), (1.0,), (2.0,)], [(0.5,), (1.5,), (6.0,)]
+cost = squared_euclidean_cost_matrix(x, y)
+a, b = (1.0, 1.0, 1.0), (0.5, 0.5, 4.0)               # masses 3 and 5
+loose = unbalanced_sinkhorn(a, b, cost, epsilon=0.1, marginal_penalty=1.0)
+loose.transported_mass                                 # 1.544
+loose.target_marginal[2] < 1e-5                        # True, the far atom is dropped
+loose.converged, loose.iterations                      # (True, 11)
+abs(loose.duality_gap) < 1e-12                         # True
+tight = unbalanced_sinkhorn(a, b, cost, epsilon=0.1, marginal_penalty=100.0)
+tight.transported_mass                                 # 3.553
+
+p, q = (0.2, 0.3, 0.5), (0.4, 0.4, 0.2)
+C = ((0.0, 1.0, 4.0), (1.0, 0.0, 1.0), (4.0, 1.0, 0.0))
+nearly = unbalanced_sinkhorn(p, q, C, epsilon=0.5, marginal_penalty=1e6)
+nearly.transport_cost, sinkhorn(p, q, C, epsilon=0.5).transport_cost  # (0.52599, 0.52599)
+```
+
 ## Limitations
 
 - The exact solver and Sinkhorn are dense and `O(m n)` per iteration in
@@ -312,6 +415,14 @@ The Gaussian Rényi divergence differs from KL by `-2.41e-03` at
   above the exact optimum and approaches it only as `epsilon` falls.
 - **`W_p` versus the transport cost.** `discrete_wasserstein` returns
   `(OT cost)^(1/p)`, while `exact_transport(...).cost` is the cost itself.
+- **Sliced is not Wasserstein.** `sliced_wasserstein` is smaller than
+  `discrete_wasserstein` in more than one dimension (a translation by `t`
+  gives `|t|/sqrt(d)`), and its standard error covers the directions only.
+- **Unbalanced marginals are not `a` and `b`.** `unbalanced_sinkhorn`
+  trades marginal error against cost; read `source_marginal`,
+  `target_marginal`, and `transported_mass`. Its objective uses the entropy
+  relative to `a b'`, and for large `marginal_penalty / epsilon` the
+  `optimality_residual` is the honest convergence measure.
 - **Equal mass.** Source and target weights must have the same total;
   `exact_transport` raises `ValueError` otherwise.
 - **Parameterizations and conventions.** `fisher_information(Normal(mu,

@@ -257,6 +257,133 @@ References: [REF-WELFORD-1962], [REF-WEST-1979],
 [REF-CHAN-GOLUB-LEVEQUE-1983], [REF-PEBAY-2008], [REF-JAIN-CHLAMTAC-1985],
 [REF-VITTER-1985], [REF-WILSON-1927].
 
+## Robust means, shrinkage covariance, and dependence measures
+
+The summaries above are the right tools for well-behaved samples of
+moderate dimension. Three situations call for something else.
+
+### Heavy tails: median-of-means and Catoni's estimator
+
+With only a finite variance `sigma^2`, Chebyshev's inequality bounds the
+error of the sample mean by `sigma / sqrt(n delta)` at confidence
+`1 - delta`: the price of a small `delta` is polynomial. Two estimators
+bring it down to the Gaussian-like `sigma sqrt(log(1/delta) / n)` without
+any further assumption.
+
+- `median_of_means` [EQ-STAT-ROB-001] splits the sample into `k` blocks,
+  averages each, and returns the median of the averages. A single wild
+  observation can spoil only one block. The helper
+  `median_of_means_block_count` returns `k = ceil(8 log(1/delta))`, for
+  which the bound derived for this library [EQ-STAT-ROB-002] reads: the
+  error exceeds `2 sigma / sqrt(floor(n/k))` with probability at most
+  `exp(-k/8) <= delta`. The argument is two lines long (Chebyshev in each
+  block, Hoeffding for the number of bad blocks) and its constants are not
+  sharp; `MedianOfMeansResult.deviation_bound` evaluates it. The blocks must
+  be chosen without looking at the values: the default assignment is a
+  seeded random permutation, `assignment="sequential"` cuts the data in
+  their given order.
+- `catoni_mean` [EQ-STAT-ROB-003] solves `sum_i psi(a (x_i - theta)) = 0`
+  with `psi(x) = sign(x) log(1 + |x| + x^2/2)`, which behaves like `x` near
+  zero and grows only logarithmically. The equation is monotone in `theta`
+  and is solved by Brent's method on the sample range. The scale defaults to
+  `a = sqrt(2 log(1/delta) / (n v))` [EQ-STAT-ROB-004] for a variance bound
+  `v`; this is a choice of the order analysed by Catoni (2012), whose paper
+  gives the exact constants. Without `variance_bound` the sample variance
+  is plugged in, which is a heuristic and is flagged in the result.
+
+Both estimators are tuned to one `delta` and both are biased for skewed
+laws at a fixed tuning, so they do not replace the mean when the data are
+well behaved. In the tests, on 200 draws from a Student-t law with 2.5
+degrees of freedom and from a Pareto law with shape 2.5, the 99th
+percentile of the absolute error over 1500 replicates (`delta = 0.01`) is
+0.43 and 0.34 for the sample mean, 0.36 and 0.27 for median-of-means, and
+0.36 and 0.20 for Catoni's estimator with the true variance as bound.
+
+### Many variables: Ledoit-Wolf shrinkage
+
+For `p` variables and `n` observations with `p` comparable to `n` the
+sample covariance matrix `S` is badly conditioned, and singular for
+`p > n`. `ledoit_wolf_covariance` [EQ-STAT-LW-001] returns
+`rho m I + (1 - rho) S` with `m = tr(S)/p` and the intensity
+`rho = b^2/d^2`, where `d^2 = ||S - m I||^2` measures how far `S` is from
+its target and `b^2` estimates the squared error of `S` (norm
+`||A||^2 = tr(AA')/p`). Every eigenvalue moves towards the mean eigenvalue,
+so the result is positive definite whenever `rho > 0`.
+
+Conventions: `S` divides by `n`, and the column means are subtracted first
+(`center=False` gives the mean-zero setting of the paper exactly). The
+optimality statement of Ledoit and Wolf (2004) is asymptotic and concerns
+the Frobenius loss of the covariance itself. In a simulation with `p = 20`,
+`n = 25` and true variances from 1 to 4, the mean squared Frobenius loss
+over 40 replicates falls from 102 for `S` to 16 (mean intensity 0.81).
+
+### Dependence beyond correlation
+
+Pearson and Spearman correlations vanish for many dependent pairs.
+
+- `chatterjee_correlation(x, y)` [EQ-STAT-DEP-001] sorts the pairs by `x`
+  and measures how much the ranks of `y` jump between neighbours:
+  `xi_n = 1 - 3 sum |r_{i+1} - r_i| / (n^2 - 1)`. Its limit is 0 exactly
+  under independence and 1 exactly when `y` is a function of `x`. It is not
+  symmetric, and for a strictly monotone relation it equals
+  `(n - 2)/(n + 1)`, not 1. Under independence `sqrt(n) xi_n` is
+  asymptotically `N(0, 2/5)` [EQ-STAT-DEP-002], which gives the reported
+  one-sided p-value. Ties in `x` are broken at random with the seed; ties in
+  `y` raise `ValueError`, because the formula and the null variance hold
+  only without them.
+- `distance_correlation(x, y)` [EQ-STAT-DEP-003], [EQ-STAT-DEP-004] works
+  for vector observations of any two dimensions. It double-centres the two
+  matrices of pairwise distances and correlates them. The value lies in
+  `[0, 1]`, equals 1 for `y = a + b x`, and is invariant to shifts,
+  rotations, and rescaling. The sample value is biased upwards (it is
+  positive for independent data), so use `permutations=R` for a seeded
+  permutation test. For a bivariate normal pair the population value is the
+  closed form `distance_correlation_bivariate_normal(rho)`
+  [EQ-STAT-DEP-005], which is below `|rho|`.
+
+```python
+import math
+import random
+
+from probstat.statistics import (
+    catoni_mean,
+    chatterjee_correlation,
+    distance_correlation,
+    distance_correlation_bivariate_normal,
+    ledoit_wolf_covariance,
+    mean,
+    median_of_means,
+    median_of_means_block_count,
+    pearson_correlation,
+)
+
+rng = random.Random(7)
+heavy = [rng.paretovariate(2.5) for _ in range(400)]  # true mean 5/3
+dirty = [*heavy, 1e4]                                 # one gross error
+median_of_means_block_count(0.05)                     # 24
+mom = median_of_means(dirty, delta=0.05, seed=1)
+cat = catoni_mean(dirty, variance_bound=20 / 9, delta=0.05)
+mean(dirty), mom.estimate, cat.estimate               # (26.545, 1.614, 1.998)
+median_of_means(heavy, delta=0.05, seed=1).deviation_bound(math.sqrt(20 / 9))  # 0.745
+
+data = [[rng.gauss(0.0, 1.0 + 0.1 * j) for j in range(12)] for _ in range(8)]
+shrunk = ledoit_wolf_covariance(data)                 # p = 12 > n = 8
+shrunk.shrinkage, shrunk.target_scale                 # (0.459, 2.030)
+
+x = [rng.gauss(0.0, 1.0) for _ in range(200)]
+y = [v * v + 0.1 * rng.gauss(0.0, 1.0) for v in x]
+pearson_correlation(x, y)                             # 0.265
+chatterjee_correlation(x, y).statistic                # 0.785
+dependence = distance_correlation(x, y, permutations=199, seed=3)
+dependence.distance_correlation, dependence.p_value   # (0.583, 0.005)
+chatterjee_correlation(range(10), [v**3 for v in range(10)]).statistic  # 0.727
+distance_correlation_bivariate_normal(0.5)            # 0.454
+```
+
+References: [REF-LUGOSI-MENDELSON-2019], [REF-CATONI-2012],
+[REF-LEDOIT-WOLF-2004], [REF-CHATTERJEE-2021],
+[REF-SZEKELY-RIZZO-BAKIROV-2007].
+
 ## Common pitfalls
 
 - **`ddof` defaults to 0.** `variance`, `standard_deviation`, `covariance`,
@@ -276,6 +403,17 @@ References: [REF-WELFORD-1962], [REF-WEST-1979],
   default to `type=1` (`g1`, `g2`), whereas `e1071::skewness` and
   `e1071::kurtosis` default to type 3 (`b1`, `b2`); call R with
   `type = 1` or probstat with `type=3` before comparing.
+- **Robust means are tuned to one confidence level.** `median_of_means`
+  and `catoni_mean` take `delta` (or `blocks`, `scale`) as input, depend on
+  it, and are biased for skewed laws; `median_of_means` with the random
+  assignment also depends on the seed.
+- **`chatterjee_correlation(x, y)` is directional.** It measures how well
+  `y` is a function of `x`; swapping the arguments changes the value, and a
+  perfect monotone relation gives `(n - 2)/(n + 1)`.
+- **A positive distance correlation is not evidence by itself.** The sample
+  value is positive for independent data; read the permutation p-value.
+- **`ledoit_wolf_covariance` divides by `n`** and centres by default,
+  unlike `covariance(..., ddof=1)`.
 - **`P2Quantile` cannot be merged.** Only `RunningMoments`,
   `WeightedRunningMoments`, `RunningCovariance`, and `ExceedanceCounter`
   have `merge`; keep a `ReservoirSampler` when chunks must be combined.

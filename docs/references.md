@@ -5534,6 +5534,26 @@ Statistics." *Bernoulli* 28(4), 2345-2374, 2022. First-order Sobol indices
 of all inputs from one i.i.d. sample through the lag-one product of the
 output sorted by an input, with consistency and a central limit theorem.
 DOI: [10.3150/21-BEJ1421](https://doi.org/10.3150/21-BEJ1421).
+## REF-LUGOSI-MENDELSON-2019
+
+Gábor Lugosi and Shahar Mendelson. "Mean Estimation and Regression Under
+Heavy-Tailed Distributions: A Survey." *Foundations of Computational
+Mathematics* 19, 1145-1190, 2019. arXiv:1906.04280. Median-of-means and
+other mean estimators with sub-Gaussian deviations under a finite variance.
+
+## REF-CATONI-2012
+
+Olivier Catoni. "Challenging the Empirical Mean and Empirical Variance: A
+Deviation Study." *Annales de l'Institut Henri Poincaré, Probabilités et
+Statistiques* 48(4), 1148-1185, 2012.
+DOI: [10.1214/11-AIHP454](https://doi.org/10.1214/11-AIHP454).
+
+## REF-LEDOIT-WOLF-2004
+
+Olivier Ledoit and Michael Wolf. "A Well-Conditioned Estimator for
+Large-Dimensional Covariance Matrices." *Journal of Multivariate Analysis*
+88(2), 365-411, 2004.
+DOI: [10.1016/S0047-259X(03)00096-4](https://doi.org/10.1016/S0047-259X(03)00096-4).
 
 ## REF-CHATTERJEE-2021
 
@@ -5575,3 +5595,25 @@ Sébastien da Veiga. "Kernel-Based ANOVA Decomposition and Shapley Effects -
 Application to Global Sensitivity Analysis." Preprint, 2021. Sensitivity
 indices based on the maximum mean discrepancy and their pick-freeze form.
 [arXiv:2101.05487](https://arxiv.org/abs/2101.05487).
+American Statistical Association* 116(536), 2009-2022, 2021.
+DOI: [10.1080/01621459.2020.1758115](https://doi.org/10.1080/01621459.2020.1758115).
+
+## REF-SZEKELY-RIZZO-BAKIROV-2007
+
+Gábor J. Székely, Maria L. Rizzo, and Nail K. Bakirov. "Measuring and
+Testing Dependence by Correlation of Distances." *The Annals of Statistics*
+35(6), 2769-2794, 2007.
+DOI: [10.1214/009053607000000505](https://doi.org/10.1214/009053607000000505).
+
+## REF-BONNEEL-ETAL-2015
+
+Nicolas Bonneel, Julien Rabin, Gabriel Peyré, and Hanspeter Pfister.
+"Sliced and Radon Wasserstein Barycenters of Measures." *Journal of
+Mathematical Imaging and Vision* 51(1), 22-45, 2015.
+DOI: [10.1007/s10851-014-0506-3](https://doi.org/10.1007/s10851-014-0506-3).
+
+## REF-CHIZAT-ETAL-2018
+
+Lénaïc Chizat, Gabriel Peyré, Bernhard Schmitzer, and François-Xavier
+Vialard. "Scaling Algorithms for Unbalanced Optimal Transport Problems."
+*Mathematics of Computation* 87, 2563-2609, 2018. arXiv:1607.05816.

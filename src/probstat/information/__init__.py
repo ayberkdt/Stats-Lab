@@ -16,6 +16,10 @@
   certificates, log-domain Sinkhorn, and Sinkhorn divergences.
 * :mod:`.wasserstein` — Gaussian (Bures) and quantile-based 1-D Wasserstein
   distances and ``W_2`` barycenters.
+* :mod:`.sliced` — exact 1-D Wasserstein distance between discrete laws and
+  the Monte Carlo sliced Wasserstein distance between point clouds.
+* :mod:`.unbalanced` — unbalanced entropic transport with KL-relaxed
+  marginals.
 
 Entropies, KL and Renyi divergences take ``unit="nats"`` (natural
 logarithm) or ``unit="bits"``; transport costs are in the units of the cost
@@ -32,6 +36,10 @@ Main entry points:
     ``exact_transport``: exact discrete optimal transport with a dual
         certificate.
     ``sinkhorn``: entropic optimal transport by log-domain iterations.
+    ``sliced_wasserstein``: sliced Wasserstein distance between point
+        clouds with a Monte Carlo standard error.
+    ``unbalanced_sinkhorn``: entropic transport between measures of
+        different mass with KL-relaxed marginals.
     ``fisher_information``: closed-form Fisher information of a supported
         law.
 
@@ -39,7 +47,8 @@ Assumptions:
     PMFs are finite and sum to one within ``1e-9``; joint tables index
     ``X`` by rows and ``Y`` by columns. The sample estimators assume
     independent draws from a continuous law, so no two points coincide.
-    Transport source and target weights carry the same total mass.
+    Transport source and target weights carry the same total mass, except
+    in ``unbalanced_sinkhorn``.
 
 Common pitfalls:
     - Entropies, mutual information, and KL and Renyi divergences are in
@@ -51,13 +60,19 @@ Common pitfalls:
     - ``kl_normal`` takes standard deviations, not variances.
     - ``sinkhorn`` returns ``converged=False`` instead of raising when
       ``max_iterations`` is reached; only ``sinkhorn_divergence`` raises.
+    - ``sliced_wasserstein`` is not the Wasserstein distance for ``d > 1``
+      (a translation by ``t`` gives ``SW_2^2 = |t|^2/d``), and its standard
+      error covers the random directions only.
+    - The plan of ``unbalanced_sinkhorn`` does not have marginals ``a`` and
+      ``b``; its entropy is taken relative to ``a b'``, so objective values
+      are not comparable with a counting-measure convention.
 
 Guide: docs/foundations/information-theory.md
 
 References:
     [REF-COVER-THOMAS-2006], [REF-KOZACHENKO-LEONENKO-1987],
     [REF-KRASKOV-STOGBAUER-GRASSBERGER-2004], [REF-PEYRE-CUTURI-2019],
-    [REF-CUTURI-2013].
+    [REF-CUTURI-2013], [REF-BONNEEL-ETAL-2015], [REF-CHIZAT-ETAL-2018].
 
 """
 
@@ -120,6 +135,11 @@ from .geometry import (
     numerical_fisher_information,
     poisson_fisher_information,
 )
+from .sliced import (
+    SlicedWassersteinResult,
+    empirical_wasserstein_1d,
+    sliced_wasserstein,
+)
 from .transport import (
     OptimalityCertificate,
     SinkhornResult,
@@ -132,6 +152,7 @@ from .transport import (
     squared_euclidean_cost_matrix,
     transport_certificate,
 )
+from .unbalanced import UnbalancedSinkhornResult, unbalanced_sinkhorn
 from .wasserstein import (
     GaussianBarycenter,
     QuantileBarycenter,
@@ -149,8 +170,10 @@ __all__ = [
     "OptimalityCertificate",
     "QuantileBarycenter",
     "SinkhornResult",
+    "SlicedWassersteinResult",
     "TransportPlan",
     "UNITS",
+    "UnbalancedSinkhornResult",
     "alpha_divergence",
     "alpha_divergence_gaussian",
     "bernoulli_fisher_information",
@@ -166,6 +189,7 @@ __all__ = [
     "cross_entropy",
     "differential_entropy",
     "discrete_wasserstein",
+    "empirical_wasserstein_1d",
     "entropy",
     "exact_transport",
     "exponential_entropy",
@@ -209,10 +233,12 @@ __all__ = [
     "renyi_divergence_gaussian",
     "sinkhorn",
     "sinkhorn_divergence",
+    "sliced_wasserstein",
     "squared_euclidean_cost_matrix",
     "total_variation_distance",
     "total_variation_gaussian_shared_covariance",
     "total_variation_normal",
     "transport_certificate",
+    "unbalanced_sinkhorn",
     "uniform_entropy",
 ]
