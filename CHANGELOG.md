@@ -3,6 +3,129 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [0.27.0] — 2026-11-21
+
+A frontier release in two parts. First, methods published or consolidated in
+the last decade enter every layer of the library, each re-derived and tested
+against an independent oracle (the sources could be confirmed
+bibliographically but not opened, so no formula was copied; see
+`docs/research/literature-gaps-2026.md`). Second, a new package,
+`probstat.methodlab`, supplies the tools for deriving an estimator the
+library does not contain and for certifying what is claimed about it.
+
+### Added
+
+- **Method laboratory** (`probstat.methodlab`, ADR-0131): an `Estimator`
+  contract (a seeded draw with a cost and a lineage of derivation steps);
+  combinators for randomized truncation (`single_term_estimator`,
+  `coupled_sum_estimator`), `thinned_estimator`, `sum_of_estimators`,
+  Richardson extrapolation, best linear unbiased combination, control
+  variates with frozen pilot coefficients, antithetic pairs, jackknife and
+  bootstrap bias correction, numerical influence functions, and the one-step
+  correction; certification checks (`check_unbiasedness`, `check_variance`,
+  `check_coverage`, `check_convergence_rate`, `check_efficiency_gain`,
+  `check_invariance`) with four verdicts (refuted, supported, not refuted,
+  inconclusive) and a `MethodCard`; pre-specified simulation studies in the
+  ADEMP structure with Monte Carlo standard errors and a protocol
+  fingerprint; `rank_by_efficiency`, `sequential_halving`, and the
+  anytime-valid `compare_sequentially`. On the guide's example a biased
+  rule passes 40 000 replicates "not refuted" and is refuted once a control
+  variate sharpens the check; the derived unbiased estimator is 14 times
+  (99% interval 10.3 to 20.2) more efficient than its predecessor.
+- **Multifidelity estimation** (`probstat.monte_carlo`, ADR-0117):
+  `pilot_statistics`; multifidelity Monte Carlo with the closed-form
+  allocation, admissibility check, and exhaustive model selection;
+  approximate control variates (ACV-IS, ACV-MF); multilevel best linear
+  unbiased estimators with `mlblue_allocation` (a smooth program on the
+  budget simplex with a certified lower bound, no SDP solver); and
+  `compare_multifidelity_estimators`. Every predicted variance equals an
+  exact index-set calculation to 11-12 digits.
+- **Anytime-valid inference** (`probstat.inference`, ADR-0119):
+  `calibrate_p_value`, `e_to_p_value`, `merge_e_values`,
+  `e_benjamini_hochberg`; `betting_mean_test`, `paired_betting_test`, and
+  `betting_confidence_sequence` for bounded means; and
+  `split_likelihood_ratio_test` (universal inference). A 95% Wilson
+  interval rechecked at every observation excluded the truth in 45% of runs
+  of 1000 observations; the betting test at level 5% did so in 3-4%.
+- **Prediction-powered inference**: `prediction_powered_mean` with the
+  power-tuned weight, `prediction_powered_variance`,
+  `prediction_powered_weight` (ADR-0119).
+- **Conformal prediction** (`probstat.conformal`, ADR-0120): weighted split
+  conformal under covariate shift, fixed-weight nonexchangeable conformal,
+  `conformal_risk_control`, `conformal_p_values` and
+  `conformal_outlier_detection`, Mondrian (group-conditional) intervals,
+  CV+, and online quantile tracking with a derived long-run bound.
+- **Causal inference** (`probstat.causal`, ADR-0121): omitted-variable-bias
+  sensitivity (`partial_r2`, `robustness_value`, `adjust_for_confounder`;
+  the identities hold to 1e-12 when a simulated confounder is actually
+  omitted); `dml_partially_linear` and `dml_average_treatment_effect` with
+  cross-fitting; `did_two_by_two` and `group_time_effects` for staggered
+  adoption with event-study and overall aggregation; synthetic control with
+  a duality-gap certificate and placebo ranks; `two_stage_least_squares`.
+- **Bayesian computation** (`probstat.inference`, ADR-0122):
+  `pareto_smooth`, `psis_expectation`, and `psis_loo` with the
+  sample-size-dependent k-hat threshold; `nested_rhat`; `slice_sampler` and
+  `elliptical_slice_sampler`; `metropolis_adjusted_langevin`;
+  `stretch_move_sampler`; `parallel_tempering` with even-odd swaps and a
+  stepping-stone evidence; `stein_variational_gradient_descent`.
+- **Sensitivity analysis** (`probstat.sensitivity`, ADR-0123):
+  `rank_sobol_indices` (all first-order indices from one sample),
+  `chatterjee_indices`, `borgonovo_delta`, `pawn_indices`,
+  `kernel_sobol_indices`, and `active_subspace`.
+- **Rare events** (`probstat.reliability`, ADR-0124):
+  `improved_cross_entropy` with a Gaussian or Gaussian-mixture family,
+  `sequential_importance_sampling`, and Bayesian updating as a rare event
+  (`bus_limit_state`, `bus_subset_simulation`). On the four-branch function
+  the four-component mixture reaches a coefficient of variation of 0.065
+  with 4000 calls; sequential importance sampling is comparable to subset
+  simulation, not better, and the record says so.
+- **Surrogates and optimization** (ADR-0125): `fit_recursive_cokriging`
+  (equal to the joint block-covariance Gaussian process to 1.5e-13 for
+  fixed hyperparameters), `fit_stochastic_kriging`, `bayesian_quadrature`
+  (`probstat.surrogates`); `bayesian_optimization` with
+  `log_expected_improvement` (finite where expected improvement
+  underflows), confidence bounds, constraints, knowledge gradient, and
+  Thompson sampling (`probstat.design`).
+- **Sequential decisions** (`probstat.risk`, ADR-0126): `LinUCB`,
+  `LinearThompsonSampling`; off-policy evaluation (`inverse_propensity_score`,
+  `self_normalized_ips`, `direct_method`, `doubly_robust`); `FiniteMDP` with
+  `value_iteration`, `policy_iteration`, `backward_induction`; and
+  `sequential_halving`. This closes the roadmap item on contextual bandits
+  and Markov decision processes.
+- **Robust statistics, dependence, transport** (ADR-0127): `median_of_means`,
+  `catoni_mean`, `ledoit_wolf_covariance`, `chatterjee_correlation`,
+  `distance_correlation` (`probstat.statistics`); `sliced_wasserstein`,
+  `empirical_wasserstein_1d`, `unbalanced_sinkhorn` (`probstat.information`).
+- **Survival and time series** (ADR-0128): Aalen-Johansen
+  `cumulative_incidence` with a delta-method variance and
+  `compare_restricted_means` (`probstat.inference.survival`);
+  `bayesian_online_changepoint` (evidence equal to enumeration over all
+  segmentations) and `reconcile_forecasts` with OLS, WLS, MinT, and
+  bottom-up (`probstat.timeseries`).
+- **Research ledger:** `docs/research/literature-gaps-2026.md` records what
+  was missing, what changed in 2023-2026, eleven open questions with the
+  experiment the library supports for each, and the verified sources not
+  yet implemented.
+- **Guide:** `docs/foundations/method-development.md` with one figure, and
+  new sections in fourteen existing guides.
+
+### Fixed
+
+- `tests/test_ensemble_inversion.py`: the reproducibility test compared two
+  results holding NaN with `==`, which fails under the field-by-field
+  dataclass equality of Python 3.13; it now compares their representations.
+
+### Known limitations
+
+- The sources of this release were confirmed by title, authors, venue, and
+  identifier, not read. Constants and bounds that could not be derived are
+  not printed; the docstrings refer to the source.
+- The new guide figure was rendered without the datawiz audit, which was
+  not available in the build environment.
+- Not implemented: tabular Q-learning, the von Mises-Fisher-Nakagami
+  mixture, prediction-powered regression coefficients, covariates in
+  difference-in-differences, grouped approximate control variates.
+
 ## [0.26.0] — 2026-11-19
 
 Inverse problems and data assimilation grow from a teaching core into a
