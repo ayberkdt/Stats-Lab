@@ -19162,3 +19162,210 @@ For candidates `x_1..x_m`: `mean_i = mu(x_i)`,
 - Code: `design.gaussian_process_joint_posterior`,
   `design.thompson_sample`, `design.bayesian_optimization`.
 - Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 2.2].
+## Multifidelity Monte Carlo, approximate control variates, and MLBLUE (ADR-0117)
+
+Models are indexed from zero in the code and in these records: model 0 is
+the high-fidelity model (model 1 of the sources). `C_ij = Cov(f_i, f_j)`,
+`s_i = sqrt(C_ii)`, `rho_i = C_0i / (s_0 s_i)`, and `w_i` is the cost of one
+evaluation of model `i`.
+
+### EQ-MC-MF-001 — Pilot statistics of several models
+
+For `k` models evaluated on the same `n` inputs,
+`ybar_i = (1/n) sum_j y_i^(j)`,
+`C_ij = (1/(n-1)) sum_j (y_i^(j) - ybar_i)(y_j^(j) - ybar_j)`, and
+`rho_ij = C_ij / sqrt(C_ii C_jj)`.
+
+- Domain: `n >= 2` independent inputs; a positive-definite `C` needs
+  `n > k`; the correlation needs `C_ii > 0`.
+- Meaning: the covariance that fixes the weights and allocations of the
+  multifidelity estimators. The pilot sample must be independent of the
+  estimation samples; variances predicted from a pilot `C` are estimates.
+- Code: `monte_carlo.pilot_statistics`,
+  `monte_carlo.PilotStatistics.correlation`,
+  `monte_carlo.PilotStatistics.standard_deviations`.
+- Source: [REF-PEHERSTORFER-WILLCOX-GUNZBURGER-2016, Section 3] (pilot
+  estimates of the correlations and variances).
+
+### EQ-MC-MF-002 — Multifidelity Monte Carlo estimator and its variance
+
+With nested samples `m_0 <= m_1 <= ... <= m_(q-1)` (model `i` is evaluated
+on the first `m_i` shared inputs) and coefficients `a_i`,
+`s = ybar^0_(m_0) + sum_(i=1..q-1) a_i (ybar^i_(m_i) - ybar^i_(m_(i-1)))`,
+`E[s] = E[f_0]`, and
+`Var(s) = C_00 / m_0 + sum_(i=1..q-1) (1/m_(i-1) - 1/m_i)
+(a_i^2 C_ii - 2 a_i C_0i)`.
+The formula follows from
+`Cov(ybar^i_m, ybar^j_n) = C_ij / max(m, n)` on nested samples; the
+differences of different models are uncorrelated.
+
+- Domain: independent identically distributed inputs, finite second
+  moments, coefficients fixed with respect to the samples.
+- Meaning: the low-fidelity models enter through differences of two means
+  of the same model, so their unknown means cancel and the estimator is
+  unbiased for any `a_i`.
+- Code: `monte_carlo.mfmc_estimate`, `monte_carlo.mfmc_variance`,
+  `monte_carlo.MultifidelityEstimate.standard_error`.
+- Source: [REF-PEHERSTORFER-WILLCOX-GUNZBURGER-2016, Section 3]; re-derived
+  and checked against exact covariances of sample means in
+  `tests/test_multifidelity.py`.
+
+### EQ-MC-MF-003 — Optimal MFMC coefficients and sample allocation
+
+`a_i = rho_i s_0 / s_i`,
+`r_i = m_i / m_0 = sqrt(w_0 (rho_i^2 - rho_(i+1)^2) / (w_i (1 - rho_1^2)))`
+with `rho_q = 0`, `m_0 = p / sum_i w_i r_i`, and the minimal variance
+`C_00 (sum_(i=0..q-1) sqrt(w_i (rho_i^2 - rho_(i+1)^2)))^2 / p`.
+Integer sample sizes are `floor(m_i)`.
+
+- Domain: models ordered and admissible as in [EQ-MC-MF-004]; budget
+  `p >= sum_i w_i r_i` so that `m_0 >= 1`.
+- Meaning: minimizes [EQ-MC-MF-002] over coefficients and real sample sizes
+  subject to `sum_i w_i m_i = p` and nested samples; plain Monte Carlo with
+  the same budget has variance `C_00 w_0 / p`.
+- Code: `monte_carlo.mfmc_allocation`,
+  `monte_carlo.MFMCAllocation.variance_ratio`.
+- Source: [REF-PEHERSTORFER-WILLCOX-GUNZBURGER-2016, Section 3].
+
+### EQ-MC-MF-004 — MFMC admissibility and model selection
+
+The allocation [EQ-MC-MF-003] is the optimum when
+`1 = |rho_0| > |rho_1| > ... > |rho_(q-1)| > 0` and
+`w_(i-1) / w_i > (rho_(i-1)^2 - rho_i^2) / (rho_i^2 - rho_(i+1)^2)` for
+`i = 1..q-1` (`rho_q = 0`). Model selection orders every subset that
+contains model 0 by decreasing `|rho_i|`, keeps the admissible subsets, and
+returns the one with the smallest value of
+`(sum_i sqrt(w_i (rho_i^2 - rho_(i+1)^2)))^2`.
+
+- Domain: at most 12 models (exhaustive search over `2^(k-1)` subsets).
+- Meaning: the cost condition is equivalent to strictly increasing ratios
+  `r_i`; a model that is too expensive for its correlation is left out.
+- Code: `monte_carlo.mfmc_admissible`, `monte_carlo.select_mfmc_models`.
+- Source: [REF-PEHERSTORFER-WILLCOX-GUNZBURGER-2016, Section 3].
+
+### EQ-MC-MF-005 — Approximate control variate, optimal weights, variance
+
+`Q = Q_0 + sum_i alpha_i D_i` with `Q_0 = mean_N f_0`,
+`D_i = mean_N f_i - mu_hat_i`, where `mu_hat_i` is the mean of `f_i` over
+`r_i N` inputs. `alpha* = -Cov(D, D)^-1 Cov(D, Q_0)` and
+`Var(Q) = C_00 / N - Cov(D, Q_0)' Cov(D, D)^-1 Cov(D, Q_0)`. As all
+`r_i -> infinity`, `Var -> (C_00 - c' C_LL^-1 c) / N` with
+`c_i = C_0i` and `C_LL` the low-fidelity block.
+
+- Domain: `r_i > 1`; weights fixed with respect to the samples.
+- Meaning: a control variate whose control means are estimated from extra
+  low-fidelity samples; `E[D_i] = 0`, so the estimator is unbiased.
+- Code: `monte_carlo.acv_design`, `monte_carlo.acv_estimate`,
+  `monte_carlo.ACVDesign.variance_ratio`.
+- Source: [REF-GORODETSKY-GERACI-ELDRED-JAKEMAN-2020].
+
+### EQ-MC-MF-006 — ACV-IS covariances
+
+`mu_hat_i` uses the `N` shared inputs and `(r_i - 1) N` inputs drawn
+independently for model `i`. With `f_i = (r_i - 1) / r_i`:
+`N Cov(D_i, Q_0) = f_i C_0i`, `N Var(D_i) = f_i C_ii`, and
+`N Cov(D_i, D_j) = f_i f_j C_ij` for `i != j`.
+
+- Domain: `r_i > 1`, independent extra samples per model.
+- Meaning: `D_i = f_i (mean_N f_i - mean_extra f_i)`, from which the three
+  covariances follow directly.
+- Code: `monte_carlo.acv_design`.
+- Source: [REF-GORODETSKY-GERACI-ELDRED-JAKEMAN-2020]; derived as stated and
+  confirmed by exact covariances of sample means and replicate simulation.
+
+### EQ-MC-MF-007 — ACV-MF covariances
+
+`mu_hat_i` uses the first `r_i N` inputs of one shared sequence that starts
+with the `N` high-fidelity inputs. Then
+`N Cov(D_i, Q_0) = ((r_i - 1) / r_i) C_0i` and
+`N Cov(D_i, D_j) = F_ij C_ij` with
+`F_ij = (min(r_i, r_j) - 1) / min(r_i, r_j)`.
+
+- Domain: `r_i > 1`, nested low-fidelity samples.
+- Meaning: from `Cov(mean_m f_i, mean_n f_j) = C_ij / max(m, n)`:
+  `1/N - 1/(r_i N) - 1/(r_j N) + 1/(max(r_i, r_j) N)
+  = (1 - 1/min(r_i, r_j)) / N`.
+- Code: `monte_carlo.acv_design`.
+- Source: [REF-GORODETSKY-GERACI-ELDRED-JAKEMAN-2020]; derived as stated and
+  confirmed by exact covariances of sample means and replicate simulation.
+
+### EQ-MC-MF-008 — ACV budget allocation by budget shares
+
+For a subset `S` of controls and shares `theta = softmax(z)`,
+`N = p theta_0 / (w_0 + sum_(i in S) w_i)` and
+`r_i = 1 + p theta_i / (N w_i)`, so that
+`N (w_0 + sum_S w_i r_i) = p`; `log Var` of [EQ-MC-MF-005] is minimized
+over `z` by Nelder-Mead from several starts, every subset `S` is tried, and
+designs are rounded to `N = floor(N_c)`,
+`n_i = max(N + 1, floor(r_i N_c))`.
+
+- Domain: at most 12 models; budget `p >= w_0`.
+- Meaning: a heuristic local search. The problem is not convex and the
+  ACV-MF objective has kinks where two ratios cross, so no optimality
+  certificate is given; plain Monte Carlo is always a candidate.
+- Code: `monte_carlo.acv_allocation`.
+- Source: [REF-GORODETSKY-GERACI-ELDRED-JAKEMAN-2020] (the allocation is
+  posed there as a numerical optimization; the parametrization is a library
+  choice) and [REF-NELDER-MEAD-1965].
+
+### EQ-MC-MF-009 — Multilevel best linear unbiased estimator
+
+For model groups `S_k` with `n_k` independent group samples `Y_k^(i)`,
+selection matrices `P_k`, and `C_k = P_k C P_k'`:
+`Psi = sum_k n_k P_k' C_k^-1 P_k`,
+`y = sum_k P_k' C_k^-1 sum_i Y_k^(i)`, `mu_hat = Psi^-1 y`,
+`Cov(mu_hat) = Psi^-1`, and `Var(mu_hat_0) = [Psi^-1]_00`. Models that no
+sampled group contains are removed from `Psi`.
+
+- Domain: positive-definite `C`; at least one sampled group contains
+  model 0; `C` fixed with respect to the samples.
+- Meaning: generalized least squares for the model means; among linear
+  unbiased estimators that use the same group samples none has a smaller
+  variance when `C` is the true covariance. MLMC, MFMC, and ACV estimators
+  are linear unbiased estimators on particular group structures.
+- Code: `monte_carlo.mlblue_variance`, `monte_carlo.mlblue_estimate`.
+- Source: [REF-SCHADEN-ULLMANN-2020].
+
+### EQ-MC-MF-010 — MLBLUE sample allocation on the budget simplex
+
+`min_n [Psi(n)^-1]_00` subject to `sum_k n_k W_k <= p`, `n >= 0`,
+`W_k = sum_(i in S_k) w_i`. With `theta_k = n_k W_k / p` on the unit
+simplex, `Var = (C_00 w_0 / p) g(theta)`,
+`g = [Phi^-1]_00`, `Phi = sum_k theta_k A_k`,
+`A_k = (w_0 C_00 / W_k) P_k' C_k^-1 P_k`. With `v = Phi^-1 e_0` and
+`d_k = v' A_k v`: `dg / dtheta_k = -d_k`, `sum_k theta_k d_k = g`, and
+`g(theta') >= g(theta)^2 / max_k d_k` for every feasible `theta'`.
+The simplex is parametrized as
+`theta_k = (1 - eps) z_k^2 / |z|^2 + eps / K` and
+`d log g / d z_j = 2 (1 - eps) z_j (dbar - d_j) / (g |z|^2)`,
+`dbar = sum_k z_k^2 d_k / |z|^2`.
+
+- Domain: at least one group contains model 0; `eps` is a quarter of the
+  requested relative tolerance.
+- Meaning: the objective is convex and homogeneous of degree `-1` in `n`,
+  so the budget is active. The bound follows from
+  `g(theta') = max_u (u' e_0)^2 / (u' Phi(theta') u)` (Cauchy-Schwarz)
+  evaluated at `u = v`; it certifies the BFGS solution of the relaxation.
+  Rounding (floors plus a greedy use of the released budget) is a heuristic.
+- Code: `monte_carlo.mlblue_allocation`,
+  `monte_carlo.MLBLUEAllocation.relative_gap`.
+- Source: [REF-SCHADEN-ULLMANN-2020] (objective and sample allocation
+  problem) and [REF-CROCI-WILLCOX-WRIGHT-2023] (problem statement; the
+  semidefinite program of that paper is replaced by this smooth nonlinear
+  program, and the lower bound is derived here).
+
+### EQ-MC-MF-011 — Comparison at a fixed budget
+
+Plain Monte Carlo with budget `p`: `n = floor(p / w_0)`,
+`Var = C_00 / n` (real-valued: `C_00 w_0 / p`). The variance ratio of a
+method is its predicted variance divided by the plain Monte Carlo variance
+for the same budget.
+
+- Domain: `p >= w_0`.
+- Meaning: the common yardstick of the comparison table; a ratio below one
+  is the factor by which the mean squared error falls at equal cost.
+- Code: `monte_carlo.compare_multifidelity_estimators`,
+  `monte_carlo.MultifidelityComparison.format`,
+  `monte_carlo.MLBLUEAllocation.variance_ratio`.
+- Source: [REF-PEHERSTORFER-WILLCOX-GUNZBURGER-2016, Section 3] (variance
+  reduction relative to Monte Carlo at equal budget).

@@ -5123,6 +5123,27 @@ Oliver Hines, Oliver Dukes, Karla Diaz-Ordaz, and Stijn Vansteelandt.
 "Demystifying Statistical Learning Based on Efficient Influence Functions."
 *The American Statistician* 76(3), 292-304, 2022.
 DOI: [10.1080/00031305.2021.2021984](https://doi.org/10.1080/00031305.2021.2021984).
+## REF-PEHERSTORFER-WILLCOX-GUNZBURGER-2016
+
+Benjamin Peherstorfer, Karen Willcox, and Max Gunzburger. "Optimal Model
+Management for Multifidelity Monte Carlo Estimation." *SIAM Journal on
+Scientific Computing* 38(5), A3163-A3194, 2016. Multifidelity Monte Carlo
+estimator on nested samples, its variance, the closed-form optimal
+coefficients and sample ratios for a cost budget, the ordering and
+cost-correlation conditions under which they are optimal, and the selection
+of a model subset (Section 3).
+DOI: [10.1137/15M1046472](https://doi.org/10.1137/15M1046472).
+
+## REF-GORODETSKY-GERACI-ELDRED-JAKEMAN-2020
+
+Alex A. Gorodetsky, Gianluca Geraci, Michael S. Eldred, and John D.
+Jakeman. "A Generalized Approximate Control Variate Framework for
+Multifidelity Uncertainty Quantification." *Journal of Computational
+Physics* 408, 109257, 2020. Control variates whose low-fidelity means are
+themselves estimated; optimal weights `-Cov(Delta, Delta)^-1 Cov(Delta, Q)`
+and the variance of the ACV-IS and ACV-MF sampling schemes.
+DOI: [10.1016/j.jcp.2020.109257](https://doi.org/10.1016/j.jcp.2020.109257);
+arXiv:1811.04988.
 
 ## REF-SCHADEN-ULLMANN-2020
 
@@ -5411,3 +5432,18 @@ Policy for Sequential Information Collection." *SIAM Journal on Control and
 Optimization* 47(5), 2410-2439, 2008. The one-step expected increase of the
 best posterior mean for independent normal beliefs, in closed form.
 DOI: [10.1137/070693424](https://doi.org/10.1137/070693424).
+2020. Generalized least squares over independent groups of jointly evaluated
+models: the normal matrix `Psi = sum_k n_k P_k' C_k^-1 P_k`, the estimator
+`Psi^-1 y`, its covariance `Psi^-1`, and the sample allocation problem.
+DOI: [10.1137/19M1263534](https://doi.org/10.1137/19M1263534).
+
+## REF-CROCI-WILLCOX-WRIGHT-2023
+
+Matteo Croci, Karen E. Willcox, and Stephen J. Wright. "Multi-Output
+Multilevel Best Linear Unbiased Estimators via Semidefinite Programming."
+*Computer Methods in Applied Mechanics and Engineering* 413, 116130, 2023.
+Statement of the MLBLUE sample allocation problem (minimize the estimator
+variance subject to a cost budget and non-negative group sample counts) and
+its solution as a semidefinite program; cited here for the problem statement
+only.
+DOI: [10.1016/j.cma.2023.116130](https://doi.org/10.1016/j.cma.2023.116130).
