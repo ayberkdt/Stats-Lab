@@ -5534,6 +5534,7 @@ Statistics." *Bernoulli* 28(4), 2345-2374, 2022. First-order Sobol indices
 of all inputs from one i.i.d. sample through the lag-one product of the
 output sorted by an input, with consistency and a central limit theorem.
 DOI: [10.3150/21-BEJ1421](https://doi.org/10.3150/21-BEJ1421).
+
 ## REF-LUGOSI-MENDELSON-2019
 
 Gábor Lugosi and Shahar Mendelson. "Mean Estimation and Regression Under

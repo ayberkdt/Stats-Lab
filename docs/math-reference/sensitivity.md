@@ -428,7 +428,7 @@ with `Y^i` sharing only `X_i` with `Y` and `Y'` an independent copy.
 - Code: `sensitivity.kernel_sobol_indices`,
   `sensitivity.model_kernel_sobol_indices`.
 - Source: [REF-DA-VEIGA-2021].
-  - [REF-DA-VEIGA-2021](../references.md#ref-da-veiga-2021): Sébastien da Veiga. "Kernel-Based ANOVA Decomposition and Shapley Effects - Application to Global Sensitivity Analysis." Preprint, 2021. Sensitivity indices based on the maximum mean discrepancy and their pick-freeze form. [arXiv:2101.05487](https://arxiv.org/abs/2101.05487).
+  - [REF-DA-VEIGA-2021](../references.md#ref-da-veiga-2021): Sébastien da Veiga. "Kernel-Based ANOVA Decomposition and Shapley Effects - Application to Global Sensitivity Analysis." Preprint, 2021. Sensitivity indices based on the maximum mean discrepancy and their pick-freeze form. [arXiv:2101.05487](https://arxiv.org/abs/2101.05487). American Statistical Association* 116(536), 2009-2022, 2021. DOI: [10.1080/01621459.2020.1758115](https://doi.org/10.1080/01621459.2020.1758115).
 - Registry: [EQ-SENS-KERNEL-001](../equation-registry.md#eq-sens-kernel-001--kernel-mmd-first-order-index)
 
 ### EQ-SENS-KERNEL-002 — Pooled pick-freeze estimator of the kernel index
@@ -448,7 +448,7 @@ pairwise distance of `y_B` by default.
 - Source: [REF-DA-VEIGA-2021] (pick-freeze form), [REF-JANON-ETAL-2014]
   (pooled symmetric estimator) and [REF-GRETTON-ETAL-2008] (median
   heuristic).
-  - [REF-DA-VEIGA-2021](../references.md#ref-da-veiga-2021): Sébastien da Veiga. "Kernel-Based ANOVA Decomposition and Shapley Effects - Application to Global Sensitivity Analysis." Preprint, 2021. Sensitivity indices based on the maximum mean discrepancy and their pick-freeze form. [arXiv:2101.05487](https://arxiv.org/abs/2101.05487).
+  - [REF-DA-VEIGA-2021](../references.md#ref-da-veiga-2021): Sébastien da Veiga. "Kernel-Based ANOVA Decomposition and Shapley Effects - Application to Global Sensitivity Analysis." Preprint, 2021. Sensitivity indices based on the maximum mean discrepancy and their pick-freeze form. [arXiv:2101.05487](https://arxiv.org/abs/2101.05487). American Statistical Association* 116(536), 2009-2022, 2021. DOI: [10.1080/01621459.2020.1758115](https://doi.org/10.1080/01621459.2020.1758115).
   - [REF-JANON-ETAL-2014](../references.md#ref-janon-etal-2014): Alexandre Janon, Thierry Klein, Agnès Lagnoux, Maëlle Nodet, and Clémentine Prieur. "Asymptotic Normality and Efficiency of Two Sobol Index Estimators." *ESAIM: Probability and Statistics* 18, 342-364, 2014. The estimator `T_N` and its asymptotic variance (Proposition 2.2). DOI: [10.1051/ps/2013040](https://doi.org/10.1051/ps/2013040).
   - [REF-GRETTON-ETAL-2008](../references.md#ref-gretton-etal-2008): Arthur Gretton, Kenji Fukumizu, Choon Hui Teo, Le Song, Bernhard Schölkopf, and Alex J. Smola. "A Kernel Statistical Test of Independence." In *Advances in Neural Information Processing Systems 20 (NIPS 2007)*, 585-592, 2008. The HSIC independence test with the Gamma approximation to the null law of `n HSIC_b` and the median bandwidth heuristic.
 - Registry: [EQ-SENS-KERNEL-002](../equation-registry.md#eq-sens-kernel-002--pooled-pick-freeze-estimator-of-the-kernel-index)

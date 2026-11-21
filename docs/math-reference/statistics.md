@@ -127,7 +127,7 @@ the sum is `n - 1`, and `xi_n = 1 - 3/(n + 1) = (n - 2)/(n + 1)`.
   symmetric in its arguments.
 - Code: `statistics.chatterjee_correlation`, `statistics.ChatterjeeResult`.
 - Source: [REF-CHATTERJEE-2021].
-  - [REF-CHATTERJEE-2021](../references.md#ref-chatterjee-2021): Sourav Chatterjee. "A New Coefficient of Correlation." *Journal of the American Statistical Association* 116(536), 2009-2022, 2021. DOI: [10.1080/01621459.2020.1758115](https://doi.org/10.1080/01621459.2020.1758115).
+  - [REF-CHATTERJEE-2021](../references.md#ref-chatterjee-2021): Sourav Chatterjee. "A New Coefficient of Correlation." *Journal of the American Statistical Association* 116(536), 2009-2022, 2021. The rank correlation `xi_n`, its limit (0 under independence, 1 for a functional relation), and the `N(0, 2/5)` null law for a continuous response. DOI: [10.1080/01621459.2020.1758115](https://doi.org/10.1080/01621459.2020.1758115).
 - Registry: [EQ-STAT-DEP-001](../equation-registry.md#eq-stat-dep-001--chatterjees-rank-correlation)
 
 ### EQ-STAT-DEP-002 — Null distribution of Chatterjee's coefficient
@@ -140,7 +140,7 @@ distribution; `z = sqrt(5 n / 2) xi_n`, one-sided `p = 1 - Phi(z)`.
   `xi_n`.
 - Code: `statistics.chatterjee_correlation`.
 - Source: [REF-CHATTERJEE-2021].
-  - [REF-CHATTERJEE-2021](../references.md#ref-chatterjee-2021): Sourav Chatterjee. "A New Coefficient of Correlation." *Journal of the American Statistical Association* 116(536), 2009-2022, 2021. DOI: [10.1080/01621459.2020.1758115](https://doi.org/10.1080/01621459.2020.1758115).
+  - [REF-CHATTERJEE-2021](../references.md#ref-chatterjee-2021): Sourav Chatterjee. "A New Coefficient of Correlation." *Journal of the American Statistical Association* 116(536), 2009-2022, 2021. The rank correlation `xi_n`, its limit (0 under independence, 1 for a functional relation), and the `N(0, 2/5)` null law for a continuous response. DOI: [10.1080/01621459.2020.1758115](https://doi.org/10.1080/01621459.2020.1758115).
 - Registry: [EQ-STAT-DEP-002](../equation-registry.md#eq-stat-dep-002--null-distribution-of-chatterjees-coefficient)
 
 ### EQ-STAT-DEP-003 — Sample distance covariance

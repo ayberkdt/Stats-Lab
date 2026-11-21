@@ -20137,6 +20137,7 @@ pairwise distance of `y_B` by default.
 - Source: [REF-DA-VEIGA-2021] (pick-freeze form), [REF-JANON-ETAL-2014]
   (pooled symmetric estimator) and [REF-GRETTON-ETAL-2008] (median
   heuristic).
+
 ## Robust means, shrinkage covariance, dependence measures, and sliced and unbalanced transport (ADR-0127)
 
 ### EQ-STAT-ROB-001 — Median-of-means estimator
