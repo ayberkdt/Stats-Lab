@@ -38,6 +38,8 @@ Main entry points:
         ``method_card``: certification of claims.
     ``run_simulation_study``: an ADEMP study with a fingerprinted protocol.
     ``rank_by_efficiency``, ``sequential_halving``: candidate selection.
+    ``compare_sequentially``: anytime-valid paired comparison of two
+        methods.
 
 Assumptions:
     Every construction is exact only under the conditions its docstring
@@ -127,6 +129,8 @@ from .racing import (
     EfficiencyRanking,
     HalvingResult,
     HalvingRound,
+    SequentialComparison,
+    compare_sequentially,
     rank_by_efficiency,
     sequential_halving,
 )
@@ -165,6 +169,7 @@ __all__ = [
     "Performance",
     "PrecisionComparison",
     "ReplicateSummary",
+    "SequentialComparison",
     "SimulationStudyResult",
     "StudyProtocol",
     "TruncationDesign",
@@ -180,6 +185,7 @@ __all__ = [
     "check_variance",
     "check_variance_stability",
     "combine_unbiased",
+    "compare_sequentially",
     "control_variate_estimator",
     "coupled_sum_estimator",
     "empirical_influence",

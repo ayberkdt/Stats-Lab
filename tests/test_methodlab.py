@@ -37,6 +37,7 @@ from probstat.methodlab import (
     check_variance,
     check_variance_stability,
     combine_unbiased,
+    compare_sequentially,
     control_variate_estimator,
     coupled_sum_estimator,
     empirical_influence,
@@ -1004,6 +1005,55 @@ class SearchTests(unittest.TestCase):
             for seed in range(40)
         )
         self.assertGreaterEqual(wins, 30)
+
+    def test_sequential_comparison_decides_for_a_better_method(self) -> None:
+        """A method with half the error scale is declared better early."""
+
+        def loss(scale: float):  # type: ignore[no-untyped-def]
+            """Return a bounded absolute-error loss with the given scale."""
+
+            def pull(index: int, stream: RandomStream) -> float:
+                """Return ``min(1, |scale * z|)``."""
+                return min(1.0, abs(stream.generator().gauss(0.0, scale)))
+
+            return pull
+
+        result = compare_sequentially(
+            loss(0.5), loss(1.0), bound=1.0, max_pairs=2000, seed=1
+        )
+        self.assertTrue(result.decided)
+        self.assertLess(result.pairs, 200)
+        self.assertGreater(result.mean_difference, 0.0)
+        self.assertLessEqual(result.p_value, 0.05)
+        same = compare_sequentially(
+            loss(1.0), loss(1.0), bound=1.0, max_pairs=300, seed=1
+        )
+        self.assertFalse(same.decided)
+        self.assertEqual(same.pairs, 300)
+        with self.assertRaises(ValueError):
+            compare_sequentially(loss(1.0), loss(1.0), bound=0.0, max_pairs=10, seed=1)
+        with self.assertRaises(ValueError):
+            compare_sequentially(loss(1.0), loss(1.0), bound=1.0, max_pairs=0, seed=1)
+
+    def test_sequential_comparison_keeps_its_level_under_stopping(self) -> None:
+        """Equal methods are wrongly preferred in at most about 5% of runs."""
+
+        def arm(label: str):  # type: ignore[no-untyped-def]
+            """Return an independent uniform loss on its own child stream."""
+
+            def pull(index: int, stream: RandomStream) -> float:
+                """Return one uniform loss."""
+                return stream.child(label).generator().random()
+
+            return pull
+
+        wrong = sum(
+            compare_sequentially(
+                arm("a"), arm("b"), bound=1.0, max_pairs=300, seed=seed
+            ).decided
+            for seed in range(200)
+        )
+        self.assertLessEqual(wrong, 21)  # Binomial(200, 0.05) upper 0.1% point
 
 
 if __name__ == "__main__":

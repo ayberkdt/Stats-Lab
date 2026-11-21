@@ -8,9 +8,12 @@ candidates by measurement:
 - :func:`rank_by_efficiency` replicates every candidate estimator and ranks
   them by work-normalized variance with a standard error for each;
 - :func:`sequential_halving` spends a fixed budget of evaluations on a set
-  of candidates, halving the set each round, and returns the survivor.
+  of candidates, halving the set each round, and returns the survivor;
+- :func:`compare_sequentially` compares a candidate with a baseline on
+  paired problems and may stop as soon as the evidence suffices, with an
+  error probability that holds under this optional stopping.
 
-Both are *selection* procedures. The winner of a search is selected because
+The first two are *selection* procedures. The winner of a search is selected because
 it looked best on the search data, so its measured performance is
 optimistically biased (the winner's curse); certify the selected method on
 fresh seeds with :mod:`probstat.methodlab.certify` before reporting its
@@ -24,7 +27,11 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
-from probstat.foundations.validation import require_non_negative_integer
+from probstat.foundations.validation import (
+    require_finite_real,
+    require_non_negative_integer,
+)
+from probstat.inference import paired_betting_test
 
 from .estimators import Estimator, ReplicateSummary, summarize
 
@@ -259,3 +266,129 @@ def sequential_halving(
         keep = math.ceil(len(survivors) / 2)
         survivors = [survivors[i] for i in sorted(order[:keep])]
     return HalvingResult(survivors[0], tuple(rounds), used, total)
+
+
+@dataclass(frozen=True, slots=True)
+class SequentialComparison:
+    """Outcome of an anytime-valid paired comparison of two methods.
+
+    Args:
+        decided: Whether the candidate was declared better than the baseline.
+        pairs: Number of paired problems evaluated (the stopping time when
+            ``decided``, else the maximum).
+        e_value: Betting capital against "the candidate is not better"
+            after the last evaluated batch; the decision is taken when the
+            capital first reaches ``1 / alpha``.
+        p_value: Anytime-valid p-value ``min(1, 1 / max capital)``.
+        mean_difference: Mean of ``baseline loss - candidate loss`` over the
+            evaluated pairs (optimistic when the comparison stopped early).
+        alpha: Error probability of a wrong decision.
+        bound: Bound ``B`` on the absolute loss difference.
+
+    References:
+        [REF-WAUDBY-SMITH-RAMDAS-2024], [REF-RAMDAS-ETAL-2023],
+        [EQ-INF-CS-001].
+
+    """
+
+    decided: bool
+    pairs: int
+    e_value: float
+    p_value: float
+    mean_difference: float
+    alpha: float
+    bound: float
+
+
+def compare_sequentially(
+    candidate: Pull,
+    baseline: Pull,
+    *,
+    bound: float,
+    max_pairs: int,
+    seed: int | RandomStream,
+    alpha: float = 0.05,
+    batch: int = 25,
+) -> SequentialComparison:
+    """Compare two methods on paired problems with optional stopping.
+
+    Problem ``t`` gives both methods the same child stream ``("pair", t)``
+    and records the difference ``d_t = baseline loss - candidate loss``,
+    which must lie in ``[-bound, bound]``. The null hypothesis "the
+    candidate is not better", ``E[d_t] <= 0``, is tested by a betting
+    martingale ([EQ-INF-CS-001]): by Ville's inequality the probability
+    that its capital ever reaches ``1 / alpha`` under the null is at most
+    ``alpha``, whatever the stopping rule. The comparison therefore stops
+    at the first batch boundary at which the capital has reached
+    ``1 / alpha`` and declares the candidate better, or reports no decision
+    after ``max_pairs`` problems. No decision is not evidence of equality.
+
+    A fixed-sample test repeated after every batch does not have this
+    property: its error probability grows with the number of looks.
+
+    Args:
+        candidate: ``candidate(index, stream)`` returns the loss of the new
+            method on problem ``index``.
+        baseline: The same for the reference method.
+        bound: Positive bound on ``|baseline loss - candidate loss|``; for
+            losses in ``[0, 1]`` use one.
+        max_pairs: Maximum number of paired problems.
+        seed: Root seed or stream.
+        alpha: Probability of wrongly declaring the candidate better.
+        batch: Number of problems evaluated between looks at the capital.
+
+    Returns:
+        The decision, the number of pairs used, and the evidence.
+
+    Raises:
+        ValueError: If a count or bound is not positive, or a difference
+            leaves ``[-bound, bound]``.
+
+    References:
+        [REF-WAUDBY-SMITH-RAMDAS-2024] (testing by betting),
+        [REF-RAMDAS-ETAL-2023] (optional stopping and Ville's inequality),
+        [EQ-INF-CS-001].
+
+    """
+    limit = require_finite_real(bound, name="bound")
+    if limit <= 0.0:
+        raise ValueError("bound must be positive")
+    total = require_non_negative_integer(max_pairs, name="max_pairs")
+    step = require_non_negative_integer(batch, name="batch")
+    if total == 0 or step == 0:
+        raise ValueError("max_pairs and batch must be positive")
+    root = resolve_stream(seed)
+    first: list[float] = []
+    second: list[float] = []
+    while len(first) < total:
+        for index in range(len(first), min(len(first) + step, total)):
+            stream = root.child("pair", index)
+            first.append(float(baseline(index, stream)))
+            second.append(float(candidate(index, stream)))
+        result = paired_betting_test(
+            first, second, difference_bound=limit, alpha=alpha, alternative="greater"
+        )
+        if result.rejected:
+            used = result.stopping_time or len(first)
+            differences = [
+                a - b for a, b in zip(first[:used], second[:used], strict=True)
+            ]
+            return SequentialComparison(
+                True,
+                used,
+                result.e_value,
+                result.p_value,
+                math.fsum(differences) / used,
+                alpha,
+                limit,
+            )
+    differences = [a - b for a, b in zip(first, second, strict=True)]
+    return SequentialComparison(
+        False,
+        len(first),
+        result.e_value,
+        result.p_value,
+        math.fsum(differences) / len(first),
+        alpha,
+        limit,
+    )

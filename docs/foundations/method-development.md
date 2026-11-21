@@ -343,6 +343,56 @@ analysis = empirical_influence(ratio_to_first_moment, data)
 round(analysis.estimate, 3), round(analysis.standard_error, 3)  # (3.747, 0.519)
 ```
 
+## 8. Stopping a comparison early without inflating the error
+
+Benchmarking a new method against a baseline invites looking at the results
+as they arrive and stopping when they look good. With a fixed-sample test
+that inflates the error probability. `compare_sequentially` gives both
+methods the same sequence of problems, bets on the loss differences, and
+stops when the betting capital reaches `1 / alpha`; by Ville's inequality
+the probability of ever declaring a method better that is not better is at
+most `alpha`, whatever the stopping rule ([EQ-INF-CS-001],
+[REF-WAUDBY-SMITH-RAMDAS-2024]).
+
+```python
+from probstat.methodlab import compare_sequentially
+
+
+def loss(scale):
+    return lambda index, stream: min(1.0, abs(stream.generator().gauss(0.0, scale)))
+
+
+race = compare_sequentially(loss(0.5), loss(1.0), bound=1.0, max_pairs=2000, seed=1)
+race.decided, race.pairs  # (True, 30)
+```
+
+The losses must be bounded (here they are clipped to `[0, 1]`), and a run
+that ends without a decision is not evidence that the methods are equal.
+
+## 9. Searching a declared space of estimators
+
+For a mean estimated from several correlated models of different cost, the
+linear unbiased estimators form a family in which multifidelity Monte
+Carlo, approximate control variates, and the multilevel best linear
+unbiased estimator are members ([REF-SCHADEN-ULLMANN-2020]).
+`probstat.monte_carlo.compare_multifidelity_estimators` evaluates the
+predicted variance of each member for one covariance matrix, cost vector,
+and budget, which turns "which estimator should I build?" into a table.
+
+```python
+from probstat.monte_carlo import compare_multifidelity_estimators
+
+covariance = ((1.0, 0.95, 0.8), (0.95, 1.0, 0.85), (0.8, 0.85, 1.0))
+table = compare_multifidelity_estimators(covariance, (1.0, 0.1, 0.01), 100.0)
+table.best.method  # 'MLBLUE'
+[(row.method, round(row.variance_ratio, 3)) for row in table.rows]
+# [('MC', 1.0), ('MFMC', 0.308), ('ACV-MF', 0.379), ('MLBLUE', 0.307)]
+```
+
+The ratios are predictions from the covariance supplied. In practice the
+covariance comes from a pilot sample, the predictions inherit its error,
+and the selected estimator should be certified as in Section 4.
+
 ## Common pitfalls
 
 - **Reading "not refuted" as "correct".** Section 1 shows a biased rule
