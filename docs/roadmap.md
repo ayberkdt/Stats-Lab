@@ -121,8 +121,10 @@ tested evidence.
 - [x] Conformal prediction (ADR-0033), distribution-shift tests and forecast
   calibration with proper scoring rules (ADR-0042); adaptive conformal
   inference under distribution shift and a Beta-Bernoulli Thompson-sampling
-  bandit for sequential decisions (ADR-0079). Contextual bandits and Markov
-  decision processes are not implemented.
+  bandit for sequential decisions (ADR-0079); contextual bandits with linear
+  payoffs, off-policy evaluation, finite Markov decision processes, and
+  fixed-budget best-arm identification (ADR-0126). Tabular reinforcement
+  learning is not implemented.
 - [x] Reproducible benchmark suites that compare correctness, calibration,
   numerical stability, and computational cost—not accuracy alone (ADR-0049).
 
@@ -305,6 +307,38 @@ Each item is a standing rule; the named test fails when a change breaks it.
 - [x] Performance and data profiles in the benchmark report, and a
   multiple-precision reference backend with enforced ULP budgets (ADR-0077).
 
+## Frontier track (0.27)
+
+Methods published or consolidated in the last decade, each re-derived and
+tested against an independent oracle, and the tools for deriving and
+certifying new estimators. The survey behind this track, the open questions
+it found, and the verified sources not yet implemented are in
+[`research/literature-gaps-2026.md`](research/literature-gaps-2026.md).
+
+- [x] Multifidelity estimation: MFMC, approximate control variates, and
+  multilevel best linear unbiased estimators with allocation (ADR-0117).
+- [x] Anytime-valid inference (e-values, e-BH, betting tests and confidence
+  sequences, universal inference) and prediction-powered inference for a
+  mean (ADR-0119).
+- [x] Conformal prediction under covariate shift and with fixed weights,
+  conformal risk control, conformal p-values, Mondrian and CV+ intervals,
+  online quantile tracking (ADR-0120).
+- [x] Double/debiased machine learning, staggered difference-in-differences,
+  omitted-variable-bias sensitivity, synthetic control, two-stage least
+  squares (ADR-0121).
+- [x] Pareto-smoothed importance sampling and PSIS-LOO, nested R-hat, SVGD,
+  slice and elliptical slice sampling, MALA, the stretch move, parallel
+  tempering (ADR-0122).
+- [x] Rank-based Sobol indices, Chatterjee's coefficient, moment-independent
+  and kernel indices, active subspaces (ADR-0123).
+- [x] Recursive co-kriging, stochastic kriging, Bayesian quadrature, and
+  Bayesian optimization (ADR-0125).
+- [x] Median-of-means and Catoni means, Ledoit-Wolf shrinkage, distance
+  correlation, sliced and unbalanced optimal transport (ADR-0127).
+- [x] A method laboratory: estimator combinators with lineage,
+  certification checks with scoped verdicts, pre-specified simulation
+  studies, candidate selection (ADR-0131).
+
 ## Beyond the current scope
 
 Extensions recorded in the decision records as possible future work. They
@@ -316,5 +350,6 @@ are not commitments of the roadmap above.
   (ADR-0088).
 - Amortized inference with non-Gaussian conditional density estimators
   (ADR-0079).
-- Contextual bandits and Markov decision processes (ADR-0079).
+- Tabular reinforcement learning (ADR-0126); the verified sources of
+  `research/literature-gaps-2026.md`, Section 4.
 - Translation of the text inside Matplotlib figures (ADR-0085).
