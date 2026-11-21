@@ -96,6 +96,26 @@ solver.
   sample-to-predicted variance ratios of 1.004 (MFMC), 0.994 (ACV-MF), 1.019
   (ACV-IS), and 0.934 (MLBLUE) against a band of `+/- 0.319`, and means
   within 1.5 predicted standard errors of the truth.
+- Predicted variances from a pilot covariance are optimistic. An
+  independent audit with four non-Gaussian models (`exp(z_1) + 0.3 z_2^2`
+  and three cheaper surrogates), a pilot of 30 samples, budget 60 and 1500
+  seeded replicates (400 for MLBLUE) found every estimator unbiased (bias
+  within one standard error) but a ratio of realized to mean predicted
+  variance of 1.62 (MFMC), 1.68 (ACV-MF), 1.96 (ACV-IS) and 2.93 (MLBLUE):
+  the more freedom the weights have, the more they fit pilot noise.
+- The lower bound `g^2 / max_k d_k` was attacked by random and local search
+  over the simplex on 150 random problems with two to four models and
+  random group sets; no allocation fell below it and every run closed the
+  gap. The integer rounding was compared with exhaustive search on 392
+  random problems with budgets of 1 to 12 high-fidelity evaluations: before
+  0.27.0 was released it rejected 15 affordable problems ("the budget does
+  not pay for one sample ...") and returned variances up to 4.0 times the
+  integer optimum and up to 1.5 times plain Monte Carlo. It now also tries
+  the greedy filling from the empty allocation and from the best
+  single-group allocation: no rejection, never above plain Monte Carlo when
+  the group `{0}` is offered, a better integer allocation exists in 29% of
+  those problems (worst factor 2.0). At budgets of hundreds of evaluations
+  the rounded variance is within 0.1% of the continuous optimum.
 - `mlblue_allocation` costs about 0.1 s for 15 groups, 1.2 s for 31, and
   7.5 s for 63 in pure Python; `max_group_size` or an explicit group list
   limits the work.

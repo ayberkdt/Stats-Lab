@@ -124,9 +124,22 @@ error statement: replicate-based intervals existed only inside
 - Student-t coverage of nominal 95 % intervals over 1000 seeds, `n = 31`
   (`32` for nets): between 0.935 and 0.955 for shifted lattices, Owen-
   scrambled Sobol and scrambled Halton points on three two-dimensional
-  integrands with `R = 5` and `R = 10`; `0.923` for the one-dimensional
-  linear integrand with a shifted lattice and `R = 5`, where each replicate
-  error is exactly uniform. The docstrings call the interval approximate.
+  integrands with `R = 5` and `R = 10`. For the one-dimensional linear
+  integrand with a shifted lattice each replicate error is exactly uniform,
+  so the coverage is that of a t interval for uniform data: `0.923`
+  (`R = 3`), `0.935` (`R = 5`), `0.947` (`R = 10`) by direct simulation with
+  400 000 samples (the first 1000 seeds had given `0.923` for `R = 5`, a
+  low draw). The docstrings call the interval approximate.
+- An independent audit over 3000 seeds per case (standard errors about
+  0.004 to 0.007) found the interval much less reliable outside smooth
+  integrands, at the same `n`: for the indicator of `x_1 + x_2 < 0.7`
+  coverage `0.795` (shifted lattice, `R = 3`), `0.929` (`R = 5`), `0.917`
+  (digitally shifted Sobol, `R = 5`); for the three-dimensional periodic
+  exponential `0.902` (lattice, `R = 3`); and for the integrable
+  singularity `x^-0.4` in one dimension between `0.795` and `0.878` for all
+  four rules with `R = 5` and `R = 10` (`0.811` for Owen scrambling with
+  `R = 10`): more replicates did not repair it. With `R >= 5` on the smooth
+  and kinked integrands tried the coverage was `0.935` to `0.956`.
 - The mean over 300 seeds of the shifted-lattice estimate differs from the
   integral by less than three standard errors on three integrands.
 

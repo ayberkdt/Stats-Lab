@@ -455,7 +455,14 @@ class SimulationStudyResult:
         standard error
         ``2 (EmpSE_ref / EmpSE)^2 sqrt((1 - rho^2) / (n - 1))`` with ``rho``
         the correlation of the paired estimates ([EQ-MLAB-ADEMP-007]);
-        common data sets make ``rho`` large and the comparison sharp.
+        common data sets make ``rho`` large and the comparison sharp. The
+        formula assumes jointly normal estimates, as do the standard errors
+        of the empirical standard error and of the relative error of the
+        model standard error: in 1500 simulated studies of 200 repetitions
+        the reported standard errors matched the spread of the measures
+        within 3% for normal data, while for the mean and median of 15
+        exponential observations they were 12% (relative precision) and 8%
+        (empirical standard error) too small.
 
         Args:
             mechanism: Mechanism label.

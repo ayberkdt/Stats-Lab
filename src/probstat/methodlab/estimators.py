@@ -298,6 +298,45 @@ def summarize_draws(name: str, draws: Sequence[Draw]) -> ReplicateSummary:
     return ReplicateSummary(name, size, mean, variance, mean_cost, fourth)
 
 
+def _log_work_normalized_variance_error(draws: Sequence[Draw]) -> float:
+    """Return the standard error of ``log(s^2 * mean cost)`` of replicates.
+
+    Delta method for ``log WNV = log s^2 + log c_bar``: with
+    ``a_r = (Z_r - Z_bar)^2 / m_2`` (``m_2`` the mean squared deviation) and
+    ``b_r = c_r / c_bar``,
+
+    ``Var[log WNV] ~ Var[s^2] / s^4 + (Var[b] + 2 Cov[a, b]) / R``,
+
+    where the first term is [EQ-MLAB-MCSE-002] and the sample variance and
+    covariance use the divisor ``R - 1``. For a constant cost the second
+    term vanishes. The approximation needs finite fourth moments of the
+    values and a finite variance of the costs.
+
+    Raises:
+        ValueError: If fewer than two draws are given or the variance or
+            the mean cost is zero.
+
+    References:
+        [EQ-MLAB-WNV-001], [EQ-MLAB-MCSE-002],
+        [REF-GLASSERMAN-2003, Section 1.1.3].
+
+    """
+    summary = summarize_draws("draws", draws)
+    if summary.variance <= 0.0 or summary.mean_cost <= 0.0:
+        raise ValueError("a positive variance and mean cost are required")
+    size = summary.count
+    second = summary.variance * (size - 1) / size
+    scaled_squares = [(d.value - summary.mean) ** 2 / second - 1.0 for d in draws]
+    scaled_costs = [d.cost / summary.mean_cost - 1.0 for d in draws]
+    cost_variance = math.fsum(b * b for b in scaled_costs) / (size - 1)
+    cross = math.fsum(
+        a * b for a, b in zip(scaled_squares, scaled_costs, strict=True)
+    ) / (size - 1)
+    variance_term = (summary.variance_standard_error / summary.variance) ** 2
+    total = variance_term + (cost_variance + 2.0 * cross) / size
+    return math.sqrt(max(total, 0.0))
+
+
 def summarize(
     estimator: Estimator, replicates: int, seed: int | RandomStream
 ) -> ReplicateSummary:

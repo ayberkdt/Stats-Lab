@@ -217,6 +217,56 @@ class RandomizedTruncationTests(unittest.TestCase):
         # Unit-cost differences: E[cost] = sum_n P(N >= n) = 1 / (1 - 0.4).
         self.assertAlmostEqual(summary.mean_cost, 1.0 / 0.6, delta=0.08)
 
+    def test_sum_estimator_has_the_independent_sum_variance(self) -> None:
+        """Levels are drawn independently, so the variance is the independent one.
+
+        ``Y_n = mu_n + s_n xi`` with one standard normal ``xi``. A coupled
+        path would share ``xi`` across levels and give variance 11.571; the
+        implemented estimator draws each difference on its own stream and
+        has ``sum_n (Var[Delta_n] + (mu - mu_(n-1))^2 - (mu - mu_n)^2) /
+        P(N >= n) - mu^2 = 22.714``.
+        """
+        ratio = 0.6
+
+        def mean(level: int) -> float:
+            """Return ``mu_n = 1 - 2^-(n+1)`` (zero below level 0)."""
+            return 0.0 if level < 0 else 1.0 - 2.0 ** -(level + 1)
+
+        def scale(level: int) -> float:
+            """Return ``s_n = 1 + 3 * 2^-n`` (zero below level 0)."""
+            return 0.0 if level < 0 else 1.0 + 3.0 * 2.0**-level
+
+        def difference(level: int, stream: RandomStream) -> Draw:
+            """Return ``Y_n - Y_(n-1)`` for one normal variate of the stream."""
+            xi = stream.generator().gauss(0.0, 1.0)
+            return Draw(
+                mean(level) - mean(level - 1) + (scale(level) - scale(level - 1)) * xi,
+                1.0,
+            )
+
+        independent = (
+            math.fsum(
+                (
+                    (scale(n) - scale(n - 1)) ** 2
+                    + (1.0 - mean(n - 1)) ** 2
+                    - (1.0 - mean(n)) ** 2
+                )
+                / ratio**n
+                for n in range(200)
+            )
+            - 1.0
+        )
+        self.assertAlmostEqual(independent, 22.714, places=3)
+        estimator = coupled_sum_estimator("sum", difference, geometric_levels(ratio))
+        summary = summarize(estimator, 40000, 11)
+        self.assertLess(abs(summary.mean - 1.0), 4 * summary.mean_standard_error)
+        self.assertLess(
+            abs(summary.variance - independent), 4 * summary.variance_standard_error
+        )
+        self.assertGreater(
+            summary.variance, 11.571 + 20 * summary.variance_standard_error
+        )
+
     def test_too_light_a_level_law_shows_unstable_variance(self) -> None:
         """With ``r < 1/4`` the variance is infinite and one draw dominates."""
         heavy = single_term_estimator("bad", noisy_difference, geometric_levels(0.1))
@@ -570,6 +620,25 @@ class CertificationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             check_unbiasedness(fair, 0.5, replicates=10, seed=1, confidence=1.0)
 
+    def test_unbiasedness_interval_uses_the_student_t_quantile(self) -> None:
+        """With few replicates the interval of the bias is a t interval.
+
+        Regression: the normal quantile was used, which refuted a true
+        claim in 7% of runs at the 99% level with five normal replicates.
+        """
+        normal = estimator_from_function("normal", lambda g: g.gauss(0.0, 1.0))
+        result = check_unbiasedness(normal, 0.0, replicates=5, seed=3)
+        half_width = 0.5 * (result.upper - result.lower)
+        self.assertAlmostEqual(
+            half_width / result.standard_error, StudentT(4).quantile(0.995), places=9
+        )
+        refuted = sum(
+            check_unbiasedness(normal, 0.0, replicates=5, seed=seed).verdict
+            == "refuted"
+            for seed in range(1500)
+        )
+        self.assertLessEqual(refuted, 28)  # Binomial(1500, 0.01) upper 0.1% point
+
     def test_false_refutation_rate_is_near_the_nominal_level(self) -> None:
         """Over 400 seeds a true claim is refuted about 5% of the time."""
         fair = uniform_estimator()
@@ -675,6 +744,17 @@ class CertificationTests(unittest.TestCase):
                 replicates=10,
                 seed=1,
             )
+        # A repeated size would reuse one replicate stream as if independent.
+        with self.assertRaises(ValueError):
+            check_convergence_rate(
+                "mean",
+                lambda n: sample_mean(base, n),
+                (4, 4, 8, 16),
+                0.5,
+                expected_rate=1.0,
+                replicates=10,
+                seed=1,
+            )
 
     def test_efficiency_gain_is_inconclusive_for_equal_estimators(self) -> None:
         """A mean of ten has the same work-normalized variance as one draw."""
@@ -691,6 +771,44 @@ class CertificationTests(unittest.TestCase):
             seed=1,
         )
         self.assertEqual(worse.verdict, "refuted")
+
+    def test_efficiency_gain_accounts_for_random_costs(self) -> None:
+        """Two copies of an estimator with a random cost are not told apart.
+
+        Regression: the interval ignored the uncertainty of the mean cost.
+        For a cost ``2^N`` with a geometric level (ratio 0.45, infinite cost
+        variance) and a true gain of one, 44% of runs ended "supported" or
+        "refuted" at the 99% level.
+        """
+
+        def sampler(stream: RandomStream) -> Draw:
+            """Return a standard normal value with the cost ``2^N``."""
+            generator = stream.generator()
+            level = int(math.log(1.0 - generator.random()) / math.log(0.45))
+            return Draw(generator.gauss(0.0, 1.0), 2.0**level)
+
+        first = Estimator("first", sampler)
+        second = Estimator("second", sampler)
+        decided = sum(
+            check_efficiency_gain(first, second, replicates=200, seed=seed).verdict
+            != "inconclusive"
+            for seed in range(150)
+        )
+        self.assertLessEqual(decided, 20)
+        # With a constant cost only the sample variances contribute.
+        fair = uniform_estimator()
+        result = check_efficiency_gain(fair, fair, replicates=400, seed=5)
+        new = summarize(fair, 400, RandomStream(5).child("candidate"))
+        old = summarize(fair, 400, RandomStream(5).child("baseline"))
+        log_se = math.hypot(
+            new.variance_standard_error / new.variance,
+            old.variance_standard_error / old.variance,
+        )
+        self.assertAlmostEqual(
+            math.log(result.upper / result.lower),
+            2.0 * 2.5758293035489 * log_se,
+            places=9,
+        )
 
     def test_metamorphic_relations(self) -> None:
         """Permutation invariance holds for the mean, not for 'first'."""

@@ -1037,6 +1037,34 @@ class MLBLUEAllocationTests(unittest.TestCase):
                 mlblue_variance(covariance, plan.groups, counts), plan.lower_bound
             )
 
+    def test_small_budget_rounding_keeps_the_high_fidelity_model(self) -> None:
+        """A budget of one to four high-fidelity samples is allocated sensibly.
+
+        Regression: flooring the continuous solution spent the money on the
+        cheap groups, so that an affordable problem was rejected ("the
+        budget does not pay for one sample ...") or the integer allocation
+        had a larger variance than plain Monte Carlo.
+        """
+        pair = [[1.0, 0.9], [0.9, 1.0]]
+        for budget in (1.05, 1.2):
+            plan = mlblue_allocation(pair, (1.0, 0.1), budget)
+            self.assertLessEqual(plan.cost, budget * (1 + 1e-9))
+            self.assertGreaterEqual(plan.evaluations[0], 1)
+            self.assertLessEqual(plan.variance, 1.0 + 1e-12)
+        covariance = [
+            [13.125687141451692, 16.915944912324093, 15.064719116429838],
+            [16.915944912324093, 21.969216137710323, 19.61827014800859],
+            [15.064719116429838, 19.61827014800859, 20.190872534922274],
+        ]
+        costs = (1.0, 0.8008649753007235, 0.6374735039880951)
+        budget = 4.461439757095218
+        plan = mlblue_allocation(covariance, costs, budget)
+        self.assertLessEqual(plan.cost, budget * (1 + 1e-9))
+        # Plain Monte Carlo affords four samples; it is one feasible group
+        # allocation, so the returned integers must not be worse.
+        self.assertLessEqual(plan.variance, covariance[0][0] / 4 * (1 + 1e-12))
+        self.assertGreaterEqual(plan.variance, plan.lower_bound * (1 - 1e-9))
+
     def test_rounded_allocation_is_feasible_and_consistent(self) -> None:
         """Integers respect the budget and their variance is recomputed."""
         covariance = covariance_of(4)

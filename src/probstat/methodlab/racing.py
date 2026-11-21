@@ -33,7 +33,12 @@ from probstat.foundations.validation import (
 )
 from probstat.inference import paired_betting_test
 
-from .estimators import Estimator, ReplicateSummary, summarize
+from .estimators import (
+    Estimator,
+    ReplicateSummary,
+    _log_work_normalized_variance_error,
+    summarize_draws,
+)
 
 Pull = Callable[[int, RandomStream], float]
 
@@ -45,7 +50,8 @@ class EfficiencyRanking:
     Args:
         summaries: Replicate summaries, most efficient first.
         log_standard_errors: Standard error of the logarithm of each
-            work-normalized variance, in the same order.
+            work-normalized variance, in the same order (delta method for
+            the sample variance and the mean cost).
 
     References:
         [REF-GLASSERMAN-2003, Section 1.1.3], [EQ-MLAB-WNV-001], [EQ-MLAB-MCSE-002].
@@ -71,7 +77,12 @@ class EfficiencyRanking:
         The log work-normalized variances of the first two candidates are
         compared with a two-sample z statistic. The default ``z`` is the
         two-sided 99% normal quantile; it is a per-pair statement that
-        ignores the selection among more than two candidates.
+        ignores the selection among more than two candidates. The statistic
+        treats the two candidates as independent although
+        :func:`rank_by_efficiency` replicates them on common random numbers;
+        the correlation this induces is not used, so the statement is a
+        heuristic (conservative when the squared deviations of the two are
+        positively correlated).
 
         Args:
             z: Critical value.
@@ -136,10 +147,11 @@ def rank_by_efficiency(
     root = resolve_stream(seed)
     rows: list[tuple[ReplicateSummary, float]] = []
     for member in members:
-        summary = summarize(member, count, root)
+        draws = member.replicates(count, root)
+        summary = summarize_draws(member.name, draws)
         if summary.variance <= 0.0 or summary.mean_cost <= 0.0:
             raise ValueError(f"candidate {member.name!r} has zero variance or cost")
-        rows.append((summary, summary.variance_standard_error / summary.variance))
+        rows.append((summary, _log_work_normalized_variance_error(draws)))
     rows.sort(key=lambda row: row[0].work_normalized_variance)
     return EfficiencyRanking(
         tuple(row[0] for row in rows), tuple(row[1] for row in rows)

@@ -17998,10 +17998,13 @@ sample fourth central moment `m_4` and `S^2`.
 ### EQ-MLAB-WNV-001 — Work-normalized variance
 
 `WNV = Var[Z] E[cost(Z)]`; the efficiency gain of `A` over `B` is
-`WNV_B / WNV_A`.
+`WNV_B / WNV_A`. Delta-method standard error of the logarithm of the
+estimate `s^2 c_bar` from `R` replicates:
+`Var[log WNV] ~ Var[s^2] / s^4 + (Var[c / c_bar] + 2 Cov[(Z - Z_bar)^2 / m_2, c / c_bar]) / R`.
 
 - Domain: unbiased (or equally biased) estimators with finite variance and
-  finite positive expected cost.
+  finite positive expected cost; the standard error also needs a finite
+  fourth moment of `Z` and a finite variance of the cost.
 - Meaning: with a computing budget `c` the mean of about `c / E[cost]`
   replicates has variance near `WNV / c`, so a smaller product means less
   work for the same accuracy.
@@ -18022,14 +18025,22 @@ sample fourth central moment `m_4` and `S^2`.
   `methodlab.finite_levels`, `methodlab.LevelDistribution.probability`.
 - Source: [REF-RHEE-GLYNN-2015]; [REF-MCLEISH-2011].
 
-### EQ-MLAB-RT-002 — Coupled-sum randomized-truncation estimator
+### EQ-MLAB-RT-002 — Independent-sum randomized-truncation estimator
 
-`Z = sum_(n=0)^N Delta_n / P(N >= n)`.
+`Z = sum_(n=0)^N Delta_n / P(N >= n)` with the differences drawn
+independently across levels;
+`E[Z^2] = sum_n (Var[Delta_n] + (mu - mu_(n-1))^2 - (mu - mu_n)^2) / P(N >= n)`,
+`mu_n = E[Y_n]`, `mu_(-1) = 0`.
 
-- Domain: [EQ-MLAB-RT-001]; finite variance requires convergence of
-  `sum_n E[(Y_(n-1) - Y)^2] / P(N >= n)`.
+- Domain: [EQ-MLAB-RT-001]; finite variance when
+  `sum_n Var[Delta_n] / P(N >= n)` and
+  `sum_n (mu - mu_(n-1))^2 / P(N >= n)` converge. (The condition
+  `sum_n E[(Y_(n-1) - Y)^2] / P(N >= n) < infinity` belongs to the
+  coupled-sum estimator of the source, which draws all levels of a replicate
+  from one coupled path and is not implemented.)
 - Meaning: every difference up to a random level enters, weighted by the
-  inverse probability that its level is reached.
+  inverse probability that its level is reached. The implementing function
+  is named `coupled_sum_estimator` for historical reasons.
 - Code: `methodlab.coupled_sum_estimator`,
   `methodlab.LevelDistribution.tail`.
 - Source: [REF-RHEE-GLYNN-2015].
@@ -18162,7 +18173,9 @@ outside `[L, U]`, else not refuted.
 - Domain: an interval of confidence `1 - alpha` for the tested quantity and
   a tolerance declared before the run.
 - Meaning: interval-inclusion equivalence logic; each wrong "refuted" or
-  "supported" has probability at most `alpha`.
+  "supported" has probability at most `alpha` when the interval has exact
+  level `1 - alpha` (the delta-method intervals of the variance, rate, and
+  efficiency checks reach it only for many replicates and light tails).
 - Code: `methodlab.interval_verdict`, `methodlab.CheckResult`,
   `methodlab.MethodCard.verdict`, `methodlab.check_coverage`.
 - Source: [REF-SCHUIRMANN-1987]; [REF-LEHMANN-ROMANO-2005].

@@ -2420,7 +2420,7 @@ A laboratory for deriving new estimators and certifying their claims.
 | `combine_unbiased` | function | Derive the best linear unbiased combination from a pilot run. |
 | `compare_sequentially` | function | Compare two methods on paired problems with optional stopping. |
 | `control_variate_estimator` | function | Derive a control-variate estimator with pilot-estimated coefficients. |
-| `coupled_sum_estimator` | function | Derive the coupled-sum randomized-truncation estimator. |
+| `coupled_sum_estimator` | function | Derive the sum-type randomized-truncation estimator (independent sum). |
 | `DataGeneratingMechanism` | class | A named way of simulating one data set with a known estimand value. |
 | `Draw` | class | One replicate of an estimator and the work it cost. |
 | `EfficiencyRanking` | class | Candidate estimators ordered by work-normalized variance. |

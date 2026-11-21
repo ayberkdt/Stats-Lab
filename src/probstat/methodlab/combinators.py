@@ -16,7 +16,7 @@ relied upon.
 Construction principles:
 
 - randomized truncation of a convergent sequence (single-term and
-  coupled-sum estimators of Rhee and Glynn; McLeish) removes the bias of a
+  independent-sum estimators of Rhee and Glynn; McLeish) removes the bias of a
   sequence of approximations at the price of a random cost;
 - Richardson extrapolation cancels the leading terms of a known bias
   expansion;
@@ -321,14 +321,31 @@ def single_term_estimator(
 def coupled_sum_estimator(
     name: str, difference: LevelSampler, levels: LevelDistribution
 ) -> Estimator:
-    """Derive the coupled-sum randomized-truncation estimator.
+    """Derive the sum-type randomized-truncation estimator (independent sum).
 
     ``Z = sum_(n=0)^N Delta_n / P(N >= n)`` with the level ``N`` independent
-    of the differences ([EQ-MLAB-RT-002]). Its expectation is
-    ``sum_n E[Delta_n] = mu`` whenever the series of second moments
-    ``sum_n E[(Y_n - Y)^2] / P(N >= n)`` (Rhee and Glynn, Theorem 1)
-    converges. All differences up to ``N`` are drawn, each on its own child
-    stream, so the cost of one replicate is ``sum_(n <= N) c_n``.
+    of the differences ([EQ-MLAB-RT-002]). Every difference is drawn on its
+    own child stream ``("difference", n)``, so the differences of one
+    replicate are *independent across levels*: this is the **independent-sum
+    estimator** of Rhee and Glynn, not their coupled-sum estimator, in which
+    all ``Y_0, ..., Y_N`` of one replicate come from a single coupled path.
+    The function keeps its historical name. (Within one difference ``Y_n``
+    and ``Y_(n-1)`` must still be coupled, exactly as for
+    :func:`single_term_estimator`.)
+
+    With ``mu_n = E[Y_n]``, ``mu_(-1) = 0`` and ``mu = lim mu_n``, the
+    expectation is ``sum_n E[Delta_n] = mu`` and the second moment is
+
+    ``E[Z^2] = sum_n (Var[Delta_n] + (mu - mu_(n-1))^2 - (mu - mu_n)^2)
+    / P(N >= n)``,
+
+    finite when ``sum_n Var[Delta_n] / P(N >= n)`` and
+    ``sum_n (mu - mu_(n-1))^2 / P(N >= n)`` converge. The condition
+    ``sum_n E[(Y_(n-1) - Y)^2] / P(N >= n) < infinity`` of Rhee and Glynn's
+    Theorem 1 belongs to the coupled-sum estimator, whose variance is
+    different (in a seeded example with one shared normal variate the
+    implemented estimator has variance 22.7 where the coupled sum would have
+    11.6). The cost of one replicate is ``sum_(n <= N) c_n``.
 
     Args:
         name: Label of the derived estimator.
@@ -337,13 +354,11 @@ def coupled_sum_estimator(
         levels: Law of the truncation level.
 
     Returns:
-        Derived estimator. The differences of one replicate are drawn
-        independently across levels (the "independent sum" variant when the
-        user's sampler does not share randomness across levels).
+        Derived estimator whose differences are independent across levels.
 
     References:
-        [REF-RHEE-GLYNN-2015] (coupled sum and
-        independent sum estimators), [EQ-MLAB-RT-002].
+        [REF-RHEE-GLYNN-2015] (independent-sum estimator; the coupled-sum
+        estimator is not implemented), [EQ-MLAB-RT-002].
 
     """
     if not callable(difference):
@@ -1174,7 +1189,9 @@ class InfluenceAnalysis:
 
         A value far from zero relative to ``standard_error`` signals that
         the functional is not smooth at the empirical distribution or that
-        ``epsilon`` is too large.
+        ``epsilon`` is too large. The converse does not hold: for a weighted
+        median the mean influence came out as zero while the standard error
+        was meaningless (see :func:`empirical_influence`).
 
         References:
             [REF-HAMPEL-1974], [EQ-MLAB-IF-001].
@@ -1203,7 +1220,15 @@ def empirical_influence(
     derives a standard error for any new smooth estimator that can be
     written as a function of observation weights, without an analytical
     derivation; it is first-order only and fails for non-differentiable
-    functionals such as sample quantiles of discrete data.
+    functionals such as sample quantiles. The failure is silent: for a
+    weighted median the returned standard error is proportional to
+    ``1 / epsilon`` (129 at the default step and 1.3e4 at ``1e-6`` for 20
+    lognormal observations). For smooth functionals (standard deviation,
+    ratio of moments, correlation) the result changed by less than ``1e-5``
+    relative between ``epsilon = 1e-8`` and ``1e-4``, and by up to 10% when
+    ``epsilon`` approaches ``1/n``; repeating the call with a second step
+    size is a cheap check of smoothness. The default step requires
+    ``n < 10 000``; pass a smaller ``epsilon`` for larger samples.
 
     Args:
         functional: ``functional(data, weights)`` with non-negative weights

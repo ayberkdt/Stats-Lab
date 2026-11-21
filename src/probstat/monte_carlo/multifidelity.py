@@ -310,7 +310,10 @@ class MultifidelityEstimate:
         estimate: Estimate of ``E[f_0(Z)]``.
         variance: Estimator variance predicted from the covariance that
             defined the weights; exact only if that covariance is the true
-            one and independent of the estimation samples.
+            one and independent of the estimation samples. With a pilot
+            covariance it underestimates the actual variance (by factors of
+            1.6 to 2.9 for a pilot of 30 samples in the study quoted in
+            :func:`pilot_statistics`).
         high_fidelity_mean: Plain sample mean of the high-fidelity outputs
             used by the estimator (the Monte Carlo estimate from the same
             high-fidelity evaluations).
@@ -442,7 +445,14 @@ def pilot_statistics(
     The estimators of this package draw from other child streams of the same
     root, so passing one seed to the pilot and to the estimator keeps them
     independent. Predicted variances computed from a pilot covariance are
-    themselves estimates.
+    themselves estimates, and optimistic ones: the weights and the
+    allocation are tuned to the pilot covariance, so the predicted variance
+    is biased downward. In a seeded study with four non-Gaussian models, a
+    pilot of 30 samples and 1500 replicates (400 for MLBLUE) every
+    estimator was unbiased, but the variance of the estimates exceeded the
+    mean predicted variance by the factors 1.6 (MFMC), 1.7 (ACV-MF), 2.0
+    (ACV-IS) and 2.9 (MLBLUE over all groups). A ``standard_error`` that
+    rests on a small pilot must not be used for a confidence interval.
 
     Args:
         models: Model callables ``f_i(input) -> float``, high-fidelity first.
