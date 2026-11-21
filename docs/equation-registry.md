@@ -18306,3 +18306,176 @@ Rounds `r = 0, ..., ceil(log2 n) - 1`; each survivor gets
   rarely and weighted by the inverse probability, keeping the expectation.
 - Code: `methodlab.thinned_estimator`.
 - Source: [REF-RHEE-GLYNN-2015].
+## Conformal prediction beyond exchangeability and conformal risk control
+
+### EQ-CONF-006 — Weighted conformal quantile under covariate shift
+
+`p_i(x) = w(X_i) / (sum_j w(X_j) + w(x))`,
+`p_(n+1)(x) = w(x) / (sum_j w(X_j) + w(x))`,
+`q(x) = inf{q : sum_(i : S_i <= q) p_i(x) >= 1 - alpha}`, the `1 - alpha`
+quantile of `sum_i p_i(x) delta_(S_i) + p_(n+1)(x) delta_(+inf)`; interval
+`mu(x) +/- q(x) s(x)`.
+
+- Domain: calibration inputs from `P`, test input from `Q`, the same
+  conditional law of `Y` given `X`, and `w = dQ/dP` known up to a constant
+  factor; `w >= 0`, not all zero; `0 < alpha < 1`. The quantile is located
+  in exact rational arithmetic.
+- Meaning: marginal coverage at least `1 - alpha` under the test law `Q`;
+  with `w = 1` it is the split conformal quantile [EQ-CONF-001]. With
+  estimated weights the guarantee is only approximate.
+- Code: `conformal.weighted_conformal_quantile`,
+  `conformal.weighted_split_conformal_regression`,
+  `conformal.WeightedConformalRegressor.interval`.
+- Source: [REF-TIBSHIRANI-ETAL-2019].
+
+### EQ-CONF-007 — Nonexchangeable conformal with fixed weights and its coverage gap
+
+`w~_i = w_i / (sum_j w_j + 1)`, `w~_(n+1) = 1 / (sum_j w_j + 1)`,
+`q_hat` the `1 - alpha` quantile of
+`sum_i w~_i delta_(S_i) + w~_(n+1) delta_(+inf)`, and
+`P(Y_(n+1) in C(X_(n+1))) >= 1 - alpha - sum_i w~_i d_TV(R(Z), R(Z^i))`,
+where `Z^i` is the data with points `i` and `n + 1` swapped and `R` the
+vector of scores.
+
+- Domain: weights `w_i` in `[0, 1]` fixed before seeing the data; a
+  predictor fitted without the calibration data; no exchangeability
+  assumption.
+- Meaning: exchangeable data have zero gap for any fixed weights; otherwise
+  small weights on points whose law differs from the test point's keep the
+  gap small. The total-variation terms depend on the unknown data law, so
+  the gap cannot be computed from data; the code only evaluates the sum for
+  user-supplied bounds.
+- Code: `conformal.nonexchangeable_conformal_quantile`,
+  `conformal.nonexchangeable_split_conformal_regression`,
+  `conformal.nonexchangeable_coverage_gap`.
+- Source: [REF-BARBER-ETAL-2023].
+
+### EQ-CONF-008 — Conformal risk control
+
+`Rhat_n(lambda) = (1/n) sum_i L_i(lambda)`,
+`lambda_hat = inf{lambda : (n/(n+1)) Rhat_n(lambda) + B/(n+1) <= alpha}`,
+and `E[L_(n+1)(lambda_hat)] <= alpha`.
+
+- Domain: exchangeable loss functions `L_1, ..., L_(n+1)`, each
+  non-increasing in `lambda` and bounded above by `B`. The implementation
+  takes the infimum over a finite increasing grid (the smallest grid value
+  meeting the inequality), which keeps the guarantee for losses evaluated
+  on the grid and can only be more conservative; if no grid value
+  qualifies the largest is returned and flagged.
+- Meaning: the expected loss, marginal over calibration set and test
+  point, is bounded for any monotone bounded loss; with
+  `L_i = 1{S_i > lambda}` and `B = 1` it is the split conformal quantile
+  [EQ-CONF-001].
+- Code: `conformal.conformal_risk_control`,
+  `conformal.ConformalRiskControlResult`.
+- Source: [REF-ANGELOPOULOS-ETAL-2024].
+
+### EQ-CONF-009 — Conformal p-value
+
+`p_j = (1 + #{i in calibration : s_i >= s_j}) / (n + 1)`, with
+`P(p_j <= u) <= u` for every `u` in `[0, 1]` when test point `j` is an
+inlier.
+
+- Domain: scores for which larger means more unusual, computed by a
+  function fitted without the calibration points; calibration and inlier
+  test scores exchangeable.
+- Meaning: marginally super-uniform (on average over the calibration set,
+  not for one fixed calibration set); exactly uniform on
+  `{1/(n+1), ..., 1}` when scores are almost surely distinct.
+- Code: `conformal.conformal_p_values`.
+- Source: [REF-BATES-ETAL-2023], [REF-VOVK-GAMMERMAN-SHAFER-2005].
+
+### EQ-CONF-010 — False discovery rate of Benjamini-Hochberg on conformal p-values
+
+Reject test point `j` when its Benjamini-Hochberg adjusted conformal
+p-value is at most `alpha` ([EQ-INF-MT-002]); then
+`FDR = E[#{rejected inliers} / max(1, #{rejected})] <= alpha`.
+
+- Domain: conformal p-values [EQ-CONF-009] of several test points sharing
+  one calibration set; independent test points; inliers exchangeable with
+  the calibration points.
+- Meaning: the p-values are positively dependent (PRDS), which is the
+  condition under which Benjamini-Hochberg controls the FDR; the
+  expectation is marginal over the calibration set.
+- Code: `conformal.conformal_outlier_detection`,
+  `conformal.ConformalOutlierResult`.
+- Source: [REF-BATES-ETAL-2023], [REF-BENJAMINI-HOCHBERG-1995].
+
+### EQ-CONF-011 — Mondrian (group-conditional) split conformal
+
+For each group label `g` with `n_g` calibration scores:
+`k_g = ceil((1 - alpha)(n_g + 1))`, `q_g` the `k_g`-th smallest score of
+the group (`+inf` when `k_g > n_g` or `n_g = 0`), interval
+`mu(x) +/- q_g s(x)` for a test point of group `g`, and
+`P(Y in C(X) | G = g) >= k_g / (n_g + 1) >= 1 - alpha`.
+
+- Domain: a group label determined by the observation and fixed before
+  seeing the scores; calibration and test points exchangeable within each
+  group.
+- Meaning: coverage holds conditionally on the group (not on `x` within a
+  group); each group pays the infinite-interval rule of [EQ-CONF-001] on
+  its own sample size.
+- Code: `conformal.mondrian_conformal_regression`,
+  `conformal.MondrianConformalRegressor.interval`,
+  `conformal.MondrianGroup`.
+- Source: [REF-VOVK-GAMMERMAN-SHAFER-2005].
+
+### EQ-CONF-012 — CV+ interval
+
+With `K` disjoint folds `S_1, ..., S_K`, `k(i)` the fold of point `i`, and
+`mu_(-S_k)` fitted without fold `k`: `R_i = |y_i - mu_(-S_k(i))(x_i)|`;
+lower limit the `floor(alpha (n + 1))`-th smallest of
+`mu_(-S_k(i))(x) - R_i` (`-inf` if that index is 0), upper limit the
+`ceil((1 - alpha)(n + 1))`-th smallest of `mu_(-S_k(i))(x) + R_i` (`+inf`
+if it exceeds `n`), over `i = 1..n`.
+
+- Domain: exchangeable training and test data; a fitting rule symmetric in
+  its training points; folds assigned without reference to the data
+  values; `2 <= K <= n`.
+- Meaning: `K` fits instead of the `n` of jackknife+ [EQ-CONF-004], which
+  it equals for `K = n`; marginal coverage is at least `1 - 2 alpha` minus
+  a slack depending on `n` and `K` that is given in the source and is zero
+  for `K = n`.
+- Code: `conformal.cv_plus_regression`,
+  `conformal.CVPlusRegressor.interval`.
+- Source: [REF-BARBER-ETAL-2021].
+
+### EQ-CONF-013 — Online quantile-tracking update
+
+`err_t = 1{s_t > q_t}`, `q_(t+1) = q_t + eta_t (err_t - alpha)`,
+`eta_t = eta t^(-c)` with `c = 0` (fixed step) or `c = 1/2 + eps`
+(decaying steps); interval `yhat_t +/- q_t sigma_t` with score
+`s_t = |y_t - yhat_t| / sigma_t`.
+
+- Domain: `0 < alpha < 1`, `eta > 0`, `0 <= c <= 1`, non-negative scores;
+  no assumption on the data sequence.
+- Meaning: an online subgradient step on the pinball loss of level
+  `1 - alpha`; a miss raises the threshold by `eta_t (1 - alpha)`, a cover
+  lowers it by `eta_t alpha`; decaying steps let the threshold settle when
+  the score law is stable.
+- Code: `conformal.OnlineQuantileTracker.update_score`,
+  `conformal.OnlineQuantileTracker.step_size`,
+  `conformal.online_quantile_intervals`.
+- Source: [REF-ANGELOPOULOS-CANDES-TIBSHIRANI-2023] (fixed step),
+  [REF-ANGELOPOULOS-BARBER-BATES-2024] (decaying steps).
+
+### EQ-CONF-014 — Long-run miscoverage bound for quantile tracking
+
+`|(1/T) sum_(t=1..T) err_t - alpha| <= (b + eta_1) / (eta_T T)` for every
+`T`; for a fixed step `(b + eta) / (eta T)`.
+
+- Domain: scores in `[0, b]`, `q_1` in `[0, b]`, positive non-increasing
+  steps; holds deterministically for every score sequence. Derivation:
+  `q_t` stays in `[-alpha eta_1, b + (1 - alpha) eta_1]` by induction,
+  `err_t - alpha = (q_(t+1) - q_t) / eta_t`, and summation by parts
+  against the non-decreasing `1/eta_t` bounds the sum by
+  `(b + eta_1) / eta_T`.
+- Meaning: the miss frequency converges to `alpha` at rate `1/T` for a
+  fixed step and `T^(c - 1)` for `eta_t = eta t^(-c)` (no convergence is
+  implied at `c = 1`); a long-run statement, not finite-sample or
+  conditional coverage at any step.
+- Code: `conformal.OnlineQuantileTracker.long_run_bound`,
+  `conformal.OnlineQuantileResult`.
+- Source: [REF-ANGELOPOULOS-CANDES-TIBSHIRANI-2023],
+  [REF-ANGELOPOULOS-BARBER-BATES-2024]; the proof for non-increasing steps
+  is the telescoping argument recorded in the domain bullet.

@@ -5136,3 +5136,54 @@ National Institute of Standards and Technology. *Secure Hash Standard
 (SHS)*. Federal Information Processing Standards Publication 180-4, 2015.
 DOI: [10.6028/NIST.FIPS.180-4](https://doi.org/10.6028/NIST.FIPS.180-4).
 Defines SHA-256.
+## REF-TIBSHIRANI-ETAL-2019
+
+Ryan J. Tibshirani, Rina Foygel Barber, Emmanuel J. Candès, and Aaditya
+Ramdas. "Conformal Prediction Under Covariate Shift." In *Advances in Neural
+Information Processing Systems 32* (NeurIPS 2019), 2019. Weighted conformal
+prediction with likelihood-ratio weights and the weighted-exchangeability
+argument behind its coverage.
+arXiv: [1904.06019](https://arxiv.org/abs/1904.06019).
+
+## REF-BARBER-ETAL-2023
+
+Rina Foygel Barber, Emmanuel J. Candès, Aaditya Ramdas, and Ryan J.
+Tibshirani. "Conformal Prediction Beyond Exchangeability." *The Annals of
+Statistics* 51(2), 816-845, 2023. Fixed data-independent weights and the
+coverage-gap bound in terms of total-variation distances between the data
+and its swapped versions.
+DOI: [10.1214/23-AOS2276](https://doi.org/10.1214/23-AOS2276).
+
+## REF-ANGELOPOULOS-ETAL-2024
+
+Anastasios N. Angelopoulos, Stephen Bates, Adam Fisch, Lihua Lei, and Tal
+Schuster. "Conformal Risk Control." In *International Conference on Learning
+Representations* (ICLR 2024), 2024. Control of the expected value of a
+bounded loss that is monotone in a tuning parameter.
+arXiv: [2208.02814](https://arxiv.org/abs/2208.02814).
+
+## REF-BATES-ETAL-2023
+
+Stephen Bates, Emmanuel Candès, Lihua Lei, Yaniv Romano, and Matteo Sesia.
+"Testing for Outliers with Conformal p-values." *The Annals of Statistics*
+51(1), 149-178, 2023. Marginal validity and positive dependence (PRDS) of
+conformal p-values sharing a calibration set, and false-discovery-rate
+control by the Benjamini-Hochberg procedure.
+DOI: [10.1214/22-AOS2244](https://doi.org/10.1214/22-AOS2244).
+
+## REF-ANGELOPOULOS-CANDES-TIBSHIRANI-2023
+
+Anastasios N. Angelopoulos, Emmanuel J. Candès, and Ryan J. Tibshirani.
+"Conformal PID Control for Time Series Prediction." In *Advances in Neural
+Information Processing Systems 36* (NeurIPS 2023), 2023. The fixed-step
+quantile tracker and its long-run coverage bound for bounded scores.
+arXiv: [2307.16895](https://arxiv.org/abs/2307.16895).
+
+## REF-ANGELOPOULOS-BARBER-BATES-2024
+
+Anastasios N. Angelopoulos, Rina Foygel Barber, and Stephen Bates. "Online
+Conformal Prediction with Decaying Step Sizes." In *Proceedings of the 41st
+International Conference on Machine Learning* (ICML 2024), *Proceedings of
+Machine Learning Research* 235, 1616-1630, 2024. Quantile tracking with
+step sizes `eta_t` proportional to `t^(-1/2-eps)`.
+arXiv: [2402.01139](https://arxiv.org/abs/2402.01139).
