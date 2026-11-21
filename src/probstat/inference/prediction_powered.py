@@ -257,9 +257,14 @@ def prediction_powered_mean(
     population (no covariate shift between the two samples), the two samples
     are independent of each other, ``f`` is fixed (trained on other data),
     and ``Y`` and ``f(X)`` have finite variances. The interval is asymptotic
-    in ``n``: for small ``n`` it undercovers like any z interval with an
-    estimated variance, and a data-tuned weight adds a bias of order ``1/n``
-    that the normal approximation ignores.
+    in ``n``. For small ``n`` it undercovers like any z interval with an
+    estimated variance, and the tuned weight makes this worse, because the
+    minimum over ``w`` of an estimated variance is biased downwards: for
+    bivariate normal data with correlation 0.8, ``N = 10 n`` and a nominal
+    level of 0.90, the tuned interval covered 0.76, 0.84, 0.87, 0.88 at
+    ``n = 5, 10, 20, 30`` against 0.82, 0.86, 0.88, 0.89 for the labelled
+    mean (20000 replicates). Clipping ``w_hat`` to ``[0, 1]`` does not
+    repair it.
 
     Args:
         labels: At least two labels ``Y_i``.

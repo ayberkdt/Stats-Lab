@@ -173,6 +173,8 @@ def calibrate_p_value(p_value: float, *, kappa: float | None = None) -> float:
     if abs(log_p) < _SERIES_SWITCH:
         # (exp(-L) - 1 + L) / L^2 = 1/2 - L/6 + L^2/24 - ... near L = 0.
         return 0.5 - log_p / 6.0 + log_p * log_p / 24.0
+    if -log_p > _MAX_EXPONENT:
+        return math.inf
     return (math.expm1(-log_p) + log_p) / (log_p * log_p)
 
 
@@ -856,7 +858,8 @@ class ConfidenceSequence:
             survives, or ``None``. From then on the endpoints at empty times
             are NaN. An empty set has probability at most ``alpha`` when the
             assumptions hold; otherwise it signals a mean that changed over
-            time or data outside the stated model.
+            time or data outside the stated model. With ``bet="agrapa"`` only
+            an empty running intersection is reported as empty.
 
     References:
         [EQ-INF-CS-002], [REF-WAUDBY-SMITH-RAMDAS-2024],
@@ -984,9 +987,14 @@ def betting_confidence_sequence(
       so the coverage guarantee is kept exactly.
     - ``"agrapa"`` bets depend on ``m`` and ``C_t`` need not be an interval.
       The reported endpoints are the smallest and largest surviving grid
-      points, each moved outwards by one cell. This is a grid approximation:
-      the guarantee is exact for means on the grid and relies on the
-      resolution in between.
+      points, each moved outwards by one cell; when every grid point is
+      rejected, the grid points of smallest capital are used in their place,
+      and the running intersection is taken over these reported intervals.
+      The reported interval contains ``C_t`` whenever ``m -> K_t(m)`` has a
+      single valley (is quasi-convex). That property is observed, not
+      proved: on simulated data it failed only through bumps of about 0.01
+      in ``log K_t``. The coverage guarantee of this rule therefore rests
+      on it; use ``"plug-in"`` when an unconditional guarantee is needed.
 
     The cost is ``O(n grid_size)`` capital updates.
 
@@ -1144,11 +1152,16 @@ def _agrapa_sequence(
         means: Predictable running means.
         variances: Predictable running variances.
         boundary: ``log(1/alpha)``.
-        running_intersection: Whether a rejected grid point stays rejected.
+        running_intersection: Whether to intersect the reported intervals
+            over time.
 
     Returns:
         Pairs ``(j, k)`` of the smallest and largest surviving grid index,
-        each moved outwards by one cell; ``(1, 0)`` marks an empty set.
+        each moved outwards by one cell. When no grid point survives, the
+        grid points of smallest capital take the place of the survivors: if
+        ``m -> K_t(m)`` has a single valley, a surviving set that fits
+        between two grid points lies in a cell next to them. ``j > k`` marks
+        an empty running intersection.
 
     References:
         [EQ-INF-CS-002], [EQ-INF-CS-003], [REF-WAUDBY-SMITH-RAMDAS-2024].
@@ -1156,7 +1169,7 @@ def _agrapa_sequence(
     """
     count = len(grid)
     log_capital = [0.0] * count
-    alive = [True] * count
+    left, right = 0, count - 1
     result: list[tuple[int, int]] = []
     for value, running_mean, running_variance in zip(
         sample, means, variances, strict=True
@@ -1166,16 +1179,23 @@ def _agrapa_sequence(
             up, down = caps[index]
             bet = _agrapa_bet(point, running_mean, running_variance, up, down)
             log_capital[index] += math.log1p(bet * (value - point))
-        survivors = [entry < boundary for entry in log_capital]
+        survivors = [index for index in range(count) if log_capital[index] < boundary]
+        if not survivors:
+            # Every grid point is rejected. The surviving set is then empty or
+            # lies strictly inside one cell; the grid cannot tell which, so
+            # the cells next to the smallest grid capital are kept.
+            smallest = min(log_capital)
+            survivors = [
+                index for index in range(count) if log_capital[index] == smallest
+            ]
+        new_left = max(0, survivors[0] - 1)
+        new_right = min(count - 1, survivors[-1] + 1)
         if running_intersection:
-            alive = [a and b for a, b in zip(alive, survivors, strict=True)]
-            survivors = alive
-        if not any(survivors):
-            result.append((1, 0))
-            continue
-        first = survivors.index(True)
-        last = count - 1 - survivors[::-1].index(True)
-        result.append((max(0, first - 1), min(count - 1, last + 1)))
+            left = max(left, new_left)
+            right = min(right, new_right)
+        else:
+            left, right = new_left, new_right
+        result.append((left, right))
     return result
 
 
@@ -1366,7 +1386,7 @@ def split_likelihood_ratio_test(
     return SplitLikelihoodRatioResult(
         e_value=e_value,
         log_e_value=log_e,
-        p_value=min(1.0, math.exp(-log_e)) if log_e > -math.inf else 1.0,
+        p_value=math.exp(-log_e) if log_e > 0.0 else 1.0,
         rejected=log_e >= -math.log(level),
         alpha=level,
         log_statistics=tuple(logs),

@@ -65,7 +65,11 @@ control-variate algebra with a new use.
    *rejected* grid points: the reported interval contains the exact set and
    the guarantee is kept without any appeal to grid resolution. For aGRAPA
    the set is not an interval in general; the hull of surviving grid points
-   widened by one cell is reported and documented as a grid approximation.
+   widened by one cell is reported, or the cells next to the smallest grid
+   capital when no grid point survives, and the running intersection is
+   taken over these intervals. This encloses the exact set only if the
+   capital is quasi-convex in `m`, which is observed and not proved, so the
+   aGRAPA sequence carries no unconditional guarantee.
    An empty set is reported through `first_empty_time` and NaN endpoints.
 6. **Universal inference** ([EQ-INF-EVAL-005]):
    `split_likelihood_ratio_test` takes a joint log-likelihood and two
@@ -115,6 +119,36 @@ control-variate algebra with a new use.
   interval over 2000 replicates (`n = 100`, `N = 400`): 0.894 (tuned),
   0.898 (weight 1), 0.890 (classical); mean variance ratio 0.491 against
   the predicted `1 - rho^2/(1 + n/N) = 0.488`.
+- Audit (after release of the first version). The first aGRAPA sequence
+  kept only surviving grid points and reported an empty set once the exact
+  set fitted between two grid points. Constant data `0.301` on the default
+  grid of 500 cells gave an empty set from observation 4581 on, although
+  the capital at `0.301` is one at all times. Over 1500 runs of 400
+  Bernoulli observations on a grid of 20 cells the true mean left the
+  reported sequence in 67.9% (`p = 0.983`, `alpha = 0.05`), 13.3%
+  (`p = 0.983`, `alpha = 0.01`) and 6.2% (`p = 0.005`, `alpha = 0.05`) of
+  the runs, while the capital at the true mean crossed in at most 0.3%.
+  With the cells next to the smallest capital kept, the same three
+  settings give no miss in 1500 runs each, no run in fourteen settings
+  (Bernoulli, beta and two-point data, grids of 20 and 100 cells) lost
+  the true mean while its capital was below the boundary, and every time
+  point at which the first version reported a non-empty interval is
+  unchanged (57570 time points compared). The quasi-convexity that the
+  repair relies on failed at 215 of 9000 simulated time points on a grid
+  of 1000 cells, by at most 0.0103 in `log K_t`; no sublevel set at
+  `alpha = 0.05` was disconnected.
+- Audit: tuned prediction-powered intervals undercover at small `n` by
+  more than the z interval of the labelled mean. Nominal 90%, bivariate
+  normal with correlation 0.8, `N = 10 n`, 20000 replicates (se 0.003):
+  tuned 0.759, 0.839, 0.873, 0.880 at `n = 5, 10, 20, 30` against 0.824,
+  0.864, 0.883, 0.890 for the classical z interval and 0.855, 0.876,
+  0.890, 0.892 for weight one. Clipping the weight to `[0, 1]` changes
+  these by at most 0.014 (0.772, 0.841, 0.873, 0.880), so the missing clip
+  is not the cause: the minimized variance estimate is biased downwards.
+  Other laws at `n = 10` and `n = 30` (8000 replicates, tuned against
+  classical): correlation 0, 0.828 and 0.875 against 0.868 and 0.885;
+  lognormal labels, 0.697 and 0.789 against 0.765 and 0.824; binary labels
+  with rate 0.2, 0.765 and 0.842 against 0.864 and 0.851.
 - `probstat.inference` gains 16 public names.
 
 ## Rejected alternatives
@@ -167,10 +201,13 @@ predictions, and input validation.
 
 The bet rules of [EQ-INF-CS-003] were written from the form of the
 strategies in [REF-WAUDBY-SMITH-RAMDAS-2024] without access to the paper
-(publisher and preprint hosts were unreachable); their constants are not
-confirmed against the printed formulas. This does not affect validity,
-which is verified by enumeration for each rule, and the registry record
-states it.
+(publisher and preprint hosts were unreachable). An audit compared them
+with `lambda_predmix_eb` and `lambda_aKelly` in the source of the authors'
+`confseq` package (github.com/gostevehoward/confseq,
+`src/confseq/betting_strategies.py`): the plug-in size, the approximate
+GRAPA bet, the regularized lagged moments and the truncation agree. The
+printed paper was still not read. Validity does not depend on this; it is
+verified by enumeration for each rule.
 
 ## References
 

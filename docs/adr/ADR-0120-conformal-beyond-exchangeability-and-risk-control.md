@@ -71,9 +71,10 @@ main risk of adding them is blurring those differences.
 8. **CV+** ([EQ-CONF-012]) keeps `K` fold predictors and evaluates each once
    per test point. Folds are contiguous balanced blocks by default and
    shuffled from the child stream `"cv-plus-folds"` when a seed is given.
-   The docstrings state the guarantee as `1 - 2 alpha` minus a slack given
-   in the source; the slack formula is not printed because it was not
-   re-verified against the paper for this change.
+   The docstrings state the guarantee as `1 - 2 alpha - sqrt(2/n)` for
+   every `K` (Theorem 4 of the source). An audit confirmed this form from
+   excerpts of the paper returned by a web search; the sharper slack in
+   `n` and `K` of the same theorem could not be read and is not printed.
 9. **Online quantile tracking** ([EQ-CONF-013]) with
    `eta_t = eta t^(-decay)`, `decay` in `[0, 1]`. The reported bound
    ([EQ-CONF-014]) is `(b + eta_1)/(eta_T T)`. It was derived here for
@@ -130,9 +131,10 @@ Measured in `tests/test_conformal_extensions.py` (seeds in the tests):
   group.
 - **Returning a `JackknifePlusRegressor` from CV+.** It would evaluate each
   fold model `n/K` times per test point.
-- **Printing the CV+ slack formula, or a stochastic convergence statement
-  for decaying steps.** Neither could be checked against the source in this
-  environment; only what was derived or verified by an oracle is stated.
+- **Printing the sharper CV+ slack formula, or a stochastic convergence
+  statement for decaying steps.** Neither could be checked against the
+  source in this environment; only what was derived or verified by an
+  oracle is stated.
 - **The integrator and scorecaster of conformal PID control.** Outside this
   package's scope; only the quantile tracker is implemented.
 

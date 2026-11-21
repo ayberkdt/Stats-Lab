@@ -125,6 +125,12 @@ class CalibrationTests(unittest.TestCase):
                 self.assertLessEqual(low, alpha)
                 self.assertGreater(low, 0.0)
 
+    def test_mixture_calibrator_of_a_subnormal_p_value(self) -> None:
+        """P-values below ``exp(-709)`` give infinity instead of overflowing."""
+        self.assertEqual(calibrate_p_value(1.0e-320), math.inf)
+        self.assertEqual(calibrate_p_value(5.0e-324), math.inf)
+        self.assertGreater(calibrate_p_value(1.0e-300), 1.0e290)
+
     def test_e_to_p_value(self) -> None:
         """``min(1, 1/e)`` with its boundary cases."""
         self.assertEqual(e_to_p_value(0.0), 1.0)
@@ -640,6 +646,52 @@ class ConfidenceSequenceTests(unittest.TestCase):
             self.assertTrue(math.isnan(sequence.lower[-1]))
             self.assertTrue(math.isnan(sequence.upper[-1]))
 
+    def test_agrapa_sequence_keeps_a_mean_between_grid_points(self) -> None:
+        """A sequence narrower than one grid cell is not reported as empty.
+
+        Constant data have conditional mean 0.325 at all times, the aGRAPA
+        capital at 0.325 stays at one, and both neighbouring grid points
+        (0.30 and 0.35) are eventually rejected. The reported interval must
+        still contain 0.325 at every time.
+        """
+        truth = 0.325
+        data = [truth] * 300
+        self.assertFalse(betting_mean_test(data, truth, bet="agrapa").rejected)
+        for running_intersection in (True, False):
+            sequence = betting_confidence_sequence(
+                data,
+                grid_size=20,
+                bet="agrapa",
+                running_intersection=running_intersection,
+            )
+            self.assertIsNone(sequence.first_empty_time)
+            for low, high in zip(sequence.lower, sequence.upper, strict=True):
+                self.assertTrue(low <= truth <= high)
+            self.assertLessEqual(sequence.final[1] - sequence.final[0], 0.1 + 1e-12)
+
+    def test_agrapa_coverage_on_a_coarse_grid(self) -> None:
+        """Bernoulli(0.983) on a 20-cell grid: misses stay near the test's.
+
+        Before the cell next to the smallest capital was kept, the reported
+        sequence lost the true mean in more than half of such runs although
+        the capital at the true mean had not crossed its boundary.
+        """
+        alpha, replicates, horizon, truth = 0.05, 60, 300, 0.983
+        stream = RandomStream(5)
+        misses = crossings = 0
+        for replicate in range(replicates):
+            generator = stream.child("coarse", replicate).generator()
+            data = [float(generator.random() < truth) for _ in range(horizon)]
+            sequence = betting_confidence_sequence(
+                data, alpha=alpha, grid_size=20, bet="agrapa"
+            )
+            low, high = sequence.final
+            misses += not low <= truth <= high
+            crossings += betting_mean_test(
+                data, truth, alpha=alpha, bet="agrapa"
+            ).rejected
+        self.assertLessEqual(misses, crossings)
+
     def test_time_uniform_coverage(self) -> None:
         """The true mean leaves the sequence in at most alpha of the runs."""
         alpha, replicates, horizon, truth = 0.1, 150, 120, 0.25
@@ -781,6 +833,25 @@ class SplitLikelihoodRatioTests(unittest.TestCase):
         band = alpha + 3.0 * math.sqrt(alpha * (1 - alpha) / replicates)
         self.assertLessEqual(rejections[0.0] / replicates, band)
         self.assertGreater(rejections[0.8] / replicates, 0.5)
+
+    def test_very_small_e_value_has_p_value_one(self) -> None:
+        """A log e-value below -709 gives p = 1 instead of an overflow."""
+
+        def log_likelihood(theta: float, part: object) -> float:
+            """Return the ``N(theta, 1)`` log-likelihood up to its constant."""
+            return sum(-0.5 * (x - theta) ** 2 for x in part)  # type: ignore[attr-defined]
+
+        result = split_likelihood_ratio_test(
+            [5.0] * 1000,
+            log_likelihood,
+            lambda part: -5.0,
+            lambda part: 5.0,
+            shuffle=False,
+        )
+        self.assertEqual(result.log_e_value, -25000.0)
+        self.assertEqual(result.e_value, 0.0)
+        self.assertEqual(result.p_value, 1.0)
+        self.assertFalse(result.rejected)
 
     def test_seed_reproducibility_and_shuffle(self) -> None:
         """One seed gives one split; different seeds usually differ."""

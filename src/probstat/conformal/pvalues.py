@@ -14,8 +14,11 @@ calibration set the p-values are not valid in general.
 Several test points share one calibration set, so their p-values are
 dependent. Bates, Candes, Lei, Romano and Sesia (2023) show the dependence
 is positive (PRDS), hence the Benjamini-Hochberg procedure applied to
-conformal p-values controls the false discovery rate at level ``alpha``,
-again marginally over the calibration set.
+conformal p-values controls the false discovery rate at ``pi0 alpha``
+(``pi0`` the fraction of inliers among the test points), at most ``alpha``,
+again marginally over the calibration set. The result is for calibration
+points and test inliers that are independent draws from one law; the source
+states the PRDS property for scores without ties.
 """
 
 from __future__ import annotations
@@ -126,11 +129,12 @@ def conformal_outlier_detection(
     """Flag outliers by Benjamini-Hochberg on conformal p-values.
 
     When the calibration scores and the scores of the true inliers among
-    the test points are exchangeable (and the test points are otherwise
-    independent), the expected proportion of inliers among the flagged
-    points is at most ``alpha``. The expectation is marginal over the
-    calibration set: for one fixed calibration set the false discovery rate
-    can exceed ``alpha``.
+    the test points are independent draws from one law (and the test points
+    are independent of each other), the expected proportion of inliers
+    among the flagged points is at most ``pi0 alpha <= alpha``, with ``pi0``
+    the fraction of inliers among the test points. The expectation is
+    marginal over the calibration set: for one fixed calibration set the
+    false discovery rate can exceed ``alpha``.
 
     Args:
         calibration_scores: Finite scores of ``n >= 1`` known inliers.

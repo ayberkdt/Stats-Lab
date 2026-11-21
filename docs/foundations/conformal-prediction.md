@@ -283,7 +283,11 @@ uniform on `{1/(n+1), ..., 1}` (the tests enumerate all orderings for
 `conformal_outlier_detection(calibration_scores, test_scores, alpha=0.1)`
 applies the library's Benjamini-Hochberg procedure to these p-values.
 p-values that share a calibration set are dependent, but positively (PRDS),
-so the false discovery rate is at most `alpha`.
+so the false discovery rate is at most `pi0 alpha <= alpha`, with `pi0` the
+fraction of inliers among the test points. This needs calibration points
+and test inliers that are independent draws from one law, and test points
+independent of each other; the source states the PRDS property for scores
+without ties.
 
 Both statements are **marginal over the calibration set**. For one fixed
 calibration set the p-values can be anti-conservative. Also note the
@@ -326,8 +330,11 @@ Section 4 over all `n` points. `folds = n` reproduces
 `jackknife_plus_regression` exactly. Folds are contiguous blocks unless a
 `seed` is given, which shuffles the balanced fold labels.
 
-The guarantee is `1 - 2 alpha` minus a slack that depends on `n` and `K`;
-see the source for its form (it is zero at `K = n`). Typical coverage is
+The guarantee is `1 - 2 alpha - sqrt(2/n)` for every `K` (Theorem 4 of
+Barber et al. 2021, for folds of equal size; the source also gives a
+sharper slack in `n` and `K`), and `1 - 2 alpha` at `K = n`. For `n = 20`
+and `alpha = 0.1` that is `0.48`, far below what is observed. Typical
+coverage is
 near `1 - alpha`: least-squares lines, `n = 20`, `K = 5`, `alpha = 0.1`, 200
 replicates give `0.908` (se `0.006`).
 

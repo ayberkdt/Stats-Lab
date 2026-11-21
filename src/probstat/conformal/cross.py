@@ -13,11 +13,12 @@ point ``i`` with the model that did not see it:
 
 with ``i`` running over all ``n`` training points. With ``K = n`` it is
 jackknife+. For exchangeable data and a fitting rule symmetric in its
-training points, the marginal coverage is at least ``1 - 2 alpha`` minus a
-slack that depends on ``n`` and ``K`` and is given in the source (stated
-there for folds of equal size); the slack is zero for ``K = n``. Typical
-coverage is near ``1 - alpha``, but that is an empirical observation, not a
-guarantee.
+training points, the marginal coverage is at least
+``1 - 2 alpha - sqrt(2/n)`` for every ``K`` (Theorem 4 of the source, stated
+there for folds of equal size, where a sharper slack depending on ``n`` and
+``K`` is also given); for ``K = n`` the jackknife+ bound ``1 - 2 alpha``
+holds without slack. Typical coverage is near ``1 - alpha``, but that is an
+empirical observation, not a guarantee.
 """
 
 from __future__ import annotations
@@ -169,10 +170,11 @@ def cv_plus_regression(
     does not depend on the data values.
 
     For exchangeable data and a symmetric fitting rule the marginal coverage
-    is at least ``1 - 2 alpha`` minus a slack depending on ``n`` and ``K``
-    given in the source, where it is stated for equal-size folds; the slack
-    vanishes for ``folds = n``, which reproduces
-    :func:`~probstat.conformal.jackknife_plus_regression`.
+    is at least ``1 - 2 alpha - sqrt(2/n)`` for every number of folds
+    (Theorem 4 of the source, stated for equal-size folds; a sharper slack
+    depending on ``n`` and ``K`` is given there). ``folds = n`` reproduces
+    :func:`~probstat.conformal.jackknife_plus_regression`, whose bound is
+    ``1 - 2 alpha`` without slack.
 
     Args:
         fit: Function ``(points, values) -> predictor``, symmetric in the

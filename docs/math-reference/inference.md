@@ -497,8 +497,12 @@ sizes `b_i >= 0` that do not depend on `m`;
   grid point rejected by `K^+` and the smallest rejected by `K^-` enclose
   `C_t`, so the reported interval keeps the coverage guarantee and is at
   most one cell wider on each side. With bets that depend on `m` (aGRAPA)
-  the set need not be an interval and the reported hull of surviving grid
-  points is a grid approximation.
+  the set need not be an interval. The code reports the hull of the
+  surviving grid points widened by one cell, or the cells next to the
+  smallest grid capital when no grid point survives, and intersects these
+  intervals over time. That encloses `C_t` if `m -> K_t(m)` is
+  quasi-convex, which is observed (up to bumps near 0.01 in `log K_t`) but
+  not proved; the aGRAPA sequence has no unconditional guarantee.
 - Code: `inference.betting_confidence_sequence`,
   `inference.ConfidenceSequence.interval`.
 - Source: [REF-WAUDBY-SMITH-RAMDAS-2024] (hedged capital);
@@ -520,12 +524,14 @@ With `mu_t = (1/2 + sum_{i <= t} x_i) / (t + 1)` and
 - Domain: `t >= 1`; `mu_0 = 1/2`, `s2_0 = 1/4`.
 - Meaning: aGRAPA solves the first-order condition
   `sum (x_i - m) / (1 + lambda (x_i - m)) = 0` of the empirical log-growth
-  after replacing `1/(1 + y)` by `1 - y`. The rules have the form of the
-  predictable plug-in and approximate-GRAPA strategies of the source, but
-  the constants were not checked against the printed formulas, and the
-  one-sided level `a = alpha` is a library choice. Every predictable bet in
-  the admissible range gives a valid test, so a deviation from the source
-  could change power only.
+  after replacing `1/(1 + y)` by `1 - y`. Both rules, the regularized
+  lagged moments (prior mean 1/2, prior variance 1/4, one pseudo-observation)
+  and the truncation to `[-c/(1 - m), c/m]` agree with `lambda_predmix_eb`
+  and `lambda_aKelly` in the source code of the authors' `confseq` package;
+  the printed paper was not read. The levels `a = alpha/2` (two-sided) and
+  `a = alpha` (one-sided) are a library choice. Every predictable bet in
+  the admissible range gives a valid test, so the choice affects power
+  only.
 - Code: `inference.betting_mean_test`,
   `inference.betting_confidence_sequence`.
 - Source: [REF-WAUDBY-SMITH-RAMDAS-2024].

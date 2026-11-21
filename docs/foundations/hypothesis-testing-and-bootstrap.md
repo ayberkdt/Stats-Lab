@@ -415,9 +415,10 @@ conservative, and it needs a null fit that is a true maximizer.
 (EQ-INF-PPI-001 to EQ-INF-PPI-003) combines `n` labelled observations with
 model predictions on `N` further units:
 `mean_n(Y) + w (mean_N(f) - mean_n(f))`. The labelled sample corrects the
-bias of the predictions, so the estimate is unbiased for any predictor, and
-the tuned weight makes the estimated variance no larger than that of the
-labelled mean. In the example the predictions are biased by 1.5: their raw
+bias of the predictions, so the estimate is unbiased for any predictor at a
+fixed weight (a weight tuned on the same data adds a bias of order `1/n`),
+and the tuned weight makes the estimated variance no larger than that of
+the labelled mean. In the example the predictions are biased by 1.5: their raw
 mean is 3.52 for a true mean of 2, while the prediction-powered interval is
 centred near 2 and its variance is 46% of the classical one.
 
@@ -516,13 +517,18 @@ What these methods do not give:
 - An empty confidence sequence (`first_empty_time` set) means the mean was
   not constant over time or the data left the model, apart from an event of
   probability at most `alpha`.
-- With `bet="agrapa"` the confidence sequence is a grid approximation; the
-  default `"plug-in"` rule keeps the guarantee exactly, at one grid cell of
-  extra width.
+- With `bet="agrapa"` the confidence sequence has no unconditional
+  guarantee: the reported interval encloses the exact set only if the
+  capital has a single valley as a function of the candidate mean, which is
+  observed but not proved. The default `"plug-in"` rule keeps the guarantee
+  exactly, at one grid cell of extra width.
 - The split likelihood ratio is valid only for a correctly specified
   likelihood with all normalizing terms, and its result depends on the
   random split (fix `seed`; never try several seeds and keep the best).
-- Prediction-powered intervals are asymptotic. They assume that labelled
+- Prediction-powered intervals are asymptotic, and with the tuned weight
+  they undercover at small `n` by more than the z interval of the labelled
+  mean (nominal 90%, correlation 0.8: 0.84 against 0.86 at `n = 10`, 0.88
+  against 0.89 at `n = 30`). They assume that labelled
   and unlabelled units come from the same population and that the predictor
   was not trained on the labelled sample. Linear-regression coefficients and
   quantiles are not implemented.

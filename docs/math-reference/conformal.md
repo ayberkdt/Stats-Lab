@@ -79,9 +79,10 @@ if it exceeds `n`), over `i = 1..n`.
   its training points; folds assigned without reference to the data
   values; `2 <= K <= n`.
 - Meaning: `K` fits instead of the `n` of jackknife+ [EQ-CONF-004], which
-  it equals for `K = n`; marginal coverage is at least `1 - 2 alpha` minus
-  a slack depending on `n` and `K` that is given in the source and is zero
-  for `K = n`.
+  it equals for `K = n`; marginal coverage is at least
+  `1 - 2 alpha - sqrt(2/n)` for every `K` (Theorem 4 of the source, for
+  equal-size folds; a sharper slack depending on `n` and `K` is given
+  there), and `1 - 2 alpha` for `K = n`.
 - Code: `conformal.cv_plus_regression`,
   `conformal.CVPlusRegressor.interval`.
 - Source: [REF-BARBER-ETAL-2021].
@@ -183,11 +184,13 @@ inlier.
 
 Reject test point `j` when its Benjamini-Hochberg adjusted conformal
 p-value is at most `alpha` ([EQ-INF-MT-002]); then
-`FDR = E[#{rejected inliers} / max(1, #{rejected})] <= alpha`.
+`FDR = E[#{rejected inliers} / max(1, #{rejected})] <= pi0 alpha <= alpha`,
+`pi0` the fraction of inliers among the test points.
 
 - Domain: conformal p-values [EQ-CONF-009] of several test points sharing
-  one calibration set; independent test points; inliers exchangeable with
-  the calibration points.
+  one calibration set; independent test points; calibration points and
+  test inliers independent draws from one law (the source states the PRDS
+  property for scores without ties).
 - Meaning: the p-values are positively dependent (PRDS), which is the
   condition under which Benjamini-Hochberg controls the FDR; the
   expectation is marginal over the calibration set.
