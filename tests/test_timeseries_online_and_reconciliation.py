@@ -731,6 +731,52 @@ class ShrinkageTests(unittest.TestCase):
         self.assertLess(estimated_risk, 0.4 * risk[0])
         self.assertLess(estimated_risk, 1.4 * min(risk))
 
+    def test_intensity_is_the_schafer_strimmer_estimator(self) -> None:
+        """The plug-in equals the published correlation-shrinkage intensity.
+
+        Literal evaluation for centred residuals standardized with the
+        divisor-``N`` deviation: ``sum_(i != j) v_ij / sum_(i != j) r_ij^2``
+        with ``v_ij = sum_k (w_kij - w_bar_ij)^2 / (N (N - 1))`` and
+        ``r_ij = w_bar_ij``. Uncentred residuals give a different value.
+        """
+
+        def literal(rows: list[list[float]], *, center: bool) -> float:
+            """Evaluate the intensity from its definition."""
+            count, width = len(rows), len(rows[0])
+            if center:
+                means = [sum(row[j] for row in rows) / count for j in range(width)]
+                rows = [[row[j] - means[j] for j in range(width)] for row in rows]
+            scales = [
+                math.sqrt(sum(row[j] ** 2 for row in rows) / count)
+                for j in range(width)
+            ]
+            unit = [[row[j] / scales[j] for j in range(width)] for row in rows]
+            top = bottom = 0.0
+            for i in range(width):
+                for j in range(width):
+                    if i == j:
+                        continue
+                    products = [row[i] * row[j] for row in unit]
+                    mean = sum(products) / count
+                    top += sum((w - mean) ** 2 for w in products) / (
+                        count * (count - 1)
+                    )
+                    bottom += mean * mean
+            return min(1.0, max(0.0, top / bottom))
+
+        rng = random.Random(2005)
+        for count, width in ((12, 8), (20, 6), (200, 5), (3, 4)):
+            common = [rng.gauss(0.0, 1.0) for _ in range(count)]
+            rows = [
+                [rng.gauss(0.3, 1.0) + 0.5 * common[k] for _ in range(width)]
+                for k in range(count)
+            ]
+            with self.subTest(count=count, width=width):
+                fitted = shrink_covariance(rows).intensity
+                self.assertAlmostEqual(fitted, literal(rows, center=True), delta=1e-12)
+                if count <= 20:
+                    self.assertGreater(abs(fitted - literal(rows, center=False)), 1e-3)
+
     def test_intensity_vanishes_with_many_observations(self) -> None:
         """With a long residual history hardly any shrinkage is applied."""
         rows = self._sample(4, 2000, 0.5, random.Random(9))

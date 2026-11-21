@@ -846,6 +846,70 @@ class BayesianQuadratureTests(unittest.TestCase):
             )
         self.assertEqual(fitted.estimate, again.estimate)
 
+    def test_noise_variance_is_a_floor_for_the_fitted_nugget(self) -> None:
+        """With fitted hyperparameters the documented remedy must be honoured.
+
+        For a quadratic integrand the fitted length scale is so long that the
+        kernel matrix is numerically singular. The error message advises a
+        larger ``noise_variance``; before the fix that argument was ignored
+        on the fitted path, so the call failed whatever value was passed.
+        """
+        nodes = [(-3.0 + 0.5 * i,) for i in range(13)]
+        values = [x * x for (x,) in nodes]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", GaussianProcessConditioningWarning)
+            with self.assertRaises(ValueError):
+                bayesian_quadrature(nodes, values, [GaussianMeasure()], seed=0)
+            result = bayesian_quadrature(
+                nodes, values, [GaussianMeasure()], noise_variance=1e-6, seed=0
+            )
+            with self.assertRaises(ValueError):
+                bayesian_quadrature(
+                    nodes, values, [GaussianMeasure()], noise_variance=-1.0, seed=0
+                )
+        self.assertEqual(result.noise_variance, 1e-6)
+        self.assertAlmostEqual(result.estimate, 1.0, delta=1e-4)
+        self.assertGreater(result.standard_deviation, abs(result.estimate - 1.0))
+
+    def test_standard_deviation_is_not_an_error_bound(self) -> None:
+        """The reported deviation ignores the values; errors can be far larger.
+
+        Pins the documented warning: same nodes and kernel give the same
+        standard deviation for every integrand, while the actual error for
+        ``x^2`` and ``|x|`` is more than ten and two hundred deviations.
+        """
+        nodes = [(-3.0 + 0.5 * i,) for i in range(13)]
+        results = {
+            name: bayesian_quadrature(
+                nodes,
+                [function(x) for (x,) in nodes],
+                [GaussianMeasure()],
+                length_scales=(1.0,),
+                noise_variance=1e-10,
+            )
+            for name, function in (
+                ("cos", math.cos),
+                ("square", lambda x: x * x),
+                ("abs", abs),
+            )
+        }
+        deviation = results["cos"].standard_deviation
+        self.assertAlmostEqual(deviation, 8.98e-5, delta=1e-6)
+        for result in results.values():
+            self.assertAlmostEqual(result.standard_deviation, deviation, delta=1e-12)
+        truths = {
+            "cos": math.exp(-0.5),
+            "square": 1.0,
+            "abs": math.sqrt(2.0 / math.pi),
+        }
+        ratios = {
+            name: abs(result.estimate - truths[name]) / deviation
+            for name, result in results.items()
+        }
+        self.assertLess(ratios["cos"], 1.0)
+        self.assertGreater(ratios["square"], 10.0)
+        self.assertGreater(ratios["abs"], 200.0)
+
     def test_input_validation(self) -> None:
         """Shape mismatches, bad hyperparameters, and singular kernels raise."""
         measure = [GaussianMeasure()]

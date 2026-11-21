@@ -710,8 +710,9 @@ Birnbaum `I_B = Q(1_i) - Q(0_i)`; Fussell-Vesely
   optimal in every state and `V_{k+1}` is within `eps / 2` of `V*`, by
   [EQ-RISK-MDP-006] with residual at most `gamma |V_{k+1} - V_k|_inf`.
 - Code: `risk.value_iteration`.
-- Source: [REF-NORRIS-1997]; the bound is derived in
-  `risk.markov_decision`.
+- Source: [REF-PUTERMAN-1994, Chapter 6]; [REF-NORRIS-1997, Section 5.4];
+  the bound is derived in `risk.markov_decision`.
+  - [REF-PUTERMAN-1994](../references.md#ref-puterman-1994): Martin L. Puterman. *Markov Decision Processes: Discrete Stochastic Dynamic Programming*. Wiley Series in Probability and Mathematical Statistics. John Wiley & Sons, 1994. [doi:10.1002/9780470316887](https://doi.org/10.1002/9780470316887). Cited for discounted Markov decision problems (Chapter 6): value iteration with its stopping rule and policy iteration.
   - [REF-NORRIS-1997](../references.md#ref-norris-1997): J. R. Norris. *Markov Chains*. Cambridge Series in Statistical and Probabilistic Mathematics. Cambridge University Press, 1997.
 - Registry: [EQ-RISK-MDP-003](../equation-registry.md#eq-risk-mdp-003--value-iteration-and-its-stopping-rule)
 
@@ -726,7 +727,8 @@ is strictly better; stop when `pi_{k+1} = pi_k`.
   deterministic policy repeats and the method stops at an optimal policy
   after at most `|A|^|S|` steps.
 - Code: `risk.policy_iteration`.
-- Source: [REF-NORRIS-1997].
+- Source: [REF-PUTERMAN-1994, Chapter 6]; [REF-NORRIS-1997, Section 5.4].
+  - [REF-PUTERMAN-1994](../references.md#ref-puterman-1994): Martin L. Puterman. *Markov Decision Processes: Discrete Stochastic Dynamic Programming*. Wiley Series in Probability and Mathematical Statistics. John Wiley & Sons, 1994. [doi:10.1002/9780470316887](https://doi.org/10.1002/9780470316887). Cited for discounted Markov decision problems (Chapter 6): value iteration with its stopping rule and policy iteration.
   - [REF-NORRIS-1997](../references.md#ref-norris-1997): J. R. Norris. *Markov Chains*. Cambridge Series in Statistical and Probabilistic Mathematics. Cambridge University Press, 1997.
 - Registry: [EQ-RISK-MDP-004](../equation-registry.md#eq-risk-mdp-004--policy-iteration)
 
@@ -755,8 +757,10 @@ With `rho = |T V - V|_inf` and `pi` greedy for `V`:
   `|V_pi - V| <= |T_pi V_pi - T_pi V| + |T V - V|` because `T_pi V = T V`.
 - Code: `risk.MDPSolution.value_error_bound`,
   `risk.MDPSolution.policy_loss_bound`, `risk.bellman_residual`.
-- Source: derivation in `risk.markov_decision`; [REF-NORRIS-1997] for the
+- Source: derivation in `risk.markov_decision`;
+  [REF-PUTERMAN-1994, Chapter 6] and [REF-NORRIS-1997, Section 5.4] for the
   setting.
+  - [REF-PUTERMAN-1994](../references.md#ref-puterman-1994): Martin L. Puterman. *Markov Decision Processes: Discrete Stochastic Dynamic Programming*. Wiley Series in Probability and Mathematical Statistics. John Wiley & Sons, 1994. [doi:10.1002/9780470316887](https://doi.org/10.1002/9780470316887). Cited for discounted Markov decision problems (Chapter 6): value iteration with its stopping rule and policy iteration.
   - [REF-NORRIS-1997](../references.md#ref-norris-1997): J. R. Norris. *Markov Chains*. Cambridge Series in Statistical and Probabilistic Mathematics. Cambridge University Press, 1997.
 - Registry: [EQ-RISK-MDP-006](../equation-registry.md#eq-risk-mdp-006--error-bounds-from-the-bellman-residual)
 

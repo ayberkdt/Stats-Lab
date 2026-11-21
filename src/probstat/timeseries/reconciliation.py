@@ -254,8 +254,22 @@ def shrink_covariance(
     ``E[r_ij^2]`` by ``r_ij^2`` and ``Var(r_ij)`` by the sampling variance of
     the mean of the products ``w_kij = z_ki z_kj`` of standardized residuals,
     ``N / (N - 1)^3 sum_k (w_kij - w_bar_ij)^2``, and clips the ratio to
-    ``[0, 1]``. It is a plug-in heuristic: it ignores the error of the
+    ``[0, 1]``. It is a plug-in estimate: it ignores the error of the
     standardization and is not itself the optimum.
+
+    This plug-in is the shrinkage intensity of Schäfer and Strimmer for a
+    correlation matrix shrunk towards the identity (variances unshrunk),
+    which is the estimator used with MinT; the tests compare it with a
+    literal evaluation of that formula
+    (``sum_(i != j) Var_hat(r_ij) / sum_(i != j) r_ij^2``) and agree to
+    rounding. One convention differs from common MinT software: the
+    residuals are centred here (column means subtracted, divisor
+    ``N - 1``), whereas implementations that treat forecast errors as having
+    mean zero use the uncentred cross products with divisor ``N``. The two
+    intensities differ noticeably on short samples (0.65 against 0.61 with
+    12 residual vectors of 8 series, 0.75 against 0.89 with 20 vectors of 6
+    series in one simulated example); compute the uncentred value separately
+    and pass it as ``intensity`` if it is required.
 
     Args:
         residuals: ``N >= 2`` vectors of base-forecast errors, one row per
@@ -276,6 +290,7 @@ def shrink_covariance(
         [EQ-TS-RECON-003].
 
     References:
+        [REF-SCHAFER-STRIMMER-2005],
         [REF-WICKRAMASURIYA-ATHANASOPOULOS-HYNDMAN-2019].
 
     """

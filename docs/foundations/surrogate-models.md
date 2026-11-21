@@ -599,7 +599,12 @@ single.predict((0.75,))               # 5.305
 Four expensive runs alone miss the minimum near `x = 0.76` completely; with
 eleven cheap runs the co-kriging error over `[0, 1]` is 0.185 in root mean
 square against 5.47. The variance is a plug-in value: `rho`, the trend
-constants, and the kernel hyperparameters are treated as known.
+constants, and the kernel hyperparameters are treated as known, so the
+intervals are too narrow on small designs. Over 40 random nested designs of
+this pair the nominal 95% interval `m +/- 1.96 s` covered the expensive code
+at 82% of test points with 11 cheap and 4 expensive runs (5% of the
+standardized errors exceeded 15), 94% with 15 and 5 runs, and 96% with 21
+and 7 runs; a second pair gave 69% and 94% at the first and third sizes.
 
 **Stochastic kriging** (EQ-SUR-SK-001, EQ-SUR-SK-002). A stochastic simulator
 returns a different value on every run. With `n_i` replications at `x_i` the
@@ -607,7 +612,12 @@ sample mean `Ybar_i` has variance `V(x_i) / n_i`, and the predictor of the
 mean response is
 `b0 + S_M(x0, .)' (S_M + S_e)^-1 (Ybar - b0 1)` with the spatial covariance
 `S_M` and `S_e = diag(V(x_i) / n_i)`. `V(x_i)` is replaced by the sample
-variance, so points with noisy output are trusted less.
+variance, so points with noisy output are trusted less. The reported mean
+squared error treats those sample variances as exact; with 2 to 10
+replications per point it was as low as half the actual squared error in a
+simulation with known kernel (coverage of the 95% interval 0.80 to 0.93
+over three prediction points), and close to it with 30 replications (0.94
+to 0.95).
 
 ```python
 import math
@@ -653,9 +663,12 @@ math.exp(-0.5)                 # 0.60653
 result.standard_deviation      # 0.0000898
 ```
 
-The reported standard deviation holds for the stated kernel. With
-`length_scales=None` the kernel is fitted to the same evaluations and its
-uncertainty is not included.
+The reported standard deviation holds for the stated kernel and is not an
+error bound. It does not depend on the function values at all: with the same
+nodes and length scale it is `9.0e-5` for every integrand, while the actual
+error is 4 standard deviations for `exp(x / 2)`, 17 for `x^2`, and 250 for
+`|x|`. With `length_scales=None` the kernel is fitted to the same evaluations
+and its uncertainty is not included.
 
 ## Limitations
 

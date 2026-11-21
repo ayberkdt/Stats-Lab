@@ -24,6 +24,16 @@ Value iteration ``V_{k+1} = T V_k`` has ``rho(V_{k+1}) <= gamma delta`` with
 ``delta = |V_{k+1} - V_k|_inf``, so stopping when
 ``delta < eps (1 - gamma) / (2 gamma)`` returns a greedy policy whose value is
 within ``eps`` of optimal in every state, and values within ``eps / 2``.
+The bound allows the returned greedy policy to be suboptimal: for the
+two-state problem of the tests (``gamma = 0.9``, ``eps = 1``) value
+iteration stops at a policy whose value is 0.0244 below the optimum in one
+state.
+
+Sources: Norris treats Markov decision processes as an application of
+Markov chains [REF-NORRIS-1997, Section 5.4]; the discounted theory with
+value iteration, this stopping rule, and policy iteration is in
+[REF-PUTERMAN-1994, Chapter 6]. The bounds above are re-derived here and
+checked against enumeration of all policies.
 
 Tabular Q-learning is not provided: the bibliography of this library holds
 no verified source for it.
@@ -633,7 +643,7 @@ def value_iteration(
         [EQ-RISK-MDP-002], [EQ-RISK-MDP-003], [EQ-RISK-MDP-006].
 
     References:
-        [REF-NORRIS-1997].
+        [REF-PUTERMAN-1994, Chapter 6], [REF-NORRIS-1997, Section 5.4].
 
     """
     problem = _require_mdp(mdp)
@@ -706,7 +716,7 @@ def policy_iteration(
         [EQ-RISK-MDP-001], [EQ-RISK-MDP-002], [EQ-RISK-MDP-004].
 
     References:
-        [REF-NORRIS-1997].
+        [REF-PUTERMAN-1994, Chapter 6], [REF-NORRIS-1997, Section 5.4].
 
     """
     problem = _require_mdp(mdp)

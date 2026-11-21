@@ -124,7 +124,7 @@ def log_improvement_function(z: float) -> float:
     ``h(z) = phi(t) (1 - t R(t)) = phi(t) c(t) / (t + c(t))``,
 
     so ``log h = -t^2/2 - log sqrt(2 pi) + log c - log(t + c)`` has no
-    cancellation and no underflow: ``log h(-40) = -808.2977...``.
+    cancellation and no underflow: ``log h(-40) = -808.2986...``.
 
     Args:
         z: Standardized improvement; ``-inf`` and ``inf`` are accepted.
@@ -843,7 +843,21 @@ def bayesian_optimization(
 
     If a surrogate cannot be fitted (for example all responses equal), the
     iteration evaluates the first candidate instead and is counted in
-    ``fallback_iterations``.
+    ``fallback_iterations``. This also applies to the constraint surrogates:
+    while a constraint function has returned the same value at every
+    evaluated point (for example a constraint that is satisfied with a
+    constant margin), every iteration is a fallback and the run is a random
+    search; check ``fallback_iterations``.
+
+    The objective and the constraints are assumed deterministic. The
+    surrogate interpolates the data up to the nugget and the incumbent is
+    the smallest (largest) *observed* value, so with a noisy objective the
+    reported ``best_value`` is biased towards the favourable tail of the
+    noise and the expected improvement is taken over a noisy incumbent: for
+    an objective that is pure ``N(0, 1)`` noise a run of 25 evaluations
+    reported a minimum of -2.0. Evaluated points are never repeated exactly
+    (a proposal equal to an evaluated point is replaced), but proposals
+    arbitrarily close to evaluated points are possible.
 
     Args:
         objective: Function of a point (a tuple of floats) returning a

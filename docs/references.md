@@ -5760,3 +5760,21 @@ Pierre L'Ecuyer, Marvin K. Nakayama, Art B. Owen, and Bruno Tuffin.
 *Proceedings of the 2023 Winter Simulation Conference*, 2023. Cited for the
 caution that replicate-based intervals for randomized quasi-Monte Carlo are
 approximate.
+
+## REF-PUTERMAN-1994
+
+Martin L. Puterman. *Markov Decision Processes: Discrete Stochastic Dynamic
+Programming*. Wiley Series in Probability and Mathematical Statistics. John
+Wiley & Sons, 1994. [doi:10.1002/9780470316887](https://doi.org/10.1002/9780470316887).
+Cited for discounted Markov decision problems (Chapter 6): value iteration
+with its stopping rule and policy iteration.
+
+## REF-SCHAFER-STRIMMER-2005
+
+Juliane Schäfer and Korbinian Strimmer. "A shrinkage approach to large-scale
+covariance matrix estimation and implications for functional genomics."
+*Statistical Applications in Genetics and Molecular Biology* 4(1), Article
+32, 2005. [doi:10.2202/1544-6115.1175](https://doi.org/10.2202/1544-6115.1175).
+Cited for the shrinkage intensity of a correlation matrix towards the
+identity (sum of the estimated variances of the off-diagonal sample
+correlations over the sum of their squares).
