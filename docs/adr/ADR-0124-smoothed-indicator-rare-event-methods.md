@@ -198,6 +198,28 @@ is `c.o.v. sqrt(calls)` (smaller is better). Linear states are
   c.o.v.: 0.94, 1.00, 0.95, 1.01, 0.82. The fraction of runs further than
   two reported standard errors from the exact value was 3 to 5 % in two
   dimensions and 12 % at `beta = 4.5`, `d = 20`.
+- **Fifty dimensions** (`beta = 3`, `d = 50`, 1325 covariance
+  parameters). With `N = 2000` and 30 levels, 20 of 21 runs did not
+  converge: the estimates were between `1e-10` and 1.09 times the exact
+  value (median 0.01) with reported c.o.v. of 0.5 to 1.0, i.e. up to
+  `1e10` reported standard errors away; the scales stayed at their first
+  value because the likelihood ratios of the fitted proposal alone
+  exceeded the target c.o.v., and the Kish effective sample size was about
+  3 of 2000. The single run that met the stopping rule returned 0.34 times
+  the exact value (reported c.o.v. 0.84). With `N = 6000`, 50 of 50 runs
+  converged in 4 or 5 levels (33000 calls on average): mean 1.008 (Monte
+  Carlo standard error 0.005), replicate c.o.v. 0.033, reported 0.035, one
+  run of 50 beyond two standard errors. The method therefore needs `N`
+  well above the number of covariance parameters, and an unconverged
+  result carries a standard error that says nothing about its error.
+- **Four-branch function, mixture with four components, 60 seeds**: mean
+  0.999 (standard error 0.006), replicate c.o.v. 0.049, reported 0.057,
+  all converged, 4033 calls on average (5000 at most). The 0.065 of the
+  table above (20 seeds) is within sampling error of this.
+- **Unguarded covariance at `beta = 4.5`, `d = 20`**: the replicate c.o.v.
+  of 0.262 with one unconverged run was not reproduced with seeds
+  1000-1029 (0.088, all 30 converged, mean 1.004); that entry depends on
+  rare outlying runs.
 - **The covariance floor changes efficiency, not the expectation**: the
   weights use the exact density of the floored proposal, and without the
   floor the means were 0.995 (`beta = 4.5`, `d = 2`, 100 runs) and 1.004

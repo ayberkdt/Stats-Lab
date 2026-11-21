@@ -637,6 +637,26 @@ def improved_cross_entropy(
     the unguarded fit, which usually has a smaller reported c.o.v. that
     understates the error (``weights_heavy_tailed`` is then set).
 
+    Dimension: a full covariance has ``d (d + 3) / 2`` parameters and each
+    fit rests on about ``N / (1 + target_cv^2)`` effective samples. When
+    that is too few the likelihood ratios of the fitted proposal alone
+    exceed the target c.o.v., :func:`smoothing_scale` returns the previous
+    scale (see ``weight_coefficients_of_variation`` above the target and
+    constant ``scales``), and the run stalls. For a linear limit state with
+    ``beta = 3`` in 50 dimensions, ``N = 2000`` failed in 20 of 21 runs
+    (30 levels; estimates between ``1e-10`` and 1.09 times the exact
+    value, median 0.01, with reported c.o.v. of 0.5 to 1.0 and Kish
+    effective sample sizes of a few points; the one run that met the
+    stopping rule returned 0.34 times the exact value with a reported
+    c.o.v. of 0.84), while ``N = 6000`` converged in 50 of 50 runs in 4 or
+    5 levels with mean ``estimate / exact`` of 1.008 and replicate c.o.v.
+    0.033 (reported 0.035). The standard error of an unconverged run is not
+    a measure of its error; check ``converged`` and
+    ``effective_sample_size``. The covariance floor does not help here:
+    an eigenvalue just above ``1/2`` gives a finite but very large weight
+    variance when many directions sit at the floor, and
+    ``weights_heavy_tailed`` stays ``False``.
+
     A single Gaussian follows one failure region. For several separated
     regions it either locks on one of them and underestimates ``P_f`` or
     covers them with one wide density and a large c.o.v.; use

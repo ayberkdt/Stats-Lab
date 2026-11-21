@@ -581,6 +581,14 @@ important direction, and the importance weights then have infinite variance.
 This guard is a choice of this library; `covariance_floor=None` removes it
 and sets `weights_heavy_tailed` when it matters.
 
+A full covariance in `d` dimensions has `d (d + 3) / 2` parameters, and
+`N` must be well above that: for a linear limit state in 50 dimensions
+`N = 2000` failed to converge in 20 of 21 runs and returned estimates that
+were typically a hundred times too small, while `N = 6000` converged in
+every one of 50 runs with a mean of 1.008 times the exact value. Check
+`converged` and `effective_sample_size`; the standard error of an
+unconverged run is not a measure of its error.
+
 One Gaussian follows one failure region. On the four-branch function it
 spreads over all four regions, never meets the stopping rule (0 of 20 seeds
 within 50 levels), and returns a c.o.v. of 0.11 after 51000 calls; the

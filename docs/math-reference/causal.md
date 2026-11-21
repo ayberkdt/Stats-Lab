@@ -382,7 +382,12 @@ ratio `(E[Y|Z=1] - E[Y|Z=0]) / (E[D|Z=1] - E[D|Z=0])`.
   instrument relevance, exclusion and exchangeability with homogeneous
   effects.
 - Code: `causal.two_stage_least_squares`.
-- Source: [REF-HERNAN-ROBINS-2020, Chapter 16].
+- Source: [REF-HERNAN-ROBINS-2020, Chapter 16] (instrumental conditions,
+  the usual IV estimand and the two-stage estimator for one instrument and
+  one treatment). The matrix form with several endogenous regressors and
+  included exogenous covariates is the same projection written out here;
+  it was checked against a direct matrix computation, not against a
+  source text.
   - [REF-HERNAN-ROBINS-2020](../references.md#ref-hernan-robins-2020): Miguel A. Hernán and James M. Robins. *Causal Inference: What If*. Chapman and Hall/CRC, 2020.
 - Registry: [EQ-CAUSAL-IV-001](../equation-registry.md#eq-causal-iv-001--two-stage-least-squares)
 

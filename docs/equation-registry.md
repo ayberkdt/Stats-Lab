@@ -19660,7 +19660,12 @@ ratio `(E[Y|Z=1] - E[Y|Z=0]) / (E[D|Z=1] - E[D|Z=0])`.
   instrument relevance, exclusion and exchangeability with homogeneous
   effects.
 - Code: `causal.two_stage_least_squares`.
-- Source: [REF-HERNAN-ROBINS-2020, Chapter 16].
+- Source: [REF-HERNAN-ROBINS-2020, Chapter 16] (instrumental conditions,
+  the usual IV estimand and the two-stage estimator for one instrument and
+  one treatment). The matrix form with several endogenous regressors and
+  included exogenous covariates is the same projection written out here;
+  it was checked against a direct matrix computation, not against a
+  source text.
 
 ### EQ-CAUSAL-IV-002 — Heteroskedasticity-robust covariance of 2SLS
 
