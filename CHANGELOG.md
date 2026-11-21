@@ -114,7 +114,8 @@ library does not contain and for certifying what is claimed about it.
   training-free oracle, `fit_flow_matching_posterior` (recovers a bimodal
   posterior where the Gaussian amortized estimator cannot), and
   `fit_ratio_estimator`. Validated in one dimension with small networks;
-  the record reports the measured calibration and seed spread.
+  the flow-matching posterior is mildly overconfident on the linear-Gaussian
+  test problem (intervals about 6 % too narrow on average; ADR-0129).
 - **Interacting-particle inversion** (`probstat.inverse`, ADR-0130):
   `interacting_langevin_sampler` with the finite-ensemble correction (the
   covariance deficit `(J - d - 1)/J` of the uncorrected sampler is derived

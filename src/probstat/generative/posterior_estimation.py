@@ -18,10 +18,22 @@ is paid once (amortized). Unlike
 :func:`probstat.inference.fit_amortized_gaussian_posterior` the family is
 not Gaussian, so skewed and multimodal posteriors can be represented.
 
-An amortized neural posterior can be overconfident (Hermans et al. 2022);
-check it with :func:`probstat.inference.simulation_based_calibration` on
-fresh simulations before using it. Networks are small and trained in scalar
-Python; large-scale training is out of scope.
+An amortized neural posterior can be overconfident (Hermans et al. 2022),
+and this one is at the small training sizes used in the library's tests. On
+the linear-Gaussian problem ``theta ~ N(0, 1)``, ``x = 2 theta + N(0, 1)``
+(1000 simulations, two hidden layers of 16, 1200 iterations) the central
+intervals of the fitted posterior were too narrow for eight of ten training
+seeds: their width was 0.87 to 1.02 times the exact one (mean 0.94) and the
+nominal 90 % interval covered 86 % to 91 % (mean 88.7 %) under the exact
+posterior. Simulation-based calibration with 2000 replicates rejects
+uniform ranks at ``p < 0.01`` for two of six training seeds; with the 200
+replicates of the test suite the same fits are not rejected. More training
+reduces the error (4000 simulations and 5000 iterations: width ratio 0.99,
+90 % coverage 89 % for two seeds) but nothing in the loss shows it. Check every
+fit with :func:`probstat.inference.simulation_based_calibration` on fresh
+simulations, with enough replicates to see a ten per cent error of the
+width, before using it. Networks are small and trained in scalar Python;
+large-scale training is out of scope.
 
 References:
     [REF-WILDBERGER-ETAL-2023], [REF-LIPMAN-ETAL-2023],

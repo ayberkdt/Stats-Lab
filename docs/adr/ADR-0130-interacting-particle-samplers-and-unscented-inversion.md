@@ -142,6 +142,10 @@ is not claimed.
 15. **Finite ensemble.** The self-normalized `C_b` is low by about
     `1/J_eff`, which moves the fixed point to about
     `(1 - (1 + beta)/(beta J_eff)) Sigma`; this is documented, not corrected.
+    (Audit: the formula is a large-ensemble estimate. At `J = 20` on the
+    line problem it gives 0.13, and the measured deficit of the final
+    ensemble variance was 0.07, 0.14 and 0.23 after 30, 60 and 300 updates:
+    it grows with the number of updates.)
 
 ## Consequences
 
@@ -183,7 +187,13 @@ Where each method is worse:
   suit high-dimensional fields where ensemble methods with `J << d` still
   run; it returns a Gaussian and cannot represent skewness or
   multimodality; convergence is not guaranteed for nonlinear models. On the
-  decay problem its standard deviations are 2-4 % below the MCMC values.
+  decay problem its standard deviations are 2-4 % below the MCMC values
+  quoted above; against a longer reference (four chains of 8000 draws, sd
+  `(0.0682, 0.00637)`, a second seed `(0.0665, 0.00624)`) the ratios are
+  1.00 and 1.00, so the difference is within the error of the reference.
+  For a forward map that is even about the prior mean the prior is a fixed
+  point and is returned with `converged=True` (audit: `G = theta^2`,
+  `y = 1` or `4`, prior `N(0, 1)`).
 - **Consensus-based sampling**: three to seventeen times the evaluations of
   ES-MDA; the spread is 2-8 % too small at `J = 200`; the early updates run
   at `beta ~ 0.001-0.01` because the prior ensemble is far wider than the

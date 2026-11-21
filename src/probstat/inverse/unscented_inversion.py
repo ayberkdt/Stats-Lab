@@ -75,7 +75,12 @@ class UnscentedInversionResult:
             ``|C_{n+1,ij} - C_{n,ij}| / sqrt(C_{n+1,ii} C_{n+1,jj})``.
         iterations: Number of iterations performed.
         converged: Whether the last change fell below ``tolerance``. When
-            ``False`` the Gaussian is an unconverged iterate.
+            ``False`` the Gaussian is an unconverged iterate. ``True`` says
+            only that the iteration reached a fixed point, not that the
+            fixed point is close to the posterior: for a forward map that is
+            even about the prior mean (``G(u) = G(-u)``) the prior itself is
+            a fixed point and is returned after one iteration, whatever the
+            data.
         tolerance: Convergence tolerance on the change.
         kappa: Sigma-point spread parameter.
         forward_evaluations: Evaluations of the full observation operator,
@@ -203,6 +208,15 @@ def unscented_kalman_inversion(
     model the fixed point is a Gaussian approximation built from sigma-point
     (statistical) linearization; it need not be close to a skewed or
     multimodal posterior and the iteration is not guaranteed to converge.
+    Example (``G(theta) = theta^2``, noise 0.2, ``y = 1``, posterior modes
+    near ``-1`` and ``+1``): with the prior ``N(0, 1)`` the sigma points are
+    symmetric, the cross-covariance with the data vanishes, and the run
+    stops after one iteration with ``converged=True`` at the prior
+    ``N(0, 1)`` (also for ``y = 4``, where the posterior standard deviation
+    is 2.0); with the prior ``N(0.3, 1)`` (posterior mean 0.28, 64 % of the
+    mass on the positive mode) it returns ``N(0.15, 0.98^2)`` for
+    ``kappa = 1`` and ``N(-0.98, 0.10^2)``, the minor mode, for
+    ``kappa = 0``.
 
     Args:
         problem: Calibration problem whose noise models are all known-scale

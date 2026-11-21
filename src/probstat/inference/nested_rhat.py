@@ -22,12 +22,13 @@ Reading the value
     Chains of one superchain start at the same point, so before the chains
     forget their start the superchain means differ by more than the spread
     inside a superchain explains and ``nR-hat`` is well above one. For
-    stationary independent chains ``B / W`` is about ``1 / (M (N + 1))``
-    for ``N`` draws per chain, so the statistic approaches one as ``M``
-    grows, not only as ``N`` grows. That is the point of the construction:
-    a threshold close to one can be met with short chains. The value depends
-    on ``M``; a threshold must be chosen with ``M`` in mind and no universal
-    cut-off is built in here.
+    stationary independent chains whose ``N`` draws are themselves
+    independent, ``B / W`` is about ``1 / (M (N + 1))`` (positively
+    autocorrelated draws give a larger ratio, still of order ``1 / M``), so
+    the statistic approaches one as ``M`` grows, not only as ``N`` grows.
+    That is the point of the construction: a threshold close to one can be
+    met with short chains. The value depends on ``M``; a threshold must be
+    chosen with ``M`` in mind and no universal cut-off is built in here.
 
 With ``M = 1`` the statistic is ``sqrt(1 + B / W)`` with the usual
 between-chain and within-chain variances; the classical (non-split)

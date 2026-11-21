@@ -13,6 +13,7 @@ import math
 import random
 import unittest
 import warnings
+from collections.abc import Sequence
 
 from probstat.foundations.random_streams import RandomStream
 from probstat.inference import (
@@ -1016,3 +1017,129 @@ class ParallelTemperingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KernelInvarianceAuditTests(unittest.TestCase):
+    """Audit: one-step laws from exact draws of a non-Gaussian target.
+
+    Each test starts 2000 independent short chains at exact draws of a
+    skewed target with bounded support and checks by a Kolmogorov-Smirnov
+    test that the law after a few updates is unchanged. Unlike a comparison
+    of moments from one long chain this fails for a kernel whose invariant
+    law is slightly wrong. The seeds are fixed; with the exact kernels the
+    p-values are uniform, and the threshold 1e-3 leaves a false-alarm
+    probability of about 0.5 % for the five checks together.
+    """
+
+    CHAINS = 2000
+
+    @staticmethod
+    def _gamma_cdf(value: float) -> float:
+        """Return the Gamma(3, 1) distribution function."""
+        if value <= 0.0:
+            return 0.0
+        return 1.0 - math.exp(-value) * (1.0 + value + 0.5 * value * value)
+
+    @staticmethod
+    def _log_gamma(point: Sequence[float]) -> float:
+        """Return the product Gamma(3, 1) log-density on the positive orthant."""
+        if min(point) <= 0.0:
+            return -math.inf
+        return math.fsum(2.0 * math.log(x) - x for x in point)
+
+    def _p_value(self, sample: list[float]) -> float:
+        """Return the asymptotic Kolmogorov-Smirnov p-value against Gamma(3)."""
+        ordered = sorted(sample)
+        count = len(ordered)
+        distance = 0.0
+        for rank, value in enumerate(ordered):
+            level = self._gamma_cdf(value)
+            distance = max(
+                distance, abs(level - rank / count), abs((rank + 1) / count - level)
+            )
+        scaled = (math.sqrt(count) + 0.12 + 0.11 / math.sqrt(count)) * distance
+        return 2.0 * math.fsum(
+            (-1.0) ** (j - 1) * math.exp(-2.0 * j * j * scaled * scaled)
+            for j in range(1, 101)
+        )
+
+    def test_slice_sampler_with_a_step_limit(self) -> None:
+        """Stepping out limited to 3 steps of width 0.3 keeps Gamma(3)."""
+        generator = random.Random(101)
+        finals = []
+        for chain in range(self.CHAINS):
+            result = slice_sampler(
+                self._log_gamma,
+                (generator.gammavariate(3.0, 1.0),),
+                draws=3,
+                widths=0.3,
+                max_steps=3,
+                seed=10_000 + chain,
+                check_convergence=False,
+            )
+            finals.append(result.chains[0].samples[-1][0])
+        self.assertGreater(self._p_value(finals), 1e-3)
+
+    def test_mala_on_a_bounded_support(self) -> None:
+        """MALA with rejected out-of-support proposals keeps Gamma(3)."""
+        generator = random.Random(102)
+        finals = []
+        for chain in range(self.CHAINS):
+            result = metropolis_adjusted_langevin(
+                self._log_gamma,
+                (generator.gammavariate(3.0, 1.0),),
+                step_size=1.2,
+                draws=4,
+                seed=20_000 + chain,
+                check_convergence=False,
+            )
+            finals.append(result.chains[0].samples[-1][0])
+        self.assertGreater(self._p_value(finals), 1e-3)
+
+    def test_stretch_move_with_fewer_than_twice_the_dimension(self) -> None:
+        """Three walkers in two dimensions (halves of 1 and 2) keep the target.
+
+        Twenty sweeps are needed for power: with the exponent ``d`` in
+        place of ``d - 1`` the p-values are below 1e-5 after 20 sweeps but
+        about 0.1 after 3.
+        """
+        generator = random.Random(103)
+        first: list[float] = []
+        last: list[float] = []
+        for chain in range(self.CHAINS):
+            start = [
+                (generator.gammavariate(3.0, 1.0), generator.gammavariate(3.0, 1.0))
+                for _ in range(3)
+            ]
+            result = stretch_move_sampler(
+                self._log_gamma, start, draws=20, seed=30_000 + chain
+            )
+            first.append(result.walkers[0][-1][0])
+            last.append(result.walkers[2][-1][1])
+        self.assertGreater(self._p_value(first), 1e-3)
+        self.assertGreater(self._p_value(last), 1e-3)
+
+    def test_elliptical_slice_with_a_nonzero_prior_mean(self) -> None:
+        """A Gamma(3) target written as likelihood times N(2, 1.5^2) is kept."""
+        generator = random.Random(104)
+
+        def log_likelihood(point: Sequence[float]) -> float:
+            """Return log Gamma(3) minus the log prior N(2, 1.5^2)."""
+            value = point[0]
+            if value <= 0.0:
+                return -math.inf
+            return 2.0 * math.log(value) - value + 0.5 * ((value - 2.0) / 1.5) ** 2
+
+        finals = []
+        for chain in range(self.CHAINS):
+            result = elliptical_slice_sampler(
+                log_likelihood,
+                (generator.gammavariate(3.0, 1.0),),
+                prior_covariance=((2.25,),),
+                prior_mean=(2.0,),
+                draws=3,
+                seed=40_000 + chain,
+                check_convergence=False,
+            )
+            finals.append(result.chains[0].samples[-1][0])
+        self.assertGreater(self._p_value(finals), 1e-3)

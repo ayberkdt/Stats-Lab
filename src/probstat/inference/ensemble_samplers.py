@@ -48,7 +48,15 @@ Parallel tempering (:func:`parallel_tempering`, [EQ-INF-PT-001])
     ``log Z = sum_i log mean_t exp((beta_{i+1} - beta_i) l(x_i^(t)))``,
     from the identity ``Z(beta') / Z(beta) = E_beta[L^(beta' - beta)]``.
     No standard error is attached: the draws of a replica are autocorrelated
-    and the replicas are dependent through the swaps.
+    and the replicas are dependent through the swaps. The identity is exact
+    but the estimate is not unbiased: each term is the logarithm of a sample
+    mean, which is biased low, and when two rungs are far apart the mean is
+    carried by a few draws. For a ``N(0, 10^2)`` prior and a likelihood of
+    width 0.1 (20 seeds, 500 draws) the error of ``log Z`` was
+    ``-0.54 +- 0.18`` with the ladder ``(0, 1)`` (single runs between
+    ``-2.7`` and ``+0.9``) and ``0.00 +- 0.04`` with eight rungs. A swap
+    rejection rate near one marks a pair whose increment should not be
+    trusted; repeat the run with other seeds to see the spread.
 """
 
 from __future__ import annotations

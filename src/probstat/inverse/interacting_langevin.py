@@ -78,7 +78,11 @@ class InteractingLangevinResult:
             step count); ``nan`` when fewer than twenty ensembles are
             averaged. It measures the time-averaging error only, not the
             discretization bias or the error of the gradient-free
-            approximation.
+            approximation, and it is somewhat optimistic when the batches
+            are short: over 40 replicates of 2000 steps on a two-parameter
+            linear problem (``J`` from 4 to 8) the root-mean-square error of
+            the mean was 1.1 to 1.6 reported standard errors, where ten
+            independent batches would give 1.13.
         mean_history: Ensemble mean of ``theta`` per evaluated ensemble.
         spread_history: Ensemble standard deviation of each ``theta``
             coordinate per evaluated ensemble (divisor ``J - 1``).
@@ -292,10 +296,16 @@ def interacting_langevin_sampler(
     deterministic part of the step is a contraction for ``step_factor < 2``;
     in stationarity the step is about ``step_factor / d``. This rule is a
     heuristic: it is not an error-controlled integrator, the invariant law
-    of the discrete chain differs from the posterior by ``O(h)`` (roughly a
-    relative covariance inflation of ``h / 2``), and the averages are
-    weighted by ``h_n`` to compensate the state dependence of the step to
-    leading order.
+    of the discrete chain differs from the posterior by ``O(h)``, and the
+    averages are weighted by ``h_n`` to compensate the state dependence of
+    the step to leading order. The sign and size of the remaining bias
+    depend on ``J``: on a two-parameter linear problem (40 replicates of
+    2000 steps) the ratio of the estimated to the exact posterior variance
+    was ``0.97`` to ``1.02`` (replicate standard error ``0.02``) for
+    ``step_factor = 0.1`` and ``J`` from 4 to 8, and for ``step_factor =
+    0.4`` it was ``0.96`` at ``J = 4``, ``1.01`` at ``J = 5``, ``1.04`` at
+    ``J = 6`` and ``1.06`` at ``J = 8`` (standard error ``0.01``). The
+    unweighted average of the same runs was 12 % to 34 % too large.
 
     Args:
         problem: Calibration problem whose noise models are all known-scale

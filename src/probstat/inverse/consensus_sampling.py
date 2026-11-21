@@ -264,7 +264,14 @@ def consensus_based_sampling(
     statement about the mean-field (infinite-ensemble) iteration. With ``J``
     members the weighted covariance is biased low by about ``1 / J_eff``,
     which the iteration amplifies to a relative covariance deficit of about
-    ``(1 + beta) / (beta J_eff)``.
+    ``(1 + beta) / (beta J_eff)``. This is a leading-order estimate for a
+    large ensemble. For a small one the deficit keeps growing with the
+    number of updates, because the errors of successive weighted covariances
+    multiply: with ``J = 20`` on a two-parameter linear problem (formula:
+    0.13) the mean variance of the final ensemble was 7 %, 14 % and 23 %
+    below the posterior variance after 30, 60 and 300 updates (replicate
+    standard error 4 to 5 %); with ``J = 50`` and 60 updates the deficit was
+    within the replicate error of 3 %.
 
     Effective sample size. Early weights can be carried by a few members
     when the posterior is much narrower than the prior. Each update

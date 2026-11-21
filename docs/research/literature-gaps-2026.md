@@ -166,7 +166,7 @@ now supports. *Speculation* marks conjectures of this survey.
 7. **Overconfident amortized posteriors.** Hermans et al. (2022,
    arXiv:2110.06581) show that neural simulation-based inference can be
    overconfident, and the library's own flow-matching posterior showed
-   three of six calibration p-values below 0.1 (ADR-0129). *Experiment:* simulation-based calibration
+   intervals about 6 % too narrow on a linear-Gaussian problem (ADR-0129). *Experiment:* simulation-based calibration
    (`inference` SBC) and `inference.pareto_smooth` k-hat as a per-data-set
    diagnostic where the likelihood is tractable (*speculation* that this
    diagnostic has not been studied for amortized estimators).

@@ -275,10 +275,16 @@ nothing in the training loss reveals it [REF-HERMANS-ETAL-2022]. Check
 every trained estimator on fresh simulations, for example with
 `probstat.inference.simulation_based_calibration` [REF-TALTS-ETAL-2018],
 and do not trust it at observations far from the simulated data. On the
-linear-Gaussian test problem of ADR-0129 the rank test gave p-values from
-0.07 to 0.99 over six training seeds; on the bimodal problem below the two
-modes are found with the right masses, but each mode is about twice as wide
-as the exact one at these training sizes.
+linear-Gaussian test problem of ADR-0129 the rank test with 200 replicates
+gave p-values from 0.07 to 0.99 over six training seeds, which is too few
+replicates to see the error: with 2000 replicates two of the six fits are
+rejected at `p < 0.01`, and measured against the exact posterior the
+flow-matching intervals are too narrow for eight of ten training seeds
+(width 0.87 to 1.02 of the exact one, mean 0.94; the nominal 90 % interval
+covers 86 % to 91 %). The flow-matching posterior is therefore mildly
+overconfident on that problem at these training sizes. On the bimodal
+problem below the error has the other sign: the two modes are found with
+the right masses, but each mode is about twice as wide as the exact one.
 
 ```python
 from probstat.generative import (
