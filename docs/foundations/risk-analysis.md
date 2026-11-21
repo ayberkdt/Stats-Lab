@@ -190,6 +190,110 @@ has `P("rain") = 0.31`; the decision rule is take on "rain", leave on "dry";
 the value with the forecast is `0.24·70 + 0.07·80 + 0.63·100 = 85.4`, so
 `EVSI = 8.4 <= EVPI`. Pay for the forecast only if it costs less than 8.4.
 
+## Sequential decisions: bandits, logged data, and Markov decision processes
+
+`DecisionProblem` treats one decision. Four modules cover decisions that
+repeat, each with its own question.
+
+**Which action in this context, while still learning?** `LinUCB(n_arms,
+dimension, alpha=...)` keeps one ridge regression per arm and plays the arm
+with the largest `theta_a'x + alpha sqrt(x' A_a^-1 x)` [EQ-RISK-LINUCB-001];
+the inverse is updated in `O(d^2)` by a rank-one formula
+[EQ-RISK-LINUCB-002]. `LinearThompsonSampling(dimension, v=...)` draws one
+shared parameter from `N(B^-1 f, v^2 B^-1)` and plays its best arm
+[EQ-RISK-LINTS-001]; with `v = 1` this is the exact posterior of a `N(0, I)`
+prior under unit-variance Gaussian rewards. `alpha` and `v` are tuning
+parameters: the values used in the regret proofs of the sources depend on
+the horizon and a confidence level and are not reproduced here.
+`simulate_linear_bandit` runs a policy in a known linear environment and
+reports the pseudo-regret [EQ-RISK-LINUCB-003]. With four arms in three
+dimensions (noise 0.5, seed 21) LinUCB loses 0.068 per round over the first
+200 rounds and 0.010 over 2000 (total 20.7, against 1224 for uniform play).
+
+**What would another policy have earned on data already collected?** A log
+of `(context, action, reward, logging propensity)` records goes into
+`logged_bandit_data`. `inverse_propensity_score` reweights the rewards by
+`pi(a|x) / p(a|x)` [EQ-RISK-OPE-001] and is unbiased when the propensities
+are the true ones; `self_normalized_ips` divides by the sum of the weights
+[EQ-RISK-OPE-002]; `direct_method` averages a reward model
+[EQ-RISK-OPE-003]; `doubly_robust` adds the weighted residual of the model
+[EQ-RISK-OPE-004] and is unbiased if either the propensities or the model
+are right. Every estimate carries a standard error, the largest weight, and
+the effective sample size of the weights [EQ-RISK-OPE-005]. On a tabular
+problem with two contexts and three actions the tests enumerate all 144
+two-record logs: IPS and both doubly robust variants have expectation equal
+to the true value 0.576 to rounding, while IPS with wrong propensities is
+off by 0.316 and weights clipped at 2 give a bias of -0.276.
+
+**What is the best policy when actions change the future state?**
+`FiniteMDP(transitions, rewards, discount)` holds `P[a][s][s']`, rewards
+`R[a][s]` or `R[a][s][s']`, and `gamma < 1`. `policy_evaluation` solves
+`(I - gamma P_pi) V = r_pi` [EQ-RISK-MDP-001]; `policy_iteration` alternates
+that solve with greedy improvement and stops at an optimal policy
+[EQ-RISK-MDP-004]; `value_iteration(tolerance=eps)` iterates the Bellman
+operator until the change is below `eps (1 - gamma) / (2 gamma)`, which
+guarantees a policy within `eps` of optimal [EQ-RISK-MDP-003];
+`backward_induction` solves the finite-horizon problem
+[EQ-RISK-MDP-005]. Every solution reports its Bellman residual and the
+error bounds that follow from it [EQ-RISK-MDP-006].
+
+**Which of `n` options is best, with a fixed number of trials?**
+`sequential_halving(pull, n_arms, budget)` spends the budget in
+`ceil(log2 n)` rounds and drops the worse half after each
+[EQ-RISK-SH-001]. On eight Bernoulli arms with best mean 0.6 and runner-up
+0.45 the wrong arm was returned in 34.7 %, 12.0 %, and 0 % of 300 seeded
+runs with budgets 48, 240, and 1200.
+
+```python
+from probstat.risk import (
+    FiniteMDP, LinUCB, doubly_robust, inverse_propensity_score,
+    logged_bandit_data, policy_evaluation, policy_iteration,
+    sequential_halving, value_iteration,
+)
+
+# A machine is "good" or "worn"; "run" earns 10 or 4, "repair" earns 5 or 1.
+run = ((0.8, 0.2), (0.0, 1.0))
+repair = ((1.0, 0.0), (1.0, 0.0))
+mdp = FiniteMDP((run, repair), ((10.0, 4.0), (5.0, 1.0)), 0.9)
+best = policy_iteration(mdp)
+best.policy                                          # (0, 1)
+best.values[0]                                       # 86.2712
+policy_evaluation(mdp, (0, 0))[0]                    # 61.4286
+value_iteration(mdp, tolerance=1e-6).iterations      # 180
+
+log = logged_bandit_data(
+    [("a", 0, 1.0, 0.5), ("a", 1, 0.0, 0.5), ("b", 1, 1.0, 0.25),
+     ("b", 0, 0.0, 0.75), ("a", 1, 1.0, 0.5), ("b", 1, 1.0, 0.25)],
+    n_actions=2,
+)
+always_one = lambda context: (0.0, 1.0)
+ips = inverse_propensity_score(log, always_one)
+ips.value                                            # 1.6667
+ips.effective_sample_size                            # 3.6
+doubly_robust(log, always_one, lambda x, a: 0.5).value   # 1.1667
+
+policy = LinUCB(2, 1, alpha=1.0)
+for reward in (1.0, 0.0, 1.0):
+    policy.update(0, (1.0,), reward)
+policy.theta(0)[0]                                   # 0.5
+policy.bonus(0, (1.0,))                              # 0.5
+
+halving = sequential_halving(lambda arm, rng: (0.1, 0.5, 0.3, 0.9)[arm], 4, 40)
+halving.best_arm                                     # 3
+```
+
+The six-record log shows why the diagnostics matter: rewards lie in
+`[0, 1]` but the IPS estimate is 1.67, because two records carry weight 4
+and the effective sample size is 3.6.
+
+Limits: the bandit policies assume the linear payoff model; nothing is
+claimed when it is wrong. Off-policy estimators need logging propensities
+that are positive wherever the target policy acts, independent records, and
+a reward model that was not fitted on the evaluated records; a small
+effective sample size means the standard error is itself unreliable. A
+`FiniteMDP` needs known transition probabilities and offers every action in
+every state; model-free learning (Q-learning) is not implemented.
+
 ## Risk matrices: communication only
 
 `RiskMatrix` maps (likelihood, severity) bins to categories
@@ -253,3 +357,5 @@ matrix.cell(0.1, 10.0)                               # (1, 1)
 - [REF-BAKER-2015], [REF-SHINOZUKA-ETAL-2000], [REF-CORNELL-ETAL-2002],
   [REF-BAKER-BRADLEY-STAFFORD-2021].
 - [REF-RAIFFA-SCHLAIFER-1961], [REF-COX-2008].
+- [REF-LI-ETAL-2010], [REF-AGRAWAL-GOYAL-2013], [REF-DUDIK-LANGFORD-LI-2011],
+  [REF-NORRIS-1997], [REF-KARNIN-KOREN-SOMEKH-2013].

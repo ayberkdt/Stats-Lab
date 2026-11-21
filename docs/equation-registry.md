@@ -17966,3 +17966,218 @@ derivative through `x~ = x_0 + (g - g_0)` with `g = c sum_k L_ik u_k`
 - Source: [REF-CASELLA-BERGER-2002, Section 2.1] (derivative of an inverse
   transformation), [REF-LIU-DERKIUREGHIAN-1986] (Nataf map) and
   [REF-GRIEWANK-WALTHER-2008, Chapter 3] (reverse mode).
+
+## Contextual bandits, off-policy evaluation, and Markov decision processes (ADR-0126)
+
+### EQ-RISK-LINUCB-001 — LinUCB estimate and upper confidence score
+
+`A_a = I + sum_{t: a_t = a} x_t x_t'`, `b_a = sum_{t: a_t = a} r_t x_t`,
+`theta_a = A_a^-1 b_a`; play
+`argmax_a theta_a' x_{t,a} + alpha sqrt(x_{t,a}' A_a^-1 x_{t,a})`.
+
+- Domain: `K >= 2` arms, feature vectors in `R^d`, finite rewards,
+  exploration weight `alpha >= 0` chosen by the user.
+- Meaning: one ridge regression per arm; the bonus is `alpha` times the
+  standard deviation scale of the predicted reward and shrinks in the
+  directions the arm has explored. For `d = 1`, `x = 1` it reduces to
+  `theta = sum r / (n + 1)` and bonus `alpha / sqrt(n + 1)`.
+- Code: `risk.LinUCB`, `risk.LinUCB.theta`, `risk.LinUCB.scores`,
+  `risk.LinUCB.select`, `risk.simulate_linear_bandit`.
+- Source: [REF-LI-ETAL-2010].
+
+### EQ-RISK-LINUCB-002 — Rank-one update of the inverse design matrix
+
+`(A + x x')^-1 = A^-1 - u u' / (1 + x' u)` with `u = A^-1 x`.
+
+- Domain: symmetric positive-definite `A`, so `1 + x' A^-1 x >= 1`.
+- Meaning: Sherman-Morrison update; verified by multiplying
+  `(A + x x') (A^-1 - u u' / (1 + x' u)) = I + x u' - x u' = I`. Keeps the
+  cost of one LinUCB round at `O(d^2)` per arm.
+- Code: `risk.LinUCB.update`, `risk.LinUCB.inverse_design`.
+- Source: [REF-GOLUB-VANLOAN-2013]; derivation above.
+
+### EQ-RISK-LINUCB-003 — Pseudo-regret in a linear environment
+
+`Regret(T) = sum_{t=1}^T (max_a m_t(a) - m_t(a_t))`,
+`m_t(a) = theta_a' x_{t,a}`.
+
+- Domain: a simulation with known parameters `theta_a` (one per arm or one
+  shared vector).
+- Meaning: expected reward lost against the best arm of each round; a
+  learning policy has `Regret(T) / T` decreasing in `T`, uniform play does
+  not.
+- Code: `risk.simulate_linear_bandit`, `risk.LinearBanditRun.regret_per_round`,
+  `risk.LinearBanditRun.final_regret`.
+- Source: [REF-LI-ETAL-2010]; [REF-AGRAWAL-GOYAL-2013].
+
+### EQ-RISK-LINTS-001 — Linear Thompson sampling
+
+`B = I + sum_t x_t x_t'`, `f = sum_t r_t x_t`, `mu_hat = B^-1 f`,
+`theta_tilde ~ N(mu_hat, v^2 B^-1)`; play `argmax_a x_{t,a}' theta_tilde`.
+
+- Domain: one shared parameter in `R^d`, feature vectors of the played arms
+  `x_t`, scale `v > 0` chosen by the user.
+- Meaning: posterior sampling; with `v = 1` the sampling law is the exact
+  posterior of a `N(0, I)` prior under unit-variance Gaussian rewards. The
+  value of `v` used in the regret analysis of the source depends on the
+  horizon and the confidence level and is not reproduced.
+- Code: `risk.LinearThompsonSampling`,
+  `risk.LinearThompsonSampling.posterior_mean`,
+  `risk.LinearThompsonSampling.posterior_covariance`,
+  `risk.LinearThompsonSampling.sample_parameter`,
+  `risk.LinearThompsonSampling.select`.
+- Source: [REF-AGRAWAL-GOYAL-2013].
+
+### EQ-RISK-OPE-001 — Inverse propensity scoring
+
+`V_IPS = (1/n) sum_i w_i r_i`, `w_i = pi(a_i | x_i) / p(a_i | x_i)`.
+
+- Domain: independent records `(x_i, a_i, r_i)` with `a_i ~ p(. | x_i)`;
+  `p(a | x) > 0` wherever `pi(a | x) > 0`; the logged propensities are the
+  true ones.
+- Meaning: unbiased estimate of `V(pi) = E_x sum_a pi(a | x) E[r | x, a]`,
+  because `E[w r | x] = sum_a p(a | x) (pi(a | x) / p(a | x)) E[r | x, a]`.
+- Code: `risk.inverse_propensity_score`.
+- Source: [REF-DUDIK-LANGFORD-LI-2011].
+
+### EQ-RISK-OPE-002 — Self-normalized inverse propensity scoring
+
+`V_SNIPS = sum_i w_i r_i / sum_i w_i`,
+`se = sqrt(sum_i w_i^2 (r_i - V_SNIPS)^2) / sum_i w_i`.
+
+- Domain: as [EQ-RISK-OPE-001], with at least one positive weight.
+- Meaning: ratio estimator; consistent, biased for finite `n`, bounded by
+  the observed rewards, and equivariant under `r -> r + c`. The standard
+  error is the delta-method value for a ratio of means.
+- Code: `risk.self_normalized_ips`.
+- Source: [REF-OWEN-2013].
+
+### EQ-RISK-OPE-003 — Direct method
+
+`V_DM = (1/n) sum_i sum_a pi(a | x_i) q(x_i, a)`.
+
+- Domain: a reward model `q(x, a)` fixed independently of the evaluated
+  records.
+- Meaning: plug-in estimate; unbiased only if `q(x, a) = E[r | x, a]`.
+- Code: `risk.direct_method`.
+- Source: [REF-DUDIK-LANGFORD-LI-2011].
+
+### EQ-RISK-OPE-004 — Doubly robust estimator
+
+`V_DR = (1/n) sum_i [sum_a pi(a | x_i) q(x_i, a) + w_i (r_i - q(x_i, a_i))]`.
+
+- Domain: as [EQ-RISK-OPE-001] and [EQ-RISK-OPE-003]; stated here for a
+  stochastic target policy (the source writes it for a deterministic one).
+- Meaning: unbiased if the propensities are correct, since
+  `E[w (r - q) | x] = sum_a pi(a | x) (E[r | x, a] - q(x, a))` cancels the
+  model error, or if `q = E[r | x, a]`, since the correction then has
+  conditional mean zero for any weights.
+- Code: `risk.doubly_robust`.
+- Source: [REF-DUDIK-LANGFORD-LI-2011].
+
+### EQ-RISK-OPE-005 — Standard error, weight clipping, and effective sample size
+
+`se = s / sqrt(n)` with `s^2 = sum_i (t_i - t_bar)^2 / (n - 1)` of the
+per-record terms `t_i`; clipped weights `min(w_i, M)`;
+`ESS = (sum_i w_i)^2 / sum_i w_i^2`.
+
+- Domain: `n >= 2` independent records; cap `M > 0`.
+- Meaning: sampling error of a mean of independent terms. Clipping lowers
+  the variance and introduces bias. The effective sample size
+  ([EQ-MC-ESS-001]) is a heuristic measure of weight concentration.
+- Code: `risk.OffPolicyEstimate`, `risk.OffPolicyEstimate.interval`,
+  `risk.inverse_propensity_score`, `risk.doubly_robust`.
+- Source: [REF-DUDIK-LANGFORD-LI-2011]; [REF-OWEN-2013].
+
+### EQ-RISK-MDP-001 — Policy evaluation
+
+`(I - gamma P_pi) V_pi = r_pi`, `P_pi(s, s') = sum_a pi(a | s) P_a(s, s')`,
+`r_pi(s) = sum_a pi(a | s) r_a(s)`, `r_a(s) = sum_s' P_a(s, s') R_a(s, s')`.
+
+- Domain: finite state and action sets, stochastic matrices `P_a`,
+  `0 <= gamma < 1`.
+- Meaning: expected discounted reward of a stationary policy; the matrix is
+  strictly diagonally dominant, so the solution exists and is unique. One
+  state with reward 1 gives `V = 1 / (1 - gamma)`.
+- Code: `risk.FiniteMDP`, `risk.policy_evaluation`.
+- Source: [REF-NORRIS-1997].
+
+### EQ-RISK-MDP-002 — Action values, greedy policy, and Bellman optimality
+
+`Q(s, a) = r_a(s) + gamma sum_s' P_a(s, s') V(s')`,
+`(T V)(s) = max_a Q(s, a)`, `V* = T V*`, `pi(s) = argmax_a Q(s, a)`.
+
+- Domain: as [EQ-RISK-MDP-001].
+- Meaning: `T` is a `gamma`-contraction in the sup norm with the optimal
+  value function as its unique fixed point; a policy that is greedy for
+  `V*` is optimal.
+- Code: `risk.action_values`, `risk.greedy_policy`, `risk.bellman_residual`,
+  `risk.MDPSolution`.
+- Source: [REF-NORRIS-1997].
+
+### EQ-RISK-MDP-003 — Value iteration and its stopping rule
+
+`V_{k+1} = T V_k`; stop when
+`|V_{k+1} - V_k|_inf < eps (1 - gamma) / (2 gamma)`.
+
+- Domain: as [EQ-RISK-MDP-001], `eps > 0`; with `gamma = 0` one sweep is
+  exact.
+- Meaning: at the stop the greedy policy for `V_{k+1}` is within `eps` of
+  optimal in every state and `V_{k+1}` is within `eps / 2` of `V*`, by
+  [EQ-RISK-MDP-006] with residual at most `gamma |V_{k+1} - V_k|_inf`.
+- Code: `risk.value_iteration`.
+- Source: [REF-NORRIS-1997]; the bound is derived in
+  `risk.markov_decision`.
+
+### EQ-RISK-MDP-004 — Policy iteration
+
+`V_k` solves [EQ-RISK-MDP-001] for `pi_k`;
+`pi_{k+1}(s) = argmax_a Q_k(s, a)`, keeping `pi_k(s)` unless another action
+is strictly better; stop when `pi_{k+1} = pi_k`.
+
+- Domain: as [EQ-RISK-MDP-001].
+- Meaning: every change strictly improves the value function, so no
+  deterministic policy repeats and the method stops at an optimal policy
+  after at most `|A|^|S|` steps.
+- Code: `risk.policy_iteration`.
+- Source: [REF-NORRIS-1997].
+
+### EQ-RISK-MDP-005 — Finite-horizon backward induction
+
+`V_N = g`, `V_t(s) = max_a [r_a(s) + gamma sum_s' P_a(s, s') V_{t+1}(s')]`
+for `t = N - 1, ..., 0`.
+
+- Domain: `N >= 1` stages, terminal values `g`, `0 <= gamma <= 1`.
+- Meaning: optimal expected (discounted) reward of the remaining stages and
+  an optimal stage-dependent policy.
+- Code: `risk.backward_induction`, `risk.FiniteHorizonSolution`.
+- Source: [REF-NORRIS-1997].
+
+### EQ-RISK-MDP-006 — Error bounds from the Bellman residual
+
+With `rho = |T V - V|_inf` and `pi` greedy for `V`:
+`|V - V*|_inf <= rho / (1 - gamma)`, `|V_pi - V|_inf <= rho / (1 - gamma)`,
+`|V_pi - V*|_inf <= 2 rho / (1 - gamma)`.
+
+- Domain: any `V`; `0 <= gamma < 1`.
+- Meaning: follows from the contraction property:
+  `|V - V*| <= |V - T V| + |T V - T V*| <= rho + gamma |V - V*|`, and
+  `|V_pi - V| <= |T_pi V_pi - T_pi V| + |T V - V|` because `T_pi V = T V`.
+- Code: `risk.MDPSolution.value_error_bound`,
+  `risk.MDPSolution.policy_loss_bound`, `risk.bellman_residual`.
+- Source: derivation in `risk.markov_decision`; [REF-NORRIS-1997] for the
+  setting.
+
+### EQ-RISK-SH-001 — Sequential halving schedule
+
+Rounds `r = 0, ..., ceil(log2 n) - 1`; each arm of `S_r` is pulled
+`floor(T / (|S_r| ceil(log2 n)))` times; the `ceil(|S_r| / 2)` arms with the
+largest round averages form `S_{r+1}`.
+
+- Domain: `n >= 2` arms, budget `T >= n ceil(log2 n)`.
+- Meaning: fixed-budget best-arm identification using at most `T` pulls;
+  for bounded rewards the error probability is exponentially small in
+  `T / (H_2 log2 n)`, see the source.
+- Code: `risk.sequential_halving`, `risk.SequentialHalvingResult`,
+  `risk.HalvingRound`.
+- Source: [REF-KARNIN-KOREN-SOMEKH-2013].
