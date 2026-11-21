@@ -20903,6 +20903,7 @@ on a grid and normalized by the trapezoidal rule. Diagnostic:
 - Code: `generative.RatioEstimator.posterior_on_grid`,
   `generative.RatioEstimator.sample_posterior`, `generative.GridPosterior`.
 - Source: [REF-HERMANS-BEGY-LOUPPE-2020].
+
 ## Interacting particle samplers and unscented inversion (ADR-0130)
 
 ### EQ-INV-ALDI-001 — Affine-invariant interacting Langevin dynamics
