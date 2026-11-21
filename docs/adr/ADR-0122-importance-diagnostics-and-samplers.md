@@ -136,7 +136,10 @@ diagnostics of Vehtari et al. (2021). Four gaps remained:
   show where a ladder is too coarse.
 - **Thermodynamic integration.** The stepping-stone identity is exact for
   any ladder, whereas a quadrature of `E_beta[l]` over `beta` adds a
-  discretization error.
+  discretization error. (The estimate is still biased low for a coarse
+  ladder and a short run: `-0.54 +- 0.18` in `log Z` for the ladder
+  `(0, 1)`, a `N(0, 10^2)` prior, a likelihood of width 0.1 and 500 draws,
+  against `0.00 +- 0.04` with eight rungs; 20 seeds.)
 - **AdaGrad for SVGD.** Left out until its form is checked against the
   source.
 

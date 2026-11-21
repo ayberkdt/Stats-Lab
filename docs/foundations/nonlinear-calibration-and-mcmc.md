@@ -812,7 +812,10 @@ straight-line problem it reaches the conjugate posterior to eight digits in
 27 iterations; it
 is deterministic and needs `(2 d + 1)` runs per iteration, 145 in total on
 the decay problem. For a nonlinear model the result is a Gaussian
-approximation; `converged` reports whether the iteration settled.
+approximation; `converged` reports whether the iteration settled, not
+whether the fixed point is near the posterior: for a map that is even about
+the prior mean (`G(theta) = theta^2` with a `N(0, 1)` prior) the sigma points
+carry no slope and the prior is returned unchanged with `converged=True`.
 
 **Consensus-based sampling** (`inverse.consensus_based_sampling`) uses only
 values of `Phi`. Members are weighted by `w_j ~ exp(-beta Phi(u_j))`, and
@@ -1145,7 +1148,10 @@ swap rejection rate of every pair, the number of round trips, and, when
 the ladder starts at `beta = 0` with a normalized prior, a stepping-stone
 estimate of the evidence ([EQ-INF-PT-002]) without a standard error.
 Rejection rates near one for a pair mean the two temperatures are too far
-apart; add a rung between them.
+apart; add a rung between them. The evidence estimate is biased low when
+rungs are far apart and the run is short (each term is the logarithm of a
+sample mean that a few draws dominate), so read it only from a ladder whose
+rejection rates are moderate and compare a few seeds.
 
 ### Stein variational gradient descent
 

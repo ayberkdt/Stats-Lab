@@ -108,8 +108,23 @@ Python, one core):
   0.447; log-density error up to 0.14 to 0.42 at 1.3 sd from the mean.
   Simulation-based calibration (200 replicates, 19 draws, 20 bins) gave
   p-values 0.42, 0.083, 0.076, 0.066, 0.99, 0.89: no rejection at 5 %, but
-  three of six below 0.1, so a larger study would probably detect a small
-  miscalibration.
+  three of six below 0.1. An independent audit repeated the study with 2000
+  replicates and two calibration seeds per fit: the p-values were `2e-3`
+  and `2e-5` (training seed 0), 0.20 and 0.45 (seed 1), `2e-5` and `1e-7`
+  (seed 2), 0.20 and 0.40 (seed 3), 0.03 and 0.45 (seed 4), 0.13 and 0.29
+  (seed 5), and the variance of the ranks was above its uniform value in
+  eleven of the twelve runs. Measured directly against the exact posterior over 300 observations
+  drawn from the prior predictive, the width of the central 50 % interval
+  was 0.91, 1.00, 0.87, 0.95, 0.96, 0.94, 0.95, 0.93, 0.91, 1.02 times the
+  exact width for training seeds 0 to 9, and the nominal 90 % interval
+  covered 86.0 % to 90.5 % (mean 88.7 %). The estimator is miscalibrated
+  (overconfident by about 6 % in width on average, up to 13 %) at these
+  settings; the number of ODE steps does not change the figures (8 or 40).
+  With 4000 simulations and 5000 iterations the width ratio was 0.99 and
+  the 90 % coverage 88.7 % and 89.3 % (training seeds 0 and 2).
+  The calibration test of the suite (200 replicates, `p > 0.01`, training
+  seed 1, one of the two seeds whose width is within 1 % of the exact one)
+  cannot detect an error of this size.
 - **Bimodal posterior** (`theta ~ U(-2, 2)`, `x = theta^2 + N(0, 0.2^2)`,
   `x_obs = 1`): the flow puts mass 0.43 to 0.53 on the negative mode,
   mode means within 0.08 of `-1` and `+1`, mass in `|theta| < 0.5` from

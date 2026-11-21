@@ -929,3 +929,32 @@ class ValidationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UnscentedSymmetricMapTests(unittest.TestCase):
+    """Audit: ``converged`` does not certify closeness to the posterior."""
+
+    def test_even_forward_map_returns_the_prior_as_converged(self) -> None:
+        """For G = theta^2 and a N(0, 1) prior the prior is a fixed point.
+
+        The posterior for y = 4 (noise 0.2) has modes near -2 and +2 and a
+        standard deviation of about 2.0; the symmetric sigma points carry
+        no slope, so the iteration stops at the prior after one step. The
+        documented behaviour is pinned here so that a change is noticed.
+        """
+        prior = JointInput.independent(RandomInput("t", Normal(0.0, 1.0)))
+        model = ProbabilisticModel(
+            prior,
+            lambda parameters: {"y": parameters["t"] ** 2},
+            (QuantityOfInterest("y", "square"),),
+        )
+        problem = CalibrationProblem(
+            model,
+            (Experiment({"y": 4.0}, {}),),
+            (NoiseModel("y", standard_deviation=0.2),),
+        )
+        result = unscented_kalman_inversion(problem)
+        self.assertTrue(result.converged)
+        self.assertEqual(result.iterations, 1)
+        self.assertAlmostEqual(result.posterior_mean[0], 0.0, places=12)
+        self.assertAlmostEqual(result.posterior_covariance[0][0], 1.0, places=12)

@@ -232,9 +232,13 @@ def psis_tail_size(sample_size: int) -> int:
         sample_size: Number of draws ``S`` (positive).
 
     Returns:
-        Number of largest ratios that are smoothed. The ceiling follows the
-        reference implementation of the source; the paper states the rule
-        without the rounding.
+        Number of largest ratios that are smoothed. The paper states the
+        rule without rounding; the ceiling is the choice of the ``loo`` R
+        package (the ``posterior`` package rounds down instead). With the
+        fit of :func:`fit_generalized_pareto` a tail of exactly five draws
+        is always degenerate (its lower quartile is its minimum), so
+        :func:`pareto_smooth` never smooths ``S <= 25`` draws and reports
+        ``k-hat = inf`` for them.
 
     Raises:
         ValueError: If ``sample_size`` is not a positive integer.
