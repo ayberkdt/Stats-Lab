@@ -5640,6 +5640,7 @@ Daniel Straub and Iason Papaioannou. "Bayesian updating with structural
 reliability methods." *Journal of Engineering Mechanics* 141(3), 04014134,
 2015. Posterior sampling as the rare event `p <= c L(theta)`.
 DOI: [10.1061/(ASCE)EM.1943-7889.0000839](https://doi.org/10.1061/(ASCE)EM.1943-7889.0000839).
+
 ## REF-AALEN-JOHANSEN-1978
 
 Odd O. Aalen and Soren Johansen. "An Empirical Transition Matrix for

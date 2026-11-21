@@ -20588,6 +20588,7 @@ the prior's map from standard-normal space; `g <= 0` if and only if
 - Code: `reliability.bus_subset_simulation`.
 - Source: [REF-STRAUB-PAPAIOANNOU-2015] (requirement `c L <= 1`); the
   run-time check is a convention of this library.
+
 ## Competing risks, restricted-mean contrasts, online change points, and forecast reconciliation (ADR-0128)
 
 ### EQ-SURV-CIF-001 — Aalen-Johansen cumulative incidence function
