@@ -5665,6 +5665,7 @@ Through Trace Minimization." *Journal of the American Statistical
 Association* 114(526), 804-819, 2019. The minimum-trace (MinT) reconciler
 and its OLS, WLS, and shrinkage variants.
 DOI: [10.1080/01621459.2018.1448825](https://doi.org/10.1080/01621459.2018.1448825).
+
 ## REF-LIPMAN-ETAL-2023
 
 Yaron Lipman, Ricky T. Q. Chen, Heli Ben-Hamu, Maximilian Nickel, and Matt

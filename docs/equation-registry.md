@@ -20750,6 +20750,7 @@ clipped to `[0, 1]`, `Var_hat(r_ij) = N / (N - 1)^3 sum_k (w_kij - w_bar_ij)^2`,
 - Source: [REF-WICKRAMASURIYA-ATHANASOPOULOS-HYNDMAN-2019] (use of a
   covariance shrunk towards its diagonal in MinT); intensity derived in
   ADR-0128.
+
 ## Flow matching and neural simulation-based inference (ADR-0129)
 
 ### EQ-GEN-FM-001 — Straight-line conditional path and its target velocity
