@@ -5525,6 +5525,7 @@ Tobacco Control Program." *Journal of the American Statistical Association*
 characteristics, and placebo (permutation) inference based on the ratio of
 post- to pre-treatment prediction error.
 DOI: [10.1198/jasa.2009.ap08746](https://doi.org/10.1198/jasa.2009.ap08746).
+
 ## REF-GAMBOA-ETAL-2022
 
 Fabrice Gamboa, Pierre Gremaud, Thierry Klein and Agnès Lagnoux. "Global

@@ -19888,6 +19888,7 @@ largest round averages form `S_{r+1}`.
 - Code: `risk.sequential_halving`, `risk.SequentialHalvingResult`,
   `risk.HalvingRound`.
 - Source: [REF-KARNIN-KOREN-SOMEKH-2013].
+
 ## Rank-based, moment-independent, kernel and active-subspace sensitivity (ADR-0123)
 
 ### EQ-SENS-RANKSOBOL-001 — Rank-based first-order Sobol index
