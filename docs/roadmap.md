@@ -93,8 +93,8 @@ tested evidence.
   differentiation (ADR-0059, ADR-0065), and reverse mode (ADR-0069).
 - [x] Monte Carlo, importance sampling, adaptive MCMC with diagnostics, Laplace,
   particle filters, HMC/NUTS, Gaussian ADVI (ADR-0032); amortized Gaussian
-  neural posterior estimation (ADR-0079). Non-Gaussian amortized posteriors
-  (conditional flows) remain.
+  neural posterior estimation (ADR-0079); non-Gaussian amortized posteriors
+  by flow matching and neural ratio estimation (ADR-0129).
 - [x] Markov chains, Poisson processes, SDEs (Euler-Maruyama, Milstein),
   Gaussian-process regression, random fields, ARIMA and exponential smoothing
   (ADR-0031).
@@ -335,6 +335,14 @@ it found, and the verified sources not yet implemented are in
   Bayesian optimization (ADR-0125).
 - [x] Median-of-means and Catoni means, Ledoit-Wolf shrinkage, distance
   correlation, sliced and unbalanced optimal transport (ADR-0127).
+- [x] Rank-1 lattice rules and median randomized quasi-Monte Carlo
+  (ADR-0118); improved cross-entropy, sequential importance sampling, and
+  Bayesian updating as a rare event (ADR-0124).
+- [x] Competing risks, restricted-mean contrasts, Bayesian online
+  change-point detection, forecast reconciliation (ADR-0128).
+- [x] Flow matching, flow-matching posterior estimation, and neural ratio
+  estimation for small problems (ADR-0129); interacting Langevin sampling,
+  unscented Kalman inversion, consensus-based sampling (ADR-0130).
 - [x] A method laboratory: estimator combinators with lineage,
   certification checks with scoped verdicts, pre-specified simulation
   studies, candidate selection (ADR-0131).
@@ -348,8 +356,6 @@ are not commitments of the roadmap above.
   higher-order or coupled Markov chains other than through a joint state,
   pseudo-priors adapted during sampling, and reversible-jump moves
   (ADR-0088).
-- Amortized inference with non-Gaussian conditional density estimators
-  (ADR-0079).
 - Tabular reinforcement learning (ADR-0126); the verified sources of
   `research/literature-gaps-2026.md`, Section 4.
 - Translation of the text inside Matplotlib figures (ADR-0085).

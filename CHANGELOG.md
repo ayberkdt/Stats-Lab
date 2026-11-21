@@ -102,12 +102,31 @@ library does not contain and for certifying what is claimed about it.
   `bayesian_online_changepoint` (evidence equal to enumeration over all
   segmentations) and `reconcile_forecasts` with OLS, WLS, MinT, and
   bottom-up (`probstat.timeseries`).
+- **Quasi-Monte Carlo** (`probstat.sampling`, ADR-0118): `rank1_lattice`
+  with random shifts, `lattice_squared_error`, component-by-component and
+  Korobov generating vectors; `rqmc_mean` with an approximate Student-t
+  interval (measured coverage 0.92 to 0.96 at nominal 0.95), `rqmc_median`
+  (deliberately without an interval), and the construction-free
+  `median_random_lattice`.
+- **Simulation-based inference** (`probstat.generative`, ADR-0129):
+  conditional flow matching (`fit_flow_matching`) with ODE sampling and
+  log-densities, the closed-form `GaussianMarginalVelocity` as a
+  training-free oracle, `fit_flow_matching_posterior` (recovers a bimodal
+  posterior where the Gaussian amortized estimator cannot), and
+  `fit_ratio_estimator`. Validated in one dimension with small networks;
+  the record reports the measured calibration and seed spread.
+- **Interacting-particle inversion** (`probstat.inverse`, ADR-0130):
+  `interacting_langevin_sampler` with the finite-ensemble correction (the
+  covariance deficit `(J - d - 1)/J` of the uncorrected sampler is derived
+  and measured), `unscented_kalman_inversion` (exact posterior mean and
+  covariance for linear problems with `2 d + 1` runs per iteration), and
+  `consensus_based_sampling`.
 - **Research ledger:** `docs/research/literature-gaps-2026.md` records what
   was missing, what changed in 2023-2026, eleven open questions with the
   experiment the library supports for each, and the verified sources not
   yet implemented.
 - **Guide:** `docs/foundations/method-development.md` with one figure, and
-  new sections in fourteen existing guides.
+  new sections in seventeen existing guides.
 
 ### Fixed
 

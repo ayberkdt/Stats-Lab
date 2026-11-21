@@ -41,6 +41,10 @@ article.
 | Surrogates and optimization | recursive co-kriging; stochastic kriging; Bayesian quadrature; Bayesian optimization with a stable log-EI, UCB, constraints, knowledge gradient | Kennedy, O'Hagan 2000 (doi:10.1093/biomet/87.1.1); Ankenman, Nelson, Staum 2010 (doi:10.1287/opre.1090.0754); Jones, Schonlau, Welch 1998 (doi:10.1023/A:1008306431147); Ament et al. 2023 (arXiv:2310.20708) | ADR-0125 |
 | Sequential decisions | LinUCB, linear Thompson sampling; off-policy evaluation; finite MDPs; best-arm identification | Li et al. 2010 (doi:10.1145/1772690.1772758); Agrawal, Goyal 2013 (PMLR 28(3)); Dudík, Langford, Li 2011 (arXiv:1103.4601); Karnin, Koren, Somekh 2013 (PMLR 28(3)) | ADR-0126 |
 | Robust statistics, dependence, transport | median-of-means, Catoni; Ledoit-Wolf shrinkage; Chatterjee's xi, distance correlation; sliced and unbalanced transport | Catoni 2012 (doi:10.1214/11-AIHP454); Ledoit, Wolf 2004 (doi:10.1016/S0047-259X(03)00096-4); Chatterjee 2021 (doi:10.1080/01621459.2020.1758115); Székely, Rizzo, Bakirov 2007 (doi:10.1214/009053607000000505); Bonneel et al. 2015 (doi:10.1007/s10851-014-0506-3) | ADR-0127 |
+| Quasi-Monte Carlo | rank-1 lattices with random shifts, component-by-component and Korobov construction; mean and median of randomized rules; construction-free median lattice rule | Cranley, Patterson 1976 (doi:10.1137/0713071); Goda, L'Ecuyer 2022 (arXiv:2201.09413); Pan, Owen 2023 (arXiv:2111.12676) | ADR-0118 |
+| Survival and time series | Aalen-Johansen cumulative incidence; restricted-mean contrasts; Bayesian online change-point detection; forecast reconciliation (OLS, WLS, MinT) | Aalen, Johansen 1978; Adams, MacKay 2007 (arXiv:0710.3742); Wickramasuriya, Athanasopoulos, Hyndman 2019 (doi:10.1080/01621459.2018.1448825) | ADR-0128 |
+| Simulation-based inference | conditional flow matching; flow-matching posterior estimation; neural ratio estimation (small networks, one dimension) | Lipman et al. 2023 (arXiv:2210.02747); Wildberger et al. 2023 (arXiv:2305.17161); Hermans, Begy, Louppe 2020 (arXiv:1903.04057) | ADR-0129 |
+| Ensemble inversion | interacting Langevin sampler with finite-ensemble correction; unscented Kalman inversion; consensus-based sampling | Garbuno-Inigo et al. 2020 (arXiv:1903.08866, arXiv:1912.02859); Huang, Schneider, Stuart 2022 (doi:10.1016/j.jcp.2022.111262); Carrillo et al. 2022 (doi:10.1111/sapm.12470) | ADR-0130 |
 | Method development | estimator combinators, certification checks, pre-specified simulation studies, candidate selection | Rhee, Glynn 2015 (doi:10.1287/opre.2015.1404); Morris, White, Crowther 2019 (doi:10.1002/sim.8086); Pawel, Kook, Reeve 2024 (doi:10.1002/bimj.202200091) | ADR-0131 |
 
 A row lists what its decision record reports as implemented and tested; the
@@ -63,8 +67,10 @@ independently randomized rules adapts to unknown smoothness (Pan, Owen
 2023, arXiv:2111.12676; Goda, L'Ecuyer 2022, arXiv:2201.09413), and the
 validity of confidence intervals from a few randomizations is under
 scrutiny (L'Ecuyer, Nakayama, Owen, Tuffin 2023, Winter Simulation
-Conference; Jain, Hickernell, Owen, Sorokin 2025, arXiv:2504.18677). Not
-implemented in 0.27.
+Conference; Jain, Hickernell, Owen, Sorokin 2025, arXiv:2504.18677). The
+library implements the median of randomized lattice and digital rules and,
+following that caution, attaches no interval to the median; the measured
+coverage of the Student-t interval of the mean is reported in ADR-0118.
 
 **Sensitivity analysis moved to given-data estimators.** Rank-based
 estimation (Gamboa et al. 2022) gives all first-order indices from one
@@ -97,7 +103,10 @@ deterministic-objective variational inference (Giordano, Ingram, Broderick
 arXiv:2402.14758) improved Gaussian variational inference. In
 simulation-based inference, flow matching (Wildberger et al. 2023,
 arXiv:2305.17161) and consistency models displaced discrete-flow posterior
-estimation. None of the items in this paragraph after PSIS is implemented.
+estimation. Of the items in this paragraph, PSIS, flow matching,
+flow-matching posterior estimation, and neural ratio estimation are
+implemented (the last three for small problems); the samplers and the
+variational methods named here are not.
 
 **Bayesian optimization.** Expected improvement fails numerically where it
 underflows; its logarithm fixes this (Ament et al. 2023). Several papers
@@ -132,8 +141,9 @@ now supports. *Speculation* marks conjectures of this survey.
 2. **Confidence intervals for median quasi-Monte Carlo.** The median of
    randomizations has no accompanying interval with guaranteed coverage
    (*speculation*, from reading Pan-Owen and Jain et al.). *Experiment:*
-   betting confidence sequences (`inference.betting_confidence_sequence`)
-   on bounded integrands, checked with `methodlab.check_coverage`.
+   replicates of `sampling.rqmc_median` fed to
+   `inference.betting_confidence_sequence` on bounded integrands, checked
+   with `methodlab.check_coverage`.
 3. **Inference for total-order indices from one sample.** A central limit
    theorem exists for the rank-based first-order estimator only
    (*speculation* for total order). *Experiment:* replicate studies with
@@ -155,14 +165,15 @@ now supports. *Speculation* marks conjectures of this survey.
    densities of `reliability`.
 7. **Overconfident amortized posteriors.** Hermans et al. (2022,
    arXiv:2110.06581) show that neural simulation-based inference can be
-   overconfident. *Experiment:* simulation-based calibration
+   overconfident, and the library's own flow-matching posterior showed
+   three of six calibration p-values below 0.1 (ADR-0129). *Experiment:* simulation-based calibration
    (`inference` SBC) and `inference.pareto_smooth` k-hat as a per-data-set
    diagnostic where the likelihood is tractable (*speculation* that this
    diagnostic has not been studied for amortized estimators).
 8. **Bootstrap failure for Chatterjee's coefficient away from
    independence.** Lin and Han (2024, doi:10.1093/biomet/asae004).
    *Experiment:* `methodlab.check_coverage` on bootstrap and
-   subsampling intervals for `statistics` xi.
+   subsampling intervals for `statistics.chatterjee_correlation`.
 9. **Prediction-powered inference outside its assumptions.** Validity needs
    labelled and unlabelled data from one law and a predictor fitted
    independently; finite-sample or anytime-valid versions look
@@ -177,7 +188,7 @@ now supports. *Speculation* marks conjectures of this survey.
     interval that remains valid when the variance is barely finite needs
     robust mean estimation (median-of-means, Catoni) (*speculation* about
     the combination). *Experiment:* `methodlab.single_term_estimator`
-    summarized by `statistics` median-of-means, with
+    summarized by `statistics.median_of_means`, with
     `methodlab.check_coverage`.
 
 ## 4. Verified sources not yet implemented
@@ -185,34 +196,29 @@ now supports. *Speculation* marks conjectures of this survey.
 Ordered by the value the survey assigned; each needs the same derivation
 and oracle discipline before it enters the library.
 
-- Randomly shifted lattice rules (Cranley, Patterson 1976,
-  doi:10.1137/0713071) and median-of-means randomized quasi-Monte Carlo.
+- Fast component-by-component construction of lattice rules and
+  guaranteed-coverage intervals for randomized quasi-Monte Carlo (Jain et
+  al. 2025).
 - Multi-index Monte Carlo (Haji-Ali, Nobile, Tempone 2016,
   doi:10.1007/s00211-015-0734-5); multifidelity Sobol estimation (Qian et
   al. 2018).
 - Proportional marginal effects (Herin et al. 2024); nearest-neighbour
   Shapley effects (Broto, Bachoc, Depecker 2020, doi:10.1137/18M1234631).
-- Flow matching (Lipman et al. 2023, arXiv:2210.02747) and flow-matching
-  posterior estimation; neural likelihood and ratio estimation
-  (Papamakarios, Sterratt, Murray 2019, arXiv:1805.07226; Hermans, Begy,
-  Louppe 2020, arXiv:1903.04057). The roadmap lists non-Gaussian amortized
-  posteriors as open.
+- Neural likelihood estimation (Papamakarios, Sterratt, Murray 2019,
+  arXiv:1805.07226), minibatch optimal-transport pairing for flow matching
+  (Tong et al. 2024, arXiv:2302.00482), and consistency-model posterior
+  estimation (Schmitt et al. 2024, arXiv:2312.05440).
 - Pathfinder (Zhang et al. 2022, arXiv:2108.03782); unbiased MCMC with
   couplings (Jacob, O'Leary, Atchadé 2020, doi:10.1111/rssb.12336);
   microcanonical Langevin Monte Carlo (Robnik et al. 2023,
   arXiv:2212.08549).
-- Ensemble Kalman sampler and its affine-invariant form (Garbuno-Inigo et
-  al. 2020, arXiv:1903.08866 and arXiv:1912.02859); unscented Kalman
-  inversion (Huang, Schneider, Stuart 2022, doi:10.1016/j.jcp.2022.111262);
-  consensus-based sampling (Carrillo et al. 2022, doi:10.1111/sapm.12470);
-  iterative ensemble Kalman smoother (Bocquet, Sakov 2014).
+- Iterative ensemble Kalman smoother (Bocquet, Sakov 2014) and hybrid
+  ensemble-variational assimilation.
 - Generalized and power posteriors (Bissiri, Holmes, Walker 2016,
   doi:10.1111/rssb.12158); martingale posteriors (Fong, Holmes, Walker
   2023, doi:10.1093/jrsssb/qkad005).
-- Competing risks (Aalen, Johansen 1978) and restricted mean survival time;
-  Bayesian online change-point detection (Adams, MacKay 2007,
-  arXiv:0710.3742); minimum-trace forecast reconciliation (Wickramasuriya,
-  Athanasopoulos, Hyndman 2019, doi:10.1080/01621459.2018.1448825).
+- Subdistribution-hazard regression for competing risks (Fine, Gray 1999;
+  page and DOI details unconfirmed).
 - Regression discontinuity with robust intervals (Calonico, Cattaneo,
   Titiunik 2014, doi:10.3982/ECTA11757); fixed-X knockoffs (Barber, Candès
   2015, doi:10.1214/15-AOS1337).

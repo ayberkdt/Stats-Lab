@@ -18,10 +18,10 @@
 <main id="sahne" aria-label="Stats-Lab overview slides">
 
 <section data-slide class="slide slayt kapak" id="s1" data-tur="kapak" data-aile="esik" aria-labelledby="h-s1">
-  <p class="ust">Stats-Lab · probstat <span data-k="meta.probstat_version" data-fmt="str">0.26.0</span></p>
+  <p class="ust">Stats-Lab · probstat <span data-k="meta.probstat_version" data-fmt="str">0.27.0</span></p>
   <h1 id="h-s1">One probabilistic model answers every uncertainty question</h1>
   <p class="govde" data-alan="alt">Declare the inputs and the simulator once; forward, inverse, risk, and systems questions then share one object and one seed.</p>
-  <p class="kimlik"><span data-alan="ad">Stats-Lab project</span><span data-alan="kurum">probstat · <span data-k="repository.licence" data-fmt="str">BSD-3-Clause</span> licence</span><span data-alan="tarih">release <span data-k="meta.probstat_version" data-fmt="str">0.26.0</span></span></p>
+  <p class="kimlik"><span data-alan="ad">Stats-Lab project</span><span data-alan="kurum">probstat · <span data-k="repository.licence" data-fmt="str">BSD-3-Clause</span> licence</span><span data-alan="tarih">release <span data-k="meta.probstat_version" data-fmt="str">0.27.0</span></span></p>
   <aside class="notlar">Open with the claim, not the topic: one model object answers every uncertainty question an engineer asks about a simulator. Stats-Lab is the repository, probstat the Python package; it has <span data-k="repository.runtime_dependencies" data-fmt="int">0</span> runtime dependencies. Everything on the next slides comes from one seeded run of the library, a recorded benchmark, and counts read from the repository at build time; no number was typed by hand. Bridge: first, why one object matters at all.</aside>
 </section>
 
@@ -146,14 +146,14 @@
 <section data-slide class="slide slayt" id="s13" data-tur="yontem" data-aile="anlati" aria-labelledby="h-s13">
   <header><p class="ust">Verification</p><h2 id="h-s13">Five checks stand between a formula and a release</h2></header>
   <ol class="adimlar dikey">
-    <li><b data-alan="adim_ad[]">Cite</b><span data-alan="adim_cumle[]"><span data-k="repository.references_floor" data-fmt="plus">750+</span> sources; every function's docstring names its source key.</span></li>
-    <li><b data-alan="adim_ad[]">Register</b><span data-alan="adim_cumle[]"><span data-k="repository.equations_floor" data-fmt="plus">1,250+</span> equations, each with symbols, a source, and its code location.</span></li>
-    <li><b data-alan="adim_ad[]">Test</b><span data-alan="adim_cumle[]"><span data-k="repository.tests_floor" data-fmt="plus">3,000+</span> tests against closed forms, enumeration, and Monte Carlo error bounds.</span></li>
+    <li><b data-alan="adim_ad[]">Cite</b><span data-alan="adim_cumle[]"><span data-k="repository.references_floor" data-fmt="plus">850+</span> sources; every function's docstring names its source key.</span></li>
+    <li><b data-alan="adim_ad[]">Register</b><span data-alan="adim_cumle[]"><span data-k="repository.equations_floor" data-fmt="plus">1,450+</span> equations, each with symbols, a source, and its code location.</span></li>
+    <li><b data-alan="adim_ad[]">Test</b><span data-alan="adim_cumle[]"><span data-k="repository.tests_floor" data-fmt="plus">3,600+</span> tests against closed forms, enumeration, and Monte Carlo error bounds.</span></li>
     <li><b data-alan="adim_ad[]">Audit figures</b><span data-alan="adim_cumle[]">Every themed figure keeps its text at <span data-k="repository.figure_text_floor_pt" data-fmt="int">9</span> pt or larger, inside the canvas.</span></li>
     <li><b data-alan="adim_ad[]">Integrate</b><span data-alan="adim_cumle[]">Ruff, strict mypy, all tests, and every lab run on Python <span data-k="repository.ci_python_first" data-fmt="str">3.11</span>–<span data-k="repository.ci_python_last" data-fmt="str">3.13</span>.</span></li>
   </ol>
   <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: tests/, docs/equation-registry.md, docs/references.md, .github/workflows/ci.yml</span></footer>
-  <aside class="notlar">Each check is enforced by a test, not by a promise. The documentation contract fails when a function's references section names no source key or an equation identifier is missing from the registry. Tests use independent oracles: closed forms, exact enumeration, published values, a multiple-precision reference, or statistical checks whose tolerance comes from the Monte Carlo standard error, so they hold on every platform. Figures follow one semantic theme in a light and a dark palette. Continuous integration runs lint, strict type checking, the tests, the quick benchmark, and all <span data-k="repository.labs" data-fmt="int">43</span> labs on <span data-k="repository.ci_python_count" data-fmt="int">3</span> Python versions. Design choices are recorded in <span data-k="repository.adrs_floor" data-fmt="plus">110+</span> decision records. Bridge: the benchmarks score methods against exact answers.</aside>
+  <aside class="notlar">Each check is enforced by a test, not by a promise. The documentation contract fails when a function's references section names no source key or an equation identifier is missing from the registry. Tests use independent oracles: closed forms, exact enumeration, published values, a multiple-precision reference, or statistical checks whose tolerance comes from the Monte Carlo standard error, so they hold on every platform. Figures follow one semantic theme in a light and a dark palette. Continuous integration runs lint, strict type checking, the tests, the quick benchmark, and all <span data-k="repository.labs" data-fmt="int">43</span> labs on <span data-k="repository.ci_python_count" data-fmt="int">3</span> Python versions. Design choices are recorded in <span data-k="repository.adrs_floor" data-fmt="plus">130+</span> decision records. Bridge: the benchmarks score methods against exact answers.</aside>
 </section>
 
 <section data-slide class="slide slayt" id="s14" data-tur="kanit" data-aile="kanit" aria-labelledby="h-s14" data-f-olcut="relative error of the mean" data-f-gercek="benzetim">

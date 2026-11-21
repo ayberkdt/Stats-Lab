@@ -75,7 +75,8 @@
       ],
       "7": [
         "workflow",
-        "timeseries"
+        "timeseries",
+        "methodlab"
       ],
       "9": [
         "visualization"
