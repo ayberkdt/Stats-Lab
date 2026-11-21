@@ -20391,3 +20391,199 @@ exp(-g_j/rho)) - eps sum_ij a_i b_j (exp((f_i + g_j - C_ij)/eps) - 1)`;
   `information.UnbalancedSinkhornResult.duality_gap`.
 - Source: [REF-CHIZAT-ETAL-2018] (dual formulation); the closed-form
   translation step is derived here.
+## Smoothed-indicator rare-event methods and BUS (ADR-0124)
+
+### EQ-REL-ICE-001 — Smoothed failure indicator and intermediate targets
+
+`h_k(u) = Phi(-G(u) / sigma_k) phi_n(u) / P_k`,
+`P_k = E_phi[Phi(-G(u) / sigma_k)]`, `sigma_0 = inf > sigma_1 > ... > 0`;
+`Phi(-G / sigma) -> I(G <= 0)` as `sigma -> 0` for `G != 0`, and
+`Phi(-G / inf) = 1/2`, so `h_0 = phi_n`.
+
+- Domain: independent standard-normal coordinates `u`, failure set
+  `G <= 0`, `sigma > 0`.
+- Meaning: a sequence of smooth densities from the nominal law to the
+  optimal importance-sampling density `I(G <= 0) phi_n / P_f`; every sample
+  has a positive weight at every level.
+- Code: `reliability.improved_cross_entropy`,
+  `reliability.sequential_importance_sampling`.
+- Source: [REF-PAPAIOANNOU-PAPADIMITRIOU-STRAUB-2016];
+  [REF-PAPAIOANNOU-GEYER-STRAUB-2019].
+
+### EQ-REL-ICE-002 — Smoothing scale from a target weight variation
+
+`sigma_(k+1) < sigma_k` solves `cv(W_1(sigma), ..., W_N(sigma)) = delta`,
+`W_i(sigma) = Phi(-G(u_i) / sigma) b_i`, with the base weights
+`b_i = phi_n(u_i) / q_k(u_i)` (parametric proposal `q_k`) or
+`b_i = 1 / Phi(-G(u_i) / sigma_k)` (sample from `h_k`; `b_i = 1` at level 0);
+`cv` is the population standard deviation over the mean.
+
+- Domain: `delta > 0` (default `1.5`); the search scans `sigma` downward by
+  a factor `0.7` and bisects the first crossing on `log sigma`.
+- Meaning: the step between two levels is as large as a prescribed
+  degeneracy of the importance weights allows, which fixes the effective
+  sample size `N / (1 + delta^2)` of each update.
+- Code: `reliability.smoothing_scale`.
+- Source: [REF-PAPAIOANNOU-PAPADIMITRIOU-STRAUB-2016];
+  [REF-PAPAIOANNOU-GEYER-STRAUB-2019].
+
+### EQ-REL-ICE-003 — Weighted maximum likelihood of the proposal
+
+Maximize `sum_i W_i log q(u_i; v)`. Single Gaussian:
+`mu = sum W_i u_i / sum W_i`,
+`Sigma = sum W_i (u_i - mu)(u_i - mu)' / sum W_i`. Gaussian mixture
+`q = sum_j pi_j N(mu_j, Sigma_j)` by EM: `gamma_ij` proportional to
+`pi_j N(u_i; mu_j, Sigma_j)` with `sum_j gamma_ij = 1`, then
+`pi_j = sum_i W_i gamma_ij / sum_i W_i`,
+`mu_j = sum_i W_i gamma_ij u_i / sum_i W_i gamma_ij`,
+`Sigma_j = sum_i W_i gamma_ij (u_i - mu_j)(u_i - mu_j)' / sum_i W_i gamma_ij`.
+
+- Domain: weights `W_i >= 0` of [EQ-REL-ICE-002] with a positive sum;
+  optional eigenvalue floor above `1/2` on every covariance (a library
+  guard, [EQ-REL-CE-003]).
+- Meaning: the sample version of minimizing the Kullback-Leibler divergence
+  from `h_(k+1)` to the parametric family; the EM iteration does not
+  decrease the weighted log-likelihood.
+- Code: `reliability.improved_cross_entropy`.
+- Source: [REF-PAPAIOANNOU-GEYER-STRAUB-2019];
+  [REF-DEMPSTER-LAIRD-RUBIN-1977].
+
+### EQ-REL-ICE-004 — Stopping criterion of the smooth levels
+
+Stop at level `k` when
+`cv(I(G(u_i) <= 0) / Phi(-G(u_i) / sigma_k), i = 1..N) <= delta`.
+
+- Domain: a sample drawn from the proposal fitted to `h_k` (improved cross
+  entropy) or approximately from `h_k` (sequential importance sampling);
+  the value is infinite when no sample failed.
+- Meaning: `I(G <= 0) / Phi(-G / sigma_k)` is proportional to the density
+  ratio of the optimal importance-sampling density and `h_k`, so a small
+  variation means that `h_k` is close to the optimal density.
+- Code: `reliability.improved_cross_entropy`,
+  `reliability.sequential_importance_sampling`.
+- Source: [REF-PAPAIOANNOU-GEYER-STRAUB-2019];
+  [REF-PAPAIOANNOU-PAPADIMITRIOU-STRAUB-2016].
+
+### EQ-REL-ICE-005 — Mixture-proposal importance-sampling estimate
+
+`P_f_hat = (1/N) sum_i I(G(u_i) <= 0) phi_n(u_i) / q(u_i)`, `u_i ~ q`,
+`q(u) = sum_j pi_j N(u; mu_j, L_j L_j')`,
+`log N(u; mu_j, L_j L_j') = -||L_j^-1 (u - mu_j)||^2 / 2 - log det L_j
+- (n/2) log 2 pi`; standard error from the sample variance of the terms.
+
+- Domain: positive-definite component covariances; finite variance needs
+  every covariance eigenvalue above `1/2` ([EQ-REL-CE-003] applied to each
+  component).
+- Meaning: unbiased given the proposal, which was fitted to earlier samples
+  only; the `2 pi` constants of numerator and denominator cancel.
+- Code: `reliability.improved_cross_entropy`.
+- Source: [REF-PAPAIOANNOU-GEYER-STRAUB-2019]; [REF-OWEN-2013, Chapter 9].
+
+### EQ-REL-SIS-001 — Sequential importance-sampling estimator
+
+With `eta_0 = phi_n`, `eta_k = Phi(-G / sigma_k) phi_n` and normalizing
+constants `P_0 = 1`, `P_k = E_phi[Phi(-G / sigma_k)]`:
+`P_f = (prod_(k=1..L) P_k / P_(k-1)) E_(h_L)[I(G <= 0) / Phi(-G / sigma_L)]`,
+estimated by `S_k = mean(w_k)` over the sample of level `k - 1` with
+`w_1 = Phi(-G / sigma_1)` and
+`w_k = Phi(-G / sigma_k) / Phi(-G / sigma_(k-1))` for `k >= 2`, and by the
+sample mean of `I(G <= 0) / Phi(-G / sigma_L)` over level `L`.
+
+- Domain: level samples distributed as `h_k` [EQ-REL-ICE-001]. The level-0
+  factor is `1`, not `Phi(-G / inf) = 1/2`, because `h_0 = phi_n` has
+  `P_0 = 1`.
+- Meaning: a telescoping product of ratios of normalizing constants; the
+  identity is exact because `I(G <= 0) phi_n = [I(G <= 0) / Phi(-G /
+  sigma_L)] eta_L`.
+- Code: `reliability.sequential_importance_sampling`.
+- Source: [REF-PAPAIOANNOU-PAPADIMITRIOU-STRAUB-2016].
+
+### EQ-REL-SIS-002 — Conditional-sampling Metropolis step for a smooth target
+
+`v = rho u + sqrt(1 - rho^2) z`, `z ~ N(0, I)`; accept `v` with probability
+`min(1, Phi(-G(v) / sigma) / Phi(-G(u) / sigma))`.
+
+- Domain: `0 <= rho < 1`, `sigma > 0`.
+- Meaning: the proposal density `q(v | u)` satisfies
+  `phi_n(u) q(v | u) = phi_n(v) q(u | v)`, so the Metropolis-Hastings ratio
+  of the target `Phi(-G / sigma) phi_n` reduces to the ratio of the smooth
+  indicators and `h_k` is invariant; with `sigma -> 0` it becomes the
+  accept-inside step of [EQ-REL-SUBSET-004].
+- Code: `reliability.sequential_importance_sampling`.
+- Source: [REF-PAPAIOANNOU-PAPADIMITRIOU-STRAUB-2016];
+  [REF-COTTER-ROBERTS-STUART-WHITE-2013].
+
+### EQ-REL-SIS-003 — Resampling and chain layout of a level
+
+`N_c = N f` seeds are drawn with replacement with probabilities
+`w_k(u_i) / sum_j w_k(u_j)`; each seed runs `b` discarded steps of
+[EQ-REL-SIS-002] and then contributes `N / N_c` consecutive states. The
+spread `sqrt(1 - rho^2) = min(lambda, 1)` follows
+`ln lambda <- ln lambda + (a_hat - a*) / sqrt(i + 1)` after every `N_a`
+chains with their mean acceptance rate `a_hat`, as in [EQ-REL-SUBSET-005].
+
+- Domain: `N_c >= 2` divides `N`; library defaults `f = 0.02`, `b = 10`,
+  `N_a = 2`, `a* = 0.44`, `lambda = 0.6` at the first level and carried on.
+- Meaning: weighted resampling turns a sample of `h_(k-1)` into an
+  approximate sample of `h_k`; the chains restore diversity. Consistent as
+  `N -> infinity`; for finite `N` a level sample that lags behind its target
+  biases the following ratios in the same direction.
+- Code: `reliability.sequential_importance_sampling`.
+- Source: [REF-PAPAIOANNOU-PAPADIMITRIOU-STRAUB-2016];
+  [REF-PAPAIOANNOU-BETZ-ZWIRGLMAIER-STRAUB-2015].
+
+### EQ-REL-SIS-004 — Batch-means c.o.v. of the sequential estimate
+
+`delta^2 = sum_(k=1..L+1) s_k^2 / (N_c,k m_k^2)`, where for factor `k` the
+`m_kc` are the means of its terms over each chain (single draws at level 0),
+`m_k` their mean, `s_k^2` their sample variance, and `N_c,k` their number.
+
+- Domain: at least two chains per level.
+- Meaning: a heuristic first-order c.o.v. of the product: batch means absorb
+  the correlation inside a chain, while the dependence between factors and
+  between chains started from the same resampled point is ignored, so the
+  value understates the scatter between independent runs.
+- Code: `reliability.sequential_importance_sampling`.
+- Source: [REF-GEYER-1992] (batch means); the combination is a convention
+  of this library.
+
+### EQ-REL-BUS-001 — BUS acceptance event as a limit state
+
+`g(u, u_p) = log Phi(u_p) - log c - log L(theta(u))`, `theta(u) = T^-1(u)`
+the prior's map from standard-normal space; `g <= 0` if and only if
+`p <= c L(theta)` with `p = Phi(u_p) ~ U(0, 1)`.
+
+- Domain: `c > 0` with `c L(theta) <= 1` for every `theta`; `u_p`
+  independent of `u`.
+- Meaning: `theta` conditional on `g <= 0` follows the posterior
+  `L(theta) pi(theta) / Z`, because
+  `P(p <= c L(theta) | theta) = c L(theta)`; the source states the event as
+  `p - c L(theta) <= 0`, of which this is the logarithmic form. If
+  `c L > 1` somewhere the conditional law is the posterior of
+  `min(L, 1/c)`.
+- Code: `reliability.bus_limit_state`, `reliability.bus_subset_simulation`.
+- Source: [REF-STRAUB-PAPAIOANNOU-2015].
+
+### EQ-REL-BUS-002 — Evidence from the acceptance probability
+
+`Z = E_prior[L(theta)] = P(p <= c L(theta)) / c`.
+
+- Domain: as [EQ-REL-BUS-001].
+- Meaning: the model evidence is the probability of the acceptance event
+  divided by the constant, so its relative error is that of the rare-event
+  estimate.
+- Code: `reliability.bus_subset_simulation`.
+- Source: [REF-STRAUB-PAPAIOANNOU-2015].
+
+### EQ-REL-BUS-003 — Check of the BUS constant
+
+`max_i (log c + log L(theta_i)) <= 0` over every evaluated point
+`theta_i`.
+
+- Domain: the points evaluated in one run.
+- Meaning: a necessary condition for `c <= 1 / sup L` that costs no extra
+  likelihood call; a violation shows that the constant is too large, a clean
+  check does not prove that it is small enough.
+- Code: `reliability.bus_subset_simulation`.
+- Source: [REF-STRAUB-PAPAIOANNOU-2015] (requirement `c L <= 1`); the
+  run-time check is a convention of this library.
