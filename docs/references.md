@@ -5187,3 +5187,75 @@ International Conference on Machine Learning* (ICML 2024), *Proceedings of
 Machine Learning Research* 235, 1616-1630, 2024. Quantile tracking with
 step sizes `eta_t` proportional to `t^(-1/2-eps)`.
 arXiv: [2402.01139](https://arxiv.org/abs/2402.01139).
+## REF-VOVK-WANG-2021
+
+Vladimir Vovk and Ruodu Wang. "E-values: Calibration, combination and
+applications." *The Annals of Statistics* 49(3), 1736-1754, 2021. E-values
+as non-negative statistics with null expectation at most one; calibrators
+between p-values and e-values (the power family `kappa p^(kappa - 1)` and
+its mixture over `kappa`, and `min(1, 1/e)` in the other direction);
+arithmetic-mean merging under arbitrary dependence and product merging for
+independent or sequential e-values.
+DOI: [10.1214/20-AOS2020](https://doi.org/10.1214/20-AOS2020).
+
+## REF-WANG-RAMDAS-2022
+
+Ruodu Wang and Aaditya Ramdas. "False discovery rate control with e-values."
+*Journal of the Royal Statistical Society: Series B* 84(3), 822-852, 2022.
+The e-BH procedure and its false discovery rate bound `alpha K_0 / K` under
+arbitrary dependence between the e-values.
+[arXiv:2009.02824](https://arxiv.org/abs/2009.02824).
+
+## REF-WAUDBY-SMITH-RAMDAS-2024
+
+Ian Waudby-Smith and Aaditya Ramdas. "Estimating means of bounded random
+variables by betting." *Journal of the Royal Statistical Society: Series B*
+86(1), 1-27, 2024. Capital processes `prod (1 + lambda_i (X_i - m))` with
+predictable bets as test martingales for a bounded mean, the hedged capital
+process, confidence sequences and intervals obtained by inverting them, and
+predictable plug-in and approximate growth-rate-optimal bets.
+DOI: [10.1093/jrsssb/qkad009](https://doi.org/10.1093/jrsssb/qkad009).
+
+## REF-HOWARD-ETAL-2021
+
+Steven R. Howard, Aaditya Ramdas, Jon McAuliffe, and Jasjeet Sekhon.
+"Time-uniform, nonparametric, nonasymptotic confidence sequences." *The
+Annals of Statistics* 49(2), 1055-1080, 2021. Confidence sequences that hold
+simultaneously over all sample sizes, derived from non-negative
+supermartingales and Ville's inequality.
+DOI: [10.1214/20-AOS1991](https://doi.org/10.1214/20-AOS1991).
+
+## REF-RAMDAS-ETAL-2023
+
+Aaditya Ramdas, Peter Grünwald, Vladimir Vovk, and Glenn Shafer.
+"Game-theoretic statistics and safe anytime-valid inference." *Statistical
+Science* 38(4), 576-601, 2023. Survey of test martingales, e-processes,
+Ville's inequality, anytime-valid p-values, and optional stopping and
+continuation.
+DOI: [10.1214/23-STS894](https://doi.org/10.1214/23-STS894).
+
+## REF-WASSERMAN-RAMDAS-BALAKRISHNAN-2020
+
+Larry Wasserman, Aaditya Ramdas, and Sivaraman Balakrishnan. "Universal
+inference." *Proceedings of the National Academy of Sciences* 117(29),
+16880-16890, 2020. The split likelihood-ratio test and its cross-fit
+variant: finite-sample valid tests and confidence sets for composite nulls
+without regularity conditions.
+DOI: [10.1073/pnas.1922664117](https://doi.org/10.1073/pnas.1922664117).
+
+## REF-ANGELOPOULOS-ETAL-2023
+
+Anastasios N. Angelopoulos, Stephen Bates, Clara Fannjiang, Michael I.
+Jordan, and Tijana Zrnic. "Prediction-powered inference." *Science*
+382(6671), 669-674, 2023. Valid confidence intervals that combine a small
+labelled sample with predictions on a large unlabelled sample through a
+rectifier estimated on the labelled sample.
+DOI: [10.1126/science.adi6000](https://doi.org/10.1126/science.adi6000).
+
+## REF-ANGELOPOULOS-DUCHI-ZRNIC-2023
+
+Anastasios N. Angelopoulos, John C. Duchi, and Tijana Zrnic. "PPI++:
+Efficient Prediction-Powered Inference." Preprint, 2023. A weight on the
+prediction term tuned to minimize the asymptotic variance, so that the
+estimator is never less efficient than the classical one.
+[arXiv:2311.01453](https://arxiv.org/abs/2311.01453).

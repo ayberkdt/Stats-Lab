@@ -361,6 +361,172 @@ bartlett_test(heavy, light).p_value          # 1.27e-05
 brown_forsythe_test(heavy, light).p_value    # 0.173
 ```
 
+## 11. E-values, anytime-valid tests, and prediction-powered inference
+
+Everything above fixes the sample size before the data are seen. A p-value
+or a confidence interval computed after every new observation, with the
+experiment stopped at the first "significant" one, does not keep its level.
+The tools of this section do (ADR-0119).
+
+**E-values.** An e-value is a non-negative statistic with expectation at
+most one under the null. By Markov's inequality `P(E >= 1/alpha) <= alpha`,
+so `E >= 1/alpha` rejects at level `alpha` and `e_to_p_value` returns the
+p-value `min(1, 1/E)` (EQ-INF-EVAL-001). `calibrate_p_value` goes the other
+way (EQ-INF-EVAL-002); the result is far smaller than `1/p`, which is the
+price of the stronger guarantee. `merge_e_values` averages e-values under
+any dependence and multiplies them when they are independent or sequential
+(EQ-INF-EVAL-003). `e_benjamini_hochberg` (EQ-INF-EVAL-004) controls the
+false discovery rate at `alpha K_0 / K` under arbitrary dependence; with
+`e_k = 1/p_k` it rejects exactly what Benjamini-Hochberg rejects, but
+`1/p_k` is not an e-value, so that identity is an algebraic check and not a
+way to obtain the guarantee.
+
+**Testing by betting.** For observations in a known range,
+`betting_mean_test` (EQ-INF-CS-001, EQ-INF-CS-004) multiplies a capital of
+one by `1 + lambda_t (x_t - m)` at each step, with a bet `lambda_t` computed
+from earlier observations only. Under the null the capital is a
+non-negative (super)martingale, and Ville's inequality bounds the
+probability that it *ever* reaches `1/alpha` by `alpha`. The test can
+therefore be checked after every observation and stopped at
+`stopping_time`. This holds for every predictable bet; the rule (`"agrapa"`,
+`"plug-in"`, `"fixed"`, EQ-INF-CS-003) changes the power only.
+`paired_betting_test` applies the same test to paired differences.
+`betting_confidence_sequence` (EQ-INF-CS-002) collects the candidate means
+whose capital has stayed below `1/alpha`: a sequence of intervals that
+contains the mean at all times simultaneously with probability at least
+`1 - alpha`.
+
+The contrast with a fixed-sample interval looked at repeatedly: in 200
+simulated Bernoulli(0.3) runs of 400 observations, a 95% Wilson interval
+recomputed after every observation (from the tenth on) excludes the true
+value at some time in 35.5% of the runs. The betting test at the true mean
+crosses its boundary in 1% of them. The price is width: after 400
+observations the confidence sequence below is `(0.204, 0.360)`, about 1.8
+times as wide as the single Wilson interval `(0.229, 0.316)` of that run.
+
+**Universal inference.** `split_likelihood_ratio_test` (EQ-INF-EVAL-005)
+fits the alternative on one part of the data and evaluates the likelihood
+ratio against the null maximum-likelihood estimate on the other part. The
+ratio is an e-value in finite samples for any correctly specified model, so
+it applies where Wilks' theorem fails (mixtures, boundary nulls). It is
+conservative, and it needs a null fit that is a true maximizer.
+
+**Prediction-powered inference.** `prediction_powered_mean`
+(EQ-INF-PPI-001 to EQ-INF-PPI-003) combines `n` labelled observations with
+model predictions on `N` further units:
+`mean_n(Y) + w (mean_N(f) - mean_n(f))`. The labelled sample corrects the
+bias of the predictions, so the estimate is unbiased for any predictor, and
+the tuned weight makes the estimated variance no larger than that of the
+labelled mean. In the example the predictions are biased by 1.5: their raw
+mean is 3.52 for a true mean of 2, while the prediction-powered interval is
+centred near 2 and its variance is 46% of the classical one.
+
+```python
+import math
+from probstat.foundations import RandomStream
+from probstat.inference import (
+    adjust_p_values, betting_confidence_sequence, betting_mean_test,
+    calibrate_p_value, e_benjamini_hochberg, e_to_p_value, merge_e_values,
+    prediction_powered_mean, split_likelihood_ratio_test,
+)
+
+p_values = (0.0004, 0.003, 0.2, 0.0001, 0.6)
+e_values = [calibrate_p_value(p) for p in p_values]
+e_values[0]                                   # 40.7, not 1/0.0004 = 2500
+e_to_p_value(e_values[0])                     # 0.0246
+merge_e_values(e_values)                      # 33.93
+e_benjamini_hochberg(e_values, alpha=0.1).rejected
+# (True, False, False, True, False)
+adjust_p_values(p_values, method="bh", alpha=0.1).rejected
+# (True, True, False, True, False)
+
+truth, alpha, horizon, replicates = 0.3, 0.05, 400, 200
+stream = RandomStream(7)
+betting = wilson = 0
+for replicate in range(replicates):
+    generator = stream.child("run", replicate).generator()
+    data = [float(generator.random() < truth) for _ in range(horizon)]
+    betting += betting_mean_test(data, truth, alpha=alpha).rejected
+    successes = 0
+    for n, value in enumerate(data, start=1):
+        successes += int(value)
+        z = (successes - n * truth) / math.sqrt(n * truth * (1 - truth))
+        if n >= 10 and abs(z) > 1.96:    # Wilson interval excludes the truth
+            wilson += 1
+            break
+betting / replicates                          # 0.01
+wilson / replicates                           # 0.355
+
+generator = RandomStream(7).child("run", 0).generator()
+data = [float(generator.random() < truth) for _ in range(horizon)]
+sequence = betting_confidence_sequence(data, alpha=alpha)
+sequence.interval(50)                         # (0.152, 0.52)
+sequence.interval(400)                        # (0.204, 0.36)
+below_half = betting_mean_test(data, 0.5, alternative="less", alpha=alpha)
+below_half.stopping_time                      # 60
+
+
+def log_likelihood(theta, part):
+    return sum(-0.5 * math.log(2 * math.pi) - 0.5 * (x - theta) ** 2 for x in part)
+
+
+def mean(part):
+    return sum(part) / len(part)
+
+
+generator = RandomStream(11).generator()
+sample = [generator.gauss(0.6, 1.0) for _ in range(60)]
+universal = split_likelihood_ratio_test(      # H0: theta <= 0 in N(theta, 1)
+    sample, log_likelihood, mean, lambda part: min(0.0, mean(part)),
+    cross_fit=True, seed=1,
+)
+universal.e_value                             # 4056.3
+universal.rejected                            # True
+
+generator = RandomStream(3).generator()
+
+
+def unit():
+    a = generator.gauss(0, 1)
+    return 2.0 + 2.0 * a, 3.5 + 1.5 * (0.8 * a + 0.6 * generator.gauss(0, 1))
+
+
+labelled = [unit() for _ in range(100)]
+labels = [y for y, _ in labelled]
+predictions = [f for _, f in labelled]
+unlabelled = [unit()[1] for _ in range(2000)]
+powered = prediction_powered_mean(labels, predictions, unlabelled)
+sum(unlabelled) / len(unlabelled)             # 3.524, the biased predictions
+powered.classical_estimate                    # 1.872
+powered.classical_standard_error              # 0.204
+powered.estimate                              # 2.198
+powered.standard_error                        # 0.138
+powered.weight                                # 1.090
+powered.variance_ratio                        # 0.46
+```
+
+What these methods do not give:
+
+- The betting guarantees need the stated bounds. An observation outside
+  `[lower, upper]` is an error, not something to clip after the fact, and a
+  range chosen after looking at the data voids the guarantee.
+- `maximum_capital` is not an e-value and must not be merged or passed to
+  `e_benjamini_hochberg`; use `e_value` (the capital at the time sampling
+  stopped).
+- An empty confidence sequence (`first_empty_time` set) means the mean was
+  not constant over time or the data left the model, apart from an event of
+  probability at most `alpha`.
+- With `bet="agrapa"` the confidence sequence is a grid approximation; the
+  default `"plug-in"` rule keeps the guarantee exactly, at one grid cell of
+  extra width.
+- The split likelihood ratio is valid only for a correctly specified
+  likelihood with all normalizing terms, and its result depends on the
+  random split (fix `seed`; never try several seeds and keep the best).
+- Prediction-powered intervals are asymptotic. They assume that labelled
+  and unlabelled units come from the same population and that the predictor
+  was not trained on the labelled sample. Linear-regression coefficients and
+  quantiles are not implemented.
+
 ## Agreement with R
 
 Agreement with R is a test, not a claim in prose. The script
@@ -528,4 +694,8 @@ first.standard_error == bootstrap(
 [REF-BARTLETT-1937], [REF-SHAPIRO-WILK-1965], [REF-ROYSTON-1992],
 [REF-ROYSTON-1995], [REF-STATLIB-AS-R94], [REF-COCHRAN-1950],
 [REF-KRAMER-1956], [REF-COPENHAVER-HOLLAND-1988], [REF-LUND-LUND-1983],
-[REF-HOCHBERG-TAMHANE-1987], [REF-DUNN-1964].
+[REF-HOCHBERG-TAMHANE-1987], [REF-DUNN-1964], [REF-VOVK-WANG-2021],
+[REF-WANG-RAMDAS-2022], [REF-WAUDBY-SMITH-RAMDAS-2024],
+[REF-HOWARD-ETAL-2021], [REF-RAMDAS-ETAL-2023],
+[REF-WASSERMAN-RAMDAS-BALAKRISHNAN-2020], [REF-ANGELOPOULOS-ETAL-2023],
+[REF-ANGELOPOULOS-DUCHI-ZRNIC-2023].
