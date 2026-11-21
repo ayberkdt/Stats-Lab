@@ -5097,6 +5097,7 @@ Simulation Studies: Questionable Research Practices in Comparative
 Simulation Studies Allow for Spurious Claims of Superiority of Any Method."
 *Biometrical Journal* 66(1), 2200091, 2024.
 DOI: [10.1002/bimj.202200091](https://doi.org/10.1002/bimj.202200091).
+
 ## REF-LI-ETAL-2010
 
 Lihong Li, Wei Chu, John Langford, and Robert E. Schapire. "A

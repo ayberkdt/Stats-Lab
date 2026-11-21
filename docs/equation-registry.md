@@ -19673,6 +19673,7 @@ of an endogenous regressor on `Zf = [Z, W]` against its regression on `W`.
 - Code: `causal.two_stage_least_squares`.
 - Source: [REF-HERNAN-ROBINS-2020, Chapter 16],
   [REF-MONTGOMERY-PECK-VINING-2021, Chapter 3] (extra-sum-of-squares F).
+
 ## Contextual bandits, off-policy evaluation, and Markov decision processes (ADR-0126)
 
 ### EQ-RISK-LINUCB-001 — LinUCB estimate and upper confidence score
