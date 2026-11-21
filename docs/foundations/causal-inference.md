@@ -284,7 +284,9 @@ to 12 decimal places. The robustness value `RV_q` (EQ-CAUSAL-OVB-003) is
 the common strength `R2_Y = R2_D` that removes the fraction `q` of the
 estimate; `robustness_value(..., alpha=)` gives the common strength that
 leaves the adjusted t statistic at the critical value
-(EQ-CAUSAL-OVB-005, the equal-strength definition). The partial R-squared
+(EQ-CAUSAL-OVB-005; for a very large t on few degrees of freedom the worst
+confounder has unequal strengths and the value is the smaller bound given
+there). The partial R-squared
 values do not fix the *sign* of the bias; `reduce=True` assumes the
 confounder inflated the estimate.
 
@@ -305,7 +307,11 @@ estimate was 0.515, the 95 % interval covered the truth in 91.7 % of
 replicates, and the mean standard error was 0.92 of the Monte Carlo
 standard deviation; removing `E[Y | X]` from the outcome without
 residualizing the treatment averaged 0.253. The small remaining bias is the
-smoothing bias of nearest neighbours, which the interval does not show.
+smoothing bias of nearest neighbours, which the interval does not show. An
+independent run of 1000 replicates gave coverage 0.929 and the same
+standard-error ratio, so the interval under-covers by about two points
+here; with three irrelevant covariates added the nearest-neighbour bias
+grew to 0.127 and coverage fell to 0.41.
 `dml_average_treatment_effect` is the cross-fitted AIPW estimator
 (EQ-CAUSAL-DML-003) for a binary treatment; with `folds=1` and the default
 learners it reproduces `estimate_aipw`.
@@ -323,7 +329,10 @@ post-treatment cell with weight proportional to its group size
 (EQ-CAUSAL-DID-005), so early adopters, who contribute more cells, weigh
 more. Panels must be balanced; `panel_from_long` reshapes long records and
 raises otherwise. No covariates, no pre-trend (placebo) cells and no
-simultaneous confidence bands are provided.
+simultaneous confidence bands are provided. The standard errors are
+large-sample formulas: with 5 never-treated units among 100 the nominal
+95 % intervals covered in 86 to 91 % of 1000 simulated panels, and a group
+or comparison set of a single unit has no standard error (`nan`).
 
 A static two-way fixed-effects regression is not a substitute: in a
 noise-free panel with adoption at periods 2 and 4, effects that grow with
@@ -339,7 +348,9 @@ projected gradient with the exact simplex projection `project_to_simplex`
 and an exact solve on the current support. The result carries the duality
 gap `g'w - min_j g_j`, which bounds the distance to the optimum and is zero
 exactly at a KKT point; `converged` is `False` if the iteration limit was
-reached first. `V` is the identity unless `importance=` is given; the
+reached first, which happens for predictors on very different scales and
+for nearly dependent donor paths (check it; rescale the predictors or pass
+`importance=`). `V` is the identity unless `importance=` is given; the
 data-driven choice of `V` is not implemented. `synthetic_control` returns
 the gap path `tau_t` and the pre- and post-period RMSPE;
 `synthetic_control_placebo` re-runs the method for every donor and ranks
@@ -353,7 +364,9 @@ endogenous (EQ-CAUSAL-IV-001), with HC0 or HC1 sandwich standard errors
 (EQ-CAUSAL-IV-002) and the first-stage F statistic of the excluded
 instruments (EQ-CAUSAL-IV-003). With one binary instrument it is the Wald
 ratio. The estimator is consistent, not unbiased, and unreliable when the
-first stage is weak (`weak_instruments` flags `F < 10`, a rule of thumb).
+first stage is weak (`weak_instruments` flags `F < 10`, a rule of thumb;
+with several endogenous regressors a large F for each of them does not
+show that the coefficients are jointly identified).
 
 ### One data set, three answers
 

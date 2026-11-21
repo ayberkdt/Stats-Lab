@@ -1195,5 +1195,90 @@ class InstrumentalVariablesTests(unittest.TestCase):
             two_stage_least_squares(y, d, z)
 
 
+class AuditRegressionTests(unittest.TestCase):
+    """Regressions found by the independent audit of the 0.27 causal modules."""
+
+    def test_significance_robustness_is_a_minimum_over_both_strengths(self) -> None:
+        """With a large t on few degrees of freedom the worst confounder is unequal.
+
+        For ``f_q > 1 / f*`` the equal-strength root overstates the value; the
+        bound ``(f_q^2 - f*^2) / (1 + f_q^2)`` is checked here by a grid search
+        over ``R2_Y <= R`` at ``R2_D = R`` (the adjusted t decreases in
+        ``R2_D``).
+        """
+        t, df = 20.0, 5
+        critical = StudentT(float(df - 1)).quantile(0.975)
+        f, f_star = t / math.sqrt(df), critical / math.sqrt(df - 1)
+        self.assertGreater(f * f_star, 1.0)
+        value = robustness_value(t, df, alpha=0.05)
+        self.assertAlmostEqual(value, (f * f - f_star**2) / (1 + f * f), places=12)
+
+        def smallest_t(bound: float) -> float:
+            """Return the smallest adjusted t with both strengths <= bound."""
+            return min(
+                adjust_for_confounder(
+                    t, 1.0, df, r2_outcome=bound * i / 2000, r2_treatment=bound
+                ).adjusted_t
+                for i in range(2001)
+            )
+
+        self.assertGreater(smallest_t(value - 1e-3), critical)
+        self.assertLess(smallest_t(value + 1e-3), critical)
+        worst = adjust_for_confounder(
+            t,
+            1.0,
+            df,
+            r2_outcome=value / (f * f * (1 - value)),
+            r2_treatment=value,
+        )
+        self.assertAlmostEqual(worst.adjusted_t, critical, places=9)
+        # Outside that regime the equal-strength root is the minimum.
+        usual = robustness_value(3.0, 100, alpha=0.05)
+        critical = StudentT(99.0).quantile(0.975)
+        at_root = adjust_for_confounder(
+            3.0, 1.0, 100, r2_outcome=usual, r2_treatment=usual
+        )
+        self.assertAlmostEqual(at_root.adjusted_t, critical, places=9)
+
+    def test_synthetic_control_converges_on_outcomes_in_levels(self) -> None:
+        """A common level of 10^4 in all predictors does not stall the solver."""
+        rng = random.Random(3)
+        base = [1e4 + 100 * math.sin(0.4 * t) + 30 * t for t in range(12)]
+        donors = [
+            [b * (1 + 0.01 * rng.gauss(0, 1)) + rng.gauss(0, 1) for b in base]
+            for _ in range(30)
+        ]
+        treated = [b + rng.gauss(0, 1) for b in base]
+        fit = synthetic_control_weights(treated, donors)
+        self.assertTrue(fit.converged)
+        self.assertLess(fit.iterations, 2000)
+        self.assertLess(fit.objective, 1e-3)
+        # The same problem shifted by the treated unit has the same solution.
+        shifted = synthetic_control_weights(
+            [0.0] * 12,
+            [[v - x for v, x in zip(row, treated, strict=True)] for row in donors],
+        )
+        self.assertTrue(shifted.converged)
+        self.assertLess(shifted.objective, 1e-3)
+
+    def test_single_unit_arm_has_no_standard_error(self) -> None:
+        """One comparison (or treated) unit gives ``nan``, not a zero error."""
+        rng = random.Random(1)
+        groups = [2] * 10 + [3] + [None]
+        panel = [
+            [rng.gauss(0, 1) + (1.0 if g and t >= g else 0.0) for t in range(5)]
+            for g in groups
+        ]
+        result = group_time_effects(panel, groups)
+        for cell in result.effects:
+            self.assertTrue(math.isnan(cell.standard_error))
+        self.assertTrue(math.isnan(result.overall().standard_error))
+        with self.assertRaises(ValueError):
+            result.overall().confidence_interval()
+        notyet = group_time_effects(panel, groups, comparison="notyet")
+        self.assertTrue(math.isfinite(notyet.effect(2, 2).standard_error))
+        self.assertTrue(math.isnan(notyet.effect(3, 3).standard_error))
+
+
 if __name__ == "__main__":
     unittest.main()

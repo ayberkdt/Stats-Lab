@@ -615,8 +615,16 @@ def improved_cross_entropy(
        ``family="mixture"``.
 
     The estimate is ``P_f = (1/N) sum_i I(g_i <= 0) w_i`` over the sample at
-    which the iteration stopped [EQ-REL-ICE-005]. It is unbiased given the
-    proposal, because the proposal was fitted to earlier samples only.
+    which the iteration stopped [EQ-REL-ICE-005]. The proposal was fitted to
+    earlier samples only and its exact density (after the covariance guard)
+    enters ``w_i``, so a sample from a fixed proposal would give an unbiased
+    estimate. The stopping rule looks at that same sample, however, which
+    leaves a small upward bias for small ``N``: the mean of
+    ``estimate / exact`` on a linear limit state with ``beta = 3`` in two
+    dimensions was 1.037 for ``N = 30`` (800 runs), 1.023 for ``N = 100``
+    (600 runs, Monte Carlo standard error 0.007) and 1.004 for
+    ``N = 1000`` (100 runs, standard error 0.005, not distinguishable from
+    one).
 
     Covariance guard: a fitted covariance follows the failure region, whose
     spread along the important direction is far below one for a small

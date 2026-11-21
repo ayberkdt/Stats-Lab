@@ -130,7 +130,11 @@ class SequentialImportanceResult:
             chain means (level 0 from independent draws). It ignores the
             dependence between levels and between chains that share a
             resampled seed and typically understates the scatter between
-            independent runs.
+            independent runs: over 60 runs each on linear limit states
+            (``beta`` 3 to 5.5, 2 to 50 dimensions, defaults) the standard
+            deviation between runs was 1.3 to 1.4 times the mean reported
+            value, and 10 to 17 % of the estimates were further than two
+            reported c.o.v. from the exact value on the log scale.
         standard_error: ``coefficient_of_variation * probability``.
         scales: Smoothing scales ``sigma_1 > ... > sigma_L``.
         ratios: Mean incremental weights ``S_1, ..., S_L``.

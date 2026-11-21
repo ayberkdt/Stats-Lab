@@ -201,7 +201,13 @@ class BUSResult:
 
     Args:
         samples: Posterior draws ``theta`` (correlated Markov-chain states
-            with repeated values; empty when no state was accepted).
+            with repeated values; empty when no state was accepted). They
+            are not an independent sample: in a one-parameter conjugate
+            problem about half of 1000 draws were distinct and the
+            posterior mean scattered between runs like that of about 250
+            independent draws (about 140 when ``c`` was 20 times smaller
+            than necessary). :meth:`mean` and :meth:`covariance` come
+            without a standard error.
         standard_samples: The same draws in the standard-normal space of the
             prior.
         log_likelihoods: ``log L`` at the draws.

@@ -176,12 +176,29 @@ def synthetic_control_weights(
     """Find the convex donor combination closest to the treated unit.
 
     Minimizes ``f(w) = sum_m v_m (x1_m - sum_j w_j X0_jm)^2`` over the
-    simplex by projected gradient ``w <- P(w - g / L)`` with
-    ``g = 2 (Q w - c)``, ``Q = X0' V X0``, ``c = X0' V x1`` and step
-    ``1 / L``, ``L = 2 lambda_max(Q)``. Every 20 iterations (and at the
-    start) the quadratic is minimized exactly on the current support and
-    the result is kept if it is feasible and has a smaller duality gap.
-    Iteration stops when ``gap <= tolerance * max(x1' V x1, tiny)``.
+    simplex by projected gradient ``w <- P(w - g / L)``. Because the
+    weights sum to one, ``x1 - X0'w = -D'w`` with the donor predictors
+    centred at the treated unit, ``D_j = X0_j - x1``; the iteration uses
+    ``g = 2 Q w``, ``Q = D V D'`` and step ``1 / L``,
+    ``L = 2 lambda_max(Q)``. This is the same problem (the gradient differs
+    from ``2 (X0 V X0' w - X0 V x1)`` by a constant vector, which changes
+    neither the projection nor the gap), but the common level of the
+    predictors no longer enters ``lambda_max``. Every 20 iterations (and at
+    the start) the quadratic is minimized exactly on the current support
+    and the result is kept if it is feasible and has a smaller duality gap.
+    Iteration stops when ``gap <= tolerance * s`` with ``s`` the largest of
+    ``x1' V x1`` and the ``X0_j' V X0_j``. The tolerance is therefore
+    relative to the level of the predictors, not to their differences: for
+    predictors with a large common level the certified accuracy of the
+    objective is ``tolerance * s`` in absolute terms, and a smaller
+    ``tolerance`` may be needed.
+
+    Projected gradient is slow on ill-conditioned problems, and the result
+    then has ``converged == False`` with weights that can be far from
+    optimal: predictors on very different scales (rescale them or pass
+    ``importance``) and very smooth, nearly dependent donor paths (a
+    Hilbert-matrix-like pool of 15 donors did not converge in 20000
+    iterations) are examples. Always check ``converged``.
 
     Args:
         treated_predictors: ``k`` predictor values of the treated unit.
@@ -230,18 +247,26 @@ def synthetic_control_weights(
         raise ValueError("max_iterations must be a positive integer")
     if max_iterations < 1:
         raise ValueError("max_iterations must be a positive integer")
+    # On the simplex x1 - X0'w = -(X0 - 1 x1')'w, so the problem is solved in
+    # donor predictors centred at the treated unit: same objective, gradient
+    # shifted by a constant vector (which changes neither the projection nor
+    # the duality gap), but without the common level of the predictors in
+    # lambda_max, which otherwise makes the step far too small.
+    centred = tuple(tuple(donors[a][m] - x1[m] for m in range(k)) for a in range(size))
     gram = tuple(
         tuple(
-            math.fsum(v[m] * donors[a][m] * donors[b][m] for m in range(k))
+            math.fsum(v[m] * centred[a][m] * centred[b][m] for m in range(k))
             for b in range(size)
         )
         for a in range(size)
     )
-    linear = tuple(
-        math.fsum(v[m] * donors[a][m] * x1[m] for m in range(k)) for a in range(size)
-    )
+    linear = (0.0,) * size
     constant = math.fsum(v[m] * x1[m] * x1[m] for m in range(k))
-    threshold = tol * max(constant, 1e-300)
+    scale = max(
+        constant,
+        max(math.fsum(v[m] * donors[a][m] ** 2 for m in range(k)) for a in range(size)),
+    )
+    threshold = tol * max(scale, 1e-300)
 
     def gradient(w: Vector) -> list[float]:
         """Return ``g = 2 (Q w - c)``.

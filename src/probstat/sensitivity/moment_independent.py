@@ -65,7 +65,10 @@ class BorgonovoResult:
         input_names: Input names.
         delta: Raw estimates (biased upwards for unimportant inputs).
         corrected: ``delta - null_level`` (``None`` without permutations);
-            a heuristic, see the module docstring.
+            a heuristic, see the module docstring. It is about zero for an
+            input without effect and too low for an influential one (0.42
+            and 0.11 for exact values 0.51 and 0.16 at ``n = 4000``), so
+            it is not an estimate of delta.
         null_level: Mean of the estimator over random class assignments
             (``nan`` without permutations).
         p_values: Permutation p-values of ``H0: X_i independent of Y``

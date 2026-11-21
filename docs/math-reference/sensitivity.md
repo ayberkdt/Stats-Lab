@@ -37,7 +37,7 @@ the first `k` eigenvectors.
   `sensitivity.ActiveSubspaceResult.sufficient_summary`,
   `sensitivity.ActiveSubspaceResult.explained_fraction`.
 - Source: [REF-CONSTANTINE-DOW-WANG-2014].
-  - [REF-CONSTANTINE-DOW-WANG-2014](../references.md#ref-constantine-dow-wang-2014): Paul G. Constantine, Eric Dow and Qiqi Wang. "Active Subspace Methods in Theory and Practice: Applications to Kriging Surfaces." *SIAM Journal on Scientific Computing* 36(4), A1500-A1524, 2014. The matrix `E[grad f grad f']`, its eigen-decomposition, Monte Carlo estimation, and bootstrap diagnostics of eigenvalues and subspaces. DOI: [10.1137/130916138](https://doi.org/10.1137/130916138).
+  - [REF-CONSTANTINE-DOW-WANG-2014](../references.md#ref-constantine-dow-wang-2014): Paul G. Constantine, Eric Dow and Qiqi Wang. "Active Subspace Methods in Theory and Practice: Applications to Kriging Surfaces." *SIAM Journal on Scientific Computing* 36(4), A1500-A1524, 2014. The matrix `E[grad f grad f']`, its eigen-decomposition and Monte Carlo estimation. (The paper could not be opened during the 0.27 audit; the bootstrap diagnostics and the activity scores of `sensitivity.active_subspace` are not attributed to it.) DOI: [10.1137/130916138](https://doi.org/10.1137/130916138).
 - Registry: [EQ-SENS-ACTIVE-001](../equation-registry.md#eq-sens-active-001--gradient-moment-matrix-and-active-subspace)
 
 ### EQ-SENS-ACTIVE-002 — Activity scores
@@ -51,9 +51,11 @@ the first `k` eigenvectors.
   [EQ-SENS-DGSM-001] (from `C = sum_j lambda_j w_j w_j'`).
 - Code: `sensitivity.active_subspace_from_gradients`,
   `sensitivity.ActiveSubspaceResult.as_mapping`.
-- Source: follows from the spectral decomposition in
-  [REF-CONSTANTINE-DOW-WANG-2014] and [REF-GOLUB-VANLOAN-2013, Section 8.1].
-  - [REF-CONSTANTINE-DOW-WANG-2014](../references.md#ref-constantine-dow-wang-2014): Paul G. Constantine, Eric Dow and Qiqi Wang. "Active Subspace Methods in Theory and Practice: Applications to Kriging Surfaces." *SIAM Journal on Scientific Computing* 36(4), A1500-A1524, 2014. The matrix `E[grad f grad f']`, its eigen-decomposition, Monte Carlo estimation, and bootstrap diagnostics of eigenvalues and subspaces. DOI: [10.1137/130916138](https://doi.org/10.1137/130916138).
+- Source: derived here from the spectral decomposition of the matrix of
+  [REF-CONSTANTINE-DOW-WANG-2014] ([REF-GOLUB-VANLOAN-2013, Section 8.1]).
+  The score is not claimed to be defined in that paper; no source for the
+  name could be verified.
+  - [REF-CONSTANTINE-DOW-WANG-2014](../references.md#ref-constantine-dow-wang-2014): Paul G. Constantine, Eric Dow and Qiqi Wang. "Active Subspace Methods in Theory and Practice: Applications to Kriging Surfaces." *SIAM Journal on Scientific Computing* 36(4), A1500-A1524, 2014. The matrix `E[grad f grad f']`, its eigen-decomposition and Monte Carlo estimation. (The paper could not be opened during the 0.27 audit; the bootstrap diagnostics and the activity scores of `sensitivity.active_subspace` are not attributed to it.) DOI: [10.1137/130916138](https://doi.org/10.1137/130916138).
   - [REF-GOLUB-VANLOAN-2013](../references.md#ref-golub-vanloan-2013): Gene H. Golub and Charles F. Van Loan. *Matrix Computations*. 4th edition. Johns Hopkins University Press, 2013.
 - Registry: [EQ-SENS-ACTIVE-002](../equation-registry.md#eq-sens-active-002--activity-scores)
 
@@ -70,12 +72,14 @@ For a resample of the gradients with eigenvectors `W*`:
   where the gap `lambda_k - lambda_{k+1}` is large. A heuristic measure of
   sampling variability only (sample eigenvalues are biased).
 - Code: `sensitivity.active_subspace_from_gradients` (`bootstrap=`).
-- Source: [REF-CONSTANTINE-DOW-WANG-2014] (bootstrap of the gradient
-  sample), [REF-GOLUB-VANLOAN-2013, Section 2.5.3] (distance between
-  subspaces) and [REF-EFRON-TIBSHIRANI-1993] (percentile interval).
-  - [REF-CONSTANTINE-DOW-WANG-2014](../references.md#ref-constantine-dow-wang-2014): Paul G. Constantine, Eric Dow and Qiqi Wang. "Active Subspace Methods in Theory and Practice: Applications to Kriging Surfaces." *SIAM Journal on Scientific Computing* 36(4), A1500-A1524, 2014. The matrix `E[grad f grad f']`, its eigen-decomposition, Monte Carlo estimation, and bootstrap diagnostics of eigenvalues and subspaces. DOI: [10.1137/130916138](https://doi.org/10.1137/130916138).
-  - [REF-GOLUB-VANLOAN-2013](../references.md#ref-golub-vanloan-2013): Gene H. Golub and Charles F. Van Loan. *Matrix Computations*. 4th edition. Johns Hopkins University Press, 2013.
+- Source: [REF-EFRON-TIBSHIRANI-1993] (nonparametric bootstrap and
+  percentile interval, applied here to the gradient sample of
+  [REF-CONSTANTINE-DOW-WANG-2014]) and [REF-GOLUB-VANLOAN-2013, Section
+  2.5.3] (distance between subspaces). That the 2014 paper itself contains
+  this bootstrap could not be verified, so it is not attributed to it.
   - [REF-EFRON-TIBSHIRANI-1993](../references.md#ref-efron-tibshirani-1993): Bradley Efron and Robert J. Tibshirani. *An Introduction to the Bootstrap*. Chapman & Hall, 1993.
+  - [REF-CONSTANTINE-DOW-WANG-2014](../references.md#ref-constantine-dow-wang-2014): Paul G. Constantine, Eric Dow and Qiqi Wang. "Active Subspace Methods in Theory and Practice: Applications to Kriging Surfaces." *SIAM Journal on Scientific Computing* 36(4), A1500-A1524, 2014. The matrix `E[grad f grad f']`, its eigen-decomposition and Monte Carlo estimation. (The paper could not be opened during the 0.27 audit; the bootstrap diagnostics and the activity scores of `sensitivity.active_subspace` are not attributed to it.) DOI: [10.1137/130916138](https://doi.org/10.1137/130916138).
+  - [REF-GOLUB-VANLOAN-2013](../references.md#ref-golub-vanloan-2013): Gene H. Golub and Charles F. Van Loan. *Matrix Computations*. 4th edition. Johns Hopkins University Press, 2013.
 - Registry: [EQ-SENS-ACTIVE-003](../equation-registry.md#eq-sens-active-003--bootstrap-subspace-distance-and-eigenvalue-intervals)
 
 ### EQ-SENS-ACTIVE-004 — Gradient in standard-normal space
