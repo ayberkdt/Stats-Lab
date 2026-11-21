@@ -12,6 +12,21 @@ with the generalized divergence
 the Gibbs form ``P_ij = a_i b_j exp((f_i + g_j - C_ij) / eps)`` and the
 potentials solve a damped Sinkhorn fixed point, iterated here in the log
 domain like :func:`~probstat.information.sinkhorn`.
+
+Convention: the entropy term is taken relative to the product ``a b'``, as
+in :func:`~probstat.information.sinkhorn`. The scaling iteration of the
+cited source is usually written for a fixed reference measure on the product
+space (the counting measure for discrete problems),
+``u = (a / (K v))^lambda``. The two objectives are not equivalent: because
+``KL(P | 1) = KL(P | a b') + sum_ij P_ij log(a_i b_j) + const``, the
+counting-measure problem is this problem with the cost
+``C_ij + eps log(a_i b_j)``. In balanced transport that extra term is
+constant on the feasible set; with relaxed marginals it is not, so the
+optimal plan, its mass, and the objective value differ from those of
+software that uses the counting-measure convention (masses 2.009 against
+1.969 on a three-by-two example). To reproduce such a result pass the cost
+``C_ij + eps log(a_i b_j)`` (positive weights only); the test suite checks
+that equivalence against the scaling iteration.
 """
 
 from __future__ import annotations

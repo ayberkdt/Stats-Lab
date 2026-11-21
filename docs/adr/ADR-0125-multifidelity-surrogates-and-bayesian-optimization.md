@@ -113,6 +113,35 @@ prediction code.
   variance is conditional on the kernel and is not an error bound.
 - `log h` agrees with 50-digit arithmetic to `9e-16` relative on
   `[-100, 8]`; `log h(-40) = -808.2986` where the direct formula returns 0.
+  An audit with 700-digit `decimal` arithmetic (Taylor series of the error
+  function for `z >= -30`, asymptotic series below) on 675 points of
+  `[-1000, 10]`, including both sides of the switch at `z = -1`, found a
+  largest relative error of `1.2e-15`.
+- Audit of the plug-in co-kriging variance: over 40 random nested designs
+  of the two-fidelity pair and 50 test points each, the nominal 95%
+  interval of the top level covered 0.82 with 11 cheap and 4 expensive
+  runs (5% of the standardized errors exceeded 15.9), 0.94 with 15 and 5,
+  0.96 with 21 and 7, and 0.97 with 30 and 10; for a second pair
+  (`sin(8x) + x`, `0.7 sin(8x + 0.3) + 0.2`) 0.69 with 11 and 4 and 0.94
+  with 21 and 7. The variance is not a full predictive uncertainty on small
+  designs.
+- Audit of the stochastic-kriging mean squared error (draws from the model,
+  known kernel, 3000 replicates): calibrated with the true intrinsic
+  variances (coverage 0.95); with sample variances from 2 to 10
+  replications the reported value was 0.50 to 0.87 of the actual squared
+  error (coverage 0.80 to 0.93); with 30 replications coverage 0.94 to
+  0.95.
+- Audit of the Bayesian-quadrature deviation (thirteen nodes, length scale
+  1, reported deviation `9.0e-5` for every integrand): actual error 0.2
+  deviations for `cos x`, 4 for `exp(x/2)`, 6 for `1/(1 + x^2)`, 17 for
+  `x^2`, 39 for `sin(3x) + x^4/10`, 250 for `|x|`. With fitted
+  hyperparameters the call failed for the integrand `x^2` on 4 of 6 seeds
+  (numerically singular kernel) and ignored `noise_variance`; that
+  argument is now a floor on the fitted nugget.
+- The loop assumes a deterministic objective: on pure `N(0, 1)` noise a run
+  of 25 evaluations reports a "minimum" of -2.0. A constraint function that
+  is constant on the evaluated points makes every iteration a fallback
+  (random search), which the result counts.
 - Loop, one dimension, budget 15, seeds 0 to 4: largest regret `1.2e-6`
   against a mean regret `0.82` of random search with the same budget. Two
   dimensions (library Rastrigin benchmark, maximization, budget 25, seeds 0

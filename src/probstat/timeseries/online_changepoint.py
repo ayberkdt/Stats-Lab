@@ -43,6 +43,20 @@ Conjugate models [EQ-TS-BOCPD-002], [EQ-TS-BOCPD-003]:
 ``max_run_length`` drops run lengths above a bound after every step. That is
 an approximation: the reported evidence then is a lower bound of the exact
 one and the result records the largest posterior mass that was discarded.
+The identity ``P(r_t = 0 | x_1:t) = H`` holds for the exact recursion only:
+after truncation the retained probabilities are renormalized, so the
+reported ``P(r_t = 0)`` is ``H`` divided by the retained mass of that step
+(up to 0.081 instead of ``H = 0.01`` for a stationary Gaussian series of
+400 observations with ``max_run_length = 20``, where up to 88% of the mass
+is discarded in one step). A large ``discarded_mass`` means the bound is too
+small for the segment lengths in the data and the run-length output should
+not be used.
+
+The recursion works with logarithms throughout and does not underflow on
+long series: 5000 Gaussian observations with ``max_run_length = 800`` give
+a finite evidence and normalized rows, and on 2500 observations the
+truncated and the exact evidence agree to all printed digits when the
+discarded mass is negligible.
 """
 
 from __future__ import annotations

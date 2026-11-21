@@ -308,7 +308,15 @@ def cumulative_incidence(
 
     Intervals are ``F +/- z se`` clipped to ``[0, 1]``; they are pointwise
     and rely on a large-sample normal approximation that is poor where
-    ``F_k`` is close to zero or the risk set is small.
+    ``F_k`` is close to zero or the risk set is small. The variance formula
+    is itself a large-sample one and is too small under heavy censoring:
+    with exponential cause rates 0.6 and 0.9, censoring rate 2.0 and
+    ``t = 1`` (4000 replicates) the mean variance estimate was 0.90 of the
+    replicate variance at ``n = 60`` (coverage of the 95% interval 0.89),
+    0.86 with tied times, and 0.95 at ``n = 400`` (coverage 0.94); with
+    ``n = 30`` and a risk set of a few subjects it was 0.73 (coverage
+    0.85). With censoring rate 0.5 and ``n = 120`` the ratio was 0.99 and
+    the coverage 0.94.
 
     Args:
         times: Finite non-negative observed times.

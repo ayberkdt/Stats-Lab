@@ -117,6 +117,61 @@ class FiniteMDPTests(unittest.TestCase):
                         mdp.discount * solution.last_change + 1e-12,
                     )
 
+    def test_stopping_rule_when_the_greedy_policy_is_not_optimal(self) -> None:
+        """The epsilon bound holds where value iteration stops at a worse policy.
+
+        Action 0 stays (rewards 0.7 and 0.8); action 1 moves with
+        probabilities (0.2, 0.8) from state 0 at reward 0. With ``gamma = 0.9``
+        the optimum plays action 1 in state 0: ``V*(1) = 8`` and
+        ``V*(0) = 0.9 * 0.8 * 8 / (1 - 0.18) = 7.02439``, against 7 for
+        staying. With ``eps = 1`` value iteration stops while staying still
+        looks better, so the returned policy loses 0.02439, inside the bound.
+        """
+        mdp = FiniteMDP(
+            (((1.0, 0.0), (0.0, 1.0)), ((0.2, 0.8), (0.3, 0.7))),
+            ((0.7, 0.8), (0.0, 0.7)),
+            0.9,
+        )
+        optimum = policy_iteration(mdp)
+        self.assertEqual(optimum.policy, (1, 0))
+        self.assertAlmostEqual(optimum.values[0], 5.76 / 0.82, places=12)
+        self.assertAlmostEqual(optimum.values[1], 8.0, places=12)
+        loose = value_iteration(mdp, tolerance=1.0)
+        self.assertTrue(loose.converged)
+        self.assertEqual(loose.policy, (0, 0))
+        achieved = policy_evaluation(mdp, loose.policy)
+        loss = max(b - a for b, a in zip(optimum.values, achieved, strict=True))
+        self.assertAlmostEqual(loss, 5.76 / 0.82 - 7.0, places=12)
+        self.assertGreater(loss, 0.02)
+        self.assertLess(loss, 1.0)
+        self.assertLessEqual(loss, loose.policy_loss_bound)
+        error = max(
+            abs(b - v) for b, v in zip(optimum.values, loose.values, strict=True)
+        )
+        self.assertLess(error, 0.5)
+        self.assertLessEqual(error, loose.value_error_bound + 1e-12)
+        tight = value_iteration(mdp, tolerance=1e-3)
+        self.assertEqual(tight.policy, (1, 0))
+
+    def test_policy_iteration_terminates_with_tied_actions(self) -> None:
+        """Duplicated actions and tied rewards neither cycle nor lose value."""
+        rng = random.Random(11)
+        for case in range(20):
+            base = random_mdp(rng, 3, 2)
+            tied = FiniteMDP(
+                (*base.transitions, base.transitions[0]),
+                (*base.expected_rewards, base.expected_rewards[0]),
+                base.discount,
+            )
+            best, _ = brute_force(base)
+            for start in (None, (2, 2, 2), (0, 2, 1)):
+                solution = policy_iteration(tied, initial_policy=start)
+                with self.subTest(case=case, start=start):
+                    self.assertTrue(solution.converged)
+                    self.assertLessEqual(solution.iterations, 3**3)
+                    for b, v in zip(best, solution.values, strict=True):
+                        self.assertAlmostEqual(v, b, delta=1e-10)
+
     def test_transition_rewards_reduce_to_expected_rewards(self) -> None:
         """R[a][s][s'] gives the same problem as its expectation R[a][s]."""
         transitions = (((0.2, 0.8), (0.5, 0.5)), ((1.0, 0.0), (0.3, 0.7)))

@@ -453,6 +453,106 @@ class UnbalancedSinkhornTests(unittest.TestCase):
                     places=12,
                 )
 
+    def test_counting_measure_convention_is_a_cost_shift(self) -> None:
+        """The counting-measure objective is this one with a shifted cost.
+
+        The scaling iteration ``u = (a/(K v))^lambda``, ``v = (b/(K'u))^lambda``
+        solves the problem with entropy relative to the counting measure.
+        Its plan differs from the library plan (reference ``a b'``) and
+        equals the library plan for the cost ``C_ij + eps log(a_i b_j)``.
+        """
+        a, b = (0.5, 1.5, 0.2), (2.0, 0.3)
+        cost = ((0.1, 1.0), (0.7, 0.2), (0.4, 0.9))
+        eps, rho = 0.3, 0.8
+        damping = rho / (rho + eps)
+        kernel = [[math.exp(-c / eps) for c in row] for row in cost]
+        u, v = [1.0] * 3, [1.0] * 2
+        for _ in range(2000):
+            u = [
+                (a[i] / sum(kernel[i][j] * v[j] for j in range(2))) ** damping
+                for i in range(3)
+            ]
+            v = [
+                (b[j] / sum(kernel[i][j] * u[i] for i in range(3))) ** damping
+                for j in range(2)
+            ]
+        counting = [[u[i] * kernel[i][j] * v[j] for j in range(2)] for i in range(3)]
+        library = unbalanced_sinkhorn(
+            a, b, cost, epsilon=eps, marginal_penalty=rho, tolerance=1e-13
+        )
+        shifted_cost = [
+            [cost[i][j] + eps * math.log(a[i] * b[j]) for j in range(2)]
+            for i in range(3)
+        ]
+        shifted = unbalanced_sinkhorn(
+            a, b, shifted_cost, epsilon=eps, marginal_penalty=rho, tolerance=1e-13
+        )
+        self.assertAlmostEqual(library.transported_mass, 2.009034, delta=1e-5)
+        self.assertAlmostEqual(sum(map(sum, counting)), 1.968920, delta=1e-5)
+        for i in range(3):
+            for j in range(2):
+                self.assertAlmostEqual(shifted.plan[i][j], counting[i][j], delta=1e-10)
+
+    def test_translation_step_on_very_unequal_masses_and_zero_weights(self) -> None:
+        """The translation step keeps the fixed point and never lowers the dual.
+
+        Random problems with total masses from 1e-3 to 1e3, some zero
+        weights, and ``rho/eps`` up to 1e4: the plans with and without the
+        step agree, and the dual objective after 1, 2, 3, 5, 8 iterations is
+        non-decreasing.
+        """
+        rng = random.Random(2018)
+        for case in range(12):
+            m, n = rng.randint(2, 4), rng.randint(2, 4)
+            scale_a = 10.0 ** rng.uniform(-3.0, 3.0)
+            scale_b = 10.0 ** rng.uniform(-3.0, 3.0)
+            a = [scale_a * rng.random() for _ in range(m)]
+            b = [scale_b * rng.random() for _ in range(n)]
+            a[rng.randrange(m)] = 0.0 if m > 2 else a[0]
+            b[rng.randrange(n)] = 0.0 if n > 2 else b[0]
+            cost = [[rng.random() for _ in range(n)] for _ in range(m)]
+            eps = 10.0 ** rng.uniform(-1.5, 0.0)
+            rho = 10.0 ** rng.uniform(-1.0, 2.5)
+            with_step = unbalanced_sinkhorn(
+                a, b, cost, epsilon=eps, marginal_penalty=rho, max_iterations=20000
+            )
+            plain = unbalanced_sinkhorn(
+                a,
+                b,
+                cost,
+                epsilon=eps,
+                marginal_penalty=rho,
+                max_iterations=20000,
+                translation_step=False,
+            )
+            with self.subTest(case=case):
+                self.assertTrue(with_step.converged)
+                self.assertLess(
+                    abs(with_step.duality_gap),
+                    1e-9 * max(1.0, abs(with_step.primal_objective)),
+                )
+                if plain.converged:
+                    largest = max(max(row) for row in plain.plan)
+                    for row_a, row_b in zip(with_step.plan, plain.plan, strict=True):
+                        for x, y in zip(row_a, row_b, strict=True):
+                            self.assertAlmostEqual(x, y, delta=1e-5 * largest)
+                previous = -math.inf
+                for count in (1, 2, 3, 5, 8):
+                    partial = unbalanced_sinkhorn(
+                        a,
+                        b,
+                        cost,
+                        epsilon=eps,
+                        marginal_penalty=rho,
+                        max_iterations=count,
+                        tolerance=1e-300,
+                    )
+                    self.assertGreaterEqual(
+                        partial.dual_objective,
+                        previous - 1e-9 * max(1.0, abs(previous)),
+                    )
+                    previous = partial.dual_objective
+
     def test_zero_weights_and_small_epsilon(self) -> None:
         """Zero-mass atoms get no plan mass; small ``eps`` does not underflow."""
         cost = [[0.0, 50.0, 200.0], [50.0, 0.0, 50.0]]

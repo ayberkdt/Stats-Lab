@@ -19842,8 +19842,8 @@ per-record terms `t_i`; clipped weights `min(w_i, M)`;
   optimal in every state and `V_{k+1}` is within `eps / 2` of `V*`, by
   [EQ-RISK-MDP-006] with residual at most `gamma |V_{k+1} - V_k|_inf`.
 - Code: `risk.value_iteration`.
-- Source: [REF-NORRIS-1997]; the bound is derived in
-  `risk.markov_decision`.
+- Source: [REF-PUTERMAN-1994, Chapter 6]; [REF-NORRIS-1997, Section 5.4];
+  the bound is derived in `risk.markov_decision`.
 
 ### EQ-RISK-MDP-004 — Policy iteration
 
@@ -19856,7 +19856,7 @@ is strictly better; stop when `pi_{k+1} = pi_k`.
   deterministic policy repeats and the method stops at an optimal policy
   after at most `|A|^|S|` steps.
 - Code: `risk.policy_iteration`.
-- Source: [REF-NORRIS-1997].
+- Source: [REF-PUTERMAN-1994, Chapter 6]; [REF-NORRIS-1997, Section 5.4].
 
 ### EQ-RISK-MDP-005 — Finite-horizon backward induction
 
@@ -19881,7 +19881,8 @@ With `rho = |T V - V|_inf` and `pi` greedy for `V`:
   `|V_pi - V| <= |T_pi V_pi - T_pi V| + |T V - V|` because `T_pi V = T V`.
 - Code: `risk.MDPSolution.value_error_bound`,
   `risk.MDPSolution.policy_loss_bound`, `risk.bellman_residual`.
-- Source: derivation in `risk.markov_decision`; [REF-NORRIS-1997] for the
+- Source: derivation in `risk.markov_decision`;
+  [REF-PUTERMAN-1994, Chapter 6] and [REF-NORRIS-1997, Section 5.4] for the
   setting.
 
 ### EQ-RISK-SH-001 — Sequential halving schedule
@@ -20753,12 +20754,15 @@ clipped to `[0, 1]`, `Var_hat(r_ij) = N / (N - 1)^3 sum_k (w_kij - w_bar_ij)^2`,
 - Domain: `N >= 2` residual vectors with positive variances.
 - Meaning: variances are kept and covariances damped, which makes `W`
   positive definite for `lambda > 0` even when `N < n`. `lambda*` follows by
-  setting the derivative of the risk to zero (ADR-0128); the plug-in is a
-  heuristic estimate of it that ignores the error of the standardization.
+  setting the derivative of the risk to zero (ADR-0128); the plug-in ignores
+  the error of the standardization. It coincides with the Schäfer-Strimmer
+  intensity for a correlation matrix shrunk towards the identity, applied to
+  centred residuals with divisor `N - 1` (MinT software commonly uses
+  uncentred residuals with divisor `N`, which gives a different value).
 - Code: `timeseries.shrink_covariance`.
-- Source: [REF-WICKRAMASURIYA-ATHANASOPOULOS-HYNDMAN-2019] (use of a
-  covariance shrunk towards its diagonal in MinT); intensity derived in
-  ADR-0128.
+- Source: [REF-SCHAFER-STRIMMER-2005] (the intensity);
+  [REF-WICKRAMASURIYA-ATHANASOPOULOS-HYNDMAN-2019] (use of a covariance
+  shrunk towards its diagonal in MinT); re-derived in ADR-0128.
 
 ## Flow matching and neural simulation-based inference (ADR-0129)
 

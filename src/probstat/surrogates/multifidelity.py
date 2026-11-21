@@ -26,7 +26,15 @@ inside the library's universal kriging fit [EQ-SUR-MF-002].
 The predictive variance treats ``rho``, the trend constants, and the kernel
 hyperparameters as known (plug-in). It therefore understates the uncertainty
 on small designs; the extra terms of the universal co-kriging variance of Le
-Gratiet and Garnier are not implemented.
+Gratiet and Garnier are not implemented. It is not a full predictive
+uncertainty. Measured coverage of the nominal 95% interval
+``m +/- 1.96 s`` of the top level over 40 random nested designs and 50 test
+points each, for the two-fidelity pair of the tests
+(``(6x - 2)^2 sin(12x - 4)`` and its cheap version): 0.82 with 11 cheap and
+4 expensive runs (one standardized error in twenty exceeded 15), 0.94 with
+15 and 5, 0.96 with 21 and 7, 0.97 with 30 and 10. For a second pair
+(``sin(8x) + x`` with ``0.7 sin(8x + 0.3) + 0.2``) the coverage was 0.69
+with 11 and 4 runs and 0.94 with 21 and 7.
 """
 
 from __future__ import annotations
@@ -273,7 +281,10 @@ class RecursiveCoKriging:
 
         Returns:
             Predictive mean and plug-in variance (hyperparameters, trend
-            constants, and scale factors treated as known).
+            constants, and scale factors treated as known). Intervals built
+            from it are too narrow on small designs: measured coverage of
+            the nominal 95% interval was 0.69 to 0.82 with four expensive
+            runs (see the module docstring).
 
         Raises:
             ValueError: If ``level`` is out of range or ``x`` has the wrong

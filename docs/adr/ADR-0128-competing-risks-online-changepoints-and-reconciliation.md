@@ -45,8 +45,9 @@ Four gaps showed up in practice.
    d_kj) / n_j^3 - 2 (F(t) - F(t_j)) S_(j-1) d_kj / n_j^2]`.
    Two exact reductions are tested: `F (1 - F) / n` without censoring and
    Greenwood's variance with a single cause. Intervals are `F +/- z se`,
-   clipped to `[0, 1]`. No bootstrap is offered because the formula checked
-   out against replicate simulation.
+   clipped to `[0, 1]`. No bootstrap is offered; the formula checked out
+   against replicate simulation with light censoring and `n = 120`, and is
+   too small with heavy censoring and small risk sets (see Consequences).
 3. **`inference/survival/restricted_mean.py`**: `restricted_mean_survival`
    is the function form of the existing method (one implementation, no
    duplicate formula). `compare_restricted_means` returns
@@ -91,8 +92,14 @@ Four gaps showed up in practice.
    `lambda* = sum Var(r_ij) / sum E[r_ij^2]`. The default is the plug-in of
    this ratio on the correlation scale, with `Var(r_ij)` estimated by the
    sampling variance of the mean of the products of standardized residuals.
-   It is documented as a heuristic estimate; a fixed `intensity` can be
-   supplied instead.
+   It is documented as a plug-in estimate; a fixed `intensity` can be
+   supplied instead. An audit found that this plug-in is not new: it equals,
+   to rounding, the Schäfer-Strimmer intensity for a correlation matrix
+   shrunk towards the identity ([REF-SCHAFER-STRIMMER-2005]), the estimator
+   used with MinT. The only difference from common MinT software is that
+   the residuals are centred here (divisor `N - 1`); with uncentred
+   residuals and divisor `N` the value changes (0.65 against 0.61 for 12
+   vectors of 8 series, 0.75 against 0.89 for 20 vectors of 6 series).
 
 ## Consequences
 
@@ -105,8 +112,21 @@ Four gaps showed up in practice.
 - Restricted mean, exponential rate 0.8, `tau = 2`, uniform censoring on
   `(1, 4)`, `n = 100`, 600 replicates: truth 0.9976, mean 1.0012 (standard
   error 0.0030); replicate variance 0.00545 against a mean estimate of
-  0.00491 (the Greenwood plug-in is about 10% low at this sample size);
-  coverage 0.935.
+  0.00491; coverage 0.935. The apparent 10% deficit is Monte Carlo noise of
+  600 replicates (the relative standard error of a replicate variance is
+  `sqrt(2/600) = 5.8%`): with 8000 replicates the replicate variance is
+  0.00491 against a mean estimate of 0.00490 (ratio 0.998 +/- 0.016,
+  coverage 0.944), and the ratio is 0.99 at `n = 30` and 0.98 at `n = 400`.
+  The Greenwood plug-in is not measurably low here.
+- Cumulative incidence under heavy censoring (audit, 4000 replicates,
+  same rates, exponential censoring with rate 2.0, so that about 57% of the
+  subjects are censored): at `n = 60` the mean variance estimate is 0.90
+  of the replicate variance and the 95% interval covers 0.891; with times
+  rounded up to a grid of 0.25 (ties) 0.86 and 0.899; at `n = 30` with rates
+  0.3, 0.3, censoring rate 1.5 and a grid of 0.5, 0.73 and 0.853; at
+  `n = 400` with the grid of 0.25, 0.95 and 0.940. The delta-method
+  variance is a large-sample formula and is too small when the risk set at
+  the evaluation time is small.
 - Run-length recursion: the evidence agrees with enumeration over all 512
   segmentations of ten Gaussian observations and all 128 of eight counts to
   `1e-10` in the log; with `H = 0` it equals the conjugate marginal
@@ -178,4 +198,5 @@ validation.
 
 [REF-AALEN-JOHANSEN-1978], [REF-GREENWOOD-1926],
 [REF-KLEIN-MOESCHBERGER-2003], [REF-ADAMS-MACKAY-2007], [REF-MURPHY-2007],
-[REF-GELMAN-ETAL-2013], [REF-WICKRAMASURIYA-ATHANASOPOULOS-HYNDMAN-2019].
+[REF-GELMAN-ETAL-2013], [REF-WICKRAMASURIYA-ATHANASOPOULOS-HYNDMAN-2019],
+[REF-SCHAFER-STRIMMER-2005].

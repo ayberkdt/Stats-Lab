@@ -16,10 +16,21 @@ uniform measure [EQ-SUR-BQ-003]. The closed forms were derived for this
 module and are checked against the library's adaptive quadrature in the
 tests.
 
-The posterior variance is conditional on the kernel hyperparameters. When
-they are estimated from the same evaluations (``length_scales=None``) the
-variance does not include their uncertainty and is typically too small on
-few nodes; it is a model-based error indication, not a guaranteed bound.
+Warning: the posterior standard deviation is not an error bound. It is the
+spread of the integral under the stated squared-exponential prior and says
+nothing about integrands that the prior makes improbable. Measured with
+thirteen equally spaced nodes on ``[-3, 3]``, a standard normal measure and
+the fixed length scale 1 (reported standard deviation ``9.0e-5`` in every
+case, because the variance does not depend on the function values): the
+actual error was 0.2 standard deviations for ``cos x``, 4 for
+``exp(x / 2)``, 6 for ``1 / (1 + x^2)``, 17 for ``x^2``, 39 for
+``sin(3 x) + x^4 / 10``, and 250 for ``|x|``. When the hyperparameters are
+estimated from the same evaluations (``length_scales=None``) their
+uncertainty is not included either, and for integrands that are nearly
+polynomial the fitted length scale becomes so long that the kernel matrix is
+numerically singular; a variance that cancels below rounding is then
+reported as zero. Check the result against a second rule or a second set of
+nodes before relying on the reported deviation.
 """
 
 from __future__ import annotations
@@ -286,9 +297,15 @@ def bayesian_quadrature(
     ``GP(prior_mean, signal_variance * SE)`` and the result is exact GP
     algebra. With ``length_scales=None`` a squared-exponential GP is first
     fitted to the evaluations by maximum marginal likelihood
-    (:func:`fit_gaussian_process`); its signal variance, length scales,
-    nugget, and output mean (as prior mean) replace the corresponding
-    arguments.
+    (:func:`fit_gaussian_process`); its signal variance, length scales, and
+    output mean (as prior mean) replace the corresponding arguments, and
+    the diagonal variance is the larger of the fitted nugget and
+    ``noise_variance``.
+
+    The returned variance is conditional on the kernel and its
+    hyperparameters and is not an error bound: errors of 4 to 250 reported
+    standard deviations were measured on smooth and non-smooth integrands
+    (see the module docstring).
 
     Args:
         points: Nodes ``x_i`` in ``R^d`` (distinct unless
@@ -300,7 +317,8 @@ def bayesian_quadrature(
             hyperparameters.
         signal_variance: Kernel variance ``sigma_f^2 > 0``.
         noise_variance: Diagonal variance ``>= 0`` added to ``K`` (noisy
-            evaluations or numerical regularization).
+            evaluations or numerical regularization). With
+            ``length_scales=None`` it is a lower bound on the fitted nugget.
         prior_mean: Constant prior mean ``m``.
         restarts: Optimizer starts of the hyperparameter fit.
         seed: Seed or stream of the hyperparameter fit.
@@ -337,7 +355,10 @@ def bayesian_quadrature(
         )
         scales = model.hyperparameters.length_scales
         signal = model.hyperparameters.signal_variance
-        noise = model.hyperparameters.noise_variance
+        floor = require_finite_real(noise_variance, name="noise_variance")
+        if floor < 0.0:
+            raise ValueError("noise_variance must be non-negative")
+        noise = max(model.hyperparameters.noise_variance, floor)
         centre = model.output_mean
         converged = model.converged
     else:
