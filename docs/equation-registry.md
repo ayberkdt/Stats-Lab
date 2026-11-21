@@ -21091,3 +21091,114 @@ the update of [EQ-INV-CBS-002] gives the law
 - Code: `inverse.consensus_based_sampling`.
 - Source: derived in ADR-0130; Gaussian steady states are the subject of
   [REF-CARRILLO-ETAL-2022].
+## Lattice rules and median quasi-Monte Carlo
+
+### EQ-SAMP-LATTICE-001 — Rank-1 lattice points and their random shift
+
+`x_k = frac(k z / n)`, `k = 0, ..., n - 1`, for an integer generating vector
+`z`; shifted points `frac(x_k + Delta)` with one `Delta ~ U[0,1)^s` for the
+whole point set.
+
+- Domain: `n >= 1`, every `z_j` coprime to `n` (so each coordinate takes the
+  `n` values `m / n` once).
+- Meaning: the points form a group under addition modulo one, hence
+  `(1/n) sum_k exp(2 pi i h.x_k)` equals 1 if `h.z = 0 (mod n)` and 0
+  otherwise: the rule integrates every trigonometric monomial exactly except
+  those with a nonzero frequency in the dual lattice. With the shift every
+  point is uniform on the cube and the equal-weight rule is unbiased.
+- Code: `sampling.rank1_lattice`, `sampling.LatticeRule.points`.
+- Source: [REF-CRANLEY-PATTERSON-1976] (the random shift);
+  [REF-L-ECUYER-2018]. The character-sum identity is checked by enumeration
+  in `tests/test_lattice_and_median_qmc.py`.
+
+### EQ-SAMP-LATTICE-002 — Shift-averaged squared worst-case error
+
+`e^2(z) = -1 + (1/n) sum_(k=0..n-1) prod_j (1 + gamma_j B_2(frac(k z_j / n)))`,
+`B_2(x) = x^2 - x + 1/6`.
+
+- Domain: `n >= 1`, `z_j` coprime to `n`, product weights `gamma_j > 0`.
+- Meaning: `E_Delta sup_(|f| <= 1) (Q_Delta f - int f)^2` for the randomly
+  shifted lattice rule `Q_Delta` over the unit ball of the reproducing-kernel
+  Hilbert space with kernel
+  `K(x, y) = prod_j (1 + gamma_j (B_1(x_j) B_1(y_j) + B_2(|x_j - y_j|) / 2))`,
+  `B_1(x) = x - 1/2`, i.e. the per-coordinate inner product
+  `(int f)(int g) + (1 / gamma_j) int f' g'`. Averaging `K` over the shift
+  gives the shift-invariant kernel `prod_j (1 + gamma_j B_2(frac(x_j - y_j)))`
+  and the group structure reduces the double sum over points to a single
+  one. In one dimension `e^2 = gamma / (6 n^2)`. Other texts scale the
+  weights differently; this record fixes the normalization used here.
+- Code: `sampling.lattice_squared_error`, `sampling.LatticeRule`.
+- Source: derived in ADR-0118 from the kernel above; the reproducing
+  property, the shift average, and the single-sum reduction are each checked
+  numerically in `tests/test_lattice_and_median_qmc.py`. Random shifts:
+  [REF-CRANLEY-PATTERSON-1976].
+
+### EQ-SAMP-LATTICE-003 — Component-by-component construction
+
+`z_1 = 1`; `z_d = argmin_(1 <= z <= n-1) e^2(z_1, ..., z_(d-1), z)` for
+`d = 2, ..., s`, with `e^2` of [EQ-SAMP-LATTICE-002] in dimension `d`.
+
+- Domain: prime `n`; product weights in the order in which the components
+  are chosen. Ties go to the smallest `z` (`z` and `n - z` always tie).
+- Meaning: a greedy search with `O(s n^2)` operations in this naive form. It
+  attains the minimum of `e^2` over all vectors for `s <= 2` and is a
+  heuristic for larger `s`.
+- Code: `sampling.cbc_generating_vector`.
+- Source: specified in ADR-0118 (greedy minimization of
+  [EQ-SAMP-LATTICE-002]); lattice rules for randomized quasi-Monte Carlo in
+  general: [REF-L-ECUYER-2018].
+
+### EQ-SAMP-LATTICE-004 — Korobov generating vectors
+
+`z(a) = (1, a, a^2, ..., a^(s-1)) mod n`; `a* = argmin_(1 <= a <= n-1)
+e^2(z(a))`.
+
+- Domain: `a` coprime to `n`; the search requires a prime `n`. Ties go to
+  the smallest `a` (`a` and `n - a` always tie).
+- Meaning: a one-parameter family of generating vectors searched
+  exhaustively at `O(s n^2)` operations.
+- Code: `sampling.korobov_vector`, `sampling.korobov_generating_vector`.
+- Source: [REF-L-ECUYER-2018]; the criterion is [EQ-SAMP-LATTICE-002].
+
+### EQ-SAMP-RQMC-002 — Replicate mean, standard error, and t interval
+
+`Q_r = (1/n) sum_k f(x_k^(r))` for `R` independent randomizations;
+`mu_hat = (1/R) sum_r Q_r`, `se = s / sqrt(R)`,
+`s^2 = sum_r (Q_r - mu_hat)^2 / (R - 1)`, interval
+`mu_hat +- t_(R-1, (1+c)/2) se`.
+
+- Domain: `R >= 2`; a randomization that makes each point uniform on the
+  cube; square-integrable `f`.
+- Meaning: `mu_hat` is unbiased and `se^2` is an unbiased estimate of its
+  variance. The interval is exact only for normal `Q_r`; with few
+  non-normal replicates its coverage is approximate and can be below `c`.
+  Cost `R n` evaluations.
+- Code: `sampling.rqmc_mean`, `sampling.RQMCResult`.
+- Source: [REF-CRANLEY-PATTERSON-1976], [REF-L-ECUYER-2018]; interval
+  caution: [REF-LECUYER-NAKAYAMA-OWEN-TUFFIN-2023].
+
+### EQ-SAMP-RQMC-003 — Median of independently randomized rules
+
+`mu_tilde = median(Q_1, ..., Q_R)` for odd `R`.
+
+- Domain: odd `R >= 3`; `Q_r` as in [EQ-SAMP-RQMC-002].
+- Meaning: the estimate is wrong by more than `eps` only if more than half
+  of the replicates are, so rare bad randomizations do not matter. It
+  estimates the median of the law of `Q_r`, which is the integral only if
+  that law is symmetric about it; no standard error or interval is attached.
+- Code: `sampling.rqmc_median`, `sampling.median_random_lattice`.
+- Source: [REF-PAN-OWEN-2023], [REF-GODA-LECUYER-2022].
+
+### EQ-SAMP-RQMC-004 — Median rule with random generating vectors
+
+`z^(r) ~ U({1, ..., n-1}^s)` independently for `r = 1, ..., R`;
+`Q_r = (1/n) sum_k f(frac(k z^(r) / n + Delta^(r)))`; estimate
+[EQ-SAMP-RQMC-003].
+
+- Domain: prime `n >= 3`, odd `R >= 3`. `Delta^(r) ~ U[0,1)^s` independent
+  (the library default) or `Delta^(r) = 0`.
+- Meaning: no generating vector is constructed and no weights are chosen;
+  the median discards the replicates with a bad random vector.
+- Code: `sampling.median_random_lattice`.
+- Source: [REF-GODA-LECUYER-2022]. The additional random shift per
+  replicate is a convention of this library.

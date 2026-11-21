@@ -5737,3 +5737,25 @@ José A. Carrillo, Franca Hoffmann, Andrew M. Stuart, and Urbain Vaes.
 1069-1140, 2022. Weighted-ensemble dynamics with a sampling and an
 optimization mode and Gaussian steady states.
 DOI: [10.1111/sapm.12470](https://doi.org/10.1111/sapm.12470).
+## REF-GODA-LECUYER-2022
+
+Takashi Goda and Pierre L'Ecuyer. "Construction-free median quasi-Monte
+Carlo rules for function spaces with unspecified smoothness and general
+weights." *SIAM Journal on Scientific Computing* 44(4), A2765-A2788, 2022.
+arXiv:2201.09413. Median of rules whose generating vectors are drawn at
+random instead of constructed.
+
+## REF-PAN-OWEN-2023
+
+Zexin Pan and Art B. Owen. "Super-polynomial accuracy of one dimensional
+randomized nets using the median of means." *Mathematics of Computation*
+92(340), 805-837, 2023. arXiv:2111.12676. Median of independently randomized
+net estimates.
+
+## REF-LECUYER-NAKAYAMA-OWEN-TUFFIN-2023
+
+Pierre L'Ecuyer, Marvin K. Nakayama, Art B. Owen, and Bruno Tuffin.
+"Confidence intervals for randomized quasi-Monte Carlo estimators." In
+*Proceedings of the 2023 Winter Simulation Conference*, 2023. Cited for the
+caution that replicate-based intervals for randomized quasi-Monte Carlo are
+approximate.
