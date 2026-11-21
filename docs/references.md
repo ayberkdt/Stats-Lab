@@ -5452,3 +5452,51 @@ variance subject to a cost budget and non-negative group sample counts) and
 its solution as a semidefinite program; cited here for the problem statement
 only.
 DOI: [10.1016/j.cma.2023.116130](https://doi.org/10.1016/j.cma.2023.116130).
+## REF-CHERNOZHUKOV-ET-AL-2018
+
+Victor Chernozhukov, Denis Chetverikov, Mert Demirer, Esther Duflo,
+Christian Hansen, Whitney Newey, and James Robins. "Double/Debiased Machine
+Learning for Treatment and Structural Parameters." *The Econometrics
+Journal* 21(1), C1-C68, 2018. Neyman-orthogonal scores combined with
+cross-fitting give root-n consistent, asymptotically normal estimates of a
+low-dimensional parameter when the nuisance functions are estimated by
+machine-learning methods that converge slowly.
+DOI: [10.1111/ectj.12097](https://doi.org/10.1111/ectj.12097).
+
+## REF-CALLAWAY-SANTANNA-2021
+
+Brantly Callaway and Pedro H. C. Sant'Anna. "Difference-in-Differences with
+Multiple Time Periods." *Journal of Econometrics* 225(2), 200-230, 2021.
+Group-time average treatment effects for staggered adoption with
+never-treated or not-yet-treated comparison units, and their aggregation
+into event-study and overall summaries.
+DOI: [10.1016/j.jeconom.2020.12.001](https://doi.org/10.1016/j.jeconom.2020.12.001).
+
+## REF-ROTH-ET-AL-2023
+
+Jonathan Roth, Pedro H. C. Sant'Anna, Alyssa Bilinski, and John Poe. "What's
+Trending in Difference-in-Differences? A Synthesis of the Recent
+Econometrics Literature." *Journal of Econometrics* 235(2), 2218-2244,
+2023. Reviews the canonical two-period design, the failure of static
+two-way fixed-effects regressions under staggered timing with heterogeneous
+effects, and the estimators that avoid it.
+DOI: [10.1016/j.jeconom.2023.03.008](https://doi.org/10.1016/j.jeconom.2023.03.008).
+
+## REF-CINELLI-HAZLETT-2020
+
+Carlos Cinelli and Chad Hazlett. "Making Sense of Sensitivity: Extending
+Omitted Variable Bias." *Journal of the Royal Statistical Society: Series B
+(Statistical Methodology)* 82(1), 39-67, 2020. Omitted-variable bias of a
+regression coefficient in terms of partial R-squared values, and the
+robustness value.
+DOI: [10.1111/rssb.12348](https://doi.org/10.1111/rssb.12348).
+
+## REF-ABADIE-DIAMOND-HAINMUELLER-2010
+
+Alberto Abadie, Alexis Diamond, and Jens Hainmueller. "Synthetic Control
+Methods for Comparative Case Studies: Estimating the Effect of California's
+Tobacco Control Program." *Journal of the American Statistical Association*
+105(490), 493-505, 2010. Convex donor weights matching pre-treatment
+characteristics, and placebo (permutation) inference based on the ratio of
+post- to pre-treatment prediction error.
+DOI: [10.1198/jasa.2009.ap08746](https://doi.org/10.1198/jasa.2009.ap08746).

@@ -252,6 +252,196 @@ paper itself was not re-read for this guide.
 `risk_ratio_from_odds_ratio` and `risk_ratio_from_standardized_difference`
 are approximate conversions (EQ-CAUSAL-RRAPPROX-001).
 
+## 5. Quasi-experimental and debiased estimators
+
+Sections 3 and 4 assume a binary treatment, parametric working models and a
+risk-ratio scale for sensitivity. Five further modules relax one of these at
+a time (ADR-0121). All of their standard errors are asymptotic, and each
+method replaces "no unmeasured confounding given a parametric model" by a
+different, equally untestable, identifying assumption.
+
+| Entry point | Identifying assumption | What is reported |
+|---|---|---|
+| `sensitivity_statistics`, `adjust_for_confounder` | none: a what-if analysis of a linear regression | partial R-squared, robustness values, adjusted estimate / SE / t |
+| `dml_partially_linear`, `dml_average_treatment_effect` | unconfoundedness given `X`; nuisance errors with product `o(n^(-1/2))` | cross-fitted estimate, sandwich SE, out-of-fold nuisance R-squared |
+| `did_two_by_two`, `group_time_effects` | parallel trends, no anticipation | `ATT(g, t)`, event-study and overall averages, influence-function SEs |
+| `synthetic_control`, `synthetic_control_placebo` | a stable convex donor combination | weights, effect path, RMSPE, placebo rank |
+| `two_stage_least_squares` | instrument relevance, exclusion, exchangeability | coefficients, robust SEs, first-stage F |
+
+### Omitted-variable bias in partial R-squared form
+
+If a confounder `Z` is omitted from the regression of `Y` on `(D, X)`, the
+coefficient of `D` changes by exactly (EQ-CAUSAL-OVB-002)
+
+`|bias| = se sqrt(df) sqrt(R2_Y R2_D / (1 - R2_D))`,
+
+where `R2_Y` is the partial R-squared of `Z` with the outcome given `(D, X)`
+and `R2_D` its partial R-squared with the treatment given `X`. This is
+least-squares algebra, not an approximation: the tests omit a simulated
+confounder, fit both regressions with `fit_linear_model`, and recover the
+observed change, the long regression's standard error and its t statistic
+to 12 decimal places. The robustness value `RV_q` (EQ-CAUSAL-OVB-003) is
+the common strength `R2_Y = R2_D` that removes the fraction `q` of the
+estimate; `robustness_value(..., alpha=)` gives the common strength that
+leaves the adjusted t statistic at the critical value
+(EQ-CAUSAL-OVB-005, the equal-strength definition). The partial R-squared
+values do not fix the *sign* of the bias; `reduce=True` assumes the
+confounder inflated the estimate.
+
+### Double/debiased machine learning
+
+`dml_partially_linear` estimates `theta` in `Y = theta D + g(X) + e`. It
+fits `E[Y | X]` and `E[D | X]` with any learner (a callable
+`fit(rows, targets) -> predict`), forms out-of-fold residuals by K-fold
+cross-fitting, and regresses residual on residual (EQ-CAUSAL-DML-001). The
+score is Neyman orthogonal, so first-order errors of the two learners
+cancel. `linear_learner`, `ridge_learner`, `knn_learner` and
+`logistic_learner` wrap library routines. With `folds=1` and linear
+learners the estimate equals the least-squares coefficient of `D` and the
+standard error equals its HC0 standard error (Frisch-Waugh-Lovell; checked
+to 12 decimals). In 120 seeded replicates with nonlinear `g` and `m`
+(`n = 300`, 15 nearest neighbours, 4 folds, true `theta = 0.5`) the mean
+estimate was 0.515, the 95 % interval covered the truth in 91.7 % of
+replicates, and the mean standard error was 0.92 of the Monte Carlo
+standard deviation; removing `E[Y | X]` from the outcome without
+residualizing the treatment averaged 0.253. The small remaining bias is the
+smoothing bias of nearest neighbours, which the interval does not show.
+`dml_average_treatment_effect` is the cross-fitted AIPW estimator
+(EQ-CAUSAL-DML-003) for a binary treatment; with `folds=1` and the default
+learners it reproduces `estimate_aipw`.
+
+### Difference-in-differences
+
+`did_two_by_two` is the textbook estimator on unit-level changes
+(EQ-CAUSAL-DID-001). For staggered adoption `group_time_effects` estimates
+`ATT(g, t) = E[Y_t - Y_{g-1} | G = g] - E[Y_t - Y_{g-1} | C]` for every
+group `g` and period `t >= g` (EQ-CAUSAL-DID-002), with `C` the
+never-treated units (`comparison="never"`) or the units not yet treated at
+`t` (`"notyet"`). `event_study()` averages the cells by exposure time with
+group-size weights (EQ-CAUSAL-DID-004); `overall()` averages every
+post-treatment cell with weight proportional to its group size
+(EQ-CAUSAL-DID-005), so early adopters, who contribute more cells, weigh
+more. Panels must be balanced; `panel_from_long` reshapes long records and
+raises otherwise. No covariates, no pre-trend (placebo) cells and no
+simultaneous confidence bands are provided.
+
+A static two-way fixed-effects regression is not a substitute: in a
+noise-free panel with adoption at periods 2 and 4, effects that grow with
+exposure and a true average effect of 3.0 over the post-treatment cells,
+the TWFE coefficient is 1.875 while every `ATT(g, t)` is recovered exactly
+(`tests/test_causal_extensions.py`).
+
+### Synthetic control
+
+`synthetic_control_weights` solves
+`min (x1 - X0 w)' V (x1 - X0 w)` over the simplex (EQ-CAUSAL-SC-001) by
+projected gradient with the exact simplex projection `project_to_simplex`
+and an exact solve on the current support. The result carries the duality
+gap `g'w - min_j g_j`, which bounds the distance to the optimum and is zero
+exactly at a KKT point; `converged` is `False` if the iteration limit was
+reached first. `V` is the identity unless `importance=` is given; the
+data-driven choice of `V` is not implemented. `synthetic_control` returns
+the gap path `tau_t` and the pre- and post-period RMSPE;
+`synthetic_control_placebo` re-runs the method for every donor and ranks
+the treated unit's post/pre RMSPE ratio (EQ-CAUSAL-SC-004). That p-value is
+a placebo rank among `J + 1` units, not a sampling-based p-value.
+
+### Instrumental variables
+
+`two_stage_least_squares` fits `y = X beta + u` when some regressors are
+endogenous (EQ-CAUSAL-IV-001), with HC0 or HC1 sandwich standard errors
+(EQ-CAUSAL-IV-002) and the first-stage F statistic of the excluded
+instruments (EQ-CAUSAL-IV-003). With one binary instrument it is the Wald
+ratio. The estimator is consistent, not unbiased, and unreliable when the
+first stage is weak (`weak_instruments` flags `F < 10`, a rule of thumb).
+
+### One data set, three answers
+
+The example has a nonlinear confounder `x`, an unmeasured confounder `u`
+and an instrument `z`; the true coefficient of `d` is 0.5.
+
+```python
+import math
+import random
+from probstat.causal import (
+    adjust_for_confounder, dml_partially_linear, group_time_effects,
+    knn_learner, sensitivity_statistics, synthetic_control_placebo,
+    two_stage_least_squares,
+)
+from probstat.inference import fit_linear_model
+
+rng = random.Random(7)
+x = [(rng.uniform(-2, 2),) for _ in range(400)]
+z = [rng.gauss(0, 1) for _ in range(400)]
+u = [rng.gauss(0, 1) for _ in range(400)]
+d = [math.sin(2 * a[0]) + 0.8 * b + 0.6 * c + rng.gauss(0, 1)
+     for a, b, c in zip(x, z, u)]
+y = [0.5 * di + a[0] ** 2 + 0.9 * c + rng.gauss(0, 1)
+     for di, a, c in zip(d, x, u)]
+
+# Linear regression and its sensitivity to an omitted confounder
+ols = fit_linear_model([(1.0, di, a[0]) for di, a in zip(d, x)], y)
+stats = sensitivity_statistics(
+    ols.coefficients[1], ols.standard_errors[1], ols.df_residual)
+stats.estimate                 # 0.733
+stats.partial_r2               # 0.256
+stats.robustness_value         # 0.439
+stats.robustness_value_alpha   # 0.383
+adjusted = adjust_for_confounder(
+    stats.estimate, stats.standard_error, stats.degrees_of_freedom,
+    r2_outcome=0.2, r2_treatment=0.1)
+adjusted.adjusted_estimate     # 0.547
+adjusted.adjusted_t            # 9.23
+
+# Double ML handles the nonlinear g(x), not the unmeasured u
+dml = dml_partially_linear(
+    x, d, y, outcome_learner=knn_learner(20),
+    treatment_learner=knn_learner(20), folds=5, seed=1)
+dml.estimate                   # 0.742
+dml.standard_error             # 0.048
+
+# The instrument does (truth 0.5), at the price of a wider interval
+iv = two_stage_least_squares(
+    y, d, z, exogenous=[(a[0], a[0] ** 2) for a in x])
+iv.coefficient("d0")           # 0.358
+iv.standard_errors[1]          # 0.105
+iv.first_stage_f[0]            # 104.1
+
+# Staggered adoption: the effect is (periods since adoption) + 1
+panel, first = [], []
+for g in (2, 4, None):
+    for _ in range(40):
+        level = rng.gauss(0, 1)
+        panel.append([
+            level + 0.3 * t
+            + ((t - g + 1.0) if g is not None and t >= g else 0.0)
+            + rng.gauss(0, 0.5) for t in range(6)])
+        first.append(g)
+att = group_time_effects(panel, first, comparison="notyet")
+att.effect(2, 3).estimate           # 2.03
+att.effect(2, 3).standard_error     # 0.132
+[round(a.estimate, 2) for a in att.event_study()]  # [0.88, 2.05, 2.85, 4.04]
+att.overall().estimate              # 2.12
+
+# Synthetic control: an effect of 3 from period 10 on, nine donors
+factor = [math.sin(0.5 * t) + 0.1 * t for t in range(14)]
+donors = [[rng.uniform(0.5, 1.5) * f + rng.gauss(0, 0.05) for f in factor]
+          for _ in range(9)]
+treated = [f + rng.gauss(0, 0.05) + (3.0 if t >= 10 else 0.0)
+           for t, f in enumerate(factor)]
+placebo = synthetic_control_placebo(treated, donors, 10)
+placebo.treated.average_effect      # 3.00
+placebo.treated.pre_rmspe           # 0.022
+placebo.rank, placebo.p_value       # (1, 0.1)
+placebo.all_converged               # True
+```
+
+The regression estimate 0.733 has a robustness value of 0.439: a confounder
+would need to explain 44 % of the residual variance of both treatment and
+outcome to remove it entirely. Here the confounder exists by construction
+and is weaker than that, so the estimate is biased but not spurious; the
+sensitivity analysis cannot tell which strength is the true one.
+
 ## Limitations
 
 - Identification covers the backdoor and frontdoor criteria only. There is
@@ -261,9 +451,15 @@ are approximate conversions (EQ-CAUSAL-RRAPPROX-001).
   with the treatments' outgoing edges cut.
 - Discrete models enumerate all assignments, so the cost is the product of
   the domain sizes.
-- Effect estimation covers a binary treatment and the ATE only, not the ATT
-  or ATC. Outcome models are linear and the propensity model is logistic;
-  flexible learners and cross-fitting are not provided.
+- The estimators of section 3 cover a binary treatment and the ATE only,
+  not the ATT or ATC, with linear outcome models and a logistic propensity
+  model. Section 5 adds cross-fitting with user-supplied learners; the
+  built-in flexible learner is a plain nearest-neighbour average.
+- Double ML has no automatic learner tuning and no repeated cross-fitting.
+  Difference-in-differences has no covariates, no pre-trend tests and no
+  simultaneous bands, and needs a balanced panel. Synthetic control takes
+  the predictor importances as given. Instrumental variables offer no
+  weak-instrument-robust intervals and no over-identification test.
 - IPW standard errors ignore propensity estimation. Use `bootstrap_effect`
   for a full accounting.
 
@@ -286,6 +482,20 @@ are approximate conversions (EQ-CAUSAL-RRAPPROX-001).
 - **Double robustness is not robustness to unmeasured confounding.** AIPW
   needs one of its two working models to be right *and* exchangeability
   given the measured covariates (section 3).
+- **A robustness value is not evidence.** It states how strong a
+  confounder would have to be, not that none that strong exists; the sign
+  of the bias is an extra assumption (`reduce=`).
+- **`folds=1` is not cross-fitted.** The result says so in
+  `cross_fitted`; a 1-nearest-neighbour learner then interpolates the
+  treatment and the estimator refuses to divide by zero.
+- **TWFE under staggered timing.** A single treatment dummy with unit and
+  period effects is not an average of the `ATT(g, t)` when effects vary
+  with exposure; use `group_time_effects` and choose the aggregation.
+- **Placebo ranks are coarse.** With nine donors the smallest possible
+  synthetic-control p-value is 0.1, and it is not a sampling probability.
+- **Weak instruments.** A small `first_stage_f` makes two-stage least
+  squares biased towards the regression estimate and its interval too
+  narrow.
 
 ```python
 import math

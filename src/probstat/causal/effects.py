@@ -321,8 +321,10 @@ class EffectEstimate:
     """A point estimate of the average treatment effect and its context.
 
     Attributes:
-        method: ``"regression"``, ``"ipw"``, ``"ipw-stabilized"``, or
-            ``"aipw"``.
+        method: ``"regression"``, ``"ipw"``, ``"ipw-stabilized"``,
+            ``"aipw"``, or, from
+            :func:`probstat.causal.dml_average_treatment_effect`,
+            ``"aipw-crossfit"`` / ``"aipw-learners"``.
         estimand: ``"ATE"`` or ``"ATE (trimmed population)"`` after trimming.
         estimate: Estimated ``E[Y(1)] - E[Y(0)]``.
         standard_error: Influence-function standard error (``nan`` for
