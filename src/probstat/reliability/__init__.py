@@ -23,6 +23,11 @@ coefficient of variation and optimal level count of ideal splitting.
 ``certification`` decides whether a simulated
 failure probability is below an acceptable risk with a bounded
 false-certification probability (crude Monte Carlo and moving particles).
+``improved_cross_entropy`` and ``sequential_importance`` replace the failure
+indicator by ``Phi(-g / sigma)`` with a decreasing ``sigma`` (a fitted
+Gaussian or Gaussian-mixture proposal, or resampling with Markov-chain
+moves), and ``bayesian_updating`` turns Bayesian updating into a rare-event
+problem (BUS) solved by subset simulation.
 
 Main entry points:
     ``ModelLimitState``: one model output and a threshold as a limit state
@@ -49,6 +54,13 @@ Main entry points:
     ``ak_ss``: the same active learning on the levels of a subset simulation
     run on the surrogate, for very small failure probabilities.
     ``estimate_failure_probability``: direct Monte Carlo on explicit vectors.
+    ``improved_cross_entropy``: importance sampling with a Gaussian or
+    Gaussian-mixture proposal adapted through smooth indicator levels.
+    ``sequential_importance_sampling``: the same smooth levels sampled by
+    resampling and conditional-sampling Markov chains.
+    ``bus_subset_simulation``: posterior draws and model evidence from the
+    acceptance event ``p <= c L(theta)`` (``bus_limit_state`` gives the
+    limit state for any other reliability method).
 
 Assumptions:
     Failure is the closed set ``g <= 0``: a sample exactly on the boundary
@@ -75,6 +87,12 @@ Common pitfalls:
       leaves out ``"ce"`` and ``"line"`` (both are in ``AVAILABLE_METHODS``).
     - Zero observed failures give ``standard_error == 0``; the Wilson
       interval keeps a positive upper bound, which is the number to report.
+    - ``improved_cross_entropy`` with one Gaussian follows a single failure
+      region; several regions need ``family="mixture"``. The c.o.v. of
+      ``sequential_importance_sampling`` is a heuristic that understates the
+      scatter between runs.
+    - BUS draws are exact only if ``c L <= 1`` everywhere; check
+      ``constant_violated``, which covers the evaluated points only.
 
 Guide: docs/foundations/advanced-reliability.md
 
@@ -82,7 +100,9 @@ References:
     [REF-MELCHERS-BECK-2018], [REF-HASOFER-LIND-1974],
     [REF-DERKIUREGHIAN-2005], [REF-BREITUNG-1984], [REF-AU-BECK-2001],
     [REF-WILSON-1927], [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011],
-    [REF-BJERAGER-1988], [REF-LAGNOUX-2006].
+    [REF-BJERAGER-1988], [REF-LAGNOUX-2006],
+    [REF-PAPAIOANNOU-GEYER-STRAUB-2019],
+    [REF-PAPAIOANNOU-PAPADIMITRIOU-STRAUB-2016], [REF-STRAUB-PAPAIOANNOU-2015].
 
 """
 
@@ -125,6 +145,15 @@ from .analysis import (
     estimate_weighted_failure_probability,
     linear_normal_form,
 )
+from .bayesian_updating import (
+    BUS_MARGIN,
+    BUS_SAMPLERS,
+    BUS_SCALED_LIKELIHOOD,
+    BUS_VIOLATION_TOLERANCE,
+    BUSResult,
+    bus_limit_state,
+    bus_subset_simulation,
+)
 from .certification import (
     CERTIFICATION_MAX_SIZE,
     CERTIFICATION_RULES,
@@ -166,6 +195,14 @@ from .directional import (
     default_radius_max,
     directional_simulation,
 )
+from .improved_cross_entropy import (
+    ICE_COVARIANCE_FLOOR,
+    ICE_FAMILIES,
+    ICE_TARGET_CV,
+    ImprovedCrossEntropyResult,
+    improved_cross_entropy,
+    smoothing_scale,
+)
 from .learning import (
     BOUNDS_QUANTILE,
     LEARNING_FUNCTIONS,
@@ -201,6 +238,10 @@ from .population_posterior import (
     GaussianProcessPopulationPosterior,
     PopulationPosterior,
     SurrogatePopulationPosterior,
+)
+from .sequential_importance import (
+    SequentialImportanceResult,
+    sequential_importance_sampling,
 )
 from .simulation import (
     AVAILABLE_METHODS,
@@ -357,4 +398,19 @@ __all__ = [
     "GaussianProcessPopulationPosterior",
     "PopulationPosterior",
     "SurrogatePopulationPosterior",
+    "BUSResult",
+    "BUS_MARGIN",
+    "BUS_SAMPLERS",
+    "BUS_SCALED_LIKELIHOOD",
+    "BUS_VIOLATION_TOLERANCE",
+    "ICE_COVARIANCE_FLOOR",
+    "ICE_FAMILIES",
+    "ICE_TARGET_CV",
+    "ImprovedCrossEntropyResult",
+    "SequentialImportanceResult",
+    "bus_limit_state",
+    "bus_subset_simulation",
+    "improved_cross_entropy",
+    "sequential_importance_sampling",
+    "smoothing_scale",
 ]

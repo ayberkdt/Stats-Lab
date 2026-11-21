@@ -548,6 +548,125 @@ calls on adaptation but needs neither a gradient nor a design point.
 Sources: [REF-RUBINSTEIN-KROESE-2004], [REF-KURTZ-SONG-2013],
 [REF-KOUTSOURELAKIS-PRADLWARTER-SCHUELLER-2004], [REF-BRENT-1973].
 
+## 10. Smooth indicator levels and Bayesian updating as a rare event
+
+Subset simulation and classical cross entropy move towards the failure set
+through nested events `G <= b_j`, so each level uses only the tenth of its
+sample below the threshold. Three further methods of `probstat.reliability`
+work on the same `ModelLimitState`.
+
+### Improved cross entropy
+
+`improved_cross_entropy` replaces the indicator by `Phi(-G / sigma)` and
+lets `sigma` decrease: the targets `h_k` proportional to
+`Phi(-G / sigma_k) phi_n` run from the input law (`sigma = inf`) to the
+optimal importance-sampling density (`sigma -> 0`) [EQ-REL-ICE-001]. At each
+level `smoothing_scale` picks the next `sigma` so that the weights towards
+the next target have a coefficient of variation of `1.5` [EQ-REL-ICE-002],
+every sample enters the weighted maximum-likelihood refit
+[EQ-REL-ICE-003], and the run stops when `I(G <= 0) / Phi(-G / sigma_k)`
+varies by no more than the same target [EQ-REL-ICE-004]. The last sample
+gives the importance-sampling estimate with its standard error
+[EQ-REL-ICE-005]; the cost is `N (levels + 1)`.
+
+Two families are available: one Gaussian with full covariance
+(`family="gaussian"`) and a Gaussian mixture fitted by weighted EM
+(`family="mixture"`, `components=K`). The von Mises-Fisher-Nakagami mixture
+of the source paper is not implemented. Fitted covariances have their
+eigenvalues raised to `0.55` by default, the guard of Section 9: a
+covariance that follows the failure region is narrower than `1/2` along the
+important direction, and the importance weights then have infinite variance.
+This guard is a choice of this library; `covariance_floor=None` removes it
+and sets `weights_heavy_tailed` when it matters.
+
+One Gaussian follows one failure region. On the four-branch function it
+spreads over all four regions, never meets the stopping rule (0 of 20 seeds
+within 50 levels), and returns a c.o.v. of 0.11 after 51000 calls; the
+mixture with four components converges in three levels.
+
+### Sequential importance sampling
+
+`sequential_importance_sampling` samples the same targets without a
+parametric density. The level sample is reweighted by
+`Phi(-G / sigma_(k+1)) / Phi(-G / sigma_k)`, resampled, and moved by
+conditional-sampling chains whose acceptance probability is the ratio of the
+two smooth indicators [EQ-REL-SIS-002]. The estimate is the product of the
+mean weights times the mean of `I(G <= 0) / Phi(-G / sigma_L)`
+[EQ-REL-SIS-001]. The first target is the input law itself, so the first
+weight is `Phi(-G / sigma_1)` without the factor `Phi(0) = 1/2`.
+
+Its reported c.o.v. is a batch-means heuristic [EQ-REL-SIS-004] that ignores
+the dependence between levels: over 20 seeds on six test cases the scatter
+between runs was 0.84 to 1.50 times the reported value. With the library
+defaults (20 chains of 50 states and 10 burn-in steps per 1000 samples) its
+precision per call was close to that of subset simulation and well below
+that of improved cross entropy on the cases of ADR-0124; with many short
+chains it was several times worse.
+
+### BUS: posterior sampling as a reliability problem
+
+Rejection sampling accepts a prior draw `theta` when `p <= c L(theta)` for an
+independent `p ~ U(0, 1)` and a constant with `c L <= 1`. BUS treats the
+acceptance as a failure event in the space of `(theta, p)`:
+`bus_limit_state` returns
+`g = log Phi(u_p) - log c - log L(theta(u))` on standard-normal inputs
+[EQ-REL-BUS-001], which any method of this guide can analyse.
+`bus_subset_simulation` runs subset simulation on it, keeps the accepted
+states as posterior draws, and returns the evidence
+`Z = P(g <= 0) / c` [EQ-REL-BUS-002]. Every evaluated point is checked for
+`c L <= 1`; `constant_violated` reports a constant that is too large
+[EQ-REL-BUS-003], in which case the draws follow the truncated likelihood
+`min(L, 1/c)`. A clean check covers the evaluated points only. The draws are
+correlated chain states with repeated values.
+
+```python
+import math
+
+from probstat.distributions import Normal
+from probstat.modeling import JointInput, RandomInput, four_branch_model
+from probstat.reliability import (
+    ModelLimitState,
+    bus_subset_simulation,
+    improved_cross_entropy,
+    sequential_importance_sampling,
+)
+
+state = ModelLimitState(four_branch_model(), "g", 0.0, "below")
+ice = improved_cross_entropy(state, family="mixture", components=4, seed=1)
+ice.probability  # 0.00227
+ice.coefficient_of_variation  # 0.053
+ice.evaluations  # 4000
+sis = sequential_importance_sampling(state, seed=1)
+sis.probability  # 0.00244
+sis.coefficient_of_variation  # 0.198
+sis.evaluations  # 4540
+
+data = (3.1, 2.7, 3.4, 2.9, 3.3)
+noise = Normal(0.0, 0.5)
+
+
+def log_likelihood(theta):
+    return math.fsum(noise.log_pdf(y - theta[0]) for y in data)
+
+
+prior = JointInput((RandomInput("theta", Normal(1.0, 2.0)),))
+log_c = -log_likelihood((math.fsum(data) / len(data),))
+bus = bus_subset_simulation(log_likelihood, prior, log_constant=log_c, seed=1)
+bus.mean()[0]  # 3.041
+bus.log_evidence  # -4.412
+bus.constant_violated  # False
+bus.evaluations  # 2400
+```
+
+The reference probability of the four-branch function is `2.2245e-3`. The
+normal-normal problem has posterior mean `3.0543`, posterior variance
+`0.0494`, and log evidence `-4.5163` in closed form; the run above reports a
+c.o.v. of 0.10 for the evidence and a sample variance of 0.058 from its
+1000 correlated draws.
+
+Sources: [REF-PAPAIOANNOU-GEYER-STRAUB-2019],
+[REF-PAPAIOANNOU-PAPADIMITRIOU-STRAUB-2016], [REF-STRAUB-PAPAIOANNOU-2015].
+
 ## Common pitfalls
 
 - **The default failure side is `"above"`.** `ModelLimitState` fails when

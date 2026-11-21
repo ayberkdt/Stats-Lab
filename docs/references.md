@@ -5063,3 +5063,25 @@ hides the discretization and truncation error and makes reconstructions look
 better than they are; the approximation error should be modelled or the data
 generated with a finer model.
 DOI: [10.1016/j.cam.2005.09.027](https://doi.org/10.1016/j.cam.2005.09.027).
+
+## REF-PAPAIOANNOU-GEYER-STRAUB-2019
+
+Iason Papaioannou, Sebastian Geyer, and Daniel Straub. "Improved cross
+entropy-based importance sampling with a flexible mixture model."
+*Reliability Engineering & System Safety* 191, 106564, 2019. Cross-entropy
+importance sampling with smooth approximations of the failure indicator.
+DOI: [10.1016/j.ress.2019.106564](https://doi.org/10.1016/j.ress.2019.106564).
+
+## REF-PAPAIOANNOU-PAPADIMITRIOU-STRAUB-2016
+
+Iason Papaioannou, Costas Papadimitriou, and Daniel Straub. "Sequential
+importance sampling for structural reliability analysis." *Structural
+Safety* 62, 66-75, 2016.
+DOI: [10.1016/j.strusafe.2016.06.002](https://doi.org/10.1016/j.strusafe.2016.06.002).
+
+## REF-STRAUB-PAPAIOANNOU-2015
+
+Daniel Straub and Iason Papaioannou. "Bayesian updating with structural
+reliability methods." *Journal of Engineering Mechanics* 141(3), 04014134,
+2015. Posterior sampling as the rare event `p <= c L(theta)`.
+DOI: [10.1061/(ASCE)EM.1943-7889.0000839](https://doi.org/10.1061/(ASCE)EM.1943-7889.0000839).
