@@ -15,7 +15,13 @@ quantitative risk register with exact totals and mitigation waterfalls in
 :mod:`.register`, the MIL-STD-882E risk assessment matrix in
 :mod:`.hazard_matrix`, and F-N curves in :mod:`.fn_curve`. Sequential decisions
 under uncertainty (the Beta-Bernoulli bandit with Thompson sampling) live in
-:mod:`.bandits`.
+:mod:`.bandits`; contextual bandits with linear payoffs (LinUCB and linear
+Thompson sampling) in :mod:`.contextual_bandits`; off-policy evaluation from
+logged bandit data (IPS, self-normalized IPS, direct method, doubly robust)
+in :mod:`.off_policy`; finite Markov decision processes (policy evaluation,
+value iteration, policy iteration, backward induction) in
+:mod:`.markov_decision`; and fixed-budget best-arm identification by
+sequential halving in :mod:`.best_arm`.
 
 Main entry points:
     ``assess_risk``: loss distribution, expected loss, VaR, CVaR, and
@@ -28,6 +34,11 @@ Main entry points:
     ``RiskRegister``: exact exposure, ranking, and mitigation waterfalls.
     ``fit_pot``: peaks-over-threshold tail fit with return levels.
     ``fit_gev``: block-maxima tail fit with return levels.
+    ``FiniteMDP`` with ``value_iteration`` / ``policy_iteration``: optimal
+    values and policy of a finite discounted Markov decision process.
+    ``doubly_robust``: value of a target policy from logged bandit data.
+    ``LinUCB`` and ``LinearThompsonSampling``: contextual bandit policies.
+    ``sequential_halving``: best arm within a fixed pull budget.
 
 Assumptions:
     Losses are oriented so that larger is worse. Sample measures treat the
@@ -36,7 +47,11 @@ Assumptions:
     risks are independent, and an impact is independent of its occurrence.
     Extreme value fits assume a stationary series and, for POT, a threshold
     high enough for the GPD to hold and independent (or declustered)
-    exceedances. A risk matrix is a communication aid only.
+    exceedances. A risk matrix is a communication aid only. A ``FiniteMDP``
+    has known transition probabilities, every action available in every
+    state, and a discount below one. Off-policy estimators assume
+    independent records and logging propensities that are positive wherever
+    the target policy acts.
 
 Common pitfalls:
     - Sample risk measures read larger values as worse, while
@@ -53,17 +68,25 @@ Common pitfalls:
     - ``Fmeca.inconsistent_items`` flags only mode ratios that sum to more
       than one; a smaller sum (missing modes) is visible only in
       ``mode_ratio_sums``.
+    - ``inverse_propensity_score`` is unbiased only with the true logging
+      propensities; a small ``effective_sample_size`` means the estimate
+      rests on a few records, and ``clip`` trades that variance for bias.
+    - ``value_iteration(tolerance=eps)`` bounds the loss of the returned
+      policy by ``eps``; the number of sweeps grows like ``1 / (1 - gamma)``.
 
 Guide: docs/foundations/risk-analysis.md
 
 References:
     [REF-KAPLAN-GARRICK-1981], [REF-ROCKAFELLAR-URYASEV-2002],
     [REF-ARTZNER-ETAL-1999], [REF-VESELY-ETAL-1981], [REF-COX-2008],
-    [REF-COLES-2001].
+    [REF-COLES-2001], [REF-LI-ETAL-2010], [REF-AGRAWAL-GOYAL-2013],
+    [REF-DUDIK-LANGFORD-LI-2011], [REF-NORRIS-1997],
+    [REF-KARNIN-KOREN-SOMEKH-2013].
 
 """
 
 from .bandits import BanditRun, bernoulli_bandit
+from .best_arm import HalvingRound, SequentialHalvingResult, sequential_halving
 from .consequences import (
     LOSS_KINDS,
     LossFunction,
@@ -73,6 +96,12 @@ from .consequences import (
     linear_loss,
     piecewise_linear_loss,
     step_loss,
+)
+from .contextual_bandits import (
+    LinearBanditRun,
+    LinearThompsonSampling,
+    LinUCB,
+    simulate_linear_bandit,
 )
 from .decision import DecisionProblem, PreposteriorAnalysis, RiskMatrix
 from .event_tree import (
@@ -143,6 +172,18 @@ from .hazard_matrix import (
     mil_std_882e_risk_matrix,
     risk_assessment_code,
 )
+from .markov_decision import (
+    FiniteHorizonSolution,
+    FiniteMDP,
+    MDPSolution,
+    action_values,
+    backward_induction,
+    bellman_residual,
+    greedy_policy,
+    policy_evaluation,
+    policy_iteration,
+    value_iteration,
+)
 from .measures import (
     MEASURES,
     BootstrapInterval,
@@ -160,6 +201,15 @@ from .measures import (
     return_period,
     value_at_risk,
 )
+from .off_policy import (
+    LoggedBanditData,
+    OffPolicyEstimate,
+    direct_method,
+    doubly_robust,
+    inverse_propensity_score,
+    logged_bandit_data,
+    self_normalized_ips,
+)
 from .register import (
     RANKING_KEYS,
     DiscreteImpact,
@@ -174,6 +224,30 @@ from .register import (
 __all__ = [
     "BanditRun",
     "bernoulli_bandit",
+    "HalvingRound",
+    "SequentialHalvingResult",
+    "sequential_halving",
+    "LinearBanditRun",
+    "LinearThompsonSampling",
+    "LinUCB",
+    "simulate_linear_bandit",
+    "FiniteHorizonSolution",
+    "FiniteMDP",
+    "MDPSolution",
+    "action_values",
+    "backward_induction",
+    "bellman_residual",
+    "greedy_policy",
+    "policy_evaluation",
+    "policy_iteration",
+    "value_iteration",
+    "LoggedBanditData",
+    "OffPolicyEstimate",
+    "direct_method",
+    "doubly_robust",
+    "inverse_propensity_score",
+    "logged_bandit_data",
+    "self_normalized_ips",
     "GATE_KINDS",
     "GPD_FAMILY",
     "LOSS_KINDS",

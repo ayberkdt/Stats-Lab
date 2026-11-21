@@ -5097,6 +5097,29 @@ Simulation Studies: Questionable Research Practices in Comparative
 Simulation Studies Allow for Spurious Claims of Superiority of Any Method."
 *Biometrical Journal* 66(1), 2200091, 2024.
 DOI: [10.1002/bimj.202200091](https://doi.org/10.1002/bimj.202200091).
+## REF-LI-ETAL-2010
+
+Lihong Li, Wei Chu, John Langford, and Robert E. Schapire. "A
+Contextual-Bandit Approach to Personalized News Article Recommendation." In
+*Proceedings of the 19th International Conference on World Wide Web* (WWW
+2010), 661-670, 2010.
+DOI: [10.1145/1772690.1772758](https://doi.org/10.1145/1772690.1772758).
+LinUCB with disjoint linear models.
+
+## REF-AGRAWAL-GOYAL-2013
+
+Shipra Agrawal and Navin Goyal. "Thompson Sampling for Contextual Bandits
+with Linear Payoffs." *Proceedings of the 30th International Conference on
+Machine Learning*, PMLR 28(3), 127-135, 2013. Thompson sampling with a
+Gaussian sampling distribution for linear payoffs.
+
+## REF-DUDIK-LANGFORD-LI-2011
+
+Miroslav Dudik, John Langford, and Lihong Li. "Doubly Robust Policy
+Evaluation and Learning." In *Proceedings of the 28th International
+Conference on Machine Learning* (ICML 2011), 1097-1104, 2011.
+Preprint arXiv:1103.4601. Direct method, inverse propensity scoring, and the
+doubly robust estimator for logged contextual-bandit data.
 
 ## REF-KARNIN-KOREN-SOMEKH-2013
 
