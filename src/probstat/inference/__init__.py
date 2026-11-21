@@ -114,6 +114,30 @@ References:
 
 from ._ml_tools import MarginalEffects
 from .abc import ABCResult, abc_rejection, abc_smc, euclidean_distance
+
+# isort: split
+from .anytime_valid import (
+    BettingTestResult,
+    ConfidenceSequence,
+    EBenjaminiHochbergResult,
+    SplitLikelihoodRatioResult,
+    betting_confidence_sequence,
+    betting_mean_test,
+    calibrate_p_value,
+    e_benjamini_hochberg,
+    e_to_p_value,
+    merge_e_values,
+    paired_betting_test,
+    split_likelihood_ratio_test,
+)
+from .prediction_powered import (
+    PredictionPoweredMean,
+    prediction_powered_mean,
+    prediction_powered_variance,
+    prediction_powered_weight,
+)
+
+# isort: split
 from .additive_models import (
     AdditiveModelFit,
     AdditiveTerm,
@@ -912,4 +936,20 @@ __all__ = [
     "abc_rejection",
     "abc_smc",
     "euclidean_distance",
+    "BettingTestResult",
+    "ConfidenceSequence",
+    "EBenjaminiHochbergResult",
+    "SplitLikelihoodRatioResult",
+    "betting_confidence_sequence",
+    "betting_mean_test",
+    "calibrate_p_value",
+    "e_benjamini_hochberg",
+    "e_to_p_value",
+    "merge_e_values",
+    "paired_betting_test",
+    "split_likelihood_ratio_test",
+    "PredictionPoweredMean",
+    "prediction_powered_mean",
+    "prediction_powered_variance",
+    "prediction_powered_weight",
 ]

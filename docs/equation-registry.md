@@ -17966,3 +17966,223 @@ derivative through `x~ = x_0 + (g - g_0)` with `g = c sum_k L_ik u_k`
 - Source: [REF-CASELLA-BERGER-2002, Section 2.1] (derivative of an inverse
   transformation), [REF-LIU-DERKIUREGHIAN-1986] (Nataf map) and
   [REF-GRIEWANK-WALTHER-2008, Chapter 3] (reverse mode).
+
+## E-values, betting confidence sequences, universal and prediction-powered inference (ADR-0119)
+
+### EQ-INF-EVAL-001 — E-values, Markov's bound, and the e-to-p calibrator
+
+`E >= 0` with `E_P[E] <= 1` for every law `P` of the null hypothesis. Then
+`P(E >= 1/alpha) <= alpha` for `0 < alpha < 1`, and `p = min(1, 1/E)`
+satisfies `P(p <= u) <= u`.
+
+- Domain: `E` in `[0, inf]`; the bound holds for a level `alpha` fixed in
+  advance.
+- Meaning: rejecting when `E >= 1/alpha` is a level-`alpha` test by Markov's
+  inequality; `min(1, 1/E)` is the admissible conversion of an e-value into
+  a (conservative) p-value.
+- Code: `inference.e_to_p_value`.
+- Source: [REF-VOVK-WANG-2021].
+
+### EQ-INF-EVAL-002 — p-to-e calibrators
+
+`f_kappa(p) = kappa p^(kappa - 1)` for a fixed `kappa` in `(0, 1)`, and the
+mixture `F(p) = integral_0^1 kappa p^(kappa - 1) d kappa
+= (1 - p + p log p) / (p (log p)^2)`, with `F(1) = 1/2`, `F(0) = inf`.
+Both are decreasing with `integral_0^1 f(p) dp = 1`; for the mixture
+`integral_eps^1 F(p) dp = 1 - (1 - eps) / log(1/eps)`. Evaluated as
+`(expm1(-L) + L) / L^2` with `L = log p`, and by the series
+`1/2 - L/6 + L^2/24` for `|L| < 1e-4`.
+
+- Domain: `p` in `[0, 1]`; `kappa` chosen before the data are seen.
+- Meaning: if `P` is a p-value then `f(P)` is an e-value, because a
+  decreasing `f` with unit integral has `E[f(P)] <= integral_0^1 f = 1` when
+  `P` is stochastically no smaller than uniform. The mixture needs no
+  tuning.
+- Code: `inference.calibrate_p_value`.
+- Source: [REF-VOVK-WANG-2021] (calibrators and the mixture over `kappa`);
+  the closed form of the integral is rederived here by integration by parts.
+
+### EQ-INF-EVAL-003 — Merging e-values
+
+Arithmetic mean `sum_k w_k e_k` with fixed `w_k >= 0`, `sum_k w_k = 1`;
+product `prod_k e_k`.
+
+- Domain: the mean under arbitrary dependence; the product for independent
+  e-values or sequential ones with `E[E_k | E_1, ..., E_{k-1}] <= 1`.
+- Meaning: the mean is an e-value by linearity of expectation; the product
+  by the tower property. For `E_1 = E_2 = 2 1{U < 1/2}` the mean has
+  expectation 1 and the product 2, so the product is not valid under
+  dependence.
+- Code: `inference.merge_e_values`.
+- Source: [REF-VOVK-WANG-2021].
+
+### EQ-INF-EVAL-004 — The e-BH procedure
+
+For e-values sorted as `e_(1) >= ... >= e_(K)`:
+`k* = max{k : k e_(k) / K >= 1/alpha}` (zero if empty); reject the `k*`
+largest. `FDR <= alpha K_0 / K` with `K_0` the number of true nulls.
+
+- Domain: `K >= 1` e-values, each with null expectation at most one;
+  arbitrary dependence between them.
+- Meaning: Benjamini-Hochberg ([EQ-INF-MT-002]) applied to `1/e_k`; the
+  bound needs no assumption of independence or positive dependence and no
+  harmonic correction factor.
+- Code: `inference.e_benjamini_hochberg`.
+- Source: [REF-WANG-RAMDAS-2022].
+
+### EQ-INF-EVAL-005 — Split and cross-fit likelihood-ratio statistics
+
+With the data split into independent parts `D0` and `D1`,
+`theta_1 = theta_1(D1)` any estimator and
+`theta_0 = argmax_{theta in Theta_0} L_D0(theta)`:
+`T = L_D0(theta_1) / L_D0(theta_0)`, `E_{theta*}[T] <= 1` for every
+`theta*` in `Theta_0`; reject when `T >= 1/alpha`. Cross-fit:
+`(T + T_swap) / 2` with the roles of the parts exchanged. For `N(theta, 1)`
+and `H0: theta = 0`: `T = exp(theta_1 S_0 - n_0 theta_1^2 / 2)` with `S_0`
+the sum of `D0`, and `E_0[T | D1] = 1` exactly.
+
+- Domain: a correctly specified dominated model with likelihood `L`;
+  independent parts; an exact null maximizer (or any null parameter whose
+  likelihood on `D0` is at least that of the truth).
+- Meaning: `E[L_D0(theta_1) / L_D0(theta*) | D1] = integral p_theta_1 <= 1`
+  and `L_D0(theta_0) >= L_D0(theta*)`, so `T` is an e-value in finite
+  samples without regularity conditions; the average of two e-values is an
+  e-value ([EQ-INF-EVAL-003]).
+- Code: `inference.split_likelihood_ratio_test`.
+- Source: [REF-WASSERMAN-RAMDAS-BALAKRISHNAN-2020].
+
+### EQ-INF-CS-001 — Betting capital process and Ville's inequality
+
+For `x_t` in `[0, 1]` and a candidate mean `m`:
+`K_t(m) = prod_{i <= t} (1 + lambda_i (x_i - m))`, `K_0 = 1`, with
+`lambda_i` a function of `x_1, ..., x_{i-1}` and
+`-1/(1 - m) < lambda_i < 1/m`. If `E[x_t | past] = m` for all `t` then
+`K_t(m)` is a non-negative martingale and
+`P(exists t >= 1 : K_t(m) >= 1/alpha) <= alpha`. For Bernoulli data and a
+constant bet `K_t = (1 + lambda (1 - m))^s (1 - lambda m)^(t - s)` with `s`
+successes.
+
+- Domain: observations in a known interval `[a, b]`, rescaled by
+  `x = (X - a) / (b - a)`; bets truncated to
+  `[-c/(1 - m), c/m]` with `0 < c < 1`.
+- Meaning: the wealth of a gambler betting against the hypothesis that the
+  conditional mean is `m`; Ville's inequality bounds the probability that a
+  non-negative supermartingale started at one ever reaches `1/alpha`, which
+  licenses monitoring after every observation. Validity holds for every
+  predictable bet; only power depends on it.
+- Code: `inference.betting_mean_test`.
+- Source: [REF-WAUDBY-SMITH-RAMDAS-2024]; [REF-RAMDAS-ETAL-2023] and
+  [REF-HOWARD-ETAL-2021] (Ville's inequality).
+
+### EQ-INF-CS-002 — Hedged capital and the betting confidence sequence
+
+`K_t^+(m) = prod (1 + lambda_i^+(m)(x_i - m))`,
+`K_t^-(m) = prod (1 - lambda_i^-(m)(x_i - m))` with
+`lambda_i^+(m) = min(b_i, c/m)`, `lambda_i^-(m) = min(b_i, c/(1 - m))` and
+sizes `b_i >= 0` that do not depend on `m`;
+`K_t^pm(m) = max(theta K_t^+(m), (1 - theta) K_t^-(m))`;
+`C_t = {m in [0, 1] : K_t^pm(m) < 1/alpha}` and the running intersection
+`intersection_{s <= t} C_s`. `P(mu in C_t for all t) >= 1 - alpha`.
+
+- Domain: `0 < theta < 1`; conditional means equal to `mu` at all times.
+- Meaning: `K^pm <= theta K^+ + (1 - theta) K^-`, a martingale at `m = mu`,
+  so Ville's inequality applies. Each factor of `K^+` is non-increasing in
+  `m` and each factor of `K^-` non-decreasing, hence `C_t = (a_t, b_t)` is
+  an interval with `a_t = sup{m : theta K_t^+(m) >= 1/alpha}` and
+  `b_t = inf{m : (1 - theta) K_t^-(m) >= 1/alpha}`. On a grid the largest
+  grid point rejected by `K^+` and the smallest rejected by `K^-` enclose
+  `C_t`, so the reported interval keeps the coverage guarantee and is at
+  most one cell wider on each side. With bets that depend on `m` (aGRAPA)
+  the set need not be an interval and the reported hull of surviving grid
+  points is a grid approximation.
+- Code: `inference.betting_confidence_sequence`,
+  `inference.ConfidenceSequence.interval`.
+- Source: [REF-WAUDBY-SMITH-RAMDAS-2024] (hedged capital);
+  [REF-HOWARD-ETAL-2021] (confidence sequences and running intersections).
+  The monotonicity argument for the truncated bets is derived here.
+
+### EQ-INF-CS-003 — Predictable bets
+
+With `mu_t = (1/2 + sum_{i <= t} x_i) / (t + 1)` and
+`s2_t = (1/4 + sum_{i <= t} (x_i - mu_i)^2) / (t + 1)`: plug-in size
+`b_t = sqrt(2 log(1/a) / (s2_{t-1} t log(t + 1)))` with `a = alpha/2`
+(two-sided) or `alpha` (one-sided); approximate GRAPA
+`lambda_t(m) = (mu_{t-1} - m) / (s2_{t-1} + (mu_{t-1} - m)^2)`, clipped to
+`[-c/(1 - m), c/m]`; or a constant size.
+
+- Domain: `t >= 1`; `mu_0 = 1/2`, `s2_0 = 1/4`.
+- Meaning: aGRAPA solves the first-order condition
+  `sum (x_i - m) / (1 + lambda (x_i - m)) = 0` of the empirical log-growth
+  after replacing `1/(1 + y)` by `1 - y`. The rules have the form of the
+  predictable plug-in and approximate-GRAPA strategies of the source, but
+  the constants were not checked against the printed formulas, and the
+  one-sided level `a = alpha` is a library choice. Every predictable bet in
+  the admissible range gives a valid test, so a deviation from the source
+  could change power only.
+- Code: `inference.betting_mean_test`,
+  `inference.betting_confidence_sequence`.
+- Source: [REF-WAUDBY-SMITH-RAMDAS-2024].
+
+### EQ-INF-CS-004 — One-sided sequential test and anytime-valid p-value
+
+For `H0: E[x_t | past] <= m0` for all `t`: `K_t^+(m0)` with
+`lambda_i^+ >= 0` is a non-negative supermartingale; stop and reject at
+`tau = inf{t : K_t >= 1/alpha}`; `p_t = min(1, 1 / max_{s <= t} K_s)` is
+valid at every stopping time. `H0: E[x_t | past] >= m0` uses `K_t^-`. Paired
+streams: `D_t = A_t - B_t` in `[-B, B]`, tested through
+`x_t = (D_t + B) / (2B)` and `m = (d_0 + B) / (2B)`.
+
+- Domain: bounded observations; no independence or identical distribution
+  is required, only the bound on the conditional means.
+- Meaning: `E[1 + lambda (x - m0) | past] <= 1` when `lambda >= 0` and the
+  conditional mean is at most `m0`; Ville's inequality gives
+  `P(tau < inf) <= alpha` and `P(exists t : p_t <= u) <= u`.
+- Code: `inference.betting_mean_test`, `inference.paired_betting_test`.
+- Source: [REF-WAUDBY-SMITH-RAMDAS-2024], [REF-RAMDAS-ETAL-2023].
+
+### EQ-INF-PPI-001 — Prediction-powered mean estimator
+
+`theta_hat_w = mean_n(Y) + w (mean_N(F) - mean_n(f))` with labels `Y_i`,
+predictions `f_i = f(X_i)` on the `n` labelled units and `F_j = f(X~_j)` on
+`N` unlabelled units. `E[theta_hat_w] = E[Y]` for every fixed `w`.
+
+- Domain: labelled and unlabelled units drawn independently from one
+  population; `f` fixed in advance.
+- Meaning: `w = 0` is the classical mean; `w = 1` is
+  `mean_N(F) + mean_n(Y - f)`, the prediction mean corrected by the
+  rectifier.
+- Code: `inference.prediction_powered_mean`.
+- Source: [REF-ANGELOPOULOS-ETAL-2023] (`w = 1`),
+  [REF-ANGELOPOULOS-DUCHI-ZRNIC-2023] (general weight).
+
+### EQ-INF-PPI-002 — Variance and normal-approximation interval
+
+`Var(theta_hat_w) = Var(Y - w f) / n + w^2 Var(f) / N
+= (Var(Y) - 2 w Cov(Y, f) + w^2 Var(f)) / n + w^2 Var(f) / N`. Estimated by
+`V(w) = s^2(Y - w f) / n + w^2 s^2(F) / N` with sample variances; interval
+`theta_hat_w +- z_{(1 + gamma)/2} sqrt(V(w))`.
+
+- Domain: finite second moments; `n >= 2`, `N >= 2` for the estimate. The
+  variance formula is exact for fixed `w`; the interval is asymptotic.
+- Meaning: `theta_hat_w = mean_n(Y - w f) + w mean_N(F)` is a sum of two
+  independent sample means (derived here).
+- Code: `inference.prediction_powered_variance`,
+  `inference.prediction_powered_mean`.
+- Source: [REF-ANGELOPOULOS-DUCHI-ZRNIC-2023],
+  [REF-ANGELOPOULOS-ETAL-2023].
+
+### EQ-INF-PPI-003 — Power-tuned weight
+
+`w* = Cov(Y, f) / ((1 + n/N) Var(f))`, with minimum variance
+`Var(Y) (1 - rho^2 / (1 + n/N)) / n`. Sample version, the exact minimizer of
+`V(w)`: `w_hat = (s_Yf / n) / (s_f^2 / n + s_F^2 / N)`.
+
+- Domain: `Var(f) > 0` (otherwise `w* = 0`).
+- Meaning: the root of
+  `d Var / d w = -2 Cov(Y, f)/n + 2 w Var(f)(1/n + 1/N)`; since `V` is a
+  convex quadratic, `V(w_hat) <= V(w)` for all `w`, in particular for the
+  classical `w = 0` and the original `w = 1`.
+- Code: `inference.prediction_powered_weight`,
+  `inference.prediction_powered_mean`.
+- Source: [REF-ANGELOPOULOS-DUCHI-ZRNIC-2023]; the derivation and the
+  two-sample plug-in `w_hat` are worked out here.
