@@ -16,7 +16,7 @@ cycles.
 | 4 | `propagation`, `inverse` | forward propagation; calibration (with model discrepancy) and posterior prediction |
 | 5 | `reliability`, `sensitivity`, `surrogates`, `validation`, `design` | failure probability, sensitivity indices, emulators, validation evidence, experimental design |
 | 6 | `risk`, `systems`, `filtering`, `data_assimilation`, `conformal` | risk measures, extremes, and decision analysis; exact system reliability on BDDs; sequential state estimation; conformal prediction |
-| 7 | `workflow`, `timeseries` | `UQStudy`: every analysis on one model, one seed tree, one report; ARIMA models on the Kalman filter |
+| 7 | `workflow`, `timeseries`, `methodlab` | `UQStudy`: every analysis on one model, one seed tree, one report; ARIMA models on the Kalman filter; estimator combinators, certification checks, and pre-specified simulation studies |
 | 9 | `visualization` | optional themed figures (Matplotlib) |
 
 ```text
@@ -100,6 +100,7 @@ Carlo, LHS, Halton, Sobol). See ADR-0014 and
 | `conformal` | Distribution-free prediction intervals and coverage reports | Model fitting |
 | `filtering`, `data_assimilation` | State-space models, Kalman/EKF/UKF, particle filter, EnKF, 3D-Var | Plotting |
 | `workflow` | Orchestration, stage records, reports | New numerical methods |
+| `methodlab` | The estimator contract and lineage, construction principles as combinators, certification checks with scoped verdicts, ADEMP simulation studies, candidate selection | Finished domain methods (they live in their domain package); claims of validity beyond the tested scope |
 | `timeseries` | ACF/PACF, ARIMA likelihood and forecasts, smoothing | Generic filtering |
 | `visualization` | Themed figures and annotations | Mathematical truth or validation rules |
 
