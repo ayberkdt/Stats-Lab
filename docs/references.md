@@ -5452,6 +5452,7 @@ variance subject to a cost budget and non-negative group sample counts) and
 its solution as a semidefinite program; cited here for the problem statement
 only.
 DOI: [10.1016/j.cma.2023.116130](https://doi.org/10.1016/j.cma.2023.116130).
+
 ## REF-CHERNOZHUKOV-ET-AL-2018
 
 Victor Chernozhukov, Denis Chetverikov, Mert Demirer, Esther Duflo,

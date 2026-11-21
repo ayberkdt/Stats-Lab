@@ -19376,6 +19376,7 @@ for the same budget.
   `monte_carlo.MLBLUEAllocation.variance_ratio`.
 - Source: [REF-PEHERSTORFER-WILLCOX-GUNZBURGER-2016, Section 3] (variance
   reduction relative to Monte Carlo at equal budget).
+
 ## Quasi-experimental and debiased causal estimators
 
 ### EQ-CAUSAL-OVB-001 — Partial R-squared from a t statistic
