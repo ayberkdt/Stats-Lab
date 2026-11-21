@@ -17966,3 +17966,300 @@ derivative through `x~ = x_0 + (g - g_0)` with `g = c sum_k L_ik u_k`
 - Source: [REF-CASELLA-BERGER-2002, Section 2.1] (derivative of an inverse
   transformation), [REF-LIU-DERKIUREGHIAN-1986] (Nataf map) and
   [REF-GRIEWANK-WALTHER-2008, Chapter 3] (reverse mode).
+
+## Quasi-experimental and debiased causal estimators
+
+### EQ-CAUSAL-OVB-001 — Partial R-squared from a t statistic
+
+`R^2_{Y~D|X} = t_D^2 / (t_D^2 + df)`, with `t_D` the classical t statistic
+of `D` in the regression of `Y` on `(D, X)` and `df` its residual degrees of
+freedom. Follows from `t_D^2 = df (RSS_X - RSS_{D,X}) / RSS_{D,X}`.
+
+- Domain: least-squares regression with `df >= 1`.
+- Meaning: share of the outcome variance not explained by `X` that `D`
+  explains; also the strength with the treatment that a confounder
+  explaining all residual outcome variance would need to remove the
+  estimate.
+- Code: `causal.partial_r2`, `causal.sensitivity_statistics`.
+- Source: [REF-CINELLI-HAZLETT-2020]; re-derived and checked against the
+  drop in residual sum of squares of fitted regressions.
+
+### EQ-CAUSAL-OVB-002 — Omitted-variable bias in partial R-squared form
+
+For the long regression `Y = tau D + X'beta + gamma Z + e` and the short one
+without `Z`, `tau_res - tau = gamma delta` with `delta` the coefficient of
+`D` in the regression of `Z` on `(D, X)`, and
+
+`|tau_res - tau| = se(tau_res) sqrt(df) sqrt(R^2_{Y~Z|D,X} R^2_{D~Z|X} /
+(1 - R^2_{D~Z|X}))`,
+
+with `se` and `df` from the short regression.
+
+- Domain: `R^2_{D~Z|X} < 1`; classical (homoskedastic) standard error.
+- Meaning: an exact sample identity, not a bound, when the two partial
+  R-squared values are those of the omitted regressor; a bound on the bias
+  when they are upper bounds on its strength. The sign of the bias is not
+  determined by the partial R-squared values.
+- Code: `causal.omitted_variable_bias`, `causal.adjust_for_confounder`.
+- Source: [REF-CINELLI-HAZLETT-2020]; re-derived from the least-squares
+  algebra and confirmed to `1e-12` by omitting a simulated confounder.
+
+### EQ-CAUSAL-OVB-003 — Robustness value
+
+`RV_q = (sqrt(f_q^4 + 4 f_q^2) - f_q^2) / 2`, `f_q = q |t_D| / sqrt(df)`:
+the positive root of `R^2 + f_q^2 R - f_q^2 = 0`, i.e. of
+`R / sqrt(1 - R) = f_q`.
+
+- Domain: `q > 0`, `df >= 1`.
+- Meaning: a confounder whose partial R-squared with both the treatment and
+  the outcome equals `RV_q` changes the estimate by the fraction `q`
+  (`q = 1`: to zero); confounders weaker than `RV_q` on both counts cannot.
+- Code: `causal.robustness_value`, `causal.sensitivity_statistics`.
+- Source: [REF-CINELLI-HAZLETT-2020]; follows from [EQ-CAUSAL-OVB-002] with
+  equal strengths.
+
+### EQ-CAUSAL-OVB-004 — Standard error and t statistic adjusted for a confounder
+
+`se(tau) = se(tau_res) sqrt((1 - R^2_{Y~Z|D,X}) / (1 - R^2_{D~Z|X}))
+sqrt(df / (df - 1))`, `tau = tau_res -+ |bias|` ([EQ-CAUSAL-OVB-002]),
+`t = tau / se(tau)` on `df - 1` degrees of freedom.
+
+- Domain: `df >= 2`, `R^2_{D~Z|X} < 1`.
+- Meaning: what the long regression would report; an exact sample identity
+  for an actual omitted regressor.
+- Code: `causal.adjust_for_confounder`.
+- Source: [REF-CINELLI-HAZLETT-2020]; re-derived from
+  `RSS_long = RSS_short (1 - R^2_{Y~Z|D,X})` and
+  `SS(D | X, Z) = SS(D | X)(1 - R^2_{D~Z|X})`.
+
+### EQ-CAUSAL-OVB-005 — Robustness value for statistical significance
+
+`RV_{q,alpha}` is [EQ-CAUSAL-OVB-003] evaluated at
+`f_{q,alpha} = q |t_D| / sqrt(df) - t*_{alpha, df-1} / sqrt(df - 1)`
+(zero when `f_{q,alpha} <= 0`), with `t*` the two-sided Student-t critical
+value.
+
+- Domain: `df >= 2`, `0 < alpha < 1`.
+- Meaning: the common partial R-squared at which the adjusted t statistic
+  for `H0: tau = (1 - q) tau_res` equals the critical value. With equal
+  strengths the adjusted standard error is `se sqrt(df / (df - 1))`
+  whatever the strength ([EQ-CAUSAL-OVB-004]). This is the equal-strength
+  definition; it is not a minimum over confounders with unequal strengths.
+- Code: `causal.robustness_value`, `causal.sensitivity_statistics`.
+- Source: [REF-CINELLI-HAZLETT-2020]; derived here from
+  [EQ-CAUSAL-OVB-002] and [EQ-CAUSAL-OVB-004].
+
+### EQ-CAUSAL-DML-001 — Partialling-out estimator of the partially linear model
+
+For `Y = theta D + g(X) + e`, `D = m(X) + v`, `l(X) = E[Y | X]`: residuals
+`Y~ = Y - l_hat(X)`, `D~ = D - m_hat(X)` with `l_hat`, `m_hat` fitted on the
+folds not containing the unit, and `theta_hat = sum(D~ Y~) / sum(D~^2)`,
+the root of the pooled score `sum (Y~ - theta D~) D~ = 0`.
+
+- Domain: `sum(D~^2) > 0`; `K >= 2` folds for cross-fitting (`K = 1` uses
+  in-sample fits).
+- Meaning: the score is Neyman orthogonal (its derivative with respect to
+  `(l, m)` vanishes at the truth), so nuisance errors enter only through
+  their product; with linear in-sample nuisances it is the least-squares
+  coefficient of `D` (Frisch-Waugh-Lovell).
+- Code: `causal.dml_partially_linear`.
+- Source: [REF-CHERNOZHUKOV-ET-AL-2018].
+
+### EQ-CAUSAL-DML-002 — Asymptotic variance of the partialling-out estimator
+
+`se^2 = mean(D~^2 (Y~ - theta_hat D~)^2) / (n mean(D~^2)^2)`.
+
+- Domain: [EQ-CAUSAL-DML-001]; i.i.d. units; nuisance errors with product
+  `o(n^(-1/2))`.
+- Meaning: heteroskedasticity-robust sandwich variance of the orthogonal
+  score; asymptotic only. With linear in-sample nuisances it equals the HC0
+  variance of the least-squares coefficient.
+- Code: `causal.dml_partially_linear`,
+  `causal.DoubleMLResult.confidence_interval`.
+- Source: [REF-CHERNOZHUKOV-ET-AL-2018].
+
+### EQ-CAUSAL-DML-003 — Cross-fitted augmented IPW average treatment effect
+
+`psi_i = m_1(x_i) - m_0(x_i) + T_i (Y_i - m_1(x_i)) / e(x_i) -
+(1 - T_i)(Y_i - m_0(x_i)) / (1 - e(x_i))` with `m_1`, `m_0`, `e` fitted on
+the folds not containing unit `i`; `tau = mean(psi)`,
+`se = sd(psi) / sqrt(n)`.
+
+- Domain: binary treatment; propensities clipped to `[c, 1 - c]`.
+- Meaning: [EQ-CAUSAL-AIPW-001] with out-of-fold nuisances from arbitrary
+  learners (the interactive regression model).
+- Code: `causal.dml_average_treatment_effect`.
+- Source: [REF-CHERNOZHUKOV-ET-AL-2018],
+  [REF-ROBINS-ROTNITZKY-ZHAO-1994].
+
+### EQ-CAUSAL-KNN-001 — k-nearest-neighbour regression
+
+`f_hat(x) = (1/k) sum_{i in N_k(x)} y_i`, with `N_k(x)` the `k` training
+points closest to `x` in Euclidean distance after dividing each coordinate
+by its training standard deviation.
+
+- Domain: `1 <= k <= n_train`; ties broken by training order.
+- Meaning: a local average; a nonparametric nuisance learner whose error
+  shrinks slowly in many dimensions.
+- Code: `causal.knn_learner`.
+- Source: [REF-HASTIE-TIBSHIRANI-FRIEDMAN-2009, Section 2.3].
+
+### EQ-CAUSAL-DID-001 — Canonical 2x2 difference-in-differences
+
+`DiD = (Ybar_{1,post} - Ybar_{1,pre}) - (Ybar_{0,post} - Ybar_{0,pre})
+= mean(d_i | treated) - mean(d_i | control)`, `d_i = Y_i,post - Y_i,pre`,
+`se = sqrt(s_1^2 / n_1 + s_0^2 / n_0)` with the sample variances of `d_i`.
+
+- Domain: two periods, a balanced panel, at least two units per group.
+- Meaning: the ATT under parallel trends and no anticipation; the standard
+  error assumes independent units.
+- Code: `causal.did_two_by_two`.
+- Source: [REF-ROTH-ET-AL-2023].
+
+### EQ-CAUSAL-DID-002 — Group-time average treatment effect
+
+`ATT(g, t) = E[Y_t - Y_{g-1} | G = g] - E[Y_t - Y_{g-1} | C]`, `t >= g`,
+estimated by sample means, with `C = {G = inf}` (never treated) or
+`C = {G > t}` (not yet treated, including never treated).
+
+- Domain: balanced panel, absorbing treatment, `g` later than the first
+  period, a non-empty comparison set; no covariates.
+- Meaning: effect at period `t` for units first treated at `g`, under
+  parallel trends between the group and the comparison units and no
+  anticipation.
+- Code: `causal.group_time_effects`, `causal.GroupTimeEffects.effect`.
+- Source: [REF-CALLAWAY-SANTANNA-2021].
+
+### EQ-CAUSAL-DID-003 — Influence-function standard errors
+
+For a cell with long differences `d_i`, group mean `mu_g` and comparison
+mean `mu_C`: `psi_i = (n / n_g) 1{G_i = g}(d_i - mu_g) - (n / n_C)
+1{i in C}(d_i - mu_C)`, `se = sqrt(sum_i psi_i^2) / n`. For an aggregate
+`theta = sum_c w_c ATT_c` with `w_c = n_{g(c)} / sum_{c'} n_{g(c')}`:
+`psi_i = sum_c w_c psi_{c,i} + sum_c (ATT_c - theta) 1{G_i = g(c)} / P`,
+`P = sum_c n_{g(c)} / n`.
+
+- Domain: independent units; fixed number of periods.
+- Meaning: asymptotic standard errors; the second term of the aggregate is
+  the delta method for the estimated group shares. Pointwise, not
+  simultaneous.
+- Code: `causal.group_time_effects`, `causal.GroupTimeEffects.event_study`,
+  `causal.GroupTimeEffects.overall`.
+- Source: [REF-CALLAWAY-SANTANNA-2021] (influence-function approach); the
+  unconditional forms are derived here and checked by Monte Carlo.
+
+### EQ-CAUSAL-DID-004 — Event-study aggregation
+
+`theta(e) = sum_g w_g ATT(g, g + e)`, `w_g = n_g / sum_{g'} n_{g'}` over the
+groups whose cell at exposure `e` was estimated.
+
+- Domain: `e >= 0`, counted in positions of the period grid.
+- Meaning: average effect `e` periods after adoption; different `e` average
+  different groups.
+- Code: `causal.GroupTimeEffects.event_study`.
+- Source: [REF-CALLAWAY-SANTANNA-2021].
+
+### EQ-CAUSAL-DID-005 — Overall aggregation over post-treatment cells
+
+`theta = sum_{(g,t): t >= g} w_{g,t} ATT(g, t)`,
+`w_{g,t} = n_g / sum_{(g',t')} n_{g'}` over all estimated cells.
+
+- Domain: at least one estimated cell.
+- Meaning: group-size-weighted mean of all post-treatment cells; a group
+  counts in proportion to its size times its number of post periods.
+- Code: `causal.GroupTimeEffects.overall`.
+- Source: [REF-CALLAWAY-SANTANNA-2021].
+
+### EQ-CAUSAL-SC-001 — Synthetic control weights
+
+`w* = argmin_w (x1 - X0 w)' V (x1 - X0 w)` subject to `w_j >= 0`,
+`sum_j w_j = 1`, `V` diagonal and non-negative. With gradient
+`g = -2 X0' V (x1 - X0 w)`, `w` is optimal iff `g_j = min_i g_i` whenever
+`w_j > 0` (KKT), and `g'w - min_j g_j >= f(w) - f(w*)` for any feasible
+`w`.
+
+- Domain: `J >= 1` donors, `k >= 1` predictors; `V` user-supplied.
+- Meaning: the convex combination of donors closest to the treated unit;
+  unique fitted values, weights unique when `X0' V X0` is positive
+  definite.
+- Code: `causal.synthetic_control_weights`, `causal.synthetic_control`.
+- Source: [REF-ABADIE-DIAMOND-HAINMUELLER-2010] (problem),
+  [REF-NOCEDAL-WRIGHT-2006, Chapter 16] (optimality conditions).
+
+### EQ-CAUSAL-SC-002 — Euclidean projection onto the simplex
+
+`P(v)_j = max(v_j - theta, 0)` with `theta = (sum_{i<=rho} u_i - 1) / rho`,
+`u` the entries of `v` in decreasing order and
+`rho = max{j : u_j - (sum_{i<=j} u_i - 1) / j > 0}`.
+
+- Domain: finite `v` of length at least one.
+- Meaning: the KKT solution of `min |w - v|^2` on the simplex; the
+  projection step of projected gradient.
+- Code: `causal.project_to_simplex`.
+- Source: derived from the KKT conditions in
+  [REF-NOCEDAL-WRIGHT-2006, Chapter 16].
+
+### EQ-CAUSAL-SC-003 — Synthetic control effect path and RMSPE
+
+`tau_t = Y_1t - sum_j w_j Y_jt`; `RMSPE_pre = sqrt(mean_{t <= T0} tau_t^2)`,
+`RMSPE_post = sqrt(mean_{t > T0} tau_t^2)`.
+
+- Domain: `1 <= T0 < T`.
+- Meaning: gap between the treated unit and its synthetic control; the
+  pre-period RMSPE measures the quality of the match.
+- Code: `causal.synthetic_control`.
+- Source: [REF-ABADIE-DIAMOND-HAINMUELLER-2010].
+
+### EQ-CAUSAL-SC-004 — Placebo rank p-value
+
+`r_j = RMSPE_post,j / RMSPE_pre,j` for the treated unit (`j = 1`) and for
+each donor treated as a placebo; `p = #{j : r_j >= r_1} / (J + 1)`.
+
+- Domain: `J >= 2` donors.
+- Meaning: rank of the treated unit among in-space placebos; a
+  randomization p-value only under random assignment of the intervention,
+  never smaller than `1 / (J + 1)`, and not a sampling-based p-value.
+- Code: `causal.synthetic_control_placebo`.
+- Source: [REF-ABADIE-DIAMOND-HAINMUELLER-2010].
+
+### EQ-CAUSAL-IV-001 — Two-stage least squares
+
+With `X = [D, W]` (endogenous and included exogenous regressors) and
+`Zf = [Z, W]`: `Xhat = Zf (Zf'Zf)^-1 Zf'X`,
+`beta = (Xhat'X)^-1 Xhat'y = (Xhat'Xhat)^-1 Xhat'y`. Exactly identified:
+`beta = (Zf'X)^-1 Zf'y`; one binary instrument and an intercept: the Wald
+ratio `(E[Y|Z=1] - E[Y|Z=0]) / (E[D|Z=1] - E[D|Z=0])`.
+
+- Domain: at least as many excluded instruments as endogenous regressors;
+  `Zf` and `Xhat` of full column rank.
+- Meaning: consistent (not unbiased) for the structural coefficients under
+  instrument relevance, exclusion and exchangeability with homogeneous
+  effects.
+- Code: `causal.two_stage_least_squares`.
+- Source: [REF-HERNAN-ROBINS-2020, Chapter 16].
+
+### EQ-CAUSAL-IV-002 — Heteroskedasticity-robust covariance of 2SLS
+
+`Cov(beta) = (Xhat'Xhat)^-1 (sum_i e_i^2 xhat_i xhat_i') (Xhat'Xhat)^-1`,
+`e = y - X beta` (observed regressors); `HC1` multiplies by `n / (n - K)`.
+
+- Domain: [EQ-CAUSAL-IV-001].
+- Meaning: sandwich covariance of the moment condition `E[xhat u] = 0`;
+  asymptotic, and unreliable with weak instruments. In the exactly
+  identified case it equals `(Zf'X)^-1 (sum e_i^2 z_i z_i') (X'Zf)^-1`.
+- Code: `causal.two_stage_least_squares`,
+  `causal.InstrumentalVariablesResult.confidence_interval`.
+- Source: [REF-WHITE-1980] (heteroskedasticity-consistent covariance),
+  applied to the second-stage regressors.
+
+### EQ-CAUSAL-IV-003 — First-stage F statistic of the excluded instruments
+
+`F = ((RSS_W - RSS_Zf) / q) / (RSS_Zf / (n - q - k_W))` for the regression
+of an endogenous regressor on `Zf = [Z, W]` against its regression on `W`.
+
+- Domain: `n > q + k_W`.
+- Meaning: strength of the instruments; values below about 10 are a common
+  rule-of-thumb warning of weak instruments (a heuristic).
+- Code: `causal.two_stage_least_squares`.
+- Source: [REF-HERNAN-ROBINS-2020, Chapter 16],
+  [REF-MONTGOMERY-PECK-VINING-2021, Chapter 3] (extra-sum-of-squares F).
