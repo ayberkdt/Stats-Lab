@@ -5,7 +5,8 @@ a finite-sample coverage guarantee. The predictor can be a callable, a fitted
 PCE or GP surrogate, or a refitting procedure. The guarantee assumes nothing
 about the model and needs only that the data are exchangeable. Every number
 below was computed with the library and is asserted, or recomputed, in
-`tests/test_conformal_prediction.py`.
+`tests/test_conformal_prediction.py` or, for Sections 7 to 13, in
+`tests/test_conformal_extensions.py`.
 
 ## 0. What is guaranteed, and what is not
 
@@ -175,16 +176,253 @@ unchanged.
 Use it on a test set disjoint from calibration. Repeat it within subgroups to
 look for conditional under-coverage.
 
+## 7. Covariate shift: weighted conformal (EQ-CONF-006)
+
+Split conformal gives each calibration score and the unseen test score the
+mass `1/(n+1)`. If the test inputs follow a law `Q` different from the
+calibration law `P`, while `Y | X` is unchanged, the scores are no longer
+exchangeable, but they are *weighted* exchangeable with the likelihood ratio
+`w = dQ/dP`. `weighted_split_conformal_regression(predictor, x_cal, y_cal, w)`
+uses
+
+```text
+p_i(x) = w(X_i) / (sum_j w(X_j) + w(x)),    p_{n+1}(x) = w(x) / (same),
+q(x)   = (1 - alpha)-quantile of  sum_i p_i(x) delta_{S_i} + p_{n+1}(x) delta_{+inf}.
+```
+
+The threshold depends on the test point: where `w(x)` is large the mass at
+`+inf` is large, and the interval can be the whole line. `w` may be a
+callable or the calibration values (then pass `weight=w(x)` to `interval`);
+only ratios matter. `effective_sample_size` reports the Kish heuristic
+`(sum w)^2 / sum w^2`.
+
+**What is guaranteed:** `P_Q(Y in C(X)) >= 1 - alpha`, marginally, *when the
+weights are the true likelihood ratio*. With estimated weights the statement
+is approximate, and a shift in `Y | X` is not covered at all. `w = 1`
+reproduces split conformal exactly (the quantile is located in rational
+arithmetic).
+
+Seeded check: `X ~ N(0, 1)` in calibration, `N(1, 1)` at test time,
+`w(x) = exp(x - 1/2)`, `Y = X + N(0, e^X)`, predictor `x`, `n = 200`,
+`alpha = 0.1`, 300 replicates of 25 test points.
+
+| Method | Mean coverage under `Q` | Monte Carlo se |
+|---|---|---|
+| weighted, exact `w` | 0.9116 | 0.0045 |
+| unweighted split conformal | 0.7557 | 0.0057 |
+
+## 8. Fixed weights without exchangeability (EQ-CONF-007)
+
+`nonexchangeable_split_conformal_regression(predictor, x_cal, y_cal, weights)`
+takes weights `w_i` in `[0, 1]` that were fixed before seeing the data,
+typically decaying with the distance from the test point, such as
+`rho^(n+1-i)` for a time series. It normalizes them as
+`w~_i = w_i / (sum_j w_j + 1)`, puts `w~_{n+1} = 1/(sum_j w_j + 1)` at `+inf`,
+and uses the weighted `1 - alpha` quantile.
+
+The guarantee is
+
+```text
+P(Y in C(X))  >=  1 - alpha - sum_i w~_i d_TV(R(Z), R(Z^i)),
+```
+
+where `Z^i` swaps points `i` and `n+1`. For exchangeable data every distance
+is zero and nothing is lost. Otherwise the gap is small when points that
+differ from the test point carry little weight. **The gap cannot be computed
+from data**: the distances are properties of the unknown law.
+`nonexchangeable_coverage_gap(weights, bounds)` only evaluates the sum for
+bounds you are willing to assume.
+
+Seeded checks, `alpha = 0.1`, 300 replicates: with i.i.d. data and
+`w_i = 0.97^(60-i)` the mean coverage is `0.9165` (se `0.0042`). After a
+changepoint (70 scores from `N(0, 1)`, then 30 and the test point from
+`N(0, 9)`), `w_i = 0.9^(100-i)` covers `0.962` where unweighted split
+conformal covers `0.693`.
+
+## 9. Conformal risk control (EQ-CONF-008)
+
+Coverage is the expectation of one particular loss, the miss indicator.
+`conformal_risk_control(losses, lambdas, alpha=..., bound=B)` handles any
+loss `L_i(lambda)` that is bounded by `B` and non-increasing in `lambda`
+(larger `lambda` means a larger prediction set). `losses[i][j]` is the loss
+of calibration observation `i` at grid value `lambda_j`. The result is the
+smallest grid value with
+
+```text
+(n/(n+1)) Rhat_n(lambda) + B/(n+1)  <=  alpha,
+```
+
+and then `E[L_{n+1}(lambda_hat)] <= alpha` for exchangeable data, marginally
+over the calibration set and the test point.
+
+- The search is restricted to the grid you pass. The guarantee is unchanged,
+  and the answer is at most one grid step more conservative than the
+  continuous infimum.
+- Monotonicity and the bound are checked, and a violation raises. A loss
+  that is not monotone is not repaired silently.
+- If no grid value qualifies, the largest is returned with `feasible=False`.
+  The bound then holds only if the loss at that value never exceeds `alpha`.
+- With `L_i = 1{s_i > lambda}`, `B = 1`, and the scores as the grid,
+  `lambda_hat` equals `conformal_quantile(scores, alpha)` exactly.
+
+Seeded check (false-negative rate of a multilabel set
+`{k : score_k >= 1 - lambda}`, six classes, `n = 40`, `alpha = 0.1`, grid
+step `0.02`, 400 replicates of 20 test items): mean test risk `0.0697`
+(se `0.0032`), below `alpha` as required. The distance from `alpha` is the
+`B/(n+1)` term and the grid.
+
+## 10. Conformal p-values and outlier detection (EQ-CONF-009, EQ-CONF-010)
+
+`conformal_p_values(calibration_scores, test_scores)` returns
+`p_j = (1 + #{i : s_i >= s_j}) / (n + 1)`, where a larger score means "more
+unusual" and the calibration scores come from known inliers. For an inlier
+test point `P(p_j <= u) <= u`; with continuous scores `p_j` is exactly
+uniform on `{1/(n+1), ..., 1}` (the tests enumerate all orderings for
+`n = 1, 3, 5`).
+
+`conformal_outlier_detection(calibration_scores, test_scores, alpha=0.1)`
+applies the library's Benjamini-Hochberg procedure to these p-values.
+p-values that share a calibration set are dependent, but positively (PRDS),
+so the false discovery rate is at most `alpha`.
+
+Both statements are **marginal over the calibration set**. For one fixed
+calibration set the p-values can be anti-conservative. Also note the
+resolution `1/(n+1)`: with `m` test points and one outlier, nothing can be
+rejected unless `1/(n+1) <= alpha/m`.
+
+Seeded check: `n = 199` standard normal calibration scores, 40 inliers and
+10 outliers from `N(3.5, 1)`, `alpha = 0.1`, 400 replicates: FDR `0.0698`
+(se `0.0042`), against the Benjamini-Hochberg level `0.8 alpha = 0.08` for
+80% inliers.
+
+## 11. Group-conditional (Mondrian) calibration (EQ-CONF-011)
+
+`mondrian_conformal_regression(predictor, x_cal, y_cal, groups)` computes one
+calibration quantile per group label; `interval(x, group)` uses the quantile
+of the test point's group. Coverage is then at least `1 - alpha`
+*conditionally on the group*, provided the points are exchangeable within
+each group. It is still not conditional on `x` inside a group.
+
+Each group pays the `+inf` rule on its own count: at `alpha = 0.1` a group
+with fewer than nine calibration points, or a label never seen, gets the
+whole line. `group_sizes`, `groups` (size, rank, quantile, guaranteed
+coverage per group) and `infinite_groups` report this.
+
+Seeded check: two groups with noise standard deviations 0.5 and 2.0, 49
+calibration points each, `alpha = 0.1`, 300 replicates of 20 test points per
+group.
+
+| Method | Quiet group | Noisy group |
+|---|---|---|
+| marginal split conformal | 1.000 | 0.822 |
+| Mondrian | 0.902 | 0.902 |
+
+## 12. CV+ (EQ-CONF-012)
+
+`cv_plus_regression(fit, x_train, y_train, folds=K)` is jackknife+ with `K`
+model fits instead of `n`: every point is scored by the model that was
+fitted without its fold, and the interval takes the same order statistics as
+Section 4 over all `n` points. `folds = n` reproduces
+`jackknife_plus_regression` exactly. Folds are contiguous blocks unless a
+`seed` is given, which shuffles the balanced fold labels.
+
+The guarantee is `1 - 2 alpha` minus a slack that depends on `n` and `K`;
+see the source for its form (it is zero at `K = n`). Typical coverage is
+near `1 - alpha`: least-squares lines, `n = 20`, `K = 5`, `alpha = 0.1`, 200
+replicates give `0.908` (se `0.006`).
+
+## 13. Online quantile tracking (EQ-CONF-013, EQ-CONF-014)
+
+`adaptive_conformal_intervals` adapts the *level* of a quantile of past
+scores. `online_quantile_intervals(predictions, observations, alpha=...,
+step=eta, decay=c)` tracks the threshold itself and stores no scores:
+
+```text
+err_t = 1{s_t > q_t},    q_{t+1} = q_t + eta_t (err_t - alpha),    eta_t = eta t^(-c).
+```
+
+`c = 0` is the fixed-step quantile tracker; `c = 1/2 + eps` is the decaying
+schedule, which lets `q_t` settle when the score law is stable. The
+integrator and scorecaster of conformal PID control are not implemented.
+
+**What is guaranteed** is a long-run frequency, for any sequence
+whatsoever: if the scores lie in `[0, b]` and `q_1` in `[0, b]`,
+
+```text
+|mean(err_1..err_T) - alpha|  <=  (b + eta_1) / (eta_T T).
+```
+
+It follows from telescoping the update, because `q_t` can never leave
+`[-alpha eta_1, b + (1 - alpha) eta_1]`. For a fixed step the bound is
+`(b + eta)/(eta T)`; for decaying steps it is `(b + eta) T^(c-1) / eta`,
+which shrinks more slowly and does not vanish at `c = 1`. Nothing is said
+about coverage at a given step. Pass `score_bound=b` to get the bound; if a
+score exceeds it, the result reports `bound_valid=False` and an infinite
+bound. Choose `eta` on the scale of the scores.
+
+Seeded check: 20000 i.i.d. `U(0, 1)` scores, `alpha = 0.1`, `eta = 0.5`,
+`q_1 = 0.5`. The true quantile is 0.9.
+
+| Steps | Miss frequency | Bound on its error | Range of `q_t` over the last 10000 steps |
+|---|---|---|---|
+| fixed (`c = 0`) | 0.10005 | 0.00015 | 0.25 to 1.40 |
+| decaying (`c = 0.6`) | 0.10035 | 0.0571 | 0.878 to 0.919 |
+
+The fixed step pins the frequency tightly while its threshold keeps
+swinging. The decaying step gives a threshold near the true quantile with a
+weaker frequency bound.
+
+```python
+import math
+from probstat.conformal import (
+    conformal_outlier_detection, conformal_p_values, conformal_risk_control,
+    mondrian_conformal_regression, nonexchangeable_conformal_quantile,
+    online_quantile_intervals, weighted_conformal_quantile,
+)
+
+scores = [0.1 * i for i in range(1, 10)]                  # nine scores up to 0.9
+weighted_conformal_quantile(scores, [1.0] * 9, 1.0, 0.2)  # 0.8, split conformal
+math.isinf(weighted_conformal_quantile(scores, [1.0] * 9, 3.0, 0.2))   # True
+recent = [0.8 ** (9 - i) for i in range(1, 10)]           # the newest weighs most
+nonexchangeable_conformal_quantile(scores, recent, 0.2)   # 0.9
+
+losses = [[float(s > lam) for lam in scores] for s in scores]
+crc = conformal_risk_control(losses, scores, alpha=0.2)
+crc.lambda_hat, crc.feasible                              # (0.8, True)
+crc.adjusted_risk                                         # 0.2
+
+conformal_p_values(scores, [0.05, 0.55, 0.95])            # (1.0, 0.5, 0.1)
+found = conformal_outlier_detection(
+    [0.01 * i for i in range(1, 100)], [0.2, 0.5, 1.2, 1.5], alpha=0.1)
+found.rejected                           # (False, False, True, True)
+
+groups = mondrian_conformal_regression(
+    lambda x: 0.0, [[0.0]] * 18, scores + [10 * s for s in scores],
+    ["a"] * 9 + ["b"] * 9, alpha=0.2)
+groups.quantile("a"), groups.quantile("b")                # (0.8, 8.0)
+math.isinf(groups.quantile("never seen"))                 # True
+
+track = online_quantile_intervals(
+    [0.0] * 4, [0.5, 0.2, 1.5, 0.1], alpha=0.2, step=0.5, score_bound=2.0)
+track.errors                             # (True, False, True, False)
+track.long_run_bound                     # 1.25, = (2 + 0.5)/(0.5 * 4)
+```
+
 ## Limitations
 
-- Only regression with scalar responses is covered. Classification sets,
-  multi-output, and covariate-shift (weighted) conformal are not
-  implemented. For sequential data under drift, `adaptive_conformal_intervals`
-  (adaptive conformal inference) is provided; its guarantee is a bound on
-  the long-run miscoverage frequency, not exchangeable finite-sample
-  coverage.
+- Interval methods cover regression with scalar responses. Classification
+  sets and multi-output are not implemented as such; conformal risk control
+  (Section 9) works on any loss table you compute. For sequential data
+  under drift, `adaptive_conformal_intervals` and `online_quantile_intervals`
+  are provided; their guarantees bound the long-run miscoverage frequency,
+  not exchangeable finite-sample coverage.
+- Weighted conformal (Section 7) needs the likelihood ratio. Estimating it
+  (for example by a probabilistic classifier) is outside this module and
+  makes the guarantee approximate.
+- The coverage gap of fixed-weight conformal (Section 8) is not computable
+  from data.
 - Split conformal spends data on calibration. Jackknife+ spends `n` refits
-  instead. CV+ and full conformal are not implemented.
+  and CV+ spends `K`. Full conformal is not implemented.
 - Normalized scores are only as useful as `s(x)`. A GP standard deviation can
   vanish numerically (Section 5).
 - Coverage is marginal. Nothing here certifies coverage at a particular input
@@ -229,4 +467,8 @@ ten.interval([1.0]).lower, ten.interval([1.0]).upper   # (-1.0, 1.0)
 [REF-VOVK-GAMMERMAN-SHAFER-2005], [REF-LEI-ETAL-2018],
 [REF-ROMANO-PATTERSON-CANDES-2019], [REF-BARBER-ETAL-2021],
 [REF-ANGELOPOULOS-BATES-2023], [REF-CLOPPER-PEARSON-1934],
-[REF-RASMUSSEN-WILLIAMS-2006], [REF-SUDRET-2008].
+[REF-RASMUSSEN-WILLIAMS-2006], [REF-SUDRET-2008],
+[REF-TIBSHIRANI-ETAL-2019], [REF-BARBER-ETAL-2023],
+[REF-ANGELOPOULOS-ETAL-2024], [REF-BATES-ETAL-2023],
+[REF-BENJAMINI-HOCHBERG-1995], [REF-ANGELOPOULOS-CANDES-TIBSHIRANI-2023],
+[REF-ANGELOPOULOS-BARBER-BATES-2024].
