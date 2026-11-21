@@ -19,7 +19,8 @@ omitting a simulated confounder.
 The module reports the partial R-squared of the treatment with the outcome
 (EQ-CAUSAL-OVB-001), the robustness value (EQ-CAUSAL-OVB-003: the common
 strength ``R2_Y = R2_D`` that moves the estimate by a fraction ``q``), the
-robustness value for statistical significance (EQ-CAUSAL-OVB-005), and the
+robustness value for statistical significance (EQ-CAUSAL-OVB-005: the
+smallest bound on both strengths that can remove significance), and the
 estimate, standard error and t statistic adjusted for a hypothesized
 confounder (EQ-CAUSAL-OVB-004).
 
@@ -198,17 +199,28 @@ def robustness_value(
     ``RV_q = (sqrt(f_q^4 + 4 f_q^2) - f_q^2) / 2``. ``q = 1`` moves the
     estimate exactly to zero.
 
-    With ``alpha``: the common value at which the *adjusted* t statistic for
-    the null hypothesis ``tau = (1 - q) estimate`` equals the two-sided
-    critical value ``t*`` of Student-t on ``df - 1`` degrees of freedom.
-    For equal strengths the adjusted standard error is
-    ``se sqrt(df / (df - 1))`` whatever the strength, so the condition
-    reduces to the same equation with
-    ``f_{q,alpha} = q |t| / sqrt(df) - t* / sqrt(df - 1)`` (zero when that
-    is not positive: the result is already not significant). This is the
-    equal-strength definition; a confounder with unequal partial R-squared
-    values both below this value can, in some cases, still remove
-    significance, because a larger ``R2_Y`` also changes the standard error.
+    With ``alpha``: the smallest bound ``R`` such that a confounder with
+    both partial R-squared values at most ``R`` can bring the *adjusted* t
+    statistic for the null hypothesis ``tau = (1 - q) estimate`` down to the
+    two-sided critical value ``t*`` of Student-t on ``df - 1`` degrees of
+    freedom. With ``f_q = q |t| / sqrt(df)`` and
+    ``f* = t* / sqrt(df - 1)`` the adjusted t divided by ``sqrt(df - 1)`` is
+    ``(f_q sqrt(1 - R2_D) - sqrt(R2_Y R2_D)) / sqrt(1 - R2_Y)``, and:
+
+    - if ``f_q <= f*`` the result is already not significant and the value
+      is zero;
+    - if ``f_q <= 1 / f*`` the worst confounder has equal strengths and the
+      value solves the same equation as ``RV_q`` with
+      ``f_{q,alpha} = f_q - f*``;
+    - if ``f_q > 1 / f*`` (large ``|t|`` on few degrees of freedom) the
+      worst confounder has ``R2_Y = R2_D / (f_q^2 (1 - R2_D)) < R2_D``: a
+      smaller ``R2_Y`` keeps the standard error larger, and the value is
+      ``(f_q^2 - f*^2) / (1 + f_q^2)``, which is below the equal-strength
+      solution.
+
+    The third case is not in the formula printed in the source paper; it is
+    the rule of the authors' ``sensemakr`` software and was re-derived here
+    and checked by a grid search over ``(R2_Y, R2_D)``.
 
     Args:
         t_value: Classical t statistic of the treatment coefficient.
@@ -244,7 +256,10 @@ def robustness_value(
         if df < 2:
             raise ValueError("alpha needs degrees_of_freedom of at least 2")
         critical = StudentT(float(df - 1)).quantile(1.0 - 0.5 * level)
-        f -= critical / math.sqrt(df - 1)
+        f_critical = critical / math.sqrt(df - 1)
+        if f > f_critical and f * f_critical > 1.0:
+            return (f * f - f_critical * f_critical) / (1.0 + f * f)
+        f -= f_critical
     return _robustness_from_f(f)
 
 
@@ -263,7 +278,7 @@ class SensitivityStatistics:
         q: Fraction of the estimate considered.
         alpha: Significance level of ``robustness_value_alpha``.
         robustness_value: ``RV_q``.
-        robustness_value_alpha: ``RV_{q,alpha}`` (equal-strength definition).
+        robustness_value_alpha: ``RV_{q,alpha}``, see :func:`robustness_value`.
 
     References:
         [REF-CINELLI-HAZLETT-2020].

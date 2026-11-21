@@ -19453,20 +19453,30 @@ sqrt(df / (df - 1))`, `tau = tau_res -+ |bias|` ([EQ-CAUSAL-OVB-002]),
 
 ### EQ-CAUSAL-OVB-005 — Robustness value for statistical significance
 
-`RV_{q,alpha}` is [EQ-CAUSAL-OVB-003] evaluated at
-`f_{q,alpha} = q |t_D| / sqrt(df) - t*_{alpha, df-1} / sqrt(df - 1)`
-(zero when `f_{q,alpha} <= 0`), with `t*` the two-sided Student-t critical
-value.
+With `f_q = q |t_D| / sqrt(df)` and `f* = t*_{alpha, df-1} / sqrt(df - 1)`
+(`t*` the two-sided Student-t critical value):
+`RV_{q,alpha} = 0` if `f_q <= f*`;
+`RV_{q,alpha} =` [EQ-CAUSAL-OVB-003] at `f_{q,alpha} = f_q - f*` if
+`f* < f_q <= 1 / f*`;
+`RV_{q,alpha} = (f_q^2 - f*^2) / (1 + f_q^2)` if `f_q > 1 / f*`.
 
 - Domain: `df >= 2`, `0 < alpha < 1`.
-- Meaning: the common partial R-squared at which the adjusted t statistic
-  for `H0: tau = (1 - q) tau_res` equals the critical value. With equal
-  strengths the adjusted standard error is `se sqrt(df / (df - 1))`
-  whatever the strength ([EQ-CAUSAL-OVB-004]). This is the equal-strength
-  definition; it is not a minimum over confounders with unequal strengths.
+- Meaning: the smallest `R` such that a confounder with
+  `R^2_{Y~Z|D,X} <= R` and `R^2_{D~Z|X} <= R` can bring the adjusted t
+  statistic for `H0: tau = (1 - q) tau_res` to the critical value. From
+  [EQ-CAUSAL-OVB-002] and [EQ-CAUSAL-OVB-004] the adjusted t over
+  `sqrt(df - 1)` is `(f_q sqrt(1 - R2_D) - sqrt(R2_Y R2_D)) / sqrt(1 - R2_Y)`.
+  It is minimized at equal strengths when `f_q <= 1 / f*`; otherwise at
+  `R2_Y = R2_D / (f_q^2 (1 - R2_D)) < R2_D`, where it equals
+  `sqrt(f_q^2 (1 - R2_D) - R2_D)`. The third branch is absent from the
+  formula printed in the paper and present in the authors' `sensemakr`
+  software (`robustness_value`); the equal-strength formula alone
+  overstates the value there (0.983 instead of 0.964 at `t = 20`,
+  `df = 5`).
 - Code: `causal.robustness_value`, `causal.sensitivity_statistics`.
 - Source: [REF-CINELLI-HAZLETT-2020]; derived here from
-  [EQ-CAUSAL-OVB-002] and [EQ-CAUSAL-OVB-004].
+  [EQ-CAUSAL-OVB-002] and [EQ-CAUSAL-OVB-004] and checked by a grid search
+  over both strengths.
 
 ### EQ-CAUSAL-DML-001 — Partialling-out estimator of the partially linear model
 
@@ -19558,10 +19568,14 @@ mean `mu_C`: `psi_i = (n / n_g) 1{G_i = g}(d_i - mu_g) - (n / n_C)
 `psi_i = sum_c w_c psi_{c,i} + sum_c (ATT_c - theta) 1{G_i = g(c)} / P`,
 `P = sum_c n_{g(c)} / n`.
 
-- Domain: independent units; fixed number of periods.
+- Domain: independent units; fixed number of periods; at least two units
+  in the group and in the comparison set (otherwise the standard error is
+  `nan`).
 - Meaning: asymptotic standard errors; the second term of the aggregate is
   the delta method for the estimated group shares. Pointwise, not
-  simultaneous.
+  simultaneous. Too small for small arms (divisor-`n` variances and a
+  normal critical value): 86 to 91 % coverage of nominal 95 % intervals
+  with 5 never-treated units among 100.
 - Code: `causal.group_time_effects`, `causal.GroupTimeEffects.event_study`,
   `causal.GroupTimeEffects.overall`.
 - Source: [REF-CALLAWAY-SANTANNA-2021] (influence-function approach); the
@@ -19655,7 +19669,12 @@ ratio `(E[Y|Z=1] - E[Y|Z=0]) / (E[D|Z=1] - E[D|Z=0])`.
   instrument relevance, exclusion and exchangeability with homogeneous
   effects.
 - Code: `causal.two_stage_least_squares`.
-- Source: [REF-HERNAN-ROBINS-2020, Chapter 16].
+- Source: [REF-HERNAN-ROBINS-2020, Chapter 16] (instrumental conditions,
+  the usual IV estimand and the two-stage estimator for one instrument and
+  one treatment). The matrix form with several endogenous regressors and
+  included exogenous covariates is the same projection written out here;
+  it was checked against a direct matrix computation, not against a
+  source text.
 
 ### EQ-CAUSAL-IV-002 — Heteroskedasticity-robust covariance of 2SLS
 
@@ -20018,8 +20037,10 @@ the first `k` eigenvectors.
   [EQ-SENS-DGSM-001] (from `C = sum_j lambda_j w_j w_j'`).
 - Code: `sensitivity.active_subspace_from_gradients`,
   `sensitivity.ActiveSubspaceResult.as_mapping`.
-- Source: follows from the spectral decomposition in
-  [REF-CONSTANTINE-DOW-WANG-2014] and [REF-GOLUB-VANLOAN-2013, Section 8.1].
+- Source: derived here from the spectral decomposition of the matrix of
+  [REF-CONSTANTINE-DOW-WANG-2014] ([REF-GOLUB-VANLOAN-2013, Section 8.1]).
+  The score is not claimed to be defined in that paper; no source for the
+  name could be verified.
 
 ### EQ-SENS-ACTIVE-003 — Bootstrap subspace distance and eigenvalue intervals
 
@@ -20034,9 +20055,11 @@ For a resample of the gradients with eigenvectors `W*`:
   where the gap `lambda_k - lambda_{k+1}` is large. A heuristic measure of
   sampling variability only (sample eigenvalues are biased).
 - Code: `sensitivity.active_subspace_from_gradients` (`bootstrap=`).
-- Source: [REF-CONSTANTINE-DOW-WANG-2014] (bootstrap of the gradient
-  sample), [REF-GOLUB-VANLOAN-2013, Section 2.5.3] (distance between
-  subspaces) and [REF-EFRON-TIBSHIRANI-1993] (percentile interval).
+- Source: [REF-EFRON-TIBSHIRANI-1993] (nonparametric bootstrap and
+  percentile interval, applied here to the gradient sample of
+  [REF-CONSTANTINE-DOW-WANG-2014]) and [REF-GOLUB-VANLOAN-2013, Section
+  2.5.3] (distance between subspaces). That the 2014 paper itself contains
+  this bootstrap could not be verified, so it is not attributed to it.
 
 ### EQ-SENS-ACTIVE-004 — Gradient in standard-normal space
 

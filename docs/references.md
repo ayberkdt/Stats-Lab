@@ -5569,8 +5569,10 @@ DOI: [10.1080/01621459.2020.1758115](https://doi.org/10.1080/01621459.2020.17581
 Paul G. Constantine, Eric Dow and Qiqi Wang. "Active Subspace Methods in
 Theory and Practice: Applications to Kriging Surfaces." *SIAM Journal on
 Scientific Computing* 36(4), A1500-A1524, 2014. The matrix
-`E[grad f grad f']`, its eigen-decomposition, Monte Carlo estimation, and
-bootstrap diagnostics of eigenvalues and subspaces.
+`E[grad f grad f']`, its eigen-decomposition and Monte Carlo estimation.
+(The paper could not be opened during the 0.27 audit; the bootstrap
+diagnostics and the activity scores of `sensitivity.active_subspace` are
+not attributed to it.)
 DOI: [10.1137/130916138](https://doi.org/10.1137/130916138).
 
 ## REF-BORGONOVO-2007

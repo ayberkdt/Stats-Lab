@@ -56,7 +56,10 @@ class InstrumentalVariablesResult:
         first_stage_df: Numerator and denominator degrees of freedom of
             those F statistics.
         weak_instruments: Whether any first-stage F is below 10, a common
-            rule of thumb (a heuristic, not a test).
+            rule of thumb (a heuristic, not a test). With more than one
+            endogenous regressor ``False`` does not show identification:
+            each regressor can have a large F while the instruments move
+            the regressors along (nearly) one direction only.
         n_observations: ``n``.
         n_instruments: Number of excluded instruments.
         n_endogenous: Number of endogenous regressors.
@@ -218,7 +221,15 @@ def two_stage_least_squares(
 
     The first-stage F statistic of an endogenous regressor compares its
     regression on ``Zf`` with its regression on ``W`` alone:
-    ``F = ((RSS_W - RSS_Zf) / q) / (RSS_Zf / (n - q - k_W))``.
+    ``F = ((RSS_W - RSS_Zf) / q) / (RSS_Zf / (n - q - k_W))``. Each
+    statistic looks at one endogenous regressor on its own. With ``p > 1``
+    the coefficients can be weakly identified although every F is large:
+    in a simulation with two regressors driven by the same instrument
+    (``n = 300``, second instrument coefficient 0.05) the median smallest F
+    was 98, ``weak_instruments`` was ``False`` in all 600 replicates, and
+    the estimate of a coefficient of 1.5 had median 1.87 and a standard
+    deviation of 48. No joint (conditional) first-stage statistic is
+    computed.
 
     Args:
         outcome: ``n`` outcomes.

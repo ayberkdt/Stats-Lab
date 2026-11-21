@@ -41,11 +41,12 @@ were not covered:
    `bias^2 = gamma^2 delta^2`, `RSS_long = RSS_short (1 - R2_Y)` and
    `SS(D | X, Z) = SS(D | X)(1 - R2_D)` give the bias, the adjusted
    standard error (with the factor `sqrt(df / (df - 1))`) and the adjusted
-   t. The robustness value for significance uses the **equal-strength
-   definition**: the common partial R-squared at which the adjusted t
-   equals the critical value, which reduces to the same quadratic with
-   `f_{q,alpha} = q |t| / sqrt(df) - t* / sqrt(df - 1)`. It is documented
-   as not being a minimum over confounders of unequal strength. The sign
+   t. The robustness value for significance is the smallest bound on both
+   partial R-squared values that can bring the adjusted t to the critical
+   value. For `f_q <= 1 / f*` (`f_q = q |t| / sqrt(df)`,
+   `f* = t* / sqrt(df - 1)`) this is the equal-strength root of the same
+   quadratic with `f_{q,alpha} = f_q - f*`; for `f_q > 1 / f*` it is
+   `(f_q^2 - f*^2) / (1 + f_q^2)` (added by the audit, see below). The sign
    of the bias is a user assumption (`reduce`).
 3. **Double ML** ([EQ-CAUSAL-DML-001] to [EQ-CAUSAL-DML-003]).
    `dml_partially_linear` implements the partialling-out score with pooled
@@ -77,8 +78,11 @@ were not covered:
    gradient with the exact sort-based simplex projection and step
    `1 / (2 lambda_max(X0'VX0))`; every 20 iterations the quadratic is
    minimized exactly on the current support (a KKT linear system) and the
-   result kept if it is feasible and lowers the duality gap. The stopping
-   rule is the duality gap `g'w - min_j g_j <= tol * x1'Vx1`, which is a
+   result kept if it is feasible and lowers the duality gap. Since the
+   audit the iteration runs on donor predictors centred at the treated
+   unit (an equivalent problem with a smaller `lambda_max`). The stopping
+   rule is the duality gap `g'w - min_j g_j <= tol * s`, `s` the largest
+   of `x1'Vx1` and the `X0_j'VX0_j`, which is a
    certificate (`f(w) - f* <= gap`), and the result reports it together
    with `converged` and `iterations`. `V` is user-supplied. Placebo
    inference ranks the post/pre RMSPE ratio; by default the treated unit
@@ -128,9 +132,74 @@ Measured in `tests/test_causal_extensions.py` (seeds fixed):
   1.487, coverage 0.93, mean robust standard error 0.216 against a Monte
   Carlo SD of 0.212; least squares is above 2.0 in every replicate
   checked.
-- The whole test file (42 tests) runs in about 9 s.
+- The whole test file (45 tests after the audit) runs in about 10 s.
 - `EffectEstimate.method` gains the values `"aipw-crossfit"` and
   `"aipw-learners"`.
+
+## Audit addendum (independent re-measurement, 2026-11-21)
+
+Own simulations with other seeds and more replicates; scripts were not
+added to the repository.
+
+- **Robustness value for significance.** A grid search over
+  `(R2_Y, R2_D)` gives the smallest bound that removes significance. It
+  equals the equal-strength root when `f_q <= 1 / f*` and
+  `(f_q^2 - f*^2) / (1 + f_q^2)` otherwise; the first implementation
+  returned the equal-strength root everywhere and overstated the value in
+  the second regime (0.6634 instead of 0.6590 at `t = 6`, `df = 10`;
+  0.9831 instead of 0.9639 at `t = 20`, `df = 5`). The rule agrees with the
+  `robustness_value` function of the authors' `sensemakr` package, whose
+  source was read; the bias, the adjusted standard error with
+  `sqrt(df / (df - 1))` and the partial R-squared agree with it as well.
+- **Double ML, 1000 replicates** of the same design (`n = 300`, 15
+  neighbours, 4 folds): mean 0.5075 (bias 3.8 Monte Carlo standard
+  errors), mean standard error 0.92 of the Monte Carlo standard deviation,
+  coverage of the 95 % interval 0.929 (binomial standard error 0.008).
+  With 5 neighbours coverage is 0.898 (standard-error ratio 0.85), with
+  `n = 1000` and 30 neighbours 0.923. With three irrelevant covariates
+  added (four in total) the nearest-neighbour bias is 0.127 and coverage
+  0.41. `n = 301` (folds of unequal size) behaves like `n = 300`. The
+  interval under-covers in every nearest-neighbour configuration tried.
+- **Cross-fitted AIPW** (`n = 203`, 5 folds, true effect 1): with the
+  default linear and logistic learners coverage was 0.928 (moderate
+  confounding) and 0.926 (strong confounding, standard-error ratio 0.82)
+  over 500 replicates; with 15-nearest-neighbour learners for outcome and
+  propensity it was 0.957 and 0.800 over 300 replicates, with mean
+  estimates 0.918 and 0.847 (neighbour averages of the indicator reach 0
+  and 1 and are clipped to weights of 100).
+- **Group-time effects, 1000 replicates per design**, random group
+  membership with shares 0.5, 0.25, 0.15 and 0.10 (never treated), six
+  periods, heterogeneous dynamic effects: at `n = 400` the ratio of the
+  mean standard error to the Monte Carlo standard deviation is 0.96 to
+  0.98 for cells, event-study and overall averages and coverage is 0.93 to
+  0.95, so the influence function for the estimated shares is right. At
+  `n = 120` (about 12 never treated) the ratio is 0.90 to 1.02 and
+  coverage 0.91 to 0.95; with 5 never-treated units among 100 (fixed
+  membership) the ratio is 0.85 to 0.94 and coverage 0.86 to 0.91; at
+  `n = 60` with shares 0.55, 0.25, 0.12, 0.08 the ratio is 0.71 to 0.83
+  and coverage 0.81 to 0.88. A group or comparison set of one unit used to
+  report a standard error that left that arm out (0.0 for one treated and
+  one comparison unit); it is now `nan`.
+- **Synthetic control.** With predictors at a common level of `10^4`
+  (30 donors, 12 pre-periods, donor paths within 1 % of the treated path)
+  the first implementation stopped at 20000 iterations with
+  `converged = False` and an objective of 3329; centred at the treated
+  unit the same problem converges in 189 iterations with objective
+  `1.2e-6`. Predictors on scales from `10^-3` to `10^4` and a
+  Hilbert-matrix-like donor pool still do not converge in 20000
+  iterations and are reported as such. A treated unit with all predictors
+  zero could never be declared converged (threshold `tol * x1'Vx1 = 0`);
+  the threshold now also uses the donors' scale. Under random assignment
+  of the intervention among 8 similar units the placebo p-value was at
+  most 1/8 in 10.7 % of 150 simulations (nominal 12.5 %).
+- **Instrumental variables.** Coefficients, HC0/HC1 covariance, classical
+  standard errors and first-stage F agree with matrix formulas for two
+  endogenous regressors, three instruments and two exogenous controls,
+  with and without intercept, to `1e-13`. Coverage with two endogenous
+  regressors (`n = 300`, 600 replicates) is 0.935 and 0.933. With both
+  regressors driven by one instrument the per-regressor F statistics
+  (median smallest 98) do not flag the weak identification; this is now
+  stated in the docstring.
 
 ## Rejected alternatives
 
@@ -139,10 +208,11 @@ Measured in `tests/test_causal_extensions.py` (seeds fixed):
 - **Calling `estimate_aipw` inside the cross-fitted estimator.** It has no
   entry point for externally supplied predictions; adding one would have
   changed a stable public function for no gain.
-- **A robustness value for significance minimized over unequal confounder
-  strengths.** The refinement could not be derived and verified here with
-  the same certainty as the equal-strength condition, so the simpler,
-  exactly testable definition is implemented and named as such.
+- **The equal-strength robustness value for significance alone.** This
+  was the first implementation. It is the formula printed in the paper,
+  but for `f_q > 1 / f*` a confounder with a smaller `R2_Y` than `R2_D`,
+  both below that value, removes significance; the audit replaced it by
+  the minimum over both strengths.
 - **Bootstrap standard errors for the group-time effects.** The influence
   function gives the same first-order answer at no extra cost and lets
   aggregates be formed after the fact; a multiplier bootstrap for

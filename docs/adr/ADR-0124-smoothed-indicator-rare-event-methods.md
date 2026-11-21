@@ -170,6 +170,83 @@ is `c.o.v. sqrt(calls)` (smaller is better). Linear states are
   the evidence, 500 for the final level). With `log c` raised by 2 the
   check counted 390 violating points and the sample variance was 0.098.
 
+## Audit addendum (independent re-measurement, 2026-11-21)
+
+- **Sources.** The papers themselves could still not be opened. The
+  reference implementations of the authors' group were read instead
+  (`iCE_GM.py` and `SIS_GM.py` in the ERA-Software "Overview" repository on
+  GitHub). They agree with this ADR on: the scale chosen so that the
+  c.o.v. of `Phi(-G / sigma) w` equals the target, searched below the
+  previous scale; the stopping rule (c.o.v. of `I(G <= 0) / Phi(-G / sigma)`
+  over the current sample at most the target); the estimate from the last
+  sample, `mean(w I)`; in sequential importance sampling the first weight
+  `Phi(-G / sigma_1)` without a factor, later weights as ratios,
+  `S_k = mean(w)`, and the final estimate
+  `prod(S_k) mean(I / Phi(-G / sigma_L))`. Neither file contains a
+  covariance floor, a c.o.v. of the sequential estimate, or the chain
+  layout used here; these remain choices of this library. The default
+  target 1.5 was not found as a default in those files (it is an argument
+  there). The BUS constant and evidence formula were not checked against a
+  source text.
+- **Improved cross entropy, mean of estimate over exact** (linear states,
+  `N = 1000`, floor 0.55, seeds 1000 onwards): `beta = 3`, `d = 2`: 1.004
+  (100 runs, Monte Carlo standard error 0.005); `beta = 4.5`, `d = 2`:
+  0.999 (100 runs, 0.006); `beta = 5.5`, `d = 2`: 0.997 (100 runs, 0.006);
+  `beta = 4.5`, `d = 20`: 0.981 (60 runs, 0.013); `beta = 5.5`, `d = 20`:
+  0.997 (50 runs, 0.015; 4 of the 50 runs did not converge within 50
+  levels and the mean cost was 22660 calls). Replicate over mean reported
+  c.o.v.: 0.94, 1.00, 0.95, 1.01, 0.82. The fraction of runs further than
+  two reported standard errors from the exact value was 3 to 5 % in two
+  dimensions and 12 % at `beta = 4.5`, `d = 20`.
+- **Fifty dimensions** (`beta = 3`, `d = 50`, 1325 covariance
+  parameters). With `N = 2000` and 30 levels, 20 of 21 runs did not
+  converge: the estimates were between `1e-10` and 1.09 times the exact
+  value (median 0.01) with reported c.o.v. of 0.5 to 1.0, i.e. up to
+  `1e10` reported standard errors away; the scales stayed at their first
+  value because the likelihood ratios of the fitted proposal alone
+  exceeded the target c.o.v., and the Kish effective sample size was about
+  3 of 2000. The single run that met the stopping rule returned 0.34 times
+  the exact value (reported c.o.v. 0.84). With `N = 6000`, 50 of 50 runs
+  converged in 4 or 5 levels (33000 calls on average): mean 1.008 (Monte
+  Carlo standard error 0.005), replicate c.o.v. 0.033, reported 0.035, one
+  run of 50 beyond two standard errors. The method therefore needs `N`
+  well above the number of covariance parameters, and an unconverged
+  result carries a standard error that says nothing about its error.
+- **Four-branch function, mixture with four components, 60 seeds**: mean
+  0.999 (standard error 0.006), replicate c.o.v. 0.049, reported 0.057,
+  all converged, 4033 calls on average (5000 at most). The 0.065 of the
+  table above (20 seeds) is within sampling error of this.
+- **Unguarded covariance at `beta = 4.5`, `d = 20`**: the replicate c.o.v.
+  of 0.262 with one unconverged run was not reproduced with seeds
+  1000-1029 (0.088, all 30 converged, mean 1.004); that entry depends on
+  rare outlying runs.
+- **The covariance floor changes efficiency, not the expectation**: the
+  weights use the exact density of the floored proposal, and without the
+  floor the means were 0.995 (`beta = 4.5`, `d = 2`, 100 runs) and 1.004
+  (`d = 20`, 30 runs). In two dimensions the floor costs efficiency
+  (replicate c.o.v. 0.061 against 0.037 without it).
+- **Stopping-rule bias.** With small samples the estimate is biased
+  upwards: 1.023 (standard error 0.007) at `N = 100` and 1.037 (0.015) at
+  `N = 30` for `beta = 3`, `d = 2`; at `N = 30` the replicate c.o.v. was
+  1.3 times the reported one and 4.5 % of the runs were more than three
+  reported standard errors away.
+- **Sequential importance sampling, 60 runs per case, defaults**:
+  replicate over mean reported c.o.v. 1.44 (`beta = 3`, `d = 2`), 1.29
+  (`beta = 4.5`, `d = 20`), 1.30 (`beta = 5.5`, `d = 2`), 1.37
+  (`beta = 3`, `d = 50`); 10 to 17 % of the estimates were further than
+  two reported c.o.v. from the exact value on the log scale; the mean of
+  estimate over exact was 0.96 to 1.03 (standard errors 0.04 to 0.08).
+  The heuristic c.o.v. understated the scatter in every case tried.
+- **BUS, conjugate problem, 60 seeds**: evidence mean over exact 1.012
+  with `c = 1 / sup L` and 1.033 with `c` smaller by `e^3`; the standard
+  deviation of the log evidence was 0.089 and 0.339 against reported
+  c.o.v. of 0.107 and 0.263. `c` too large by factors `e^0.05`, `e^0.3`
+  and `e^2` was flagged in 60 of 60 runs each (the check sees it as soon
+  as a point near the likelihood maximum is evaluated; a violation in a
+  region that is never visited cannot be seen). The 1000 returned draws
+  had 47 % distinct values, and the posterior mean scattered between runs
+  like that of about 250 independent draws (140 with the smaller `c`).
+
 ## Rejected alternatives
 
 - **The von Mises-Fisher-Nakagami mixture.** Excluded from this work
@@ -192,7 +269,9 @@ is `c.o.v. sqrt(calls)` (smaller is better). Linear states are
   run reports whether it was violated.
 - **A separate final importance-sampling stage for improved cross
   entropy.** The stopping sample is independent of the proposal that
-  generated it, so its estimate is already unbiased given the proposal.
+  generated it. The decision to stop does depend on that sample, which
+  leaves a small bias for small `N` (see the audit addendum); a fresh
+  final sample would remove it at the cost of `N` more calls.
 
 ## Verification
 

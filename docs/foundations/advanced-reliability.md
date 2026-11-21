@@ -567,7 +567,9 @@ every sample enters the weighted maximum-likelihood refit
 [EQ-REL-ICE-003], and the run stops when `I(G <= 0) / Phi(-G / sigma_k)`
 varies by no more than the same target [EQ-REL-ICE-004]. The last sample
 gives the importance-sampling estimate with its standard error
-[EQ-REL-ICE-005]; the cost is `N (levels + 1)`.
+[EQ-REL-ICE-005]; the cost is `N (levels + 1)`. Because the stopping
+rule looks at that last sample, the estimate has a small upward bias for
+small `N` (2 % at `N = 100`, not measurable at `N = 1000`).
 
 Two families are available: one Gaussian with full covariance
 (`family="gaussian"`) and a Gaussian mixture fitted by weighted EM
@@ -578,6 +580,14 @@ covariance that follows the failure region is narrower than `1/2` along the
 important direction, and the importance weights then have infinite variance.
 This guard is a choice of this library; `covariance_floor=None` removes it
 and sets `weights_heavy_tailed` when it matters.
+
+A full covariance in `d` dimensions has `d (d + 3) / 2` parameters, and
+`N` must be well above that: for a linear limit state in 50 dimensions
+`N = 2000` failed to converge in 20 of 21 runs and returned estimates that
+were typically a hundred times too small, while `N = 6000` converged in
+every one of 50 runs with a mean of 1.008 times the exact value. Check
+`converged` and `effective_sample_size`; the standard error of an
+unconverged run is not a measure of its error.
 
 One Gaussian follows one failure region. On the four-branch function it
 spreads over all four regions, never meets the stopping rule (0 of 20 seeds
@@ -597,7 +607,9 @@ weight is `Phi(-G / sigma_1)` without the factor `Phi(0) = 1/2`.
 
 Its reported c.o.v. is a batch-means heuristic [EQ-REL-SIS-004] that ignores
 the dependence between levels: over 20 seeds on six test cases the scatter
-between runs was 0.84 to 1.50 times the reported value. With the library
+between runs was 0.84 to 1.50 times the reported value, and 1.3 to 1.4
+times in an independent check with 60 seeds on four linear cases, so read
+the reported value as a lower bound. With the library
 defaults (20 chains of 50 states and 10 burn-in steps per 1000 samples) its
 precision per call was close to that of subset simulation and well below
 that of improved cross entropy on the cases of ADR-0124; with many short
@@ -617,7 +629,9 @@ states as posterior draws, and returns the evidence
 `c L <= 1`; `constant_violated` reports a constant that is too large
 [EQ-REL-BUS-003], in which case the draws follow the truncated likelihood
 `min(L, 1/c)`. A clean check covers the evaluated points only. The draws are
-correlated chain states with repeated values.
+correlated chain states with repeated values: in the example below about
+half of the 1000 draws are distinct, and over 60 seeds the posterior mean
+scattered like that of about 250 independent draws.
 
 ```python
 import math

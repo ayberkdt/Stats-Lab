@@ -265,7 +265,10 @@ def rank_sobol_indices(
     error describes the mean of the block estimates and transfers to the
     full-sample estimate only through the ``sqrt(n)`` rate; it is a
     diagnostic with ``B - 1`` degrees of freedom, not a confidence
-    statement.
+    statement. On the Ishigami function ``estimate +- 2 se`` covered the
+    exact indices in 82 to 89 % of 600 samples at ``n = 100``, ``B = 5``,
+    in 90 to 91 % at ``n = 500``, ``B = 10``, and in 92 to 93 % at
+    ``n = 2000``, ``B = 10``.
 
     Args:
         inputs: ``n`` rows of ``d`` input values (i.i.d. rows).

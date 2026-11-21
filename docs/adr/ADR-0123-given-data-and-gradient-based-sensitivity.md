@@ -110,6 +110,51 @@ remained:
   is practical only for small permutation counts; the histogram form is
   about a hundred times faster.
 
+## Audit addendum (independent re-measurement, 2026-11-21)
+
+- **Block standard error of the rank estimator, Ishigami, 600 replicates
+  per setting.** Coverage of `estimate +- 2 se` for `S_1, S_2, S_3`:
+  0.89, 0.86, 0.82 at `n = 100`, `B = 5`; 0.91, 0.91, 0.90 at `n = 500`,
+  `B = 10`; 0.93, 0.93, 0.92 at `n = 2000`, `B = 10`; 0.93, 0.95, 0.92 at
+  `n = 2000`, `B = 50`. The mean standard error is 0.79 to 0.96 of the
+  replicate standard deviation at `n = 100`, 0.91 to 0.94 at `n = 500`
+  and 0.96 to 1.00 at `n = 2000` with `B = 10`. So `+- 2 se` is not a 95 %
+  interval: besides the `B - 1` degrees of freedom (a Student-t factor of
+  2.26 for `B = 10`), the standard error is a few per cent too small. The
+  bias of the full-sample estimator is at most 0.013 at `n = 100` and
+  below 0.008 from `n = 500` on, while the mean of the block estimates is
+  biased by up to -0.16 at a block size of 20 rows (`block_means` shows
+  this, as documented).
+- **Chatterjee's xi.** `sensitivity.chatterjee_xi` and
+  `statistics.chatterjee_correlation` agree exactly on 300 random
+  tie-free samples (`n` from 3 to 199); the latter refuses tied outputs.
+  The tie-aware value equals a brute-force evaluation of
+  `1 - n sum |r_(j+1) - r_(j)| / (2 sum l_j (n - l_j))` on 200 samples
+  with four output levels. The asymptotic test is conservative for small
+  samples (rejection rate at the 5 % level: 0.031 at `n = 8`, 0.041 at
+  `n = 20`, 0.042 at `n = 50`, 0.056 at `n = 200`, 0.049 at `n = 1000`;
+  `n Var(xi_n)` is 0.27, 0.36, 0.38, 0.39, 0.40). The permutation test
+  with tied inputs and outputs rejected in 4.9 % (`n = 30`, three levels)
+  and 4.1 % (`n = 100`, two levels) of 1000 null samples.
+- **`corrected` delta.** For `Y = 2 X_1 + X_2` (exact 0.505, 0.160, and an
+  inert third input) the mean corrected values were 0.367, 0.096, -0.001
+  at `n = 500` (100 replicates) and 0.420, 0.109, 0.000 at `n = 4000` (40
+  replicates), against raw means 0.449, 0.178, 0.082 and 0.485, 0.174,
+  0.065. The correction is right for an inert input only; for the two
+  active inputs it is 17 to 40 % too low, worse than the raw estimate.
+  The field stays because the null level and the p-value are useful, but
+  it is not an estimate of delta.
+- **Attribution.** That the bootstrap of the gradient sample is in
+  Constantine, Dow and Wang (2014) could not be verified (the paper could
+  not be opened; a search attributes the bootstrap procedure to a later
+  paper on Monte Carlo estimation of active subspaces). The registry and
+  the bibliography no longer attribute the bootstrap diagnostics or the
+  activity scores to the 2014 paper.
+- **Active subspace.** Autodiff and central-difference moment matrices of
+  a model with uniform, lognormal and normal inputs agree to `3e-11`; the
+  bootstrap 95 % interval of the leading eigenvalue covered the truth in
+  97 % of 200 samples of 200 gradients of a quadratic.
+
 ## Rejected alternatives
 
 - **Bootstrap intervals for the rank estimators.** Biased by construction:
