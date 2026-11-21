@@ -76,7 +76,7 @@ records the step.
 
 | Principle | What it removes or reduces | Condition for exactness | Function | Source |
 |---|---|---|---|---|
-| Randomized truncation | the bias of a fixed level | `sum_n E[Delta_n^2] / p_n` finite | `single_term_estimator`, `coupled_sum_estimator` | [REF-RHEE-GLYNN-2015], [REF-MCLEISH-2011] |
+| Randomized truncation | the bias of a fixed level | `sum_n E[Delta_n^2] / p_n` finite (single term); with `P(N >= n)` in place of `p_n` for the sum over independently drawn levels | `single_term_estimator`, `coupled_sum_estimator` (the independent-sum variant, despite its name) | [REF-RHEE-GLYNN-2015], [REF-MCLEISH-2011] |
 | Thinning | the cost of a rarely needed term | finite second moment | `thinned_estimator` | [REF-RHEE-GLYNN-2015] |
 | Sum of independent terms | keeps a large base term out of the weighted part | independence | `sum_of_estimators` | [REF-GILES-2015] |
 | Richardson extrapolation | leading bias terms | known exponents of the bias expansion | `extrapolated_estimator` | [REF-ROACHE-1998] |
@@ -390,8 +390,10 @@ table.best.method  # 'MLBLUE'
 ```
 
 The ratios are predictions from the covariance supplied. In practice the
-covariance comes from a pilot sample, the predictions inherit its error,
-and the selected estimator should be certified as in Section 4.
+covariance comes from a pilot sample, and the predictions are then
+optimistic (with a pilot of 30 samples the realized variance was 1.6 to 2.9
+times the predicted one in the study of ADR-0117), so the selected
+estimator should be certified as in Section 4.
 
 ## Common pitfalls
 
@@ -401,8 +403,10 @@ and the selected estimator should be certified as in Section 4.
 - **Infinite variance behind a plausible mean.** A randomized-truncation
   estimator whose level law decays faster than the squared differences has
   infinite variance. Its replicate mean still looks right and its standard
-  error is meaningless. Compare the decay rates first and run
-  `check_variance_stability`.
+  error is meaningless. Compare the decay rates first;
+  `check_variance_stability` is a weak second line of defence (it flagged
+  such estimators in 20% to 42% of seeded runs, see ADR-0131), so a clean
+  result from it proves nothing.
 - **Coefficients fitted on the draws they correct.** Estimating control
   coefficients or combination weights from the same sample adds a bias of
   order `1/n`. The combinators freeze them from a pilot with its own seed.

@@ -18,7 +18,8 @@ library does not contain and for certifying what is claimed about it.
 - **Method laboratory** (`probstat.methodlab`, ADR-0131): an `Estimator`
   contract (a seeded draw with a cost and a lineage of derivation steps);
   combinators for randomized truncation (`single_term_estimator`,
-  `coupled_sum_estimator`), `thinned_estimator`, `sum_of_estimators`,
+  `coupled_sum_estimator`, which is Rhee and Glynn's independent-sum
+  variant), `thinned_estimator`, `sum_of_estimators`,
   Richardson extrapolation, best linear unbiased combination, control
   variates with frozen pilot coefficients, antithetic pairs, jackknife and
   bootstrap bias correction, numerical influence functions, and the one-step
@@ -105,7 +106,9 @@ library does not contain and for certifying what is claimed about it.
 - **Quasi-Monte Carlo** (`probstat.sampling`, ADR-0118): `rank1_lattice`
   with random shifts, `lattice_squared_error`, component-by-component and
   Korobov generating vectors; `rqmc_mean` with an approximate Student-t
-  interval (measured coverage 0.92 to 0.96 at nominal 0.95), `rqmc_median`
+  interval (measured coverage 0.93 to 0.96 at nominal 0.95 for smooth
+  integrands with at least five replicates, 0.80 to 0.88 for an integrable
+  singularity), `rqmc_median`
   (deliberately without an interval), and the construction-free
   `median_random_lattice`.
 - **Simulation-based inference** (`probstat.generative`, ADR-0129):

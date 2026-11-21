@@ -44,7 +44,9 @@ that can be mechanized, and one that cannot:
    Replicate `i` uses the child stream `("replicate", i)`, so estimators
    replicated with one seed share random numbers.
 3. **Combinators return estimators** and append one sentence to the
-   lineage: `single_term_estimator`, `coupled_sum_estimator` (with
+   lineage: `single_term_estimator`, `coupled_sum_estimator` (the
+   independent-sum variant of Rhee and Glynn: levels are drawn on separate
+   streams; their coupled-sum estimator is not implemented) (with
    `geometric_levels`, `finite_levels`, `optimal_level_probabilities`,
    `truncation_design`), `thinned_estimator`, `sum_of_estimators`,
    `extrapolated_estimator`, `combine_unbiased`,
@@ -89,6 +91,41 @@ that can be mechanized, and one that cannot:
 - Over 400 seeds a true unbiasedness claim was refuted at the 95% level
   between 6 and 36 times (the test asserts this band around the nominal
   20).
+- An independent audit measured the error rates of the verdicts over 2000
+  seeds at the default 99% level (nominal rate of a wrong "refuted": 1%).
+  `check_unbiasedness` used a normal quantile and refuted a true claim in
+  7.1%, 2.9%, 1.5% of runs with 5, 10, 30 normal replicates; it now uses
+  the Student-t quantile (1.3%, 1.2%, 1.1%), which leaves 5.4%, 4.1%, 1.9%
+  for exponential replicates at `R = 5, 30, 100`. `check_variance` refutes
+  a true variance in 5.9% / 2.5% / 1.0% of runs for normal replicates at
+  `R = 30 / 100 / 1000`, 19% / 9% / 2.4% for exponential ones, 39% / 26% /
+  12% for lognormal ones, and 14% at `R = 5000` for a t law with three
+  degrees of freedom. `check_convergence_rate` refutes the true rate of a
+  sample mean in 4.4% / 2.0% / 1.6% of runs (10 / 30 / 100 replicates,
+  normal data) and 11% / 9% / 7% (lognormal data). `check_coverage` kept
+  its level in every case tried (at most 0.9% wrong "refuted", at most
+  0.4% wrong "supported" with `conservative_ok` at a true coverage just
+  below the bound).
+- `check_efficiency_gain` neglected the uncertainty of the mean cost. For
+  two copies of one estimator (true gain 1) whose cost `2^N` has infinite
+  variance (geometric level law with ratio 0.45) it declared the gain
+  "supported" in 23% and "refuted" in 21% of 500 runs with 200 replicates
+  (35% each with 2000). The standard error of `log WNV` now includes the
+  mean cost and its covariance with the squared deviations; the rates fell
+  to 2% and 2% at 200 replicates. With constant costs the result is
+  unchanged, and the rates there were 1.2% / 0.3% "supported" at 30 / 200
+  normal replicates and 2.4% / 0.6% at 200 / 2000 lognormal replicates
+  (nominal 0.5%).
+- `check_variance_stability` flags an infinite variance in only 20% to 42%
+  of runs (single-term estimators with too light a level law, Pareto
+  variates with tail index 1.5 and 1.9; 1000 or 20 000 replicates), and
+  `check_unbiasedness` on those single-term estimators refuted the true
+  mean in 5% to 15% of 300 runs. The flag has no false alarms on normal
+  replicates; an unraised flag is not evidence of a finite variance.
+- `coupled_sum_estimator` draws every level on its own stream and is
+  therefore the independent-sum estimator of Rhee and Glynn; its variance
+  in a test case is 22.7 where their coupled-sum estimator would have 11.6.
+  The name is kept; docstring, equation record and guide state the fact.
 - The jackknife correction of the plug-in variance equals the unbiased
   variance to rounding; numerical influence values of the mean, variance,
   and a ratio of means equal the analytical ones to 6-8 decimals.

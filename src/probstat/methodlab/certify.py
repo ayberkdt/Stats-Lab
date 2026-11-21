@@ -31,7 +31,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import TypeVar
 
-from probstat.distributions import Normal
+from probstat.distributions import Normal, StudentT
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import (
     require_finite_real,
@@ -39,7 +39,12 @@ from probstat.foundations.validation import (
 )
 from probstat.inference import clopper_pearson_interval
 
-from .estimators import Estimator, summarize
+from .estimators import (
+    Estimator,
+    _log_work_normalized_variance_error,
+    summarize,
+    summarize_draws,
+)
 
 T = TypeVar("T")
 
@@ -112,7 +117,13 @@ def interval_verdict(
     ([EQ-MLAB-VERDICT-001]). When the interval has level ``1 - alpha``, a
     wrong ``"refuted"`` has probability at most ``alpha`` and, by the
     interval-inclusion argument of two one-sided tests, so has a wrong
-    ``"supported"``.
+    ``"supported"``. The guarantee is only as good as the interval: it
+    holds for the Clopper-Pearson interval of :func:`check_coverage` and,
+    for normal replicates, for the t interval of
+    :func:`check_unbiasedness`; the delta-method intervals of
+    :func:`check_variance`, :func:`check_convergence_rate`, and
+    :func:`check_efficiency_gain` reach their level only for many
+    replicates and light tails (their docstrings give measured rates).
 
     Args:
         lower: Lower confidence limit.
@@ -183,15 +194,24 @@ def _wald(
     tolerance: float | None,
     confidence: float,
     replicates: int,
+    *,
+    degrees_of_freedom: int | None = None,
 ) -> CheckResult:
     """Build a check result from a Wald interval.
+
+    The critical value is the normal quantile, or the Student-t quantile
+    with ``degrees_of_freedom`` when given (the interval of a mean of
+    ``R`` replicates with estimated variance uses ``R - 1``).
 
     References:
         [EQ-MLAB-MCSE-001], [EQ-MLAB-VERDICT-001],
         [REF-MORRIS-WHITE-CROWTHER-2019].
 
     """
-    z = Normal(0.0, 1.0).quantile(0.5 + 0.5 * confidence)
+    if degrees_of_freedom is None:
+        z = Normal(0.0, 1.0).quantile(0.5 + 0.5 * confidence)
+    else:
+        z = StudentT(float(degrees_of_freedom)).quantile(0.5 + 0.5 * confidence)
     lower = estimate - z * standard_error
     upper = estimate + z * standard_error
     return CheckResult(
@@ -222,10 +242,16 @@ def check_unbiasedness(
 
     The bias estimate is the replicate mean minus ``truth`` with Monte Carlo
     standard error ``s / sqrt(R)`` ([EQ-MLAB-MCSE-001]); the interval is the
-    normal-approximation interval of the mean, which presumes a finite
+    Student-t interval of the mean with ``R - 1`` degrees of freedom. Its
+    level is exact for normally distributed replicates and approximate
+    otherwise: over 2000 seeds at ``confidence = 0.99`` a true claim was
+    refuted in 0.8% to 1.3% of runs for normal replicates (``R = 5`` to
+    ``100``), and for exponential replicates in 4.9% (``R = 10``), 4.1%
+    (``R = 30``), 1.9% (``R = 100``) and 0.8% (``R = 1000``). The interval
+    presumes a finite
     variance. A heavy-tailed estimator (infinite variance, as a
     randomized-truncation estimator with a badly chosen level law has) makes
-    this interval unreliable: also run :func:`check_variance_stability`.
+    it unreliable: also run :func:`check_variance_stability`.
 
     Args:
         estimator: Estimator under test.
@@ -261,6 +287,7 @@ def check_unbiasedness(
         tolerance,
         level,
         summary.count,
+        degrees_of_freedom=summary.count - 1,
     )
 
 
@@ -279,6 +306,17 @@ def check_variance(
     to the claimed variance ``v``, with the distribution-free standard error
     of [EQ-MLAB-MCSE-002] (it uses the sample fourth moment, so no normality
     of the estimator is assumed). The claim is ``ratio = 1``.
+
+    The interval is a large-sample normal approximation and needs a finite
+    fourth moment; with few replicates or heavy tails it is too narrow.
+    Measured over 2000 seeds at ``confidence = 0.99``, a *true* variance was
+    refuted in 5.9%, 2.5%, 1.0% of runs for normal replicates with
+    ``R = 30, 100, 1000``; in 19%, 9%, 2.4% for exponential replicates; in
+    39%, 26%, 12% for lognormal replicates (4% at ``R = 5000``); and in 14%
+    at ``R = 5000`` for Student-t replicates with three degrees of freedom,
+    whose fourth moment is infinite. Treat a ``"refuted"`` from a skewed or
+    heavy-tailed estimator with fewer than several thousand replicates as
+    unconfirmed.
 
     Args:
         estimator: Estimator under test.
@@ -356,7 +394,15 @@ def check_variance_stability(
     diagnostic reports two symptoms of an infinite one: block variances that
     do not settle, and one replicate that carries most of the sum of squared
     deviations ([EQ-MLAB-STAB-001]). ``suspicious`` is a heuristic flag, not
-    a test with an error probability.
+    a test with an error probability, and it misses most infinite-variance
+    estimators: with the default threshold it was raised in 40% of 300
+    seeded runs (1000 replicates) for a single-term estimator whose terms
+    ``E[Delta_n^2] / p_n`` grow like ``2.5^n``, in 25% when they grow like
+    ``1.25^n``, and in 37% for a Pareto variate with tail index 1.5; 20 000
+    replicates did not raise these rates. It was never raised for normal
+    replicates or for a finite-variance single-term estimator. An unraised
+    flag is therefore no evidence of a finite variance; compare the decay
+    rates of the differences and the level law analytically.
 
     Args:
         estimator: Estimator under test.
@@ -506,7 +552,12 @@ def check_convergence_rate(
     ``log MSE`` (independent across sizes). A claimed rate ``r`` means
     ``MSE = O(n^-r)``: ``r = 1`` for plain Monte Carlo, ``r = 2`` for a
     root-mean-square error of order ``1/n``. The fit describes the tested
-    range of sizes only; pre-asymptotic behaviour biases it.
+    range of sizes only; pre-asymptotic behaviour biases it. The interval is
+    a large-sample approximation (squared errors are skewed): for the mean
+    of ``n = 4, 16, 64`` variates, whose rate is exactly one, the true rate
+    was refuted at ``confidence = 0.99`` in 4.4%, 2.0%, 1.6% of 2000 seeded
+    runs with 10, 30, 100 replicates per size for normal variates and in
+    11%, 9%, 7% for lognormal variates.
 
     Args:
         name: Label of the family.
@@ -523,8 +574,8 @@ def check_convergence_rate(
         Check result whose estimate is the fitted rate.
 
     Raises:
-        ValueError: If fewer than three distinct sizes are given or a mean
-            squared error is zero.
+        ValueError: If fewer than three distinct sizes are given, a size
+            repeats, or a mean squared error is zero.
 
     References:
         [REF-OBERKAMPF-ROY-2010] (observed order of accuracy),
@@ -539,6 +590,10 @@ def check_convergence_rate(
     grid = [require_non_negative_integer(n, name="size") for n in sizes]
     if len(set(grid)) < 3 or any(n == 0 for n in grid):
         raise ValueError("at least three distinct positive sizes are required")
+    if len(set(grid)) != len(grid):
+        # A repeated size would reuse the child stream ("size", n): the same
+        # replicates would enter the fit twice as if they were independent.
+        raise ValueError("sizes must not repeat")
     root = resolve_stream(seed)
     xs: list[float] = []
     ys: list[float] = []
@@ -589,8 +644,13 @@ def check_efficiency_gain(
     reduces the computing budget needed for a given accuracy when both are
     (nearly) unbiased. The interval is built on the log scale by the delta
     method from independent replicate sets (the two estimators use the
-    child streams ``"candidate"`` and ``"baseline"``); the uncertainty of
-    the mean costs is neglected, which is exact for deterministic costs.
+    child streams ``"candidate"`` and ``"baseline"``). The standard error
+    of each ``log WNV`` covers the sample variance ([EQ-MLAB-MCSE-002]),
+    the mean cost, and their covariance; it needs finite fourth moments of
+    the values and a finite variance of the costs, and it is a
+    large-sample approximation (see ADR-0131 for measured error rates: a
+    randomized-truncation estimator whose cost has infinite variance makes
+    the verdict unreliable).
     The verdict is one-sided: ``"supported"`` when the whole interval
     exceeds ``claimed_gain``, ``"refuted"`` when it lies entirely below,
     ``"inconclusive"`` otherwise. A biased candidate can show a spurious
@@ -622,16 +682,18 @@ def check_efficiency_gain(
     level = _confidence(confidence)
     count = _replicate_count(replicates, 4)
     root = resolve_stream(seed)
-    new = summarize(candidate, count, root.child("candidate"))
-    old = summarize(baseline, count, root.child("baseline"))
+    new_draws = candidate.replicates(count, root.child("candidate"))
+    old_draws = baseline.replicates(count, root.child("baseline"))
+    new = summarize_draws(candidate.name, new_draws)
+    old = summarize_draws(baseline.name, old_draws)
     if new.variance <= 0.0 or old.variance <= 0.0:
         raise ValueError("both estimators need a positive replicate variance")
     if new.mean_cost <= 0.0 or old.mean_cost <= 0.0:
         raise ValueError("both estimators need a positive mean cost")
     estimate = old.work_normalized_variance / new.work_normalized_variance
-    log_se = math.sqrt(
-        (old.variance_standard_error / old.variance) ** 2
-        + (new.variance_standard_error / new.variance) ** 2
+    log_se = math.hypot(
+        _log_work_normalized_variance_error(old_draws),
+        _log_work_normalized_variance_error(new_draws),
     )
     z = Normal(0.0, 1.0).quantile(0.5 + 0.5 * level)
     lower = estimate * math.exp(-z * log_se)

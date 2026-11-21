@@ -604,9 +604,11 @@ class RandomizedIntegrationTests(unittest.TestCase):
         # Smooth product in two dimensions, R = 10: close to 95 %.
         self.assertTrue(0.93 <= coverage(xexp_product, 2, 10) <= 0.97)
         # One dimension, linear integrand: each replicate error is exactly
-        # uniform on +-c / (2 n), so the t interval with R = 5 under-covers.
+        # uniform on +-c / (2 n), so the coverage is that of a t interval for
+        # five uniform variates, 0.9348 (direct simulation, 400 000 samples).
+        # Three binomial standard errors over 1000 seeds are 0.0234.
         low = coverage(linear_product, 1, 5)
-        self.assertTrue(0.90 <= low <= 0.94, low)
+        self.assertAlmostEqual(low, 0.9348, delta=0.0234)
 
     def test_one_dimensional_linear_replicate_law(self) -> None:
         """For ``f = 1 + c (x - 1/2)`` the replicate error is ``c (u - 1/2)/n``."""
