@@ -5334,3 +5334,80 @@ Scheme." *Journal of the Royal Statistical Society: Series B (Statistical
 Methodology)* 84(2), 321-350, 2022. Deterministic even-odd swaps, swap
 rejection rates, and round trips.
 DOI: [10.1111/rssb.12464](https://doi.org/10.1111/rssb.12464).
+## REF-KENNEDY-OHAGAN-2000
+
+Marc C. Kennedy and Anthony O'Hagan. "Predicting the Output from a Complex
+Computer Code When Fast Approximations Are Available." *Biometrika* 87(1),
+1-13, 2000. The first-order autoregressive model
+`Z_t(x) = rho_(t-1) Z_(t-1)(x) + delta_t(x)` linking computer codes of
+increasing fidelity through independent Gaussian-process discrepancies.
+DOI: [10.1093/biomet/87.1.1](https://doi.org/10.1093/biomet/87.1.1).
+
+## REF-LE-GRATIET-GARNIER-2014
+
+Loic Le Gratiet and Josselin Garnier. "Recursive Co-Kriging Model for Design
+of Computer Experiments with Multiple Levels of Fidelity." *International
+Journal for Uncertainty Quantification*, 2014. On nested designs the
+autoregressive co-kriging model of `s` levels splits into `s` independent
+kriging problems whose predictors are combined recursively and reproduce the
+joint co-kriging predictor.
+Preprint: [arXiv:1210.0686](https://arxiv.org/abs/1210.0686).
+
+## REF-ANKENMAN-NELSON-STAUM-2010
+
+Bruce Ankenman, Barry L. Nelson, and Jeremy Staum. "Stochastic Kriging for
+Simulation Metamodeling." *Operations Research* 58(2), 371-382, 2010.
+Kriging of the sample means of replicated stochastic simulation runs with an
+extrinsic spatial covariance and an intrinsic diagonal covariance of the
+simulation noise estimated by the sample variances.
+DOI: [10.1287/opre.1090.0754](https://doi.org/10.1287/opre.1090.0754).
+
+## REF-OHAGAN-1991
+
+Anthony O'Hagan. "Bayes-Hermite Quadrature." *Journal of Statistical Planning
+and Inference* 29, 245-260, 1991. Posterior mean and variance of an integral
+against a Gaussian measure under a Gaussian-process prior on the integrand.
+
+## REF-JONES-SCHONLAU-WELCH-1998
+
+Donald R. Jones, Matthias Schonlau, and William J. Welch. "Efficient Global
+Optimization of Expensive Black-Box Functions." *Journal of Global
+Optimization* 13, 455-492, 1998. Kriging-based global optimization that
+selects the next evaluation by maximizing the expected improvement.
+DOI: [10.1023/A:1008306431147](https://doi.org/10.1023/A:1008306431147).
+
+## REF-AMENT-ETAL-2023
+
+Sebastian Ament, Samuel Daulton, David Eriksson, Maximilian Balandat, and
+Eytan Bakshy. "Unexpected Improvements to Expected Improvement for Bayesian
+Optimization." In *Advances in Neural Information Processing Systems 36*
+(NeurIPS 2023), 2023. The expected improvement and its gradient vanish
+numerically over large parts of the domain; optimizing its logarithm,
+evaluated stably in the tail, removes the problem.
+Preprint: [arXiv:2310.20708](https://arxiv.org/abs/2310.20708).
+
+## REF-SRINIVAS-ETAL-2010
+
+Niranjan Srinivas, Andreas Krause, Sham M. Kakade, and Matthias Seeger.
+"Gaussian Process Optimization in the Bandit Setting: No Regret and
+Experimental Design." In *Proceedings of the 27th International Conference on
+Machine Learning* (ICML 2010), 2010. The GP-UCB rule
+`x_t = argmax mu(x) + sqrt(beta_t) sigma(x)` with regret bounds; for a finite
+decision set `D`, `beta_t = 2 log(|D| t^2 pi^2 / (6 delta))`.
+Preprint: [arXiv:0912.3995](https://arxiv.org/abs/0912.3995).
+
+## REF-GARDNER-ETAL-2014
+
+Jacob R. Gardner, Matt J. Kusner, Zhixiang Xu, Kilian Q. Weinberger, and John
+P. Cunningham. "Bayesian Optimization with Inequality Constraints." In
+*Proceedings of the 31st International Conference on Machine Learning*,
+PMLR 32, 937-945, 2014. Expected improvement multiplied by the probability
+that independently modelled constraint functions are satisfied.
+
+## REF-FRAZIER-POWELL-DAYANIK-2008
+
+Peter I. Frazier, Warren B. Powell, and Savas Dayanik. "A Knowledge-Gradient
+Policy for Sequential Information Collection." *SIAM Journal on Control and
+Optimization* 47(5), 2410-2439, 2008. The one-step expected increase of the
+best posterior mean for independent normal beliefs, in closed form.
+DOI: [10.1137/070693424](https://doi.org/10.1137/070693424).

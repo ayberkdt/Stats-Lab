@@ -202,7 +202,77 @@ increments are never negative.
     (`N = 400`) gives `1.903 +/- 0.063`. Laplace ignores posterior skewness;
     nested MC is biased low.
 
-## 9. Limitations
+## 9. Bayesian optimization (EQ-DES-BO-001 to EQ-DES-BO-006)
+
+Sequential design can also aim at the optimum of an expensive function
+instead of at information about parameters. A Gaussian process is fitted to
+the evaluations so far; its predictive mean `mu(x)` and standard deviation
+`s(x)` define an acquisition function whose maximizer is evaluated next.
+
+- **Expected improvement.** With incumbent `f*` and minimization,
+  `EI = E[max(f* - F, 0)] = s h(z)`, `h(z) = phi(z) + z Phi(z)`,
+  `z = (f* - mu) / s`. Far from the incumbent `EI` underflows to zero and
+  gives an optimizer nothing to climb, so the loop maximizes `log EI`, which
+  `log_expected_improvement` evaluates without cancellation
+  (EQ-DES-BO-002).
+- **Confidence bounds.** `mu - sqrt(beta) s` for minimization and
+  `mu + sqrt(beta) s` for maximization; `gp_ucb_beta` gives the schedule
+  `2 log(|D| t^2 pi^2 / (6 delta))` for a finite set `D`.
+- **Constraints.** `constrained_expected_improvement` multiplies `EI` by the
+  probability that each constraint `c_k(x) <= 0`, modelled by its own GP, is
+  satisfied.
+- **Knowledge gradient.** For independent normal beliefs over a finite set of
+  alternatives, `knowledge_gradient` returns the expected increase of the
+  best posterior mean from one more measurement of each alternative.
+- **Thompson sampling.** `thompson_sample` draws the GP posterior jointly on
+  a candidate set and returns the optimizer of the draw.
+
+Every function takes `maximize`; the default is minimization.
+
+```python
+import math
+
+from probstat.design import (
+    bayesian_optimization,
+    expected_improvement,
+    log_expected_improvement,
+)
+
+expected_improvement(0.0, 1.0, 0.0)            # 0.39894
+expected_improvement(40.0, 1.0, 0.0)           # 0.0
+log_expected_improvement(40.0, 1.0, 0.0)       # -808.2986
+
+
+def objective(x):
+    return (6 * x[0] - 2) ** 2 * math.sin(12 * x[0] - 4)
+
+
+result = bayesian_optimization(objective, [(0.0, 1.0)], budget=15, seed=1)
+result.best_point[0]       # 0.7573
+result.best_value          # -6.02074
+result.initial_size        # 4
+result.surrogate_fits      # 11
+
+constrained = bayesian_optimization(
+    objective, [(0.0, 1.0)], budget=18, seed=1, constraints=[lambda x: x[0] - 0.6]
+)
+constrained.best_point[0]  # 0.1425
+constrained.best_value     # -0.98633
+```
+
+The global minimum of this function is `-6.020740` at `x = 0.757249`; with
+`x <= 0.6` the minimum is `-0.986325` at `x = 0.142590`. Over seeds 0 to 4
+the largest gap after 15 evaluations is `1.2e-6`, against a mean gap of
+`0.82` for uniform random search with the same budget. The result reports
+the best evaluated point and the evaluation counts; it is not a proof that
+the global optimum was reached.
+
+Sources: [REF-JONES-SCHONLAU-WELCH-1998] (expected improvement),
+[REF-AMENT-ETAL-2023] (its logarithm), [REF-SRINIVAS-ETAL-2010] (GP-UCB),
+[REF-GARDNER-ETAL-2014] (constraints), [REF-FRAZIER-POWELL-DAYANIK-2008]
+(knowledge gradient).
+
+## 10. Limitations
 
 - Classical designs assume homoscedastic, uncorrelated errors and a finite
   candidate grid; continuous refinement of support points is not provided.
@@ -213,6 +283,11 @@ increments are never negative.
   data-generating parameter. Nested MC bias can dominate when the EIG is
   large.
 - Greedy selection is myopic and does not optimize batches jointly.
+- Bayesian optimization refits a GP at every iteration, so it suits budgets
+  of tens of evaluations in a few dimensions. One point is proposed at a
+  time (no batches), the objective is assumed deterministic or mildly noisy,
+  and the GP-UCB schedule is a heuristic outside its finite-set, known-kernel
+  setting. The knowledge gradient covers independent beliefs only.
 
 ## Common pitfalls
 
@@ -232,6 +307,10 @@ increments are never negative.
   `expected_information_gain` itself defaults to `method="laplace"`.
 - **Local means local.** A `LocalLinearization` design is optimal at its
   nominal parameter value only.
+- **Direction of optimization.** `bayesian_optimization` and the acquisition
+  functions minimize unless `maximize=True`; `knowledge_gradient` alone
+  defaults to `maximize=True`. `expected_improvement` returns exactly `0.0`
+  far from the incumbent; rank candidates with `log_expected_improvement`.
 
 ```python
 import inspect

@@ -552,6 +552,111 @@ scalar Python. A deep ensemble gives a usable predictive spread at a fixed,
 known cost instead. Its epistemic variance measures member
 disagreement, not the true error, and is not calibrated.
 
+## 7. Several fidelities, noisy simulators, and integrals
+
+Three further uses of the same Gaussian conditioning live next to the GP.
+
+**Recursive co-kriging** (EQ-SUR-MF-001, EQ-SUR-MF-002). A cheap code `z_1`
+and an expensive code `z_2` are linked by
+`Z_2(x) = rho Z_1(x) + delta(x)` with a GP prior on `Z_1` and an independent
+GP prior on the discrepancy `delta`. When the expensive design is a subset of
+the cheap design, conditioning on all runs is the same as two separate GP
+regressions: one of `z_1`, and one of `z_2 - rho z_1` at the expensive
+points. The predictor is `m_2(x) = rho m_1(x) + m_delta(x)` with variance
+`rho^2 s_1^2(x) + s_delta^2(x)`, and it equals the joint co-kriging predictor
+with the block covariance. `fit_recursive_cokriging` estimates `rho` and the
+trend constant by generalized least squares inside the universal kriging fit
+and handles any number of nested levels.
+
+```python
+import math
+
+from probstat.surrogates import fit_gaussian_process, fit_recursive_cokriging
+
+
+def expensive(x):
+    return (6 * x - 2) ** 2 * math.sin(12 * x - 4)
+
+
+def cheap(x):
+    return 0.5 * expensive(x) + 10 * (x - 0.5) - 5
+
+
+low = [(i / 10,) for i in range(11)]
+high = [(0.0,), (0.4,), (0.6,), (1.0,)]
+model = fit_recursive_cokriging(
+    [low, high],
+    [[cheap(x) for (x,) in low], [expensive(x) for (x,) in high]],
+    seed=1,
+)
+model.scale_factors[0]                # 1.996
+model.predict((0.75,))                # -6.081
+expensive(0.75)                       # -5.993
+single = fit_gaussian_process(high, [expensive(x) for (x,) in high], seed=1)
+single.predict((0.75,))               # 5.305
+```
+
+Four expensive runs alone miss the minimum near `x = 0.76` completely; with
+eleven cheap runs the co-kriging error over `[0, 1]` is 0.185 in root mean
+square against 5.47. The variance is a plug-in value: `rho`, the trend
+constants, and the kernel hyperparameters are treated as known.
+
+**Stochastic kriging** (EQ-SUR-SK-001, EQ-SUR-SK-002). A stochastic simulator
+returns a different value on every run. With `n_i` replications at `x_i` the
+sample mean `Ybar_i` has variance `V(x_i) / n_i`, and the predictor of the
+mean response is
+`b0 + S_M(x0, .)' (S_M + S_e)^-1 (Ybar - b0 1)` with the spatial covariance
+`S_M` and `S_e = diag(V(x_i) / n_i)`. `V(x_i)` is replaced by the sample
+variance, so points with noisy output are trusted less.
+
+```python
+import math
+import random
+
+from probstat.surrogates import fit_stochastic_kriging
+
+generator = random.Random(4)
+points = [(i / 5,) for i in range(6)]
+runs = [
+    [math.sin(3 * x) + generator.gauss(0, 0.1 + x) for _ in range(20)]
+    for (x,) in points
+]
+kriging = fit_stochastic_kriging(points, runs, seed=1)
+kriging.intrinsic_variances[0]             # 0.000386
+kriging.intrinsic_variances[-1]            # 0.0503
+kriging.predict_with_variance((0.1,))[1]   # 0.00196
+kriging.predict_with_variance((0.9,))[1]   # 0.0225
+```
+
+**Bayesian quadrature** (EQ-SUR-BQ-001). The integral of a GP against a
+probability measure is Gaussian with mean `m + z' K^-1 (y - m 1)` and
+variance `kk - z' K^-1 z`, where `z_i` integrates the kernel against the
+measure in one argument and `kk` in both. For the squared-exponential kernel
+both have closed forms for Gaussian and uniform measures (EQ-SUR-BQ-002,
+EQ-SUR-BQ-003), and for products of them in several dimensions.
+
+```python
+import math
+
+from probstat.surrogates import GaussianMeasure, bayesian_quadrature
+
+nodes = [(-3 + 0.5 * i,) for i in range(13)]
+result = bayesian_quadrature(
+    nodes,
+    [math.cos(x) for (x,) in nodes],
+    [GaussianMeasure(0.0, 1.0)],
+    length_scales=(1.0,),
+    noise_variance=1e-10,
+)
+result.estimate                # 0.60651
+math.exp(-0.5)                 # 0.60653
+result.standard_deviation      # 0.0000898
+```
+
+The reported standard deviation holds for the stated kernel. With
+`length_scales=None` the kernel is fitted to the same evaluations and its
+uncertainty is not included.
+
 ## Limitations
 
 - PCE: Hermite and Legendre bases only (no other Wiener-Askey families) and
@@ -606,6 +711,14 @@ disagreement, not the true error, and is not calibrated.
   the surrogate is then essentially the sparse PCE plus spikes at the runs.
 - **Basis and inputs.** `basis="hermite"` is the default for every input law;
   `basis="legendre"` is refused unless all inputs are independent uniforms.
+- **Co-kriging designs.** Every expensive point must also be a cheap point
+  (exact coordinates), and the variance ignores the uncertainty of `rho`.
+  Keep the default ten restarts: with few expensive runs the likelihood
+  often has a second mode with a wrong `rho`.
+- **Stochastic kriging replications.** The sample variances are used as if
+  exact. With two or three replications per point they are unreliable.
+- **Bayesian quadrature variance.** It is conditional on the kernel; with
+  fitted hyperparameters it is usually too small.
 - **Seeds.** The fitters default to `seed=None`, which is not reproducible.
 
 ```python
@@ -644,4 +757,7 @@ refused  # "the Legendre basis requires Uniform marginals; 'x' is not uniform"
 - [REF-SCHOBI-SUDRET-WIART-2015] for universal kriging with a polynomial
   chaos trend (PC-Kriging), its closed-form leave-one-out error, and the
   sequential and optimal variants.
+- [REF-KENNEDY-OHAGAN-2000] and [REF-LE-GRATIET-GARNIER-2014] for
+  autoregressive and recursive co-kriging, [REF-ANKENMAN-NELSON-STAUM-2010]
+  for stochastic kriging, and [REF-OHAGAN-1991] for Bayesian quadrature.
 - [REF-SALTELLI-2008, Chapter 4] for the Ishigami benchmark.

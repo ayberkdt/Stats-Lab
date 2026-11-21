@@ -18935,3 +18935,230 @@ limit of long runs.
   `inference.parallel_tempering`.
 - Source: derived here from the tempered path of [REF-SYED-ETAL-2022];
   the increment is that of [REF-DELMORAL-DOUCET-JASRA-2006].
+## Multi-fidelity surrogates, stochastic kriging, Bayesian quadrature, and Bayesian optimization (ADR-0125)
+
+### EQ-SUR-MF-001 — Recursive AR(1) co-kriging predictor
+
+`Z_1 ~ GP(b_1, k_1)` and, for `t = 2..s`,
+`Z_t(x) = rho_(t-1) Z_(t-1)(x) + delta_t(x)` with
+`delta_t ~ GP(b_t, k_t)` independent of `Z_(t-1)`. On nested designs
+`D_s subset ... subset D_1`, with `(m_1, s_1^2)` the GP posterior of `Z_1`
+given `z_1` and `(m_delta_t, s_delta_t^2)` the GP posterior of `delta_t`
+given `z_t - rho_(t-1) z_(t-1)(D_t)`:
+`m_t(x) = rho_(t-1) m_(t-1)(x) + m_delta_t(x)`,
+`s_t^2(x) = rho_(t-1)^2 s_(t-1)^2(x) + s_delta_t^2(x)`.
+
+- Domain: nested designs (every point of `D_t` is a point of `D_(t-1)`);
+  `rho`, `b_t`, and the kernel hyperparameters fixed (plug-in variance).
+- Meaning: the map `(z_1, ..., z_s) -> (z_1, z_2 - rho_1 z_1(D_2), ...)` is
+  a bijection onto independent data sets, so the joint Gaussian conditional
+  with the block AR(1) covariance factorizes into `s` ordinary GP
+  regressions; the recursion equals the joint co-kriging predictor.
+- Code: `surrogates.RecursiveCoKriging.level_predictions`,
+  `surrogates.RecursiveCoKriging.predict_with_variance`,
+  `surrogates.RecursiveCoKriging.predict`,
+  `surrogates.fit_recursive_cokriging`,
+  `surrogates.gaussian_process_from_hyperparameters`.
+- Source: [REF-KENNEDY-OHAGAN-2000] (autoregressive model) and
+  [REF-LE-GRATIET-GARNIER-2014] (recursive formulation).
+
+### EQ-SUR-MF-002 — Generalized least-squares scale factor
+
+With `H = [1, z_(t-1)(D_t)]` and `R` the correlation matrix of `delta_t` on
+`D_t`: `(b_t, rho_(t-1))' = (H' R^-1 H)^-1 H' R^-1 z_t`,
+`sigma_t^2 = (z_t - H beta)' R^-1 (z_t - H beta) / n_t`; the length scales
+maximize the concentrated likelihood [EQ-SUR-UK-001], [EQ-SUR-UK-002].
+
+- Domain: `n_t >= 3` points in `D_t`; lower-fidelity responses not constant
+  on `D_t` (otherwise `H` is rank deficient).
+- Meaning: universal kriging of level `t` with the observed lower-fidelity
+  responses as a regressor; the lower code enters only through its runs at
+  `D_t`, which is why nesting is required.
+- Code: `surrogates.fit_recursive_cokriging`.
+- Source: [REF-LE-GRATIET-GARNIER-2014] and [REF-KENNEDY-OHAGAN-2000].
+
+### EQ-SUR-SK-001 — Stochastic kriging predictor
+
+`Ybar_i = (1/n_i) sum_j Y_j(x_i)`, `Sigma = S_M + S_e` with
+`S_M[i][j] = tau^2 r(x_i, x_j)` and `S_e = diag(V(x_i) / n_i)`, `V(x_i)`
+replaced by the sample variance of the replications:
+`Yhat(x0) = b0 + S_M(x0, .)' Sigma^-1 (Ybar - b0 1)`; when `b0` is not given,
+`b0 = 1' Sigma^-1 Ybar / 1' Sigma^-1 1`.
+
+- Domain: independent replications (no common random numbers), `n_i >= 2`
+  to estimate `V(x_i)`; `Sigma` positive definite.
+- Meaning: best linear predictor of the mean response from sample means with
+  heteroscedastic noise; with equal `V / n` it is GP regression with a
+  homoscedastic noise variance.
+- Code: `surrogates.StochasticKriging.predict_with_variance`,
+  `surrogates.StochasticKriging.predict`,
+  `surrogates.fit_stochastic_kriging`,
+  `surrogates.stochastic_kriging_from_summaries`.
+- Source: [REF-ANKENMAN-NELSON-STAUM-2010].
+
+### EQ-SUR-SK-002 — Stochastic kriging mean squared error
+
+With `c = S_M(x0, .)`:
+`MSE(x0) = tau^2 - c' Sigma^-1 c + (1 - 1' Sigma^-1 c)^2 / (1' Sigma^-1 1)`;
+the last term is dropped when `b0` is known.
+
+- Domain: `S_e` and the kernel hyperparameters treated as known.
+- Meaning: variance of `Y(x0) - Yhat(x0)` for the mean response surface; the
+  last term is the variance contribution of the generalized least-squares
+  estimate of `b0`, obtained from the unbiased linear predictor with weights
+  `lambda = Sigma^-1 c + Sigma^-1 1 (1 - 1' Sigma^-1 c) / (1' Sigma^-1 1)`.
+- Code: `surrogates.StochasticKriging.predict_with_variance`.
+- Source: [REF-ANKENMAN-NELSON-STAUM-2010].
+
+### EQ-SUR-SK-003 — Profile likelihood of the extrinsic hyperparameters
+
+`log L(tau^2, ell) = -(1/2) (log det Sigma + (Ybar - b0 1)' Sigma^-1
+(Ybar - b0 1) + k log 2 pi)` with `Sigma = S_M(tau^2, ell) + S_e`, `S_e`
+fixed, and `b0` the generalized least-squares estimate at each
+`(tau^2, ell)`.
+
+- Domain: at least two design points with distinct sample means and
+  non-constant inputs.
+- Meaning: Gaussian likelihood of the sample means with the intrinsic
+  variances plugged in.
+- Code: `surrogates.stochastic_kriging_from_summaries`,
+  `surrogates.fit_stochastic_kriging`.
+- Source: [REF-ANKENMAN-NELSON-STAUM-2010].
+
+### EQ-SUR-BQ-001 — Bayesian quadrature posterior
+
+For `f ~ GP(m, k)`, `y_i = f(x_i)`, and a probability measure `pi`:
+`z_i = int k(x, x_i) pi(dx)`, `kk = int int k(x, x') pi(dx) pi(dx')`,
+`E[I | y] = m + z' K^-1 (y - m 1)`, `Var[I | y] = kk - z' K^-1 z`.
+
+- Domain: positive-definite `K` (plus an optional noise diagonal); kernel
+  hyperparameters fixed.
+- Meaning: `I = int f dpi` is a linear functional of a Gaussian process, so
+  it is Gaussian; the weights `K^-1 z` do not depend on the data, and the
+  variance cannot increase when nodes are added.
+- Code: `surrogates.bayesian_quadrature`,
+  `surrogates.BayesianQuadratureResult.standard_deviation`.
+- Source: [REF-OHAGAN-1991].
+
+### EQ-SUR-BQ-002 — Squared-exponential kernel integrals, Gaussian measure
+
+For `k(x, x') = exp(-(x - x')^2 / (2 ell^2))` and `pi = N(b, s^2)`:
+`z(x) = sqrt(ell^2 / (ell^2 + s^2)) exp(-(x - b)^2 / (2 (ell^2 + s^2)))`,
+`kk = sqrt(ell^2 / (ell^2 + 2 s^2))`. In `d` dimensions with a product
+measure both are products over the coordinates, times `sigma_f^2`.
+
+- Domain: `ell > 0`, `s > 0`.
+- Meaning: the kernel is `ell sqrt(2 pi)` times the `N(x', ell^2)` density,
+  so `z` is a Gaussian convolution; `kk` follows from `X - X' ~ N(0, 2 s^2)`.
+- Code: `surrogates.kernel_mean`, `surrogates.kernel_double_integral`.
+- Source: [REF-OHAGAN-1991] for the rule; the closed forms are standard
+  Gaussian integrals, verified against `numerics.integrate` in
+  `tests/test_multifidelity_surrogates.py`.
+
+### EQ-SUR-BQ-003 — Squared-exponential kernel integrals, uniform measure
+
+For the same kernel and `pi` uniform on `[a, c]`, `w = c - a`:
+`z(x) = ell sqrt(pi/2) / w (erf((c - x) / (sqrt(2) ell))
+- erf((a - x) / (sqrt(2) ell)))`,
+`kk = (2 / w^2) (w ell sqrt(pi/2) erf(w / (sqrt(2) ell))
+- ell^2 (1 - exp(-w^2 / (2 ell^2))))`.
+
+- Domain: `ell > 0`, `a < c`.
+- Meaning: `z` integrates a Gaussian bump over an interval; `kk` uses the
+  triangular density `2 (w - v) / w^2` of `|X - X'|` on `[0, w]`.
+- Code: `surrogates.kernel_mean`, `surrogates.kernel_double_integral`.
+- Source: derived for this library from [REF-NIST-DLMF, Section 7.2] (error
+  function); verified against `numerics.integrate` in
+  `tests/test_multifidelity_surrogates.py`.
+
+### EQ-DES-BO-001 — Expected improvement
+
+For `F ~ N(mu, s^2)` and incumbent `f*`:
+`EI = E[max(F - f*, 0)] = s h(z)`, `h(z) = phi(z) + z Phi(z)`,
+`z = (mu - f*) / s` (maximization); for minimization
+`EI = E[max(f* - F, 0)]` with `z = (f* - mu) / s`. `EI = max(+-(mu - f*), 0)`
+when `s = 0`.
+
+- Domain: `s >= 0`, finite `mu` and `f*`.
+- Meaning: `h(z) = E[max(z + Z, 0)]` for standard normal `Z`; `h' = Phi`.
+- Code: `design.expected_improvement`, `design.improvement_function`,
+  `design.bayesian_optimization`.
+- Source: [REF-JONES-SCHONLAU-WELCH-1998].
+
+### EQ-DES-BO-002 — Stable logarithm of the improvement function
+
+For `z <= -1`, `t = -z`, and the Mills ratio
+`R(t) = (1 - Phi(t)) / phi(t) = 1 / (t + c(t))`,
+`c(t) = 1 / (t + 2 / (t + 3 / (t + ...)))`:
+`h(z) = phi(t) (1 - t R(t)) = phi(t) c(t) / (t + c(t))`, so
+`log h(z) = -t^2/2 - log sqrt(2 pi) + log c(t) - log(t + c(t))`. For
+`z > -1`, `log h(z) = log(phi(z) + z Phi(z))` directly.
+`log EI = log s + log h(z)`.
+
+- Domain: every real `z`; the continued fraction is truncated after
+  `30 + 300 / t^2` terms.
+- Meaning: `phi(z) + z Phi(z)` cancels to `phi(z) / z^2` in the lower tail
+  and underflows near `z = -38`; the continued-fraction form has no
+  subtraction (`log h(-40) = -808.2986`).
+- Code: `design.log_improvement_function`,
+  `design.log_expected_improvement`, `design.improvement_function`.
+- Source: [REF-AMENT-ETAL-2023] (log expected improvement) and
+  [REF-NIST-DLMF, Section 7.9] (continued fraction of the complementary
+  error function); the continued-fraction form of `log h` is this library's
+  derivation, verified against 50-digit arithmetic in
+  `tests/test_bayesian_optimization.py`.
+
+### EQ-DES-BO-003 — Confidence bounds and the GP-UCB schedule
+
+`UCB(x) = mu(x) + sqrt(beta) s(x)` (maximization),
+`LCB(x) = mu(x) - sqrt(beta) s(x)` (minimization); for a finite decision set
+`D` and round `t`, `beta_t = 2 log(|D| t^2 pi^2 / (6 delta))`.
+
+- Domain: `beta >= 0`; `t >= 1`, `|D| >= 1`, `0 < delta < 1`.
+- Meaning: optimism in the face of uncertainty; the schedule gives a
+  high-probability regret bound for a GP with known kernel on a finite set,
+  and is a heuristic otherwise.
+- Code: `design.confidence_bound`, `design.gp_ucb_beta`,
+  `design.bayesian_optimization`.
+- Source: [REF-SRINIVAS-ETAL-2010].
+
+### EQ-DES-BO-004 — Constrained expected improvement
+
+With constraints `c_k(x) <= t_k` modelled by independent Gaussian laws
+`N(mu_k, s_k^2)`: `cEI = EI * prod_k Phi((t_k - mu_k) / s_k)`, with `f*` the
+best feasible value.
+
+- Domain: independent objective and constraint models.
+- Meaning: expected feasible improvement; equals `EI` when every constraint
+  is certainly satisfied and zero when one is certainly violated.
+- Code: `design.constrained_expected_improvement`,
+  `design.probability_of_feasibility`, `design.bayesian_optimization`.
+- Source: [REF-GARDNER-ETAL-2014].
+
+### EQ-DES-BO-005 — Knowledge gradient for independent normal beliefs
+
+For beliefs `theta_x ~ N(mu_x, s_x^2)` and measurement noise variance
+`lambda_x`: `st_x = s_x^2 / sqrt(s_x^2 + lambda_x)`,
+`zeta_x = -|mu_x - max_(y != x) mu_y| / st_x`,
+`KG_x = st_x h(zeta_x)` with `h` of [EQ-DES-BO-001].
+
+- Domain: at least two alternatives; `s_x >= 0`, `lambda_x >= 0`.
+- Meaning: after one measurement of `x` the posterior mean is
+  `mu_x + st_x Z`, so `KG_x = E[max_y mu'_y] - max_y mu_y`.
+- Code: `design.knowledge_gradient`.
+- Source: [REF-FRAZIER-POWELL-DAYANIK-2008].
+
+### EQ-DES-BO-006 — Joint GP posterior draw on a finite set
+
+For candidates `x_1..x_m`: `mean_i = mu(x_i)`,
+`C_ij = k(x_i, x_j) - k_i' K^-1 k_j`, and a draw `f = mean + L z` with
+`L L' = C` and `z ~ N(0, I)`; Thompson sampling evaluates
+`argmin_i f_i` (or `argmax_i f_i`).
+
+- Domain: fitted GP; `C` positive semidefinite (a relative jitter `1e-10`
+  on the diagonal absorbs rounding).
+- Meaning: a candidate is selected with its posterior probability of being
+  the best of the candidate set.
+- Code: `design.gaussian_process_joint_posterior`,
+  `design.thompson_sample`, `design.bayesian_optimization`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 2.2].
