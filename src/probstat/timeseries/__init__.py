@@ -12,7 +12,11 @@ simulation; ``smoothing`` provides simple and Holt exponential smoothing;
 innovations; ``var`` provides vector autoregressions with order selection,
 stability, impulse responses, variance decompositions, and Granger tests;
 ``unit_root`` provides the augmented Dickey-Fuller and KPSS tests; and
-``changepoint`` provides the CUSUM mean-shift test and PELT segmentation.
+``changepoint`` provides the CUSUM mean-shift test and PELT segmentation;
+``online_changepoint`` provides Bayesian online change-point detection by the
+run-length recursion with conjugate Gaussian and Poisson models; and
+``reconciliation`` provides OLS, WLS, MinT, and bottom-up reconciliation of
+forecasts for hierarchical and grouped series.
 
 Main entry points:
     ``acf``: sample autocorrelation function (``1/n`` divisor).
@@ -35,6 +39,11 @@ Main entry points:
     ``kpss_test``: KPSS stationarity test with an exact asymptotic p-value.
     ``cusum_test``: CUSUM test for one mean shift.
     ``pelt``: multiple change points in mean and/or variance (BIC/MBIC).
+    ``bayesian_online_changepoint``: run-length filtering distributions and
+        the exact evidence of a constant-hazard product partition model.
+    ``reconcile_forecasts``: coherent forecasts for a summing matrix by
+        OLS, WLS, MinT, or bottom-up; ``hierarchy_summing_matrix`` builds
+        the matrix and ``shrink_covariance`` the MinT covariance.
 
 Assumptions:
     Observations are equally spaced and complete. After ``d`` differences
@@ -43,6 +52,10 @@ Assumptions:
     intervals rely on that model. GARCH, VAR, and the unit-root tests
     condition on the first observations (pre-sample values are backcast or
     dropped); change-point costs assume independent Gaussian segments.
+    The online detector assumes exchangeable observations within a segment,
+    independent segments, and a known constant hazard. Reconciliation
+    assumes unbiased base forecasts; MinT is optimal only for the true
+    base-error covariance.
 
 Common pitfalls:
     - The AR polynomial is ``1 - sum phi_j z^j`` and the MA polynomial
@@ -63,6 +76,13 @@ Common pitfalls:
       regressing one random walk on another gives spurious significance.
     - A level shift can look like volatility clustering or a unit root;
       check for change points before fitting GARCH or differencing.
+    - In the online detector ``P(r_t = 0 | x_1:t)`` always equals the
+      hazard; read changes from the mass on short positive run lengths
+      (``segment_start_probability``), and remember that the output is a
+      filtering distribution, not a smoothed segmentation.
+    - ``reconcile_forecasts`` expects the base forecasts in the row order
+      of the summing matrix (aggregates first for
+      ``hierarchy_summing_matrix``).
 
 Guide: docs/foundations/time-series.md
 
@@ -70,7 +90,8 @@ References:
     [REF-BOX-JENKINS-2015], [REF-BROCKWELL-DAVIS-2016],
     [REF-DURBIN-KOOPMAN-2012], [REF-LJUNG-BOX-1978],
     [REF-BOLLERSLEV-1986], [REF-LUTKEPOHL-2005], [REF-MACKINNON-2010],
-    [REF-KPSS-1992], [REF-KILLICK-2012].
+    [REF-KPSS-1992], [REF-KILLICK-2012], [REF-ADAMS-MACKAY-2007],
+    [REF-WICKRAMASURIYA-ATHANASOPOULOS-HYNDMAN-2019].
 
 """
 
@@ -127,6 +148,12 @@ from .garch import (
     garch_variances,
     simulate_garch,
 )
+from .online_changepoint import (
+    GammaPoissonPrior,
+    NormalInverseGammaPrior,
+    OnlineChangePointResult,
+    bayesian_online_changepoint,
+)
 from .polynomials import (
     RootCheck,
     ar_root_check,
@@ -137,6 +164,14 @@ from .polynomials import (
     pacf_to_coefficients,
     polynomial_roots,
     psi_weights,
+)
+from .reconciliation import (
+    HierarchyStructure,
+    ReconciliationResult,
+    ShrunkCovariance,
+    hierarchy_summing_matrix,
+    reconcile_forecasts,
+    shrink_covariance,
 )
 from .smoothing import (
     ExponentialSmoothingFit,
@@ -240,4 +275,14 @@ __all__ = [
     "select_var_order",
     "simulate_garch",
     "simulate_var",
+    "GammaPoissonPrior",
+    "HierarchyStructure",
+    "NormalInverseGammaPrior",
+    "OnlineChangePointResult",
+    "ReconciliationResult",
+    "ShrunkCovariance",
+    "bayesian_online_changepoint",
+    "hierarchy_summing_matrix",
+    "reconcile_forecasts",
+    "shrink_covariance",
 ]

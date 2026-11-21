@@ -20588,3 +20588,164 @@ the prior's map from standard-normal space; `g <= 0` if and only if
 - Code: `reliability.bus_subset_simulation`.
 - Source: [REF-STRAUB-PAPAIOANNOU-2015] (requirement `c L <= 1`); the
   run-time check is a convention of this library.
+## Competing risks, restricted-mean contrasts, online change points, and forecast reconciliation (ADR-0128)
+
+### EQ-SURV-CIF-001 — Aalen-Johansen cumulative incidence function
+
+`F_k(t) = sum_{t_j <= t} S(t_j-) d_kj / n_j`, with
+`S(t) = prod_{t_j <= t} (1 - d_j / n_j)` the all-cause Kaplan-Meier
+estimator and `d_j = sum_k d_kj`; hence `sum_k F_k(t) = 1 - S(t)`.
+
+- Domain: right-censored competing-risks data, censoring independent of the
+  event process; `t_j` the distinct event times of any cause.
+- Meaning: the probability of failing from cause `k` by `t` in the presence
+  of the other causes. The complement of a Kaplan-Meier curve that censors
+  the competing events is never smaller, and it estimates a different
+  quantity.
+- Code: `inference.survival.cumulative_incidence`,
+  `inference.survival.cumulative_incidence_curves`,
+  `inference.survival.CumulativeIncidenceEstimate.incidence_at`.
+- Source: [REF-AALEN-JOHANSEN-1978].
+
+### EQ-SURV-CIF-002 — Delta-method variance of the cumulative incidence
+
+`Var F_k(t) = sum_{t_j <= t} [ (F_k(t) - F_k(t_j))^2 d_j / (n_j (n_j - d_j))
++ S(t_j-)^2 d_kj (n_j - d_kj) / n_j^3
+- 2 (F_k(t) - F_k(t_j)) S(t_j-) d_kj / n_j^2 ]`; interval
+`F_k +/- z sqrt(Var)` clipped to `[0, 1]`.
+
+- Domain: [EQ-SURV-CIF-001]; large samples. The term of the last event time
+  has `F_k(t) - F_k(t_j) = 0`, so `n_j = d_j` causes no division by zero.
+- Meaning: first-order (delta-method) variance obtained by treating the
+  counts `(d_kj, d_j - d_kj, n_j - d_j)` at different event times as
+  independent multinomials given the risk sets, the argument behind
+  Greenwood's formula. Without censoring it equals `F_k (1 - F_k) / n`; with
+  one cause it equals [EQ-SURV-KM-002]. Derived in ADR-0128 and checked
+  against replicate simulation.
+- Code: `inference.survival.cumulative_incidence`,
+  `inference.survival.CumulativeIncidenceEstimate.interval_at`.
+- Source: [REF-GREENWOOD-1926] (the variance argument),
+  [REF-AALEN-JOHANSEN-1978] (the estimator); derivation in ADR-0128.
+
+### EQ-SURV-RMST-002 — Difference and ratio of restricted means
+
+`D = mu_1(tau) - mu_2(tau)`, `se(D) = sqrt(V_1 + V_2)`,
+`R = mu_1(tau) / mu_2(tau)`, `se(log R) = sqrt(V_1 / mu_1^2 + V_2 / mu_2^2)`;
+intervals `D +/- z se(D)` and `R exp(+/- z se(log R))`; test statistic
+`D / se(D) ~ N(0, 1)` under `mu_1 = mu_2`.
+
+- Domain: two independent right-censored samples; `tau` inside the follow-up
+  of both; `mu_i` and `V_i` from [EQ-SURV-RMST-001].
+- Meaning: the gain in expected event-free time within `tau`, on the
+  additive and on the relative scale, without a proportional-hazards
+  assumption. The estimand depends on `tau`.
+- Code: `inference.survival.compare_restricted_means`,
+  `inference.survival.restricted_mean_survival`.
+- Source: [REF-KLEIN-MOESCHBERGER-2003, Chapter 4] (restricted mean and its
+  variance), [REF-CASELLA-BERGER-2002] (delta method).
+
+### EQ-TS-BOCPD-001 — Run-length recursion with a constant hazard
+
+`P(r_t = r + 1, x_1:t) = P(r_(t-1) = r, x_1:(t-1)) pi_r(x_t) (1 - H)`,
+`P(r_t = 0, x_1:t) = H sum_r P(r_(t-1) = r, x_1:(t-1)) pi_r(x_t)`,
+`P(r_0 = 0) = 1`; `P(x_1:t) = sum_r P(r_t = r, x_1:t)` and
+`P(r_t | x_1:t) = P(r_t, x_1:t) / P(x_1:t)`.
+
+- Domain: product partition model; `pi_r` the posterior predictive given the
+  `r` most recent observations; `0 <= H <= 1`.
+- Meaning: `r_t` counts the observations up to `t` in the segment that also
+  generates `x_(t+1)`. The evidence equals
+  `sum over segmentations of H^m (1 - H)^(t-1-m) prod_segments p(x_segment)`.
+  `P(r_t = 0 | x_1:t) = H` for all `t`; changes show as mass on short
+  positive run lengths. Dropping run lengths above a bound makes the
+  evidence a lower bound.
+- Code: `timeseries.bayesian_online_changepoint`,
+  `timeseries.OnlineChangePointResult.segment_start_probability`,
+  `timeseries.OnlineChangePointResult.run_length_probability`,
+  `timeseries.OnlineChangePointResult.map_change_points`.
+- Source: [REF-ADAMS-MACKAY-2007].
+
+### EQ-TS-BOCPD-002 — Normal-inverse-gamma predictive and evidence
+
+Prior `sigma^2 ~ IG(alpha_0, beta_0)`, `mu | sigma^2 ~ N(m_0, sigma^2 / kappa_0)`.
+Update with `x`: `m' = (kappa m + x) / (kappa + 1)`, `kappa' = kappa + 1`,
+`alpha' = alpha + 1/2`, `beta' = beta + kappa (x - m)^2 / (2 (kappa + 1))`.
+Predictive: Student-t with `2 alpha` degrees of freedom, location `m`,
+squared scale `beta (kappa + 1) / (alpha kappa)`. Evidence:
+`p(x_1:n) = Gamma(alpha_n) / Gamma(alpha_0) * beta_0^alpha_0 / beta_n^alpha_n
+* sqrt(kappa_0 / kappa_n) * (2 pi)^(-n/2)`.
+
+- Domain: `kappa_0, alpha_0, beta_0 > 0`; real observations.
+- Meaning: conjugate updating for a Gaussian segment with unknown mean and
+  variance; the product of the one-step predictives equals the evidence.
+- Code: `timeseries.NormalInverseGammaPrior.log_predictive`,
+  `timeseries.NormalInverseGammaPrior.log_marginal_likelihood`,
+  `timeseries.bayesian_online_changepoint`.
+- Source: [REF-MURPHY-2007].
+
+### EQ-TS-BOCPD-003 — Gamma-Poisson predictive and evidence
+
+Prior `lambda ~ Gamma(a_0, b_0)` (rate `b_0`). Update with a count `x`:
+`a' = a + x`, `b' = b + 1`. Predictive:
+`p(x) = Gamma(a + x) / (Gamma(a) x!) * (b / (b + 1))^a * (b + 1)^(-x)`.
+Evidence: `p(x_1:n) = Gamma(a_0 + s) / Gamma(a_0) * b_0^a_0 /
+(b_0 + n)^(a_0 + s) / prod_i x_i!`, `s = sum x_i`.
+
+- Domain: `a_0, b_0 > 0`; non-negative integer counts.
+- Meaning: conjugate updating for a Poisson segment; the predictive is
+  negative binomial.
+- Code: `timeseries.GammaPoissonPrior.log_predictive`,
+  `timeseries.GammaPoissonPrior.log_marginal_likelihood`,
+  `timeseries.bayesian_online_changepoint`.
+- Source: [REF-GELMAN-ETAL-2013].
+
+### EQ-TS-RECON-001 — Coherence and linear reconciliation
+
+Coherent series satisfy `y = S b`; a linear reconciler is
+`y_tilde = S G y_hat`, and it preserves unbiasedness iff `G S = I`.
+Bottom-up: `G` selects the bottom-level rows of `y_hat`.
+
+- Domain: `S` the `n x m` summing matrix of full column rank; `b` the `m`
+  bottom-level series.
+- Meaning: `S G` is then a projection onto the column space of `S`
+  (idempotent, and the identity on coherent forecasts).
+- Code: `timeseries.reconcile_forecasts`,
+  `timeseries.hierarchy_summing_matrix`,
+  `timeseries.HierarchyStructure.aggregate`,
+  `timeseries.ReconciliationResult.projection`.
+- Source: [REF-WICKRAMASURIYA-ATHANASOPOULOS-HYNDMAN-2019].
+
+### EQ-TS-RECON-002 — Minimum-trace (generalized least squares) reconciler
+
+`G = (S' W^-1 S)^-1 S' W^-1`; reconciled error covariance
+`Var(y - y_tilde) = S G W G' S'`. `W = I` gives OLS, `W = diag(w)` WLS.
+
+- Domain: `W` symmetric positive definite, the covariance of the
+  base-forecast errors; [EQ-TS-RECON-001].
+- Meaning: among all `G` with `G S = I` this choice minimizes
+  `tr(S G W G' S')`, the sum of the reconciled error variances. The
+  guarantee is for the true `W`, not for an estimate.
+- Code: `timeseries.reconcile_forecasts`,
+  `timeseries.ReconciliationResult.error_covariance`,
+  `timeseries.ReconciliationResult.total_error_variance`.
+- Source: [REF-WICKRAMASURIYA-ATHANASOPOULOS-HYNDMAN-2019].
+
+### EQ-TS-RECON-003 — Covariance shrinkage towards the diagonal
+
+`W = lambda diag(C) + (1 - lambda) C` for the sample covariance `C`. Among
+fixed `lambda` the risk `sum_(i != j) E[((1 - lambda) r_ij - rho_ij)^2]` of
+the shrunk correlations is minimal at
+`lambda* = sum_(i != j) Var(r_ij) / sum_(i != j) E[r_ij^2]` for unbiased
+`r_ij`. Plug-in: `lambda_hat = sum_(i != j) Var_hat(r_ij) / sum_(i != j) r_ij^2`
+clipped to `[0, 1]`, `Var_hat(r_ij) = N / (N - 1)^3 sum_k (w_kij - w_bar_ij)^2`,
+`w_kij = z_ki z_kj` with standardized residuals `z`.
+
+- Domain: `N >= 2` residual vectors with positive variances.
+- Meaning: variances are kept and covariances damped, which makes `W`
+  positive definite for `lambda > 0` even when `N < n`. `lambda*` follows by
+  setting the derivative of the risk to zero (ADR-0128); the plug-in is a
+  heuristic estimate of it that ignores the error of the standardization.
+- Code: `timeseries.shrink_covariance`.
+- Source: [REF-WICKRAMASURIYA-ATHANASOPOULOS-HYNDMAN-2019] (use of a
+  covariance shrunk towards its diagonal in MinT); intensity derived in
+  ADR-0128.

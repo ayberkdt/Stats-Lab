@@ -493,6 +493,128 @@ with the length of the series when changes keep occurring.
 
 *PELT recovers both changes, at 300 and 600: the first shifts the mean and keeps the spread, the second keeps the mean near 3 while the segment variance rises from 1.04 to 9.25, a change that a mean-only cost would not see.*
 
+## 12. Online change points: the run-length recursion
+
+`bayesian_online_changepoint` [EQ-TS-BOCPD-001] processes the series one
+observation at a time. Its model is a product partition: each boundary
+between two observations is a change point with a known probability `H`
+(the hazard), and every segment draws its parameter afresh from a conjugate
+prior. The recursion carries the joint probability of the data and the *run
+length* `r_t`, the number of observations so far in the current segment:
+each run either grows by one (weight `1 - H`) or resets to zero (weight
+`H`), and both are weighted by the posterior predictive of the new
+observation given that run. Two models are available: Gaussian with unknown
+mean and variance (`NormalInverseGammaPrior`, Student-t predictive,
+[EQ-TS-BOCPD-002]) and Poisson counts (`GammaPoissonPrior`,
+negative-binomial predictive, [EQ-TS-BOCPD-003]).
+
+The sum of the joint over run lengths is the evidence of the whole model,
+the sum over all `2^(T-1)` segmentations; the tests confirm this by
+enumeration, and with `H = 0` the evidence is the closed-form conjugate
+marginal likelihood of one segment. Two properties deserve attention:
+
+- `P(r_t = 0 | x_1:t)` equals `H` at every `t`, by construction. A change
+  shows a few observations later as mass on short run lengths:
+  `segment_start_probability(delay=d)` gives, for each index, the
+  probability that a segment began there, judged after `d` of its
+  observations.
+- The distributions are filtering distributions. `map_change_points()` reads
+  segment starts from drops of the most probable run length, which is a
+  heuristic summary and can list one change at neighbouring indices.
+
+`max_run_length` drops long runs after each step. That is an approximation;
+the evidence becomes a lower bound and `discarded_mass` reports the largest
+posterior mass that was dropped.
+
+```python
+import random
+
+from probstat.timeseries import NormalInverseGammaPrior, bayesian_online_changepoint
+
+generator = random.Random(2007)
+shifted = [generator.gauss(0.0, 1.0) for _ in range(150)] + [
+    generator.gauss(3.0, 1.0) for _ in range(150)
+]
+online = bayesian_online_changepoint(shifted, hazard=0.01)
+online.map_run_length[149], online.map_run_length[154]   # (150, 5)
+online.map_change_points()                               # (147, 150)
+round(online.segment_start_probability(delay=10)[150], 3)   # 0.407
+round(online.run_length_posterior[154][0], 3)            # 0.01
+round(online.log_evidence, 2)                            # -452.39
+no_change = bayesian_online_changepoint(shifted, hazard=0.0)
+round(no_change.log_evidence, 2)                         # -606.08
+round(NormalInverseGammaPrior().log_marginal_likelihood(shifted), 2)   # -606.08
+bounded = bayesian_online_changepoint(shifted, hazard=0.01, max_run_length=200)
+round(bounded.log_evidence, 2), bounded.discarded_mass < 1e-30   # (-452.39, True)
+online.predictive_evaluations, bounded.predictive_evaluations    # (45150, 40200)
+```
+
+Five observations after the shift the most probable run length has dropped
+from 150 to 5. The evidence with a 1% hazard exceeds that of a single
+segment by 154 log units.
+
+## 13. Forecast reconciliation for hierarchies
+
+Forecasts made separately for a total, its regions, and their stores do not
+add up. With the summing matrix `S` (one row per series, one column per
+bottom-level series, `y = S b`), a linear reconciler replaces the base
+forecasts `y_hat` by `y_tilde = S G y_hat` [EQ-TS-RECON-001]. Any `G` with
+`G S = I` returns coherent forecasts, leaves coherent input unchanged, and
+keeps unbiased forecasts unbiased. `reconcile_forecasts` offers
+
+- `"bottom_up"`: keep the bottom-level forecasts and add them up;
+- `"ols"`: the orthogonal projection onto coherent vectors, `W = I` in
+  `G = (S' W^-1 S)^-1 S' W^-1` [EQ-TS-RECON-002];
+- `"wls"`: `W` diagonal with the base-error variances;
+- `"mint"`: a full base-error covariance `W`. For the true `W` this `G`
+  minimizes the summed variance of the reconciled errors,
+  `tr(S G W G' S')`, among all unbiased linear reconcilers.
+
+`W` has to be estimated from in-sample one-step errors, and a sample
+covariance of many series from few time points is noisy or singular.
+`shrink_covariance` shrinks the correlations towards zero,
+`W = lambda diag(C) + (1 - lambda) C` [EQ-TS-RECON-003]; `lambda` is either
+supplied or estimated by a plug-in rule. With an estimated `W` the
+optimality statement no longer holds, so compare the methods on held-out
+data. `hierarchy_summing_matrix` builds `S` from a parent-to-children
+mapping (list every aggregate of every grouping for grouped series).
+
+```python
+from probstat.timeseries import (
+    hierarchy_summing_matrix,
+    reconcile_forecasts,
+    shrink_covariance,
+)
+
+structure = hierarchy_summing_matrix(
+    {"total": ["A", "B"], "A": ["AA", "AB"], "B": ["BA", "BB"]}
+)
+structure.names   # ('total', 'A', 'B', 'AA', 'AB', 'BA', 'BB')
+base = [100.0, 38.0, 57.0, 20.0, 21.0, 30.0, 25.0]
+ols = reconcile_forecasts(base, structure)
+[round(v, 2) for v in ols.reconciled]   # [98.0, 40.33, 57.67, 19.67, 20.67, 31.33, 26.33]
+round(ols.base_incoherence, 3)          # 3.697
+bottom_up = reconcile_forecasts(base, structure, method="bottom_up")
+[round(v, 2) for v in bottom_up.reconciled]   # [96.0, 41.0, 55.0, 20.0, 21.0, 30.0, 25.0]
+wls = reconcile_forecasts(
+    base, structure, method="wls", variances=[16.0, 9.0, 9.0, 4.0, 4.0, 4.0, 4.0]
+)
+[round(v, 2) for v in wls.reconciled]   # [97.08, 40.36, 56.71, 19.68, 20.68, 30.86, 25.86]
+
+generator = random.Random(2019)
+residuals = []
+for _ in range(10):
+    truth = structure.aggregate([generator.gauss(0, 2) for _ in range(4)])
+    residuals.append([value + generator.gauss(0, 1) for value in truth])
+shrunk = shrink_covariance(residuals)
+round(shrunk.intensity, 3)              # 0.282
+mint = reconcile_forecasts(base, structure, method="mint", covariance=shrunk.covariance)
+[round(v, 2) for v in mint.reconciled]  # [98.39, 39.47, 58.92, 18.86, 20.61, 31.87, 27.05]
+```
+
+Only point forecasts for one horizon are reconciled; prediction intervals,
+non-negativity constraints, and temporal hierarchies are outside the scope.
+
 ## When to use which method
 
 | question | method | function |
@@ -506,6 +628,8 @@ with the length of the series when changes keep occurring.
 | Difference first, or not? | ADF together with KPSS | `adf_test`, `kpss_test` |
 | Did the mean change once? | CUSUM | `cusum_test` |
 | Where did mean or variance change? | PELT | `pelt` |
+| Has the regime changed, judged as data arrive? | run-length recursion | `bayesian_online_changepoint` |
+| Make forecasts of a hierarchy add up | OLS, WLS, MinT, bottom-up | `reconcile_forecasts` |
 
 ## Common pitfalls
 
