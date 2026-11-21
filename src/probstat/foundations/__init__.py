@@ -15,6 +15,10 @@ Main entry points:
     ``package_stability``: the ``stable``/``provisional``/``experimental``
         label of a top-level package.
     ``deprecated``: decorator that warns before a public name is removed.
+    ``run_procedure``: runs a batch procedure (a generator of
+        ``EvaluationRequest`` objects) with batch models owned by the caller.
+    ``AskTellSession``: the same procedure driven by hand, for simulators
+        that run outside the Python process.
 
 Assumptions:
     Seeds and integer stream keys are non-negative Python integers and text
@@ -51,6 +55,16 @@ References:
 
 """
 
+from .batch import (
+    AskTellSession,
+    BatchModel,
+    EvaluationRequest,
+    batch_from_pointwise,
+    request,
+    run_procedure,
+    scalar_outputs,
+    vector_outputs,
+)
 from .protocols import (
     ContinuousProbabilityLaw,
     CumulativeDistribution,
@@ -80,6 +94,14 @@ from .validation import (
 )
 
 __all__ = [
+    "AskTellSession",
+    "BatchModel",
+    "EvaluationRequest",
+    "batch_from_pointwise",
+    "request",
+    "run_procedure",
+    "scalar_outputs",
+    "vector_outputs",
     "HasDimension",
     "MultivariateLogDensity",
     "MultivariateLogMass",

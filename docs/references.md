@@ -5780,3 +5780,11 @@ covariance matrix estimation and implications for functional genomics."
 Cited for the shrinkage intensity of a correlation matrix towards the
 identity (sum of the estimated variances of the off-diagonal sample
 correlations over the sum of their squares).
+
+## REF-PEP-342
+
+Guido van Rossum and Phillip J. Eby. "PEP 342 – Coroutines via Enhanced
+Generators." Python Enhancement Proposals, 2005.
+[https://peps.python.org/pep-0342/](https://peps.python.org/pep-0342/).
+Cited for `generator.send`, the mechanism by which a batch procedure
+receives the outputs of the evaluation request it yielded.

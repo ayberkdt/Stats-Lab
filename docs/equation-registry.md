@@ -21252,3 +21252,22 @@ e^2(z(a))`.
 - Code: `sampling.median_random_lattice`.
 - Source: [REF-GODA-LECUYER-2022]. The additional random shift per
   replicate is a convention of this library.
+
+## Batch evaluation contract
+
+### EQ-BATCH-001 — Request and response of a batch procedure
+
+`request_k = (x_1, ..., x_m; label)`; `response_k = (y_1, ..., y_m)` with
+`y_i = f_label(x_i)`.
+
+- Domain: `m >= 1` points of equal dimension; `label` names one model of the
+  caller; the response has exactly `m` entries in request order.
+- Meaning: an algorithm is a sequence of requests whose points may depend on
+  all earlier responses. Its result is a function of the responses only, so
+  it does not depend on how, where, or in how many chunks a request was
+  evaluated. This is a software contract, not a statistical statement.
+- Code: `foundations.EvaluationRequest`, `foundations.request`,
+  `foundations.run_procedure`, `foundations.AskTellSession`,
+  `foundations.batch_from_pointwise`, `foundations.scalar_outputs`,
+  `foundations.vector_outputs`.
+- Source: [REF-PEP-342].
