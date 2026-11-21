@@ -17966,3 +17966,241 @@ derivative through `x~ = x_0 + (g - g_0)` with `g = c sum_k L_ik u_k`
 - Source: [REF-CASELLA-BERGER-2002, Section 2.1] (derivative of an inverse
   transformation), [REF-LIU-DERKIUREGHIAN-1986] (Nataf map) and
   [REF-GRIEWANK-WALTHER-2008, Chapter 3] (reverse mode).
+
+## Importance-sampling diagnostics and further samplers (ADR-0122)
+
+### EQ-INF-PSIS-001 — Pareto smoothing of the largest importance ratios
+
+For `S` ratios `r_s` with order statistics `r_(1) <= ... <= r_(S)`, tail
+size `M = ceil(min(S / 5, 3 sqrt(S)))`, and threshold `u = r_(S-M)`: fit a
+generalized Pareto law `F(x) = 1 - (1 + k x / sigma)^(-1/k)` to the
+exceedances `r_(S-M+z) - u`, and replace
+`r_(S-M+z) <- min(u + F^-1((z - 1/2) / M), r_(S))`, `z = 1, ..., M`, with
+`F^-1(p) = sigma ((1 - p)^(-k) - 1) / k`.
+
+- Domain: `S` draws from the proposal; the tail is smoothed only when
+  `5 <= M < S` and the fit is not degenerate, otherwise the raw ratios are
+  kept and `k-hat = inf` is reported. The ceiling in `M` follows the
+  reference implementation of the source.
+- Meaning: the largest ratios, which carry most of the variance, are
+  replaced by the expected order statistics of their fitted tail law; the
+  truncation keeps the smoothed weights no larger than the largest raw one.
+- Code: `inference.pareto_smooth`, `inference.psis_tail_size`,
+  `inference.GeneralizedParetoFit.quantile`, `inference.psis_expectation`.
+- Source: [REF-VEHTARI-ETAL-2024, Algorithm 1].
+
+### EQ-INF-PSIS-002 — Profile estimator of the generalized Pareto tail
+
+With sorted exceedances `x_(1) <= ... <= x_(N)` and `theta = -k / sigma`:
+`k(theta) = (1/N) sum_i log(1 - theta x_i)`,
+`l(theta) = N (log(-theta / k(theta)) - k(theta) - 1)`,
+`theta_j = 1 / x_(N) + (1 - sqrt(G / (j - 1/2))) / (3 x*)`, `j = 1..G`,
+`G = 30 + floor(sqrt(N))`, `x* = x_(floor(N/4 + 1/2))`,
+`theta_hat = sum_j theta_j exp(l(theta_j)) / sum_j exp(l(theta_j))`,
+`k_hat = k(theta_hat)`, `sigma_hat = -k_hat / theta_hat`, and with the weak
+prior `k_hat <- (N k_hat + 5) / (N + 10)`.
+
+- Domain: `N >= 5` non-negative exceedances with `x* > x_(1)` and
+  `x_(N) > 0`.
+- Meaning: an empirical-Bayes posterior mean of `theta` under the profile
+  likelihood (the Zhang-Stephens estimator as used by PSIS); the prior on
+  `k` is worth ten observations at `0.5` and stabilizes small tails.
+- Code: `inference.fit_generalized_pareto`.
+- Source: [REF-VEHTARI-ETAL-2024]; the grid and prior constants follow
+  the reference implementation of that paper.
+
+### EQ-INF-PSIS-003 — Self-normalized estimate, k-hat threshold, and ESS
+
+With smoothed weights `w_s` and `w~_s = w_s / sum_t w_t`:
+`mu_hat = sum_s w~_s h(x_s)`, `se^2 = sum_s w~_s^2 (h(x_s) - mu_hat)^2`,
+`ESS = 1 / sum_s w~_s^2`; the estimate is flagged reliable when
+`k_hat < min(1 - 1 / log10(S), 0.7)`.
+
+- Domain: independent draws for the standard error; the threshold needs
+  `S >= 2` and is non-positive for `S <= 10`.
+- Meaning: `1 - 1 / log10(S)` is the largest shape for which `S` exceeds
+  the minimum sample size `10^(1 / (1 - k))` of the source. For a proposal
+  `N(0, 1)` and target `N(0, s^2)`, `s > 1`, the ratio is
+  `exp(x^2 (1 - 1/s^2) / 2) / s`, so `P(r > t)` decays like
+  `t^(-1 / (1 - 1/s^2))` up to a logarithmic factor and the tail shape is
+  `k = 1 - 1 / s^2`.
+- Code: `inference.PSISResult.expectation`, `inference.pareto_k_threshold`,
+  `inference.PSISResult.reliable`, `inference.ImportanceEstimate`.
+- Source: [REF-VEHTARI-ETAL-2024].
+
+### EQ-INF-PSIS-004 — PSIS leave-one-out predictive density
+
+For draws `theta_s` from the full posterior and ratios
+`r_s^(i) = 1 / p(y_i | theta_s)` with smoothed weights `w_s^(i)`:
+`elpd_loo,i = log( sum_s w_s^(i) p(y_i | theta_s) / sum_s w_s^(i) )`,
+`elpd_loo = sum_i elpd_loo,i`, `se = sqrt(n Var_i(elpd_loo,i))`,
+`p_loo = sum_i [ log((1/S) sum_s p(y_i | theta_s)) - elpd_loo,i ]`.
+
+- Domain: observations conditionally independent given the parameters;
+  `S x n` pointwise log-likelihoods with all normalizing constants.
+- Meaning: importance sampling from the full posterior to each
+  leave-one-out posterior, which is proportional to the full posterior
+  divided by `p(y_i | theta)`; the per-observation `k-hat` flags
+  observations whose removal changes the posterior too much for the
+  estimate to be trusted.
+- Code: `inference.psis_loo`, `inference.PSISLOOResult`.
+- Source: [REF-VEHTARI-GELMAN-GABRY-2017].
+
+### EQ-INF-NRHAT-001 — Nested R-hat
+
+For draws `f_(nmk)` (draw `n`, chain `m`, superchain `k`), chain means
+`f_(.mk)` and superchain means `f_(..k)`:
+`B = (1/(K-1)) sum_k (f_(..k) - f_(...))^2`,
+`B~_k = (1/(M-1)) sum_m (f_(.mk) - f_(..k))^2` (zero if `M = 1`),
+`W~_k = (1/M) sum_m (1/(N-1)) sum_n (f_(nmk) - f_(.mk))^2` (zero if
+`N = 1`), `W = (1/K) sum_k (B~_k + W~_k)`, `nR-hat = sqrt(1 + B / W)`.
+
+- Domain: `K >= 2` superchains of `M` chains of `N` draws, not
+  `M = N = 1`; chains of a superchain share their starting point.
+- Meaning: compares the variance of superchain means with the variance
+  inside superchains; for stationary independent chains `B / W` is about
+  `1 / (M (N + 1))`, so the statistic approaches one as the number of
+  chains per superchain grows. With `M = 1` its square exceeds the square
+  of the non-split `R-hat` of [EQ-MCMC-RHAT-001] by exactly `1 / N`.
+- Code: `inference.nested_rhat`, `inference.NestedRhat`.
+- Source: [REF-MARGOSSIAN-ETAL-2024, Eqs. 6-8].
+
+### EQ-INF-SVGD-001 — Stein variational gradient direction
+
+`x_i <- x_i + eps phi(x_i)`,
+`phi(x) = (1/n) sum_j [ k(x_j, x) grad log p(x_j) + grad_{x_j} k(x_j, x) ]`.
+
+- Domain: differentiable `log p`; a positive-definite kernel `k`; fixed
+  step `eps > 0` in this library.
+- Meaning: the direction of steepest descent of the Kullback-Leibler
+  divergence to `p` within the unit ball of the kernel's RKHS. With
+  `n = 1` it is gradient ascent on `log p`. The particles are not
+  independent draws, and few particles in several dimensions underestimate
+  the variance of `p`.
+- Code: `inference.svgd_direction`,
+  `inference.stein_variational_gradient_descent`, `inference.SVGDResult`.
+- Source: [REF-LIU-WANG-2016, Algorithm 1].
+
+### EQ-INF-SVGD-002 — RBF kernel with the median-heuristic bandwidth
+
+`k(x, x') = exp(-|x - x'|^2 / h)`, `grad_{x'} k(x', x) = (2 / h) (x - x') k`,
+`h = med^2 / log n` with `med` the median pairwise distance of the
+particles.
+
+- Domain: `n >= 2` particles with a positive median distance (otherwise
+  the library uses `h = 1`).
+- Meaning: a heuristic that makes `sum_j k(x_i, x_j)` about one, so the
+  attraction and repulsion terms of [EQ-INF-SVGD-001] are balanced.
+- Code: `inference.median_bandwidth`, `inference.svgd_direction`.
+- Source: [REF-LIU-WANG-2016, Section 5].
+
+### EQ-INF-SLICE-001 — Univariate slice sampling with stepping out and shrinkage
+
+Given `x_0`: `log y = log f(x_0) - E`, `E ~ Exp(1)`;
+`L = x_0 - w U`, `R = L + w`; while `f(L) > y`: `L <- L - w`; while
+`f(R) > y`: `R <- R + w` (at most `J = floor(m V)` and `m - 1 - J` steps
+when a limit `m` is set); repeat `x_1 ~ U(L, R)` until `f(x_1) > y`,
+setting `L <- x_1` if `x_1 < x_0` and `R <- x_1` otherwise after each
+failure.
+
+- Domain: any `w > 0`; applied to each coordinate in turn with the others
+  fixed.
+- Meaning: uniform sampling under the graph of `f`; the interval-finding
+  and shrinkage rules are constructed so that the transition is reversible
+  with respect to the uniform law on the slice, hence leaves `f` invariant
+  without a tuned proposal scale.
+- Code: `inference.slice_sampler`.
+- Source: [REF-NEAL-2003, Figures 3 and 5].
+
+### EQ-INF-SLICE-002 — Elliptical slice sampling
+
+For `pi(f) proportional to L(f) N(f; mu, Sigma)`: `nu ~ N(0, Sigma)`,
+`log y = log L(f) + log U`, `theta ~ U[0, 2 pi)`,
+`[theta_min, theta_max] = [theta - 2 pi, theta]`;
+`f' = mu + (f - mu) cos(theta) + nu sin(theta)`; accept if
+`log L(f') > log y`, else set `theta_min = theta` if `theta < 0` or
+`theta_max = theta` otherwise, redraw `theta ~ U[theta_min, theta_max]`,
+and repeat.
+
+- Domain: Gaussian prior with positive-definite `Sigma`; a start with
+  positive likelihood.
+- Meaning: every point of the ellipse through `f` and `nu` has the prior
+  law, so the prior cancels and slice sampling over the angle needs only
+  the likelihood; there is no step size and no rejection.
+- Code: `inference.elliptical_slice_sampler`.
+- Source: [REF-MURRAY-ADAMS-MACKAY-2010, Figure 2].
+
+### EQ-INF-MALA-001 — Metropolis-adjusted Langevin proposal and acceptance
+
+`x' = x + (eps^2 / 2) grad log pi(x) + eps xi`, `xi ~ N(0, I)`;
+`q(x' | x) = N(x'; x + (eps^2 / 2) grad log pi(x), eps^2 I)`;
+`alpha = min(1, pi(x') q(x | x') / (pi(x) q(x' | x)))`.
+
+- Domain: differentiable `log pi`; fixed `eps > 0`.
+- Meaning: the Euler step of the Langevin diffusion used as a
+  Metropolis-Hastings proposal; the correction removes the discretization
+  bias. Not geometrically ergodic when the gradient grows faster than
+  linearly in the tails.
+- Code: `inference.metropolis_adjusted_langevin`,
+  `inference.mala_log_acceptance_ratio`.
+- Source: [REF-ROBERTS-TWEEDIE-1996].
+
+### EQ-INF-STRETCH-001 — Affine-invariant stretch move
+
+For walker `x_k` and a partner `x_j` from the complementary ensemble:
+`z = ((a - 1) U + 1)^2 / a` (density proportional to `1 / sqrt(z)` on
+`[1/a, a]`), `y = x_j + z (x_k - x_j)`, accept with probability
+`min(1, z^(d - 1) pi(y) / pi(x_k))`.
+
+- Domain: `a > 1` (2 by default); more walkers than the dimension `d`,
+  not confined to a lower-dimensional affine subspace. The library updates
+  two half-ensembles alternately, each walker drawing its partner from the
+  other half.
+- Meaning: the proposal uses only differences of walkers, so the Markov
+  chain of the ensemble is equivariant under affine maps of the target;
+  `g(1/z) = z g(z)` gives the factor `z^(d - 1)` in the ratio.
+- Code: `inference.stretch_move_sampler`, `inference.EnsembleResult`.
+- Source: [REF-GOODMAN-WEARE-2010].
+
+### EQ-INF-PT-001 — Replica exchange acceptance with even-odd swaps
+
+For replicas `x_i ~ pi_i(x) proportional to p(x) L(x)^beta_i` and
+`l = log L`, the exchange of `x_i` and `x_{i+1}` is accepted with
+probability `min(1, exp((beta_i - beta_{i+1}) (l(x_{i+1}) - l(x_i))))`;
+pairs with even `i` are proposed at even iterations and pairs with odd `i`
+at odd iterations.
+
+- Domain: `beta_0 < ... < beta_T = 1`, `beta_0 >= 0`; a proper prior when
+  `beta_0 = 0`.
+- Meaning: the Metropolis ratio
+  `pi_i(x_{i+1}) pi_{i+1}(x_i) / (pi_i(x_i) pi_{i+1}(x_{i+1}))` of a swap,
+  in which the prior cancels; the deterministic alternation is the
+  non-reversible scheme whose round-trip rate does not vanish as the
+  ladder is refined.
+- Code: `inference.parallel_tempering`,
+  `inference.ParallelTemperingResult`.
+- Source: [REF-HUKUSHIMA-NEMOTO-1996] (exchange acceptance);
+  [REF-SYED-ETAL-2022] (deterministic even-odd scheme, rejection rates,
+  round trips).
+
+### EQ-INF-PT-002 — Stepping-stone evidence from the tempering ladder
+
+With `Z(beta) = integral p(x) L(x)^beta dx`:
+`Z(beta') / Z(beta) = E_{pi_beta}[ L^(beta' - beta) ]`, so
+`log Z(1) - log Z(beta_0) =
+sum_i log( (1/n) sum_t exp((beta_{i+1} - beta_i) l(x_i^(t))) )` in the
+limit of long runs.
+
+- Domain: `beta_0 = 0` and a normalized prior give `Z(beta_0) = 1`; `L`
+  must include its normalizing constants for `Z(1)` to be the marginal
+  likelihood. No standard error is reported (autocorrelated, dependent
+  replicas).
+- Meaning: the identity follows from
+  `integral p L^beta L^(beta' - beta) dx / Z(beta)`; it is the incremental
+  weight of [EQ-SMC-TEMPER-001] averaged over Markov chain draws instead of
+  particles. The estimate of each ratio is unbiased for independent
+  stationary draws; its logarithm is biased low by about half its variance.
+- Code: `inference.ParallelTemperingResult.log_evidence`,
+  `inference.parallel_tempering`.
+- Source: derived here from the tempered path of [REF-SYED-ETAL-2022];
+  the increment is that of [REF-DELMORAL-DOUCET-JASRA-2006].

@@ -5063,3 +5063,79 @@ hides the discretization and truncation error and makes reconstructions look
 better than they are; the approximation error should be modelled or the data
 generated with a finer model.
 DOI: [10.1016/j.cam.2005.09.027](https://doi.org/10.1016/j.cam.2005.09.027).
+
+## REF-VEHTARI-ETAL-2024
+
+Aki Vehtari, Daniel Simpson, Andrew Gelman, Yuling Yao, and Jonah Gabry.
+"Pareto Smoothed Importance Sampling." *Journal of Machine Learning Research*
+25(72), 1-58, 2024. arXiv:1507.02646. Tail size, generalized Pareto
+smoothing of the largest importance ratios with truncation at the raw
+maximum, the `k-hat` diagnostic with the sample-size-dependent threshold
+`min(1 - 1/log10(S), 0.7)`, and the empirical-Bayes profile estimator of the
+generalized Pareto parameters (after Zhang and Stephens) with a weak prior
+on the shape.
+
+## REF-VEHTARI-GELMAN-GABRY-2017
+
+Aki Vehtari, Andrew Gelman, and Jonah Gabry. "Practical Bayesian Model
+Evaluation Using Leave-One-Out Cross-Validation and WAIC." *Statistics and
+Computing*, 2017. PSIS-LOO: the leave-one-out ratios
+`1 / p(y_i | theta)`, the pointwise `elpd_loo`, its standard error
+`sqrt(n Var_i)`, and `p_loo`.
+DOI: [10.1007/s11222-016-9696-4](https://doi.org/10.1007/s11222-016-9696-4).
+
+## REF-MARGOSSIAN-ETAL-2024
+
+Charles C. Margossian, Matthew D. Hoffman, Pavel Sountsov, Lionel
+Riou-Durand, Aki Vehtari, and Andrew Gelman. "Nested R-hat: Assessing the
+Convergence of Markov Chain Monte Carlo When Running Many Short Chains."
+*Bayesian Analysis*, 2024. arXiv:2110.13017. Superchains of chains with a
+common initialization; `nR-hat = sqrt(1 + B / W)` with the between-superchain
+variance `B` and the within-superchain variance `W` (between-chain plus
+within-chain variance inside a superchain).
+
+## REF-LIU-WANG-2016
+
+Qiang Liu and Dilin Wang. "Stein Variational Gradient Descent: A General
+Purpose Bayesian Inference Algorithm." In *Advances in Neural Information
+Processing Systems 29*, 2016. arXiv:1608.04471. The update direction
+(Algorithm 1) and the median-heuristic bandwidth `h = med^2 / log n`
+(Section 5).
+
+## REF-NEAL-2003
+
+Radford M. Neal. "Slice Sampling." *The Annals of Statistics* 31(3),
+705-767, 2003. Univariate slice sampling with the stepping-out (Figure 3)
+and shrinkage (Figure 5) procedures.
+
+## REF-MURRAY-ADAMS-MACKAY-2010
+
+Iain Murray, Ryan Prescott Adams, and David J. C. MacKay. "Elliptical Slice
+Sampling." In *Proceedings of the Thirteenth International Conference on
+Artificial Intelligence and Statistics (AISTATS)*, JMLR Workshop and
+Conference Proceedings 9, 541-548, 2010. arXiv:1001.0175. The algorithm of
+Figure 2.
+
+## REF-GOODMAN-WEARE-2010
+
+Jonathan Goodman and Jonathan Weare. "Ensemble Samplers with Affine
+Invariance." *Communications in Applied Mathematics and Computational
+Science* 5(1), 65-80, 2010. The stretch move and its acceptance probability
+`min(1, z^(d-1) pi(Y) / pi(X))`.
+DOI: [10.2140/camcos.2010.5.65](https://doi.org/10.2140/camcos.2010.5.65).
+
+## REF-HUKUSHIMA-NEMOTO-1996
+
+Koji Hukushima and Koji Nemoto. "Exchange Monte Carlo Method and Application
+to Spin Glass Simulations." *Journal of the Physical Society of Japan* 65,
+1604-1608, 1996. Replica exchange between adjacent temperatures.
+DOI: [10.1143/JPSJ.65.1604](https://doi.org/10.1143/JPSJ.65.1604).
+
+## REF-SYED-ETAL-2022
+
+Saifuddin Syed, Alexandre Bouchard-Côté, George Deligiannidis, and Arnaud
+Doucet. "Non-Reversible Parallel Tempering: A Scalable Highly Parallel MCMC
+Scheme." *Journal of the Royal Statistical Society: Series B (Statistical
+Methodology)* 84(2), 321-350, 2022. Deterministic even-odd swaps, swap
+rejection rates, and round trips.
+DOI: [10.1111/rssb.12464](https://doi.org/10.1111/rssb.12464).

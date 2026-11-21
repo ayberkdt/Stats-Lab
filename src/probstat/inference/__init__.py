@@ -113,6 +113,38 @@ References:
 """
 
 from ._ml_tools import MarginalEffects
+
+# isort: off
+from .psis import (
+    GeneralizedParetoFit,
+    ImportanceEstimate,
+    PSISLOOResult,
+    PSISResult,
+    fit_generalized_pareto,
+    pareto_k_threshold,
+    pareto_smooth,
+    psis_expectation,
+    psis_loo,
+    psis_tail_size,
+)
+from .nested_rhat import NestedRhat, nested_rhat
+from .particle_vi import (
+    SVGDResult,
+    median_bandwidth,
+    stein_variational_gradient_descent,
+    svgd_direction,
+)
+from .slice_sampling import elliptical_slice_sampler, slice_sampler
+from .ensemble_samplers import (
+    EnsembleResult,
+    LocalKernel,
+    ParallelTemperingResult,
+    parallel_tempering,
+    stretch_move_sampler,
+)
+from .langevin_mcmc import mala_log_acceptance_ratio, metropolis_adjusted_langevin
+
+# isort: on
 from .abc import ABCResult, abc_rejection, abc_smc, euclidean_distance
 from .additive_models import (
     AdditiveModelFit,
@@ -548,6 +580,31 @@ from .zero_count_models import (
 )
 
 __all__ = [
+    "GeneralizedParetoFit",
+    "ImportanceEstimate",
+    "PSISLOOResult",
+    "PSISResult",
+    "fit_generalized_pareto",
+    "pareto_k_threshold",
+    "pareto_smooth",
+    "psis_expectation",
+    "psis_loo",
+    "psis_tail_size",
+    "NestedRhat",
+    "nested_rhat",
+    "SVGDResult",
+    "median_bandwidth",
+    "stein_variational_gradient_descent",
+    "svgd_direction",
+    "elliptical_slice_sampler",
+    "slice_sampler",
+    "EnsembleResult",
+    "LocalKernel",
+    "ParallelTemperingResult",
+    "parallel_tempering",
+    "stretch_move_sampler",
+    "mala_log_acceptance_ratio",
+    "metropolis_adjusted_langevin",
     "MarginalContrast",
     "MarginalMean",
     "MarginalMeans",
