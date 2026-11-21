@@ -200,6 +200,114 @@ chain.acceptance_rate, chain.mean()
   [REF-COVER-THOMAS-2006, Section 2.3]. A single estimate can be negative;
   read it with its standard error.
 
+## Flow matching
+
+A continuous normalizing flow moves a base draw `x(0) ~ N(0, I)` along
+`dx/dt = v(t, x)` and returns `x(1)`. Flow matching fits `v` by regression
+[REF-LIPMAN-ETAL-2023]. For one data point `x_1` take the straight-line
+path `x_t = (1 - (1 - s) t) x_0 + t x_1`; its time derivative at fixed
+`(x_0, x_1)` is the target `u = x_1 - (1 - s) x_0` [EQ-GEN-FM-001]. The
+squared-error loss `E |v(t, x_t) - u|^2` over `t ~ U(0, 1)` is minimized by
+the conditional mean `E[u | x_t]`, which is exactly the field that generates
+the law of `x_t` [EQ-GEN-FM-002]; the network never sees that field, only
+the pairs `(x_t, u)`. `s = sigma_min` is the width of the path at `t = 1`:
+the model targets the (standardized) data convolved with `N(0, s^2 I)`, and
+`s = 0` is the default.
+
+- `fit_flow_matching(data)` standardizes the data, trains a `tanh`
+  `VelocityNetwork` with Adam, and returns a `FlowMatchingFit` with
+  `sample`, `transport`, `log_density`, the loss trace, and
+  `loss_decreased`. The loss does not go to zero for a perfect fit (its
+  minimum is the conditional variance of `u`), and Adam has no convergence
+  test, so judge a fit by its samples.
+- `integrate_flow(v, x0)` integrates any field with the fixed-step solver
+  `probstat.numerics.integrate_fixed_step` (RK4, 20 steps by default; no
+  error control).
+- `flow_log_density(v, x)` uses the instantaneous change of variables
+  `d log p / dt = -div v` along the trajectory [EQ-GEN-FM-004]: the point
+  is carried back to `t = 0` while the divergence is accumulated. The
+  divergence is exact by forward-mode differentiation for the fitted
+  networks and for fields written with arithmetic operators
+  (`divergence="autodiff"`), or by central differences
+  (`divergence="finite-difference"`).
+- `GaussianMarginalVelocity(m, sd)` is the closed-form field for Gaussian
+  data, `v(t, x) = m + c(t) (x - t m)` with
+  `c(t) = (t sd^2 - (1 - s) a) / (a^2 + t^2 sd^2)`, `a = 1 - (1 - s) t`
+  [EQ-GEN-FM-003]. It maps `z` to `m + sqrt(sd^2 + s^2) z`, so it tests the
+  sampler and the density code without training.
+
+Base points and data points are paired independently; minibatch
+optimal-transport pairing is not implemented. Gradients come from a
+float-only backpropagation [EQ-GEN-FM-005] that the tests compare with
+`numerics.reverse_value_and_gradient`; it is about ten times faster than the
+tape for these networks.
+
+## Simulation-based inference without a Gaussian assumption
+
+`probstat.inference.fit_amortized_gaussian_posterior` fits a diagonal
+Gaussian `q(theta | x)`, which cannot represent a skewed or multimodal
+posterior. Two estimators here remove that restriction for small problems.
+Both take the same `prior_sampler(rng)` and `simulator(theta, rng)`
+callables, a simulation count, and a seed, and both report the loss trace
+and `simulations`.
+
+**Flow-matching posterior estimation**
+[REF-WILDBERGER-ETAL-2023] trains the velocity network with the observation
+as an extra input, `v(t, theta_t, x)`, on simulated pairs
+[EQ-GEN-FMPE-001]. `fit_flow_matching_posterior` returns a
+`FlowMatchingPosterior`; `sample(x_obs, size)` integrates the conditional
+ODE and `log_density(theta, x_obs)` applies [EQ-GEN-FM-004].
+
+**Neural ratio estimation** [REF-HERMANS-BEGY-LOUPPE-2020] trains a
+classifier to separate simulated pairs `(theta, x)` from pairs with `theta`
+shuffled. The cross-entropy is minimized by
+`d* = p(theta, x) / (p(theta, x) + p(theta) p(x))`, so the logit is
+`log p(x | theta) / p(x) = log p(theta | x) / p(theta)` [EQ-GEN-NRE-001].
+`fit_ratio_estimator` returns a `RatioEstimator`; `log_ratio(theta, x)` is
+the logit, `posterior_on_grid(x_obs, log_prior, grid)` tabulates a scalar
+posterior and reports `ratio_normalization`
+(`int p(theta) r(theta, x) d theta`, one for the exact ratio), and
+`sample_posterior` runs `probstat.inference.random_walk_metropolis` on
+`log_prior + log_ratio` [EQ-GEN-NRE-002].
+
+Amortized neural posteriors and ratio estimators can be overconfident, and
+nothing in the training loss reveals it [REF-HERMANS-ETAL-2022]. Check
+every trained estimator on fresh simulations, for example with
+`probstat.inference.simulation_based_calibration` [REF-TALTS-ETAL-2018],
+and do not trust it at observations far from the simulated data. On the
+linear-Gaussian test problem of ADR-0129 the rank test gave p-values from
+0.07 to 0.99 over six training seeds; on the bimodal problem below the two
+modes are found with the right masses, but each mode is about twice as wide
+as the exact one at these training sizes.
+
+```python
+from probstat.generative import (
+    GaussianMarginalVelocity, fit_flow_matching_posterior,
+    flow_log_density, integrate_flow,
+)
+
+field = GaussianMarginalVelocity(1.5, 0.7)
+integrate_flow(field, 1.0)[0]     # 2.2000, = 1.5 + 0.7 * 1
+flow_log_density(field, 2.2)      # -1.0623, = log N(2.2; 1.5, 0.7^2)
+
+
+def prior(rng):
+    return [rng.uniform(-2.0, 2.0)]
+
+
+def simulator(theta, rng):        # the sign of theta is not identified
+    return [theta[0] ** 2 + rng.gauss(0.0, 0.2)]
+
+
+posterior = fit_flow_matching_posterior(
+    prior, simulator, 500, hidden_layers=(16, 16), iterations=600,
+    batch_size=32, learning_rate=0.01, seed=0,
+)
+draws = [d[0] for d in posterior.sample([1.0], 200, steps=10, seed=1)]
+posterior.simulations             # 500
+sum(d < 0 for d in draws) / 200   # about 0.4: one mode near -1, one near +1
+```
+
 ## Scope and limits
 
 The arithmetic is scalar Python. The methods are validated in one and two
@@ -208,9 +316,20 @@ fit takes seconds, and nested 2-D quadrature 20 000 to 50 000 density
 evaluations. Score matching costs about `d + 2` network evaluations per
 point. Planar and radial layers are best used in small numbers or for
 sampling; coupling stacks are the default for density estimation.
+Flow matching, flow-matching posteriors, and ratio estimation are validated
+in one dimension (the code accepts more) with one or two hidden layers of
+16 units, 400 to 1000 training points or simulations, and about a thousand
+Adam iterations (one to four seconds). Large-scale training is out of
+scope.
 
 ## Common pitfalls
 
+- **Neural posteriors need a calibration check.** `fit_flow_matching_posterior`
+  and `fit_ratio_estimator` return an answer for every observation,
+  including ones no simulation resembles; run simulation-based calibration
+  and read `ratio_normalization` before using them.
+- **Fixed-step ODE.** `sample`, `transport`, and `log_density` of the flow
+  objects have no error control; compare `steps=20` with `steps=40`.
 - **Fixed default seeds.** `fit_flow`, `fit_score_matching`,
   `fit_denoising_score_matching`, and `sample_langevin` default to
   `seed=0`, so repeated calls without a seed return the same result; vary

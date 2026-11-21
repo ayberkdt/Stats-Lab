@@ -5525,3 +5525,42 @@ Tobacco Control Program." *Journal of the American Statistical Association*
 characteristics, and placebo (permutation) inference based on the ratio of
 post- to pre-treatment prediction error.
 DOI: [10.1198/jasa.2009.ap08746](https://doi.org/10.1198/jasa.2009.ap08746).
+
+## REF-LIPMAN-ETAL-2023
+
+Yaron Lipman, Ricky T. Q. Chen, Heli Ben-Hamu, Maximilian Nickel, and Matt
+Le. "Flow Matching for Generative Modeling." In *International Conference
+on Learning Representations* (ICLR 2023), 2023. Regression of a velocity
+field on conditional probability paths, including the straight-line
+(optimal-transport) Gaussian path. Preprint arXiv:2210.02747.
+[https://arxiv.org/abs/2210.02747](https://arxiv.org/abs/2210.02747).
+
+## REF-WILDBERGER-ETAL-2023
+
+Wildberger et al. (with Dax, Buchholz, Green, Macke, and Schölkopf; the
+order of the authors differs between versions). "Flow Matching for Scalable
+Simulation-Based Inference." In *Advances in Neural Information Processing
+Systems 36* (NeurIPS 2023), 2023. Flow matching with the observation as a
+conditioning input, trained on simulated parameter/data pairs, as an
+amortized posterior estimator. Preprint arXiv:2305.17161.
+[https://arxiv.org/abs/2305.17161](https://arxiv.org/abs/2305.17161).
+
+## REF-HERMANS-BEGY-LOUPPE-2020
+
+Joeri Hermans, Volodimir Begy, and Gilles Louppe. "Likelihood-free MCMC
+with Amortized Approximate Ratio Estimators." In *Proceedings of the 37th
+International Conference on Machine Learning* (ICML 2020), Proceedings of
+Machine Learning Research 119, 2020. A classifier between joint and
+marginal parameter/data pairs whose logit estimates the
+likelihood-to-evidence ratio used inside MCMC. Preprint arXiv:1903.04057.
+[https://arxiv.org/abs/1903.04057](https://arxiv.org/abs/1903.04057).
+
+## REF-HERMANS-ETAL-2022
+
+Joeri Hermans, Arnaud Delaunoy, François Rozet, Antoine Wehenkel, Volodimir
+Begy, and Gilles Louppe. "A Crisis In Simulation-Based Inference? Beware,
+Your Posterior Approximations Can Be Unfaithful." *Transactions on Machine
+Learning Research*, 2022. Empirical evidence that neural posterior and
+ratio estimators can produce overconfident posteriors, and coverage checks
+to detect it. Preprint arXiv:2110.06581.
+[https://arxiv.org/abs/2110.06581](https://arxiv.org/abs/2110.06581).
