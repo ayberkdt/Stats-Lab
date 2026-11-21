@@ -8,7 +8,12 @@ regression with ARD kernels by maximum marginal likelihood; ``pc_kriging``
 fits universal kriging with an arbitrary regression trend and PC-Kriging, a
 universal kriging model whose trend is a LAR-selected sparse PCE; ``ensemble``
 fits deep ensembles of Gaussian mean-variance networks whose predictive
-variance splits into aleatoric and epistemic parts; ``adapter`` wraps
+variance splits into aleatoric and epistemic parts; ``multifidelity`` fits
+recursive AR(1) co-kriging of several fidelity levels on nested designs;
+``stochastic_kriging`` fits kriging metamodels of noisy simulators from
+replicated runs; ``bayesian_quadrature`` integrates a function against a
+Gaussian or uniform product measure with a squared-exponential GP prior;
+``adapter`` wraps
 any fitted surrogate as a forward model so it can replace the original model
 inside :class:`probstat.modeling.ProbabilisticModel`.
 
@@ -35,6 +40,16 @@ Main entry points:
         ``predict``, ``predict_with_variance``, and ``epistemic_variance``.
     ``fit_deep_ensemble_to_model``: deep-ensemble surrogate of one QoI on a
         design of the model.
+    ``fit_recursive_cokriging``: recursive AR(1) co-kriging of ``s`` fidelity
+        levels on nested designs; ``RecursiveCoKriging`` predicts every level
+        with a plug-in variance.
+    ``gaussian_process_from_hyperparameters``: a GP conditioned on data with
+        given kernel hyperparameters and constant mean (no fitting).
+    ``fit_stochastic_kriging``: stochastic kriging from replicated noisy
+        runs (``stochastic_kriging_from_summaries`` from sample means and
+        their variances).
+    ``bayesian_quadrature``: posterior mean and variance of an integral
+        against ``GaussianMeasure`` / ``UniformMeasure`` product measures.
     ``surrogate_probabilistic_model``: a new probabilistic model whose forward
         map is the fitted surrogate.
     ``ProbabilisticSurrogate`` and ``SurrogateFactory``: the predictive
@@ -79,6 +94,16 @@ Common pitfalls:
       to minutes (see the guide's cost table), its epistemic variance is
       member disagreement rather than a calibrated error, and its aleatoric
       variance on a deterministic simulator only reflects the misfit.
+    - Co-kriging needs nested designs (each higher-fidelity point is also a
+      lower-fidelity point) and its variance treats the scale factors, trend
+      constants, and kernel hyperparameters as known. With few expensive
+      runs its likelihood is often bimodal; keep the default ten restarts.
+    - Stochastic kriging plugs in the sample variances of the replications
+      as if they were the true noise variances; with two or three
+      replications per point they are very noisy.
+    - The Bayesian quadrature variance is conditional on the kernel
+      hyperparameters; when they are estimated from the same nodes it is
+      usually too small.
     - Every fitter defaults to ``seed=None`` (not reproducible); pass a seed
       or ``RandomStream``. Results computed on a surrogate inherit its error
       silently, so report its leave-one-out error with them.
@@ -90,7 +115,9 @@ References:
     [REF-BLATMAN-SUDRET-2011], [REF-EFRON-HASTIE-JOHNSTONE-TIBSHIRANI-2004],
     [REF-RASMUSSEN-WILLIAMS-2006, Chapters 2, 4, and 5],
     [REF-SCHOBI-SUDRET-WIART-2015],
-    [REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017].
+    [REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017],
+    [REF-KENNEDY-OHAGAN-2000], [REF-LE-GRATIET-GARNIER-2014],
+    [REF-ANKENMAN-NELSON-STAUM-2010], [REF-OHAGAN-1991].
 
 """
 
@@ -100,6 +127,15 @@ from .adapter import (
     SurrogateFactory,
     SurrogateModel,
     surrogate_probabilistic_model,
+)
+from .bayesian_quadrature import (
+    BayesianQuadratureResult,
+    GaussianMeasure,
+    QuadratureMeasure,
+    UniformMeasure,
+    bayesian_quadrature,
+    kernel_double_integral,
+    kernel_mean,
 )
 from .ensemble import (
     DeepEnsemble,
@@ -121,6 +157,11 @@ from .gaussian_process import (
     gaussian_process_log_marginal_likelihood,
     gaussian_process_log_parameter_bounds,
     kernel_value,
+)
+from .multifidelity import (
+    RecursiveCoKriging,
+    fit_recursive_cokriging,
+    gaussian_process_from_hyperparameters,
 )
 from .pc_kriging import (
     PC_KRIGING_VARIANTS,
@@ -151,6 +192,11 @@ from .sparse_chaos import (
     fit_sparse_polynomial_chaos,
     least_angle_regression,
     sparse_polynomial_chaos_from_samples,
+)
+from .stochastic_kriging import (
+    StochasticKriging,
+    fit_stochastic_kriging,
+    stochastic_kriging_from_summaries,
 )
 
 __all__ = [
@@ -200,4 +246,17 @@ __all__ = [
     "polynomial_chaos_from_samples",
     "sparse_polynomial_chaos_from_samples",
     "surrogate_probabilistic_model",
+    "BayesianQuadratureResult",
+    "GaussianMeasure",
+    "QuadratureMeasure",
+    "UniformMeasure",
+    "bayesian_quadrature",
+    "kernel_double_integral",
+    "kernel_mean",
+    "RecursiveCoKriging",
+    "fit_recursive_cokriging",
+    "gaussian_process_from_hyperparameters",
+    "StochasticKriging",
+    "fit_stochastic_kriging",
+    "stochastic_kriging_from_summaries",
 ]
