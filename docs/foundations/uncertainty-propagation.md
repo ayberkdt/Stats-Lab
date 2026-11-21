@@ -140,6 +140,75 @@ bound.bound, round(bound.empirical_quantile, 1)    # (59.0, 56.1)
 `examples/risk_analysis_lab.py` runs this replicate study after its
 reliability estimates.
 
+## Lattice rules and the median of randomized rules
+
+`probstat.sampling` also integrates directly over the unit cube. A rank-1
+lattice `x_k = frac(k z / n)` [EQ-SAMP-LATTICE-001] is defined by one integer
+vector `z`. `probstat.sampling.cbc_generating_vector` chooses it for a prime
+`n`, one component at a time, by minimizing the shift-averaged squared
+worst-case error `e^2(z)` in a weighted Sobolev space
+[EQ-SAMP-LATTICE-002]; the search is exhaustive in two dimensions and greedy
+beyond. `probstat.sampling.korobov_generating_vector` searches the vectors
+`(1, a, a^2, ...)` instead. An unshifted lattice contains the origin; a
+random shift `frac(x_k + Delta)` makes every point uniform.
+
+Three estimators combine `R` independent randomizations at a cost of `R n`
+evaluations:
+
+- `probstat.sampling.rqmc_mean` averages the replicates and reports their
+  standard error with a Student-t interval [EQ-SAMP-RQMC-002]. The estimate
+  is unbiased. The interval is approximate, because `R` is small and a
+  replicate is not normally distributed: in the library's tests nominal 95 %
+  intervals covered between 92 % and 96 % of the time.
+- `probstat.sampling.rqmc_median` returns the median of the replicates
+  [EQ-SAMP-RQMC-003]. It has no standard error and no interval, and none
+  with guaranteed coverage is provided: the median of the replicates
+  estimates the median of their distribution, which is the integral only if
+  that distribution is symmetric about it.
+- `probstat.sampling.median_random_lattice` draws a fresh random generating
+  vector in every replicate instead of constructing one
+  [EQ-SAMP-RQMC-004]. Most random vectors are good and a few are very bad;
+  the median ignores the bad ones, the mean does not.
+
+Lattice rules pay off for smooth periodic integrands. For
+`f = prod_j (1 + B_2(x_j))` in three dimensions, eleven shifted CBC lattices
+of 509 points have a root mean squared error of `4.5e-7`, plain Monte Carlo
+at the same cost `1.5e-3`. For the non-periodic `prod_j x_j e^(x_j)` the
+gain over Monte Carlo is only a factor of 3 to 5.
+
+```python
+import math
+import statistics
+
+from probstat.sampling import (
+    cbc_generating_vector,
+    median_random_lattice,
+    rqmc_mean,
+    rqmc_median,
+)
+
+def smooth(x):
+    return math.prod(1.0 + v * v - v + 1.0 / 6.0 for v in x)  # integral 1
+
+rule = cbc_generating_vector(127, 3)
+rule.generating_vector             # (1, 29, 24)
+round(rule.worst_case_error, 5)    # 0.01156
+
+mean = rqmc_mean(smooth, 3, 127, replicates=11, seed=1)
+mean.evaluations                           # 1397
+round(mean.estimate, 6)                    # 1.0
+round(mean.standard_error * 1e6, 2)        # 5.28
+rqmc_median(smooth, 3, 127, replicates=11, seed=1).interval is None  # True
+
+random_rules = median_random_lattice(smooth, 3, 509, replicates=11, seed=1)
+round(random_rules.estimate, 6)                                # 1.0
+round(statistics.fmean(random_rules.replicate_estimates), 6)   # 1.000105
+```
+
+In the last two lines one of the eleven random generating vectors is bad
+(error `1.2e-3`); it moves the mean of the replicates to `1.000105` and
+leaves the median at `1.0000004`.
+
 ## Common pitfalls
 
 - **Different defaults for the same step.** `propagation.propagate` defaults
@@ -192,3 +261,5 @@ replicated.mean_interval().method  # 'Student-t interval over 4 randomized repli
 - [REF-DAVIS-RABINOWITZ-1984, Chapters 2-3].
 - [REF-WILSON-1927].
 - [REF-WILKS-1941], [REF-WILKS-1942], [REF-NUTT-WALLIS-2004].
+- [REF-CRANLEY-PATTERSON-1976], [REF-GODA-LECUYER-2022], [REF-PAN-OWEN-2023],
+  [REF-LECUYER-NAKAYAMA-OWEN-TUFFIN-2023].
