@@ -5123,6 +5123,7 @@ Oliver Hines, Oliver Dukes, Karla Diaz-Ordaz, and Stijn Vansteelandt.
 "Demystifying Statistical Learning Based on Efficient Influence Functions."
 *The American Statistician* 76(3), 292-304, 2022.
 DOI: [10.1080/00031305.2021.2021984](https://doi.org/10.1080/00031305.2021.2021984).
+
 ## REF-PEHERSTORFER-WILLCOX-GUNZBURGER-2016
 
 Benjamin Peherstorfer, Karen Willcox, and Max Gunzburger. "Optimal Model
@@ -5157,6 +5158,7 @@ National Institute of Standards and Technology. *Secure Hash Standard
 (SHS)*. Federal Information Processing Standards Publication 180-4, 2015.
 DOI: [10.6028/NIST.FIPS.180-4](https://doi.org/10.6028/NIST.FIPS.180-4).
 Defines SHA-256.
+
 ## REF-TIBSHIRANI-ETAL-2019
 
 Ryan J. Tibshirani, Rina Foygel Barber, Emmanuel J. Candès, and Aaditya
@@ -5208,6 +5210,7 @@ International Conference on Machine Learning* (ICML 2024), *Proceedings of
 Machine Learning Research* 235, 1616-1630, 2024. Quantile tracking with
 step sizes `eta_t` proportional to `t^(-1/2-eps)`.
 arXiv: [2402.01139](https://arxiv.org/abs/2402.01139).
+
 ## REF-VOVK-WANG-2021
 
 Vladimir Vovk and Ruodu Wang. "E-values: Calibration, combination and
@@ -5280,6 +5283,7 @@ Efficient Prediction-Powered Inference." Preprint, 2023. A weight on the
 prediction term tuned to minimize the asymptotic variance, so that the
 estimator is never less efficient than the classical one.
 [arXiv:2311.01453](https://arxiv.org/abs/2311.01453).
+
 ## REF-VEHTARI-ETAL-2024
 
 Aki Vehtari, Daniel Simpson, Andrew Gelman, Yuling Yao, and Jonah Gabry.
@@ -5355,6 +5359,7 @@ Scheme." *Journal of the Royal Statistical Society: Series B (Statistical
 Methodology)* 84(2), 321-350, 2022. Deterministic even-odd swaps, swap
 rejection rates, and round trips.
 DOI: [10.1111/rssb.12464](https://doi.org/10.1111/rssb.12464).
+
 ## REF-KENNEDY-OHAGAN-2000
 
 Marc C. Kennedy and Anthony O'Hagan. "Predicting the Output from a Complex

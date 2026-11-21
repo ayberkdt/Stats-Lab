@@ -361,7 +361,7 @@ sampled group contains are removed from `Psi`.
   are linear unbiased estimators on particular group structures.
 - Code: `monte_carlo.mlblue_variance`, `monte_carlo.mlblue_estimate`.
 - Source: [REF-SCHADEN-ULLMANN-2020].
-  - [REF-SCHADEN-ULLMANN-2020](../references.md#ref-schaden-ullmann-2020): Daniel Schaden and Elisabeth Ullmann. "On Multilevel Best Linear Unbiased Estimators." *SIAM/ASA Journal on Uncertainty Quantification* 8(2), 601-635, 2020. Generalized least squares over independent groups of jointly evaluated models: the normal matrix `Psi = sum_k n_k P_k' C_k^-1 P_k`, the estimator `Psi^-1 y`, its covariance `Psi^-1`, and the sample allocation problem. DOI: [10.1137/19M1263534](https://doi.org/10.1137/19M1263534).
+  - [REF-SCHADEN-ULLMANN-2020](../references.md#ref-schaden-ullmann-2020): Daniel Schaden and Elisabeth Ullmann. "On Multilevel Best Linear Unbiased Estimators." *SIAM/ASA Journal on Uncertainty Quantification* 8(2), 601-635, 2020. DOI: [10.1137/19M1263534](https://doi.org/10.1137/19M1263534).
 - Registry: [EQ-MC-MF-009](../equation-registry.md#eq-mc-mf-009--multilevel-best-linear-unbiased-estimator)
 
 ### EQ-MC-MF-010 — MLBLUE sample allocation on the budget simplex
@@ -391,7 +391,7 @@ The simplex is parametrized as
   problem) and [REF-CROCI-WILLCOX-WRIGHT-2023] (problem statement; the
   semidefinite program of that paper is replaced by this smooth nonlinear
   program, and the lower bound is derived here).
-  - [REF-SCHADEN-ULLMANN-2020](../references.md#ref-schaden-ullmann-2020): Daniel Schaden and Elisabeth Ullmann. "On Multilevel Best Linear Unbiased Estimators." *SIAM/ASA Journal on Uncertainty Quantification* 8(2), 601-635, 2020. Generalized least squares over independent groups of jointly evaluated models: the normal matrix `Psi = sum_k n_k P_k' C_k^-1 P_k`, the estimator `Psi^-1 y`, its covariance `Psi^-1`, and the sample allocation problem. DOI: [10.1137/19M1263534](https://doi.org/10.1137/19M1263534).
+  - [REF-SCHADEN-ULLMANN-2020](../references.md#ref-schaden-ullmann-2020): Daniel Schaden and Elisabeth Ullmann. "On Multilevel Best Linear Unbiased Estimators." *SIAM/ASA Journal on Uncertainty Quantification* 8(2), 601-635, 2020. DOI: [10.1137/19M1263534](https://doi.org/10.1137/19M1263534).
   - [REF-CROCI-WILLCOX-WRIGHT-2023](../references.md#ref-croci-willcox-wright-2023): Matteo Croci, Karen E. Willcox, and Stephen J. Wright. "Multi-Output Multilevel Best Linear Unbiased Estimators via Semidefinite Programming." *Computer Methods in Applied Mechanics and Engineering* 413, 116130, 2023. Statement of the MLBLUE sample allocation problem (minimize the estimator variance subject to a cost budget and non-negative group sample counts) and its solution as a semidefinite program; cited here for the problem statement only. DOI: [10.1016/j.cma.2023.116130](https://doi.org/10.1016/j.cma.2023.116130).
 - Registry: [EQ-MC-MF-010](../equation-registry.md#eq-mc-mf-010--mlblue-sample-allocation-on-the-budget-simplex)
 

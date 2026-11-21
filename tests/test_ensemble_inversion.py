@@ -410,7 +410,9 @@ class EnsembleKalmanInversionTests(unittest.TestCase):
         first = ensemble_kalman_inversion(self.problem, seed=5, **kwargs)
         second = ensemble_kalman_inversion(self.problem, seed=5, **kwargs)
         third = ensemble_kalman_inversion(self.problem, seed=6, **kwargs)
-        self.assertEqual(first, second)
+        # ``discrepancy_threshold`` is NaN here, and NaN != NaN field by field
+        # (dataclass equality compares fields one by one from Python 3.13).
+        self.assertEqual(repr(first), repr(second))
         self.assertNotEqual(first.standard_ensemble, third.standard_ensemble)
         self.assertEqual(first.seed, 5)
         smoother = ensemble_smoother_mda(
@@ -419,7 +421,7 @@ class EnsembleKalmanInversionTests(unittest.TestCase):
         again = ensemble_smoother_mda(
             self.problem, ensemble_size=15, inflation_coefficients=(2.0, 2.0), seed=5
         )
-        self.assertEqual(smoother, again)
+        self.assertEqual(repr(smoother), repr(again))
 
 
 class WhitenedGainTests(unittest.TestCase):

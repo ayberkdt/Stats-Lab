@@ -179,7 +179,7 @@ For beliefs `theta_x ~ N(mu_x, s_x^2)` and measurement noise variance
   `mu_x + st_x Z`, so `KG_x = E[max_y mu'_y] - max_y mu_y`.
 - Code: `design.knowledge_gradient`.
 - Source: [REF-FRAZIER-POWELL-DAYANIK-2008].
-  - [REF-FRAZIER-POWELL-DAYANIK-2008](../references.md#ref-frazier-powell-dayanik-2008): Peter I. Frazier, Warren B. Powell, and Savas Dayanik. "A Knowledge-Gradient Policy for Sequential Information Collection." *SIAM Journal on Control and Optimization* 47(5), 2410-2439, 2008. The one-step expected increase of the best posterior mean for independent normal beliefs, in closed form. DOI: [10.1137/070693424](https://doi.org/10.1137/070693424).
+  - [REF-FRAZIER-POWELL-DAYANIK-2008](../references.md#ref-frazier-powell-dayanik-2008): Peter I. Frazier, Warren B. Powell, and Savas Dayanik. "A Knowledge-Gradient Policy for Sequential Information Collection." *SIAM Journal on Control and Optimization* 47(5), 2410-2439, 2008. The one-step expected increase of the best posterior mean for independent normal beliefs, in closed form. DOI: [10.1137/070693424](https://doi.org/10.1137/070693424). 2020. Generalized least squares over independent groups of jointly evaluated models: the normal matrix `Psi = sum_k n_k P_k' C_k^-1 P_k`, the estimator `Psi^-1 y`, its covariance `Psi^-1`, and the sample allocation problem. DOI: [10.1137/19M1263534](https://doi.org/10.1137/19M1263534).
 - Registry: [EQ-DES-BO-005](../equation-registry.md#eq-des-bo-005--knowledge-gradient-for-independent-normal-beliefs)
 
 ### EQ-DES-BO-006 — Joint GP posterior draw on a finite set

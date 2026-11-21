@@ -6792,6 +6792,7 @@ weighted equally, or the `at` levels held fixed);
   balanced designs, conservative (Tukey-Kramer) otherwise.
 - Code: `inference.marginal_means`.
 - Source: [REF-KRAMER-1956], [REF-HOCHBERG-TAMHANE-1987].
+
 ### EQ-GLM-FAM-001 — GLM families, links, and variance functions
 
 `g(mu_i) = eta_i = x_i'beta + o_i`, `Var(y_i) = phi V(mu_i)/w_i`, with
@@ -15504,6 +15505,7 @@ their percentile band are computed.
   systems toward zero.
 - Code: `timeseries.VARFit.impulse_response_bands`.
 - Source: [REF-KILIAN-1998].
+
 ### EQ-TS-ADF-001 — Augmented Dickey-Fuller regression and statistic
 
 `Delta y_t = D_t' delta + gamma y_(t-1) + sum_{j=1}^{k} phi_j Delta y_(t-j) + e_t`,
@@ -18306,6 +18308,7 @@ Rounds `r = 0, ..., ceil(log2 n) - 1`; each survivor gets
   rarely and weighted by the inverse probability, keeping the expectation.
 - Code: `methodlab.thinned_estimator`.
 - Source: [REF-RHEE-GLYNN-2015].
+
 ## Conformal prediction beyond exchangeability and conformal risk control
 
 ### EQ-CONF-006 — Weighted conformal quantile under covariate shift
@@ -18479,6 +18482,7 @@ if it exceeds `n`), over `i = 1..n`.
 - Source: [REF-ANGELOPOULOS-CANDES-TIBSHIRANI-2023],
   [REF-ANGELOPOULOS-BARBER-BATES-2024]; the proof for non-increasing steps
   is the telescoping argument recorded in the domain bullet.
+
 ## E-values, betting confidence sequences, universal and prediction-powered inference (ADR-0119)
 
 ### EQ-INF-EVAL-001 — E-values, Markov's bound, and the e-to-p calibrator
@@ -18698,6 +18702,7 @@ predictions `f_i = f(X_i)` on the `n` labelled units and `F_j = f(X~_j)` on
   `inference.prediction_powered_mean`.
 - Source: [REF-ANGELOPOULOS-DUCHI-ZRNIC-2023]; the derivation and the
   two-sample plug-in `w_hat` are worked out here.
+
 ## Importance-sampling diagnostics and further samplers (ADR-0122)
 
 ### EQ-INF-PSIS-001 — Pareto smoothing of the largest importance ratios
@@ -18935,6 +18940,7 @@ limit of long runs.
   `inference.parallel_tempering`.
 - Source: derived here from the tempered path of [REF-SYED-ETAL-2022];
   the increment is that of [REF-DELMORAL-DOUCET-JASRA-2006].
+
 ## Multi-fidelity surrogates, stochastic kriging, Bayesian quadrature, and Bayesian optimization (ADR-0125)
 
 ### EQ-SUR-MF-001 — Recursive AR(1) co-kriging predictor
@@ -19162,6 +19168,7 @@ For candidates `x_1..x_m`: `mean_i = mu(x_i)`,
 - Code: `design.gaussian_process_joint_posterior`,
   `design.thompson_sample`, `design.bayesian_optimization`.
 - Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 2.2].
+
 ## Multifidelity Monte Carlo, approximate control variates, and MLBLUE (ADR-0117)
 
 Models are indexed from zero in the code and in these records: model 0 is
