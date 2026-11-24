@@ -5788,3 +5788,15 @@ Generators." Python Enhancement Proposals, 2005.
 [https://peps.python.org/pep-0342/](https://peps.python.org/pep-0342/).
 Cited for `generator.send`, the mechanism by which a batch procedure
 receives the outputs of the evaluation request it yielded.
+
+## REF-JCGM-101-2008
+
+JCGM 101:2008. *Evaluation of measurement data — Supplement 1 to the "Guide to
+the expression of uncertainty in measurement" — Propagation of distributions
+using a Monte Carlo method*. Joint Committee for Guides in Metrology, 2008.
+Opened and read from the BIPM PDF for the uncertainty-budget module:
+Sections 5.3 (coverage intervals), 5.8-5.9, 6.4.2-6.4.8 (assigned
+distributions), 7.2-7.7 and 7.9.2 (Monte Carlo trials, estimates, coverage
+intervals, numerical tolerance), 8.1-8.2 (validation of the GUM uncertainty
+framework) and 9.2 (additive model). Equation numbers cited in the code
+(16, 17, 18, 19, 20) are those of that text.
