@@ -248,3 +248,70 @@ round(LearningCurve(1000, 0.85).cumulative_cost(100), 2)              # 43753.87
 round(LearningCurve(1000, 0.85, "cumulative_average").cumulative_cost(100), 2)   # 33967.96
 optimize_age_replacement(Exponential(0.01), 1.0, 10.0).finite_optimum   # False
 ```
+
+## Schedule risk and joint cost-schedule confidence
+
+`cost_risk_analysis` gives a cost S-curve and `joint_confidence_level` scores a
+(cost, date) pair, but both need paired samples that something has to produce.
+`ActivityNetwork` is that source: an activity-on-node network whose durations
+are numbers or laws from `probstat.distributions`, with finish-to-start (the
+default), start-to-start (`"SS"`) and finish-to-finish (`"FF"`) relations and
+optional lags. A cycle is rejected with its name (`a -> b -> a`).
+
+- `critical_path` is the deterministic method: early and late dates, total
+  and free float, and every critical path.
+- `pert_estimate` is the classical approximation: mean and variance summed
+  along one critical path, a normal completion time. It is exact for a series
+  of independent activities and optimistic wherever paths merge, because the
+  expected maximum of two paths exceeds the larger expected path.
+- `simulate_schedule` samples every duration (optionally through a Gaussian
+  copula on the normal scores, `correlation=`), adds discrete
+  `ScheduleRiskEvent` records built on `Risk`, and reports the completion
+  quantiles with distribution-free intervals, `probability_by` with an exact
+  Clopper-Pearson interval, and per activity the criticality index,
+  cruciality (correlation of its duration with the completion time) and the
+  schedule sensitivity index.
+- `cost_schedule_samples` loads cost: a time-independent cost per activity, a
+  burn rate times the sampled duration, and a project rate times the sampled
+  completion time. `joint_cost_schedule_confidence` and
+  `cost_schedule_frontier` hand the pairs to the joint confidence functions.
+
+**The joint confidence of a pair is below both marginals.** The example
+below has two parallel builds. The date that the schedule meets with 70 %
+confidence and the cost that an independent cost element meets with 70 %
+confidence meet *both* targets only about 49 % of the time (0.7 x 0.7); with
+cost that grows with duration (a burn rate) the joint value is higher than
+the product but still never above the smaller marginal. A frontier at a
+stated joint confidence therefore needs a cost and a date that each have a
+higher marginal confidence.
+
+```python
+from probstat.cost import (
+    Activity, ActivityNetwork, cost_schedule_frontier, cost_schedule_samples,
+    critical_path, joint_cost_schedule_confidence, simulate_schedule,
+)
+from probstat.distributions import Normal, Uniform
+
+network = ActivityNetwork((
+    Activity("design", 10),
+    Activity("build_a", Uniform(8, 14), ("design",)),
+    Activity("build_b", Uniform(8, 14), ("design",)),
+    Activity("test", 5, ("build_a", "build_b")),
+))
+critical_path(network).duration                      # 26.0
+len(critical_path(network).critical_paths)           # 2
+result = simulate_schedule(network, samples=4000, seed=1)
+round(result.pert.mean, 1)                           # 26.0, PERT keeps one path
+round(result.mean, 1)                                # 27.0, closed form below
+round(result.activity("build_a").criticality, 1)     # 0.5
+deadline = result.quantile(0.7).estimate
+pairs = cost_schedule_samples(result, fixed_costs={"build_a": Normal(500, 50)}, seed=2)
+joint = joint_cost_schedule_confidence(pairs, 526.2, deadline)
+round(joint.cost_only, 1), round(joint.schedule_only, 1)   # (0.7, 0.7)
+round(joint.joint, 2)                                # 0.49
+round(cost_schedule_frontier(pairs, 0.7).points[0].cost_confidence, 1)   # 1.0
+```
+
+The simulated mean is the closed-form value 27: the maximum of two
+independent Uniform(8, 14) durations has mean `8 + 6 * 2/3 = 12`, plus the
+fixed 10 and 5. PERT reports 26 and cannot see the gap.
