@@ -853,13 +853,14 @@ class BayesianQuadratureTests(unittest.TestCase):
         kernel matrix is numerically singular. The error message advises a
         larger ``noise_variance``; before the fix that argument was ignored
         on the fitted path, so the call failed whatever value was passed.
+        Whether the call without a nugget fails is not asserted: the fitted
+        length scale moves with float rounding (Python 3.11 sums differently
+        from 3.12+), and on Python 3.11 the default call succeeds.
         """
         nodes = [(-3.0 + 0.5 * i,) for i in range(13)]
         values = [x * x for (x,) in nodes]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", GaussianProcessConditioningWarning)
-            with self.assertRaises(ValueError):
-                bayesian_quadrature(nodes, values, [GaussianMeasure()], seed=0)
             result = bayesian_quadrature(
                 nodes, values, [GaussianMeasure()], noise_variance=1e-6, seed=0
             )
