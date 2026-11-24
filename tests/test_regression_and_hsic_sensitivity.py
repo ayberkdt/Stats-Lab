@@ -486,7 +486,13 @@ class SensitivityPlotTests(unittest.TestCase):
         self.assertEqual(len(axes.patches), 6)
         hatched = [patch for patch in axes.patches if patch.get_hatch()]
         self.assertEqual(len(hatched), 3)
-        self.assertEqual(axes.get_xlabel(), "Net force [N]")
+        self.assertEqual(axes.get_xlabel(), "Change in Net force from baseline [N]")
+        # Every bar starts at zero, so its length is the change it encodes.
+        for patch in axes.patches:
+            self.assertEqual(
+                min(patch.get_x(), patch.get_x() + patch.get_width()),
+                min(0.0, patch.get_width()),
+            )
         title = next(t for t in axes.get_children() if t.get_gid() == TITLE_GID)
         self.assertTrue(title.get_text().startswith("Drag swings Net force the most"))
         texts = [t.get_text() for t in axes.texts]

@@ -505,10 +505,12 @@ def plot_tornado(
 ) -> Any:
     """Draw one-at-a-time swings as horizontal bars around the baseline output.
 
-    One row per input, the largest absolute swing on top. Each row has two
-    bars that start at the baseline output (a dashed vertical reference):
-    the solid bar ends at the output with the input at its low value, the
-    hatched bar at the output with the input at its high value, so colour is
+    One row per input, the largest absolute swing on top. The horizontal axis
+    is the change of the output from its baseline value, so every bar starts
+    at zero and its length is the change it encodes; the baseline output
+    itself is written on the dashed zero reference. Each row has two bars:
+    the solid bar ends at the change with the input at its low value, the
+    hatched bar at the change with the input at its high value, so colour is
     never the only carrier of direction. The input value at each end is
     written next to the bar end. An input whose baseline output lies outside
     its two end outputs is marked ``*`` (the response is non-monotone
@@ -557,9 +559,9 @@ def plot_tornado(
     label = output_name or result.quantity or "Output"
     low_colour = palette.observed
     high_colour = palette.model
-    ends = [base]
+    ends = [0.0]
     for bar in bars:
-        ends.extend((bar.low_output, bar.high_output))
+        ends.extend((bar.low_output - base, bar.high_output - base))
     span = max(ends) - min(ends)
     pad = 0.16 * span if span > 0.0 else max(abs(base), 1.0) * 0.1
     for row, bar in enumerate(bars):
@@ -572,7 +574,6 @@ def plot_tornado(
             axes.barh(
                 y,
                 value - base,
-                left=base,
                 height=0.62,
                 color=colour,
                 hatch=hatch,
@@ -590,7 +591,7 @@ def plot_tornado(
                 )
             axes.annotate(
                 f"{shown:.3g}",
-                (value, y),
+                (value - base, y),
                 xytext=(5.0 * side, 0.0),
                 textcoords="offset points",
                 ha="left" if side > 0 else "right",
@@ -600,7 +601,8 @@ def plot_tornado(
                 annotation_clip=False,
                 zorder=6,
             )
-    reference_line(axes, x=base, label=f"baseline {base:.3g}")
+    suffix = f" {unit}" if unit else ""
+    reference_line(axes, x=0.0, label=f"baseline {base:.3g}{suffix}")
     axes.set_yticks(range(count))
     axes.set_yticklabels(
         [f"{bar.name}{' *' if bar.nonmonotone else ''}" for bar in reversed(bars)]
@@ -609,13 +611,14 @@ def plot_tornado(
     axes.set_xlim(min(ends) - pad, max(ends) + pad)
     axes.grid(axis="y", visible=False)
     axes.grid(axis="x", visible=True, color=palette.rule, linewidth=0.7)
-    axis_labels(axes, label, x_unit=unit)
+    axis_labels(axes, f"Change in {label} from baseline", x_unit=unit)
     lead = bars[0] if bars else None
     if lead is None or lead.swing == 0.0:
         derived = f"No single input moves {label} between its low and high values"
     else:
         derived = (
-            f"{lead.name} swings {label} the most: {lead.swing:+.3g} from low to high"
+            f"{lead.name} swings {label} the most: "
+            f"{lead.swing:+.3g}{suffix} from low to high"
         )
     flagged = any(bar.nonmonotone for bar in bars)
     title_block(

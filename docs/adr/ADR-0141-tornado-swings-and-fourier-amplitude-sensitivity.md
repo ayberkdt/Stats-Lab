@@ -83,7 +83,11 @@ variance-based indices: its cost is `d R N` runs for the extended method and
    non-identity copula with a message naming `shapley_effects`; the plain
    entries take independent marginals by construction.
 8. **Plot, `visualization.plot_tornado(result, top=None, ...)`.** Horizontal
-   bars sorted by swing around a dashed baseline reference; each row has a
+   bars sorted by swing on an axis of change from the baseline output, so
+   every bar starts at zero and its length is the change it encodes (a bar
+   that starts at a non-zero baseline value fails the figure audit's
+   zero-origin rule); the baseline value is written on the dashed zero
+   reference; each row has a
    solid bar (input at its low value) and a hatched bar (input at its high
    value), so colour is not the only carrier of direction; the input value is
    written at each bar end; `*` marks a non-monotone input; title states the
