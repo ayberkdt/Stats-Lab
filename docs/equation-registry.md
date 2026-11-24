@@ -21356,3 +21356,127 @@ consequence I..V.
 - Code: `validation.credibility_scale.criticality_assessment`,
   `validation.credibility_scale.criticality_matrix`.
 - Source: [REF-NASA-STD-7009B-2024, Appendix D, Figure 1].
+## Chance constraints and reliability-based design optimisation
+
+### EQ-REL-SCENARIO-001 — Scenario violation bound
+
+`P^N{ V(x*_N) > eps } <= beta(N, d, eps) = sum_(i=0)^(d-1) C(N, i) eps^i (1 - eps)^(N - i)`
+`= P(Binomial(N, eps) <= d - 1)`, where `V(x) = P{ xi : g(x, xi) > 0 }`.
+
+- Domain: convex program in `d` variables with `N` independent constraint
+  samples, a unique solution for every sample; `0 < eps < 1`. The bound holds
+  with equality for fully-supported problems.
+- Meaning: confidence `1 - beta` that the solution violates a fresh
+  constraint with probability at most `eps`; inverting it gives the sample
+  size and the a-priori violation level for a given `N`.
+- Code: `reliability.scenario_confidence`,
+  `reliability.scenario_violation_bound`, `reliability.scenario_sample_size`.
+- Source: [REF-CAMPI-GARATTI-2008].
+
+### EQ-REL-SCENARIO-002 — Explicit sufficient scenario sample size
+
+`N >= (2 / eps) (d - 1 + ln(1 / beta))` implies
+`P(Binomial(N, eps) <= d - 1) <= beta`.
+
+- Domain: `0 < eps, beta < 1`, `d >= 1`.
+- Meaning: from the multiplicative Chernoff bound
+  `P(X <= a) <= exp(-(N eps - a)^2 / (2 N eps))` for `a < N eps`; with
+  `a = d - 1` and `N eps >= 2 (a + ln(1/beta))` the exponent is at least
+  `ln(1/beta)`. Never smaller than the exact size.
+- Code: `reliability.scenario_sample_size` (`explicit_size`).
+- Source: derived in this library from the Chernoff bound; the form
+  resembles the sufficient sizes quoted in the scenario literature
+  ([REF-CAMPI-GARATTI-2008]) but was not copied from it.
+
+### EQ-REL-SCENARIO-003 — Wait-and-judge violation level
+
+`eps(k) = 1 - t(k)`, `t(k)` the unique root in `(0, 1)` of
+`beta/(N+1) sum_(m=k)^N C(m, k) t^(m-k) - C(N, k) t^(N-k) = 0`; then
+`P^N{ V(x*_N) > eps(s*_N) } <= beta` for the number `s*_N` of support
+constraints of the computed solution.
+
+- Domain: convex program with a unique solution and the non-degeneracy
+  assumption of the paper; `0 <= k <= min(d, N - 1)`.
+- Meaning: the violation level may be chosen after the solution is seen, from
+  the observed number of support constraints instead of the worst case `d`.
+- Code: `reliability.scenario_posterior_violation_bound`.
+- Source: [REF-CAMPI-GARATTI-2018].
+
+### EQ-REL-SAA-001 — Sampled chance constraint as an order statistic
+
+`(1/N) #{ s : h_s(x) > 0 } <= gamma` if and only if
+`h_(q+1)(x) <= 0` with `h_s(x) = max_i g_i(x, xi_s)`, `q = floor(gamma N)`, and
+`h_(r)` the `r`-th largest of the `N` values.
+
+- Domain: `N` independent draws, `0 <= gamma < 1`; `gamma = 0` is the scenario
+  program `max_s h_s(x) <= 0`.
+- Meaning: the sample-average approximation of a single or joint chance
+  constraint is one piecewise-smooth, generally non-convex constraint, so no
+  smoothing of the indicator is needed.
+- Code: `reliability.solve_chance_constrained`.
+- Source: elementary; the approximation itself is described in
+  [REF-LUEDTKE-AHMED-2008] and [REF-NEMIROVSKI-SHAPIRO-2006].
+
+### EQ-REL-CHANCE-NORMAL-001 — Linear chance constraint with normal coefficients
+
+`P(a'x <= b) >= 1 - eps` with `a ~ N(mu, Sigma)` if and only if
+`mu'x + Phi^-1(1 - eps) sqrt(x' Sigma x) <= b`; the exact violation
+probability is `Phi(-(b - mu'x) / sqrt(x' Sigma x))`.
+
+- Domain: `Sigma` symmetric positive semidefinite, `0 < eps < 1`; the
+  feasible set is convex (second-order cone) for `eps <= 1/2`.
+- Meaning: `a'x` is a normal variable with mean `mu'x` and variance
+  `x' Sigma x`.
+- Code: `reliability.normal_linear_chance_margin`,
+  `reliability.normal_linear_violation_probability`.
+- Source: elementary; see [REF-NEMIROVSKI-SHAPIRO-2006] for the setting.
+
+### EQ-REL-CHANCE-FREE-001 — Distribution-free chance constraint
+
+`P(a'x > b) <= eps` for every law of `a` with mean `mu` and covariance
+`Sigma` if `mu'x + kappa sqrt(x' Sigma x) <= b`, with
+`kappa = sqrt((1 - eps)/eps)` (Cantelli, attained by a two-point law) or
+`kappa = 1 / sqrt(eps)` (Chebyshev).
+
+- Domain: `0 < eps < 1`, finite second moments; `b > mu'x`.
+- Meaning: Cantelli's inequality `P(Y - m >= t) <= s^2/(s^2 + t^2)` solved for
+  `t`; Chebyshev's is the two-sided inequality, more conservative.
+- Code: `reliability.distribution_free_chance_margin`.
+- Source: elementary (Cantelli's and Chebyshev's inequalities).
+
+### EQ-REL-AUGLAG-001 — Augmented Lagrangian for inequality constraints
+
+`L(x; lam, mu) = f(x) + (1 / (2 mu)) sum_j [ max(0, lam_j + mu c_j(x))^2 - lam_j^2 ]`;
+multiplier update `lam_j <- max(0, lam_j + mu c_j(x))` after minimising `L`
+in `x`.
+
+- Domain: `c_j(x) <= 0` feasible; `mu > 0`; a smooth objective and constraints
+  for the inner BFGS solve.
+- Meaning: at a regular local solution `x*` with multipliers `lam*`,
+  `grad f + sum_j lam*_j grad c_j = 0` and `lam*_j c_j(x*) = 0`.
+- Code: `reliability.minimize_constrained`.
+- Source: [REF-NOCEDAL-WRIGHT-2006, Section 17.4].
+
+### EQ-REL-SORA-001 — Shifted deterministic constraint of one SORA cycle
+
+`g_j(mu_j(d) - s_j^k; d) >= 0`, `s_j^k = mu_j(d^(k-1)) - x*_j(d^(k-1))`,
+with `x*_j` the inverse-FORM most-probable target point on the sphere
+`||u|| = beta_target_j`.
+
+- Domain: continuous inputs; `g_j <= 0` is failure.
+- Meaning: the reliability constraint `beta_j(d) >= beta_target_j` is replaced
+  by a deterministic one evaluated at the mean shifted by the distance to the
+  most-probable target point of the previous design; exact for a limit state
+  linear in normal inputs with design-independent standard deviations.
+- Code: `reliability.rbdo_sora`.
+- Source: [REF-DU-CHEN-2004] (bibliographic), [REF-TU-CHOI-PARK-1999].
+
+### EQ-REL-RBDO-002 — Reliability-index (double-loop) constraint
+
+`beta_target_j - beta_j(d) <= 0`, `beta_j(d)` the FORM index of limit state `j`
+at design `d`.
+
+- Domain: a converged FORM analysis at every trial design.
+- Meaning: the nested formulation; one FORM run per constraint evaluation.
+- Code: `reliability.rbdo_double_loop`.
+- Source: [REF-TU-CHOI-PARK-1999], [REF-AOUES-CHATEAUNEUF-2010].

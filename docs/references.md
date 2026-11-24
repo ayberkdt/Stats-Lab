@@ -5838,3 +5838,64 @@ SAND2007-5948, Sandia National Laboratories, October 2007.
 example): six elements on a 0-3 scale, scores in tenths, the cap on validation
 and uncertainty quantification by the verification elements, and the
 (minimum, mean, maximum) aggregation triple.
+## REF-CALAFIORE-CAMPI-2006
+
+Giuseppe C. Calafiore and Marco C. Campi. "The Scenario Approach to Robust
+Control Design." *IEEE Transactions on Automatic Control* 51(5), 742-753,
+2006. Confirmed bibliographically only (not opened); the bound used in this
+library is the exact one of [REF-CAMPI-GARATTI-2008], whose text states the
+earlier bound it improves. Cited for the origin of the scenario approach to
+convex programs with uncertain constraints.
+
+## REF-CAMPI-GARATTI-2008
+
+Marco C. Campi and Simone Garatti. "The Exact Feasibility of Randomized
+Solutions of Uncertain Convex Programs." *SIAM Journal on Optimization*
+19(3), 1211-1230, 2008. DOI: 10.1137/07069821X. Opened and read (Theorem 2.4
+and its discussion, including the sample sizes of its Table 2.2). Cited for
+the violation bound `sum_(i<d) C(N,i) eps^i (1-eps)^(N-i)`, tight for
+fully-supported problems; the explicit sufficient sample size is derived in
+this library from the multiplicative Chernoff bound and is not taken from the
+paper.
+
+## REF-CAMPI-GARATTI-2018
+
+Marco C. Campi and Simone Garatti. "Wait-and-Judge Scenario Optimization."
+*Mathematical Programming* 167(1), 155-189, 2018. DOI:
+10.1007/s10107-016-1056-9. Opened and read (Assumptions 1 and 2, Theorem 1,
+Theorem 2 and its polynomial equation (11)). Cited for the a-posteriori
+violation level `epsilon(k)` as a function of the number `k` of support
+constraints.
+
+## REF-DU-CHEN-2004
+
+Xiaoping Du and Wei Chen. "Sequential Optimization and Reliability Assessment
+Method for Efficient Probabilistic Design." *Journal of Mechanical Design*
+126(2), 225-233, 2004. DOI: 10.1115/1.1649968. Confirmed bibliographically
+only (not opened); the shifting-vector formulation is re-derived from the
+performance-measure approach of [REF-TU-CHOI-PARK-1999], not copied.
+
+## REF-AOUES-CHATEAUNEUF-2010
+
+Younes Aoues and Alaa Chateauneuf. "Benchmark Study of Numerical Methods for
+Reliability-Based Design Optimization." *Structural and Multidisciplinary
+Optimization* 41(2), 277-294, 2010. DOI: 10.1007/s00158-009-0412-2. Confirmed
+bibliographically only (not opened). Cited for the classification of the
+methods into two-level (double-loop), single-loop and decoupled families.
+
+## REF-NEMIROVSKI-SHAPIRO-2006
+
+Arkadi Nemirovski and Alexander Shapiro. "Convex Approximations of Chance
+Constrained Programs." *SIAM Journal on Optimization* 17(4), 969-996, 2006.
+Confirmed bibliographically only (not opened); the second-order-cone form of
+a linear constraint with normal coefficients and the Cantelli form are
+derived in this library (they are elementary consequences of the normal law
+and of Cantelli's inequality).
+
+## REF-LUEDTKE-AHMED-2008
+
+James Luedtke and Shabbir Ahmed. "A Sample Approximation Approach for
+Optimization with Probabilistic Constraints." *SIAM Journal on Optimization*
+19(2), 674-699, 2008. Confirmed bibliographically only (not opened). Cited for
+the sample-average approximation of a chance constraint; no result of the
+paper is used.

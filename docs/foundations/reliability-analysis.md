@@ -140,6 +140,105 @@ round(particles.probability, 3), round(particles.expected_calls)   # (0.955, 519
 `examples/risk_analysis_lab.py` reproduces these numbers together with the
 moving-particles certification at `alpha = 1e-3` and `1e-6`.
 
+## Chance constraints and reliability-based design
+
+Sizing a subsystem is an optimisation with a probabilistic requirement:
+"minimise mass such that the link margin is positive with probability 0.99".
+Two families of tools cover it.
+
+**Chance constraints without a design point.** For a convex program with `d`
+decision variables and `N` independent samples of the uncertain constraint,
+the scenario solution violates a fresh constraint with probability `V` and
+`P(V > eps) <= sum_(i<d) C(N, i) eps^i (1 - eps)^(N - i)` [EQ-REL-SCENARIO-001],
+a binomial tail that is attained by fully-supported problems.
+`reliability.scenario_sample_size` inverts it for `N` (the exact size and the
+explicit sufficient size `(2/eps)(d - 1 + ln(1/beta))` of [EQ-REL-SCENARIO-002]),
+and `reliability.scenario_violation_bound` returns the guaranteed `eps` for a
+given `N`. After the solve, the number `k` of support constraints replaces
+`d`: `reliability.scenario_posterior_violation_bound` gives the
+wait-and-judge level of [EQ-REL-SCENARIO-003], much smaller when few
+constraints are active. None of this needs convexity to be *computed*, but the
+guarantee needs it; for any other design, however obtained,
+`reliability.certify_design` counts violations in a fresh seeded sample and
+returns the exact Clopper-Pearson upper bound (`reliability.certify_violation_frequency`
+for a count you already have). `reliability.solve_chance_constrained`
+minimises an objective subject to the sampled chance constraint (single or
+joint) and returns the design, the empirical violation used in the
+optimisation, and the out-of-sample certificate. The sampled constraint "at
+most `floor(gamma N)` samples violate" is one order-statistic constraint
+[EQ-REL-SAA-001]; it is non-convex in general, so the result is a local
+solution and only the certificate supports a claim. For a linear constraint
+with normal coefficients the constraint is a second-order cone,
+`reliability.normal_linear_chance_margin` [EQ-REL-CHANCE-NORMAL-001], and
+`reliability.distribution_free_chance_margin` gives the Cantelli and
+Chebyshev versions [EQ-REL-CHANCE-FREE-001].
+
+**Reliability-based design optimisation.** `reliability.rbdo_sora` minimises
+`cost(d)` subject to `beta_j(d) >= beta_target_j` by sequential optimisation
+and reliability assessment: a deterministic optimisation with constraints
+shifted to the most-probable target points, then an inverse FORM analysis
+(`reliability.inverse_form`) at the new design, repeated [EQ-REL-SORA-001].
+`reliability.rbdo_double_loop` runs one FORM analysis per constraint
+evaluation [EQ-REL-RBDO-002] and is the slow reference.
+`reliability.minimize_constrained` is the augmented-Lagrangian solver both
+use [EQ-REL-AUGLAG-001], and `reliability.verify_design_reliability`
+re-checks the final design with SORM or importance sampling. A design enters a
+limit state through a factory `design -> ModelLimitState`.
+
+```python
+from probstat.distributions import Normal
+from probstat.modeling import JointInput, ProbabilisticModel, RandomInput
+from probstat.reliability import (
+    ModelLimitState,
+    certify_violation_frequency,
+    rbdo_sora,
+    scenario_posterior_violation_bound,
+    scenario_sample_size,
+    scenario_violation_bound,
+    verify_design_reliability,
+)
+from probstat.uq import QuantityOfInterest
+
+sizes = scenario_sample_size(0.05, 0.99999, 10)
+sizes.size, sizes.explicit_size                  # (581, 821)
+round(scenario_violation_bound(200, 4, 0.95), 4)           # 0.0383
+round(scenario_posterior_violation_bound(100, 1, 5, 0.999), 4)   # 0.1119
+round(certify_violation_frequency(0, 100).upper_bound, 4)  # 0.0295
+
+
+def capacity(design):
+    inputs = JointInput.independent(
+        RandomInput("x1", Normal(10.0, 1.0)), RandomInput("x2", Normal(30.0, 5.0))
+    )
+    model = ProbabilisticModel(
+        inputs,
+        lambda p: {"y": p["c"] * p["x1"] - p["x2"]},
+        (QuantityOfInterest("y", "margin"),),
+        fixed={"c": design[0]},
+    )
+    return ModelLimitState(model, "y", 0.0, "below")
+
+
+result = rbdo_sora(lambda d: d[0], [capacity], 3.0, (8.0,), bounds=[(1.0, 20.0)])
+round(result.design[0], 3), round(result.betas[0], 3), result.converged  # (5.154, 3.0, True)
+check = verify_design_reliability(result.design, [capacity], 3.0)[0]
+round(check.beta_difference, 3)                  # 0.0
+```
+
+The design `c = 5.154` solves `91 c^2 - 600 c + 675 = 0`, the closed form of
+`beta(c) = (10 c - 30) / sqrt(c^2 + 25) = 3` for this linear limit state, so
+SORM agrees with FORM exactly.
+
+- **Convention.** `solve_chance_constrained` and `certify_design` call
+  `g > 0` a violation (the optimisation convention); a `ModelLimitState` calls
+  `g <= 0` a failure. Pass `-g` to convert.
+- **Scenario guarantees need convexity.** The bounds are computed for any
+  problem but hold only when the program is convex with a unique solution;
+  `solve_chance_constrained` reports them only for `violation_level=0`.
+- **SORA is first order.** The achieved index is the FORM index; check the
+  final design with `reliability.verify_design_reliability`, which reports
+  the difference between FORM and SORM or importance sampling.
+
 ## Common pitfalls
 
 - **The boundary is failure.** `LimitState.failed` is `g(x) <= 0`, so a sample
@@ -174,3 +273,4 @@ linear_normal_form(-3.0, (1.0, 0.0)).reliability_index   # -3.0
 - [REF-OWEN-2013, Chapter 9].
 - [REF-WILSON-1927].
 - [REF-CLOPPER-PEARSON-1934], [REF-WALTER-2015].
+- [REF-CAMPI-GARATTI-2008], [REF-CAMPI-GARATTI-2018], [REF-DU-CHEN-2004].
