@@ -21384,9 +21384,11 @@ consequence I..V.
   `a = d - 1` and `N eps >= 2 (a + ln(1/beta))` the exponent is at least
   `ln(1/beta)`. Never smaller than the exact size.
 - Code: `reliability.scenario_sample_size` (`explicit_size`).
-- Source: derived in this library from the Chernoff bound; the form
-  resembles the sufficient sizes quoted in the scenario literature
-  ([REF-CAMPI-GARATTI-2008]) but was not copied from it.
+- Source: derived in this library from the Chernoff bound. It has the form of
+  the explicit size `(2 / eps)(ln(1 / beta) + d)` of Eq. (4) of
+  [REF-CAMPI-GARATTI-PRANDINI-2009] with `d - 1` in place of `d` (so it is
+  `2 / eps` samples smaller, and still never below the exact size);
+  [REF-CAMPI-GARATTI-2008] states the exact condition.
 
 ### EQ-REL-SCENARIO-003 — Wait-and-judge violation level
 
@@ -21414,8 +21416,9 @@ constraints of the computed solution.
   constraint is one piecewise-smooth, generally non-convex constraint, so no
   smoothing of the indicator is needed.
 - Code: `reliability.solve_chance_constrained`.
-- Source: elementary; the approximation itself is described in
-  [REF-LUEDTKE-AHMED-2008] and [REF-NEMIROVSKI-SHAPIRO-2006].
+- Source: elementary; the same sample approximation is defined in Section 2
+  of [REF-LUEDTKE-AHMED-2008] (preprint read), with `gamma = 0` the scenario
+  program.
 
 ### EQ-REL-CHANCE-NORMAL-001 — Linear chance constraint with normal coefficients
 
@@ -21429,7 +21432,9 @@ probability is `Phi(-(b - mu'x) / sqrt(x' Sigma x))`.
   `x' Sigma x`.
 - Code: `reliability.normal_linear_chance_margin`,
   `reliability.normal_linear_violation_probability`.
-- Source: elementary; see [REF-NEMIROVSKI-SHAPIRO-2006] for the setting.
+- Source: elementary; the convexity for normal coefficients and a violation
+  level of at most one half is stated in the introduction of
+  [REF-NEMIROVSKI-SHAPIRO-2006] (preprint read).
 
 ### EQ-REL-CHANCE-FREE-001 — Distribution-free chance constraint
 

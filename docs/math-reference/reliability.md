@@ -515,9 +515,12 @@ rule: `k_n = max{k : P(Binomial(n, alpha) <= k) <= beta}`, which gives
   `a = d - 1` and `N eps >= 2 (a + ln(1/beta))` the exponent is at least
   `ln(1/beta)`. Never smaller than the exact size.
 - Code: `reliability.scenario_sample_size` (`explicit_size`).
-- Source: derived in this library from the Chernoff bound; the form
-  resembles the sufficient sizes quoted in the scenario literature
-  ([REF-CAMPI-GARATTI-2008]) but was not copied from it.
+- Source: derived in this library from the Chernoff bound. It has the form of
+  the explicit size `(2 / eps)(ln(1 / beta) + d)` of Eq. (4) of
+  [REF-CAMPI-GARATTI-PRANDINI-2009] with `d - 1` in place of `d` (so it is
+  `2 / eps` samples smaller, and still never below the exact size);
+  [REF-CAMPI-GARATTI-2008] states the exact condition.
+  - [REF-CAMPI-GARATTI-PRANDINI-2009](../references.md#ref-campi-garatti-prandini-2009): Marco C. Campi, Simone Garatti, and Maria Prandini. "The scenario approach for systems and control design." *Annual Reviews in Control* 33, 149-157, 2009. Opened and read from the author's page: Theorem 1 with the explicit sample size `N >= (2 / epsilon)(ln(1 / beta) + d)` (Eq. 4), stated to follow from the exact condition `sum_(i<d) C(N, i) epsilon^i (1 - epsilon)^(N - i) <= beta` of [REF-CAMPI-GARATTI-2008] (Eq. 5, tight for fully-supported problems), and the worked example of Section 3.1 (`epsilon = 0.01`, `beta = 1e-10`, three variables, `N = 5206`) which is pinned in the tests. Cited for those two statements and as the open source that describes the scenario approach of [REF-CALAFIORE-CAMPI-2006].
   - [REF-CAMPI-GARATTI-2008](../references.md#ref-campi-garatti-2008): Marco C. Campi and Simone Garatti. "The Exact Feasibility of Randomized Solutions of Uncertain Convex Programs." *SIAM Journal on Optimization* 19(3), 1211-1230, 2008. DOI: 10.1137/07069821X. Opened and read (Theorem 2.4 and its discussion, including the sample sizes of its Table 2.2). Cited for the violation bound `sum_(i<d) C(N,i) eps^i (1-eps)^(N-i)`, tight for fully-supported problems; the explicit sufficient sample size is derived in this library from the multiplicative Chernoff bound and is not taken from the paper.
 - Registry: [EQ-REL-SCENARIO-002](../equation-registry.md#eq-rel-scenario-002--explicit-sufficient-scenario-sample-size)
 
@@ -549,10 +552,10 @@ constraints of the computed solution.
   constraint is one piecewise-smooth, generally non-convex constraint, so no
   smoothing of the indicator is needed.
 - Code: `reliability.solve_chance_constrained`.
-- Source: elementary; the approximation itself is described in
-  [REF-LUEDTKE-AHMED-2008] and [REF-NEMIROVSKI-SHAPIRO-2006].
-  - [REF-LUEDTKE-AHMED-2008](../references.md#ref-luedtke-ahmed-2008): James Luedtke and Shabbir Ahmed. "A Sample Approximation Approach for Optimization with Probabilistic Constraints." *SIAM Journal on Optimization* 19(2), 674-699, 2008. Confirmed bibliographically only (not opened). Cited for the sample-average approximation of a chance constraint; no result of the paper is used.
-  - [REF-NEMIROVSKI-SHAPIRO-2006](../references.md#ref-nemirovski-shapiro-2006): Arkadi Nemirovski and Alexander Shapiro. "Convex Approximations of Chance Constrained Programs." *SIAM Journal on Optimization* 17(4), 969-996, 2006. Confirmed bibliographically only (not opened); the second-order-cone form of a linear constraint with normal coefficients and the Cantelli form are derived in this library (they are elementary consequences of the normal law and of Cantelli's inequality).
+- Source: elementary; the same sample approximation is defined in Section 2
+  of [REF-LUEDTKE-AHMED-2008] (preprint read), with `gamma = 0` the scenario
+  program.
+  - [REF-LUEDTKE-AHMED-2008](../references.md#ref-luedtke-ahmed-2008): James Luedtke and Shabbir Ahmed. "A Sample Approximation Approach for Optimization with Probabilistic Constraints." *SIAM Journal on Optimization* 19(2), 674-699, 2008. The Optimization Online preprint (version dated 2 May 2008, optimization-online.org/2007/09/1779) was opened and Section 2 read: the sample approximation replaces the probabilistic constraint by the requirement that at least a fraction `1 - gamma` of `N` independent sampled constraints hold, which is the constraint of EQ-REL-SAA-001, with `gamma = 0` the scenario approximation; Theorem 3 (lower bounds when `gamma` exceeds the nominal level) and Theorems 5 and 7 (feasibility when it is smaller) give sample-size results that this library does not use. The published article was not opened.
 - Registry: [EQ-REL-SAA-001](../equation-registry.md#eq-rel-saa-001--sampled-chance-constraint-as-an-order-statistic)
 
 ### EQ-REL-CHANCE-NORMAL-001 — Linear chance constraint with normal coefficients
@@ -567,8 +570,10 @@ probability is `Phi(-(b - mu'x) / sqrt(x' Sigma x))`.
   `x' Sigma x`.
 - Code: `reliability.normal_linear_chance_margin`,
   `reliability.normal_linear_violation_probability`.
-- Source: elementary; see [REF-NEMIROVSKI-SHAPIRO-2006] for the setting.
-  - [REF-NEMIROVSKI-SHAPIRO-2006](../references.md#ref-nemirovski-shapiro-2006): Arkadi Nemirovski and Alexander Shapiro. "Convex Approximations of Chance Constrained Programs." *SIAM Journal on Optimization* 17(4), 969-996, 2006. Confirmed bibliographically only (not opened); the second-order-cone form of a linear constraint with normal coefficients and the Cantelli form are derived in this library (they are elementary consequences of the normal law and of Cantelli's inequality).
+- Source: elementary; the convexity for normal coefficients and a violation
+  level of at most one half is stated in the introduction of
+  [REF-NEMIROVSKI-SHAPIRO-2006] (preprint read).
+  - [REF-NEMIROVSKI-SHAPIRO-2006](../references.md#ref-nemirovski-shapiro-2006): Arkadi Nemirovski and Alexander Shapiro. "Convex Approximations of Chance Constrained Programs." *SIAM Journal on Optimization* 17(4), 969-996, 2006. DOI: 10.1137/050622328. The Optimization Online preprint of December 2004 (optimization-online.org/2004/12/1033) was opened and its introduction read; the published article was not opened and may differ from the preprint. The introduction states that, to the authors' knowledge, the only generic case in which the chance version of a bilinear constraint has a provably convex feasible set is that of normally distributed perturbations and a violation level of at most one half; this is the domain stated for the second-order-cone form of a linear constraint with normal coefficients (EQ-REL-CHANCE-NORMAL-001), whose algebra and the Cantelli form are derived in this library. The Bernstein and other convex approximations of the paper are not implemented.
 - Registry: [EQ-REL-CHANCE-NORMAL-001](../equation-registry.md#eq-rel-chance-normal-001--linear-chance-constraint-with-normal-coefficients)
 
 ### EQ-REL-CHANCE-FREE-001 — Distribution-free chance constraint

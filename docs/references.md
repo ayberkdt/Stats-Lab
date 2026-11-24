@@ -5842,10 +5842,13 @@ and uncertainty quantification by the verification elements, and the
 
 Giuseppe C. Calafiore and Marco C. Campi. "The Scenario Approach to Robust
 Control Design." *IEEE Transactions on Automatic Control* 51(5), 742-753,
-2006. Confirmed bibliographically only (not opened); the bound used in this
-library is the exact one of [REF-CAMPI-GARATTI-2008], whose text states the
-earlier bound it improves. Cited for the origin of the scenario approach to
-convex programs with uncertain constraints.
+2006. DOI: 10.1109/TAC.2006.875041. Not opened: no open copy was found (the
+author repository entry is restricted). The tutorial
+[REF-CAMPI-GARATTI-PRANDINI-2009] credits this paper and its 2005 predecessor
+with the scenario technology, and the bound used in this library is the exact
+one of [REF-CAMPI-GARATTI-2008], whose text states the earlier bound it
+improves. Cited for the origin of the scenario approach to convex programs
+with uncertain constraints.
 
 ## REF-CAMPI-GARATTI-2008
 
@@ -5887,18 +5890,30 @@ methods into two-level (double-loop), single-loop and decoupled families.
 
 Arkadi Nemirovski and Alexander Shapiro. "Convex Approximations of Chance
 Constrained Programs." *SIAM Journal on Optimization* 17(4), 969-996, 2006.
-Confirmed bibliographically only (not opened); the second-order-cone form of
-a linear constraint with normal coefficients and the Cantelli form are
-derived in this library (they are elementary consequences of the normal law
-and of Cantelli's inequality).
+DOI: 10.1137/050622328. The Optimization Online preprint of December 2004
+(optimization-online.org/2004/12/1033) was opened and its introduction read;
+the published article was not opened and may differ from the preprint. The
+introduction states that, to the authors' knowledge, the only generic case in
+which the chance version of a bilinear constraint has a provably convex
+feasible set is that of normally distributed perturbations and a violation
+level of at most one half; this is the domain stated for the second-order-cone
+form of a linear constraint with normal coefficients
+(EQ-REL-CHANCE-NORMAL-001), whose algebra and the Cantelli form are derived in
+this library. The Bernstein and other convex approximations of the paper are
+not implemented.
 
 ## REF-LUEDTKE-AHMED-2008
 
 James Luedtke and Shabbir Ahmed. "A Sample Approximation Approach for
 Optimization with Probabilistic Constraints." *SIAM Journal on Optimization*
-19(2), 674-699, 2008. Confirmed bibliographically only (not opened). Cited for
-the sample-average approximation of a chance constraint; no result of the
-paper is used.
+19(2), 674-699, 2008. The Optimization Online preprint (version dated 2 May
+2008, optimization-online.org/2007/09/1779) was opened and Section 2 read: the
+sample approximation replaces the probabilistic constraint by the requirement
+that at least a fraction `1 - gamma` of `N` independent sampled constraints
+hold, which is the constraint of EQ-REL-SAA-001, with `gamma = 0` the scenario
+approximation; Theorem 3 (lower bounds when `gamma` exceeds the nominal level)
+and Theorems 5 and 7 (feasibility when it is smaller) give sample-size results
+that this library does not use. The published article was not opened.
 ## REF-HOWE-1969
 
 W. G. Howe. "Two-Sided Tolerance Limits for Normal Populations - Some
@@ -6266,3 +6281,16 @@ item weights), and Sections 4 and 4.1 (decision makers; the cut-off alpha
 takes the values of the calibration scores and the optimised decision maker
 maximises its combined score). Cited for those conventions; its Table 2 and
 its calibration examples are pinned as oracle tests.
+
+## REF-CAMPI-GARATTI-PRANDINI-2009
+
+Marco C. Campi, Simone Garatti, and Maria Prandini. "The scenario approach for
+systems and control design." *Annual Reviews in Control* 33, 149-157, 2009.
+Opened and read from the author's page: Theorem 1 with the explicit sample
+size `N >= (2 / epsilon)(ln(1 / beta) + d)` (Eq. 4), stated to follow from the
+exact condition `sum_(i<d) C(N, i) epsilon^i (1 - epsilon)^(N - i) <= beta` of
+[REF-CAMPI-GARATTI-2008] (Eq. 5, tight for fully-supported problems), and the
+worked example of Section 3.1 (`epsilon = 0.01`, `beta = 1e-10`, three
+variables, `N = 5206`) which is pinned in the tests. Cited for those two
+statements and as the open source that describes the scenario approach of
+[REF-CALAFIORE-CAMPI-2006].
