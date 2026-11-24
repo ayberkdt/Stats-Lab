@@ -21271,3 +21271,125 @@ e^2(z(a))`.
   `foundations.batch_from_pointwise`, `foundations.scalar_outputs`,
   `foundations.vector_outputs`.
 - Source: [REF-PEP-342].
+
+## One-at-a-time swings and Fourier amplitude sensitivity testing
+
+### EQ-SENS-TORNADO-001 — One-at-a-time swing and share of squared half-swings
+
+`y_i^- = g(x_0 with x_i = a_i)`, `y_i^+ = g(x_0 with x_i = b_i)`,
+`Delta_i = y_i^+ - y_i^-`, `share_i = (Delta_i / 2)^2 / sum_j (Delta_j / 2)^2`.
+
+- Domain: a scalar function `g`, a baseline point `x_0`, and low and high
+  values `a_i`, `b_i` per input (marginal quantiles at levels `p_- < p_+`, or
+  explicit values); `1 + 2 d` evaluations.
+- Meaning: the swing is the change of the output when one input moves alone
+  between two values with the others held at the baseline; for a response
+  linear in every input `Delta_i = c_i (b_i - a_i)` exactly, and the shares
+  are the quadratic-sum shares of the linear model. It carries no
+  information on interactions, on dependence between inputs, or on the
+  response between `a_i` and `b_i`.
+- Code: `sensitivity.tornado_analysis`, `sensitivity.tornado_function`,
+  `sensitivity.TornadoBar`, `visualization.plot_tornado`.
+- Source: [REF-HOWARD-1988] (display; bibliographic), [REF-SALTELLI-2008,
+  Chapter 1]. The definition is elementary.
+
+### EQ-SENS-TORNADO-002 — Non-monotonicity check from the baseline output
+
+`flag_i = [ y_0 < min(y_i^-, y_i^+) or y_0 > max(y_i^-, y_i^+) ]` when
+`a_i <= x_0,i <= b_i`.
+
+- Domain: the baseline lies between the low and the high value of the input.
+- Meaning: if `g` restricted to the segment were monotone, the value at an
+  interior point would lie between the two end values; a violation proves an
+  extremum inside `[a_i, b_i]`. The converse fails: an S-shaped response
+  passes the check.
+- Code: `sensitivity.tornado._bars`, `sensitivity.TornadoBar.nonmonotone`.
+- Source: elementary (intermediate-value argument).
+
+### EQ-SENS-FAST-001 — FAST search curve with random phase
+
+`u_k(s) = 1/2 + arcsin(sin(omega_k s + phi_k)) / pi`, `x_k = F_k^-1(u_k)`,
+`s_j = 2 pi (j - (N - 1)/2) / N`, `j = 0, ..., N - 1`, `N` odd.
+
+- Domain: `s` uniform on `(-pi, pi)`, integer frequencies `omega_k`, phases
+  `phi_k` uniform on `(0, 2 pi)`, independent inputs with quantile functions
+  `F_k^-1`.
+- Meaning: for every `k` the point `u_k(s)` is uniform on `(0, 1)` when `s`
+  is uniform, so `x_k` has the law `F_k`; for incommensurate integer
+  frequencies the curve fills the unit cube in the sense of Weyl's
+  equidistribution theorem (exact quadrature of low-order trigonometric
+  polynomials on the grid `s_j`).
+- Code: `sensitivity.fast._triangle`, `sensitivity.fast._extended_fast`.
+- Source: [REF-CUKIER-1973], [REF-SALTELLI-TARANTOLA-CHAN-1999] (both
+  bibliographic); re-derived.
+
+### EQ-SENS-FAST-002 — Partial variances and indices of extended FAST
+
+`c_k = (1/N) sum_j y_j exp(-i k s_j)`, `A_k = 2 |c_k|^2`,
+`V = sum_(k=1)^((N-1)/2) A_k` (Parseval, equal to the population variance),
+`V_i = sum_(p=1)^M A_(p omega_i)`, `V_(-i) = sum_(k=1)^(floor(omega_i / 2)) A_k`,
+`S_i = V_i / V`, `S_Ti = 1 - V_(-i) / V`.
+
+- Domain: `omega_i` the high frequency of the input of interest, all other
+  frequencies at most `omega_i / (2 M)`, and `M omega_i <= (N - 1) / 2`.
+- Meaning: the harmonics of `omega_i` carry the part of the output variance
+  that depends on `x_i` alone (first order); everything that does not depend
+  on `x_i` lives at frequencies reachable from the low-frequency set, that
+  is up to `M omega_c <= omega_i / 2`, so one minus its share is the total
+  effect. Truncation at `M` harmonics biases both estimates for responses
+  with sharp features; the error is set by `M`, not by `N`.
+- Code: `sensitivity.fast_analysis`, `sensitivity.fast_indices`,
+  `sensitivity.FastResult`.
+- Source: [REF-CUKIER-1973], [REF-SALTELLI-TARANTOLA-CHAN-1999]
+  (bibliographic); [REF-SALTELLI-2008, Chapter 5]. Re-derived.
+
+### EQ-SENS-FAST-003 — Frequency plan and sample-size rule
+
+`omega_max = floor((N - 1) / (2 M))`, complementary frequencies distinct
+integers in `1 .. floor(omega_max / (2 M))`, equally spaced and, for `d >= 3`,
+at least two apart; hence `N >= 2 M omega_max + 1` and
+`N >= 4 M^2 max(2 d - 3, 1) + 1`.
+
+- Domain: `M >= 1` harmonics, `d` inputs, `N` odd.
+- Meaning: the highest analysed harmonic `M omega_max` must stay below the
+  Nyquist index `N / 2`; the `d - 1` low frequencies must be distinct (equal
+  frequencies make two inputs move along one line); the harmonics of the low
+  set up to order `M` then end at `omega_max / 2`, below `omega_max`. The
+  spacing of at least two is an empirical rule of this library: with the
+  consecutive pair (1, 2) the Ishigami first-order errors were near 0.1,
+  with (1, 3) near 0.02.
+- Code: `sensitivity.fast_sample_size`, `sensitivity.fast_frequencies`.
+- Source: [REF-SALTELLI-TARANTOLA-CHAN-1999] (bibliographic); re-derived.
+
+### EQ-SENS-RBD-001 — Random balance design first-order estimator
+
+`u_i(k) = tau(s_(sigma_i(k)))` with `tau(s) = 1/2 + arcsin(sin s) / pi`,
+independent random permutations `sigma_i` of `0 .. N - 1`;
+`y'_j = y_(sigma_i^-1(j))`, `c_m = (1/N) sum_j y'_j exp(-i m s_j)`,
+`S_i^raw = (2 sum_(m=1)^M |c_m|^2) / V`.
+
+- Domain: independent inputs, `N` odd, `2 M < N`.
+- Meaning: after re-ordering the output along input `i` the first harmonics
+  of frequency one carry the variance explained by `x_i`; the other inputs
+  are in random order and add noise to the spectrum.
+- Code: `sensitivity.rbd_fast_analysis`, `sensitivity.rbd_fast_indices`,
+  `sensitivity.RBDFastResult`.
+- Source: [REF-TARANTOLA-GATELLI-MARA-2006] (bibliographic),
+  [REF-TISSOT-PRIEUR-2012] (Eqs. 21-23, read). Re-derived.
+
+### EQ-SENS-RBD-002 — Bias correction of the random balance estimator
+
+`E|c_m|^2 = |c_m^true|^2 + V_(-i) / N`, hence
+`E[S_i^raw] = S_i + lambda (1 - S_i)`, `lambda = 2 M / N`, and
+`S_i^corr = (S_i^raw - lambda) / (1 - lambda)`.
+
+- Domain: `2 M < N`; `V_(-i) = V (1 - S_i)` is the variance not due to `x_i`
+  alone.
+- Meaning: the discrete transform of white noise of variance `V_(-i)` has
+  expected power `V_(-i) / N` at each frequency, and `2 M` coefficients are
+  summed, so the raw estimator is biased upwards by `lambda (1 - S_i)`; the
+  correction inverts that relation. It can return small negative values for
+  an input without effect.
+- Code: `sensitivity.fast._rbd`.
+- Source: [REF-TISSOT-PRIEUR-2012] (Eqs. 26-31, read); the white-noise
+  derivation is elementary.

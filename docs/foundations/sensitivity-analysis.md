@@ -696,6 +696,16 @@ Sources: [REF-GAMBOA-ETAL-2022], [REF-CHATTERJEE-2021], [REF-BORGONOVO-2007],
 - **Morris on periodic responses.** One Morris step moves an input by half
   of its quantile range, so `sin(x)**2` with `x ~ Uniform(-pi, pi)` gives
   `mu* = 0` although `x` matters.
+- **Reading a tornado chart.** One-at-a-time swings show neither
+  interactions nor dependence and say nothing between the two ends:
+  `tornado_analysis` refuses dependent inputs, and an input flagged in
+  `nonmonotone_inputs()` has a swing that understates its effect (zero for
+  `sin(x)**2` with a symmetric range).
+- **FAST sizes and noise.** `fast_analysis` needs an odd `samples` of at
+  least `fast_sample_size(d, M)`; its error comes from the truncation at `M`
+  harmonics as well as from the phases, so a longer curve at fixed `M` does
+  not help (raise `M`). The raw `rbd_fast_analysis` estimate is biased
+  upwards by `(2 M / N)(1 - S_i)`; keep `bias_correction=True`.
 
 ```python
 import math
@@ -733,3 +743,77 @@ wave = ProbabilisticModel(
 )
 morris_screening(wave, "y", 10, seed=1).mu_star  # (0.0, 1.0)
 ```
+
+## One-at-a-time swings and Fourier amplitude sensitivity testing
+
+A *tornado chart* answers a design-review question cheaply: with every input
+at a baseline, how far does the output move when one input alone goes to a low
+and to a high value? `tornado_analysis(model, quantity)` moves each input to
+its 0.1 and 0.9 quantile (`low` and `high`) around the median (`baseline`),
+costs `1 + 2 d` runs, and returns the swing `y_high - y_low`, its sign, and
+the share of the sum of squared half-swings for each input, sorted by absolute
+swing [EQ-SENS-TORNADO-001]. Inputs known only as ranges go in through
+`values={"name": (low, high)}` or through `tornado_function`, which takes a
+callable and a `low / base / high` triple per input.
+`visualization.plot_tornado(result)` draws it.
+
+What the chart cannot show: **interactions** (inputs act one at a time, and an
+input that acts only through an interaction with an input sitting at zero has
+swing zero), **dependence** (a model whose joint law has a copula is refused,
+because moves along the axes through a baseline point are not consistent with
+the law), and **non-monotone responses** (two ends say nothing about the
+interior). The cheap check `nonmonotone_inputs()` compares the baseline output
+with the two end outputs and flags an extremum inside the range
+[EQ-SENS-TORNADO-002]; it does not catch every non-monotone shape.
+
+Fourier amplitude sensitivity testing (FAST) estimates variance-based indices
+from one structured design: the model is run along a periodic search curve
+that gives each input its own integer frequency, and the power of the output
+spectrum at the harmonics of an input's frequency is its partial variance
+[EQ-SENS-FAST-001], [EQ-SENS-FAST-002]. `fast_analysis` is the extended
+method: for each input a curve with a high frequency for that input and a set
+of low frequencies for the others yields the first-order index and, from the
+spectrum below half the high frequency, the total-effect index. `harmonics` is
+the interference factor `M`; `samples` must be odd and at least
+`fast_sample_size(d, M)` [EQ-SENS-FAST-003]; the `resamples` random phase
+shifts give a standard error for each index. `rbd_fast_analysis` is the random
+balance design variant: one sample of `N` points gives all first-order
+indices, with the Tissot-Prieur correction of the positive bias
+`(2 M / N)(1 - S_i)` [EQ-SENS-RBD-001], [EQ-SENS-RBD-002]. Both need
+independent inputs; the plain-callable entries are `tornado_function`,
+`fast_indices` and `rbd_fast_indices`.
+
+```python
+from probstat.modeling.benchmarks import ishigami_model
+from probstat.sensitivity import (
+    fast_analysis,
+    fast_sample_size,
+    rbd_fast_analysis,
+    tornado_analysis,
+)
+
+ishigami = ishigami_model()
+swings = tornado_analysis(ishigami, "y")
+swings.ranking()   # ('x1', 'x2', 'x3')
+swings.nonmonotone_inputs()   # ('x2',)
+round(swings.as_mapping()["x2"], 6)   # 0.0
+fast = fast_analysis(ishigami, "y", fast_sample_size(3, 8), harmonics=8, seed=1)
+fast.ranking()   # ('x1', 'x2', 'x3')
+[round(v, 1) for v in fast.first_order]   # [0.3, 0.4, 0.0]
+[round(v, 1) for v in fast.total_effect]   # [0.6, 0.4, 0.2]
+abs(fast.total_effect[0] - 0.5576) < 0.03   # True
+rbd = rbd_fast_analysis(ishigami, "y", 2001, harmonics=8, seed=1)
+rbd.ranking()[:2]   # ('x2', 'x1')
+abs(rbd.first_order[0] - 0.3139) < 0.03   # True
+```
+
+The tornado ranks `x2` last although it carries 44% of the variance: its
+response `sin(x2)**2` is symmetric about the baseline, so the swing is zero
+and only the flag reveals it. FAST recovers the analytic indices of the
+Ishigami function (first order 0.314, 0.442, 0; total 0.558, 0.442, 0.244)
+within about 0.01 at `M = 8`, with 11,535 runs for the extended method and
+10,005 for the random balance design.
+
+Sources: [REF-HOWARD-1988], [REF-CUKIER-1973],
+[REF-SALTELLI-TARANTOLA-CHAN-1999], [REF-TARANTOLA-GATELLI-MARA-2006],
+[REF-TISSOT-PRIEUR-2012].
