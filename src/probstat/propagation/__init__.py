@@ -22,6 +22,19 @@ Main entry points:
     ``wilks_rank``, ``wilks_sample_size``, ``wilks_bound``,
         ``wilks_tolerance_interval``: distribution-free one-sided quantile
         bounds and two-sided tolerance intervals from order statistics.
+    ``normal_tolerance_factor``, ``normal_tolerance_bound``,
+        ``normal_tolerance_interval``, ``normal_tolerance_sample_size``,
+        ``normality_price``: exact normal-theory tolerance factors (one-sided
+        noncentral t, two-sided exact and Howe), bounds, intervals, and the
+        comparison with the Wilks bound.
+    ``Requirement``, ``quantify_margin``, ``quantify_margin_mixed``,
+        ``compliance_probability``: margin ``M``, uncertainty ``U`` and the
+        ratio ``M/U`` for a limit or band, with an exact compliance interval.
+    ``apply_contingency``, ``contingency_for_confidence``,
+        ``confidence_of_contingency``: explicit growth-allowance and
+        system-margin arithmetic and its reading as a confidence level.
+    ``TechnicalPerformanceMeasure``: margin history, compliance probability
+        and plan comparison of one measure over project milestones.
 
 Assumptions:
     Without ``replicates`` the error statements treat the outputs as
@@ -53,7 +66,9 @@ Guide: docs/foundations/uncertainty-propagation.md
 References:
     [REF-SMITH-UQ-2024, Chapters 3-4], [REF-L-ECUYER-2018],
     [REF-OWEN-2013, Chapter 17], [REF-HYNDMAN-FAN-1996], [REF-WILSON-1927],
-    [REF-FERSON-ET-AL-2003], [REF-WILKS-1941], [REF-WILKS-1942].
+    [REF-FERSON-ET-AL-2003], [REF-WILKS-1941], [REF-WILKS-1942],
+    [REF-HOWE-1969], [REF-KRISHNAMOORTHY-MATHEW-2009], [REF-HELTON-2011],
+    [REF-NASA-SEH-2016].
 
 """
 
@@ -62,6 +77,27 @@ from .forward import (
     PropagationResult,
     expectation_by_quadrature,
     propagate_samples,
+)
+from .margins import (
+    ComplianceProbability,
+    ContingencyBudget,
+    ContingencyLevel,
+    MarginAssessment,
+    MarginSide,
+    Milestone,
+    MilestoneAssessment,
+    MilestoneFlag,
+    PerformanceAssessment,
+    Requirement,
+    TechnicalPerformanceMeasure,
+    allocation_margin_fraction,
+    apply_contingency,
+    compliance_probability,
+    confidence_of_contingency,
+    contingency_for_confidence,
+    convert_margin_fraction,
+    quantify_margin,
+    quantify_margin_mixed,
 )
 from .mixed import (
     EpistemicStatistic,
@@ -81,6 +117,16 @@ from .study import (
     replicate_interval,
     summarize,
 )
+from .tolerance import (
+    NormalityPrice,
+    NormalToleranceBound,
+    NormalToleranceInterval,
+    normal_tolerance_bound,
+    normal_tolerance_factor,
+    normal_tolerance_interval,
+    normal_tolerance_sample_size,
+    normality_price,
+)
 from .wilks import (
     WilksBound,
     WilksRank,
@@ -92,25 +138,52 @@ from .wilks import (
 )
 
 __all__ = [
+    "ComplianceProbability",
+    "ContingencyBudget",
+    "ContingencyLevel",
     "DESIGNS",
     "EpistemicStatistic",
+    "MarginAssessment",
+    "MarginSide",
+    "Milestone",
+    "MilestoneAssessment",
+    "MilestoneFlag",
     "MixedPropagationResult",
+    "NormalToleranceBound",
+    "NormalToleranceInterval",
+    "NormalityPrice",
     "OutputDistribution",
     "OutputSummary",
+    "PerformanceAssessment",
     "ProbabilityBox",
     "PropagationResult",
     "PropagationStudy",
     "QuantileInterval",
+    "Requirement",
+    "TechnicalPerformanceMeasure",
     "WilksBound",
     "WilksRank",
     "WilksToleranceInterval",
+    "allocation_margin_fraction",
+    "apply_contingency",
     "compare_designs",
+    "compliance_probability",
+    "confidence_of_contingency",
+    "contingency_for_confidence",
+    "convert_margin_fraction",
     "expectation_by_quadrature",
     "make_design",
     "nested_propagation",
+    "normal_tolerance_bound",
+    "normal_tolerance_factor",
+    "normal_tolerance_interval",
+    "normal_tolerance_sample_size",
+    "normality_price",
     "order_statistic_interval",
     "propagate",
     "propagate_samples",
+    "quantify_margin",
+    "quantify_margin_mixed",
     "replicate_interval",
     "summarize",
     "wilks_bound",
