@@ -5841,7 +5841,9 @@ scale of the 2008 NASA M&S standard (factors, three categories, Table 1 of
 the paper, the minimum roll-up and the weighted evidence/review factor
 score). The 2008 standard itself was not read. The paper is the document
 behind the NTRS identifier supplied for the earlier scale paper of Blattnig
-and co-authors; that paper was not opened.
+and co-authors; that paper (NTRS 20080015742) was opened later and found
+to describe a different, seven-category scale, so it does not verify this
+one and nothing is taken from it.
 
 ## REF-OBERKAMPF-PILCH-TRUCANO-2007
 

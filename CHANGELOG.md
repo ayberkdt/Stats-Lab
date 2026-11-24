@@ -39,8 +39,9 @@ the mathematics re-derived.
   three-point PERT and triangular laws from bounds or from stated
   quantiles, linear and logarithmic opinion pools, quantile averaging, and
   Cooke's classical model (calibration, information, global weights, the
-  decision maker, cut-off optimisation). The scoring conventions are
-  re-derived; the primary sources were not opened.
+  decision maker, cut-off optimisation). The scoring conventions agree with
+  the open description of EXCALIBUR in Hanea and Nane (2021), whose worked
+  values are pinned in the tests; Cooke's book was not opened.
 - **Credibility assessment scales** (`probstat.validation`, ADR-0139):
   a data-driven `CredibilityScale` with constructors for NASA-STD-7009B
   (read; factors are not rolled up, as the standard asks), the predictive

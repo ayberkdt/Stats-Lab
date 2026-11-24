@@ -115,8 +115,14 @@ cited parts read; level wording was paraphrased, never copied):
   scale paper by Blattnig, Green, Luckring, Morrison, Tripathi, and Zang; the
   document behind the identifier is the Babula et al. paper, a secondary
   account of the 2008 standard. It was read in full (Section IV, Table 1,
-  Roll-up Processes, Figures 1-2 as text). The Blattnig et al. paper was not
-  opened and nothing is attributed to it. The 2008 standard itself was not
+  Roll-up Processes, Figures 1-2 as text). The Blattnig et al. paper (AIAA, NTRS 20080015742)
+  was opened in the source verification pass: it proposes a different scale
+  (seven categories, four levels numbered 1 to 4, required against achieved
+  levels, and no roll-up: its authors do not favour averaging or taking the
+  minimum across results), described there as sharing the structure of the
+  appendix scale of the interim standard but differing in details, so it
+  cannot verify the eight-factor scale taken from Babula et al., and nothing
+  is attributed to it. The 2008 standard itself was not
   read, which is why the 2008 scale is marked historical and secondary.
 - W. L. Oberkampf, M. Pilch, T. G. Trucano, "Predictive Capability Maturity
   Model for Computational Modeling and Simulation", SAND2007-5948 (OSTI).
