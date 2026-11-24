@@ -7,10 +7,10 @@
  "repository": {
   "licence": "BSD-3-Clause",
   "figure_text_floor_pt": 9.0,
-  "tests_floor": 3700,
-  "equations_floor": 1450,
+  "tests_floor": 4000,
+  "equations_floor": 1500,
   "references_floor": 850,
-  "adrs_floor": 130,
+  "adrs_floor": 140,
   "questions": 8,
   "statistics_questions": 10,
   "packages": 34,
@@ -45,29 +45,29 @@
    "methods": {
     "form": {
      "method": "FORM",
-     "probability": 0.03618234233454198,
+     "probability": 0.03618234233454208,
      "evaluations": 35,
      "cov": null
     },
     "sorm_breitung": {
      "method": "SORM-Breitung",
-     "probability": 0.037409555418971736,
+     "probability": 0.03740955381666961,
      "evaluations": 43,
      "cov": null
     },
     "sorm_hr": {
      "method": "SORM-HR",
-     "probability": 0.03769848291451624,
+     "probability": 0.037698480911857436,
      "evaluations": 43,
      "cov": null
     },
     "is": {
      "method": "IS",
-     "probability": 0.03752374581845753,
+     "probability": 0.037523745818900445,
      "evaluations": 2035,
-     "cov": 0.03264502415749064,
-     "ci95_low": 0.03512286130218735,
-     "ci95_high": 0.039924630334727707
+     "cov": 0.03264502415757024,
+     "ci95_low": 0.03512286130259607,
+     "ci95_high": 0.03992463033520482
     },
     "subset": {
      "method": "Subset",
@@ -87,8 +87,8 @@
     }
    },
    "reference": 0.03769433535279519,
-   "form_relative_error": 0.04011194265933897,
-   "sorm_relative_error": 0.00011003143263381811,
+   "form_relative_error": 0.04011194265933621,
+   "sorm_relative_error": 0.00010997830372773881,
    "mc_relative_error": 0.04790281166400541,
    "mc_half_width": 0.0038176430856279656,
    "form_in_mc_ci": true,
@@ -134,18 +134,18 @@
   },
   "gev": {
    "family": "GEV",
-   "location": 17.85661319596385,
-   "scale": 1.8586615415643544,
+   "location": 17.85661319590021,
+   "scale": 1.85866154154467,
    "aic": 1707.452880274114,
-   "naive_ks_p": 0.9935730944073501,
-   "naive_ad_p": 0.9820139592930371,
+   "naive_ks_p": 0.9935730944218583,
+   "naive_ad_p": 0.9820139592724069,
    "bootstrap_ks_p": 0.955,
    "bootstrap_ad_p": 0.72,
    "refits": 199,
    "rejected": false,
-   "band_low": 0.006933172338119742,
-   "band_high": 0.023798620224023792,
-   "shape": -0.12139049602437298
+   "band_low": 0.0069331723637547915,
+   "band_high": 0.0237986201922904,
+   "shape": -0.12139049600529016
   },
   "aic_gap": 19.295020995093182,
   "probe": 24.0,
@@ -385,8 +385,8 @@
   "four_branch_akmcs_error": 0.15868945177489527
  },
  "stochastic": {
-  "fitting.gev.band_high": 0.0002569976931025545,
-  "fitting.gev.band_low": 0.0002569976931025545,
+  "fitting.gev.band_high": 0.0002569976922283674,
+  "fitting.gev.band_low": 0.0002569976922283674,
   "fitting.gev.bootstrap_ad_p": 0.03174901573277509,
   "fitting.gev.bootstrap_ks_p": 0.014658615214269054,
   "fitting.gev.refits": 1.0,
@@ -399,10 +399,10 @@
   "study.reliability.form_relative_error": 1e-06,
   "study.reliability.mc_half_width": 0.0019478128760227456,
   "study.reliability.mc_relative_error": 0.051673888338723745,
-  "study.reliability.methods.is.ci95_high": 0.0012249635887230843,
-  "study.reliability.methods.is.ci95_low": 0.0012249635887230843,
-  "study.reliability.methods.is.cov": 0.03264502415749064,
-  "study.reliability.methods.is.probability": 0.0012249635887230843,
+  "study.reliability.methods.is.ci95_high": 0.0012249635887405304,
+  "study.reliability.methods.is.ci95_low": 0.0012249635887405304,
+  "study.reliability.methods.is.cov": 0.03264502415757024,
+  "study.reliability.methods.is.probability": 0.0012249635887405304,
   "study.reliability.methods.mc.ci95_high": 0.0019478128760227456,
   "study.reliability.methods.mc.ci95_low": 0.0019478128760227456,
   "study.reliability.methods.mc.cov": 0.049311718380322674,
