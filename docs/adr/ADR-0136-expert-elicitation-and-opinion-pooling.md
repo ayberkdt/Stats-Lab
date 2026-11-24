@@ -82,26 +82,83 @@ or combines several experts, with or without performance weights.
 
 ## Sources
 
-[REF-OHAGAN-ETAL-2006], [REF-COOKE-1991], [REF-GENEST-ZIDEK-1986] and
-[REF-CLEMEN-WINKLER-1999] are confirmed bibliographically only; none of the
-four texts was opened, and the mathematics is derived here from the
-definitions. The SHELF reference manual description of `fitdist` and a
-description of the classical model (calibration as a likelihood-ratio
-p-value, information relative to a background measure, weight as their
-product above a cut-off chosen to maximise the decision maker's score) in
-open-access literature were read; the formulas for the intrinsic range, the
-overshoot and the exact decision-maker information are this library's
-reading of that description and not a transcription of Cooke's tables.
-[REF-NASA-PRA-2011] is cited for expert judgement as an input to risk
-models.
+Opened and read after the first version of this record (source verification
+pass):
+
+- Hanea and Nane (2021), "An In-Depth Perspective on the Classical Model"
+  [REF-HANEA-NANE-2021] (TU Delft repository, accepted manuscript), Sections
+  3.1, 3.2.1, 3.2.2, 3.3, 4 and 4.1. Compared with the code point by point:
+  - *Calibration* (Section 3.2.1, Eq. 1): `2 M I(s, p)` with the empirical
+    bin frequencies `s` and `p = (0.05, 0.45, 0.45, 0.05)`, asymptotically
+    chi-square with 3 degrees of freedom for the three percentiles; bins are
+    `x <= q5`, `q5 < x <= q50`, `q50 < x <= q95`, `q95 < x`. Agreement: the
+    code uses `k` degrees of freedom for `k` stated quantiles (3 for the
+    default), the same bin convention, and `0 ln 0 = 0`. The chapter's worked
+    values (best attainable score 0.83 for ten seed items at `(0.1, 0.4, 0.4,
+    0.1)`, 0.39 at `(0.1, 0.6, 0.2, 0.1)`, twenty items needed to reach 1) are
+    reproduced (0.8283, 0.3946, 1.0) and pinned in
+    `test_published_calibration_examples`. One sentence of the chapter, that an
+    expert with `(0.3, 0.2, 0.2, 0.3)` scores "of order 10^-2", does not match
+    the formula for ten items (0.0018, of order 10^-3); the code follows the
+    formula and the statement is not pinned.
+  - *Intrinsic range* (Section 3.1): `[L - k (U - L), U + k (U - L)]` with
+    `L` the smallest of the experts' lowest percentiles and, for a seed item,
+    the realization; `U` correspondingly; `k = 10 %` by default in EXCALIBUR.
+    Agreement, including that items of interest use the experts' percentiles
+    only (`realizations=None`). The chapter says the range may be fixed by the
+    analyst for some items (a percentage on `[0, 100]`); the code takes the
+    range as an argument of `cooke_information` for that case.
+  - *Information* (Section 3.2.2, Eq. 2, Table 2): relative information of the
+    piecewise-uniform density with respect to the uniform (or log-uniform)
+    background on the intrinsic range, averaged over items. Agreement; Table
+    2 (assessments `(5, 15, 25)`, `(40, 50, 60)`, `(15, 17, 75)`, `(30, 50,
+    70)` on `[0, 100]`, scores 1.21, 1.14, 1.15, 0.55) is reproduced to within
+    the rounding of the table (the formula gives 1.2183, 1.1457, 1.1515,
+    0.5507; the second entry appears truncated rather than rounded) and pinned
+    in `test_published_information_examples`. The chapter's rule of thumb for
+    a log-uniform background (assessments spanning more than four orders of
+    magnitude) is not enforced; the background is an argument.
+  - *Weights and cut-off* (Sections 3.3, 4, 4.1): combined score `Cal x I x
+    1{Cal >= alpha}`, normalised (global weights, Eq. 3); the distinct
+    decision makers are obtained at the experts' calibration scores as
+    cut-offs; the optimised global-weights decision maker is the cut-off that
+    maximises its own combined score. Agreement with `cooke_weights` and
+    `cooke_classical_model`. The tie rule (smaller cut-off) is this library's.
+  - *Differences kept and stated:* (1) the code averages an expert's
+    information over the seed items only, the chapter defines `I(e)` as the
+    average over the seed questions in Section 3.2.2 and notes that it can
+    also be computed for the questions of interest; EXCALIBUR-style slides
+    (Aspinall, Cabot Institute summer school 2013, read) say the information
+    entering the weight is estimated from all variables, so a user who needs
+    that must compute it with `cooke_information` over the target items too;
+    (2) the overshoot for the log-uniform background is applied on the
+    logarithmic scale, which the chapter does not specify; (3) item weights
+    are not implemented (listed under "Deliberately left out").
+- The SHELF CRAN reference manual, version 1.13.0, entry `fitdist` (read in
+  full) [REF-SHELF-OAKLEY-OHAGAN]: least squares on the distribution function,
+  optional weights, a user-chosen Student-t degrees of freedom (default 3),
+  skew-normal, gamma, log-normal, log Student-t, mirrored and beta families,
+  best fit by the smallest sum of squares. The quantile-function objective,
+  the default of 5 degrees of freedom and the absence of a skew-normal family
+  are this library's choices.
+
+Not opened: Cooke (1991) and O'Hagan et al. (2006) (books), Genest and Zidek
+(1986) (the Project Euclid page returned no text), Clemen and Winkler (1999)
+(publisher paywall), the Cooke-Goossens procedures guide EUR 18820 (no open
+copy found), and the SHELF vignettes. The pooling properties in decision 7
+therefore remain derived and numerically checked, not compared with the survey.
+[REF-NASA-PRA-2011] is cited for expert judgement as an input to risk models.
 
 ## Consequences
 
 - Elicited judgements enter the uncertainty workflow as ordinary laws: the
   results are inputs for `modeling` marginals and `propagation`.
-- A user who needs the exact conventions of Cooke's EXCALIBUR (item weights,
-  its overshoot rules, its handling of non-seed items) must check them
-  against the book; this module documents its own conventions.
+- The scoring conventions agree with the open description of EXCALIBUR in
+  Hanea and Nane (2021) (see Sources). A user who needs EXCALIBUR's item
+  weights, or the information of an expert averaged over the items of interest
+  as well, must compute them separately (`cooke_information` accepts any
+  items); the log-scale overshoot for the log-uniform background is this
+  library's convention.
 - Deliberately left out: item-specific (information per item) weights,
   dependence among seed variables (the calibration p-value assumes
   independence), elicitation of dependence between inputs, probability

@@ -9,8 +9,9 @@ pinned from base R 4.6.2 (each pin carries the R expression; the tests never
 call R).
 
 References:
-    [REF-OHAGAN-ETAL-2006], [REF-COOKE-1991], [REF-GENEST-ZIDEK-1986],
-    [REF-CLEMEN-WINKLER-1999], [REF-MALCOLM-1959], [REF-VOSE-2008].
+    [REF-OHAGAN-ETAL-2006], [REF-COOKE-1991], [REF-HANEA-NANE-2021],
+    [REF-GENEST-ZIDEK-1986], [REF-CLEMEN-WINKLER-1999], [REF-MALCOLM-1959],
+    [REF-VOSE-2008].
     Checks [EQ-INF-ELICIT-001], [EQ-INF-ELICIT-002], [EQ-INF-ELICIT-003],
     [EQ-INF-ELICIT-004], [EQ-INF-ELICIT-005], [EQ-INF-ELICIT-006],
     [EQ-INF-ELICIT-007].
@@ -762,6 +763,76 @@ class CookeScoreTests(unittest.TestCase):
         self.assertAlmostEqual(result.statistic, 0.0, 12)
         self.assertAlmostEqual(result.score, 1.0, 12)
         self.assertEqual(result.empirical_probabilities, (0.05, 0.45, 0.45, 0.05))
+
+    def test_published_calibration_examples(self) -> None:
+        """Calibration of ten seed items against the worked values of a chapter.
+
+        Hanea and Nane (2021), Section 3.2.1, state that with ten seed
+        variables the best attainable calibration is 0.83 at empirical
+        frequencies ``(0.1, 0.4, 0.4, 0.1)`` and that an expert with
+        ``(0.1, 0.6, 0.2, 0.1)`` obtains 0.39. Both are rounded in the text,
+        so the pins use a rounding tolerance. The chapter also states that
+        twenty questions are the fewest that can reach a calibration of one.
+
+        References:
+            [REF-HANEA-NANE-2021, Section 3.2.1]. Checks [EQ-INF-ELICIT-005].
+
+        """
+        row = [10.0, 20.0, 30.0]
+        values = {0: 5.0, 1: 15.0, 2: 25.0, 3: 40.0}
+
+        def calibration(counts: tuple[int, ...]) -> float:
+            """Return the calibration of realizations placed in the bins.
+
+            References:
+                [EQ-INF-ELICIT-005].
+
+            """
+            truth = [values[b] for b, c in enumerate(counts) for _ in range(c)]
+            return cooke_calibration([row] * len(truth), truth).score
+
+        self.assertAlmostEqual(calibration((1, 4, 4, 1)), 0.83, delta=0.005)
+        self.assertAlmostEqual(calibration((1, 6, 2, 1)), 0.39, delta=0.005)
+        self.assertAlmostEqual(calibration((1, 9, 9, 1)), 1.0, delta=1e-12)
+        self.assertLess(calibration((1, 4, 4, 1)), 1.0)
+
+    def test_published_information_examples(self) -> None:
+        """Information scores of four percentage assessments on ``[0, 100]``.
+
+        Hanea and Nane (2021), Table 2 and Section 3.2.2, list the assessments
+        ``(5, 15, 25)``, ``(40, 50, 60)``, ``(15, 17, 75)`` and ``(30, 50, 70)``
+        at the 5th, 50th and 95th percentiles with information scores 1.21,
+        1.14, 1.15 and 0.55 for the intrinsic range ``[0, 100]``. The text
+        rounds the second score down (the formula gives 1.1457), so the pins
+        allow one unit in the second decimal.
+
+        References:
+            [REF-HANEA-NANE-2021, Table 2]. Checks [EQ-INF-ELICIT-006].
+
+        """
+        assessments = (
+            (5.0, 15.0, 25.0),
+            (40.0, 50.0, 60.0),
+            (15.0, 17.0, 75.0),
+            (30.0, 50.0, 70.0),
+        )
+        published = (1.21, 1.14, 1.15, 0.55)
+        for row, want in zip(assessments, published, strict=True):
+            got = cooke_information([row], [(0.0, 100.0)]).score
+            self.assertAlmostEqual(got, want, delta=0.0105)
+        # The chapter's closed form: sum p ln(p / width share) = sum p ln p'
+        # + ln(U - L) with widths measured in the units of the range.
+        row = assessments[0]
+        edges = (0.0, *row, 100.0)
+        closed = math.fsum(
+            p * math.log(p * 100.0 / (b - a))
+            for p, a, b in zip(
+                (0.05, 0.45, 0.45, 0.05), edges[:-1], edges[1:], strict=True
+            )
+        )
+        self.assertAlmostEqual(
+            cooke_information([row], [(0.0, 100.0)]).score, closed, 13
+        )
 
     def test_calibration_with_five_quantiles(self) -> None:
         """Five stated quantiles give six bins and five degrees of freedom.

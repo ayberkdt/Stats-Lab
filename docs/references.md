@@ -6032,21 +6032,22 @@ definition of a quantile function, not copied.
 
 ## REF-COOKE-1991
 
-Roger M. Cooke. *Experts in Uncertainty: Opinion and Subjective Probability
-in Science*. Environmental Ethics and Science Policy Series. Oxford
-University Press, New York, 1991. Cited for the classical model of
-performance-based expert weights: calibration as the p-value of a
-likelihood-ratio statistic on seed-variable realizations in inter-quantile
-bins, information relative to a background measure, the weight as their
-product above a calibration cut-off, and the decision maker. Confirmed
-bibliographically only; the book was not opened. The scoring rules were
-re-derived from the verbal description in the open-access literature
-retrieved in preparing this entry (calibration as the p-value of a
-likelihood-ratio test of the stated bin probabilities, information as
-relative information to a background measure, weight equal to calibration
-times information above a cut-off, cut-off chosen to maximise the decision
-maker's score); the 10 % overshoot default and the log-scale extension for
-the log-uniform background are choices of this library.
+Roger M. Cooke. *Experts in Uncertainty: Opinion and Subjective Probability in
+Science*. Environmental Ethics and Science Policy Series. Oxford University
+Press, New York, 1991. Cited for the classical model of performance-based
+expert weights: calibration as the p-value of a likelihood-ratio statistic on
+seed-variable realizations in inter-quantile bins, information relative to a
+background measure, the weight as their product above a calibration cut-off,
+and the decision maker. Confirmed bibliographically only; the book was not
+opened. The scoring rules and their conventions were instead compared with the
+open-access chapter [REF-HANEA-NANE-2021], which describes the model as
+implemented in EXCALIBUR: the calibration statistic and its chi-square degrees
+of freedom, the information score, the intrinsic range with the 10 % overshoot
+default, the weights, and the cut-off optimisation all agree (item-by-item
+comparison in ADR-0136). Two conventions remain this library's own and are not
+in that chapter: the overshoot measured on the logarithmic scale for the
+log-uniform background, and the information of an expert averaged over the
+seed items only.
 
 ## REF-GENEST-ZIDEK-1986
 
@@ -6072,15 +6073,21 @@ was not read.
 ## REF-SHELF-OAKLEY-OHAGAN
 
 Jeremy E. Oakley and Anthony O'Hagan. *SHELF: the Sheffield Elicitation
-Framework* (R package and documentation, version 1.x). Cited for the
-elicitation workflow: elicited probabilities or quantiles for each expert,
-parametric distributions fitted by least squares on the distribution
-function (normal and Student-t without limits, adding log-normal, log
-Student-t and gamma with a lower limit and a scaled beta with both limits),
-and feedback quantiles to the expert. Confirmed through the package's CRAN
-reference manual description of `fitdist`; this library instead minimises
-the misfit of the quantile function, a deliberate difference documented in
-ADR-0136.
+Framework* (R package and documentation). Cited for the elicitation workflow:
+elicited probabilities or quantiles for each expert, parametric distributions
+fitted by least squares on the distribution function, and feedback of
+quantiles and probabilities of the fitted law to the expert. The CRAN
+reference manual of version 1.13.0 (dated 7 May 2026) was opened; the
+`fitdist` entry was read in full, and only the titles of `feedback`,
+`linearPoolDensity` and `plinearpool` were read. `fitdist` fits normal and
+Student-t laws without limits (degrees of freedom fixed by the user, default
+3), a skew-normal, with a lower limit gamma, log-normal and log Student-t
+laws, with an upper limit their mirrored versions, and with both limits a
+beta; weighted least squares is optional and the best fit is the smallest sum
+of squared errors. This library instead minimises the misfit of the quantile
+function, uses a default of 5 degrees of freedom for the Student-t law and has
+no skew-normal family: deliberate differences documented in ADR-0136. The
+SHELF vignettes and Oakley's papers were not opened.
 ## REF-CUKIER-1973
 
 R. I. Cukier, C. M. Fortuin, Kurt E. Shuler, A. G. Petschek, and J. H.
@@ -6236,3 +6243,26 @@ Gaussian sums." *Automatica* 7(4), 465-479, 1971. Cited from memory for the
 Gaussian-sum representation of a non-Gaussian density; bibliographic details
 unconfirmed in this work and the paper was not read. The moment formulas of a
 mixture used here are elementary (law of total expectation and variance).
+
+## REF-HANEA-NANE-2021
+
+Anca M. Hanea and Gabriela F. Nane. "An In-Depth Perspective on the Classical
+Model." In A. M. Hanea, G. F. Nane, T. Bedford, and S. French (eds.), *Expert
+Judgement in Risk and Decision Analysis*, International Series in Operations
+Research and Management Science 293, Springer, 2021, 225-256. DOI:
+[10.1007/978-3-030-46474-5_10](https://doi.org/10.1007/978-3-030-46474-5_10).
+The accepted author manuscript from the TU Delft repository was opened and
+read
+([repository.tudelft.nl](https://repository.tudelft.nl/file/File_e398f490-a7f2-4b64-b09d-6ac1f17b731b)):
+Section 3.1 (the expert's piecewise-uniform distribution; the intrinsic range
+extended by an overshoot `k`, 10 % by default in EXCALIBUR; for seed items the
+realization enters the range, for items of interest only the experts'
+percentiles), Section 3.2.1 (calibration as the p-value of `2 M I(s, p)`
+against a chi-square law with 3 degrees of freedom for the three percentiles;
+worked values 0.83 and 0.39 for ten seed items), Section 3.2.2 (information
+with respect to a uniform or log-uniform background, Eq. 2 and Table 2),
+Section 3.3 (combined score `Cal x I x 1{Cal >= alpha}`, global weights Eq. 3,
+item weights), and Sections 4 and 4.1 (decision makers; the cut-off alpha
+takes the values of the calibration scores and the optimised decision maker
+maximises its combined score). Cited for those conventions; its Table 2 and
+its calibration examples are pinned as oracle tests.

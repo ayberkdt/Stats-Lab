@@ -21928,7 +21928,9 @@ frequencies `s_j` of the `N` realizations; `I(s, pi) = sum_j s_j ln(s_j / pi_j)`
   chi-square approximation, adequate for moderate `N`); `C = 1` when
   `s = pi`.
 - Code: `inference.cooke_calibration`, `inference.cooke_bin_probabilities`.
-- Source: [REF-COOKE-1991], [REF-CASELLA-BERGER-2002].
+- Source: [REF-HANEA-NANE-2021] (Section 3.2.1, Eq. 1: statistic, bins and 3
+  degrees of freedom for three percentiles; worked values 0.83 and 0.39
+  reproduced), [REF-COOKE-1991] (not opened), [REF-CASELLA-BERGER-2002].
 
 ### EQ-INF-ELICIT-006 — Cooke information score and intrinsic range
 
@@ -21948,7 +21950,10 @@ log-uniform background).
   are; independent of the realizations except through the range.
 - Code: `inference.cooke_information`, `inference.cooke_intrinsic_ranges`,
   `inference.elicitation._item_information`.
-- Source: [REF-COOKE-1991].
+- Source: [REF-HANEA-NANE-2021] (Section 3.1: intrinsic range and the 10 %
+  overshoot default; Section 3.2.2, Eq. 2 and Table 2: information, reproduced
+  to the table's rounding). The log-scale overshoot for the log-uniform
+  background is a convention of this library. [REF-COOKE-1991] (not opened).
 
 ### EQ-INF-ELICIT-007 — Cooke weights and the global-weights decision maker
 
@@ -21966,7 +21971,9 @@ times information (the smaller cut-off on a tie).
 - Code: `inference.cooke_weights`, `inference.cooke_classical_model`,
   `inference.cooke_decision_maker_law`,
   `inference.elicitation._decision_maker_item`.
-- Source: [REF-COOKE-1991], [REF-NASA-PRA-2011].
+- Source: [REF-HANEA-NANE-2021] (Sections 3.3, 4 and 4.1: combined score,
+  global weights, cut-off at the calibration scores, optimised decision
+  maker), [REF-COOKE-1991] (not opened), [REF-NASA-PRA-2011].
 ## One-at-a-time swings and Fourier amplitude sensitivity testing
 
 ### EQ-SENS-TORNADO-001 — One-at-a-time swing and share of squared half-swings
