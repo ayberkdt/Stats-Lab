@@ -324,3 +324,64 @@ inside.inside_hull, round(inside.nearest_distance, 3), inside.extrapolation   # 
 - [REF-KASS-RAFTERY-1995] — Bayes factors and their interpretation scale.
 - [REF-JCGM-100-2008, Section 4.3.7] — rectangular Type B evaluation.
 - [REF-SILVERMAN-1986, Section 3.4.2] — kernel bandwidth rule.
+
+## Credibility assessment scales
+
+A `CredibilityRecord` keeps verification, validation, and prediction evidence
+apart but scores nothing. Agencies that fund model-based decisions ask for a
+structured assessment against a published scale, and
+`probstat.validation` ships three, each carrying its source key:
+
+- `nasa_std_7009b_scale()`: the 5 capability factors and 6 results factors of
+  NASA-STD-7009B (2024), levels 0-4. The standard says the factors are largely
+  independent and should not be combined, so this scale has no overall score
+  and `CredibilityAssessment.overall` raises.
+- `pcmm_scale()`: the six elements of the Predictive Capability Maturity
+  Model, levels 0-3 with scores in tenths. Validation and uncertainty
+  quantification may not exceed the lower verification element by more than
+  two levels. When aggregation cannot be avoided the source asks for
+  `pcmm_aggregate_triple`: minimum, mean, and maximum together.
+- `nasa_cas_2008_scale()`: the historical eight-factor scale, whose overall
+  score is the minimum of the factors.
+
+Level descriptors are short paraphrases with section citations; the standards
+remain the authority. A scale that was not read can be built from
+`CredibilityFactor` and `CredibilityLevel` objects.
+
+An assessment scores every factor or marks it not assessed with a reason
+(level 0, "insufficient evidence", is a score; `None` is the absence of one).
+Sufficiency is separate: neither source says which level is enough, so a
+`TargetProfile` is supplied by the programme, and `level_gaps` and
+`improvement_plan` list where the achieved levels fall short. The criticality
+matrix of NASA-STD-7009B (decision consequence by model influence) is
+`criticality_assessment`. `suggest_record_evidence` points an assessor to the
+fields of a `CredibilityRecord` that bear on each factor; it never sets a
+level.
+
+```python
+from probstat.validation import (
+    CredibilityAssessment, FactorScore, TargetProfile, criticality_assessment,
+    improvement_plan, level_gaps, nasa_std_7009b_scale, pcmm_aggregate_triple,
+)
+
+criticality_assessment(5, 4).rating                      # 'R'
+scale = nasa_std_7009b_scale()
+scores = tuple(FactorScore(name, 2, ("V&V report",), "documented")
+               for name in scale.factor_names)
+assessment = CredibilityAssessment(scale, scores)
+profile = TargetProfile("flight decision", {"M&S Verification": 3, "M&S Validation": 4})
+gaps = level_gaps(assessment, profile)
+len(gaps)                                                # 2
+gaps[0].shortfall                                        # 1.0
+gaps[1].shortfall                                        # 2.0
+improvement_plan(assessment, profile)[0].rank            # 1
+flat = [1, 1.5, 1, 0, 0.5, 1,  1.5, 1, 0, 0.5, 1.5, 0,  2, 1.5, 0.5, 1, 1.5, 1,  2, 2, 1, 0.5, 1.5, 1.5]
+round(pcmm_aggregate_triple(flat)[1], 1)                 # 1.1
+```
+
+### Sources for credibility scales
+
+- [REF-NASA-STD-7009B-2024, Appendices D and E] and [REF-NASA-HDBK-7009B-2026].
+- [REF-OBERKAMPF-PILCH-TRUCANO-2007, Sections 4 and 5].
+- [REF-BABULA-ETAL-2009] for the historical eight-factor scale.
+- Decision record: [ADR-0139](../adr/ADR-0139-credibility-assessment-scales.md).

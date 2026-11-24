@@ -5788,3 +5788,53 @@ Generators." Python Enhancement Proposals, 2005.
 [https://peps.python.org/pep-0342/](https://peps.python.org/pep-0342/).
 Cited for `generator.send`, the mechanism by which a batch procedure
 receives the outputs of the evaluation request it yielded.
+
+## REF-NASA-STD-7009B-2024
+
+NASA Office of the Chief Engineer. *NASA-STD-7009B: Standard for Models and
+Simulations*. Approved 2024-03-05 (supersedes NASA-STD-7009A with Change 1).
+[standards.nasa.gov](https://standards.nasa.gov/sites/default/files/standards/NASA/B/1/NASA-STD-7009B-Final-3-5-2024.pdf).
+Read in full for the sections cited: requirements [M&S 6], [M&S 31], [M&S 33],
+[M&S 35], [M&S 43], [M&S 48], [M&S 50] (Sections 4.1.1, 4.2.1.8, 4.3.6,
+4.3.8), Appendix D (criticality assessment, Figure 1 and Tables 3-4) and
+Appendix E (capability factors, Tables 5-11; results factors, Tables 12-20;
+reporting, E.5). Cited for the eleven credibility factors and their level
+descriptors (paraphrased, not copied), the statement that the factors are
+largely independent and should not be compared or combined, the requirement
+to report levels and gaps to thresholds, and the criticality matrix.
+
+## REF-NASA-HDBK-7009B-2026
+
+NASA Office of the Chief Engineer. *NASA-HDBK-7009B: NASA Handbook for Models
+and Simulations: An Implementation Guide for NASA-STD-7009B*. Approved
+2026-02-03 (supersedes NASA-HDBK-7009A).
+[standards.nasa.gov](https://standards.nasa.gov/system/files/tmp/NASA-HDBK-7009B_Final%2002-03-2026.pdf).
+Opened; Sections 5.5-5.6 and Appendix D.2 were read for the statement that
+the capability and results assessments together convey the overall
+credibility assessment and that credibility cannot be measured directly. No
+factor or level of this module is taken from the handbook.
+
+## REF-BABULA-ETAL-2009
+
+Maria Babula, William J. Bertch, Lawrence L. Green, Joseph P. Hale, Gary E.
+Mosier, Martin J. Steele and Jody Woods. "NASA Standard for Models and
+Simulations: Credibility Assessment Scale." NASA Technical Reports Server
+20090005963, 2009.
+[ntrs.nasa.gov](https://ntrs.nasa.gov/api/citations/20090005963/downloads/20090005963.pdf).
+Read in full. A secondary account of the eight-factor credibility assessment
+scale of the 2008 NASA M&S standard (factors, three categories, Table 1 of
+the paper, the minimum roll-up and the weighted evidence/review factor
+score). The 2008 standard itself was not read. The paper is the document
+behind the NTRS identifier supplied for the earlier scale paper of Blattnig
+and co-authors; that paper was not opened.
+
+## REF-OBERKAMPF-PILCH-TRUCANO-2007
+
+William L. Oberkampf, Martin Pilch and Timothy G. Trucano. *Predictive
+Capability Maturity Model for Computational Modeling and Simulation*.
+SAND2007-5948, Sandia National Laboratories, October 2007.
+[osti.gov](https://www.osti.gov/servlets/purl/976951). Read for Sections 3.5,
+4.1, 4.2 (Table 3), 4.2.5, 5.1 and 5.2 (including the worked aggregation
+example): six elements on a 0-3 scale, scores in tenths, the cap on validation
+and uncertainty quantification by the verification elements, and the
+(minimum, mean, maximum) aggregation triple.

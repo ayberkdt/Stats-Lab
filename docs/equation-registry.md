@@ -21271,3 +21271,88 @@ e^2(z(a))`.
   `foundations.batch_from_pointwise`, `foundations.scalar_outputs`,
   `foundations.vector_outputs`.
 - Source: [REF-PEP-342].
+
+## Credibility assessment scales
+
+### EQ-VAL-CRED-001 — Minimum roll-up of ordinal factor levels
+
+`L_overall = min_i L_i` over the assessed factors `i`; for a category `C`,
+`L_C = min_(i in C) L_i`.
+
+- Domain: ordinal levels `L_i` of factors of one scale; every factor assessed
+  (or the roll-up restricted to the assessed ones on request).
+- Meaning: the weakest-link statement. Only an order statistic is used, so
+  no cardinal meaning of a level is assumed. It is defined by the source for
+  the 2008 NASA scale and refused for scales whose source says factors must
+  not be combined.
+- Code: `validation.credibility_scale.CredibilityAssessment.overall`,
+  `validation.credibility_scale.CredibilityAssessment.category_minimum`.
+- Source: [REF-BABULA-ETAL-2009, Roll-up Processes];
+  [REF-NASA-STD-7009B-2024, Appendix E.2].
+
+### EQ-VAL-CRED-002 — PCMM aggregation triple
+
+`PCMM_hat = (min_i s_i, (1/n) sum_i s_i, max_i s_i)` over the `n` scores `s_i`
+being aggregated (elements of one or several subsystems).
+
+- Domain: `n >= 1` finite scores on the 0-3 maturity scale (tenths allowed).
+- Meaning: when aggregation is demanded the source asks for the three numbers
+  together so that the worst score stays visible; the mean alone is
+  meaningless on an ordinal scale. The worked example of the source (four
+  subsystems, six elements each) gives `(0.0, 1.1, 2.0)`.
+- Code: `validation.credibility_scale.pcmm_aggregate_triple`,
+  `validation.credibility_scale.CredibilityAssessment.overall`.
+- Source: [REF-OBERKAMPF-PILCH-TRUCANO-2007, Section 5.2, Eq. (1)].
+
+### EQ-VAL-CRED-003 — Cap of validation and UQ by verification (PCMM)
+
+`s_V <= min(s_code, s_solution) + 2` and `s_UQ <= min(s_code, s_solution) + 2`.
+
+- Domain: scores of code verification, solution verification, model
+  validation, and uncertainty quantification and sensitivity analysis.
+- Meaning: validation and uncertainty-quantification evidence is credible
+  only to the extent that the numerical and software assumptions beneath it
+  hold; a score above the cap is rejected, not clipped.
+- Code: `validation.credibility_scale.LevelCap`,
+  `validation.credibility_scale.CredibilityAssessment`.
+- Source: [REF-OBERKAMPF-PILCH-TRUCANO-2007, Section 4.2.5].
+
+### EQ-VAL-CRED-004 — Weighted evidence and review factor level (2008 NASA scale)
+
+`L = (1 - w) L_evidence + w L_review`, `0 <= w <= 0.3`.
+
+- Domain: levels of the two sub-factors of one factor; review weight `w`.
+- Meaning: technical review tunes the evidence score by at most 30 percent
+  of the gap between them (evidence 0 and review 4 give 1.2 at `w = 0.3`).
+- Code: `validation.credibility_scale.weighted_evidence_review_level`.
+- Source: [REF-BABULA-ETAL-2009, Roll-up Processes].
+
+### EQ-VAL-CRED-005 — Level shortfall against a target profile
+
+`gap_i = max(0, r_i - a_i)` for required level `r_i` and achieved level `a_i`;
+a required factor with no assessment has an unknown gap and is listed.
+
+- Domain: finite levels of one scale; `r_i > 0`.
+- Meaning: the gap between assessed and threshold levels that the standard
+  asks to be reported with the levels. Neither shipped source defines the
+  thresholds, and the improvement order (unassessed first, then decreasing
+  gap) is a convention of this library.
+- Code: `validation.credibility_scale.level_gaps`,
+  `validation.credibility_scale.improvement_plan`,
+  `validation.credibility_scale.is_sufficient`.
+- Source: [REF-NASA-STD-7009B-2024, Sections 4.3.8.4-4.3.8.5 and Appendix E.5].
+
+### EQ-VAL-CRED-006 — Criticality matrix of decision consequence and M&S influence
+
+`rating = T[influence, consequence]` with `T` the 5 by 5 table of Figure 1:
+rows influence 5..1 read `GYRRR`, `GYYRR`, `GYYYR`, `GGGYY`, `GGGGY` across
+consequence I..V.
+
+- Domain: integer consequence and influence levels in `1..5`.
+- Meaning: red marks M&S that are clear candidates for full adherence to the
+  standard, yellow leaves adherence to programme management and the technical
+  authority, green has no critical driving force. The matrix may be adjusted
+  by a programme; the table is a default lookup.
+- Code: `validation.credibility_scale.criticality_assessment`,
+  `validation.credibility_scale.criticality_matrix`.
+- Source: [REF-NASA-STD-7009B-2024, Appendix D, Figure 1].
