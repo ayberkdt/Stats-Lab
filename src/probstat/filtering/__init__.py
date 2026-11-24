@@ -31,6 +31,16 @@ Main entry points:
     ``linear_gaussian_em``: Shumway-Stoffer EM for linear-Gaussian models.
     ``particle_marginal_metropolis_hastings``: exact-posterior MCMC with a
     particle likelihood estimate.
+    ``nees_test``, ``nis_test``, ``innovation_whiteness_test``: chi-square
+    consistency checks of a filter's covariance against its errors and
+    innovations (``nees_test_from_filters`` and ``nis_test_from_filter``
+    read a ``KalmanFilterResult`` directly).
+    ``covariance_realism``: chi-square goodness of fit and covariance scale
+    factor of (error, covariance) pairs.
+    ``split_gaussian``: split a Gaussian into a mixture with the same mean
+    and covariance.
+    ``propagate_gaussian_mixture``: push a split Gaussian through a nonlinear
+    map with the unscented transform and return the output mixture.
     ``simulate``: seeded true trajectory and observations.
     ``lorenz63``, ``lorenz96``: chaotic test systems as nonlinear models
     whose transition is classical Runge-Kutta over one assimilation
@@ -62,6 +72,13 @@ Common pitfalls:
     - ``fit_state_space_mle`` reports ``covariance=None`` (with a
       ``message``) when the observed information is not positive definite or
       an estimate sits on a bound; nothing is regularized.
+    - Consistency verdicts read "optimistic" when the covariance is too
+      small (statistic above the upper chi-square bound) and "pessimistic"
+      when it is too large; a NIS test is meaningful only for white
+      innovations, so run ``innovation_whiteness_test`` as well.
+    - ``split_gaussian`` preserves the mean and covariance but not the
+      fourth moment or the density of the Gaussian; the squared L2 density
+      error is stored in the splitting record.
     - A PMMH chain mixes poorly when the log-likelihood estimate has a
       standard deviation well above one; increase ``particles``.
     - Without analytic Jacobians the EKF uses central differences with the
@@ -75,7 +92,9 @@ References:
     [REF-JULIER-UHLMANN-2004], [REF-GORDON-SALMOND-SMITH-1993],
     [REF-PITT-SHEPHARD-1999], [REF-GODSILL-DOUCET-WEST-2004],
     [REF-SHUMWAY-STOFFER-1982], [REF-ANDRIEU-DOUCET-HOLENSTEIN-2010],
-    [REF-LORENZ-1963], [REF-LORENZ-EMANUEL-1998].
+    [REF-LORENZ-1963], [REF-LORENZ-EMANUEL-1998],
+    [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001], [REF-HORWOOD-ETAL-2014],
+    [REF-DEMARS-BISHOP-JAH-2013], [REF-VITTALDEV-RUSSELL-2016].
 
 """
 
@@ -87,6 +106,22 @@ from .benchmark_models import (
     lorenz96,
     lorenz96_rhs,
 )
+from .consistency import (
+    CovarianceRealismResult,
+    NeesResult,
+    NisResult,
+    WhitenessResult,
+    covariance_realism,
+    innovation_whiteness_test,
+    nees,
+    nees_from_filter,
+    nees_series,
+    nees_test,
+    nees_test_from_filters,
+    nis_series,
+    nis_test,
+    nis_test_from_filter,
+)
 from .extended import (
     UnscentedTransformResult,
     UnscentedWeights,
@@ -94,6 +129,16 @@ from .extended import (
     unscented_kalman_filter,
     unscented_transform,
     unscented_update,
+)
+from .gaussian_mixture import (
+    GaussianMixturePropagation,
+    GaussianMixtureState,
+    UnivariateSplitting,
+    nonlinearity_index,
+    propagate_gaussian_mixture,
+    propagate_gaussian_mixture_procedure,
+    split_gaussian,
+    univariate_splitting,
 )
 from .kalman import (
     GaussianState,
@@ -138,13 +183,18 @@ from .state_space import (
 )
 
 __all__ = [
-    "EMResult",
     "LORENZ63_STEP",
     "LORENZ96_STEP",
+    "CovarianceRealismResult",
+    "EMResult",
+    "GaussianMixturePropagation",
+    "GaussianMixtureState",
     "GaussianState",
     "KalmanFilterResult",
     "LinearGaussianStateSpace",
     "MeasurementUpdate",
+    "NeesResult",
+    "NisResult",
     "NonlinearStateSpace",
     "ParticleFilterResult",
     "ParticleSmootherResult",
@@ -153,16 +203,20 @@ __all__ = [
     "StateSpaceModel",
     "StateSpaceSimulation",
     "SteadyStateKalman",
+    "UnivariateSplitting",
     "UnscentedTransformResult",
     "UnscentedWeights",
+    "WhitenessResult",
     "auxiliary_particle_filter",
     "bootstrap_particle_filter",
+    "covariance_realism",
     "effective_sample_size",
     "extended_kalman_filter",
     "ffbs_particle_smoother",
     "fit_state_space_mle",
     "gain_from_cross_covariance",
     "gaussian_log_density",
+    "innovation_whiteness_test",
     "kalman_filter",
     "kalman_predict",
     "kalman_update",
@@ -172,13 +226,26 @@ __all__ = [
     "lorenz63_rhs",
     "lorenz96",
     "lorenz96_rhs",
+    "nees",
+    "nees_from_filter",
+    "nees_series",
+    "nees_test",
+    "nees_test_from_filters",
+    "nis_series",
+    "nis_test",
+    "nis_test_from_filter",
+    "nonlinearity_index",
     "optimal_proposal_particle_filter",
     "particle_marginal_metropolis_hastings",
+    "propagate_gaussian_mixture",
+    "propagate_gaussian_mixture_procedure",
     "rts_smoother",
     "simulate",
     "smoothed_lag_one_covariances",
+    "split_gaussian",
     "steady_state_kalman",
     "systematic_resample",
+    "univariate_splitting",
     "unscented_kalman_filter",
     "unscented_transform",
     "unscented_update",

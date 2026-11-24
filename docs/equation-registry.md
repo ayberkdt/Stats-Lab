@@ -21271,3 +21271,200 @@ e^2(z(a))`.
   `foundations.batch_from_pointwise`, `foundations.scalar_outputs`,
   `foundations.vector_outputs`.
 - Source: [REF-PEP-342].
+
+### EQ-MVN-DISC-001 — Gaussian probability of a disc by rotated one-dimensional quadrature
+
+`P(||X|| <= R) = int_(-R)^(R) phi((u - a1)/s1)/s1 * [Phi((h(u) - a2)/s2) - Phi((-h(u) - a2)/s2)] du`,
+`h(u) = sqrt(R^2 - u^2)`, with `(a1, a2) = V'mu` and `(s1^2, s2^2)` the
+eigenvalues of `Sigma = V diag(s1^2, s2^2) V'`; evaluated with `u = R sin(theta)`.
+
+- Domain: `X ~ N(mu, Sigma)` in two dimensions, `Sigma` symmetric positive
+  definite, `R > 0`; the range is cut to `a1 +/- 40 s1`.
+- Meaning: the coordinates along the principal axes are independent normal;
+  the inner integral over the chord at abscissa `u` is a normal interval
+  probability. It is the short-encounter collision probability when `X` is the
+  miss vector in the encounter plane and `R` the combined hard-body radius.
+  The error reported is the Gauss-Kronrod estimate, not a bound.
+- Code: `multivariate.gaussian_disc_probability`,
+  `multivariate.ball_probability._normal_interval`.
+- Source: [REF-FOSTER-ESTES-1992], [REF-CHAN-2008], [REF-ALFANO-2005].
+
+### EQ-MVN-RICE-001 — Isotropic ball probability as a noncentral chi-square law
+
+`P(||X|| <= R) = sum_(j>=0) e^(-lambda/2) (lambda/2)^j / j! * P(chi2_(n+2j) <= R^2/s^2)`,
+`lambda = ||mu||^2 / s^2`, for `X ~ N(mu, s^2 I_n)`; for `n = 2` equal to
+`1 - Q_1(||mu||/s, R/s)`.
+
+- Domain: `s > 0`, `R > 0`, integer `n >= 1`.
+- Meaning: `||X||^2/s^2` is noncentral chi-square; the Poisson mixture
+  representation gives a rigorous truncation bound (neglected Poisson tail
+  mass times the largest neglected chi-square value).
+- Code: `multivariate.isotropic_gaussian_ball_probability`,
+  `multivariate.noncentral_chi_square_cdf`,
+  `multivariate.ball_probability._poisson_chi_square`.
+- Source: [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995], [REF-CHAN-2008].
+
+### EQ-MVN-BALL-001 — Ruben series for a positive-definite quadratic form
+
+`P(sum_i lambda_i (z_i + b_i)^2 <= x) = sum_(k>=0) a_k P(chi2_(n+2k) <= x/beta)`,
+`a_0 = prod_i sqrt(beta/lambda_i) e^(-b_i^2/2)`, `a_k = (1/k) sum_(j=1)^k d_j a_(k-j)`,
+`d_j = sum_i [ r_i^j/2 + j b_i^2 (1 - r_i) r_i^(j-1)/2 ]`, `r_i = 1 - beta/lambda_i`,
+`0 < beta <= lambda_min`. Truncation after `K` terms is bounded by
+`(1 - sum_(k<K) a_k) P(chi2_(n+2K) <= x/beta)`.
+
+- Domain: `lambda_i > 0`, real `b_i`, `x > 0`. With `r_i in [0, 1)` the
+  Laplace transform of the form equals `sum_k a_k (1 + 2 s beta)^(-(n+2k)/2)`
+  with `a_k >= 0` and `sum a_k = 1` (a product of power series with
+  non-negative coefficients evaluating to one at `v = 1`).
+- Meaning: the squared norm of `N(mu, Sigma)` is a non-negative mixture of
+  scaled central chi-square laws, which gives `P(||X|| <= R)` in any
+  dimension with a rigorous error bound (up to rounding of the weight sum).
+- Code: `multivariate.gaussian_ball_probability`.
+- Source: [REF-RUBEN-1962], [REF-SHEIL-OMUIRCHEARTAIGH-1977], [REF-IMHOF-1961].
+
+### EQ-MVN-SMALLDISC-001 — Small-disc approximation and its first correction
+
+`int_(||x||<=R) f dx = pi R^2 f(0) + (pi R^4/8) Laplacian f(0) + O(R^6)`;
+for the Gaussian `f(0) = exp(-m'S^-1 m/2) / (2 pi sqrt(det S))` and
+`Laplacian f(0) = f(0) (||S^-1 m||^2 - tr S^-1)`.
+
+- Domain: two dimensions, smooth density on the disc, `R` small against the
+  scales of `f`.
+- Meaning: density at the disc centre times its area, with the mean-value
+  expansion of a smooth function over a disc supplying the stated error.
+- Code: `multivariate.small_disc_probability`.
+- Source: [REF-CHAN-2008], [REF-ALFANO-2005].
+
+### EQ-MVN-DILUTION-001 — Maximum disc probability over a covariance scale
+
+`p_max = max_(c > 0) P(||X_c|| <= R)`, `X_c ~ N(mu, c Sigma)`, `||mu|| > R`;
+for `Sigma = s^2 I` and `R << ||mu||` the maximum is `R^2 / (e ||mu||^2)` at
+`c s^2 = ||mu||^2 / 2`.
+
+- Domain: two dimensions, mean outside the disc (otherwise the supremum is
+  one, approached as `c -> 0`).
+- Meaning: the probability vanishes at both ends of the scale range, so a
+  larger covariance can raise it ("dilution"). Located numerically; for the
+  small isotropic disc the closed form follows from maximising
+  `(R^2/(2t)) exp(-||mu||^2/(2t))` over `t = c s^2`.
+- Code: `multivariate.maximum_disc_probability`.
+- Source: [REF-ALFANO-2005], [REF-CHAN-2008].
+
+### EQ-FILT-NEES-001 — Normalised squared error
+
+`epsilon = e' P^-1 e`, `e = x - x_hat`; for `e ~ N(0, P)` in `n` dimensions
+`epsilon ~ chi2(n)`. With an innovation `v` and its covariance `S` the same
+form is the NIS, `v' S^-1 v ~ chi2(m)`.
+
+- Domain: `P` symmetric positive definite; Gaussian error under the null.
+- Meaning: squared Mahalanobis length of the error, computed through the
+  Cholesky factor `P = L L'` as `||L^-1 e||^2`.
+- Code: `filtering.nees`, `filtering.nees_series`,
+  `filtering.nees_from_filter`, `filtering.nis_series`.
+- Source: [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001], [REF-MARDIA-KENT-BIBBY-1979].
+
+### EQ-FILT-NEES-002 — Monte-Carlo average NEES acceptance interval
+
+`N * mean_i epsilon_(i,k) ~ chi2(N n)`; acceptance interval
+`[chi2_(alpha/2)(N n)/N, chi2_(1-alpha/2)(N n)/N]` at each step `k`.
+
+- Domain: `N` independent runs with a consistent filter; the time mean of the
+  averages is compared with the same interval (conservative because its
+  variance does not exceed the per-step variance).
+- Meaning: above the interval the covariance is too small (optimistic), below
+  too large (pessimistic).
+- Code: `filtering.nees_test`, `filtering.nees_test_from_filters`.
+- Source: [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
+
+### EQ-FILT-NIS-001 — Time-average NIS acceptance interval
+
+`sum_k v_k' S_k^-1 v_k ~ chi2(D)`, `D = sum_k m_k`; the mean over `T` steps lies
+in `[chi2_(alpha/2)(D)/T, chi2_(1-alpha/2)(D)/T]` for white, correctly scaled
+innovations.
+
+- Domain: one run, independent Gaussian innovations with the stated
+  covariances; missing steps are omitted.
+- Meaning: a truth-free consistency check of the innovation covariance.
+- Code: `filtering.nis_test`, `filtering.nis_test_from_filter`.
+- Source: [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
+
+### EQ-FILT-WHITE-001 — Innovation autocorrelation and portmanteau statistic
+
+`rho(tau) = sum_k z_k' z_(k+tau) / sum_k z_k' z_k`, `z_k = L_k^-1 v_k`;
+per-lag bound `z_((1+c)/2)/sqrt(T m)`; `Q = T m (T + 2) sum_(tau=1)^L rho(tau)^2/(T - tau)`
+approximately `chi2(L)`.
+
+- Domain: standardised innovations of dimension `m`, `T` observed steps.
+- Meaning: tests that the innovations are serially uncorrelated, the
+  assumption behind the NIS interval.
+- Code: `filtering.innovation_whiteness_test`.
+- Source: [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001], [REF-LJUNG-BOX-1978].
+
+### EQ-FILT-REALISM-001 — Covariance scale factor and its confidence interval
+
+`s = (1/(N n)) sum_i d_i^2`, `d_i^2 = e_i' P_i^-1 e_i`; if `Cov(e_i) = c P_i`
+then `N n s / c ~ chi2(N n)` and
+`c in [N n s/chi2_(1-alpha/2)(N n), N n s/chi2_(alpha/2)(N n)]`.
+
+- Domain: `N` independent Gaussian errors; shape judged by Kolmogorov-Smirnov
+  and Anderson-Darling tests of `d_i^2` against `chi2(n)`.
+- Meaning: the multiplier by which the covariances should be inflated
+  (above one: too small).
+- Code: `filtering.covariance_realism`.
+- Source: [REF-HORWOOD-ETAL-2014], [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
+
+### EQ-FILT-GMSPLIT-001 — Univariate Gaussian splitting by L2 minimisation
+
+`J(w) = int (sum_i w_i N(x; i h, s^2) - N(x; 0, 1))^2 dx
+= sum_(i,j) w_i w_j N(h(i - j); 0, 2 s^2) - 2 sum_i w_i N(i h; 0, 1 + s^2) + N(0; 0, 2)`,
+minimised over symmetric positive weights with `h^2 sum_i w_i i^2 = 1 - s^2`.
+
+- Domain: odd `N`, `i = -K..K`, `0 < s < 1`.
+- Meaning: the product integral of two Gaussians is a Gaussian value, so the
+  distance is a finite double sum; the variance condition fixes the spacing,
+  and symmetry fixes the mean, so every candidate has the exact mean 0 and
+  variance 1 of the standard normal.
+- Code: `filtering.univariate_splitting`,
+  `filtering.gaussian_mixture._squared_l2`.
+- Source: [REF-DEMARS-BISHOP-JAH-2013], [REF-HUBER-ETAL-2008].
+
+### EQ-FILT-GMSPLIT-002 — Multivariate split along a direction
+
+`m_i = m + h_i d/sqrt(q)`, `C = P - (1 - s^2) d d'/q`, `q = d' P^-1 d`; then
+`sum_i w_i m_i = m` and `sum_i w_i [C + (m_i - m)(m_i - m)'] = P`.
+
+- Domain: `P` positive definite, `d != 0`.
+- Meaning: the split acts on the unit vector `P^-1/2 d` in whitened
+  coordinates; the variance along it shrinks to `s^2`, orthogonal directions
+  are untouched, and `sum_i w_i h_i^2 = 1 - s^2` restores the covariance.
+- Code: `filtering.split_gaussian`.
+- Source: [REF-DEMARS-BISHOP-JAH-2013], [REF-VITTALDEV-RUSSELL-2016].
+
+### EQ-FILT-GMPROP-001 — Mixture moments and component-wise unscented propagation
+
+`m = sum_i w_i m_i`, `P = sum_i w_i [P_i + (m_i - m)(m_i - m)']`; the image
+of component `i` under `g` has mean and covariance from the unscented
+transform of `N(m_i, C_i)`.
+
+- Domain: weights non-negative summing to one.
+- Meaning: law of total expectation and variance; for an affine `g` the
+  result is `A m + b` and `A P A'` exactly.
+- Code: `filtering.GaussianMixtureState.mean`,
+  `filtering.GaussianMixtureState.covariance`,
+  `filtering.propagate_gaussian_mixture`,
+  `filtering.propagate_gaussian_mixture_procedure`.
+- Source: [REF-SORENSON-ALSPACH-1971], [REF-JULIER-UHLMANN-2004].
+
+### EQ-FILT-GMPROP-002 — Relative curvature index of a map over a Gaussian
+
+`kappa = max_i || (g(m + s_i) + g(m - s_i))/2 - g(m) || / sqrt(tr C_y)`,
+`s_i` the unscented sigma-point offsets, `C_y` the unscented output covariance.
+
+- Domain: deterministic `g`, positive-definite input covariance.
+- Meaning: zero for an affine `g`; the second-order part of the image
+  relative to its spread, available without extra evaluations. It drives the
+  recursive refinement and is a design choice of this library, not a
+  published criterion.
+- Code: `filtering.nonlinearity_index`,
+  `filtering.gaussian_mixture._curvature_index`.
+- Source: [REF-JULIER-UHLMANN-2004], [REF-DEMARS-BISHOP-JAH-2013].

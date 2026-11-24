@@ -5788,3 +5788,95 @@ Generators." Python Enhancement Proposals, 2005.
 [https://peps.python.org/pep-0342/](https://peps.python.org/pep-0342/).
 Cited for `generator.send`, the mechanism by which a batch procedure
 receives the outputs of the evaluation request it yielded.
+
+## REF-RUBEN-1962
+
+Harold Ruben. "Probability Content of Regions Under Spherical Normal
+Distributions, IV: The Distribution of Homogeneous and Non-Homogeneous
+Quadratic Functions of Normal Variables." *Annals of Mathematical Statistics*
+33(2), 542-570, 1962.
+DOI: [10.1214/aoms/1177704580](https://doi.org/10.1214/aoms/1177704580).
+Bibliographic details confirmed from the Project Euclid record; the full text
+was not read. The mixture of central chi-square laws, its recursion and the
+truncation bound used by `multivariate.gaussian_ball_probability` were
+re-derived from the Laplace transform, not copied.
+
+## REF-SHEIL-OMUIRCHEARTAIGH-1977
+
+J. Sheil and I. O'Muircheartaigh. "Algorithm AS 106: The Distribution of
+Non-Negative Quadratic Forms in Normal Variables." *Journal of the Royal
+Statistical Society, Series C (Applied Statistics)* 26(1), 92-98, 1977.
+Cited as the numerical implementation of Ruben's series; cited from memory
+and not opened in this work (bibliographic details unconfirmed); no formula of
+it is used beyond the idea of the chi-square mixture.
+
+## REF-FOSTER-ESTES-1992
+
+J. L. Foster and H. S. Estes. "A Parametric Analysis of Orbital Debris
+Collision Probability and Maneuver Rate for Space Vehicles." NASA/JSC-25898,
+1992. Cited for the two-dimensional encounter-plane formulation of the
+short-encounter collision probability (the integral of a Gaussian density over
+a disc). Bibliographic details unconfirmed in this work and the report was
+not read; the integral is derived from the normal distribution directly.
+
+## REF-ALFANO-2005
+
+Salvatore Alfano. "A Numerical Implementation of Spherical Object Collision
+Probability." *Journal of the Astronautical Sciences* 53(1), 103-109, 2005.
+Cited for the idea of a maximum collision probability over a covariance scale
+factor. Bibliographic details unconfirmed in this work and the paper was not
+read; the maximum implemented here is derived and tested independently.
+
+## REF-CHAN-2008
+
+F. Kenneth Chan. *Spacecraft Collision Probability*. The Aerospace Press and
+AIAA, 2008. Cited for the small-disc approximation and the Rice-law form for
+an isotropic encounter covariance. Bibliographic details unconfirmed in this
+work and the book was not read; both forms are derived here.
+
+## REF-HORWOOD-ETAL-2014
+
+J. T. Horwood, J. M. Aristoff, N. Singh, A. B. Poore, and M. D. Hejduk.
+"Beyond covariance realism: a new metric for uncertainty realism."
+*Proceedings of SPIE* 9092 (Signal and Data Processing of Small Targets),
+2014. Bibliographic details confirmed from a citing software documentation
+page; the paper was not read. Cited for the idea of judging a covariance by
+the distribution of squared Mahalanobis distances against a chi-square law.
+
+## REF-DEMARS-BISHOP-JAH-2013
+
+Kyle J. DeMars, Robert H. Bishop, and Moriba K. Jah. "Entropy-Based Approach
+for Uncertainty Propagation of Nonlinear Dynamical Systems." *Journal of
+Guidance, Control, and Dynamics* 36(4), 1047-1057, 2013. Bibliographic details
+and the abstract (splitting of mixture components when an entropy-based
+check detects nonlinearity) confirmed from the Marquette and Missouri S&T
+repository records; the full text was not read. The splitting weights of
+`filtering.univariate_splitting` are computed by L2 minimisation, not taken
+from the paper.
+
+## REF-HUBER-ETAL-2008
+
+Marco F. Huber, Tim Bailey, Hugh Durrant-Whyte, and Uwe D. Hanebeck. "On
+Entropy Approximation for Gaussian Mixture Random Vectors." *IEEE
+International Conference on Multisensor Fusion and Integration for
+Intelligent Systems*, 181-188, 2008. Cited from memory for the idea of
+approximating a Gaussian by an equal-variance mixture with weights chosen by
+a distance minimisation; bibliographic details unconfirmed in this work and
+the paper was not read.
+
+## REF-VITTALDEV-RUSSELL-2016
+
+Vivek Vittaldev and Ryan P. Russell. "Space Object Collision Probability
+Using Multidirectional Gaussian Mixture Models." *Journal of Guidance,
+Control, and Dynamics* 39(9), 2163-2169, 2016. A search confirmed the related
+dissertation chapter by the same authors but not the journal volume and
+pages; unconfirmed bibliographically and not read. Cited for splitting a
+Gaussian along several directions.
+
+## REF-SORENSON-ALSPACH-1971
+
+H. W. Sorenson and D. L. Alspach. "Recursive Bayesian estimation using
+Gaussian sums." *Automatica* 7(4), 465-479, 1971. Cited from memory for the
+Gaussian-sum representation of a non-Gaussian density; bibliographic details
+unconfirmed in this work and the paper was not read. The moment formulas of a
+mixture used here are elementary (law of total expectation and variance).
