@@ -5918,25 +5918,33 @@ that this library does not use. The published article was not opened.
 
 W. G. Howe. "Two-Sided Tolerance Limits for Normal Populations - Some
 Improvements." *Journal of the American Statistical Association* 64(326),
-610-620, 1969. The closed-form approximation of the two-sided normal
-tolerance factor, `k = z_((1+p)/2) sqrt(nu (1 + 1/n) / chi2_(1-gamma; nu))`.
-The formula was confirmed in this form on the NIST/SEMATECH page cited in
-REF-NIST-SEMATECH-HANDBOOK; the paper itself was not opened.
+610-620, 1969. The closed-form approximation of the two-sided normal tolerance
+factor, `k = z_((1+p)/2) sqrt(nu (1 + 1/n) / chi2_(1-gamma; nu))`. The formula
+was confirmed in this form, with a worked value (2.217 for N = 43, p = 0.90,
+confidence 0.99), on the NIST/SEMATECH page cited in
+REF-NIST-SEMATECH-HANDBOOK, which attributes it to Howe; the paper itself was
+not opened (paywall).
 
 ## REF-KRISHNAMOORTHY-MATHEW-2009
 
 K. Krishnamoorthy and Thomas Mathew. *Statistical Tolerance Regions: Theory,
-Applications, and Computation*. Wiley, 2009. Cited for the definition of
-one- and two-sided normal tolerance factors, the noncentral-t form of the
-one-sided factor, and the integral equation of the two-sided factor.
-Confirmed bibliographically; the formulas were re-derived, not copied.
+Applications, and Computation*. Wiley, 2009. Cited for the definition of one-
+and two-sided normal tolerance factors, the noncentral-t form of the one-sided
+factor, and the integral equation of the two-sided factor. The book was not
+opened. The definitions and the factors were compared instead with
+[REF-YOUNG-2016], which states the one-sided factor and the two-sided integral
+equation (its Eqs. 6 and 7), prints one-sided factor values and the exact
+two-sided interval for the book's milk-container data, all reproduced by this
+library (see the tests); the formulas here are re-derived, not copied.
 
 ## REF-ODEH-OWEN-1980
 
 Robert E. Odeh and Donald B. Owen. *Tables for Normal Tolerance Limits,
 Sampling Plans, and Screening*. Marcel Dekker, 1980. Tabulated normal
 tolerance factors, cited as the classical source of the values this module
-computes. Confirmed bibliographically; no table value was copied.
+computes. Confirmed bibliographically; the book was not opened and no table
+value was copied. Published values were compared instead through
+[REF-YOUNG-2016] and [REF-NIST-SEMATECH-HANDBOOK].
 
 ## REF-NIST-SEMATECH-HANDBOOK
 
@@ -5944,35 +5952,55 @@ NIST/SEMATECH. *e-Handbook of Statistical Methods*, Section 7.2.6.3,
 "Tolerance intervals for a normal distribution." National Institute of
 Standards and Technology.
 [https://www.itl.nist.gov/div898/handbook/prc/section2/prc263.htm](https://www.itl.nist.gov/div898/handbook/prc/section2/prc263.htm).
-Read for Howe's two-sided approximation and the one-sided noncentral-t
-factor `k1 = t(alpha; N-1, delta = z_p sqrt(N)) / sqrt(N)`.
+Read for Howe's two-sided approximation (worked value 2.217 for N = 43, p =
+0.90, confidence 0.99) and the one-sided noncentral-t factor `k1 = t(alpha;
+N-1, delta = z_p sqrt(N)) / sqrt(N)` (worked values 1.8740 from the quantile
+12.28834 for the same inputs, and 4.4111 for N = 6); all three are reproduced
+by this library and pinned in the tests. The page's Natrella approximation and
+Guenther's correction are not implemented.
 
 ## REF-HELTON-2011
 
 Jon C. Helton. "Quantification of margins and uncertainties: Conceptual and
 computational basis." *Reliability Engineering and System Safety* 96(9),
-976-1013, 2011. The margin `M`, uncertainty `U`, and confidence ratio `M/U`
-of the QMU framework and the separation of aleatory and epistemic
-uncertainty. Confirmed bibliographically; the paper was not opened and the
-definitions in this library are stated and derived independently.
+976-1013, 2011. The margin `M`, uncertainty `U`, and confidence ratio `M/U` of
+the QMU framework and the separation of aleatory and epistemic uncertainty.
+Confirmed bibliographically; the paper was not opened (no open full text was
+retrievable) and the definitions in this library are stated and derived
+independently. The margin and the ratio of margin to uncertainty were checked
+instead against [REF-PILCH-TRUCANO-HELTON-2006], which Helton co-authored.
 
 ## REF-PILCH-TRUCANO-HELTON-2006
 
 Martin Pilch, Timothy G. Trucano, and Jon C. Helton. *Ideas Underlying
 Quantification of Margins and Uncertainties (QMU): A White Paper*. Sandia
-National Laboratories report SAND2006-5001, 2006. Cited for the QMU ratio of
-margin to uncertainty. Confirmed bibliographically; not opened.
+National Laboratories report SAND2006-5001, September 2006.
+[osti.gov](https://www.osti.gov/biblio/891369). Opened and read from the OSTI
+PDF: the three elements of the method (a performance threshold, the associated
+margin as the measure of exceeding it, and the quantified uncertainty in
+both), the example of a minimum delivered voltage with margin `V_D - V_min`
+required to exceed a specified margin, the statement that a threshold may
+equally be a limit not to be exceeded with the margin the distance below it,
+and the formalism of margin/uncertainty ratios, credited there to Sharp and
+Wood-Schultz (2003) as confidence ratios, on which a decision is based. Cited
+for the margin and the ratio of margin to uncertainty; the report gives no
+formula for the uncertainty, which this library defines in ADR-0135.
 
 ## REF-NASA-SEH-2016
 
 *NASA Systems Engineering Handbook*, NASA/SP-2016-6105 Rev 2. National
 Aeronautics and Space Administration, 2016.
-[https://www.nasa.gov/seh](https://www.nasa.gov/seh). Cited for the practice
-of tracking technical performance measures and performance margins against
-a plan at project reviews. Only the web edition's description of
-performance margins (Section 6.2) and of technical performance measures,
-their regular tracking, and review-time trend examination (Section 6.7) was
-read; no percentage, threshold, or formula is taken from it, and every
+[nasa.gov](https://www.nasa.gov/sites/default/files/atoms/files/nasa_systems_engineering_handbook_0.pdf).
+Cited for the practice of tracking technical performance measures and
+performance margins against a plan at project reviews. The handbook PDF was
+opened and the relevant passages read: the definition of technical performance
+measures as characteristics tied to the measures of performance and monitored
+by comparing achieved with anticipated values (Section 4.2), the list of key
+performance margins among the tools for assessing a change (Section 6.2), the
+monitoring and trending of TPMs in technical assessment (Section 6.7), the
+glossary entries for margin and technical performance measure, and the SEMP
+outline (Appendix J, Section 7.4) naming mass and power margins as required
+measures. No percentage, threshold, or formula is taken from it, and every
 contingency percentage in this library is an input.
 ## REF-JCGM-101-2008
 
@@ -6300,3 +6328,15 @@ worked example of Section 3.1 (`epsilon = 0.01`, `beta = 1e-10`, three
 variables, `N = 5206`) which is pinned in the tests. Cited for those two
 statements and as the open source that describes the scenario approach of
 [REF-CALAFIORE-CAMPI-2006].
+
+## REF-YOUNG-2016
+
+Derek S. Young. "Normal Tolerance Interval Procedures in the tolerance
+Package." *The R Journal* 8(2), December 2016, starting on page 200.
+[journal.r-project.org](https://journal.r-project.org/archive/2016/RJ-2016-041/RJ-2016-041.pdf).
+Opened and read: the one-sided factor and the two-sided integral equation
+(Eqs. 6 and 7), the one-sided factor table printed by `K.table` for `n` of 10
+and 20, `alpha` of 0.01 and 0.05 and `P` of 0.95 and 0.99 (six decimals), and
+the exact two-sided interval printed for the twenty milk-container fills of
+[REF-KRISHNAMOORTHY-MATHEW-2009]. Cited for those printed values, which are
+pinned in the tests of the normal tolerance factors.

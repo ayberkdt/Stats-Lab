@@ -21499,7 +21499,9 @@ the bound is `xbar + k s` (upper) or `xbar - k s` (lower).
 - Code: `propagation.normal_tolerance_factor`,
   `propagation.normal_tolerance_bound`,
   `propagation.tolerance._noncentral_t_quantile`.
-- Source: [REF-KRISHNAMOORTHY-MATHEW-2009], [REF-NIST-SEMATECH-HANDBOOK].
+- Source: [REF-NIST-SEMATECH-HANDBOOK] (formula and worked values 1.8740 and
+  4.4111), [REF-YOUNG-2016] (Eq. 6 and eight printed values, reproduced to six
+  decimals), [REF-KRISHNAMOORTHY-MATHEW-2009] (not opened).
 
 ### EQ-PROP-TOL-002 — Noncentral t distribution function as a chi integral
 
@@ -21531,8 +21533,11 @@ where `r(z)` solves `Phi(z / sqrt(n) + r) - Phi(z / sqrt(n) - r) = p`.
 - Code: `propagation.normal_tolerance_factor`,
   `propagation.normal_tolerance_interval`,
   `propagation.tolerance._two_sided_exact_factor`.
-- Source: [REF-KRISHNAMOORTHY-MATHEW-2009], [REF-ODEH-OWEN-1980] (the
-  integral equation is derived here).
+- Source: [REF-YOUNG-2016] (Eq. 7, a different representation of the same
+  defining probability; the exact interval it prints for the milk data is
+  reproduced to six decimals), [REF-KRISHNAMOORTHY-MATHEW-2009] and
+  [REF-ODEH-OWEN-1980] (neither opened); the integral equation of this form is
+  derived here.
 
 ### EQ-PROP-TOL-004 — Howe approximation of the two-sided factor
 
@@ -21546,7 +21551,8 @@ with `chi2_(1-gamma; nu)` the `(1 - gamma)`-quantile of the chi-square law.
   is slightly missed for moderate `n`.
 - Code: `propagation.normal_tolerance_factor` (`method="howe"`),
   `propagation.tolerance._howe_factor`.
-- Source: [REF-HOWE-1969], [REF-NIST-SEMATECH-HANDBOOK].
+- Source: [REF-NIST-SEMATECH-HANDBOOK] (formula and the worked value 2.217),
+  [REF-HOWE-1969] (not opened).
 
 ### EQ-PROP-MARGIN-001 — Margin, uncertainty, and confidence ratio
 
@@ -21565,8 +21571,11 @@ Upper limit `L`: `M = L - y*`, `U = y_bound - y*`. Lower limit: `M = y* - L`,
 - Code: `propagation.Requirement`, `propagation.quantify_margin`,
   `propagation.quantify_margin_mixed`,
   `propagation.TechnicalPerformanceMeasure`.
-- Source: [REF-HELTON-2011], [REF-PILCH-TRUCANO-HELTON-2006],
-  [REF-NASA-SEH-2016].
+- Source: [REF-PILCH-TRUCANO-HELTON-2006] (read: margin as the distance
+  beyond the threshold, or below a limit, and margin/uncertainty ratios; the
+  report gives no formula for the uncertainty, so `U` is this library's
+  definition), [REF-NASA-SEH-2016] (read: tracking of performance measures and
+  margins), [REF-HELTON-2011] (not opened).
 
 ### EQ-PROP-MARGIN-002 — Growth allowance and system margin arithmetic
 
