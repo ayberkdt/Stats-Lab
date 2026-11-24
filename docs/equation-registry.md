@@ -21844,3 +21844,126 @@ only under independence.
   `cost.cost_schedule_frontier`, `cost.IsoConfidenceFrontier`.
 - Source: [REF-NASA-CEH-2015] (the joint confidence level; its appendix could
   not be opened, so the definition rests on the probability identity above).
+### EQ-INF-ELICIT-001 — Quantile-function least squares for elicited judgements
+
+`min_theta sum_i w_i (Q(p_i; theta) - v_i)^2` over the parameters `theta` of a
+family with quantile function `Q`, for elicited pairs `(p_i, v_i)`. When `Q`
+is linear in `theta` (`Q = a + b z(p)` with `z` the standard quantile:
+normal, Student-t at fixed degrees of freedom, uniform with `z = p`) the
+minimiser is the weighted regression line `b = S_zv / S_zz`,
+`a = v_bar - b z_bar`; the residuals then satisfy `sum w r = 0` and
+`sum w r z = 0`. The reported misfit is `sqrt(sum w r^2 / sum w)`.
+
+- Domain: `2 <= n` strictly increasing probabilities in `(0, 1)` and
+  strictly increasing values; at least as many pairs as free parameters;
+  positive values for lognormal, gamma and Weibull; a stated interval for
+  beta.
+- Meaning: the law whose quantiles come closest, in value units, to the
+  expert's statements; zero residual when the statements are exactly those
+  of a member of the family.
+- Code: `inference.fit_from_quantiles`, `inference.compare_elicited_fits`,
+  `inference.elicitation._linear_fit`, `inference.elicitation._refine`.
+- Source: [REF-OHAGAN-ETAL-2006], [REF-SHELF-OAKLEY-OHAGAN], [REF-MORE-1978].
+
+### EQ-INF-ELICIT-002 — Three-point law from a mode and two quantiles
+
+For a law `X = low + W B_m` with `B_m` on `[0, 1]` and mode fraction
+`m = (mode - low)/W`, two stated quantiles `q_l`, `q_h` at `p_l < p_h` give
+`(mode - q_l)/(q_h - q_l) = (m - B_m(p_l)) / (B_m(p_h) - B_m(p_l))`, solved for
+`m in [0, 1]` by Brent's method, then
+`W = (q_h - q_l)/(B_m(p_h) - B_m(p_l))` and `low = mode - m W`,
+`high = low + W`.
+
+- Domain: `q_l < q_h`, `0 < p_l < p_h < 1`, and a mode inside the interval
+  the equation allows (it may lie below `q_l` or above `q_h` for skewed
+  laws); otherwise there is no solution and the error states the interval.
+- Meaning: the absolute bounds of a PERT or triangular law implied by a
+  most likely value and, for example, 5 % and 95 % quantiles.
+- Code: `inference.pert_from_quantiles`, `inference.triangular_from_quantiles`,
+  `inference.elicitation._solve_three_point`.
+- Source: [REF-MALCOLM-1959], [REF-VOSE-2008], [REF-KOTZ-VANDORP-2004].
+
+### EQ-INF-ELICIT-003 — Linear and logarithmic opinion pools
+
+Linear pool `f = sum_i w_i f_i`. Logarithmic pool
+`g(x) = prod_i f_i(x)^(w_i) / Z`, `Z = int prod_i f_i^(w_i) dx`, with
+`sum_i w_i = 1`. For normal experts `g` is normal with precision
+`sum_i w_i / sigma_i^2` and mean `sum_i w_i mu_i / sigma_i^2` divided by that
+precision. With a likelihood `L`, `prod_i (f_i L)^(w_i) = L prod_i f_i^(w_i)`,
+so the logarithmic pool is externally Bayesian; the linear pool is not (its
+posterior reweights `w_i` by the evidence of `f_i`).
+
+- Domain: positive weights (normalised to sum one); the logarithmic pool
+  needs experts whose densities overlap.
+- Meaning: two ways of combining experts' densities; the linear pool keeps
+  marginals and is multimodal under disagreement, the logarithmic pool
+  concentrates between the experts.
+- Code: `inference.linear_opinion_pool`, `inference.logarithmic_opinion_pool`,
+  `inference.LogarithmicPool`.
+- Source: [REF-GENEST-ZIDEK-1986], [REF-CLEMEN-WINKLER-1999].
+
+### EQ-INF-ELICIT-004 — Quantile averaging (Vincentization)
+
+`Q(p) = sum_i w_i Q_i(p)`, so `E[X] = sum_i w_i mu_i` and the density at
+`x = Q(p)` is `1 / sum_i (w_i / f_i(Q_i(p)))`. For normal experts the pool is
+`N(sum w_i mu_i, (sum w_i sigma_i)^2)`.
+
+- Domain: positive weights summing to one; every `Q_i` finite on `(0, 1)`.
+- Meaning: the pool of quantile functions keeps a location-scale family
+  closed and averages scales, not variances.
+- Code: `inference.quantile_average`, `inference.VincentizedLaw`.
+- Source: [REF-CLEMEN-WINKLER-1999], [REF-GENEST-ZIDEK-1986].
+
+### EQ-INF-ELICIT-005 — Cooke calibration score
+
+With stated probabilities `p_1 < ... < p_k` the bins have theoretical
+probabilities `pi_j = p_j - p_(j-1)` (`p_0 = 0`, `p_(k+1) = 1`) and empirical
+frequencies `s_j` of the `N` realizations; `I(s, pi) = sum_j s_j ln(s_j / pi_j)`
+(`0 ln 0 = 0`), and the calibration is
+`C = 1 - F_(chi2, k)(2 N I(s, pi))`.
+
+- Domain: `N >= 1` seed realizations, strictly increasing quantile rows.
+- Meaning: the p-value of the likelihood-ratio test that the realizations are
+  independent draws from the expert's stated bin probabilities (a
+  chi-square approximation, adequate for moderate `N`); `C = 1` when
+  `s = pi`.
+- Code: `inference.cooke_calibration`, `inference.cooke_bin_probabilities`.
+- Source: [REF-COOKE-1991], [REF-CASELLA-BERGER-2002].
+
+### EQ-INF-ELICIT-006 — Cooke information score and intrinsic range
+
+On item `i` with intrinsic range `[L_i, U_i]` and expert quantiles
+`q_1 < ... < q_k` the expert's density is uniform within each bin of
+`(L_i, q_1, ..., q_k, U_i)` with mass `pi_j`; its relative information to the
+uniform background is `sum_j pi_j ln(pi_j / mu_j)`, `mu_j` the background
+measure of bin `j` (`(b - a)/(U - L)`, or `ln(b/a)/ln(U/L)` for the
+log-uniform background). The score is the mean over items. The intrinsic
+range is the hull of all experts' quantiles and the realization extended on
+each side by `overshoot` times its width (on the log scale for the
+log-uniform background).
+
+- Domain: quantiles strictly inside the range; positive values for the
+  log-uniform background.
+- Meaning: how much narrower than the background the expert's statements
+  are; independent of the realizations except through the range.
+- Code: `inference.cooke_information`, `inference.cooke_intrinsic_ranges`,
+  `inference.elicitation._item_information`.
+- Source: [REF-COOKE-1991].
+
+### EQ-INF-ELICIT-007 — Cooke weights and the global-weights decision maker
+
+`w_e = C_e I_e 1{C_e >= alpha} / sum_k C_k I_k 1{C_k >= alpha}`. The decision
+maker's density is `sum_e w_e f_e`, constant on the cells cut by all experts'
+bin edges, with calibration and information computed from its own quantiles
+and density on the seed items. The cut-off `alpha` is chosen among the
+experts' calibration scores to maximise the decision maker's calibration
+times information (the smaller cut-off on a tie).
+
+- Domain: at least one expert with positive weight at the cut-off.
+- Meaning: performance-based pooling that gives no weight to experts whose
+  statistical accuracy is rejected at level `alpha`, with global (not
+  item-specific) weights.
+- Code: `inference.cooke_weights`, `inference.cooke_classical_model`,
+  `inference.cooke_decision_maker_law`,
+  `inference.elicitation._decision_maker_item`.
+- Source: [REF-COOKE-1991], [REF-NASA-PRA-2011].

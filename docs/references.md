@@ -6018,3 +6018,66 @@ Carlo simulation, correlation between activity durations, risk criticality
 as the percentage of iterations in which an activity is on the critical
 path, sensitivity indexes, and the cumulative distribution as the probability
 of finishing on or before a date.
+## REF-OHAGAN-ETAL-2006
+
+Anthony O'Hagan, Caitlin E. Buck, Alireza Daneshkhah, J. Richard Eiser,
+Paul H. Garthwaite, David J. Jenkinson, Jeremy E. Oakley, and Tim Rakow.
+*Uncertain Judgements: Eliciting Experts' Probabilities*. Statistics in
+Practice. John Wiley & Sons, Chichester, 2006. Cited for the practice of
+eliciting quantiles or intervals from experts, fitting a distribution to
+them, and showing the fitted distribution's implications back to the expert.
+Confirmed bibliographically only; the book was not opened in preparing this
+entry, and the fitting formulas in this library are derived from the
+definition of a quantile function, not copied.
+
+## REF-COOKE-1991
+
+Roger M. Cooke. *Experts in Uncertainty: Opinion and Subjective Probability
+in Science*. Environmental Ethics and Science Policy Series. Oxford
+University Press, New York, 1991. Cited for the classical model of
+performance-based expert weights: calibration as the p-value of a
+likelihood-ratio statistic on seed-variable realizations in inter-quantile
+bins, information relative to a background measure, the weight as their
+product above a calibration cut-off, and the decision maker. Confirmed
+bibliographically only; the book was not opened. The scoring rules were
+re-derived from the verbal description in the open-access literature
+retrieved in preparing this entry (calibration as the p-value of a
+likelihood-ratio test of the stated bin probabilities, information as
+relative information to a background measure, weight equal to calibration
+times information above a cut-off, cut-off chosen to maximise the decision
+maker's score); the 10 % overshoot default and the log-scale extension for
+the log-uniform background are choices of this library.
+
+## REF-GENEST-ZIDEK-1986
+
+Christian Genest and James V. Zidek. "Combining Probability Distributions: A
+Critique and an Annotated Bibliography." *Statistical Science* 1(1), 114-135,
+1986. [doi:10.1214/ss/1177013825](https://doi.org/10.1214/ss/1177013825).
+Cited for the taxonomy of opinion pools (linear and logarithmic pools) and
+the properties that distinguish them (marginalisation, external
+Bayesianity). Confirmed bibliographically only (publication details checked
+against the journal's open-access listing); the text was not read, and the
+properties are derived and checked numerically in the tests.
+
+## REF-CLEMEN-WINKLER-1999
+
+Robert T. Clemen and Robert L. Winkler. "Combining Probability Distributions
+from Experts in Risk Analysis." *Risk Analysis* 19(2), 187-203, 1999. Cited
+for the use of mathematical aggregation of expert distributions in risk
+analysis and the practical choice between equal and performance-based
+weights. Confirmed bibliographically only (volume, issue and pages agree
+across several bibliographic databases; the DOI was not verified); the text
+was not read.
+
+## REF-SHELF-OAKLEY-OHAGAN
+
+Jeremy E. Oakley and Anthony O'Hagan. *SHELF: the Sheffield Elicitation
+Framework* (R package and documentation, version 1.x). Cited for the
+elicitation workflow: elicited probabilities or quantiles for each expert,
+parametric distributions fitted by least squares on the distribution
+function (normal and Student-t without limits, adding log-normal, log
+Student-t and gamma with a lower limit and a scaled beta with both limits),
+and feedback quantiles to the expert. Confirmed through the package's CRAN
+reference manual description of `fitdist`; this library instead minimises
+the misfit of the quantile function, a deliberate difference documented in
+ADR-0136.

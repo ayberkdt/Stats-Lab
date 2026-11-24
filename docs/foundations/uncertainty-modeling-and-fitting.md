@@ -841,3 +841,112 @@ statistics.variance([1.0, 2.0, 3.0, 4.0])        # 1.6667, divisor n - 1
 - [REF-GARWOOD-1936], [REF-LEVIN-REEDS-1977], [REF-KLEIBER-ZEILEIS-2016].
 - [REF-DELIGNETTE-MULLER-DUTANG-2015], [REF-VAN-DER-VAART-1998, Chapters 3
   and 4].
+
+## Expert elicitation and opinion pooling
+
+In early design some inputs have no data at all: a specific impulse, an
+efficiency, a drag coefficient, a surface absorptance. The input law then
+comes from engineers' judgement, stated as a most likely value and a range
+("most likely 0.28, I would be surprised below 0.26 or above 0.30"). The
+tools of `probstat.inference` turn such statements into a law, show the
+expert what the law implies, and combine several experts. They summarise
+statements; they do not estimate anything from data, so a fitted law has no
+sampling error, only a misfit to what was said.
+
+**From quantiles to a law.** `fit_from_quantiles(family, probabilities,
+values)` minimises the weighted squared distance between the elicited values
+and the family's quantile function. The families are `normal`, `student_t`
+(fixed degrees of freedom), `lognormal`, `gamma`, `weibull`, `beta` on a
+stated interval, `triangular`, `pert` and `uniform`. Normal, Student-t and
+uniform laws are linear in their parameters and are solved in closed form;
+two normal or two lognormal quantiles are reproduced exactly. The result
+carries the residuals (fitted minus elicited) and the quantiles the fitted
+law implies at 1 %, 5 %, 50 %, 95 % and 99 %: read those back to the expert
+before accepting the law. `compare_elicited_fits` fits several families and
+ranks them by misfit; a family with as many parameters as statements always
+fits exactly, so the ranking informs the choice and does not make it.
+
+**Three-point judgements.** `pert_from_three_points(low, mode, high)` and
+`triangular_from_three_points` take absolute bounds. Experts rarely mean the
+absolute extremes, so `pert_from_quantiles` and `triangular_from_quantiles`
+take a mode and the 5 % and 95 % quantiles and solve for the absolute bounds
+that reproduce them. The mode may lie below the stated lower quantile for a
+skewed law; when no law has the stated mode and quantiles the error gives the
+interval the mode must lie in.
+
+**Pooling experts.** Three pools, three behaviours. The linear pool
+(`linear_opinion_pool`, a `Mixture`) keeps marginals but is multimodal when
+experts disagree and is not externally Bayesian: updating the pool with data
+reweights the experts by their evidence, so pooling before or after the
+update gives different answers. The logarithmic pool
+(`logarithmic_opinion_pool`) with weights summing to one is externally
+Bayesian and concentrates between the experts; it is a `Normal` for normal
+experts and otherwise a numerically normalised `LogarithmicPool` with `pdf`,
+`cdf`, `quantile`, `mean` and `variance`. Quantile averaging
+(`quantile_average`) averages quantile functions: normal experts give a
+normal law with the averaged location and the averaged *scale*. Which pool is
+appropriate is a modelling decision; the choice for risk analysis is
+discussed in [REF-CLEMEN-WINKLER-1999], and [REF-NASA-PRA-2011] describes
+expert judgement as an input to risk models.
+
+**Performance-based weights.** Cooke's classical model weighs experts by how
+well they predicted seed variables whose values are known.
+`cooke_classical_model` takes each expert's quantile rows on the seed items
+and the realizations; the result exposes each expert's `calibration` (the
+p-value of the likelihood-ratio statistic of the realizations falling in the
+inter-quantile bins against the chi-square law) and `information` (relative
+to a uniform or log-uniform background on the intrinsic range extended by an
+overshoot), the weights `calibration * information` above a calibration
+cut-off, and the global-weights decision maker. With no `cutoff` the cut-off
+is optimised by the decision maker's own calibration times information.
+`cooke_decision_maker_law` returns the pooled law of one item as a `Mixture`.
+
+```python
+from probstat.distributions import Normal
+from probstat.inference import (
+    cooke_classical_model,
+    fit_from_quantiles,
+    logarithmic_opinion_pool,
+    pert_from_quantiles,
+)
+
+fit = fit_from_quantiles("normal", (0.05, 0.5, 0.95), [0.26, 0.28, 0.30])
+fit.parameter("sigma")      # 0.01216
+fit.feedback[0][1]          # 0.2517, the 1 % quantile this law implies
+fit.max_abs_residual < 1e-12  # True, three normal quantiles are exactly consistent
+bounds = pert_from_quantiles(0.26, 0.28, 0.30)
+bounds.low                  # 0.2478, the absolute minimum behind the 5 % quantile
+bounds.high                 # 0.3122
+pool = logarithmic_opinion_pool([Normal(0.28, 0.012), Normal(0.30, 0.02)])
+pool.mu                     # 0.2853, pulled towards the more confident expert
+pool.sigma                  # 0.01455
+seeds = [0.8, 2.2, 3.4, 4.6]
+wide = [[0.0, 1.0, 2.0], [1.0, 2.0, 3.0], [2.0, 3.0, 4.0], [3.0, 4.0, 5.0]]
+narrow = [[0.9, 1.0, 1.1], [1.9, 2.0, 2.1], [2.9, 3.0, 3.1], [3.9, 4.0, 4.1]]
+result = cooke_classical_model([wide, narrow], seeds, cutoff=0.0)
+result.experts[0].calibration.score  # 0.5957
+result.experts[1].calibration.score  # 0.000219, the narrow expert is overconfident
+```
+
+Pitfalls of elicitation and pooling:
+
+- **Quantile fits are not estimates.** `QuantileFit.misfit` measures how
+  well the family reproduces the statements, not how likely the statements
+  are; there is no standard error and no information criterion.
+- **Lognormal, gamma and Weibull need positive values**; a `beta` fit needs
+  the interval as `bounds`; triangular and PERT fits without `bounds` need
+  at least three statements.
+- **The logarithmic pool needs overlapping experts.** If the densities do not
+  overlap the pool is undefined and the function raises; for experts that
+  barely overlap it is concentrated on the overlap and says little about
+  either expert.
+- **A Cooke calibration p-value is a chi-square approximation.** With very
+  few seed variables it is unreliable, and it treats the seed variables as
+  independent. The weights are global; item-specific weights are not offered.
+- **The Cooke overshoot is a convention.** The default extends the intrinsic
+  range by 10 % of its width on each side (on the log scale for the
+  log-uniform background); a different overshoot changes the information
+  scores and hence the weights.
+
+Sources: [REF-OHAGAN-ETAL-2006], [REF-SHELF-OAKLEY-OHAGAN], [REF-COOKE-1991],
+[REF-GENEST-ZIDEK-1986], [REF-CLEMEN-WINKLER-1999], [REF-NASA-PRA-2011].
