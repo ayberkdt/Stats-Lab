@@ -25,6 +25,11 @@ This module holds that table and combines it by explicit, named rules:
 - :func:`monte_carlo_budget` and :func:`compare_with_law_of_propagation`:
   propagation of distributions by the Monte Carlo method of JCGM 101:2008
   and that Supplement's validation of the GUM uncertainty framework.
+- :func:`adaptive_monte_carlo_budget` (and the batch-contract form
+  :func:`adaptive_monte_carlo_budget_procedure`): the adaptive procedure of
+  clause 7.9.4, which adds batches of trials until the estimate, ``u(y)`` and
+  the interval endpoints have stabilised to a numerical tolerance, and
+  reports honestly when it has not.
 
 Relation to neighbouring tools: :class:`~probstat.uq.NumericalErrorBudget`
 holds absolute bounds combined by the triangle inequality and no sensitivity
@@ -64,6 +69,13 @@ from enum import StrEnum
 from typing import Protocol
 
 from probstat.distributions import Normal, StudentT
+from probstat.foundations.batch import (
+    EvaluationRequest,
+    Procedure,
+    batch_from_pointwise,
+    run_procedure,
+    scalar_outputs,
+)
 from probstat.foundations.random_streams import RandomStream
 from probstat.foundations.validation import (
     require_finite_real,
@@ -81,6 +93,9 @@ HALF_WIDTH_BASIS = "half_width"
 STANDARD_BASIS = "standard_uncertainty"
 BASES = (HALF_WIDTH_BASIS, STANDARD_BASIS)
 COVERAGE_INTERVALS = ("symmetric", "shortest")
+ADEQUACY_STABILIZATION = "stabilisation statistics (JCGM 101, 7.9.4 and 8.2)"
+ADEQUACY_PROXY = "standard-error proxy (fixed number of trials)"
+ADEQUACY_OTHER_INTERVAL = "not assessed: the adaptive run tracked the other interval"
 _CORRELATION_TOLERANCE = 1e-12
 _PROBABILITY_FLOOR = 1e-16
 
@@ -1970,6 +1985,183 @@ def _standard_normal_cdf(z: float) -> float:
     return 0.5 * math.erfc(-z / math.sqrt(2.0))
 
 
+def _checked_laws(distributions: Sequence[_InputLaw]) -> tuple[_InputLaw, ...]:
+    """Return the input laws after checking that each can be sampled.
+
+    Args:
+        distributions: One law per input.
+
+    Returns:
+        The laws as a tuple.
+
+    Raises:
+        TypeError: If a law lacks ``sample`` or ``quantile``.
+        ValueError: If no law is given.
+
+    References:
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No mathematical
+        equation is evaluated.
+
+    """
+    laws = tuple(distributions)
+    if len(laws) == 0:
+        raise ValueError("at least one input distribution is required")
+    for law in laws:
+        if not callable(getattr(law, "sample", None)) or not callable(
+            getattr(law, "quantile", None)
+        ):
+            raise TypeError("each distribution needs sample() and quantile()")
+    return laws
+
+
+def _checked_coverage(coverage: float) -> float:
+    """Return a coverage probability strictly between 0 and 1.
+
+    Args:
+        coverage: Coverage probability ``p``.
+
+    Returns:
+        ``p`` as a float.
+
+    Raises:
+        ValueError: If ``p`` is not strictly between 0 and 1.
+
+    References:
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No mathematical
+        equation is evaluated.
+
+    """
+    p = require_probability(coverage, name="coverage")
+    if p <= 0.0 or p >= 1.0:
+        raise ValueError("coverage must lie strictly between 0 and 1")
+    return p
+
+
+def _checked_stream(seed: int | RandomStream) -> RandomStream:
+    """Return the root stream of a seed or stream argument.
+
+    Args:
+        seed: Integer seed or :class:`~probstat.foundations.RandomStream`.
+
+    Returns:
+        The stream.
+
+    Raises:
+        TypeError: If ``seed`` is neither.
+
+    References:
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No mathematical
+        equation is evaluated.
+
+    """
+    if isinstance(seed, bool) or not isinstance(seed, (int, RandomStream)):
+        raise TypeError("seed must be an integer or a RandomStream")
+    return seed if isinstance(seed, RandomStream) else RandomStream(seed)
+
+
+def _draw_points(
+    laws: Sequence[_InputLaw],
+    corr: tuple[tuple[float, ...], ...] | None,
+    m: int,
+    stream: RandomStream,
+) -> list[tuple[float, ...]]:
+    """Draw ``m`` input vectors, independent or joined by a Gaussian copula.
+
+    The draw depends on ``stream`` only (each input uses the child stream
+    ``("input", i)``, the copula the child ``("copula",)``), so the same
+    stream gives the same points however the caller later evaluates them.
+
+    Args:
+        laws: One law per input.
+        corr: Copula correlation matrix, or ``None`` for independent inputs.
+        m: Number of input vectors.
+        stream: Stream this draw consumes.
+
+    Returns:
+        The ``m`` input vectors.
+
+    Equation:
+        [EQ-UQ-BUDGET-007], [EQ-UQ-BUDGET-008].
+
+    References:
+        [REF-JCGM-101-2008, Sections 7.3-7.4], [REF-NELSEN-2006].
+
+    """
+    n = len(laws)
+    if corr is None:
+        columns: Sequence[Sequence[float]] = [
+            law.sample(m, seed=stream.child("input", i)) for i, law in enumerate(laws)
+        ]
+    else:
+        factor = cholesky_semidefinite(corr)
+        generator = stream.child("copula").generator()
+        draws: list[list[float]] = [[0.0] * m for _ in range(n)]
+        for t in range(m):
+            e = [generator.gauss(0.0, 1.0) for _ in range(n)]
+            for i in range(n):
+                z = math.fsum(factor[i][j] * e[j] for j in range(i + 1))
+                u = min(
+                    max(_standard_normal_cdf(z), _PROBABILITY_FLOOR),
+                    1.0 - _PROBABILITY_FLOOR,
+                )
+                draws[i][t] = laws[i].quantile(u)
+        columns = draws
+    return [tuple(column[t] for column in columns) for t in range(m)]
+
+
+def _summarize(
+    outputs: Sequence[float], p: float, correlated: bool
+) -> MonteCarloResult:
+    """Summarise model values as a :class:`MonteCarloResult`.
+
+    Args:
+        outputs: At least 20 finite model values.
+        p: Coverage probability in ``(0, 1)``.
+        correlated: Whether a copula joined the inputs.
+
+    Returns:
+        The estimate, ``u(y)``, both coverage intervals, shape statistics and
+        Monte Carlo errors.
+
+    Raises:
+        ValueError: If the sample is too small for the coverage.
+
+    Equation:
+        [EQ-UQ-BUDGET-007].
+
+    References:
+        [REF-JCGM-101-2008, Sections 7.5-7.7].
+
+    """
+    m = len(outputs)
+    ordered = sorted(outputs)
+    symmetric, shortest = _intervals_from_sorted(ordered, p)
+    mean = math.fsum(outputs) / m
+    deviations = [v - mean for v in outputs]
+    variance = math.fsum(d * d for d in deviations) / (m - 1)
+    u_y = math.sqrt(variance)
+    population = math.fsum(d * d for d in deviations) / m
+    if population > 0.0:
+        skew = math.fsum(d**3 for d in deviations) / m / population**1.5
+        kurt = math.fsum(d**4 for d in deviations) / m / population**2
+    else:
+        skew, kurt = 0.0, 0.0
+    return MonteCarloResult(
+        estimate=mean,
+        standard_uncertainty=u_y,
+        coverage=p,
+        symmetric_interval=symmetric,
+        shortest_interval=shortest,
+        size=m,
+        skewness=skew,
+        kurtosis=kurt,
+        estimate_standard_error=u_y / math.sqrt(m),
+        uncertainty_standard_error=u_y * math.sqrt(max(kurt - 1.0, 0.0) / (4.0 * m)),
+        endpoint_standard_errors=_endpoint_errors(ordered, p),
+        correlated=correlated,
+    )
+
+
 def monte_carlo_budget(
     function: Callable[[Sequence[float]], float],
     distributions: Sequence[_InputLaw],
@@ -1985,10 +2177,11 @@ def monte_carlo_budget(
     (Sections 7.3-7.7) with a fixed number of trials ``size``: draw ``M``
     input vectors, evaluate the model, and report the average, the standard
     deviation with divisor ``M - 1``, and the probabilistically symmetric and
-    shortest coverage intervals. The adaptive choice of ``M`` of Section
-    7.9.4 is not implemented; ``endpoint_standard_errors`` and the other
-    standard errors in the result let the caller judge whether ``size`` was
-    enough. Choose ``size`` large against ``1/(1 - p)`` (Section 7.2.2).
+    shortest coverage intervals. ``size`` is chosen by the caller;
+    :func:`adaptive_monte_carlo_budget` chooses it by the adaptive procedure
+    of Section 7.9.4. ``endpoint_standard_errors`` and the other standard
+    errors in the result let the caller judge whether ``size`` was enough.
+    Choose ``size`` large against ``1/(1 - p)`` (Section 7.2.2).
 
     Independent inputs are sampled with each law's own ``sample`` from child
     streams of ``seed``. With ``correlation`` the inputs are joined by a
@@ -2031,72 +2224,464 @@ def monte_carlo_budget(
 
     """
     model = _scalar_model(function)
-    laws = tuple(distributions)
-    n = len(laws)
-    if n == 0:
-        raise ValueError("at least one input distribution is required")
-    for law in laws:
-        if not callable(getattr(law, "sample", None)) or not callable(
-            getattr(law, "quantile", None)
-        ):
-            raise TypeError("each distribution needs sample() and quantile()")
+    laws = _checked_laws(distributions)
     m = require_non_negative_integer(size, name="size")
     if m < 20:
         raise ValueError("size must be at least 20")
-    p = require_probability(coverage, name="coverage")
-    if p <= 0.0 or p >= 1.0:
-        raise ValueError("coverage must lie strictly between 0 and 1")
-    if isinstance(seed, bool) or not isinstance(seed, (int, RandomStream)):
-        raise TypeError("seed must be an integer or a RandomStream")
-    stream = seed if isinstance(seed, RandomStream) else RandomStream(seed)
-    corr = _checked_correlation(correlation, n)
+    p = _checked_coverage(coverage)
+    stream = _checked_stream(seed)
+    corr = _checked_correlation(correlation, len(laws))
+    outputs = [model(point) for point in _draw_points(laws, corr, m, stream)]
+    return _summarize(outputs, p, corr is not None)
 
-    columns: Sequence[Sequence[float]]
-    if corr is None:
-        columns = [
-            law.sample(m, seed=stream.child("input", i)) for i, law in enumerate(laws)
-        ]
+
+@dataclass(frozen=True, slots=True)
+class AdaptiveMonteCarloResult(MonteCarloResult):
+    """Result of the adaptive Monte Carlo procedure of JCGM 101 Section 7.9.4.
+
+    It is a :class:`MonteCarloResult` computed from all ``batches * batch_size``
+    model values (so ``size`` is that product and every inherited field means
+    what it means there), plus the record of how the procedure stopped.
+
+    Args:
+        batches: Number ``h`` of Monte Carlo applications that were run.
+        batch_size: Number ``M`` of trials in each.
+        estimate_deviation: ``s_y``, the standard deviation of the average of
+            the per-batch estimates (step g).
+        uncertainty_deviation: The counterpart for the per-batch ``u(y)``.
+        low_deviation: The counterpart for the per-batch left endpoint.
+        high_deviation: The counterpart for the per-batch right endpoint.
+        delta: Numerical tolerance used in the last test: ``delta`` of
+            Section 7.9.2 from the ``u(y)`` of all values, divided by
+            ``tolerance_divisor``.
+        significant_digits: ``ndig`` used for ``delta``.
+        tolerance_divisor: 1 for Section 7.9.4, 5 for the Section 8.2
+            accuracy ``delta / 5``.
+        interval: ``"symmetric"`` or ``"shortest"``: the interval whose
+            endpoints were tracked by ``low_deviation`` and ``high_deviation``.
+        stabilized: True if the stopping rule was met; False if ``max_batches``
+            ran out first, in which case the four deviations still describe
+            the final state and the numbers may not meet the tolerance
+            (Section 7.9.3, Note 1).
+
+    Equation:
+        [EQ-UQ-BUDGET-010].
+
+    References:
+        [REF-JCGM-101-2008, Sections 7.9.2-7.9.4 and 8.2].
+
+    """
+
+    batches: int
+    batch_size: int
+    estimate_deviation: float
+    uncertainty_deviation: float
+    low_deviation: float
+    high_deviation: float
+    delta: float
+    significant_digits: int
+    tolerance_divisor: float
+    interval: str
+    stabilized: bool
+
+
+def average_standard_deviation(values: Sequence[float]) -> float:
+    """Return the standard deviation associated with an average (7.9.4, step g).
+
+    For per-batch values ``v_1, ..., v_h`` with average ``v``, the statistic
+    is ``s^2 = sum (v_r - v)^2 / (h (h - 1))``.
+
+    Args:
+        values: At least two finite per-batch values.
+
+    Returns:
+        ``s``.
+
+    Raises:
+        ValueError: If fewer than two values are given or one is not finite.
+
+    Equation:
+        [EQ-UQ-BUDGET-010].
+
+    References:
+        [REF-JCGM-101-2008, Section 7.9.4, steps g and h].
+
+    """
+    data = [require_finite_real(v, name="value") for v in values]
+    h = len(data)
+    if h < 2:
+        raise ValueError("at least two per-batch values are required")
+    mean = math.fsum(data) / h
+    return math.sqrt(math.fsum((v - mean) ** 2 for v in data) / (h * (h - 1)))
+
+
+def adaptive_stopping_rule(deviations: Sequence[float], delta: float) -> bool:
+    """Return whether the computation has stabilised (7.9.4, steps k and l).
+
+    The procedure continues if any of ``2 s_y``, ``2 s_u(y)``, ``2 s_ylow`` and
+    ``2 s_yhigh`` *exceeds* ``delta``; it has stabilised otherwise, so a value
+    of exactly ``delta`` stabilises. Any number of deviations is accepted
+    (Note 5 of the clause allows leaving the endpoints out).
+
+    Args:
+        deviations: Non-negative standard deviations of the averages.
+        delta: Positive numerical tolerance.
+
+    Returns:
+        ``True`` if every ``2 s`` is at most ``delta``.
+
+    Raises:
+        ValueError: If a deviation is negative or not finite, none is given,
+            or ``delta`` is not positive.
+
+    Equation:
+        [EQ-UQ-BUDGET-010].
+
+    References:
+        [REF-JCGM-101-2008, Section 7.9.4, step k and Note 5].
+
+    """
+    values = [require_non_negative_finite_real(s, name="deviation") for s in deviations]
+    if not values:
+        raise ValueError("at least one deviation is required")
+    tolerance = require_finite_real(delta, name="delta")
+    if tolerance <= 0.0:
+        raise ValueError("delta must be positive")
+    return all(2.0 * s <= tolerance for s in values)
+
+
+def _clause_batch_size(coverage: float) -> int:
+    """Return ``M = max(J, 10^4)`` with ``J = ceil(100 / (1 - p))`` (step b).
+
+    Args:
+        coverage: Coverage probability ``p`` in ``(0, 1)``.
+
+    Returns:
+        The number of trials per batch.
+
+    Equation:
+        [EQ-UQ-BUDGET-010].
+
+    References:
+        [REF-JCGM-101-2008, Section 7.9.4, step b].
+
+    """
+    return max(math.ceil(100.0 / (1.0 - coverage)), 10_000)
+
+
+def _finite_batch_outputs(values: Sequence[object], count: int) -> list[float]:
+    """Coerce the outputs of one batch to finite floats.
+
+    Args:
+        values: One output per requested point.
+        count: Number of requested points.
+
+    Returns:
+        The outputs.
+
+    Raises:
+        ValueError: If the count differs or an output is not finite.
+
+    References:
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No mathematical
+        equation is evaluated.
+
+    """
+    outputs = scalar_outputs(values, count)
+    for value in outputs:
+        require_finite_real(value, name="model output")
+    return list(outputs)
+
+
+def adaptive_monte_carlo_budget_procedure(
+    distributions: Sequence[_InputLaw],
+    *,
+    significant_digits: int = 2,
+    coverage: float = 0.95,
+    batch_size: int | None = None,
+    max_batches: int = 100,
+    seed: int | RandomStream,
+    correlation: Sequence[Sequence[float]] | None = None,
+    interval: str = "symmetric",
+    tolerance_divisor: float = 1.0,
+    label: str = "model",
+) -> Procedure[AdaptiveMonteCarloResult]:
+    """Return the adaptive Monte Carlo procedure as a batch procedure.
+
+    The generator yields one :class:`~probstat.foundations.EvaluationRequest`
+    per batch (``M`` input vectors) and receives the model values in the same
+    order, so the model can run anywhere: drive it with
+    :func:`~probstat.foundations.run_procedure` or
+    :class:`~probstat.foundations.AskTellSession`. The points of batch ``b``
+    depend on ``(seed, b)`` only, so the result does not depend on how the
+    caller chunks or schedules the evaluation of a request. Arguments are
+    validated when this function is called, not at the first request.
+
+    Args:
+        distributions: One law per input (``sample`` and ``quantile``).
+        significant_digits: ``ndig >= 1``, the digits regarded as meaningful
+            in ``u(y)``; the clause suggests 1 or 2.
+        coverage: Coverage probability ``p`` in ``(0, 1)``.
+        batch_size: Trials per batch ``M >= 20``; ``None`` takes
+            ``max(J, 10^4)`` with ``J = ceil(100/(1 - p))`` as in step b.
+        max_batches: Largest number of batches, at least 2 (the first
+            stability test needs two). The procedure then stops with
+            ``stabilized=False`` instead of raising.
+        seed: Root seed or :class:`~probstat.foundations.RandomStream`.
+        correlation: Optional Gaussian-copula correlation, as in
+            :func:`monte_carlo_budget`.
+        interval: ``"symmetric"`` or ``"shortest"``: which interval's
+            endpoints are tracked by the stopping rule.
+        tolerance_divisor: Positive factor dividing ``delta``; use 5 for the
+            accuracy ``delta / 5`` recommended in Section 8.2 for validating
+            the GUM uncertainty framework.
+        label: Model label of the requests.
+
+    Returns:
+        A procedure whose return value is an :class:`AdaptiveMonteCarloResult`.
+
+    Raises:
+        TypeError: If a law lacks ``sample`` or ``quantile`` or ``seed`` has
+            the wrong type.
+        ValueError: If an argument is out of range. While the procedure runs,
+            a non-finite model value, or a model with zero spread (so that
+            ``delta`` is undefined), raises ``ValueError`` as well.
+
+    Equation:
+        [EQ-UQ-BUDGET-010], [EQ-UQ-BUDGET-007].
+
+    References:
+        [REF-JCGM-101-2008, Section 7.9.4], [REF-PEP-342].
+
+    """
+    laws = _checked_laws(distributions)
+    ndig = require_non_negative_integer(significant_digits, name="significant_digits")
+    if ndig < 1:
+        raise ValueError("significant_digits must be at least 1")
+    p = _checked_coverage(coverage)
+    if batch_size is None:
+        m = _clause_batch_size(p)
     else:
-        factor = cholesky_semidefinite(corr)
-        generator = stream.child("copula").generator()
-        draws: list[list[float]] = [[0.0] * m for _ in range(n)]
-        for t in range(m):
-            e = [generator.gauss(0.0, 1.0) for _ in range(n)]
-            for i in range(n):
-                z = math.fsum(factor[i][j] * e[j] for j in range(i + 1))
-                u = min(
-                    max(_standard_normal_cdf(z), _PROBABILITY_FLOOR),
-                    1.0 - _PROBABILITY_FLOOR,
-                )
-                draws[i][t] = laws[i].quantile(u)
-        columns = draws
-    outputs = [model(tuple(column[t] for column in columns)) for t in range(m)]
-    ordered = sorted(outputs)
-    symmetric, shortest = _intervals_from_sorted(ordered, p)
-    mean = math.fsum(outputs) / m
-    deviations = [v - mean for v in outputs]
-    variance = math.fsum(d * d for d in deviations) / (m - 1)
-    u_y = math.sqrt(variance)
-    population = math.fsum(d * d for d in deviations) / m
-    if population > 0.0:
-        skew = math.fsum(d**3 for d in deviations) / m / population**1.5
-        kurt = math.fsum(d**4 for d in deviations) / m / population**2
-    else:
-        skew, kurt = 0.0, 0.0
-    return MonteCarloResult(
-        estimate=mean,
-        standard_uncertainty=u_y,
-        coverage=p,
-        symmetric_interval=symmetric,
-        shortest_interval=shortest,
-        size=m,
-        skewness=skew,
-        kurtosis=kurt,
-        estimate_standard_error=u_y / math.sqrt(m),
-        uncertainty_standard_error=u_y * math.sqrt(max(kurt - 1.0, 0.0) / (4.0 * m)),
-        endpoint_standard_errors=_endpoint_errors(ordered, p),
-        correlated=corr is not None,
+        m = require_non_negative_integer(batch_size, name="batch_size")
+    if m < 20:
+        raise ValueError("batch_size must be at least 20")
+    q = int(p * m) if p * m == int(p * m) else int(p * m + 0.5)
+    if m - q < 1:
+        raise ValueError("batch_size is too small for the requested coverage")
+    limit = require_non_negative_integer(max_batches, name="max_batches")
+    if limit < 2:
+        raise ValueError("max_batches must be at least 2")
+    kind = _check_choice(interval, COVERAGE_INTERVALS, "interval")
+    divisor = require_finite_real(tolerance_divisor, name="tolerance_divisor")
+    if divisor <= 0.0:
+        raise ValueError("tolerance_divisor must be positive")
+    if not isinstance(label, str) or not label:
+        raise ValueError("label must be a non-empty string")
+    stream = _checked_stream(seed)
+    corr = _checked_correlation(correlation, len(laws))
+    return _adaptive_batches(
+        laws, ndig, p, m, limit, stream, corr, kind, divisor, label
     )
+
+
+def _adaptive_batches(
+    laws: Sequence[_InputLaw],
+    ndig: int,
+    p: float,
+    m: int,
+    limit: int,
+    stream: RandomStream,
+    corr: tuple[tuple[float, ...], ...] | None,
+    kind: str,
+    divisor: float,
+    label: str,
+) -> Procedure[AdaptiveMonteCarloResult]:
+    """Run steps c to l of JCGM 101 Section 7.9.4 as a generator.
+
+    Args:
+        laws: Checked input laws.
+        ndig: Significant digits for ``delta``.
+        p: Coverage probability.
+        m: Trials per batch.
+        limit: Largest number of batches.
+        stream: Root stream; batch ``b`` draws from ``stream.child("batch", b)``.
+        corr: Checked copula correlation, or ``None``.
+        kind: Tracked interval, ``"symmetric"`` or ``"shortest"``.
+        divisor: Divisor of ``delta``.
+        label: Model label of the requests.
+
+    Returns:
+        The procedure; its return value is the result record.
+
+    Raises:
+        ValueError: If a model value is not finite or the pooled ``u(y)`` is
+            zero.
+
+    Equation:
+        [EQ-UQ-BUDGET-010].
+
+    References:
+        [REF-JCGM-101-2008, Section 7.9.4].
+
+    """
+    estimates: list[float] = []
+    uncertainties: list[float] = []
+    lows: list[float] = []
+    highs: list[float] = []
+    values: list[float] = []
+    count = 0
+    mean = 0.0
+    spread = 0.0  # sum of squared deviations of all values so far
+    deviations = (math.inf,) * 4
+    delta = math.inf
+    stabilized = False
+    for b in range(limit):
+        points = _draw_points(laws, corr, m, stream.child("batch", b))
+        raw = yield EvaluationRequest(
+            points=tuple(points), label=label, stage=f"batch {b + 1}"
+        )
+        outputs = _finite_batch_outputs(raw, m)
+        batch_mean = math.fsum(outputs) / m
+        batch_spread = math.fsum((v - batch_mean) ** 2 for v in outputs)
+        symmetric, shortest = _intervals_from_sorted(sorted(outputs), p)
+        low, high = symmetric if kind == "symmetric" else shortest
+        estimates.append(batch_mean)
+        uncertainties.append(math.sqrt(batch_spread / (m - 1)))
+        lows.append(low)
+        highs.append(high)
+        values.extend(outputs)
+        # Pairwise combination of sums of squares (all values so far).
+        combined = count + m
+        shift = batch_mean - mean
+        spread += batch_spread + shift * shift * count * m / combined
+        mean += shift * m / combined
+        count = combined
+        if b == 0:
+            continue  # step f: a second application is always made
+        pooled = math.sqrt(spread / (count - 1))
+        if pooled <= 0.0:
+            raise ValueError(
+                "the model output has zero spread, so the numerical tolerance "
+                "is undefined"
+            )
+        delta = numerical_tolerance(pooled, ndig) / divisor
+        deviations = (
+            average_standard_deviation(estimates),
+            average_standard_deviation(uncertainties),
+            average_standard_deviation(lows),
+            average_standard_deviation(highs),
+        )
+        if adaptive_stopping_rule(deviations, delta):
+            stabilized = True
+            break
+    final = _summarize(values, p, corr is not None)
+    return AdaptiveMonteCarloResult(
+        estimate=final.estimate,
+        standard_uncertainty=final.standard_uncertainty,
+        coverage=final.coverage,
+        symmetric_interval=final.symmetric_interval,
+        shortest_interval=final.shortest_interval,
+        size=final.size,
+        skewness=final.skewness,
+        kurtosis=final.kurtosis,
+        estimate_standard_error=final.estimate_standard_error,
+        uncertainty_standard_error=final.uncertainty_standard_error,
+        endpoint_standard_errors=final.endpoint_standard_errors,
+        correlated=final.correlated,
+        batches=len(estimates),
+        batch_size=m,
+        estimate_deviation=deviations[0],
+        uncertainty_deviation=deviations[1],
+        low_deviation=deviations[2],
+        high_deviation=deviations[3],
+        delta=delta,
+        significant_digits=ndig,
+        tolerance_divisor=divisor,
+        interval=kind,
+        stabilized=stabilized,
+    )
+
+
+def adaptive_monte_carlo_budget(
+    function: Callable[[Sequence[float]], float],
+    distributions: Sequence[_InputLaw],
+    *,
+    significant_digits: int = 2,
+    coverage: float = 0.95,
+    batch_size: int | None = None,
+    max_batches: int = 100,
+    seed: int | RandomStream,
+    correlation: Sequence[Sequence[float]] | None = None,
+    interval: str = "symmetric",
+    tolerance_divisor: float = 1.0,
+) -> AdaptiveMonteCarloResult:
+    """Propagate input distributions by the adaptive Monte Carlo procedure.
+
+    Implements JCGM 101:2008 Section 7.9.4. Batches of ``M`` trials are run
+    one after another (step d); each gives an estimate, a standard
+    uncertainty and the endpoints of a ``100 p %`` coverage interval
+    (step e). From the second batch on, the standard deviations of the
+    averages of those four per-batch quantities over the ``h`` batches are
+    formed (steps g and h), the numerical tolerance ``delta`` comes from the
+    ``u(y)`` of all ``h M`` values with ``ndig`` significant digits
+    (steps i and j, Section 7.9.2), and the computation stops when twice each
+    of the four deviations is at most ``delta`` (steps k and l). The result
+    is computed from all ``h M`` values. A thin wrapper of
+    :func:`adaptive_monte_carlo_budget_procedure` run with the pointwise
+    model; use that form for a simulator that evaluates batches elsewhere.
+
+    The procedure is stochastic and, as the clause notes (7.9.3, Note 1), has
+    no guarantee: when ``max_batches`` is used up first the record has
+    ``stabilized=False`` and the caller must not read the numbers as meeting
+    ``delta``. Each batch draws from the child stream ``("batch", b)`` of
+    ``seed``, so the result is reproducible.
+
+    Args:
+        function: Scalar model of a tuple of floats.
+        distributions: One law per input (``sample`` and ``quantile``).
+        significant_digits: ``ndig >= 1`` (the clause suggests 1 or 2).
+        coverage: Coverage probability ``p`` in ``(0, 1)``.
+        batch_size: Trials per batch ``M >= 20``; ``None`` takes
+            ``max(J, 10^4)``, ``J = ceil(100/(1 - p))`` (step b), which is
+            10 000 for ``p <= 0.99``.
+        max_batches: Largest number of batches (at least 2).
+        seed: Root seed or :class:`~probstat.foundations.RandomStream`.
+        correlation: Optional Gaussian-copula correlation, as in
+            :func:`monte_carlo_budget`.
+        interval: ``"symmetric"`` or ``"shortest"`` interval tracked by the
+            stopping rule.
+        tolerance_divisor: Divisor of ``delta``; 5 gives the Section 8.2
+            accuracy used to validate the GUM uncertainty framework.
+
+    Returns:
+        :class:`AdaptiveMonteCarloResult`.
+
+    Raises:
+        TypeError: If ``function`` is not callable, a law lacks ``sample`` or
+            ``quantile``, or ``seed`` has the wrong type.
+        ValueError: If an argument is out of range, the model returns a
+            non-finite value, or the model output has zero spread.
+
+    Equation:
+        [EQ-UQ-BUDGET-010], [EQ-UQ-BUDGET-007].
+
+    References:
+        [REF-JCGM-101-2008, Sections 7.9.2-7.9.4 and 8.2].
+
+    """
+    model = _scalar_model(function)
+    procedure = adaptive_monte_carlo_budget_procedure(
+        distributions,
+        significant_digits=significant_digits,
+        coverage=coverage,
+        batch_size=batch_size,
+        max_batches=max_batches,
+        seed=seed,
+        correlation=correlation,
+        interval=interval,
+        tolerance_divisor=tolerance_divisor,
+    )
+    return run_procedure(procedure, batch_from_pointwise(model))
 
 
 @dataclass(frozen=True, slots=True)
@@ -2114,11 +2699,21 @@ class GumValidation:
         coverage: Coverage probability.
         coverage_factor: ``k_p`` used for ``U_p``.
         significant_digits: ``ndig`` used for ``delta``.
-        monte_carlo_adequate: Proxy for the Section 8.2 requirement that the
-            Monte Carlo results be accurate to ``delta / 5``: true if twice the
-            Monte Carlo standard error of ``y``, ``u(y)`` and of each
-            symmetric-interval endpoint is at most ``delta / 5``. A proxy for
-            the adaptive procedure of Section 7.9.4, which is not run.
+        monte_carlo_adequate: Whether the Monte Carlo results meet the
+            Section 8.2 requirement of accuracy ``delta / 5``, with ``delta``
+            from the GUM ``u(y)`` of this comparison. For an
+            :class:`AdaptiveMonteCarloResult` this is the clause's own test:
+            twice each of the four stabilisation deviations (estimate,
+            ``u(y)`` and the two endpoints of the compared interval) is at
+            most ``delta / 5``. For a fixed-size :class:`MonteCarloResult` it
+            is a proxy: twice the Monte Carlo standard error of ``y``,
+            ``u(y)`` and of each symmetric-interval endpoint is at most
+            ``delta / 5``.
+        adequacy_basis: Which of the two tests produced
+            ``monte_carlo_adequate``: ``ADEQUACY_STABILIZATION``,
+            ``ADEQUACY_PROXY``, or ``ADEQUACY_OTHER_INTERVAL`` (an adaptive
+            result that tracked the other interval; its endpoints were not
+            tested, so the flag is false).
 
     Equation:
         [EQ-UQ-BUDGET-009].
@@ -2139,6 +2734,7 @@ class GumValidation:
     coverage_factor: float
     significant_digits: int
     monte_carlo_adequate: bool
+    adequacy_basis: str
 
 
 def numerical_tolerance(value: float, significant_digits: int) -> float:
@@ -2201,7 +2797,12 @@ def compare_with_law_of_propagation(
     Args:
         estimate: GUM output estimate ``y`` (the model at the input estimates).
         standard_uncertainty: GUM combined standard uncertainty ``u(y)``.
-        monte_carlo: Result of :func:`monte_carlo_budget`.
+        monte_carlo: Result of :func:`monte_carlo_budget` or of
+            :func:`adaptive_monte_carlo_budget`. With the adaptive result the
+            ``monte_carlo_adequate`` flag applies the clause's own test
+            (stabilisation deviations against ``delta / 5``, Section 8.2);
+            run it with ``tolerance_divisor=5`` and the same ``ndig`` to
+            obtain results to that accuracy.
         coverage_factor: ``k_p``; default the normal quantile at
             ``(1 + p)/2`` for ``p = monte_carlo.coverage`` (pass the Student-t
             factor of an :class:`ExpandedUncertainty` to use that).
@@ -2246,12 +2847,29 @@ def compare_with_law_of_propagation(
     )
     d_low = abs(gum[0] - reference[0])
     d_high = abs(gum[1] - reference[1])
-    errors = (
-        monte_carlo.estimate_standard_error,
-        monte_carlo.uncertainty_standard_error,
-        *monte_carlo.endpoint_standard_errors,
-    )
-    adequate = all(2.0 * e <= delta / 5.0 for e in errors)
+    if isinstance(monte_carlo, AdaptiveMonteCarloResult):
+        if monte_carlo.interval == kind:
+            adequate = adaptive_stopping_rule(
+                (
+                    monte_carlo.estimate_deviation,
+                    monte_carlo.uncertainty_deviation,
+                    monte_carlo.low_deviation,
+                    monte_carlo.high_deviation,
+                ),
+                delta / 5.0,
+            )
+            basis = ADEQUACY_STABILIZATION
+        else:
+            adequate = False
+            basis = ADEQUACY_OTHER_INTERVAL
+    else:
+        errors = (
+            monte_carlo.estimate_standard_error,
+            monte_carlo.uncertainty_standard_error,
+            *monte_carlo.endpoint_standard_errors,
+        )
+        adequate = all(2.0 * e <= delta / 5.0 for e in errors)
+        basis = ADEQUACY_PROXY
     return GumValidation(
         validated=d_low <= delta and d_high <= delta,
         delta=delta,
@@ -2264,12 +2882,17 @@ def compare_with_law_of_propagation(
         coverage_factor=k,
         significant_digits=significant_digits,
         monte_carlo_adequate=adequate,
+        adequacy_basis=basis,
     )
 
 
 __all__ = [
+    "ADEQUACY_OTHER_INTERVAL",
+    "ADEQUACY_PROXY",
+    "ADEQUACY_STABILIZATION",
     "BASES",
     "COVERAGE_INTERVALS",
+    "AdaptiveMonteCarloResult",
     "BudgetEntry",
     "CombinedUncertainty",
     "Contribution",
@@ -2280,6 +2903,10 @@ __all__ = [
     "MonteCarloResult",
     "QuantityKind",
     "UncertaintyBudget",
+    "adaptive_monte_carlo_budget",
+    "adaptive_monte_carlo_budget_procedure",
+    "adaptive_stopping_rule",
+    "average_standard_deviation",
     "budget_from_model",
     "compare_with_law_of_propagation",
     "monte_carlo_budget",
