@@ -22130,7 +22130,10 @@ eigenvalues of `Sigma = V diag(s1^2, s2^2) V'`; evaluated with `u = R sin(theta)
   The error reported is the Gauss-Kronrod estimate, not a bound.
 - Code: `multivariate.gaussian_disc_probability`,
   `multivariate.ball_probability._normal_interval`.
-- Source: [REF-FOSTER-ESTES-1992], [REF-CHAN-2008], [REF-ALFANO-2005].
+- Source: [REF-NASA-CARA-HANDBOOK] (Appendix N, Eq. N-1: the disc integral
+  of Foster and Estes; Eq. N-2: the error-function form of Alfano, used as a
+  test oracle), [REF-FOSTER-ESTES-1992] and [REF-ALFANO-2005] (neither
+  opened). The rotated quadrature itself is derived here.
 
 ### EQ-MVN-RICE-001 — Isotropic ball probability as a noncentral chi-square law
 
@@ -22145,7 +22148,8 @@ eigenvalues of `Sigma = V diag(s1^2, s2^2) V'`; evaluated with `u = R sin(theta)
 - Code: `multivariate.isotropic_gaussian_ball_probability`,
   `multivariate.noncentral_chi_square_cdf`,
   `multivariate.ball_probability._poisson_chi_square`.
-- Source: [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995], [REF-CHAN-2008].
+- Source: [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995]; derived here (the Rice-law
+  form could not be attributed to [REF-CHAN-2008], which was not opened).
 
 ### EQ-MVN-BALL-001 — Ruben series for a positive-definite quadratic form
 
@@ -22176,7 +22180,8 @@ for the Gaussian `f(0) = exp(-m'S^-1 m/2) / (2 pi sqrt(det S))` and
 - Meaning: density at the disc centre times its area, with the mean-value
   expansion of a smooth function over a disc supplying the stated error.
 - Code: `multivariate.small_disc_probability`.
-- Source: [REF-CHAN-2008], [REF-ALFANO-2005].
+- Source: elementary (mean-value expansion of a smooth function over a
+  disc); not attributed to [REF-CHAN-2008] (not opened).
 
 ### EQ-MVN-DILUTION-001 — Maximum disc probability over a covariance scale
 
@@ -22191,7 +22196,9 @@ for `Sigma = s^2 I` and `R << ||mu||` the maximum is `R^2 / (e ||mu||^2)` at
   small isotropic disc the closed form follows from maximising
   `(R^2/(2t)) exp(-||mu||^2/(2t))` over `t = c s^2`.
 - Code: `multivariate.maximum_disc_probability`.
-- Source: [REF-ALFANO-2005], [REF-CHAN-2008].
+- Source: [REF-ALFANO-2005B] (not opened; the maximum over the covariance
+  scale and the term probability dilution are attributed to it in Section
+  M.4 of [REF-NASA-CARA-HANDBOOK], which was read); derived and tested here.
 
 ### EQ-FILT-NEES-001 — Normalised squared error
 
@@ -22254,7 +22261,11 @@ then `N n s / c ~ chi2(N n)` and
 - Meaning: the multiplier by which the covariances should be inflated
   (above one: too small).
 - Code: `filtering.covariance_realism`.
-- Source: [REF-HORWOOD-ETAL-2014], [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
+- Source: [REF-NASA-CARA-HANDBOOK] (Appendix I: squared Mahalanobis
+  distances against a chi-square law, the first-moment scale factor, and
+  empirical-distribution tests; the handbook has no confidence interval for
+  the factor and recommends Cramer-von Mises, not offered here),
+  [REF-HORWOOD-ETAL-2014] (not opened), [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
 
 ### EQ-FILT-GMSPLIT-001 — Univariate Gaussian splitting by L2 minimisation
 
@@ -22269,7 +22280,11 @@ minimised over symmetric positive weights with `h^2 sum_i w_i i^2 = 1 - s^2`.
   variance 1 of the standard normal.
 - Code: `filtering.univariate_splitting`,
   `filtering.gaussian_mixture._squared_l2`.
-- Source: [REF-DEMARS-BISHOP-JAH-2013], [REF-HUBER-ETAL-2008].
+- Source: derived here. Published libraries read for comparison: Table 3 of
+  [REF-ZANETTI-ETAL-PREPRINT] (Kullback-Leibler, variance preserved, consistent
+  with the spacing relation to nine digits), its Table 2 (the library of
+  [REF-DEMARS-BISHOP-JAH-2013], paper not read; second moment 0.9548 as
+  printed) and Table I of [REF-HUBER-ETAL-2008] (second moment 0.9273).
 
 ### EQ-FILT-GMSPLIT-002 — Multivariate split along a direction
 

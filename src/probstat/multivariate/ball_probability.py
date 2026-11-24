@@ -49,7 +49,8 @@ elongated covariances.
 References:
     [REF-RUBEN-1962], [REF-SHEIL-OMUIRCHEARTAIGH-1977], [REF-IMHOF-1961],
     [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995], [REF-FOSTER-ESTES-1992],
-    [REF-ALFANO-2005], [REF-CHAN-2008].
+    [REF-ALFANO-2005], [REF-ALFANO-2005B], [REF-CHAN-2008],
+    [REF-NASA-CARA-HANDBOOK].
 
 """
 
@@ -111,7 +112,7 @@ class MaximumBallProbability:
         evaluations: Disc probabilities evaluated.
 
     References:
-        [REF-ALFANO-2005], [REF-CHAN-2008].
+        [REF-ALFANO-2005B].
 
     """
 
@@ -188,7 +189,10 @@ def gaussian_disc_probability(
     cut at the mode ``a1`` and where ``h(u) = |a2|``; and it is restricted to
     ``a1 +/- 40 s1``, outside which the density is below ``1e-347``. This
     is the short-encounter collision probability when ``X`` is the miss
-    vector in the encounter plane and ``R`` the combined hard-body radius.
+    vector in the encounter plane and ``R`` the combined hard-body radius: the
+    integral of the Gaussian density over the hard-body disc (Foster and
+    Estes), which the tests also compare with the one-dimensional
+    error-function form given in the NASA handbook.
 
     Args:
         mean: Mean of ``X`` (two finite reals).
@@ -211,7 +215,8 @@ def gaussian_disc_probability(
         [EQ-MVN-DISC-001].
 
     References:
-        [REF-FOSTER-ESTES-1992], [REF-CHAN-2008], [REF-ALFANO-2005].
+        [REF-FOSTER-ESTES-1992], [REF-NASA-CARA-HANDBOOK, Appendix N],
+        [REF-ALFANO-2005].
 
     """
     law, radius_value = _validated_gaussian(mean, covariance, radius, dimension=2)
@@ -644,7 +649,7 @@ def maximum_disc_probability(
         [EQ-MVN-DILUTION-001].
 
     References:
-        [REF-ALFANO-2005], [REF-CHAN-2008].
+        [REF-ALFANO-2005B], [REF-NASA-CARA-HANDBOOK, Section M.4].
 
     """
     law, radius_value = _validated_gaussian(mean, covariance, radius, dimension=2)
@@ -662,7 +667,7 @@ def maximum_disc_probability(
         """Return the disc probability for the scale ``exp(log_scale)``.
 
         References:
-            [REF-ALFANO-2005]. Evaluates [EQ-MVN-DILUTION-001].
+            [REF-ALFANO-2005B]. Evaluates [EQ-MVN-DILUTION-001].
 
         """
         nonlocal evaluations

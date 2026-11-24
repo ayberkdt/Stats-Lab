@@ -95,16 +95,88 @@ falls inside a disc (the short-encounter collision probability)?
 
 ## Sources
 
-The bibliographic details of DeMars, Bishop and Jah (2013) and of Ruben (1962)
-were confirmed from repository and Project Euclid records, and those of
-Horwood et al. (2014) from a citing page; no paper, handbook or standard was
-read in full. Bar-Shalom et al. (2001), Sheil and O'Muircheartaigh (1977),
-Foster and Estes (1992), Alfano (2005), Chan (2008), Huber et al. (2008),
-Sorenson and Alspach (1971) and Vittaldev and Russell (2016) are cited from
-memory or without confirmation, and the registry entries say so. Every formula
-was derived and is checked by an independent oracle (closed forms, R
-`qchisq`/`pchisq`/`qnorm` pins, brute-force quadrature, seeded Monte Carlo).
-The NASA CARA handbook was not opened; no factor or threshold from it is used.
+Opened and read in the source verification pass (everything else below was
+confirmed bibliographically at most):
+
+- NASA Spacecraft Conjunction Assessment and Collision Avoidance Best
+  Practices Handbook, NASA/SP-20230002470 Rev 1 (February 2023), Appendices I
+  and M.4, and Appendix N (update of 20 March 2024) [REF-NASA-CARA-HANDBOOK].
+  - *Covariance realism* (Appendix I): normalised errors, squared Mahalanobis
+    distance against a chi-square law with three degrees of freedom for the
+    position, mean as the first-moment check (expected value 3), and
+    empirical-distribution-function tests. Agreement with
+    `covariance_realism` (distances `e' P^-1 e` against `chi2(n)`, `n = 3`
+    for a position). Differences: (1) the handbook recommends the
+    Cramer-von Mises statistic for realism assessment because
+    Anderson-Darling is more sensitive to outliers; `covariance_realism`
+    offers Kolmogorov-Smirnov and Anderson-Darling, defaulting to
+    Anderson-Darling on the argument that tails matter for collision
+    probability, which is the opposite emphasis; Cramer-von Mises is not
+    implemented and the docstring now says so; (2) the handbook reads a
+    single scale factor from the first moment and names the square root of
+    the normalised mean as that factor (its wording does not say whether it
+    scales standard deviations or the covariance); this library's
+    `s = mean(d^2) / n` is a factor on the covariance and the docstring now
+    says that its square root is the factor on standard deviations; (3) the handbook gives no confidence interval for the factor
+    and recommends resampling to a standard size of about 50 to keep the
+    quadratic statistic from being overwhelmed at large samples; the interval
+    here assumes independent pairs and nothing is resampled; (4) the handbook
+    warns that points of one ephemeris pair are highly correlated (use one
+    comparison point per propagation state) and that successive ephemerides
+    should share less than half of their generating data, which the
+    independence assumption of the interval needs; the docstring now repeats
+    that advice. Thresholds (5, 2 and 1 percent p-values) are
+    not encoded.
+  - *Disc integral* (Appendix N, Eq. N-1): the density of the miss vector in
+    the conjunction plane integrated over the hard-body disc, attributed to
+    Foster and Estes; this is `gaussian_disc_probability`. Its Eq. N-2, the
+    one-dimensional error-function form attributed to Alfano (2005a), is an
+    independent oracle: the tests evaluate it by Simpson's rule and agree
+    with the rotated quadrature to seven digits on four geometries
+    (`test_matches_the_published_one_dimensional_form`).
+  - *Probability dilution and maximum probability* (Section M.4): the term
+    and the maximum probability over a manipulated covariance are attributed
+    to Alfano (2005b), not to Alfano (2005a) as the first version of this
+    record and of the references had it; corrected (new key
+    REF-ALFANO-2005B for `maximum_disc_probability`).
+- Zanetti, DeMars, Tuggle, Michaelson and Gupta, AAS preprint
+  [REF-ZANETTI-ETAL-PREPRINT]: Table 3 is a published three-component library
+  (Kullback-Leibler objective, mean and variance constraints) whose offset
+  follows from this library's variance condition to nine digits; at its
+  `sigma = 0.7844` the L2 optimum computed here has a relative L2 error of
+  0.54 percent against 1.53 percent for the printed weights (and, at the
+  default `sigma = 0.7`, 1.70 percent: the error depends on `sigma`, which is
+  a design parameter). Table 2 reproduces the three-component library of
+  DeMars, Bishop and Jah (2013): weights 0.2252, 0.5496, 0.2252, offsets plus
+  or minus 1.0575, standard deviation 0.6716; as printed its second moment is
+  0.9548, so it does not preserve the variance exactly, and its relative L2
+  error is 1.48 percent. For the same `sigma` this library gives weights
+  0.2130, 0.5741, 0.2130 with spacing 1.1353 and a 2.37 percent error, the
+  difference being that the variance condition is imposed. The library is not
+  replaced: the printed ones are not wrong for their purpose, but they are
+  not moment-preserving, which `split_gaussian` relies on. The preprint also
+  describes DeMars et al. (2013) as splitting along the direction of maximum
+  uncertainty under a differential-entropy criterion, which agrees with the
+  description of what was not implemented here.
+- Huber, Bailey, Durrant-Whyte and Hanebeck (2008) [REF-HUBER-ETAL-2008],
+  Table I: a four-component equal-variance library (weights 0.1274, 0.3726,
+  0.3726, 0.1274, offsets plus or minus 0.4497 and plus or minus 1.4131,
+  standard deviation 0.5175) taken from Hanebeck et al. (2003); second moment
+  as printed 0.9273, relative L2 error 2.14 percent. Even component counts
+  and unequal spacing are outside this library's family, so no direct
+  comparison of weights is possible.
+- Confirmed bibliographically only, not opened: DeMars, Bishop and Jah (2013),
+  Vittaldev and Russell (2016) (the reference list of the preprint names a
+  different 2016 paper by the same authors, in Computer Modeling in
+  Engineering and Sciences), Horwood et al. (2014), Ruben (1962), Sheil and
+  O'Muircheartaigh (1977), Foster and Estes (1992) (details from Appendix N),
+  Alfano (2005a, 2005b) (details and roles from the handbook), Chan (2008)
+  (the handbook says he reduces the integral to a series solution; the
+  small-disc and Rice-law forms here are derived and no longer attributed to
+  him), Sorenson and Alspach (1971) (details from the preprint's reference
+  list), Bar-Shalom et al. (2001). Every formula was derived and is checked by
+  an independent oracle (closed forms, R `qchisq`/`pchisq`/`qnorm` pins,
+  brute-force quadrature, seeded Monte Carlo, and now the handbook's Eq. N-2).
 
 ## Consequences
 

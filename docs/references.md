@@ -6226,25 +6226,34 @@ it is used beyond the idea of the chi-square mixture.
 
 J. L. Foster and H. S. Estes. "A Parametric Analysis of Orbital Debris
 Collision Probability and Maneuver Rate for Space Vehicles." NASA/JSC-25898,
-1992. Cited for the two-dimensional encounter-plane formulation of the
-short-encounter collision probability (the integral of a Gaussian density over
-a disc). Bibliographic details unconfirmed in this work and the report was
-not read; the integral is derived from the normal distribution directly.
+August 1992. The report itself was not opened (no open copy found). Its
+bibliographic details, and its role as the origin of the conjunction-plane
+method, were confirmed from Appendix N of [REF-NASA-CARA-HANDBOOK], which
+gives the two-dimensional integral of a Gaussian density over the hard-body
+disc (its Eq. N-1) and attributes its quadrature evaluation to this report;
+that integral is what `multivariate.gaussian_disc_probability` evaluates.
 
 ## REF-ALFANO-2005
 
 Salvatore Alfano. "A Numerical Implementation of Spherical Object Collision
 Probability." *Journal of the Astronautical Sciences* 53(1), 103-109, 2005.
-Cited for the idea of a maximum collision probability over a covariance scale
-factor. Bibliographic details unconfirmed in this work and the paper was not
-read; the maximum implemented here is derived and tested independently.
+The paper was not opened. Appendix N of [REF-NASA-CARA-HANDBOOK] cites it for
+the one-dimensional integral over error functions (its Eq. N-2), which the
+tests use as an independent oracle for
+`multivariate.gaussian_disc_probability`. An earlier version of this entry
+cited it for the maximum collision probability over a covariance scale factor;
+that is the subject of Alfano's second 2005 paper, [REF-ALFANO-2005B], and the
+attribution was corrected.
 
 ## REF-CHAN-2008
 
-F. Kenneth Chan. *Spacecraft Collision Probability*. The Aerospace Press and
-AIAA, 2008. Cited for the small-disc approximation and the Rice-law form for
-an isotropic encounter covariance. Bibliographic details unconfirmed in this
-work and the book was not read; both forms are derived here.
+F. Kenneth Chan. *Spacecraft Collision Probability*. The Aerospace Press, El
+Segundo, CA, 2008. The book was not opened; the publisher and year are those
+of the reference list of [REF-NASA-CARA-HANDBOOK], whose Appendix N says that
+Chan uses equivalent-area transforms to reduce the disc integral to a
+one-dimensional integral with a series solution. The small-disc approximation
+and the Rice-law form for an isotropic covariance used in this library are
+derived here and could not be attributed to the book.
 
 ## REF-HORWOOD-ETAL-2014
 
@@ -6252,46 +6261,65 @@ J. T. Horwood, J. M. Aristoff, N. Singh, A. B. Poore, and M. D. Hejduk.
 "Beyond covariance realism: a new metric for uncertainty realism."
 *Proceedings of SPIE* 9092 (Signal and Data Processing of Small Targets),
 2014. Bibliographic details confirmed from a citing software documentation
-page; the paper was not read. Cited for the idea of judging a covariance by
-the distribution of squared Mahalanobis distances against a chi-square law.
+page; the paper was not opened (a search found only a related 2016
+working-group report by the same group, which could not be retrieved). Cited
+for the idea of judging a covariance by the distribution of squared
+Mahalanobis distances against a chi-square law; the procedure of
+[REF-NASA-CARA-HANDBOOK] (Appendix I) was read instead.
 
 ## REF-DEMARS-BISHOP-JAH-2013
 
 Kyle J. DeMars, Robert H. Bishop, and Moriba K. Jah. "Entropy-Based Approach
 for Uncertainty Propagation of Nonlinear Dynamical Systems." *Journal of
 Guidance, Control, and Dynamics* 36(4), 1047-1057, 2013. Bibliographic details
-and the abstract (splitting of mixture components when an entropy-based
-check detects nonlinearity) confirmed from the Marquette and Missouri S&T
-repository records; the full text was not read. The splitting weights of
-`filtering.univariate_splitting` are computed by L2 minimisation, not taken
-from the paper.
+confirmed from the Marquette and Missouri S&T repository records and from the
+reference list of [REF-ZANETTI-ETAL-PREPRINT]; the full text was not read. The
+preprint, which was read, describes it as splitting a component along its
+direction of maximum uncertainty when a differential-entropy criterion is
+exceeded, with the splitting weights found by minimising an L2 distance, and
+prints its three-component library in its Table 2 (weights 0.2252, 0.5496,
+0.2252, offsets plus or minus 1.0575, standard deviation 0.6716), whose second
+moment as printed is 0.9548, not one. The splitting weights of
+`filtering.univariate_splitting` are computed by L2 minimisation with the
+variance condition imposed, not taken from the paper.
 
 ## REF-HUBER-ETAL-2008
 
 Marco F. Huber, Tim Bailey, Hugh Durrant-Whyte, and Uwe D. Hanebeck. "On
 Entropy Approximation for Gaussian Mixture Random Vectors." *IEEE
-International Conference on Multisensor Fusion and Integration for
-Intelligent Systems*, 181-188, 2008. Cited from memory for the idea of
-approximating a Gaussian by an equal-variance mixture with weights chosen by
-a distance minimisation; bibliographic details unconfirmed in this work and
-the paper was not read.
+International Conference on Multisensor Fusion and Integration for Intelligent
+Systems*, 181-188, 2008. Opened and read from the author's page (details agree
+with the reference list of [REF-ZANETTI-ETAL-PREPRINT]): the entropy
+approximation by component-wise Taylor expansion with component splitting, and
+Table I, a four-component splitting library of equal-variance components
+(weights 0.1274, 0.3726, 0.3726, 0.1274, offsets plus or minus 0.4497 and plus
+or minus 1.4131, standard deviation 0.5175) which the paper takes from
+Hanebeck, Briechle and Rauh (2003) without stating its objective; its second
+moment as printed is 0.9273. Cited for the idea of replacing a Gaussian by an
+equal-variance mixture; this library computes its own library by L2
+minimisation with the variance condition imposed.
 
 ## REF-VITTALDEV-RUSSELL-2016
 
-Vivek Vittaldev and Ryan P. Russell. "Space Object Collision Probability
-Using Multidirectional Gaussian Mixture Models." *Journal of Guidance,
-Control, and Dynamics* 39(9), 2163-2169, 2016. A search confirmed the related
-dissertation chapter by the same authors but not the journal volume and
-pages; unconfirmed bibliographically and not read. Cited for splitting a
-Gaussian along several directions.
+Vivek Vittaldev and Ryan P. Russell. "Space Object Collision Probability Using
+Multidirectional Gaussian Mixture Models." *Journal of Guidance, Control, and
+Dynamics* 39(9), 2163-2169, 2016. A search confirmed the related dissertation
+chapter by the same authors but not the journal volume and pages; unconfirmed
+bibliographically and not read. The reference list of
+[REF-ZANETTI-ETAL-PREPRINT] gives a different paper by the same authors,
+"Multidirectional Gaussian mixture models for nonlinear uncertainty
+propagation", Computer Modeling in Engineering & Sciences 111(1), 83-117,
+2016, which it describes as combining a power law with the L2 norm for
+splitting. Cited for splitting a Gaussian along several directions.
 
 ## REF-SORENSON-ALSPACH-1971
 
 H. W. Sorenson and D. L. Alspach. "Recursive Bayesian estimation using
-Gaussian sums." *Automatica* 7(4), 465-479, 1971. Cited from memory for the
-Gaussian-sum representation of a non-Gaussian density; bibliographic details
-unconfirmed in this work and the paper was not read. The moment formulas of a
-mixture used here are elementary (law of total expectation and variance).
+Gaussian sums." *Automatica* 7(4), 465-479, 1971. Bibliographic details
+confirmed from the reference list of [REF-ZANETTI-ETAL-PREPRINT]; the paper
+was not opened. Cited for the Gaussian-sum representation of a non-Gaussian
+density. The moment formulas of a mixture used here are elementary (law of
+total expectation and variance).
 
 ## REF-HANEA-NANE-2021
 
@@ -6340,3 +6368,51 @@ and 20, `alpha` of 0.01 and 0.05 and `P` of 0.95 and 0.99 (six decimals), and
 the exact two-sided interval printed for the twenty milk-container fills of
 [REF-KRISHNAMOORTHY-MATHEW-2009]. Cited for those printed values, which are
 pinned in the tests of the normal tolerance factors.
+
+## REF-ALFANO-2005B
+
+Salvatore Alfano. "Relating Position Uncertainty to Maximum Conjunction
+Probability." *Journal of the Astronautical Sciences* 53(2), 193-205, 2005.
+The paper was not opened; its bibliographic details are those of the reference
+list of [REF-NASA-CARA-HANDBOOK], whose Section M.4 attributes to it the first
+treatment of probability dilution and the maximum probability obtained by
+manipulating the covariance. Cited for the maximum disc probability over a
+covariance scale (`multivariate.maximum_disc_probability`), which is derived
+and tested here independently.
+
+## REF-ZANETTI-ETAL-PREPRINT
+
+Renato Zanetti, Kyle J. DeMars, Derek Tuggle, Kristen Michaelson, and Maaninee
+Gupta. "Uncertainty Quantification Using Directional Splitting and Gaussian
+Mixture Models with Applications to Orbital Dynamics." AAS preprint, undated
+(hosted at sites.utexas.edu/near, file
+PreprintPaperUpload_872_0725025709.pdf). Opened and read. Cited for its
+description of splitting by L2 minimisation [REF-DEMARS-BISHOP-JAH-2013],
+Kullback-Leibler minimisation and moment matching; for its Table 2 (the
+three-component library of DeMars et al.) and Table 3 (a three-component
+library found by minimising the Kullback-Leibler divergence under the mean and
+variance constraints: weights 0.1616701997, 0.6766596007, 0.1616701997,
+offsets plus or minus 1.0908000117, standard deviation 0.78439476713), which
+satisfy this library's spacing relation to nine digits and are used in the
+tests; and for the reference details of [REF-SORENSON-ALSPACH-1971],
+[REF-HUBER-ETAL-2008] and [REF-VITTALDEV-RUSSELL-2016].
+
+## REF-NASA-CARA-HANDBOOK
+
+*NASA Spacecraft Conjunction Assessment and Collision Avoidance Best Practices
+Handbook*, Office of the Chief Engineer, NASA/SP-20230002470 Rev 1, February
+2023 ([ntrs.nasa.gov](https://ntrs.nasa.gov/citations/20230002470)), and its
+Appendix N, "Pc Calculation Approaches", update of 20 March 2024
+([ntrs.nasa.gov](https://ntrs.nasa.gov/citations/20240003468)). Opened and
+read: Appendix I of the handbook (position errors normalised by the
+covariance, the squared Mahalanobis distance compared with a chi-square law of
+three degrees of freedom, the first-moment test whose expected value is 3 and
+from which a single scale factor is read, empirical-distribution-function
+tests with the Cramer-von Mises statistic recommended over Anderson-Darling
+because of outliers in practice, resampling to a standard sample size, and
+p-value thresholds of 5, 2 and 1 percent), Section M.4 (probability dilution,
+with the term and the maximum probability attributed to Alfano 2005b), and
+Appendix N (Eq. N-1, the disc integral of Foster and Estes, and Eq. N-2, the
+error-function form attributed to Alfano 2005a). No threshold or factor of the
+handbook is encoded in this library; the realism procedure is compared in
+ADR-0140.

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import math
 import unittest
+from types import SimpleNamespace
 
 from probstat.filtering import (
     GaussianMixtureState,
@@ -30,7 +31,7 @@ from probstat.filtering import (
     univariate_splitting,
     unscented_transform,
 )
-from probstat.filtering.gaussian_mixture import _solve_splitting
+from probstat.filtering.gaussian_mixture import _solve_splitting, _spacing
 from probstat.foundations.batch import AskTellSession, run_procedure
 from probstat.multivariate import MultivariateNormal
 
@@ -100,6 +101,104 @@ def _simpson_l2(split: object) -> float:
     for i in range(1, count):
         total += (4 if i % 2 else 2) * gap(-12.0 + i * step) ** 2
     return total * step / 3.0
+
+
+class PublishedLibraryTests(unittest.TestCase):
+    """The moment condition and the L2 optimum against published libraries.
+
+    References:
+        [REF-ZANETTI-ETAL-PREPRINT], [REF-HUBER-ETAL-2008]. Checks
+        [EQ-FILT-GMSPLIT-001].
+
+    """
+
+    def test_published_three_component_library(self) -> None:
+        """A published equal-variance library satisfies this spacing relation.
+
+        Table 3 of the directional-splitting preprint lists three equal-variance
+        components (weights 0.1616701997, 0.6766596007, 0.1616701997, means
+        0, plus or minus 1.0908000117, standard deviation 0.78439476713) found
+        by minimising the Kullback-Leibler divergence with the mean and
+        variance constraints. The variance condition ``h^2 sum w_i i^2 = 1 -
+        sigma^2`` of this library must reproduce its printed offset, and
+        because the printed library lies in the family searched here (equal
+        sigma, equally spaced, same moment constraints) the L2 optimum at that
+        sigma must not be worse in squared L2 distance than the published
+        weights.
+
+        References:
+            [REF-ZANETTI-ETAL-PREPRINT, Table 3]. Checks
+            [EQ-FILT-GMSPLIT-001].
+
+        """
+        weights = (0.1616701997, 0.6766596007, 0.1616701997)
+        sigma = 0.78439476713
+        self.assertAlmostEqual(_spacing(weights, sigma), 1.0908000117, delta=2e-9)
+        ours = univariate_splitting(3, sigma=sigma)
+        published = SimpleNamespace(
+            weights=weights, offsets=(-1.0908000117, 0.0, 1.0908000117), sigma=sigma
+        )
+        self.assertLess(_simpson_l2(ours), _simpson_l2(published))
+        self.assertAlmostEqual(
+            sum(
+                w * (sigma**2 + o * o)
+                for w, o in zip(ours.weights, ours.offsets, strict=True)
+            ),
+            1.0,
+            places=12,
+        )
+
+    def test_published_libraries_that_do_not_preserve_the_variance(self) -> None:
+        """Two printed libraries have a second moment below one; this one has one.
+
+        The three-component library printed from DeMars, Bishop and Jah (2013)
+        in the directional-splitting preprint (Table 2) and the four-component
+        library of Huber et al. (2008, Table I) both have mean zero but
+        variances of 0.9548 and 0.9273 as printed (computed here from the
+        tables), so a single split changes the second moment by 4.5 percent and
+        7.3 percent; the library of this module preserves it exactly by
+        construction.
+
+        References:
+            [REF-ZANETTI-ETAL-PREPRINT, Table 2],
+            [REF-HUBER-ETAL-2008, Table I]. Checks [EQ-FILT-GMSPLIT-001].
+
+        """
+
+        def variance(
+            weights: tuple[float, ...], means: tuple[float, ...], sigma: float
+        ) -> float:
+            """Return the variance of an equal-variance Gaussian mixture.
+
+            References:
+                [REF-SORENSON-ALSPACH-1971]. Checks [EQ-FILT-GMSPLIT-001].
+
+            """
+            mean = sum(w * m for w, m in zip(weights, means, strict=True))
+            second = sum(
+                w * (sigma**2 + m * m) for w, m in zip(weights, means, strict=True)
+            )
+            return second - mean * mean
+
+        demars = variance(
+            (0.22522462491, 0.5495507501, 0.22522462491),
+            (-1.0575154614, 0.0, 1.0575154614),
+            0.67156628866,
+        )
+        huber = variance(
+            (0.12738084098, 0.37261915901, 0.37261915901, 0.12738084098),
+            (-1.4131205233, -0.44973059608, 0.44973059608, 1.4131205233),
+            0.51751260421,
+        )
+        self.assertAlmostEqual(demars, 0.9548, delta=5e-5)
+        self.assertAlmostEqual(huber, 0.9273, delta=5e-5)
+        for count, sigma in ((3, 0.67156628866), (5, 0.5)):
+            split = univariate_splitting(count, sigma=sigma)
+            moment = sum(
+                w * (split.sigma**2 + o * o)
+                for w, o in zip(split.weights, split.offsets, strict=True)
+            )
+            self.assertAlmostEqual(moment, 1.0, places=12)
 
 
 class UnivariateSplittingTests(unittest.TestCase):

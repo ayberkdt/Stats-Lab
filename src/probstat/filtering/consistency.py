@@ -19,7 +19,15 @@ distributional check for a set of (error, covariance) pairs are provided:
   ``d^2 = e' P^-1 e`` should be ``chi2(n)``. A Kolmogorov-Smirnov and an
   Anderson-Darling test (:mod:`probstat.inference`) judge the shape, and
   the covariance scale factor ``mean(d^2) / n`` with a chi-square
-  confidence interval says by how much ``P`` should be multiplied.
+  confidence interval says by how much ``P`` should be multiplied. The
+  procedure of the NASA conjunction assessment handbook (Appendix I) is the
+  same in outline: squared Mahalanobis distances compared with a chi-square
+  law (three degrees of freedom for a position), their mean as a first-moment
+  check, and empirical-distribution-function tests, for which the handbook
+  recommends the Cramer-von Mises statistic over Anderson-Darling because
+  outliers are frequent in practice; that statistic is not offered here, and
+  the scale factor of the handbook is read from the normalised mean without
+  a stated interval.
 
 Verdicts use three words. ``"optimistic"``: the covariance is too small (the
 statistic is above its upper bound); ``"pessimistic"``: the covariance is too
@@ -36,7 +44,8 @@ make a filter optimistic.
 
 References:
     [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001], [REF-HORWOOD-ETAL-2014],
-    [REF-MARDIA-KENT-BIBBY-1979], [REF-LJUNG-BOX-1978].
+    [REF-NASA-CARA-HANDBOOK], [REF-MARDIA-KENT-BIBBY-1979],
+    [REF-LJUNG-BOX-1978].
 
 """
 
@@ -750,8 +759,15 @@ def covariance_realism(
     ``d^2`` against ``chi2(n)`` with the Kolmogorov-Smirnov and
     Anderson-Darling tests of :mod:`probstat.inference` (fully specified null;
     the Anderson-Darling statistic weights the tails, which matter for a
-    collision-probability use of the covariance) and (2) estimates the scale
-    factor ``s = mean(d^2) / n``. If the true error covariance is ``c P``,
+    collision-probability use of the covariance, but is also the more
+    outlier-sensitive of the two quadratic statistics; the NASA handbook
+    prefers the Cramer-von Mises statistic for that reason, and it is not
+    offered here) and (2) estimates the scale
+    factor ``s = mean(d^2) / n`` (a factor on the covariance, the square of
+    a factor on standard deviations). The interval assumes independent pairs;
+    the NASA handbook advises one comparison point per propagation state and
+    successive ephemerides that share less than half of their generating
+    data. If the true error covariance is ``c P``,
     then ``N n s / c ~ chi2(N n)`` for independent pairs, which gives the
     confidence interval of ``c``. The scale factor is a one-number
     correction (``P -> s P``); it cannot repair a wrong shape, which the
@@ -776,8 +792,8 @@ def covariance_realism(
         [EQ-FILT-REALISM-001].
 
     References:
-        [REF-HORWOOD-ETAL-2014], [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001],
-        [REF-MARDIA-KENT-BIBBY-1979].
+        [REF-HORWOOD-ETAL-2014], [REF-NASA-CARA-HANDBOOK, Appendix I],
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001], [REF-MARDIA-KENT-BIBBY-1979].
 
     """
     level = _confidence_level(confidence)

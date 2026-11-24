@@ -21,7 +21,11 @@ The module has three parts:
   symmetry; so the mixture has the exact mean and variance of the standard
   normal for every ``sigma`` in ``(0, 1)``. Nothing is read from a published
   table; the solutions for 3, 5, and 7 components are cached as constants that
-  the tests re-derive.
+  the tests re-derive. Published libraries were compared in the tests: a
+  three-component Kullback-Leibler library obeys the same spacing relation
+  and has a larger L2 distance than the optimum computed here at its sigma,
+  while the libraries of DeMars et al. and of Huber et al., as printed, have
+  a second moment of 0.955 and 0.927 and so do not preserve the variance.
 - :func:`split_gaussian`: the multivariate split along one direction. In
   coordinates whitened by ``P`` the split acts along the unit vector ``e`` and
   leaves the orthogonal directions untouched, so the mean and covariance of
@@ -50,8 +54,9 @@ mixture if the map is a prediction step.
 
 References:
     [REF-DEMARS-BISHOP-JAH-2013], [REF-HUBER-ETAL-2008],
-    [REF-VITTALDEV-RUSSELL-2016], [REF-JULIER-UHLMANN-2004],
-    [REF-SORENSON-ALSPACH-1971], [REF-NOCEDAL-WRIGHT-2006].
+    [REF-ZANETTI-ETAL-PREPRINT], [REF-VITTALDEV-RUSSELL-2016],
+    [REF-JULIER-UHLMANN-2004], [REF-SORENSON-ALSPACH-1971],
+    [REF-NOCEDAL-WRIGHT-2006].
 
 """
 
