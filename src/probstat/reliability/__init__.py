@@ -61,6 +61,21 @@ Main entry points:
     ``bus_subset_simulation``: posterior draws and model evidence from the
     acceptance event ``p <= c L(theta)`` (``bus_limit_state`` gives the
     limit state for any other reliability method).
+    ``scenario_sample_size``, ``scenario_violation_bound``,
+    ``scenario_posterior_violation_bound``: scenario-approach guarantees for
+    convex programs with uncertain constraints (a priori and from the number
+    of support constraints).
+    ``certify_design``: exact Clopper-Pearson upper bound on the violation
+    probability of any design from a fresh validation sample.
+    ``solve_chance_constrained``: sample-average chance-constrained
+    minimisation with an out-of-sample certificate;
+    ``normal_linear_chance_margin`` and ``distribution_free_chance_margin``
+    are the closed-form deterministic equivalents.
+    ``rbdo_sora``: decoupled reliability-based design optimisation by
+    sequential optimisation and reliability assessment (``rbdo_double_loop``
+    is the nested reference, ``minimize_constrained`` the augmented-Lagrangian
+    solver, ``verify_design_reliability`` the SORM or importance-sampling
+    re-check).
 
 Assumptions:
     Failure is the closed set ``g <= 0``: a sample exactly on the boundary
@@ -102,7 +117,8 @@ References:
     [REF-WILSON-1927], [REF-GUYADER-HENGARTNER-MATZNER-LOBER-2011],
     [REF-BJERAGER-1988], [REF-LAGNOUX-2006],
     [REF-PAPAIOANNOU-GEYER-STRAUB-2019],
-    [REF-PAPAIOANNOU-PAPADIMITRIOU-STRAUB-2016], [REF-STRAUB-PAPAIOANNOU-2015].
+    [REF-PAPAIOANNOU-PAPADIMITRIOU-STRAUB-2016], [REF-STRAUB-PAPAIOANNOU-2015],
+    [REF-CAMPI-GARATTI-2008], [REF-CAMPI-GARATTI-2018], [REF-DU-CHEN-2004].
 
 """
 
@@ -166,6 +182,22 @@ from .certification import (
     certification_sample_size,
     moving_particles_certification_probability,
 )
+from .chance_constraints import (
+    DISTRIBUTION_FREE_INEQUALITIES,
+    ChanceConstrainedResult,
+    ScenarioSampleSize,
+    ViolationCertificate,
+    certify_design,
+    certify_violation_frequency,
+    distribution_free_chance_margin,
+    normal_linear_chance_margin,
+    normal_linear_violation_probability,
+    scenario_confidence,
+    scenario_posterior_violation_bound,
+    scenario_sample_size,
+    scenario_violation_bound,
+    solve_chance_constrained,
+)
 from .data import (
     SIDES,
     TERMINATIONS,
@@ -179,6 +211,17 @@ from .data import (
     failure_rate_bounds,
     failure_rate_estimate,
     success_run_sample_size,
+)
+from .design_optimization import (
+    VERIFICATION_METHODS,
+    ConstrainedResult,
+    DesignVerification,
+    RBDOIteration,
+    RBDOResult,
+    minimize_constrained,
+    rbdo_double_loop,
+    rbdo_sora,
+    verify_design_reliability,
 )
 from .design_points import (
     MixtureImportanceResult,
@@ -413,4 +456,27 @@ __all__ = [
     "improved_cross_entropy",
     "sequential_importance_sampling",
     "smoothing_scale",
+    "DISTRIBUTION_FREE_INEQUALITIES",
+    "ChanceConstrainedResult",
+    "ScenarioSampleSize",
+    "ViolationCertificate",
+    "certify_design",
+    "certify_violation_frequency",
+    "distribution_free_chance_margin",
+    "normal_linear_chance_margin",
+    "normal_linear_violation_probability",
+    "scenario_confidence",
+    "scenario_posterior_violation_bound",
+    "scenario_sample_size",
+    "scenario_violation_bound",
+    "solve_chance_constrained",
+    "VERIFICATION_METHODS",
+    "ConstrainedResult",
+    "DesignVerification",
+    "RBDOIteration",
+    "RBDOResult",
+    "minimize_constrained",
+    "rbdo_double_loop",
+    "rbdo_sora",
+    "verify_design_reliability",
 ]
