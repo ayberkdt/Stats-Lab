@@ -140,6 +140,78 @@ bound.bound, round(bound.empirical_quantile, 1)    # (59.0, 56.1)
 `examples/risk_analysis_lab.py` runs this replicate study after its
 reliability estimates.
 
+## Tolerance factors, margins, and performance measures
+
+A requirement such as "the link closes with 99 % probability at 90 %
+confidence" asks for a tolerance bound. If the output is normal, the bound is
+`xbar + k s` with a factor `k(n, p, gamma)` that makes the statement exact.
+The one-sided factor is the noncentral-t quantile
+`t'(gamma; n - 1, z_p sqrt(n)) / sqrt(n)` [EQ-PROP-TOL-001]; the two-sided
+factor solves an integral over the deviation of the sample mean
+[EQ-PROP-TOL-003]; Howe's closed form is a named approximation
+[EQ-PROP-TOL-004] that is 2.1 % too large at `n = 3` and 0.3 % too small at
+`n = 10` for `p = gamma = 0.95`. **The normality of the output is an
+assumption**, not something the factor checks. `propagation.normality_price`
+puts the normal bound next to the Wilks bound for the same sample: the
+distribution-free statement costs at least 59 runs for 95 %/95 %, the normal
+one works from `n = 2`. `propagation.normal_tolerance_sample_size` inverts the
+question: how many runs until the allowance `k s` shrinks to a chosen factor.
+
+Margins turn the same samples into a review quantity. For an estimate `y*`
+and an upper limit `L`, `M = L - y*` is the margin and `U = y_bound - y*` the
+uncertainty, where `y_bound` is a stated bound of the performance (a Wilks
+or tolerance bound, or `mean + z_p u` from a standard uncertainty); the
+confidence ratio is `M / U` [EQ-PROP-MARGIN-001]. A nested
+aleatory-epistemic study is passed to `propagation.quantify_margin_mixed`,
+which splits `U` into an aleatory and an epistemic part from the outer
+points. Fixed contingency percentages are explicit arithmetic
+[EQ-PROP-MARGIN-002]: a growth allowance on the basic estimate, a system
+margin on top, measured relative to the estimate or to the allocation, and
+`propagation.convert_margin_fraction` converts between the two. Samples read
+a percentage as a probability and back with
+`propagation.confidence_of_contingency` and
+`propagation.contingency_for_confidence` [EQ-PROP-MARGIN-003].
+`propagation.TechnicalPerformanceMeasure` tracks one measure over project
+milestones: margin history, probability of meeting the requirement, the gap
+to the planned margin, and the milestones that need a flag.
+
+```python
+from probstat.propagation import (
+    Milestone,
+    Requirement,
+    TechnicalPerformanceMeasure,
+    apply_contingency,
+    normal_tolerance_factor,
+    quantify_margin,
+)
+
+normal_tolerance_factor(10, 0.95, 0.95)                                # 2.911
+normal_tolerance_factor(10, 0.95, 0.95, sided="two-sided")             # 3.393
+normal_tolerance_factor(10, 0.95, 0.95, sided="two-sided", method="howe")  # 3.382
+apply_contingency(100.0, 0.15, 0.25).allocation   # 143.75
+apply_contingency(100.0, 0.15, 0.20, margin_basis="allocation").allocation  # 143.75
+margin = quantify_margin(
+    Requirement.upper_limit(100.0), 80.0, standard_uncertainty=5.0, method="moments"
+)
+margin.margin                       # 20.0
+margin.confidence_ratio             # 2.43
+mass = TechnicalPerformanceMeasure(
+    "dry mass",
+    "kg",
+    Requirement.upper_limit(100.0),
+    (
+        Milestone("SRR", 70.0, standard_uncertainty=8.0, planned_margin=20.0),
+        Milestone("PDR", 91.0, standard_uncertainty=4.0, planned_margin=15.0),
+    ),
+)
+mass.margin_history()               # (30.0, 9.0)
+[flag.reason for flag in mass.assess().flags]  # ['below-plan']
+```
+
+The 25 % margin relative to the estimate and the 20 % margin relative to the
+allocation above are the same physical allocation. Percentages in this
+library are inputs; no agency value is built in.
+
 ## Lattice rules and the median of randomized rules
 
 `probstat.sampling` also integrates directly over the unit cube. A rank-1
@@ -263,3 +335,5 @@ replicated.mean_interval().method  # 'Student-t interval over 4 randomized repli
 - [REF-WILKS-1941], [REF-WILKS-1942], [REF-NUTT-WALLIS-2004].
 - [REF-CRANLEY-PATTERSON-1976], [REF-GODA-LECUYER-2022], [REF-PAN-OWEN-2023],
   [REF-LECUYER-NAKAYAMA-OWEN-TUFFIN-2023].
+- [REF-HOWE-1969], [REF-KRISHNAMOORTHY-MATHEW-2009], [REF-HELTON-2011],
+  [REF-NASA-SEH-2016].

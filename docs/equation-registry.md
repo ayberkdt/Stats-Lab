@@ -21480,3 +21480,119 @@ at design `d`.
 - Meaning: the nested formulation; one FORM run per constraint evaluation.
 - Code: `reliability.rbdo_double_loop`.
 - Source: [REF-TU-CHOI-PARK-1999], [REF-AOUES-CHATEAUNEUF-2010].
+### EQ-PROP-TOL-001 — One-sided exact normal tolerance factor
+
+`k(n, p, gamma) = t'_(gamma; n-1, delta) / sqrt(n)` with `delta = z_p sqrt(n)`;
+the bound is `xbar + k s` (upper) or `xbar - k s` (lower).
+
+- Domain: `n >= 2` independent draws of a normal law, `0 < p < 1`,
+  `0 < gamma < 1`; `t'_(gamma; nu, delta)` is the `gamma`-quantile of the
+  noncentral `t` law with `nu` degrees of freedom and noncentrality `delta`.
+- Meaning: `(xbar - mu - z_p sigma) / (s / sqrt(n))` is `T' - delta` with
+  `T'` noncentral `t`, so `P(xbar + k s >= mu + z_p sigma) = gamma` exactly:
+  the bound exceeds the `p`-quantile with probability `gamma`.
+- Code: `propagation.normal_tolerance_factor`,
+  `propagation.normal_tolerance_bound`,
+  `propagation.tolerance._noncentral_t_quantile`.
+- Source: [REF-KRISHNAMOORTHY-MATHEW-2009], [REF-NIST-SEMATECH-HANDBOOK].
+
+### EQ-PROP-TOL-002 — Noncentral t distribution function as a chi integral
+
+`P(T' <= t) = int_0^inf Phi(t s - delta) f_S(s) ds`, with
+`f_S(s) = 2 nu s f_V(nu s^2)` the density of `S = sqrt(V / nu)` for
+`V ~ chi2(nu)`.
+
+- Domain: `nu >= 1` integer, `delta` and `t` real.
+- Meaning: given `S = s`, `T' = (Z + delta) / s` is below `t` exactly when
+  `Z <= t s - delta` with `Z` standard normal, so the distribution function
+  is the average of `Phi(t s - delta)` over the law of `S`. The integral is
+  truncated where `V` has `1e-17` of its mass on each side.
+- Code: `propagation.tolerance._noncentral_t_cdf`.
+- Source: [REF-KRISHNAMOORTHY-MATHEW-2009] (definition of the noncentral
+  `t` law; the integral form is derived here).
+
+### EQ-PROP-TOL-003 — Two-sided exact normal tolerance factor
+
+`2 int_0^inf phi(z) P(chi2_nu >= nu r(z)^2 / k^2) dz = gamma`, `nu = n - 1`,
+where `r(z)` solves `Phi(z / sqrt(n) + r) - Phi(z / sqrt(n) - r) = p`.
+
+- Domain: `n >= 2`, `0 < p < 1 - 1e-10`, `0 < gamma < 1`.
+- Meaning: write `xbar = mu + sigma z / sqrt(n)` and `s = sigma S`. The
+  content of `[xbar - k s, xbar + k s]` is
+  `Phi(z / sqrt(n) + k S) - Phi(z / sqrt(n) - k S)`, increasing in `k S`, so
+  it reaches `p` exactly when `k S >= r(z)`. Averaging over `z ~ N(0, 1)`
+  and the chi law of `S` gives the probability that the interval holds at
+  least `p` of the law; its root in `k` is the exact two-sided factor.
+- Code: `propagation.normal_tolerance_factor`,
+  `propagation.normal_tolerance_interval`,
+  `propagation.tolerance._two_sided_exact_factor`.
+- Source: [REF-KRISHNAMOORTHY-MATHEW-2009], [REF-ODEH-OWEN-1980] (the
+  integral equation is derived here).
+
+### EQ-PROP-TOL-004 — Howe approximation of the two-sided factor
+
+`k_Howe = z_((1+p)/2) sqrt(nu (1 + 1/n) / chi2_(1-gamma; nu))`, `nu = n - 1`,
+with `chi2_(1-gamma; nu)` the `(1 - gamma)`-quantile of the chi-square law.
+
+- Domain: `n >= 2`, `0 < p < 1`, `0 < gamma < 1`.
+- Meaning: a closed form that replaces the sample-mean deviation by its
+  scale `sqrt(1 + 1/n)`. At `p = gamma = 0.95` it is 2.1 % above the exact
+  factor at `n = 3` and 0.3 % below it at `n = 10`, so the stated confidence
+  is slightly missed for moderate `n`.
+- Code: `propagation.normal_tolerance_factor` (`method="howe"`),
+  `propagation.tolerance._howe_factor`.
+- Source: [REF-HOWE-1969], [REF-NIST-SEMATECH-HANDBOOK].
+
+### EQ-PROP-MARGIN-001 — Margin, uncertainty, and confidence ratio
+
+Upper limit `L`: `M = L - y*`, `U = y_bound - y*`. Lower limit: `M = y* - L`,
+`U = y* - y_bound`. Confidence ratio `M / U` (``+inf`` for `M > 0`, `U <= 0`).
+
+- Domain: finite best estimate `y*`; `y_bound` a stated bound of the
+  performance on the unsafe side, for example a Wilks or normal tolerance
+  bound of the `p`-quantile at confidence `gamma`; a band applies each side
+  separately and the side with the smallest ratio binds.
+- Meaning: the margin is the room between the estimate and the limit, the
+  uncertainty the room that the stated bound of the performance uses; a
+  ratio above one means the margin covers the bound. For nested
+  aleatory-epistemic studies `U = U_aleatory + U_epistemic` with
+  `U_aleatory` taken at the most favourable outer point.
+- Code: `propagation.Requirement`, `propagation.quantify_margin`,
+  `propagation.quantify_margin_mixed`,
+  `propagation.TechnicalPerformanceMeasure`.
+- Source: [REF-HELTON-2011], [REF-PILCH-TRUCANO-HELTON-2006],
+  [REF-NASA-SEH-2016].
+
+### EQ-PROP-MARGIN-002 — Growth allowance and system margin arithmetic
+
+`predicted = basic (1 + g)`; relative to the estimate
+`allocation = predicted (1 + m)`; relative to the allocation
+`allocation = predicted / (1 - m)`; conversion
+`m_alloc = m_est / (1 + m_est)`.
+
+- Domain: `basic > 0`, `g >= 0`, `m >= 0` (`m < 1` relative to the
+  allocation); the percentages are user inputs.
+- Meaning: the same physical margin is `25 %` relative to the estimate and
+  `20 %` relative to the allocation; stating the basis removes the
+  ambiguity.
+- Code: `propagation.apply_contingency`,
+  `propagation.allocation_margin_fraction`,
+  `propagation.convert_margin_fraction`.
+- Source: [REF-NASA-SEH-2016] (practice of margins on resources; the
+  arithmetic is elementary).
+
+### EQ-PROP-MARGIN-003 — Contingency as a confidence level
+
+`c(a) = q_a / y* - 1` with `q_a` the `a`-quantile of the performance;
+conversely `a(c) = P(Y <= y* (1 + c))`, estimated by `K / n` with the
+Clopper-Pearson interval of EQ-INF-CI-CP-001.
+
+- Domain: `y* > 0`, `0 < a < 1`, independent samples.
+- Meaning: a fixed contingency percentage is read as the probability that
+  the performance stays within it, and a probability level is read as the
+  percentage that achieves it; with a Wilks bound the level holds with a
+  further statistical confidence.
+- Code: `propagation.contingency_for_confidence`,
+  `propagation.confidence_of_contingency`,
+  `propagation.compliance_probability`.
+- Source: [REF-CLOPPER-PEARSON-1934], [REF-WILKS-1941].
