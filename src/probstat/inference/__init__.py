@@ -65,6 +65,18 @@ Main entry points:
         evidence ``log Z`` and its Lee-Whiteley error estimate.
     ``abc_rejection``, ``abc_smc``: likelihood-free rejection and
         population Monte Carlo approximate Bayesian computation.
+    ``fit_from_quantiles``, ``compare_elicited_fits``: laws fitted to an
+        expert's stated quantiles (normal, Student-t, lognormal, gamma,
+        Weibull, beta, triangular, PERT, uniform) with residuals and
+        feedback quantiles; ``pert_from_quantiles`` and
+        ``triangular_from_quantiles`` solve the absolute bounds of a
+        three-point judgement stated as quantiles.
+    ``linear_opinion_pool``, ``logarithmic_opinion_pool``,
+        ``quantile_average``: pool several experts' laws (mixture, geometric
+        pool, Vincentization).
+    ``cooke_classical_model``: performance-based expert weights (Cooke):
+        calibration, information, cut-off optimisation and the global
+        weights decision maker.
 
 Assumptions:
     Every test states its sampling model: t tests assume independent normal
@@ -220,6 +232,35 @@ from .discriminant import (
     QuadraticDiscriminant,
     fit_linear_discriminant,
     fit_quadratic_discriminant,
+)
+from .elicitation import (
+    CalibrationScore,
+    CookeResult,
+    CutoffCandidate,
+    DecisionMakerScore,
+    ElicitedFitComparison,
+    ExpertAssessment,
+    InformationScore,
+    LogarithmicPool,
+    QuantileFit,
+    ThreePointFit,
+    VincentizedLaw,
+    compare_elicited_fits,
+    cooke_bin_probabilities,
+    cooke_calibration,
+    cooke_classical_model,
+    cooke_decision_maker_law,
+    cooke_information,
+    cooke_intrinsic_ranges,
+    cooke_weights,
+    fit_from_quantiles,
+    linear_opinion_pool,
+    logarithmic_opinion_pool,
+    pert_from_quantiles,
+    pert_from_three_points,
+    quantile_average,
+    triangular_from_quantiles,
+    triangular_from_three_points,
 )
 from .em import (
     CensoredNormalFit,
@@ -1001,4 +1042,31 @@ __all__ = [
     "prediction_powered_mean",
     "prediction_powered_variance",
     "prediction_powered_weight",
+    "CalibrationScore",
+    "CookeResult",
+    "CutoffCandidate",
+    "DecisionMakerScore",
+    "ElicitedFitComparison",
+    "ExpertAssessment",
+    "InformationScore",
+    "LogarithmicPool",
+    "QuantileFit",
+    "ThreePointFit",
+    "VincentizedLaw",
+    "compare_elicited_fits",
+    "cooke_bin_probabilities",
+    "cooke_calibration",
+    "cooke_classical_model",
+    "cooke_decision_maker_law",
+    "cooke_information",
+    "cooke_intrinsic_ranges",
+    "cooke_weights",
+    "fit_from_quantiles",
+    "linear_opinion_pool",
+    "logarithmic_opinion_pool",
+    "pert_from_quantiles",
+    "pert_from_three_points",
+    "quantile_average",
+    "triangular_from_quantiles",
+    "triangular_from_three_points",
 ]
