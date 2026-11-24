@@ -5788,3 +5788,64 @@ Generators." Python Enhancement Proposals, 2005.
 [https://peps.python.org/pep-0342/](https://peps.python.org/pep-0342/).
 Cited for `generator.send`, the mechanism by which a batch procedure
 receives the outputs of the evaluation request it yielded.
+
+## REF-HOWE-1969
+
+W. G. Howe. "Two-Sided Tolerance Limits for Normal Populations - Some
+Improvements." *Journal of the American Statistical Association* 64(326),
+610-620, 1969. The closed-form approximation of the two-sided normal
+tolerance factor, `k = z_((1+p)/2) sqrt(nu (1 + 1/n) / chi2_(1-gamma; nu))`.
+The formula was confirmed in this form on the NIST/SEMATECH page cited in
+REF-NIST-SEMATECH-HANDBOOK; the paper itself was not opened.
+
+## REF-KRISHNAMOORTHY-MATHEW-2009
+
+K. Krishnamoorthy and Thomas Mathew. *Statistical Tolerance Regions: Theory,
+Applications, and Computation*. Wiley, 2009. Cited for the definition of
+one- and two-sided normal tolerance factors, the noncentral-t form of the
+one-sided factor, and the integral equation of the two-sided factor.
+Confirmed bibliographically; the formulas were re-derived, not copied.
+
+## REF-ODEH-OWEN-1980
+
+Robert E. Odeh and Donald B. Owen. *Tables for Normal Tolerance Limits,
+Sampling Plans, and Screening*. Marcel Dekker, 1980. Tabulated normal
+tolerance factors, cited as the classical source of the values this module
+computes. Confirmed bibliographically; no table value was copied.
+
+## REF-NIST-SEMATECH-HANDBOOK
+
+NIST/SEMATECH. *e-Handbook of Statistical Methods*, Section 7.2.6.3,
+"Tolerance intervals for a normal distribution." National Institute of
+Standards and Technology.
+[https://www.itl.nist.gov/div898/handbook/prc/section2/prc263.htm](https://www.itl.nist.gov/div898/handbook/prc/section2/prc263.htm).
+Read for Howe's two-sided approximation and the one-sided noncentral-t
+factor `k1 = t(alpha; N-1, delta = z_p sqrt(N)) / sqrt(N)`.
+
+## REF-HELTON-2011
+
+Jon C. Helton. "Quantification of margins and uncertainties: Conceptual and
+computational basis." *Reliability Engineering and System Safety* 96(9),
+976-1013, 2011. The margin `M`, uncertainty `U`, and confidence ratio `M/U`
+of the QMU framework and the separation of aleatory and epistemic
+uncertainty. Confirmed bibliographically; the paper was not opened and the
+definitions in this library are stated and derived independently.
+
+## REF-PILCH-TRUCANO-HELTON-2006
+
+Martin Pilch, Timothy G. Trucano, and Jon C. Helton. *Ideas Underlying
+Quantification of Margins and Uncertainties (QMU): A White Paper*. Sandia
+National Laboratories report SAND2006-5001, 2006. Cited for the QMU ratio of
+margin to uncertainty. Confirmed bibliographically; not opened.
+
+## REF-NASA-SEH-2016
+
+*NASA Systems Engineering Handbook*, NASA/SP-2016-6105 Rev 2. National
+Aeronautics and Space Administration, 2016.
+[https://www.nasa.gov/seh](https://www.nasa.gov/seh). Cited for the practice
+of tracking technical performance measures and performance margins against
+a plan at project reviews. Only the web edition's description of
+performance margins (Section 6.2) and of technical performance measures,
+their regular tracking, and review-time trend examination (Section 6.7) was
+read; no percentage, threshold, or formula is taken from it, and every
+contingency percentage in this library is an input.
