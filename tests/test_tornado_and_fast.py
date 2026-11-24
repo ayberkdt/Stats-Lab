@@ -456,6 +456,82 @@ class ExtendedFastTests(unittest.TestCase):
 
     TRUNCATION = 0.02
 
+    def test_adjacent_low_frequencies_bias_the_ishigami_indices(self) -> None:
+        """The pair ``(1, 2)`` errs several times more than the pair ``(1, 3)``.
+
+        The measurement behind the library's spacing rule: with complementary
+        frequencies ``(1, 2)`` the largest first-order error of the Ishigami
+        indices over the seeds is above 0.10 (0.18 was measured over twenty
+        seeds), with ``(1, 3)`` it stays below 0.05 (0.03 measured). The two
+        bounds are far from both measured values, so the comparison does not
+        depend on platform arithmetic.
+
+        References:
+            [REF-SALTELLI-TARANTOLA-CHAN-1999], [REF-ISHIGAMI-HOMMA-1990].
+            Checks [EQ-SENS-FAST-003].
+
+        """
+        from unittest import mock
+
+        from probstat.foundations.random_streams import RandomStream
+        from probstat.sensitivity import fast as fast_module
+
+        a, b = 7.0, 0.1
+
+        def ishigami(point: tuple[float, ...]) -> float:
+            """Evaluate the Ishigami function on the unit cube.
+
+            References:
+                [REF-ISHIGAMI-HOMMA-1990]. No equation is evaluated.
+
+            """
+            x = [math.pi * (2.0 * value - 1.0) for value in point]
+            return (
+                math.sin(x[0])
+                + a * math.sin(x[1]) ** 2
+                + b * x[2] ** 4 * math.sin(x[0])
+            )
+
+        variance = a * a / 8 + b * math.pi**4 / 5 + b * b * math.pi**8 / 18 + 0.5
+        exact = (
+            0.5 * (1 + b * math.pi**4 / 5) ** 2 / variance,
+            (a * a / 8) / variance,
+            0.0,
+        )
+
+        def worst_error(pair: tuple[int, int]) -> float:
+            """Return the largest first-order error over ten seeds.
+
+            References:
+                [EQ-SENS-FAST-001]. No further equation is evaluated.
+
+            """
+
+            def plan(
+                dimension: int, samples: int, harmonics: int
+            ) -> tuple[int, tuple[int, ...]]:
+                """Return the fixed complementary pair for the curve.
+
+                References:
+                    [EQ-SENS-FAST-003]. No equation is evaluated.
+
+                """
+                del dimension
+                return (samples - 1) // (2 * harmonics), pair
+
+            worst = 0.0
+            with mock.patch.object(fast_module, "fast_frequencies", plan):
+                for seed in range(10):
+                    first, _, _ = fast_module._extended_fast(
+                        ishigami, 3, 193, 4, 3, RandomStream(seed)
+                    )
+                    means = [sum(row[i] for row in first) / 3 for i in range(3)]
+                    worst = max(worst, max(abs(means[i] - exact[i]) for i in range(3)))
+            return worst
+
+        self.assertGreater(worst_error((1, 2)), 0.10)
+        self.assertLess(worst_error((1, 3)), 0.05)
+
     def _close(self, estimate: float, error: float, exact: float, extra: float) -> None:
         """Assert agreement within five standard errors plus an allowance.
 

@@ -77,8 +77,11 @@ the mathematics re-derived.
 
 ### Known limitations
 
-- The extended-FAST rule that neighbouring low frequencies be at least two
-  apart is empirical (ADR-0141).
+- The extended-FAST spacing rule (neighbouring low frequencies two apart) is
+  backed by a measurement on the Ishigami function, pinned as a test, not by
+  a derivation; it removes the pair (1, 2) and not every pair in the ratio
+  2 : 1, so a response with strong even harmonics should be cross-checked
+  with the Sobol estimator (ADR-0141).
 - `maximum_disc_probability` does not prove the maximum unique for
   strongly anisotropic covariances (ADR-0140).
 - The exact two-sided tolerance factor costs about half a second per

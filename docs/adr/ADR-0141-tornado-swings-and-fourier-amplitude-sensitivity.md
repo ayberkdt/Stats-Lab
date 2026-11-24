@@ -136,8 +136,17 @@ variance-based indices: its cost is `d R N` runs for the extended method and
   frequencies be two apart, and with it `N >= 4 M^2 max(2 d - 3, 1) + 1`,
   appear in neither description, which accept shorter curves (for example eight
   inputs, `N = 513`, `M = 4`, set `{64; 1, 2, 3, 4, 5, 6, 8}`); the rule stays
-  as a conservative addition of this library, justified only by the earlier
-  experiment recorded in decision 5, which was not repeated in this pass. A
+  as a conservative addition of this library. The experiment of decision 5
+  was repeated afterwards over twenty seeds and is pinned by
+  `test_adjacent_low_frequencies_bias_the_ishigami_indices`: with the pair
+  (1, 2) the largest Ishigami first-order error is 0.18 at `N = 129`, 193 and
+  385 alike, with (1, 3) it is 0.03; the pairs (3, 6) and, in four inputs,
+  (2, 4, 7) err as much as (1, 2), while (1, 4, 8) and (1, 5, 10) do not. The
+  bias therefore comes from one low frequency lying on a harmonic of another
+  that the response excites, not from adjacency as such: the rule removes the
+  case (1, 2), is neither necessary nor sufficient in general, and a longer
+  curve does not cure the bias. The module documents this and points to the
+  Sobol estimator as the cross-check. A
   by-product: `fast99` uses zero phases and no resampling, and its output for
   Ishigami with `N = 513`, `M = 4` (run in R 4.6.2 with the package installed
   there) gave a total index of 0.081 for `x2` against the analytic 0.442,

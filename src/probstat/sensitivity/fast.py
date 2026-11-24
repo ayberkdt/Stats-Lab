@@ -22,7 +22,16 @@ frequencies must be distinct and, for three or more inputs, two apart, so
 (:func:`fast_sample_size`). The frequency plan is the published one (compared
 with the open descriptions of extended FAST); the spacing of two is this
 library's own addition, which makes it refuse shorter curves than those
-descriptions allow. The truncation error of the spectrum is set by
+descriptions allow. The reason is measured, not derived: on the Ishigami
+function the pair ``(1, 2)`` gives first-order errors up to 0.18 over twenty
+seeds at ``N = 129``, ``193`` and ``385`` alike, against 0.03 for ``(1, 3)``;
+a pair in the ratio ``2 : 1`` such as ``(3, 6)`` errs as much, so the damage
+comes from one low frequency sitting on a harmonic of another, and a longer
+curve does not remove it. The phase-resampling spread does not reveal such a
+bias. The rule excludes the pair ``(1, 2)``; it does not exclude every
+``2 : 1`` pair for four or more inputs, so for a response with strong even
+harmonics compare the result with :func:`probstat.sensitivity.sobol_analysis`
+before relying on it. The truncation error of the spectrum is set by
 ``M``, not by ``N``: a longer curve at fixed ``M`` leaves the estimate nearly
 unchanged, so raise ``M`` for a response with sharp features. Random phase
 shifts ``phi_k`` are redrawn for each of ``R`` resamples; the spread of the
