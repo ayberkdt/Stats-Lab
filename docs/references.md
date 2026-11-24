@@ -5860,7 +5860,8 @@ and uncertainty quantification by the verification elements, and the
 Giuseppe C. Calafiore and Marco C. Campi. "The Scenario Approach to Robust
 Control Design." *IEEE Transactions on Automatic Control* 51(5), 742-753,
 2006. DOI: 10.1109/TAC.2006.875041. Not opened: no open copy was found (the
-author repository entry is restricted). The tutorial
+author repository entry is restricted). Its conference predecessor
+[REF-CALAFIORE-CAMPI-2004] was read. The tutorial
 [REF-CAMPI-GARATTI-PRANDINI-2009] credits this paper and its 2005 predecessor
 with the scenario technology, and the bound used in this library is the exact
 one of [REF-CAMPI-GARATTI-2008], whose text states the earlier bound it
@@ -6449,3 +6450,18 @@ that does not use Bessel functions; the correction `psi_1` was reproduced from
 the SciPy source (read in full) and checked against it to `1e-14`. Its
 accuracy for small `n` was measured here by seeded simulation rather than
 taken from the paper.
+
+## REF-CALAFIORE-CAMPI-2004
+
+Giuseppe Calafiore and M. C. Campi. "A New Bound on the Generalization Rate
+of Sampled Convex Programs." *Proceedings of the 43rd IEEE Conference on
+Decision and Control*, Paradise Island, Bahamas, 5328-5333, December 2004.
+Read (author copy, pages 5328-5330): Definitions 1-2 (violation probability,
+epsilon-level solution), Theorem 1 (the earlier linear bound
+`floor(n / (epsilon beta))`), Theorem 2 (the general bound), Corollary 1
+(the explicit logarithmic bound
+`ceil((2 / epsilon) ln(1 / beta) + 2 n + (2 n / epsilon) ln(2 / epsilon))`),
+Table I (the bounds for ten decision variables), and Definition 3 with
+Theorem 3 (at most `n` support constraints). Used as a published oracle: the
+exact binomial size of [REF-CAMPI-GARATTI-2008] must not exceed the
+Corollary 1 size at every entry of Table I.

@@ -103,6 +103,8 @@ wait-and-judge level); and, in the source verification pass,
   Their sample-size theorems (3, 5, 7) are not used. The published version was
   not opened.
 
+Read afterwards: Calafiore and Campi (2004), the conference paper that precedes the 2006 article (Theorems 1-3, Corollary 1, Table I); its logarithmic bound is pinned against the exact size in `test_published_logarithmic_bound_table`.
+
 Not opened: Calafiore and Campi (2006) (no open copy found; the tutorial
 above credits it), Du and Chen (2004), Aoues and Chateauneuf (2010) (publisher
 pages only). The shifting-vector formulation and the classification of RBDO

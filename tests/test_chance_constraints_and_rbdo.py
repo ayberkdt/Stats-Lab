@@ -83,6 +83,45 @@ class ScenarioGuaranteeTests(unittest.TestCase):
             self.assertLessEqual(exact_tail(expected, eps, 10), 1e-5)
             self.assertGreater(exact_tail(expected - 1, eps, 10), 1e-5)
 
+    def test_published_logarithmic_bound_table(self) -> None:
+        """The exact size never exceeds the published logarithmic bound.
+
+        Calafiore and Campi (2004), Corollary 1, give the sufficient size
+        ``ceil((2 / epsilon) ln(1 / beta) + 2 n + (2 n / epsilon)
+        ln(2 / epsilon))``; their Table I lists it for ``n = 10``. The
+        formula must reproduce the printed entries, and the exact binomial
+        size of this library, which rests on a later and sharper theorem,
+        must be smaller at each of them.
+
+        References:
+            [REF-CALAFIORE-CAMPI-2004, Corollary 1 and Table I],
+            [REF-CAMPI-GARATTI-2008, Theorem 2.4]. Checks
+            [EQ-REL-SCENARIO-001].
+
+        """
+        printed = {
+            (0.1, 0.01): 712,
+            (0.01, 0.01): 11538,
+            (0.1, 0.001): 758,
+            (0.01, 0.001): 11999,
+            (0.1, 0.0001): 804,
+            (0.01, 0.0001): 12459,
+            (0.1, 0.00001): 850,
+            (0.01, 0.00001): 12920,
+        }
+        n = 10
+        for (eps, beta), expected in printed.items():
+            with self.subTest(epsilon=eps, beta=beta):
+                bound = math.ceil(
+                    2.0 / eps * math.log(1.0 / beta)
+                    + 2 * n
+                    + 2.0 * n / eps * math.log(2.0 / eps)
+                )
+                self.assertEqual(bound, expected)
+                result = scenario_sample_size(eps, 1.0 - beta, n)
+                self.assertLess(result.size, expected)
+                self.assertLessEqual(exact_tail(result.size, eps, n), beta)
+
     def test_published_tutorial_example_and_explicit_size(self) -> None:
         """The tutorial's ``N = 5206`` example and its explicit sufficient size.
 
