@@ -18,6 +18,8 @@ Main entry points:
         runs, one panel per input, with a lowess smoother.
     ``plot_cobweb``: cobweb (parallel-coordinate) plot of the runs with
         the threshold-exceeding runs highlighted over grey context.
+    ``plot_tornado``: one-at-a-time swings of a tornado analysis as
+        horizontal bars sorted by absolute swing around the baseline output.
 
 Assumptions:
     Matplotlib is an optional dependency (the ``visualization`` extra); the
@@ -66,7 +68,7 @@ from .foundation_plots import (
     plot_refinement_convergence,
     plot_waiting_count_pmfs,
 )
-from .sensitivity_plots import plot_cobweb, plot_input_scatter
+from .sensitivity_plots import plot_cobweb, plot_input_scatter, plot_tornado
 from .theme import (
     GRAPHITE,
     PORCELAIN,
@@ -100,4 +102,5 @@ __all__ = [
     "plot_waiting_count_pmfs",
     "plot_cobweb",
     "plot_input_scatter",
+    "plot_tornado",
 ]

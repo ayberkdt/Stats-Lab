@@ -452,6 +452,107 @@ class SensitivityPlotTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             plot_input_scatter(self.rows, self.y, ("a", "b", "c"), units=("m",))
 
+    def _tornado(self) -> object:
+        """Return a three-input tornado result with one non-monotone input.
+
+        References:
+            [EQ-SENS-TORNADO-001]. No equation is evaluated.
+
+        """
+        from probstat.sensitivity import tornado_function
+
+        return tornado_function(
+            lambda x: 2.0 * x[0] - x[1] + x[2] ** 2,
+            low=(-1.0, -1.0, -1.0),
+            base=(0.0, 0.0, 0.0),
+            high=(1.0, 4.0, 1.0),
+            names=("thrust", "drag", "mass"),
+        )
+
+    def test_tornado_draws_sorted_bars_with_direct_labels(self) -> None:
+        """Rows sorted by swing, two bars per row, hatched high bars, labels.
+
+        References:
+            [EQ-SENS-TORNADO-001], [REF-MATPLOTLIB].
+
+        """
+        from probstat.visualization import plot_tornado
+        from probstat.visualization.theme import TITLE_GID
+
+        axes = plot_tornado(self._tornado(), output_name="Net force", unit="N")
+        labels = [tick.get_text() for tick in axes.get_yticklabels()]
+        # The top row is the last tick; mass is flagged by its baseline output.
+        self.assertEqual(labels, ["mass *", "thrust", "drag"])
+        self.assertEqual(len(axes.patches), 6)
+        hatched = [patch for patch in axes.patches if patch.get_hatch()]
+        self.assertEqual(len(hatched), 3)
+        self.assertEqual(axes.get_xlabel(), "Net force [N]")
+        title = next(t for t in axes.get_children() if t.get_gid() == TITLE_GID)
+        self.assertTrue(title.get_text().startswith("Drag swings Net force the most"))
+        texts = [t.get_text() for t in axes.texts]
+        self.assertIn("-1", texts)
+        self.assertTrue(any(t.startswith("baseline") for t in texts))
+        self.assertEqual(len(axes.lines), 1)
+
+    def test_tornado_text_stays_on_canvas_in_both_themes(self) -> None:
+        """Text is at least 9 pt and inside the figure after fitting; dark works.
+
+        References:
+            [REF-MATPLOTLIB]. No equation is evaluated.
+
+        """
+        from probstat.visualization import plot_tornado
+        from probstat.visualization.theme import (
+            GRAPHITE,
+            chart_theme,
+            fit_text_to_canvas,
+        )
+
+        for palette in (None, GRAPHITE):
+            if palette is None:
+                axes = plot_tornado(self._tornado())
+            else:
+                with chart_theme(palette):
+                    axes = plot_tornado(self._tornado())
+            figure = axes.figure
+            fit_text_to_canvas(figure)
+            renderer = figure.canvas.get_renderer()
+            tight = figure.get_tightbbox(renderer)
+            width, height = figure.get_size_inches()
+            self.assertGreaterEqual(tight.x0, -1e-9)
+            self.assertGreaterEqual(tight.y0, -1e-9)
+            self.assertLessEqual(tight.x1, width + 1e-9)
+            self.assertLessEqual(tight.y1, height + 1e-9)
+            sizes = [t.get_fontsize() for t in axes.texts]
+            sizes += [t.get_fontsize() for t in axes.get_yticklabels()]
+            sizes += [t.get_fontsize() for t in axes.get_xticklabels()]
+            self.assertGreaterEqual(min(sizes), 9.0)
+
+    def test_tornado_options_and_errors(self) -> None:
+        """``top`` limits the rows; invalid arguments are rejected.
+
+        References:
+            [EQ-SENS-TORNADO-001].
+
+        """
+        from probstat.visualization import plot_tornado
+
+        axes = plot_tornado(self._tornado(), top=2, title="Custom claim")
+        self.assertEqual(len(axes.patches), 4)
+        self.assertEqual(len(axes.get_yticklabels()), 2)
+        with self.assertRaises(TypeError):
+            plot_tornado("not a result")
+        with self.assertRaises(ValueError):
+            plot_tornado(self._tornado(), top=0)
+        from probstat.sensitivity import tornado_function
+
+        flat = tornado_function(
+            lambda x: 1.0, low=(0.0,), base=(1.0,), high=(2.0,), names=("a",)
+        )
+        axes = plot_tornado(flat)
+        title = next(t for t in axes.get_children() if t.get_gid() == "probstat-title")
+        self.assertTrue(title.get_text().startswith("No single input"))
+
 
 if __name__ == "__main__":
     unittest.main()

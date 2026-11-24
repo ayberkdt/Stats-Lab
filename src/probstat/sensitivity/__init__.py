@@ -42,6 +42,17 @@ Main entry points:
         permutation null level.
     ``kernel_sobol_indices``: kernel (MMD) first-order indices by
         pick-freeze; ``model_kernel_sobol_indices`` draws the design.
+    ``tornado_analysis``: one-at-a-time swings of a model QoI between two
+        marginal quantiles (or explicit ranges), sorted for a tornado chart;
+        ``tornado_function`` takes a callable with ``low / base / high``
+        per input. It shows neither interactions, dependence, nor
+        non-monotone behaviour; ``TornadoBar.nonmonotone`` is a cheap check.
+    ``fast_analysis``: extended FAST first-order and total-effect indices
+        from search curves with phase resampling; ``fast_indices`` for a
+        plain callable on independent marginals.
+    ``rbd_fast_analysis``: random balance design first-order indices from one
+        sample, with the Tissot-Prieur bias correction; ``rbd_fast_indices``
+        for a plain callable.
     ``active_subspace``: eigen-decomposition of ``E[grad f grad f']`` in the
         standard-normal space of a model, with eigenvalue gaps, activity
         scores and bootstrap diagnostics;
@@ -88,6 +99,14 @@ Common pitfalls:
       coordinates; ``active_subspace`` works in standard-normal space, and
       gradients passed to ``active_subspace_from_gradients`` must already
       be in coordinates of comparable scale.
+    - A tornado chart is one-at-a-time: it misses interactions, refuses
+      dependent inputs, and shows swing zero for ``x^2`` with ``x``
+      symmetric about the baseline; read ``nonmonotone_inputs()``.
+    - FAST and random balance design need independent inputs, an odd sample
+      size, and ``N >= 4 M^2 max(2 d - 3, 1) + 1`` (extended FAST,
+      ``fast_sample_size``); judge an estimate against
+      its phase-resampling ``*_error``, and note that the raw random balance
+      estimate is biased upwards by ``(2 M / N)(1 - S_i)``.
     - Morris effects are measured on a grid whose step is half of each
       input's quantile range, so a response periodic with that period (for
       example ``sin(x)**2`` with ``x`` uniform on ``[-pi, pi]``) shows
@@ -102,7 +121,10 @@ References:
     [REF-SONG-NELSON-STAUM-2016], [REF-HELTON-ETAL-2006],
     [REF-DA-VEIGA-2015], [REF-GRETTON-ETAL-2008], [REF-GAMBOA-ETAL-2022],
     [REF-CHATTERJEE-2021], [REF-CONSTANTINE-DOW-WANG-2014],
-    [REF-BORGONOVO-2007], [REF-PIANOSI-WAGENER-2015], [REF-DA-VEIGA-2021].
+    [REF-BORGONOVO-2007], [REF-PIANOSI-WAGENER-2015], [REF-DA-VEIGA-2021],
+    [REF-CUKIER-1973], [REF-SALTELLI-TARANTOLA-CHAN-1999],
+    [REF-TARANTOLA-GATELLI-MARA-2006], [REF-TISSOT-PRIEUR-2012],
+    [REF-HOWARD-1988].
 
 """
 
@@ -120,6 +142,16 @@ from .analysis import (
     estimate_sobol_indices,
 )
 from .derivative_based import DGSMResult, dgsm, poincare_constant
+from .fast import (
+    FastResult,
+    RBDFastResult,
+    fast_analysis,
+    fast_frequencies,
+    fast_indices,
+    fast_sample_size,
+    rbd_fast_analysis,
+    rbd_fast_indices,
+)
 from .given_data import GivenDataSensitivityResult, given_data_first_order
 from .hsic import HSICResult, hsic_indices, model_hsic_indices
 from .kernel_indices import (
@@ -167,6 +199,7 @@ from .taylor import (
     quadratic_sum_importance,
     taylor_importance_factors,
 )
+from .tornado import TornadoBar, TornadoResult, tornado_analysis, tornado_function
 
 __all__ = [
     "SOBOL_ESTIMATORS",
@@ -218,4 +251,16 @@ __all__ = [
     "model_rank_sobol_indices",
     "pawn_indices",
     "rank_sobol_indices",
+    "FastResult",
+    "RBDFastResult",
+    "TornadoBar",
+    "TornadoResult",
+    "fast_analysis",
+    "fast_frequencies",
+    "fast_indices",
+    "fast_sample_size",
+    "rbd_fast_analysis",
+    "rbd_fast_indices",
+    "tornado_analysis",
+    "tornado_function",
 ]
