@@ -21748,3 +21748,99 @@ validated for the stated `p` if both are at most `delta`.
 - Code: `uq.compare_with_law_of_propagation`, `uq.numerical_tolerance`,
   `uq.GumValidation`.
 - Source: [REF-JCGM-101-2008, Sections 7.9.2, 8.1.3 and 8.2].
+## Schedule risk analysis
+
+### EQ-COST-CPM-001 — Critical path method with precedence relations and lags
+
+`ES_j = max(0, max over predecessors i of: EF_i + l (FS), ES_i + l (SS), EF_i + l - d_j (FF))`,
+`EF_j = ES_j + d_j`, `T = max_j EF_j`; backward `LF_i = min(T, min over
+successors j of: LS_j - l (FS), LS_j - l + d_i (SS), LF_j - l (FF))`,
+`LS_i = LF_i - d_i`; total float `TF_i = LS_i - ES_i`; free float is the
+smallest slack of the outgoing relations (`ES_j - EF_i - l`, `ES_j - ES_i - l`,
+`EF_j - EF_i - l`, and `T - EF_i` for a sink).
+
+- Domain: acyclic precedence graph, finite lags, non-negative durations.
+- Meaning: an activity is critical when `TF_i = 0`; a critical path is a
+  chain of critical activities joined by zero-slack relations, and its
+  length is the project duration `T`.
+- Code: `cost.critical_path`, `cost.ActivityNetwork`, `cost.Activity`,
+  `cost.Precedence`.
+- Source: [REF-KELLEY-WALKER-1959].
+
+### EQ-COST-PERT-001 — Classical PERT normal approximation
+
+`mu_T = sum_(i on path) mu_i`, `sigma_T^2 = sum_(i on path) sigma_i^2`,
+`P(T <= t) ~ Phi((t - mu_T) / sigma_T)`; three-point estimates
+`mu = (a + 4 m + b) / 6`, `sigma^2 = ((b - a) / 6)^2`.
+
+- Domain: finish-to-start relations, independent durations, one critical path
+  of the mean-duration network.
+- Meaning: exact mean and variance for a series network of independent
+  activities; otherwise optimistic, because `E max(T_1, T_2) >= max(E T_1,
+  E T_2)` (Jensen) so the mean is biased low where paths merge, and the
+  variance ignores the competing paths.
+- Code: `cost.pert_estimate`, `cost.PertEstimate`, `cost.pert_three_point`.
+- Source: [REF-MALCOLM-1959], [REF-MACCRIMMON-RYAVEC-1964].
+
+### EQ-COST-SRA-001 — Criticality, cruciality, and schedule sensitivity index
+
+`CI_i = P(TF_i = 0)`, estimated by the fraction of draws with zero total
+float; cruciality `rho_i = corr(d_i, T)` (Pearson, and Spearman rank);
+schedule sensitivity index `SSI_i = CI_i * sd(d_i) / sd(T)`.
+
+- Domain: `n` independent draws of the network; `rho_i` and `SSI_i` are zero
+  when `d_i` or `T` is constant.
+- Meaning: probability that an activity lies on a critical path (Van Slyke),
+  strength of the linear (or monotone) link between its duration and the
+  completion time (Williams), and the criticality-weighted share of the
+  completion spread an activity can explain. The SSI is a convention of
+  schedule risk software, defined here, not quoted from a source.
+- Code: `cost.simulate_schedule`, `cost.ActivityRisk`.
+- Source: [REF-VAN-SLYKE-1963], [REF-WILLIAMS-1992], [REF-ELMAGHRABY-2000],
+  [REF-GAO-16-89G].
+
+### EQ-COST-SRA-002 — Completion-time distribution and deadline probability
+
+`P(T <= t) = X / n` with `X ~ Binomial(n, P(T <= t))`; exact interval
+`[Beta(alpha/2; X, n - X + 1), Beta(1 - alpha/2; X + 1, n - X)]`; quantile
+interval from order statistics `[T_(l), T_(u)]` with exact coverage
+`B(u - 1) - B(l - 1)`.
+
+- Domain: independent draws; the Clopper-Pearson interval is conservative.
+- Meaning: the empirical S-curve of the completion time, the confidence of
+  meeting a deadline, and a distribution-free interval for any completion
+  quantile.
+- Code: `cost.ScheduleRiskResult.probability_by`,
+  `cost.ScheduleRiskResult.quantile`, `cost.ScheduleRiskResult.s_curve`,
+  `cost.DeadlineProbability`.
+- Source: [REF-CLOPPER-PEARSON-1934], [REF-DAVID-NAGARAJA-2003],
+  [REF-GAO-16-89G].
+
+### EQ-COST-SRA-003 — Discrete schedule risk event
+
+`d_i' = d_i + B * V`, `B ~ Bernoulli(p)`, `V` an impact law with quantile
+function `Q`, drawn as `V = Q(U)` for `U ~ Uniform(0, 1)`.
+
+- Domain: `0 <= p <= 1`, non-negative impacts, events independent of each
+  other and of the durations.
+- Meaning: a risk register entry that adds time to one activity when it
+  occurs, so it enters both the critical path and the cost burn.
+- Code: `cost.ScheduleRiskEvent`.
+- Source: [REF-GAO-16-89G], [REF-NASA-PRA-2011].
+
+### EQ-COST-LOAD-001 — Cost loading and joint cost-schedule confidence
+
+`C = c_0 + sum_i F_i + sum_i r_i d_i + r_p T`, `JCL(C*, D) = P(C <= C*, T <= D)
+<= min(P(C <= C*), P(T <= D))`, with equality to the product of marginals
+only under independence.
+
+- Domain: time-independent costs `F_i`, burn rates `r_i`, project rate `r_p`,
+  each a number or a law drawn independently of the durations.
+- Meaning: the pair (cost, completion) of one draw; because the burn terms
+  grow with the durations, cost and completion are positively dependent. The
+  iso-confidence frontier lists the smallest sampled cost with `JCL >= q` for
+  each deadline.
+- Code: `cost.cost_schedule_samples`, `cost.joint_cost_schedule_confidence`,
+  `cost.cost_schedule_frontier`, `cost.IsoConfidenceFrontier`.
+- Source: [REF-NASA-CEH-2015] (the joint confidence level; its appendix could
+  not be opened, so the definition rests on the probability identity above).

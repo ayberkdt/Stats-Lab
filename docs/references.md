@@ -5970,3 +5970,51 @@ distributions), 7.2-7.7 and 7.9.2 (Monte Carlo trials, estimates, coverage
 intervals, numerical tolerance), 8.1-8.2 (validation of the GUM uncertainty
 framework) and 9.2 (additive model). Equation numbers cited in the code
 (16, 17, 18, 19, 20) are those of that text.
+## REF-KELLEY-WALKER-1959
+
+James E. Kelley Jr. and Morgan R. Walker. "Critical-Path Planning and
+Scheduling." *Proceedings of the Eastern Joint Computer Conference*, Boston,
+1959, 160-173. Confirmed bibliographically (a scan of the proceedings pages
+is listed by a project-history archive, not read); the forward and backward
+pass and the floats are re-derived, not copied.
+
+## REF-VAN-SLYKE-1963
+
+Richard M. Van Slyke. "Monte Carlo Methods and the PERT Problem." *Operations
+Research* 11(5), 839-860, 1963. DOI 10.1287/opre.11.5.839. Confirmed
+bibliographically (publisher and RePEc records; the full text was not read).
+Cited for the criticality index as the probability that an activity lies on
+the critical path; the estimator is re-derived.
+
+## REF-MACCRIMMON-RYAVEC-1964
+
+Kenneth R. MacCrimmon and Charles A. Ryavec. "An Analytical Study of the PERT
+Assumptions." *Operations Research* 12(1), 16-37, 1964. DOI
+10.1287/opre.12.1.16. Confirmed bibliographically (the full text is behind a
+paywall and was not read). Cited for the PERT assumptions and their errors;
+the bias of the mean at merge events is derived here from Jensen's
+inequality and demonstrated by simulation.
+
+## REF-WILLIAMS-1992
+
+Terry M. Williams. "Criticality in Stochastic Networks." *Journal of the
+Operational Research Society* 43(4), 353-357, 1992. DOI 10.1057/jors.1992.50.
+Confirmed bibliographically (abstract only: it proposes "cruciality" as an
+alternative to criticality). The definition used here, the correlation of an
+activity duration with the project duration, is stated, not quoted.
+
+## REF-ELMAGHRABY-2000
+
+Salah E. Elmaghraby. "On Criticality and Sensitivity in Activity Networks."
+*European Journal of Operational Research* 127(2), 220-238, 2000. Confirmed
+bibliographically (abstract only; the full text was not read).
+
+## REF-GAO-16-89G
+
+U.S. Government Accountability Office. *Schedule Assessment Guide: Best
+Practices for Project Schedules*. GAO-16-89G, December 2015. Read in this
+work (the PDF text of Best Practice 8): schedule risk analysis by Monte
+Carlo simulation, correlation between activity durations, risk criticality
+as the percentage of iterations in which an activity is on the critical
+path, sensitivity indexes, and the cumulative distribution as the probability
+of finishing on or before a date.

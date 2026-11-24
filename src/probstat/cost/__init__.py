@@ -7,6 +7,8 @@
 - :mod:`.moments` and :mod:`.cost_risk`: total-cost S-curves by the method of
   moments with correlation and by Gaussian-copula Monte Carlo, confidence
   levels, contingency, and joint cost-schedule confidence.
+- :mod:`.schedule_risk`: activity networks, critical path method, PERT,
+  schedule risk simulation, and joint cost-schedule confidence.
 - :mod:`.learning`: Wright and Crawford learning curves and lot costs.
 - :mod:`.maintenance`: age, block, and minimal-repair replacement policies.
 - :mod:`.spares`: Poisson spare provisioning.
@@ -17,6 +19,9 @@ Main entry points:
     exact moments, and a ``ProbabilisticModel`` view.
     ``cost_risk_analysis``: S-curves by the method of moments and by Monte
     Carlo, with contingency at each confidence level.
+    ``simulate_schedule``: schedule risk simulation of an activity network
+    (criticality, cruciality, deadline probability); ``cost_schedule_samples``
+    and ``cost_schedule_frontier`` load cost and give joint confidence.
     ``net_present_value``: discounted sum of cash flows.
     ``LearningCurve``: unit (Crawford) or cumulative-average (Wright)
     learning curves and lot costs.
@@ -46,6 +51,10 @@ Common pitfalls:
     - ``optimize_age_replacement`` with a non-increasing hazard (for
       example an exponential life) returns ``finite_optimum=False`` and an
       infinite interval: run to failure is optimal.
+    - Joint cost-schedule confidence is below both marginals: a 70 % cost
+      and a 70 % date are jointly about 49 % when independent.
+    - ``simulate_schedule`` durations are independent unless ``correlation``
+      is given; PERT ignores merge events and underestimates the mean.
     - ``cost_risk_analysis`` defaults to ``seed=None``; pass an integer seed
       to reproduce the Monte Carlo S-curve.
 
@@ -99,6 +108,30 @@ from .maintenance import (
     renewal_function,
 )
 from .moments import MomentTotal, method_of_moments_total
+from .schedule_risk import (
+    CORRELATION_KINDS,
+    RELATION_KINDS,
+    Activity,
+    ActivityNetwork,
+    ActivityRisk,
+    ActivityTiming,
+    CriticalPathResult,
+    DeadlineProbability,
+    FrontierPoint,
+    IsoConfidenceFrontier,
+    PertEstimate,
+    Precedence,
+    ScheduleCostSamples,
+    ScheduleRiskEvent,
+    ScheduleRiskResult,
+    cost_schedule_frontier,
+    cost_schedule_samples,
+    critical_path,
+    joint_cost_schedule_confidence,
+    pert_estimate,
+    pert_three_point,
+    simulate_schedule,
+)
 from .spares import (
     SparePlan,
     expected_backorders,
@@ -124,26 +157,41 @@ from .unreliability import (
 
 __all__ = [
     "COMPOUNDING",
+    "CORRELATION_KINDS",
     "COST_CATEGORIES",
     "DEFAULT_LEVELS",
     "FAMILIES",
+    "RELATION_KINDS",
     "THEORIES",
+    "Activity",
+    "ActivityNetwork",
+    "ActivityRisk",
+    "ActivityTiming",
     "AlternativeEvaluation",
     "ConfidenceLevelRow",
     "CorrectiveCost",
     "CostBreakdown",
     "CostElement",
     "CostRiskResult",
+    "CriticalPathResult",
+    "DeadlineProbability",
     "DesignAlternative",
     "FailureCostItem",
+    "FrontierPoint",
+    "IsoConfidenceFrontier",
     "JointConfidenceLevel",
     "LearningCurve",
     "LifeCycleCostModel",
     "LifetimeLaw",
     "LotApproximation",
     "MomentTotal",
+    "PertEstimate",
+    "Precedence",
     "RenewalFunction",
     "ReplacementPolicyResult",
+    "ScheduleCostSamples",
+    "ScheduleRiskEvent",
+    "ScheduleRiskResult",
     "SparePlan",
     "UnreliabilityCost",
     "age_replacement_cost_rate",
@@ -155,6 +203,9 @@ __all__ = [
     "cost_for_joint_confidence",
     "cost_of_unreliability",
     "cost_risk_analysis",
+    "cost_schedule_frontier",
+    "cost_schedule_samples",
+    "critical_path",
     "discount_factor",
     "discounted_rate_factor",
     "equivalent_annual_cost",
@@ -165,6 +216,7 @@ __all__ = [
     "fit_total_distribution",
     "incremental_cost_effectiveness",
     "joint_confidence_level",
+    "joint_cost_schedule_confidence",
     "learning_exponent",
     "life_cycle_cost_risk",
     "method_of_moments_total",
@@ -177,11 +229,14 @@ __all__ = [
     "optimize_block_replacement",
     "optimize_periodic_overhaul",
     "periodic_overhaul_cost_rate",
+    "pert_estimate",
+    "pert_three_point",
     "present_value",
     "protection_level",
     "real_rate",
     "reliability_decision_problem",
     "renewal_function",
+    "simulate_schedule",
     "spare_demand_mean",
     "spare_plan_cost",
 ]
