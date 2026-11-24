@@ -347,6 +347,30 @@ it found, and the verified sources not yet implemented are in
   certification checks with scoped verdicts, pre-specified simulation
   studies, candidate selection (ADR-0131).
 
+## System-design track
+
+Uncertainty analysis stated in the terms of a design review: budgets,
+margins with a confidence, credibility, and the checks a navigation
+covariance has to pass.
+
+- [x] Uncertainty budgets with separate combination rules, the law of
+  propagation with correlation, and Monte Carlo propagation of
+  distributions with coverage intervals (ADR-0133).
+- [x] Normal tolerance factors, margin over uncertainty, contingency as a
+  confidence level, and technical performance measures across milestones
+  (ADR-0135).
+- [x] Expert elicitation from quantiles and three-point judgements, opinion
+  pools, and performance-based weights (ADR-0136).
+- [x] Credibility assessment scales: NASA-STD-7009B, the predictive
+  capability maturity model, target profiles and gaps (ADR-0139).
+- [x] Filter consistency tests, covariance realism, Gaussian-mixture
+  splitting, and the probability content of a disc or ball (ADR-0140).
+- [x] Tornado swings, extended FAST, and random balance design (ADR-0141).
+- [x] Chance constraints with scenario guarantees and reliability-based
+  design optimisation (ADR-0142).
+- [x] Schedule risk on an activity network and joint cost-schedule
+  confidence (ADR-0143).
+
 ## Beyond the current scope
 
 Extensions recorded in the decision records as possible future work. They

@@ -83,7 +83,7 @@ one at the precision shown.
 | Check | Scale | Enforced by |
 |---|---|---|
 | Tests | 3,500+ test cases, run in CI on Python 3.11 to 3.13 with lint and strict type checks | [`tests/`](https://github.com/ayberkdt/Stats-Lab/tree/main/tests), [CI workflow](https://github.com/ayberkdt/Stats-Lab/blob/main/.github/workflows/ci.yml) |
-| Equations | 1,476 entries in the [equation registry](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/equation-registry.md), each with symbols, assumptions, and a code location | every docstring cites an `EQ-` or `REF-` key that must exist |
+| Equations | 1,541 entries in the [equation registry](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/equation-registry.md), each with symbols, assumptions, and a code location | every docstring cites an `EQ-` or `REF-` key that must exist |
 | Sources | 800+ primary sources in the [bibliography](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/references.md), each cited at least once | no unused or unknown reference key |
 | Decisions | 120+ decision records in [`docs/adr/`](https://github.com/ayberkdt/Stats-Lab/tree/main/docs/adr), each with its verification evidence | [contribution contract](https://github.com/ayberkdt/Stats-Lab/blob/main/CONTRIBUTING.md) |
 | Documentation | 60+ Markdown files whose Python examples run, with quoted values compared | [`tests/test_documentation_examples.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/test_documentation_examples.py) |
@@ -284,6 +284,23 @@ which questions look open; the
 [method-development guide](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/foundations/method-development.md)
 shows a derivation from a biased rule to a certified unbiased estimator.
 
+### Budgets, margins, and credibility for system design
+
+A system design is judged against requirements, so the uncertainty analysis
+has to end in the terms a design review uses: a budget table, a margin with a
+confidence, a credibility statement.
+
+| Question | Tools |
+|---|---|
+| How do the error sources of a budget combine? | `uq`: `UncertaintyBudget` (law of propagation with correlation, Welch-Satterthwaite, root-sum-square, worst-case and mixed rules kept apart by type), `budget_from_model`, `monte_carlo_budget` with symmetric and shortest coverage intervals and the validation of the linear budget against it |
+| Does the design meet its requirement, and with what confidence? | `propagation`: `normal_tolerance_factor` (exact one- and two-sided), `quantify_margin` (margin over uncertainty), `compliance_probability`, `contingency_for_confidence`, `TechnicalPerformanceMeasure` across milestones |
+| There are no data yet, only engineers' judgement | `inference`: `fit_from_quantiles`, `pert_from_quantiles`, linear and logarithmic opinion pools, `cooke_classical_model` |
+| How far can the model behind the number be trusted? | `validation`: `nasa_std_7009b_scale`, `pcmm_scale`, `CredibilityAssessment`, `level_gaps` against a target profile |
+| Is the filter's covariance realistic, and what after a long nonlinear arc? | `filtering`: `nees_test`, `nis_test`, `covariance_realism`, `propagate_gaussian_mixture`; `multivariate`: `gaussian_disc_probability`, `gaussian_ball_probability` |
+| Which inputs matter, shown the way a review expects? | `sensitivity`: `tornado_analysis`, `fast_analysis`, `rbd_fast_analysis`; `visualization`: `plot_tornado` |
+| Size a design under a probabilistic requirement | `reliability`: `solve_chance_constrained`, `scenario_sample_size`, `certify_design`, `rbdo_sora` |
+| When will it be finished, and at what cost? | `cost`: `critical_path`, `simulate_schedule`, `joint_cost_schedule_confidence`, `cost_schedule_frontier` |
+
 ## What's inside: 34 packages in 9 dependency layers
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/readme-package-layers-dark.png"><img alt="Package layer map: visualization on top; workflow and timeseries; risk, systems, cost, filtering, data_assimilation, conformal; design, reliability, sensitivity, validation, surrogates; propagation, inverse; monte_carlo, modeling, causal, generative; inference, multivariate, uq, processes, information; optimization, sampling, probability, statistics, distributions; foundations, numerics, linalg at the bottom." src="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/readme-package-layers.png"></picture>
@@ -294,7 +311,7 @@ is generated from that test's layer map by
 [`tools/build_readme_figures.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/tools/build_readme_figures.py).
 `methodlab`, added in 0.27 on the layer of `workflow`, is recorded in the
 layer map but not yet drawn: the image is from the previous build.
-34 packages and 2,239 public names, all documented in the
+34 packages and 2,423 public names, all documented in the
 [API reference](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/api-reference.md).
 
 | Area | Packages | Highlights |

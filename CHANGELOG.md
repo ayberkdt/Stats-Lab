@@ -3,6 +3,85 @@
 All notable changes are recorded here. Versions follow semantic versioning
 while the public API remains pre-1.0 and experimental.
 
+## [Unreleased]
+
+Uncertainty analysis for system design. The methods of earlier releases
+answer "what is the distribution of the output"; a design review asks
+"which error sources make up the budget, what is the margin and with what
+confidence, and how far can the model be trusted". Eight additions state
+the results in those terms. Each records in its decision record which
+sources were opened and which were confirmed bibliographically only, with
+the mathematics re-derived.
+
+### Added
+
+- **Uncertainty budgets** (`probstat.uq`, ADR-0133): `BudgetEntry` with
+  Type A and Type B evaluations, `UncertaintyBudget` with the law of
+  propagation including correlation, Welch-Satterthwaite degrees of freedom
+  and expanded uncertainty, a contribution table, and three combination
+  rules (root-sum-square, worst-case sum, biases linear plus random terms
+  in root-sum-square) whose results carry their kind so a standard
+  uncertainty and a bound cannot be combined silently; `budget_from_model`
+  with a second-order check of the linearisation; `monte_carlo_budget` with
+  symmetric and shortest coverage intervals and
+  `compare_with_law_of_propagation` (JCGM 100 and JCGM 101, both read).
+- **Tolerance factors, margins, performance measures**
+  (`probstat.propagation`, ADR-0135): exact one- and two-sided normal
+  tolerance factors with Howe's approximation as a named alternative,
+  `normality_price` against the Wilks bound, `quantify_margin` (margin,
+  uncertainty and their ratio, distribution-free or under normality),
+  `compliance_probability` with an exact interval, contingency arithmetic
+  with `contingency_for_confidence` and `confidence_of_contingency`, and
+  `TechnicalPerformanceMeasure` for a requirement followed across
+  milestones. No agency percentages are built in.
+- **Expert elicitation** (`probstat.inference`, ADR-0136):
+  `fit_from_quantiles` for nine families with feedback quantiles,
+  three-point PERT and triangular laws from bounds or from stated
+  quantiles, linear and logarithmic opinion pools, quantile averaging, and
+  Cooke's classical model (calibration, information, global weights, the
+  decision maker, cut-off optimisation). The scoring conventions are
+  re-derived; the primary sources were not opened.
+- **Credibility assessment scales** (`probstat.validation`, ADR-0139):
+  a data-driven `CredibilityScale` with constructors for NASA-STD-7009B
+  (read; factors are not rolled up, as the standard asks), the predictive
+  capability maturity model, and the 2008 NASA scale; assessments, target
+  profiles, gaps, an improvement list, the criticality matrix of the
+  standard, and text and Markdown rendering.
+- **Filter consistency and non-Gaussian propagation**
+  (`probstat.filtering`, `probstat.multivariate`, ADR-0140): NEES and NIS
+  tests with chi-square bounds, an innovation whiteness test,
+  `covariance_realism`; a splitting library computed by L2 minimisation,
+  `split_gaussian`, and `propagate_gaussian_mixture` (also as a batch
+  procedure); `gaussian_disc_probability`, `gaussian_ball_probability`
+  (Ruben's series with a truncation bound), and
+  `maximum_disc_probability`.
+- **Tornado and FAST** (`probstat.sensitivity`, `probstat.visualization`,
+  ADR-0141): `tornado_analysis` with a non-monotonicity flag,
+  `plot_tornado`, extended FAST for first-order and total indices, and
+  random balance design with the Tissot-Prieur bias correction.
+- **Chance constraints and reliability-based design**
+  (`probstat.reliability`, ADR-0142): scenario sample sizes and a-priori
+  and a-posteriori violation bounds, `certify_design`,
+  `solve_chance_constrained`, closed-form equivalents for the
+  linear-normal and distribution-free cases, an augmented-Lagrangian
+  `minimize_constrained`, `rbdo_sora`, and `rbdo_double_loop`.
+- **Schedule risk** (`probstat.cost`, ADR-0143): an activity network with
+  three relation kinds and lags, the critical path method, the PERT
+  estimate with its merge bias shown, `simulate_schedule` with correlated
+  durations, risk events, criticality and cruciality, and
+  `joint_cost_schedule_confidence` with the iso-confidence frontier.
+
+### Known limitations
+
+- The extended-FAST rule that neighbouring low frequencies be at least two
+  apart is empirical (ADR-0141).
+- `maximum_disc_probability` does not prove the maximum unique for
+  strongly anisotropic covariances (ADR-0140).
+- The adaptive Monte Carlo procedure of JCGM 101, clause 7.9.4, is not
+  implemented; the sample size is fixed by the caller (ADR-0133).
+- The exact two-sided tolerance factor costs about half a second per
+  evaluation (ADR-0135).
+
 ## [0.27.0] — 2026-11-21
 
 A frontier release in two parts. First, methods published or consolidated in
