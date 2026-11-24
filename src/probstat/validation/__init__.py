@@ -31,6 +31,9 @@ Main entry points:
     ``ValidationDomain``: applicability domain and extrapolation check.
     ``CredibilityRecord``: verification, validation, and prediction evidence
     kept separate.
+    ``CredibilityAssessment``: scores of every factor of a published credibility
+    scale (NASA-STD-7009B, PCMM) with evidence, gaps to a target profile, and
+    a criticality lookup; roll-ups only where the source defines one.
     ``crps_ensemble``: continuous ranked probability score of an ensemble.
     ``pit_histogram``: PIT histogram with a uniformity test and shape indices.
 
@@ -65,7 +68,8 @@ Guide: docs/foundations/model-validation.md
 References:
     [REF-FERSON-OBERKAMPF-GINZBURG-2008], [REF-ASME-VV20-2009],
     [REF-OBERKAMPF-ROY-2025], [REF-GNEITING-RAFTERY-2007],
-    [REF-KASS-RAFTERY-1995].
+    [REF-KASS-RAFTERY-1995], [REF-NASA-STD-7009B-2024],
+    [REF-OBERKAMPF-PILCH-TRUCANO-2007].
 
 """
 
@@ -92,6 +96,35 @@ from .calibration import (
     sharpness_summary,
 )
 from .credibility import CredibilityRecord, PredictionStatement, VerificationEvidence
+from .credibility_scale import (
+    CredibilityAssessment,
+    CredibilityFactor,
+    CredibilityLevel,
+    CredibilityScale,
+    CriticalityAssessment,
+    EvidenceSuggestion,
+    FactorScore,
+    ImprovementStep,
+    LevelCap,
+    LevelGap,
+    OverallStatement,
+    TargetProfile,
+    criticality_assessment,
+    criticality_matrix,
+    improvement_plan,
+    is_sufficient,
+    level_gaps,
+    nasa_cas_2008_scale,
+    nasa_std_7009b_scale,
+    pcmm_aggregate_triple,
+    pcmm_scale,
+    render_assessment,
+    render_gaps,
+    render_improvement_plan,
+    suggest_record_evidence,
+    uniform_profile,
+    weighted_evidence_review_level,
+)
 from .discrepancy import AdditiveGaussianDiscrepancy
 from .metrics import (
     AsmeComparison,
@@ -165,6 +198,33 @@ from .shift import (
 )
 
 __all__ = [
+    "CredibilityAssessment",
+    "CredibilityFactor",
+    "CredibilityLevel",
+    "CredibilityScale",
+    "CriticalityAssessment",
+    "EvidenceSuggestion",
+    "FactorScore",
+    "ImprovementStep",
+    "LevelCap",
+    "LevelGap",
+    "OverallStatement",
+    "TargetProfile",
+    "criticality_assessment",
+    "criticality_matrix",
+    "improvement_plan",
+    "is_sufficient",
+    "level_gaps",
+    "nasa_cas_2008_scale",
+    "nasa_std_7009b_scale",
+    "pcmm_aggregate_triple",
+    "pcmm_scale",
+    "render_assessment",
+    "render_gaps",
+    "render_improvement_plan",
+    "suggest_record_evidence",
+    "uniform_profile",
+    "weighted_evidence_review_level",
     "ModelAveragedPrediction",
     "ModelWeights",
     "model_averaged_prediction",
