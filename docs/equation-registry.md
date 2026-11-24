@@ -21596,3 +21596,155 @@ Clopper-Pearson interval of EQ-INF-CI-CP-001.
   `propagation.confidence_of_contingency`,
   `propagation.compliance_probability`.
 - Source: [REF-CLOPPER-PEARSON-1934], [REF-WILKS-1941].
+### EQ-UQ-BUDGET-001 — Law of propagation of uncertainty with correlation
+
+`u_c^2(y) = sum_i sum_j c_i c_j u(x_i) u(x_j) r(x_i, x_j)` with
+`c_i = df/dx_i` at the input estimates and `r_ii = 1`; for independent inputs
+`u_c^2 = sum_i (c_i u_i)^2`. For a budget with a correlation matrix `R` this
+is `(c * u)' R (c * u)`.
+
+- Domain: finite `c_i`, `u_i >= 0`, symmetric positive-semidefinite `R` with
+  unit diagonal; first-order Taylor expansion of `f`, exact for linear `f`.
+- Meaning: the standard uncertainty of the output of a model when the
+  uncertainties of its inputs are known; the model is linearised at the
+  estimates, so curvature is ignored (see EQ-UQ-BUDGET-006).
+- Code: `uq.UncertaintyBudget.combined_variance`,
+  `uq.UncertaintyBudget.combined_standard_uncertainty`,
+  `uq.UncertaintyBudget.law_of_propagation`, `uq.budget_from_model`,
+  `uq.BudgetEntry`.
+- Source: [REF-JCGM-100-2008, Sections 5.1.2 and 5.2.2].
+
+### EQ-UQ-BUDGET-002 — Welch-Satterthwaite effective degrees of freedom and expanded uncertainty
+
+`nu_eff = u_c^4 / sum_i (c_i u_i)^4 / nu_i`, `k = t_((1+p)/2)(nu_eff)`,
+`U = k u_c`; infinite `nu_i` contribute nothing to the sum and the normal
+quantile replaces the t quantile when `nu_eff` is infinite.
+
+- Domain: uncorrelated inputs. With a correlation matrix the code evaluates
+  the same expression with the correlated `u_c` in the numerator, a heuristic
+  that the result flags in its warnings.
+- Meaning: approximates the law of `(y - Y) / u_c` by a Student-t law so that
+  `y +/- U` has approximately coverage `p`.
+- Code: `uq.UncertaintyBudget.effective_degrees_of_freedom`,
+  `uq.UncertaintyBudget.expanded_uncertainty`, `uq.ExpandedUncertainty`.
+- Source: [REF-JCGM-100-2008, Sections 6.2 and G.4.1],
+  [REF-WELCH-1947], [REF-SATTERTHWAITE-1946].
+
+### EQ-UQ-BUDGET-003 — Standard uncertainty of a Type A or Type B evaluation
+
+Rectangular on `[-a, a]`: `u = a / sqrt(3)`; symmetric triangular:
+`u = a / sqrt(6)`; arcsine (U-shaped): `u = a / sqrt(2)`; quoted expanded
+uncertainty `U` with coverage factor `k`: `u = U / k`; any law: `u` is its
+standard deviation. Type A from `n` readings: `u = s / sqrt(n)` with
+`s^2 = sum (q_j - mean)^2 / (n - 1)` and `nu = n - 1`.
+
+- Domain: `a >= 0`, `k > 0`, `n >= 2`, finite standard deviation.
+- Meaning: converts the information about an input (limits, a certificate, a
+  distribution, repeated readings) into a standard uncertainty.
+- Code: `uq.BudgetEntry.rectangular`, `uq.BudgetEntry.triangular`,
+  `uq.BudgetEntry.arcsine`, `uq.BudgetEntry.normal`,
+  `uq.BudgetEntry.from_distribution`, `uq.BudgetEntry.from_observations`.
+- Source: [REF-JCGM-100-2008, Sections 4.2.1-4.2.3, 4.3.4, 4.3.7 and 4.3.9],
+  [REF-JCGM-101-2008, Sections 6.4.2, 6.4.5 and 6.4.6].
+
+### EQ-UQ-BUDGET-004 — Combination rules: root-sum-square, linear sum, mixed
+
+Root-sum-square: `sqrt(sum (c_i u_i)^2)`. Linear sum of absolute
+contributions: `sum |c_i| a_i` over half-widths `a_i` (a bound) or
+`sum |c_i| u_i` over standard uncertainties (the largest `u_c` under any
+correlation, by the triangle inequality). Mixed rule at standard level:
+`sum_(bias) |c_i| u_i + sqrt(sum_(random) (c_j u_j)^2)`; at bound level:
+`sum_(bias) |c_i| a_i + k sqrt(sum_(random) (c_j u_j)^2)` with `k` stated.
+
+- Domain: finite `c_i`, `u_i >= 0`, `a_i >= 0`, `k > 0`; the bound forms need
+  a half-width for every (bias) entry.
+- Meaning: conventions of system engineering for adding budget terms. Each
+  result carries its kind (standard uncertainty or worst-case bound) so that
+  values of different kinds are not combined silently. The mixed rule is a
+  convention, not a result of the Guide.
+- Code: `uq.UncertaintyBudget.root_sum_square`,
+  `uq.UncertaintyBudget.worst_case_sum`, `uq.UncertaintyBudget.mixed_rule`,
+  `uq.CombinedUncertainty`, `uq.QuantityKind`.
+- Source: [REF-JCGM-100-2008, Sections 5.1.2 and 5.2.2].
+
+### EQ-UQ-BUDGET-005 — Variance share of a budget entry
+
+`share_i = c_i u_i (sum_j r_ij c_j u_j) / u_c^2`; the shares add to one,
+reduce to `(c_i u_i)^2 / u_c^2` for independent inputs, and can be negative or
+above one under correlation.
+
+- Domain: `u_c > 0`; undefined (`nan`) when `u_c = 0`.
+- Meaning: apportions the combined variance to the entries by splitting each
+  covariance term equally between its two inputs.
+- Code: `uq.UncertaintyBudget.contributions`, `uq.Contribution`,
+  `uq.UncertaintyBudget.to_rows`, `uq.UncertaintyBudget.to_markdown`.
+- Source: [REF-JCGM-100-2008, Sections 5.1.3 and 5.2.2].
+
+### EQ-UQ-BUDGET-006 — Second-order check of the linearisation
+
+For Gaussian inputs with covariance `S` and Hessian `H` of the model:
+mean shift `tr(H S) / 2`, extra variance `tr(H S H S) / 2`, linear variance
+`c' S c`; ratios `|shift| / u_c` and `sqrt(1 + extra / u_c^2) - 1` are
+compared with a tolerance.
+
+- Domain: Gaussian input approximation, twice-differentiable model; the
+  third-derivative terms of the full second-order propagation are not
+  included.
+- Meaning: diagnoses a poor first-order propagation (curvature matters
+  relative to the input spread); it does not replace the Monte Carlo
+  validation of EQ-UQ-BUDGET-009.
+- Code: `uq.budget_from_model`, `uq.LinearizationCheck`, `uq.ModelBudget`.
+- Source: [REF-JCGM-100-2008, Section 5.1.2 Note 2],
+  [REF-JCGM-101-2008, Section 5.8].
+
+### EQ-UQ-BUDGET-007 — Monte Carlo estimate, standard uncertainty and coverage intervals
+
+`y = (1/M) sum y_r`, `u^2(y) = sum (y_r - y)^2 / (M - 1)`. With sorted values
+`y_(1) <= ... <= y_(M)`, `q = pM` (integer part of `pM + 1/2` otherwise), the
+interval `[y_(r), y_(r+q)]` is a `100p %` coverage interval; symmetric:
+`r = (M - q)/2` (integer part of `(M - q + 1)/2` otherwise); shortest: the
+`r` minimising `y_(r+q) - y_(r)`. Monte Carlo errors: `u(y)/sqrt(M)` for `y`,
+`u(y) sqrt((kurtosis - 1)/(4M))` for `u(y)`, and
+`sqrt(a(1-a)/M) / g` for an endpoint at level `a` with the output density `g`
+estimated from the spacing of order statistics.
+
+- Domain: `M >= 20`, `0 < p < 1`, `M - q >= 1`, finite model values; the
+  moments must exist.
+- Meaning: summarises the discrete representation of the output distribution
+  obtained by propagating the input distributions through the model.
+- Code: `uq.monte_carlo_budget`, `uq.MonteCarloResult`,
+  `uq.sample_coverage_intervals`.
+- Source: [REF-JCGM-101-2008, Sections 5.3, 7.6 and 7.7.2],
+  [REF-DAVID-NAGARAJA-2003].
+
+### EQ-UQ-BUDGET-008 — Gaussian copula of correlated inputs
+
+`z = L e` with `L L' = R` and `e ~ N(0, I)`, `u_i = Phi(z_i)`,
+`x_i = F_i^(-1)(u_i)`. Marginals are the stated laws `F_i`; the dependence is
+that of a Gaussian vector with correlation `R` on the normal scores. For
+normal margins `R` is the Pearson correlation; the Spearman correlation of a
+pair is `(6/pi) asin(r/2)`.
+
+- Domain: `R` symmetric positive semidefinite with unit diagonal; margins
+  with a quantile function.
+- Meaning: one way to generate dependent inputs with prescribed margins; a
+  modelling choice, not implied by a correlation coefficient alone.
+- Code: `uq.monte_carlo_budget`.
+- Source: [REF-NELSEN-2006], [REF-JCGM-101-2008, Section 6.4.8].
+
+### EQ-UQ-BUDGET-009 — Validation of the GUM uncertainty framework by Monte Carlo
+
+Numerical tolerance: write `u(y) = c x 10^l` with `c` an integer of `ndig`
+decimal digits, then `delta = 10^l / 2`. The GUM interval is `y +/- U_p`;
+`d_low = |y - U_p - y_low|`, `d_high = |y + U_p - y_high|`; the framework is
+validated for the stated `p` if both are at most `delta`.
+
+- Domain: `u(y) > 0`, `ndig >= 1`; holds for the stated coverage probability
+  only.
+- Meaning: compares the interval of the law of propagation with a Monte
+  Carlo interval to the number of significant digits wanted in `u(y)`. The
+  adaptive stopping rule of the Supplement is not implemented; a proxy flag
+  reports whether the Monte Carlo errors are below `delta / 5`.
+- Code: `uq.compare_with_law_of_propagation`, `uq.numerical_tolerance`,
+  `uq.GumValidation`.
+- Source: [REF-JCGM-101-2008, Sections 7.9.2, 8.1.3 and 8.2].

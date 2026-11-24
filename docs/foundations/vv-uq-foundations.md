@@ -383,3 +383,102 @@ len(first_order.warnings)                       # 1
 - [REF-ROY-OBERKAMPF-2011] — separate numerical, model-form, and parametric
   uncertainty in predictions.
 - [REF-JCGM-100-2008, Sections 4.3.7 and 6.2] — Type B conversions.
+
+## Uncertainty budgets
+
+A system budget (a link budget in dB, a pointing budget, a perturbation
+budget) is a table: each line has a standard uncertainty `u`, a sensitivity
+coefficient `c`, an evaluation type, and often a worst-case half-width.
+`UncertaintyBudget` holds that table. Its combined standard uncertainty is
+the law of propagation of uncertainty with correlation terms
+([REF-JCGM-100-2008, Sections 5.1.2 and 5.2.2]); the rules for adding the
+lines are separate, named methods whose results say whether the number is a
+**standard uncertainty** or a **worst-case bound**. The record has no
+arithmetic, so the two cannot be added or compared by accident.
+
+Six terms of a downlink budget, all in dB, with `c = +1` for gains and
+`c = -1` for losses. Only limits are known, so each is a Type B entry from a
+half-width `a` (rectangular `u = a / sqrt(3)`, triangular `u = a / sqrt(6)`):
+
+```python
+from probstat.uq import BudgetEntry, UncertaintyBudget
+
+budget = UncertaintyBudget(
+    (
+        BudgetEntry.rectangular("transmit power", 0.5, kind="random"),
+        BudgetEntry.rectangular("transmit antenna gain", 0.7, kind="bias"),
+        BudgetEntry.rectangular("path loss", 0.2, c=-1.0, kind="bias"),
+        BudgetEntry.triangular("atmospheric loss", 1.0, c=-1.0, kind="bias"),
+        BudgetEntry.rectangular("pointing loss", 0.6, c=-1.0, kind="random"),
+        BudgetEntry.rectangular("receive gain", 0.4, kind="random"),
+    )
+)
+round(budget.root_sum_square().value, 4)               # 0.7746
+budget.worst_case_sum().value                          # 3.4
+round(budget.mixed_rule().value, 3)                    # 1.434
+round(budget.mixed_rule(level="bound", random_coverage_factor=1.96).value, 2)  # 2.89
+round(budget.expanded_uncertainty(0.95).value, 3)      # 1.518
+```
+
+The same lines give 0.77 dB as a root-sum-square standard uncertainty (the
+independent-inputs value of the law of propagation), 3.4 dB as the worst
+case, and 1.43 dB when biases add linearly and random terms add in
+root-sum-square. The second mixed value, 2.89 dB, is a *bound* at `k = 1.96`
+on the random part: it is stated as such and is not comparable with the
+standard uncertainties above. The expanded uncertainty `U = k u_c` of 1.52 dB
+uses `k = 1.96` because every entry has infinite degrees of freedom.
+`budget.to_markdown(3, coverage=0.95)` prints the contribution table; its
+variance share is `c_i u_i (sum_j r_ij c_j u_j) / u_c^2`, which for
+correlated inputs can be negative.
+
+Welch-Satterthwaite effective degrees of freedom, the basis of the Student-t
+factor, assume uncorrelated inputs. With a correlation matrix the function
+evaluates the same expression with the correlated `u_c` (a heuristic), says
+so in the `warnings` of the result, and raises instead under
+`correlated="error"`.
+
+`budget_from_model` takes the coefficients from a model by central
+differences and checks the linearisation with a second-order estimate;
+`monte_carlo_budget` propagates the input distributions as in JCGM 101:2008,
+and `compare_with_law_of_propagation` applies the Supplement's validation of
+the GUM interval at the number of significant digits wanted in `u(y)`:
+
+```python
+import math
+
+from probstat.distributions import Uniform
+from probstat.uq import (
+    budget_from_model,
+    compare_with_law_of_propagation,
+    monte_carlo_budget,
+)
+
+model = budget_from_model(lambda x: x[0] * x[1], (2.0, 3.0), (0.1, 0.2))
+round(model.budget.combined_standard_uncertainty(), 3)  # 0.5
+model.linearization.poor                                # False
+
+half_width = math.sqrt(3.0)   # four unit-variance rectangular inputs
+result = monte_carlo_budget(
+    lambda x: sum(x), [Uniform(-half_width, half_width)] * 4, size=20000, seed=1
+)
+round(result.standard_uncertainty, 1)                   # 2.0
+compare_with_law_of_propagation(0.0, 2.0, result, significant_digits=1).validated  # True
+```
+
+The probabilistically symmetric and the shortest 95 % intervals of the Monte
+Carlo output are in `result.symmetric_interval` and `result.shortest_interval`
+(equal for a symmetric output law, the shortest strictly shorter for a skewed
+one). With `correlation=` the inputs are joined by a Gaussian copula, so the
+matrix is the correlation of the normal scores, which equals the Pearson
+correlation only for normal marginals. Monte Carlo errors are reported in the
+result; judge a Monte Carlo number on them, not on its digits.
+
+Not implemented: the adaptive choice of the number of trials (JCGM 101,
+Section 7.9.4), multivariate outputs (JCGM 102), and any standard's table of
+budget terms; the caller supplies the numbers.
+
+Sources for this section:
+
+- [REF-JCGM-100-2008, Sections 4.2, 4.3, 5.1-5.2, 6.2 and G.4.1].
+- [REF-JCGM-101-2008, Sections 5.3, 7.2-7.7, 7.9.2 and 8.1-8.2].
+- [REF-WELCH-1947], [REF-SATTERTHWAITE-1946] — effective degrees of freedom.
