@@ -556,6 +556,94 @@ central differences need 69 ms. Each BFGS iteration costs one or a few
 gradients, and the Gauss-Newton covariance needs one reverse sweep per
 residual.
 
+## 7. Covariance realism, mixture splitting, and the probability content of a disc
+
+An orbit-determination or trajectory code propagates a state covariance and
+then asks three questions that the filters above do not answer by themselves.
+
+**Is the covariance consistent with the actual errors?** For a state error
+`e` and the reported covariance `P`, the normalised estimation error squared
+`e' P^-1 e` is `chi2(n)` when the filter is consistent [EQ-FILT-NEES-001].
+Averaged over `N` independent runs at one time step, `N` times the average is
+`chi2(N n)`, which gives two-sided acceptance bounds [EQ-FILT-NEES-002]. The
+innovation counterpart (NIS) needs no truth: over one run its time average
+has bounds from `chi2(T m)` [EQ-FILT-NIS-001], provided the innovations are
+white [EQ-FILT-WHITE-001]. A statistic above its upper bound means the
+covariance is too small (the verdict is `"optimistic"`), below the lower
+bound too large (`"pessimistic"`). `nees_test_from_filters` and
+`nis_test_from_filter` read a `KalmanFilterResult` directly. For a set of
+(error, covariance) pairs, `covariance_realism` tests the squared Mahalanobis
+distances against `chi2(n)` with the Kolmogorov-Smirnov and Anderson-Darling
+tests of `probstat.inference` and estimates the scale factor `mean(d^2)/n`
+with a chi-square confidence interval [EQ-FILT-REALISM-001].
+
+**What happens to a Gaussian after a nonlinear map?** It stops being
+Gaussian, and a single unscented transform keeps only two moments.
+`split_gaussian` replaces `N(m, P)` by a mixture of narrower Gaussians with
+exactly the same mean and covariance [EQ-FILT-GMSPLIT-002]; the splitting
+weights come from an L2 minimisation against the standard normal density
+[EQ-FILT-GMSPLIT-001]. `propagate_gaussian_mixture` pushes every component
+through the map with the unscented transform and returns the output mixture
+[EQ-FILT-GMPROP-001]; with `max_depth > 0` components whose
+`nonlinearity_index` is above a threshold are split again
+[EQ-FILT-GMPROP-002]. `propagate_gaussian_mixture_procedure` is the same
+algorithm in the batch evaluation contract: one request per refinement level.
+
+**What is the probability that a Gaussian vector falls in a disc?** For a
+two-dimensional miss vector this is the short-encounter collision
+probability. `gaussian_disc_probability` integrates over the principal axis
+with the chord probability in closed form [EQ-MVN-DISC-001];
+`isotropic_gaussian_ball_probability` is the noncentral chi-square closed
+form [EQ-MVN-RICE-001]; `gaussian_ball_probability` handles any dimension by
+Ruben's chi-square series with a rigorous truncation bound [EQ-MVN-BALL-001];
+`small_disc_probability` is density times area with its first correction
+[EQ-MVN-SMALLDISC-001]; and `maximum_disc_probability` finds the largest
+probability over a covariance scale factor [EQ-MVN-DILUTION-001]. The disc is
+centred at the origin: subtract its centre from the mean first.
+
+```python
+from probstat.filtering import (
+    propagate_gaussian_mixture,
+    split_gaussian,
+    unscented_transform,
+    univariate_splitting,
+)
+from probstat.filtering import nees_test
+from probstat.multivariate import (
+    gaussian_ball_probability,
+    gaussian_disc_probability,
+    isotropic_gaussian_ball_probability,
+)
+
+# Acceptance bounds of the Monte-Carlo average NEES: 20 runs, 4-D state.
+bounds = nees_test([[4.0] * 5 for _ in range(20)], dimension=4)
+round(bounds.lower, 3)                            # 2.858
+round(bounds.upper, 3)                            # 5.331
+bounds.verdict                                    # 'consistent'
+
+# A disc of radius 2 whose centre is 5 from the mean, isotropic sigma = 2.
+disc = gaussian_disc_probability((3.0, 4.0), ((4.0, 0.0), (0.0, 4.0)), 2.0)
+round(disc.probability, 5)                        # 0.03318
+rice = isotropic_gaussian_ball_probability(5.0, 2.0, 2.0)
+round(rice.probability, 5)                        # 0.03318
+series = gaussian_ball_probability((3.0, 4.0), ((4.0, 0.0), (0.0, 4.0)), 2.0)
+round(series.probability, 5)                      # 0.03318
+
+# Splitting preserves the mean and covariance; a quadratic map shows the gain.
+mean, covariance = (1.0, 0.8), ((2.0, 0.5), (0.5, 1.0))
+mixture = split_gaussian(mean, covariance, components=3)
+round(mixture.covariance[0][0], 6)                # 2.0
+round(univariate_splitting(3).sigma, 1)           # 0.7
+
+def quadratic(x):
+    return (x[0] + 0.5 * x[1] ** 2, x[1])
+
+single = unscented_transform(quadratic, mean, covariance)
+round(single.covariance[0][0], 3)                 # 4.081
+split = propagate_gaussian_mixture(quadratic, mean, covariance, components=3, direction=(0.0, 1.0))
+round(split.covariance[0][0], 3)                  # 3.934, exact value 3.94
+```
+
 ## Limitations
 
 - Gaussian filters assume additive Gaussian noise; the EKF and UKF are
@@ -641,3 +729,7 @@ inspect.signature(ensemble_kalman_filter).parameters["analysis"].default    # 's
   [REF-LAWLESS-GRATTON-NICHOLS-2005], [REF-TREMOLET-2006],
   [REF-CARRASSI-ETAL-2018].
 - [REF-LORENZ-1963], [REF-LORENZ-2006], [REF-LORENZ-EMANUEL-1998].
+- [REF-HORWOOD-ETAL-2014], [REF-DEMARS-BISHOP-JAH-2013], [REF-HUBER-ETAL-2008],
+  [REF-VITTALDEV-RUSSELL-2016], [REF-SORENSON-ALSPACH-1971].
+- [REF-RUBEN-1962], [REF-SHEIL-OMUIRCHEARTAIGH-1977], [REF-IMHOF-1961],
+  [REF-FOSTER-ESTES-1992], [REF-ALFANO-2005], [REF-CHAN-2008].
