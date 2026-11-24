@@ -379,6 +379,52 @@ class FastPlanTests(unittest.TestCase):
         _, five = fast_frequencies(5, fast_sample_size(5, 2), 2)
         self.assertTrue(all(b - a >= 2 for a, b in zip(five, five[1:], strict=False)))
 
+    def test_plan_equals_the_published_frequency_rule(self) -> None:
+        """The complementary set is the one of the open reference descriptions.
+
+        The OpenTURNS theory page for extended FAST (which cites Saltelli,
+        Tarantola and Chan 1999) and the R ``sensitivity::fast99`` source give
+        ``omega = (N - 1) / (2 M)``, a largest complementary frequency
+        ``omega / (2 M)`` and the others "distributed uniformly between 1 and"
+        it, in R ``floor(seq(1, m, length.out = d - 1))`` for ``m >= d - 1``.
+        This plan reproduces that set wherever it accepts the curve length. The
+        page's example (eight inputs, ``N = 513``, ``M = 4``) gives
+        ``{64, 1, 2, 3, 4, 5, 6, 8}``; this library refuses that short a curve
+        because it requires neighbouring low frequencies to be two apart (a
+        rule of its own, see ADR-0141), so the example is checked against the
+        reference rule written out here and the refusal is asserted.
+
+        References:
+            [REF-SALTELLI-TARANTOLA-CHAN-1999]. Checks [EQ-SENS-FAST-003].
+
+        """
+
+        def reference(d: int, n: int, m: int) -> tuple[int, tuple[int, ...]]:
+            """Return the frequency set of ``fast99``: high one, then the rest.
+
+            References:
+                [EQ-SENS-FAST-003].
+
+            """
+            omega = (n - 1) // (2 * m)
+            top = omega // (2 * m)
+            if top >= d - 1:
+                step = (top - 1) / (d - 2) if d > 2 else 0.0
+                rest = tuple(math.floor(1 + k * step) for k in range(d - 1))
+            else:
+                rest = tuple(k % top + 1 for k in range(d - 1))
+            return omega, rest
+
+        self.assertEqual(reference(8, 513, 4), (64, (1, 2, 3, 4, 5, 6, 8)))
+        with self.assertRaises(ValueError):
+            fast_frequencies(8, 513, 4)
+        for d in (3, 4, 6, 8):
+            for m in (4, 6):
+                for extra in (0, 40, 200):
+                    n = fast_sample_size(d, m) + extra
+                    n += 1 - n % 2
+                    self.assertEqual(fast_frequencies(d, n, m), reference(d, n, m))
+
     def test_rule_violations_are_rejected(self) -> None:
         """Even or too short curves fail with the required size in the text.
 

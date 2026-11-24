@@ -115,10 +115,40 @@ variance-based indices: its cost is `d R N` runs for the extended method and
 - Read in full this session: Tissot and Prieur (2012) (estimator,
   expectation with the noise term, corrected estimator, sample construction);
   the Plischke-Tarantola-Mara slides for the RBD construction.
+- Source verification pass. The papers of Saltelli, Tarantola and Chan (1999),
+  Cukier et al. (1973) and Tarantola, Gatelli and Mara (2006) could not be
+  opened (publisher paywalls; the open repository copy of the last was not
+  retrievable), so what the 1999 paper prescribes was checked through two open
+  implementations that cite it: the OpenTURNS theory page for extended FAST
+  (read in full: curve with random phase `phi_i`, resampling, `omega_i = (N -
+  1) / (2 M)`, largest complementary frequency `(N - 1) / (4 M^2)`, the others
+  "distributed uniformly between 1 and" it, `M` usually 4 or higher with 4 to
+  6 attributed to the paper, a suggested `16 <= omega_i / N_r <= 64` for high
+  sample sizes, estimators from harmonics `p omega_i` for `S_i` and from
+  frequencies up to `omega_i / 2` for `1 - S_Ti`) and the R package
+  `sensitivity`, file `fast99.R` (read in full: the same frequency rule,
+  `floor(seq(1, m, length.out = d - 1))` for `m >= d - 1` and a cyclic
+  assignment otherwise, the same spectral sums). Comparison with
+  `fast_frequencies`: the same set wherever this library accepts the curve
+  length (checked for `d` in 3, 4, 6, 8 and `M` in 4, 6 in
+  `test_plan_equals_the_published_frequency_rule`), the same harmonic ranges,
+  random phases and resampling. Differences: the rule that neighbouring low
+  frequencies be two apart, and with it `N >= 4 M^2 max(2 d - 3, 1) + 1`,
+  appear in neither description, which accept shorter curves (for example eight
+  inputs, `N = 513`, `M = 4`, set `{64; 1, 2, 3, 4, 5, 6, 8}`); the rule stays
+  as a conservative addition of this library, justified only by the earlier
+  experiment recorded in decision 5, which was not repeated in this pass. A
+  by-product: `fast99` uses zero phases and no resampling, and its output for
+  Ishigami with `N = 513`, `M = 4` (run in R 4.6.2 with the package installed
+  there) gave a total index of 0.081 for `x2` against the analytic 0.442,
+  where this library gave 0.49 (6 resamples); whether the zero phase explains
+  the gap was not investigated. The `fast99` first-order sum indexes past the
+  spectrum when `2 M omega = N - 1` (odd `N`), so its first-order output was
+  not usable as an oracle.
 - Confirmed bibliographically only (formulas re-derived, not copied): Cukier
-  et al. (1973), Saltelli, Tarantola and Chan (1999), Tarantola, Gatelli and
-  Mara (2006), Howard (1988). Whether Howard (1988) names tornado diagrams was
-  not verified. Saltelli et al. (2008) is cited as already registered.
+  et al. (1973), Tarantola, Gatelli and Mara (2006), Howard (1988). Whether
+  Howard (1988) names tornado diagrams was not verified. Saltelli et al.
+  (2008) is cited as already registered.
 - Left out: second- and higher-order RBD-FAST, the Plischke EASI estimator
   (which works on any sample), conditional or scenario tornadoes for
   dependent inputs, tornado charts with probability-weighted ends, and the

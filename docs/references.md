@@ -6120,15 +6120,21 @@ opened, and the formulas are re-derived, not copied.
 
 Andrea Saltelli, Stefano Tarantola, and Karen P.-S. Chan. "A Quantitative
 Model-Independent Method for Global Sensitivity Analysis of Model Output."
-*Technometrics* 41(1), 39-56, 1999.
-DOI: [10.1080/00401706.1999.10485594](https://doi.org/10.1080/00401706.1999.10485594).
+*Technometrics* 41(1), 39-56, 1999. DOI:
+[10.1080/00401706.1999.10485594](https://doi.org/10.1080/00401706.1999.10485594).
 Cited for extended FAST: total-effect indices from a high frequency for the
-input of interest and a complementary low-frequency set for the others,
-random phase shifts with resampling, and the interference factor `M`.
-Confirmed bibliographically (citation and abstract checked against catalogue
-records); the full text was not opened. The frequency plan, the estimators
-and the sample-size rule used here are re-derived (EQ-SENS-FAST-001 to
-EQ-SENS-FAST-003), not copied.
+input of interest and a complementary low-frequency set for the others, random
+phase shifts with resampling, and the interference factor `M`. The paper
+itself was not opened (paywall; citation and abstract checked against
+catalogue records). Its frequency plan was compared with two open
+implementations that cite it, the OpenTURNS theory page for extended FAST and
+the file `fast99.R` of the R package `sensitivity`: `omega = (N - 1) / (2 M)`,
+largest complementary frequency `omega / (2 M)`, the others spread uniformly
+between 1 and it, estimators from the harmonics `p omega` and from the
+frequencies up to `omega / 2`, all as in `fast_frequencies` (EQ-SENS-FAST-001
+to EQ-SENS-FAST-003); only the spacing rule of this library has no counterpart
+there (ADR-0141). The estimators and the sample-size rule are re-derived, not
+copied.
 
 ## REF-TARANTOLA-GATELLI-MARA-2006
 

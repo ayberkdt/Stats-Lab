@@ -22064,9 +22064,15 @@ at least two apart; hence `N >= 2 M omega_max + 1` and
   set up to order `M` then end at `omega_max / 2`, below `omega_max`. The
   spacing of at least two is an empirical rule of this library: with the
   consecutive pair (1, 2) the Ishigami first-order errors were near 0.1,
-  with (1, 3) near 0.02.
+  with (1, 3) near 0.02. It is not part of the published frequency plan: the
+  open descriptions of extended FAST give `omega = (N - 1) / (2 M)`, a largest
+  complementary frequency `omega / (2 M)` and the others spread uniformly
+  between 1 and it (a set that coincides with this one wherever this library
+  accepts the curve length) and no spacing rule, so they accept shorter curves.
 - Code: `sensitivity.fast_sample_size`, `sensitivity.fast_frequencies`.
-- Source: [REF-SALTELLI-TARANTOLA-CHAN-1999] (bibliographic); re-derived.
+- Source: [REF-SALTELLI-TARANTOLA-CHAN-1999] (the paper itself was not opened;
+  the frequency plan was compared with the OpenTURNS theory page and the R
+  `sensitivity::fast99` source, which implement it); re-derived.
 
 ### EQ-SENS-RBD-001 — Random balance design first-order estimator
 
