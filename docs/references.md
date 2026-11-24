@@ -6081,3 +6081,67 @@ and feedback quantiles to the expert. Confirmed through the package's CRAN
 reference manual description of `fitdist`; this library instead minimises
 the misfit of the quantile function, a deliberate difference documented in
 ADR-0136.
+## REF-CUKIER-1973
+
+R. I. Cukier, C. M. Fortuin, Kurt E. Shuler, A. G. Petschek, and J. H.
+Schaibly. "Study of the sensitivity of coupled reaction systems to
+uncertainties in rate coefficients. I Theory." *The Journal of Chemical
+Physics* 59(8), 3873-3878, 1973.
+DOI: [10.1063/1.1680571](https://doi.org/10.1063/1.1680571).
+Cited for the Fourier amplitude sensitivity test: input-specific integer
+frequencies along a search curve and the power at their harmonics as the
+partial variance of an input. Confirmed bibliographically (title, journal,
+pages and date checked against catalogue records); the full text was not
+opened, and the formulas are re-derived, not copied.
+
+## REF-SALTELLI-TARANTOLA-CHAN-1999
+
+Andrea Saltelli, Stefano Tarantola, and Karen P.-S. Chan. "A Quantitative
+Model-Independent Method for Global Sensitivity Analysis of Model Output."
+*Technometrics* 41(1), 39-56, 1999.
+DOI: [10.1080/00401706.1999.10485594](https://doi.org/10.1080/00401706.1999.10485594).
+Cited for extended FAST: total-effect indices from a high frequency for the
+input of interest and a complementary low-frequency set for the others,
+random phase shifts with resampling, and the interference factor `M`.
+Confirmed bibliographically (citation and abstract checked against catalogue
+records); the full text was not opened. The frequency plan, the estimators
+and the sample-size rule used here are re-derived (EQ-SENS-FAST-001 to
+EQ-SENS-FAST-003), not copied.
+
+## REF-TARANTOLA-GATELLI-MARA-2006
+
+Stefano Tarantola, Debora Gatelli, and Thierry A. Mara. "Random balance
+designs for the estimation of first order global sensitivity indices."
+*Reliability Engineering & System Safety* 91(6), 717-727, 2006.
+DOI: [10.1016/j.ress.2005.06.003](https://doi.org/10.1016/j.ress.2005.06.003).
+Cited for the random balance design: one sample in which every input follows
+the same periodic curve in its own random order, and first-order indices from
+the spectrum of the output re-ordered along each input. Confirmed
+bibliographically (title, authors, year and abstract on a repository record)
+and through the sampling construction described in the lecture slides of
+Plischke, Tarantola and Mara and in Tissot and Prieur (2012); the original
+article was not opened.
+
+## REF-TISSOT-PRIEUR-2012
+
+Jean-Yves Tissot and Clementine Prieur. "Bias correction for the estimation
+of sensitivity indices based on random balance designs." *Reliability
+Engineering & System Safety* 107, 205-213, 2012.
+DOI: [10.1016/j.ress.2012.06.010](https://doi.org/10.1016/j.ress.2012.06.010).
+Cited for the random balance design estimator (their Eqs. 21-23), the
+expectation of the squared Fourier coefficient with a noise term
+`V_(-i) / N` (their Eq. 26) and the corrected estimator
+`(S - lambda) / (1 - lambda)`, `lambda = 2 N_1 / N` (their Eq. 31). The
+article text was opened and read in the preparation of EQ-SENS-RBD-001 and
+EQ-SENS-RBD-002, which are re-derived here from the white-noise argument.
+
+## REF-HOWARD-1988
+
+Ronald A. Howard. "Decision Analysis: Practice and Promise." *Management
+Science* 34(6), 679-695, 1988.
+DOI: [10.1287/mnsc.34.6.679](https://doi.org/10.1287/mnsc.34.6.679).
+Cited as the decision-analysis source for one-way (one-at-a-time) sensitivity
+displays of the tornado type. Confirmed bibliographically only; the full text
+was not opened and whether the article itself draws or names tornado diagrams
+was not verified, so the swing definition used here (EQ-SENS-TORNADO-001) is
+elementary and stated from first principles.

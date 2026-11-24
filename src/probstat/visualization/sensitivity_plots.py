@@ -7,6 +7,9 @@ effect; a cobweb (parallel-coordinate) plot draws every run as a polyline
 across the inputs and highlights the runs whose output exceeds a threshold,
 so a region of the input space that leads to the critical event, or a
 combination of inputs (an interaction), shows as a bundle of coloured lines.
+A tornado chart draws the one-at-a-time swings of a
+:class:`~probstat.sensitivity.TornadoResult` as horizontal bars sorted by
+absolute swing around the baseline output.
 """
 
 from __future__ import annotations
@@ -17,6 +20,7 @@ from typing import Any
 
 from probstat.foundations.validation import require_finite_real
 from probstat.inference.smoothing import loess
+from probstat.sensitivity import TornadoResult
 from probstat.statistics import quantile, ranks
 
 from ._layout import halo
@@ -29,6 +33,7 @@ from .theme import (
     entity_colour,
     line,
     pyplot,
+    reference_line,
     style_axes,
     themed,
     title_block,
@@ -487,4 +492,142 @@ def plot_input_scatter(
     return figure
 
 
-__all__ = ["plot_cobweb", "plot_input_scatter"]
+@themed
+def plot_tornado(
+    result: TornadoResult,
+    *,
+    top: int | None = None,
+    output_name: str | None = None,
+    unit: str | None = None,
+    title: str | None = None,
+    subtitle: str | None = None,
+    ax: Any | None = None,
+) -> Any:
+    """Draw one-at-a-time swings as horizontal bars around the baseline output.
+
+    One row per input, the largest absolute swing on top. Each row has two
+    bars that start at the baseline output (a dashed vertical reference):
+    the solid bar ends at the output with the input at its low value, the
+    hatched bar at the output with the input at its high value, so colour is
+    never the only carrier of direction. The input value at each end is
+    written next to the bar end. An input whose baseline output lies outside
+    its two end outputs is marked ``*`` (the response is non-monotone
+    between the ends and the swing understates its effect).
+
+    A tornado chart shows neither interactions between inputs nor dependence,
+    and the bars say nothing about the response between their two ends.
+
+    Args:
+        result: Result of :func:`~probstat.sensitivity.tornado_analysis` or
+            :func:`~probstat.sensitivity.tornado_function`.
+        top: Show only the ``top`` largest swings.
+        output_name: Axis title (default: the QoI name, or ``"Output"``).
+        unit: Optional unit of the output.
+        title: Assertion title; derived from the largest swing when omitted.
+        subtitle: Optional subtitle.
+        ax: Optional axes.
+
+    Returns:
+        Populated axes.
+
+    Raises:
+        TypeError: If ``result`` is not a tornado result.
+        ValueError: If ``top`` is not a positive integer.
+
+    Equation:
+        [EQ-SENS-TORNADO-001].
+
+    References:
+        [REF-HOWARD-1988], [REF-MATPLOTLIB].
+
+    """
+    if not isinstance(result, TornadoResult):
+        raise TypeError("result must be a TornadoResult")
+    if top is not None and (
+        isinstance(top, bool) or not isinstance(top, int) or top < 1
+    ):
+        raise ValueError("top must be a positive integer")
+    bars = result.bars if top is None else result.bars[:top]
+    count = len(bars)
+    palette = active_palette()
+    size = (7.2, 0.5 * count + 2.2)
+    axes = ax if ax is not None else pyplot().subplots(figsize=size)[1]
+    style_axes(axes)
+    base = result.baseline_output
+    label = output_name or result.quantity or "Output"
+    low_colour = palette.observed
+    high_colour = palette.model
+    ends = [base]
+    for bar in bars:
+        ends.extend((bar.low_output, bar.high_output))
+    span = max(ends) - min(ends)
+    pad = 0.16 * span if span > 0.0 else max(abs(base), 1.0) * 0.1
+    for row, bar in enumerate(bars):
+        y = count - 1 - row
+        pieces = (
+            (bar.low_output, bar.low_input, low_colour, None, "low"),
+            (bar.high_output, bar.high_input, high_colour, "////", "high"),
+        )
+        for value, shown, colour, hatch, role in pieces:
+            axes.barh(
+                y,
+                value - base,
+                left=base,
+                height=0.62,
+                color=colour,
+                hatch=hatch,
+                edgecolor=palette.canvas,
+                linewidth=0.8,
+                zorder=3,
+            )
+            side = 1.0 if value > base else -1.0 if value < base else 0.0
+            if side == 0.0:
+                # A zero-width bar: put its label on the side the other bar
+                # leaves free, left for the low end when both are empty.
+                other = bar.high_output if role == "low" else bar.low_output
+                side = (
+                    -1.0 if (other > base or (other == base and role == "low")) else 1.0
+                )
+            axes.annotate(
+                f"{shown:.3g}",
+                (value, y),
+                xytext=(5.0 * side, 0.0),
+                textcoords="offset points",
+                ha="left" if side > 0 else "right",
+                va="center",
+                fontsize=ANNOTATION_SIZE,
+                color=palette.ink,
+                annotation_clip=False,
+                zorder=6,
+            )
+    reference_line(axes, x=base, label=f"baseline {base:.3g}")
+    axes.set_yticks(range(count))
+    axes.set_yticklabels(
+        [f"{bar.name}{' *' if bar.nonmonotone else ''}" for bar in reversed(bars)]
+    )
+    axes.set_ylim(-0.6, count - 0.4 + 0.5)
+    axes.set_xlim(min(ends) - pad, max(ends) + pad)
+    axes.grid(axis="y", visible=False)
+    axes.grid(axis="x", visible=True, color=palette.rule, linewidth=0.7)
+    axis_labels(axes, label, x_unit=unit)
+    lead = bars[0] if bars else None
+    if lead is None or lead.swing == 0.0:
+        derived = f"No single input moves {label} between its low and high values"
+    else:
+        derived = (
+            f"{lead.name} swings {label} the most: {lead.swing:+.3g} from low to high"
+        )
+    flagged = any(bar.nonmonotone for bar in bars)
+    title_block(
+        axes,
+        title or derived,
+        subtitle
+        or (
+            "Solid bar: input at its low value; hatched bar: at its high value"
+            + ("; * non-monotone between the ends" if flagged else "")
+        ),
+    )
+    return axes
+
+
+__all__ = ["plot_cobweb", "plot_input_scatter", "plot_tornado"]
