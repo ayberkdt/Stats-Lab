@@ -473,12 +473,41 @@ matrix is the correlation of the normal scores, which equals the Pearson
 correlation only for normal marginals. Monte Carlo errors are reported in the
 result; judge a Monte Carlo number on them, not on its digits.
 
-Not implemented: the adaptive choice of the number of trials (JCGM 101,
-Section 7.9.4), multivariate outputs (JCGM 102), and any standard's table of
+`adaptive_monte_carlo_budget` chooses the number of trials as JCGM 101,
+Section 7.9.4 does: batches of `M = 10 000` trials (more for coverage above
+0.99) are added until twice the standard deviation of the average of the
+per-batch estimate, `u(y)` and interval endpoints is at most the numerical
+tolerance `delta` of `u(y)` to `significant_digits` digits. The record says
+how many batches it took and carries `stabilized`; if `max_batches` runs out
+first, `stabilized` is `False` and the numbers must not be read as meeting
+`delta` (the clause gives no guarantee).
+
+```python
+from probstat.uq import adaptive_monte_carlo_budget
+
+adaptive = adaptive_monte_carlo_budget(
+    lambda x: sum(x),
+    [Uniform(-half_width, half_width)] * 4,
+    significant_digits=1,
+    seed=1,
+)
+adaptive.stabilized                                     # True
+adaptive.delta                                          # 0.5
+round(adaptive.standard_uncertainty, 1)                 # 2.0
+```
+
+Pass `tolerance_divisor=5` for the accuracy `delta / 5` that Section 8.2 asks
+of a validation run; `compare_with_law_of_propagation` then decides
+`monte_carlo_adequate` from these deviations instead of the standard-error
+proxy used for a fixed `size`. `adaptive_monte_carlo_budget_procedure` is the
+same procedure as one request per batch, for a simulator that runs elsewhere
+(ADR-0132).
+
+Not implemented: multivariate outputs (JCGM 102) and any standard's table of
 budget terms; the caller supplies the numbers.
 
 Sources for this section:
 
 - [REF-JCGM-100-2008, Sections 4.2, 4.3, 5.1-5.2, 6.2 and G.4.1].
-- [REF-JCGM-101-2008, Sections 5.3, 7.2-7.7, 7.9.2 and 8.1-8.2].
+- [REF-JCGM-101-2008, Sections 5.3, 7.2-7.7, 7.9.2-7.9.4 and 8.1-8.2].
 - [REF-WELCH-1947], [REF-SATTERTHWAITE-1946] — effective degrees of freedom.

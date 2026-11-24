@@ -21742,9 +21742,11 @@ validated for the stated `p` if both are at most `delta`.
 - Domain: `u(y) > 0`, `ndig >= 1`; holds for the stated coverage probability
   only.
 - Meaning: compares the interval of the law of propagation with a Monte
-  Carlo interval to the number of significant digits wanted in `u(y)`. The
-  adaptive stopping rule of the Supplement is not implemented; a proxy flag
-  reports whether the Monte Carlo errors are below `delta / 5`.
+  Carlo interval to the number of significant digits wanted in `u(y)`. For an
+  adaptive Monte Carlo result (EQ-UQ-BUDGET-010) the flag
+  `monte_carlo_adequate` is the Supplement's own test, twice each
+  stabilisation deviation at most `delta / 5` (Section 8.2); for a result of
+  fixed size it is a proxy built from the Monte Carlo standard errors.
 - Code: `uq.compare_with_law_of_propagation`, `uq.numerical_tolerance`,
   `uq.GumValidation`.
 - Source: [REF-JCGM-101-2008, Sections 7.9.2, 8.1.3 and 8.2].
@@ -22284,3 +22286,30 @@ transform of `N(m_i, C_i)`.
 - Code: `filtering.nonlinearity_index`,
   `filtering.gaussian_mixture._curvature_index`.
 - Source: [REF-JULIER-UHLMANN-2004], [REF-DEMARS-BISHOP-JAH-2013].
+
+### EQ-UQ-BUDGET-010 — Adaptive Monte Carlo procedure and its stopping rule
+
+Run batches of `M = max(ceil(100 / (1 - p)), 10^4)` trials; batch `r` gives
+`y^(r)`, `u(y^(r))` and the endpoints `y_low^(r)`, `y_high^(r)` of a `100p %`
+coverage interval. After `h >= 2` batches, for each of the four per-batch
+quantities `v^(r)`: `s_v^2 = sum_r (v^(r) - vbar)^2 / (h (h - 1))`. With
+`u(y)` from all `h M` values written `c x 10^l` (`c` an integer of `ndig`
+digits), `delta = 10^l / 2`. The computation has stabilised when
+`2 s_y`, `2 s_u(y)`, `2 s_ylow` and `2 s_yhigh` are all at most `delta`
+(it continues if any *exceeds* `delta`); the result is then computed from all
+`h M` values. Validating the GUM framework uses `delta / 5` (Section 8.2).
+
+- Domain: `0 < p < 1`, `ndig >= 1`, finite model values with `u(y) > 0`,
+  `M >= 20`. The clause gives no probability that the stabilised numbers meet
+  `delta` (Section 7.9.3, Note 1); when the batch limit is reached first the
+  record says `stabilized = False`.
+- Meaning: the sample standard deviation of the average of `h` independent
+  batch values, used as the Monte Carlo error of each of the four reported
+  numbers; the factor 2 is a Gaussian 95 % rule (Note 6). Stopping at the
+  earliest `h` at which the test passes makes the realised error somewhat
+  larger than the nominal one.
+- Code: `uq.adaptive_monte_carlo_budget`,
+  `uq.adaptive_monte_carlo_budget_procedure`, `uq.AdaptiveMonteCarloResult`,
+  `uq.average_standard_deviation`, `uq.adaptive_stopping_rule`,
+  `uq.budget._clause_batch_size`.
+- Source: [REF-JCGM-101-2008, Sections 7.9.2-7.9.4 and 8.2].
