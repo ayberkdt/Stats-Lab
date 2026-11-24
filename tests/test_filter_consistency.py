@@ -11,9 +11,10 @@ is pinned. The tests never call R.
 
 References:
     [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001], [REF-HORWOOD-ETAL-2014],
-    [REF-MARDIA-KENT-BIBBY-1979], [REF-LJUNG-BOX-1978]. Checks
+    [REF-MARDIA-KENT-BIBBY-1979], [REF-LJUNG-BOX-1978],
+    [REF-NASA-CARA-HANDBOOK]. Checks
     [EQ-FILT-NEES-001], [EQ-FILT-NEES-002], [EQ-FILT-NIS-001],
-    [EQ-FILT-WHITE-001], [EQ-FILT-REALISM-001].
+    [EQ-FILT-WHITE-001], [EQ-FILT-REALISM-001], [EQ-INF-GOF-CVM-004].
 
 """
 
@@ -22,6 +23,7 @@ from __future__ import annotations
 import math
 import unittest
 
+from probstat.distributions import ChiSquare
 from probstat.filtering import (
     LinearGaussianStateSpace,
     covariance_realism,
@@ -37,7 +39,9 @@ from probstat.filtering import (
     nis_test_from_filter,
     simulate,
 )
+from probstat.filtering.consistency import REALISM_TESTS
 from probstat.foundations import RandomStream
+from probstat.inference import cramer_von_mises_test
 from probstat.validation import mahalanobis_metric
 
 TRANSITION = ((1.0, 1.0), (0.0, 1.0))
@@ -588,6 +592,64 @@ class CovarianceRealismTests(unittest.TestCase):
         result = covariance_realism(errors, covariances)
         self.assertFalse(result.shape_consistent)
         self.assertLess(result.p_value, 0.01)
+
+    def test_cramer_von_mises_option_reports_all_three_p_values(self) -> None:
+        """The handbook's test is selectable and all three p-values are recorded.
+
+        References:
+            [REF-NASA-CARA-HANDBOOK, Appendix I]. Checks
+            [EQ-FILT-REALISM-001] and [EQ-INF-GOF-CVM-004].
+
+        """
+        errors, covariances = self._pairs(200, 1.0, 31)
+        default = covariance_realism(errors, covariances)
+        chosen = covariance_realism(errors, covariances, test="cramer-von-mises")
+        law = ChiSquare(3.0)
+        expected = cramer_von_mises_test(chosen.squared_distances, law).p_value
+        self.assertIn("cramer-von-mises", REALISM_TESTS)
+        self.assertEqual(default.test, "anderson-darling")
+        self.assertEqual(chosen.test, "cramer-von-mises")
+        self.assertEqual(chosen.p_value, expected)
+        self.assertEqual(chosen.cvm_p_value, expected)
+        self.assertEqual(default.cvm_p_value, expected)
+        self.assertEqual(default.p_value, default.ad_p_value)
+        self.assertEqual(chosen.ad_p_value, default.ad_p_value)
+        self.assertEqual(chosen.ks_p_value, default.ks_p_value)
+        self.assertEqual(chosen.shape_consistent, expected >= 0.05)
+        self.assertEqual(chosen.scale_factor, default.scale_factor)
+
+    def test_cramer_von_mises_size_and_power_on_its_own_scale(self) -> None:
+        """Correct covariances are accepted at the nominal rate; a factor 2 is rejected.
+
+        Over 40 independent data sets of 100 pairs the number of p-values
+        below 0.05 under a correct covariance is judged against the binomial
+        mean ``2`` with five standard errors; with the covariance wrong by a
+        factor of 2 (errors too large) every data set must be rejected, and
+        the 5 percent critical value is exceeded by a wide margin.
+
+        References:
+            [REF-NASA-CARA-HANDBOOK, Appendix I]. Checks
+            [EQ-FILT-REALISM-001] and [EQ-INF-GOF-CVM-004].
+
+        """
+        runs = 40
+        level = 0.05
+        right = 0
+        wrong = 0
+        for seed in range(runs):
+            errors, covariances = self._pairs(100, 1.0, 500 + seed)
+            right += (
+                covariance_realism(errors, covariances, test="cramer-von-mises").p_value
+                < level
+            )
+            errors, covariances = self._pairs(100, 2.0, 900 + seed)
+            result = covariance_realism(errors, covariances, test="cramer-von-mises")
+            wrong += result.p_value < level
+            self.assertEqual(result.verdict, "optimistic")
+            self.assertFalse(result.shape_consistent)
+        tolerance = 5.0 * math.sqrt(runs * level * (1.0 - level))
+        self.assertLessEqual(abs(right - runs * level), tolerance)
+        self.assertEqual(wrong, runs)
 
     def test_validation(self) -> None:
         """Invalid arguments raise ``ValueError`` or ``TypeError``.

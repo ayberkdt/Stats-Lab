@@ -6434,3 +6434,18 @@ Appendix N (Eq. N-1, the disc integral of Foster and Estes, and Eq. N-2, the
 error-function form attributed to Alfano 2005a). No threshold or factor of the
 handbook is encoded in this library; the realism procedure is compared in
 ADR-0140.
+
+## REF-CSORGO-FARAWAY-1996
+
+Sandor Csorgo and Julian J. Faraway. "The Exact and Asymptotic Distributions
+of Cramer-von Mises Statistics." *Journal of the Royal Statistical Society,
+Series B* 58(1), 221-234, 1996. Confirmed bibliographically through the
+documentation and source of SciPy 1.14.1 (`scipy.stats.cramervonmises`,
+`scipy.stats._hypotests`), which cite equations 1.2 and 1.3 (the limit law),
+1.8 (the finite-sample approximation `V(x) + psi_1(x)/n`) and 1.10 (`psi_1`);
+the paper itself was not opened. The series of the limit law was re-derived
+and checked against a 60-digit evaluation and against a line-integral form
+that does not use Bessel functions; the correction `psi_1` was reproduced from
+the SciPy source (read in full) and checked against it to `1e-14`. Its
+accuracy for small `n` was measured here by seeded simulation rather than
+taken from the paper.

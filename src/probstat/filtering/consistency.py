@@ -16,8 +16,9 @@ distributional check for a set of (error, covariance) pairs are provided:
   ``T * mean ~ chi2(T m)``. A sample-autocorrelation whiteness test of the
   standardised innovations checks the assumption behind it.
 - **Covariance realism** of ``N`` pairs: the squared Mahalanobis distances
-  ``d^2 = e' P^-1 e`` should be ``chi2(n)``. A Kolmogorov-Smirnov and an
-  Anderson-Darling test (:mod:`probstat.inference`) judge the shape, and
+  ``d^2 = e' P^-1 e`` should be ``chi2(n)``. A Kolmogorov-Smirnov, a
+  Cramer-von Mises and an Anderson-Darling test (:mod:`probstat.inference`)
+  judge the shape, and
   the covariance scale factor ``mean(d^2) / n`` with a chi-square
   confidence interval says by how much ``P`` should be multiplied. The
   procedure of the NASA conjunction assessment handbook (Appendix I) is the
@@ -25,9 +26,11 @@ distributional check for a set of (error, covariance) pairs are provided:
   law (three degrees of freedom for a position), their mean as a first-moment
   check, and empirical-distribution-function tests, for which the handbook
   recommends the Cramer-von Mises statistic over Anderson-Darling because
-  outliers are frequent in practice; that statistic is not offered here, and
-  the scale factor of the handbook is read from the normalised mean without
-  a stated interval.
+  outliers are frequent in practice; ``covariance_realism`` computes all
+  three p-values and keeps Anderson-Darling as the default of the reported
+  one (``test="cramer-von-mises"`` selects the handbook's choice), and the
+  scale factor of the handbook is read from the normalised mean without a
+  stated interval.
 
 Verdicts use three words. ``"optimistic"``: the covariance is too small (the
 statistic is above its upper bound); ``"pessimistic"``: the covariance is too
@@ -57,7 +60,11 @@ from dataclasses import dataclass
 
 from probstat.distributions import ChiSquare, Normal
 from probstat.foundations.validation import require_finite_real
-from probstat.inference import anderson_darling_test, kolmogorov_smirnov_test
+from probstat.inference import (
+    anderson_darling_test,
+    cramer_von_mises_test,
+    kolmogorov_smirnov_test,
+)
 from probstat.linalg import Matrix, Vector, as_vector, cholesky, solve_lower, symmetrize
 
 from .kalman import KalmanFilterResult
@@ -65,7 +72,7 @@ from .kalman import KalmanFilterResult
 VERDICTS = ("consistent", "optimistic", "pessimistic")
 """The three verdicts of a consistency test."""
 
-REALISM_TESTS = ("anderson-darling", "kolmogorov-smirnov")
+REALISM_TESTS = ("anderson-darling", "kolmogorov-smirnov", "cramer-von-mises")
 """Goodness-of-fit tests available to :func:`covariance_realism`."""
 
 
@@ -186,11 +193,12 @@ class CovarianceRealismResult:
             scale factor, ``[N n s / chi2_(1-alpha/2), N n s / chi2_(alpha/2)]``
             with ``N n`` degrees of freedom (independent pairs).
         confidence: Confidence level.
-        test: ``"anderson-darling"`` or ``"kolmogorov-smirnov"``; the test
-            that produced ``p_value``.
+        test: ``"anderson-darling"``, ``"kolmogorov-smirnov"`` or
+            ``"cramer-von-mises"``; the test that produced ``p_value``.
         p_value: Tail probability of the chosen test against ``chi2(n)``.
         ks_p_value: Kolmogorov-Smirnov p-value.
         ad_p_value: Anderson-Darling p-value (``None`` if not computed).
+        cvm_p_value: Cramer-von Mises p-value (``None`` if not computed).
         shape_consistent: ``p_value >= 1 - confidence``.
         verdict: ``"consistent"`` when the scale interval contains one,
             ``"optimistic"`` when it lies above one, ``"pessimistic"`` when
@@ -213,6 +221,7 @@ class CovarianceRealismResult:
     ad_p_value: float | None
     shape_consistent: bool
     verdict: str
+    cvm_p_value: float | None = None
 
 
 def _confidence_level(confidence: float) -> float:
@@ -756,13 +765,16 @@ def covariance_realism(
 
     For each pair the squared Mahalanobis distance ``d^2 = e' P^-1 e`` is
     ``chi2(n)`` when ``e ~ N(0, P)``. The function (1) tests the sample of
-    ``d^2`` against ``chi2(n)`` with the Kolmogorov-Smirnov and
-    Anderson-Darling tests of :mod:`probstat.inference` (fully specified null;
-    the Anderson-Darling statistic weights the tails, which matter for a
-    collision-probability use of the covariance, but is also the more
+    ``d^2`` against ``chi2(n)`` with the Kolmogorov-Smirnov, Cramer-von Mises
+    and Anderson-Darling tests of :mod:`probstat.inference` (fully specified
+    null: ``chi2(n)`` has no estimated parameter; all three p-values are
+    reported). The Anderson-Darling statistic weights the tails, which matter
+    for a collision-probability use of the covariance, but is also the more
     outlier-sensitive of the two quadratic statistics; the NASA handbook
-    prefers the Cramer-von Mises statistic for that reason, and it is not
-    offered here) and (2) estimates the scale
+    prefers the Cramer-von Mises statistic for that reason, and it is
+    available as ``test="cramer-von-mises"``. The default stays
+    Anderson-Darling so that existing callers keep their verdict
+    (ADR-0140). (2) The function estimates the scale
     factor ``s = mean(d^2) / n`` (a factor on the covariance, the square of
     a factor on standard deviations). The interval assumes independent pairs;
     the NASA handbook advises one comparison point per propagation state and
@@ -778,8 +790,9 @@ def covariance_realism(
         covariances: The ``N`` covariances the errors should follow.
         confidence: Confidence of the scale interval and level of the shape
             judgement.
-        test: ``"anderson-darling"`` or ``"kolmogorov-smirnov"``: which p-value
-            is reported as ``p_value``.
+        test: ``"anderson-darling"``, ``"kolmogorov-smirnov"`` or
+            ``"cramer-von-mises"``: which p-value is reported as ``p_value``
+            and judged by ``shape_consistent``.
 
     Returns:
         Squared distances, scale factor with interval, p-values and verdict.
@@ -789,7 +802,7 @@ def covariance_realism(
             ``test`` is unknown, or an entry is invalid (see :func:`nees`).
 
     Equation:
-        [EQ-FILT-REALISM-001].
+        [EQ-FILT-REALISM-001], [EQ-INF-GOF-CVM-004].
 
     References:
         [REF-HORWOOD-ETAL-2014], [REF-NASA-CARA-HANDBOOK, Appendix I],
@@ -806,9 +819,15 @@ def covariance_realism(
     law = ChiSquare(float(dimension))
     ks = kolmogorov_smirnov_test(distances, law)
     ad = anderson_darling_test(distances, law)
+    cvm = cramer_von_mises_test(distances, law)
     ks_p = ks.p_value
     ad_p = ad.p_value
-    chosen = ad_p if test == "anderson-darling" else ks_p
+    cvm_p = cvm.p_value
+    chosen = {
+        "anderson-darling": ad_p,
+        "kolmogorov-smirnov": ks_p,
+        "cramer-von-mises": cvm_p,
+    }[test]
     p_value = 0.0 if chosen is None else chosen
     dof = count * dimension
     total = math.fsum(distances)
@@ -838,6 +857,7 @@ def covariance_realism(
         ad_p,
         p_value >= 1.0 - level,
         verdict,
+        cvm_p,
     )
 
 
