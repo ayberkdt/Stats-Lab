@@ -30,8 +30,9 @@ falls inside a disc (the short-encounter collision probability)?
    judged by a Ljung-Box-weighted portmanteau statistic on the standardised
    innovations; counting lags outside a per-lag bound was tried and had too
    little power against one large lag-1 correlation. Covariance realism
-   reports both the Kolmogorov-Smirnov and the Anderson-Darling p-value of
-   `probstat.inference` against `chi2(n)` (fully specified null) and the
+   reports the Kolmogorov-Smirnov, the Cramer-von Mises and the
+   Anderson-Darling p-value of `probstat.inference` against `chi2(n)` (fully
+   specified null; see the amendment below for the Cramer-von Mises test) and the
    scale factor `mean(d^2)/n` with a chi-square interval that assumes
    independent pairs.
 2. **Splitting in `probstat.filtering.gaussian_mixture`.** The univariate
@@ -109,10 +110,10 @@ confirmed bibliographically at most):
     for a position). Differences: (1) the handbook recommends the
     Cramer-von Mises statistic for realism assessment because
     Anderson-Darling is more sensitive to outliers; `covariance_realism`
-    offers Kolmogorov-Smirnov and Anderson-Darling, defaulting to
-    Anderson-Darling on the argument that tails matter for collision
-    probability, which is the opposite emphasis; Cramer-von Mises is not
-    implemented and the docstring now says so; (2) the handbook reads a
+    defaults to Anderson-Darling on the argument that tails matter for
+    collision probability, which is the opposite emphasis, and offers the
+    handbook's Cramer-von Mises test as `test="cramer-von-mises"` (first
+    version: not offered; see the amendment below); (2) the handbook reads a
     single scale factor from the first moment and names the square root of
     the normalised mean as that factor (its wording does not say whether it
     scales standard deviations or the covariance); this library's
@@ -190,6 +191,64 @@ confirmed bibliographically at most):
   density and sampling need positive definite ones.
 - New public names: 15 in `probstat.filtering`, 8 in `probstat.multivariate`.
 
+## Amendment: the Cramer-von Mises goodness-of-fit test (2026-11-25)
+
+The first version offered Kolmogorov-Smirnov and Anderson-Darling only,
+because `probstat.inference.cramer_von_mises_statistic` carried no p-value.
+`probstat.inference.cramer_von_mises_test(values, distribution)` now returns a
+`CramerVonMisesResult` (statistic, sample size, p-value, method label), with
+the call shape and record of `anderson_darling_test`, for a **fully specified**
+continuous null (no estimated parameter; the docstring and the registry say so,
+as for the neighbours).
+
+- *Limit law* (`cramer_von_mises_asymptotic_cdf`, `..._sf`). The Anderson and
+  Darling (1952) series in the modified Bessel function `K_(1/4)` for
+  `x < 0.6`; the library has no Bessel function, so `K_nu` is evaluated by the
+  trapezoidal rule on `int_0^inf exp(-z cosh t) cosh(nu t) dt` (relative
+  agreement `1e-15` with mpmath's `besselk`). For `x >= 0.6` the tail is
+  computed from its own alternating series of line integrals, written with an
+  endpoint-regularising substitution so that the trapezoidal rule converges
+  geometrically; that form keeps relative accuracy of `1e-14` to `x = 30`,
+  where `1 - V` would have lost it. The two forms agree to `1e-15` where both
+  are resolved, and the pinned values and the 0.95 and 0.99 points (0.461361,
+  0.743459, matching the published 0.46136 and 0.74346) come from a 60-digit
+  mpmath evaluation of the series, independently of this code. The mean `1/6`
+  and second moment `1/20` of the law are reproduced by integrating the tail.
+- *Finite n* (`cramer_von_mises_cdf`, `..._sf`). `n = 1` is exact
+  (`2 sqrt(x - 1/12)`). For `n >= 2` the approximation `V + psi_1/n` of
+  Csorgo and Faraway (1996, equations 1.8 and 1.10), error `O(n^-2)`. The
+  paper was not opened; the formula was read from SciPy 1.14.1's
+  `scipy.stats._hypotests` (which cites it), reimplemented here with log-gamma
+  weights and a Bessel evaluation to `1e-18`, and SciPy is used only to pin
+  values in the tests (agreement `1e-14` on the statistic and the pinned
+  p-values within SciPy's own `1e-7`; the tests never import SciPy). The
+  accuracy for small `n`, which the paper's value was not available to state,
+  was measured by seeded simulation (three million samples per `n`): the
+  upper-tail probabilities for `p <= 0.5` are within `0.01` at `n = 2`,
+  `0.004` at `n = 3`, `0.003` at `n = 4` and `1e-3` from `n = 5`; at `n = 2`
+  the far tail (`p = 1e-3`) is off by a factor of about nine. The docstrings
+  carry these figures, and the tests re-measure them with a smaller seeded
+  simulation judged on binomial standard errors plus the stated accuracy.
+  The p-value is computed as `(1 - V) - psi_1/n` so the tail keeps its
+  absolute accuracy; tails below `1e-12` are not resolved.
+- *Realism.* `REALISM_TESTS` gains `"cramer-von-mises"`; the result record
+  gains `cvm_p_value` (appended with a default, so existing positional
+  construction still works) next to `ks_p_value` and `ad_p_value`; all three
+  p-values are always computed. The default stays `"anderson-darling"`: the
+  handbook's preference rests on outlier sensitivity, a judgement about the
+  user's data rather than about the statistic, and changing the default would
+  change the verdict of every existing caller. The docstring states the
+  difference and how to select the handbook's choice. The handbook's 5, 2 and
+  1 percent thresholds and its resampling to a standard sample size remain
+  unencoded. Size and power are verified in `tests/test_filter_consistency.py`
+  on the test's own scale: over 40 data sets of 100 pairs the rejection count
+  at 5 percent under a correct covariance lies within five binomial standard
+  errors of 2, and all 40 data sets with the covariance wrong by a factor of 2
+  are rejected.
+- *Left out:* the two-sample Cramer-von Mises test, exact finite-n tables
+  (the paper's exact law was not opened), and a composite-null calibration
+  (use `normality_tests` or `bootstrap_goodness_of_fit`).
+
 ## Left out
 
 Entropy-driven splitting (DeMars), multidirectional splitting (Vittaldev and
@@ -200,4 +259,4 @@ or policy of a handbook.
 ## Verification
 
 `tests/test_filter_consistency.py`, `tests/test_gaussian_mixture_splitting.py`,
-`tests/test_ball_probability.py`.
+`tests/test_ball_probability.py`, `tests/test_cramer_von_mises_test.py`.

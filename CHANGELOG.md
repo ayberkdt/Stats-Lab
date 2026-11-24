@@ -53,7 +53,8 @@ the mathematics re-derived.
 - **Filter consistency and non-Gaussian propagation**
   (`probstat.filtering`, `probstat.multivariate`, ADR-0140): NEES and NIS
   tests with chi-square bounds, an innovation whiteness test,
-  `covariance_realism`; a splitting library computed by L2 minimisation,
+  `covariance_realism` (also with the Cramer-von Mises test, new
+  `probstat.inference.cramer_von_mises_test`); a splitting library computed by L2 minimisation,
   `split_gaussian`, and `propagate_gaussian_mixture` (also as a batch
   procedure); `gaussian_disc_probability`, `gaussian_ball_probability`
   (Ruben's series with a truncation bound), and

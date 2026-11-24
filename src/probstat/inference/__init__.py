@@ -19,6 +19,9 @@ Main entry points:
     ``anderson_darling_test``: Anderson-Darling statistic with its
         fully specified-null p-value (``anderson_darling_cdf``,
         ``anderson_darling_asymptotic_cdf``).
+    ``cramer_von_mises_test``: Cramer-von Mises statistic with its fully
+        specified-null p-value (``cramer_von_mises_sf``,
+        ``cramer_von_mises_cdf``, ``cramer_von_mises_asymptotic_cdf``).
     ``fit_distribution_moments``: method-of-moments fits (fitdistrplus
         ``mme`` conventions) with delta-method standard errors.
     ``parameter_uncertainty_band``: pointwise CDF and quantile bands from
@@ -227,6 +230,12 @@ from .count_regression import (
     fit_poisson_regression,
     poisson_overdispersion_test,
 )
+from .cramer_von_mises import (
+    cramer_von_mises_asymptotic_cdf,
+    cramer_von_mises_asymptotic_sf,
+    cramer_von_mises_cdf,
+    cramer_von_mises_sf,
+)
 from .discriminant import (
     LinearDiscriminant,
     QuadraticDiscriminant,
@@ -344,9 +353,11 @@ from .glm import (
 )
 from .goodness_of_fit import (
     AndersonDarlingResult,
+    CramerVonMisesResult,
     KolmogorovSmirnovResult,
     TwoSampleKolmogorovSmirnovResult,
     anderson_darling_test,
+    cramer_von_mises_test,
     kolmogorov_smirnov_test,
     kolmogorov_smirnov_two_sample_test,
 )
@@ -779,6 +790,12 @@ __all__ = [
     "anderson_darling_test",
     "anderson_darling_asymptotic_cdf",
     "anderson_darling_cdf",
+    "CramerVonMisesResult",
+    "cramer_von_mises_test",
+    "cramer_von_mises_asymptotic_cdf",
+    "cramer_von_mises_asymptotic_sf",
+    "cramer_von_mises_cdf",
+    "cramer_von_mises_sf",
     "binomial_test",
     "bootstrap",
     "bootstrap_confidence_interval",

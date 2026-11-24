@@ -22261,15 +22261,17 @@ approximately `chi2(L)`.
 then `N n s / c ~ chi2(N n)` and
 `c in [N n s/chi2_(1-alpha/2)(N n), N n s/chi2_(alpha/2)(N n)]`.
 
-- Domain: `N` independent Gaussian errors; shape judged by Kolmogorov-Smirnov
-  and Anderson-Darling tests of `d_i^2` against `chi2(n)`.
+- Domain: `N` independent Gaussian errors; shape judged by Kolmogorov-Smirnov,
+  Cramer-von Mises [EQ-INF-GOF-CVM-004] and Anderson-Darling tests of
+  `d_i^2` against `chi2(n)`.
 - Meaning: the multiplier by which the covariances should be inflated
   (above one: too small).
 - Code: `filtering.covariance_realism`.
 - Source: [REF-NASA-CARA-HANDBOOK] (Appendix I: squared Mahalanobis
   distances against a chi-square law, the first-moment scale factor, and
   empirical-distribution tests; the handbook has no confidence interval for
-  the factor and recommends Cramer-von Mises, not offered here),
+  the factor and recommends Cramer-von Mises, offered as
+  `test="cramer-von-mises"`),
   [REF-HORWOOD-ETAL-2014] (not opened), [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
 
 ### EQ-FILT-GMSPLIT-001 — Univariate Gaussian splitting by L2 minimisation
@@ -22358,3 +22360,86 @@ digits), `delta = 10^l / 2`. The computation has stabilised when
   `uq.average_standard_deviation`, `uq.adaptive_stopping_rule`,
   `uq.budget._clause_batch_size`.
 - Source: [REF-JCGM-101-2008, Sections 7.9.2-7.9.4 and 8.2].
+
+### EQ-INF-GOF-CVM-002 — Limiting Cramer-von Mises distribution (Bessel series)
+
+`V(x) = lim P(W_n^2 <= x) = (pi^(3/2) sqrt(x))^(-1) sum_(j>=0)
+(Gamma(j + 1/2)/j!) sqrt(4j + 1) exp(-q_j) K_(1/4)(q_j)`,
+`q_j = (4j + 1)^2/(16 x)`, the law of `sum_(k>=1) Z_k^2/(k pi)^2` with
+independent standard normal `Z_k`. `K_nu(z) = int_0^inf exp(-z cosh t)
+cosh(nu t) dt` is evaluated by the trapezoidal rule.
+
+- Domain: `x > 0`; fully specified continuous null, `n -> infinity`.
+- Meaning: the null law of the Cramer-von Mises statistic for a large sample;
+  its mean is `1/6`, its second moment `1/20`, and its 95 and 99 percent
+  points are `0.461361` and `0.743459`. The trapezoidal Bessel evaluation
+  agrees with the reference function to about `1e-15` relative.
+- Code: `inference.cramer_von_mises_asymptotic_cdf`,
+  `inference.cramer_von_mises_asymptotic_sf`.
+- Source: [REF-ANDERSON-DARLING-1952] (the limit law) and
+  [REF-CSORGO-FARAWAY-1996, equations 1.2 and 1.3] (the series, confirmed
+  bibliographically; checked here against a 60-digit evaluation).
+
+### EQ-INF-GOF-CVM-003 — Upper tail of the limiting Cramer-von Mises law
+
+`1 - V(x) = (1/pi) sum_(j>=1) (-1)^(j+1) int_((2j-1)^2 pi^2)^((2j)^2 pi^2)
+sqrt(-sqrt(y)/sin sqrt(y)) exp(-x y/2) dy/y`. With `u = sqrt(y) =
+(4j - 1) pi/2 - (pi/2) cos(phi)`, `I_j = pi int_0^pi exp(-x u^2/2) u^(-1/2)
+r(phi) d(phi)`, `r = 2 sin(phi/2) cos(phi/2)/sqrt(sin(pi sin^2(phi/2)))`,
+and `1 - V(x) = (1/pi) sum_j (-1)^(j+1) I_j`.
+
+- Domain: `x > 0`; the first three terms are summed.
+- Meaning: the tail without the cancellation of `1 - V` near one: the
+  inverse-square-root endpoint singularities are removed by the substitution,
+  the integrand becomes an even periodic analytic function, and the
+  trapezoidal rule with 64 nodes converges geometrically. Agrees with
+  `1 - V` of [EQ-INF-GOF-CVM-002] to `1e-15` where both are resolved and
+  keeps relative accuracy of `1e-14` out to `x = 30` (`1 - V(12) =
+  1.975e-27`).
+- Code: `inference.cramer_von_mises_asymptotic_sf`,
+  `inference.cramer_von_mises_asymptotic_cdf`.
+- Source: the form is the inversion of the Laplace transform
+  `E exp(-s W) = (sqrt(2 s)/sinh sqrt(2 s))^(1/2)` of the limit law
+  `W = sum Z_k^2/(k pi)^2` of [REF-ANDERSON-DARLING-1952], written down from
+  memory of that classical derivation and not copied from a source opened
+  here; it is checked numerically against [EQ-INF-GOF-CVM-002] (agreement to
+  `1e-15`) and against the moments `1/6` and `1/20`, so no page-level
+  citation is claimed.
+
+### EQ-INF-GOF-CVM-004 — Finite-n Cramer-von Mises approximation
+
+`P(W_n^2 <= x) = V(x) + psi_1(x)/n + O(n^-2)` for `1/(12 n) < x < n/3`,
+with `psi_1(x) = V(x)/12 - sum_(k>=0) A_k(x)/(pi k!)` and
+`A_k` the five-term sum of products of
+`Gamma(k + 1/2)`, `Gamma(k + 3/2)`, `exp(-z) (y/2)^(3/2) (K_(1/4)(z) +
+K_(3/4)(z))/sqrt(pi)` and `exp(-z) (y/2)^(5/2) (2 K_(1/4)(z) + 3 K_(3/4)(z) -
+K_(5/4)(z))/sqrt(pi)` with `y = (4k + 3)/(2 sqrt(x))`, `(4k + 1)/(2 sqrt(x))`
+or `(4k + 5)/(2 sqrt(x))` and `z = y^2/4`, as in the source. The p-value is
+`1 - V(x) - psi_1(x)/n`, with `0` at or above `n/3` and `1` at or below
+`1/(12 n)`.
+
+- Domain: `n >= 2`; fully specified continuous null.
+- Meaning: Csorgo-Faraway correction of the limit law. Measured against
+  seeded simulations of three million samples, the upper-tail probabilities
+  `p <= 0.5` are accurate to about `0.01` at `n = 2`, `0.004` at `n = 3`,
+  `0.003` at `n = 4` and `1e-3` from `n = 5` on; at `n = 2` the far tail is
+  badly resolved in relative terms. Reproduces SciPy's `cramervonmises`
+  p-value to `1e-14` where that function is accurate (it truncates its
+  series at `1e-7`).
+- Code: `inference.cramer_von_mises_cdf`, `inference.cramer_von_mises_sf`,
+  `inference.cramer_von_mises_test`.
+- Source: [REF-CSORGO-FARAWAY-1996, equations 1.8 and 1.10] as implemented in
+  SciPy 1.14.1 (`scipy.stats._hypotests._psi1_mod`); the paper was not
+  opened.
+
+### EQ-INF-GOF-CVM-005 — Exact Cramer-von Mises law for one observation
+
+`W_1^2 = 1/12 + (U - 1/2)^2` and `P(W_1^2 <= x) = 2 sqrt(x - 1/12)` for
+`1/12 <= x <= 1/3`, `0` below and `1` above.
+
+- Domain: `n = 1`, `U ~ Uniform(0, 1)`.
+- Meaning: `(U - 1/2)^2 <= t` exactly when `U` lies in an interval of length
+  `2 sqrt(t)`.
+- Code: `inference.cramer_von_mises_cdf`, `inference.cramer_von_mises_sf`,
+  `inference.cramer_von_mises_test`.
+- Source: elementary (derived from [EQ-INF-GOF-CVM-001]).

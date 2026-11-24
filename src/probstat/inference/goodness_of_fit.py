@@ -20,12 +20,18 @@ from probstat.foundations.validation import (
 )
 
 from .anderson_darling import anderson_darling_cdf
+from .cramer_von_mises import cramer_von_mises_sf
+from .normality import _cramer_von_mises
 
 _KS_EXACT_MAX_N = 100
 _KS_SMIRNOV_SWITCH = 1e-7
 _KS_EXACT_LABEL = "exact finite-n one-sample KS"
 _KS_ASYMPTOTIC_LABEL = "Stephens-corrected asymptotic one-sample KS"
 _AD_EXACT_LABEL = "exact n = 1 Anderson-Darling law (fully specified null)"
+_CVM_EXACT_LABEL = "exact n = 1 Cramer-von Mises law (fully specified null)"
+_CVM_CF_LABEL = (
+    "Csorgo-Faraway finite-n Cramer-von Mises law (fully specified null)"
+)
 _AD_MARSAGLIA_LABEL = (
     "Marsaglia-Marsaglia finite-n Anderson-Darling law (fully specified null)"
 )
@@ -141,6 +147,66 @@ class AndersonDarlingResult:
                 raise ValueError("method must not be empty")
         object.__setattr__(self, "statistic", statistic)
         object.__setattr__(self, "sample_size", sample_size)
+
+
+@dataclass(frozen=True, slots=True)
+class CramerVonMisesResult:
+    """One-sample Cramer-von Mises statistic and null p-value.
+
+    The p-value is the fully specified-null (case 0) tail probability. It is
+    conservative (too large) when the null parameters were estimated from
+    the tested data; ``normality_tests`` (normal null) and
+    ``bootstrap_goodness_of_fit`` (any fitted family) calibrate that case.
+
+    Args:
+        statistic: ``W^2 = 1/(12 n) + sum (F(x_(i)) - (2i - 1)/(2n))^2``,
+            non-negative and at most ``n/3``.
+        sample_size: Positive number of observations.
+        p_value: Null-tail probability ``P(W_n^2 >= w)`` in ``[0, 1]``.
+        method: Label identifying the p-value computation.
+
+    References:
+        [REF-STEPHENS-1974], [REF-CSORGO-FARAWAY-1996].
+
+    """
+
+    statistic: float
+    sample_size: int
+    p_value: float
+    method: str = _CVM_CF_LABEL
+
+    def __post_init__(self) -> None:
+        """Validate the statistic, sample size, p-value, and method label.
+
+        Raises:
+            TypeError: If a field has an invalid type.
+            ValueError: If the statistic is negative or above ``n/3``, the
+                sample size is zero, the p-value lies outside ``[0, 1]``, or
+                the method label is empty.
+
+        References:
+            [EQ-INF-GOF-CVM-001], [REF-STEPHENS-1974].
+
+        """
+        if isinstance(self.statistic, bool) or not isinstance(self.statistic, Real):
+            raise TypeError("statistic must be a real number")
+        statistic = float(self.statistic)
+        sample_size = require_non_negative_integer(
+            self.sample_size, name="sample_size"
+        )
+        if sample_size == 0:
+            raise ValueError("sample_size must be positive")
+        if not 0.0 <= statistic <= sample_size / 3.0 * (1.0 + 1e-12):
+            raise ValueError("statistic must lie in [0, n/3]")
+        if not isinstance(self.method, str):
+            raise TypeError("method must be a string")
+        if not self.method.strip():
+            raise ValueError("method must not be empty")
+        object.__setattr__(self, "statistic", statistic)
+        object.__setattr__(self, "sample_size", sample_size)
+        object.__setattr__(
+            self, "p_value", require_probability(self.p_value, name="p_value")
+        )
 
 
 def kolmogorov_smirnov_test(
@@ -456,6 +522,60 @@ def anderson_darling_test(
     statistic = max(0.0, -count - math.fsum(weighted_logs) / count)
     p_value = 1.0 - anderson_darling_cdf(statistic, count)
     return AndersonDarlingResult(statistic, count, p_value, method)
+
+
+def cramer_von_mises_test(
+    values: Iterable[object],
+    distribution: CumulativeDistribution,
+) -> CramerVonMisesResult:
+    """Run a one-sample Cramer-von Mises test against a fully specified CDF.
+
+    The statistic ``W^2 = 1/(12 n) + sum_i (F(x_(i)) - (2i - 1)/(2n))^2``
+    weights the squared distance between the empirical and null CDFs equally
+    over the null probability scale (the Anderson-Darling statistic divides
+    by ``t (1 - t)`` and so weights the tails; this one is less sensitive to
+    isolated outliers). The p-value ``P(W_n^2 >= w)`` assumes a **fully
+    specified** continuous null (case 0): it is exact for ``n = 1`` and the
+    Csorgo-Faraway approximation, an asymptotic law with an ``O(1/n)``
+    correction whose error is of order ``n^-2``, otherwise (see
+    :func:`cramer_von_mises_cdf` for the measured accuracy: about ``1e-3``
+    absolute for ``n >= 5``, up to ``1e-2`` for ``n = 2``).
+
+    Warning:
+        If ``distribution`` was fitted to ``values``, the statistic is
+        stochastically smaller than under case 0 and this p-value is too
+        large. Use ``normality_tests`` for a fitted normal and
+        ``bootstrap_goodness_of_fit`` for any fitted family.
+
+    Args:
+        values: Non-empty iterable of finite real observations.
+        distribution: Fully specified continuous null CDF.
+
+    Returns:
+        Statistic, sample size, case-0 p-value, and method label.
+
+    Raises:
+        TypeError: If inputs violate the iterable or CDF protocol.
+        ValueError: If observations or returned probabilities are invalid.
+
+    Equation:
+        [EQ-INF-GOF-CVM-001], [EQ-INF-GOF-CVM-004], [EQ-INF-GOF-CVM-005].
+
+    References:
+        [REF-STEPHENS-1974], [REF-CSORGO-FARAWAY-1996],
+        [REF-ANDERSON-DARLING-1952].
+
+    """
+    sample = tuple(sorted(coerce_finite_sample(values)))
+    if not isinstance(distribution, CumulativeDistribution):
+        raise TypeError("distribution must expose cdf(x)")
+    probabilities = tuple(_cdf_probability(distribution, value) for value in sample)
+    count = len(sample)
+    statistic = _cramer_von_mises(probabilities)
+    method = _CVM_EXACT_LABEL if count == 1 else _CVM_CF_LABEL
+    return CramerVonMisesResult(
+        statistic, count, cramer_von_mises_sf(statistic, count), method
+    )
 
 
 def _cdf_probability(distribution: CumulativeDistribution, value: float) -> float:

@@ -573,9 +573,14 @@ covariance is too small (the verdict is `"optimistic"`), below the lower
 bound too large (`"pessimistic"`). `nees_test_from_filters` and
 `nis_test_from_filter` read a `KalmanFilterResult` directly. For a set of
 (error, covariance) pairs, `covariance_realism` tests the squared Mahalanobis
-distances against `chi2(n)` with the Kolmogorov-Smirnov and Anderson-Darling
-tests of `probstat.inference` and estimates the scale factor `mean(d^2)/n`
-with a chi-square confidence interval [EQ-FILT-REALISM-001].
+distances against `chi2(n)` with the Kolmogorov-Smirnov, Cramer-von Mises and
+Anderson-Darling tests of `probstat.inference` (all three p-values are in the
+result; `test=` chooses the one behind `p_value`, Anderson-Darling by default,
+`"cramer-von-mises"` for the choice of the NASA conjunction-assessment
+handbook, which finds it less sensitive to outliers) and estimates the scale
+factor `mean(d^2)/n` with a chi-square confidence interval
+[EQ-FILT-REALISM-001]. The null law `chi2(n)` is fully specified, so the
+p-values are valid as they stand [EQ-INF-GOF-CVM-004].
 
 **What happens to a Gaussian after a nonlinear map?** It stops being
 Gaussian, and a single unscented transform keeps only two moments.

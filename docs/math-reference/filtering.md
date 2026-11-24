@@ -119,15 +119,17 @@ approximately `chi2(L)`.
 then `N n s / c ~ chi2(N n)` and
 `c in [N n s/chi2_(1-alpha/2)(N n), N n s/chi2_(alpha/2)(N n)]`.
 
-- Domain: `N` independent Gaussian errors; shape judged by Kolmogorov-Smirnov
-  and Anderson-Darling tests of `d_i^2` against `chi2(n)`.
+- Domain: `N` independent Gaussian errors; shape judged by Kolmogorov-Smirnov,
+  Cramer-von Mises [EQ-INF-GOF-CVM-004] and Anderson-Darling tests of
+  `d_i^2` against `chi2(n)`.
 - Meaning: the multiplier by which the covariances should be inflated
   (above one: too small).
 - Code: `filtering.covariance_realism`.
 - Source: [REF-NASA-CARA-HANDBOOK] (Appendix I: squared Mahalanobis
   distances against a chi-square law, the first-moment scale factor, and
   empirical-distribution tests; the handbook has no confidence interval for
-  the factor and recommends Cramer-von Mises, not offered here),
+  the factor and recommends Cramer-von Mises, offered as
+  `test="cramer-von-mises"`),
   [REF-HORWOOD-ETAL-2014] (not opened), [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
   - [REF-NASA-CARA-HANDBOOK](../references.md#ref-nasa-cara-handbook): *NASA Spacecraft Conjunction Assessment and Collision Avoidance Best Practices Handbook*, Office of the Chief Engineer, NASA/SP-20230002470 Rev 1, February 2023 ([ntrs.nasa.gov](https://ntrs.nasa.gov/citations/20230002470)), and its Appendix N, "Pc Calculation Approaches", update of 20 March 2024 ([ntrs.nasa.gov](https://ntrs.nasa.gov/citations/20240003468)). Opened and read: Appendix I of the handbook (position errors normalised by the covariance, the squared Mahalanobis distance compared with a chi-square law of three degrees of freedom, the first-moment test whose expected value is 3 and from which a single scale factor is read, empirical-distribution-function tests with the Cramer-von Mises statistic recommended over Anderson-Darling because of outliers in practice, resampling to a standard sample size, and p-value thresholds of 5, 2 and 1 percent), Section M.4 (probability dilution, with the term and the maximum probability attributed to Alfano 2005b), and Appendix N (Eq. N-1, the disc integral of Foster and Estes, and Eq. N-2, the error-function form attributed to Alfano 2005a). No threshold or factor of the handbook is encoded in this library; the realism procedure is compared in ADR-0140.
   - [REF-HORWOOD-ETAL-2014](../references.md#ref-horwood-etal-2014): J. T. Horwood, J. M. Aristoff, N. Singh, A. B. Poore, and M. D. Hejduk. "Beyond covariance realism: a new metric for uncertainty realism." *Proceedings of SPIE* 9092 (Signal and Data Processing of Small Targets), 2014. Bibliographic details confirmed from a citing software documentation page; the paper was not opened (a search found only a related 2016 working-group report by the same group, which could not be retrieved). Cited for the idea of judging a covariance by the distribution of squared Mahalanobis distances against a chi-square law; the procedure of [REF-NASA-CARA-HANDBOOK] (Appendix I) was read instead.
