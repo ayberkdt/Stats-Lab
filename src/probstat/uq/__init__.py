@@ -9,6 +9,17 @@ recorded as computational experiments, and the auditable
 :class:`UQWorkflowRecord` of a complete study.
 
 Main entry points:
+    ``UncertaintyBudget``: table of ``BudgetEntry`` contributions with the law
+        of propagation (correlation included), Welch-Satterthwaite degrees of
+        freedom, expanded uncertainty, and named combination rules
+        (``root_sum_square``, ``worst_case_sum``, ``mixed_rule``) whose
+        ``CombinedUncertainty`` records say standard uncertainty or bound.
+    ``budget_from_model``: sensitivity coefficients by numerical
+        differentiation, with a second-order linearisation check.
+    ``monte_carlo_budget``: JCGM 101 propagation of distributions with
+        symmetric and shortest coverage intervals;
+        ``compare_with_law_of_propagation`` validates the GUM framework
+        against it.
     ``QuantityOfInterest``: named, unit-carrying output that a decision
         depends on.
     ``verify_solution``: grid-refinement study to a ``SolutionVerification``
@@ -60,6 +71,23 @@ References:
 
 """
 
+from .budget import (
+    BudgetEntry,
+    CombinedUncertainty,
+    Contribution,
+    ExpandedUncertainty,
+    GumValidation,
+    LinearizationCheck,
+    ModelBudget,
+    MonteCarloResult,
+    QuantityKind,
+    UncertaintyBudget,
+    budget_from_model,
+    compare_with_law_of_propagation,
+    monte_carlo_budget,
+    numerical_tolerance,
+    sample_coverage_intervals,
+)
 from .evaluation import (
     FAILURE_POLICIES,
     EvaluationBudgetExceeded,
@@ -119,21 +147,30 @@ __all__ = [
     "FAILURE_POLICIES",
     "UNRELIABLE_SAFETY_FACTOR",
     "WORKFLOW_GUIDE",
+    "BudgetEntry",
+    "CombinedUncertainty",
     "ComputationalExperiment",
+    "Contribution",
     "ConvergenceType",
     "EvaluationBudgetExceeded",
     "EvaluationCache",
+    "ExpandedUncertainty",
     "FailedEvaluation",
     "FailureLog",
     "FailurePolicy",
     "ForwardModel",
     "FrozenMapping",
     "GridConvergenceResult",
+    "GumValidation",
     "LeastSquaresConvergence",
+    "LinearizationCheck",
+    "ModelBudget",
     "ModelEvaluationError",
+    "MonteCarloResult",
     "NumericalErrorBudget",
     "NumericalErrorDistribution",
     "ProblemDirection",
+    "QuantityKind",
     "QuantityOfInterest",
     "RefinementStudy",
     "SolutionVerification",
@@ -141,21 +178,27 @@ __all__ = [
     "StepGuide",
     "StepStatus",
     "UQWorkflowRecord",
+    "UncertaintyBudget",
     "UncertaintyNature",
     "UncertaintySource",
     "UncertaintySourceKind",
     "WorkflowEntry",
     "WorkflowStep",
+    "budget_from_model",
     "classify_convergence",
+    "compare_with_law_of_propagation",
     "evaluate_model",
     "grid_convergence_index",
     "json_safe",
     "least_squares_convergence",
+    "monte_carlo_budget",
+    "numerical_tolerance",
     "observed_order_of_accuracy",
     "refinement_study",
     "representative_spacing",
     "richardson_extrapolation",
     "run_computational_experiment",
+    "sample_coverage_intervals",
     "select_outputs",
     "verify_solution",
 ]
