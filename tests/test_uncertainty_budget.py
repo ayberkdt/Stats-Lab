@@ -13,7 +13,8 @@ References:
     [REF-SATTERTHWAITE-1946], [REF-NELSEN-2006].
     Checks [EQ-UQ-BUDGET-001], [EQ-UQ-BUDGET-002], [EQ-UQ-BUDGET-003],
     [EQ-UQ-BUDGET-004], [EQ-UQ-BUDGET-005], [EQ-UQ-BUDGET-006],
-    [EQ-UQ-BUDGET-007], [EQ-UQ-BUDGET-008], [EQ-UQ-BUDGET-009].
+    [EQ-UQ-BUDGET-007], [EQ-UQ-BUDGET-008], [EQ-UQ-BUDGET-009],
+    [EQ-UQ-BUDGET-010], [EQ-BATCH-001], [EQ-RNG-SPLITMIX-001].
 
 """
 
@@ -21,23 +22,40 @@ from __future__ import annotations
 
 import math
 import operator
+import statistics
 import unittest
+from collections.abc import Sequence
 from dataclasses import replace
 from statistics import NormalDist
 
 from probstat.distributions import Exponential, LogNormal, Normal, Triangular, Uniform
-from probstat.foundations import RandomStream
+from probstat.foundations import (
+    AskTellSession,
+    RandomStream,
+    batch_from_pointwise,
+    run_procedure,
+)
 from probstat.multivariate import delta_method
 from probstat.uq import (
+    AdaptiveMonteCarloResult,
     BudgetEntry,
     CombinedUncertainty,
     QuantityKind,
     UncertaintyBudget,
+    adaptive_monte_carlo_budget,
+    adaptive_monte_carlo_budget_procedure,
+    adaptive_stopping_rule,
+    average_standard_deviation,
     budget_from_model,
     compare_with_law_of_propagation,
     monte_carlo_budget,
     numerical_tolerance,
     sample_coverage_intervals,
+)
+from probstat.uq.budget import (
+    ADEQUACY_OTHER_INTERVAL,
+    ADEQUACY_PROXY,
+    ADEQUACY_STABILIZATION,
 )
 
 
@@ -1290,6 +1308,733 @@ class ValidationOfGumTests(unittest.TestCase):
             compare_with_law_of_propagation(0.0, 1.0, result, coverage_factor=-1.0)
         with self.assertRaises(ValueError):
             compare_with_law_of_propagation(0.0, 1.0, result, interval="widest")
+
+
+def binomial_success_threshold(trials: int, probability: float, alpha: float) -> int:
+    """Return the largest ``k`` with ``P(Binomial(trials, probability) < k) <= alpha``.
+
+    Observing at least ``k`` successes is then not evidence against a true
+    success probability of ``probability`` at the level ``alpha``.
+
+    References:
+        Elementary binomial law; used with [REF-JCGM-101-2008, Section 7.9.3].
+        Checks [EQ-UQ-BUDGET-010].
+
+    """
+    cumulative = 0.0
+    threshold = 0
+    for k in range(trials + 1):
+        # cumulative is P(X < k) here
+        if cumulative <= alpha:
+            threshold = k
+        cumulative += (
+            math.comb(trials, k) * probability**k * (1.0 - probability) ** (trials - k)
+        )
+    return threshold
+
+
+def replay_adaptive(
+    batches: list[list[float]],
+    coverage: float,
+    significant_digits: int,
+    tolerance_divisor: float = 1.0,
+    interval: str = "symmetric",
+) -> tuple[int, bool, float, tuple[float, float, float, float]]:
+    """Replay the clause 7.9.4 loop on recorded batch outputs, independently.
+
+    Uses :mod:`statistics` and ``sample_coverage_intervals`` instead of the
+    library's procedure; returns the number of batches used, whether it
+    stabilised, the final ``delta`` and the four deviations.
+
+    References:
+        [REF-JCGM-101-2008, Section 7.9.4]. Checks [EQ-UQ-BUDGET-010].
+
+    """
+    estimates: list[float] = []
+    uncertainties: list[float] = []
+    lows: list[float] = []
+    highs: list[float] = []
+    pooled: list[float] = []
+    delta = math.inf
+    deviations = (math.inf,) * 4
+    for h, values in enumerate(batches, start=1):
+        pooled.extend(values)
+        estimates.append(statistics.fmean(values))
+        uncertainties.append(statistics.stdev(values))
+        symmetric, shortest = sample_coverage_intervals(values, coverage)
+        low, high = symmetric if interval == "symmetric" else shortest
+        lows.append(low)
+        highs.append(high)
+        if h == 1:
+            continue
+        delta = numerical_tolerance(statistics.stdev(pooled), significant_digits)
+        delta /= tolerance_divisor
+        deviations = (
+            statistics.stdev(estimates) / math.sqrt(h),
+            statistics.stdev(uncertainties) / math.sqrt(h),
+            statistics.stdev(lows) / math.sqrt(h),
+            statistics.stdev(highs) / math.sqrt(h),
+        )
+        if all(2.0 * s <= delta for s in deviations):
+            return h, True, delta, deviations
+    return len(batches), False, delta, deviations
+
+
+def additive_model_arguments() -> tuple[object, list[Uniform], float]:
+    """Return the additive rectangular model, its inputs and the exact endpoint.
+
+    References:
+        [REF-JCGM-101-2008, Section 9.2.3]. Checks [EQ-UQ-BUDGET-010].
+
+    """
+    half = math.sqrt(3.0)
+    return (
+        lambda x: sum(x),
+        [Uniform(-half, half)] * 4,
+        sum_of_rectangles_quantile(0.975, half, 4),
+    )
+
+
+class AdaptiveStoppingRuleTests(unittest.TestCase):
+    """The pure stopping rule on hand-built sequences of batch statistics.
+
+    References:
+        [REF-JCGM-101-2008, Section 7.9.4, steps g, h and k]. Checks
+        [EQ-UQ-BUDGET-010].
+
+    """
+
+    def test_average_standard_deviation_by_hand(self) -> None:
+        """``s^2 = sum (v - mean)^2 / (h (h - 1))`` on small hand cases.
+
+        References:
+            [REF-JCGM-101-2008, Section 7.9.4, step g]. Checks
+            [EQ-UQ-BUDGET-010].
+
+        """
+        # Values 0 and 2: mean 1, sum of squares 2, s^2 = 2 / (2 * 1) = 1.
+        self.assertAlmostEqual(average_standard_deviation((0.0, 2.0)), 1.0)
+        # Values 1.0, 1.2, 1.1: sum of squares 0.02, s^2 = 0.02 / 6.
+        self.assertAlmostEqual(
+            average_standard_deviation((1.0, 1.2, 1.1)), math.sqrt(0.02 / 6.0)
+        )
+        # Equal values give zero; the sample standard deviation over sqrt(h).
+        self.assertEqual(average_standard_deviation((3.0, 3.0, 3.0)), 0.0)
+        data = (0.3, 0.9, 0.4, 0.8, 0.1)
+        self.assertAlmostEqual(
+            average_standard_deviation(data),
+            statistics.stdev(data) / math.sqrt(len(data)),
+        )
+        with self.assertRaises(ValueError):
+            average_standard_deviation((1.0,))
+        with self.assertRaises(ValueError):
+            average_standard_deviation((1.0, math.nan))
+
+    def test_rule_boundary_is_inclusive(self) -> None:
+        """The procedure continues only if ``2 s`` *exceeds* ``delta``.
+
+        References:
+            [REF-JCGM-101-2008, Section 7.9.4, step k]. Checks
+            [EQ-UQ-BUDGET-010].
+
+        """
+        self.assertTrue(adaptive_stopping_rule((1.0,), 2.0))
+        self.assertFalse(adaptive_stopping_rule((1.0,), 1.999))
+        self.assertTrue(adaptive_stopping_rule((0.0, 0.0, 0.0, 0.0), 1e-12))
+        # One value over the line keeps the whole computation going.
+        self.assertFalse(adaptive_stopping_rule((0.1, 0.1, 0.1, 0.6), 1.0))
+        self.assertTrue(adaptive_stopping_rule((0.1, 0.1, 0.1, 0.5), 1.0))
+
+    def test_rule_on_a_hand_built_sequence_of_batch_statistics(self) -> None:
+        """The first ``h`` at which all four ``2 s`` are at most ``delta``.
+
+        Per-batch estimates 1.0, 1.2, 1.1, 1.1 give, by hand with
+        ``delta = 0.1``: ``h = 2``: ``s = 0.1``, ``2 s = 0.2`` (continue);
+        ``h = 3``: ``s = sqrt(0.02/6) = 0.0577``, ``2 s = 0.1155``
+        (continue); ``h = 4``: ``s = sqrt(0.02/12) = 0.0408``, ``2 s = 0.0816``
+        (stop) -- provided the other three statistics are quiet. A noisier
+        right endpoint postpones the stop to the batch where it settles.
+
+        References:
+            [REF-JCGM-101-2008, Section 7.9.4, steps f-l]. Checks
+            [EQ-UQ-BUDGET-010].
+
+        """
+        estimates = (1.0, 1.2, 1.1, 1.1)
+        quiet = (5.0, 5.0, 5.0, 5.0)
+        delta = 0.1
+
+        def first_stop(columns: tuple[tuple[float, ...], ...]) -> int | None:
+            """Return the first ``h >= 2`` at which the rule stops.
+
+            References:
+                [REF-JCGM-101-2008, Section 7.9.4, step k]. Checks
+                [EQ-UQ-BUDGET-010].
+
+            """
+            for h in range(2, len(columns[0]) + 1):
+                deviations = [average_standard_deviation(c[:h]) for c in columns]
+                if adaptive_stopping_rule(deviations, delta):
+                    return h
+            return None
+
+        self.assertAlmostEqual(average_standard_deviation(estimates[:2]), 0.1)
+        self.assertEqual(first_stop((estimates, quiet, quiet, quiet)), 4)
+        # The right endpoint 5.0, 5.2, 5.0, 5.2, 5.1, 5.1 gives by hand:
+        # h = 2: 2 s = 0.2; h = 3: s = sqrt(0.02667/6) = 0.0667, 2 s = 0.133;
+        # h = 4: s = sqrt(0.04/12) = 0.0577, 2 s = 0.1155 (all continue);
+        # h = 5: s = sqrt(0.04/20) = 0.0447, 2 s = 0.0894 (stop).
+        wandering = (5.0, 5.2, 5.0, 5.2, 5.1, 5.1)
+        longer = estimates + (1.1, 1.1)
+        self.assertEqual(
+            first_stop((longer, quiet + (5.0, 5.0), quiet + (5.0, 5.0), wandering)),
+            5,
+        )
+        # Never quiet enough: no stop (the caller then reports stabilized=False).
+        loud = (0.0, 1.0, 0.0, 1.0, 0.0, 1.0)
+        self.assertIsNone(first_stop((loud, loud, loud, loud)))
+
+    def test_rule_validation(self) -> None:
+        """Argument errors of the pure functions.
+
+        References:
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+
+        """
+        with self.assertRaises(ValueError):
+            adaptive_stopping_rule((), 1.0)
+        with self.assertRaises(ValueError):
+            adaptive_stopping_rule((0.1,), 0.0)
+        with self.assertRaises(ValueError):
+            adaptive_stopping_rule((-0.1,), 1.0)
+        with self.assertRaises(ValueError):
+            adaptive_stopping_rule((math.inf,), 1.0)
+
+
+class AdaptiveMonteCarloTests(unittest.TestCase):
+    """The adaptive procedure judged against closed forms and a replay.
+
+    References:
+        [REF-JCGM-101-2008, Sections 7.9.2-7.9.4 and 9.2]. Checks
+        [EQ-UQ-BUDGET-010].
+
+    """
+
+    def test_additive_model_lands_within_its_own_tolerance(self) -> None:
+        """Irwin-Hall endpoints are met to ``delta`` in a stated fraction of seeds.
+
+        With ``ndig = 2`` and ``u(y) = 2`` the tolerance is ``delta = 0.05``.
+        The clause promises no probability (7.9.3, Note 1), and stopping at
+        the first of two batches can be lucky; a fraction of 0.84 of seeds
+        with *both* endpoints within ``delta`` was measured over 200 seeds
+        when this test was written. The assertion is therefore a one-sided
+        binomial one against a deliberately lower success probability 0.70:
+        the count of successes in 30 seeds must reach the threshold that a
+        true rate of 0.70 would fall below with probability at most 0.001.
+
+        References:
+            [REF-JCGM-101-2008, Sections 7.9.3 and 9.2.3]. Checks
+            [EQ-UQ-BUDGET-010].
+
+        """
+        function, laws, exact = additive_model_arguments()
+        seeds = 30
+        successes = 0
+        for seed in range(seeds):
+            result = adaptive_monte_carlo_budget(
+                function,  # type: ignore[arg-type]
+                laws,
+                seed=1000 + seed,
+            )
+            self.assertTrue(result.stabilized)
+            self.assertAlmostEqual(result.delta, 0.05, places=12)
+            self.assertEqual(result.size, result.batches * result.batch_size)
+            low, high = result.symmetric_interval
+            if abs(low + exact) <= result.delta and abs(high - exact) <= result.delta:
+                successes += 1
+        self.assertGreaterEqual(
+            successes, binomial_success_threshold(seeds, 0.70, 1e-3)
+        )
+
+    def test_lognormal_product_lands_within_its_own_tolerance(self) -> None:
+        """The exact lognormal interval is met to ``delta`` in a stated fraction.
+
+        ``Y = X1 X2 / X3`` with lognormal inputs is lognormal with ``mu =
+        -0.4`` and ``sigma = sqrt(0.0469)``; the 95 % endpoints are
+        ``exp(mu -/+ 1.96 sigma)``. A fraction 0.86 of 200 seeds was
+        measured; the assertion uses the same lower-rate binomial threshold
+        as the additive case.
+
+        References:
+            [REF-JCGM-101-2008, Sections 5.9 and 7.9.3]. Checks
+            [EQ-UQ-BUDGET-010].
+
+        """
+        mus = (0.1, -0.2, 0.3)
+        sigmas = (0.10, 0.15, 0.12)
+        law = NormalDist(
+            mus[0] + mus[1] - mus[2], math.sqrt(sum(s * s for s in sigmas))
+        )
+        exact = (math.exp(law.inv_cdf(0.025)), math.exp(law.inv_cdf(0.975)))
+        seeds = 30
+        successes = 0
+        for seed in range(seeds):
+            result = adaptive_monte_carlo_budget(
+                lambda x: x[0] * x[1] / x[2],
+                [LogNormal(m, s) for m, s in zip(mus, sigmas, strict=True)],
+                seed=2000 + seed,
+            )
+            self.assertTrue(result.stabilized)
+            low, high = result.symmetric_interval
+            if (
+                abs(low - exact[0]) <= result.delta
+                and abs(high - exact[1]) <= result.delta
+            ):
+                successes += 1
+        self.assertGreaterEqual(
+            successes, binomial_success_threshold(seeds, 0.70, 1e-3)
+        )
+
+    def test_loop_matches_an_independent_replay(self) -> None:
+        """Recorded batches, replayed with ``statistics``, give the same stop.
+
+        The batches are recorded by driving the procedure through an
+        ask-tell session; the replay recomputes every per-batch quantity,
+        the pooled ``delta`` and the four deviations without the library's
+        loop, for both coverage-interval kinds and with ``delta / 5``.
+
+        References:
+            [REF-JCGM-101-2008, Section 7.9.4, steps d-l]. Checks
+            [EQ-UQ-BUDGET-010].
+
+        """
+        cases = (
+            ("symmetric", 1.0, 2),
+            ("shortest", 1.0, 2),
+            ("symmetric", 5.0, 1),
+        )
+        for kind, divisor, ndig in cases:
+            with self.subTest(interval=kind, divisor=divisor):
+                procedure = adaptive_monte_carlo_budget_procedure(
+                    [Normal(0.0, 0.5)],
+                    significant_digits=ndig,
+                    batch_size=2000,
+                    max_batches=40,
+                    seed=11,
+                    interval=kind,
+                    tolerance_divisor=divisor,
+                )
+                session = AskTellSession(procedure)
+                batches: list[list[float]] = []
+                while (pending := session.ask()) is not None:
+                    outputs = [math.exp(point[0]) for point in pending.points]
+                    batches.append(outputs)
+                    session.tell(outputs)
+                result = session.result
+                h, stable, delta, deviations = replay_adaptive(
+                    batches, 0.95, ndig, divisor, kind
+                )
+                self.assertEqual(result.batches, h)
+                self.assertEqual(len(batches), h)
+                self.assertEqual(result.stabilized, stable)
+                self.assertAlmostEqual(result.delta, delta, places=12)
+                for found, expected in zip(
+                    (
+                        result.estimate_deviation,
+                        result.uncertainty_deviation,
+                        result.low_deviation,
+                        result.high_deviation,
+                    ),
+                    deviations,
+                    strict=True,
+                ):
+                    self.assertAlmostEqual(found, expected, places=12)
+                everything = [v for batch in batches for v in batch]
+                self.assertAlmostEqual(result.estimate, statistics.fmean(everything))
+                self.assertAlmostEqual(
+                    result.standard_uncertainty, statistics.stdev(everything)
+                )
+                self.assertEqual(result.interval, kind)
+                self.assertEqual(result.size, len(everything))
+
+    def test_not_stabilized_when_max_batches_is_too_small(self) -> None:
+        """Running out of batches is reported, never raised or hidden.
+
+        Three significant digits need far more than two batches; the record
+        says ``stabilized=False`` and its deviations are over the line.
+
+        References:
+            [REF-JCGM-101-2008, Section 7.9.3, Note 1]. Checks
+            [EQ-UQ-BUDGET-010].
+
+        """
+        function, laws, _ = additive_model_arguments()
+        result = adaptive_monte_carlo_budget(
+            function,  # type: ignore[arg-type]
+            laws,
+            significant_digits=3,
+            max_batches=2,
+            seed=5,
+        )
+        self.assertFalse(result.stabilized)
+        self.assertEqual(result.batches, 2)
+        self.assertEqual(result.size, 20000)
+        self.assertAlmostEqual(result.delta, 0.005, places=12)
+        deviations = (
+            result.estimate_deviation,
+            result.uncertainty_deviation,
+            result.low_deviation,
+            result.high_deviation,
+        )
+        self.assertFalse(adaptive_stopping_rule(deviations, result.delta))
+        # The numbers are still those of all 20 000 trials.
+        self.assertAlmostEqual(
+            result.standard_uncertainty,
+            2.0,
+            delta=5.0 * result.uncertainty_standard_error,
+        )
+
+    def test_scheduling_independence(self) -> None:
+        """Same seed, different chunking of the same batches: identical results.
+
+        Each batch draws from its own child stream, so evaluating a request
+        whole, in chunks of any size, through an ask-tell session answered
+        piecewise, or through the plain function changes nothing, bit for bit.
+
+        References:
+            [REF-JCGM-101-2008, Section 7.9.4]; [EQ-BATCH-001]. Checks
+            [EQ-UQ-BUDGET-010].
+
+        """
+        laws = [Uniform(-1.0, 1.0), Normal(0.0, 0.5), Exponential(2.0)]
+
+        def model(x: Sequence[float]) -> float:
+            """Return a smooth nonlinear model of three inputs.
+
+            References:
+                Test fixture; no mathematical equation of the library.
+
+            """
+            return x[0] * x[1] + math.exp(0.3 * x[2])
+
+        settings = {
+            "significant_digits": 2,
+            "batch_size": 1500,
+            "max_batches": 12,
+            "seed": 77,
+        }
+        plain = adaptive_monte_carlo_budget(model, laws, **settings)  # type: ignore[arg-type]
+        batch_model = batch_from_pointwise(model)
+
+        def run(chunk: int | None) -> AdaptiveMonteCarloResult:
+            """Run the procedure with batches of at most ``chunk`` points.
+
+            References:
+                [EQ-BATCH-001]. Checks [EQ-UQ-BUDGET-010].
+
+            """
+            return run_procedure(
+                adaptive_monte_carlo_budget_procedure(laws, **settings),  # type: ignore[arg-type]
+                batch_model,
+                max_batch_size=chunk,
+            )
+
+        self.assertEqual(run(None), plain)
+        for chunk in (1, 7, 500, 1499, 1500, 4000):
+            with self.subTest(chunk=chunk):
+                self.assertEqual(run(chunk), plain)
+        session = AskTellSession(
+            adaptive_monte_carlo_budget_procedure(laws, **settings)
+        )  # type: ignore[arg-type]
+        while (pending := session.ask()) is not None:
+            half = pending.size // 2
+            first = batch_model(pending.points[:half])
+            second = batch_model(pending.points[half:])
+            session.tell([*first, *second])
+        self.assertEqual(session.result, plain)
+        self.assertEqual(session.evaluations["model"], plain.size)
+        self.assertEqual(session.requests, plain.batches)
+
+    def test_batches_do_not_depend_on_how_many_follow(self) -> None:
+        """The points of batch ``b`` depend on ``(seed, b)`` only.
+
+        References:
+            [EQ-RNG-SPLITMIX-001]. Checks [EQ-UQ-BUDGET-010].
+
+        """
+        laws = [Normal(0.0, 1.0), Normal(1.0, 2.0)]
+
+        def first_requests(limit: int) -> list[tuple[tuple[float, ...], ...]]:
+            """Return the points of the first two requests.
+
+            References:
+                [EQ-BATCH-001]. Checks [EQ-UQ-BUDGET-010].
+
+            """
+            session = AskTellSession(
+                adaptive_monte_carlo_budget_procedure(
+                    laws, batch_size=300, max_batches=limit, seed=3
+                )
+            )
+            points = []
+            for _ in range(2):
+                pending = session.ask()
+                assert pending is not None
+                points.append(pending.points)
+                session.tell([p[0] + p[1] for p in pending.points])
+            return points
+
+        self.assertEqual(first_requests(2), first_requests(9))
+        # A different seed gives different points.
+        other = AskTellSession(
+            adaptive_monte_carlo_budget_procedure(
+                laws, batch_size=300, max_batches=2, seed=4
+            )
+        ).ask()
+        assert other is not None
+        self.assertNotEqual(other.points, first_requests(2)[0])
+
+    def test_stream_seed_and_copula(self) -> None:
+        """A stream seed works, and a copula correlation reaches the batches.
+
+        ``Y = X1 + X2`` with correlation ``r = 0.5`` of normal scores has
+        standard deviation ``sqrt(2 (1 + r))`` for normal marginals.
+
+        References:
+            [REF-JCGM-101-2008, Section 6.4.8]; [REF-NELSEN-2006]. Checks
+            [EQ-UQ-BUDGET-010].
+
+        """
+        result = adaptive_monte_carlo_budget(
+            lambda x: x[0] + x[1],
+            [Normal(0.0, 1.0), Normal(0.0, 1.0)],
+            seed=RandomStream(5),
+            correlation=((1.0, 0.5), (0.5, 1.0)),
+            significant_digits=1,
+        )
+        self.assertTrue(result.correlated)
+        self.assertAlmostEqual(
+            result.standard_uncertainty,
+            math.sqrt(3.0),
+            delta=5.0 * result.uncertainty_standard_error,
+        )
+        self.assertEqual(
+            result,
+            adaptive_monte_carlo_budget(
+                lambda x: x[0] + x[1],
+                [Normal(0.0, 1.0), Normal(0.0, 1.0)],
+                seed=RandomStream(5),
+                correlation=((1.0, 0.5), (0.5, 1.0)),
+                significant_digits=1,
+            ),
+        )
+
+    def test_clause_batch_size_and_divisor(self) -> None:
+        """``M = max(ceil(100/(1 - p)), 10^4)`` and ``delta / 5`` of Section 8.2.
+
+        References:
+            [REF-JCGM-101-2008, Section 7.9.4, step b, and Section 8.2]. Checks
+            [EQ-UQ-BUDGET-010].
+
+        """
+        function, laws, _ = additive_model_arguments()
+        usual = adaptive_monte_carlo_budget(
+            function,  # type: ignore[arg-type]
+            laws,
+            significant_digits=1,
+            seed=8,
+        )
+        self.assertEqual(usual.batch_size, 10_000)
+        self.assertAlmostEqual(usual.delta, 0.5, places=12)
+        strict = adaptive_monte_carlo_budget(
+            function,  # type: ignore[arg-type]
+            laws,
+            significant_digits=1,
+            tolerance_divisor=5.0,
+            seed=8,
+        )
+        self.assertAlmostEqual(strict.delta, 0.1, places=12)
+        self.assertEqual(strict.tolerance_divisor, 5.0)
+        self.assertGreaterEqual(strict.batches, usual.batches)
+        # p = 0.999: J = 100 / 0.001 = 100 000 exceeds 10^4 (7.9.4 b).
+        procedure = adaptive_monte_carlo_budget_procedure(
+            [Normal(0.0, 1.0)], coverage=0.999, seed=1
+        )
+        first = AskTellSession(procedure).ask()
+        assert first is not None
+        self.assertEqual(first.size, 100_000)
+
+    def test_failures_of_the_model(self) -> None:
+        """A non-finite value or a constant model is an error, not a result.
+
+        References:
+            Project validation policy [REF-PROBSTAT-VALIDATION];
+            [REF-JCGM-101-2008, Section 7.9.2] (``delta`` needs ``u(y) > 0``).
+
+        """
+        with self.assertRaises(ValueError):
+            adaptive_monte_carlo_budget(
+                lambda x: math.nan, [Normal(0.0, 1.0)], batch_size=100, seed=1
+            )
+        with self.assertRaises(ValueError):
+            adaptive_monte_carlo_budget(
+                lambda x: 1.0, [Normal(0.0, 1.0)], batch_size=100, seed=1
+            )
+        with self.assertRaises(ValueError):
+            run_procedure(
+                adaptive_monte_carlo_budget_procedure(
+                    [Normal(0.0, 1.0)], batch_size=100, seed=1
+                ),
+                lambda points: [0.0],
+            )
+
+    def test_validation(self) -> None:
+        """Arguments are checked when the function or procedure is called.
+
+        References:
+            Project validation policy [REF-PROBSTAT-VALIDATION].
+
+        """
+        laws = [Normal(0.0, 1.0)]
+
+        def procedure(**changes: object) -> object:
+            """Build the procedure with one argument replaced.
+
+            References:
+                Project validation policy [REF-PROBSTAT-VALIDATION].
+
+            """
+            arguments: dict[str, object] = {"seed": 1}
+            arguments.update(changes)
+            return adaptive_monte_carlo_budget_procedure(laws, **arguments)  # type: ignore[arg-type]
+
+        self.assertIsNotNone(procedure())
+        for changes in (
+            {"significant_digits": 0},
+            {"coverage": 1.0},
+            {"coverage": 0.0},
+            {"batch_size": 10},
+            {"batch_size": 20, "coverage": 0.99},
+            {"max_batches": 1},
+            {"interval": "widest"},
+            {"tolerance_divisor": 0.0},
+            {"label": ""},
+        ):
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                procedure(**changes)
+        with self.assertRaises(TypeError):
+            procedure(seed="a")
+        with self.assertRaises(TypeError):
+            adaptive_monte_carlo_budget_procedure([object()], seed=1)  # type: ignore[list-item]
+        with self.assertRaises(ValueError):
+            adaptive_monte_carlo_budget_procedure([], seed=1)
+        with self.assertRaises(TypeError):
+            adaptive_monte_carlo_budget("f", laws, seed=1)  # type: ignore[arg-type]
+
+
+class AdaptiveValidationTests(unittest.TestCase):
+    """The Section 8.2 requirement read from the stabilisation statistics.
+
+    References:
+        [REF-JCGM-101-2008, Sections 8.1.3 and 8.2]. Checks
+        [EQ-UQ-BUDGET-009] and [EQ-UQ-BUDGET-010].
+
+    """
+
+    def test_adequacy_uses_the_stabilisation_deviations(self) -> None:
+        """Adequate exactly when twice each deviation is at most ``delta / 5``.
+
+        References:
+            [REF-JCGM-101-2008, Section 8.2]. Checks [EQ-UQ-BUDGET-009].
+
+        """
+        function, laws, _ = additive_model_arguments()
+        result = adaptive_monte_carlo_budget(
+            function,  # type: ignore[arg-type]
+            laws,
+            significant_digits=1,
+            tolerance_divisor=5.0,
+            seed=21,
+        )
+        self.assertTrue(result.stabilized)
+        outcome = compare_with_law_of_propagation(
+            0.0, 2.0, result, significant_digits=1
+        )
+        self.assertEqual(outcome.delta, 0.5)
+        self.assertTrue(outcome.validated)
+        self.assertTrue(outcome.monte_carlo_adequate)
+        self.assertEqual(outcome.adequacy_basis, ADEQUACY_STABILIZATION)
+        # delta / 5 = 0.1: a deviation of 0.05 passes, one above does not.
+        quiet = replace(
+            result,
+            estimate_deviation=0.01,
+            uncertainty_deviation=0.01,
+            low_deviation=0.01,
+            high_deviation=0.05,
+        )
+        noisy = replace(quiet, high_deviation=0.0501)
+        self.assertTrue(
+            compare_with_law_of_propagation(
+                0.0, 2.0, quiet, significant_digits=1
+            ).monte_carlo_adequate
+        )
+        self.assertFalse(
+            compare_with_law_of_propagation(
+                0.0, 2.0, noisy, significant_digits=1
+            ).monte_carlo_adequate
+        )
+        # A run to the plain tolerance (delta, not delta / 5) is not enough.
+        plain_run = replace(
+            result,
+            estimate_deviation=0.2,
+            uncertainty_deviation=0.2,
+            low_deviation=0.2,
+            high_deviation=0.2,
+        )
+        self.assertFalse(
+            compare_with_law_of_propagation(
+                0.0, 2.0, plain_run, significant_digits=1
+            ).monte_carlo_adequate
+        )
+
+    def test_other_interval_is_not_assessed(self) -> None:
+        """An adaptive run that tracked the other interval is not called adequate.
+
+        References:
+            [REF-JCGM-101-2008, Section 8.2]. Checks [EQ-UQ-BUDGET-009].
+
+        """
+        function, laws, _ = additive_model_arguments()
+        result = adaptive_monte_carlo_budget(
+            function,  # type: ignore[arg-type]
+            laws,
+            significant_digits=1,
+            seed=22,
+        )
+        outcome = compare_with_law_of_propagation(
+            0.0, 2.0, result, significant_digits=1, interval="shortest"
+        )
+        self.assertFalse(outcome.monte_carlo_adequate)
+        self.assertEqual(outcome.adequacy_basis, ADEQUACY_OTHER_INTERVAL)
+
+    def test_fixed_size_result_keeps_the_proxy(self) -> None:
+        """A plain :class:`MonteCarloResult` still gets the standard-error proxy.
+
+        References:
+            [REF-JCGM-101-2008, Section 8.2]. Checks [EQ-UQ-BUDGET-009].
+
+        """
+        function, laws, _ = additive_model_arguments()
+        result = monte_carlo_budget(
+            function,  # type: ignore[arg-type]
+            laws,
+            size=20000,
+            seed=3,
+        )
+        outcome = compare_with_law_of_propagation(
+            0.0, 2.0, result, significant_digits=1
+        )
+        self.assertEqual(outcome.adequacy_basis, ADEQUACY_PROXY)
 
 
 if __name__ == "__main__":

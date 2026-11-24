@@ -24,7 +24,9 @@ the mathematics re-derived.
   uncertainty and a bound cannot be combined silently; `budget_from_model`
   with a second-order check of the linearisation; `monte_carlo_budget` with
   symmetric and shortest coverage intervals and
-  `compare_with_law_of_propagation` (JCGM 100 and JCGM 101, both read).
+  `compare_with_law_of_propagation` (JCGM 100 and JCGM 101, both read);
+  `adaptive_monte_carlo_budget` implements the adaptive procedure of JCGM 101
+  clause 7.9.4 and reports `stabilized=False` when the batch limit is reached.
 - **Tolerance factors, margins, performance measures**
   (`probstat.propagation`, ADR-0135): exact one- and two-sided normal
   tolerance factors with Howe's approximation as a named alternative,
@@ -77,8 +79,6 @@ the mathematics re-derived.
   apart is empirical (ADR-0141).
 - `maximum_disc_probability` does not prove the maximum unique for
   strongly anisotropic covariances (ADR-0140).
-- The adaptive Monte Carlo procedure of JCGM 101, clause 7.9.4, is not
-  implemented; the sample size is fixed by the caller (ADR-0133).
 - The exact two-sided tolerance factor costs about half a second per
   evaluation (ADR-0135).
 

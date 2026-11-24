@@ -64,7 +64,8 @@ Welch-Satterthwaite factor applied to correlated inputs.
    8.1.3 (endpoint differences against the tolerance of Section 7.9.2) and
    reports a proxy for the accuracy requirement of Section 8.2
    ([EQ-UQ-BUDGET-009]). Seeds go through `foundations.random_streams`: each
-   input draws from a child stream.
+   input draws from a child stream. (The proxy applies to a result of fixed
+   size; see item 10 for an adaptive result.)
 8. **`correlation` means two things, stated each time.** In a budget it is the
    correlation of the input *estimates* (GUM 5.2.2). In `monte_carlo_budget`
    it is the correlation of a Gaussian copula on normal scores
@@ -72,6 +73,44 @@ Welch-Satterthwaite factor applied to correlated inputs.
    marginals.
 9. **Placement.** `probstat.uq`, layer 2, importing only `distributions`,
    `optimization`, `linalg` and `foundations`.
+10. **Adaptive Monte Carlo (JCGM 101, 7.9.4).**
+    `adaptive_monte_carlo_budget` runs batches of `M = max(J, 10^4)` trials,
+    `J = ceil(100/(1 - p))` (step b; `batch_size=None` means this, an explicit
+    value is allowed because the Supplement calls the choice arbitrary). For
+    each batch it forms the estimate, `u(y)` and the endpoints of the chosen
+    interval (symmetric or shortest), from the second batch on the standard
+    deviations of the four averages (steps g and h), `delta` from the `u(y)`
+    of all values (steps i and j, `numerical_tolerance`), and stops when no
+    `2 s` exceeds `delta` (step k; equality stabilises). The final record is
+    a `MonteCarloResult` subclass computed from all values, plus the batch
+    count, the four deviations, `delta`, `ndig`, the tracked interval and
+    `stabilized` ([EQ-UQ-BUDGET-010]). The stopping rule and the deviation
+    are separate pure functions (`adaptive_stopping_rule`,
+    `average_standard_deviation`) so that they are tested on hand-built
+    sequences without sampling. When `max_batches` (at least 2, because step
+    f always makes a second application) is used up, the function returns
+    with `stabilized=False`; it never raises for that and never reports
+    stabilisation it did not test. A model with zero spread leaves `delta`
+    undefined and raises. `tolerance_divisor=5` is the `delta / 5` of
+    Section 8.2.
+11. **Batch contract.** Batch `b` draws from the child stream `("batch", b)`
+    of the seed, so its points do not depend on how earlier batches were
+    evaluated or on how many batches follow. The procedure form
+    `adaptive_monte_carlo_budget_procedure` yields one `EvaluationRequest`
+    per batch (ADR-0132) and the plain function is a thin wrapper that runs
+    it with the pointwise model; `monte_carlo_budget` shares the sampling and
+    summarising helpers, so its results are unchanged. The three ways of
+    driving it (`run_procedure` with any `max_batch_size`, an ask-tell
+    session, the plain function) give equal records.
+12. **Validation uses the clause's own statistic.** For an adaptive result
+    `compare_with_law_of_propagation` sets `monte_carlo_adequate` by testing
+    twice each of the four deviations against `delta / 5`, with `delta` from
+    the GUM `u(y)` of the comparison (Section 8.2 replaces `delta` by
+    `delta / 5` in step k). The deviations cover the interval the run
+    tracked; asking for the other interval gives `False` with the basis
+    `ADEQUACY_OTHER_INTERVAL` rather than a guess. A fixed-size result keeps
+    the standard-error proxy, labelled `ADEQUACY_PROXY` in the new
+    `GumValidation.adequacy_basis` field.
 
 ## Consequences
 
@@ -81,6 +120,13 @@ Welch-Satterthwaite factor applied to correlated inputs.
   them; tests do the same and pin no seeded digits.
 - Pure-Python Monte Carlo costs about a second per 10^5 trials of a cheap
   model (more with a copula, one quantile call per input and trial).
+- The adaptive procedure keeps every model value in memory (`h M` floats) and
+  its stopping test uses a standard deviation estimated from `h` batch values
+  that can be as few as two, so it can stop early by luck. Over 200 seeds the
+  additive and the lognormal test cases met `delta` at both endpoints in
+  about 84 % and 86 % of runs, not 95 %; the tests assert a deliberately
+  lower rate on the binomial scale. Section 8.2 is the clause's own remedy
+  (`delta / 5`).
 - The Gaussian copula is one dependence model. It is a choice of the caller,
   not implied by a coefficient.
 
@@ -92,8 +138,10 @@ Supplement 1: 5.3, 6.4.2-6.4.8, 7.2-7.7, 7.9.2-7.9.4, 8.1-8.2, 9.2.3. The
 Supplement's additive rectangular example (interval `+/- 2 sqrt(3)(2 -
 (3/5)^(1/4))`) is reproduced by the tests against an independent Irwin-Hall
 oracle. The copula reference is bibliographic only; the construction is
-re-derived. Left out deliberately: the adaptive Monte Carlo procedure
-(Section 7.9.4), JCGM 102 (multivariate outputs, not opened), higher-order
+re-derived. Left out deliberately: the histogram variant of Section 8.2
+Note (cell frequencies updated as the computation proceeds, to avoid holding
+all values), the stabilisation test on `y` and `u(y)` only (7.9.4 Note 5),
+JCGM 102 (multivariate outputs, not opened), higher-order
 Taylor terms in the law of propagation, Type B degrees of freedom from a
 relative uncertainty of `u` (GUM G.4.2; the caller supplies `dof`), and any
 mission-standard table of budget terms.
@@ -104,7 +152,11 @@ mission-standard table of budget terms.
 two-term correlation formula; `multivariate.delta_method` as an independent
 oracle; a hand-computed Welch-Satterthwaite example (`900/73`) with the t
 quantile pinned from R; the exact lognormal law of a product/quotient; the
-Irwin-Hall law of a sum of rectangles; the shortest interval equal to the
+Irwin-Hall law of a sum of rectangles (also for the adaptive procedure,
+with the success fraction judged on the binomial scale); the stopping rule
+on hand-built sequences of batch statistics; a replay of the loop with
+`statistics`; scheduling independence of the batch contract; the shortest
+interval equal to the
 symmetric one for a symmetric law and strictly shorter for an exponential
 law; copula marginals and variances; the decision rule of the validation.
 

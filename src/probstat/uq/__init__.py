@@ -20,6 +20,12 @@ Main entry points:
         symmetric and shortest coverage intervals;
         ``compare_with_law_of_propagation`` validates the GUM framework
         against it.
+    ``adaptive_monte_carlo_budget``: the adaptive procedure of JCGM 101
+        clause 7.9.4 (batches of trials until the estimate, ``u(y)`` and the
+        interval endpoints have stabilised to a numerical tolerance); its
+        record says whether it stabilised, and
+        ``adaptive_monte_carlo_budget_procedure`` is the batch-contract form
+        for simulators evaluated elsewhere.
     ``QuantityOfInterest``: named, unit-carrying output that a decision
         depends on.
     ``verify_solution``: grid-refinement study to a ``SolutionVerification``
@@ -72,6 +78,7 @@ References:
 """
 
 from .budget import (
+    AdaptiveMonteCarloResult,
     BudgetEntry,
     CombinedUncertainty,
     Contribution,
@@ -82,6 +89,10 @@ from .budget import (
     MonteCarloResult,
     QuantityKind,
     UncertaintyBudget,
+    adaptive_monte_carlo_budget,
+    adaptive_monte_carlo_budget_procedure,
+    adaptive_stopping_rule,
+    average_standard_deviation,
     budget_from_model,
     compare_with_law_of_propagation,
     monte_carlo_budget,
@@ -147,6 +158,7 @@ __all__ = [
     "FAILURE_POLICIES",
     "UNRELIABLE_SAFETY_FACTOR",
     "WORKFLOW_GUIDE",
+    "AdaptiveMonteCarloResult",
     "BudgetEntry",
     "CombinedUncertainty",
     "ComputationalExperiment",
@@ -184,6 +196,10 @@ __all__ = [
     "UncertaintySourceKind",
     "WorkflowEntry",
     "WorkflowStep",
+    "adaptive_monte_carlo_budget",
+    "adaptive_monte_carlo_budget_procedure",
+    "adaptive_stopping_rule",
+    "average_standard_deviation",
     "budget_from_model",
     "classify_convergence",
     "compare_with_law_of_propagation",
