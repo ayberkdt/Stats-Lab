@@ -78,15 +78,45 @@ often ambiguous and whose probabilistic content is unstated.
 ## Sources and verification
 
 - NIST/SEMATECH e-Handbook, Section 7.2.6.3 (read): Howe's formula and the
-  noncentral-t one-sided factor.
-- NASA/SP-2016-6105 Rev 2 web edition, Sections 6.2 and 6.7 (read through a
-  page summary): tracking of technical performance measures and performance
-  margins. No percentage or threshold was taken from it.
-- Howe (1969), Krishnamoorthy and Mathew (2009), Odeh and Owen (1980),
-  Helton (2011), and Pilch, Trucano and Helton (SAND2006-5001) were confirmed
-  bibliographically only; the mathematics was re-derived. No tabulated value
-  was copied. The QMU definitions here are stated in this ADR and the module
-  docstring and are consistent with, but not copied from, that literature.
+  noncentral-t one-sided factor, with worked values. Compared with the code
+  in the source verification pass: Howe `N = 43`, `p = 0.90`, confidence 0.99
+  gives 2.217 (code 2.2173); the one-sided noncentral-t factor for the same
+  inputs gives 1.8740 from the quantile 12.28834 (code 1.87395), and 4.4111
+  for `N = 6` (code 4.41108). All three agree and are pinned
+  (`test_published_tables_and_examples`,
+  `test_published_exact_and_howe_examples`). The page's Natrella
+  approximation and Guenther's correction are not implemented.
+- Young (2016), "Normal Tolerance Interval Procedures in the tolerance
+  Package", The R Journal 8(2) (read; open access) [REF-YOUNG-2016]. Its Eqs.
+  (6) and (7) state the one-sided factor and the two-sided integral equation
+  of Krishnamoorthy and Mathew; the one-sided factors it prints for `n` in
+  {10, 20}, `alpha` in {0.01, 0.05}, `P` in {0.95, 0.99} (eight values to six
+  decimals) are reproduced exactly by `normal_tolerance_factor`, and the exact
+  two-sided interval it prints for the twenty milk-container fills
+  (0.9523519, 1.054848) is reproduced to the printed digits by
+  `normal_tolerance_interval`. These are the published exact values available
+  without a book. The equation (7) of the paper is written with a noncentral
+  chi-square quantile; the equation solved here (EQ-PROP-TOL-003) is a
+  different representation that agrees numerically on the example, and its
+  equivalence was not proved.
+- Pilch, Trucano and Helton, SAND2006-5001 (OSTI, read) [REF-PILCH-TRUCANO-HELTON-2006]:
+  margin as the distance by which a performance threshold is exceeded (for a
+  limit not to be exceeded, the distance below it) and margin/uncertainty
+  ratios (called confidence ratios by Sharp and Wood-Schultz). This agrees with
+  `Requirement` and `M / U`. The report defines no formula for the
+  uncertainty `U`; the definitions of `U` (Wilks, normal tolerance, moments)
+  and the aleatory-epistemic split are this library's, as stated above.
+- NASA/SP-2016-6105 Rev 2, PDF (read): technical performance measures as
+  measures tied to the measures of performance and monitored against
+  anticipated values (Section 4.2), performance margins among the tools for
+  assessing a change (Section 6.2), TPM monitoring and trending in technical
+  assessment (Section 6.7), the glossary entries for margin and TPM, and mass
+  and power margins as required TPMs in the SEMP outline (Appendix J, Section
+  7.4). No percentage or threshold was taken from it; the `low-ratio`,
+  `below-plan` flags and every contingency fraction are this library's inputs.
+- Not opened: Howe (1969), Krishnamoorthy and Mathew (2009), Odeh and Owen
+  (1980) (a book and a paywalled paper; no printed table of theirs was
+  available), and Helton (2011) (no open full text found).
 - Oracles: base R 4.6.2 `qt(p, nu, ncp)` for the one-sided factor (agreement
   to `1e-9` at `n <= 100`; at `n = 1000` R warns about lost precision and the
   library factor instead satisfies the defining integral, checked by an

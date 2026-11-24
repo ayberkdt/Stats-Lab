@@ -9,8 +9,9 @@ coverage judged on its binomial standard error. Each R pin carries the
 expression that produced it. The tests never call R.
 
 References:
-    [REF-HOWE-1969], [REF-KRISHNAMOORTHY-MATHEW-2009], [REF-HELTON-2011],
-    [REF-NASA-SEH-2016], [REF-CLOPPER-PEARSON-1934], [REF-WILKS-1941].
+    [REF-HOWE-1969], [REF-KRISHNAMOORTHY-MATHEW-2009], [REF-YOUNG-2016],
+    [REF-NIST-SEMATECH-HANDBOOK], [REF-HELTON-2011], [REF-NASA-SEH-2016],
+    [REF-CLOPPER-PEARSON-1934], [REF-WILKS-1941].
     Checks [EQ-PROP-TOL-001], [EQ-PROP-TOL-002], [EQ-PROP-TOL-003],
     [EQ-PROP-TOL-004], [EQ-PROP-MARGIN-001], [EQ-PROP-MARGIN-002],
     [EQ-PROP-MARGIN-003].
@@ -195,6 +196,49 @@ class OneSidedFactorTests(unittest.TestCase):
                     normal_tolerance_factor(n, p, gamma), expected, delta=1e-9
                 )
 
+    def test_published_tables_and_examples(self) -> None:
+        """One-sided factors against two open publications' printed values.
+
+        Young (2016), Section "Normal tolerance interval procedures", prints
+        the one-sided factors ``K.table(n = c(10, 20), alpha = c(0.01, 0.05),
+        P = c(0.95, 0.99), side = 1)`` to six decimals, and the NIST/SEMATECH
+        handbook (Section 7.2.6.3) works the noncentral-t factor for
+        ``N = 43, p = 0.90`` at confidence 0.99 (1.8740, from the quantile
+        12.28834) and ``N = 6`` (4.4111).
+
+        References:
+            [REF-YOUNG-2016, Section "Normal tolerance interval procedures"],
+            [REF-NIST-SEMATECH-HANDBOOK]. Checks [EQ-PROP-TOL-001].
+
+        """
+        young = (
+            (0.95, 0.99, 10, 3.738315),
+            (0.95, 0.99, 20, 2.807866),
+            (0.95, 0.95, 10, 2.910963),
+            (0.95, 0.95, 20, 2.396002),
+            (0.99, 0.99, 10, 5.073725),
+            (0.99, 0.99, 20, 3.831558),
+            (0.99, 0.95, 10, 3.981118),
+            (0.99, 0.95, 20, 3.295157),
+        )
+        for p, gamma, n, printed in young:
+            with self.subTest(n=n, p=p, gamma=gamma):
+                self.assertAlmostEqual(
+                    normal_tolerance_factor(n, p, gamma), printed, delta=6e-7
+                )
+        self.assertAlmostEqual(
+            normal_tolerance_factor(43, 0.90, 0.99), 1.8740, delta=5e-5
+        )
+        self.assertAlmostEqual(
+            normal_tolerance_factor(6, 0.90, 0.99), 4.4111, delta=5e-5
+        )
+        # t' / sqrt(n) with the printed noncentral-t quantile of the handbook.
+        self.assertAlmostEqual(
+            normal_tolerance_factor(43, 0.90, 0.99),
+            12.28834 / math.sqrt(43),
+            delta=2e-5,
+        )
+
     def test_brute_force_integral_confirms_large_n(self) -> None:
         """At ``n = 1000`` (where R's ``qt`` warns) the factor solves its integral.
 
@@ -274,6 +318,32 @@ class TwoSidedFactorTests(unittest.TestCase):
             with self.subTest(n=n, p=p, gamma=gamma):
                 value = normal_tolerance_factor(n, p, gamma, sided="two-sided")
                 self.assertAlmostEqual(value, expected, delta=1e-8)
+
+    def test_published_exact_and_howe_examples(self) -> None:
+        """The exact interval of a printed example and the handbook's Howe value.
+
+        Young (2016) applies ``normtol.int(milk, alpha = 0.05, P = 0.90, side
+        = 2, method = "EXACT")`` to the twenty milk-container fills of
+        Krishnamoorthy and Mathew (2009) and prints the interval
+        ``(0.9523519, 1.054848)`` about the mean 1.0036; its Eq. (7) is the
+        integral equation solved here. The NIST/SEMATECH handbook evaluates
+        Howe's formula for ``N = 43``, ``p = 0.90``, confidence 0.99 as 2.217.
+
+        References:
+            [REF-YOUNG-2016], [REF-NIST-SEMATECH-HANDBOOK], [REF-HOWE-1969].
+            Checks [EQ-PROP-TOL-003] and [EQ-PROP-TOL-004].
+
+        """
+        milk = (
+            0.968, 0.982, 1.030, 1.003, 1.046, 1.020, 0.997, 1.010, 1.027, 1.010,
+            0.973, 1.000, 1.044, 0.995, 1.020, 0.993, 0.984, 0.981, 0.997, 0.992,
+        )  # fmt: skip
+        interval = normal_tolerance_interval(milk, 0.90, 0.95)
+        self.assertAlmostEqual(interval.mean, 1.0036, delta=1e-12)
+        self.assertAlmostEqual(interval.lower, 0.9523519, delta=1e-6)
+        self.assertAlmostEqual(interval.upper, 1.054848, delta=1e-6)
+        howe = normal_tolerance_factor(43, 0.90, 0.99, sided="two-sided", method="howe")
+        self.assertAlmostEqual(howe, 2.217, delta=5e-4)
 
     def test_python_brute_force_quadrature(self) -> None:
         """The factor solves the equation integrated in the opposite order.

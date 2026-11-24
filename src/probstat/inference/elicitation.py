@@ -50,8 +50,13 @@ Genest and Zidek (1986) is the survey in which this taxonomy is set out
 (confirmed bibliographically only), and Clemen and Winkler (1999) discuss the
 practical choice for risk analysis.
 
-Performance-based weights follow the classical model of Cooke (1991). Each
-expert states quantiles for *seed variables* whose realizations are known:
+Performance-based weights follow the classical model of Cooke (1991) as
+described for EXCALIBUR by Hanea and Nane (2021), whose chapter was compared
+with the code (calibration statistic and its ``k`` degrees of freedom,
+information, intrinsic range with the 10 % overshoot default, weights and
+cut-off optimisation agree; its worked values are pinned in the tests). Cooke's
+book itself was not opened. Each expert states quantiles for *seed variables*
+whose realizations are known:
 
 - :func:`cooke_calibration` is the p-value of the likelihood-ratio statistic
   ``2 N I(s, p)`` against the chi-square law with ``k`` degrees of freedom,
@@ -80,9 +85,10 @@ as independent. The decision maker uses global (not item-specific) weights and
 a common background and intrinsic range for all experts on an item.
 
 References:
-    [REF-OHAGAN-ETAL-2006], [REF-COOKE-1991], [REF-GENEST-ZIDEK-1986],
-    [REF-CLEMEN-WINKLER-1999], [REF-SHELF-OAKLEY-OHAGAN],
-    [REF-NASA-PRA-2011], [REF-MALCOLM-1959], [REF-VOSE-2008].
+    [REF-OHAGAN-ETAL-2006], [REF-COOKE-1991], [REF-HANEA-NANE-2021],
+    [REF-GENEST-ZIDEK-1986], [REF-CLEMEN-WINKLER-1999],
+    [REF-SHELF-OAKLEY-OHAGAN], [REF-NASA-PRA-2011], [REF-MALCOLM-1959],
+    [REF-VOSE-2008].
 
 """
 
@@ -1914,7 +1920,7 @@ class CalibrationScore:
         n_realizations: ``N``.
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
 
@@ -1936,7 +1942,7 @@ class InformationScore:
         by_item: Relative information of each item.
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
 
@@ -1957,7 +1963,7 @@ class ExpertAssessment:
         weight: Normalised weight of the decision maker.
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
 
@@ -1980,7 +1986,7 @@ class DecisionMakerScore:
             probabilities, per seed item.
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
 
@@ -2000,7 +2006,7 @@ class CutoffCandidate:
         score: The decision maker's :class:`DecisionMakerScore`.
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
 
@@ -2030,7 +2036,7 @@ class CookeResult:
             was given).
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
 
@@ -2068,7 +2074,7 @@ def cooke_bin_probabilities(
         [EQ-INF-ELICIT-005].
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
     grid = _probability_grid(probabilities)
@@ -2132,7 +2138,8 @@ def cooke_calibration(
         [EQ-INF-ELICIT-005].
 
     References:
-        [REF-COOKE-1991], [REF-CASELLA-BERGER-2002, Section 10.3].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021, Section 3.2.1],
+        [REF-CASELLA-BERGER-2002, Section 10.3].
 
     """
     grid = _probability_grid(probabilities)
@@ -2180,7 +2187,7 @@ def _fraction(
         [EQ-INF-ELICIT-006].
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
     if background == "uniform":
@@ -2223,7 +2230,7 @@ def cooke_intrinsic_ranges(
         [EQ-INF-ELICIT-006].
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
     kind = _background(background)
@@ -2276,7 +2283,7 @@ def _item_information(
         [EQ-INF-ELICIT-006].
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
     lower, upper = bounds
@@ -2326,7 +2333,7 @@ def cooke_information(
         [EQ-INF-ELICIT-006].
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
     kind = _background(background)
@@ -2367,7 +2374,7 @@ def cooke_weights(
         [EQ-INF-ELICIT-007].
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
     c = _reals(calibration, name="calibration")
@@ -2404,7 +2411,7 @@ def _decision_maker_item(
         [EQ-INF-ELICIT-006], [EQ-INF-ELICIT-007].
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
     lower, upper = bounds
@@ -2460,7 +2467,7 @@ def _decision_maker_score(
         [EQ-INF-ELICIT-007].
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
     theory = cooke_bin_probabilities(grid)
@@ -2560,7 +2567,7 @@ def cooke_classical_model(
             [EQ-INF-ELICIT-007].
 
         References:
-            [REF-COOKE-1991].
+            [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
         """
         w = cooke_weights(c_scores, i_scores, alpha)
@@ -2718,7 +2725,7 @@ def cooke_decision_maker_law(
         [EQ-INF-ELICIT-007].
 
     References:
-        [REF-COOKE-1991].
+        [REF-COOKE-1991], [REF-HANEA-NANE-2021].
 
     """
     kind = _background(background)

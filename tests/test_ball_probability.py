@@ -10,7 +10,8 @@ standard error. The tests never call R.
 References:
     [REF-RUBEN-1962], [REF-SHEIL-OMUIRCHEARTAIGH-1977], [REF-IMHOF-1961],
     [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995], [REF-FOSTER-ESTES-1992],
-    [REF-ALFANO-2005], [REF-CHAN-2008]. Checks [EQ-MVN-DISC-001],
+    [REF-ALFANO-2005], [REF-ALFANO-2005B], [REF-CHAN-2008],
+    [REF-NASA-CARA-HANDBOOK]. Checks [EQ-MVN-DISC-001],
     [EQ-MVN-RICE-001], [EQ-MVN-BALL-001], [EQ-MVN-SMALLDISC-001],
     [EQ-MVN-DILUTION-001].
 
@@ -195,6 +196,69 @@ class DiscQuadratureTests(unittest.TestCase):
                     result.probability / exact.probability, 1.0, places=8
                 )
                 self.assertTrue(result.converged)
+
+    def test_matches_the_published_one_dimensional_form(self) -> None:
+        """Quadrature equals the error-function integral of the NASA handbook.
+
+        Appendix N of the NASA conjunction assessment handbook (Eq. N-2,
+        attributed there to Alfano 2005) writes the probability of the disc of
+        combined radius ``R`` about the miss position ``(x_miss, y_miss)`` for
+        a covariance with principal sigmas ``(sx, sy)`` as
+        ``1 / sqrt(8 pi sx^2) int_(-R)^(R) [erf(y_+) - erf(y_-)]
+        exp(-(u + x_miss)^2 / (2 sx^2)) du`` with
+        ``y_pm = (y_miss pm sqrt(R^2 - u^2)) / (sqrt(2) sy)``. The integral is
+        evaluated here by Simpson's rule in ``u = R sin(theta)`` (no edge
+        singularity) and compared with the rotated quadrature of the library.
+
+        References:
+            [REF-NASA-CARA-HANDBOOK, Appendix N Eq. N-2],
+            [REF-ALFANO-2005]. Checks [EQ-MVN-DISC-001].
+
+        """
+
+        def alfano(sx: float, sy: float, xm: float, ym: float, radius: float) -> float:
+            """Return the handbook's one-dimensional integral.
+
+            References:
+                [REF-NASA-CARA-HANDBOOK]. Checks [EQ-MVN-DISC-001].
+
+            """
+            count = 4000
+            lo, hi = -math.pi / 2.0, math.pi / 2.0
+            step = (hi - lo) / count
+
+            def integrand(theta: float) -> float:
+                """Return the integrand with ``du = R cos(theta) dtheta``.
+
+                References:
+                    [REF-NASA-CARA-HANDBOOK]. Checks [EQ-MVN-DISC-001].
+
+                """
+                root = radius * math.cos(theta)
+                u = radius * math.sin(theta)
+                yp = (ym + root) / (math.sqrt(2.0) * sy)
+                yn = (ym - root) / (math.sqrt(2.0) * sy)
+                gap = math.erf(yp) - math.erf(yn)
+                return gap * math.exp(-((u + xm) ** 2) / (2.0 * sx**2)) * root
+
+            total = integrand(lo) + integrand(hi)
+            for i in range(1, count):
+                total += (4 if i % 2 else 2) * integrand(lo + i * step)
+            return total * step / 3.0 / math.sqrt(8.0 * math.pi * sx**2)
+
+        cases = (
+            (200.0, 50.0, 120.0, 80.0, 20.0),
+            (1.0, 2.0, 3.0, 0.5, 1.0),
+            (50.0, 5.0, 10.0, 40.0, 30.0),
+            (10.0, 10.0, 0.0, 0.0, 4.0),
+        )
+        for sx, sy, xm, ym, radius in cases:
+            with self.subTest(sx=sx, sy=sy, xm=xm, ym=ym, radius=radius):
+                want = alfano(sx, sy, xm, ym, radius)
+                got = gaussian_disc_probability(
+                    (xm, ym), ((sx**2, 0.0), (0.0, sy**2)), radius
+                )
+                self.assertAlmostEqual(got.probability / want, 1.0, places=7)
 
     def test_far_tail_keeps_relative_accuracy(self) -> None:
         """A probability near ``1e-20`` agrees with the series to 8 digits.
@@ -501,7 +565,7 @@ class SmallDiscAndDilutionTests(unittest.TestCase):
         """For an isotropic covariance the maximum is ``R^2 / (e d^2)``.
 
         References:
-            [REF-ALFANO-2005]. Checks [EQ-MVN-DILUTION-001].
+            [REF-ALFANO-2005B]. Checks [EQ-MVN-DILUTION-001].
 
         """
         result = maximum_disc_probability(
@@ -515,7 +579,7 @@ class SmallDiscAndDilutionTests(unittest.TestCase):
         """The maximizer is at least as good as a fine grid of Rice values.
 
         References:
-            [REF-ALFANO-2005], [REF-CHAN-2008]. Checks [EQ-MVN-DILUTION-001],
+            [REF-ALFANO-2005B]. Checks [EQ-MVN-DILUTION-001],
             [EQ-MVN-RICE-001].
 
         """
@@ -536,7 +600,7 @@ class SmallDiscAndDilutionTests(unittest.TestCase):
         """A mean inside the disc has supremum one and raises ``ValueError``.
 
         References:
-            [REF-ALFANO-2005]. Checks [EQ-MVN-DILUTION-001].
+            [REF-ALFANO-2005B]. Checks [EQ-MVN-DILUTION-001].
 
         """
         with self.assertRaises(ValueError):

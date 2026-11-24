@@ -10296,7 +10296,7 @@ contingency `= C_q - point estimate`.
 - Domain: paired joint samples.
 - Meaning: probability of meeting both cost and schedule targets.
 - Code: `cost.joint_confidence_level`, `cost.cost_for_joint_confidence`.
-- Source: [REF-NASA-CEH-2015].
+- Source: [REF-NASA-CEH-2015] (Appendix J, Section J.1: the same definition).
 
 ### EQ-COST-LEARN-001 — Learning-curve exponent
 
@@ -21384,9 +21384,11 @@ consequence I..V.
   `a = d - 1` and `N eps >= 2 (a + ln(1/beta))` the exponent is at least
   `ln(1/beta)`. Never smaller than the exact size.
 - Code: `reliability.scenario_sample_size` (`explicit_size`).
-- Source: derived in this library from the Chernoff bound; the form
-  resembles the sufficient sizes quoted in the scenario literature
-  ([REF-CAMPI-GARATTI-2008]) but was not copied from it.
+- Source: derived in this library from the Chernoff bound. It has the form of
+  the explicit size `(2 / eps)(ln(1 / beta) + d)` of Eq. (4) of
+  [REF-CAMPI-GARATTI-PRANDINI-2009] with `d - 1` in place of `d` (so it is
+  `2 / eps` samples smaller, and still never below the exact size);
+  [REF-CAMPI-GARATTI-2008] states the exact condition.
 
 ### EQ-REL-SCENARIO-003 — Wait-and-judge violation level
 
@@ -21414,8 +21416,9 @@ constraints of the computed solution.
   constraint is one piecewise-smooth, generally non-convex constraint, so no
   smoothing of the indicator is needed.
 - Code: `reliability.solve_chance_constrained`.
-- Source: elementary; the approximation itself is described in
-  [REF-LUEDTKE-AHMED-2008] and [REF-NEMIROVSKI-SHAPIRO-2006].
+- Source: elementary; the same sample approximation is defined in Section 2
+  of [REF-LUEDTKE-AHMED-2008] (preprint read), with `gamma = 0` the scenario
+  program.
 
 ### EQ-REL-CHANCE-NORMAL-001 — Linear chance constraint with normal coefficients
 
@@ -21429,7 +21432,9 @@ probability is `Phi(-(b - mu'x) / sqrt(x' Sigma x))`.
   `x' Sigma x`.
 - Code: `reliability.normal_linear_chance_margin`,
   `reliability.normal_linear_violation_probability`.
-- Source: elementary; see [REF-NEMIROVSKI-SHAPIRO-2006] for the setting.
+- Source: elementary; the convexity for normal coefficients and a violation
+  level of at most one half is stated in the introduction of
+  [REF-NEMIROVSKI-SHAPIRO-2006] (preprint read).
 
 ### EQ-REL-CHANCE-FREE-001 — Distribution-free chance constraint
 
@@ -21494,7 +21499,9 @@ the bound is `xbar + k s` (upper) or `xbar - k s` (lower).
 - Code: `propagation.normal_tolerance_factor`,
   `propagation.normal_tolerance_bound`,
   `propagation.tolerance._noncentral_t_quantile`.
-- Source: [REF-KRISHNAMOORTHY-MATHEW-2009], [REF-NIST-SEMATECH-HANDBOOK].
+- Source: [REF-NIST-SEMATECH-HANDBOOK] (formula and worked values 1.8740 and
+  4.4111), [REF-YOUNG-2016] (Eq. 6 and eight printed values, reproduced to six
+  decimals), [REF-KRISHNAMOORTHY-MATHEW-2009] (not opened).
 
 ### EQ-PROP-TOL-002 — Noncentral t distribution function as a chi integral
 
@@ -21526,8 +21533,11 @@ where `r(z)` solves `Phi(z / sqrt(n) + r) - Phi(z / sqrt(n) - r) = p`.
 - Code: `propagation.normal_tolerance_factor`,
   `propagation.normal_tolerance_interval`,
   `propagation.tolerance._two_sided_exact_factor`.
-- Source: [REF-KRISHNAMOORTHY-MATHEW-2009], [REF-ODEH-OWEN-1980] (the
-  integral equation is derived here).
+- Source: [REF-YOUNG-2016] (Eq. 7, a different representation of the same
+  defining probability; the exact interval it prints for the milk data is
+  reproduced to six decimals), [REF-KRISHNAMOORTHY-MATHEW-2009] and
+  [REF-ODEH-OWEN-1980] (neither opened); the integral equation of this form is
+  derived here.
 
 ### EQ-PROP-TOL-004 — Howe approximation of the two-sided factor
 
@@ -21541,7 +21551,8 @@ with `chi2_(1-gamma; nu)` the `(1 - gamma)`-quantile of the chi-square law.
   is slightly missed for moderate `n`.
 - Code: `propagation.normal_tolerance_factor` (`method="howe"`),
   `propagation.tolerance._howe_factor`.
-- Source: [REF-HOWE-1969], [REF-NIST-SEMATECH-HANDBOOK].
+- Source: [REF-NIST-SEMATECH-HANDBOOK] (formula and the worked value 2.217),
+  [REF-HOWE-1969] (not opened).
 
 ### EQ-PROP-MARGIN-001 — Margin, uncertainty, and confidence ratio
 
@@ -21560,8 +21571,11 @@ Upper limit `L`: `M = L - y*`, `U = y_bound - y*`. Lower limit: `M = y* - L`,
 - Code: `propagation.Requirement`, `propagation.quantify_margin`,
   `propagation.quantify_margin_mixed`,
   `propagation.TechnicalPerformanceMeasure`.
-- Source: [REF-HELTON-2011], [REF-PILCH-TRUCANO-HELTON-2006],
-  [REF-NASA-SEH-2016].
+- Source: [REF-PILCH-TRUCANO-HELTON-2006] (read: margin as the distance
+  beyond the threshold, or below a limit, and margin/uncertainty ratios; the
+  report gives no formula for the uncertainty, so `U` is this library's
+  definition), [REF-NASA-SEH-2016] (read: tracking of performance measures and
+  margins), [REF-HELTON-2011] (not opened).
 
 ### EQ-PROP-MARGIN-002 — Growth allowance and system margin arithmetic
 
@@ -21844,8 +21858,11 @@ only under independence.
   each deadline.
 - Code: `cost.cost_schedule_samples`, `cost.joint_cost_schedule_confidence`,
   `cost.cost_schedule_frontier`, `cost.IsoConfidenceFrontier`.
-- Source: [REF-NASA-CEH-2015] (the joint confidence level; its appendix could
-  not be opened, so the definition rests on the probability identity above).
+- Source: [REF-NASA-CEH-2015] (Appendix J, read: the joint confidence level
+  as the probability of meeting both the cost and the schedule target, and
+  probabilistic cost loading of a probabilistic schedule with time-dependent
+  and time-independent costs, Section J.1.6.3, which is the structure of the
+  sum above); the inequality is the probability identity stated.
 ### EQ-INF-ELICIT-001 — Quantile-function least squares for elicited judgements
 
 `min_theta sum_i w_i (Q(p_i; theta) - v_i)^2` over the parameters `theta` of a
@@ -21930,7 +21947,9 @@ frequencies `s_j` of the `N` realizations; `I(s, pi) = sum_j s_j ln(s_j / pi_j)`
   chi-square approximation, adequate for moderate `N`); `C = 1` when
   `s = pi`.
 - Code: `inference.cooke_calibration`, `inference.cooke_bin_probabilities`.
-- Source: [REF-COOKE-1991], [REF-CASELLA-BERGER-2002].
+- Source: [REF-HANEA-NANE-2021] (Section 3.2.1, Eq. 1: statistic, bins and 3
+  degrees of freedom for three percentiles; worked values 0.83 and 0.39
+  reproduced), [REF-COOKE-1991] (not opened), [REF-CASELLA-BERGER-2002].
 
 ### EQ-INF-ELICIT-006 — Cooke information score and intrinsic range
 
@@ -21950,7 +21969,10 @@ log-uniform background).
   are; independent of the realizations except through the range.
 - Code: `inference.cooke_information`, `inference.cooke_intrinsic_ranges`,
   `inference.elicitation._item_information`.
-- Source: [REF-COOKE-1991].
+- Source: [REF-HANEA-NANE-2021] (Section 3.1: intrinsic range and the 10 %
+  overshoot default; Section 3.2.2, Eq. 2 and Table 2: information, reproduced
+  to the table's rounding). The log-scale overshoot for the log-uniform
+  background is a convention of this library. [REF-COOKE-1991] (not opened).
 
 ### EQ-INF-ELICIT-007 — Cooke weights and the global-weights decision maker
 
@@ -21968,7 +21990,9 @@ times information (the smaller cut-off on a tie).
 - Code: `inference.cooke_weights`, `inference.cooke_classical_model`,
   `inference.cooke_decision_maker_law`,
   `inference.elicitation._decision_maker_item`.
-- Source: [REF-COOKE-1991], [REF-NASA-PRA-2011].
+- Source: [REF-HANEA-NANE-2021] (Sections 3.3, 4 and 4.1: combined score,
+  global weights, cut-off at the calibration scores, optimised decision
+  maker), [REF-COOKE-1991] (not opened), [REF-NASA-PRA-2011].
 ## One-at-a-time swings and Fourier amplitude sensitivity testing
 
 ### EQ-SENS-TORNADO-001 — One-at-a-time swing and share of squared half-swings
@@ -22054,9 +22078,15 @@ at least two apart; hence `N >= 2 M omega_max + 1` and
   set up to order `M` then end at `omega_max / 2`, below `omega_max`. The
   spacing of at least two is an empirical rule of this library: with the
   consecutive pair (1, 2) the Ishigami first-order errors were near 0.1,
-  with (1, 3) near 0.02.
+  with (1, 3) near 0.02. It is not part of the published frequency plan: the
+  open descriptions of extended FAST give `omega = (N - 1) / (2 M)`, a largest
+  complementary frequency `omega / (2 M)` and the others spread uniformly
+  between 1 and it (a set that coincides with this one wherever this library
+  accepts the curve length) and no spacing rule, so they accept shorter curves.
 - Code: `sensitivity.fast_sample_size`, `sensitivity.fast_frequencies`.
-- Source: [REF-SALTELLI-TARANTOLA-CHAN-1999] (bibliographic); re-derived.
+- Source: [REF-SALTELLI-TARANTOLA-CHAN-1999] (the paper itself was not opened;
+  the frequency plan was compared with the OpenTURNS theory page and the R
+  `sensitivity::fast99` source, which implement it); re-derived.
 
 ### EQ-SENS-RBD-001 — Random balance design first-order estimator
 
@@ -22105,7 +22135,10 @@ eigenvalues of `Sigma = V diag(s1^2, s2^2) V'`; evaluated with `u = R sin(theta)
   The error reported is the Gauss-Kronrod estimate, not a bound.
 - Code: `multivariate.gaussian_disc_probability`,
   `multivariate.ball_probability._normal_interval`.
-- Source: [REF-FOSTER-ESTES-1992], [REF-CHAN-2008], [REF-ALFANO-2005].
+- Source: [REF-NASA-CARA-HANDBOOK] (Appendix N, Eq. N-1: the disc integral
+  of Foster and Estes; Eq. N-2: the error-function form of Alfano, used as a
+  test oracle), [REF-FOSTER-ESTES-1992] and [REF-ALFANO-2005] (neither
+  opened). The rotated quadrature itself is derived here.
 
 ### EQ-MVN-RICE-001 — Isotropic ball probability as a noncentral chi-square law
 
@@ -22120,7 +22153,8 @@ eigenvalues of `Sigma = V diag(s1^2, s2^2) V'`; evaluated with `u = R sin(theta)
 - Code: `multivariate.isotropic_gaussian_ball_probability`,
   `multivariate.noncentral_chi_square_cdf`,
   `multivariate.ball_probability._poisson_chi_square`.
-- Source: [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995], [REF-CHAN-2008].
+- Source: [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995]; derived here (the Rice-law
+  form could not be attributed to [REF-CHAN-2008], which was not opened).
 
 ### EQ-MVN-BALL-001 — Ruben series for a positive-definite quadratic form
 
@@ -22151,7 +22185,8 @@ for the Gaussian `f(0) = exp(-m'S^-1 m/2) / (2 pi sqrt(det S))` and
 - Meaning: density at the disc centre times its area, with the mean-value
   expansion of a smooth function over a disc supplying the stated error.
 - Code: `multivariate.small_disc_probability`.
-- Source: [REF-CHAN-2008], [REF-ALFANO-2005].
+- Source: elementary (mean-value expansion of a smooth function over a
+  disc); not attributed to [REF-CHAN-2008] (not opened).
 
 ### EQ-MVN-DILUTION-001 — Maximum disc probability over a covariance scale
 
@@ -22166,7 +22201,9 @@ for `Sigma = s^2 I` and `R << ||mu||` the maximum is `R^2 / (e ||mu||^2)` at
   small isotropic disc the closed form follows from maximising
   `(R^2/(2t)) exp(-||mu||^2/(2t))` over `t = c s^2`.
 - Code: `multivariate.maximum_disc_probability`.
-- Source: [REF-ALFANO-2005], [REF-CHAN-2008].
+- Source: [REF-ALFANO-2005B] (not opened; the maximum over the covariance
+  scale and the term probability dilution are attributed to it in Section
+  M.4 of [REF-NASA-CARA-HANDBOOK], which was read); derived and tested here.
 
 ### EQ-FILT-NEES-001 — Normalised squared error
 
@@ -22229,7 +22266,11 @@ then `N n s / c ~ chi2(N n)` and
 - Meaning: the multiplier by which the covariances should be inflated
   (above one: too small).
 - Code: `filtering.covariance_realism`.
-- Source: [REF-HORWOOD-ETAL-2014], [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
+- Source: [REF-NASA-CARA-HANDBOOK] (Appendix I: squared Mahalanobis
+  distances against a chi-square law, the first-moment scale factor, and
+  empirical-distribution tests; the handbook has no confidence interval for
+  the factor and recommends Cramer-von Mises, not offered here),
+  [REF-HORWOOD-ETAL-2014] (not opened), [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
 
 ### EQ-FILT-GMSPLIT-001 — Univariate Gaussian splitting by L2 minimisation
 
@@ -22244,7 +22285,11 @@ minimised over symmetric positive weights with `h^2 sum_i w_i i^2 = 1 - s^2`.
   variance 1 of the standard normal.
 - Code: `filtering.univariate_splitting`,
   `filtering.gaussian_mixture._squared_l2`.
-- Source: [REF-DEMARS-BISHOP-JAH-2013], [REF-HUBER-ETAL-2008].
+- Source: derived here. Published libraries read for comparison: Table 3 of
+  [REF-ZANETTI-ETAL-PREPRINT] (Kullback-Leibler, variance preserved, consistent
+  with the spacing relation to nine digits), its Table 2 (the library of
+  [REF-DEMARS-BISHOP-JAH-2013], paper not read; second moment 0.9548 as
+  printed) and Table I of [REF-HUBER-ETAL-2008] (second moment 0.9273).
 
 ### EQ-FILT-GMSPLIT-002 — Multivariate split along a direction
 

@@ -19,7 +19,10 @@ is the *interference factor* (the number of harmonics kept). A curve needs
 ``N >= 2 M omega_max + 1`` points (the Nyquist rule) and the ``d - 1`` low
 frequencies must be distinct and, for three or more inputs, two apart, so
 ``N >= 4 M^2 max(2 d - 3, 1) + 1``
-(:func:`fast_sample_size`). The truncation error of the spectrum is set by
+(:func:`fast_sample_size`). The frequency plan is the published one (compared
+with the open descriptions of extended FAST); the spacing of two is this
+library's own addition, which makes it refuse shorter curves than those
+descriptions allow. The truncation error of the spectrum is set by
 ``M``, not by ``N``: a longer curve at fixed ``M`` leaves the estimate nearly
 unchanged, so raise ``M`` for a response with sharp features. Random phase
 shifts ``phi_k`` are redrawn for each of ``R`` resamples; the spread of the

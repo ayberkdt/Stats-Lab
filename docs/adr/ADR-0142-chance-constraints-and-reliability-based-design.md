@@ -79,11 +79,35 @@ constraints that are not tied to a design point.
 
 ## Sources
 
-Opened and read: Campi and Garatti (2008) and (2018). Confirmed
-bibliographically only, formulas re-derived: Calafiore and Campi (2006), Du and
-Chen (2004), Nemirovski and Shapiro (2006), Luedtke and Ahmed (2008), Aoues and
-Chateauneuf (2010). Tu, Choi and Park (1999) and Der Kiureghian, Zhang and Li
-(1994) were already registered.
+Opened and read: Campi and Garatti (2008) and (2018) (the bound and the
+wait-and-judge level); and, in the source verification pass,
+- Campi, Garatti and Prandini (2009) [REF-CAMPI-GARATTI-PRANDINI-2009]:
+  Theorem 1 with the explicit size `N >= (2 / epsilon)(ln(1 / beta) + d)`
+  (Eq. 4) and the exact condition of Campi and Garatti (Eq. 5). Compared with
+  `scenario_sample_size`: the explicit size derived here
+  (`(2 / epsilon)(d - 1 + ln(1 / beta))`, EQ-REL-SCENARIO-002) is the same
+  Chernoff form with `d - 1` for `d`, hence `2 / epsilon` smaller, and was
+  checked never to fall below the exact size. The tutorial's worked example
+  (`epsilon = 0.01`, `beta = 1e-10`, three variables, `N = 5206`) is
+  reproduced from Eq. (4) and pinned in
+  `test_published_tutorial_example_and_explicit_size`; the exact size of the
+  library for it is smaller.
+- Nemirovski and Shapiro (2006), Optimization Online preprint of December
+  2004 (introduction): the only generic case with a provably convex chance
+  constraint feasible set for a bilinear constraint is normal coefficients and
+  `epsilon <= 1/2`; this matches the domain of `normal_linear_chance_margin`
+  (EQ-REL-CHANCE-NORMAL-001). The published version was not opened.
+- Luedtke and Ahmed (2008), Optimization Online preprint of 2 May 2008
+  (Section 2): the sample approximation `(1/N) #{G(x, xi_i) <= 0} >= 1 - gamma`
+  is the constraint of EQ-REL-SAA-001, with `gamma = 0` the scenario program.
+  Their sample-size theorems (3, 5, 7) are not used. The published version was
+  not opened.
+
+Not opened: Calafiore and Campi (2006) (no open copy found; the tutorial
+above credits it), Du and Chen (2004), Aoues and Chateauneuf (2010) (publisher
+pages only). The shifting-vector formulation and the classification of RBDO
+methods remain re-derived and stated from catalogue descriptions. Tu, Choi and
+Park (1999) and Der Kiureghian, Zhang and Li (1994) were already registered.
 
 ## Consequences
 
@@ -106,8 +130,8 @@ Chateauneuf (2010). Tu, Choi and Park (1999) and Der Kiureghian, Zhang and Li
   order-statistic form is exact for the sample; the convex approximations are
   not implemented.
 - Sample-size results for the sample-average approximation of Luedtke and
-  Ahmed (their paper was not opened); the scenario sizes cover the convex
-  case and the certificate covers the rest.
+  Ahmed (Theorems 3, 5, 7 of their preprint); the scenario sizes cover the
+  convex case and the certificate covers the rest.
 - Single-loop RBDO methods (SLA, KKT-based) and benchmark problems of Aoues
   and Chateauneuf beyond the one used in the tests.
 - Scenario programs with discarded constraints (sampling and discarding), and

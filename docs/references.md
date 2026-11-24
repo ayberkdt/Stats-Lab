@@ -2480,7 +2480,22 @@ Practice, System Safety*. 11 May 2012.
 ## REF-NASA-CEH-2015
 
 National Aeronautics and Space Administration. *NASA Cost Estimating
-Handbook*, Version 4.0. NASA, Washington, DC, February 2015.
+Handbook*, Version 4.0. NASA, Washington, DC, February 2015. Appendix J,
+"Joint Cost and Schedule Confidence Level (JCL) Analysis", was opened and read
+from [nasa.gov](https://www.nasa.gov/wp-content/uploads/2020/11/ceh_appj.pdf):
+the definition of a JCL as the probability that cost is at most the target
+cost and the schedule at most the target date (Section J.1), the two ways to
+produce it (bivariate distributions, or probabilistic cost loading of a
+probabilistic schedule, which the appendix says NASA policy intends), the
+split of cost into time-dependent costs tied to task duration and
+time-independent costs (Section J.1.6.3), correlation as an explicit
+assumption (Section J.4.4), and the sensitivity reports of Section J.5.3
+(duration sensitivity as the correlation of a task's duration with the total
+duration, criticality index as the share of iterations on the critical path,
+discrete risk criticality as the probability that an occurring risk event lies
+on the critical path). The remainder of the handbook was not read. No
+correlation value or policy threshold of the appendix is encoded in this
+library.
 
 ## REF-NASA-RMH-2011
 
@@ -5826,7 +5841,9 @@ scale of the 2008 NASA M&S standard (factors, three categories, Table 1 of
 the paper, the minimum roll-up and the weighted evidence/review factor
 score). The 2008 standard itself was not read. The paper is the document
 behind the NTRS identifier supplied for the earlier scale paper of Blattnig
-and co-authors; that paper was not opened.
+and co-authors; that paper (NTRS 20080015742) was opened later and found
+to describe a different, seven-category scale, so it does not verify this
+one and nothing is taken from it.
 
 ## REF-OBERKAMPF-PILCH-TRUCANO-2007
 
@@ -5842,10 +5859,13 @@ and uncertainty quantification by the verification elements, and the
 
 Giuseppe C. Calafiore and Marco C. Campi. "The Scenario Approach to Robust
 Control Design." *IEEE Transactions on Automatic Control* 51(5), 742-753,
-2006. Confirmed bibliographically only (not opened); the bound used in this
-library is the exact one of [REF-CAMPI-GARATTI-2008], whose text states the
-earlier bound it improves. Cited for the origin of the scenario approach to
-convex programs with uncertain constraints.
+2006. DOI: 10.1109/TAC.2006.875041. Not opened: no open copy was found (the
+author repository entry is restricted). The tutorial
+[REF-CAMPI-GARATTI-PRANDINI-2009] credits this paper and its 2005 predecessor
+with the scenario technology, and the bound used in this library is the exact
+one of [REF-CAMPI-GARATTI-2008], whose text states the earlier bound it
+improves. Cited for the origin of the scenario approach to convex programs
+with uncertain constraints.
 
 ## REF-CAMPI-GARATTI-2008
 
@@ -5887,41 +5907,61 @@ methods into two-level (double-loop), single-loop and decoupled families.
 
 Arkadi Nemirovski and Alexander Shapiro. "Convex Approximations of Chance
 Constrained Programs." *SIAM Journal on Optimization* 17(4), 969-996, 2006.
-Confirmed bibliographically only (not opened); the second-order-cone form of
-a linear constraint with normal coefficients and the Cantelli form are
-derived in this library (they are elementary consequences of the normal law
-and of Cantelli's inequality).
+DOI: 10.1137/050622328. The Optimization Online preprint of December 2004
+(optimization-online.org/2004/12/1033) was opened and its introduction read;
+the published article was not opened and may differ from the preprint. The
+introduction states that, to the authors' knowledge, the only generic case in
+which the chance version of a bilinear constraint has a provably convex
+feasible set is that of normally distributed perturbations and a violation
+level of at most one half; this is the domain stated for the second-order-cone
+form of a linear constraint with normal coefficients
+(EQ-REL-CHANCE-NORMAL-001), whose algebra and the Cantelli form are derived in
+this library. The Bernstein and other convex approximations of the paper are
+not implemented.
 
 ## REF-LUEDTKE-AHMED-2008
 
 James Luedtke and Shabbir Ahmed. "A Sample Approximation Approach for
 Optimization with Probabilistic Constraints." *SIAM Journal on Optimization*
-19(2), 674-699, 2008. Confirmed bibliographically only (not opened). Cited for
-the sample-average approximation of a chance constraint; no result of the
-paper is used.
+19(2), 674-699, 2008. The Optimization Online preprint (version dated 2 May
+2008, optimization-online.org/2007/09/1779) was opened and Section 2 read: the
+sample approximation replaces the probabilistic constraint by the requirement
+that at least a fraction `1 - gamma` of `N` independent sampled constraints
+hold, which is the constraint of EQ-REL-SAA-001, with `gamma = 0` the scenario
+approximation; Theorem 3 (lower bounds when `gamma` exceeds the nominal level)
+and Theorems 5 and 7 (feasibility when it is smaller) give sample-size results
+that this library does not use. The published article was not opened.
 ## REF-HOWE-1969
 
 W. G. Howe. "Two-Sided Tolerance Limits for Normal Populations - Some
 Improvements." *Journal of the American Statistical Association* 64(326),
-610-620, 1969. The closed-form approximation of the two-sided normal
-tolerance factor, `k = z_((1+p)/2) sqrt(nu (1 + 1/n) / chi2_(1-gamma; nu))`.
-The formula was confirmed in this form on the NIST/SEMATECH page cited in
-REF-NIST-SEMATECH-HANDBOOK; the paper itself was not opened.
+610-620, 1969. The closed-form approximation of the two-sided normal tolerance
+factor, `k = z_((1+p)/2) sqrt(nu (1 + 1/n) / chi2_(1-gamma; nu))`. The formula
+was confirmed in this form, with a worked value (2.217 for N = 43, p = 0.90,
+confidence 0.99), on the NIST/SEMATECH page cited in
+REF-NIST-SEMATECH-HANDBOOK, which attributes it to Howe; the paper itself was
+not opened (paywall).
 
 ## REF-KRISHNAMOORTHY-MATHEW-2009
 
 K. Krishnamoorthy and Thomas Mathew. *Statistical Tolerance Regions: Theory,
-Applications, and Computation*. Wiley, 2009. Cited for the definition of
-one- and two-sided normal tolerance factors, the noncentral-t form of the
-one-sided factor, and the integral equation of the two-sided factor.
-Confirmed bibliographically; the formulas were re-derived, not copied.
+Applications, and Computation*. Wiley, 2009. Cited for the definition of one-
+and two-sided normal tolerance factors, the noncentral-t form of the one-sided
+factor, and the integral equation of the two-sided factor. The book was not
+opened. The definitions and the factors were compared instead with
+[REF-YOUNG-2016], which states the one-sided factor and the two-sided integral
+equation (its Eqs. 6 and 7), prints one-sided factor values and the exact
+two-sided interval for the book's milk-container data, all reproduced by this
+library (see the tests); the formulas here are re-derived, not copied.
 
 ## REF-ODEH-OWEN-1980
 
 Robert E. Odeh and Donald B. Owen. *Tables for Normal Tolerance Limits,
 Sampling Plans, and Screening*. Marcel Dekker, 1980. Tabulated normal
 tolerance factors, cited as the classical source of the values this module
-computes. Confirmed bibliographically; no table value was copied.
+computes. Confirmed bibliographically; the book was not opened and no table
+value was copied. Published values were compared instead through
+[REF-YOUNG-2016] and [REF-NIST-SEMATECH-HANDBOOK].
 
 ## REF-NIST-SEMATECH-HANDBOOK
 
@@ -5929,35 +5969,55 @@ NIST/SEMATECH. *e-Handbook of Statistical Methods*, Section 7.2.6.3,
 "Tolerance intervals for a normal distribution." National Institute of
 Standards and Technology.
 [https://www.itl.nist.gov/div898/handbook/prc/section2/prc263.htm](https://www.itl.nist.gov/div898/handbook/prc/section2/prc263.htm).
-Read for Howe's two-sided approximation and the one-sided noncentral-t
-factor `k1 = t(alpha; N-1, delta = z_p sqrt(N)) / sqrt(N)`.
+Read for Howe's two-sided approximation (worked value 2.217 for N = 43, p =
+0.90, confidence 0.99) and the one-sided noncentral-t factor `k1 = t(alpha;
+N-1, delta = z_p sqrt(N)) / sqrt(N)` (worked values 1.8740 from the quantile
+12.28834 for the same inputs, and 4.4111 for N = 6); all three are reproduced
+by this library and pinned in the tests. The page's Natrella approximation and
+Guenther's correction are not implemented.
 
 ## REF-HELTON-2011
 
 Jon C. Helton. "Quantification of margins and uncertainties: Conceptual and
 computational basis." *Reliability Engineering and System Safety* 96(9),
-976-1013, 2011. The margin `M`, uncertainty `U`, and confidence ratio `M/U`
-of the QMU framework and the separation of aleatory and epistemic
-uncertainty. Confirmed bibliographically; the paper was not opened and the
-definitions in this library are stated and derived independently.
+976-1013, 2011. The margin `M`, uncertainty `U`, and confidence ratio `M/U` of
+the QMU framework and the separation of aleatory and epistemic uncertainty.
+Confirmed bibliographically; the paper was not opened (no open full text was
+retrievable) and the definitions in this library are stated and derived
+independently. The margin and the ratio of margin to uncertainty were checked
+instead against [REF-PILCH-TRUCANO-HELTON-2006], which Helton co-authored.
 
 ## REF-PILCH-TRUCANO-HELTON-2006
 
 Martin Pilch, Timothy G. Trucano, and Jon C. Helton. *Ideas Underlying
 Quantification of Margins and Uncertainties (QMU): A White Paper*. Sandia
-National Laboratories report SAND2006-5001, 2006. Cited for the QMU ratio of
-margin to uncertainty. Confirmed bibliographically; not opened.
+National Laboratories report SAND2006-5001, September 2006.
+[osti.gov](https://www.osti.gov/biblio/891369). Opened and read from the OSTI
+PDF: the three elements of the method (a performance threshold, the associated
+margin as the measure of exceeding it, and the quantified uncertainty in
+both), the example of a minimum delivered voltage with margin `V_D - V_min`
+required to exceed a specified margin, the statement that a threshold may
+equally be a limit not to be exceeded with the margin the distance below it,
+and the formalism of margin/uncertainty ratios, credited there to Sharp and
+Wood-Schultz (2003) as confidence ratios, on which a decision is based. Cited
+for the margin and the ratio of margin to uncertainty; the report gives no
+formula for the uncertainty, which this library defines in ADR-0135.
 
 ## REF-NASA-SEH-2016
 
 *NASA Systems Engineering Handbook*, NASA/SP-2016-6105 Rev 2. National
 Aeronautics and Space Administration, 2016.
-[https://www.nasa.gov/seh](https://www.nasa.gov/seh). Cited for the practice
-of tracking technical performance measures and performance margins against
-a plan at project reviews. Only the web edition's description of
-performance margins (Section 6.2) and of technical performance measures,
-their regular tracking, and review-time trend examination (Section 6.7) was
-read; no percentage, threshold, or formula is taken from it, and every
+[nasa.gov](https://www.nasa.gov/sites/default/files/atoms/files/nasa_systems_engineering_handbook_0.pdf).
+Cited for the practice of tracking technical performance measures and
+performance margins against a plan at project reviews. The handbook PDF was
+opened and the relevant passages read: the definition of technical performance
+measures as characteristics tied to the measures of performance and monitored
+by comparing achieved with anticipated values (Section 4.2), the list of key
+performance margins among the tools for assessing a change (Section 6.2), the
+monitoring and trending of TPMs in technical assessment (Section 6.7), the
+glossary entries for margin and technical performance measure, and the SEMP
+outline (Appendix J, Section 7.4) naming mass and power margins as required
+measures. No percentage, threshold, or formula is taken from it, and every
 contingency percentage in this library is an input.
 ## REF-JCGM-101-2008
 
@@ -5991,9 +6051,10 @@ the critical path; the estimator is re-derived.
 Kenneth R. MacCrimmon and Charles A. Ryavec. "An Analytical Study of the PERT
 Assumptions." *Operations Research* 12(1), 16-37, 1964. DOI
 10.1287/opre.12.1.16. Confirmed bibliographically (the full text is behind a
-paywall and was not read). Cited for the PERT assumptions and their errors;
-the bias of the mean at merge events is derived here from Jensen's
-inequality and demonstrated by simulation.
+paywall and was not read; no open copy of the RAND report was retrievable).
+Cited for the PERT assumptions and their errors; the bias of the mean at merge
+events is derived here from Jensen's inequality and demonstrated by
+simulation.
 
 ## REF-WILLIAMS-1992
 
@@ -6032,21 +6093,22 @@ definition of a quantile function, not copied.
 
 ## REF-COOKE-1991
 
-Roger M. Cooke. *Experts in Uncertainty: Opinion and Subjective Probability
-in Science*. Environmental Ethics and Science Policy Series. Oxford
-University Press, New York, 1991. Cited for the classical model of
-performance-based expert weights: calibration as the p-value of a
-likelihood-ratio statistic on seed-variable realizations in inter-quantile
-bins, information relative to a background measure, the weight as their
-product above a calibration cut-off, and the decision maker. Confirmed
-bibliographically only; the book was not opened. The scoring rules were
-re-derived from the verbal description in the open-access literature
-retrieved in preparing this entry (calibration as the p-value of a
-likelihood-ratio test of the stated bin probabilities, information as
-relative information to a background measure, weight equal to calibration
-times information above a cut-off, cut-off chosen to maximise the decision
-maker's score); the 10 % overshoot default and the log-scale extension for
-the log-uniform background are choices of this library.
+Roger M. Cooke. *Experts in Uncertainty: Opinion and Subjective Probability in
+Science*. Environmental Ethics and Science Policy Series. Oxford University
+Press, New York, 1991. Cited for the classical model of performance-based
+expert weights: calibration as the p-value of a likelihood-ratio statistic on
+seed-variable realizations in inter-quantile bins, information relative to a
+background measure, the weight as their product above a calibration cut-off,
+and the decision maker. Confirmed bibliographically only; the book was not
+opened. The scoring rules and their conventions were instead compared with the
+open-access chapter [REF-HANEA-NANE-2021], which describes the model as
+implemented in EXCALIBUR: the calibration statistic and its chi-square degrees
+of freedom, the information score, the intrinsic range with the 10 % overshoot
+default, the weights, and the cut-off optimisation all agree (item-by-item
+comparison in ADR-0136). Two conventions remain this library's own and are not
+in that chapter: the overshoot measured on the logarithmic scale for the
+log-uniform background, and the information of an expert averaged over the
+seed items only.
 
 ## REF-GENEST-ZIDEK-1986
 
@@ -6072,15 +6134,21 @@ was not read.
 ## REF-SHELF-OAKLEY-OHAGAN
 
 Jeremy E. Oakley and Anthony O'Hagan. *SHELF: the Sheffield Elicitation
-Framework* (R package and documentation, version 1.x). Cited for the
-elicitation workflow: elicited probabilities or quantiles for each expert,
-parametric distributions fitted by least squares on the distribution
-function (normal and Student-t without limits, adding log-normal, log
-Student-t and gamma with a lower limit and a scaled beta with both limits),
-and feedback quantiles to the expert. Confirmed through the package's CRAN
-reference manual description of `fitdist`; this library instead minimises
-the misfit of the quantile function, a deliberate difference documented in
-ADR-0136.
+Framework* (R package and documentation). Cited for the elicitation workflow:
+elicited probabilities or quantiles for each expert, parametric distributions
+fitted by least squares on the distribution function, and feedback of
+quantiles and probabilities of the fitted law to the expert. The CRAN
+reference manual of version 1.13.0 (dated 7 May 2026) was opened; the
+`fitdist` entry was read in full, and only the titles of `feedback`,
+`linearPoolDensity` and `plinearpool` were read. `fitdist` fits normal and
+Student-t laws without limits (degrees of freedom fixed by the user, default
+3), a skew-normal, with a lower limit gamma, log-normal and log Student-t
+laws, with an upper limit their mirrored versions, and with both limits a
+beta; weighted least squares is optional and the best fit is the smallest sum
+of squared errors. This library instead minimises the misfit of the quantile
+function, uses a default of 5 degrees of freedom for the Student-t law and has
+no skew-normal family: deliberate differences documented in ADR-0136. The
+SHELF vignettes and Oakley's papers were not opened.
 ## REF-CUKIER-1973
 
 R. I. Cukier, C. M. Fortuin, Kurt E. Shuler, A. G. Petschek, and J. H.
@@ -6098,15 +6166,21 @@ opened, and the formulas are re-derived, not copied.
 
 Andrea Saltelli, Stefano Tarantola, and Karen P.-S. Chan. "A Quantitative
 Model-Independent Method for Global Sensitivity Analysis of Model Output."
-*Technometrics* 41(1), 39-56, 1999.
-DOI: [10.1080/00401706.1999.10485594](https://doi.org/10.1080/00401706.1999.10485594).
+*Technometrics* 41(1), 39-56, 1999. DOI:
+[10.1080/00401706.1999.10485594](https://doi.org/10.1080/00401706.1999.10485594).
 Cited for extended FAST: total-effect indices from a high frequency for the
-input of interest and a complementary low-frequency set for the others,
-random phase shifts with resampling, and the interference factor `M`.
-Confirmed bibliographically (citation and abstract checked against catalogue
-records); the full text was not opened. The frequency plan, the estimators
-and the sample-size rule used here are re-derived (EQ-SENS-FAST-001 to
-EQ-SENS-FAST-003), not copied.
+input of interest and a complementary low-frequency set for the others, random
+phase shifts with resampling, and the interference factor `M`. The paper
+itself was not opened (paywall; citation and abstract checked against
+catalogue records). Its frequency plan was compared with two open
+implementations that cite it, the OpenTURNS theory page for extended FAST and
+the file `fast99.R` of the R package `sensitivity`: `omega = (N - 1) / (2 M)`,
+largest complementary frequency `omega / (2 M)`, the others spread uniformly
+between 1 and it, estimators from the harmonics `p omega` and from the
+frequencies up to `omega / 2`, all as in `fast_frequencies` (EQ-SENS-FAST-001
+to EQ-SENS-FAST-003); only the spacing rule of this library has no counterpart
+there (ADR-0141). The estimators and the sample-size rule are re-derived, not
+copied.
 
 ## REF-TARANTOLA-GATELLI-MARA-2006
 
@@ -6170,25 +6244,34 @@ it is used beyond the idea of the chi-square mixture.
 
 J. L. Foster and H. S. Estes. "A Parametric Analysis of Orbital Debris
 Collision Probability and Maneuver Rate for Space Vehicles." NASA/JSC-25898,
-1992. Cited for the two-dimensional encounter-plane formulation of the
-short-encounter collision probability (the integral of a Gaussian density over
-a disc). Bibliographic details unconfirmed in this work and the report was
-not read; the integral is derived from the normal distribution directly.
+August 1992. The report itself was not opened (no open copy found). Its
+bibliographic details, and its role as the origin of the conjunction-plane
+method, were confirmed from Appendix N of [REF-NASA-CARA-HANDBOOK], which
+gives the two-dimensional integral of a Gaussian density over the hard-body
+disc (its Eq. N-1) and attributes its quadrature evaluation to this report;
+that integral is what `multivariate.gaussian_disc_probability` evaluates.
 
 ## REF-ALFANO-2005
 
 Salvatore Alfano. "A Numerical Implementation of Spherical Object Collision
 Probability." *Journal of the Astronautical Sciences* 53(1), 103-109, 2005.
-Cited for the idea of a maximum collision probability over a covariance scale
-factor. Bibliographic details unconfirmed in this work and the paper was not
-read; the maximum implemented here is derived and tested independently.
+The paper was not opened. Appendix N of [REF-NASA-CARA-HANDBOOK] cites it for
+the one-dimensional integral over error functions (its Eq. N-2), which the
+tests use as an independent oracle for
+`multivariate.gaussian_disc_probability`. An earlier version of this entry
+cited it for the maximum collision probability over a covariance scale factor;
+that is the subject of Alfano's second 2005 paper, [REF-ALFANO-2005B], and the
+attribution was corrected.
 
 ## REF-CHAN-2008
 
-F. Kenneth Chan. *Spacecraft Collision Probability*. The Aerospace Press and
-AIAA, 2008. Cited for the small-disc approximation and the Rice-law form for
-an isotropic encounter covariance. Bibliographic details unconfirmed in this
-work and the book was not read; both forms are derived here.
+F. Kenneth Chan. *Spacecraft Collision Probability*. The Aerospace Press, El
+Segundo, CA, 2008. The book was not opened; the publisher and year are those
+of the reference list of [REF-NASA-CARA-HANDBOOK], whose Appendix N says that
+Chan uses equivalent-area transforms to reduce the disc integral to a
+one-dimensional integral with a series solution. The small-disc approximation
+and the Rice-law form for an isotropic covariance used in this library are
+derived here and could not be attributed to the book.
 
 ## REF-HORWOOD-ETAL-2014
 
@@ -6196,43 +6279,158 @@ J. T. Horwood, J. M. Aristoff, N. Singh, A. B. Poore, and M. D. Hejduk.
 "Beyond covariance realism: a new metric for uncertainty realism."
 *Proceedings of SPIE* 9092 (Signal and Data Processing of Small Targets),
 2014. Bibliographic details confirmed from a citing software documentation
-page; the paper was not read. Cited for the idea of judging a covariance by
-the distribution of squared Mahalanobis distances against a chi-square law.
+page; the paper was not opened (a search found only a related 2016
+working-group report by the same group, which could not be retrieved). Cited
+for the idea of judging a covariance by the distribution of squared
+Mahalanobis distances against a chi-square law; the procedure of
+[REF-NASA-CARA-HANDBOOK] (Appendix I) was read instead.
 
 ## REF-DEMARS-BISHOP-JAH-2013
 
 Kyle J. DeMars, Robert H. Bishop, and Moriba K. Jah. "Entropy-Based Approach
 for Uncertainty Propagation of Nonlinear Dynamical Systems." *Journal of
 Guidance, Control, and Dynamics* 36(4), 1047-1057, 2013. Bibliographic details
-and the abstract (splitting of mixture components when an entropy-based
-check detects nonlinearity) confirmed from the Marquette and Missouri S&T
-repository records; the full text was not read. The splitting weights of
-`filtering.univariate_splitting` are computed by L2 minimisation, not taken
-from the paper.
+confirmed from the Marquette and Missouri S&T repository records and from the
+reference list of [REF-ZANETTI-ETAL-PREPRINT]; the full text was not read. The
+preprint, which was read, describes it as splitting a component along its
+direction of maximum uncertainty when a differential-entropy criterion is
+exceeded, with the splitting weights found by minimising an L2 distance, and
+prints its three-component library in its Table 2 (weights 0.2252, 0.5496,
+0.2252, offsets plus or minus 1.0575, standard deviation 0.6716), whose second
+moment as printed is 0.9548, not one. The splitting weights of
+`filtering.univariate_splitting` are computed by L2 minimisation with the
+variance condition imposed, not taken from the paper.
 
 ## REF-HUBER-ETAL-2008
 
 Marco F. Huber, Tim Bailey, Hugh Durrant-Whyte, and Uwe D. Hanebeck. "On
 Entropy Approximation for Gaussian Mixture Random Vectors." *IEEE
-International Conference on Multisensor Fusion and Integration for
-Intelligent Systems*, 181-188, 2008. Cited from memory for the idea of
-approximating a Gaussian by an equal-variance mixture with weights chosen by
-a distance minimisation; bibliographic details unconfirmed in this work and
-the paper was not read.
+International Conference on Multisensor Fusion and Integration for Intelligent
+Systems*, 181-188, 2008. Opened and read from the author's page (details agree
+with the reference list of [REF-ZANETTI-ETAL-PREPRINT]): the entropy
+approximation by component-wise Taylor expansion with component splitting, and
+Table I, a four-component splitting library of equal-variance components
+(weights 0.1274, 0.3726, 0.3726, 0.1274, offsets plus or minus 0.4497 and plus
+or minus 1.4131, standard deviation 0.5175) which the paper takes from
+Hanebeck, Briechle and Rauh (2003) without stating its objective; its second
+moment as printed is 0.9273. Cited for the idea of replacing a Gaussian by an
+equal-variance mixture; this library computes its own library by L2
+minimisation with the variance condition imposed.
 
 ## REF-VITTALDEV-RUSSELL-2016
 
-Vivek Vittaldev and Ryan P. Russell. "Space Object Collision Probability
-Using Multidirectional Gaussian Mixture Models." *Journal of Guidance,
-Control, and Dynamics* 39(9), 2163-2169, 2016. A search confirmed the related
-dissertation chapter by the same authors but not the journal volume and
-pages; unconfirmed bibliographically and not read. Cited for splitting a
-Gaussian along several directions.
+Vivek Vittaldev and Ryan P. Russell. "Space Object Collision Probability Using
+Multidirectional Gaussian Mixture Models." *Journal of Guidance, Control, and
+Dynamics* 39(9), 2163-2169, 2016. A search confirmed the related dissertation
+chapter by the same authors but not the journal volume and pages; unconfirmed
+bibliographically and not read. The reference list of
+[REF-ZANETTI-ETAL-PREPRINT] gives a different paper by the same authors,
+"Multidirectional Gaussian mixture models for nonlinear uncertainty
+propagation", Computer Modeling in Engineering & Sciences 111(1), 83-117,
+2016, which it describes as combining a power law with the L2 norm for
+splitting. Cited for splitting a Gaussian along several directions.
 
 ## REF-SORENSON-ALSPACH-1971
 
 H. W. Sorenson and D. L. Alspach. "Recursive Bayesian estimation using
-Gaussian sums." *Automatica* 7(4), 465-479, 1971. Cited from memory for the
-Gaussian-sum representation of a non-Gaussian density; bibliographic details
-unconfirmed in this work and the paper was not read. The moment formulas of a
-mixture used here are elementary (law of total expectation and variance).
+Gaussian sums." *Automatica* 7(4), 465-479, 1971. Bibliographic details
+confirmed from the reference list of [REF-ZANETTI-ETAL-PREPRINT]; the paper
+was not opened. Cited for the Gaussian-sum representation of a non-Gaussian
+density. The moment formulas of a mixture used here are elementary (law of
+total expectation and variance).
+
+## REF-HANEA-NANE-2021
+
+Anca M. Hanea and Gabriela F. Nane. "An In-Depth Perspective on the Classical
+Model." In A. M. Hanea, G. F. Nane, T. Bedford, and S. French (eds.), *Expert
+Judgement in Risk and Decision Analysis*, International Series in Operations
+Research and Management Science 293, Springer, 2021, 225-256. DOI:
+[10.1007/978-3-030-46474-5_10](https://doi.org/10.1007/978-3-030-46474-5_10).
+The accepted author manuscript from the TU Delft repository was opened and
+read
+([repository.tudelft.nl](https://repository.tudelft.nl/file/File_e398f490-a7f2-4b64-b09d-6ac1f17b731b)):
+Section 3.1 (the expert's piecewise-uniform distribution; the intrinsic range
+extended by an overshoot `k`, 10 % by default in EXCALIBUR; for seed items the
+realization enters the range, for items of interest only the experts'
+percentiles), Section 3.2.1 (calibration as the p-value of `2 M I(s, p)`
+against a chi-square law with 3 degrees of freedom for the three percentiles;
+worked values 0.83 and 0.39 for ten seed items), Section 3.2.2 (information
+with respect to a uniform or log-uniform background, Eq. 2 and Table 2),
+Section 3.3 (combined score `Cal x I x 1{Cal >= alpha}`, global weights Eq. 3,
+item weights), and Sections 4 and 4.1 (decision makers; the cut-off alpha
+takes the values of the calibration scores and the optimised decision maker
+maximises its combined score). Cited for those conventions; its Table 2 and
+its calibration examples are pinned as oracle tests.
+
+## REF-CAMPI-GARATTI-PRANDINI-2009
+
+Marco C. Campi, Simone Garatti, and Maria Prandini. "The scenario approach for
+systems and control design." *Annual Reviews in Control* 33, 149-157, 2009.
+Opened and read from the author's page: Theorem 1 with the explicit sample
+size `N >= (2 / epsilon)(ln(1 / beta) + d)` (Eq. 4), stated to follow from the
+exact condition `sum_(i<d) C(N, i) epsilon^i (1 - epsilon)^(N - i) <= beta` of
+[REF-CAMPI-GARATTI-2008] (Eq. 5, tight for fully-supported problems), and the
+worked example of Section 3.1 (`epsilon = 0.01`, `beta = 1e-10`, three
+variables, `N = 5206`) which is pinned in the tests. Cited for those two
+statements and as the open source that describes the scenario approach of
+[REF-CALAFIORE-CAMPI-2006].
+
+## REF-YOUNG-2016
+
+Derek S. Young. "Normal Tolerance Interval Procedures in the tolerance
+Package." *The R Journal* 8(2), December 2016, starting on page 200.
+[journal.r-project.org](https://journal.r-project.org/archive/2016/RJ-2016-041/RJ-2016-041.pdf).
+Opened and read: the one-sided factor and the two-sided integral equation
+(Eqs. 6 and 7), the one-sided factor table printed by `K.table` for `n` of 10
+and 20, `alpha` of 0.01 and 0.05 and `P` of 0.95 and 0.99 (six decimals), and
+the exact two-sided interval printed for the twenty milk-container fills of
+[REF-KRISHNAMOORTHY-MATHEW-2009]. Cited for those printed values, which are
+pinned in the tests of the normal tolerance factors.
+
+## REF-ALFANO-2005B
+
+Salvatore Alfano. "Relating Position Uncertainty to Maximum Conjunction
+Probability." *Journal of the Astronautical Sciences* 53(2), 193-205, 2005.
+The paper was not opened; its bibliographic details are those of the reference
+list of [REF-NASA-CARA-HANDBOOK], whose Section M.4 attributes to it the first
+treatment of probability dilution and the maximum probability obtained by
+manipulating the covariance. Cited for the maximum disc probability over a
+covariance scale (`multivariate.maximum_disc_probability`), which is derived
+and tested here independently.
+
+## REF-ZANETTI-ETAL-PREPRINT
+
+Renato Zanetti, Kyle J. DeMars, Derek Tuggle, Kristen Michaelson, and Maaninee
+Gupta. "Uncertainty Quantification Using Directional Splitting and Gaussian
+Mixture Models with Applications to Orbital Dynamics." AAS preprint, undated
+(hosted at sites.utexas.edu/near, file
+PreprintPaperUpload_872_0725025709.pdf). Opened and read. Cited for its
+description of splitting by L2 minimisation [REF-DEMARS-BISHOP-JAH-2013],
+Kullback-Leibler minimisation and moment matching; for its Table 2 (the
+three-component library of DeMars et al.) and Table 3 (a three-component
+library found by minimising the Kullback-Leibler divergence under the mean and
+variance constraints: weights 0.1616701997, 0.6766596007, 0.1616701997,
+offsets plus or minus 1.0908000117, standard deviation 0.78439476713), which
+satisfy this library's spacing relation to nine digits and are used in the
+tests; and for the reference details of [REF-SORENSON-ALSPACH-1971],
+[REF-HUBER-ETAL-2008] and [REF-VITTALDEV-RUSSELL-2016].
+
+## REF-NASA-CARA-HANDBOOK
+
+*NASA Spacecraft Conjunction Assessment and Collision Avoidance Best Practices
+Handbook*, Office of the Chief Engineer, NASA/SP-20230002470 Rev 1, February
+2023 ([ntrs.nasa.gov](https://ntrs.nasa.gov/citations/20230002470)), and its
+Appendix N, "Pc Calculation Approaches", update of 20 March 2024
+([ntrs.nasa.gov](https://ntrs.nasa.gov/citations/20240003468)). Opened and
+read: Appendix I of the handbook (position errors normalised by the
+covariance, the squared Mahalanobis distance compared with a chi-square law of
+three degrees of freedom, the first-moment test whose expected value is 3 and
+from which a single scale factor is read, empirical-distribution-function
+tests with the Cramer-von Mises statistic recommended over Anderson-Darling
+because of outliers in practice, resampling to a standard sample size, and
+p-value thresholds of 5, 2 and 1 percent), Section M.4 (probability dilution,
+with the term and the maximum probability attributed to Alfano 2005b), and
+Appendix N (Eq. N-1, the disc integral of Foster and Estes, and Eq. N-2, the
+error-function form attributed to Alfano 2005a). No threshold or factor of the
+handbook is encoded in this library; the realism procedure is compared in
+ADR-0140.

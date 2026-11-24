@@ -83,6 +83,37 @@ class ScenarioGuaranteeTests(unittest.TestCase):
             self.assertLessEqual(exact_tail(expected, eps, 10), 1e-5)
             self.assertGreater(exact_tail(expected - 1, eps, 10), 1e-5)
 
+    def test_published_tutorial_example_and_explicit_size(self) -> None:
+        """The tutorial's ``N = 5206`` example and its explicit sufficient size.
+
+        Campi, Garatti and Prandini (2009), Section 3.1, take three decision
+        variables (``k1, k2, h``), ``epsilon = 0.01`` and ``beta = 1e-10`` and
+        draw ``N = 5206`` scenarios, which is the explicit size
+        ``N >= (2 / epsilon)(ln(1 / beta) + d)`` of their Eq. (4) rounded up.
+        The exact tail of Eq. (5) at that ``N`` must be below ``beta``, the
+        exact size of this library must not exceed it, and the explicit size
+        derived here (``d - 1`` in place of ``d``, same Chernoff argument) is
+        ``2 / epsilon`` samples smaller than the tutorial's.
+
+        References:
+            [REF-CAMPI-GARATTI-PRANDINI-2009, Section 3.1],
+            [REF-CAMPI-GARATTI-2008, Theorem 2.4]. Checks
+            [EQ-REL-SCENARIO-001] and [EQ-REL-SCENARIO-002].
+
+        """
+        eps, beta, d = 0.01, 1e-10, 3
+        tutorial = math.ceil(2.0 / eps * (math.log(1.0 / beta) + d))
+        self.assertEqual(tutorial, 5206)
+        self.assertLessEqual(exact_tail(5206, eps, d), beta)
+        result = scenario_sample_size(eps, 1.0 - beta, d)
+        self.assertLessEqual(result.size, 5206)
+        self.assertGreater(exact_tail(result.size - 1, eps, d), beta)
+        self.assertEqual(
+            result.explicit_size, math.ceil(2.0 / eps * (d - 1 + math.log(1.0 / beta)))
+        )
+        self.assertLessEqual(tutorial - result.explicit_size, 2.0 / eps + 1)
+        self.assertLessEqual(result.size, result.explicit_size)
+
     def test_sample_size_pin_and_explicit_bound(self) -> None:
         """``d = 3``, ``eps = 0.05``, confidence 0.99 gives 165; explicit size 265.
 
