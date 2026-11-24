@@ -10296,7 +10296,7 @@ contingency `= C_q - point estimate`.
 - Domain: paired joint samples.
 - Meaning: probability of meeting both cost and schedule targets.
 - Code: `cost.joint_confidence_level`, `cost.cost_for_joint_confidence`.
-- Source: [REF-NASA-CEH-2015].
+- Source: [REF-NASA-CEH-2015] (Appendix J, Section J.1: the same definition).
 
 ### EQ-COST-LEARN-001 — Learning-curve exponent
 
@@ -21856,8 +21856,11 @@ only under independence.
   each deadline.
 - Code: `cost.cost_schedule_samples`, `cost.joint_cost_schedule_confidence`,
   `cost.cost_schedule_frontier`, `cost.IsoConfidenceFrontier`.
-- Source: [REF-NASA-CEH-2015] (the joint confidence level; its appendix could
-  not be opened, so the definition rests on the probability identity above).
+- Source: [REF-NASA-CEH-2015] (Appendix J, read: the joint confidence level
+  as the probability of meeting both the cost and the schedule target, and
+  probabilistic cost loading of a probabilistic schedule with time-dependent
+  and time-independent costs, Section J.1.6.3, which is the structure of the
+  sum above); the inequality is the probability identity stated.
 ### EQ-INF-ELICIT-001 — Quantile-function least squares for elicited judgements
 
 `min_theta sum_i w_i (Q(p_i; theta) - v_i)^2` over the parameters `theta` of a

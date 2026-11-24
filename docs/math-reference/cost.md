@@ -52,7 +52,7 @@ contingency `= C_q - point estimate`.
 - Meaning: cost confidence levels and reserve.
 - Code: `cost.cost_risk_analysis`, `cost.CostRiskResult.monte_carlo_cdf`.
 - Source: [REF-NASA-CEH-2015].
-  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015.
+  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015. Appendix J, "Joint Cost and Schedule Confidence Level (JCL) Analysis", was opened and read from [nasa.gov](https://www.nasa.gov/wp-content/uploads/2020/11/ceh_appj.pdf): the definition of a JCL as the probability that cost is at most the target cost and the schedule at most the target date (Section J.1), the two ways to produce it (bivariate distributions, or probabilistic cost loading of a probabilistic schedule, which the appendix says NASA policy intends), the split of cost into time-dependent costs tied to task duration and time-independent costs (Section J.1.6.3), correlation as an explicit assumption (Section J.4.4), and the sensitivity reports of Section J.5.3 (duration sensitivity as the correlation of a task's duration with the total duration, criticality index as the share of iterations on the critical path, discrete risk criticality as the probability that an occurring risk event lies on the critical path). The remainder of the handbook was not read. No correlation value or policy threshold of the appendix is encoded in this library.
 - Registry: [EQ-COST-SCURVE-001](../equation-registry.md#eq-cost-scurve-001--empirical-s-curve-and-contingency)
 
 ### EQ-COST-JCL-001 — Joint cost-schedule confidence level
@@ -63,8 +63,8 @@ contingency `= C_q - point estimate`.
 - Domain: paired joint samples.
 - Meaning: probability of meeting both cost and schedule targets.
 - Code: `cost.joint_confidence_level`, `cost.cost_for_joint_confidence`.
-- Source: [REF-NASA-CEH-2015].
-  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015.
+- Source: [REF-NASA-CEH-2015] (Appendix J, Section J.1: the same definition).
+  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015. Appendix J, "Joint Cost and Schedule Confidence Level (JCL) Analysis", was opened and read from [nasa.gov](https://www.nasa.gov/wp-content/uploads/2020/11/ceh_appj.pdf): the definition of a JCL as the probability that cost is at most the target cost and the schedule at most the target date (Section J.1), the two ways to produce it (bivariate distributions, or probabilistic cost loading of a probabilistic schedule, which the appendix says NASA policy intends), the split of cost into time-dependent costs tied to task duration and time-independent costs (Section J.1.6.3), correlation as an explicit assumption (Section J.4.4), and the sensitivity reports of Section J.5.3 (duration sensitivity as the correlation of a task's duration with the total duration, criticality index as the share of iterations on the critical path, discrete risk criticality as the probability that an occurring risk event lies on the critical path). The remainder of the handbook was not read. No correlation value or policy threshold of the appendix is encoded in this library.
 - Registry: [EQ-COST-JCL-001](../equation-registry.md#eq-cost-jcl-001--joint-cost-schedule-confidence-level)
 
 ## `probstat.cost.discounting`
@@ -126,7 +126,7 @@ conventions agree when `r_c = ln(1 + r)`.
 - Code: `cost.escalate`, `cost.CostElement.recurring`.
 - Source: [REF-BLANK-TARQUIN-2012], [REF-NASA-CEH-2015].
   - [REF-BLANK-TARQUIN-2012](../references.md#ref-blank-tarquin-2012): Leland Blank and Anthony Tarquin. *Engineering Economy*. 7th edition. McGraw-Hill, 2012.
-  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015.
+  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015. Appendix J, "Joint Cost and Schedule Confidence Level (JCL) Analysis", was opened and read from [nasa.gov](https://www.nasa.gov/wp-content/uploads/2020/11/ceh_appj.pdf): the definition of a JCL as the probability that cost is at most the target cost and the schedule at most the target date (Section J.1), the two ways to produce it (bivariate distributions, or probabilistic cost loading of a probabilistic schedule, which the appendix says NASA policy intends), the split of cost into time-dependent costs tied to task duration and time-independent costs (Section J.1.6.3), correlation as an explicit assumption (Section J.4.4), and the sensitivity reports of Section J.5.3 (duration sensitivity as the correlation of a task's duration with the total duration, criticality index as the share of iterations on the critical path, discrete risk criticality as the probability that an occurring risk event lies on the critical path). The remainder of the handbook was not read. No correlation value or policy threshold of the appendix is encoded in this library.
 - Registry: [EQ-COST-ESC-001](../equation-registry.md#eq-cost-esc-001--escalation)
 
 ## `probstat.cost.learning`
@@ -156,7 +156,7 @@ Cumulative average (Wright): total `T_1 n^(b+1)`, unit
 - Source: [REF-WRIGHT-1936], [REF-YELLE-1979], [REF-NASA-CEH-2015].
   - [REF-WRIGHT-1936](../references.md#ref-wright-1936): T. P. Wright. "Factors Affecting the Cost of Airplanes." *Journal of the Aeronautical Sciences* 3(4), 122-128, 1936.
   - [REF-YELLE-1979](../references.md#ref-yelle-1979): Louis E. Yelle. "The Learning Curve: Historical Review and Comprehensive Survey." *Decision Sciences* 10(2), 302-328, 1979.
-  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015.
+  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015. Appendix J, "Joint Cost and Schedule Confidence Level (JCL) Analysis", was opened and read from [nasa.gov](https://www.nasa.gov/wp-content/uploads/2020/11/ceh_appj.pdf): the definition of a JCL as the probability that cost is at most the target cost and the schedule at most the target date (Section J.1), the two ways to produce it (bivariate distributions, or probabilistic cost loading of a probabilistic schedule, which the appendix says NASA policy intends), the split of cost into time-dependent costs tied to task duration and time-independent costs (Section J.1.6.3), correlation as an explicit assumption (Section J.4.4), and the sensitivity reports of Section J.5.3 (duration sensitivity as the correlation of a task's duration with the total duration, criticality index as the share of iterations on the critical path, discrete risk criticality as the probability that an occurring risk event lies on the critical path). The remainder of the handbook was not read. No correlation value or policy threshold of the appendix is encoded in this library.
 - Registry: [EQ-COST-LEARN-002](../equation-registry.md#eq-cost-learn-002--unit-and-cumulative-average-theories)
 
 ### EQ-COST-LEARN-003 — Lot-midpoint approximation (unit theory)
@@ -168,7 +168,7 @@ lot midpoint `x` with `x^b` equal to that integral divided by `L - F + 1`.
 - Meaning: midpoint-rule approximation; error largest for the first lot.
 - Code: `cost.LearningCurve.lot_midpoint_approximation`.
 - Source: [REF-NASA-CEH-2015] (derived here as the midpoint rule).
-  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015.
+  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015. Appendix J, "Joint Cost and Schedule Confidence Level (JCL) Analysis", was opened and read from [nasa.gov](https://www.nasa.gov/wp-content/uploads/2020/11/ceh_appj.pdf): the definition of a JCL as the probability that cost is at most the target cost and the schedule at most the target date (Section J.1), the two ways to produce it (bivariate distributions, or probabilistic cost loading of a probabilistic schedule, which the appendix says NASA policy intends), the split of cost into time-dependent costs tied to task duration and time-independent costs (Section J.1.6.3), correlation as an explicit assumption (Section J.4.4), and the sensitivity reports of Section J.5.3 (duration sensitivity as the correlation of a task's duration with the total duration, criticality index as the share of iterations on the critical path, discrete risk criticality as the probability that an occurring risk event lies on the critical path). The remainder of the handbook was not read. No correlation value or policy threshold of the appendix is encoded in this library.
 - Registry: [EQ-COST-LEARN-003](../equation-registry.md#eq-cost-learn-003--lot-midpoint-approximation-unit-theory)
 
 ## `probstat.cost.life_cycle`
@@ -267,7 +267,7 @@ lot midpoint `x` with `x^b` equal to that integral divided by `L - F + 1`.
 - Code: `cost.method_of_moments_total`, `cost.LifeCycleCostModel.moments`.
 - Source: [REF-GARVEY-2000], [REF-NASA-CEH-2015].
   - [REF-GARVEY-2000](../references.md#ref-garvey-2000): Paul R. Garvey. *Probability Methods for Cost Uncertainty Analysis: A Systems Engineering Perspective*. Marcel Dekker, New York, 2000.
-  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015.
+  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015. Appendix J, "Joint Cost and Schedule Confidence Level (JCL) Analysis", was opened and read from [nasa.gov](https://www.nasa.gov/wp-content/uploads/2020/11/ceh_appj.pdf): the definition of a JCL as the probability that cost is at most the target cost and the schedule at most the target date (Section J.1), the two ways to produce it (bivariate distributions, or probabilistic cost loading of a probabilistic schedule, which the appendix says NASA policy intends), the split of cost into time-dependent costs tied to task duration and time-independent costs (Section J.1.6.3), correlation as an explicit assumption (Section J.4.4), and the sensitivity reports of Section J.5.3 (duration sensitivity as the correlation of a task's duration with the total duration, criticality index as the share of iterations on the critical path, discrete risk criticality as the probability that an occurring risk event lies on the critical path). The remainder of the handbook was not read. No correlation value or policy threshold of the appendix is encoded in this library.
 - Registry: [EQ-COST-MOM-001](../equation-registry.md#eq-cost-mom-001--method-of-moments-total-cost)
 
 ## `probstat.cost.schedule_risk`
@@ -306,7 +306,7 @@ smallest slack of the outgoing relations (`ES_j - EF_i - l`, `ES_j - ES_i - l`,
 - Code: `cost.pert_estimate`, `cost.PertEstimate`, `cost.pert_three_point`.
 - Source: [REF-MALCOLM-1959], [REF-MACCRIMMON-RYAVEC-1964].
   - [REF-MALCOLM-1959](../references.md#ref-malcolm-1959): D. G. Malcolm, J. H. Roseboom, C. E. Clark, and W. Fazar. "Application of a Technique for Research and Development Program Evaluation." *Operations Research* 7(5), 646-669, 1959.
-  - [REF-MACCRIMMON-RYAVEC-1964](../references.md#ref-maccrimmon-ryavec-1964): Kenneth R. MacCrimmon and Charles A. Ryavec. "An Analytical Study of the PERT Assumptions." *Operations Research* 12(1), 16-37, 1964. DOI 10.1287/opre.12.1.16. Confirmed bibliographically (the full text is behind a paywall and was not read). Cited for the PERT assumptions and their errors; the bias of the mean at merge events is derived here from Jensen's inequality and demonstrated by simulation.
+  - [REF-MACCRIMMON-RYAVEC-1964](../references.md#ref-maccrimmon-ryavec-1964): Kenneth R. MacCrimmon and Charles A. Ryavec. "An Analytical Study of the PERT Assumptions." *Operations Research* 12(1), 16-37, 1964. DOI 10.1287/opre.12.1.16. Confirmed bibliographically (the full text is behind a paywall and was not read; no open copy of the RAND report was retrievable). Cited for the PERT assumptions and their errors; the bias of the mean at merge events is derived here from Jensen's inequality and demonstrated by simulation.
 - Registry: [EQ-COST-PERT-001](../equation-registry.md#eq-cost-pert-001--classical-pert-normal-approximation)
 
 ### EQ-COST-SRA-001 — Criticality, cruciality, and schedule sensitivity index
@@ -381,9 +381,12 @@ only under independence.
   each deadline.
 - Code: `cost.cost_schedule_samples`, `cost.joint_cost_schedule_confidence`,
   `cost.cost_schedule_frontier`, `cost.IsoConfidenceFrontier`.
-- Source: [REF-NASA-CEH-2015] (the joint confidence level; its appendix could
-  not be opened, so the definition rests on the probability identity above).
-  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015.
+- Source: [REF-NASA-CEH-2015] (Appendix J, read: the joint confidence level
+  as the probability of meeting both the cost and the schedule target, and
+  probabilistic cost loading of a probabilistic schedule with time-dependent
+  and time-independent costs, Section J.1.6.3, which is the structure of the
+  sum above); the inequality is the probability identity stated.
+  - [REF-NASA-CEH-2015](../references.md#ref-nasa-ceh-2015): National Aeronautics and Space Administration. *NASA Cost Estimating Handbook*, Version 4.0. NASA, Washington, DC, February 2015. Appendix J, "Joint Cost and Schedule Confidence Level (JCL) Analysis", was opened and read from [nasa.gov](https://www.nasa.gov/wp-content/uploads/2020/11/ceh_appj.pdf): the definition of a JCL as the probability that cost is at most the target cost and the schedule at most the target date (Section J.1), the two ways to produce it (bivariate distributions, or probabilistic cost loading of a probabilistic schedule, which the appendix says NASA policy intends), the split of cost into time-dependent costs tied to task duration and time-independent costs (Section J.1.6.3), correlation as an explicit assumption (Section J.4.4), and the sensitivity reports of Section J.5.3 (duration sensitivity as the correlation of a task's duration with the total duration, criticality index as the share of iterations on the critical path, discrete risk criticality as the probability that an occurring risk event lies on the critical path). The remainder of the handbook was not read. No correlation value or policy threshold of the appendix is encoded in this library.
 - Registry: [EQ-COST-LOAD-001](../equation-registry.md#eq-cost-load-001--cost-loading-and-joint-cost-schedule-confidence)
 
 ## `probstat.cost.spares`

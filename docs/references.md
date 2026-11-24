@@ -2480,7 +2480,22 @@ Practice, System Safety*. 11 May 2012.
 ## REF-NASA-CEH-2015
 
 National Aeronautics and Space Administration. *NASA Cost Estimating
-Handbook*, Version 4.0. NASA, Washington, DC, February 2015.
+Handbook*, Version 4.0. NASA, Washington, DC, February 2015. Appendix J,
+"Joint Cost and Schedule Confidence Level (JCL) Analysis", was opened and read
+from [nasa.gov](https://www.nasa.gov/wp-content/uploads/2020/11/ceh_appj.pdf):
+the definition of a JCL as the probability that cost is at most the target
+cost and the schedule at most the target date (Section J.1), the two ways to
+produce it (bivariate distributions, or probabilistic cost loading of a
+probabilistic schedule, which the appendix says NASA policy intends), the
+split of cost into time-dependent costs tied to task duration and
+time-independent costs (Section J.1.6.3), correlation as an explicit
+assumption (Section J.4.4), and the sensitivity reports of Section J.5.3
+(duration sensitivity as the correlation of a task's duration with the total
+duration, criticality index as the share of iterations on the critical path,
+discrete risk criticality as the probability that an occurring risk event lies
+on the critical path). The remainder of the handbook was not read. No
+correlation value or policy threshold of the appendix is encoded in this
+library.
 
 ## REF-NASA-RMH-2011
 
@@ -6034,9 +6049,10 @@ the critical path; the estimator is re-derived.
 Kenneth R. MacCrimmon and Charles A. Ryavec. "An Analytical Study of the PERT
 Assumptions." *Operations Research* 12(1), 16-37, 1964. DOI
 10.1287/opre.12.1.16. Confirmed bibliographically (the full text is behind a
-paywall and was not read). Cited for the PERT assumptions and their errors;
-the bias of the mean at merge events is derived here from Jensen's
-inequality and demonstrated by simulation.
+paywall and was not read; no open copy of the RAND report was retrievable).
+Cited for the PERT assumptions and their errors; the bias of the mean at merge
+events is derived here from Jensen's inequality and demonstrated by
+simulation.
 
 ## REF-WILLIAMS-1992
 

@@ -77,16 +77,50 @@ dependent.
 
 ## Sources
 
-Read in this work: the GAO Schedule Assessment Guide GAO-16-89G (Best
-Practice 8: correlation between durations, risk criticality, sensitivity
-indexes, the cumulative distribution as the probability of finishing by a
-date). Confirmed bibliographically only (formulas re-derived, nothing
-copied): Kelley and Walker (1959), Malcolm et al. (1959, already registered),
-Van Slyke (1963), MacCrimmon and Ryavec (1964), Williams (1992), Elmaghraby
-(2000). The NASA Cost Estimating Handbook appendix on the JCL could not be
-opened (the retrieval returned an error), so the JCL is defined here as the
-probability of meeting both targets and is not attributed to a page of the
-handbook.
+Read: the GAO Schedule Assessment Guide GAO-16-89G (Best Practice 8:
+correlation between durations, risk criticality, sensitivity indexes, the
+cumulative distribution as the probability of finishing by a date), and, in
+the source verification pass, NASA Cost Estimating Handbook v4.0, Appendix J
+(nasa.gov, `ceh_appj.pdf`) [REF-NASA-CEH-2015]:
+
+- *JCL definition* (Section J.1): the probability that cost is at most the
+  target and the schedule at most the target date. Agreement with
+  `joint_confidence_level` (EQ-COST-JCL-001) and `joint_cost_schedule_confidence`.
+  The earlier version of this record said the appendix could not be opened and
+  the definition was not attributed to it; it now is.
+- *Method* (Section J.1): the appendix names two ways to produce a JCL,
+  bivariate distributions and probabilistic cost loading of a probabilistic
+  schedule (PCLS), and says NASA policy intends the latter. `cost_schedule_samples`
+  is the second; `joint_cost_schedule_confidence` also accepts any paired
+  samples.
+- *Cost loading* (Section J.1.6.3): time-dependent costs (tied to task
+  duration, for example level-of-effort labour) and time-independent costs
+  (materials, tests, one-time expenses) per task, with a risk that adds
+  time-independent cost to a task. Agreement with EQ-COST-LOAD-001
+  (burn rate times sampled duration, project rate times completion,
+  time-independent costs); a risk event adds duration only, whereas the
+  appendix lets a risk also carry time-independent cost; this is listed under
+  the deliberately omitted items below.
+- *Correlation* (Section J.4.4): treated as an explicit assumption ("zero is
+  still a correlation assumption"), with 0.3 for task durations and 0.6
+  between cost items cited from research; the library takes correlations as
+  inputs and encodes no default.
+- *Sensitivity reports* (Section J.5.3): duration sensitivity (the
+  correlation of a task's duration with the total duration), criticality
+  index (share of iterations on the critical path), and discrete risk
+  criticality (the probability that an occurring risk event lies on the
+  critical path). The first two match the cruciality (Pearson) and the
+  criticality index here; the third is not implemented. The schedule
+  sensitivity index of this module (criticality times the ratio of standard
+  deviations) is not in the appendix and remains a stated convention.
+
+Confirmed bibliographically only (formulas re-derived, nothing copied): Kelley
+and Walker (1959), Malcolm et al. (1959, already registered), Van Slyke
+(1963), MacCrimmon and Ryavec (1964) (the RAND report could not be retrieved;
+the journal article is paywalled), Williams (1992), Elmaghraby (2000). The
+appendix's description of duration sensitivity as a correlation is consistent
+with the cruciality definition used here, but does not verify that Williams
+(1992) defines cruciality that way.
 
 ## Consequences
 
@@ -97,7 +131,9 @@ handbook.
 - Negative: simulation is pure Python; 8 000 draws of a two-activity network
   took about 2 s when measured, most of it input validation in the correlation
   statistics, so large networks take proportionally longer.
-- Left out deliberately: start-to-finish relations, calendars, resource
+- Left out deliberately: discrete risk criticality (Appendix J, Section
+  J.5.3), cost impacts of risk events (events add duration only, so their
+  cost reaches the JCL through the burn rates), start-to-finish relations, calendars, resource
   leveling, tail-dependent copulas, conditional (event-chain) risks,
   probabilistic branching, and Elmaghraby's analytic sensitivity of the mean
   completion time to an activity mean (a finite-difference or
