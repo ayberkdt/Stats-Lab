@@ -108,6 +108,70 @@ class IsotropicClosedFormTests(unittest.TestCase):
         self.assertFalse(result.rigorous)
         self.assertLess(result.error_estimate, 1.0e-12 * result.probability + 1e-300)
 
+    def test_error_estimate_covers_the_error_at_large_noncentrality(self) -> None:
+        """The reported error covers the true error from lambda = 1 to 1e5.
+
+        The reference values are 50-digit sums of Poisson weights times
+        regularised incomplete gamma functions; the weights ``exp(-mu + j
+        log(mu) - lgamma(j + 1))`` lose accuracy by cancellation at large
+        ``mu``, which made the true error 2.6e-12 against a reported 9.7e-15
+        at ``lambda = 1e5``, ``x = 1e5``. Each row is
+        ``(lambda, k, x, reference)``; the reference came from
+        ``mpmath`` (``mp.mp.dps = 50``): ``sum_j exp(-mu + j log mu -
+        loggamma(j + 1)) * gammainc((k + 2 j) / 2, 0, x / 2,
+        regularized=True)`` with ``mu = lambda / 2`` over the window
+        ``mu +- (12 sqrt(mu) + 50)``.
+
+        References:
+            [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995]. Checks [EQ-MVN-RICE-001].
+
+        """
+        rows = (
+        (1, 2, 3, 0.620643653219543627),
+        (1, 2, 7.242640687119286, 0.915914036187861194),
+        (1, 4, 5, 0.590445025785947084),
+        (1, 4, 10.196152422706632, 0.916539832280666939),
+        (100, 2, 102, 0.519807166718814832),
+        (100, 2, 132.14962686336267, 0.92632731440088234),
+        (100, 2, 71.85037313663733, 0.0572947959377673504),
+        (100, 4, 104, 0.519645533939087323),
+        (100, 4, 134.29851481508624, 0.926376090581716262),
+        (100, 4, 73.70148518491376, 0.057385229994988566),
+        (2500, 2, 2502, 0.503988292903173904),
+        (2500, 2, 2652.0299970006, 0.931625902014635994),
+        (2500, 2, 2351.9700029994, 0.0651346574853637069),
+        (2500, 4, 2504, 0.503986964602006424),
+        (2500, 4, 2654.0599880047976, 0.931626409085378633),
+        (2500, 4, 2353.9400119952024, 0.0651352310996694826),
+        (50000, 2, 50002, 0.500892049420774201),
+        (50000, 2, 50672.82710142033, 0.932833418614586359),
+        (50000, 2, 49331.17289857967, 0.0664425392396872177),
+        (50000, 4, 50004, 0.500892034553916188),
+        (50000, 4, 50674.83380952364, 0.932833424565339776),
+        (50000, 4, 49333.16619047636, 0.0664425453567900878),
+        (100000, 2, 100002, 0.500630778662500936),
+        (100000, 2, 100950.68804145514, 0.932938134616327572),
+        (100000, 2, 99053.31195854486, 0.0665498962035294743),
+        (100000, 4, 100004, 0.500630773406123867),
+        (100000, 4, 100952.69278483606, 0.932938136728783538),
+        (100000, 4, 99055.30721516394, 0.0665498983575694614),
+        (100000, 2, 100000.0, 0.499369216081011612),
+        )
+        for noncentrality, dof, x, reference in rows:
+            with self.subTest(noncentrality=noncentrality, dof=dof, x=x):
+                result = isotropic_gaussian_ball_probability(
+                    math.sqrt(noncentrality), 1.0, math.sqrt(x), dimension=dof
+                )
+                error = abs(result.probability - reference)
+                self.assertLessEqual(error, result.error_estimate)
+                self.assertLess(error, 1.0e-13)
+                self.assertFalse(result.rigorous)
+                self.assertAlmostEqual(
+                    noncentral_chi_square_cdf(x, dof, noncentrality),
+                    reference,
+                    delta=1.0e-13,
+                )
+
     def test_central_two_dimensional_case_is_rayleigh(self) -> None:
         """With zero offset the probability is ``1 - exp(-R^2 / (2 s^2))``.
 

@@ -438,17 +438,17 @@ def normal_tolerance_factor(
 ) -> float:
     """Return the normal-theory tolerance factor ``k(n, p, gamma)``.
 
-    **Normality of the sampled law is assumed.** One-sided: the bound
-    ``xbar + k s`` exceeds the ``p``-quantile (``xbar - k s`` is below the
-    ``(1 - p)``-quantile) with probability ``gamma``,
-    ``k = t'_(gamma; n-1, z_p sqrt(n)) / sqrt(n)``. Two-sided:
-    ``[xbar - k s, xbar + k s]`` contains at least a fraction ``p`` of the law with probability ``gamma``. ``method="exact"``
-    solves the defining equation; ``method="howe"`` (two-sided only) is the
-    closed-form approximation of Howe (1969), whose factor is slightly too
-    large for ``n <= 5`` and slightly too small from about ``n = 10`` on
-    (module docstring gives the measured errors). For one-sided factors only
-    the exact method exists. The factors decrease to ``z_p`` (one-sided) or
-    ``z_((1+p)/2)`` (two-sided) as ``n`` grows.
+    **Normality of the sampled law is assumed.** One-sided: the bound ``xbar + k
+    s`` exceeds the ``p``-quantile (``xbar - k s`` is below the ``(1 -
+    p)``-quantile) with probability ``gamma``, ``k = t'_(gamma; n-1, z_p
+    sqrt(n)) / sqrt(n)``. Two-sided: ``[xbar - k s, xbar + k s]`` contains at
+    least a fraction ``p`` of the law with probability ``gamma``.
+    ``method="exact"`` solves the defining equation; ``method="howe"``
+    (two-sided only) is the closed-form approximation of Howe (1969), whose
+    factor is slightly too large for ``n <= 5`` and slightly too small from
+    about ``n = 10`` on (module docstring gives the measured errors). For
+    one-sided factors only the exact method exists. The factors decrease to
+    ``z_p`` (one-sided) or ``z_((1+p)/2)`` (two-sided) as ``n`` grows.
 
     For a distribution-free alternative see
     :func:`probstat.propagation.wilks_bound`; compare the two with
