@@ -596,7 +596,7 @@ def split_gaussian(
     The mixture mean is ``m`` because the weights are symmetric, and the
     covariance is ``C + (sum_i w_i h_i^2) d d' / q = P`` because
     ``sum_i w_i h_i^2 = 1 - sigma^2``. Only the variance of ``P`` along the
-    whitened direction ``L'^-1 ... d`` shrinks to ``sigma^2`` of its value;
+    whitened direction ``L^-1 d`` (``P = L L'``) shrinks to ``sigma^2`` of its value;
     orthogonal directions are untouched. Splitting along the principal
     eigenvector (the default) shrinks the direction of largest uncertainty.
 

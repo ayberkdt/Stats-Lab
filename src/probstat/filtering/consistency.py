@@ -95,7 +95,7 @@ class NeesResult:
             decided on ``mean_statistic`` against ``[lower, upper]``.
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4].
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
 
     """
 
@@ -128,7 +128,7 @@ class NisResult:
         verdict: ``"consistent"``, ``"optimistic"`` or ``"pessimistic"``.
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4].
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
 
     """
 
@@ -162,7 +162,7 @@ class WhitenessResult:
         white: Whether ``p_value >= 1 - confidence``.
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4].
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
 
     """
 
@@ -280,7 +280,7 @@ def nees(error: Iterable[float], covariance: Iterable[Iterable[float]]) -> float
         [EQ-FILT-NEES-001].
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4],
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001],
         [REF-MARDIA-KENT-BIBBY-1979].
 
     """
@@ -313,7 +313,7 @@ def nees_series(
         [EQ-FILT-NEES-001].
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4].
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
 
     """
     if len(errors) != len(covariances):
@@ -350,7 +350,7 @@ def nees_from_filter(
         [EQ-FILT-NEES-001].
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4].
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
 
     """
     if states == "filtered":
@@ -374,7 +374,7 @@ def _verdict(statistic: float, lower: float, upper: float) -> str:
     """Return the verdict of a statistic against two-sided bounds.
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. No equation is
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. No equation is
         evaluated.
 
     """
@@ -419,7 +419,7 @@ def nees_test(
         [EQ-FILT-NEES-002].
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4].
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
 
     """
     if isinstance(dimension, bool) or not isinstance(dimension, int):
@@ -485,7 +485,7 @@ def nees_test_from_filters(
         [EQ-FILT-NEES-002].
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4].
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
 
     """
     if len(results) != len(truths):
@@ -522,7 +522,7 @@ def nis_series(
         [EQ-FILT-NEES-001].
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4].
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
 
     """
     if len(innovations) != len(covariances):
@@ -570,7 +570,7 @@ def nis_test(
         [EQ-FILT-NIS-001].
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4].
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
 
     """
     level = _confidence_level(confidence)
@@ -611,7 +611,7 @@ def nis_test_from_filter(
         [EQ-FILT-NIS-001].
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4].
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
 
     """
     skip = _burn_in(burn_in)
@@ -687,7 +687,7 @@ def innovation_whiteness_test(
         [EQ-FILT-WHITE-001].
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4],
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001],
         [REF-LJUNG-BOX-1978].
 
     """

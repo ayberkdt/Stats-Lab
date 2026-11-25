@@ -47,8 +47,9 @@ eigenvalues of `Sigma = V diag(s1^2, s2^2) V'`; evaluated with `u = R sin(theta)
 
 - Domain: `s > 0`, `R > 0`, integer `n >= 1`.
 - Meaning: `||X||^2/s^2` is noncentral chi-square; the Poisson mixture
-  representation gives a rigorous truncation bound (neglected Poisson tail
-  mass times the largest neglected chi-square value).
+  representation gives a truncation bound (neglected Poisson tail mass
+  times the largest neglected chi-square value); the reported estimate adds an
+  empirical rounding allowance and is not labelled rigorous.
 - Code: `multivariate.isotropic_gaussian_ball_probability`,
   `multivariate.noncentral_chi_square_cdf`,
   `multivariate.ball_probability._poisson_chi_square`.
@@ -102,8 +103,9 @@ for the Gaussian `f(0) = exp(-m'S^-1 m/2) / (2 pi sqrt(det S))` and
 for `Sigma = s^2 I` and `R << ||mu||` the maximum is `R^2 / (e ||mu||^2)` at
 `c s^2 = ||mu||^2 / 2`.
 
-- Domain: two dimensions, mean outside the disc (otherwise the supremum is
-  one, approached as `c -> 0`).
+- Domain: two dimensions, mean outside the disc (for `||mu|| < R` the
+  supremum is one, approached as `c -> 0`; for `||mu|| = R` it is one half,
+  the half disc seen from the boundary point).
 - Meaning: the probability vanishes at both ends of the scale range, so a
   larger covariance can raise it ("dilution"). Located numerically; for the
   small isotropic disc the closed form follows from maximising

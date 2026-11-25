@@ -1,7 +1,7 @@
 """Filter consistency: NEES, NIS, innovation whiteness, covariance realism.
 
 Oracles: chi-square acceptance bounds pinned from base R 4.6.2 (``qchisq``,
-``qnorm``, ``qbinom``; each pin carries its R expression), the squared
+``qnorm``; each pin carries its R expression), the squared
 Mahalanobis distance of ``probstat.validation.mahalanobis_metric``, and
 seeded simulation of a correctly specified linear-Gaussian filter, which must
 be accepted, against filters whose noise covariances are deliberately halved
@@ -87,7 +87,7 @@ class BoundTests(unittest.TestCase):
     """Chi-square acceptance bounds against R.
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
         [EQ-FILT-NEES-002], [EQ-FILT-NIS-001].
 
     """
@@ -96,7 +96,7 @@ class BoundTests(unittest.TestCase):
         """N = 20 runs of a 4-D state give the pinned two-sided bounds.
 
         References:
-            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
             [EQ-FILT-NEES-002].
 
         """
@@ -117,7 +117,7 @@ class BoundTests(unittest.TestCase):
         """T = 100 steps of a 2-D innovation give the pinned bounds.
 
         References:
-            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
             [EQ-FILT-NIS-001].
 
         """
@@ -134,7 +134,7 @@ class BoundTests(unittest.TestCase):
         """Only observed steps count; dof is their total dimension.
 
         References:
-            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
             [EQ-FILT-NIS-001].
 
         """
@@ -152,7 +152,7 @@ class BoundTests(unittest.TestCase):
         """A statistic above the upper bound is optimistic, below pessimistic.
 
         References:
-            [REF-HORWOOD-ETAL-2014]. Checks [EQ-FILT-NEES-002].
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks [EQ-FILT-NEES-002].
 
         """
         high = nees_test([[8.0] * 5 for _ in range(20)], dimension=4)
@@ -221,7 +221,7 @@ class NeesStatisticTests(unittest.TestCase):
         """``nees_from_filter`` equals ``nees_series`` on the stored states.
 
         References:
-            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
             [EQ-FILT-NEES-001].
 
         """
@@ -274,7 +274,7 @@ class SimulatedFilterTests(unittest.TestCase):
     """A correct filter is accepted; halved or doubled noise is flagged.
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
         [EQ-FILT-NEES-002], [EQ-FILT-NIS-001].
 
     """
@@ -283,7 +283,7 @@ class SimulatedFilterTests(unittest.TestCase):
         """NEES, NIS and whiteness all accept the correctly specified filter.
 
         References:
-            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
             [EQ-FILT-NEES-002], [EQ-FILT-NIS-001], [EQ-FILT-WHITE-001].
 
         """
@@ -304,7 +304,7 @@ class SimulatedFilterTests(unittest.TestCase):
         """A filter with noise covariances halved is flagged as optimistic.
 
         References:
-            [REF-HORWOOD-ETAL-2014]. Checks [EQ-FILT-NEES-002],
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks [EQ-FILT-NEES-002],
             [EQ-FILT-NIS-001].
 
         """
@@ -321,7 +321,7 @@ class SimulatedFilterTests(unittest.TestCase):
         """A filter with noise covariances doubled is flagged as pessimistic.
 
         References:
-            [REF-HORWOOD-ETAL-2014]. Checks [EQ-FILT-NEES-002],
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks [EQ-FILT-NEES-002],
             [EQ-FILT-NIS-001].
 
         """
@@ -337,7 +337,7 @@ class SimulatedFilterTests(unittest.TestCase):
         """``burn_in`` removes leading steps from the NIS average.
 
         References:
-            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
             [EQ-FILT-NIS-001].
 
         """
@@ -351,7 +351,7 @@ class WhitenessTests(unittest.TestCase):
     """The innovation whiteness test on synthetic sequences.
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
         [EQ-FILT-WHITE-001].
 
     """
@@ -361,7 +361,7 @@ class WhitenessTests(unittest.TestCase):
         """Return a unit-variance AR(1) sequence with coefficient ``rho``.
 
         References:
-            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. No equation is
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. No equation is
             evaluated.
 
         """
@@ -377,7 +377,7 @@ class WhitenessTests(unittest.TestCase):
         """White innovations pass; the bound is the pinned ``z / sqrt(T m)``.
 
         References:
-            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
             [EQ-FILT-WHITE-001].
 
         """
@@ -405,7 +405,7 @@ class WhitenessTests(unittest.TestCase):
         """An AR(1) sequence with coefficient 0.6 fails with a lag-1 spike.
 
         References:
-            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
             [EQ-FILT-WHITE-001].
 
         """
@@ -420,7 +420,7 @@ class WhitenessTests(unittest.TestCase):
         """Scaling innovations and covariances together changes nothing.
 
         References:
-            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
             [EQ-FILT-WHITE-001].
 
         """
@@ -436,7 +436,7 @@ class WhitenessTests(unittest.TestCase):
         """Missing observations are skipped without error.
 
         References:
-            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
             [EQ-FILT-WHITE-001].
 
         """
@@ -678,7 +678,7 @@ class SyntheticChiSquareTests(unittest.TestCase):
     """Seeded chi-square data through the Monte-Carlo test.
 
     References:
-        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+        [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
         [EQ-FILT-NEES-002].
 
     """
@@ -687,7 +687,7 @@ class SyntheticChiSquareTests(unittest.TestCase):
         """NEES drawn as sums of squared normals pass; times 1.6 they do not.
 
         References:
-            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. Checks
+            [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. Checks
             [EQ-FILT-NEES-002].
 
         """
@@ -697,7 +697,7 @@ class SyntheticChiSquareTests(unittest.TestCase):
             """Return 40 runs of 30 steps of ``scale * chi2(3)``.
 
             References:
-                [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001, Section 5.4]. No equation
+                [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001]. No equation
                 is evaluated.
 
             """

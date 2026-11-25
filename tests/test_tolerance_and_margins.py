@@ -172,7 +172,7 @@ class OneSidedFactorTests(unittest.TestCase):
     """
 
     def test_matches_r_noncentral_t_quantile(self) -> None:
-        """Eight (n, p, confidence) triples agree with ``qt(..., ncp)``.
+        """Nine (n, p, confidence) triples agree with ``qt(..., ncp)``.
 
         References:
             [EQ-PROP-TOL-001].
@@ -540,6 +540,55 @@ class BoundsAndSizesTests(unittest.TestCase):
         )
         # normal data: both bounds estimate the same quantile 10 + 1.645
         self.assertAlmostEqual(both.normal.bound, 11.645, delta=0.3)
+
+    def test_price_of_normality_lower_side_bounds_the_same_quantile(self) -> None:
+        """Both sides: normal and Wilks bound estimate one quantile; size is 59.
+
+        For ``sided="lower"`` the bound ``xbar - k s`` lies below the
+        ``1 - coverage`` quantile, so the Wilks bound must be taken at level
+        ``1 - coverage``; at the unchanged level it would bound the
+        ``coverage`` quantile from below (about 11.3 for N(10, 1) at 0.95).
+        The oracle is the closed-form quantile ``10 -+ z_0.95``, the Wilks
+        size 59 for 95/95 on each side, and the documented sign of
+        ``difference``.
+
+        References:
+            [REF-WILKS-1941], [EQ-PROP-TOL-001], [EQ-PROP-WILKS-001].
+
+        """
+        rng = random.Random(11)
+        big = [rng.gauss(10.0, 1.0) for _ in range(300)]
+        z = STANDARD.inv_cdf(0.95)
+        for side, quantile in (("upper", 10.0 + z), ("lower", 10.0 - z)):
+            price = normality_price(big, 0.95, 0.95, sided=side)
+            self.assertEqual(price.wilks_required_size, 59)
+            assert price.wilks is not None
+            assert price.difference is not None
+            # both bounds sit within sampling error of the same quantile
+            self.assertAlmostEqual(price.normal.bound, quantile, delta=0.4)
+            self.assertAlmostEqual(price.wilks.bound, quantile, delta=0.6)
+            self.assertAlmostEqual(
+                price.wilks.bound, price.normal.bound, delta=0.6
+            )
+            if side == "upper":
+                expected = price.wilks.bound - price.normal.bound
+                self.assertGreater(price.wilks.bound, quantile - 0.6)
+            else:
+                expected = price.normal.bound - price.wilks.bound
+                self.assertLess(price.wilks.bound, quantile + 0.6)
+            self.assertAlmostEqual(price.difference, expected, delta=1e-12)
+        lower = normality_price(big, 0.95, 0.95, sided="lower")
+        assert lower.wilks is not None
+        self.assertEqual(
+            lower.wilks.bound, wilks_bound(big, 0.05, 0.95, sided="lower").bound
+        )
+        self.assertEqual(lower.wilks.sided, "lower")
+        # a sample of 58 is too small on both sides
+        for side in ("upper", "lower"):
+            short = normality_price(big[:58], 0.95, 0.95, sided=side)
+            enough = normality_price(big[:59], 0.95, 0.95, sided=side)
+            self.assertIsNone(short.wilks)
+            self.assertIsNotNone(enough.wilks)
 
     def test_argument_validation(self) -> None:
         """Bad types, ranges, and option names raise ``TypeError`` or ``ValueError``.
@@ -1038,8 +1087,8 @@ class PerformanceMeasureTests(unittest.TestCase):
         self.assertLessEqual(
             item.compliance_interval[0], item.compliance_probability or 0
         )
-        wilks = self.measure().assess(method="normal-tolerance")
-        self.assertIsNotNone(wilks.milestones[0].uncertainty)
+        tolerance = self.measure().assess(method="normal-tolerance")
+        self.assertIsNotNone(tolerance.milestones[0].uncertainty)
         with self.assertRaises(ValueError):
             self.measure().assess(method="moments")
 
