@@ -370,6 +370,8 @@ covariance has to pass.
   design optimisation (ADR-0142).
 - [x] Schedule risk on an activity network and joint cost-schedule
   confidence (ADR-0143).
+- [x] A batch evaluation contract: procedures that request whole batches of
+  points, driven by a batch callable or an ask-tell session (ADR-0132).
 
 ## Beyond the current scope
 

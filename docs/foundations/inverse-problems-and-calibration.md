@@ -110,12 +110,12 @@ future-observation bands without hiding their distinct meanings.
 
 ## 8. Scope and next extensions
 
-This release assumes a linear response, a proper positive-definite Gaussian
-prior, known homoscedastic Gaussian noise, and additive independent discrepancy.
-Future work includes unknown variance, nonlinear forward models, robust and
-heteroscedastic likelihoods, MCMC, correlated discrepancy processes,
-experimental design, and formal validation experiments. These limitations are
-model boundaries, not missing footnotes.
+The linear-Gaussian calibration of this guide (`calibrate_linear_gaussian`)
+assumes a linear response, a proper positive-definite Gaussian prior, known
+homoscedastic Gaussian noise, and additive independent discrepancy. These are
+model boundaries of that function, not missing footnotes. The extensions
+beyond them exist as separate tools, listed in the update below; what is still
+absent is stated at its end.
 
 Update: unknown noise variance (Normal-inverse-gamma and log-sigma sampling),
 nonlinear forward models, Student-t likelihoods, Laplace approximations, and

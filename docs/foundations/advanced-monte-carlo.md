@@ -112,8 +112,12 @@ experiment contrasts raw-indicator and conditional Monte Carlo estimators.
 - Confidence intervals are large-sample normal approximations.
 - Automatic control fitting uses the same sample and reports a plug-in error.
 - Stratification is presently one-dimensional with equal-width strata.
-- Importance sampling is ordinary rather than self-normalized; adaptive and
-  multiple importance sampling are not yet implemented.
+- Importance sampling in `probstat.monte_carlo` is ordinary rather than
+  self-normalized, and its scalar estimators have no adaptive or multiple
+  importance sampling. The adaptive and mixture proposals live in
+  `probstat.reliability` (`cross_entropy_importance_sampling`,
+  `improved_cross_entropy`, `sequential_importance_sampling`,
+  `mixture_importance_sampling`).
 - These scalar estimators draw plain pseudo-random points. Latin hypercube
   and randomized quasi-Monte Carlo designs live in `probstat.sampling` and
   are used through `propagation.propagate` (with `replicates=` for honest
@@ -122,8 +126,10 @@ experiment contrasts raw-indicator and conditional Monte Carlo estimators.
   Multilevel Monte Carlo and Stein control variates and control functionals
   are covered in the sections below.
 
-The next ATHENS slice builds reliability and rare-event analysis on these
-auditable probability, cost, and importance-weight foundations.
+Reliability and rare-event analysis are built on these auditable probability,
+cost, and importance-weight foundations in `probstat.reliability`; see the
+[reliability guide](reliability-analysis.md) and the
+[advanced reliability guide](advanced-reliability.md).
 
 ## Sources
 
@@ -216,7 +222,11 @@ seed=1)` (the sampler is `GeometricBrownianMotion` in
   random; Giles' flooring of `m_l` and `V_l` (at half the value extrapolated
   from level `l - 1`) is applied to keep it stable.
 - Cost is the user's model `c(l)`, not wall-clock time.
-- Multi-index MC, randomized (unbiased) MLMC, and MLQMC are not implemented.
+- `probstat.monte_carlo` does not implement multi-index MC, randomized
+  (unbiased) MLMC, or MLQMC. The generic randomized-truncation estimators of
+  `probstat.methodlab` (`single_term_estimator`, `coupled_sum_estimator`)
+  build unbiased estimators from a sequence of coupled approximations; the
+  [method-development guide](method-development.md) describes them.
 
 Sources: [REF-GILES-2008], [REF-GILES-2015].
 

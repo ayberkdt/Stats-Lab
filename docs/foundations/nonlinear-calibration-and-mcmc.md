@@ -310,8 +310,9 @@ which the tests check to ten decimals.
   inefficient chain; check ESS.
 - Multimodal posteriors can defeat every diagnostic when no chain starts near
   a mode. Use over-dispersed starts and domain knowledge.
-- Noise is independent across observations, and correlated measurement
-  errors are not implemented. An input-dependent discrepancy process
+- Noise is independent across observations unless an `ErrorCorrelation` is
+  declared (Section 15); correlated errors with heavy tails (a multivariate
+  Student-t) are not implemented. An input-dependent discrepancy process
   (Kennedy-O'Hagan Gaussian process) is not part of `CalibrationProblem`; it
   is provided by `DiscrepancyCalibration` (see
   [model discrepancy](model-discrepancy.md)).

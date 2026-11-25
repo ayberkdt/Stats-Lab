@@ -37,8 +37,9 @@ requirements point only backwards, and that every named laboratory exists.
    toolset on one model.
 5. [Systems engineering](#track-e--systems-engineering) (E1-E6): reliability,
    Markov and semi-Markov models, risk and cost, mission assessment.
-6. [Computation](#track-c--computation) (C1-C5): multilevel and Stein Monte
-   Carlo, gradient-based MCMC, probabilistic programming, generative models.
+6. [Computation](#track-c--computation) (C1-C6): multilevel and Stein Monte
+   Carlo, gradient-based MCMC, probabilistic programming, generative models,
+   score-based diffusion, and developing and certifying a new method.
 
 ## Track M — Mathematical prerequisites
 
