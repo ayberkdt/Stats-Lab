@@ -57,14 +57,17 @@ variance-based indices: its cost is `d R N` runs for the extended method and
    (Nyquist), complementary frequencies distinct integers up to
    `omega_max / (2 M)`. The library adds a rule that is its own and was found
    by experiment: for `d >= 3` neighbouring low frequencies are at least two
-   apart. With the pair (1, 2) the Ishigami first-order errors were up to
-   0.10 (phase-resampling spread up to 0.11); with (1, 3) they were 0.02 and
-   stayed there up to `omega_max / (2 M) = 8`. Together this gives
+   apart. With the pair (1, 2) the largest Ishigami first-order error over
+   twenty seeds (three resamples, `M = 4`) was 0.18 at `N = 129`, 193 and 385
+   alike; with (1, 3) it was 0.03 (0.04 at `N = 129`). The phase-resampling
+   spread does not reveal this bias. (A first, shorter run gave errors up to
+   0.10 for (1, 2) and 0.02 for (1, 3); the figures above supersede it.)
+   Together this gives
    `N >= 4 M^2 max(2 d - 3, 1) + 1`, exposed as `fast_sample_size(d, M)`;
    shorter curves are refused with the required size in the message. A
    second experiment showed that at fixed `M` the estimate does not change
-   with a longer curve (identical to three digits for `N = 513, 1025, 2049`
-   at `M = 4`): the truncation error at `M` harmonics dominates, so the
+   with a longer curve (equal to within 0.001 for `N = 513, 1025, 2049`
+   at `M = 4`: the first-order index of `x1` is 0.311, 0.310, 0.310): the truncation error at `M` harmonics dominates, so the
    documentation tells users to raise `M`, not `N`. Ishigami at `M = 8`
    gives indices within about 0.01 of the analytic values.
 6. **Random balance design, [EQ-SENS-RBD-001], [EQ-SENS-RBD-002].** One
@@ -140,8 +143,12 @@ variance-based indices: its cost is `d R N` runs for the extended method and
   was repeated afterwards over twenty seeds and is pinned by
   `test_adjacent_low_frequencies_bias_the_ishigami_indices`: with the pair
   (1, 2) the largest Ishigami first-order error is 0.18 at `N = 129`, 193 and
-  385 alike, with (1, 3) it is 0.03; the pairs (3, 6) and, in four inputs,
-  (2, 4, 7) err as much as (1, 2), while (1, 4, 8) and (1, 5, 10) do not. The
+  385 alike, with (1, 3) it is 0.03 (0.04 at `N = 129`, a length below the
+  library's own minimum); at `N = 385` (1, 6) and (2, 3) give 0.03 and 0.02
+  while (3, 6) gives 0.18; in four inputs (Ishigami and an inert input,
+  `N = 641`) (2, 4, 7) errs as much as (1, 2), 0.18, while (1, 4, 8),
+  (1, 4, 7) and (1, 5, 9) give 0.03 and (3, 5, 7) 0.006. The test runs twenty
+  seeds at `N = 193` and 385. The
   bias therefore comes from one low frequency lying on a harmonic of another
   that the response excites, not from adjacency as such: the rule removes the
   case (1, 2), is neither necessary nor sufficient in general, and a longer

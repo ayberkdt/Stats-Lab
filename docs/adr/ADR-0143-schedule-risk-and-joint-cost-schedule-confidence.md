@@ -71,7 +71,8 @@ dependent.
    `cost_for_joint_confidence` (reused, not reimplemented);
    `cost_schedule_frontier` lists, per deadline, the smallest cost reaching a
    stated joint confidence.
-9. **Joint confidence is below both marginals** is stated in the module,
+9. **Joint confidence is at most the smaller marginal** (equal under perfect
+   dependence) is stated in the module,
    package and guide docstrings and shown in the guide example (0.7 and 0.7
    marginals, 0.49 joint when independent).
 

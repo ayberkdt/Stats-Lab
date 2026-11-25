@@ -1292,8 +1292,9 @@ and `1 - V(x) = (1/pi) sum_j (-1)^(j+1) I_j`.
   the integrand becomes an even periodic analytic function, and the
   trapezoidal rule with 64 nodes converges geometrically. Agrees with
   `1 - V` of [EQ-INF-GOF-CVM-002] to `1e-15` where both are resolved and
-  keeps relative accuracy of `1e-14` out to `x = 30` (`1 - V(12) =
-  1.975e-27`).
+  keeps relative accuracy below about `3e-14` out to `x = 30` (below `1e-14`
+  up to `x = 10`; `1 - V(12) = 1.975e-27`), measured against a 150-digit
+  evaluation of the series of [EQ-INF-GOF-CVM-002].
 - Code: `inference.cramer_von_mises_asymptotic_sf`,
   `inference.cramer_von_mises_asymptotic_cdf`.
 - Source: the form is the inversion of the Laplace transform
@@ -1527,7 +1528,8 @@ log-uniform background).
   `inference.elicitation._item_information`.
 - Source: [REF-HANEA-NANE-2021] (Section 3.1: intrinsic range and the 10 %
   overshoot default; Section 3.2.2, Eq. 2 and Table 2: information, reproduced
-  to the table's rounding). The log-scale overshoot for the log-uniform
+  to within one unit of the second decimal; the first two published entries
+  are truncated, not rounded). The log-scale overshoot for the log-uniform
   background is a convention of this library. [REF-COOKE-1991] (not opened).
   - [REF-HANEA-NANE-2021](../references.md#ref-hanea-nane-2021): Anca M. Hanea and Gabriela F. Nane. "An In-Depth Perspective on the Classical Model." In A. M. Hanea, G. F. Nane, T. Bedford, and S. French (eds.), *Expert Judgement in Risk and Decision Analysis*, International Series in Operations Research and Management Science 293, Springer, 2021, 225-256. DOI: [10.1007/978-3-030-46474-5_10](https://doi.org/10.1007/978-3-030-46474-5_10). The accepted author manuscript from the TU Delft repository was opened and read ([repository.tudelft.nl](https://repository.tudelft.nl/file/File_e398f490-a7f2-4b64-b09d-6ac1f17b731b)): Section 3.1 (the expert's piecewise-uniform distribution; the intrinsic range extended by an overshoot `k`, 10 % by default in EXCALIBUR; for seed items the realization enters the range, for items of interest only the experts' percentiles), Section 3.2.1 (calibration as the p-value of `2 M I(s, p)` against a chi-square law with 3 degrees of freedom for the three percentiles; worked values 0.83 and 0.39 for ten seed items), Section 3.2.2 (information with respect to a uniform or log-uniform background, Eq. 2 and Table 2), Section 3.3 (combined score `Cal x I x 1{Cal >= alpha}`, global weights Eq. 3, item weights), and Sections 4 and 4.1 (decision makers; the cut-off alpha takes the values of the calibration scores and the optimised decision maker maximises its combined score). Cited for those conventions; its Table 2 and its calibration examples are pinned as oracle tests.
   - [REF-COOKE-1991](../references.md#ref-cooke-1991): Roger M. Cooke. *Experts in Uncertainty: Opinion and Subjective Probability in Science*. Environmental Ethics and Science Policy Series. Oxford University Press, New York, 1991. Cited for the classical model of performance-based expert weights: calibration as the p-value of a likelihood-ratio statistic on seed-variable realizations in inter-quantile bins, information relative to a background measure, the weight as their product above a calibration cut-off, and the decision maker. Confirmed bibliographically only; the book was not opened. The scoring rules and their conventions were instead compared with the open-access chapter [REF-HANEA-NANE-2021], which describes the model as implemented in EXCALIBUR: the calibration statistic and its chi-square degrees of freedom, the information score, the intrinsic range with the 10 % overshoot default, the weights, and the cut-off optimisation all agree (item-by-item comparison in ADR-0136). Two conventions remain this library's own and are not in that chapter: the overshoot measured on the logarithmic scale for the log-uniform background, and the information of an expert averaged over the seed items only.

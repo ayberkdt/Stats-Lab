@@ -99,7 +99,8 @@ Common pitfalls:
       the input order; ``gamma`` refers to the physical inputs and does not.
     - ``seed=None`` draws fresh entropy, so repeated runs differ; pass an
       integer seed. ``compare_reliability_methods`` runs ``METHODS``, which
-      leaves out ``"ce"`` and ``"line"`` (both are in ``AVAILABLE_METHODS``).
+      leaves out the four ``OPTIONAL_METHODS`` (``"ce"``, ``"line"``,
+      ``"acs"`` and ``"hmc-ss"``, all in ``AVAILABLE_METHODS``).
     - Zero observed failures give ``standard_error == 0``; the Wilson
       interval keeps a positive upper bound, which is the number to report.
     - ``improved_cross_entropy`` with one Gaussian follows a single failure
@@ -110,6 +111,9 @@ Common pitfalls:
       ``constant_violated``, which covers the evaluated points only.
 
 Guide: docs/foundations/advanced-reliability.md
+
+The chance-constraint and reliability-based design entry points are also
+documented in docs/foundations/reliability-analysis.md.
 
 References:
     [REF-MELCHERS-BECK-2018], [REF-HASOFER-LIND-1974],

@@ -373,8 +373,9 @@ at least two apart; hence `N >= 2 M omega_max + 1` and
   frequencies make two inputs move along one line); the harmonics of the low
   set up to order `M` then end at `omega_max / 2`, below `omega_max`. The
   spacing of at least two is an empirical rule of this library: with the
-  consecutive pair (1, 2) the Ishigami first-order errors were near 0.1,
-  with (1, 3) near 0.02. It is not part of the published frequency plan: the
+  consecutive pair (1, 2) the largest Ishigami first-order error over twenty
+  seeds (`M = 4`, three resamples) was 0.18 at `N = 129`, 193 and 385, with
+  (1, 3) it was 0.03. It is not part of the published frequency plan: the
   open descriptions of extended FAST give `omega = (N - 1) / (2 M)`, a largest
   complementary frequency `omega / (2 M)` and the others spread uniformly
   between 1 and it (a set that coincides with this one wherever this library

@@ -1855,8 +1855,9 @@ def nasa_std_7009b_scale() -> CredibilityScale:
     standard warns that altering the level definitions likely adds M&S risk.
     Table 19 gives the scope of a level-4 use/analysis review as "all other
     capability-related factors" where the level-3 row speaks of
-    results-related factors; the descriptor below follows level 3's wording
-    for level 4 and flags the table's text.
+    results-related factors; the level-4 descriptor below quotes
+    Table 19's "capability-related factors" wording and says so in the
+    descriptor itself.
 
     Returns:
         The scale with ``source_key="REF-NASA-STD-7009B-2024"``.

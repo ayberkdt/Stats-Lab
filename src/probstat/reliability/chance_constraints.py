@@ -27,9 +27,10 @@ or a model of the whole input law:
   empirical chance constraint "at most ``floor(gamma N)`` of ``N`` samples
   violate" is the single order-statistic constraint
   ``h_(floor(gamma N)+1)(x) <= 0`` (the ``(floor(gamma N)+1)``-th largest of
-  ``h_s(x) = max_i g_i(x, xi_s)``), which is solved with
-  :func:`~probstat.reliability.minimize_constrained`. This is exact, needs no
-  smoothing, and handles joint constraints through the maximum over the
+  ``h_s(x) = max_i g_i(x, xi_s)``; for ``gamma = 0`` the code passes one
+  constraint per sample instead, the same set of inequalities), which is
+  solved with :func:`~probstat.reliability.minimize_constrained`. This is
+  exact, needs no smoothing, and handles joint constraints through the maximum over the
   rows. It is generally **non-convex** (an order statistic of convex
   functions is not convex) and piecewise smooth, so only a local solution is
   found; the out-of-sample certificate, not the optimiser, supports any claim
@@ -549,7 +550,9 @@ class ChanceConstrainedResult:
         support_constraints: Number of support constraints found by
             leave-one-out re-solves (``None`` unless requested and applicable).
         posterior_bound: Wait-and-judge ``epsilon(k)`` for that number
-            (``None`` when ``support_constraints`` is ``None``).
+            (``None`` when ``support_constraints`` is ``None`` or when the
+            counted number of support constraints exceeds the decision
+            dimension).
 
     References:
         [REF-CAMPI-GARATTI-2008], [REF-CLOPPER-PEARSON-1934].
@@ -594,9 +597,11 @@ def solve_chance_constrained(
     optimisation samples. With ``h_s(x) = max_i g_i(x, xi_s)`` the sampled
     constraint "at most ``q = floor(gamma N)`` of the ``N`` values ``h_s``
     are positive" is ``c(x) = h_(q+1)(x) <= 0``, the ``(q + 1)``-th largest
-    value; it is solved by :func:`~probstat.reliability.minimize_constrained`
-    starting at ``x0``. The program is non-convex in general, so the
-    answer is a local solution that depends on ``x0``.
+    value (for ``gamma = 0``, ``q = 0``, the program imposes one constraint
+    per sample instead, which is the same set of inequalities); it is solved
+    by :func:`~probstat.reliability.minimize_constrained` starting at ``x0``.
+    The program is non-convex in general, so the answer is a local solution
+    that depends on ``x0``.
 
     ``violation_level = 0`` is the scenario program. If it is convex with a
     unique solution, the result reports the a-priori ``epsilon`` of
@@ -630,8 +635,7 @@ def solve_chance_constrained(
 
     Raises:
         TypeError: If a callable or count has the wrong type.
-        ValueError: If a numeric argument is out of range or the sampled
-            program has fewer samples than ``floor(gamma N) + 1``.
+        ValueError: If a numeric argument is out of range.
 
     Equation:
         [EQ-REL-SAA-001], [EQ-REL-SCENARIO-001].
