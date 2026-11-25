@@ -95,6 +95,36 @@ the mathematics re-derived.
   datawiz was not installed, was rebuilt and audited; the README no longer
   states an open item.
 
+### Fixed
+
+Found by an audit of comments, docstrings and documents against the code,
+before any release contained them.
+
+- `propagation.normality_price(..., sided="lower")` compared a normal bound
+  of the `(1 - coverage)`-quantile with a Wilks bound of the
+  `coverage`-quantile and reported a required size of 1; both sides now
+  bound the same quantile, and the required size is 59 for 95 %/95 % on
+  either side.
+- `multivariate.isotropic_gaussian_ball_probability` and
+  `noncentral_chi_square_cdf` reported a truncation bound as a rigorous
+  error bound; at a noncentrality of `1e5` the true error (2.6e-12)
+  exceeded it by a factor of about 270. The Poisson weights are now built
+  outward from the mode, the reported estimate includes a rounding
+  allowance and covers the error in every pinned case, and the result is no
+  longer marked rigorous.
+- Statements that did not match the code: the curve length in the
+  `fast_sample_size` docstring, the advice in `fast_analysis` to lengthen
+  the curve, the 95 % point and the tail accuracy quoted for the
+  Cramér-von Mises limit law, a clause number of the GUM, the direction of
+  the error of Howe's tolerance factor, an unreachable `Raises` clause of
+  `solve_chance_constrained`, and the methods left out of
+  `reliability.METHODS`.
+- The measurement behind the extended-FAST spacing rule is now stated with
+  the same numbers in the module, the decision record, the equation
+  registry and the test that runs it.
+- Citations that the reference entries themselves did not support were
+  removed or redirected (a book and a section number that were not opened).
+
 ### Known limitations
 
 - The extended-FAST spacing rule (neighbouring low frequencies two apart) is
