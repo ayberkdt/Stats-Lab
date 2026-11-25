@@ -113,8 +113,9 @@ pass):
     background on the intrinsic range, averaged over items. Agreement; Table
     2 (assessments `(5, 15, 25)`, `(40, 50, 60)`, `(15, 17, 75)`, `(30, 50,
     70)` on `[0, 100]`, scores 1.21, 1.14, 1.15, 0.55) is reproduced to within
-    the rounding of the table (the formula gives 1.2183, 1.1457, 1.1515,
-    0.5507; the second entry appears truncated rather than rounded) and pinned
+    one unit of the second decimal (the formula gives 1.218267, 1.145726,
+    1.151478, 0.550661; the first two entries appear truncated rather than
+    rounded, since 1.2183 would round to 1.22) and pinned
     in `test_published_information_examples`. The chapter's rule of thumb for
     a log-uniform background (assessments spanning more than four orders of
     magnitude) is not enforced; the background is an argument.
@@ -166,5 +167,3 @@ therefore remain derived and numerically checked, not compared with the survey.
   uncertainty about the expert's statements, and a Bayesian pooling model
   (supra-Bayesian). A normal quantile fit also cannot represent skewness;
   compare families before choosing.
-- The README count test fails until the integrator refreshes the counts of
-  public names and equations.

@@ -29,7 +29,8 @@ For conditioned sampling with moving particles (Guyader et al. 2011; Walter
 particles, the estimator is ``(1 - 1/N)^M``, and the same certification
 question has an exact Poisson answer
 (:func:`moving_particles_certification_probability`). The particle
-algorithm itself is not implemented here.
+algorithm itself is
+:func:`probstat.reliability.particles.moving_particles`.
 
 Assumptions: model runs are independent draws of the input law and the model
 is deterministic. The guarantee concerns sampling error only, not the

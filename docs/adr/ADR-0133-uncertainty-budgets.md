@@ -65,7 +65,7 @@ Welch-Satterthwaite factor applied to correlated inputs.
    reports a proxy for the accuracy requirement of Section 8.2
    ([EQ-UQ-BUDGET-009]). Seeds go through `foundations.random_streams`: each
    input draws from a child stream. (The proxy applies to a result of fixed
-   size; see item 10 for an adaptive result.)
+   size; see item 12 for an adaptive result.)
 8. **`correlation` means two things, stated each time.** In a budget it is the
    correlation of the input *estimates* (GUM 5.2.2). In `monte_carlo_budget`
    it is the correlation of a Gaussian copula on normal scores

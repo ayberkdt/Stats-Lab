@@ -261,8 +261,9 @@ optional lags. A cycle is rejected with its name (`a -> b -> a`).
 - `critical_path` is the deterministic method: early and late dates, total
   and free float, and every critical path.
 - `pert_estimate` is the classical approximation: mean and variance summed
-  along one critical path, a normal completion time. It is exact for a series
-  of independent activities and optimistic wherever paths merge, because the
+  along one critical path, a normal completion time. For a series
+  of independent activities the mean and variance are exact (the normal law
+  only when the activities are normal); it is optimistic wherever paths merge, because the
   expected maximum of two paths exceeds the larger expected path.
 - `simulate_schedule` samples every duration (optionally through a Gaussian
   copula on the normal scores, `correlation=`), adds discrete
@@ -276,7 +277,7 @@ optional lags. A cycle is rejected with its name (`a -> b -> a`).
   completion time. `joint_cost_schedule_confidence` and
   `cost_schedule_frontier` hand the pairs to the joint confidence functions.
 
-**The joint confidence of a pair is below both marginals.** The example
+**The joint confidence of a pair is at most the smaller marginal.** The example
 below has two parallel builds. The date that the schedule meets with 70 %
 confidence and the cost that an independent cost element meets with 70 %
 confidence meet *both* targets only about 49 % of the time (0.7 x 0.7); with

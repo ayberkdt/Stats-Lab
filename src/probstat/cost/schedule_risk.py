@@ -26,9 +26,11 @@ al.: the mean and variance of the project duration are the sums along the
 critical path of the mean-duration network, and the duration is taken as
 normal. It ignores every path but one and so is *optimistic*: the expected
 maximum of several path durations exceeds the maximum of their expectations
-(merge-event bias; MacCrimmon and Ryavec, 1964). It is exact for a pure
-series network of independent activities and underestimates the mean as soon
-as parallel paths compete.
+(merge-event bias; MacCrimmon and Ryavec, 1964). For a pure
+series network of independent activities the mean and variance are exact; the
+normal law (used by ``probability_by`` and ``quantile``) is exact only when
+the activities are normal. It underestimates the mean as soon as parallel
+paths compete.
 
 **Simulation.** :func:`simulate_schedule` draws all activity durations,
 optionally dependent through a Gaussian copula on the normal scores (the
@@ -1765,7 +1767,7 @@ def cost_schedule_frontier(
     confidence with that deadline reaches ``level``
     (:func:`~probstat.cost.cost_for_joint_confidence`); deadlines whose own
     confidence is below ``level`` are infeasible and omitted. Both marginal
-    confidences of every point exceed ``level``.
+    confidences of every point are at least ``level``.
 
     Args:
         samples: Paired samples.

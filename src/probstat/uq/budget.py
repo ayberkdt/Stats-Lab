@@ -1600,7 +1600,7 @@ class LinearizationCheck:
         [EQ-UQ-BUDGET-006].
 
     References:
-        [REF-JCGM-100-2008, Section 5.1.2 Note 2], [REF-JCGM-101-2008,
+        [REF-JCGM-100-2008, Section 5.1.2, Note], [REF-JCGM-101-2008,
         Section 5.8].
 
     """

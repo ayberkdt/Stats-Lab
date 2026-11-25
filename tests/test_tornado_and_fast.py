@@ -461,10 +461,11 @@ class ExtendedFastTests(unittest.TestCase):
 
         The measurement behind the library's spacing rule: with complementary
         frequencies ``(1, 2)`` the largest first-order error of the Ishigami
-        indices over the seeds is above 0.10 (0.18 was measured over twenty
-        seeds), with ``(1, 3)`` it stays below 0.05 (0.03 measured). The two
-        bounds are far from both measured values, so the comparison does not
-        depend on platform arithmetic.
+        indices over twenty seeds (0 to 19, three resamples, ``M = 4``) at
+        ``N = 193`` and ``N = 385`` is above 0.10 (0.18 was measured at both
+        lengths), with ``(1, 3)`` it stays below 0.05 (0.03 measured at both).
+        The two bounds are far from both measured values, so the comparison
+        does not depend on platform arithmetic.
 
         References:
             [REF-SALTELLI-TARANTOLA-CHAN-1999], [REF-ISHIGAMI-HOMMA-1990].
@@ -499,8 +500,8 @@ class ExtendedFastTests(unittest.TestCase):
             0.0,
         )
 
-        def worst_error(pair: tuple[int, int]) -> float:
-            """Return the largest first-order error over ten seeds.
+        def worst_error(pair: tuple[int, int], length: int) -> float:
+            """Return the largest first-order error over twenty seeds.
 
             References:
                 [EQ-SENS-FAST-001]. No further equation is evaluated.
@@ -521,16 +522,17 @@ class ExtendedFastTests(unittest.TestCase):
 
             worst = 0.0
             with mock.patch.object(fast_module, "fast_frequencies", plan):
-                for seed in range(10):
+                for seed in range(20):
                     first, _, _ = fast_module._extended_fast(
-                        ishigami, 3, 193, 4, 3, RandomStream(seed)
+                        ishigami, 3, length, 4, 3, RandomStream(seed)
                     )
                     means = [sum(row[i] for row in first) / 3 for i in range(3)]
                     worst = max(worst, max(abs(means[i] - exact[i]) for i in range(3)))
             return worst
 
-        self.assertGreater(worst_error((1, 2)), 0.10)
-        self.assertLess(worst_error((1, 3)), 0.05)
+        for length in (193, 385):
+            self.assertGreater(worst_error((1, 2), length), 0.10)
+            self.assertLess(worst_error((1, 3), length), 0.05)
 
     def _close(self, estimate: float, error: float, exact: float, extra: float) -> None:
         """Assert agreement within five standard errors plus an allowance.

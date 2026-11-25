@@ -51,8 +51,9 @@ Common pitfalls:
     - ``optimize_age_replacement`` with a non-increasing hazard (for
       example an exponential life) returns ``finite_optimum=False`` and an
       infinite interval: run to failure is optimal.
-    - Joint cost-schedule confidence is below both marginals: a 70 % cost
-      and a 70 % date are jointly about 49 % when independent.
+    - Joint cost-schedule confidence is at most the smaller marginal (equal
+      under perfect dependence): a 70 % cost and a 70 % date are jointly
+      about 49 % when independent.
     - ``simulate_schedule`` durations are independent unless ``correlation``
       is given; PERT ignores merge events and underestimates the mean.
     - ``cost_risk_analysis`` defaults to ``seed=None``; pass an integer seed

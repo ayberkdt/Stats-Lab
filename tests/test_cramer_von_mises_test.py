@@ -113,9 +113,41 @@ class AsymptoticLawTests(unittest.TestCase):
                 self.assertAlmostEqual(
                     cramer_von_mises_asymptotic_cdf(x), cdf, delta=2e-15
                 )
-                self.assertAlmostEqual(
-                    cramer_von_mises_asymptotic_sf(x), sf, delta=max(5e-15 * sf, 1e-17)
-                )
+                got = cramer_von_mises_asymptotic_sf(x)
+                if x < 0.6:
+                    self.assertAlmostEqual(got, sf, delta=2e-15)
+                else:
+                    self.assertLessEqual(abs(got - sf) / sf, 1.5e-14)
+
+    def test_tail_relative_accuracy_up_to_thirty(self) -> None:
+        """The tail has relative error below 1e-14 to ``x = 10``, 3e-14 to 30.
+
+        The documented claim: against a 150-digit evaluation the relative
+        error of ``1 - V(x)`` is about 4e-16 at 0.6, 6e-15 at 10, 1e-14 at 12,
+        1.5e-14 at 20 and 2.6e-14 at 30. The tolerances below leave a margin
+        over those measurements and are purely relative, so they bind the tiny
+        tails as tightly as the large ones.
+
+        References:
+            [REF-ANDERSON-DARLING-1952]. Checks [EQ-INF-GOF-CVM-003].
+
+        """
+        # mpmath at 150 digits: V(x) = (pi sqrt(x))^-1 sum_(j>=0)
+        # gamma(j + 1/2) / (gamma(1/2) j!) sqrt(4j + 1) exp(-z) K_(1/4)(z)
+        # with z = (4j + 1)^2 / (16 x), summed to j = 600; the pin is 1 - V(x).
+        pins = (
+            (0.6, 0.022382312130814011, 1.5e-14),
+            (1.0, 0.0024604521801339639, 1.5e-14),
+            (4.0, 4.7344530322753717e-10, 1.5e-14),
+            (10.0, 4.1789410928852881e-23, 1.5e-14),
+            (15.0, 6.5781520051069052e-34, 5e-14),
+            (20.0, 1.0972093165653866e-44, 5e-14),
+            (30.0, 3.3198357119286362e-66, 5e-14),
+        )
+        for x, exact, tolerance in pins:
+            with self.subTest(x=x):
+                got = cramer_von_mises_asymptotic_sf(x)
+                self.assertLessEqual(abs(got - exact) / exact, tolerance)
 
     def test_percentage_points(self) -> None:
         """The 95 and 99 percent points are 0.46136 and 0.74346.

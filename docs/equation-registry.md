@@ -21708,7 +21708,7 @@ compared with a tolerance.
   relative to the input spread); it does not replace the Monte Carlo
   validation of EQ-UQ-BUDGET-009.
 - Code: `uq.budget_from_model`, `uq.LinearizationCheck`, `uq.ModelBudget`.
-- Source: [REF-JCGM-100-2008, Section 5.1.2 Note 2],
+- Source: [REF-JCGM-100-2008, Section 5.1.2, Note],
   [REF-JCGM-101-2008, Section 5.8].
 
 ### EQ-UQ-BUDGET-007 — Monte Carlo estimate, standard uncertainty and coverage intervals
@@ -21971,7 +21971,8 @@ log-uniform background).
   `inference.elicitation._item_information`.
 - Source: [REF-HANEA-NANE-2021] (Section 3.1: intrinsic range and the 10 %
   overshoot default; Section 3.2.2, Eq. 2 and Table 2: information, reproduced
-  to the table's rounding). The log-scale overshoot for the log-uniform
+  to within one unit of the second decimal; the first two published entries
+  are truncated, not rounded). The log-scale overshoot for the log-uniform
   background is a convention of this library. [REF-COOKE-1991] (not opened).
 
 ### EQ-INF-ELICIT-007 — Cooke weights and the global-weights decision maker
@@ -22077,8 +22078,9 @@ at least two apart; hence `N >= 2 M omega_max + 1` and
   frequencies make two inputs move along one line); the harmonics of the low
   set up to order `M` then end at `omega_max / 2`, below `omega_max`. The
   spacing of at least two is an empirical rule of this library: with the
-  consecutive pair (1, 2) the Ishigami first-order errors were near 0.1,
-  with (1, 3) near 0.02. It is not part of the published frequency plan: the
+  consecutive pair (1, 2) the largest Ishigami first-order error over twenty
+  seeds (`M = 4`, three resamples) was 0.18 at `N = 129`, 193 and 385, with
+  (1, 3) it was 0.03. It is not part of the published frequency plan: the
   open descriptions of extended FAST give `omega = (N - 1) / (2 M)`, a largest
   complementary frequency `omega / (2 M)` and the others spread uniformly
   between 1 and it (a set that coincides with this one wherever this library
@@ -22394,8 +22396,9 @@ and `1 - V(x) = (1/pi) sum_j (-1)^(j+1) I_j`.
   the integrand becomes an even periodic analytic function, and the
   trapezoidal rule with 64 nodes converges geometrically. Agrees with
   `1 - V` of [EQ-INF-GOF-CVM-002] to `1e-15` where both are resolved and
-  keeps relative accuracy of `1e-14` out to `x = 30` (`1 - V(12) =
-  1.975e-27`).
+  keeps relative accuracy below about `3e-14` out to `x = 30` (below `1e-14`
+  up to `x = 10`; `1 - V(12) = 1.975e-27`), measured against a 150-digit
+  evaluation of the series of [EQ-INF-GOF-CVM-002].
 - Code: `inference.cramer_von_mises_asymptotic_sf`,
   `inference.cramer_von_mises_asymptotic_cdf`.
 - Source: the form is the inversion of the Laplace transform

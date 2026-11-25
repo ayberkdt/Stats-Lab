@@ -62,7 +62,7 @@ def cramer_von_mises_asymptotic_cdf(statistic: float) -> float:
 
     Returns:
         ``V(x)`` in ``[0, 1]``; ``0`` for ``x <= 0``. The 95 and 99 percent
-        points are ``0.461356...`` and ``0.743459...``.
+        points are ``0.461361...`` and ``0.743459...``.
 
     Raises:
         TypeError: If ``statistic`` is not a real number.
@@ -98,8 +98,8 @@ def cramer_von_mises_asymptotic_sf(statistic: float) -> float:
     ``u = sqrt(y) = (4j - 1) pi/2 - (pi/2) cos(phi)``, after which the
     integrand is an even, ``2 pi``-periodic analytic function of ``phi`` and
     the trapezoidal rule with 64 nodes converges geometrically. The relative
-    error is below ``1e-14`` for ``0.6 <= x <= 30`` (checked against a
-    40-digit evaluation of the Bessel series).
+    error is below about ``3e-14`` up to ``x = 30`` (below ``1e-14`` up to
+    ``x = 10``), checked against a 150-digit evaluation of the Bessel series.
 
     Args:
         statistic: Real argument ``x``; ``+inf`` is allowed.
@@ -271,7 +271,10 @@ def _require_count(sample_size: object) -> int:
         [EQ-INF-GOF-CVM-001].
 
     """
-    count = require_non_negative_integer(sample_size, name="sample_size")
+    try:
+        count = require_non_negative_integer(sample_size, name="sample_size")
+    except ValueError:
+        raise ValueError("sample_size must be positive") from None
     if count == 0:
         raise ValueError("sample_size must be positive")
     return count

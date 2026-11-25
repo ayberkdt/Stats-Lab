@@ -338,7 +338,7 @@ class QuantileFit:
         feedback: ``(probability, quantile)`` of the fitted law at the
             feedback probabilities, to show back to the expert.
         n_parameters: Number of fitted (free) parameters.
-        method: ``"closed-form"``, ``"least-squares"``, or ``"fixed"``.
+        method: ``"closed-form"`` or ``"least-squares"``.
         converged: Whether the optimiser reported convergence (always
             ``True`` for a closed form).
 

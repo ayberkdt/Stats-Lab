@@ -803,8 +803,9 @@ class CookeScoreTests(unittest.TestCase):
         ``(5, 15, 25)``, ``(40, 50, 60)``, ``(15, 17, 75)`` and ``(30, 50, 70)``
         at the 5th, 50th and 95th percentiles with information scores 1.21,
         1.14, 1.15 and 0.55 for the intrinsic range ``[0, 100]``. The text
-        rounds the second score down (the formula gives 1.1457), so the pins
-        allow one unit in the second decimal.
+        truncates the first two scores (the formula gives 1.218267, 1.145726,
+        1.151478 and 0.550661), so the pins allow one unit in the second
+        decimal.
 
         References:
             [REF-HANEA-NANE-2021, Table 2]. Checks [EQ-INF-ELICIT-006].

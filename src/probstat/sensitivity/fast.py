@@ -23,8 +23,9 @@ frequencies must be distinct and, for three or more inputs, two apart, so
 with the open descriptions of extended FAST); the spacing of two is this
 library's own addition, which makes it refuse shorter curves than those
 descriptions allow. The reason is measured, not derived: on the Ishigami
-function the pair ``(1, 2)`` gives first-order errors up to 0.18 over twenty
-seeds at ``N = 129``, ``193`` and ``385`` alike, against 0.03 for ``(1, 3)``;
+function (``M = 4``, three resamples, seeds 0 to 19) the pair ``(1, 2)`` gives
+first-order errors up to 0.18 at ``N = 129``, ``193`` and ``385`` alike,
+against 0.03 for ``(1, 3)`` (0.04 at ``N = 129``);
 a pair in the ratio ``2 : 1`` such as ``(3, 6)`` errs as much, so the damage
 comes from one low frequency sitting on a harmonic of another, and a longer
 curve does not remove it. The phase-resampling spread does not reveal such a
@@ -89,8 +90,11 @@ def fast_sample_size(dimension: int, harmonics: int = 4) -> int:
     harmonic analysed, ``M omega_max``, stays below ``N / 2``. The ``d - 1``
     complementary frequencies must be distinct integers no larger than
     ``omega_max / (2 M)`` (inputs that share a frequency would move along one
-    line instead of filling the plane), so ``omega_max >= 2 M (d - 1)`` and
-    ``N >= 4 M^2 (d - 1) + 1``. For ``d = 1`` the bound is ``4 M^2 + 1``.
+    line instead of filling the plane); for three or more inputs they are also
+    at least two apart, so the largest of the ``d - 1`` frequencies is at least
+    ``2 (d - 2) + 1 = 2 d - 3`` and ``omega_max >= 2 M (2 d - 3)``, hence
+    ``N >= 4 M^2 (2 d - 3) + 1``. For ``d <= 2`` the bound is ``4 M^2 + 1``
+    (``M = 4``: ``d = 3`` gives 193, ``d = 4`` gives 321).
 
     Args:
         dimension: Number of inputs ``d``.
@@ -100,6 +104,8 @@ def fast_sample_size(dimension: int, harmonics: int = 4) -> int:
         The smallest admissible ``N`` (odd).
 
     Raises:
+        TypeError: If an argument is not an integer (``fast_sample_size(2.0)``
+            raises).
         ValueError: If an argument is below one.
 
     Equation:
@@ -135,7 +141,9 @@ def fast_frequencies(
         ``(omega_max, complementary frequencies)``.
 
     Raises:
-        ValueError: If ``N`` is even or below :func:`fast_sample_size`.
+        TypeError: If an argument is not an integer.
+        ValueError: If an argument is below one, or if ``N`` is even or below
+            :func:`fast_sample_size`.
 
     Equation:
         [EQ-SENS-FAST-003].
@@ -615,9 +623,12 @@ def fast_analysis(
     """Estimate first-order and total indices of a model QoI by extended FAST.
 
     Cost: ``d R N`` model runs; the curve is mapped to the inputs through
-    their marginal quantile functions. Prefer more samples ``N`` (a larger
-    ``omega_max``) over more resamples when the standard errors are large
-    compared with the truncation of the spectrum at ``M`` harmonics.
+    their marginal quantile functions. When the standard errors are large,
+    raise the number of resamples ``R``: the spread of the estimates falls with
+    ``R`` and hardly with ``N`` (Ishigami, ``M = 4``, ``R = 5``: the first-order
+    standard error of ``x1`` is 0.00092, 0.00086 and 0.00087 at ``N = 193``,
+    513 and 2049, and 0.00036 at ``N = 513`` with ``R = 20``). The truncation
+    error of the spectrum is cured by raising ``M``, not ``N``.
 
     Args:
         model: Probabilistic model with mutually independent inputs.

@@ -807,9 +807,10 @@ rbd.ranking()[:2]   # ('x2', 'x1')
 abs(rbd.first_order[0] - 0.3139) < 0.03   # True
 ```
 
-The tornado ranks `x2` last although it carries 44% of the variance: its
-response `sin(x2)**2` is symmetric about the baseline, so the swing is zero
-and only the flag reveals it. FAST recovers the analytic indices of the
+The tornado gives `x2` a swing of zero, tied with `x3`, although `x2` carries
+44% of the variance: its response `sin(x2)**2` is symmetric about the baseline,
+so the swing is zero and only the flag reveals it (`x3` is zero too, because
+`sin(x1)` vanishes at the median baseline, which hides the interaction). FAST recovers the analytic indices of the
 Ishigami function (first order 0.314, 0.442, 0; total 0.558, 0.442, 0.244)
 within about 0.01 at `M = 8`, with 11,535 runs for the extended method and
 10,005 for the random balance design.
