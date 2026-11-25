@@ -44,8 +44,11 @@ Common pitfalls:
     - The ball of ``gaussian_ball_probability`` and its relatives is centred
       at the origin: subtract the centre from the mean first. The
       ``error_estimate`` of a ``BallProbability`` is a bound only when its
-      ``rigorous`` field is true (series and isotropic forms), an estimate
-      for the quadrature and the small-disc approximation.
+      ``rigorous`` field is true (the Ruben series form); it is an estimate
+      for the quadrature, the isotropic Poisson form (its truncation bound
+      plus an empirical rounding allowance, which covered the error against
+      a 50-digit reference in every case checked) and the small-disc
+      approximation.
     - ``Dirichlet.log_pdf`` raises ``ValueError`` for a vector whose sum is
       not one but returns ``-inf`` for a negative component.
     - The ``log_marginal_likelihood`` of ``dirichlet_posterior`` is that of

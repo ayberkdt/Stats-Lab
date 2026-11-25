@@ -10,7 +10,7 @@ standard error. The tests never call R.
 References:
     [REF-RUBEN-1962], [REF-SHEIL-OMUIRCHEARTAIGH-1977], [REF-IMHOF-1961],
     [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995], [REF-FOSTER-ESTES-1992],
-    [REF-ALFANO-2005], [REF-ALFANO-2005B], [REF-CHAN-2008],
+    [REF-ALFANO-2005], [REF-ALFANO-2005B],
     [REF-NASA-CARA-HANDBOOK]. Checks [EQ-MVN-DISC-001],
     [EQ-MVN-RICE-001], [EQ-MVN-BALL-001], [EQ-MVN-SMALLDISC-001],
     [EQ-MVN-DILUTION-001].
@@ -99,13 +99,13 @@ class IsotropicClosedFormTests(unittest.TestCase):
         """Offset 5, sigma 2, radius 2 gives the pinned Rice probability.
 
         References:
-            [REF-CHAN-2008]. Checks [EQ-MVN-RICE-001].
+            [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995]. Checks [EQ-MVN-RICE-001].
 
         """
         # pchisq(2^2 / 2^2, 2, ncp = (5/2)^2)
         result = isotropic_gaussian_ball_probability(5.0, 2.0, 2.0)
         self.assertAlmostEqual(result.probability / 0.03318287957798878, 1.0, places=10)
-        self.assertTrue(result.rigorous)
+        self.assertFalse(result.rigorous)
         self.assertLess(result.error_estimate, 1.0e-12 * result.probability + 1e-300)
 
     def test_central_two_dimensional_case_is_rayleigh(self) -> None:
@@ -167,7 +167,8 @@ class DiscQuadratureTests(unittest.TestCase):
     """The two-dimensional quadrature against independent forms.
 
     References:
-        [REF-FOSTER-ESTES-1992], [REF-CHAN-2008]. Checks [EQ-MVN-DISC-001].
+        [REF-FOSTER-ESTES-1992], [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995]. Checks
+    [EQ-MVN-DISC-001].
 
     """
 
@@ -175,7 +176,8 @@ class DiscQuadratureTests(unittest.TestCase):
         """Quadrature equals the Rice closed form over a grid of cases.
 
         References:
-            [REF-CHAN-2008]. Checks [EQ-MVN-DISC-001], [EQ-MVN-RICE-001].
+            [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995]. Checks [EQ-MVN-DISC-001],
+            [EQ-MVN-RICE-001].
 
         """
         cases = (
@@ -261,7 +263,7 @@ class DiscQuadratureTests(unittest.TestCase):
                 self.assertAlmostEqual(got.probability / want, 1.0, places=7)
 
     def test_far_tail_keeps_relative_accuracy(self) -> None:
-        """A probability near ``1e-20`` agrees with the series to 8 digits.
+        """A probability near ``1e-20`` agrees with the series to a relative 5e-8.
 
         References:
             [REF-RUBEN-1962]. Checks [EQ-MVN-DISC-001], [EQ-MVN-BALL-001].
@@ -525,8 +527,8 @@ class SmallDiscAndDilutionTests(unittest.TestCase):
     """The small-disc approximation and the maximum over the scale.
 
     References:
-        [REF-CHAN-2008], [REF-ALFANO-2005]. Checks [EQ-MVN-SMALLDISC-001],
-        [EQ-MVN-DILUTION-001].
+        [REF-ALFANO-2005B], [REF-FOSTER-ESTES-1992]. Checks
+        [EQ-MVN-SMALLDISC-001], [EQ-MVN-DILUTION-001].
 
     """
 
@@ -536,7 +538,7 @@ class SmallDiscAndDilutionTests(unittest.TestCase):
         """The first correction predicts the observed error of ``pi R^2 f(0)``.
 
         References:
-            [REF-CHAN-2008]. Checks [EQ-MVN-SMALLDISC-001].
+            [REF-FOSTER-ESTES-1992]. Checks [EQ-MVN-SMALLDISC-001].
 
         """
         mean, cov = (3.0, 1.0), ((4.0, 1.0), (1.0, 2.0))
@@ -555,7 +557,7 @@ class SmallDiscAndDilutionTests(unittest.TestCase):
         """At the origin of ``s^2 I`` the approximation is ``R^2 / (2 s^2)``.
 
         References:
-            [REF-CHAN-2008]. Checks [EQ-MVN-SMALLDISC-001].
+            [REF-FOSTER-ESTES-1992]. Checks [EQ-MVN-SMALLDISC-001].
 
         """
         value = small_disc_probability((0.0, 0.0), ((4.0, 0.0), (0.0, 4.0)), 0.2)

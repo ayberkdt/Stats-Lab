@@ -579,12 +579,16 @@ class BoundsAndSizesTests(unittest.TestCase):
             self.assertAlmostEqual(price.difference, expected, delta=1e-12)
         lower = normality_price(big, 0.95, 0.95, sided="lower")
         assert lower.wilks is not None
-        self.assertEqual(lower.wilks.bound, wilks_bound(big, 0.05, 0.95, sided="lower").bound)
+        self.assertEqual(
+            lower.wilks.bound, wilks_bound(big, 0.05, 0.95, sided="lower").bound
+        )
         self.assertEqual(lower.wilks.sided, "lower")
         # a sample of 58 is too small on both sides
         for side in ("upper", "lower"):
-            self.assertIsNone(normality_price(big[:58], 0.95, 0.95, sided=side).wilks)
-            self.assertIsNotNone(normality_price(big[:59], 0.95, 0.95, sided=side).wilks)
+            short = normality_price(big[:58], 0.95, 0.95, sided=side)
+            enough = normality_price(big[:59], 0.95, 0.95, sided=side)
+            self.assertIsNone(short.wilks)
+            self.assertIsNotNone(enough.wilks)
 
     def test_argument_validation(self) -> None:
         """Bad types, ranges, and option names raise ``TypeError`` or ``ValueError``.

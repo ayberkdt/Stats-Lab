@@ -9,20 +9,28 @@ of their hard-body radii; the same number answers any question of the form
 The ball is centred at the origin; to test another centre, subtract it from
 the mean.
 
+The handbook cited below reports that Chan [REF-CHAN-2008] reduces the disc
+integral to a one-dimensional integral with a series solution by an
+equivalent-area transform; none of the methods here is taken from that book.
+
 Four methods are provided and they cross-check one another:
 
 - :func:`gaussian_disc_probability` (``n = 2``): rotate to the principal axes
   of ``Sigma`` and integrate over one axis with the inner integral in closed
   form through the normal distribution function. The outer variable is
   substituted ``u = R sin(theta)`` so that the square-root edge of the chord
-  disappears, and the integration range is split where the chord length
-  equals the absolute offset along the other axis. The error is the
-  quadrature estimate (not a guarantee).
+  disappears, and the integration range is split where the half-chord
+  ``sqrt(R^2 - u^2)`` equals the absolute offset ``|a2|`` along the other
+  axis. The error is the quadrature estimate (not a guarantee).
 - :func:`isotropic_gaussian_ball_probability`: for ``Sigma = s^2 I`` the
   squared radius over ``s^2`` is noncentral chi-square, so the probability is
   a Poisson mixture of central chi-square distribution functions (for
-  ``n = 2``, one minus the Marcum Q function of the Rice law). The neglected
-  Poisson tails give a rigorous bound.
+  ``n = 2``, one minus the Marcum Q function of the Rice law). The error
+  estimate is the neglected Poisson tail mass plus a rounding allowance; it
+  covered the error against a 50-digit reference in every case checked
+  (noncentrality 1 to ``1e5``, 2 and 4 degrees of freedom, measured error at
+  most ``2.1e-14``), but it is an estimate, not a proof (``rigorous`` is
+  false).
 - :func:`gaussian_ball_probability` (any ``n``): the distribution of the
   positive-definite quadratic form ``sum_i lambda_i (z_i + b_i)^2`` as a
   non-negative mixture of central chi-square laws (Ruben's series). The
@@ -49,8 +57,7 @@ elongated covariances.
 References:
     [REF-RUBEN-1962], [REF-SHEIL-OMUIRCHEARTAIGH-1977], [REF-IMHOF-1961],
     [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995], [REF-FOSTER-ESTES-1992],
-    [REF-ALFANO-2005], [REF-ALFANO-2005B], [REF-CHAN-2008],
-    [REF-NASA-CARA-HANDBOOK].
+    [REF-ALFANO-2005], [REF-ALFANO-2005B], [REF-NASA-CARA-HANDBOOK].
 
 """
 
@@ -66,6 +73,8 @@ from probstat.linalg import symmetric_eigen
 from probstat.numerics import gauss_kronrod
 
 from .normal import MultivariateNormal
+
+_EPS = 2.220446049250313e-16  # machine epsilon, 2**-52
 
 _SQRT2 = math.sqrt(2.0)
 _WINDOW_SIGMAS = 40.0
@@ -273,15 +282,47 @@ def gaussian_disc_probability(
     )
 
 
+def _log_poisson_mode_weight(mu: float, mode: int) -> float:
+    """Return ``log(exp(-mu) mu^m / m!)`` at the mode ``m = floor(mu)``.
+
+    The direct form ``-mu + m log(mu) - lgamma(m + 1)`` subtracts numbers of
+    size ``mu`` and loses about ``mu * 1e-16`` of relative accuracy. For
+    ``m >= 30`` Stirling's series for ``lgamma(m + 1)`` is used, which turns
+    the three large terms into ``m (log1p(x) - x)`` with the small
+    ``x = (mu - m) / m`` in ``[0, 1/m)``, evaluated by its power series, plus
+    ``-log(2 pi m)/2`` and the Stirling corrections; the cancellation is
+    gone.
+
+    References:
+        [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995]. Evaluates [EQ-MVN-RICE-001].
+
+    """
+    if mode < 30:
+        return -mu + mode * math.log(mu) - math.lgamma(mode + 1.0)
+    m = float(mode)
+    x = (mu - m) / m
+    # log1p(x) - x = -x^2/2 + x^3/3 - ...; x < 1/30, so 12 terms are ample.
+    series = math.fsum(
+        (-1.0 if k % 2 == 1 else 1.0) * x**k / k for k in range(2, 14)
+    )
+    stirling = 1.0 / (12.0 * m) - 1.0 / (360.0 * m**3) + 1.0 / (1260.0 * m**5)
+    return m * series - 0.5 * math.log(2.0 * math.pi * m) - stirling
+
+
 def _poisson_chi_square(
     x: float, dimension: int, noncentrality: float, tolerance: float
 ) -> tuple[float, float, int]:
-    """Return the noncentral chi-square CDF, a truncation bound, and the terms.
+    """Return the noncentral chi-square CDF, an error bound, and the terms.
 
-    ``F(x; k, lambda) = sum_j Pois(j; lambda/2) F_(k+2j)(x)``. The sum runs
-    outward from the Poisson mode; the neglected part is bounded by the
-    Poisson tail mass (exact, from incomplete gamma functions) times the
-    largest neglected chi-square value.
+    ``F(x; k, lambda) = sum_j Pois(j; lambda/2) F_(k+2j)(x)``. The Poisson
+    weight at the mode is computed without cancellation and the others by the
+    ratios ``w_(j+1) = w_j mu/(j+1)`` and ``w_(j-1) = w_j j/mu`` outward from
+    the mode; the terms are summed with ``math.fsum``. The reported bound is
+    the neglected Poisson tail mass (exact, from incomplete gamma functions)
+    times the largest neglected chi-square value, plus a rounding allowance
+    ``64 eps (1 + sqrt(terms)) `` times the computed value that covers the
+    ratio recursion and the chi-square distribution function, whose own
+    relative accuracy was measured against a 40-digit reference.
 
     References:
         [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995]. Evaluates [EQ-MVN-RICE-001].
@@ -290,45 +331,53 @@ def _poisson_chi_square(
     mu = 0.5 * noncentrality
     if mu == 0.0:
         return float(ChiSquare(float(dimension)).cdf(x)), 0.0, 1
-    log_mu = math.log(mu)
     mode = int(mu)
 
-    def term(j: int) -> float:
-        """Return the Poisson weight times the chi-square CDF of term ``j``.
+    def chi(j: int) -> float:
+        """Return the central chi-square CDF of ``dimension + 2 j`` at ``x``.
 
         References:
             [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995]. Evaluates [EQ-MVN-RICE-001].
 
         """
-        log_weight = -mu + j * log_mu - math.lgamma(j + 1.0)
-        return math.exp(log_weight) * float(ChiSquare(float(dimension + 2 * j)).cdf(x))
+        return float(ChiSquare(float(dimension + 2 * j)).cdf(x))
 
-    total = term(mode)
+    weight_mode = math.exp(_log_poisson_mode_weight(mu, mode))
+    pieces = [weight_mode * chi(mode)]
+    total = pieces[0]
     terms = 1
     up = mode + 1
     down = mode - 1
+    weight_up = weight_mode
+    weight_down = weight_mode
     bound_up = 0.0
     bound_down = 0.0
     done_up = False
     done_down = down < 0
     while not (done_up and done_down) and terms < 100_000:
         if not done_up:
-            piece = term(up)
+            weight_up *= mu / up
+            piece = weight_up * chi(up)
+            pieces.append(piece)
             total += piece
             terms += 1
             above = float(ChiSquare(2.0 * (up + 1)).cdf(2.0 * mu))
-            bound_up = above * float(ChiSquare(float(dimension + 2 * (up + 1))).cdf(x))
+            bound_up = above * chi(up + 1)
             up += 1
             done_up = bound_up <= tolerance * total
         if not done_down:
-            piece = term(down)
+            weight_down *= (down + 1) / mu
+            piece = weight_down * chi(down)
+            pieces.append(piece)
             total += piece
             terms += 1
             below = float(ChiSquare(2.0 * down).sf(2.0 * mu)) if down > 0 else 0.0
             bound_down = below * float(ChiSquare(float(dimension)).cdf(x))
             down -= 1
             done_down = down < 0 or bound_down <= tolerance * total
-    return min(1.0, total), bound_up + bound_down, terms
+    value = min(1.0, math.fsum(pieces))
+    rounding = 64.0 * _EPS * (1.0 + math.sqrt(terms)) * value
+    return value, bound_up + bound_down + rounding, terms
 
 
 def noncentral_chi_square_cdf(
@@ -347,7 +396,10 @@ def noncentral_chi_square_cdf(
         noncentrality: Non-negative ``lambda``.
 
     Returns:
-        The probability, accurate to about ``1e-13`` relative.
+        The probability. Against a 50-digit reference the absolute error was
+        at most ``2.1e-14`` for ``lambda`` from 1 to ``1e5`` and ``k`` of 2
+        and 4 (``x`` near the mean and 1.5 standard deviations either side);
+        accuracy for much larger ``lambda`` or ``k`` was not measured.
 
     Raises:
         TypeError: If an argument is not real or ``k`` is not an integer.
@@ -381,8 +433,12 @@ def isotropic_gaussian_ball_probability(
     ``||X||^2 / sigma^2`` is noncentral chi-square with ``n`` degrees of
     freedom and noncentrality ``(offset/sigma)^2``; for ``n = 2`` this is
     ``1 - Q_1(offset/sigma, R/sigma)`` with the Marcum function ``Q_1`` (the
-    Rice law of ``||X||``). The error is the neglected Poisson tail mass, a
-    rigorous bound.
+    Rice law of ``||X||``). The error estimate is the neglected Poisson tail
+    mass plus a rounding allowance. The truncation part is a bound; the
+    rounding part is an empirical allowance, so ``rigorous`` is false.
+    Against a 50-digit reference the absolute error was at most ``2.1e-14``
+    for noncentrality ``(offset/sigma)^2`` from 1 to ``1e5`` and ``n`` of 2
+    and 4, and below the reported estimate in every case.
 
     Args:
         offset: Distance ``||mu||`` from the ball centre to the mean.
@@ -391,7 +447,7 @@ def isotropic_gaussian_ball_probability(
         dimension: Dimension ``n`` of the space.
 
     Returns:
-        The probability and the truncation bound.
+        The probability and the error estimate (``rigorous`` is false).
 
     Raises:
         TypeError: If an argument is not real or ``dimension`` is not an
@@ -403,7 +459,7 @@ def isotropic_gaussian_ball_probability(
         [EQ-MVN-RICE-001].
 
     References:
-        [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995], [REF-CHAN-2008].
+        [REF-JOHNSON-KOTZ-BALAKRISHNAN-1995].
 
     """
     if isinstance(dimension, bool) or not isinstance(dimension, int):
@@ -420,7 +476,7 @@ def isotropic_gaussian_ball_probability(
     value, bound, terms = _poisson_chi_square(
         (radius_value / scale) ** 2, dimension, (distance / scale) ** 2, 1.0e-14
     )
-    return BallProbability(value, bound, "isotropic-poisson", True, True, terms)
+    return BallProbability(value, bound, "isotropic-poisson", False, True, terms)
 
 
 def gaussian_ball_probability(
@@ -581,7 +637,8 @@ def small_disc_probability(
         [EQ-MVN-SMALLDISC-001].
 
     References:
-        [REF-CHAN-2008], [REF-ALFANO-2005], [REF-FOSTER-ESTES-1992].
+        [REF-FOSTER-ESTES-1992] (the disc integral that is approximated);
+        the expansion itself is derived, see [EQ-MVN-SMALLDISC-001].
 
     """
     law, radius_value = _validated_gaussian(mean, covariance, radius, dimension=2)
@@ -615,7 +672,7 @@ def maximum_disc_probability(
     """Return the largest disc probability over a covariance scale factor.
 
     For ``X ~ N(mu, c Sigma)`` the probability ``p(c)`` of the disc of radius
-    ``R`` is tends to zero as ``c -> 0`` and as ``c -> infinity`` when the
+    ``R`` tends to zero as ``c -> 0`` and as ``c -> infinity`` when the
     mean lies outside the disc (``||mu|| > R``), so it has a maximum
     ("dilution": a larger covariance can raise the probability). The
     maximum is located by a scan of ``log c`` over a factor of about

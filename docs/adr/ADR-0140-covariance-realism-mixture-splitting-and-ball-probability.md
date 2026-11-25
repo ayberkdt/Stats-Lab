@@ -77,8 +77,14 @@ falls inside a disc (the short-encounter collision probability)?
      closed form with `erfc` for tail accuracy. Error: adaptive Gauss-Kronrod
      estimate, labelled not rigorous.
    - `isotropic_gaussian_ball_probability` and `noncentral_chi_square_cdf`:
-     Poisson mixture of central chi-square values, bound from the neglected
-     Poisson tails (incomplete gamma). Rigorous.
+     Poisson mixture of central chi-square values; the Poisson weights start
+     at the mode (no cancellation) and recurse outward, summed with
+     `math.fsum`. The error estimate is the neglected Poisson tail mass
+     (incomplete gamma) plus an empirical rounding allowance, so it is not
+     labelled rigorous. An earlier version computed the weights as
+     `exp(-mu + j log mu - lgamma(j+1))`, whose cancellation made the true
+     error exceed the reported bound (2.6e-12 against 9.7e-15 at
+     noncentrality 1e5). The tests compare against 50-digit references.
    - `gaussian_ball_probability` (any `n`): Ruben's chi-square mixture with
      `beta = lambda_min`. Non-negativity and unit sum of the weights are proven
      in the docstring and registry from the Laplace transform (every factor is
@@ -189,7 +195,10 @@ confirmed bibliographically at most):
   best served by the quadrature for `n = 2`.
 - The mixture record accepts positive-semidefinite component covariances;
   density and sampling need positive definite ones.
-- New public names: 15 in `probstat.filtering`, 8 in `probstat.multivariate`.
+- New public names (functions and result records counted together, original
+  decision only): 22 in `probstat.filtering` (15 functions and 7 result
+  records) and 8 in `probstat.multivariate`. The Cramer-von Mises amendment
+  below adds its names to `probstat.inference`.
 
 ## Amendment: the Cramer-von Mises goodness-of-fit test (2026-11-25)
 
