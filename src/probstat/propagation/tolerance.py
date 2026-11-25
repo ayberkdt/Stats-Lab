@@ -75,7 +75,7 @@ BOUND_SIDES = ("upper", "lower")
 
 _STANDARD_NORMAL = Normal(0.0, 1.0)
 _TAIL = 1.0e-17  # probability mass cut from each end of the chi integral
-_Z_MAX = 8.5  # phi(8.5) ~ 1e-17: the sample-mean deviation is cut here
+_Z_MAX = 8.5  # tail mass beyond 8.5 is ~1e-17: the sample-mean deviation is cut here
 _Z_PANELS = 17  # panels of width 0.5 on [0, _Z_MAX]
 _MAX_CONTENT = 1.0 - 1.0e-10
 
@@ -439,13 +439,14 @@ def normal_tolerance_factor(
     """Return the normal-theory tolerance factor ``k(n, p, gamma)``.
 
     **Normality of the sampled law is assumed.** One-sided: the bound
-    ``xbar + k s`` (or ``xbar - k s``) exceeds (is below) the ``p``-quantile
-    with probability ``gamma``, ``k = t'_(gamma; n-1, z_p sqrt(n)) /
+    ``xbar + k s`` exceeds the ``p``-quantile (``xbar - k s`` is below the
+    ``(1 - p)``-quantile) with probability ``gamma``, ``k = t'_(gamma; n-1, z_p sqrt(n)) /
     sqrt(n)``. Two-sided: ``[xbar - k s, xbar + k s]`` contains at least a
     fraction ``p`` of the law with probability ``gamma``. ``method="exact"``
     solves the defining equation; ``method="howe"`` (two-sided only) is the
     closed-form approximation of Howe (1969), whose factor is slightly too
-    small for small ``n``. For one-sided factors only the exact method
+    large for ``n <= 5`` and slightly too small from about ``n = 10`` on
+    (module docstring gives the measured errors). For one-sided factors only the exact method
     exists. The factors decrease to ``z_p`` (one-sided) or
     ``z_((1+p)/2)`` (two-sided) as ``n`` grows.
 
@@ -707,6 +708,9 @@ def normality_price(
 
     Both bounds carry the same statement: "at least a fraction ``coverage``
     of the output stays on the safe side with probability ``confidence``".
+    For ``sided="upper"`` both bound the ``coverage`` quantile from above; for
+    ``sided="lower"`` both bound the ``1 - coverage`` quantile from below
+    (the Wilks order statistic is therefore taken at level ``1 - coverage``).
     The normal bound relies on the normal model; the Wilks bound is an order
     statistic and needs no model. The difference is the price of dropping
     the normality assumption; the required Wilks sample size is the price in
@@ -734,11 +738,15 @@ def normality_price(
 
     """
     normal = normal_tolerance_bound(values, coverage, confidence, sided=sided)
-    needed = wilks_sample_size(coverage, confidence, sided=sided)
+    # The Wilks functions take the quantile LEVEL. An upper bound covers the
+    # ``coverage`` quantile from above; a lower bound ``xbar - k s`` covers the
+    # ``1 - coverage`` quantile from below.
+    level = coverage if sided == "upper" else 1.0 - coverage
+    needed = wilks_sample_size(level, confidence, sided=sided)
     distribution_free: WilksBound | None = None
     gap: float | None = None
     if normal.size >= needed:
-        distribution_free = wilks_bound(values, coverage, confidence, sided=sided)
+        distribution_free = wilks_bound(values, level, confidence, sided=sided)
         if sided == "upper":
             gap = distribution_free.bound - normal.bound
         else:
