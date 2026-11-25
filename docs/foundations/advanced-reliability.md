@@ -495,7 +495,9 @@ the levels stall on this planar limit state, and a finished run can still be
 far off (seed 1: 0.43 of the exact value). In a trial with `rho = 0.2`, seed 1
 returned 0.73 of the exact value with a reported c.o.v. of 0.04, so the
 reported c.o.v. can understate the error badly. Gaussian-mixture proposals
-[REF-KURTZ-SONG-2013] address multiple failure regions and are not implemented.
+[REF-KURTZ-SONG-2013] address multiple failure regions; they are not offered by
+`cross_entropy_importance_sampling` and are available through
+`improved_cross_entropy(..., family="mixture")`, described below.
 
 The table above shows the unguarded adaptation, still available as
 `covariance_floor=None`. Adapted covariances are now floored at eigenvalue

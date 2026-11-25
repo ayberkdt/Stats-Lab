@@ -1,8 +1,9 @@
 """Integrated studies: UQ on one probabilistic model, and mission assessment.
 
-:class:`UQStudy` runs every UQ stage on one :class:`ProbabilisticModel`;
-:class:`MissionAssessment` combines exact system reliability, epistemic
-uncertainty, cost, and risk for a mission system.
+:class:`UQStudy` runs every UQ stage on one
+:class:`~probstat.modeling.ProbabilisticModel`; :class:`MissionAssessment`
+combines exact system reliability, epistemic uncertainty, cost, and risk for a
+mission system.
 
 Main entry points:
     ``UQStudy``: every UQ stage (propagation, sensitivity, reliability,

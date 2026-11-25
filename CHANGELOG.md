@@ -9,12 +9,25 @@ Uncertainty analysis for system design. The methods of earlier releases
 answer "what is the distribution of the output"; a design review asks
 "which error sources make up the budget, what is the margin and with what
 confidence, and how far can the model be trusted". Eight additions state
-the results in those terms. Each records in its decision record which
+the results in those terms, and a ninth defines how an algorithm asks for
+evaluations of a model it does not own. Each records in its decision record which
 sources were opened and which were confirmed bibliographically only, with
 the mathematics re-derived.
 
 ### Added
 
+- **Batch evaluation contract** (`probstat.foundations`, ADR-0132): an
+  algorithm written as a procedure yields an `EvaluationRequest` (many points
+  and the label of the model that must evaluate them) and receives the
+  outputs in the same order. `run_procedure` drives it with one batch
+  callable per label, `AskTellSession` drives it by hand when the batch is
+  evaluated outside the Python process, and `batch_from_pointwise` wraps an
+  ordinary function of one point; `scalar_outputs` and `vector_outputs` check
+  duck-typed outputs, so a NumPy array is accepted without importing NumPy.
+  The three routes give identical results. Two procedures use it so far,
+  `adaptive_monte_carlo_budget_procedure` and
+  `propagate_gaussian_mixture_procedure`; there is no batch form of the
+  rare-event estimators or the pick-freeze designs.
 - **Uncertainty budgets** (`probstat.uq`, ADR-0133): `BudgetEntry` with
   Type A and Type B evaluations, `UncertaintyBudget` with the law of
   propagation including correlation, Welch-Satterthwaite degrees of freedom
@@ -74,6 +87,13 @@ the mathematics re-derived.
   estimate with its merge bias shown, `simulate_schedule` with correlated
   durations, risk events, criticality and cruciality, and
   `joint_cost_schedule_confidence` with the iso-confidence frontier.
+
+### Changed
+
+- The guide-figure audit is complete: all 108 figures have passed through the
+  datawiz audit. `methodlab-thinning-efficiency`, built in 0.27.0 where
+  datawiz was not installed, was rebuilt and audited; the README no longer
+  states an open item.
 
 ### Known limitations
 

@@ -135,8 +135,10 @@ that can be mechanized, and one that cannot:
   and the package docstring say so.
 - The guide figure was rendered through `tools/build_guide_figures.py` and
   `theme.fit_text_to_canvas`, but the datawiz audit step could not be run
-  (the toolkit is not available in the build environment used here); it
-  must be re-run where datawiz is installed.
+  (the toolkit is not available in the build environment used here). The
+  audit was run afterwards where datawiz is installed
+  (`tools/build_guide_figures.py --group methodlab`, no errors), which closed
+  this item.
 - Citations were confirmed bibliographically by web search except
   [REF-NIST-FIPS-180-4], which was entered from memory of the standard.
 

@@ -15,30 +15,32 @@ cycles.
 | 3 | `monte_carlo`, `modeling`, `causal`, `generative` | estimators and work accounting; **the central `ProbabilisticModel`**; causal graphs and effect estimation; normalizing flows and energy-based models |
 | 4 | `propagation`, `inverse` | forward propagation; calibration (with model discrepancy) and posterior prediction |
 | 5 | `reliability`, `sensitivity`, `surrogates`, `validation`, `design` | failure probability, sensitivity indices, emulators, validation evidence, experimental design |
-| 6 | `risk`, `systems`, `filtering`, `data_assimilation`, `conformal` | risk measures, extremes, and decision analysis; exact system reliability on BDDs; sequential state estimation; conformal prediction |
+| 6 | `risk`, `systems`, `cost`, `filtering`, `data_assimilation`, `conformal` | risk measures, extremes, and decision analysis; exact system reliability on BDDs; life-cycle cost, cost-risk and schedule-risk analysis; sequential state estimation; conformal prediction |
 | 7 | `workflow`, `timeseries`, `methodlab` | `UQStudy`: every analysis on one model, one seed tree, one report; ARIMA models on the Kalman filter; estimator combinators, certification checks, and pre-specified simulation studies |
 | 9 | `visualization` | optional themed figures (Matplotlib) |
 
 ```text
-                         visualization (9)
-                               |
-                          workflow (7)
-              _________________|__________________
-             |                 |                  |
-          risk (6)      filtering (6)   data_assimilation (6)
-             |
-   reliability · sensitivity · surrogates · validation   (5)
-             |                                  |
-       propagation (4) ----------------- inverse (4)
-             |                                  |
-          modeling (3)  <-- the central model  -+--- monte_carlo (3)
-             |
-   inference · multivariate · uq                  (2)
-             |
-   probability · statistics · distributions · optimization · sampling   (1)
-             |
-   foundations · numerics · linalg               (0)
+   (9)  visualization
+         |
+   (7)  workflow · timeseries · methodlab
+         |
+   (6)  risk · systems · cost · filtering · data_assimilation · conformal
+         |
+   (5)  reliability · sensitivity · surrogates · validation · design
+         |
+   (4)  propagation · inverse
+         |
+   (3)  modeling (the central model) · monte_carlo · causal · generative
+         |
+   (2)  inference · multivariate · uq · processes · information
+         |
+   (1)  probability · statistics · distributions · optimization · sampling
+         |
+   (0)  foundations · numerics · linalg
 ```
+
+The diagram lists every package once, on its layer; the arrows mean "may
+import from", not "imports from". Layer 8 is unused.
 
 `probstat.__init__` exposes version metadata only. This keeps domain ownership
 visible and avoids a root import hub that could become a cycle.
@@ -81,7 +83,7 @@ Carlo, LHS, Halton, Sobol). See ADR-0014 and
 | `distributions` | Distribution objects, special functions, sampling | Rendering |
 | `inference` | Estimation, tests, regression and GLMs, smoothing and additive models, multivariate analysis and clustering, survival, EM and mixtures, hierarchical models, MCMC/HMC/NUTS, ADVI, Laplace | Forward-model semantics |
 | `multivariate` | Vector-valued distributions | Inference workflows |
-| `uq` | QoI and forward-model contracts, numerical verification | Monte Carlo, reliability, inference |
+| `uq` | QoI and forward-model contracts, numerical verification, uncertainty budgets (including the Monte Carlo budgets `monte_carlo_budget` and `adaptive_monte_carlo_budget`, ADR-0133) | The general estimators and variance reduction of `monte_carlo`, reliability, inference |
 | `processes` | Markov chains, Poisson processes, SDEs, random fields | Filtering or inference |
 | `information` | Entropy, divergences, mutual information and their estimators, optimal transport, Fisher information geometry | Hypothesis tests |
 | `monte_carlo` | Sample estimators, variance reduction, work accounting | Forward-model semantics |
@@ -97,6 +99,7 @@ Carlo, LHS, Halton, Sobol). See ADR-0014 and
 | `design` | Optimal and Bayesian experimental design | Calibration itself |
 | `risk` | Risk measures, losses, fault/event trees, fragility, extremes, decisions | Reliability algorithms |
 | `systems` | Structure functions on BDDs, cut sets, importance, CCF, component time models, MTTF, phased missions | Sampling-based reliability; nothing in `risk` imports it |
+| `cost` | Discounting, life-cycle cost models, cost-risk S-curves, schedule-risk networks, joint cost-schedule confidence | Risk measures and decision analysis (`risk`) |
 | `conformal` | Distribution-free prediction intervals and coverage reports | Model fitting |
 | `filtering`, `data_assimilation` | State-space models, Kalman/EKF/UKF, particle filter, EnKF, 3D-Var | Plotting |
 | `workflow` | Orchestration, stage records, reports | New numerical methods |
@@ -111,12 +114,33 @@ survival, quantile, inverse-survival, and hazard are narrow capabilities that a
 type implements only when they are mathematically defined and numerically
 supported.
 
-Sibling packages in one layer may import each other only when that does not
-create a cycle and an ADR justifies it; the default is that they do not. The one
-justified case so far: `reliability.active_learning` (AK-MCS), and with it
-`reliability.ak_subset` (AK-SS) and `reliability.population_posterior`, import
-`surrogates` for their Gaussian-process limit state (ADR-0041); `surrogates`
-must therefore never import `reliability`.
+The architecture test enforces two things: no import points to a higher
+layer, and the module graph has no cycle. It reads absolute `probstat`
+imports. It has no allow-list, so a sibling import inside one layer passes as
+long as it stays acyclic; the default is still that siblings do not import
+each other, and a decision record should say why when they do.
+
+A scan of the import statements finds these same-layer imports between
+packages (importer to imported):
+
+- layer 0: `linalg` and `numerics` import the validation helpers of
+  `foundations`;
+- layer 1: `distributions` to `optimization`, `probability` to
+  `distributions`, `sampling` to `distributions`, `statistics` to
+  `distributions` and to `optimization`;
+- layer 2: `inference` to `information` and to `multivariate`;
+- layer 5: `reliability` to `surrogates` (the Gaussian-process limit state of
+  `active_learning`, `ak_subset` and `population_posterior`, ADR-0041) and
+  `design` to `surrogates` (`design.bayesian_optimization`, ADR-0125 item 8);
+  `surrogates` must therefore never import `reliability` or `design`;
+- layer 6: `cost` to `risk` (listed among the imports of ADR-0143) and
+  `systems` to `risk` (`from_fault_tree`, ADR-0060; `risk` never imports
+  `systems`).
+
+ADR-0127 records the `statistics` to `optimization` import. The others have no
+dedicated record. In particular ADR-0020 states the intent that
+`distributions` should not couple to `optimization`, while
+`distributions.maximum_entropy` imports it today.
 Cross-cutting code moves down only when it is truly domain-independent.
 
 ## Module layout

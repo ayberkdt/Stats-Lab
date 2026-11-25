@@ -45,9 +45,11 @@ implementations of each method that must agree.
    runtime rule is unchanged. Non-finite outputs are passed through: what a
    failed run means is the algorithm's decision.
 4. **Placement.** The module lives in `foundations` (layer 0) because
-   `monte_carlo`, `reliability`, `sensitivity` and `propagation` all need
-   it. `foundations` is labelled stable; the batch names are new in 0.28 and
-   follow the deprecation policy of ADR-0048 from this release on.
+   packages on several layers are meant to use it, and a lower layer cannot
+   import a higher one. Its users today are `probstat.uq` and
+   `probstat.filtering`. `foundations` is labelled stable; the batch names
+   are new after 0.27.0 (unreleased) and follow the deprecation policy of
+   ADR-0048 from the release that ships them.
 5. **Rule for new code.** A new algorithm that evaluates a model adaptively
    is written as `<name>_procedure` plus a thin `<name>` wrapper around
    `run_procedure`, issues the largest requests its mathematics permits
@@ -62,10 +64,13 @@ implementations of each method that must agree.
   scheduler through `AskTellSession`.
 - The transport adds a Python-level cost per request, not per point; it is
   negligible next to any simulator worth batching.
-- The 0.27 pointwise algorithms are not rewritten. Batch counterparts are
-  added next to them (ADR-0134 for rare events, ADR-0137 for pick-freeze
-  designs, ADR-0138 for sigma-point propagation); the pointwise functions
-  remain the reference in their tests.
+- The 0.27 pointwise algorithms are not rewritten; the pointwise functions
+  remain the reference in their tests. Two procedures are written against
+  the contract so far: `probstat.uq.adaptive_monte_carlo_budget_procedure`
+  (ADR-0133) and `probstat.filtering.propagate_gaussian_mixture_procedure`
+  (ADR-0140). There is no batch form of the rare-event estimators
+  (`probstat.reliability`) or of the pick-freeze designs
+  (`probstat.sensitivity`); both are not implemented.
 - A generator can be driven only once. A procedure function must be called
   again for a second run; the wrappers do this.
 - The contract says nothing about failures of individual evaluations,

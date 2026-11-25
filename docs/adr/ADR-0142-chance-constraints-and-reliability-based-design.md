@@ -2,8 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-11-24
-- Extends: ADR-0132 (batch evaluation contract), the model-based reliability
-  tools of `probstat.reliability`
+- Extends: the model-based reliability tools of `probstat.reliability`
 
 ## Context
 

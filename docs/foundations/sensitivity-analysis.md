@@ -27,8 +27,10 @@ are finite-sample diagnostics, while large violations signal inadequate sample
 size, dependence, numerical noise, or a broken sampling design.
 
 The current estimator assumes independent inputs. For dependent inputs use the
-Shapley effects described below. Replicated stochastic simulators and
-streaming evaluation remain future extensions.
+Shapley effects described below. Replicated stochastic simulators are
+handled by `stochastic_sobol_indices`, which evaluates every design point
+several times with independent seeds. Streaming evaluation, with indices
+updated as batches arrive, is not implemented.
 
 ## Choosing a Sobol estimator
 

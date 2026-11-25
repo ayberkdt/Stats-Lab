@@ -2,7 +2,8 @@
 
 Every other package builds on these primitives: argument validators, the
 structural protocols that distribution and law objects satisfy, the
-SplitMix64 seed tree behind every ``seed=`` argument, and the stability
+SplitMix64 seed tree behind the ``seed=`` arguments that accept a
+``RandomStream``, and the stability
 labels of the public API.
 
 Main entry points:

@@ -735,9 +735,10 @@ class FiniteProbabilityMeasure(Generic[OutcomeT]):
     def expectation(self, value: Callable[[OutcomeT], float]) -> float:
         """Return the expectation of a finite real-valued outcome function.
 
-        This bridge treats ``value`` as a finite random variable without yet
-        introducing a separate random-variable object. A dedicated abstraction
-        is planned for the next probability-foundation round.
+        This method treats ``value`` as a finite random variable without
+        introducing a separate random-variable object. The dedicated
+        abstraction is
+        :class:`probstat.probability.random_variables.FiniteRandomVariable`.
 
         Args:
             value: Function mapping every outcome to a finite real number.
