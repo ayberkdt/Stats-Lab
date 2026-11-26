@@ -62,7 +62,9 @@ the mathematics re-derived.
   `probstat.inference`: `delayed_acceptance_metropolis`. In
   `probstat.design`: A-, D-, E- and goal-oriented linear design with greedy
   and exhaustive selection. Guide:
-  `docs/foundations/large-scale-inverse-problems.md`; status of every
+  `docs/foundations/large-scale-inverse-problems.md`; laboratory:
+  `examples/large_scale_inverse_lab.py`; benchmark cases `deblur-l04` and
+  `gaussian-l06` in `benchmarks/run.py`; status of every
   roadmap task: `docs/research/inverse-expansion-progress.md`. No existing
   default or seeded result changes.
 - **Batch evaluation contract** (`probstat.foundations`, ADR-0132): an

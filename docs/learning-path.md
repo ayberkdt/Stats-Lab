@@ -671,7 +671,7 @@ path, total variation and `l1`, Gauss-Newton with adjoints, exact and
 low-rank Gaussian posteriors, design, profiles, and the inverse crime.
 
 - Requires: U17
-- Lab: none; numbers asserted in [`tests/test_linear_inverse_problem.py`](../tests/test_linear_inverse_problem.py) and [`tests/test_inverse_spectral_iterative_selection.py`](../tests/test_inverse_spectral_iterative_selection.py)
+- Lab: [`examples/large_scale_inverse_lab.py`](../examples/large_scale_inverse_lab.py)
 - Decision record: [ADR-0144](adr/ADR-0144-matrix-free-inverse-problems.md)
 
 ## Track E — Systems engineering

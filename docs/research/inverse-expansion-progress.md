@@ -34,9 +34,9 @@ open), `deferred` (not started; reason given), `blocked`.
 | 16 multifidelity | partial | `inference.delayed_acceptance` (exact-target two-stage MH, random walk and pCN); `inverse.approximation_error` (paired fine/coarse error mean and covariance, shrinkage, held-out Mahalanobis check, cross-covariance) | `tests/test_delayed_acceptance.py`, `tests/test_approximation_error.py` | cost in fine-equivalent units; surrogate training and active refinement; multilevel MCMC |
 | 17 SBI | deferred | existing ABC/NPE/NRE unchanged | - | inverse-problem SBI comparison |
 | 18 design | partial | `design.linear_optimal` (A/D/E/goal criteria, greedy rank-one updates, exhaustive oracle, correlated-noise joint criteria) | `tests/test_linear_optimal_design.py` | operator-path and stochastic-trace criteria; sequential and robust design |
-| 19 benchmarks | partial | `inverse.benchmark_problems` (L01, L04-L06; L02-L03 existing) and `inverse.benchmark_extended` (L07a 2D deblurring, L07b ray-transform tomography with exact intersection lengths and analytic disc data, N01, N02, P01, P02) with truth/noise stream separation and the inverse-crime flag; `tools/inverse_benchmark_matrix.py` JSON runner | `tests/test_inverse_benchmark_problems.py`, `tests/test_benchmark_extended.py` | N03 ODE oscillator, S01 Poisson imaging, M01, F01, A01-A02; a `benchmarks/run.py` group |
+| 19 benchmarks | partial | `inverse.benchmark_problems` (L01, L04-L06; L02-L03 existing) and `inverse.benchmark_extended` (L07a 2D deblurring, L07b ray-transform tomography with exact intersection lengths and analytic disc data, N01, N02, P01, P02) with truth/noise stream separation and the inverse-crime flag; `tools/inverse_benchmark_matrix.py` JSON runner; `benchmarks/run.py` cases `deblur-l04` and `gaussian-l06` (the latter scored against a pure-Python Cholesky reference in `benchmarks/references.py`) | `tests/test_inverse_benchmark_problems.py`, `tests/test_benchmark_extended.py` | N03 ODE oscillator, S01 Poisson imaging, M01, F01 |
 | 20 applications | partial | 20A functional inversion in `tests/test_function_space.py`; 20B synthetic expansion history (`inverse.benchmark_cosmology`: piecewise-constant `w(z)`, exact discrete derivatives of the distance modulus, offset/H0 degeneracy, CPL and oscillating truths from finer representations); 20C simplified orbit determination (`inverse.benchmark_orbit`: two-body range model with exact RK4 sensitivities, well-observed and single-station short-arc geometries) | `tests/test_function_space.py`, `tests/test_benchmark_cosmology.py`, `tests/test_benchmark_orbit.py` | BAO/sound horizon, correlated calibration noise, EIG of added redshifts; orbit nuisance biases and correlated noise; gravity field |
-| 21 pedagogy | partial | guide chapter U18 with measured tables and exercises; learning-path entry; guide figures `large-scale-semi-convergence` and `large-scale-tv-edges` (light and dark, datawiz audit passed) | `tests/test_guide_figures.py`, documentation tests | labs; further figures (posterior bands, design gains) |
+| 21 pedagogy | partial | guide chapter U18 with measured tables and exercises; learning-path entry; guide figures `large-scale-semi-convergence` and `large-scale-tv-edges` (light and dark, datawiz audit passed); laboratory `examples/large_scale_inverse_lab.py` (lab contract, regression test `tests/test_large_scale_inverse_lab.py`, two figures with 0 datawiz errors) | `tests/test_guide_figures.py`, documentation tests | further figures (posterior bands, design gains) |
 | 22 verification | partial | this ledger; registry, references, API and math reference and the presentation data regenerated | see test log below | wheel build and clean-environment smoke test not run |
 | 23 references | verified | 30 new bibliography entries; metadata checked against Crossref on 2026-11-26 | `test_documentation_contract` | Bakushinskii (1992) and the weighted-GCV paper of Chung, Nagy and O'Leary (2008) were NOT found on Crossref and are not cited |
 
@@ -94,6 +94,10 @@ Commands, exit codes and elapsed times of the verification runs
 | same round: documentation examples, documentation contract, learning paths | 95 passed, 1,030 subtests, exit 0, 523 s |
 | final full run: `python -m pytest -q -p no:randomly tests` in six parallel shards (245 test files) | 4,554 passed, 1 skipped, 0 failed; every shard exit 0; 17 min wall |
 | CI step "Examples run": every `examples/*.py` with `MPLBACKEND=Agg` | 0 failures, 1,714 s; no tracked file changed |
+| laboratory and benchmark cases: `tests/test_benchmarks.py`, presentation, lab contract, lab regression, architecture, guide figures | 69 passed, 1,640 subtests, exit 0 |
+| same round: documentation examples, learning paths, documentation contract | 95 passed, 1,029 subtests, exit 0 |
+| `python examples/large_scale_inverse_lab.py` | exit 0, 29 s; on its seed GCV under-smooths the refined-data deblurring (relative error 8.33) while UPRE and the discrepancy rule give 0.11 and TV 0.020 |
+| `python benchmarks/run.py --quick` with the new cases | 332 runs, 20 failed (0 unexpected), 18 skipped, 161.7 s under load |
 | `python tools/inverse_benchmark_matrix.py --quick` | exit 0, 165 s, 39 runs, 0 failed runs; see below |
 
 ### Benchmark matrix (quick: seeds 11, 23, 37; median relative error)
@@ -123,8 +127,10 @@ Three seeds per cell: medians only, no ranking claim.
    suite on Python 3.11 and 3.13. Not run here: the local setuptools is
    70.0 while `pyproject.toml` requires `setuptools>=77`, and an isolated
    build would download the build backend.
-2. Add a `benchmarks/run.py` group for the inverse catalog (L01-L07, N01,
-   N02, P01, P02) so that the quick benchmark report covers the new solvers.
+2. Extend the `benchmarks/run.py` inverse cases beyond `deblur-l04` and
+   `gaussian-l06` (L07, N01, N02, P01, P02); the inverse "solved"
+   threshold of the report (absolute error 0.02) is not met by any
+   deblurring method, which the report shows as 0/4 accurate.
 3. 04C: functional resolution with mass matrices, and the GSVD for
    `m < n` or a rank-deficient stack.
 4. 10/16: interval censoring, negative binomial and mixture outliers;
@@ -132,5 +138,4 @@ Three seeds per cell: medians only, no ranking claim.
 5. 20B: correlated calibration noise and the expected information gain of
    added redshifts in the expansion-history case; 20C: nuisance biases and
    correlated noise in the orbit case.
-6. 21: a laboratory under `examples/` that satisfies `tests/test_lab_contract.py`.
 

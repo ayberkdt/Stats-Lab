@@ -7,7 +7,7 @@
  "repository": {
   "licence": "BSD-3-Clause",
   "figure_text_floor_pt": 9.0,
-  "tests_floor": 4400,
+  "tests_floor": 4500,
   "equations_floor": 1700,
   "references_floor": 900,
   "adrs_floor": 140,
@@ -15,7 +15,7 @@
   "statistics_questions": 10,
   "packages": 34,
   "runtime_dependencies": 0,
-  "labs": 43,
+  "labs": 44,
   "ci_python_first": "3.11",
   "ci_python_last": "3.13",
   "ci_python_count": 3
@@ -318,8 +318,8 @@
  "benchmark": {
   "probstat_version": "0.27.0",
   "generated": "2026-11-26",
-  "problems": 16,
-  "rows": 199,
+  "problems": 18,
+  "rows": 204,
   "seeds_propagation": 5,
   "seeds_calibration": 2,
   "sampling": {

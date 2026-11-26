@@ -22,6 +22,9 @@ from probstat.filtering import kalman_filter  # noqa: E402
 from probstat.inverse import (  # noqa: E402
     backward_heat_problem,
     calibrate_linear_gaussian,
+    correlated_gaussian_benchmark,
+    deconvolution_benchmark,
+    linear_gaussian_posterior,
     second_derivative_problem,
 )
 from probstat.modeling import gauss_hermite, standard_normal_cdf  # noqa: E402
@@ -353,6 +356,59 @@ class InverseAndAssimilationReferenceTests(unittest.TestCase):
                 for a, b in zip(independent, problem.exact_solution, strict=True):
                     self.assertAlmostEqual(a, b, delta=1e-14)
 
+    def test_deblur_truth_matches_the_library_benchmark(self) -> None:
+        """The independent cell-averaged truth equals the withheld library truth."""
+        case = deconvolution_benchmark(
+            problems.DEBLUR_SIZE, refinement=problems.DEBLUR_REFINEMENT, seed=1
+        )
+        independent = references.deblur_truth(
+            problems.DEBLUR_SIZE, problems.DEBLUR_REFINEMENT
+        )
+        self.assertEqual(len(independent), len(case.truth))
+        for a, b in zip(independent, case.truth, strict=True):
+            self.assertAlmostEqual(a, b, delta=1e-14)
+
+    def test_gaussian_reference_matches_both_library_routes(self) -> None:
+        """The pure-Python Cholesky posterior mean equals data and parameter space."""
+        for seed in (1, 2, 3):
+            case = correlated_gaussian_benchmark(
+                problems.GAUSSIAN_SIZE,
+                problems.GAUSSIAN_OBSERVATIONS,
+                length_scale=problems.GAUSSIAN_LENGTH_SCALE,
+                prior_variance=problems.GAUSSIAN_PRIOR_VARIANCE,
+                noise_level=problems.GAUSSIAN_NOISE_LEVEL,
+                seed=seed,
+            )
+            independent = references.correlated_gaussian_posterior_mean(
+                case.data,
+                problems.GAUSSIAN_SIZE,
+                problems.GAUSSIAN_OBSERVATIONS,
+                problems.GAUSSIAN_LENGTH_SCALE,
+                problems.GAUSSIAN_PRIOR_VARIANCE,
+                problems.GAUSSIAN_NOISE_LEVEL,
+            )
+            for method in ("data_space", "parameter_space"):
+                library = linear_gaussian_posterior(
+                    case.operator,
+                    case.data,
+                    noise=case.noise,
+                    prior_covariance=case.prior_covariance,
+                    method=method,  # type: ignore[arg-type]
+                )
+                with self.subTest(seed=seed, method=method):
+                    for a, b in zip(independent, library.mean, strict=True):
+                        self.assertAlmostEqual(a, b, delta=1e-10)
+            instance = REGISTRY["gaussian-l06"].build(seed)
+            self.assertEqual(tuple(instance["exact"]), independent)
+
+    def test_references_module_never_imports_probstat(self) -> None:
+        """The independent references stay free of library code."""
+        source = Path(references.__file__).read_text("utf-8")
+        for line in source.splitlines():
+            self.assertFalse(
+                line.lstrip().startswith(("import probstat", "from probstat"))
+            )
+
     def test_plain_kalman_filter_matches_the_library(self) -> None:
         """The 2 x 2 reference filter equals kalman_filter to 1e-10."""
         for seed in (1, 2, 3):
@@ -607,6 +663,53 @@ class HarnessTests(unittest.TestCase):
         )
         self.assertIn("## Inverse problems: regularization", text)
         self.assertIn("Relative error (median)", text)
+
+    def test_matrix_free_inverse_records(self) -> None:
+        """The deblurring and Gaussian rows run, count operator work, and score."""
+        chosen = {m.name: m for m in methods.registry()}
+        deblur_names = (
+            "LSQR + discrepancy principle (matrix-free)",
+            "Tikhonov + GCV (regularization path)",
+            "Total variation (PDHG, fixed alpha)",
+        )
+        gaussian_names = (
+            "Exact posterior, data space",
+            "Exact posterior, parameter space",
+        )
+        sizes = dict(self.sizes, gcv_exponents=(0.5, 1.0, 3), tv_iterations=100)
+        deblur = harness.run_benchmarks(
+            (REGISTRY["deblur-l04"],),
+            tuple(chosen[name] for name in deblur_names),
+            sizes,
+            seeds={"inverse": 1},
+        )
+        by_method = {r["method"]: r for r in deblur}
+        self.assertEqual(set(by_method), set(deblur_names))
+        for name in deblur_names:
+            with self.subTest(method=name):
+                self.assertEqual(
+                    by_method[name]["status"], "ok", by_method[name]["error"]
+                )
+                self.assertGreater(by_method[name]["evaluations"], 0)
+                self.assertLess(by_method[name]["abs_error"], 0.5)
+        self.assertLess(by_method[deblur_names[0]]["abs_error"], 0.2)
+        gaussian = harness.run_benchmarks(
+            (REGISTRY["gaussian-l06"],),
+            tuple(chosen[name] for name in gaussian_names),
+            sizes,
+            seeds={"inverse": 1},
+        )
+        self.assertEqual(len(gaussian), 2)
+        for record in gaussian:
+            with self.subTest(method=record["method"]):
+                self.assertEqual(record["status"], "ok", record["error"])
+                self.assertGreater(record["evaluations"], 0)
+                self.assertLess(record["abs_error"], 1e-9)
+        # The dense Tikhonov rows are restricted to the dense problems.
+        for name in ("Tikhonov + GCV", "TSVD + discrepancy principle"):
+            self.assertTrue(chosen[name].applies(REGISTRY["heat-tikhonov"]))
+            self.assertFalse(chosen[name].applies(REGISTRY["deblur-l04"]))
+            self.assertFalse(chosen[name].applies(REGISTRY["gaussian-l06"]))
 
     def test_tracking_records(self) -> None:
         """The library Kalman filter is exact; the ETKF is close at N = 50."""

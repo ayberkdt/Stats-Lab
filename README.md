@@ -196,7 +196,7 @@ of the learning path.
 ## Visual tour: every figure states its finding in its title
 
 Every lab in [`examples/`](https://github.com/ayberkdt/Stats-Lab/tree/main/examples)
-(44 of them) is seeded and reproducible and writes its figures to
+(45 of them) is seeded and reproducible and writes its figures to
 `examples/generated/`; every guide in
 [`docs/foundations/`](https://github.com/ayberkdt/Stats-Lab/tree/main/docs/foundations)
 shows its own checked figures. All figures share one theme: colour follows

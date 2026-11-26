@@ -30,6 +30,8 @@ from probstat.inverse import (
     Experiment,
     NoiseModel,
     backward_heat_problem,
+    correlated_gaussian_benchmark,
+    deconvolution_benchmark,
     second_derivative_problem,
 )
 from probstat.modeling import (
@@ -551,6 +553,58 @@ def _inverse(
     return build
 
 
+#: Matrix-free deblurring (catalog case L04): coarse size and refinement of
+#: the independent fine grid that generates the data (no inverse crime).
+DEBLUR_SIZE = 64
+DEBLUR_REFINEMENT = 2
+#: Correlated-Gaussian posterior (catalog case L06): unknowns, observations,
+#: and the prior and noise parameters, passed explicitly so the independent
+#: reference in :mod:`benchmarks.references` uses the same model.
+GAUSSIAN_SIZE = 16
+GAUSSIAN_OBSERVATIONS = 8
+GAUSSIAN_LENGTH_SCALE = 0.2
+GAUSSIAN_PRIOR_VARIANCE = 1.0
+GAUSSIAN_NOISE_LEVEL = 0.05
+
+
+def _build_deblur(seed: int) -> Instance:
+    """Build the deblurring case; the truth comes from :mod:`benchmarks.references`."""
+    case = deconvolution_benchmark(DEBLUR_SIZE, refinement=DEBLUR_REFINEMENT, seed=seed)
+    return Instance(
+        CostCounter(),
+        {
+            "case": case,
+            "data": case.data,
+            "noise_norm": case.realized_noise_norm / case.noise_level,
+            "exact": ref.deblur_truth(DEBLUR_SIZE, DEBLUR_REFINEMENT),
+        },
+    )
+
+
+def _build_gaussian(seed: int) -> Instance:
+    """Build the Gaussian case; its exact mean comes from ``benchmarks.references``."""
+    case = correlated_gaussian_benchmark(
+        GAUSSIAN_SIZE,
+        GAUSSIAN_OBSERVATIONS,
+        length_scale=GAUSSIAN_LENGTH_SCALE,
+        prior_variance=GAUSSIAN_PRIOR_VARIANCE,
+        noise_level=GAUSSIAN_NOISE_LEVEL,
+        seed=seed,
+    )
+    exact = ref.correlated_gaussian_posterior_mean(
+        case.data,
+        GAUSSIAN_SIZE,
+        GAUSSIAN_OBSERVATIONS,
+        GAUSSIAN_LENGTH_SCALE,
+        GAUSSIAN_PRIOR_VARIANCE,
+        GAUSSIAN_NOISE_LEVEL,
+    )
+    return Instance(
+        CostCounter(),
+        {"case": case, "data": case.data, "truth": case.truth, "exact": exact},
+    )
+
+
 # ---------------------------------------------------------------------------
 # Data assimilation
 # ---------------------------------------------------------------------------
@@ -882,6 +936,46 @@ def registry() -> tuple[Problem, ...]:
             {"relerr": "absolute"},
             frozenset({"mildly-ill-posed"}),
             INV_SIZE,
+        ),
+        Problem(
+            "deblur-l04",
+            "inverse",
+            "1-D deblurring (matrix-free), n = 64",
+            "Gaussian blur (sd 0.03) of a piecewise-constant profile with three "
+            "jumps, applied through a matrix-free convolution operator; the data "
+            "are blurred on a 2 x finer grid and cell-averaged (no inverse "
+            "crime), 1 % white noise per seed; the error is ||x - x_exact|| / "
+            "||x_exact||.",
+            "Exact coarse-grid truth: the cell average of the profile "
+            "(benchmarks.references.deblur_truth, equal to the withheld truth of "
+            "probstat.inverse.deconvolution_benchmark). Cost: applications of "
+            "the forward operator and of its transpose, counted by a wrapper.",
+            _build_deblur,
+            _constant({"relerr": 0.0}),
+            {"relerr": "absolute"},
+            frozenset({"matrix-free", "deblur", "edges"}),
+            DEBLUR_SIZE,
+        ),
+        Problem(
+            "gaussian-l06",
+            "inverse",
+            "Correlated Gaussian prior, n = 16, m = 8",
+            "Exponential-kernel prior (l = 0.2, variance 1) on 16 points, 8 "
+            "three-point local averages observed with noise sd 0.05, truth drawn "
+            "from the prior per seed; the error is the relative distance of the "
+            "returned mean to the exact posterior mean, ||x - x_post|| / "
+            "||x_post||.",
+            "Exact posterior mean from the normal equations (A'A / s^2 + "
+            "C0^-1) x = A'y / s^2, solved by a pure-Python Cholesky "
+            "factorization of the given data (benchmarks.references."
+            "correlated_gaussian_posterior_mean); the data come from probstat's "
+            "seeded stream, the solve does not. Cost: forward and transpose "
+            "applications of the operator.",
+            _build_gaussian,
+            _constant({"relerr": 0.0}),
+            {"relerr": "absolute"},
+            frozenset({"matrix-free", "gaussian-posterior"}),
+            GAUSSIAN_SIZE,
         ),
         Problem(
             "linear-tracking",

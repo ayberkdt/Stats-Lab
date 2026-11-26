@@ -103,6 +103,10 @@ LAB_REGRESSION_TESTS: dict[str, tuple[str, str]] = {
         "parameter_uncertainty_band",
     ),
     "interactive_explainers_lab": ("test_interactive_explainers.py", "clt_explainer"),
+    "large_scale_inverse_lab": (
+        "test_large_scale_inverse_lab.py",
+        "krylov_regularization",
+    ),
     "limit_theorems_lab": ("test_limit_theorems.py", "simulate_clt_distance"),
     "lorenz_assimilation_lab": (
         "test_four_dimensional_variational.py",

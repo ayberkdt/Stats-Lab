@@ -393,6 +393,120 @@ def deriv2_solution(size: int) -> tuple[float, ...]:
     return tuple((i + 0.5) / size for i in range(size))
 
 
+def deblur_truth(size: int, refinement: int) -> tuple[float, ...]:
+    """Return the coarse-grid truth of the 1-D deblurring problem ``L04``.
+
+    The truth is the piecewise-constant profile (0 on ``[0, 0.25)``, 1 on
+    ``[0.25, 0.5)``, 0.3 on ``[0.5, 0.7)``, 0.8 on ``[0.7, 1]``) sampled at the
+    centres of a grid ``refinement`` times finer than the ``size`` coarse
+    cells and averaged over each coarse cell. This is the definition stated in
+    the docstring of ``probstat.inverse.deconvolution_benchmark``, written
+    out again here without probstat.
+    """
+
+    def profile(s: float) -> float:
+        """Return the piecewise-constant truth at ``s``."""
+        if s < 0.25:
+            return 0.0
+        if s < 0.5:
+            return 1.0
+        if s < 0.7:
+            return 0.3
+        return 0.8
+
+    fine = size * refinement
+    samples = [profile((j + 0.5) / fine) for j in range(fine)]
+    return tuple(
+        math.fsum(samples[i * refinement : (i + 1) * refinement]) / refinement
+        for i in range(size)
+    )
+
+
+def _cholesky(matrix: Sequence[Sequence[float]]) -> list[list[float]]:
+    """Return the lower Cholesky factor ``L`` (``L L' = matrix``) of an SPD matrix."""
+    size = len(matrix)
+    lower = [[0.0] * size for _ in range(size)]
+    for i in range(size):
+        for j in range(i + 1):
+            total = matrix[i][j] - math.fsum(
+                lower[i][k] * lower[j][k] for k in range(j)
+            )
+            if i == j:
+                if total <= 0.0:
+                    raise ValueError("matrix is not positive definite")
+                lower[i][i] = math.sqrt(total)
+            else:
+                lower[i][j] = total / lower[j][j]
+    return lower
+
+
+def _cholesky_solve(
+    lower: Sequence[Sequence[float]], rhs: Sequence[float]
+) -> list[float]:
+    """Solve ``L L' x = rhs`` by forward and backward substitution."""
+    size = len(rhs)
+    forward = [0.0] * size
+    for i in range(size):
+        forward[i] = (
+            rhs[i] - math.fsum(lower[i][k] * forward[k] for k in range(i))
+        ) / lower[i][i]
+    solution = [0.0] * size
+    for i in range(size - 1, -1, -1):
+        tail = math.fsum(lower[k][i] * solution[k] for k in range(i + 1, size))
+        solution[i] = (forward[i] - tail) / lower[i][i]
+    return solution
+
+
+def correlated_gaussian_posterior_mean(
+    data: Sequence[float],
+    size: int,
+    observations: int,
+    length_scale: float,
+    prior_variance: float,
+    noise_level: float,
+) -> tuple[float, ...]:
+    """Return the exact posterior mean of the correlated-Gaussian problem ``L06``.
+
+    Model (the definition in the docstring of
+    ``probstat.inverse.correlated_gaussian_benchmark``, rewritten here without
+    probstat): ``x ~ N(0, C0)`` with ``C0_ij = v exp(-|s_i - s_j| / l)`` on
+    ``s_i = i / (n - 1)``; observations ``y_k`` are the mean of three
+    neighbouring points centred at ``1 + round(k (n - 3) / max(m - 1, 1))``
+    plus ``N(0, s^2)`` noise. The posterior mean solves the normal equations
+    ``(A'A / s^2 + C0^-1) x = A'y / s^2``; ``C0^-1`` and the solve both use
+    a Cholesky factorization. The *data* are an input (they come from
+    probstat's seeded stream); everything computed from them is independent.
+    """
+    grid = [i / (size - 1) for i in range(size)]
+    prior = [
+        [prior_variance * math.exp(-abs(a - b) / length_scale) for b in grid]
+        for a in grid
+    ]
+    rows = []
+    for k in range(observations):
+        centre = 1 + round(k * (size - 3) / max(observations - 1, 1))
+        rows.append([1.0 / 3.0 if abs(j - centre) <= 1 else 0.0 for j in range(size)])
+    precision_factor = _cholesky(prior)
+    inverse_columns = [
+        _cholesky_solve(precision_factor, [1.0 if i == j else 0.0 for i in range(size)])
+        for j in range(size)
+    ]
+    tau = 1.0 / (noise_level * noise_level)
+    system = [
+        [
+            inverse_columns[i][j]
+            + tau * math.fsum(rows[k][i] * rows[k][j] for k in range(observations))
+            for j in range(size)
+        ]
+        for i in range(size)
+    ]
+    rhs = [
+        tau * math.fsum(rows[k][i] * data[k] for k in range(observations))
+        for i in range(size)
+    ]
+    return tuple(_cholesky_solve(_cholesky(system), rhs))
+
+
 Matrix2 = tuple[tuple[float, float], tuple[float, float]]
 
 

@@ -24,12 +24,18 @@ from probstat.data_assimilation import (
 from probstat.filtering import kalman_filter
 from probstat.inference import advi
 from probstat.inverse import (
+    LinearInverseProblem,
     discrepancy_principle,
     generalized_cross_validation,
+    krylov_regularization,
     l_curve,
+    linear_gaussian_posterior,
+    regularization_path,
+    select_regularization,
+    total_variation_regularized_least_squares,
     truncated_svd,
 )
-from probstat.linalg import singular_value_decomposition
+from probstat.linalg import CountingOperator, singular_value_decomposition
 from probstat.propagation import propagate
 from probstat.reliability import (
     ak_mcs,
@@ -100,6 +106,9 @@ SIZES: dict[str, dict[str, Any]] = {
         "advi_iterations": 2_000,
         "enkf_members": 50,
         "l96_members": 20,
+        # lambda grid of the deblurring GCV row: 10^low ... 10^high, count.
+        "gcv_exponents": (0.0, 1.0, 5),
+        "tv_iterations": 300,
     },
     "full": {
         "seeds": {
@@ -146,6 +155,8 @@ SIZES: dict[str, dict[str, Any]] = {
         "advi_iterations": 10_000,
         "enkf_members": 200,
         "l96_members": 20,
+        "gcv_exponents": (-0.5, 1.5, 9),
+        "tv_iterations": 2_000,
     },
 }
 
@@ -896,6 +907,122 @@ def _tsvd_discrepancy(
     return MethodOutput({"relerr": Estimate(error)}, (f"rank k = {solution.rank}",))
 
 
+def _is_dense_inverse(problem: Problem) -> bool:
+    """Apply to the dense Tikhonov problems (heat and deriv2)."""
+    return bool(problem.tags & {"severely-ill-posed", "mildly-ill-posed"})
+
+
+def _is_deblur(problem: Problem) -> bool:
+    """Apply to the matrix-free deblurring problem."""
+    return "deblur" in problem.tags
+
+
+def _is_gaussian_posterior(problem: Problem) -> bool:
+    """Apply to the correlated Gaussian posterior problem."""
+    return "gaussian-posterior" in problem.tags
+
+
+def _spent(instance: Instance, counted: CountingOperator) -> str:
+    """Add the operator applications of a wrapper to the cost; return a note."""
+    counts = counted.counts
+    instance.model.evaluations += counts.forward + counts.transpose
+    return f"{counts.forward} forward + {counts.transpose} transpose applications"
+
+
+def _deblur_lsqr(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Early-stopped LSQR stopped by the discrepancy principle (tau = 1.01)."""
+    del seed, sizes, problem
+    case = instance["case"]
+    counted = CountingOperator(case.operator)
+    inverse = LinearInverseProblem.create(counted, instance["data"], noise=case.noise)
+    result = krylov_regularization(
+        inverse, method="lsqr", noise_norm=instance["noise_norm"], max_iterations=200
+    )
+    notes = [f"stopped at k = {result.iterations} ({result.stop_reason})"]
+    notes.append(_spent(instance, counted))
+    if not result.converged:
+        notes.append("no stopping rule fired")
+    error = _relative_error(result.estimate, instance["exact"])
+    return MethodOutput({"relerr": Estimate(error)}, tuple(notes))
+
+
+def _deblur_gcv(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Tikhonov ``L = I`` with ``lambda`` chosen by GCV on a regularization path."""
+    del seed, problem
+    low, high, points = sizes["gcv_exponents"]
+    grid = [10.0 ** (low + (high - low) * i / (points - 1)) for i in range(points)]
+    case = instance["case"]
+    counted = CountingOperator(case.operator)
+    inverse = LinearInverseProblem.create(counted, instance["data"], noise=case.noise)
+    choice = select_regularization(regularization_path(inverse, grid), "gcv")
+    if choice.estimate is None:
+        raise ValueError(f"GCV selected no lambda ({choice.status})")
+    notes = [f"lambda = {choice.regularization:.3g} ({choice.status})"]
+    notes.append(_spent(instance, counted))
+    error = _relative_error(choice.estimate, instance["exact"])
+    return MethodOutput({"relerr": Estimate(error)}, tuple(notes))
+
+
+#: Penalty of the total-variation benchmark row. It was chosen once from a scan
+#: of ``{0.03, 0.1, 0.3}`` on the data of seeds 101-103 of the deblurring problem
+#: (no benchmark run uses those seeds): with 300 PDHG iterations, 0.1 gave
+#: relative errors 0.037, 0.041 and 0.037, against 0.059-0.070 at 0.03 and
+#: 0.070-0.072 at 0.3.
+TV_ALPHA = 0.1
+
+
+def _deblur_tv(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Total variation by PDHG with a fixed penalty and a capped iteration count."""
+    del seed, problem
+    counted = CountingOperator(instance["case"].operator)
+    result = total_variation_regularized_least_squares(
+        counted,
+        instance["data"],
+        TV_ALPHA,
+        max_iterations=sizes["tv_iterations"],
+    )
+    notes = [f"alpha = {TV_ALPHA}, {result.optimization.iterations} PDHG iterations"]
+    notes.append(_spent(instance, counted))
+    if not result.converged:
+        notes.append(f"not converged: {result.stop_reason} (cap of this mode)")
+    error = _relative_error(result.solution, instance["exact"])
+    return MethodOutput({"relerr": Estimate(error)}, tuple(notes))
+
+
+def _gaussian_posterior(method: str) -> Runner:
+    """Return an adapter for the library's exact Gaussian posterior mean."""
+
+    def run(
+        instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+    ) -> MethodOutput:
+        """Solve the problem exactly and compare with the independent mean."""
+        del seed, sizes, problem
+        case = instance["case"]
+        counted = CountingOperator(case.operator)
+        posterior = linear_gaussian_posterior(
+            counted,
+            instance["data"],
+            noise=case.noise,
+            prior_covariance=case.prior_covariance,
+            method=method,  # type: ignore[arg-type]
+        )
+        notes = (
+            _spent(instance, counted),
+            f"relative error to the withheld truth "
+            f"{_relative_error(posterior.mean, instance['truth']):.3f}",
+        )
+        error = _relative_error(posterior.mean, instance["exact"])
+        return MethodOutput({"relerr": Estimate(error)}, notes)
+
+    return run
+
+
 ORACLE_GRID = tuple(10.0 ** (-6.0 + 6.0 * i / 120) for i in range(121))
 
 
@@ -1197,25 +1324,70 @@ def registry() -> tuple[Method, ...]:
             "inverse",
             _oracle_tikhonov,
             "reference",
+            _is_dense_inverse,
         ),
         Method(
             "Tikhonov + discrepancy principle",
             "inverse",
             _tikhonov_rule("discrepancy"),
             "approximation",
+            _is_dense_inverse,
         ),
-        Method("Tikhonov + GCV", "inverse", _tikhonov_rule("gcv"), "approximation"),
+        Method(
+            "Tikhonov + GCV",
+            "inverse",
+            _tikhonov_rule("gcv"),
+            "approximation",
+            _is_dense_inverse,
+        ),
         Method(
             "Tikhonov + L-curve",
             "inverse",
             _tikhonov_rule("l-curve"),
             "approximation",
+            _is_dense_inverse,
         ),
         Method(
             "TSVD + discrepancy principle",
             "inverse",
             _tsvd_discrepancy,
             "approximation",
+            _is_dense_inverse,
+        ),
+        Method(
+            "LSQR + discrepancy principle (matrix-free)",
+            "inverse",
+            _deblur_lsqr,
+            "approximation",
+            _is_deblur,
+        ),
+        Method(
+            "Tikhonov + GCV (regularization path)",
+            "inverse",
+            _deblur_gcv,
+            "approximation",
+            _is_deblur,
+        ),
+        Method(
+            "Total variation (PDHG, fixed alpha)",
+            "inverse",
+            _deblur_tv,
+            "approximation",
+            _is_deblur,
+        ),
+        Method(
+            "Exact posterior, data space",
+            "inverse",
+            _gaussian_posterior("data_space"),
+            "approximation",
+            _is_gaussian_posterior,
+        ),
+        Method(
+            "Exact posterior, parameter space",
+            "inverse",
+            _gaussian_posterior("parameter_space"),
+            "approximation",
+            _is_gaussian_posterior,
         ),
         Method(
             "Kalman filter (library)",
