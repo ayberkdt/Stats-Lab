@@ -20,7 +20,10 @@ well-observed condition number is ~181.
 from __future__ import annotations
 
 import math
+import os
+import random
 import unittest
+from statistics import NormalDist
 
 from probstat.inverse import (
     check_derivatives,
@@ -28,8 +31,12 @@ from probstat.inverse import (
     spectral_diagnostics,
 )
 from probstat.inverse.benchmark_orbit import (
+    CALIBRATION_SEEDS,
     TwoBodyRangeModel,
+    correlation_calibration_study,
     orbit_determination_benchmark,
+    range_noise_covariance,
+    station_bias_identifiability,
 )
 
 STATIONS_2D = ((4.0, 0.5), (-1.0, 4.0))
@@ -285,6 +292,379 @@ class InvalidInputTest(unittest.TestCase):
         self.assertTrue(all(math.isnan(v) for v in out))
         with self.assertRaises(ValueError):
             m.jvp((1.0, 0.0, 0.0, 1.0, -0.5), (0.0,) * 5)
+
+
+# ---------------------------------------------------------------------------
+# Roadmap 20C additions (SYNTHETIC): station biases and correlated noise
+# ---------------------------------------------------------------------------
+
+
+class StationBiasModelTests(unittest.TestCase):
+    """Per-station range biases as exactly linear nuisance parameters."""
+
+    def _models(self) -> tuple[TwoBodyRangeModel, TwoBodyRangeModel]:
+        """Return the same design without and with station biases."""
+        times = (0.5, 1.1, 1.8, 2.4)
+        plain = TwoBodyRangeModel(times, STATIONS_2D, steps_per_interval=8)
+        biased = TwoBodyRangeModel(
+            times, STATIONS_2D, steps_per_interval=8, estimate_station_biases=True
+        )
+        return plain, biased
+
+    def test_value_adds_bias_per_station(self) -> None:
+        """``rho_ij + b_j`` exactly, station-minor ordering."""
+        plain, biased = self._models()
+        orbit = (1.0, 0.0, 0.0, 1.05)
+        base = plain.value(orbit)
+        out = biased.value((*orbit, 0.01, -0.02))
+        self.assertEqual(biased.input_dimension, 6)
+        for k, (a, b) in enumerate(zip(base, out, strict=True)):
+            self.assertAlmostEqual(b - a, (0.01, -0.02)[k % 2], places=14)
+
+    def test_jacobian_blocks(self) -> None:
+        """Orbit columns are unchanged; bias columns are station indicators."""
+        plain, biased = self._models()
+        orbit = (1.0, 0.0, 0.0, 1.05)
+        x = (*orbit, 0.01, -0.02)
+        for j in range(4):
+            e = tuple(1.0 if k == j else 0.0 for k in range(4))
+            self.assertEqual(plain.jvp(orbit, e), biased.jvp(x, (*e, 0.0, 0.0)))
+        for s in range(2):
+            e = tuple(1.0 if k == s else 0.0 for k in range(2))
+            col = biased.jvp(x, (0.0,) * 4 + e)
+            self.assertEqual(col, tuple(1.0 if k % 2 == s else 0.0 for k in range(8)))
+
+    def test_derivatives_against_central_differences_and_dot_test(self) -> None:
+        """Taylor sweep, adjoint dot test and finite differences with ``mu``."""
+        biased = TwoBodyRangeModel(
+            (0.6, 1.3, 2.0),
+            STATIONS_2D,
+            steps_per_interval=8,
+            estimate_mu=True,
+            estimate_station_biases=True,
+        )
+        x = (1.0, 0.0, 0.0, 1.05, 1.02, 0.01, -0.02)
+        check = check_derivatives(
+            biased, x, (0.1, -0.2, 0.3, 0.1, 0.05, 0.2, -0.1), (1, -1, 2, 0.5, 1, -2)
+        )
+        self.assertTrue(check.passed, check)
+        self.assertLess(check.dot_relative_error, 1e-12)
+        jac = _dense_jacobian(biased, x)
+        for j in range(7):
+            h = 1e-6
+            up, dn = list(x), list(x)
+            up[j] += h
+            dn[j] -= h
+            fp, fm = biased.value(up), biased.value(dn)
+            for i in range(6):
+                fd = (fp[i] - fm[i]) / (2 * h)
+                self.assertAlmostEqual(jac[i][j], fd, delta=1e-6 * (1 + abs(fd)))
+        # the station-bias columns are exactly the 0/1 indicators
+        sens = biased.sensitivities(x)
+        self.assertEqual(len(sens[0][0]), 5)  # state block (4) plus mu only
+
+    def test_benchmark_with_biases_generates_data_with_them(self) -> None:
+        """Truth ends with the biases and the data contain them; default off."""
+        plain = orbit_determination_benchmark(seed=3)
+        biased = orbit_determination_benchmark(seed=3, estimate_station_biases=True)
+        self.assertEqual(len(biased.truth), len(plain.truth) + 3)
+        self.assertEqual(biased.truth[4:], (0.01, -0.015, 0.02))
+        for k, (a, b) in enumerate(
+            zip(plain.exact_data, biased.exact_data, strict=True)
+        ):
+            self.assertAlmostEqual(b - a, biased.truth[4 + k % 3], places=13)
+        self.assertEqual(plain.data, orbit_determination_benchmark(seed=3).data)
+        self.assertIn("nuisance_degeneracy", biased.pathologies)
+        self.assertNotIn("nuisance_degeneracy", plain.pathologies)
+        custom = orbit_determination_benchmark(
+            estimate_station_biases=True, station_biases=(0.1, 0.2, 0.3)
+        )
+        self.assertEqual(custom.truth[4:], (0.1, 0.2, 0.3))
+        with self.assertRaises(ValueError):
+            orbit_determination_benchmark(
+                estimate_station_biases=True, station_biases=(0.1,)
+            )
+
+    def test_biased_solver_recovers_biases(self) -> None:
+        """Gauss-Newton on the well-observed design recovers orbit and biases."""
+        case = orbit_determination_benchmark(
+            estimate_station_biases=True, noise_sd=1e-3, seed=7
+        )
+        start = tuple(t + 0.02 for t in case.truth[:4]) + (0.0, 0.0, 0.0)
+        result = gauss_newton_krylov(
+            case.model, case.data, noise=case.noise, initial=start, max_iterations=30
+        )
+        self.assertTrue(result.converged, result.stop_reason)
+        ident = station_bias_identifiability(estimate_station_biases=True)
+        for est, true, sd in zip(
+            result.estimate, case.truth, ident.parameter_sd, strict=True
+        ):
+            self.assertLess(abs(est - true), 5.0 * sd)
+
+    def test_invalid(self) -> None:
+        """Type errors and wrong lengths."""
+        with self.assertRaises(TypeError):
+            TwoBodyRangeModel((1.0,), STATIONS_2D, estimate_station_biases=1)  # type: ignore[arg-type]
+        _, biased = self._models()
+        with self.assertRaises(ValueError):
+            biased.value((1.0, 0.0, 0.0, 1.05))
+        with self.assertRaises(ValueError):
+            biased.vjp((1.0, 0.0, 0.0, 1.05, 0.0, 0.0), (1.0,))
+
+
+class BiasIdentifiabilityTests(unittest.TestCase):
+    """Which biases the ranges determine, by geometry (measured, noise 1e-3).
+
+    Measured whitened condition numbers at the truth (2D): well observed 131
+    (no biases) and 182 (three biases, sd of every bias ~0.8e-3); single
+    station short arc 369 (no bias) and 5.77e3 (one bias, sd 0.47). In 3D the
+    single-station arc keeps its exact rotation null direction.
+    """
+
+    def test_well_observed_biases_identifiable(self) -> None:
+        """All seven parameters are determined to about one noise sd."""
+        r = station_bias_identifiability(estimate_station_biases=True)
+        self.assertEqual(r.numerical_rank, 7)
+        self.assertEqual(r.parameter_names[-3:], ("bias_1", "bias_2", "bias_3"))
+        self.assertTrue(all(r.identifiable))
+        self.assertLess(r.condition_number, 500.0)
+        for sd in r.parameter_sd[4:]:
+            self.assertLess(sd, 1.5e-3)  # biases are 10-20 sigma: well determined
+        plain = station_bias_identifiability(estimate_station_biases=False)
+        self.assertLess(plain.condition_number, r.condition_number)
+
+    def test_single_station_bias_not_identifiable_in_practice(self) -> None:
+        """One station on a short arc: the bias is confounded with the orbit."""
+        r = station_bias_identifiability(
+            geometry="single_station_short_arc", estimate_station_biases=True
+        )
+        plain = station_bias_identifiability(
+            geometry="single_station_short_arc", estimate_station_biases=False
+        )
+        self.assertEqual(r.numerical_rank, 5)  # full rank numerically ...
+        self.assertGreater(r.parameter_sd[4], 0.1)  # ... but sd >> the bias 0.01
+        self.assertGreater(r.parameter_sd[4], 100 * 1e-3)
+        self.assertGreater(r.condition_number, 10.0 * plain.condition_number)
+        # adding the bias also degrades the orbit parameters
+        for with_bias, without in zip(r.parameter_sd, plain.parameter_sd, strict=False):
+            self.assertGreater(with_bias, 3.0 * without)
+
+    def test_single_station_3d_has_exact_null_direction(self) -> None:
+        """The rotation about the line of sight survives: rank n - 1, sd = nan."""
+        r = station_bias_identifiability(
+            dimension=3,
+            geometry="single_station_short_arc",
+            estimate_station_biases=True,
+        )
+        self.assertEqual(r.numerical_rank, 6)
+        self.assertEqual(len(r.singular_values), 7)
+        self.assertGreater(max(r.null_loading), 0.5)
+        self.assertTrue(all(math.isnan(v) for v in r.parameter_sd))
+        self.assertTrue(math.isinf(r.condition_number) or r.condition_number > 1e12)
+
+    def test_correlated_noise_changes_the_spectrum(self) -> None:
+        """A whitening by a correlated covariance differs from the iid one."""
+        times = tuple(0.8 * (i + 1) for i in range(8))
+        cov = range_noise_covariance(
+            times,
+            3,
+            white_sd=3e-4,
+            correlated_sd=2e-3,
+            correlation_time=3.0,
+            station_correlation=0.8,
+        )
+        iid = station_bias_identifiability(estimate_station_biases=True)
+        corr = station_bias_identifiability(estimate_station_biases=True, noise=cov)
+        self.assertNotEqual(iid.singular_values, corr.singular_values)
+        with self.assertRaises(ValueError):
+            station_bias_identifiability(
+                noise=range_noise_covariance(
+                    (1.0, 2.0),
+                    1,
+                    white_sd=1e-3,
+                    correlated_sd=0.0,
+                    correlation_time=1.0,
+                )
+            )
+
+    def test_invalid(self) -> None:
+        """Bad options raise."""
+        with self.assertRaises(ValueError):
+            station_bias_identifiability(geometry="orbit")
+        with self.assertRaises(ValueError):
+            station_bias_identifiability(dimension=4)
+        with self.assertRaises(ValueError):
+            station_bias_identifiability(rank_tolerance=0.0)
+        with self.assertRaises(TypeError):
+            station_bias_identifiability(estimate_station_biases=1)  # type: ignore[arg-type]
+
+
+class RangeNoiseTests(unittest.TestCase):
+    """The separable time-and-station covariance."""
+
+    def test_structure(self) -> None:
+        """``w^2 I + c^2 T kron S`` entrywise; SPD; station-correlation limits."""
+        times = (0.0, 1.0, 3.0)
+        cov = range_noise_covariance(
+            times,
+            2,
+            white_sd=0.1,
+            correlated_sd=0.2,
+            correlation_time=2.0,
+            station_correlation=0.5,
+        )
+        self.assertEqual(cov.dimension, 6)
+        probe = cov.apply((1.0, 0.0, 0.0, 0.0, 0.0, 0.0))
+        self.assertAlmostEqual(probe[0], 0.01 + 0.04, places=14)
+        self.assertAlmostEqual(probe[1], 0.04 * 0.5, places=14)
+        self.assertAlmostEqual(probe[2], 0.04 * math.exp(-0.5), places=14)
+        self.assertAlmostEqual(probe[3], 0.04 * math.exp(-0.5) * 0.5, places=14)
+        self.assertAlmostEqual(probe[4], 0.04 * math.exp(-1.5), places=14)
+        # no correlated part: a scaled identity
+        white = range_noise_covariance(
+            times, 2, white_sd=0.1, correlated_sd=0.0, correlation_time=2.0
+        )
+        for got, v in zip(
+            white.apply((1.0, 2.0, 3.0, 4.0, 5.0, 6.0)),
+            (1.0, 2.0, 3.0, 4.0, 5.0, 6.0),
+            strict=True,
+        ):
+            self.assertAlmostEqual(got, 0.01 * v, places=15)
+
+    def test_invalid(self) -> None:
+        """Out-of-range parameters raise."""
+        kw = {"white_sd": 0.1, "correlated_sd": 0.1, "correlation_time": 1.0}
+        with self.assertRaises(ValueError):
+            range_noise_covariance((), 1, **kw)
+        with self.assertRaises(ValueError):
+            range_noise_covariance((1.0,), 0, **kw)
+        with self.assertRaises(ValueError):
+            range_noise_covariance((1.0,), 1, station_correlation=1.5, **kw)
+        with self.assertRaises(ValueError):
+            range_noise_covariance((1.0,), 1, **{**kw, "white_sd": 0.0})
+        with self.assertRaises(ValueError):
+            range_noise_covariance((1.0,), 1, **{**kw, "correlated_sd": -1.0})
+        with self.assertRaises(ValueError):
+            range_noise_covariance((1.0,), 1, **{**kw, "correlation_time": 0.0})
+
+
+class CorrelationCalibrationTests(unittest.TestCase):
+    """What ignoring correlated noise does to nominal intervals (linearized)."""
+
+    def test_gls_calibrated_and_naive_misstated(self) -> None:
+        """Coverage matches the analytic expectation; GLS is calibrated.
+
+        Measured with the 200 predeclared seeds and no biases: the diagonal
+        analyst's intervals are too wide (actual/nominal sd 0.98, 0.75, 0.80,
+        0.99), the GLS sd are 0.51-0.61 of the nominal ones.
+        """
+        study = correlation_calibration_study()
+        self.assertEqual(study.replicates, 200)
+        self.assertEqual(study.seeds, CALIBRATION_SEEDS)
+        q = NormalDist().inv_cdf(0.975)
+        band = 4.0 * study.coverage_mcse
+        for k, name in enumerate(study.parameter_names):
+            ratio = study.actual_sd_naive[k] / study.nominal_sd_naive[k]
+            expected = 2.0 * NormalDist().cdf(q / ratio) - 1.0
+            self.assertLess(abs(study.coverage_naive[k] - expected), band, msg=name)
+            self.assertLess(abs(study.coverage_gls[k] - 0.95), band, msg=name)
+            # Gauss-Markov: GLS is no worse than the weighted estimator
+            self.assertLessEqual(study.sd_gls[k], study.actual_sd_naive[k] * (1 + 1e-9))
+        ratios = [
+            a / n
+            for a, n in zip(study.actual_sd_naive, study.nominal_sd_naive, strict=True)
+        ]
+        self.assertLess(min(ratios), 0.85)
+        self.assertLess(
+            max(study.sd_gls[k] / study.nominal_sd_naive[k] for k in range(4)), 0.7
+        )
+
+    def test_naive_intervals_can_be_too_narrow_for_a_bias(self) -> None:
+        """With biases free the second station's bias sd is understated (1.16)."""
+        study = correlation_calibration_study(estimate_station_biases=True)
+        ratios = [
+            a / n
+            for a, n in zip(study.actual_sd_naive, study.nominal_sd_naive, strict=True)
+        ]
+        self.assertGreater(ratios[5], 1.1)
+        self.assertEqual(study.parameter_names[5], "bias_2")
+        self.assertLess(ratios[1], 0.7)
+
+    def test_zero_correlated_noise_is_calibrated(self) -> None:
+        """Without a correlated part the naive and GLS analyses coincide."""
+        study = correlation_calibration_study(correlated_sd=0.0, seeds=range(50))
+        for a, b, c in zip(
+            study.nominal_sd_naive, study.actual_sd_naive, study.sd_gls, strict=True
+        ):
+            self.assertAlmostEqual(a / b, 1.0, places=9)
+            self.assertAlmostEqual(a / c, 1.0, places=9)
+
+    def test_nonlinear_solve_matches_linearized_prediction(self) -> None:
+        """One Gauss-Newton fit with the GLS factor lies within the GLS bands."""
+        times = tuple(0.8 * (i + 1) for i in range(8))
+        stations = ((4.0, 0.5), (-1.0, 4.0), (-3.5, -2.5))
+        gamma = range_noise_covariance(
+            times,
+            3,
+            white_sd=3e-4,
+            correlated_sd=2e-3,
+            correlation_time=3.0,
+            station_correlation=0.8,
+        )
+        model = TwoBodyRangeModel(times, stations, steps_per_interval=12)
+        truth = (1.0, 0.0, 0.0, 1.05)
+        gen = TwoBodyRangeModel(times, stations, steps_per_interval=48)
+        rng = random.Random(41)
+        noise = gamma.unwhiten([rng.gauss(0.0, 1.0) for _ in range(24)])
+        data = tuple(b + e for b, e in zip(gen.value(truth), noise, strict=True))
+        result = gauss_newton_krylov(
+            model,
+            data,
+            noise=gamma,
+            initial=(1.02, 0.02, -0.02, 1.03),
+            max_iterations=30,
+        )
+        self.assertTrue(result.converged, result.stop_reason)
+        study = correlation_calibration_study(seeds=(1, 2))
+        for est, true, sd in zip(result.estimate, truth, study.sd_gls, strict=True):
+            self.assertLess(abs(est - true), 4.5 * sd)
+
+    def test_invalid(self) -> None:
+        """Bad seeds, levels and designs raise."""
+        with self.assertRaises(ValueError):
+            correlation_calibration_study(seeds=())
+        with self.assertRaises(ValueError):
+            correlation_calibration_study(seeds=(1, 1))
+        with self.assertRaises(TypeError):
+            correlation_calibration_study(seeds=(1.5,))  # type: ignore[arg-type]
+        with self.assertRaises(TypeError):
+            correlation_calibration_study(seeds="abc")  # type: ignore[arg-type]
+        with self.assertRaises(ValueError):
+            correlation_calibration_study(level=1.0)
+        with self.assertRaises(ValueError):
+            correlation_calibration_study(geometry="orbit")
+
+    def test_rank_deficient_design_has_no_estimator(self) -> None:
+        """The 3D single-station arc is rank deficient: the study refuses."""
+        with self.assertRaises(ValueError):
+            correlation_calibration_study(
+                dimension=3, geometry="single_station_short_arc", seeds=(1, 2)
+            )
+
+
+@unittest.skipUnless(os.environ.get("PROBSTAT_SLOW") == "1", "slow tier")
+class SlowCalibrationStudy(unittest.TestCase):
+    """1000 predeclared seeds: the under-coverage of a naive bias interval."""
+
+    def test_thousand_seeds(self) -> None:
+        """The second station's naive bias interval under-covers by > 3 MCSE."""
+        study = correlation_calibration_study(
+            estimate_station_biases=True, seeds=range(3000, 4000)
+        )
+        self.assertEqual(study.replicates, 1000)
+        self.assertLess(study.coverage_naive[5], 0.95 - 3.0 * study.coverage_mcse)
+        for cov in study.coverage_gls:
+            self.assertLess(abs(cov - 0.95), 4.0 * study.coverage_mcse)
 
 
 if __name__ == "__main__":

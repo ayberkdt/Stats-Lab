@@ -30,6 +30,13 @@ a trial whose forward value is not finite is a rejected step, never clipped
 objective; the trust radius is numerical globalization and is not a
 regularization parameter: do not interpret a small radius as regularization.
 
+An optional keyword-only discrepancy stop (``discrepancy_level`` ``delta`` and
+``discrepancy_tau`` ``tau > 1``) ends the run at the first accepted iterate
+with ``||W (G(x) - y)|| <= tau delta`` and ``stop_reason="discrepancy"``
+[EQ-INV-NLX-007]; it is off by default and then changes nothing. Used with
+``lambda`` fixed it is an early stop on the data misfit, not a rule that
+chooses ``lambda``.
+
 Assumptions:
     ``G`` is twice continuously differentiable near the iterates for
     ``hessian="full"``; the ``jvp``/``vjp`` are exact adjoints (check with
@@ -40,7 +47,8 @@ Assumptions:
 Common pitfalls:
     - ``reference`` defaults to zero (not the start), as in
       :func:`probstat.inverse.gauss_newton.gauss_newton_krylov`.
-    - ``converged`` is ``True`` only for the stop reason ``"gradient"``.
+    - ``converged`` is ``True`` only for the stop reason ``"gradient"`` (and
+      ``"discrepancy"`` when ``discrepancy_level`` is given).
     - The gradient test is relative to the initial gradient norm; with a
       large final objective it may be unreachable, and the run then ends with
       ``"radius_collapse"``, reported as not converged.
@@ -59,7 +67,7 @@ from __future__ import annotations
 import math
 import time
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Literal
 
 from probstat.inverse.gauss_newton import DifferentiableForward
@@ -125,8 +133,10 @@ class NewtonTrustRegionResult:
         gradient_norm: ``||grad Phi(x)||``.
         iterations: Accepted steps.
         attempts: Trial steps (accepted plus rejected).
-        converged: ``True`` only for ``stop_reason == "gradient"``.
-        stop_reason: ``"gradient"``, ``"radius_collapse"``,
+        converged: ``True`` for ``stop_reason`` ``"gradient"`` or
+            ``"discrepancy"``.
+        stop_reason: ``"gradient"``, ``"discrepancy"`` (only when a
+            ``discrepancy_level`` was requested), ``"radius_collapse"``,
             ``"max_iterations"`` or ``"nonfinite"``.
         history: One :class:`~probstat.optimization.TrustRegionIteration` per
             attempt (objective, gradient norm, radius, ``rho``, acceptance)
@@ -277,6 +287,8 @@ def newton_trust_region_inversion(
     forcing: Literal["superlinear", "constant"] = "superlinear",
     inner_max_iterations: int | None = None,
     minimum_radius: float = 1e-14,
+    discrepancy_level: float | None = None,
+    discrepancy_tau: float = 1.1,
 ) -> NewtonTrustRegionResult:
     """Minimize ``Phi`` by matrix-free trust-region Newton-CG.
 
@@ -327,10 +339,19 @@ def newton_trust_region_inversion(
         forcing: ``"superlinear"`` or ``"constant"``.
         inner_max_iterations: CG cap per attempt (default ``n``).
         minimum_radius: Relative radius floor (``> 0``).
+        discrepancy_level: Noise level ``delta > 0`` of the whitened data
+            (``None``, the default, disables the test and leaves the
+            behaviour unchanged). With a level the run also stops with
+            ``stop_reason="discrepancy"`` at the first accepted iterate with
+            ``||W (G(x) - y)|| <= tau delta`` (Morozov's discrepancy
+            principle, [EQ-INV-NLX-007]); the gradient test, evaluated first
+            on the true gradient, keeps priority.
+        discrepancy_tau: ``tau > 1`` (default ``1.1``); only used with
+            ``discrepancy_level``.
 
     Returns:
-        :class:`NewtonTrustRegionResult`; ``converged`` is ``True`` only for
-        ``"gradient"``.
+        :class:`NewtonTrustRegionResult`; ``converged`` is ``True`` for
+        ``"gradient"`` and ``"discrepancy"``.
 
     Raises:
         TypeError: If an argument has the wrong type.
@@ -340,8 +361,8 @@ def newton_trust_region_inversion(
 
     References:
         [EQ-INV-NTR-001], [EQ-INV-NTR-002], [EQ-INV-NTR-003],
-        [EQ-INV-NTR-004], [EQ-INV-NTR-005], [REF-NOCEDAL-WRIGHT-2006],
-        [REF-STEIHAUG-1983].
+        [EQ-INV-NTR-004], [EQ-INV-NTR-005], [EQ-INV-NLX-007],
+        [REF-NOCEDAL-WRIGHT-2006], [REF-STEIHAUG-1983], [REF-MOROZOV-1966].
 
     """
     started = time.perf_counter()
@@ -364,6 +385,12 @@ def newton_trust_region_inversion(
     x0 = (0.0,) * n if initial is None else _vector(initial, n, "initial")
     lam = _real(regularization, "regularization")
     lam2 = lam * lam
+    tau = _real(discrepancy_tau, "discrepancy_tau", minimum=1.0, strict=True)
+    bound: float | None = None
+    if discrepancy_level is not None:
+        bound = tau * _real(discrepancy_level, "discrepancy_level", strict=True)
+    # [true gradient norm at the start, flagged iterate, its true gradient norm]
+    flag: list[Any] = [None, None, math.nan]
     if hessian not in ("gauss_newton", "full"):
         raise ValueError("hessian must be 'gauss_newton' or 'full'")
     if hvp is not None and hvp not in ("callback", "central_difference_of_gradient"):
@@ -489,6 +516,35 @@ def newton_trust_region_inversion(
         prior_part = operator.rmatvec(prior_offset(x))
         return tuple(a + lam2 * b for a, b in zip(data_part, prior_part, strict=True))
 
+    def stopping_gradient(x: Vector) -> Vector:
+        """Return the gradient, or zeros where the discrepancy test fires.
+
+        The zero vector makes the driver stop at once; the caller relabels
+        that stop and restores the true gradient norm. The test is applied
+        only here (accepted iterates), never to the perturbed points of the
+        central-difference Hessian action.
+
+        References:
+            [EQ-INV-NLX-007].
+
+        """
+        g = gradient(x)
+        if bound is None:
+            return g
+        g_norm = norm(g)
+        if flag[0] is None:
+            flag[0] = g_norm
+        r, _wr, finite = state(x)
+        if (
+            finite
+            and g_norm > gradient_tolerance * max(1.0, flag[0])
+            and norm(whiten(r)) <= bound
+        ):
+            flag[1] = x
+            flag[2] = g_norm
+            return (0.0,) * n
+        return g
+
     def gauss_newton_action(x: Vector, v: Vector) -> Vector:
         """Return ``J'W'W J v + lambda^2 L'L v`` (one ``jvp``, one ``vjp``).
 
@@ -542,7 +598,7 @@ def newton_trust_region_inversion(
         raise ValueError("forward map is not finite at the initial point")
     core = trust_region_newton_cg(
         objective,
-        gradient,
+        stopping_gradient,
         action,
         x0,
         radius=initial_radius,
@@ -556,6 +612,13 @@ def newton_trust_region_inversion(
         minimum_radius=minimum_radius,
     )
     objective_value, misfit, pen = parts(core.x)
+    reason = core.stop_reason
+    grad_norm = core.gradient_norm
+    history = core.history
+    if flag[1] is not None and core.x == flag[1] and reason == "gradient":
+        reason = "discrepancy"
+        grad_norm = float(flag[2])
+        history = (*history[:-1], replace(history[-1], gradient_norm=grad_norm))
     r_final = state(core.x)[0]
     derivative_value = 0
     now = getattr(model, "counts", None)
@@ -567,12 +630,12 @@ def newton_trust_region_inversion(
         misfit=misfit,
         penalty=pen,
         whitened_residual_norm=norm(whiten(r_final)),
-        gradient_norm=core.gradient_norm,
+        gradient_norm=grad_norm,
         iterations=core.iterations,
         attempts=core.attempts,
-        converged=core.converged,
-        stop_reason=core.stop_reason,
-        history=core.history,
+        converged=reason in ("gradient", "discrepancy"),
+        stop_reason=reason,
+        history=history,
         counts=NewtonTrustRegionCounts(
             value=calls[0],
             jvp=calls[1],

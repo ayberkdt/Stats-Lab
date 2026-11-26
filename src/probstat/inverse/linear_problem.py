@@ -19,7 +19,9 @@ Further baselines: equality-constrained least squares by the nullspace method
 [EQ-INV-LIN-003], non-negative least squares by the Lawson-Hanson active-set
 algorithm [EQ-INV-LIN-004], box-constrained regularized least squares by
 projected gradients [EQ-INV-LIN-005], and total least squares for isotropic
-errors in variables [EQ-INV-LIN-006]. :func:`linear_estimator_analysis`
+errors in variables [EQ-INV-LIN-006]. :func:`regularized_factorization`
+factors the stacked operator once and reuses it for many data vectors
+[EQ-INV-LIN-007]. :func:`linear_estimator_analysis`
 returns the resolution matrix, the data influence matrix, the degrees of
 freedom and the sampling covariance ``M Gamma M'`` of the fixed linear
 estimator, which is NOT the Bayesian posterior covariance in general
@@ -49,6 +51,7 @@ from probstat.linalg import (
     CountingOperator,
     DenseCovariance,
     DiagonalCovariance,
+    HouseholderQR,
     IdentityOperator,
     KrylovResult,
     LinearOperator,
@@ -550,6 +553,165 @@ def solve_regularized(
         degrees_of_freedom=dof,
         counts=counted.counts,
         krylov=krylov,
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class RegularizedFactorization:
+    """Reusable QR factorization of ``B = [W A; lambda L]`` for many data vectors.
+
+    The stacked operator of [EQ-INV-LIN-001] does not depend on ``y`` or
+    ``x_ref``, so one Householder QR serves every right-hand side
+    ``b = [W (y - A x_ref); 0]`` [EQ-INV-LIN-007]. Each :meth:`solve` costs
+    one forward application of ``A`` (for ``A x_ref``), one whitening and an
+    ``O(n (m + p))`` triangular solve, instead of a new factorization.
+
+    Attributes:
+        operator: ``A``.
+        noise: Covariance factor of ``Gamma`` (``None`` for ``Gamma = I``).
+        penalty_rows: Number of rows ``p`` of ``L``.
+        regularization: ``lambda``.
+        shape: ``(m, n)``.
+        factor_counts: Operator applications of ``A`` spent on materializing
+            ``B`` (once).
+        factor: The Householder QR of ``B``.
+
+    References:
+        [EQ-INV-LIN-001], [EQ-INV-LIN-007], [REF-GOLUB-VANLOAN-2013, Section 5.3].
+
+    """
+
+    operator: LinearOperator
+    noise: CovarianceFactor | None
+    penalty_rows: int
+    regularization: float
+    shape: tuple[int, int]
+    factor_counts: OperatorCounts
+    factor: HouseholderQR
+
+    def solve(
+        self, data: Sequence[float], reference: Sequence[float] | None = None
+    ) -> Vector:
+        """Return ``x_lambda`` for data ``y`` and reference ``x_ref``.
+
+        Args:
+            data: ``y`` (length ``m``).
+            reference: ``x_ref`` (length ``n``; zero by default).
+
+        Returns:
+            The regularized estimate, identical (to rounding) to
+            :func:`solve_regularized` with ``method="qr"``.
+
+        Raises:
+            TypeError: If a vector is not numeric.
+            ValueError: If a length is wrong or a value is not finite.
+
+        References:
+            [EQ-INV-LIN-007].
+
+        """
+        m, n = self.shape
+        y = _finite_vector(data, m, "data")
+        x_ref = (
+            (0.0,) * n
+            if reference is None
+            else _finite_vector(reference, n, "reference")
+        )
+        shifted = [
+            yi - ai for yi, ai in zip(y, self.operator.matvec(x_ref), strict=True)
+        ]
+        top = shifted if self.noise is None else list(self.noise.whiten(shifted))
+        rhs = tuple(top) + (
+            (0.0,) * self.penalty_rows if self.regularization > 0.0 else ()
+        )
+        increment = self.factor.solve(rhs)
+        return tuple(a + b for a, b in zip(increment, x_ref, strict=True))
+
+    def solve_many(
+        self,
+        datasets: Sequence[Sequence[float]],
+        reference: Sequence[float] | None = None,
+    ) -> tuple[Vector, ...]:
+        """Return :meth:`solve` for every data vector, sharing ``x_ref``.
+
+        Args:
+            datasets: Data vectors ``y_1, ..., y_K``.
+            reference: Common ``x_ref`` (zero by default).
+
+        Returns:
+            One estimate per data vector.
+
+        Raises:
+            ValueError: If a data vector is invalid.
+
+        References:
+            [EQ-INV-LIN-007].
+
+        """
+        return tuple(self.solve(y, reference) for y in datasets)
+
+
+def regularized_factorization(
+    problem: LinearInverseProblem,
+    regularization: float,
+    *,
+    rank_tolerance: float = _RANK_TOLERANCE,
+    max_dense_entries: int = _DENSE_LIMIT,
+) -> RegularizedFactorization:
+    """Factor ``B = [W A; lambda L]`` once for repeated solves [EQ-INV-LIN-007].
+
+    Only ``problem.operator``, ``problem.noise`` and ``problem.penalty`` are
+    used; the data and reference of ``problem`` are not part of the factor.
+
+    Args:
+        problem: Supplies ``A``, ``Gamma`` and ``L``.
+        regularization: ``lambda >= 0``.
+        rank_tolerance: Relative rank threshold of the QR.
+        max_dense_entries: Refuse to materialize ``B`` beyond this size.
+
+    Returns:
+        :class:`RegularizedFactorization`.
+
+    Raises:
+        TypeError: If ``problem`` is not a :class:`LinearInverseProblem`.
+        ValueError: If ``B`` is underdetermined, rank deficient (the solution
+            is not unique) or too large.
+
+    References:
+        [EQ-INV-LIN-001], [EQ-INV-LIN-007], [REF-GOLUB-VANLOAN-2013, Section 5.3].
+
+    """
+    if not isinstance(problem, LinearInverseProblem):
+        raise TypeError("problem must be a LinearInverseProblem")
+    lam = _require_lambda(regularization)
+    counted = CountingOperator(problem.operator)
+    counted_problem = LinearInverseProblem(
+        counted, problem.data, problem.noise, problem.penalty, problem.reference
+    )
+    stacked = counted_problem.stacked_operator(lam)
+    rows = stacked.shape[0]
+    n = problem.shape[1]
+    if rows * n > max_dense_entries:
+        raise ValueError("problem too large for a dense factorization")
+    if rows < n:
+        raise ValueError(
+            "the stacked system is underdetermined; the solution is not unique"
+        )
+    dense = materialize(stacked, max_entries=max_dense_entries)
+    factor = householder_qr(dense, rank_tolerance=rank_tolerance)
+    if not factor.full_rank:
+        raise ValueError(
+            "the stacked operator [W A; lambda L] is rank deficient: the solution "
+            "is not unique (increase lambda or use solve_regularized(method='svd'))"
+        )
+    return RegularizedFactorization(
+        operator=problem.operator,
+        noise=problem.noise,
+        penalty_rows=problem.penalty.shape[0],
+        regularization=lam,
+        shape=problem.shape,
+        factor_counts=counted.counts,
+        factor=factor,
     )
 
 

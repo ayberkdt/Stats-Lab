@@ -24,6 +24,9 @@ extended), unattainable discrepancy targets and flat criteria instead of
 fabricating a value. :func:`grouped_cross_validation` scores held-out GROUPS
 of observations (sensors, experiments, time blocks) by refitting; it refuses
 correlated noise across groups, for which the held-out score would leak.
+:func:`selection_rule_study` runs every criterion on predeclared problem
+families and seeds and scores each choice against the grid oracle afterwards
+[EQ-INV-SEL-004].
 
 When a synthetic truth is supplied, the error-optimal ``lambda`` is stored as
 an unattainable benchmark; it never enters the selection.
@@ -40,12 +43,15 @@ References:
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Protocol
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.linalg import (
     DiagonalCovariance,
+    LinearOperator,
+    ScaledIdentityCovariance,
     Vector,
     householder_qr,
     lsqr,
@@ -226,7 +232,10 @@ def regularization_path(
         trace: ``"exact"`` or ``"hutchinson"``.
         probes: Hutchinson probes.
         seed: Probe stream.
-        noise_norm: ``delta`` for the discrepancy gaps.
+        noise_norm: ``delta`` for the discrepancy gaps, in WHITENED units
+            (the gaps compare it with ``||W r||``); for correctly whitened
+            noise use :func:`~probstat.inverse.iterative.expected_noise_norm`,
+            ``sqrt(m)``, not the noise standard deviation.
         tau: ``tau >= 1`` (``1`` by default here, as the gap is reported).
         truth: Optional synthetic truth (benchmark errors only).
         inner_tolerance: LSQR tolerance of the matrix-free path.
@@ -573,3 +582,265 @@ def grouped_cross_validation(
     return CrossValidationPath(
         grid, scores, tuple(fold_scores), index, index in (0, len(grid) - 1)
     )
+
+
+class _StudyCase(Protocol):
+    """Fields a benchmark instance needs for :func:`selection_rule_study`.
+
+    References:
+        [EQ-INV-BENCH-001].
+
+    """
+
+    @property
+    def operator(self) -> LinearOperator:
+        """Return the forward operator.
+
+        References:
+            [EQ-INV-BENCH-001].
+
+        """
+        ...
+
+    @property
+    def data(self) -> Vector:
+        """Return the noisy data.
+
+        References:
+            [EQ-INV-BENCH-001].
+
+        """
+        ...
+
+    @property
+    def noise(self) -> ScaledIdentityCovariance:
+        """Return the noise covariance factor.
+
+        References:
+            [EQ-INV-BENCH-001].
+
+        """
+        ...
+
+    @property
+    def truth(self) -> Vector:
+        """Return the withheld truth.
+
+        References:
+            [EQ-INV-BENCH-001].
+
+        """
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class SelectionStudyRow:
+    """One (family, seed, rule) outcome of :func:`selection_rule_study`.
+
+    Attributes:
+        family: Problem family name.
+        seed: Seed of the benchmark instance.
+        rule: Selection criterion.
+        status: :attr:`RegularizationSelection.status`.
+        regularization: Chosen ``lambda`` or ``None``.
+        relative_error: ``||x_rule - x_true|| / ||x_true||`` or ``nan``
+            when the rule made no choice.
+        oracle_relative_error: Smallest relative error on the grid (needs
+            the truth; never available to a rule).
+        efficiency: ``relative_error / oracle_relative_error`` (``>= 1``;
+            ``inf`` when the rule made no choice).
+
+    References:
+        [EQ-INV-SEL-004].
+
+    """
+
+    family: str
+    seed: int
+    rule: str
+    status: str
+    regularization: float | None
+    relative_error: float
+    oracle_relative_error: float
+    efficiency: float
+
+
+@dataclass(frozen=True, slots=True)
+class SelectionStudySummary:
+    """Per (family, rule) summary of :class:`SelectionStudyRow` outcomes.
+
+    Attributes:
+        family: Problem family name.
+        rule: Selection criterion.
+        runs: Number of seeds.
+        no_choice: Runs without a choice (``"unattainable"``, ``"undefined"``).
+        boundary: Runs whose choice sits at a grid end.
+        median_efficiency: Median of :attr:`SelectionStudyRow.efficiency`
+            (``inf`` entries included).
+        worst_efficiency: Largest efficiency.
+
+    References:
+        [EQ-INV-SEL-004].
+
+    """
+
+    family: str
+    rule: str
+    runs: int
+    no_choice: int
+    boundary: int
+    median_efficiency: float
+    worst_efficiency: float
+
+
+@dataclass(frozen=True, slots=True)
+class SelectionStudy:
+    """Outcome table of a predeclared parameter-choice comparison.
+
+    Attributes:
+        rows: One row per (family, seed, rule).
+        summaries: One summary per (family, rule), in input order.
+        grid: The ``lambda`` grid shared by every run.
+        tau: Discrepancy safety factor.
+
+    References:
+        [EQ-INV-SEL-004].
+
+    """
+
+    rows: tuple[SelectionStudyRow, ...]
+    summaries: tuple[SelectionStudySummary, ...]
+    grid: Vector
+    tau: float
+
+
+def _median(values: Sequence[float]) -> float:
+    """Return the median (``inf`` entries sort last).
+
+    References:
+        [EQ-INV-SEL-004].
+
+    """
+    ordered = sorted(values)
+    size = len(ordered)
+    middle = size // 2
+    if size % 2:
+        return ordered[middle]
+    low, high = ordered[middle - 1], ordered[middle]
+    if math.isinf(high):
+        return high
+    return 0.5 * (low + high)
+
+
+def selection_rule_study(
+    families: Mapping[str, Callable[[int], _StudyCase]],
+    seeds: Sequence[int],
+    regularizations: Sequence[float],
+    *,
+    rules: Sequence[str] = _CRITERIA,
+    tau: float = 1.0,
+) -> SelectionStudy:
+    """Compare parameter-choice rules on predeclared families and seeds.
+
+    For every family ``f`` and seed ``s`` the benchmark ``families[f](s)``
+    is solved on the exact path of :func:`regularization_path` over the
+    shared grid (identity penalty, ``x_ref = 0``, the benchmark's own noise
+    factor). Each rule picks ``lambda`` WITHOUT the truth; the truth only
+    scores the choice afterwards against the grid oracle. The discrepancy
+    rule uses the EXPECTED whitened noise norm ``sqrt(m)`` (what a user
+    knows), not the realised norm of the draw [EQ-INV-SEL-004]. The efficiency
+    ``e = err_rule / err_oracle`` is ``1`` at best; a rule that makes no
+    choice gets ``e = inf`` and is counted, never dropped.
+
+    Args:
+        families: Family name to a callable returning a benchmark instance
+            (with ``operator``, ``data``, ``noise`` and ``truth``) for a seed.
+        seeds: Predeclared seeds (the same for every family).
+        regularizations: Positive increasing grid (at least 3 values).
+        rules: Criteria of :func:`select_regularization`.
+        tau: Discrepancy safety factor ``tau >= 1``.
+
+    Returns:
+        :class:`SelectionStudy`.
+
+    Raises:
+        ValueError: For empty families or seeds, an unknown rule, a zero
+            truth, or an invalid grid or ``tau``.
+
+    References:
+        [EQ-INV-SEL-001], [EQ-INV-SEL-004], [REF-HANSEN-2008, Section 5.1],
+        [REF-VOGEL-2002].
+
+    """
+    if not families:
+        raise ValueError("families must not be empty")
+    seed_list = [int(s) for s in seeds]
+    if not seed_list:
+        raise ValueError("seeds must not be empty")
+    rule_list = list(rules)
+    unknown = [r for r in rule_list if r not in _CRITERIA]
+    if unknown or not rule_list:
+        raise ValueError(f"rules must be a non-empty subset of {_CRITERIA}")
+    factor = float(tau)
+    if not math.isfinite(factor) or factor < 1.0:
+        raise ValueError("tau must be finite and at least 1")
+    grid = tuple(float(v) for v in regularizations)
+    rows: list[SelectionStudyRow] = []
+    for family, build in families.items():
+        for seed in seed_list:
+            case = build(seed)
+            problem = LinearInverseProblem.create(
+                case.operator, case.data, noise=case.noise
+            )
+            truth = tuple(case.truth)
+            scale = math.hypot(*truth)
+            if scale == 0.0:
+                raise ValueError("relative errors need a nonzero truth")
+            m = problem.shape[0]
+            path = regularization_path(
+                problem,
+                grid,
+                noise_norm=math.sqrt(m),
+                tau=factor,
+                truth=truth,
+            )
+            errors = path.errors
+            assert errors is not None  # truth was supplied
+            oracle = min(errors) / scale
+            for rule in rule_list:
+                selection = select_regularization(path, rule)
+                if selection.index is None:
+                    error = math.nan
+                    efficiency = math.inf
+                else:
+                    error = errors[selection.index] / scale
+                    efficiency = error / oracle if oracle > 0.0 else math.inf
+                rows.append(
+                    SelectionStudyRow(
+                        family=family,
+                        seed=seed,
+                        rule=rule,
+                        status=selection.status,
+                        regularization=selection.regularization,
+                        relative_error=error,
+                        oracle_relative_error=oracle,
+                        efficiency=efficiency,
+                    )
+                )
+    summaries = []
+    for family in families:
+        for rule in rule_list:
+            chosen = [r for r in rows if r.family == family and r.rule == rule]
+            efficiencies = [r.efficiency for r in chosen]
+            summaries.append(
+                SelectionStudySummary(
+                    family=family,
+                    rule=rule,
+                    runs=len(chosen),
+                    no_choice=sum(1 for r in chosen if r.regularization is None),
+                    boundary=sum(1 for r in chosen if r.status == "boundary"),
+                    median_efficiency=_median(efficiencies),
+                    worst_efficiency=max(efficiencies),
+                )
+            )
+    return SelectionStudy(tuple(rows), tuple(summaries), grid, factor)

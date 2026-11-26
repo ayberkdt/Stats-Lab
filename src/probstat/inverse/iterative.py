@@ -118,9 +118,12 @@ class IterativeRegularizationResult:
         regularization_history: ``lambda_k`` of the hybrid method, else
             ``None``.
         krylov: Underlying Krylov result, when one was used.
+        gcv_weight_history: ``omega_k`` used by the weighted-GCV rule of the
+            hybrid method (``None`` for every other rule).
 
     References:
-        [EQ-INV-ITER-001], [EQ-INV-ITER-002], [EQ-INV-ITER-003].
+        [EQ-INV-ITER-001], [EQ-INV-ITER-002], [EQ-INV-ITER-003],
+        [EQ-INV-ITER-004].
 
     """
 
@@ -136,6 +139,7 @@ class IterativeRegularizationResult:
     counts: OperatorCounts
     regularization_history: Vector | None
     krylov: KrylovResult | None
+    gcv_weight_history: Vector | None = None
 
 
 def _target(noise_norm: float | None, tau: float) -> float | None:
@@ -409,14 +413,16 @@ def _projected_tikhonov(
     beta: float,
     lam: float,
     svd_cache: tuple[Vector, list[list[float]], list[list[float]]],
+    omega: float = 1.0,
 ) -> tuple[list[float], float, float]:
     """Solve ``min ||T q - beta e_1||^2 + lambda^2 ||q||^2`` from the SVD of ``T``.
 
-    Returns ``q``, the projected residual norm and the projected GCV value
-    ``||(I - T T_lambda^#) beta e_1||^2 / (k + 1 - sum f_i)^2``.
+    Returns ``q``, the projected residual norm and the (weighted) projected
+    GCV value ``||(I - T T_lambda^#) beta e_1||^2 / (k + 1 - omega sum f_i)^2``
+    (``omega = 1``: standard GCV).
 
     References:
-        [EQ-INV-ITER-003].
+        [EQ-INV-ITER-003], [EQ-INV-ITER-004].
 
     """
     sigma, u, v = svd_cache
@@ -435,7 +441,7 @@ def _projected_tikhonov(
         for r in range(rows)
     ]
     rnorm = _norm(residual)
-    denominator = rows - math.fsum(filters)
+    denominator = rows - omega * math.fsum(filters)
     gcv = rnorm * rnorm / (denominator * denominator) if denominator > 0.0 else math.inf
     return q, rnorm, gcv
 
@@ -445,15 +451,17 @@ def _projected_general(
     beta: float,
     lam: float,
     penalty_r: list[list[float]],
+    omega: float = 1.0,
 ) -> tuple[list[float], float, float]:
     """Solve ``min ||T q - beta e_1||^2 + lambda^2 ||R q||^2`` by QR.
 
     ``R`` is the triangular factor of ``L V_k`` (so ``||R q|| = ||L V_k q||``).
     The projected GCV value uses ``tr(H) = ||Q_1||_F^2`` of the top block of
-    the stacked QR factor of ``[T; lambda R]`` [EQ-INV-ITER-003].
+    the stacked QR factor of ``[T; lambda R]`` [EQ-INV-ITER-003], weighted
+    as ``k + 1 - omega tr(H)`` [EQ-INV-ITER-004].
 
     References:
-        [EQ-INV-ITER-003], [EQ-LINALG-009].
+        [EQ-INV-ITER-003], [EQ-INV-ITER-004], [EQ-LINALG-009].
 
     """
     rows = len(bidiagonal)
@@ -470,7 +478,7 @@ def _projected_general(
     ]
     rnorm = _norm(residual)
     trace = math.fsum(factor.q[r][j] ** 2 for r in range(rows) for j in range(k))
-    denominator = rows - trace
+    denominator = rows - omega * trace
     gcv = rnorm * rnorm / (denominator * denominator) if denominator > 0.0 else math.inf
     return q, rnorm, gcv
 
@@ -501,16 +509,18 @@ def _choose_lambda(
     target: float | None,
     fixed: float | None,
     penalty_r: list[list[float]] | None = None,
+    omega: float = 1.0,
 ) -> float:
     """Choose ``lambda_k`` on the projected problem.
 
     ``"gcv"`` minimizes projected GCV over a logarithmic grid of 60 points
-    spanning the projected singular values; ``"discrepancy"`` takes the
+    spanning the projected singular values, ``"wgcv"`` the weighted GCV with
+    weight ``omega`` on the same grid; ``"discrepancy"`` takes the
     largest grid ``lambda`` whose projected residual is at most ``target``
     (the smallest grid value when none is); ``"fixed"`` returns ``fixed``.
 
     References:
-        [EQ-INV-ITER-003], [EQ-INV-ITER-002].
+        [EQ-INV-ITER-003], [EQ-INV-ITER-002], [EQ-INV-ITER-004].
 
     """
     if rule == "fixed":
@@ -550,15 +560,57 @@ def _choose_lambda(
 
         """
         if penalty_r is None:
-            return _projected_tikhonov(bidiagonal, beta, lam, cache)
-        return _projected_general(bidiagonal, beta, lam, penalty_r)
+            return _projected_tikhonov(bidiagonal, beta, lam, cache, omega)
+        return _projected_general(bidiagonal, beta, lam, penalty_r, omega)
 
-    if rule == "gcv":
+    if rule in ("gcv", "wgcv"):
         values = [evaluate(lam)[2] for lam in grid]
         return grid[min(range(60), key=values.__getitem__)]
     assert target is not None
     feasible = [lam for lam in grid if evaluate(lam)[1] <= target]
     return max(feasible) if feasible else grid[0]
+
+
+def _adaptive_gcv_weight(
+    bidiagonal: list[list[float]],
+    beta: float,
+) -> float | None:
+    """Return ``omega_hat_k`` of the adaptive weighted-GCV rule.
+
+    ``omega_hat_k`` makes ``lambda = delta_min(T_k)`` a stationary point of
+    ``G(omega, lambda) = rho(lambda) / (k + 1 - omega F(lambda))^2`` with
+    ``rho = sum_i h_i^2 g_i^2 + g_(k+1)^2``, ``h_i = lambda^2 /
+    (delta_i^2 + lambda^2)``, ``F = sum_i delta_i^2 / (delta_i^2 +
+    lambda^2)`` and ``g = U'(beta e_1)``. ``dG/dlambda = 0`` is linear in
+    ``omega``: ``omega_hat = (k + 1) rho' / (rho' F + 2 rho S)`` with
+    ``S = sum_i dh_i/dlambda = sum_i 2 lambda delta_i^2 / (delta_i^2 +
+    lambda^2)^2`` [EQ-INV-ITER-004]. Returns ``None`` when ``T_k`` has a zero
+    singular value or the expression is undefined.
+
+    References:
+        [EQ-INV-ITER-004], [REF-CHUNG-NAGY-OLEARY-2008, Section 5.4].
+
+    """
+    svd = singular_value_decomposition(tuple(tuple(row) for row in bidiagonal))
+    sigma = svd.singular_values
+    k = len(sigma)
+    if not sigma or min(sigma) <= 0.0:
+        return None
+    lam = min(sigma)
+    g = [beta * svd.u[0][i] for i in range(k)]
+    tail = max(beta * beta - math.fsum(gi * gi for gi in g), 0.0)
+    h = [lam * lam / (s * s + lam * lam) for s in sigma]
+    dh = [2.0 * lam * s * s / (s * s + lam * lam) ** 2 for s in sigma]
+    rho = math.fsum(hi * hi * gi * gi for hi, gi in zip(h, g, strict=True)) + tail
+    d_rho = math.fsum(
+        2.0 * hi * di * gi * gi for hi, di, gi in zip(h, dh, g, strict=True)
+    )
+    filters = math.fsum(1.0 - hi for hi in h)
+    slope = math.fsum(dh)
+    denominator = d_rho * filters + 2.0 * rho * slope
+    if denominator <= 0.0 or not math.isfinite(denominator):
+        return None
+    return (k + 1) * d_rho / denominator
 
 
 def hybrid_lsqr(
@@ -571,6 +623,7 @@ def hybrid_lsqr(
     max_iterations: int = 50,
     stabilization_tolerance: float = 1e-3,
     truth: Sequence[float] | None = None,
+    gcv_weight: float | str = "adaptive",
 ) -> IterativeRegularizationResult:
     """Hybrid LSQR: bidiagonalize ``W A`` and regularize the projected problem.
 
@@ -582,9 +635,18 @@ def hybrid_lsqr(
     per step; ``L V_k`` is reduced to a ``k x k`` triangular factor), not
     ``||q||``. With orthonormal bases the
     projected residual equals ``||W (A x_k - y)||``. ``lambda_k`` follows
-    ``rule``: ``"gcv"`` (projected GCV), ``"discrepancy"`` (needs
+    ``rule``: ``"gcv"`` (projected GCV), ``"wgcv"`` (weighted projected
+    GCV, ``G(omega, lambda) = k ||r||^2 / (k + 1 - omega tr H)^2``, which
+    counters the over-smoothing of projected GCV for ``omega < 1``
+    [EQ-INV-ITER-004]), ``"discrepancy"`` (needs
     ``noise_norm``) or ``"fixed"`` (needs ``regularization``; then ``x_k``
-    tends to the Tikhonov solution of [EQ-INV-LIN-001]). The iteration
+    tends to the Tikhonov solution of [EQ-INV-LIN-001]). For ``"wgcv"``,
+    ``gcv_weight`` is a fixed ``omega`` in ``(0, 1]`` or ``"adaptive"``:
+    ``omega_k`` is the mean of ``omega_hat_1 .. omega_hat_k``, each making
+    ``lambda = delta_min(T_j)`` a stationary point of the weighted GCV
+    function (Chung, Nagy and O'Leary, Section 5.4; identity penalty only).
+    The adaptive values are not clipped; they are reported in
+    ``gcv_weight_history``. The iteration
     stops when
     ``lambda_k`` and ``||x_k||`` change by less than
     ``stabilization_tolerance`` relatively for two consecutive steps, at a
@@ -601,6 +663,8 @@ def hybrid_lsqr(
         max_iterations: Cap on ``k`` (at most ``min(m, n)``).
         stabilization_tolerance: Relative stabilization threshold.
         truth: Optional synthetic truth for the oracle error history.
+        gcv_weight: ``omega`` of the ``"wgcv"`` rule: a float in ``(0, 1]``
+            or ``"adaptive"`` (ignored by the other rules).
 
     Returns:
         :class:`IterativeRegularizationResult` with
@@ -610,15 +674,34 @@ def hybrid_lsqr(
         ValueError: For an invalid rule or missing rule parameter.
 
     References:
-        [EQ-INV-ITER-003], [EQ-LINALG-KRY-006], [REF-GAZZOLA-HANSEN-NAGY-2019],
-        [REF-GOLUB-KAHAN-1965].
+        [EQ-INV-ITER-003], [EQ-INV-ITER-004], [EQ-LINALG-KRY-006],
+        [REF-GAZZOLA-HANSEN-NAGY-2019], [REF-GOLUB-KAHAN-1965],
+        [REF-CHUNG-NAGY-OLEARY-2008].
 
     """
     from probstat.linalg import IdentityOperator
 
-    if rule not in ("gcv", "discrepancy", "fixed"):
-        raise ValueError("rule must be 'gcv', 'discrepancy' or 'fixed'")
+    if rule not in ("gcv", "wgcv", "discrepancy", "fixed"):
+        raise ValueError("rule must be 'gcv', 'wgcv', 'discrepancy' or 'fixed'")
     general = not isinstance(problem.penalty, IdentityOperator)
+    adaptive = False
+    omega = 1.0
+    if rule == "wgcv":
+        if gcv_weight == "adaptive":
+            if general:
+                raise ValueError(
+                    "the adaptive weighted-GCV rule needs the identity penalty; "
+                    "pass a fixed gcv_weight for a general L"
+                )
+            adaptive = True
+        elif isinstance(gcv_weight, (int, float)) and not isinstance(gcv_weight, bool):
+            omega = float(gcv_weight)
+            if not math.isfinite(omega) or not 0.0 < omega <= 1.0:
+                raise ValueError("a fixed gcv_weight must lie in (0, 1]")
+        else:
+            raise ValueError("gcv_weight must be a float in (0, 1] or 'adaptive'")
+    omega_hats: list[float] = []
+    omegas: list[float] = []
     penalty_columns: list[list[float]] = []
     target = _target(noise_norm, tau)
     if rule == "discrepancy" and target is None:
@@ -697,7 +780,14 @@ def hybrid_lsqr(
         if general:
             penalty_columns.append(list(problem.penalty.matvec(v)))
             penalty_r = _upper_factor(penalty_columns)
-        lam = _choose_lambda(bidiagonal, beta, rule, target, fixed, penalty_r)
+        if adaptive:
+            omega_hat = _adaptive_gcv_weight(bidiagonal, beta)
+            if omega_hat is not None:
+                omega_hats.append(omega_hat)
+            omega = math.fsum(omega_hats) / len(omega_hats) if omega_hats else 1.0
+        if rule == "wgcv":
+            omegas.append(omega)
+        lam = _choose_lambda(bidiagonal, beta, rule, target, fixed, penalty_r, omega)
         if penalty_r is None:
             svd = singular_value_decomposition(tuple(tuple(row) for row in bidiagonal))
             cache = (
@@ -748,4 +838,5 @@ def hybrid_lsqr(
         counts=counted.counts,
         regularization_history=tuple(lambdas),
         krylov=None,
+        gcv_weight_history=tuple(omegas) if rule == "wgcv" else None,
     )

@@ -9,6 +9,7 @@ nuisance degeneracy and the spectrum, one solver smoke, and invalid inputs.
 
 from __future__ import annotations
 
+import itertools
 import math
 import unittest
 from collections.abc import Callable
@@ -19,12 +20,27 @@ from probstat.inverse import (
     spectral_diagnostics,
 )
 from probstat.inverse.benchmark_cosmology import (
+    BaoDistanceModel,
+    CalibrationNoise,
     ExpansionHistoryModel,
+    GreedyDesign,
+    JointExpansionModel,
+    bao_degeneracy_report,
+    correlated_calibration_benchmark,
+    default_prior_sd,
+    greedy_redshift_design,
+    interval_calibration,
+    jacobian_columns,
+    linear_gaussian_eig,
+    nominal_expansion_point,
     synthetic_expansion_history_benchmark,
+    whitened_spectrum,
 )
 from probstat.linalg import (
+    DiagonalCovariance,
     ScaledIdentityCovariance,
     inverse_spd,
+    log_det_spd,
     singular_value_decomposition,
 )
 
@@ -344,6 +360,475 @@ class InvalidInputTests(unittest.TestCase):
             synthetic_expansion_history_benchmark(sigma_mu=0.1, relative_noise=0.01)
         with self.assertRaises(ValueError):
             synthetic_expansion_history_benchmark(bins=[0.0, 0.5, 1.0])
+
+
+# ---------------------------------------------------------------------------
+# Roadmap 20B additions (SYNTHETIC): correlated noise, BAO, information gain
+# ---------------------------------------------------------------------------
+
+_EDGES4 = [1.5 * j / 4 for j in range(5)]
+
+
+class _LinearStub:
+    """A linear model ``y = J x`` given by its columns (test double)."""
+
+    def __init__(self, columns: list[tuple[float, ...]]) -> None:
+        """Store the columns."""
+        self.columns = columns
+        self.parameter_names = tuple(f"x{j + 1}" for j in range(len(columns)))
+        self.input_dimension = len(columns)
+        self.output_dimension = len(columns[0])
+
+    def jvp(self, x: object, v: tuple[float, ...]) -> tuple[float, ...]:
+        """Return ``J v``."""
+        return tuple(
+            sum(self.columns[j][i] * v[j] for j in range(self.input_dimension))
+            for i in range(self.output_dimension)
+        )
+
+
+class CalibrationNoiseTests(unittest.TestCase):
+    """Correlated calibration noise handled through covariance factors."""
+
+    def test_matrix_formula_and_spd(self) -> None:
+        """``Gamma = w^2 I + o^2 11' + s^2 K`` entrywise, and it is SPD."""
+        cal = CalibrationNoise(0.1, offset_sd=0.2, smooth_sd=0.3, length_scale=0.5)
+        zs = (0.1, 0.4, 1.0)
+        g = cal.matrix(zs)
+        for i, a in enumerate(zs):
+            for j, b in enumerate(zs):
+                ref = 0.04 + 0.09 * math.exp(-((a - b) ** 2) / 0.5)
+                ref += 0.01 if i == j else 0.0
+                self.assertAlmostEqual(g[i][j], ref, places=14)
+        factor = cal.covariance(zs)
+        # unwhiten then whiten is the identity; the factor squares to Gamma
+        z = (0.3, -1.2, 0.7)
+        back = factor.whiten(factor.unwhiten(z))
+        for a, b in zip(back, z, strict=True):
+            self.assertAlmostEqual(a, b, places=12)
+        applied = factor.apply((1.0, 0.0, 0.0))
+        for i in range(3):
+            self.assertAlmostEqual(applied[i], g[i][0], places=12)
+
+    def test_common_offset_whitened_norm_closed_form(self) -> None:
+        """``1' Gamma^-1 1 = m / (w^2 + m o^2)``: the offset column's whitened norm."""
+        m, w, o = 12, 0.1, 0.4
+        zs = [0.1 + 0.1 * i for i in range(m)]
+        cal = CalibrationNoise(w, offset_sd=o)
+        model = ExpansionHistoryModel(
+            zs,
+            "piecewise_constant",
+            _EDGES4,
+            nuisance=("offset",),
+        )
+        x0 = nominal_expansion_point(model.parameter_names)
+        spec = whitened_spectrum(model, x0, cal.covariance(zs), parameters=("offset",))
+        self.assertAlmostEqual(
+            spec.singular_values[0], math.sqrt(m / (w * w + m * o * o)), places=10
+        )
+        white = whitened_spectrum(
+            model, x0, CalibrationNoise(w).covariance(zs), parameters=("offset",)
+        )
+        self.assertAlmostEqual(white.singular_values[0], math.sqrt(m) / w, places=10)
+        self.assertLess(spec.singular_values[0], 0.3 * white.singular_values[0])
+
+    def test_benchmark_noise_statistics(self) -> None:
+        """Over 300 seeds the error covariance matches ``Gamma`` within MCSE."""
+        cal = CalibrationNoise(0.05, offset_sd=0.08, smooth_sd=0.06, length_scale=0.4)
+        n_rep = 300
+        errors = []
+        for seed in range(n_rep):
+            case = correlated_calibration_benchmark(cal, seed=seed, count=5)
+            errors.append(
+                [d - b for d, b in zip(case.data, case.exact_data, strict=True)]
+            )
+        gamma = cal.matrix(case.model.redshifts)
+        for i, j in ((0, 0), (2, 2), (0, 1), (1, 4), (3, 3)):
+            est = sum(e[i] * e[j] for e in errors) / n_rep
+            # var of a product of Gaussians: (G_ii G_jj + G_ij^2) / n
+            mcse = math.sqrt((gamma[i][i] * gamma[j][j] + gamma[i][j] ** 2) / n_rep)
+            self.assertLess(abs(est - gamma[i][j]), 4.0 * mcse, msg=str((i, j)))
+
+    def test_benchmark_structure(self) -> None:
+        """Data are exact + a draw from the factor; noise objects are exposed."""
+        cal = CalibrationNoise(0.05, offset_sd=0.05, smooth_sd=0.05)
+        a = correlated_calibration_benchmark(cal, truth="cpl", seed=3, count=10)
+        b = correlated_calibration_benchmark(cal, truth="cpl", seed=3, count=10)
+        c = correlated_calibration_benchmark(cal, truth="cpl", seed=4, count=10)
+        self.assertEqual(a.data, b.data)
+        self.assertNotEqual(a.data, c.data)
+        self.assertEqual(a.exact_data, c.exact_data)
+        self.assertEqual(a.identifier, "A02c")
+        self.assertIn("correlated_noise", a.pathologies)
+        self.assertFalse(a.same_discretization)
+        self.assertEqual(a.noise.dimension, 10)
+        diag = a.naive_noise.apply((1.0,) * 10)
+        full = cal.matrix(a.model.redshifts)
+        for i in range(10):
+            self.assertAlmostEqual(diag[i], full[i][i], places=14)
+        err = math.hypot(*(d - e for d, e in zip(a.data, a.exact_data, strict=True)))
+        self.assertAlmostEqual(err, a.realized_error_norm, places=12)
+
+    def test_interval_calibration_identity_and_closed_form(self) -> None:
+        """Equal noise gives ratio 1; a scalar example matches the formula."""
+        stub = _LinearStub([(1.0, 2.0, -1.0)])
+        true = CalibrationNoise(0.5, offset_sd=0.7).covariance([0.1, 0.2, 0.3])
+        same = interval_calibration(stub, (0.0,), true, true, (0.8,))
+        self.assertAlmostEqual(same.ratio[0], 1.0, places=12)
+        assumed = DiagonalCovariance([0.25, 0.25, 0.25])
+        out = interval_calibration(stub, (0.0,), true, assumed, (0.8,))
+        j = (1.0, 2.0, -1.0)
+        p = 0.8**2
+        info = sum(v * v for v in j) / 0.25 + 1.0 / p
+        cov = 1.0 / info
+        k = [cov * v / 0.25 for v in j]
+        gt = true.apply(tuple(k))
+        kj = sum(a * b for a, b in zip(k, j, strict=True))
+        actual = (1.0 - kj) ** 2 * p + sum(a * b for a, b in zip(k, gt, strict=True))
+        self.assertAlmostEqual(out.nominal_sd[0], math.sqrt(cov), places=12)
+        self.assertAlmostEqual(out.actual_sd[0], math.sqrt(actual), places=12)
+        self.assertGreater(out.ratio[0], 1.0)
+
+    def test_ignoring_correlation_misstates_intervals(self) -> None:
+        """Measured: the diagonal surrogate is 1.82 times too narrow for bin 1."""
+        cal = CalibrationNoise(0.05, offset_sd=0.05, smooth_sd=0.05, length_scale=0.4)
+        case = correlated_calibration_benchmark(
+            cal, nuisance=("omega_m",), count=20, bins=6
+        )
+        sds = default_prior_sd(case.model.parameter_names)
+        out = interval_calibration(
+            case.model, case.truth, case.noise, case.naive_noise, sds
+        )
+        self.assertGreater(out.ratio[0], 1.5)
+        self.assertGreater(max(out.ratio), 1.5)
+        # prior-dominated high-z bins are not misstated much
+        self.assertLess(abs(out.ratio[4] - 1.0), 0.05)
+
+
+class BaoModelTests(unittest.TestCase):
+    """The simplified BAO observable ``D_V / r_s``."""
+
+    NUIS = ("omega_m", "log10_h0", "log10_rs")
+    X = (0.1, -0.2, 0.28, 1.85, 2.17)
+    ZS = [0.2, 0.5, 1.0]
+
+    def _model(self) -> BaoDistanceModel:
+        """Return a three-point BAO model with three nuisances."""
+        return BaoDistanceModel(
+            self.ZS, "piecewise_constant", [0, 0.5, 1.0], nuisance=self.NUIS
+        )
+
+    def test_value_matches_closed_form_composition(self) -> None:
+        """``D_V = (z D_C^2 c / H)^(1/3)`` from the independent distance model."""
+        model = self._model()
+        inner = ExpansionHistoryModel(
+            self.ZS,
+            "piecewise_constant",
+            [0, 0.5, 1.0],
+            nuisance=("omega_m", "log10_h0"),
+        )
+        d_c = inner.comoving_distance(self.X[:4])
+        e = inner.expansion_rate(self.X[:4], self.ZS)
+        h0 = 10.0 ** self.X[3]
+        rs = 10.0 ** self.X[4]
+        for z, dc, ez, got in zip(self.ZS, d_c, e, model.value(self.X), strict=True):
+            d_v = (z * dc * dc * C / (h0 * ez)) ** (1.0 / 3.0)
+            self.assertAlmostEqual(got * rs / d_v, 1.0, places=12)
+
+    def test_lcdm_independent_simpson(self) -> None:
+        """For LCDM the value agrees with a Simpson oracle of the distance."""
+        model = BaoDistanceModel(
+            [0.5], "piecewise_constant", [0, 1.0], rs=150.0, nuisance=()
+        )
+        z, om = 0.5, 0.3
+        d_c = (
+            C
+            / 70.0
+            * _simpson(lambda t: 1 / math.sqrt(om * (1 + t) ** 3 + 1 - om), 0.0, z)
+        )
+        e = math.sqrt(om * (1 + z) ** 3 + 1 - om)
+        d_v = (z * d_c**2 * C / (70.0 * e)) ** (1.0 / 3.0)
+        self.assertAlmostEqual(model.value((0.0,))[0], d_v / 150.0, places=10)
+        self.assertAlmostEqual(model.volume_distance((0.0,))[0], d_v, delta=1e-8 * d_v)
+
+    def test_derivatives(self) -> None:
+        """Central differences, Taylor sweep and the adjoint dot test."""
+        model = self._model()
+        cols = jacobian_columns(model, self.X)
+        for j in range(5):
+            h = 1e-6
+            up, dn = list(self.X), list(self.X)
+            up[j] += h
+            dn[j] -= h
+            fp, fm = model.value(up), model.value(dn)
+            for i in range(3):
+                fd = (fp[i] - fm[i]) / (2 * h)
+                self.assertAlmostEqual(cols[j][i], fd, delta=2e-6 * (1 + abs(fd)))
+        check = check_derivatives(
+            model, self.X, (0.3, -0.1, 0.02, 0.01, -0.03), (1.0, -2.0, 0.5)
+        )
+        self.assertTrue(check.passed)
+        self.assertLess(check.dot_relative_error, 1e-12)
+
+    def test_h0_rs_exact_degeneracy(self) -> None:
+        """``y`` depends on ``H0 r_s`` only: the two columns coincide exactly."""
+        model = self._model()
+        cols = jacobian_columns(model, self.X)
+        for a, b in zip(cols[3], cols[4], strict=True):
+            self.assertAlmostEqual(a / b, 1.0, places=13)
+        moved = (*self.X[:3], self.X[3] + 0.07, self.X[4] - 0.07)
+        for a, b in zip(model.value(moved), model.value(self.X), strict=True):
+            self.assertAlmostEqual(a / b, 1.0, places=12)
+
+    def test_invalid(self) -> None:
+        """Unknown nuisances, wrong lengths and failed points."""
+        with self.assertRaises(ValueError):
+            BaoDistanceModel(
+                [0.5], "piecewise_constant", [0, 1.0], nuisance=("offset",)
+            )
+        with self.assertRaises(ValueError):
+            BaoDistanceModel(
+                [0.5], "piecewise_constant", [0, 1.0], nuisance=("omega_m", "omega_m")
+            )
+        with self.assertRaises(ValueError):
+            BaoDistanceModel([0.5], "piecewise_constant", [0, 1.0], rs=0.0)
+        model = self._model()
+        with self.assertRaises(ValueError):
+            model.value((0.0, 0.0))
+        with self.assertRaises(ValueError):
+            model.vjp(self.X, (1.0, 2.0))
+        self.assertTrue(math.isnan(model.value((0.1, -0.2, 1.5, 1.85, 2.17))[0]))
+
+
+class JointAndDegeneracyTests(unittest.TestCase):
+    """Which nuisance degeneracies BAO breaks and which it does not (measured)."""
+
+    def test_joint_model_blocks_and_adjoint(self) -> None:
+        """The joint value, ``jvp`` and ``vjp`` are the member blocks."""
+        edges = [0, 0.5, 1.0]
+        sn = ExpansionHistoryModel(
+            [0.3, 0.8], "piecewise_constant", edges, nuisance=("log10_h0", "offset")
+        )
+        bao = BaoDistanceModel(
+            [0.4, 0.9], "piecewise_constant", edges, nuisance=("log10_h0", "log10_rs")
+        )
+        joint = JointExpansionModel([sn, bao])
+        self.assertEqual(
+            joint.parameter_names, ("x1", "x2", "log10_h0", "offset", "log10_rs")
+        )
+        x = (0.1, -0.2, 1.85, 0.05, 2.17)
+        v = (0.2, 0.1, -0.03, 0.02, 0.04)
+        val = joint.value(x)
+        self.assertEqual(val[:2], sn.value((0.1, -0.2, 1.85, 0.05)))
+        self.assertEqual(val[2:], bao.value((0.1, -0.2, 1.85, 2.17)))
+        jv = joint.jvp(x, v)
+        self.assertEqual(
+            jv[:2], sn.jvp((0.1, -0.2, 1.85, 0.05), (0.2, 0.1, -0.03, 0.02))
+        )
+        # the bin-only SN member has a zero column for log10_rs and vice versa
+        cols = jacobian_columns(joint, x)
+        self.assertEqual(cols[4][:2], (0.0, 0.0))
+        self.assertEqual(cols[3][2:], (0.0, 0.0))
+        check = check_derivatives(joint, x, v, (1.0, -1.0, 0.5, 2.0))
+        self.assertLess(check.dot_relative_error, 1e-12)
+
+    def test_degeneracies_measured(self) -> None:
+        """SN, BAO and SN+BAO keep one free combination; the Hubble rate breaks it.
+
+        Measured at the LCDM baseline (omega_m held fixed): smallest whitened
+        singular values 7.6e-15 (SN), 0 (BAO), 6.8e-15 (SN+BAO) and 24.8
+        (SN+BAO+Hubble) against largest values near 230-880.
+        """
+        report = bao_degeneracy_report()
+        self.assertEqual(report.labels, ("sn", "bao", "sn+bao", "sn+bao+hubble"))
+        fixed = dict(zip(report.labels, report.omega_m_fixed_spectra, strict=True))
+        for label in ("sn", "bao", "sn+bao"):
+            sv = fixed[label].singular_values
+            self.assertLess(sv[-1], 1e-9 * sv[0], msg=label)
+        broken = fixed["sn+bao+hubble"].singular_values
+        self.assertGreater(broken[-1], 1.0)
+        self.assertGreater(broken[-1], 1e6 * fixed["sn+bao"].singular_values[-1])
+        self.assertEqual(fixed["sn+bao+hubble"].numerical_rank, 3)
+
+    def test_null_directions_are_the_predicted_combinations(self) -> None:
+        """SN: ``d offset = 5 d log10 H0``; BAO: ``d log10 H0 = -d log10 r_s``."""
+        report = bao_degeneracy_report()
+        fixed = dict(zip(report.labels, report.omega_m_fixed_spectra, strict=True))
+        h, off = fixed["sn"].weakest_direction
+        self.assertAlmostEqual(off / h, 5.0, places=6)
+        h, rs = fixed["bao"].weakest_direction
+        self.assertAlmostEqual(h / rs, -1.0, places=6)
+        h, off, rs = fixed["sn+bao"].weakest_direction
+        norm = math.sqrt(27.0)
+        sign = 1.0 if h > 0 else -1.0
+        self.assertAlmostEqual(sign * h * norm, 1.0, places=6)
+        self.assertAlmostEqual(sign * off * norm, 5.0, places=6)
+        self.assertAlmostEqual(sign * rs * norm, -1.0, places=6)
+
+    def test_spectrum_validation(self) -> None:
+        """Unknown parameters, wrong noise size and bad tolerance raise."""
+        model = ExpansionHistoryModel(
+            [0.3, 0.8], "piecewise_constant", [0, 1.0], nuisance=("offset",)
+        )
+        x0 = nominal_expansion_point(model.parameter_names)
+        noise = ScaledIdentityCovariance(2, 0.01)
+        with self.assertRaises(ValueError):
+            whitened_spectrum(model, x0, noise, parameters=("nope",))
+        with self.assertRaises(ValueError):
+            whitened_spectrum(model, x0, ScaledIdentityCovariance(3, 0.01))
+        with self.assertRaises(ValueError):
+            whitened_spectrum(model, x0, noise, rank_tolerance=0.0)
+        with self.assertRaises(ValueError):
+            nominal_expansion_point(("bogus",))
+        with self.assertRaises(ValueError):
+            JointExpansionModel([])
+        with self.assertRaises(ValueError):
+            JointExpansionModel(
+                [
+                    ExpansionHistoryModel([0.5], "piecewise_constant", [0, 1.0]),
+                    ExpansionHistoryModel([0.5], "piecewise_constant", [0, 0.5, 1.0]),
+                ]
+            )
+
+
+class InformationGainTests(unittest.TestCase):
+    """Linear-Gaussian EIG and the greedy redshift design."""
+
+    def test_scalar_closed_form(self) -> None:
+        """One parameter, white noise: ``EIG = 1/2 log(1 + p^2 |j|^2 / s^2)``."""
+        j = (0.3, -0.7, 1.1)
+        s, p = 0.2, 0.9
+        eig = linear_gaussian_eig([j], ScaledIdentityCovariance(3, s * s), (p,))
+        self.assertAlmostEqual(
+            eig,
+            0.5 * math.log(1.0 + p * p * sum(v * v for v in j) / (s * s)),
+            places=13,
+        )
+        self.assertEqual(
+            linear_gaussian_eig([(0.0, 0.0)], ScaledIdentityCovariance(2, 1.0), (1.0,)),
+            0.0,
+        )
+
+    def test_dense_matches_explicit_inverse_with_correlated_noise(self) -> None:
+        """The factor-based value equals ``1/2 logdet(I + P J' Gamma^-1 J)``."""
+        cols = [(1.0, 0.5, -0.2, 0.3), (0.1, -0.4, 0.9, 0.2), (0.7, 0.7, 0.1, -0.5)]
+        sds = (0.5, 1.0, 0.3)
+        cal = CalibrationNoise(0.3, offset_sd=0.4, smooth_sd=0.2)
+        zs = [0.1, 0.2, 0.5, 0.9]
+        gamma = cal.matrix(zs)
+        ginv = inverse_spd(tuple(tuple(r) for r in gamma))
+        n = 3
+        m = [
+            [
+                sds[a]
+                * sds[b]
+                * sum(
+                    cols[a][i] * ginv[i][k] * cols[b][k]
+                    for i in range(4)
+                    for k in range(4)
+                )
+                + (1.0 if a == b else 0.0)
+                for b in range(n)
+            ]
+            for a in range(n)
+        ]
+        ref = 0.5 * log_det_spd(tuple(tuple(r) for r in m))
+        got = linear_gaussian_eig(cols, cal.covariance(zs), sds)
+        self.assertAlmostEqual(got, ref, places=12)
+        # more noise (Loewner order) can only reduce the information gain
+        white = linear_gaussian_eig(cols, CalibrationNoise(0.3).covariance(zs), sds)
+        self.assertLess(got, white)
+
+    def _design(self, cal: CalibrationNoise, count: int = 3) -> GreedyDesign:
+        """Return a greedy design over twelve candidates."""
+        cands = [0.1 * k for k in range(1, 13)]
+        return greedy_redshift_design(
+            [0.2, 0.6, 1.0],
+            cands,
+            count,
+            bin_edges=_EDGES4,
+            calibration=cal,
+            nuisance=("omega_m", "offset"),
+        )
+
+    def test_greedy_dense_value_verified_exactly(self) -> None:
+        """The final dense EIG is the base plus the gains and the rank-one value.
+
+        Measured: telescoping error 0 and rank-one error ~4e-16.
+        """
+        design = self._design(CalibrationNoise(0.1))
+        self.assertLess(design.telescoping_error, 1e-12)
+        self.assertLess(design.rank_one_error, 1e-11)
+        self.assertAlmostEqual(design.cumulative_eig[-1], design.dense_eig, places=12)
+        self.assertEqual(len(set(design.selected)), 3)
+        # the first greedy choice maximizes the first-step gain
+        best = max(range(12), key=lambda j: design.first_step_gains[j])
+        self.assertAlmostEqual(design.selected[0], 0.1 * (best + 1), places=12)
+        self.assertAlmostEqual(
+            design.marginal_gains[0], max(design.first_step_gains), places=12
+        )
+
+    def test_greedy_submodular_guarantee_against_brute_force(self) -> None:
+        """Gains are non-increasing and greedy beats ``(1 - 1/e)`` of the optimum."""
+        cal = CalibrationNoise(0.1)
+        design = self._design(cal, count=3)
+        gains = design.marginal_gains
+        self.assertTrue(
+            all(a >= b - 1e-12 for a, b in zip(gains, gains[1:], strict=False))
+        )
+        cands = [0.2, 0.5, 0.8, 1.1, 1.3, 1.4, 1.5]
+        common = {
+            "bin_edges": _EDGES4,
+            "calibration": cal,
+            "nuisance": ("omega_m", "offset"),
+        }
+        greedy = greedy_redshift_design([0.2, 0.6, 1.0], cands, 2, **common)  # type: ignore[arg-type]
+        best = 0.0
+        for combo in itertools.combinations(cands, 2):
+            one = greedy_redshift_design([0.2, 0.6, 1.0], list(combo), 2, **common)  # type: ignore[arg-type]
+            best = max(best, one.dense_eig - one.base_eig)
+        achieved = greedy.dense_eig - greedy.base_eig
+        self.assertLessEqual(achieved, best + 1e-12)
+        self.assertGreaterEqual(achieved, (1.0 - 1.0 / math.e) * best)
+
+    def test_correlated_calibration_lowers_information(self) -> None:
+        """A common offset and smooth drift reduce the achievable gain."""
+        white = self._design(CalibrationNoise(0.1))
+        corr = self._design(
+            CalibrationNoise(0.1, offset_sd=0.3, smooth_sd=0.2, length_scale=0.6)
+        )
+        self.assertLess(corr.dense_eig, white.dense_eig)
+        self.assertTrue(math.isnan(corr.rank_one_eig))
+        self.assertLess(corr.telescoping_error, 1e-12)
+
+    def test_invalid(self) -> None:
+        """Bad counts, duplicates, shapes and noise specifications raise."""
+        cal = CalibrationNoise(0.1)
+        common = {"bin_edges": _EDGES4, "calibration": cal}
+        with self.assertRaises(ValueError):
+            greedy_redshift_design([0.2], [0.3, 0.4], 3, **common)  # type: ignore[arg-type]
+        with self.assertRaises(ValueError):
+            greedy_redshift_design([0.2], [0.3, 0.3], 1, **common)  # type: ignore[arg-type]
+        with self.assertRaises(ValueError):
+            greedy_redshift_design([0.2], [0.3, 0.4], 0, **common)  # type: ignore[arg-type]
+        with self.assertRaises(TypeError):
+            greedy_redshift_design([0.2], [0.3], 1, bin_edges=_EDGES4, calibration=0.1)  # type: ignore[arg-type]
+        with self.assertRaises(ValueError):
+            CalibrationNoise(0.0)
+        with self.assertRaises(ValueError):
+            CalibrationNoise(0.1, offset_sd=-1.0)
+        with self.assertRaises(ValueError):
+            CalibrationNoise(0.1, length_scale=0.0)
+        with self.assertRaises(ValueError):
+            linear_gaussian_eig([(1.0, 2.0)], ScaledIdentityCovariance(3, 1.0), (1.0,))
+        with self.assertRaises(ValueError):
+            linear_gaussian_eig([(1.0, 2.0)], ScaledIdentityCovariance(2, 1.0), (0.0,))
+        with self.assertRaises(ValueError):
+            correlated_calibration_benchmark(cal, sigma_mu=0.1)
+        with self.assertRaises(TypeError):
+            correlated_calibration_benchmark(0.1)  # type: ignore[arg-type]
+        with self.assertRaises(ValueError):
+            default_prior_sd(("bogus",))
 
 
 if __name__ == "__main__":

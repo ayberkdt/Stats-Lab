@@ -19,7 +19,7 @@ from probstat.inverse.newton_trust_region import (
     newton_trust_region_inversion,
 )
 from probstat.inverse.regularization import tikhonov
-from probstat.linalg import dot, matvec, norm, solve_spd
+from probstat.linalg import ScaledIdentityCovariance, dot, matvec, norm, solve_spd
 from probstat.optimization import minimize_bfgs
 from probstat.optimization.trust_region import (
     steihaug_cg,
@@ -492,6 +492,155 @@ class NewtonInversionTests(unittest.TestCase):
         error = norm(tuple(a - b for a, b in zip(result.estimate, truth, strict=True)))
         self.assertLess(error, 0.05)
         print(f"\n[matrix-free n=200] counts {result.counts}, error {error:.2e}")
+
+
+class DiscrepancyStopTests(unittest.TestCase):
+    """The keyword-only discrepancy stop of the Newton inversion."""
+
+    def setUp(self) -> None:
+        """Fix the perturbed decay data and the start."""
+        self.truth, self.y = decay_data(0.3)
+        self.start = (1.0, 0.3)
+
+    def test_default_behaviour_is_unchanged(self) -> None:
+        """Without a level the run is identical to one that never heard of it."""
+        base = newton_trust_region_inversion(
+            decay_model(), self.y, initial=self.start, gradient_tolerance=1e-10
+        )
+        again = newton_trust_region_inversion(
+            decay_model(),
+            self.y,
+            initial=self.start,
+            gradient_tolerance=1e-10,
+            discrepancy_level=None,
+            discrepancy_tau=3.0,
+        )
+        self.assertEqual(base.stop_reason, "gradient")
+        self.assertEqual(again.estimate, base.estimate)
+        # repr comparison: the history holds nan entries for rejected steps, and
+        # Python 3.13 dataclass equality compares fields with ``==`` only
+        # (``nan != nan``); the repr of a float is exact, so this stays strict.
+        self.assertEqual(repr(again.history), repr(base.history))
+        self.assertEqual(again.counts, base.counts)
+        self.assertEqual(again.stop_reason, "gradient")
+
+    def test_stops_when_misfit_reaches_tau_delta(self) -> None:
+        """Stop at the first accepted iterate with ``||r|| <= tau delta``."""
+        level, tau = 0.5, 1.2
+        result = newton_trust_region_inversion(
+            decay_model(),
+            self.y,
+            initial=self.start,
+            gradient_tolerance=1e-10,
+            discrepancy_level=level,
+            discrepancy_tau=tau,
+        )
+        full = newton_trust_region_inversion(
+            decay_model(), self.y, initial=self.start, gradient_tolerance=1e-10
+        )
+        self.assertEqual(result.stop_reason, "discrepancy")
+        self.assertTrue(result.converged)
+        self.assertLessEqual(result.whitened_residual_norm, tau * level)
+        self.assertLess(result.iterations, full.iterations)
+        # the previous iterate did not satisfy the test: stop is the FIRST hit
+        if result.attempts > 1:
+            earlier = newton_trust_region_inversion(
+                decay_model(),
+                self.y,
+                initial=self.start,
+                max_iterations=result.attempts - 1,
+            ).whitened_residual_norm
+        else:
+            earlier = norm(
+                tuple(
+                    a - b
+                    for a, b in zip(
+                        decay_model().value(self.start), self.y, strict=True
+                    )
+                )
+            )
+        self.assertGreater(earlier, tau * level)
+        # the iterate equals the plain run cut after the same number of attempts
+        cut = newton_trust_region_inversion(
+            decay_model(), self.y, initial=self.start, max_iterations=result.attempts
+        )
+        self.assertEqual(cut.estimate, result.estimate)
+        # the reported gradient norm is the true one (independent vjp)
+        model = decay_model()
+        r = tuple(
+            a - b for a, b in zip(model.value(result.estimate), self.y, strict=True)
+        )
+        true_grad = norm(model.vjp(result.estimate, r))
+        self.assertAlmostEqual(result.gradient_norm, true_grad, delta=1e-12)
+        self.assertGreater(result.gradient_norm, 1e-3)
+        self.assertEqual(result.history[-1].gradient_norm, result.gradient_norm)
+
+    def test_start_already_within_tolerance_and_unreachable_level(self) -> None:
+        """A satisfied start stops at once; an unreachable level never fires."""
+        immediate = newton_trust_region_inversion(
+            decay_model(),
+            self.y,
+            initial=self.start,
+            discrepancy_level=10.0,
+        )
+        self.assertEqual(immediate.stop_reason, "discrepancy")
+        self.assertEqual(immediate.iterations, 0)
+        self.assertEqual(immediate.estimate, self.start)
+        unreachable = newton_trust_region_inversion(
+            decay_model(),
+            self.y,
+            initial=self.start,
+            gradient_tolerance=1e-10,
+            discrepancy_level=1e-6,
+        )
+        self.assertEqual(unreachable.stop_reason, "gradient")
+        self.assertGreater(unreachable.whitened_residual_norm, 1e-6)
+
+    def test_whitened_norm_and_central_difference_hessian(self) -> None:
+        """The test uses ``||W r||``; difference actions do not trigger it."""
+        sigma = 0.1
+        noise = ScaledIdentityCovariance(len(TIMES), sigma**2)
+        result = newton_trust_region_inversion(
+            decay_model(),
+            self.y,
+            noise=noise,
+            initial=self.start,
+            hessian="full",
+            hvp="central_difference_of_gradient",
+            discrepancy_level=4.0,
+            discrepancy_tau=1.5,
+        )
+        self.assertEqual(result.stop_reason, "discrepancy")
+        self.assertLessEqual(result.whitened_residual_norm, 6.0)
+        raw = norm(
+            tuple(
+                a - b
+                for a, b in zip(
+                    decay_model().value(result.estimate), self.y, strict=True
+                )
+            )
+        )
+        self.assertAlmostEqual(result.whitened_residual_norm, raw / sigma, delta=1e-9)
+        self.assertGreater(result.counts.hvp, 0)
+
+    def test_validation(self) -> None:
+        """Out-of-range level or tau is rejected."""
+        for level in (0.0, -1.0, math.inf, math.nan):
+            with self.assertRaises(ValueError):
+                newton_trust_region_inversion(
+                    decay_model(), self.y, discrepancy_level=level
+                )
+        with self.assertRaises(TypeError):
+            newton_trust_region_inversion(
+                decay_model(),
+                self.y,
+                discrepancy_level="1",  # type: ignore[arg-type]
+            )
+        for tau in (1.0, 0.5, math.inf):
+            with self.assertRaises(ValueError):
+                newton_trust_region_inversion(
+                    decay_model(), self.y, discrepancy_level=1.0, discrepancy_tau=tau
+                )
 
 
 if __name__ == "__main__":

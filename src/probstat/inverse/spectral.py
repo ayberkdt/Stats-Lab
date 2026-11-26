@@ -13,11 +13,15 @@ still be invisible against the noise when ``sigma_i |c_i| << 1`` in whitened
 units, which :attr:`SpectralDiagnostics.detectable` makes explicit for a
 given coefficient size.
 
-:func:`generalized_svd` computes the GSVD of a pair ``(A, L)`` with a
-full-column-rank stack by the QR-plus-SVD construction (restricted scope, not
-a general LAPACK GSVD) and :func:`gsvd_tikhonov` evaluates general-form
-Tikhonov solutions from it for any ``lambda`` in ``O(n^2)`` work
-[EQ-INV-SPEC-002], [EQ-INV-SPEC-003].
+:func:`generalized_svd` computes the GSVD of a pair ``(A, L)`` by the
+QR-plus-SVD construction (not a general LAPACK GSVD) for any ``m`` (wide
+``A`` included) when the stack ``[A; L]`` has full column rank, and, on
+request, for a rank-deficient stack by restricting the pair to the
+orthogonal complement of the common nullspace ``null(A) ∩ null(L)``
+[EQ-INV-SPEC-004]. :func:`gsvd_tikhonov` evaluates general-form Tikhonov
+solutions from it for any ``lambda`` in ``O(n^2)`` work; in the restricted
+case they are the minimum-norm minimisers [EQ-INV-SPEC-002],
+[EQ-INV-SPEC-003].
 
 Experimental (added in 0.28).
 
@@ -239,7 +243,14 @@ def spectral_diagnostics(
 
 @dataclass(frozen=True, slots=True)
 class GeneralizedSVD:
-    """GSVD ``A X = U C``, ``L X = Z S`` of a pair with full-rank stack ``[A; L]``.
+    """GSVD ``A X = U C``, ``L X = Z S`` of a pair ``(A, L)``.
+
+    For a full-column-rank stack ``[A; L]`` the matrix ``X`` is ``n x n`` and
+    invertible. For a rank-deficient stack (only with
+    ``allow_common_nullspace=True``) ``X`` is ``n x r`` with ``r`` the rank of
+    the stack, its columns lie in the orthogonal complement of the common
+    nullspace, and :attr:`common_nullspace` holds an orthonormal basis of the
+    ``n - r`` directions that neither ``A`` nor ``L`` sees.
 
     Attributes:
         c: Cosines ``c_i`` in ``[0, 1]``.
@@ -247,12 +258,15 @@ class GeneralizedSVD:
             column norms of ``Q_L V``, not as ``sqrt(1 - c^2)``).
         generalized_values: ``gamma_i = c_i / s_i`` (``inf`` where
             ``s_i = 0``), in the order of ``c``.
-        x: ``X = R^-1 V`` (``n x n``) as rows.
-        u: ``U`` (``m x n``) as rows; columns with ``c_i = 0`` are zero.
-        z: ``Z`` (``p x n``) as rows; columns with ``s_i = 0`` are zero.
+        x: ``X`` (``n x r``, ``r = n`` for a full-rank stack) as rows.
+        u: ``U`` (``m x r``) as rows; columns with ``c_i = 0`` are zero.
+        z: ``Z`` (``p x r``) as rows; columns with ``s_i = 0`` are zero.
+        common_nullspace: Orthonormal basis (rows of length ``n``) of
+            ``null(A) ∩ null(L)``; empty for a full-rank stack.
 
     References:
-        [EQ-INV-SPEC-002], [REF-VAN-LOAN-1976], [REF-HANSEN-2008, Section 2.1].
+        [EQ-INV-SPEC-002], [EQ-INV-SPEC-004], [REF-VAN-LOAN-1976],
+        [REF-HANSEN-2008, Section 2.1].
 
     """
 
@@ -262,55 +276,46 @@ class GeneralizedSVD:
     x: Matrix
     u: Matrix
     z: Matrix
+    common_nullspace: Matrix = ()
 
 
-def generalized_svd(
-    matrix: Sequence[Sequence[float]],
-    penalty: Sequence[Sequence[float]],
-    *,
-    rank_tolerance: float = 1e-12,
+def _gsvd_full_rank(
+    a: list[list[float]], l_rows: list[list[float]], rank_tolerance: float
 ) -> GeneralizedSVD:
-    """Return the GSVD of ``(A, L)`` by QR of the stack and SVD of its top block.
-
-    With ``[A; L] = [Q_A; Q_L] R`` (thin QR, full column rank required) and
-    the SVD ``Q_A = U C V'``, ``X = R^-1 V`` gives ``A X = U C`` and
-    ``L X = Q_L V = Z S`` with ``Z'Z = I`` on the columns where ``s_i > 0``,
-    because ``Q_A'Q_A + Q_L'Q_L = I`` [EQ-INV-SPEC-002]. Restricted scope:
-    ``m >= n`` and a full-column-rank stack (``null(A) ∩ null(L) = {0}``);
-    other cases raise rather than return a partial decomposition.
+    """Return the GSVD of a pair whose stack has full column rank.
 
     Args:
-        matrix: ``A`` (``m x n``, ``m >= n``).
-        penalty: ``L`` (``p x n``).
+        a: ``A`` rows (``m x n``).
+        l_rows: ``L`` rows (``p x n``).
         rank_tolerance: Relative rank threshold of the stacked QR.
 
     Returns:
-        :class:`GeneralizedSVD`.
+        :class:`GeneralizedSVD` with an ``n x n`` invertible ``X``.
 
     Raises:
-        ValueError: If ``m < n`` or the stack is rank deficient.
+        ValueError: If the stack is rank deficient.
 
     References:
-        [EQ-INV-SPEC-002], [REF-VAN-LOAN-1976],
-        [REF-GOLUB-VANLOAN-2013, Section 8.7].
+        [EQ-INV-SPEC-002], [REF-VAN-LOAN-1976].
 
     """
-    a = [list(_finite_vector(row, len(matrix[0]), "matrix row")) for row in matrix]
-    n = len(a[0])
-    l_rows = [list(_finite_vector(row, n, "penalty row")) for row in penalty]
     m, p = len(a), len(l_rows)
-    if m < n:
-        raise ValueError("generalized_svd needs m >= n (restricted scope)")
+    n = len(a[0]) if a else len(l_rows[0])
+    message = "the stack [A; L] is rank deficient: null(A) and null(L) intersect"
+    if m + p < n:
+        raise ValueError(message)
     factor = householder_qr(
         tuple(tuple(r) for r in a + l_rows), rank_tolerance=rank_tolerance
     )
     if not factor.full_rank:
-        raise ValueError(
-            "the stack [A; L] is rank deficient: null(A) and null(L) intersect"
-        )
+        raise ValueError(message)
     q_a = factor.q[:m]
     q_l = factor.q[m:]
-    svd = singular_value_decomposition(q_a)
+    # A wide top block (m < n) is padded with zero rows: the padded matrix
+    # has the same nonzero singular values and a complete right basis V,
+    # and the padded rows of U are zero for every c_i > 0.
+    padded = tuple(q_a) + tuple((0.0,) * n for _ in range(max(n - m, 0)))
+    svd = singular_value_decomposition(padded)
     c = tuple(min(value, 1.0) for value in svd.singular_values)
     v = svd.v
     qlv = [
@@ -346,6 +351,111 @@ def generalized_svd(
     return GeneralizedSVD(c=c, s=s, generalized_values=gamma, x=x, u=u, z=z)
 
 
+def generalized_svd(
+    matrix: Sequence[Sequence[float]],
+    penalty: Sequence[Sequence[float]],
+    *,
+    rank_tolerance: float = 1e-12,
+    allow_common_nullspace: bool = False,
+) -> GeneralizedSVD:
+    """Return the GSVD of ``(A, L)`` by QR of the stack and SVD of its top block.
+
+    With ``[A; L] = [Q_A; Q_L] R`` (thin QR) and the SVD ``Q_A = U C V'``,
+    ``X = R^-1 V`` gives ``A X = U C`` and ``L X = Q_L V = Z S`` with
+    ``Z'Z = I`` on the columns where ``s_i > 0``, because
+    ``Q_A'Q_A + Q_L'Q_L = I`` [EQ-INV-SPEC-002]. A wide ``A`` (``m < n``) is
+    handled by padding ``Q_A`` with zero rows, which leaves at least
+    ``n - m`` cosines equal to zero.
+
+    A rank-deficient stack (``null(A) ∩ null(L) != {0}``) raises unless
+    ``allow_common_nullspace=True``. Then the rank ``r`` and an orthonormal
+    basis ``P`` (``n x r``) of the row space of the stack are taken from its
+    SVD, the GSVD of ``(A P, L P)`` (full-rank stack) is computed and
+    ``X = P X_r`` [EQ-INV-SPEC-004]. Every vector of the common nullspace
+    leaves ``||A x - b||`` and ``||L x||`` unchanged, so general-form
+    Tikhonov has a family of minimisers; :func:`gsvd_tikhonov` then returns
+    the one of minimum Euclidean norm (no component in the common
+    nullspace).
+
+    Args:
+        matrix: ``A`` (``m x n``).
+        penalty: ``L`` (``p x n``).
+        rank_tolerance: Relative rank threshold of the stacked QR, and of the
+            stack's singular values (relative to the largest) in the
+            rank-deficient case.
+        allow_common_nullspace: Restrict to the complement of the common
+            nullspace instead of raising.
+
+    Returns:
+        :class:`GeneralizedSVD`.
+
+    Raises:
+        ValueError: If the inputs are empty, ragged or non-finite, the
+            tolerance is not positive, or the stack is rank deficient and
+            ``allow_common_nullspace`` is false.
+
+    References:
+        [EQ-INV-SPEC-002], [EQ-INV-SPEC-004], [REF-VAN-LOAN-1976],
+        [REF-GOLUB-VANLOAN-2013, Section 8.7].
+
+    """
+    if not matrix or not matrix[0]:
+        raise ValueError("matrix must be a non-empty m x n matrix")
+    a = [list(_finite_vector(row, len(matrix[0]), "matrix row")) for row in matrix]
+    n = len(a[0])
+    l_rows = [list(_finite_vector(row, n, "penalty row")) for row in penalty]
+    tolerance = float(rank_tolerance)
+    if not math.isfinite(tolerance) or tolerance <= 0.0:
+        raise ValueError("rank_tolerance must be finite and positive")
+    if not allow_common_nullspace:
+        return _gsvd_full_rank(a, l_rows, tolerance)
+    stack = a + l_rows
+    padded = tuple(tuple(r) for r in stack) + tuple(
+        (0.0,) * n for _ in range(max(n - len(stack), 0))
+    )
+    svd = singular_value_decomposition(padded)
+    sigma = svd.singular_values
+    rank = sum(1 for value in sigma if value > tolerance * sigma[0])
+    if rank == 0:
+        raise ValueError("A and L are both zero: there is nothing to decompose")
+    if rank == n:
+        return _gsvd_full_rank(a, l_rows, tolerance)
+    basis = [[svd.v[j][i] for j in range(n)] for i in range(rank)]
+    full = [list(col) for col in basis] + [[0.0] * n for _ in range(n - rank)]
+    _complete_orthonormal(full, list(range(rank, n)), n)
+    null_basis = tuple(tuple(col) for col in full[rank:])
+
+    def restrict(rows: list[list[float]]) -> list[list[float]]:
+        """Return ``rows P`` with ``P`` the row-space basis of the stack.
+
+        References:
+            [EQ-INV-SPEC-004].
+
+        """
+        return [
+            [math.fsum(row[k] * basis[j][k] for k in range(n)) for j in range(rank)]
+            for row in rows
+        ]
+
+    reduced = _gsvd_full_rank(restrict(a), restrict(l_rows), tolerance)
+    x = tuple(
+        tuple(
+            math.fsum(basis[k][i] * reduced.x[k][j] for k in range(rank))
+            for j in range(rank)
+        )
+        for i in range(n)
+    )
+    return GeneralizedSVD(
+        c=reduced.c,
+        s=reduced.s,
+        generalized_values=reduced.generalized_values,
+        x=x,
+        u=reduced.u,
+        z=reduced.z,
+        common_nullspace=null_basis,
+    )
+
+
 def gsvd_tikhonov(
     decomposition: GeneralizedSVD,
     data: Sequence[float],
@@ -354,7 +464,9 @@ def gsvd_tikhonov(
     """Return ``argmin ||A x - b||^2 + lambda^2 ||L x||^2`` from a GSVD.
 
     With ``x = X y``: ``y_i = c_i u_i'b / (c_i^2 + lambda^2 s_i^2)``
-    [EQ-INV-SPEC-003]; directions with ``c_i = 0`` get ``y_i = 0``. The
+    [EQ-INV-SPEC-003]; directions with ``c_i = 0`` get ``y_i = 0``. For a
+    decomposition restricted to the complement of a common nullspace the
+    result is the minimum-norm minimiser [EQ-INV-SPEC-004]. The
     filter factor of mode ``i`` is ``gamma_i^2 / (gamma_i^2 + lambda^2)``.
 
     Args:
@@ -379,9 +491,9 @@ def gsvd_tikhonov(
         raise ValueError("regularization must be finite and non-negative")
     m = len(decomposition.u)
     b = _finite_vector(data, m, "data")
-    n = len(decomposition.c)
+    modes = len(decomposition.c)
     coefficients = []
-    for j in range(n):
+    for j in range(modes):
         cj, sj = decomposition.c[j], decomposition.s[j]
         denominator = cj * cj + lam * lam * sj * sj
         if cj <= 1e-14:
@@ -392,6 +504,6 @@ def gsvd_tikhonov(
         beta = math.fsum(decomposition.u[r][j] * b[r] for r in range(m))
         coefficients.append(cj * beta / denominator)
     return tuple(
-        math.fsum(decomposition.x[i][j] * coefficients[j] for j in range(n))
-        for i in range(n)
+        math.fsum(row[j] * coefficients[j] for j in range(modes))
+        for row in decomposition.x
     )

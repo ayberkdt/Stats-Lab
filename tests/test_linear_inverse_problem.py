@@ -21,11 +21,14 @@ from probstat.inverse.linear_problem import (
     equality_constrained_least_squares,
     linear_estimator_analysis,
     nonnegative_least_squares,
+    regularized_factorization,
     solve_regularized,
     total_least_squares,
 )
 from probstat.linalg import (
+    CountingOperator,
     DenseCovariance,
+    DenseOperator,
     DiagonalCovariance,
     householder_qr,
     lu_solve,
@@ -449,6 +452,156 @@ class ConstrainedLeastSquaresTests(unittest.TestCase):
             total_least_squares([[1.0, 0.0], [0.0, 1.0]], [1.0, 1.0])
         with self.assertRaises(ValueError):
             total_least_squares([[1.0, 0.0], [0.0, 0.0], [0.0, 0.0]], [0.0, 1.0, 0.0])
+
+
+def replicate_estimator_moments(
+    replicates: int, seed: int
+) -> tuple[list[list[float]], list[list[float]], list[float], list[float], int]:
+    """Return empirical and analytic estimator moments over ``replicates`` datasets.
+
+    The data ``y_k = A x + e_k``, ``e_k ~ N(0, diag(variances))``, are solved
+    with one shared factorization. Returns the empirical covariance, the
+    analytic ``M Gamma M'``, the empirical mean, the analytic mean
+    ``x_ref + R (x - x_ref)`` and the number of forward applications spent
+    on materializing the factor.
+
+    References:
+        [EQ-INV-LIN-002], [EQ-INV-LIN-007].
+
+    """
+    generator = random.Random(seed)
+    a = gaussian_matrix(7, 3, generator)
+    variances = [0.5, 1.0, 2.0, 0.25, 1.5, 0.8, 1.2]
+    truth = [1.0, -0.5, 2.0]
+    reference = [0.2, 0.0, -0.1]
+    lam = 0.7
+    problem = LinearInverseProblem.create(
+        a, [0.0] * 7, noise=DiagonalCovariance(variances), reference=reference
+    )
+    analysis = linear_estimator_analysis(problem, lam)
+    factor = regularized_factorization(problem, lam)
+    clean = matvec(a, truth)
+    datasets = [
+        [
+            c + math.sqrt(v) * generator.gauss(0.0, 1.0)
+            for c, v in zip(clean, variances, strict=True)
+        ]
+        for _ in range(replicates)
+    ]
+    estimates = factor.solve_many(datasets, reference)
+    mean = [math.fsum(e[i] for e in estimates) / replicates for i in range(3)]
+    covariance = [
+        [
+            math.fsum((e[i] - mean[i]) * (e[j] - mean[j]) for e in estimates)
+            / (replicates - 1)
+            for j in range(3)
+        ]
+        for i in range(3)
+    ]
+    shift = [x - r for x, r in zip(truth, reference, strict=True)]
+    expected_mean = [
+        reference[i] + math.fsum(analysis.resolution[i][j] * shift[j] for j in range(3))
+        for i in range(3)
+    ]
+    return (
+        covariance,
+        [list(row) for row in analysis.estimator_covariance],
+        mean,
+        expected_mean,
+        factor.factor_counts.forward,
+    )
+
+
+class FactorizationReuseTests(unittest.TestCase):
+    """One QR of the stacked operator for many data vectors [EQ-INV-LIN-007]."""
+
+    def test_matches_separate_solves_and_counts(self) -> None:
+        """Every reused solve equals ``solve_regularized``; the factor is built once."""
+        generator = random.Random(SEED + 7)
+        a = gaussian_matrix(6, 4, generator)
+        covariance = [
+            [1.0 if i == j else 0.3 if abs(i - j) == 1 else 0.0 for j in range(6)]
+            for i in range(6)
+        ]
+        penalty = [
+            [-1.0 if j == i else 1.0 if j == i + 1 else 0.0 for j in range(4)]
+            for i in range(3)
+        ]
+        reference = [0.5, -0.2, 0.1, 0.0]
+        counted = CountingOperator(DenseOperator(a))
+        base = LinearInverseProblem.create(
+            counted, [0.0] * 6, noise=DenseCovariance(covariance), penalty=penalty
+        )
+        factor = regularized_factorization(base, 0.4)
+        self.assertGreater(factor.factor_counts.forward, 0)
+        before = (counted.counts.forward, counted.counts.transpose)
+        for k in range(5):
+            y = [generator.gauss(0.0, 1.0) for _ in range(6)]
+            problem = LinearInverseProblem.create(
+                a,
+                y,
+                noise=DenseCovariance(covariance),
+                penalty=penalty,
+                reference=reference,
+            )
+            expected = solve_regularized(problem, 0.4).estimate
+            self.assertLess(max_diff(factor.solve(y, reference), expected), 1e-12, k)
+        # One forward action (A x_ref) per solve, no transpose, no refactorization.
+        self.assertEqual(counted.counts.forward, before[0] + 5)
+        self.assertEqual(counted.counts.transpose, before[1])
+        many = factor.solve_many([[1.0] * 6, [0.0] * 6])
+        self.assertEqual(len(many), 2)
+        self.assertLess(max(abs(v) for v in many[1]), 1e-15)
+
+    def test_refusals(self) -> None:
+        """Rank-deficient, underdetermined and invalid inputs raise."""
+        singular = LinearInverseProblem.create([[1.0, 1.0], [2.0, 2.0]], [0.0, 0.0])
+        with self.assertRaises(ValueError):
+            regularized_factorization(singular, 0.0)
+        wide = LinearInverseProblem.create([[1.0, 2.0, 3.0]], [0.0])
+        with self.assertRaises(ValueError):
+            regularized_factorization(wide, 0.0)
+        factor = regularized_factorization(singular, 0.5)
+        with self.assertRaises(ValueError):
+            factor.solve([1.0])
+        with self.assertRaises(ValueError):
+            factor.solve([1.0, math.nan])
+        with self.assertRaises(TypeError):
+            regularized_factorization("problem", 1.0)  # type: ignore[arg-type]
+        with self.assertRaises(ValueError):
+            regularized_factorization(singular, -1.0)
+
+    def _check_moments(self, replicates: int, seed: int) -> None:
+        """Compare replicate moments with ``M Gamma M'`` within 4.5 MCSE.
+
+        For Gaussian estimates the sample covariance entry ``s_ij`` has
+        variance ``(S_ii S_jj + S_ij^2) / (R - 1)`` and the sample mean
+        ``S_ii / R``.
+
+        References:
+            [EQ-INV-LIN-002].
+
+        """
+        empirical, analytic, mean, expected_mean, _ = replicate_estimator_moments(
+            replicates, seed
+        )
+        for i in range(3):
+            se_mean = math.sqrt(analytic[i][i] / replicates)
+            self.assertLess(abs(mean[i] - expected_mean[i]), 4.5 * se_mean, i)
+            for j in range(3):
+                se = math.sqrt(
+                    (analytic[i][i] * analytic[j][j] + analytic[i][j] ** 2)
+                    / (replicates - 1)
+                )
+                self.assertLess(abs(empirical[i][j] - analytic[i][j]), 4.5 * se, (i, j))
+
+    def test_monte_carlo_estimator_covariance_fast(self) -> None:
+        """200 replicates agree with the sampling covariance ``M Gamma M'``."""
+        self._check_moments(200, SEED + 11)
+
+    def test_monte_carlo_estimator_covariance_1000(self) -> None:
+        """1000 replicates agree with ``M Gamma M'`` (0.15 s with the shared factor)."""
+        self._check_moments(1000, SEED + 12)
 
 
 if __name__ == "__main__":

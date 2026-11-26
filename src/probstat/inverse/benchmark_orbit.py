@@ -42,6 +42,20 @@ station-minor, with the Jacobian ``(r - s)' / rho`` times the position rows of
 ``Z``; a zero range raises ``ValueError`` (no regularization, no clipping)
 [EQ-INV-ORBIT-003].
 
+NUISANCE BIASES AND CORRELATED NOISE (roadmap 20C, synthetic). The model can
+append one additive range bias per station (``estimate_station_biases``,
+[EQ-INV-APP-ORBIT-001]). :func:`station_bias_identifiability` measures, from
+the noise-whitened Jacobian at the truth, which parameters (biases included)
+the data determine: singular values, numerical rank, condition number and the
+loading of every parameter on the numerical null space
+[EQ-INV-APP-ORBIT-002]. :func:`range_noise_covariance` builds a separable
+time-and-station correlated noise covariance [EQ-INV-APP-ORBIT-003] and
+:func:`correlation_calibration_study` measures, over a list of predeclared
+seeds, what ignoring that correlation does to the coverage of nominal
+intervals, in the LINEARIZED (Jacobian at the truth) estimator
+[EQ-INV-APP-ORBIT-004]. These are conditioning and calibration laboratories;
+they support no claim about real tracking, real stations or a real spacecraft.
+
 References:
     [REF-TAPLEY-SCHUTZ-BORN-2004], [REF-HAIRER-NORSETT-WANNER-1993],
     [REF-SEBER-WILD-2003], [REF-NOCEDAL-WRIGHT-2006],
@@ -53,14 +67,26 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from dataclasses import dataclass
+from statistics import NormalDist
 from types import MappingProxyType
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.inverse.benchmark_extended import NonlinearBenchmark
 from probstat.inverse.gauss_newton import ModelCounts
-from probstat.linalg import ScaledIdentityCovariance, Vector
+from probstat.linalg import (
+    DenseCovariance,
+    Matrix,
+    ScaledIdentityCovariance,
+    Vector,
+    inverse_spd,
+    matmul,
+    singular_value_decomposition,
+    transpose,
+)
 
 _GEOMETRIES = ("well_observed", "single_station_short_arc")
+_DEFAULT_BIASES = (0.01, -0.015, 0.02)
 
 
 def _finite_real(value: object, name: str) -> float:
@@ -119,7 +145,10 @@ class TwoBodyRangeModel:
     """Range observations of a two-body orbit as a differentiable forward map.
 
     The parameters are ``x = (r0, v0)`` of length ``2 d`` (``d`` = 2 or 3),
-    followed by ``mu`` when ``estimate_mu=True``. The dynamics are
+    followed by ``mu`` when ``estimate_mu=True`` and by one additive range
+    bias per station when ``estimate_station_biases=True`` (a constant
+    nuisance ``b_j`` added to every range of station ``j``, no dynamics;
+    [EQ-INV-APP-ORBIT-001]). The dynamics are
     ``r' = v``, ``v' = -mu r / ||r||^3`` [EQ-INV-ORBIT-001] integrated from
     ``t = 0`` with ``steps_per_interval`` classical RK4 steps on each of the
     intervals ``[0, t_1], [t_1, t_2], ...``. The observations are the ranges
@@ -150,8 +179,11 @@ class TwoBodyRangeModel:
         "_cache",
         "_counts",
         "_d",
+        "_estimate_biases",
         "_estimate_mu",
         "_n",
+        "_nb",
+        "_nd",
         "mu",
         "stations",
         "steps_per_interval",
@@ -166,6 +198,7 @@ class TwoBodyRangeModel:
         mu: float = 1.0,
         estimate_mu: bool = False,
         steps_per_interval: int = 16,
+        estimate_station_biases: bool = False,
     ) -> None:
         """Validate and store the observation design.
 
@@ -178,6 +211,10 @@ class TwoBodyRangeModel:
                 ``estimate_mu=False``.
             estimate_mu: Append ``mu`` to the parameters.
             steps_per_interval: RK4 steps per interval (``>= 1``).
+            estimate_station_biases: Append one additive range bias ``b_j``
+                per station (after ``mu``), so that the ranges become
+                ``rho_ij + b_j`` [EQ-INV-APP-ORBIT-001]. Default ``False``
+                keeps the original parameters and outputs unchanged.
 
         Raises:
             TypeError: If an argument has the wrong type.
@@ -204,6 +241,8 @@ class TwoBodyRangeModel:
             raise ValueError("stations must all have dimension 2 or 3 (the orbit's)")
         if not isinstance(estimate_mu, bool):
             raise TypeError("estimate_mu must be a bool")
+        if not isinstance(estimate_station_biases, bool):
+            raise TypeError("estimate_station_biases must be a bool")
         self.times = grid
         self.stations = pos
         self.mu = _positive(mu, "mu")
@@ -212,14 +251,17 @@ class TwoBodyRangeModel:
         )
         self._d = dimension
         self._estimate_mu = estimate_mu
-        self._n = 2 * dimension + (1 if estimate_mu else 0)
+        self._estimate_biases = estimate_station_biases
+        self._nd = 2 * dimension + (1 if estimate_mu else 0)
+        self._nb = len(pos) if estimate_station_biases else 0
+        self._n = self._nd + self._nb
         self._counts = [0, 0, 0]
         self._cache: tuple[Vector, list[list[list[float]]], list[list[float]]] | None
         self._cache = None
 
     @property
     def input_dimension(self) -> int:
-        """Return the parameter dimension ``n = 2 d`` (``+ 1`` with ``mu``).
+        """Return ``n = 2 d`` (``+ 1`` with ``mu``, ``+`` stations with biases).
 
         References:
             [EQ-INV-ORBIT-004].
@@ -258,7 +300,7 @@ class TwoBodyRangeModel:
         point = _real_sequence(x, "x")
         if len(point) != self._n:
             raise ValueError(f"x must have length {self._n}")
-        mu = point[-1] if self._estimate_mu else self.mu
+        mu = point[2 * self._d] if self._estimate_mu else self.mu
         return point, mu
 
     def _rhs(
@@ -287,7 +329,7 @@ class TwoBodyRangeModel:
         out = list(v) + [-mu * c * inv3 for c in r]
         if not with_sensitivity:
             return out
-        n = self._n
+        n = self._nd
         inv5 = inv3 / rho2
         accel = [
             [
@@ -351,7 +393,7 @@ class TwoBodyRangeModel:
 
         """
         d = self._d
-        n = self._n
+        n = self._nd
         aug = list(x[: 2 * d])
         if with_sensitivity:
             for row in range(2 * d):
@@ -399,13 +441,14 @@ class TwoBodyRangeModel:
 
         The leading ``2 d`` columns form the state transition matrix
         ``Phi(t_i, 0)`` and, with ``estimate_mu``, the last column is the
-        ``mu``-sensitivity ``S`` [EQ-INV-ORBIT-002].
+        ``mu``-sensitivity ``S`` [EQ-INV-ORBIT-002]. Station biases have no
+        dynamics and therefore no columns here.
 
         Args:
             x: Parameters (length ``input_dimension``).
 
         Returns:
-            For each time, ``2 d`` rows of length ``input_dimension``.
+            For each time, ``2 d`` rows of length ``2 d`` (``+ 1`` with ``mu``).
 
         Raises:
             TypeError: If ``x`` is not a real sequence.
@@ -461,10 +504,11 @@ class TwoBodyRangeModel:
         if mu <= 0.0:
             return (math.nan,) * self.output_dimension
         states, _ = self._propagate(point, mu, False)
+        bias = point[self._nd :]
         return tuple(
-            self._range_rows(state, station)[0]
+            self._range_rows(state, station)[0] + (bias[j] if bias else 0.0)
             for state in states
-            for station in self.stations
+            for j, station in enumerate(self.stations)
         )
 
     def _linearization(
@@ -519,12 +563,15 @@ class TwoBodyRangeModel:
         out: list[float] = []
         for i, z in enumerate(sens):
             dr = [
-                math.fsum(z[k][c] * direction[c] for c in range(self._n))
+                math.fsum(z[k][c] * direction[c] for c in range(self._nd))
                 for k in range(d)
             ]
             for j in range(ns):
                 u = rows[i * ns + j]
-                out.append(math.fsum(a * b for a, b in zip(u, dr, strict=True)))
+                value = math.fsum(a * b for a, b in zip(u, dr, strict=True))
+                if self._nb:
+                    value += direction[self._nd + j]
+                out.append(value)
         return tuple(out)
 
     def vjp(self, x: Sequence[float], w: Sequence[float]) -> Vector:
@@ -558,15 +605,21 @@ class TwoBodyRangeModel:
         self._counts[2] += 1
         d = self._d
         ns = len(self.stations)
-        terms: list[list[float]] = [[] for _ in range(self._n)]
+        terms: list[list[float]] = [[] for _ in range(self._nd)]
         for i, z in enumerate(sens):
             g = [
                 math.fsum(weights[i * ns + j] * rows[i * ns + j][k] for j in range(ns))
                 for k in range(d)
             ]
-            for c in range(self._n):
+            for c in range(self._nd):
                 terms[c].append(math.fsum(g[k] * z[k][c] for k in range(d)))
-        return tuple(math.fsum(t) for t in terms)
+        dynamic = tuple(math.fsum(t) for t in terms)
+        if not self._nb:
+            return dynamic
+        biases = tuple(
+            math.fsum(weights[i * ns + j] for i in range(len(sens))) for j in range(ns)
+        )
+        return dynamic + biases
 
     def energy(self, state: Sequence[float], mu: float | None = None) -> float:
         """Return the specific orbital energy ``|v|^2 / 2 - mu / |r|``.
@@ -651,6 +704,8 @@ def orbit_determination_benchmark(
     estimate_mu: bool = False,
     steps_per_interval: int = 12,
     data_refinement: int = 4,
+    estimate_station_biases: bool = False,
+    station_biases: Sequence[float] | None = None,
 ) -> NonlinearBenchmark:
     """Return A01: simplified synthetic range-only orbit determination.
 
@@ -682,6 +737,13 @@ def orbit_determination_benchmark(
         estimate_mu: Also estimate ``mu`` (truth ``1``).
         steps_per_interval: Solver-model RK4 steps per interval.
         data_refinement: Data generator steps multiplier (``>= 1``).
+        estimate_station_biases: Add one range bias per station to the
+            unknowns and to the data [EQ-INV-APP-ORBIT-001]; the solver sees
+            them as free parameters without a prior (adds the pathology
+            ``"nuisance_degeneracy"``).
+        station_biases: True biases in canonical length units (one per
+            station; default the first entries of ``(0.01, -0.015, 0.02)``).
+            Ignored unless ``estimate_station_biases``.
 
     Returns:
         :class:`~probstat.inverse.benchmark_extended.NonlinearBenchmark`
@@ -704,28 +766,44 @@ def orbit_determination_benchmark(
     refinement = _positive_int(data_refinement, "data_refinement")
     steps = _positive_int(steps_per_interval, "steps_per_interval")
     times, stations = _geometry(dimension, geometry)
+    if not isinstance(estimate_station_biases, bool):
+        raise TypeError("estimate_station_biases must be a bool")
+    biases: Vector = ()
+    if estimate_station_biases:
+        if station_biases is None:
+            biases = tuple(_DEFAULT_BIASES[j % 3] for j in range(len(stations)))
+        else:
+            biases = _real_sequence(station_biases, "station_biases")
+            if len(biases) != len(stations):
+                raise ValueError("station_biases needs one value per station")
     model = TwoBodyRangeModel(
         times,
         stations,
         estimate_mu=estimate_mu,
         steps_per_interval=steps,
+        estimate_station_biases=estimate_station_biases,
     )
     generator_model = TwoBodyRangeModel(
         times,
         stations,
         estimate_mu=estimate_mu,
         steps_per_interval=steps * refinement,
+        estimate_station_biases=estimate_station_biases,
     )
-    truth = _reference_orbit(dimension) + ((1.0,) if estimate_mu else ())
+    truth = _reference_orbit(dimension) + ((1.0,) if estimate_mu else ()) + biases
     exact = generator_model.value(truth)
     stream = resolve_stream(seed).child("A01").child("noise")
     draws_rng = stream.generator()
     draws = [draws_rng.gauss(0.0, 1.0) for _ in exact]
     data = tuple(b + sigma * e for b, e in zip(exact, draws, strict=True))
-    pathologies = ("nonlinear",) + (
-        ("weak_observability", "ill_conditioned")
-        if geometry == "single_station_short_arc"
-        else ()
+    pathologies = (
+        ("nonlinear",)
+        + (
+            ("weak_observability", "ill_conditioned")
+            if geometry == "single_station_short_arc"
+            else ()
+        )
+        + (("nuisance_degeneracy",) if estimate_station_biases else ())
     )
     return NonlinearBenchmark(
         identifier="A01",
@@ -745,4 +823,472 @@ def orbit_determination_benchmark(
         prior_covariance=None,
         pathologies=pathologies,
         seeds=MappingProxyType({"noise": "A01/noise"}),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Nuisance biases and correlated noise (roadmap 20C)
+# ---------------------------------------------------------------------------
+
+CALIBRATION_SEEDS: tuple[int, ...] = tuple(range(2000, 2200))
+"""Predeclared seeds of :func:`correlation_calibration_study` (200 replicates)."""
+
+
+def _parameter_names(
+    dimension: int, estimate_mu: bool, stations: int, biases: bool
+) -> tuple[str, ...]:
+    """Return the coordinate names of the model parameters.
+
+    References:
+        [EQ-INV-APP-ORBIT-001].
+
+    """
+    axes = "xyz"[:dimension]
+    names = [f"r0_{a}" for a in axes] + [f"v0_{a}" for a in axes]
+    if estimate_mu:
+        names.append("mu")
+    if biases:
+        names.extend(f"bias_{j + 1}" for j in range(stations))
+    return tuple(names)
+
+
+def _mat(rows: Sequence[Sequence[float]]) -> Matrix:
+    """Return an immutable matrix from nested sequences.
+
+    References:
+        Project validation policy [REF-PROBSTAT-VALIDATION].
+
+    """
+    return tuple(tuple(r) for r in rows)
+
+
+def _jacobian_columns(model: TwoBodyRangeModel, x: Sequence[float]) -> list[Vector]:
+    """Return the Jacobian columns assembled from unit-vector ``jvp`` calls.
+
+    References:
+        [EQ-INV-ORBIT-003].
+
+    """
+    n = model.input_dimension
+    return [
+        model.jvp(x, tuple(1.0 if k == j else 0.0 for k in range(n))) for j in range(n)
+    ]
+
+
+def _design(
+    dimension: int,
+    geometry: str,
+    estimate_mu: bool,
+    biases: bool,
+    steps: int,
+) -> tuple[TwoBodyRangeModel, Vector]:
+    """Return the model and the truth of a named geometry.
+
+    References:
+        [EQ-INV-ORBIT-005], [EQ-INV-APP-ORBIT-001].
+
+    """
+    if isinstance(dimension, bool) or dimension not in (2, 3):
+        raise ValueError("dimension must be 2 or 3")
+    if geometry not in _GEOMETRIES:
+        raise ValueError(f"geometry must be one of {_GEOMETRIES}")
+    if not isinstance(estimate_mu, bool) or not isinstance(biases, bool):
+        raise TypeError("estimate_mu and estimate_station_biases must be bools")
+    times, stations = _geometry(dimension, geometry)
+    model = TwoBodyRangeModel(
+        times,
+        stations,
+        estimate_mu=estimate_mu,
+        steps_per_interval=_positive_int(steps, "steps_per_interval"),
+        estimate_station_biases=biases,
+    )
+    extra = tuple(_DEFAULT_BIASES[j % 3] for j in range(len(stations)))
+    truth = (
+        _reference_orbit(dimension)
+        + ((1.0,) if estimate_mu else ())
+        + (extra if biases else ())
+    )
+    return model, truth
+
+
+@dataclass(frozen=True, slots=True)
+class BiasIdentifiability:
+    """Measured identifiability of an orbit-determination design.
+
+    Attributes:
+        parameter_names: Names of the ``n`` parameters in coordinate order.
+        singular_values: Singular values of the noise-whitened Jacobian at the
+            truth, descending (``n`` values; zero rows are appended when
+            ``m < n``).
+        condition_number: ``s_1 / s_n`` (``inf`` when ``s_n == 0``).
+        numerical_rank: Number of singular values above
+            ``rank_tolerance * s_1``.
+        rank_tolerance: The relative threshold used.
+        null_loading: For each parameter ``i``, ``||N' e_i||`` with ``N`` the
+            right singular vectors of the numerically null directions: ``0``
+            when the parameter is determined by the data, up to ``1`` when it
+            lies wholly in the null space.
+        identifiable: ``null_loading[i] <= 1e-6`` for every parameter.
+        parameter_sd: Square roots of the diagonal of ``(J' W J)^-1`` in
+            parameter units (``nan`` entries when the numerical rank is
+            deficient).
+
+    References:
+        [EQ-INV-APP-ORBIT-002].
+
+    """
+
+    parameter_names: tuple[str, ...]
+    singular_values: Vector
+    condition_number: float
+    numerical_rank: int
+    rank_tolerance: float
+    null_loading: Vector
+    identifiable: tuple[bool, ...]
+    parameter_sd: Vector
+
+
+def station_bias_identifiability(
+    *,
+    dimension: int = 2,
+    geometry: str = "well_observed",
+    estimate_station_biases: bool = True,
+    estimate_mu: bool = False,
+    noise: DenseCovariance | ScaledIdentityCovariance | None = None,
+    noise_sd: float = 1e-3,
+    rank_tolerance: float = 1e-8,
+    steps_per_interval: int = 12,
+) -> BiasIdentifiability:
+    """Measure which orbit parameters (and biases) the ranges determine.
+
+    The Jacobian ``J`` of the range map at the synthetic truth is assembled
+    from unit-vector ``jvp`` calls and whitened by the noise factor
+    (``W J`` with ``W' W = Gamma^-1``). Its singular values, numerical rank,
+    condition number and the loading of each parameter on the numerical null
+    space are reported [EQ-INV-APP-ORBIT-002]. A parameter is identifiable
+    exactly when its unit vector is orthogonal to the null space of ``J``.
+    This is a local (linearized) statement for a SYNTHETIC design; it makes
+    no claim about real tracking.
+
+    Args:
+        dimension: Orbit dimension, 2 or 3.
+        geometry: ``"well_observed"`` or ``"single_station_short_arc"``.
+        estimate_station_biases: Include one range bias per station.
+        estimate_mu: Also include ``mu``.
+        noise: Noise covariance factor of dimension ``m`` (default: iid with
+            ``noise_sd``).
+        noise_sd: Standard deviation of the default iid noise (``> 0``).
+        rank_tolerance: Relative singular-value threshold (``> 0``).
+        steps_per_interval: RK4 steps per interval of the model.
+
+    Returns:
+        :class:`BiasIdentifiability`.
+
+    Raises:
+        TypeError: If an argument has the wrong type.
+        ValueError: If an argument is out of range or ``noise`` has the wrong
+            dimension.
+
+    References:
+        [EQ-INV-APP-ORBIT-002], [REF-TAPLEY-SCHUTZ-BORN-2004].
+
+    """
+    tol = _positive(rank_tolerance, "rank_tolerance")
+    model, truth = _design(
+        dimension, geometry, estimate_mu, estimate_station_biases, steps_per_interval
+    )
+    m, n = model.output_dimension, model.input_dimension
+    factor: DenseCovariance | ScaledIdentityCovariance
+    if noise is None:
+        sigma = _positive(noise_sd, "noise_sd")
+        factor = ScaledIdentityCovariance(m, sigma * sigma)
+    else:
+        factor = noise
+        if factor.dimension != m:
+            raise ValueError(f"noise must have dimension {m}")
+    columns = [factor.whiten(c) for c in _jacobian_columns(model, truth)]
+    rows = [[columns[j][i] for j in range(n)] for i in range(m)]
+    rows.extend([0.0] * n for _ in range(max(0, n - m)))
+    svd = singular_value_decomposition(_mat(rows))
+    sv = svd.singular_values
+    top = sv[0]
+    rank = sum(1 for v in sv if v > tol * top)
+    null_cols = [j for j, v in enumerate(sv) if v <= tol * top]
+    loading = tuple(
+        math.sqrt(math.fsum(svd.v[i][j] ** 2 for j in null_cols)) for i in range(n)
+    )
+    if rank == n:
+        gram = [
+            [
+                math.fsum(columns[a][i] * columns[b][i] for i in range(m))
+                for b in range(n)
+            ]
+            for a in range(n)
+        ]
+        inv = inverse_spd(_mat(gram))
+        sd = tuple(math.sqrt(inv[i][i]) for i in range(n))
+    else:
+        sd = (math.nan,) * n
+    return BiasIdentifiability(
+        parameter_names=_parameter_names(
+            len(model.stations[0]),
+            estimate_mu,
+            len(model.stations),
+            estimate_station_biases,
+        ),
+        singular_values=tuple(sv),
+        condition_number=top / sv[-1] if sv[-1] > 0.0 else math.inf,
+        numerical_rank=rank,
+        rank_tolerance=tol,
+        null_loading=loading,
+        identifiable=tuple(v <= 1e-6 for v in loading),
+        parameter_sd=sd,
+    )
+
+
+def _range_noise_matrix(
+    times: Sequence[float],
+    stations: int,
+    white_sd: float,
+    correlated_sd: float,
+    correlation_time: float,
+    station_correlation: float,
+) -> list[list[float]]:
+    """Return ``w^2 I + c^2 (T kron S)`` (time-major, station-minor).
+
+    References:
+        [EQ-INV-APP-ORBIT-003].
+
+    """
+    ns = stations
+    size = len(times) * ns
+    out = [[0.0] * size for _ in range(size)]
+    for a in range(size):
+        ia, ja = divmod(a, ns)
+        for b in range(size):
+            ib, jb = divmod(b, ns)
+            decay = math.exp(-abs(times[ia] - times[ib]) / correlation_time)
+            cross = 1.0 if ja == jb else station_correlation
+            out[a][b] = correlated_sd**2 * decay * cross
+        out[a][a] += white_sd**2
+    return out
+
+
+def range_noise_covariance(
+    times: Sequence[float],
+    stations: int,
+    *,
+    white_sd: float,
+    correlated_sd: float,
+    correlation_time: float,
+    station_correlation: float = 0.0,
+) -> DenseCovariance:
+    """Return a separable time-and-station correlated range-noise covariance.
+
+    ``Gamma = w^2 I + c^2 (T kron S)`` with ``T_ik = exp(-|t_i - t_k| / tau)``
+    (an exponential, Ornstein-Uhlenbeck-type time correlation) and
+    ``S_jl = 1`` for ``j = l``, ``rho`` otherwise (a common correlation among
+    stations), for observations ordered time-major and station-minor like
+    :class:`TwoBodyRangeModel`. The white part makes ``Gamma`` positive
+    definite for every ``rho`` in ``[0, 1]`` [EQ-INV-APP-ORBIT-003].
+
+    Args:
+        times: Observation times (finite reals).
+        stations: Number of stations (``>= 1``).
+        white_sd: White noise standard deviation ``w`` (``> 0``).
+        correlated_sd: Correlated component standard deviation ``c``
+            (``>= 0``).
+        correlation_time: Correlation time ``tau`` (``> 0``).
+        station_correlation: ``rho`` in ``[0, 1]``.
+
+    Returns:
+        A :class:`~probstat.linalg.DenseCovariance` of dimension
+        ``len(times) * stations``.
+
+    Raises:
+        TypeError: If an argument has the wrong type.
+        ValueError: If a value is out of range.
+
+    References:
+        [EQ-INV-APP-ORBIT-003].
+
+    """
+    grid = _real_sequence(times, "times")
+    if not grid:
+        raise ValueError("times must not be empty")
+    count = _positive_int(stations, "stations")
+    white = _positive(white_sd, "white_sd")
+    corr = _finite_real(correlated_sd, "correlated_sd")
+    if corr < 0.0:
+        raise ValueError("correlated_sd must be non-negative")
+    tau = _positive(correlation_time, "correlation_time")
+    rho = _finite_real(station_correlation, "station_correlation")
+    if not 0.0 <= rho <= 1.0:
+        raise ValueError("station_correlation must lie in [0, 1]")
+    return DenseCovariance(_range_noise_matrix(grid, count, white, corr, tau, rho))
+
+
+@dataclass(frozen=True, slots=True)
+class CorrelationCalibration:
+    """Effect of ignoring noise correlation on interval calibration.
+
+    Attributes:
+        parameter_names: Parameter names.
+        replicates: Number of seeds used.
+        seeds: The predeclared seeds.
+        level: Nominal two-sided coverage.
+        nominal_sd_naive: Standard deviations a diagonal-weight analyst
+            reports, ``sqrt(diag (J' D^-1 J)^-1)`` with ``D = diag(Gamma)``.
+        actual_sd_naive: True standard deviations of that estimator,
+            ``sqrt(diag A Gamma A')``.
+        sd_gls: Standard deviations of the generalized least-squares estimator
+            ``(J' Gamma^-1 J)^-1`` (nominal equals actual).
+        coverage_naive: Empirical coverage of the naive nominal intervals.
+        coverage_gls: Empirical coverage of the GLS intervals.
+        coverage_mcse: Monte Carlo standard error ``sqrt(p (1 - p) / N)``
+            at the nominal level.
+
+    References:
+        [EQ-INV-APP-ORBIT-004].
+
+    """
+
+    parameter_names: tuple[str, ...]
+    replicates: int
+    seeds: tuple[int, ...]
+    level: float
+    nominal_sd_naive: Vector
+    actual_sd_naive: Vector
+    sd_gls: Vector
+    coverage_naive: Vector
+    coverage_gls: Vector
+    coverage_mcse: float
+
+
+def correlation_calibration_study(
+    *,
+    dimension: int = 2,
+    geometry: str = "well_observed",
+    estimate_station_biases: bool = False,
+    estimate_mu: bool = False,
+    white_sd: float = 3e-4,
+    correlated_sd: float = 2e-3,
+    correlation_time: float = 3.0,
+    station_correlation: float = 0.8,
+    seeds: Sequence[int] = CALIBRATION_SEEDS,
+    level: float = 0.95,
+    steps_per_interval: int = 12,
+) -> CorrelationCalibration:
+    """Measure what ignoring correlated range noise does to interval coverage.
+
+    In the linearized estimator ``dx = A e`` (Jacobian ``J`` at the synthetic
+    truth, ``e ~ N(0, Gamma)`` with :func:`range_noise_covariance`), the
+    naive analyst weights by ``D^-1`` (``D = diag Gamma``) and reports
+    ``(J' D^-1 J)^-1`` while the actual covariance is ``A Gamma A'``; the GLS
+    estimator uses ``Gamma^-1``. For every seed in ``seeds`` one noise vector
+    is drawn (one stream per seed, no global RNG) and the empirical coverage
+    of each component's nominal ``level`` interval is counted
+    [EQ-INV-APP-ORBIT-004]. The calibration is a LINEARIZED statement about a
+    SYNTHETIC design.
+
+    Args:
+        dimension: Orbit dimension, 2 or 3.
+        geometry: ``"well_observed"`` or ``"single_station_short_arc"``.
+        estimate_station_biases: Include per-station range biases.
+        estimate_mu: Also include ``mu``.
+        white_sd: White noise standard deviation (``> 0``).
+        correlated_sd: Correlated component standard deviation (``>= 0``).
+        correlation_time: Correlation time in canonical time units (``> 0``).
+        station_correlation: Cross-station correlation in ``[0, 1]``.
+        seeds: Distinct integer seeds (non-empty).
+        level: Nominal coverage in ``(0, 1)``.
+        steps_per_interval: RK4 steps per interval of the model.
+
+    Returns:
+        :class:`CorrelationCalibration`.
+
+    Raises:
+        TypeError: If an argument has the wrong type.
+        ValueError: If an argument is out of range or the design is not of
+            full numerical rank (the estimator does not exist).
+
+    References:
+        [EQ-INV-APP-ORBIT-004], [REF-TAPLEY-SCHUTZ-BORN-2004].
+
+    """
+    if isinstance(seeds, (str, bytes)) or not isinstance(seeds, Sequence):
+        raise TypeError("seeds must be a sequence of integers")
+    seed_list = tuple(seeds)
+    if not seed_list or len(set(seed_list)) != len(seed_list):
+        raise ValueError("seeds must be non-empty and distinct")
+    if any(isinstance(v, bool) or not isinstance(v, int) for v in seed_list):
+        raise TypeError("seeds must be integers")
+    lev = _finite_real(level, "level")
+    if not 0.0 < lev < 1.0:
+        raise ValueError("level must lie in (0, 1)")
+    model, truth = _design(
+        dimension, geometry, estimate_mu, estimate_station_biases, steps_per_interval
+    )
+    m, n = model.output_dimension, model.input_dimension
+    gamma_matrix = _range_noise_matrix(
+        model.times,
+        len(model.stations),
+        _positive(white_sd, "white_sd"),
+        _finite_real(correlated_sd, "correlated_sd"),
+        _positive(correlation_time, "correlation_time"),
+        _finite_real(station_correlation, "station_correlation"),
+    )
+    gamma = DenseCovariance(gamma_matrix)
+    cols = _jacobian_columns(model, truth)
+    jac = [[cols[j][i] for j in range(n)] for i in range(m)]
+    jac_m = _mat(jac)
+    sv = singular_value_decomposition(
+        _mat([*jac, *([0.0] * n for _ in range(max(0, n - m)))])
+    ).singular_values
+    if sv[-1] <= 1e-8 * sv[0]:
+        raise ValueError("the design is rank deficient: no estimator exists")
+    jt = transpose(jac_m)
+    d_inv = [1.0 / gamma_matrix[i][i] for i in range(m)]
+    jt_dinv = _mat([[jt[a][i] * d_inv[i] for i in range(m)] for a in range(n)])
+    cov_naive = inverse_spd(matmul(jt_dinv, jac_m))
+    a_naive = matmul(cov_naive, jt_dinv)
+    actual = matmul(matmul(a_naive, _mat(gamma_matrix)), transpose(a_naive))
+    gi_cols = [gamma.solve(c) for c in cols]
+    fisher = [
+        [math.fsum(cols[a][i] * gi_cols[b][i] for i in range(m)) for b in range(n)]
+        for a in range(n)
+    ]
+    cov_gls = inverse_spd(_mat(fisher))
+    a_gls = matmul(cov_gls, _mat(gi_cols))
+    nominal = tuple(math.sqrt(cov_naive[i][i]) for i in range(n))
+    sd_actual = tuple(math.sqrt(actual[i][i]) for i in range(n))
+    sd_gls = tuple(math.sqrt(cov_gls[i][i]) for i in range(n))
+    quantile = NormalDist().inv_cdf(0.5 + 0.5 * lev)
+    hit_naive = [0] * n
+    hit_gls = [0] * n
+    for seed in seed_list:
+        gen = resolve_stream(seed).child("orbit-correlated-noise").generator()
+        e = gamma.unwhiten([gen.gauss(0.0, 1.0) for _ in range(m)])
+        for k in range(n):
+            err_naive = math.fsum(a_naive[k][i] * e[i] for i in range(m))
+            err_gls = math.fsum(a_gls[k][i] * e[i] for i in range(m))
+            hit_naive[k] += abs(err_naive) <= quantile * nominal[k]
+            hit_gls[k] += abs(err_gls) <= quantile * sd_gls[k]
+    count = len(seed_list)
+    return CorrelationCalibration(
+        parameter_names=_parameter_names(
+            len(model.stations[0]),
+            estimate_mu,
+            len(model.stations),
+            estimate_station_biases,
+        ),
+        replicates=count,
+        seeds=seed_list,
+        level=lev,
+        nominal_sd_naive=nominal,
+        actual_sd_naive=sd_actual,
+        sd_gls=sd_gls,
+        coverage_naive=tuple(h / count for h in hit_naive),
+        coverage_gls=tuple(h / count for h in hit_gls),
+        coverage_mcse=math.sqrt(lev * (1.0 - lev) / count),
     )

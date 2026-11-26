@@ -6540,6 +6540,16 @@ randomized range finder with oversampling and power iterations and the
 resulting truncated SVD. Metadata checked against Crossref (2026-11-26).
 DOI: [10.1137/090771806](https://doi.org/10.1137/090771806).
 
+## REF-CHUNG-NAGY-OLEARY-2008
+
+Julianne Chung, James G. Nagy, and Dianne P. O'Leary. "A Weighted-GCV Method for
+Lanczos-Hybrid Regularization." *Electronic Transactions on Numerical
+Analysis* 28, 149-167, 2007-2008. ISSN 1068-9613. Cited for the weighted GCV
+function of the projected Tikhonov problem and the adaptive choice of the
+weight (Sections 5.1-5.4). The journal assigns no DOI; metadata read from the
+journal's article page and PDF on 2026-11-26:
+<https://etna.ricam.oeaw.ac.at/volumes/2001-2010/vol28/abstract.php?vol=28&pages=149-167>.
+
 ## REF-GAZZOLA-HANSEN-NAGY-2019
 
 Silvia Gazzola, Per Christian Hansen, and James G. Nagy. "IR Tools: A MATLAB
@@ -6778,3 +6788,239 @@ least-squares orbit determination, the state transition matrix
 Crossref (2026-11-26; chapter "Fundamentals of Orbit Determination").
 DOI: [10.1016/B978-012683630-1/50023-0](https://doi.org/10.1016/B978-012683630-1/50023-0).
 
+## REF-EISENSTEIN-2005
+
+Daniel J. Eisenstein et al. "Detection of the Baryon Acoustic Peak in the
+Large-Scale Correlation Function of SDSS Luminous Red Galaxies."
+*The Astrophysical Journal* 633(2), 560-574, 2005. Cited for the baryon
+acoustic oscillation feature as a standard ruler and for the volume-averaged
+distance `D_V(z) = [D_M^2 c z / H]^(1/3)`. Metadata checked against
+Crossref (2026-11-26).
+DOI: [10.1086/466512](https://doi.org/10.1086/466512).
+
+## REF-BLAKELY-1995
+
+Richard J. Blakely. *Potential Theory in Gravity and Magnetic Applications*.
+Cambridge University Press, Cambridge, 1995. Cited for the vertical attraction
+of buried sources, the line-mass kernel and the non-uniqueness of potential
+fields (equivalent sources at different depths). Metadata checked against Crossref
+(2026-11-26).
+DOI: [10.1017/CBO9780511549816](https://doi.org/10.1017/CBO9780511549816).
+
+## REF-LI-OLDENBURG-1998
+
+Yaoguo Li and Douglas W. Oldenburg. "3-D Inversion of Gravity Data."
+*Geophysics* 63(1), 109-119, 1998. Cited for depth weighting of the model
+penalty in gravity inversion (the weights here are a heuristic in that style,
+with the tuning choices stated in the code). Metadata checked against
+Crossref (2026-11-26).
+DOI: [10.1190/1.1444302](https://doi.org/10.1190/1.1444302).
+
+## REF-SHEPP-VARDI-1982
+
+L. A. Shepp and Y. Vardi. "Maximum Likelihood Reconstruction for Emission
+Tomography." *IEEE Transactions on Medical Imaging* 1(2), 113-122, 1982.
+Cited for the expectation-maximization (multiplicative) iteration for the
+Poisson likelihood with non-negativity. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1109/TMI.1982.4307558](https://doi.org/10.1109/TMI.1982.4307558).
+
+## REF-LUCY-1974
+
+L. B. Lucy. "An Iterative Technique for the Rectification of Observed
+Distributions." *The Astronomical Journal* 79(6), 745-754, 1974.
+Cited for the Richardson-Lucy deconvolution iteration. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1086/111605](https://doi.org/10.1086/111605).
+
+## REF-RICHARDSON-1972
+
+W. H. Richardson. "Bayesian-Based Iterative Method of Image Restoration."
+*Journal of the Optical Society of America* 62(1), 55-59, 1972.
+Cited for the Richardson-Lucy deconvolution iteration. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1364/JOSA.62.000055](https://doi.org/10.1364/JOSA.62.000055).
+
+## REF-BACKUS-GILBERT-1968
+
+G. Backus and F. Gilbert. "The Resolving Power of Gross Earth Data."
+*Geophysical Journal of the Royal Astronomical Society* 16(2), 169-205, 1968.
+Cited for averaging kernels and the resolution versus noise trade-off of linear
+functionals of an inverse problem. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1111/j.1365-246X.1968.tb00216.x](https://doi.org/10.1111/j.1365-246X.1968.tb00216.x).
+
+## REF-REICH-2013
+
+Sebastian Reich. "A Nonparametric Ensemble Transform Method for Bayesian
+Inference." *SIAM Journal on Scientific Computing* 35(4), A2013-A2024, 2013.
+Cited for the ensemble transform particle filter: likelihood weights, optimal
+coupling to the uniform ensemble and the deterministic transform. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1137/130907367](https://doi.org/10.1137/130907367).
+
+## REF-ANDERSON-2007
+
+Jeffrey L. Anderson. "An Adaptive Covariance Inflation Error Correction
+Algorithm for Ensemble Filters." *Tellus A* 59(2), 210-224, 2007. Cited for
+estimating a multiplicative covariance inflation from the observation-space
+innovation statistics. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1111/j.1600-0870.2006.00216.x](https://doi.org/10.1111/j.1600-0870.2006.00216.x).
+
+## REF-WANG-BISHOP-2003
+
+Xuguang Wang and Craig H. Bishop. "A Comparison of Breeding and Ensemble
+Transform Kalman Filter Ensemble Forecast Schemes." *Journal of the
+Atmospheric Sciences* 60(9), 1140-1158, 2003. Cited for the innovation-based
+moment estimate of the ensemble variance inflation factor. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1175/1520-0469(2003)060<1140:ACOBAE>2.0.CO;2](https://doi.org/10.1175/1520-0469(2003)060%3C1140:ACOBAE%3E2.0.CO;2).
+
+## REF-CUI-MARTIN-MARZOUK-SOLONEN-SPANTINI-2014
+
+Tiangang Cui, James Martin, Youssef M. Marzouk, Antti Solonen and Alessio
+Spantini. Likelihood-informed dimension reduction for nonlinear inverse
+problems. *Inverse Problems*, 30(11):114015, 2014.
+Cited for the likelihood-informed subspace defined by the averaged
+Gauss-Newton Hessian against the prior and for the projected-likelihood
+posterior approximation. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1088/0266-5611/30/11/114015](https://doi.org/10.1088/0266-5611/30/11/114015).
+
+## REF-LINDGREN-RUE-LINDSTROM-2011
+
+Finn Lindgren, Havard Rue and Johan Lindstrom. An explicit link between
+Gaussian fields and Gaussian Markov random fields: the stochastic partial
+differential equation approach. *Journal of the Royal Statistical Society:
+Series B*, 73(4):423-498, 2011.
+Cited for the Whittle-Matern field as the solution of a fractional SPDE
+`(kappa^2 - Laplacian)^(alpha/2) u = white noise` and its sparse precision
+discretization. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1111/j.1467-9868.2011.00777.x](https://doi.org/10.1111/j.1467-9868.2011.00777.x).
+
+## REF-DODWELL-ETAL-2015
+
+T. J. Dodwell, C. Ketelsen, R. Scheichl and A. L. Teckentrup. "A Hierarchical
+Multilevel Markov Chain Monte Carlo Algorithm with Applications to Uncertainty
+Quantification in Subsurface Flow." *SIAM/ASA Journal on Uncertainty
+Quantification* 3(1), 1075-1108, 2015. Cited for the multilevel MCMC telescoping
+estimator with coarse-chain proposals and the coupled acceptance probability. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1137/130915005](https://doi.org/10.1137/130915005).
+
+## REF-LI-MARZOUK-2014
+
+Jinglai Li and Youssef M. Marzouk. "Adaptive Construction of Surrogates for the
+Bayesian Solution of Inverse Problems." *SIAM Journal on Scientific Computing*
+36(3), A1163-A1186, 2014. Cited for refining a surrogate of the forward map or
+log-posterior where the posterior mass is, rather than uniformly over the prior. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1137/130938189](https://doi.org/10.1137/130938189).
+
+## REF-BERTSEKAS-1982
+
+Dimitri P. Bertsekas. "Projected Newton Methods for Optimization Problems with Simple Constraints." *SIAM Journal on Control and Optimization* 20(2), 221-246, 1982. Cited for the epsilon-active set and the projected-arc Armijo rule of the bound-constrained Gauss-Newton solver. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1137/0320018](https://doi.org/10.1137/0320018).
+
+## REF-KAUFMAN-1975
+
+Linda Kaufman. "A Variable Projection Method for Solving Separable Nonlinear Least Squares Problems." *BIT Numerical Mathematics* 15(1), 49-57, 1975. Cited for the approximate reduced Jacobian that drops the second term of the Golub-Pereyra derivative. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1007/BF01932995](https://doi.org/10.1007/BF01932995).
+
+## REF-OLEARY-RUST-2013
+
+Dianne P. O'Leary and Bert W. Rust. "Variable Projection for Nonlinear Least Squares Problems." *Computational Optimization and Applications* 54(3), 579-593, 2013. Cited for the comparison of full and Kaufman variable projection with joint Gauss-Newton on separable problems. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1007/s10589-012-9492-9](https://doi.org/10.1007/s10589-012-9492-9).
+
+## REF-WOOD-2010
+
+Simon N. Wood. "Statistical inference for noisy nonlinear ecological dynamic
+systems." *Nature* 466, 1102-1104, 2010. Cited for the Gaussian synthetic
+likelihood built from the mean and covariance of simulated summaries. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1038/nature09319](https://doi.org/10.1038/nature09319).
+
+## REF-VENKATAKRISHNAN-BOUMAN-WOHLBERG-2013
+
+Singanallur V. Venkatakrishnan, Charles A. Bouman, and Brendt Wohlberg.
+"Plug-and-Play Priors for Model Based Reconstruction." In *IEEE Global
+Conference on Signal and Information Processing (GlobalSIP)*, 945-948, 2013.
+Cited for replacing the proximal step of ADMM-type splitting by an arbitrary
+denoiser. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1109/GlobalSIP.2013.6737048](https://doi.org/10.1109/GlobalSIP.2013.6737048).
+
+## REF-RODRIGUEZ-WOHLBERG-2009
+
+Paul Rodriguez and Brendt Wohlberg. "Efficient Minimization Method for a
+Generalized Total Variation Functional." *IEEE Transactions on Image
+Processing* 18(2), 322-332, 2009. Cited for the iteratively reweighted norm
+method with a smoothed absolute value for L1 and total-variation penalties. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1109/TIP.2008.2008420](https://doi.org/10.1109/TIP.2008.2008420).
+
+## REF-DAUBECHIES-DEVORE-FORNASIER-GUNTURK-2010
+
+Ingrid Daubechies, Ronald DeVore, Massimo Fornasier and C. Sinan Gunturk.
+"Iteratively Reweighted Least Squares Minimization for Sparse Recovery."
+*Communications on Pure and Applied Mathematics* 63(1), 1-38, 2010. Cited
+for the reweighted least-squares scheme with an explicit smoothing parameter
+and its majorisation argument. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1002/cpa.20303](https://doi.org/10.1002/cpa.20303).
+
+## REF-BREDIES-KUNISCH-POCK-2010
+
+Kristian Bredies, Karl Kunisch and Thomas Pock. "Total Generalized
+Variation." *SIAM Journal on Imaging Sciences* 3(3), 492-526, 2010. Cited for
+the second-order total generalized variation functional and its avoidance of
+staircasing. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1137/090769521](https://doi.org/10.1137/090769521).
+
+## REF-ZHANG-2010
+
+Cun-Hui Zhang. "Nearly Unbiased Variable Selection under Minimax Concave
+Penalty." *The Annals of Statistics* 38(2), 894-942, 2010. Cited for the
+minimax concave penalty. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1214/09-AOS729](https://doi.org/10.1214/09-AOS729).
+
+## REF-FAN-LI-2001
+
+Jianqing Fan and Runze Li. "Variable Selection via Nonconcave Penalized
+Likelihood and its Oracle Properties." *Journal of the American Statistical
+Association* 96(456), 1348-1360, 2001. Cited for the SCAD penalty. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1198/016214501753382273](https://doi.org/10.1198/016214501753382273).
+
+## REF-KAULA-1966
+
+William M. Kaula. *Theory of Satellite Geodesy: Applications of Satellites to
+Geodesy*. Blaisdell, 1966. Cited for the power-law decay of the
+spherical-harmonic coefficients with degree (the Kaula rule of thumb) used as a
+degree-variance prior and for the exterior-potential series in satellite
+geodesy. The book has no DOI; its title and author were confirmed through a
+1967 review indexed by Crossref (DOI 10.1063/1.3033941) on 2026-11-26; the
+publisher was not checked independently.
+
+## REF-HEISKANEN-MORITZ-1967
+
+Weikko A. Heiskanen and Helmut Moritz. *Physical Geodesy*. W. H. Freeman and
+Company, San Francisco, 1967. Cited for the spherical-harmonic expansion of the
+exterior gravitational potential and the fully normalized surface harmonics.
+The book has no DOI; its title, authors and year were confirmed through the
+Crossref record 10.1007/bf02525647 on 2026-11-26; the publisher was not checked
+independently.
+
+## REF-HOLMES-FEATHERSTONE-2002
+
+Simon A. Holmes and Will E. Featherstone. "A unified approach to the Clenshaw
+summation and the recursive computation of very high degree and order
+normalised associated Legendre functions." *Journal of Geodesy* 76(5), 279-299,
+2002. Cited for the stable recursive computation of fully normalized associated
+Legendre functions and the scaling needed at very high degree. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1007/s00190-002-0216-2](https://doi.org/10.1007/s00190-002-0216-2).
+
+## REF-CHUNG-GAZZOLA-2019
+
+Julianne Chung and Silvia Gazzola. "Flexible Krylov Methods for lp
+Regularization." *SIAM Journal on Scientific Computing* 41(5), S149-S171, 2019.
+Cited for the flexible Golub-Kahan process with an iteration-dependent
+preconditioner built from IRLS weights and the projected Tikhonov problem
+with a QR-reduced penalty. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1137/18M1194456](https://doi.org/10.1137/18M1194456).
+
+## REF-CHUNG-ETAL-2023
+
+Hyungjin Chung, Jeongsol Kim, Michael T. McCann, Marc L. Klasky, and Jong Chul
+Ye. "Diffusion Posterior Sampling for General Noisy Inverse Problems."
+arXiv:2209.14687, 2022. Cited for the diffusion-posterior-sampling
+approximation that evaluates the likelihood gradient at the Tweedie posterior
+mean of the clean state; no equation or section number is cited. Metadata
+checked against DataCite (2026-11-26).
+DOI: [10.48550/arXiv.2209.14687](https://doi.org/10.48550/arXiv.2209.14687).

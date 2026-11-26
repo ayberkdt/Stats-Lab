@@ -11,11 +11,18 @@ evidence. Synthetic truths only enter error histories, never the rules.
 from __future__ import annotations
 
 import math
+import os
 import random
 import unittest
 
 from probstat.inverse import backward_heat_problem, second_derivative_problem, tikhonov
+from probstat.inverse.benchmark_problems import (
+    deconvolution_benchmark,
+    diagonal_spectrum_benchmark,
+)
 from probstat.inverse.iterative import (
+    _adaptive_gcv_weight,
+    _projected_tikhonov,
     expected_noise_norm,
     hybrid_lsqr,
     krylov_regularization,
@@ -27,6 +34,7 @@ from probstat.inverse.parameter_selection import (
     logarithmic_grid,
     regularization_path,
     select_regularization,
+    selection_rule_study,
 )
 from probstat.inverse.spectral import (
     generalized_svd,
@@ -172,11 +180,75 @@ class GeneralizedSVDTests(unittest.TestCase):
             )
 
     def test_common_nullspace_raises(self) -> None:
-        """A shared null direction of ``A`` and ``L`` is refused."""
+        """A shared null direction of ``A`` and ``L`` is refused by default."""
         with self.assertRaises(ValueError):
             generalized_svd([[1.0, 1.0], [2.0, 2.0], [0.0, 0.0]], [[1.0, 1.0]])
         with self.assertRaises(ValueError):
             generalized_svd([[1.0, 0.0, 0.0]], [[1.0, 0.0, 0.0]])
+        with self.assertRaises(ValueError):
+            generalized_svd([[1.0]], [[1.0]], rank_tolerance=0.0)
+        with self.assertRaises(ValueError):
+            generalized_svd([[0.0, 0.0]], [[0.0, 0.0]], allow_common_nullspace=True)
+
+    def test_wide_operator_gsvd_matches_stacked_tikhonov(self) -> None:
+        """``m < n`` with a full-rank stack: identities and stacked-QR agreement."""
+        generator = random.Random(SEED + 2)
+        a = [[generator.gauss(0.0, 1.0) for _ in range(6)] for _ in range(3)]
+        penalty = [
+            [(-1.0 if j == i else 1.0 if j == i + 1 else 0.0) for j in range(6)]
+            for i in range(5)
+        ]
+        decomposition = generalized_svd(a, penalty)
+        self.assertEqual(len(decomposition.c), 6)
+        self.assertGreaterEqual(sum(1 for c in decomposition.c if c < 1e-12), 3)
+        for c, s in zip(decomposition.c, decomposition.s, strict=True):
+            self.assertAlmostEqual(c * c + s * s, 1.0, places=12)
+        for i in range(3):
+            for j in range(6):
+                ax = math.fsum(a[i][k] * decomposition.x[k][j] for k in range(6))
+                self.assertAlmostEqual(
+                    ax, decomposition.u[i][j] * decomposition.c[j], places=12
+                )
+        b = [generator.gauss(0.0, 1.0) for _ in range(3)]
+        for lam in (1e-3, 1e-1, 1.0, 10.0):
+            expected = tikhonov(a, b, lam, penalty=penalty).solution
+            self.assertLess(
+                max_diff(gsvd_tikhonov(decomposition, b, lam), expected), 1e-9
+            )
+
+    def test_common_nullspace_minimum_norm_solution(self) -> None:
+        """Rank-deficient stack: minimum-norm Tikhonov minimiser and its nullspace.
+
+        ``A`` and ``L`` both ignore ``e_1 - e_2``. The minimum-norm minimiser
+        of ``||A x - b||^2 + lambda^2 ||L x||^2`` is checked against the
+        explicit pseudo-inverse solution of the normal equations computed in
+        the coordinates ``x = P t`` with the known complement basis ``P``.
+        """
+        a = [[1.0, 1.0, 0.0], [0.0, 0.0, 2.0], [1.0, 1.0, 1.0]]
+        penalty = [[1.0, 1.0, -1.0]]
+        decomposition = generalized_svd(a, penalty, allow_common_nullspace=True)
+        self.assertEqual(len(decomposition.common_nullspace), 1)
+        null = decomposition.common_nullspace[0]
+        self.assertAlmostEqual(abs(null[0]), math.sqrt(0.5), places=12)
+        self.assertAlmostEqual(null[0], -null[1], places=12)
+        self.assertAlmostEqual(null[2], 0.0, places=12)
+        b = [1.0, -2.0, 0.5]
+        root = math.sqrt(0.5)
+        basis = [[root, root, 0.0], [0.0, 0.0, 1.0]]  # complement of null
+        a_p = [[math.fsum(r[k] * q[k] for k in range(3)) for q in basis] for r in a]
+        l_p = [
+            [math.fsum(r[k] * q[k] for k in range(3)) for q in basis] for r in penalty
+        ]
+        for lam in (0.1, 1.0, 3.0):
+            reduced = tikhonov(a_p, b, lam, penalty=l_p).solution
+            expected = [
+                math.fsum(basis[j][i] * reduced[j] for j in range(2)) for i in range(3)
+            ]
+            got = gsvd_tikhonov(decomposition, b, lam)
+            self.assertLess(max_diff(got, expected), 1e-12)
+            self.assertLess(
+                abs(math.fsum(g * v for g, v in zip(got, null, strict=True))), 1e-12
+            )
 
 
 class IterativeRegularizationTests(unittest.TestCase):
@@ -325,6 +397,93 @@ class IterativeRegularizationTests(unittest.TestCase):
         self.assertGreater(result.regularization_history[-1], 0.0)
         with self.assertRaises(ValueError):
             hybrid_lsqr(problem, rule="discrepancy")
+
+
+class WeightedGCVTests(unittest.TestCase):
+    """Weighted projected GCV of Chung, Nagy and O'Leary [EQ-INV-ITER-004]."""
+
+    @staticmethod
+    def _bidiagonal(k: int) -> list[list[float]]:
+        """Return a graded ``(k + 1) x k`` lower bidiagonal matrix.
+
+        References:
+            [EQ-INV-ITER-003].
+
+        """
+        rows = [[0.0] * k for _ in range(k + 1)]
+        for j in range(k):
+            rows[j][j] = 1.0 / (j + 1) ** 2
+            rows[j + 1][j] = 0.5 / (j + 1) ** 2
+        return rows
+
+    def test_adaptive_weight_makes_delta_min_stationary(self) -> None:
+        """``dG/dlambda (omega_hat, delta_min) = 0``; other weights do not."""
+        bidiagonal = self._bidiagonal(5)
+        beta = 2.3
+        omega_hat = _adaptive_gcv_weight(bidiagonal, beta)
+        assert omega_hat is not None
+        from probstat.linalg import singular_value_decomposition
+
+        svd = singular_value_decomposition(tuple(tuple(r) for r in bidiagonal))
+        cache = (
+            svd.singular_values,
+            [list(r) for r in svd.u],
+            [list(r) for r in svd.v],
+        )
+        lam = min(svd.singular_values)
+        step = lam * 1e-5
+
+        def slope(omega: float) -> float:
+            """Return the relative central difference of ``G`` in ``lambda``.
+
+            References:
+                [EQ-INV-ITER-004].
+
+            """
+            up = _projected_tikhonov(bidiagonal, beta, lam + step, cache, omega)[2]
+            down = _projected_tikhonov(bidiagonal, beta, lam - step, cache, omega)[2]
+            mid = _projected_tikhonov(bidiagonal, beta, lam, cache, omega)[2]
+            return (up - down) / (2.0 * step) * lam / mid
+
+        self.assertLess(abs(slope(omega_hat)), 1e-6)
+        self.assertGreater(abs(slope(0.5 * omega_hat)), 0.1)
+
+    def test_unit_weight_is_standard_gcv_and_history(self) -> None:
+        """``omega = 1`` reproduces ``rule="gcv"``; adaptive weights are recorded."""
+        problem_data = backward_heat_problem(24)
+        noisy_data, sigma = noisy(problem_data.exact_data, 0.01, SEED + 21)
+        problem = LinearInverseProblem.create(
+            problem_data.operator,
+            noisy_data,
+            noise=ScaledIdentityCovariance(24, sigma * sigma),
+        )
+        gcv = hybrid_lsqr(problem, rule="gcv", max_iterations=12)
+        unit = hybrid_lsqr(problem, rule="wgcv", gcv_weight=1.0, max_iterations=12)
+        self.assertEqual(gcv.regularization_history, unit.regularization_history)
+        self.assertEqual(gcv.estimate, unit.estimate)
+        self.assertIsNone(gcv.gcv_weight_history)
+        adaptive = hybrid_lsqr(problem, rule="wgcv", max_iterations=12)
+        assert adaptive.gcv_weight_history is not None
+        self.assertEqual(len(adaptive.gcv_weight_history), adaptive.iterations)
+        self.assertTrue(all(w > 0.0 for w in adaptive.gcv_weight_history))
+
+    def test_weight_validation(self) -> None:
+        """Weights outside ``(0, 1]`` and adaptive weights with general ``L`` raise."""
+        problem = LinearInverseProblem.create(
+            diagonal_matrix([1.0, 0.5, 0.1]), [1.0, 1.0, 1.0]
+        )
+        for bad in (0.0, 1.5, math.nan, "auto", True):
+            with self.assertRaises(ValueError):
+                hybrid_lsqr(problem, rule="wgcv", gcv_weight=bad)  # type: ignore[arg-type]
+        general = LinearInverseProblem.create(
+            diagonal_matrix([1.0, 0.5, 0.1]),
+            [1.0, 1.0, 1.0],
+            penalty=[[1.0, -1.0, 0.0], [0.0, 1.0, -1.0]],
+        )
+        with self.assertRaises(ValueError):
+            hybrid_lsqr(general, rule="wgcv")
+        fixed = hybrid_lsqr(general, rule="wgcv", gcv_weight=0.5, max_iterations=3)
+        self.assertEqual(fixed.gcv_weight_history, (0.5,) * fixed.iterations)
 
 
 class ParameterSelectionTests(unittest.TestCase):
@@ -511,6 +670,77 @@ class ParameterSelectionTests(unittest.TestCase):
             regularization_path(self.problem, (0.0, 1.0, 2.0))
         with self.assertRaises(ValueError):
             logarithmic_grid(1.0, 0.5)
+
+
+STUDY_FAMILIES = {
+    "L01 polynomial": lambda s: diagonal_spectrum_benchmark(
+        32, decay="polynomial", rate=1.0, seed=s
+    ),
+    "L01 exponential": lambda s: diagonal_spectrum_benchmark(
+        32, decay="exponential", rate=0.5, seed=s
+    ),
+    "L04 refined": lambda s: deconvolution_benchmark(
+        32, refinement=2, truth="smooth", seed=s
+    ),
+}
+"""Three predeclared families of the parameter-choice study [EQ-INV-SEL-004]."""
+
+
+class SelectionRuleStudyTests(unittest.TestCase):
+    """Predeclared comparison of parameter-choice rules [EQ-INV-SEL-004]."""
+
+    def test_structure_and_oracle_bound(self) -> None:
+        """Every efficiency is at least 1 and matches a direct selection."""
+        grid = logarithmic_grid(1e-5, 1e1, 9)
+        study = selection_rule_study(STUDY_FAMILIES, [0], grid)
+        self.assertEqual(len(study.rows), 3 * 5)
+        self.assertEqual(len(study.summaries), 3 * 5)
+        for row in study.rows:
+            self.assertGreaterEqual(row.efficiency, 1.0 - 1e-12, row)
+        case = STUDY_FAMILIES["L01 polynomial"](0)
+        problem = LinearInverseProblem.create(
+            case.operator, case.data, noise=case.noise
+        )
+        path = regularization_path(problem, grid, truth=case.truth)
+        direct = select_regularization(path, "upre")
+        row = next(
+            r for r in study.rows if r.family == "L01 polynomial" and r.rule == "upre"
+        )
+        self.assertEqual(row.regularization, direct.regularization)
+
+    def test_invalid_study_arguments(self) -> None:
+        """Empty inputs, unknown rules and ``tau < 1`` raise."""
+        grid = logarithmic_grid(1e-3, 1.0, 5)
+        with self.assertRaises(ValueError):
+            selection_rule_study({}, [0], grid)
+        with self.assertRaises(ValueError):
+            selection_rule_study(STUDY_FAMILIES, [], grid)
+        with self.assertRaises(ValueError):
+            selection_rule_study(STUDY_FAMILIES, [0], grid, rules=("aic",))
+        with self.assertRaises(ValueError):
+            selection_rule_study(STUDY_FAMILIES, [0], grid, tau=0.5)
+
+    @unittest.skipUnless(os.environ.get("PROBSTAT_SLOW") == "1", "slow tier")
+    def test_three_families_ten_seeds(self) -> None:
+        """3 families x 10 seeds, 33-point grid (about 100 s; measured table).
+
+        Deterministic regression of the measured medians: with the expected
+        whitened noise norm the discrepancy rule stays within 1.41 of the
+        oracle on all three families, GCV has a failure of efficiency
+        about 1e4 on the severely ill-posed family, and on the refined
+        deblurring family (no inverse crime) GCV, the L-curve and the
+        evidence are 3 to 4 times worse than the oracle in median.
+        """
+        study = selection_rule_study(
+            STUDY_FAMILIES, list(range(10)), logarithmic_grid(1e-6, 1e2, 33)
+        )
+        summary = {(s.family, s.rule): s for s in study.summaries}
+        for family in STUDY_FAMILIES:
+            self.assertEqual(summary[(family, "gcv")].runs, 10)
+            self.assertLess(summary[(family, "discrepancy")].worst_efficiency, 1.41)
+        self.assertGreater(summary[("L01 exponential", "gcv")].worst_efficiency, 1e3)
+        self.assertGreater(summary[("L04 refined", "gcv")].median_efficiency, 3.0)
+        self.assertEqual(summary[("L01 polynomial", "l_curve")].boundary, 10)
 
 
 if __name__ == "__main__":
