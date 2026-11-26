@@ -82,10 +82,10 @@ one at the precision shown.
 
 | Check | Scale | Enforced by |
 |---|---|---|
-| Tests | 4,400+ test cases, run in CI on Python 3.11 to 3.13 with lint and strict type checks | [`tests/`](https://github.com/ayberkdt/Stats-Lab/tree/main/tests), [CI workflow](https://github.com/ayberkdt/Stats-Lab/blob/main/.github/workflows/ci.yml) |
+| Tests | 5,000+ test cases, run in CI on Python 3.11 to 3.13 with lint and strict type checks | [`tests/`](https://github.com/ayberkdt/Stats-Lab/tree/main/tests), [CI workflow](https://github.com/ayberkdt/Stats-Lab/blob/main/.github/workflows/ci.yml) |
 | Equations | 1,880 entries in the [equation registry](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/equation-registry.md), each with symbols, assumptions, and a code location | every docstring cites an `EQ-` or `REF-` key that must exist |
-| Sources | 800+ primary sources in the [bibliography](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/references.md), each cited at least once | no unused or unknown reference key |
-| Decisions | 120+ decision records in [`docs/adr/`](https://github.com/ayberkdt/Stats-Lab/tree/main/docs/adr), each with its verification evidence | [contribution contract](https://github.com/ayberkdt/Stats-Lab/blob/main/CONTRIBUTING.md) |
+| Sources | 950+ primary sources in the [bibliography](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/references.md), each cited at least once | no unused or unknown reference key |
+| Decisions | 140+ decision records in [`docs/adr/`](https://github.com/ayberkdt/Stats-Lab/tree/main/docs/adr), each with its verification evidence | [contribution contract](https://github.com/ayberkdt/Stats-Lab/blob/main/CONTRIBUTING.md) |
 | Documentation | 60+ Markdown files whose Python examples run, with quoted values compared | [`tests/test_documentation_examples.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/test_documentation_examples.py) |
 | Properties | 80+ property-based and metamorphic tests, drawing random valid parameters for every distribution family | [`tests/_properties.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/_properties.py) |
 | Figures | text of at least 9 pt inside the canvas; WCAG AA contrast of 4.5:1 for text and 3:1 for marks; 112 guide figures in two palettes, all passed through the datawiz audit, with captions that quote the numbers of the build | [canvas](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/test_figure_canvas.py), [contrast](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/test_visualization_accessibility.py), and [guide-figure](https://github.com/ayberkdt/Stats-Lab/blob/main/tests/test_guide_figures.py) tests |
@@ -272,7 +272,7 @@ table = compare_multifidelity_estimators(((1.0, 0.95), (0.95, 1.0)), (1.0, 0.05)
 | How small is this failure probability, or where is the optimum? | `reliability`: improved cross-entropy, sequential importance sampling, BUS; `surrogates` and `design`: co-kriging, stochastic kriging, Bayesian quadrature, Bayesian optimization; `sampling`: lattice rules and median quasi-Monte Carlo |
 | What should I do next, given logged decisions? | `risk`: LinUCB, linear Thompson sampling, off-policy evaluation, finite Markov decision processes |
 | What does the simulator say about its parameters? | `generative`: flow matching, flow-matching posterior estimation, neural ratio estimation; `inverse`: interacting Langevin sampler, unscented Kalman inversion, consensus-based sampling |
-| Can I invert a large or edge-preserving problem, and what did the data resolve? | `linalg`: matrix-free operators, CGLS, LSQR, LSMR, Lanczos, randomized SVD; `inverse` (experimental): weighted affine Tikhonov, early-stopped Krylov and hybrid LSQR, GCV/UPRE/discrepancy/L-curve/evidence on one path, `l1` and total variation, Gauss-Newton with adjoints, exact and low-rank Gaussian posteriors, profile likelihood; `design`: A-, D- and goal-oriented sensor selection |
+| Can I invert a large or edge-preserving problem, and what did the data resolve? | `linalg`: matrix-free operators, CGLS, LSQR, LSMR, Lanczos, randomized SVD; `inverse` and `design` (experimental): see [Inverse problems](https://github.com/ayberkdt/Stats-Lab/blob/main/README.md#inverse-problems-large-non-smooth-and-bayesian-experimental) below |
 | Is my new estimator unbiased, and better? | `methodlab`: combinators with a derivation lineage, certification checks with scoped verdicts, pre-specified simulation studies |
 
 The sources of these methods were confirmed by title and identifier but
@@ -302,6 +302,68 @@ confidence, a credibility statement.
 | Size a design under a probabilistic requirement | `reliability`: `solve_chance_constrained`, `scenario_sample_size`, `certify_design`, `rbdo_sora` |
 | When will it be finished, and at what cost? | `cost`: `critical_path`, `simulate_schedule`, `joint_cost_schedule_confidence`, `cost_schedule_frontier` |
 
+## Inverse problems: large, non-smooth, and Bayesian (experimental)
+
+The `inverse` package recovers parameters, fields, and sources from indirect,
+noisy data, from a deconvolution with a few dozen unknowns to matrix-free
+problems with thousands. Each method states the noise model, reports why it
+stopped, and keeps the regularization bias apart from the posterior
+uncertainty. The benchmark cases withhold the truth and flag data generated
+on the solver's own grid (the "inverse crime").
+
+```python
+import math
+
+from probstat.inverse import (
+    LinearInverseProblem, correlated_gaussian_benchmark, credible_bands,
+    deconvolution_benchmark, expected_noise_norm, krylov_regularization,
+    linear_gaussian_posterior,
+)
+
+case = deconvolution_benchmark(64, refinement=2, relative_noise=0.02)  # finer-grid data
+problem = LinearInverseProblem.create(case.operator, case.data, noise=case.noise)
+early = krylov_regularization(problem, noise_norm=expected_noise_norm(64))
+early.iterations, early.stop_reason      # (5, 'discrepancy')
+round(math.dist(early.estimate, case.truth) / math.hypot(*case.truth), 3)  # 0.137
+
+prior_case = correlated_gaussian_benchmark(
+    40, 12, length_scale=0.2, noise_level=0.05, seed=20261126
+)
+posterior = linear_gaussian_posterior(
+    prior_case.operator, prior_case.data, noise=prior_case.noise,
+    prior_covariance=prior_case.prior_covariance,
+)
+bands = credible_bands(posterior.sample(2000, seed=20261126), 0.9)
+round(bands.scaling_factor, 2)           # 2.97, simultaneous band in posterior sd
+```
+
+| Question | Tools (`probstat.inverse` unless noted) |
+|---|---|
+| How do I regularize, and where do I stop? | weighted affine Tikhonov by QR, SVD or Krylov with one factorization reused for many data vectors; Landweber, early-stopped CGLS/LSQR/LSMR, hybrid and flexible-hybrid LSQR; GCV, weighted GCV, UPRE, discrepancy, L-curve, evidence and grouped cross-validation on one path, with a predeclared study of the rules against the grid oracle |
+| What can the data resolve at all? | whitened singular spectra with complete nullspaces and Picard coefficients; the generalized SVD (including wide operators and common nullspaces); resolution operators and averaging kernels with mass matrices; likelihood-informed subspaces, dense or matrix-free |
+| The truth has edges or is sparse | `l1`, total variation, Huber-TV, total generalized variation (1D and 2D grids), MCP and SCAD by FISTA, PDHG, ADMM and iteratively reweighted least squares (`optimization` holds the proximal solvers) |
+| The model is nonlinear or a PDE | Gauss-Newton with inner LSQR, IRGNM, trust-region Newton-CG, bound-constrained and robust Gauss-Newton, variable projection; exact discrete adjoints for 1D and 2D elliptic models, heat equations and Runge-Kutta ODE models; a simulator adapter that records failures |
+| Counts, censoring, outliers, unknown noise | Poisson, binomial, negative binomial, censored and interval-censored Gaussian, Student-t and multivariate t, contaminated normal, Huber; covariances that depend on the prediction; a noise scale profiled or integrated out |
+| What is the posterior, and are the samples right? | exact and low-rank Gaussian posteriors, function-space priors (spectral, Whittle-Matern), pointwise and simultaneous bands; pCN, NUTS and tempered SMC adapters with the log evidence; quadrature references that expose missed modes; ensemble Kalman updates with localization and inflation, and the ensemble transform particle filter |
+| Is a parameter identified? | profile likelihood with honest open intervals, 2D profiles, bootstrap calibration of the threshold, ODE sensitivity rank |
+| Can a cheap model or a simulator stand in? | approximation-error models, delayed acceptance, active surrogates, multilevel MCMC, coarse-to-fine warm starts, sensitivity-error checks; ABC, synthetic likelihood, neural posterior and ratio estimation, flow matching and diffusion sampling compared on one simulator, each labelled approximate |
+| Where should the next sensor go? | `design`: A-, D-, E- and goal-oriented criteria (dense or by Hutchinson and Lanczos), greedy, exhaustive, sequential and robust selection |
+| Is it tested on something realistic? | a benchmark catalog (deblurring, tomography, decay, PDE, Poisson imaging, model discrepancy, functional inversion) and synthetic orbit-determination, expansion-history (with Bayes factors) and gravity-field cases; seven of them in the benchmark report |
+
+| | |
+|---|---|
+| <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/guides/large-scale-posterior-bands-dark.png"><img alt="A sampled true field with the exact posterior mean and its pointwise and simultaneous 90% credible bands from posterior draws" src="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/guides/large-scale-posterior-bands.png"></picture> | <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/guides/large-scale-design-gains-dark.png"><img alt="Trace of the posterior covariance against the number of sensors for the greedy A-optimal design, the exhaustive optimum and random designs" src="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/guides/large-scale-design-gains.png"></picture> |
+| **Posterior bands:** the 90% simultaneous band (c = 2.97 sd) keeps the truth inside everywhere; the pointwise band holds it at 36 of 40 points. | **Sensor design:** with a prior trace of 12, greedy A-optimal sensors reach the exhaustive optimum only at k = 1 and 3 (worst gap 0.40 at k = 2); with five sensors greedy gives 2.13, the optimum 1.92 and a random design 2.80 in median. |
+
+Read the
+[large-scale inverse problems guide](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/foundations/large-scale-inverse-problems.md),
+run
+[`examples/large_scale_inverse_lab.py`](https://github.com/ayberkdt/Stats-Lab/blob/main/examples/large_scale_inverse_lab.py),
+and see the
+[progress ledger](https://github.com/ayberkdt/Stats-Lab/blob/main/docs/research/inverse-expansion-progress.md)
+for the evidence and the limitations of each method. All of it is
+experimental: names may change before they are promoted.
+
 ## What's inside: 34 packages in 9 dependency layers
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/readme-package-layers-dark.png"><img alt="Package layer map: visualization on top; workflow, timeseries, and methodlab; risk, systems, cost, filtering, data_assimilation, conformal; design, reliability, sensitivity, validation, surrogates; propagation, inverse; monte_carlo, modeling, causal, generative; inference, multivariate, uq, processes, information; optimization, sampling, probability, statistics, distributions; foundations, numerics, linalg at the bottom." src="https://raw.githubusercontent.com/ayberkdt/Stats-Lab/main/docs/images/readme-package-layers.png"></picture>
@@ -319,10 +381,10 @@ is generated from that test's layer map by
 | Reliability and risk | `reliability`, `risk`, `systems` | FORM/SORM, multiple design points, importance, subset (modified Metropolis, aCS, and HMC kernels), line and directional sampling, moving particles, AK-MCS (U, EFF, H) and AK-SS, Wilks bounds and Monte Carlo certification; exact system reliability on BDDs with sifting, dynamic fault trees (PAND, SPARE, FDEP, SEQ), CCF with epistemic parameters, phased missions, Markov and semi-Markov availability; VaR/CVaR, fault and event trees, fragility, GEV/GPD return levels, risk registers, FMECA, value of information, Beta-Bernoulli and linear Thompson-sampling bandits |
 | Method development | `methodlab` | Estimator combinators with a derivation lineage (randomized truncation, thinning, extrapolation, best linear unbiased combination, control variates, bias corrections, influence functions), certification checks with scoped verdicts and method cards, pre-specified ADEMP simulation studies with a protocol fingerprint, efficiency ranking, sequential halving, anytime-valid comparison |
 | Cost | `cost` | Discounting, life-cycle cost models, cost-risk S-curves and JCL, learning curves, maintenance optimisation, spares, cost of unreliability |
-| Backward and validation | `inverse`, `inference`, `validation` | Nonlinear calibration, model discrepancy, adaptive Metropolis, HMC/NUTS, ADVI, a probabilistic-programming interface with reverse-mode gradients, structured (simplex, correlation, covariance) latent sites, marginalized discrete sites, Markov-chain elimination, and dynamic structure, amortized posteriors; stacking and pseudo-BMA model weights; area metric, ASME V&V 20, CRPS and proper scores, PIT, distribution-shift tests |
+| Backward and validation | `inverse`, `inference`, `validation` | Matrix-free inverse problems (Tikhonov, Krylov and hybrid regularization, TV and TGV, Gauss-Newton with adjoints, function-space, ensemble and SMC posteriors); nonlinear calibration, model discrepancy, adaptive Metropolis, HMC/NUTS, ADVI, a probabilistic-programming interface with reverse-mode gradients, structured (simplex, correlation, covariance) latent sites, marginalized discrete sites, Markov-chain elimination, and dynamic structure, amortized posteriors; stacking and pseudo-BMA model weights; area metric, ASME V&V 20, CRPS and proper scores, PIT, distribution-shift tests |
 | Statistical modelling | `inference`, `timeseries`, `conformal` | Regression and GLMs, regularization, hierarchical models, EM and mixtures, missing data and multiple imputation, ARIMA, survival, conformal prediction (split and adaptive under shift) |
 | Generative models | `generative` | Planar, radial, and affine-coupling normalizing flows; energy-based models by score matching; Langevin (ULA, MALA) sampling; normalizing-constant and KL diagnostics |
-| Decisions | `causal`, `design` | Back-door and front-door identification, IPW/AIPW, E-values; D-optimal and Bayesian experimental design |
+| Decisions | `causal`, `design` | Back-door and front-door identification, IPW/AIPW, E-values; D-optimal and Bayesian experimental design; linear A-, D- and goal-oriented sensor selection, sequential and robust |
 | Probability and statistics | `probability`, `distributions`, `statistics`, `multivariate`, `processes`, `information` | 29 distribution families plus affine, truncated, mixture, and empirical wrappers and maximum-entropy laws built from moment constraints; Dirichlet, multinomial, Dirichlet-multinomial, multivariate Student-t, Wishart, and inverse-Wishart laws with conjugate updates; LKJ correlation laws; finite measure spaces, Radon-Nikodym derivatives, conditional expectation, and completeness checks; calibrated goodness of fit and count models with five historical real-data case studies; tests and bootstrap, kernel density, streaming summaries, limit theorems, contingency tables, stochastic and semi-Markov processes, score-based diffusion and neural SDEs, entropy, optimal transport |
 | Foundations and dynamics | `foundations`, `linalg`, `optimization`, `numerics`, `filtering`, `data_assimilation`, `uq`, `workflow`, `visualization` | Dense linear algebra, optimizers with bounds and multi-start, forward- and reverse-mode automatic differentiation, adaptive quadrature; an optional NumPy dense backend; a multiple-precision reference backend and performance profiles; Kalman, particle, and ensemble filters; the `UQStudy` workflow and the accessible themed figure library; a batch evaluation contract (`EvaluationRequest`, `run_procedure`, `AskTellSession`) that lets an adaptive algorithm request whole batches of points from a simulator it does not own |
 
