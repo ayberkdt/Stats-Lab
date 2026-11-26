@@ -231,7 +231,7 @@
    "body": [],
    "bullets": [],
    "labels": [],
-   "notes": "The benchmark suite has 18 problems with exact or quadrature reference answers and records 204 method results, each with its error, cost, and interval coverage. This row is the cleanest: the same 256 runs, four designs. Plain Monte Carlo misses the Ishigami mean by 7.8%; scrambled Sobol' points by 0.12%. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover.",
+   "notes": "The benchmark suite has 23 problems with exact or quadrature reference answers and records 212 method results, each with its error, cost, and interval coverage. This row is the cleanest: the same 256 runs, four designs. Plain Monte Carlo misses the Ishigami mean by 7.8%; scrambled Sobol' points by 0.12%. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover.",
    "font_px": {
     "headline": 60,
     "body": 34,

@@ -235,15 +235,15 @@
     "adimlar": [
      {
       "ad": "Atıf",
-      "cumle": "900+ kaynak; her işlevin belge dizesi kaynak anahtarını adlandırıyor."
+      "cumle": "950+ kaynak; her işlevin belge dizesi kaynak anahtarını adlandırıyor."
      },
      {
       "ad": "Kayıt",
-      "cumle": "1.700+ denklem; her birinin simgeleri, kaynağı ve kod konumu kayıtlı."
+      "cumle": "1.850+ denklem; her birinin simgeleri, kaynağı ve kod konumu kayıtlı."
      },
      {
       "ad": "Sınama",
-      "cumle": "4.500+ sınama: kapalı biçimler, sayım ve Monte Carlo hata sınırları."
+      "cumle": "5.100+ sınama: kapalı biçimler, sayım ve Monte Carlo hata sınırları."
      },
      {
       "ad": "Figür denetimi",
@@ -274,7 +274,7 @@
     "gorsel": "Yatay çubuklar: aynı koşu sayısında Monte Carlo, Latin hiperküp, Halton ve Sobol' tasarımlarıyla Ishigami ortalamasının göreli hatası; Sobol' çubuğu vurgulu ve en kısa."
    },
    "bullets": [],
-   "notes": "Kıyaslama takımında kesin ya da karelemeyle bulunmuş başvuru yanıtı olan 18 problem var ve 204 yöntem sonucu kayıtlı; her birinin hatası, maliyeti ve aralık kapsaması yazılı. En temiz satır bu: aynı 256 koşu, dört tasarım. Düz Monte Carlo Ishigami ortalamasını %7,8 ıskalıyor, karıştırılmış Sobol' noktaları %0,12. Hızlı başlangıç çalışmasının yayılımı Sobol' tasarımıyla yapması bu yüzden. Köprü: kanıtın kapsamadığı şeyler."
+   "notes": "Kıyaslama takımında kesin ya da karelemeyle bulunmuş başvuru yanıtı olan 23 problem var ve 212 yöntem sonucu kayıtlı; her birinin hatası, maliyeti ve aralık kapsaması yazılı. En temiz satır bu: aynı 256 koşu, dört tasarım. Düz Monte Carlo Ishigami ortalamasını %7,8 ıskalıyor, karıştırılmış Sobol' noktaları %0,12. Hızlı başlangıç çalışmasının yayılımı Sobol' tasarımıyla yapması bu yüzden. Köprü: kanıtın kapsamadığı şeyler."
   },
   {
    "id": "s15",

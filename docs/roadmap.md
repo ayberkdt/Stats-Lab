@@ -388,7 +388,21 @@ covariance has to pass.
   Gauss-Newton and IRGNM; exact and low-rank Gaussian posteriors; a 1D PDE
   adjoint prototype; profile likelihood; delayed-acceptance MCMC; linear
   optimal design; benchmark cases L01-L06 (ADR-0144).
-- [ ] Open items of the 2026-11-26 roadmap are listed with their status in
+- [x] Weighted GCV, factor reuse for many data vectors and a predeclared
+  comparison of parameter-choice rules; IRLS, Huber-TV, TGV and
+  non-convex penalties; bounded, robust and separable Gauss-Newton
+  (ADR-0144).
+- [x] Extended observation laws, 2D profiles and bootstrap calibration,
+  likelihood-informed subspaces, SPDE priors, tempered SMC, ensemble
+  localization and transport, exact ODE adjoints, multilevel MCMC and an
+  SBI comparison (ADR-0144).
+- [x] Operator-path, sequential and robust linear design; benchmark
+  cases N03, S01, M01, F01 and a gravity case; five inverse cases in
+  `benchmarks/run.py` (ADR-0144).
+- [x] Flexible hybrids, 2D TGV, matrix-free subspaces, a 2D elliptic
+  adjoint, warm starts, diffusion sampling with exact scores, Bayes
+  factors and a spherical-harmonic gravity case; every task of the
+  roadmap is verified, with its limitations recorded in
   [`research/inverse-expansion-progress.md`](research/inverse-expansion-progress.md).
 
 ## Beyond the current scope

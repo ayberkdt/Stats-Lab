@@ -28,7 +28,8 @@ the mathematics re-derived.
   by QR, SVD or Krylov; the legacy `tikhonov` is reproduced exactly),
   `linear_estimator_analysis`, equality-constrained, non-negative,
   box-constrained and total least squares, `spectral_diagnostics` with
-  complete nullspaces, a restricted `generalized_svd`, `landweber`,
+  complete nullspaces, `generalized_svd` (wide operators, and a common
+  nullspace on request with minimum-norm Tikhonov solutions), `landweber`,
   `krylov_regularization`, `hybrid_lsqr`, `regularization_path` with
   `select_regularization` (GCV, UPRE, discrepancy, L-curve, evidence) and
   `grouped_cross_validation`, `l1_regularized_least_squares` and
@@ -67,6 +68,50 @@ the mathematics re-derived.
   `gaussian-l06` in `benchmarks/run.py`; status of every
   roadmap task: `docs/research/inverse-expansion-progress.md`. No existing
   default or seeded result changes.
+- **Inverse-problem extensions** (experimental, ADR-0144), closing the
+  open items of the research roadmap. `regularized_factorization` (one QR
+  for many data vectors), `selection_rule_study` (predeclared comparison
+  of parameter-choice rules against the grid oracle), weighted projected
+  GCV in `hybrid_lsqr` (`rule="wgcv"`, fixed or adaptive weight after
+  Chung, Nagy and O'Leary). Sparse and edge-preserving: IRLS for `l1`
+  and TV, Huber-TV, second-order TGV in 1D, MCP and SCAD prox maps.
+  Nonlinear: bound-constrained and robust (Huber, Cauchy) Gauss-Newton,
+  variable projection, a discrepancy stop in
+  `newton_trust_region_inversion`. Likelihoods: negative binomial,
+  interval censoring, contaminated-normal outliers, a normalized Huber
+  density, multivariate t, prediction-dependent covariances and an
+  unknown noise scale (profiled or integrated out). Identifiability: 2D
+  profiles, bootstrap calibration of the likelihood-ratio threshold, ODE
+  sensitivity rank. Bayesian: likelihood-informed subspaces, resolution
+  operators and averaging kernels with mass matrices, a Whittle-Matern
+  SPDE prior, cosine and Legendre bases, a tempered-SMC adapter with the
+  log evidence, a pCN dimension study and quadrature references for 1D
+  and 2D posteriors. Ensembles: localization, adaptive inflation and the
+  ensemble transform particle filter. Time-dependent models: an RK4 ODE
+  model with exact discrete adjoint and checkpointing, a simulator
+  adapter with recorded failures, heat-equation coefficient inversion.
+  Multifidelity: fine-equivalent cost accounting, actively refined
+  surrogates, multilevel MCMC. A simulation-based-inference comparison
+  (ABC, synthetic likelihood, the library's NPE and NRE, an exact
+  reference, a plug-and-play iteration and a Gaussian score test). In
+  `probstat.design`: operator-path A and D criteria, stochastic greedy,
+  sequential and robust linear design. Benchmarks: N03 damped
+  oscillator, S01 Poisson imaging, M01 GP discrepancy with correlated
+  noise, F01 functional inversion, a 2D gravity case, correlated
+  calibration noise, a BAO observable and information gain in the
+  expansion-history case, station biases and correlated noise in the
+  orbit case; `benchmarks/run.py` cases `tomography-l07b`, `decay-n01`,
+  `squared-n02`, `elliptic-p01` and `heat-p02`. Two guide figures
+  (posterior bands, design gains). Further: flexible Golub-Kahan hybrid
+  regularization, TGV and isotropic IRLS on 2D grids with a noise
+  covariance in the sparse solvers, matrix-free likelihood-informed
+  subspaces and resolution probes, a 2D elliptic model with exact
+  adjoint and an explicit-Euler stability guard, coarse-to-fine warm
+  starts and sensitivity-error validation, diffusion posterior sampling
+  with exact scores and flow matching in the SBI comparison, Laplace,
+  pCN and SMC comparisons with Bayes factors for expansion histories, and
+  a spherical-harmonic gravity benchmark. `generalized_svd` now accepts
+  `m < n` instead of raising; every other default is unchanged.
 - **Batch evaluation contract** (`probstat.foundations`, ADR-0132): an
   algorithm written as a procedure yields an `EvaluationRequest` (many points
   and the label of the model that must evaluate them) and receives the

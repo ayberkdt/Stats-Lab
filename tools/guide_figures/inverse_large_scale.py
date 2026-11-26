@@ -19,11 +19,19 @@ import math
 import random
 from typing import Any
 
+from probstat.design import (
+    exhaustive_linear_design,
+    greedy_linear_design,
+    linear_design_criteria,
+)
 from probstat.inverse import (
     LinearInverseProblem,
+    correlated_gaussian_benchmark,
+    credible_bands,
     deconvolution_benchmark,
     expected_noise_norm,
     krylov_regularization,
+    linear_gaussian_posterior,
     second_derivative_problem,
     total_variation_regularized_least_squares,
 )
@@ -259,6 +267,255 @@ def _edges_figure() -> tuple[Any, dict[str, str]]:
     return axes.figure, facts
 
 
+@functools.cache
+def _bands() -> dict[str, Any]:
+    """Sample the exact L06 posterior and form pointwise and simultaneous bands.
+
+    References:
+        [EQ-INV-LG-001], [EQ-INV-FS-007], [EQ-INV-BENCH-001].
+
+    """
+    case = correlated_gaussian_benchmark(
+        40, 12, length_scale=0.2, noise_level=0.05, seed=SEED
+    )
+    posterior = linear_gaussian_posterior(
+        case.operator,
+        case.data,
+        noise=case.noise,
+        prior_covariance=case.prior_covariance,
+    )
+    draws = posterior.sample(2000, seed=SEED)
+    bands = credible_bands(draws, 0.9)
+    truth = list(case.truth)
+    inside_pointwise = sum(
+        1
+        for t, lo, hi in zip(truth, bands.lower, bands.upper, strict=True)
+        if lo <= t <= hi
+    )
+    inside_simultaneous = all(
+        lo <= t <= hi
+        for t, lo, hi in zip(
+            truth, bands.simultaneous_lower, bands.simultaneous_upper, strict=True
+        )
+    )
+    return {
+        "grid": [(i + 0.5) / 40 for i in range(40)],
+        "truth": truth,
+        "mean": list(posterior.mean),
+        "lower": list(bands.lower),
+        "upper": list(bands.upper),
+        "sim_lower": list(bands.simultaneous_lower),
+        "sim_upper": list(bands.simultaneous_upper),
+        "factor": bands.scaling_factor,
+        "inside_pointwise": inside_pointwise,
+        "inside_simultaneous": inside_simultaneous,
+        "points": len(truth),
+    }
+
+
+def _bands_figure() -> tuple[Any, dict[str, str]]:
+    """Draw the truth, the posterior mean and the two 90% bands.
+
+    References:
+        [EQ-INV-FS-007], [REF-STUART-2010].
+
+    """
+    example = _bands()
+    facts = {
+        "factor": f"{example['factor']:.2f}",
+        "inside_pointwise": f"{example['inside_pointwise']}",
+        "points": f"{example['points']}",
+        "simultaneous": "inside" if example["inside_simultaneous"] else "outside",
+    }
+    axes = theme.new_axes(figsize=(7.2, 4.2))
+    palette = theme.active_palette()
+    grid = example["grid"]
+    model = theme.role_colour("model")
+    axes.fill_between(
+        grid,
+        example["sim_lower"],
+        example["sim_upper"],
+        color=model,
+        alpha=0.14,
+        linewidth=0.0,
+    )
+    axes.fill_between(
+        grid,
+        example["lower"],
+        example["upper"],
+        color=model,
+        alpha=0.30,
+        linewidth=0.0,
+    )
+    theme.line(axes, grid, example["mean"], color=model)
+    truth_colour = theme.entity_colour("truth")
+    theme.points(axes, grid, example["truth"], color=truth_colour, size=12.0)
+    axes.set_xlim(0.0, 1.2)
+    axes.set_xticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
+    axes.grid(axis="x", visible=False)
+    axes.grid(axis="y", color=palette.rule, linewidth=0.7)
+    last = len(grid) - 1
+    theme.direct_labels(
+        axes,
+        [
+            (grid[last], example["sim_upper"][last], "90% simultaneous", model),
+            (grid[last], example["upper"][last], "90% pointwise", model),
+            (grid[last], example["mean"][last], "posterior mean", model),
+            (grid[last], example["truth"][last], "truth", truth_colour),
+        ],
+        gap_points=13.0,
+    )
+    theme.axis_labels(axes, "Position s", "Value x(s)")
+    theme.title_block(
+        axes,
+        f"The simultaneous band (c = {facts['factor']} sd) holds the whole truth;\n"
+        f"the pointwise band holds {facts['inside_pointwise']} of "
+        f"{facts['points']} points",
+        "Correlated Gaussian prior L06, n = 40, 12 local averages, noise 0.05 · "
+        "2000 exact posterior draws",
+    )
+    return axes.figure, facts
+
+
+@functools.cache
+def _design() -> dict[str, Any]:
+    """Compare greedy, exhaustive and random A-optimal designs.
+
+    References:
+        [EQ-DES-LIN-006], [EQ-DES-LIN-001].
+
+    """
+    n, candidates = 12, 16
+    grid = [(i + 0.5) / n for i in range(n)]
+    prior = [[math.exp(-abs(a - b) / 0.25) for b in grid] for a in grid]
+    rows = []
+    for k in range(candidates):
+        centre = (k + 0.5) / candidates
+        weights = [math.exp(-0.5 * ((g - centre) / 0.06) ** 2) for g in grid]
+        total = math.fsum(weights)
+        rows.append([w / total for w in weights])
+    noise = [0.05**2] * candidates
+    budgets = list(range(1, 6))
+    greedy = greedy_linear_design(
+        rows, noise, prior_covariance=prior, budget=budgets[-1], criterion="a"
+    )
+    optimum = []
+    for k in budgets:
+        best = exhaustive_linear_design(
+            rows, noise, prior_covariance=prior, size=k, criterion="a"
+        )
+        optimum.append(best.value)
+    generator = random.Random(SEED)
+    medians, lows, highs = [], [], []
+    for k in budgets:
+        values = sorted(
+            linear_design_criteria(
+                rows,
+                noise,
+                generator.sample(range(candidates), k),
+                prior_covariance=prior,
+            ).a_optimal
+            for _ in range(300)
+        )
+        medians.append(values[150])
+        lows.append(values[30])
+        highs.append(values[270])
+    prior_trace = math.fsum(prior[i][i] for i in range(n))
+    return {
+        "budgets": budgets,
+        "greedy": list(greedy.values),
+        "optimum": optimum,
+        "median": medians,
+        "low": lows,
+        "high": highs,
+        "prior_trace": prior_trace,
+    }
+
+
+def _design_figure() -> tuple[Any, dict[str, str]]:
+    """Draw the posterior-variance trace against the number of sensors.
+
+    References:
+        [EQ-DES-LIN-006].
+
+    """
+    example = _design()
+    gaps = [g - o for g, o in zip(example["greedy"], example["optimum"], strict=True)]
+    worst = max(range(len(gaps)), key=gaps.__getitem__)
+    facts = {
+        "greedy_5": f"{example['greedy'][-1]:.2f}",
+        "optimum_5": f"{example['optimum'][-1]:.2f}",
+        "median_5": f"{example['median'][-1]:.2f}",
+        "prior": f"{example['prior_trace']:.0f}",
+        "gap": f"{gaps[worst]:.2f}",
+        "gap_k": f"{example['budgets'][worst]}",
+        "equal": " and ".join(
+            str(k) for k, g in zip(example["budgets"], gaps, strict=True) if g < 1e-9
+        ),
+    }
+    axes = theme.new_axes(figsize=(7.2, 4.2))
+    palette = theme.active_palette()
+    budgets = example["budgets"]
+    model = theme.role_colour("model")
+    random_colour = palette.muted
+    axes.fill_between(
+        budgets,
+        example["low"],
+        example["high"],
+        color=random_colour,
+        alpha=0.22,
+        linewidth=0.0,
+    )
+    theme.line(
+        axes, budgets, example["median"], color=random_colour, dashes=theme.FITTED
+    )
+    theme.line(axes, budgets, example["greedy"], color=model)
+    axes.scatter(
+        budgets,
+        example["optimum"],
+        s=70.0,
+        marker="D",
+        facecolors="none",
+        edgecolors=theme.entity_colour("truth"),
+        linewidths=1.4,
+        zorder=5.0,
+    )
+    axes.set_xlim(0.7, 7.3)
+    axes.set_xticks(budgets)
+    axes.set_ylim(0.0, None)
+    axes.grid(axis="x", visible=False)
+    axes.grid(axis="y", color=palette.rule, linewidth=0.7)
+    theme.direct_labels(
+        axes,
+        [
+            (
+                budgets[-1],
+                example["median"][-1],
+                "random (median, 10-90%)",
+                random_colour,
+            ),
+            (budgets[-1], example["greedy"][-1], "greedy", model),
+            (
+                budgets[-1],
+                example["optimum"][-1],
+                "exhaustive optimum",
+                theme.entity_colour("truth"),
+            ),
+        ],
+        gap_points=13.0,
+    )
+    theme.axis_labels(axes, "Number of sensors k", "Trace of posterior covariance")
+    theme.title_block(
+        axes,
+        f"Greedy sensors reach the exhaustive optimum only at k = {facts['equal']};"
+        f"\nworst gap {facts['gap']} at k = {facts['gap_k']}; at k = 5: "
+        f"{facts['greedy_5']} vs {facts['optimum_5']} (random {facts['median_5']})",
+        f"12 unknowns, prior trace {facts['prior']}, 16 candidate local averages, "
+        "noise sd 0.05 · 300 random designs per k",
+    )
+    return axes.figure, facts
+
+
 FIGURES = [
     GuideFigure(
         name="large-scale-semi-convergence",
@@ -278,5 +535,23 @@ FIGURES = [
             "total-variation reconstructions from blurred, noisy data"
         ),
         draw=_edges_figure,
+    ),
+    GuideFigure(
+        name="large-scale-posterior-bands",
+        guide="large-scale-inverse-problems",
+        alt=(
+            "A sampled true field with the exact posterior mean and its "
+            "pointwise and simultaneous 90% credible bands from posterior draws"
+        ),
+        draw=_bands_figure,
+    ),
+    GuideFigure(
+        name="large-scale-design-gains",
+        guide="large-scale-inverse-problems",
+        alt=(
+            "Trace of the posterior covariance against the number of sensors for "
+            "the greedy A-optimal design, the exhaustive optimum and random designs"
+        ),
+        draw=_design_figure,
     ),
 ]

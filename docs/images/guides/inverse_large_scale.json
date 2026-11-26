@@ -1,4 +1,27 @@
 {
+  "large-scale-design-gains": {
+    "guide": "large-scale-inverse-problems",
+    "alt": "Trace of the posterior covariance against the number of sensors for the greedy A-optimal design, the exhaustive optimum and random designs",
+    "facts": {
+      "greedy_5": "2.13",
+      "optimum_5": "1.92",
+      "median_5": "2.80",
+      "prior": "12",
+      "gap": "0.40",
+      "gap_k": "2",
+      "equal": "1 and 3"
+    }
+  },
+  "large-scale-posterior-bands": {
+    "guide": "large-scale-inverse-problems",
+    "alt": "A sampled true field with the exact posterior mean and its pointwise and simultaneous 90% credible bands from posterior draws",
+    "facts": {
+      "factor": "2.97",
+      "inside_pointwise": "36",
+      "points": "40",
+      "simultaneous": "inside"
+    }
+  },
   "large-scale-semi-convergence": {
     "guide": "large-scale-inverse-problems",
     "alt": "Two panels against the LSQR iteration: the whitened data misfit on a log axis with the discrepancy target, and the relative error with the discrepancy stop and the error-optimal iteration marked",

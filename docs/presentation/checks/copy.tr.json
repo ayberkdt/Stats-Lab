@@ -231,7 +231,7 @@
    "body": [],
    "bullets": [],
    "labels": [],
-   "notes": "Kıyaslama takımında kesin ya da karelemeyle bulunmuş başvuru yanıtı olan 18 problem var ve 204 yöntem sonucu kayıtlı; her birinin hatası, maliyeti ve aralık kapsaması yazılı. En temiz satır bu: aynı 256 koşu, dört tasarım. Düz Monte Carlo Ishigami ortalamasını %7,8 ıskalıyor, karıştırılmış Sobol' noktaları %0,12. Hızlı başlangıç çalışmasının yayılımı Sobol' tasarımıyla yapması bu yüzden. Köprü: kanıtın kapsamadığı şeyler.",
+   "notes": "Kıyaslama takımında kesin ya da karelemeyle bulunmuş başvuru yanıtı olan 23 problem var ve 212 yöntem sonucu kayıtlı; her birinin hatası, maliyeti ve aralık kapsaması yazılı. En temiz satır bu: aynı 256 koşu, dört tasarım. Düz Monte Carlo Ishigami ortalamasını %7,8 ıskalıyor, karıştırılmış Sobol' noktaları %0,12. Hızlı başlangıç çalışmasının yayılımı Sobol' tasarımıyla yapması bu yüzden. Köprü: kanıtın kapsamadığı şeyler.",
    "font_px": {
     "headline": 60,
     "body": 34,

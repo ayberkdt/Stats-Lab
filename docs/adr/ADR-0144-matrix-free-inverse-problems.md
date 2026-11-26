@@ -121,9 +121,20 @@ unchanged.
   stop reason, and `max_iterations` is never reported as convergence.
 - Known limitations recorded in `docs/research/inverse-expansion-progress.md`:
   projected GCV under-regularized on deriv2 in our runs; PDHG needs many
-  iterations for large TV weights; the GSVD requires `m >= n` and a
-  full-rank stack; hybrid LSQR with a general `L` projects the penalty as
-  `||L V_k q||`, which costs one application of `L` per step.
+  iterations for large TV weights; the GSVD raises on a rank-deficient
+  stack unless the common nullspace is requested explicitly; hybrid LSQR
+  with a general `L` projects the penalty as `||L V_k q||`, which costs one
+  application of `L` per step; the adaptive weighted GCV is restricted to
+  the identity penalty and did not beat projected GCV on the two problems
+  we measured.
+- The second round adds modules beside the first-round ones rather than
+  changing them (`*_extended`, `ode_models`, `multifidelity`,
+  `sbi_workflow`, `posterior_sampling`, `benchmark_catalog`,
+  `benchmark_gravity`, `design.linear_optimal_extended`); first-round
+  signatures gained keyword-only options with defaults that keep their
+  results. Learned and simulation-based posteriors are labelled
+  approximate; diffusion-based posterior sampling with learned scores is
+  deferred, as the roadmap allows when no calibrated evidence exists.
 
 ## Verification evidence
 
@@ -139,6 +150,14 @@ unchanged.
   `scipy.optimize.lsq_linear`, `scipy.stats.multivariate_normal.logpdf`
   (evidence agreed to `1e-12`), L-BFGS-B on the split lasso and SLSQP on the
   epigraph form of 1D TV (objectives agreed to `~1e-9` relative).
+- Second round: every new bibliography entry was checked against
+  Crossref (24 DOIs, title, first author, year and volume) on
+  2026-11-26; the weighted-GCV paper has no DOI and was read from the
+  journal's own article page and PDF. The adaptive weight was checked
+  by finite differences: `dG/dlambda` vanishes at `delta_min` for the
+  computed weight. Packaging: wheel and sdist built offline with the
+  cached setuptools, `twine check --strict` passed, and the wheel
+  imported all 525 modules in clean Python 3.11 and 3.13 environments.
 
 References: [REF-PAIGE-SAUNDERS-1982], [REF-FONG-SAUNDERS-2011],
 [REF-GAZZOLA-HANSEN-NAGY-2019], [REF-HANSEN-2008], [REF-STUART-2010],

@@ -199,7 +199,14 @@ non-zeros (an optional debiased refit on the support is available, with no
 guarantee of improvement). The solvers are FISTA with backtracking
 [REF-BECK-TEBOULLE-2009], the primal-dual hybrid gradient method with a
 certified step condition `tau sigma ||K||^2 < 1` [REF-CHAMBOLLE-POCK-2011]
-and scaled ADMM [REF-BOYD-ETAL-2011].
+and scaled ADMM [REF-BOYD-ETAL-2011]. `sparse_extended` adds iteratively
+reweighted least squares for `l1` and TV (anisotropic, and isotropic on 2D
+grids), Huber-TV, second-order total generalized variation in 1D and on 2D
+grids (no staircases on piecewise-affine signals), and the non-convex MCP and
+SCAD penalties, which only reach stationary points that depend on the start.
+`flexible_hybrid_lsqr` builds the Krylov basis with a preconditioner that
+changes with the reweighting [REF-CHUNG-GAZZOLA-2019]; with a fixed identity
+preconditioner it reproduces `hybrid_lsqr`.
 
 ## 6. Nonlinear forward models and adjoints
 
@@ -246,10 +253,33 @@ prior (it is trace class for `s > 1/2`). The information gained is
 `1/2 sum log(1 + lambda_i)` and the effective number of resolved directions
 `sum lambda_i / (1 + lambda_i)`.
 
+A posterior is a distribution over whole functions, so a band that holds
+the truth everywhere must be wider than a band that holds it at each point
+separately. `credible_bands` returns both from posterior draws: the
+pointwise quantiles and the simultaneous band `mean +- c sd`, with `c` the
+empirical quantile of the largest standardized deviation.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/large-scale-posterior-bands-dark.png"><img alt="A sampled true field with the exact posterior mean and its pointwise and simultaneous 90% credible bands from posterior draws" src="../images/guides/large-scale-posterior-bands.png"></picture>
+
+*Exact posterior of the correlated Gaussian case L06 (40 points, 12 local averages): the 90 % simultaneous band uses `c = 2.97` standard deviations and the truth lies inside it everywhere; the 90 % pointwise band holds the truth at 36 of 40 points, as a pointwise band should.*
+
 The same eigenvalues drive experimental design: `greedy_linear_design`
-adds the sensor with the largest gain in `log det(I + H)` (D-optimal) or
-the largest reduction of a goal variance, and `exhaustive_linear_design`
-shows how far greedy is from the optimum on small problems.
+adds the sensor with the largest gain in `log det(I + H)` (D-optimal), the
+largest drop of `trace(C)` (A-optimal) or the largest reduction of a goal
+variance, and `exhaustive_linear_design` shows how far greedy is from the
+optimum on small problems.
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/large-scale-design-gains-dark.png"><img alt="Trace of the posterior covariance against the number of sensors for the greedy A-optimal design, the exhaustive optimum and random designs" src="../images/guides/large-scale-design-gains.png"></picture>
+
+*A-optimal sensor choice among 16 candidate local averages of 12 unknowns (prior trace 12): greedy equals the exhaustive optimum only at k = 1 and 3; its worst gap is 0.40 at k = 2, and with five sensors greedy reaches 2.13 against the optimum 1.92 and a random median of 2.80. Greedy has no optimality guarantee for the A criterion.*
+
+For problems where the posterior covariance cannot be formed,
+`operator_a_criterion` estimates `trace(C)` with Hutchinson probes and
+conjugate-gradient solves and reports a standard error;
+`operator_d_criterion` takes `sum log(1 + lambda_i)` from Lanczos or a
+randomized SVD with a truncation bound. `sequential_linear_design` updates
+the posterior after each simulated observation, and `robust_linear_design`
+averages or maximizes a criterion over parameter or noise scenarios.
 
 Counts, censored measurements and outliers need other likelihoods:
 `maximum_likelihood_linear` fits a linear predictor under `PoissonLaw`,
@@ -263,6 +293,39 @@ exact answer, which validates the algorithm under the model, not the model.
 `tikhonov_ensemble_kalman_inversion` is a derivative-free optimizer whose
 ensemble collapses: its final spread is not a posterior.
 
+Other likelihoods are available in `observation_laws_extended`: negative
+binomial counts, interval-censored Gaussians, a contaminated-normal outlier
+model, a normalized Huber density, a multivariate Student-t with full scatter,
+noise whose covariance depends on the prediction (its gradient includes the
+log-determinant term), and an unknown noise scale that is either profiled or
+integrated out under an inverse-gamma prior (a multivariate t marginal).
+
+`tempered_smc_posterior` runs the library's tempered SMC on an inverse
+posterior and returns the log evidence with a standard error;
+`quadrature_reference` computes exact one- and two-dimensional posteriors on
+a grid so that a sampler can be checked for missing modes. In the
+dimension study `pcn_dimension_study` the pCN acceptance rate stayed near 0.5
+(0.530, 0.505, 0.480 at `n = 8, 32, 128`) while random-walk Metropolis with
+the same step fell from 0.430 to 0.065 (`tests/test_posterior_sampling.py`).
+For high-dimensional posteriors `likelihood_informed_subspace` keeps the directions where the data
+dominate the prior [REF-CUI-MARTIN-MARZOUK-SOLONEN-SPANTINI-2014], and
+`WhittleMaternPrior1D` gives a Matérn prior through a banded SPDE precision
+[REF-LINDGREN-RUE-LINDSTROM-2011]. `matrix_free_lis` and
+`probe_resolution` do the same with operator actions only (Lanczos or a
+randomized range finder, conjugate-gradient solves) and report a residual for
+every eigenpair and every solve, so problems with thousands of unknowns stay
+within reach.
+
+Ensemble methods need care beyond the Gaussian case. On the bimodal problem
+`y = x^2 + e` (60 members, six seeds), the ensemble Kalman update placed
+31 % of its members between the modes, where the exact posterior has almost
+no mass; the ensemble transform particle filter
+(`ensemble_transform_particle_filter`, [REF-REICH-2013]) placed 1.1 % there
+(`tests/test_ensemble_extended.py`).
+`localized_ensemble_kalman_update` tapers spurious long-range sample
+correlations, and `adaptive_inflation` estimates a spread factor from the
+innovations.
+
 For parameters that are not identified, profile the likelihood rather than
 trusting a curvature: `profile_likelihood` re-optimizes the nuisance
 parameters along a grid, and `profile_interval` returns `None` for a side
@@ -270,6 +333,34 @@ that does not close within the grid, instead of a fabricated endpoint
 [REF-RAUE-ETAL-2009]. When the exact target is expensive,
 `delayed_acceptance_metropolis` screens proposals with a cheap surrogate and
 keeps the exact posterior invariant [REF-CHRISTEN-FOX-2005].
+`profile_likelihood_2d` profiles two parameters jointly, and
+`bootstrap_lr_calibration` replaces the chi-square threshold by a simulated
+one when a parameter sits on a boundary. `ode_sensitivity` integrates the
+sensitivity equations of an ODE and reports the rank of the sensitivity
+matrix: for `x' = -(k1 + k2) x` only the sum is identifiable.
+
+Time-dependent models get exact discrete adjoints as well:
+`EllipticDiffusion2D` solves `-div(k grad u) = f` on the unit square with
+harmonic-mean face conductivities and gives exact discrete adjoint gradients;
+`HeatExplicitEuler1D` refuses a time step above the explicit stability limit
+unless asked explicitly, because an unstable forward step amplifies the
+highest modes. `ODEForwardModel` differentiates the classical Runge-Kutta scheme itself, so
+its gradient is the exact gradient of the discrete map, and
+`SimulatorAdapter` wraps an external simulator with counts, optional caching
+and recorded failures. `multilevel_mcmc` combines chains on a hierarchy of
+discretizations [REF-DODWELL-ETAL-2015]; on the small test hierarchies it
+did not pay for itself, and the measured cost is reported rather than
+assumed. Simulation-based inference (`sbi_workflow`) compares ABC, the
+library's posterior and ratio estimators, flow matching and an exact
+quadrature reference on the same simulator; it labels every learned posterior
+as approximate and refuses proposal-based training. In the linear-Gaussian
+case `diffusion_posterior_sampling` runs a reverse diffusion with the EXACT
+noisy-time posterior score, so its error is pure discretization error; the
+common approximation that adds the prior score to a likelihood gradient at
+the noisy-time mean keeps a bias that more steps do not remove
+[REF-CHUNG-ETAL-2023]. `coarse_to_fine_warm_start` and
+`validate_sensitivities` report, rather than assume, whether a cheap model
+saves work or gives usable gradients.
 
 ## 8. Benchmarks and the inverse crime
 
@@ -295,7 +386,19 @@ offset is exactly degenerate with `log10 H0`. In
 `orbit_determination_benchmark` a single station observing a short arc in
 3D leaves one direction of the initial state unobservable. Both cases are
 synthetic and support no statement about the real universe or a real
-spacecraft [REF-HOGG-1999], [REF-TAPLEY-SCHUTZ-BORN-2004].
+spacecraft [REF-HOGG-1999], [REF-TAPLEY-SCHUTZ-BORN-2004]. Adding a
+simplified BAO observable with a free sound horizon does not remove the
+offset/`H0` degeneracy (a direction proportional to `(1, 5, -1)` remains);
+only an expansion-rate measurement does (`tests/test_benchmark_cosmology.py`).
+`gravity_inversion_benchmark` shows the classical non-uniqueness of
+potential fields: with 16 stations and 60 cells, 44 directions are invisible
+and a single layer at any of five depths fits the data to within three
+noise norms [REF-BLAKELY-1995], [REF-LI-OLDENBURG-1998]. On the sphere,
+`gravity_sphere_benchmark` shows how satellite altitude and noise limit the
+resolved spherical-harmonic degree under a Kaula-type prior
+[REF-KAULA-1966], and `compare_models` gives Bayes factors of expansion
+histories with the run-to-run error of the SMC evidence beside a quadrature
+value where one exists.
 
 ## Common pitfalls
 
@@ -335,4 +438,8 @@ spacecraft [REF-HOGG-1999], [REF-TAPLEY-SCHUTZ-BORN-2004].
 [REF-STEIN-1981], [REF-GOLUB-HEATH-WAHBA-1979], [REF-STUART-2010],
 [REF-SPANTINI-ETAL-2015], [REF-BECK-TEBOULLE-2009], [REF-CHAMBOLLE-POCK-2011],
 [REF-BOYD-ETAL-2011], [REF-RAUE-ETAL-2009], [REF-CHRISTEN-FOX-2005],
-[REF-ALEXANDERIAN-2021], [REF-KAIPIO-SOMERSALO-2007], [REF-STEIHAUG-1983].
+[REF-ALEXANDERIAN-2021], [REF-KAIPIO-SOMERSALO-2007], [REF-STEIHAUG-1983],
+[REF-CUI-MARTIN-MARZOUK-SOLONEN-SPANTINI-2014], [REF-LINDGREN-RUE-LINDSTROM-2011],
+[REF-REICH-2013], [REF-DODWELL-ETAL-2015], [REF-BLAKELY-1995],
+[REF-LI-OLDENBURG-1998], [REF-CHUNG-GAZZOLA-2019], [REF-CHUNG-ETAL-2023],
+[REF-KAULA-1966].

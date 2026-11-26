@@ -235,15 +235,15 @@
     "adimlar": [
      {
       "ad": "Cite",
-      "cumle": "900+ sources; every function's docstring names its source key."
+      "cumle": "950+ sources; every function's docstring names its source key."
      },
      {
       "ad": "Register",
-      "cumle": "1,700+ equations, each with symbols, a source, and its code location."
+      "cumle": "1,850+ equations, each with symbols, a source, and its code location."
      },
      {
       "ad": "Test",
-      "cumle": "4,500+ tests against closed forms, enumeration, and Monte Carlo error bounds."
+      "cumle": "5,100+ tests against closed forms, enumeration, and Monte Carlo error bounds."
      },
      {
       "ad": "Audit figures",
@@ -274,7 +274,7 @@
     "gorsel": "Horizontal bars: relative error of the Ishigami mean for Monte Carlo, Latin hypercube, Halton, and Sobol' designs at the same number of runs; the Sobol' bar is highlighted and the shortest."
    },
    "bullets": [],
-   "notes": "The benchmark suite has 18 problems with exact or quadrature reference answers and records 204 method results, each with its error, cost, and interval coverage. This row is the cleanest: the same 256 runs, four designs. Plain Monte Carlo misses the Ishigami mean by 7.8%; scrambled Sobol' points by 0.12%. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover."
+   "notes": "The benchmark suite has 23 problems with exact or quadrature reference answers and records 212 method results, each with its error, cost, and interval coverage. This row is the cleanest: the same 256 runs, four designs. Plain Monte Carlo misses the Ishigami mean by 7.8%; scrambled Sobol' points by 0.12%. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover."
   },
   {
    "id": "s15",
