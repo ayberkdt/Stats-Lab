@@ -6743,3 +6743,38 @@ Approximation." *Journal of Computational and Graphical Statistics* 14(4),
 with a cheap approximate target. Metadata checked against Crossref
 (2026-11-26).
 DOI: [10.1198/106186005X76983](https://doi.org/10.1198/106186005X76983).
+
+## REF-HOGG-1999
+
+David W. Hogg. "Distance Measures in Cosmology." arXiv:astro-ph/9905116,
+1999. Cited for the comoving and luminosity distances, the distance modulus
+and the Hubble distance `c / H0` of a flat Friedmann-Lemaitre-Robertson-Walker
+model. Metadata checked against DataCite (2026-11-26).
+DOI: [10.48550/arXiv.astro-ph/9905116](https://doi.org/10.48550/arXiv.astro-ph/9905116).
+
+## REF-CHEVALLIER-POLARSKI-2001
+
+Michel Chevallier and David Polarski. "Accelerating Universes with Scaling
+Dark Matter." *International Journal of Modern Physics D* 10(2), 213-223,
+2001. Cited, with [REF-LINDER-2003], for the dark-energy equation of state
+`w(z) = w0 + wa z / (1 + z)` used as a synthetic truth. Metadata checked
+against Crossref (2026-11-26).
+DOI: [10.1142/S0218271801000822](https://doi.org/10.1142/S0218271801000822).
+
+## REF-LINDER-2003
+
+Eric V. Linder. "Exploring the Expansion History of the Universe." *Physical
+Review Letters* 90(9), 091301, 2003. Cited for the `w0`-`wa` parameterization
+of the dark-energy equation of state. Metadata checked against Crossref
+(2026-11-26).
+DOI: [10.1103/PhysRevLett.90.091301](https://doi.org/10.1103/PhysRevLett.90.091301).
+
+## REF-TAPLEY-SCHUTZ-BORN-2004
+
+Byron D. Tapley, Bob E. Schutz, and George H. Born. *Statistical Orbit
+Determination*. Elsevier Academic Press, Burlington, 2004. Cited for batch
+least-squares orbit determination, the state transition matrix
+`Phi' = F Phi` and range observation partials. Metadata checked against
+Crossref (2026-11-26; chapter "Fundamentals of Orbit Determination").
+DOI: [10.1016/B978-012683630-1/50023-0](https://doi.org/10.1016/B978-012683630-1/50023-0).
+

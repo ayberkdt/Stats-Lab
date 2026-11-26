@@ -286,6 +286,17 @@ never reached and early stopping fails (`tests/test_benchmark_extended.py`).
 model error from paired fine and coarse runs so that it can enter the
 likelihood as `Gamma + Sigma_e`.
 
+Two synthetic application cases show the same diagnostics on physical
+models. In `synthetic_expansion_history_benchmark` (dark-energy equation
+of state `w(z)` in 8 redshift bins from 30 mock distance moduli with
+`sigma_mu = 0.1`) only 2 of the 8 whitened singular values exceed 1: the
+data resolve about two combinations of the bins, and a free magnitude
+offset is exactly degenerate with `log10 H0`. In
+`orbit_determination_benchmark` a single station observing a short arc in
+3D leaves one direction of the initial state unobservable. Both cases are
+synthetic and support no statement about the real universe or a real
+spacecraft [REF-HOGG-1999], [REF-TAPLEY-SCHUTZ-BORN-2004].
+
 ## Common pitfalls
 
 - Passing the noise STANDARD DEVIATION as `noise_norm`: the discrepancy

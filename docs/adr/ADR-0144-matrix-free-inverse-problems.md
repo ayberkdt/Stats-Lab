@@ -99,7 +99,9 @@ unchanged.
    goal-oriented criteria with greedy and exhaustive selection.
 7. **Benchmarks.** `inverse.benchmark_problems` (L01, L04-L06; L02-L03 are
    the existing closed-form problems) and `inverse.benchmark_extended`
-   (L07a, L07b, N01, N02, P01, P02) withholds the truth, separates truth,
+   (L07a, L07b, N01, N02, P01, P02), with the synthetic application cases
+   A01 (`inverse.benchmark_orbit`) and A02 (`inverse.benchmark_cosmology`)
+   kept out of the solver modules withholds the truth, separates truth,
    design and noise streams and flags inverse crimes
    [EQ-INV-BENCH-001].
 8. **Stability.** All new names are experimental (module docstrings say so)

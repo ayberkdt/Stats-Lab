@@ -51,6 +51,10 @@ the mathematics re-derived.
   paired fine and coarse runs), the extended benchmark catalog (2D
   deblurring, ray-transform tomography with exact intersection lengths,
   exponential decay, squared and product maps, elliptic and heat cases),
+  two synthetic application cases (two-body range-only orbit
+  determination with exact RK4 sensitivities, and a dark-energy
+  expansion-history model with exact derivatives of the distance
+  modulus),
   `profile_likelihood` and `efficient_information`, and the benchmark
   catalog L01-L06 that withholds the truth and flags inverse crimes. In
   `probstat.optimization`: proximal maps, ISTA/FISTA, PDHG, ADMM, Steihaug CG

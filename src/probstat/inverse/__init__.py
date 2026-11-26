@@ -151,6 +151,10 @@ from .approximation_error import (
     ApproximationErrorModel,
     estimate_approximation_error,
 )
+from .benchmark_cosmology import (
+    ExpansionHistoryModel,
+    synthetic_expansion_history_benchmark,
+)
 from .benchmark_extended import (
     EXTENDED_BENCHMARK_CATALOG,
     GaussianBlur2DOperator,
@@ -164,6 +168,10 @@ from .benchmark_extended import (
     parallel_beam_rays,
     ray_pixel_intersections,
     squared_map_benchmark,
+)
+from .benchmark_orbit import (
+    TwoBodyRangeModel,
+    orbit_determination_benchmark,
 )
 from .benchmark_problems import (
     INVERSE_BENCHMARK_CATALOG,
@@ -378,6 +386,10 @@ from .test_problems import (
 from .unscented_inversion import UnscentedInversionResult, unscented_kalman_inversion
 
 __all__ = [
+    "ExpansionHistoryModel",
+    "synthetic_expansion_history_benchmark",
+    "TwoBodyRangeModel",
+    "orbit_determination_benchmark",
     "EXTENDED_BENCHMARK_CATALOG",
     "GaussianBlur2DOperator",
     "NonlinearBenchmark",

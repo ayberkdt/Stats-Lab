@@ -24156,3 +24156,129 @@ truth and noise come from distinct children of one random stream.
   rescaled to a fixed norm. Same-discretization results verify algebra only.
 - Code: `inverse.benchmark_extended.NonlinearBenchmark`.
 - Source: [REF-KAIPIO-SOMERSALO-2007], [REF-GAZZOLA-HANSEN-NAGY-2019].
+
+### EQ-INV-ORBIT-001 — Two-body dynamics and specific energy
+
+`r' = v`, `v' = -mu r / ||r||^3`, `E = ||v||^2 / 2 - mu / ||r||`, in an inertial frame with canonical units (`mu = 1`).
+
+- Domain: `r` in R^d (d = 2 or 3), `r != 0`, `mu > 0`; point-mass central body, no perturbations, no Earth rotation or time systems.
+- Meaning: the synthetic orbit model; `E` is conserved by the continuous flow and, up to the O(h^4) integrator error, by classical RK4.
+- Code: `inverse.benchmark_orbit.TwoBodyRangeModel`.
+- Source: [REF-TAPLEY-SCHUTZ-BORN-2004], [REF-HAIRER-NORSETT-WANNER-1993].
+
+### EQ-INV-ORBIT-002 — State transition matrix and mu-sensitivity by augmented RK4
+
+`Z' = F(s) Z + [0 | F_mu(s)]`, `Z(0) = [I | 0]`, `F = [[0, I], [A, 0]]`, `A = -mu (I/r^3 - 3 r r' / r^5)`, `F_mu = [0; -r/r^3]`, with `Z = d(r, v)(t) / d(x)` (`Phi` in the state columns, `S` in the optional last column).
+
+- Domain: same as EQ-INV-ORBIT-001; one classical RK4 applied to the augmented system `(s, Z)` with fixed steps.
+- Meaning: because Runge-Kutta schemes commute with differentiation in the initial data, `Z` is the EXACT derivative of the RK4-discretized map for the same step sizes (to rounding), not only an O(h^4) approximation of the continuous flow's derivative. Volume preservation `det Phi = 1` holds only to integrator accuracy.
+- Code: `inverse.benchmark_orbit.TwoBodyRangeModel.sensitivities`.
+- Source: [REF-TAPLEY-SCHUTZ-BORN-2004], [REF-HAIRER-NORSETT-WANNER-1993].
+
+### EQ-INV-ORBIT-003 — Range observation and its Jacobian
+
+`rho_ij = ||r(t_i) - s_j||`, `J_(ij),: = u_ij' [Z(t_i)]_(position rows)`, `u_ij = (r(t_i) - s_j) / rho_ij`.
+
+- Domain: `rho_ij > 0` (a zero range raises); stations `s_j` fixed in the inertial frame; observations time-major, station-minor.
+- Meaning: `jvp` applies `J`, `vjp` applies `J'` through the transposed position rows of `Z` (no dense finite-difference Jacobian).
+- Code: `inverse.benchmark_orbit.TwoBodyRangeModel.jvp`, `inverse.benchmark_orbit.TwoBodyRangeModel.vjp`.
+- Source: [REF-TAPLEY-SCHUTZ-BORN-2004].
+
+### EQ-INV-ORBIT-004 — Orbit-determination forward map
+
+`G(x) = (rho_ij)` with `x = (r0, v0)` or `x = (r0, v0, mu)`; `G: R^n -> R^m`, `n = 2d (+1)`, `m = #times * #stations`.
+
+- Domain: increasing positive times; with `estimate_mu`, `mu <= 0` in `x` gives a `nan` value (a rejected trial for the solvers), never a repaired one.
+- Meaning: the `DifferentiableForward` model inverted by Gauss-Newton; weak observability (single station, short arc; in 3D an exact null direction, the rotation about the line of sight) appears as a large condition number or rank deficiency of `J` at the truth.
+- Code: `inverse.benchmark_orbit.TwoBodyRangeModel`.
+- Source: [REF-SEBER-WILD-2003], [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-ORBIT-005 — Benchmark A01
+
+`y = G_fine(x_true) + e`, `e ~ N(0, sd^2 I)`, with `G_fine` the same model integrated with `data_refinement` times more RK4 steps.
+
+- Domain: `data_refinement >= 1` (1 is the inverse crime, algebraic verification only); noise is absolute (canonical length units), not rescaled; truth withheld from the solver inputs.
+- Meaning: synthetic geometry laboratory (`well_observed` versus `single_station_short_arc`); no claim of realistic tracking.
+- Code: `inverse.benchmark_orbit.orbit_determination_benchmark`.
+- Source: [REF-KAIPIO-SOMERSALO-2007], [REF-SEBER-WILD-2003].
+
+### EQ-INV-COSMO-001 — Flat FLRW expansion rate with dark energy
+
+`E^2(z) = Om (1+z)^3 + (1-Om) X(z)`, `X(z) = exp(3 int_0^z (1 + w(t)) / (1 + t) dt)`, `H(z) = H0 E(z)`.
+
+- Domain: spatially flat, pressureless matter plus one dark-energy fluid, `0 < Om < 1`, `z >= 0`; radiation neglected (low-redshift regime only).
+- Meaning: background expansion of a synthetic test universe; no CMB or high-redshift physics, no statement about the real universe.
+- Code: `inverse.benchmark_cosmology.ExpansionHistoryModel`.
+- Source: [REF-HOGG-1999], [REF-CHEVALLIER-POLARSKI-2001], [REF-LINDER-2003].
+
+### EQ-INV-COSMO-002 — Piecewise-constant equation of state, exact exponent integral
+
+`w(z) = -1 + sum_j x_j phi_j(z)`, `phi_j = 1[e_j <= z < e_{j+1}]`; `int_0^z (1+w)/(1+t) dt = sum_j x_j ln((1 + min(z, e_{j+1})) / (1 + e_j))` over bins with `e_j < z`.
+
+- Domain: `0 = e_0 < e_1 < ... < e_K`; `w = -1` beyond `e_K`.
+- Meaning: the integral is exact per bin, so `X(z)` has no quadrature error; `x = 0` is LCDM, `x_j = 1 + w_j`.
+- Code: `inverse.benchmark_cosmology.ExpansionHistoryModel.dark_energy_factor`.
+- Source: [REF-CHEVALLIER-POLARSKI-2001], [REF-LINDER-2003].
+
+### EQ-INV-COSMO-003 — Distances, distance modulus and the discrete quadrature
+
+`D_C = (c/H0) int_0^z dt / E(t)`, `D_L = (1+z) D_C`, `mu = 5 log10(D_L / Mpc) + 25`, `c = 299792.458 km/s`; discrete model `D_C ~ (c/H0) sum_q w_q / E(t_q)` with 5-point Gauss-Legendre panels cut at the bin edges.
+
+- Domain: `z > 0`, `H0` in km/s/Mpc, flat geometry.
+- Meaning: the quadrature is the model that `jvp`/`vjp` differentiate exactly; its error against an independent Simpson oracle is at roundoff level for smooth segments.
+- Code: `inverse.benchmark_cosmology.ExpansionHistoryModel.value`.
+- Source: [REF-HOGG-1999].
+
+### EQ-INV-COSMO-004 — Sensitivity of the expansion rate
+
+`dE^2/dx_j = 3 (1-Om) X(z) int_0^z phi_j(t)/(1+t) dt`, `d(1/E)/dx_j = -(dE^2/dx_j) / (2 E^3)`, `dE^2/dOm = (1+z)^3 - X(z)`.
+
+- Domain: as EQ-INV-COSMO-001.
+- Meaning: a change of `w` in one bin moves `E` through `X` only after that bin; high-redshift bins act only through integrals, hence weak identifiability.
+- Code: `inverse.benchmark_cosmology.ExpansionHistoryModel.jvp`.
+- Source: [REF-CHEVALLIER-POLARSKI-2001], [REF-STUART-2010].
+
+### EQ-INV-COSMO-005 — Exact derivative of the discrete distance modulus
+
+`dmu = (5 / ln 10) dD_L / D_L` with `dD_L / D_L = sum_q w_q d(1/E)(t_q) / sum_q w_q / E(t_q)` taken at the same nodes; `dmu/d log10 H0 = -5`, `dmu/dM = 1`.
+
+- Domain: as EQ-INV-COSMO-003.
+- Meaning: derivatives are exact for the discrete model (verified by Taylor sweep, central differences and the dot test), not an approximation of the continuous derivative.
+- Code: `inverse.benchmark_cosmology.ExpansionHistoryModel.vjp`.
+- Source: [REF-NOCEDAL-WRIGHT-2006], [REF-STUART-2010].
+
+### EQ-INV-COSMO-006 — Constant-w factor and low-redshift limit
+
+`w = const => X(z) = (1+z)^(3 (1+w))`; `D_L = (c z / H0) (1 + (1 - q0) z / 2 + O(z^2))`, `q0 = Om/2 - (1 - Om)` for `w = -1`.
+
+- Domain: flat model, `z -> 0`.
+- Meaning: exact reference identities used as closed-form tests of the implementation.
+- Code: `inverse.benchmark_cosmology.ExpansionHistoryModel.dark_energy_factor`.
+- Source: [REF-HOGG-1999].
+
+### EQ-INV-COSMO-007 — Offset and H0 degeneracy
+
+`mu(z; H0, M) = mu(z; H0_ref, 0) - 5 log10(H0 / H0_ref) + M`; hence `dmu/d log10 H0 = -5 (dmu/dM)` for every `z`.
+
+- Domain: uncalibrated distance moduli with a free additive offset `M`.
+- Meaning: the Jacobian columns of `log10 H0` and `M` are exactly collinear; only the combination `M - 5 log10 H0` is identifiable.
+- Code: `inverse.benchmark_cosmology.ExpansionHistoryModel`.
+- Source: [REF-HOGG-1999], [REF-STUART-2010].
+
+### EQ-INV-COSMO-008 — Synthetic A02 benchmark with finer-representation truth
+
+`b_i = mu_fine(z_i; w_true) + M + e_i`, `e_i ~ N(0, sigma_mu^2)`; coarse truth `x_j = int_{bin j} (1+w)/(1+t) dt / ln((1+e_{j+1})/(1+e_j))`.
+
+- Domain: truths LCDM, CPL (`w = w0 + wa z/(1+z)`) and an oscillation; data from a 300-panel Gauss-Legendre grid built from `w` itself, inversion on coarse bins.
+- Meaning: the projection preserves each bin's exponent integral; the mismatch makes `same_discretization=False` except for LCDM. Synthetic only; the Gaussian prior is a declared assumption.
+- Code: `inverse.benchmark_cosmology.synthetic_expansion_history_benchmark`.
+- Source: [REF-STUART-2010], [REF-HANSEN-2008], [REF-CHEVALLIER-POLARSKI-2001], [REF-LINDER-2003].
+
+### EQ-INV-COSMO-009 — Hubble-rate observable
+
+`G_i(x) = H0 E(z_i)`, `dG/dx_j = H0 (3 (1-Om) X / (2E)) L_j(z_i)`, `dG/dOm = H0 ((1+z)^3 - X) / (2E)`, `dG/d log10 H0 = ln(10) G`.
+
+- Domain: as EQ-INV-COSMO-001; no additive offset.
+- Meaning: direct measurement of the expansion rate without a distance integral.
+- Code: `inverse.benchmark_cosmology.ExpansionHistoryModel`.
+- Source: [REF-HOGG-1999], [REF-CHEVALLIER-POLARSKI-2001].

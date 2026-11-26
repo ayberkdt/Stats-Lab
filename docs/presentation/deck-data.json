@@ -8,7 +8,7 @@
   "licence": "BSD-3-Clause",
   "figure_text_floor_pt": 9.0,
   "tests_floor": 4400,
-  "equations_floor": 1650,
+  "equations_floor": 1700,
   "references_floor": 900,
   "adrs_floor": 140,
   "questions": 8,
