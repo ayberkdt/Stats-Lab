@@ -26,10 +26,14 @@ from probstat.inference import advi
 from probstat.inverse import (
     LinearInverseProblem,
     discrepancy_principle,
+    gauss_newton_krylov,
     generalized_cross_validation,
+    hybrid_lsqr,
+    iteratively_regularized_gauss_newton,
     krylov_regularization,
     l_curve,
     linear_gaussian_posterior,
+    newton_trust_region_inversion,
     regularization_path,
     select_regularization,
     total_variation_regularized_least_squares,
@@ -917,6 +921,180 @@ def _is_deblur(problem: Problem) -> bool:
     return "deblur" in problem.tags
 
 
+def _is_tomography(problem: Problem) -> bool:
+    """Apply to the tomography prototype."""
+    return "tomography" in problem.tags
+
+
+def _is_decay(problem: Problem) -> bool:
+    """Apply to the nonlinear exponential-decay problem."""
+    return "nonlinear-least-squares" in problem.tags
+
+
+def _tomography_lsqr(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Early-stopped LSQR with the whitened discrepancy principle (tau = 1.01)."""
+    del seed, sizes, problem
+    case = instance["case"]
+    counted = CountingOperator(case.operator)
+    inverse = LinearInverseProblem.create(counted, instance["data"], noise=case.noise)
+    result = krylov_regularization(
+        inverse, method="lsqr", noise_norm=instance["noise_norm"], max_iterations=200
+    )
+    notes = [f"stopped at k = {result.iterations} ({result.stop_reason})"]
+    notes.append(_spent(instance, counted))
+    if not result.converged:
+        notes.append("no stopping rule fired")
+    error = _relative_error(result.estimate, instance["exact"])
+    return MethodOutput({"relerr": Estimate(error)}, tuple(notes))
+
+
+def _tomography_hybrid(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Hybrid LSQR with projected GCV, at most 30 bidiagonalization steps."""
+    del seed, sizes, problem
+    case = instance["case"]
+    counted = CountingOperator(case.operator)
+    inverse = LinearInverseProblem.create(counted, instance["data"], noise=case.noise)
+    result = hybrid_lsqr(inverse, rule="gcv", max_iterations=30)
+    notes = [f"{result.iterations} steps ({result.stop_reason})"]
+    notes.append(_spent(instance, counted))
+    error = _relative_error(result.estimate, instance["exact"])
+    return MethodOutput({"relerr": Estimate(error)}, tuple(notes))
+
+
+def _decay_spent(instance: Instance, counts: Any) -> str:
+    """Add model evaluations of a nonlinear solve to the cost; return a note."""
+    total = counts.value + counts.jvp + counts.vjp
+    instance.model.evaluations += total
+    return f"{counts.value} values + {counts.jvp} jvp + {counts.vjp} vjp"
+
+
+def _decay_gauss_newton(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Gauss-Newton with inner LSQR from ``(1, 0.5)``, unregularized."""
+    del seed, sizes, problem
+    case = instance["case"]
+    result = gauss_newton_krylov(
+        case.model, instance["data"], noise=case.noise, initial=(1.0, 0.5)
+    )
+    notes = [f"{result.iterations} iterations ({result.stop_reason})"]
+    notes.append(_decay_spent(instance, result.counts))
+    error = _relative_error(result.estimate, instance["exact"])
+    return MethodOutput({"relerr": Estimate(error)}, tuple(notes))
+
+
+def _decay_trust_region(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Trust-region Newton-CG (Gauss-Newton Hessian) from ``(1, 0.5)``."""
+    del seed, sizes, problem
+    case = instance["case"]
+    result = newton_trust_region_inversion(
+        case.model, instance["data"], noise=case.noise, initial=(1.0, 0.5)
+    )
+    notes = [f"{result.iterations} iterations ({result.stop_reason})"]
+    counts = result.counts
+    total = counts.value + counts.jvp + counts.vjp
+    instance.model.evaluations += total
+    notes.append(f"{total} model, jvp and vjp evaluations")
+    error = _relative_error(result.estimate, instance["exact"])
+    return MethodOutput({"relerr": Estimate(error)}, tuple(notes))
+
+
+def _is_squared(problem: Problem) -> bool:
+    """Apply to the squared-map problem."""
+    return "squared-map" in problem.tags
+
+
+def _is_elliptic(problem: Problem) -> bool:
+    """Apply to the elliptic log-conductivity problem."""
+    return "elliptic-pde" in problem.tags
+
+
+def _is_heat_initial(problem: Problem) -> bool:
+    """Apply to the heat initial-condition problem."""
+    return "heat-initial" in problem.tags
+
+
+def _squared_gauss_newton(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Gauss-Newton from ``x = (0.8, ..., 0.8)``; scored on ``|x|``."""
+    del seed, sizes, problem
+    case = instance["case"]
+    start = (0.8,) * len(case.truth)
+    result = gauss_newton_krylov(
+        case.model, instance["data"], noise=case.noise, initial=start
+    )
+    notes = [f"{result.iterations} iterations ({result.stop_reason})"]
+    notes.append(_decay_spent(instance, result.counts))
+    magnitudes = [abs(v) for v in result.estimate]
+    error = _relative_error(magnitudes, instance["exact"])
+    return MethodOutput({"relerr": Estimate(error)}, tuple(notes))
+
+
+def _elliptic_irgnm(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """IRGNM from ``x = 0``, ``lambda_0 = 1`` halved, discrepancy 1.1 sqrt(m)."""
+    del seed, sizes, problem
+    case = instance["case"]
+    m = len(instance["data"])
+    result = iteratively_regularized_gauss_newton(
+        case.model,
+        instance["data"],
+        noise=case.noise,
+        initial_regularization=1.0,
+        initial=(0.0,) * len(case.truth),
+        discrepancy=1.1 * math.sqrt(m),
+    )
+    notes = [f"{result.iterations} iterations ({result.stop_reason})"]
+    notes.append(_decay_spent(instance, result.counts))
+    error = _relative_error(result.estimate, instance["exact"])
+    return MethodOutput({"relerr": Estimate(error)}, tuple(notes))
+
+
+def _heat_lsqr(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Early-stopped LSQR with the whitened discrepancy principle (tau = 1.01)."""
+    del seed, sizes, problem
+    case = instance["case"]
+    counted = CountingOperator(case.operator)
+    inverse = LinearInverseProblem.create(counted, instance["data"], noise=case.noise)
+    result = krylov_regularization(
+        inverse, method="lsqr", noise_norm=instance["noise_norm"], max_iterations=200
+    )
+    notes = [f"stopped at k = {result.iterations} ({result.stop_reason})"]
+    notes.append(_spent(instance, counted))
+    error = _relative_error(result.estimate, instance["exact"])
+    return MethodOutput({"relerr": Estimate(error)}, tuple(notes))
+
+
+def _heat_hybrid(
+    instance: Instance, seed: int, sizes: Mapping[str, Any], problem: Problem
+) -> MethodOutput:
+    """Hybrid LSQR with the projected discrepancy rule, at most 24 steps."""
+    del seed, sizes, problem
+    case = instance["case"]
+    counted = CountingOperator(case.operator)
+    inverse = LinearInverseProblem.create(counted, instance["data"], noise=case.noise)
+    result = hybrid_lsqr(
+        inverse,
+        rule="discrepancy",
+        noise_norm=instance["noise_norm"],
+        max_iterations=24,
+    )
+    notes = [f"{result.iterations} steps ({result.stop_reason})"]
+    notes.append(_spent(instance, counted))
+    error = _relative_error(result.estimate, instance["exact"])
+    return MethodOutput({"relerr": Estimate(error)}, tuple(notes))
+
+
 def _is_gaussian_posterior(problem: Problem) -> bool:
     """Apply to the correlated Gaussian posterior problem."""
     return "gaussian-posterior" in problem.tags
@@ -1374,6 +1552,62 @@ def registry() -> tuple[Method, ...]:
             _deblur_tv,
             "approximation",
             _is_deblur,
+        ),
+        Method(
+            "LSQR + discrepancy principle (ray transform)",
+            "inverse",
+            _tomography_lsqr,
+            "approximation",
+            _is_tomography,
+        ),
+        Method(
+            "Hybrid LSQR + projected GCV (ray transform)",
+            "inverse",
+            _tomography_hybrid,
+            "approximation",
+            _is_tomography,
+        ),
+        Method(
+            "Gauss-Newton (inner LSQR)",
+            "inverse",
+            _decay_gauss_newton,
+            "approximation",
+            _is_decay,
+        ),
+        Method(
+            "Trust-region Newton-CG",
+            "inverse",
+            _decay_trust_region,
+            "approximation",
+            _is_decay,
+        ),
+        Method(
+            "Gauss-Newton from a positive start (|x| scored)",
+            "inverse",
+            _squared_gauss_newton,
+            "approximation",
+            _is_squared,
+        ),
+        Method(
+            "IRGNM + discrepancy (adjoint gradients)",
+            "inverse",
+            _elliptic_irgnm,
+            "approximation",
+            _is_elliptic,
+        ),
+        Method(
+            "LSQR + discrepancy principle (heat operator)",
+            "inverse",
+            _heat_lsqr,
+            "approximation",
+            _is_heat_initial,
+        ),
+        Method(
+            "Hybrid LSQR + projected discrepancy (heat operator)",
+            "inverse",
+            _heat_hybrid,
+            "approximation",
+            _is_heat_initial,
         ),
         Method(
             "Exact posterior, data space",

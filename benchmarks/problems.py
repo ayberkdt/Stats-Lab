@@ -32,7 +32,12 @@ from probstat.inverse import (
     backward_heat_problem,
     correlated_gaussian_benchmark,
     deconvolution_benchmark,
+    elliptic_benchmark,
+    exponential_decay_benchmark,
+    heat_initial_condition_benchmark,
+    masked_tomography_benchmark,
     second_derivative_problem,
+    squared_map_benchmark,
 )
 from probstat.modeling import (
     JointInput,
@@ -566,6 +571,108 @@ GAUSSIAN_LENGTH_SCALE = 0.2
 GAUSSIAN_PRIOR_VARIANCE = 1.0
 GAUSSIAN_NOISE_LEVEL = 0.05
 
+#: Tomography prototype (catalog case L07b): pixels per side, angles and rays
+#: per angle; data are analytic line integrals of the discs (no inverse crime).
+#: At 1 % noise the pixel-model error is about 10 times the noise norm and no
+#: discrepancy target is attainable (measured with seed 1: LSQR ran to its cap,
+#: relative error 6.4); at 5 % it is about 2 times the noise norm.
+TOMOGRAPHY_SIZE = 12
+TOMOGRAPHY_ANGLES = 12
+TOMOGRAPHY_NOISE = 0.05
+#: Exponential decay (catalog case N01): observation count and true values.
+DECAY_COUNT = 12
+DECAY_AMPLITUDE = 2.0
+DECAY_RATE = 1.0
+
+
+def _build_tomography(seed: int) -> Instance:
+    """Build the tomography case; its exact pixel averages come from references."""
+    case = masked_tomography_benchmark(
+        TOMOGRAPHY_SIZE,
+        TOMOGRAPHY_ANGLES,
+        rays_per_angle=TOMOGRAPHY_SIZE,
+        analytic=True,
+        relative_noise=TOMOGRAPHY_NOISE,
+        seed=seed,
+    )
+    return Instance(
+        CostCounter(),
+        {
+            "case": case,
+            "data": case.data,
+            "noise_norm": math.sqrt(len(case.data)),
+            "exact": ref.disc_phantom_cell_averages(TOMOGRAPHY_SIZE),
+        },
+    )
+
+
+def _build_decay(seed: int) -> Instance:
+    """Build the decay case; the reference is the independent least-squares fit."""
+    case = exponential_decay_benchmark(
+        amplitude=DECAY_AMPLITUDE, rate=DECAY_RATE, count=DECAY_COUNT, seed=seed
+    )
+    times = [3.0 / DECAY_RATE * i / (DECAY_COUNT - 1) for i in range(DECAY_COUNT)]
+    exact = ref.exponential_decay_least_squares(times, case.data)
+    return Instance(
+        CostCounter(),
+        {"case": case, "data": case.data, "truth": case.truth, "exact": exact},
+    )
+
+
+#: Squared map (catalog N02), elliptic log-conductivity (P01) and heat initial
+#: condition (P02): sizes and data refinements (P01 and P02 generate their
+#: data on a finer mesh or with finer time steps: no inverse crime).
+SQUARED_DIMENSION = 4
+ELLIPTIC_CELLS = 16
+ELLIPTIC_SENSORS = 8
+ELLIPTIC_REFINEMENT = 2
+HEAT_CELLS = 24
+HEAT_STEP_REFINEMENT = 4
+
+
+def _build_squared(seed: int) -> Instance:
+    """Build the squared-map case; the reference is the magnitude fit."""
+    case = squared_map_benchmark(SQUARED_DIMENSION, seed=seed)
+    return Instance(
+        CostCounter(),
+        {
+            "case": case,
+            "data": case.data,
+            "exact": ref.squared_map_least_squares(case.data),
+        },
+    )
+
+
+def _build_elliptic(seed: int) -> Instance:
+    """Build the elliptic case; the reference is the exact cell average."""
+    case = elliptic_benchmark(
+        ELLIPTIC_CELLS, ELLIPTIC_SENSORS, refinement=ELLIPTIC_REFINEMENT, seed=seed
+    )
+    return Instance(
+        CostCounter(),
+        {
+            "case": case,
+            "data": case.data,
+            "exact": ref.log_conductivity_cell_averages(ELLIPTIC_CELLS),
+        },
+    )
+
+
+def _build_heat_initial(seed: int) -> Instance:
+    """Build the heat initial-condition case; the reference is the profile."""
+    case = heat_initial_condition_benchmark(
+        HEAT_CELLS, step_refinement=HEAT_STEP_REFINEMENT, seed=seed
+    )
+    return Instance(
+        CostCounter(),
+        {
+            "case": case,
+            "data": case.data,
+            "noise_norm": math.sqrt(len(case.data)),
+            "exact": ref.heat_initial_profile(HEAT_CELLS),
+        },
+    )
+
 
 def _build_deblur(seed: int) -> Instance:
     """Build the deblurring case; the truth comes from :mod:`benchmarks.references`."""
@@ -976,6 +1083,94 @@ def registry() -> tuple[Problem, ...]:
             {"relerr": "absolute"},
             frozenset({"matrix-free", "gaussian-posterior"}),
             GAUSSIAN_SIZE,
+        ),
+        Problem(
+            "tomography-l07b",
+            "inverse",
+            "Parallel-beam tomography prototype, 12 x 12 pixels, 144 rays",
+            "Three additive discs; 12 angles over [0, pi) x 12 parallel rays with "
+            "exact ray-pixel intersection lengths; the data are the ANALYTIC line "
+            "integrals of the discs (no inverse crime: the pixel model has a "
+            "discretization error of about twice the noise norm), 5 % white "
+            "noise per seed; the error is ||x - x_exact|| / ||x_exact||.",
+            "Exact pixel averages of the disc phantom from disc-rectangle areas "
+            "(benchmarks.references.disc_phantom_cell_averages), independent of "
+            "probstat's 4 x 4 sampled truth. Cost: forward and transpose "
+            "applications of the ray transform.",
+            _build_tomography,
+            _constant({"relerr": 0.0}),
+            {"relerr": "absolute"},
+            frozenset({"matrix-free", "tomography"}),
+            TOMOGRAPHY_SIZE * TOMOGRAPHY_SIZE,
+        ),
+        Problem(
+            "decay-n01",
+            "inverse",
+            "Exponential decay y = a exp(-r t), 12 times",
+            "a = 2, r = 1, times evenly spaced in [0, 3], 1 % white noise per "
+            "seed; the error is the relative distance of the returned (a, r) to "
+            "the exact least-squares fit of the given data.",
+            "Least-squares fit by profiling the amplitude and golden-section "
+            "search in r (benchmarks.references.exponential_decay_least_squares). "
+            "Cost: forward-model, Jacobian-vector and transposed products.",
+            _build_decay,
+            _constant({"relerr": 0.0}),
+            {"relerr": "absolute"},
+            frozenset({"nonlinear-least-squares"}),
+            2,
+        ),
+        Problem(
+            "squared-n02",
+            "inverse",
+            "Squared map y = x o x, 4 unknowns",
+            "Elementwise squares observed with 1 % white noise; every sign "
+            "pattern fits equally well, so the error is the relative distance "
+            "of |x| to the magnitudes of the exact least-squares fit; a solver "
+            "started at the origin would sit at a vanishing Jacobian.",
+            "Closed-form least-squares magnitudes sqrt(max(y_i, 0)) "
+            "(benchmarks.references.squared_map_least_squares). Cost: model, "
+            "Jacobian-vector and transposed products.",
+            _build_squared,
+            _constant({"relerr": 0.0}),
+            {"relerr": "absolute"},
+            frozenset({"squared-map"}),
+            SQUARED_DIMENSION,
+        ),
+        Problem(
+            "elliptic-p01",
+            "inverse",
+            "Elliptic log-conductivity, 16 cells, 8 sensors",
+            "-(k u')' = 1 + s on [0, 1] with zero boundary values, x = log k "
+            "per cell, 8 interior sensors; data from a 2 x finer mesh (no "
+            "inverse crime), 1 % white noise; the error is ||x - x_exact|| / "
+            "||x_exact|| against the exact cell averages of the true "
+            "log-conductivity. Underdetermined: regularization decides the "
+            "answer.",
+            "Exact cell averages of 0.5 sin(2 pi s) + 0.3 s "
+            "(benchmarks.references.log_conductivity_cell_averages). Cost: model, "
+            "Jacobian-vector and transposed products (one adjoint solve each).",
+            _build_elliptic,
+            _constant({"relerr": 0.0}),
+            {"relerr": "absolute"},
+            frozenset({"elliptic-pde"}),
+            ELLIPTIC_CELLS,
+        ),
+        Problem(
+            "heat-p02",
+            "inverse",
+            "Heat equation initial condition, 24 nodes",
+            "Recover the initial temperature from the profile at T = 0.05 "
+            "(implicit Euler, 10 steps); data generated with 4 x finer time "
+            "steps (no inverse crime), 1 % white noise; the error is "
+            "||x - x_exact|| / ||x_exact||.",
+            "Closed-form initial profile exp(-60 (s - 0.4)^2) + 0.5 s (1 - s) "
+            "at the nodes (benchmarks.references.heat_initial_profile). Cost: "
+            "forward and transpose applications of the heat operator.",
+            _build_heat_initial,
+            _constant({"relerr": 0.0}),
+            {"relerr": "absolute"},
+            frozenset({"heat-initial"}),
+            HEAT_CELLS,
         ),
         Problem(
             "linear-tracking",

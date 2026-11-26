@@ -543,3 +543,148 @@ def kalman_filter_2d(
         m0, m1 = m0 + k0 * innovation, m1 + k1 * innovation
         p00, p01, p11 = (1.0 - k0) * p00, (1.0 - k0) * p01, p11 - k1 * p01
     return (m0, m1), ((p00, p01), (p01, p11))
+
+
+#: Additive discs of the tomography phantom (catalog case L07b) in fractions of
+#: the grid side, ``(cx, cy, radius, value)``: copied from the docstring-level
+#: definition of ``probstat.inverse.masked_tomography_benchmark`` so that the
+#: reference below shares the phantom but not the code.
+TOMOGRAPHY_DISCS = (
+    (0.35, 0.40, 0.20, 1.0),
+    (0.65, 0.65, 0.15, 0.5),
+    (0.70, 0.30, 0.08, 0.8),
+)
+
+
+def _disc_rectangle_area(
+    cx: float, cy: float, radius: float, x0: float, x1: float, y0: float, y1: float
+) -> float:
+    """Return the area of a disc intersected with ``[x0, x1] x [y0, y1]``.
+
+    The vertical overlap length is integrated in ``x`` by the composite
+    midpoint rule between its breakpoints (disc edges ``cx +- R`` and the
+    abscissae where the circle crosses ``y0`` or ``y1``); with 400 cells per
+    piece the error is below 1e-6 of the pixel area for the phantom used
+    here (square-root behaviour at the disc edges).
+    """
+    lo, hi = max(x0, cx - radius), min(x1, cx + radius)
+    if lo >= hi:
+        return 0.0
+    breaks = {lo, hi}
+    for y in (y0, y1):
+        if abs(y - cy) < radius:
+            half = math.sqrt(radius * radius - (y - cy) ** 2)
+            for x in (cx - half, cx + half):
+                if lo < x < hi:
+                    breaks.add(x)
+    points = sorted(breaks)
+    area = 0.0
+    cells = 400
+    for a, b in zip(points[:-1], points[1:], strict=True):
+        width = (b - a) / cells
+        for i in range(cells):
+            x = a + (i + 0.5) * width
+            half = math.sqrt(max(radius * radius - (x - cx) ** 2, 0.0))
+            top, bottom = min(y1, cy + half), max(y0, cy - half)
+            if top > bottom:
+                area += (top - bottom) * width
+    return area
+
+
+def disc_phantom_cell_averages(size: int) -> tuple[float, ...]:
+    """Return the exact pixel averages of the disc phantom (row-major).
+
+    Pixel ``(iy, ix)`` covers ``[ix/n, (ix+1)/n] x [iy/n, (iy+1)/n]`` of the
+    unit square; its value is the sum over discs of ``value * area / h^2``.
+    The library benchmark's withheld truth samples 4 x 4 points per pixel
+    instead, so the two differ by the sampling error of that rule.
+    """
+    h = 1.0 / size
+    values = []
+    for iy in range(size):
+        for ix in range(size):
+            total = 0.0
+            for cx, cy, radius, value in TOMOGRAPHY_DISCS:
+                total += value * _disc_rectangle_area(
+                    cx, cy, radius, ix * h, (ix + 1) * h, iy * h, (iy + 1) * h
+                )
+            values.append(total / (h * h))
+    return tuple(values)
+
+
+def exponential_decay_least_squares(
+    times: Sequence[float], data: Sequence[float]
+) -> tuple[float, float]:
+    """Return the least-squares ``(a, r)`` of ``y = a exp(-r t)`` by profiling.
+
+    For fixed ``r`` the best amplitude is ``a(r) = sum y e / sum e^2`` with
+    ``e = exp(-r t)``; the profiled residual is minimized over ``r`` by a
+    coarse scan on ``(0, 20]`` followed by golden-section refinement to a
+    bracket width of 1e-13. Plain standard-library arithmetic.
+    """
+
+    def profile(rate: float) -> tuple[float, float]:
+        """Return ``(residual sum of squares, a(r))``."""
+        e = [math.exp(-rate * t) for t in times]
+        amplitude = math.fsum(y * v for y, v in zip(data, e, strict=True)) / math.fsum(
+            v * v for v in e
+        )
+        rss = math.fsum((y - amplitude * v) ** 2 for y, v in zip(data, e, strict=True))
+        return rss, amplitude
+
+    scan = [20.0 * (i + 1) / 2000 for i in range(2000)]
+    best = min(range(len(scan)), key=lambda i: profile(scan[i])[0])
+    low = scan[max(best - 1, 0)] if best > 0 else 1e-9
+    high = scan[min(best + 1, len(scan) - 1)]
+    golden = (math.sqrt(5.0) - 1.0) / 2.0
+    c = high - golden * (high - low)
+    d = low + golden * (high - low)
+    while high - low > 1e-13:
+        if profile(c)[0] < profile(d)[0]:
+            high, d = d, c
+            c = high - golden * (high - low)
+        else:
+            low, c = c, d
+            d = low + golden * (high - low)
+    rate = 0.5 * (low + high)
+    return profile(rate)[1], rate
+
+
+def squared_map_least_squares(data: Sequence[float]) -> tuple[float, ...]:
+    """Return ``|x|`` of the least-squares fit of ``y_i = x_i^2`` (catalog N02).
+
+    The problem separates per entry: ``(x_i^2 - y_i)^2`` is minimized by
+    ``x_i = +-sqrt(y_i)`` for ``y_i > 0`` and by ``x_i = 0`` otherwise. Every
+    sign pattern fits equally well, so only the magnitudes are a reference.
+    """
+    return tuple(math.sqrt(y) if y > 0.0 else 0.0 for y in data)
+
+
+def log_conductivity_cell_averages(cells: int) -> tuple[float, ...]:
+    """Return exact cell averages of ``0.5 sin(2 pi s) + 0.3 s`` (catalog P01).
+
+    Cell ``i`` covers ``[i/n, (i+1)/n]``; the average is the integral
+    ``-cos(2 pi s) / (4 pi) + 0.15 s^2`` between the cell ends divided by the
+    width. The library benchmark averages fine-cell midpoints instead, so the
+    two differ by that midpoint rule's error.
+    """
+    h = 1.0 / cells
+
+    def primitive(s: float) -> float:
+        """Return an antiderivative of the log-conductivity."""
+        return -math.cos(2.0 * math.pi * s) / (4.0 * math.pi) + 0.15 * s * s
+
+    return tuple((primitive((i + 1) * h) - primitive(i * h)) / h for i in range(cells))
+
+
+def heat_initial_profile(cells: int) -> tuple[float, ...]:
+    """Return ``exp(-60 (s - 0.4)^2) + 0.5 s (1 - s)`` at the interior nodes.
+
+    Nodes ``s_j = (j + 1) / (n + 1)``, ``j = 0..n-1`` (catalog P02).
+    """
+    h = 1.0 / (cells + 1)
+    return tuple(
+        math.exp(-60.0 * ((j + 1) * h - 0.4) ** 2)
+        + 0.5 * (j + 1) * h * (1.0 - (j + 1) * h)
+        for j in range(cells)
+    )
