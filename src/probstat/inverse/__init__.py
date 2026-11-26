@@ -147,6 +147,24 @@ References:
 
 """
 
+from .approximation_error import (
+    ApproximationErrorModel,
+    estimate_approximation_error,
+)
+from .benchmark_extended import (
+    EXTENDED_BENCHMARK_CATALOG,
+    GaussianBlur2DOperator,
+    NonlinearBenchmark,
+    RayTransformOperator,
+    elliptic_benchmark,
+    exponential_decay_benchmark,
+    heat_initial_condition_benchmark,
+    image_deblur_benchmark,
+    masked_tomography_benchmark,
+    parallel_beam_rays,
+    ray_pixel_intersections,
+    squared_map_benchmark,
+)
 from .benchmark_problems import (
     INVERSE_BENCHMARK_CATALOG,
     BenchmarkCase,
@@ -360,6 +378,20 @@ from .test_problems import (
 from .unscented_inversion import UnscentedInversionResult, unscented_kalman_inversion
 
 __all__ = [
+    "EXTENDED_BENCHMARK_CATALOG",
+    "GaussianBlur2DOperator",
+    "NonlinearBenchmark",
+    "RayTransformOperator",
+    "elliptic_benchmark",
+    "exponential_decay_benchmark",
+    "heat_initial_condition_benchmark",
+    "image_deblur_benchmark",
+    "masked_tomography_benchmark",
+    "parallel_beam_rays",
+    "ray_pixel_intersections",
+    "squared_map_benchmark",
+    "ApproximationErrorModel",
+    "estimate_approximation_error",
     "BinomialLaw",
     "CensoredGaussianLaw",
     "GaussianLaw",

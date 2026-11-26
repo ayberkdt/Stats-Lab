@@ -47,6 +47,10 @@ the mathematics re-derived.
   `tikhonov_ensemble_kalman_inversion`, `WhitenedGaussianPriorTarget` with
   adapters to the existing pCN and NUTS samplers and
   `simulation_based_calibration_linear_gaussian`,
+  `estimate_approximation_error` (Bayesian approximation-error model from
+  paired fine and coarse runs), the extended benchmark catalog (2D
+  deblurring, ray-transform tomography with exact intersection lengths,
+  exponential decay, squared and product maps, elliptic and heat cases),
   `profile_likelihood` and `efficient_information`, and the benchmark
   catalog L01-L06 that withholds the truth and flags inverse crimes. In
   `probstat.optimization`: proximal maps, ISTA/FISTA, PDHG, ADMM, Steihaug CG

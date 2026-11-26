@@ -48,6 +48,7 @@ from probstat.linalg import (
     OperatorCounts,
     Vector,
     cgls,
+    householder_qr,
     lsmr,
     lsqr,
     singular_value_decomposition,
@@ -439,12 +440,67 @@ def _projected_tikhonov(
     return q, rnorm, gcv
 
 
+def _projected_general(
+    bidiagonal: list[list[float]],
+    beta: float,
+    lam: float,
+    penalty_r: list[list[float]],
+) -> tuple[list[float], float, float]:
+    """Solve ``min ||T q - beta e_1||^2 + lambda^2 ||R q||^2`` by QR.
+
+    ``R`` is the triangular factor of ``L V_k`` (so ``||R q|| = ||L V_k q||``).
+    The projected GCV value uses ``tr(H) = ||Q_1||_F^2`` of the top block of
+    the stacked QR factor of ``[T; lambda R]`` [EQ-INV-ITER-003].
+
+    References:
+        [EQ-INV-ITER-003], [EQ-LINALG-009].
+
+    """
+    rows = len(bidiagonal)
+    k = len(bidiagonal[0])
+    stacked = [list(row) for row in bidiagonal] + [
+        [lam * value for value in row] for row in penalty_r
+    ]
+    factor = householder_qr(tuple(tuple(row) for row in stacked), rank_tolerance=1e-14)
+    rhs = (beta,) + (0.0,) * (len(stacked) - 1)
+    q = list(factor.solve(rhs))
+    residual = [
+        (beta if r == 0 else 0.0) - math.fsum(bidiagonal[r][j] * q[j] for j in range(k))
+        for r in range(rows)
+    ]
+    rnorm = _norm(residual)
+    trace = math.fsum(factor.q[r][j] ** 2 for r in range(rows) for j in range(k))
+    denominator = rows - trace
+    gcv = rnorm * rnorm / (denominator * denominator) if denominator > 0.0 else math.inf
+    return q, rnorm, gcv
+
+
+def _upper_factor(columns: list[list[float]]) -> list[list[float]]:
+    """Return a ``k``-column matrix ``R`` with ``||R q|| = ||[c_1..c_k] q||``.
+
+    Uses the triangular factor of Householder QR when there are at least
+    ``k`` rows, and the matrix itself otherwise.
+
+    References:
+        [EQ-LINALG-009].
+
+    """
+    k = len(columns)
+    rows = len(columns[0])
+    matrix = [[columns[j][i] for j in range(k)] for i in range(rows)]
+    if rows < k:
+        return matrix
+    factor = householder_qr(tuple(tuple(row) for row in matrix), rank_tolerance=1e-14)
+    return [list(row) for row in factor.r]
+
+
 def _choose_lambda(
     bidiagonal: list[list[float]],
     beta: float,
     rule: str,
     target: float | None,
     fixed: float | None,
+    penalty_r: list[list[float]] | None = None,
 ) -> float:
     """Choose ``lambda_k`` on the projected problem.
 
@@ -467,6 +523,17 @@ def _choose_lambda(
     if not positive:
         return 0.0
     high, low = max(positive), max(min(positive), max(positive) * 1e-12)
+    if penalty_r is not None:
+        r_sigma = [
+            s
+            for s in singular_value_decomposition(
+                tuple(tuple(row) for row in penalty_r)
+            ).singular_values
+            if s > 0.0
+        ]
+        if r_sigma:
+            high = high / max(min(r_sigma), max(r_sigma) * 1e-12)
+            low = low / max(r_sigma)
     grid = [
         math.exp(
             math.log(low * 1e-2)
@@ -474,15 +541,23 @@ def _choose_lambda(
         )
         for i in range(60)
     ]
+
+    def evaluate(lam: float) -> tuple[list[float], float, float]:
+        """Solve the projected problem for one ``lambda``.
+
+        References:
+            [EQ-INV-ITER-003].
+
+        """
+        if penalty_r is None:
+            return _projected_tikhonov(bidiagonal, beta, lam, cache)
+        return _projected_general(bidiagonal, beta, lam, penalty_r)
+
     if rule == "gcv":
-        values = [_projected_tikhonov(bidiagonal, beta, lam, cache)[2] for lam in grid]
+        values = [evaluate(lam)[2] for lam in grid]
         return grid[min(range(60), key=values.__getitem__)]
     assert target is not None
-    feasible = [
-        lam
-        for lam in grid
-        if _projected_tikhonov(bidiagonal, beta, lam, cache)[1] <= target
-    ]
+    feasible = [lam for lam in grid if evaluate(lam)[1] <= target]
     return max(feasible) if feasible else grid[0]
 
 
@@ -502,19 +577,23 @@ def hybrid_lsqr(
     After ``k`` Golub-Kahan steps with full reorthogonalization,
     ``W A V_k = U_(k+1) T_k``; ``q_k`` solves the projected Tikhonov problem
     ``min ||T_k q - beta e_1||^2 + lambda_k^2 ||q||^2`` and
-    ``x_k = x_ref + V_k q_k`` [EQ-INV-ITER-003]. With orthonormal bases the
+    ``x_k = x_ref + V_k q_k`` [EQ-INV-ITER-003]. For a general penalty
+    ``L`` the projected penalty is ``||L V_k q||`` (one application of ``L``
+    per step; ``L V_k`` is reduced to a ``k x k`` triangular factor), not
+    ``||q||``. With orthonormal bases the
     projected residual equals ``||W (A x_k - y)||``. ``lambda_k`` follows
     ``rule``: ``"gcv"`` (projected GCV), ``"discrepancy"`` (needs
     ``noise_norm``) or ``"fixed"`` (needs ``regularization``; then ``x_k``
-    tends to the Tikhonov solution with ``L = I``). The iteration stops when
+    tends to the Tikhonov solution of [EQ-INV-LIN-001]). The iteration
+    stops when
     ``lambda_k`` and ``||x_k||`` change by less than
     ``stabilization_tolerance`` relatively for two consecutive steps, at a
     breakdown (invariant subspace), or at the cap. Memory is
     ``O(k (m + n))``.
 
     Args:
-        problem: Linear inverse problem (only ``L = I`` is supported: a
-            non-identity penalty raises).
+        problem: Linear inverse problem; its penalty ``L`` and reference
+            ``x_ref`` are used.
         rule: ``"gcv"``, ``"discrepancy"`` or ``"fixed"``.
         noise_norm: ``delta`` for the discrepancy rule.
         tau: ``tau >= 1``.
@@ -528,8 +607,7 @@ def hybrid_lsqr(
         ``regularization_history``.
 
     Raises:
-        ValueError: For an invalid rule or missing rule parameter, or a
-            non-identity penalty.
+        ValueError: For an invalid rule or missing rule parameter.
 
     References:
         [EQ-INV-ITER-003], [EQ-LINALG-KRY-006], [REF-GAZZOLA-HANSEN-NAGY-2019],
@@ -540,8 +618,8 @@ def hybrid_lsqr(
 
     if rule not in ("gcv", "discrepancy", "fixed"):
         raise ValueError("rule must be 'gcv', 'discrepancy' or 'fixed'")
-    if not isinstance(problem.penalty, IdentityOperator):
-        raise ValueError("hybrid_lsqr supports only the identity penalty")
+    general = not isinstance(problem.penalty, IdentityOperator)
+    penalty_columns: list[list[float]] = []
     target = _target(noise_norm, tau)
     if rule == "discrepancy" and target is None:
         raise ValueError("the discrepancy rule needs noise_norm")
@@ -615,14 +693,23 @@ def hybrid_lsqr(
         for j in range(k):
             bidiagonal[j][j] = alphas[j]
             bidiagonal[j + 1][j] = betas[j]
-        lam = _choose_lambda(bidiagonal, beta, rule, target, fixed)
-        svd = singular_value_decomposition(tuple(tuple(row) for row in bidiagonal))
-        cache = (
-            svd.singular_values,
-            [list(r) for r in svd.u],
-            [list(r) for r in svd.v],
-        )
-        q, projected_residual, _ = _projected_tikhonov(bidiagonal, beta, lam, cache)
+        penalty_r: list[list[float]] | None = None
+        if general:
+            penalty_columns.append(list(problem.penalty.matvec(v)))
+            penalty_r = _upper_factor(penalty_columns)
+        lam = _choose_lambda(bidiagonal, beta, rule, target, fixed, penalty_r)
+        if penalty_r is None:
+            svd = singular_value_decomposition(tuple(tuple(row) for row in bidiagonal))
+            cache = (
+                svd.singular_values,
+                [list(r) for r in svd.u],
+                [list(r) for r in svd.v],
+            )
+            q, projected_residual, _ = _projected_tikhonov(bidiagonal, beta, lam, cache)
+        else:
+            q, projected_residual, _ = _projected_general(
+                bidiagonal, beta, lam, penalty_r
+            )
         z = [math.fsum(v_basis[j][i] * q[j] for j in range(k)) for i in range(n)]
         x = tuple(a + c for a, c in zip(z, problem.reference, strict=True))
         iterates.append(x)

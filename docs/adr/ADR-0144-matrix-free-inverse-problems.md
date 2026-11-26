@@ -91,12 +91,15 @@ unchanged.
    space, square-root transform) and Tikhonov EKI by the augmented system;
    `inverse.posterior_targets` exposes a prior-whitened posterior target to
    the EXISTING pCN and NUTS samplers and to the existing SBC routine rather
-   than adding samplers. `inverse.profile_likelihood` adds profile intervals that never
+   than adding samplers; `inverse.approximation_error` estimates the mean
+   and covariance of the coarse-model error from paired runs (with optional
+   shrinkage and a held-out check). `inverse.profile_likelihood` adds profile intervals that never
    fabricate an endpoint; `inference.delayed_acceptance` adds exact-target
    two-stage Metropolis-Hastings; `design.linear_optimal` adds A-, D-, E- and
    goal-oriented criteria with greedy and exhaustive selection.
 7. **Benchmarks.** `inverse.benchmark_problems` (L01, L04-L06; L02-L03 are
-   the existing closed-form problems) withholds the truth, separates truth,
+   the existing closed-form problems) and `inverse.benchmark_extended`
+   (L07a, L07b, N01, N02, P01, P02) withholds the truth, separates truth,
    design and noise streams and flags inverse crimes
    [EQ-INV-BENCH-001].
 8. **Stability.** All new names are experimental (module docstrings say so)
@@ -117,7 +120,8 @@ unchanged.
 - Known limitations recorded in `docs/research/inverse-expansion-progress.md`:
   projected GCV under-regularized on deriv2 in our runs; PDHG needs many
   iterations for large TV weights; the GSVD requires `m >= n` and a
-  full-rank stack; hybrid LSQR supports only `L = I`.
+  full-rank stack; hybrid LSQR with a general `L` projects the penalty as
+  `||L V_k q||`, which costs one application of `L` per step.
 
 ## Verification evidence
 

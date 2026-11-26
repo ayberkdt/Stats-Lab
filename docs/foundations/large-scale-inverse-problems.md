@@ -278,7 +278,13 @@ method look better than it is [REF-KAIPIO-SOMERSALO-2007]. Each benchmark in
 `INVERSE_BENCHMARK_CATALOG` carries `same_discretization`; the deblurring
 case with `refinement > 1` generates its data on a finer grid. Truth, design
 and noise come from separate random streams, so changing the noise seed never
-changes the truth.
+changes the truth. The danger is concrete: on the tomography case with
+data from analytic line integrals, the error of the pixel model (about
+10 % of the data) is larger than 1 % noise, the discrepancy target is
+never reached and early stopping fails (`tests/test_benchmark_extended.py`).
+`estimate_approximation_error` estimates the mean and covariance of such a
+model error from paired fine and coarse runs so that it can enter the
+likelihood as `Gamma + Sigma_e`.
 
 ## Common pitfalls
 

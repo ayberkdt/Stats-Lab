@@ -21,7 +21,7 @@ open), `deferred` (not started; reason given), `blocked`.
 | 03 operators | verified | `linalg.operators`, `linalg.covariance_operators`, `linalg.krylov` | `tests/test_linalg_operators_krylov.py` | operator-path Lanczos for huge `n` is `O(k n)` memory by design |
 | 04 spectral | partial | `inverse.spectral` (whitened SVD, complete nullspace, Picard, restricted GSVD); prior-whitened spectrum in `inverse.linear_gaussian.prior_whitened_information` | `tests/test_inverse_spectral_iterative_selection.py` | GSVD for `m < n` or a rank-deficient stack; functional resolution with mass matrices |
 | 05 linear problem | verified | `inverse.linear_problem` (QR/SVD/Krylov affine Tikhonov, estimator analysis, equality, NNLS, box, TLS) | `tests/test_linear_inverse_problem.py` | multiple right-hand sides with factor reuse; 1000-replicate Monte Carlo of the estimator covariance (slow tier) |
-| 06 iterative | partial | `inverse.iterative` (Landweber, early-stopped CGLS/LSQR/LSMR, hybrid LSQR with projected GCV / discrepancy / fixed rules) | `tests/test_inverse_spectral_iterative_selection.py` | hybrid with general `L`; weighted GCV (source not verified offline); flexible/IRN variants |
+| 06 iterative | partial | `inverse.iterative` (Landweber, early-stopped CGLS/LSQR/LSMR, hybrid LSQR with projected GCV / discrepancy / fixed rules and a general penalty `L`) | `tests/test_inverse_spectral_iterative_selection.py` | weighted GCV (source not verified offline); flexible/IRN variants |
 | 07 selection | verified | `inverse.parameter_selection` (GCV, UPRE, discrepancy, L-curve, evidence, Hutchinson df, grouped CV) | `tests/test_inverse_spectral_iterative_selection.py` (includes an MC unbiasedness check of UPRE) | 3 families x 10 seeds comparison table (slow tier) |
 | 08 sparse/TV | partial | `optimization.proximal` (prox maps, ISTA/FISTA, PDHG, ADMM), `inverse.sparse` (lasso, TV) | `tests/test_proximal_sparse.py` | IRLS, Huber TV, TGV, non-convex penalties; PDHG is slow for large `alpha` (measured, see guide) |
 | 09 nonlinear | partial | `inverse.gauss_newton` (`DifferentiableForward`, `CallbackForward`, `check_derivatives`, GN with inner LSQR/CGLS and Armijo, IRGNM); `optimization.trust_region` (Steihaug CG [REF-STEIHAUG-1983], trust-region Newton-CG) and `inverse.newton_trust_region` (Gauss-Newton or full Hessian actions) | `tests/test_gauss_newton_krylov.py`, `tests/test_trust_region_newton.py` | bounds; robust losses; variable projection [REF-GOLUB-PEREYRA-1973]; discrepancy stop in the trust-region method |
@@ -31,16 +31,27 @@ open), `deferred` (not started; reason given), `blocked`.
 | 13 samplers | partial | `inverse.posterior_targets` (prior-whitened target with gradient by one `vjp`; adapters to the existing pCN and NUTS/HMC; mapping back to physical coordinates; SBC for the linear Gaussian case through the existing SBC routine) | `tests/test_posterior_targets.py` | tempered SMC adapter, pCN dimension-robustness study, nonlinear posterior reference |
 | 14 ensembles | partial | `inverse.regularized_ensemble` (stochastic and square-root ensemble Kalman updates with covariance factors, observation- and ensemble-space solves, Tikhonov EKI by the augmented system) | `tests/test_regularized_ensemble.py` | localization, adaptive inflation, ETPF; nonlinear multimodal comparison |
 | 15 PDE adjoints | partial | `inverse.pde_models` (1D elliptic log-conductivity, Thomas solver, tangent, adjoint, flux balance); `inverse.heat_models` (implicit Euler and Crank-Nicolson initial-condition and source operators with exact discrete transposes and closed-form singular values) | `tests/test_pde_models.py`, `tests/test_heat_models.py` | ODE discrete adjoint; external-simulator adapter; nonlinear coefficient inversion in time |
-| 16 multifidelity | partial | `inference.delayed_acceptance` (exact-target two-stage MH, random walk and pCN) | `tests/test_delayed_acceptance.py` | paired approximation-error model; multilevel MCMC |
+| 16 multifidelity | partial | `inference.delayed_acceptance` (exact-target two-stage MH, random walk and pCN); `inverse.approximation_error` (paired fine/coarse error mean and covariance, shrinkage, held-out Mahalanobis check, cross-covariance) | `tests/test_delayed_acceptance.py`, `tests/test_approximation_error.py` | cost in fine-equivalent units; surrogate training and active refinement; multilevel MCMC |
 | 17 SBI | deferred | existing ABC/NPE/NRE unchanged | - | inverse-problem SBI comparison |
 | 18 design | partial | `design.linear_optimal` (A/D/E/goal criteria, greedy rank-one updates, exhaustive oracle, correlated-noise joint criteria) | `tests/test_linear_optimal_design.py` | operator-path and stochastic-trace criteria; sequential and robust design |
-| 19 benchmarks | partial | `inverse.benchmark_problems` (L01, L04-L06; L02-L03 existing) with truth/noise stream separation and the inverse-crime flag | `tests/test_inverse_benchmark_problems.py` | L07 2D tomography, N01-N03, P01-P02, JSON/CSV runner, `benchmarks/run.py` group |
+| 19 benchmarks | partial | `inverse.benchmark_problems` (L01, L04-L06; L02-L03 existing) and `inverse.benchmark_extended` (L07a 2D deblurring, L07b ray-transform tomography with exact intersection lengths and analytic disc data, N01, N02, P01, P02) with truth/noise stream separation and the inverse-crime flag; `tools/inverse_benchmark_matrix.py` JSON runner | `tests/test_inverse_benchmark_problems.py`, `tests/test_benchmark_extended.py` | N03 ODE oscillator, S01 Poisson imaging, M01, F01, A01-A02; a `benchmarks/run.py` group |
 | 20 applications | partial | 20A functional inversion demonstrated in `tests/test_function_space.py` (truth from a finer representation, integral kernels, exact posterior) | `tests/test_function_space.py` | synthetic cosmology, orbit determination, gravity field |
 | 21 pedagogy | partial | guide chapter U18 with measured tables and exercises; learning-path entry; guide figures `large-scale-semi-convergence` and `large-scale-tv-edges` (light and dark, datawiz audit passed) | `tests/test_guide_figures.py`, documentation tests | labs; further figures (posterior bands, design gains) |
 | 22 verification | partial | this ledger; registry, references, API and math reference and the presentation data regenerated | see test log below | wheel build and clean-environment smoke test not run |
 | 23 references | verified | 30 new bibliography entries; metadata checked against Crossref on 2026-11-26 | `test_documentation_contract` | Bakushinskii (1992) and the weighted-GCV paper of Chung, Nagy and O'Leary (2008) were NOT found on Crossref and are not cited |
 
 ## Measured observations worth keeping
+
+- Tomography L07b with analytic disc data: the pixel-model error (about
+  10 % of the data norm) exceeds 1 % noise, so the discrepancy target is
+  never reached, LSQR runs to its cap and the estimate is worse than the
+  zero image (`tests/test_benchmark_extended.py`,
+  `test_model_error_defeats_the_discrepancy_rule`): a concrete case where
+  the noise level alone is the wrong stopping scale.
+- Approximation-error model on a linear pair (50 replicates, 90 %
+  intervals of `sum(x)`): coverage 0.26 for the naive coarse posterior
+  and 1.00 with the error model (conservative); seeds of
+  `tests/test_approximation_error.py`, not a general rate.
 
 - Projected GCV in `hybrid_lsqr` under-regularized on deriv2 (`n = 32`, 1 %
   noise): relative error 1.79 against 0.291 for the projected discrepancy
@@ -70,6 +81,8 @@ Commands, exit codes and elapsed times of the verification runs
 | second round (observation laws, regularized ensemble, posterior targets, function space, heat models, trust region): their six test files with presentation, benchmarks, guide figures, architecture, API and math reference tests | 176 passed, 5,711 subtests, exit 0, 134 s |
 | same round: documentation examples, documentation contract, learning paths and the first-round inverse test files | 162 passed, 1 failed (README test floor `3,500+` fell below 80 % of the 4,413 test cases; raised to `4,400+`), then `ReadmeTests` and `test_presentation` re-run: 23 passed |
 | `benchmarks/results/quick.json`, `docs/benchmarks.md` | regenerated by `benchmarks/run.py --quick` at this commit; the presentation data were rebuilt from them |
+| third round (approximation error, extended benchmarks, general-penalty hybrid LSQR): their test files with spectral/iterative/selection, presentation, guide figures, architecture, API and math reference tests | 99 passed, 5,719 subtests, exit 0, 256 s |
+| same round: documentation examples, documentation contract, learning paths | 95 passed, 1,030 subtests, exit 0, 523 s |
 | `python tools/inverse_benchmark_matrix.py --quick` | exit 0, 165 s, 39 runs, 0 failed runs; see below |
 
 ### Benchmark matrix (quick: seeds 11, 23, 37; median relative error)

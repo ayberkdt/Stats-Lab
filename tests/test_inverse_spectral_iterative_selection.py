@@ -275,6 +275,37 @@ class IterativeRegularizationTests(unittest.TestCase):
             hybrid.misfit_history[-1], problem.misfit(hybrid.estimate), places=8
         )
 
+    def test_hybrid_general_penalty_equals_affine_tikhonov(self) -> None:
+        """A first-difference penalty and a reference are honoured exactly."""
+        from probstat.linalg import FirstDifferenceOperator
+
+        base = second_derivative_problem(16)
+        y, sigma = noisy(base.exact_data, 0.01, SEED + 9)
+        problem = LinearInverseProblem.create(
+            base.operator,
+            y,
+            noise=ScaledIdentityCovariance(16, sigma * sigma),
+            penalty=FirstDifferenceOperator(16),
+            reference=[0.1] * 16,
+        )
+        hybrid = hybrid_lsqr(
+            problem,
+            rule="fixed",
+            regularization=2.0,
+            max_iterations=16,
+            stabilization_tolerance=1e-15,
+        )
+        exact = solve_regularized(problem, 2.0)
+        scale = max(abs(v) for v in exact.estimate)
+        self.assertLess(max_diff(hybrid.estimate, exact.estimate), 1e-9 * scale)
+        discrepancy = hybrid_lsqr(
+            problem, rule="discrepancy", noise_norm=expected_noise_norm(16)
+        )
+        self.assertLessEqual(
+            problem.misfit(discrepancy.estimate),
+            1.01 * expected_noise_norm(16) * 1.0001,
+        )
+
     def test_hybrid_discrepancy_meets_target(self) -> None:
         """The projected discrepancy rule ends near the noise level."""
         base = second_derivative_problem(32)
@@ -294,11 +325,6 @@ class IterativeRegularizationTests(unittest.TestCase):
         self.assertGreater(result.regularization_history[-1], 0.0)
         with self.assertRaises(ValueError):
             hybrid_lsqr(problem, rule="discrepancy")
-        with self.assertRaises(ValueError):
-            hybrid_lsqr(
-                LinearInverseProblem.create(base.operator, y, penalty=[[1.0] * 32]),
-                rule="gcv",
-            )
 
 
 class ParameterSelectionTests(unittest.TestCase):
