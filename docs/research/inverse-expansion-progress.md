@@ -98,6 +98,7 @@ Commands, exit codes and elapsed times of the verification runs
 | same round: documentation examples, learning paths, documentation contract | 95 passed, 1,029 subtests, exit 0 |
 | `python examples/large_scale_inverse_lab.py` | exit 0, 29 s; on its seed GCV under-smooths the refined-data deblurring (relative error 8.33) while UPRE and the discrepancy rule give 0.11 and TV 0.020 |
 | `python benchmarks/run.py --quick` with the new cases | 332 runs, 20 failed (0 unexpected), 18 skipped, 161.7 s under load |
+| final full run after the laboratory and benchmark cases (246 test files, six parallel shards) | 4,563 passed, 1 skipped, 0 failed; every shard exit 0; 16 min wall |
 | `python tools/inverse_benchmark_matrix.py --quick` | exit 0, 165 s, 39 runs, 0 failed runs; see below |
 
 ### Benchmark matrix (quick: seeds 11, 23, 37; median relative error)
