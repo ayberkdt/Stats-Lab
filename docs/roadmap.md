@@ -373,6 +373,24 @@ covariance has to pass.
 - [x] A batch evaluation contract: procedures that request whole batches of
   points, driven by a batch callable or an ask-tell session (ADR-0132).
 
+## Inverse-problems research track (0.28, experimental)
+
+- [x] Matrix-free linear operators with exact transposes, covariance
+  factors, and Krylov solvers (CGLS, LSQR, LSMR, CG) with spectral and trace
+  estimators (ADR-0144).
+- [x] Weighted affine Tikhonov, constrained least squares (equality, NNLS,
+  bounds), total least squares, and the resolution and covariance of the
+  linear estimator (ADR-0144).
+- [x] Spectral diagnostics with complete nullspaces, a restricted GSVD,
+  Landweber, early-stopped Krylov and hybrid LSQR, and one parameter path
+  with GCV, UPRE, discrepancy, L-curve, evidence and grouped CV (ADR-0144).
+- [x] `l1` and total variation by FISTA, PDHG and ADMM; matrix-free
+  Gauss-Newton and IRGNM; exact and low-rank Gaussian posteriors; a 1D PDE
+  adjoint prototype; profile likelihood; delayed-acceptance MCMC; linear
+  optimal design; benchmark cases L01-L06 (ADR-0144).
+- [ ] Open items of the 2026-11-26 roadmap are listed with their status in
+  [`research/inverse-expansion-progress.md`](research/inverse-expansion-progress.md).
+
 ## Beyond the current scope
 
 Extensions recorded in the decision records as possible future work. They

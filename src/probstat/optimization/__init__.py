@@ -16,6 +16,10 @@ Main entry points:
     ``brent_root``: scalar root inside a sign-changing bracket.
     ``multi_start``: seeded random restarts of a local minimizer in a box.
     ``central_gradient``: central-difference gradient with its call count.
+    ``ista``, ``fista``, ``primal_dual_hybrid_gradient``, ``admm`` and the
+        proximal maps (experimental, 0.28): non-smooth convex optimization
+        on matrix-free operators; ``trust_region_newton_cg`` with
+        ``steihaug_cg`` for Hessian-action Newton steps.
 
 Assumptions:
     The minimizers find a local minimum near the start; nothing certifies a
@@ -71,7 +75,9 @@ References:
     [REF-NOCEDAL-WRIGHT-2006] (BFGS, line searches, least squares),
     [REF-MORE-1978] (Levenberg-Marquardt), [REF-BRENT-1973] (root
     finding), [REF-SEBER-WILD-2003] (Gauss-Newton covariance),
-    [REF-KINGMA-BA-2015] (Adam).
+    [REF-KINGMA-BA-2015] (Adam), [REF-BECK-TEBOULLE-2009],
+    [REF-CHAMBOLLE-POCK-2011], [REF-BOYD-ETAL-2011] (proximal methods),
+    [REF-STEIHAUG-1983] (trust region).
 
 """
 
@@ -85,6 +91,26 @@ from .finite_differences import (
 from .multistart import multi_start
 from .nelder_mead import minimize_nelder_mead
 from .nonlinear_least_squares import gauss_newton_covariance, least_squares
+from .proximal import (
+    ADMMResult,
+    PDHGResult,
+    ProximalGradientResult,
+    ProxMap,
+    admm,
+    fista,
+    ista,
+    primal_dual_hybrid_gradient,
+    project_box,
+    project_l2_ball,
+    project_linf_ball,
+    project_pointwise_l2_ball,
+    prox_elastic_net,
+    prox_group_l2,
+    prox_l1,
+    prox_nonnegative_l1,
+    prox_pointwise_l2,
+    soft_threshold,
+)
 from .quasi_newton import minimize_bfgs
 from .results import (
     LeastSquaresResult,
@@ -94,8 +120,38 @@ from .results import (
 )
 from .root_finding import brent_root
 from .stochastic import AdamResult, adam_minimize
+from .trust_region import (
+    SteihaugResult,
+    TrustRegionIteration,
+    TrustRegionResult,
+    steihaug_cg,
+    trust_region_newton_cg,
+)
 
 __all__ = [
+    "SteihaugResult",
+    "TrustRegionIteration",
+    "TrustRegionResult",
+    "steihaug_cg",
+    "trust_region_newton_cg",
+    "ADMMResult",
+    "PDHGResult",
+    "ProxMap",
+    "ProximalGradientResult",
+    "admm",
+    "fista",
+    "ista",
+    "primal_dual_hybrid_gradient",
+    "project_box",
+    "project_l2_ball",
+    "project_linf_ball",
+    "project_pointwise_l2_ball",
+    "prox_elastic_net",
+    "prox_group_l2",
+    "prox_l1",
+    "prox_nonnegative_l1",
+    "prox_pointwise_l2",
+    "soft_threshold",
     "AdamResult",
     "BoxTransform",
     "MultiStartResult",

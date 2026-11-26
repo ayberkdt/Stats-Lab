@@ -16,6 +16,35 @@ the mathematics re-derived.
 
 ### Added
 
+- **Matrix-free inverse-problem layer** (experimental, ADR-0144). In
+  `probstat.linalg`: the `LinearOperator` protocol with validated operators
+  (dense, diagonal, callback, selection, permutation, first differences and
+  the image gradient with explicit boundaries, 1D convolution) and their
+  algebra, `CountingOperator`, `adjoint_test`, `weighted_adjoint`;
+  covariance factors with whitening and log-determinants; CGLS, LSQR, LSMR
+  and CG with explicit stop reasons; power iteration, Lanczos, Hutchinson
+  traces and the randomized SVD. In `probstat.inverse`:
+  `LinearInverseProblem` and `solve_regularized` (weighted, affine Tikhonov
+  by QR, SVD or Krylov; the legacy `tikhonov` is reproduced exactly),
+  `linear_estimator_analysis`, equality-constrained, non-negative,
+  box-constrained and total least squares, `spectral_diagnostics` with
+  complete nullspaces, a restricted `generalized_svd`, `landweber`,
+  `krylov_regularization`, `hybrid_lsqr`, `regularization_path` with
+  `select_regularization` (GCV, UPRE, discrepancy, L-curve, evidence) and
+  `grouped_cross_validation`, `l1_regularized_least_squares` and
+  `total_variation_regularized_least_squares`, `gauss_newton_krylov` and
+  `iteratively_regularized_gauss_newton` with `check_derivatives`,
+  `linear_gaussian_posterior` and `low_rank_posterior`,
+  `EllipticDiffusion1D` with tangent and adjoint actions,
+  `profile_likelihood` and `efficient_information`, and the benchmark
+  catalog L01-L06 that withholds the truth and flags inverse crimes. In
+  `probstat.optimization`: proximal maps, ISTA/FISTA, PDHG and ADMM. In
+  `probstat.inference`: `delayed_acceptance_metropolis`. In
+  `probstat.design`: A-, D-, E- and goal-oriented linear design with greedy
+  and exhaustive selection. Guide:
+  `docs/foundations/large-scale-inverse-problems.md`; status of every
+  roadmap task: `docs/research/inverse-expansion-progress.md`. No existing
+  default or seeded result changes.
 - **Batch evaluation contract** (`probstat.foundations`, ADR-0132): an
   algorithm written as a procedure yields an `EvaluationRequest` (many points
   and the label of the model that must evaluate them) and receives the

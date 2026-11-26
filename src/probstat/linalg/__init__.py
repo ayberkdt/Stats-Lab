@@ -19,6 +19,15 @@ Main entry points:
         rotations, with ``pseudo_inverse`` and ``numerical_rank``.
     ``use_backend``: select a dense backend for the duration of a ``with``
         block.
+    ``LinearOperator`` and the operator classes (experimental, 0.28):
+        matrix-free maps with ``matvec`` and the Euclidean transpose
+        ``rmatvec``, composition, stacking, counting, ``adjoint_test`` and
+        ``weighted_adjoint``.
+    ``DiagonalCovariance``, ``DenseCovariance``, ``BlockDiagonalCovariance``:
+        covariance factors with whitening, solves and log-determinants.
+    ``cgls``, ``lsqr``, ``lsmr``, ``conjugate_gradient``: matrix-free
+        Krylov solvers; ``power_iteration``, ``lanczos_eigenpairs``,
+        ``hutchinson_trace`` and ``randomized_svd`` for spectra and traces.
 
 Assumptions:
     Matrices are finite, dense, and small enough for ``O(n^3)`` pure-Python
@@ -55,7 +64,9 @@ References:
     [REF-HESTENES-1958] (one-sided Jacobi SVD), [REF-PENROSE-1955]
     (pseudo-inverse),
     [REF-STRANG-2016] (concepts), [REF-HARRIS-ETAL-2020] (the optional
-    NumPy backend).
+    NumPy backend), [REF-PAIGE-SAUNDERS-1982], [REF-FONG-SAUNDERS-2011],
+    [REF-HALKO-MARTINSSON-TROPP-2011], [REF-HUTCHINSON-1989] (matrix-free
+    solvers and estimators).
 
 """
 
@@ -68,6 +79,13 @@ from .backend import (
     get_backend,
     set_backend,
     use_backend,
+)
+from .covariance_operators import (
+    BlockDiagonalCovariance,
+    DenseCovariance,
+    DiagonalCovariance,
+    ScaledIdentityCovariance,
+    is_covariance_factor,
 )
 from .dense import (
     Matrix,
@@ -99,6 +117,52 @@ from .dense import (
     symmetrize,
     transpose,
 )
+from .krylov import (
+    KrylovResult,
+    LanczosResult,
+    RandomizedSVD,
+    SpectralNormEstimate,
+    TraceEstimate,
+    cgls,
+    conjugate_gradient,
+    hutchinson_trace,
+    lanczos_eigenpairs,
+    lsmr,
+    lsqr,
+    power_iteration,
+    randomized_svd,
+)
+from .operators import (
+    AdjointTestResult,
+    BlockDiagonalOperator,
+    CallbackOperator,
+    ComposedOperator,
+    Convolution1DOperator,
+    CountingOperator,
+    DenseOperator,
+    DiagonalOperator,
+    FirstDifferenceOperator,
+    GridGradientOperator,
+    HStackOperator,
+    IdentityOperator,
+    LinearOperator,
+    OperatorBase,
+    OperatorCounts,
+    PermutationOperator,
+    ScaledOperator,
+    SelectionOperator,
+    SumOperator,
+    SymmetricPositiveDefinite,
+    TransposedOperator,
+    VStackOperator,
+    ZeroOperator,
+    adjoint_test,
+    apply,
+    apply_transpose,
+    materialize,
+    require_operator,
+    weighted_adjoint,
+)
 from .qr import DEFAULT_RANK_TOLERANCE, HouseholderQR, householder_qr
 from .svd import (
     DEFAULT_JACOBI_TOLERANCE,
@@ -109,6 +173,53 @@ from .svd import (
 )
 
 __all__ = [
+    "AdjointTestResult",
+    "BlockDiagonalCovariance",
+    "BlockDiagonalOperator",
+    "CallbackOperator",
+    "ComposedOperator",
+    "Convolution1DOperator",
+    "CountingOperator",
+    "DenseCovariance",
+    "DenseOperator",
+    "DiagonalCovariance",
+    "DiagonalOperator",
+    "FirstDifferenceOperator",
+    "GridGradientOperator",
+    "HStackOperator",
+    "IdentityOperator",
+    "KrylovResult",
+    "LanczosResult",
+    "LinearOperator",
+    "OperatorBase",
+    "OperatorCounts",
+    "PermutationOperator",
+    "RandomizedSVD",
+    "ScaledIdentityCovariance",
+    "ScaledOperator",
+    "SelectionOperator",
+    "SpectralNormEstimate",
+    "SumOperator",
+    "SymmetricPositiveDefinite",
+    "TraceEstimate",
+    "TransposedOperator",
+    "VStackOperator",
+    "ZeroOperator",
+    "adjoint_test",
+    "apply",
+    "apply_transpose",
+    "cgls",
+    "conjugate_gradient",
+    "hutchinson_trace",
+    "is_covariance_factor",
+    "lanczos_eigenpairs",
+    "lsmr",
+    "lsqr",
+    "materialize",
+    "power_iteration",
+    "randomized_svd",
+    "require_operator",
+    "weighted_adjoint",
     "DEFAULT_JACOBI_TOLERANCE",
     "DEFAULT_RANK_TOLERANCE",
     "CholeskyFactorization",

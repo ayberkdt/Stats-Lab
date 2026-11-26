@@ -31,6 +31,9 @@ Main entry points:
         ``confidence_bound``, ``constrained_expected_improvement``,
         ``knowledge_gradient``, ``thompson_sample``: the acquisition
         functions on their own.
+    ``linear_design_criteria``, ``greedy_linear_design`` and
+        ``exhaustive_linear_design`` (experimental, 0.28): A-, D-, E- and
+        goal-oriented sensor selection for linear Gaussian inverse problems.
 
 Assumptions:
     Classical designs assume a regression model linear in its parameters (or
@@ -75,7 +78,8 @@ References:
     [REF-CHALONER-VERDINELLI-1995], [REF-RYAN-2003], [REF-HUAN-MARZOUK-2013],
     [REF-JONES-SCHONLAU-WELCH-1998], [REF-AMENT-ETAL-2023],
     [REF-SRINIVAS-ETAL-2010], [REF-GARDNER-ETAL-2014],
-    [REF-FRAZIER-POWELL-DAYANIK-2008].
+    [REF-FRAZIER-POWELL-DAYANIK-2008], [REF-ALEXANDERIAN-2021] (linear
+    optimal design).
 
 """
 
@@ -127,8 +131,22 @@ from .classical import (
     polynomial_basis,
     standardized_variances,
 )
+from .linear_optimal import (
+    LinearDesignCriteria,
+    LinearExhaustiveResult,
+    LinearGreedyResult,
+    exhaustive_linear_design,
+    greedy_linear_design,
+    linear_design_criteria,
+)
 
 __all__ = [
+    "LinearDesignCriteria",
+    "LinearExhaustiveResult",
+    "LinearGreedyResult",
+    "exhaustive_linear_design",
+    "greedy_linear_design",
+    "linear_design_criteria",
     "ApproximateDesign",
     "Basis",
     "BayesianDesignProblem",

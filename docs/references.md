@@ -6465,3 +6465,281 @@ Table I (the bounds for ten decision variables), and Definition 3 with
 Theorem 3 (at most `n` support constraints). Used as a published oracle: the
 exact binomial size of [REF-CAMPI-GARATTI-2008] must not exceed the
 Corollary 1 size at every entry of Table I.
+
+## REF-PAIGE-SAUNDERS-1982
+
+Christopher C. Paige and Michael A. Saunders. "LSQR: An Algorithm for Sparse
+Linear Equations and Sparse Least Squares." *ACM Transactions on
+Mathematical Software* 8(1), 43-71, 1982. Cited for the Golub-Kahan
+bidiagonalization recurrence, the plane-rotation update of LSQR and its
+residual and normal-residual estimates. Metadata checked against Crossref
+(2026-11-26).
+DOI: [10.1145/355984.355989](https://doi.org/10.1145/355984.355989).
+
+## REF-FONG-SAUNDERS-2011
+
+David Chin-Lung Fong and Michael Saunders. "LSMR: An Iterative Algorithm for
+Sparse Least-Squares Problems." *SIAM Journal on Scientific Computing* 33(5),
+2950-2971, 2011. Cited for LSMR, the MINRES-type method on the normal
+equations built from the same bidiagonalization as LSQR, whose normal
+residual `||A'r||` decreases monotonically. Metadata checked against
+Crossref (2026-11-26).
+DOI: [10.1137/10079687X](https://doi.org/10.1137/10079687X).
+
+## REF-GOLUB-KAHAN-1965
+
+Gene H. Golub and William Kahan. "Calculating the Singular Values and
+Pseudo-Inverse of a Matrix." *Journal of the Society for Industrial and
+Applied Mathematics, Series B: Numerical Analysis* 2(2), 205-224, 1965.
+Cited for the bidiagonalization `A V_k = U_(k+1) B_k`. Metadata checked
+against Crossref (2026-11-26).
+DOI: [10.1137/0702016](https://doi.org/10.1137/0702016).
+
+## REF-HESTENES-STIEFEL-1952
+
+Magnus R. Hestenes and Eduard Stiefel. "Methods of Conjugate Gradients for
+Solving Linear Systems." *Journal of Research of the National Bureau of
+Standards* 49(6), 409-436, 1952. Cited for the conjugate gradient method and
+its least-squares variant CGLS. Metadata checked against Crossref
+(2026-11-26; Crossref lists the first page only).
+DOI: [10.6028/jres.049.044](https://doi.org/10.6028/jres.049.044).
+
+## REF-LANCZOS-1950
+
+Cornelius Lanczos. "An Iteration Method for the Solution of the Eigenvalue
+Problem of Linear Differential and Integral Operators." *Journal of Research
+of the National Bureau of Standards* 45(4), 255-282, 1950. Cited for the
+symmetric Lanczos tridiagonalization. Metadata checked against Crossref
+(2026-11-26; Crossref lists the first page only).
+DOI: [10.6028/jres.045.026](https://doi.org/10.6028/jres.045.026).
+
+## REF-LANDWEBER-1951
+
+L. Landweber. "An Iteration Formula for Fredholm Integral Equations of the
+First Kind." *American Journal of Mathematics* 73(3), 615-624, 1951. Cited
+for the gradient iteration `x_(k+1) = x_k + omega A'(b - A x_k)` and its
+regularizing effect when stopped early. Metadata checked against Crossref
+(2026-11-26; Crossref lists the first page only).
+DOI: [10.2307/2372313](https://doi.org/10.2307/2372313).
+
+## REF-HUTCHINSON-1989
+
+M. F. Hutchinson. "A Stochastic Estimator of the Trace of the Influence
+Matrix for Laplacian Smoothing Splines." *Communications in Statistics -
+Simulation and Computation* 18(3), 1059-1076, 1989. Cited for the
+Rademacher-probe trace estimator `tr(H) ~= (1/s) sum_k z_k'H z_k`. Metadata
+checked against Crossref (2026-11-26).
+DOI: [10.1080/03610918908812806](https://doi.org/10.1080/03610918908812806).
+
+## REF-HALKO-MARTINSSON-TROPP-2011
+
+Nathan Halko, Per-Gunnar Martinsson, and Joel A. Tropp. "Finding Structure
+with Randomness: Probabilistic Algorithms for Constructing Approximate
+Matrix Decompositions." *SIAM Review* 53(2), 217-288, 2011. Cited for the
+randomized range finder with oversampling and power iterations and the
+resulting truncated SVD. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1137/090771806](https://doi.org/10.1137/090771806).
+
+## REF-GAZZOLA-HANSEN-NAGY-2019
+
+Silvia Gazzola, Per Christian Hansen, and James G. Nagy. "IR Tools: A MATLAB
+Package of Iterative Regularization Methods and Large-Scale Test Problems."
+*Numerical Algorithms* 81(3), 773-811, 2019. Cited for matrix-free
+operators, iterative regularization by early stopping, hybrid projection
+methods and their test problems. No code was copied. Metadata checked
+against Crossref (2026-11-26).
+DOI: [10.1007/s11075-018-0570-7](https://doi.org/10.1007/s11075-018-0570-7).
+
+## REF-ENGL-HANKE-NEUBAUER-1996
+
+Heinz W. Engl, Martin Hanke, and Andreas Neubauer. *Regularization of
+Inverse Problems*. Kluwer Academic Publishers (now Springer Netherlands),
+Dordrecht, 1996. Cited for iterative regularization, the discrepancy
+principle as a stopping rule, and Landweber's semi-convergence. Metadata
+checked against Crossref (2026-11-26).
+DOI: [10.1007/978-94-009-1740-8](https://doi.org/10.1007/978-94-009-1740-8).
+
+## REF-VOGEL-2002
+
+Curtis R. Vogel. *Computational Methods for Inverse Problems*. SIAM,
+Philadelphia, 2002. Cited for the unbiased predictive risk estimator (UPRE)
+of the regularization parameter and total-variation regularization.
+Metadata checked against Crossref (2026-11-26).
+DOI: [10.1137/1.9780898717570](https://doi.org/10.1137/1.9780898717570).
+
+## REF-STEIN-1981
+
+Charles M. Stein. "Estimation of the Mean of a Multivariate Normal
+Distribution." *The Annals of Statistics* 9(6), 1135-1151, 1981. Cited for
+Stein's unbiased risk estimate, `||r||^2 + 2 sigma^2 df - m sigma^2` for a
+linear smoother. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1214/aos/1176345632](https://doi.org/10.1214/aos/1176345632).
+
+## REF-MALLOWS-1973
+
+C. L. Mallows. "Some Comments on C_P." *Technometrics* 15(4), 661-675,
+1973. Cited for the prediction-risk criterion that the unbiased predictive
+risk estimator generalizes. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1080/00401706.1973.10489103](https://doi.org/10.1080/00401706.1973.10489103).
+
+## REF-LAWSON-HANSON-1995
+
+Charles L. Lawson and Richard J. Hanson. *Solving Least Squares Problems*.
+SIAM, Philadelphia, 1995 (republication of the Prentice-Hall edition of
+1974). Cited for the active-set non-negative least-squares algorithm (NNLS)
+and least squares with linear equality constraints. Metadata checked
+against Crossref (2026-11-26).
+DOI: [10.1137/1.9781611971217](https://doi.org/10.1137/1.9781611971217).
+
+## REF-GOLUB-VANLOAN-1980
+
+Gene H. Golub and Charles F. Van Loan. "An Analysis of the Total Least
+Squares Problem." *SIAM Journal on Numerical Analysis* 17(6), 883-893,
+1980. Cited for the SVD solution of total least squares and its existence
+condition on the smallest singular value. Metadata checked against
+Crossref (2026-11-26).
+DOI: [10.1137/0717073](https://doi.org/10.1137/0717073).
+
+## REF-VAN-HUFFEL-VANDEWALLE-1991
+
+Sabine Van Huffel and Joos Vandewalle. *The Total Least Squares Problem:
+Computational Aspects and Analysis*. SIAM, Philadelphia, 1991. Cited for the
+assumptions of total least squares (independent, identically scaled errors
+in the matrix and the data) and its nongeneric cases. Metadata checked
+against Crossref (2026-11-26).
+DOI: [10.1137/1.9781611971002](https://doi.org/10.1137/1.9781611971002).
+
+## REF-VAN-LOAN-1976
+
+Charles F. Van Loan. "Generalizing the Singular Value Decomposition."
+*SIAM Journal on Numerical Analysis* 13(1), 76-83, 1976. Cited for the
+generalized singular value decomposition of a matrix pair. Metadata checked
+against Crossref (2026-11-26).
+DOI: [10.1137/0713009](https://doi.org/10.1137/0713009).
+
+## REF-BECK-TEBOULLE-2009
+
+Amir Beck and Marc Teboulle. "A Fast Iterative Shrinkage-Thresholding
+Algorithm for Linear Inverse Problems." *SIAM Journal on Imaging Sciences*
+2(1), 183-202, 2009. Cited for ISTA with backtracking and the accelerated
+FISTA momentum sequence `t_(k+1) = (1 + sqrt(1 + 4 t_k^2)) / 2`. Metadata
+checked against Crossref (2026-11-26).
+DOI: [10.1137/080716542](https://doi.org/10.1137/080716542).
+
+## REF-DAUBECHIES-DEFRISE-DEMOL-2004
+
+Ingrid Daubechies, Michel Defrise, and Christine De Mol. "An Iterative
+Thresholding Algorithm for Linear Inverse Problems with a Sparsity
+Constraint." *Communications on Pure and Applied Mathematics* 57(11),
+1413-1457, 2004. Cited for iterative soft thresholding of the `l1`-penalized
+least-squares problem. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1002/cpa.20042](https://doi.org/10.1002/cpa.20042).
+
+## REF-CHAMBOLLE-POCK-2011
+
+Antonin Chambolle and Thomas Pock. "A First-Order Primal-Dual Algorithm for
+Convex Problems with Applications to Imaging." *Journal of Mathematical
+Imaging and Vision* 40(1), 120-145, 2011. Cited for the primal-dual hybrid
+gradient iteration with over-relaxation, its step condition
+`tau sigma ||K||^2 < 1`, and the forward-difference discrete gradient used
+for total variation. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1007/s10851-010-0251-1](https://doi.org/10.1007/s10851-010-0251-1).
+
+## REF-CHAMBOLLE-POCK-2016
+
+Antonin Chambolle and Thomas Pock. "An Introduction to Continuous
+Optimization for Imaging." *Acta Numerica* 25, 161-319, 2016. Cited for
+proximal operators, Moreau's identity and convex conjugates of norms used in
+primal-dual splitting. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1017/S096249291600009X](https://doi.org/10.1017/S096249291600009X).
+
+## REF-BOYD-ETAL-2011
+
+Stephen Boyd, Neal Parikh, Eric Chu, Borja Peleato, and Jonathan Eckstein.
+"Distributed Optimization and Statistical Learning via the Alternating
+Direction Method of Multipliers." *Foundations and Trends in Machine
+Learning* 3(1), 1-122, 2011. Cited for scaled-form ADMM, its primal and dual
+residuals, and the absolute-plus-relative stopping thresholds. Metadata
+checked against Crossref (2026-11-26).
+DOI: [10.1561/2200000016](https://doi.org/10.1561/2200000016).
+
+## REF-RUDIN-OSHER-FATEMI-1992
+
+Leonid I. Rudin, Stanley Osher, and Emad Fatemi. "Nonlinear Total Variation
+Based Noise Removal Algorithms." *Physica D: Nonlinear Phenomena* 60(1-4),
+259-268, 1992. Cited for the total-variation penalty. Metadata checked
+against Crossref (2026-11-26).
+DOI: [10.1016/0167-2789(92)90242-F](https://doi.org/10.1016/0167-2789(92)90242-F).
+
+## REF-STEIHAUG-1983
+
+Trond Steihaug. "The Conjugate Gradient Method and Trust Regions in Large
+Scale Optimization." *SIAM Journal on Numerical Analysis* 20(3), 626-637,
+1983. Cited for truncated conjugate gradients inside a trust region with
+termination on negative curvature or the boundary. Metadata checked against
+Crossref (2026-11-26).
+DOI: [10.1137/0720042](https://doi.org/10.1137/0720042).
+
+## REF-GOLUB-PEREYRA-1973
+
+Gene H. Golub and Victor Pereyra. "The Differentiation of Pseudo-Inverses
+and Nonlinear Least Squares Problems Whose Variables Separate." *SIAM
+Journal on Numerical Analysis* 10(2), 413-432, 1973. Cited for variable
+projection. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1137/0710036](https://doi.org/10.1137/0710036).
+
+## REF-STUART-2010
+
+Andrew M. Stuart. "Inverse Problems: A Bayesian Perspective." *Acta
+Numerica* 19, 451-559, 2010. Cited for the Gaussian linear inverse problem,
+its posterior mean and covariance, function-space priors, and weighted
+inner products. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1017/S0962492910000061](https://doi.org/10.1017/S0962492910000061).
+
+## REF-BUI-THANH-ETAL-2013
+
+Tan Bui-Thanh, Omar Ghattas, James Martin, and Georg Stadler. "A
+Computational Framework for Infinite-Dimensional Bayesian Inverse Problems
+Part I: The Linearized Case, with Application to Global Seismic Inversion."
+*SIAM Journal on Scientific Computing* 35(6), A2494-A2523, 2013. Cited for
+the low-rank prior-preconditioned Hessian approximation of the posterior
+covariance. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1137/12089586X](https://doi.org/10.1137/12089586X).
+
+## REF-SPANTINI-ETAL-2015
+
+Alessio Spantini, Antti Solonen, Tiangang Cui, James Martin, Luis Tenorio,
+and Youssef Marzouk. "Optimal Low-Rank Approximations of Bayesian Linear
+Inverse Problems." *SIAM Journal on Scientific Computing* 37(6),
+A2451-A2487, 2015. Cited for the update
+`C_post = P (I - V diag(lambda / (1 + lambda)) V') P'` in prior-whitened
+coordinates. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1137/140977308](https://doi.org/10.1137/140977308).
+
+## REF-ALEXANDERIAN-2021
+
+Alen Alexanderian. "Optimal Experimental Design for Infinite-Dimensional
+Bayesian Inverse Problems Governed by PDEs: A Review." *Inverse Problems*
+37(4), 043001, 2021. Cited for A-, D- and goal-oriented optimal design
+criteria of linear Gaussian inverse problems. Metadata checked against
+Crossref (2026-11-26).
+DOI: [10.1088/1361-6420/abe10c](https://doi.org/10.1088/1361-6420/abe10c).
+
+## REF-RAUE-ETAL-2009
+
+A. Raue, C. Kreutz, T. Maiwald, J. Bachmann, M. Schilling, U. Klingmüller,
+and J. Timmer. "Structural and Practical Identifiability Analysis of
+Partially Observed Dynamical Models by Exploiting the Profile Likelihood."
+*Bioinformatics* 25(15), 1923-1929, 2009. Cited for profile-likelihood
+confidence intervals and the distinction between structural and practical
+non-identifiability. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1093/bioinformatics/btp358](https://doi.org/10.1093/bioinformatics/btp358).
+
+## REF-CHRISTEN-FOX-2005
+
+J. Andrés Christen and Colin Fox. "Markov Chain Monte Carlo Using an
+Approximation." *Journal of Computational and Graphical Statistics* 14(4),
+795-810, 2005. Cited for two-stage delayed-acceptance Metropolis-Hastings
+with a cheap approximate target. Metadata checked against Crossref
+(2026-11-26).
+DOI: [10.1198/106186005X76983](https://doi.org/10.1198/106186005X76983).

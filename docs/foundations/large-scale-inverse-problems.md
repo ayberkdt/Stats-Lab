@@ -1,0 +1,291 @@
+# Large-scale, non-smooth and Bayesian inverse problems
+
+This guide continues
+[Regularization and ill-posed problems](regularization-and-ill-posed-problems.md).
+That chapter solved small dense problems with one SVD. Here the operator may
+be too large to store, the noise may be correlated, the prior centre may be
+non-zero, the truth may have edges, and the question may be "how sure are
+we" rather than "what is the estimate". Every method below is implemented in
+`probstat` (experimental since 0.28, [ADR-0144](../adr/ADR-0144-matrix-free-inverse-problems.md))
+and every number quoted was produced by running the code with the seed given.
+
+Prerequisites: the SVD and Tikhonov filter factors (U17), the Gaussian
+likelihood and posterior ([inverse problems and calibration](inverse-problems-and-calibration.md)).
+
+## 1. One problem statement for all methods
+
+Observations `y = A x + e`, `e ~ N(0, Gamma)`, with `Gamma = C C'` and the
+whitening `W = C^-1`. The regularized estimate minimizes
+
+`Phi(x) = 1/2 ||W (A x - y)||^2 + lambda^2/2 ||L (x - x_ref)||^2`
+[EQ-INV-LIN-001].
+
+Three conventions matter and are easy to confuse:
+
+- `lambda` multiplies a SQUARED penalty (`lambda^2`); the `l1` and
+  total-variation weight `alpha` multiplies an UNSQUARED one.
+- `x_ref` is the centre of the penalty (a prior mean), not the starting
+  point of an iteration.
+- The minimum-norm solution of a rank-deficient problem minimizes
+  `||x - x_ref||`, which is not `||x||` unless `x_ref = 0`.
+
+With `z = x - x_ref` the minimizer is the least-squares solution of the
+stacked system `[W A; lambda L] z = [W (y - A x_ref); 0]`.
+
+```python
+from probstat.inverse import (
+    LinearInverseProblem,
+    second_derivative_problem,
+    solve_regularized,
+)
+from probstat.linalg import DenseCovariance
+
+base = second_derivative_problem(16)
+Gamma = [[1e-6 * (1.0 if i == j else 0.3) for j in range(16)] for i in range(16)]
+L = [[(-1.0 if j == i else 1.0 if j == i + 1 else 0.0) for j in range(16)]
+     for i in range(15)]
+problem = LinearInverseProblem.create(
+    base.operator, base.exact_data, noise=DenseCovariance(Gamma),
+    penalty=L, reference=[0.0] * 16,
+)
+qr = solve_regularized(problem, 0.7)                        # unique solutions only
+iterative = solve_regularized(problem, 0.7, method="lsqr")  # matrix-free
+assert qr.status == "unique" and iterative.status == "iterative"
+```
+
+`method="qr"` raises when the stack is rank deficient instead of returning
+an arbitrary solution; `method="svd"` returns the minimum-`||x - x_ref||`
+solution and says so in `status`.
+
+### What the estimator does to the truth
+
+For a fixed `lambda` the estimate is linear in the data,
+`x = x_ref + M (y - A x_ref)` with gain
+`M = (A'Gamma^-1 A + lambda^2 L'L)^-1 A'Gamma^-1` [EQ-INV-LIN-002].
+`linear_estimator_analysis` returns
+
+- the resolution matrix `R = M A`: row `i` is the averaging kernel of
+  `x_i`, column `j` the image of a unit spike at `j`;
+- the expected error `(R - I)(x_true - x_ref)` (regularization bias);
+- the SAMPLING covariance `M Gamma M'` of the estimate under repeated noise;
+- the matrix `(A'Gamma^-1 A + lambda^2 L'L)^-1`, which is the posterior
+  covariance only if `lambda^2 L'L` is the precision of a proper prior.
+
+The last two are different matrices; quoting the second as the uncertainty
+of a deterministic regularized estimate understates the error, because it
+ignores the bias.
+
+## 2. Operators instead of matrices
+
+A `LinearOperator` is anything with `shape`, `matvec` (`x -> A x`) and
+`rmatvec` (`y -> A'y`). The adjoint identity `y'(A x) = (A'y)'x`
+[EQ-LINALG-OP-001] is the one property every operator must satisfy, and
+`adjoint_test` checks it:
+
+```python
+import random
+
+from probstat.linalg import Convolution1DOperator, adjoint_test
+
+generator = random.Random(1)
+blur = Convolution1DOperator([0.25, 0.5, 0.25], 10_000, boundary="reflect")
+x = [generator.gauss(0.0, 1.0) for _ in range(10_000)]
+y = [generator.gauss(0.0, 1.0) for _ in range(10_000)]
+assert adjoint_test(blur, x, y).passed
+```
+
+A 10 000-point convolution costs `O(n)` memory per application; its
+transpose is one scatter-add pass, not `n` forward applications (checked
+with `CountingOperator` in `tests/test_linalg_operators_krylov.py`).
+Stacks such as `[W A; lambda L]` are built from parts, and their transposes
+follow [EQ-LINALG-OP-002].
+
+In weighted spaces (a mass matrix `M_X` on the parameters, `M_Y` on the
+data) the adjoint is `M_X^-1 A' M_Y` [EQ-LINALG-OP-005], built explicitly
+by `weighted_adjoint`; `rmatvec` is always the Euclidean transpose.
+
+## 3. Iteration count as the regularization parameter
+
+From `z = 0`, CGLS, LSQR and LSMR first pick up the large singular
+components; the small ones, which carry mostly noise, enter later. The
+residual decreases monotonically while the error first falls and then
+rises: semi-convergence. Measured on deriv2 (`n = 32`, iid noise of 1 % of
+`||b|| / sqrt(m)`, seed `20261126`, whitened so that `delta = sqrt(32) = 5.657`):
+
+| LSQR iteration `k` | whitened misfit | relative error |
+|---:|---:|---:|
+| 0 | 565 | 1.00 |
+| 2 | 19.3 | 0.455 |
+| 4 | 5.46 | 0.318 |
+| 6 | 4.08 | 0.261 |
+| 8 | 3.70 | 0.337 |
+| 12 | 2.16 | 1.05 |
+| 20 | 0.289 | 1.77 |
+
+The discrepancy principle [EQ-INV-ITER-002] stops at the first `k` with
+misfit `<= tau delta` (`tau = 1.01`): here `k = 4`, error 0.318. The
+error-optimal iteration (`k = 6`, error 0.261) is unattainable without the
+truth and is reported only for benchmarking.
+
+```python
+from probstat.inverse import expected_noise_norm, krylov_regularization
+
+result = krylov_regularization(problem, method="lsqr",
+                               noise_norm=expected_noise_norm(16))
+assert result.stop_reason in ("discrepancy", "normal_tolerance")
+```
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/large-scale-semi-convergence-dark.png"><img alt="Two panels against the LSQR iteration: the whitened data misfit on a log axis with the discrepancy target, and the relative error with the discrepancy stop and the error-optimal iteration marked" src="../images/guides/large-scale-semi-convergence.png"></picture>
+
+*Semi-convergence of LSQR on the seeded deriv2 data: the misfit falls below `tau delta = 5.71` at `k = 4` (relative error 0.318), the error is smallest at `k = 6` (0.261) and has grown to 1.77 by `k = 20` while the misfit keeps falling.*
+
+`landweber` [EQ-INV-ITER-001] is the slow, transparent version of the same
+idea; it needs a CERTIFIED upper bound of `||W A||` for its step, because
+the power-iteration estimate is a lower bound. `hybrid_lsqr`
+[EQ-INV-ITER-003] applies Tikhonov to the small projected problem at every
+step, which removes the sharp dependence on the stopping index. On the same
+data its projected discrepancy rule reached error 0.291, while projected GCV
+chose `lambda = 0.0053` and error 1.79: projected GCV is a criterion on the
+projected problem, and in our runs it under-regularized. Prefer the
+discrepancy rule when the noise level is known.
+
+## 4. Choosing `lambda` without the truth
+
+`regularization_path` solves the problem on a grid and evaluates every rule
+on the same solutions [EQ-INV-SEL-001], [EQ-INV-SEL-002]. On the deriv2 data
+above (25 values from `1e-3` to `1e3`):
+
+| rule | chosen `lambda` | relative error |
+|---|---:|---:|
+| GCV | 1.78 | 0.354 |
+| UPRE | 3.16 | 0.270 |
+| discrepancy (`tau = 1`) | 5.62 | 0.287 |
+| L-curve corner | 3.16 | 0.270 |
+| evidence (prior `N(0, I / lambda^2)`) | 1.00 | 0.622 |
+| oracle (unattainable) | 3.16 | 0.270 |
+
+One seed is an illustration, not a ranking. UPRE estimates the prediction
+risk in observation space, not the parameter error; the evidence chooses
+the prior that best explains the data, which need not minimize the
+reconstruction error (here the smooth deriv2 solution is a poor draw from an
+iid prior). `select_regularization` reports `status="boundary"` when the
+optimum sits at a grid end and `"unattainable"` when the discrepancy target
+is never met; it never invents a value. For matrix-free problems
+`trace="hutchinson"` estimates the degrees of freedom with a Monte Carlo
+standard error.
+
+## 5. Edges and sparsity: `l1` and total variation
+
+A quadratic penalty spreads a jump over several cells. Total variation
+`alpha sum |x_(i+1) - x_i|` [REF-RUDIN-OSHER-FATEMI-1992] penalizes the size
+of jumps, not their sharpness. On the deblurring benchmark L04 (`n = 64`,
+Gaussian blur of width 0.03, piecewise-constant truth, data generated on a
+twice finer grid, 2 % noise):
+
+| method | relative error |
+|---|---:|
+| LSQR, discrepancy stop (5 iterations) | 0.137 |
+| TV, `alpha = 0.5`, PDHG, converged | 0.0141 |
+
+At larger weights (`alpha = 2` and `8`) PDHG reached the 20 000-iteration
+cap without meeting its tolerance; such runs are reported as
+`converged=False`, and their iterates should not be compared as optima.
+TV produces staircases on smooth truths; `l1` shrinks the amplitudes of the
+non-zeros (an optional debiased refit on the support is available, with no
+guarantee of improvement). The solvers are FISTA with backtracking
+[REF-BECK-TEBOULLE-2009], the primal-dual hybrid gradient method with a
+certified step condition `tau sigma ||K||^2 < 1` [REF-CHAMBOLLE-POCK-2011]
+and scaled ADMM [REF-BOYD-ETAL-2011].
+
+## 6. Nonlinear forward models and adjoints
+
+A nonlinear model supplies `value(x)`, `jvp(x, v) = J v` and
+`vjp(x, w) = J'w` (`DifferentiableForward`). Check them first:
+`check_derivatives` sweeps the Taylor remainder
+`||G(x + h v) - G(x) - h J v||`, which must fall like `h^2` until rounding
+takes over, and runs the dot test `w'(J v) = (J'w)'v`. `gauss_newton_krylov`
+then solves each linearized stacked problem with LSQR, so a Jacobian is
+never formed; `iteratively_regularized_gauss_newton` decreases `lambda_k`
+geometrically and stops by the discrepancy principle.
+
+For a PDE the vector-Jacobian product is an adjoint solve.
+`EllipticDiffusion1D` discretizes `-(k u')' = q` with `k = exp(x)` on cells;
+one gradient of the misfit costs one forward and one adjoint solve for any
+number of cells, while the full Jacobian costs one tangent solve per cell
+(`tests/test_pde_models.py` checks this at `n = 200`).
+
+## 7. The Bayesian reading
+
+With a Gaussian prior `x ~ N(mu, C0)` the posterior is Gaussian and exact:
+`linear_gaussian_posterior` returns its mean, covariance actions, the
+normalized evidence and exact conditional samples
+`x = x0 + C0 A'S^-1 (y - A x0 - e0)`. When `C0 = P P'` and the
+prior-whitened misfit Hessian `K'K` (`K = W A P`) has a few large
+eigenvalues `lambda_i`, `low_rank_posterior` keeps them:
+`C_post = P (I - V diag(lambda / (1 + lambda)) V') P'`
+[REF-SPANTINI-ETAL-2015]. Unresolved directions keep their prior variance;
+they do not collapse to zero. The information gained is
+`1/2 sum log(1 + lambda_i)` and the effective number of resolved directions
+`sum lambda_i / (1 + lambda_i)`.
+
+The same eigenvalues drive experimental design: `greedy_linear_design`
+adds the sensor with the largest gain in `log det(I + H)` (D-optimal) or
+the largest reduction of a goal variance, and `exhaustive_linear_design`
+shows how far greedy is from the optimum on small problems.
+
+For parameters that are not identified, profile the likelihood rather than
+trusting a curvature: `profile_likelihood` re-optimizes the nuisance
+parameters along a grid, and `profile_interval` returns `None` for a side
+that does not close within the grid, instead of a fabricated endpoint
+[REF-RAUE-ETAL-2009]. When the exact target is expensive,
+`delayed_acceptance_metropolis` screens proposals with a cheap surrogate and
+keeps the exact posterior invariant [REF-CHRISTEN-FOX-2005].
+
+## 8. Benchmarks and the inverse crime
+
+Data generated with the same discretization that inverts them make every
+method look better than it is [REF-KAIPIO-SOMERSALO-2007]. Each benchmark in
+`INVERSE_BENCHMARK_CATALOG` carries `same_discretization`; the deblurring
+case with `refinement > 1` generates its data on a finer grid. Truth, design
+and noise come from separate random streams, so changing the noise seed never
+changes the truth.
+
+## Common pitfalls
+
+- Passing the noise STANDARD DEVIATION as `noise_norm`: the discrepancy
+  principle needs the noise norm, `sqrt(m)` in whitened units.
+- Treating the error-optimal iteration or `lambda` of a synthetic benchmark
+  as a method; it uses the truth.
+- Computing a Landweber or PDHG step from `power_iteration`, which
+  underestimates `||A||`; supply a certified bound or a safety factor.
+- Reading `bayesian_covariance` as the uncertainty of a deterministic
+  regularized estimate; it ignores the regularization bias.
+- Comparing `alpha` (unsquared `l1`/TV weight) with `lambda` (squared
+  Tikhonov weight).
+- Reporting a run with `converged=False` (for example `max_iterations`) as a
+  solution of the optimization problem.
+- Validating a method only on `same_discretization=True` benchmarks.
+
+## Exercises
+
+1. Run `krylov_regularization` on `backward_heat_problem(32)` with 0.1 %
+   and 5 % noise. *Hint:* the stopping index decreases as the noise grows;
+   compare with the number of Picard coefficients above the noise floor
+   (`spectral_diagnostics(..., data=y)`).
+2. Show numerically that `linear_estimator_analysis(problem, lam)` gives
+   `estimator_covariance` smaller than `bayesian_covariance` in the
+   Loewner order for `lam > 0`. *Solution sketch:*
+   `M Gamma M' = N^-1 A'Gamma^-1 A N^-1 <= N^-1` with
+   `N = A'Gamma^-1 A + lam^2 L'L`.
+3. On `sparse_sensing_benchmark`, compare `l1_regularized_least_squares`
+   with `solve_regularized(..., method="svd")`. *Hint:* the minimum-norm
+   solution spreads energy over the whole nullspace.
+
+## References
+
+[REF-HANSEN-2008], [REF-GAZZOLA-HANSEN-NAGY-2019], [REF-PAIGE-SAUNDERS-1982],
+[REF-FONG-SAUNDERS-2011], [REF-ENGL-HANKE-NEUBAUER-1996], [REF-VOGEL-2002],
+[REF-STEIN-1981], [REF-GOLUB-HEATH-WAHBA-1979], [REF-STUART-2010],
+[REF-SPANTINI-ETAL-2015], [REF-BECK-TEBOULLE-2009], [REF-CHAMBOLLE-POCK-2011],
+[REF-BOYD-ETAL-2011], [REF-RAUE-ETAL-2009], [REF-CHRISTEN-FOX-2005],
+[REF-ALEXANDERIAN-2021], [REF-KAIPIO-SOMERSALO-2007].

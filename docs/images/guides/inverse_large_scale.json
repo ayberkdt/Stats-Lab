@@ -1,0 +1,14 @@
+{
+  "large-scale-semi-convergence": {
+    "guide": "large-scale-inverse-problems",
+    "alt": "Two panels against the LSQR iteration: the whitened data misfit on a log axis with the discrepancy target, and the relative error with the discrepancy stop and the error-optimal iteration marked",
+    "facts": {
+      "stop": "4",
+      "stop_error": "0.318",
+      "oracle": "6",
+      "oracle_error": "0.261",
+      "final_error": "1.77",
+      "target": "5.71"
+    }
+  }
+}

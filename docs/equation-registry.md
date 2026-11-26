@@ -22448,3 +22448,1314 @@ or `(4k + 5)/(2 sqrt(x))` and `z = y^2/4`, as in the source. The p-value is
 - Code: `inference.cramer_von_mises_cdf`, `inference.cramer_von_mises_sf`,
   `inference.cramer_von_mises_test`.
 - Source: elementary (derived from [EQ-INF-GOF-CVM-001]).
+
+## Matrix-free operators, regularization and research-grade inverse problems (ADR-0144)
+
+### EQ-LINALG-OP-001 — Euclidean transpose and the adjoint (dot-product) identity
+
+`y'(A x) = (A'y)'x` for every `x in R^n`, `y in R^m`; the test statistic is
+`|y'(A x) - (A'y)'x| / (||A x|| ||y|| + ||x|| ||A'y||)`.
+
+- Domain: a real linear map given by its actions `x -> A x` and `y -> A'y`
+  (Euclidean inner products); finite inputs.
+- Meaning: the defining property of `rmatvec`; the dot-product test detects a
+  transpose that is inconsistent with the forward action. Passing it for a
+  few random vectors is evidence, not proof, of a correct transpose.
+- Code: `linalg.LinearOperator`, `linalg.OperatorBase.matvec`,
+  `linalg.OperatorBase.rmatvec`, `linalg.adjoint_test`, `linalg.materialize`,
+  `linalg.CountingOperator`.
+- Source: [REF-GOLUB-VANLOAN-2013, Section 1.1], [REF-GAZZOLA-HANSEN-NAGY-2019].
+
+### EQ-LINALG-OP-002 — Transposes of sums, products and stacks
+
+`(c A)' = c A'`, `(A + B)' = A' + B'`, `(A B)' = B'A'`,
+`[A; B]'(u, v) = A'u + B'v`, `[A, B]'y = (A'y, B'y)`,
+`diag(A_1, ..., A_k)' = diag(A_1', ..., A_k')`.
+
+- Domain: operators with conforming shapes.
+- Meaning: the algebra that builds a stacked Tikhonov operator `[W A; lambda L]`
+  and its transpose from the transposes of its parts, without a matrix.
+- Code: `linalg.ScaledOperator`, `linalg.SumOperator`,
+  `linalg.ComposedOperator`, `linalg.VStackOperator`, `linalg.HStackOperator`,
+  `linalg.BlockDiagonalOperator`, `linalg.TransposedOperator`.
+- Source: [REF-GOLUB-VANLOAN-2013, Section 1.1].
+
+### EQ-LINALG-OP-003 — Scaled first differences and the forward-difference image gradient
+
+1D: `(D x)_i = (x_(i+1) - x_i) / h` with boundary `none` (`(n-1) x n`),
+`periodic` (`x_n = x_0`) or `dirichlet` (`x_(-1) = x_n = 0`, `(n+1) x n`).
+2D (row-major `r x c`): `(D_x u)_(i,j) = (u_(i,j+1) - u_(i,j)) / h_x` for
+`j < c - 1` and `0` on the last column; `(D_y u)_(i,j) = (u_(i+1,j) - u_(i,j)) / h_y`
+for `i < r - 1` and `0` on the last row.
+
+- Domain: positive spacings; at least two values for `none`.
+- Meaning: discrete derivative operators for smoothing and total-variation
+  penalties. Constants span the nullspace for `none`, `periodic` and the 2D
+  gradient; `dirichlet` has full column rank.
+- Code: `linalg.FirstDifferenceOperator`, `linalg.GridGradientOperator`.
+- Source: [REF-HANSEN-2008, Section 2.1], [REF-CHAMBOLLE-POCK-2011].
+
+### EQ-LINALG-OP-004 — Discrete 1D convolution with an explicit boundary
+
+`(K x)_i = sum_l k_l x_(phi(i + l - c))`, `c = floor(len(k) / 2)`, where
+`phi` drops (`zero`), wraps (`periodic`) or mirrors (`reflect`,
+`x_(-1) = x_0`) out-of-range indices; `(K'y)_j = sum_(i, l: phi(i+l-c)=j) k_l y_i`.
+
+- Domain: finite kernel, `n >= 1`.
+- Meaning: blurring operator of deconvolution problems; the transpose
+  scatter-adds through the same index map, so it is exact for every boundary.
+- Code: `linalg.Convolution1DOperator`.
+- Source: [REF-HANSEN-2008, Section 2.1], [REF-GAZZOLA-HANSEN-NAGY-2019].
+
+### EQ-LINALG-OP-005 — Adjoint in weighted inner products
+
+`A* = M_X^-1 A' M_Y`, so that `(A x)'M_Y y = x'M_X (A* y)`.
+
+- Domain: SPD metrics `M_X` (`n x n`) and `M_Y` (`m x m`) given by apply and
+  solve actions.
+- Meaning: the adjoint of a discretized operator between function spaces
+  with mass matrices; it differs from the Euclidean transpose unless both
+  metrics are multiples of the identity.
+- Code: `linalg.weighted_adjoint`.
+- Source: [REF-STUART-2010].
+
+### EQ-LINALG-COV-001 — Covariance factor, whitening and log-determinant
+
+`Gamma = C C'`, `W = C^-1`, `W'W = Gamma^-1`, `||W r||^2 = r'Gamma^-1 r`,
+`log det Gamma = 2 sum_i log C_ii` (triangular `C`), and `C z ~ N(0, Gamma)`
+for `z ~ N(0, I)`.
+
+- Domain: symmetric positive-definite `Gamma`; diagonal, dense (Cholesky) or
+  block-diagonal factors. Non-positive variances or a failed Cholesky
+  factorization raise; no jitter is added.
+- Meaning: generalized least squares and Gaussian likelihoods in whitened
+  coordinates; `whiten_transpose` applies `W'`, which is not `W` for a
+  correlated covariance.
+- Code: `linalg.DiagonalCovariance`, `linalg.ScaledIdentityCovariance`,
+  `linalg.DenseCovariance`, `linalg.BlockDiagonalCovariance`.
+- Source: [REF-GOLUB-VANLOAN-2013, Section 4.2], [REF-TARANTOLA-2005].
+
+### EQ-LINALG-KRY-001 — Power iteration for the spectral norm
+
+`v_(k+1) = A'A v_k / ||A'A v_k||`, estimate `||A v_k||`.
+
+- Domain: a non-zero start vector with a component along the leading right
+  singular vector.
+- Meaning: an increasing LOWER estimate of `sigma_1 = ||A||_2`; convergence is
+  governed by `(sigma_2 / sigma_1)^2`. It is not a certified upper bound, so
+  step sizes based on it need a safety margin.
+- Code: `linalg.power_iteration`.
+- Source: [REF-GOLUB-VANLOAN-2013, Section 8.2].
+
+### EQ-LINALG-KRY-002 — Symmetric Lanczos tridiagonalization and Ritz pairs
+
+`beta_(j+1) q_(j+1) = M q_j - alpha_j q_j - beta_j q_(j-1)`,
+`alpha_j = q_j'M q_j`, `T_k = Q_k'M Q_k` tridiagonal; Ritz pairs
+`(theta_i, Q_k s_i)` from `T_k s_i = theta_i s_i` with residual
+`||M y_i - theta_i y_i|| = beta_(k+1) |e_k's_i|`.
+
+- Domain: symmetric `M`; full reorthogonalization optional.
+- Meaning: extreme eigenvalues from `k` operator applications. A single start
+  vector sees each eigenvalue once: repeated eigenvalues appear with
+  multiplicity one, and an early breakdown signals an invariant subspace.
+- Code: `linalg.lanczos_eigenpairs`.
+- Source: [REF-LANCZOS-1950], [REF-GOLUB-VANLOAN-2013, Section 10.1].
+
+### EQ-LINALG-KRY-003 — Hutchinson trace estimator
+
+`tr(M) ~= (1/s) sum_(k=1)^s z_k'M z_k`, `z_k` uniform on `{-1, 1}^n`;
+`Var = 2 (||M||_F^2 - sum_i M_ii^2) / s` for symmetric `M`.
+
+- Domain: square `M`, independent probes.
+- Meaning: unbiased trace estimate from `s` matrix-vector products, exact for
+  a diagonal `M`; the reported standard error is the sample standard
+  deviation over probes divided by `sqrt(s)`.
+- Code: `linalg.hutchinson_trace`.
+- Source: [REF-HUTCHINSON-1989].
+
+### EQ-LINALG-KRY-004 — Conjugate gradients for an SPD system
+
+`alpha_k = r_k'r_k / p_k'M p_k`, `x_(k+1) = x_k + alpha_k p_k`,
+`r_(k+1) = r_k - alpha_k M p_k`, `beta_k = r_(k+1)'r_(k+1) / r_k'r_k`,
+`p_(k+1) = r_(k+1) + beta_k p_k`.
+
+- Domain: symmetric positive-definite `M` (not checked; non-positive
+  curvature stops with `breakdown`).
+- Meaning: minimizes the `M`-norm error over the Krylov space.
+- Code: `linalg.conjugate_gradient`.
+- Source: [REF-HESTENES-STIEFEL-1952].
+
+### EQ-LINALG-KRY-005 — CGLS for damped least squares
+
+For `min ||b - A x||^2 + d^2 ||x||^2`: `r = b - A x`, `s = A'r - d^2 x`,
+`p = s`; `q = A p`, `alpha = ||s||^2 / (||q||^2 + d^2 ||p||^2)`,
+`x += alpha p`, `r -= alpha q`, `s_new = A'r - d^2 x`,
+`beta = ||s_new||^2 / ||s||^2`, `p = s_new + beta p`.
+
+- Domain: any `A`; from `x_0 = 0` and `d = 0` the iterates converge to the
+  minimum-norm least-squares solution.
+- Meaning: conjugate gradients on the normal equations without forming
+  `A'A`; conditioning enters as `kappa(A)^2`. Early iterates are regularized
+  (semi-convergence).
+- Code: `linalg.cgls`.
+- Source: [REF-HESTENES-STIEFEL-1952], [REF-HANSEN-2008, Section 2.8].
+
+### EQ-LINALG-KRY-006 — Golub-Kahan bidiagonalization
+
+`beta_1 u_1 = b`, `alpha_1 v_1 = A'u_1`,
+`beta_(k+1) u_(k+1) = A v_k - alpha_k u_k`,
+`alpha_(k+1) v_(k+1) = A'u_(k+1) - beta_(k+1) v_k`, so that
+`A V_k = U_(k+1) B_k` with lower-bidiagonal `B_k`.
+
+- Domain: any `A`; a zero `alpha` or `beta` terminates with an invariant
+  subspace.
+- Meaning: the Krylov basis of LSQR, LSMR and hybrid regularization.
+- Code: `linalg.lsqr`, `linalg.lsmr`.
+- Source: [REF-GOLUB-KAHAN-1965], [REF-PAIGE-SAUNDERS-1982].
+
+### EQ-LINALG-KRY-007 — LSQR rotations and stopping tests
+
+Rotation of `(rhobar, d)` eliminates the damping, rotation of
+`(rhobar_1, beta_(k+1))` the subdiagonal; `x_k = x_(k-1) + (phi_k / rho_k) w_k`,
+`w_(k+1) = v_(k+1) - (theta_(k+1) / rho_k) w_k`, `||r_k|| = phibar_(k+1)`
+(undamped), `||A'r_k|| = alpha_(k+1) |c_k| phibar_(k+1)`. Stops when
+`||r|| <= btol ||b|| + atol ||A|| ||x||`, `||A'r|| <= atol ||A|| ||r||` or the
+condition estimate exceeds `conlim`.
+
+- Domain: [EQ-LINALG-KRY-006].
+- Meaning: the least-squares solution over the Krylov space by QR of `B_k`,
+  algebraically equivalent to CGLS in exact arithmetic but more stable.
+- Code: `linalg.lsqr`.
+- Source: [REF-PAIGE-SAUNDERS-1982].
+
+### EQ-LINALG-KRY-008 — LSMR
+
+`x_k = argmin_(x in K_k(A'A, A'b)) ||A'(b - A x) - d^2 x||`, computed from
+the bidiagonalization of [EQ-LINALG-KRY-006] by two sequences of plane
+rotations; `||A'r_k||` decreases monotonically.
+
+- Domain: [EQ-LINALG-KRY-006].
+- Meaning: MINRES applied to the normal equations without forming them;
+  safer early termination than LSQR when `||A'r||` is the target.
+- Code: `linalg.lsmr`.
+- Source: [REF-FONG-SAUNDERS-2011].
+
+### EQ-LINALG-KRY-009 — Randomized range finder and truncated SVD
+
+`Y = A Omega` (`Omega` Gaussian, `l = k + p` columns), `q` power passes
+`Y <- A (A'Q)` with QR re-orthonormalization, `Q = qr(Y)`, `B = Q'A`,
+`B = U_B S V'`, `A ~= (Q U_B) S V'`.
+
+- Domain: `l <= min(m, n)`.
+- Meaning: approximate dominant singular triplets from `2 (q + 1) l + l`
+  operator applications; accuracy depends on the singular-value decay and is
+  checked a posteriori by `||A v_i - sigma_i u_i||`, not certified.
+- Code: `linalg.randomized_svd`.
+- Source: [REF-HALKO-MARTINSSON-TROPP-2011].
+
+### EQ-INV-LIN-001 — Weighted affine Tikhonov functional and its stacked form
+
+`Phi(x) = 1/2 ||W (A x - y)||^2 + lambda^2/2 ||L (x - x_ref)||^2` with
+`W'W = Gamma^-1`; with `z = x - x_ref` the minimizer solves
+`min ||[W A; lambda L] z - [W (y - A x_ref); 0]||`, and
+`grad Phi = A'Gamma^-1 (A x - y) + lambda^2 L'L (x - x_ref)`.
+
+- Domain: SPD noise covariance `Gamma`, `lambda >= 0`; the solution is
+  unique iff the stacked operator has full column rank
+  (`null(W A) ∩ null(L) = {0}` for `lambda > 0`).
+- Meaning: generalized least squares with a penalty centred at an explicit
+  reference. `lambda = 0` is GLS; the minimum-norm SVD route minimizes
+  `||x - x_ref||`, not `||x||`. With `W = I` and `x_ref = 0` it is
+  [EQ-INV-REG-001].
+- Code: `inverse.linear_problem.LinearInverseProblem`,
+  `inverse.linear_problem.solve_regularized`.
+- Source: [REF-HANSEN-2008, Section 2.7.1], [REF-TARANTOLA-2005].
+
+### EQ-INV-LIN-002 — Gain, resolution, influence and covariances of the linear estimator
+
+`M = (A'Gamma^-1 A + lambda^2 L'L)^-1 A'Gamma^-1`, `R = M A`,
+`H = W A M W^-1`, `df = tr(H) = tr(R)`, `Cov(x_hat) = M Gamma M'`,
+`E[x_hat] - x = (R - I)(x - x_ref)`,
+`MSE = tr(M Gamma M') + ||(R - I)(x - x_ref)||^2`; from the thin QR
+`[W A; lambda L] = [Q_1; Q_2] R_qr`: `M = R_qr^-1 Q_1'W`, `H = Q_1 Q_1'` and
+`(A'Gamma^-1 A + lambda^2 L'L)^-1 = R_qr^-1 R_qr^-T`.
+
+- Domain: [EQ-INV-LIN-001] with a full-column-rank stack.
+- Meaning: rows of `R` are averaging kernels, columns point-spread
+  functions; the estimator's sampling covariance under repeated noise for a
+  fixed truth differs from the Bayesian posterior covariance
+  `(A'Gamma^-1 A + lambda^2 L'L)^-1`, which applies only when
+  `lambda^2 L'L` is the precision of a proper prior.
+- Code: `inverse.linear_problem.linear_estimator_analysis`,
+  `inverse.linear_problem.LinearEstimatorAnalysis.bias`,
+  `inverse.linear_problem.LinearEstimatorAnalysis.risk`.
+- Source: [REF-HANSEN-2008], [REF-TARANTOLA-2005].
+
+### EQ-INV-LIN-003 — Equality-constrained least squares by the nullspace method
+
+`C = U_C S V_C'`, `x_p = C^+ d`, `Z` an orthonormal basis of `null(C)`,
+`x = x_p + Z z` with `z = argmin ||W A Z z - W (y - A x_p)||`; multipliers
+`mu` from `C'mu = A'Gamma^-1 (A x - y)`.
+
+- Domain: consistent constraints (`||C x_p - d||` at rounding level), full
+  column rank of `W A Z`; redundant consistent rows are allowed.
+- Meaning: the exact constrained optimum, never a large-penalty
+  approximation.
+- Code: `inverse.linear_problem.equality_constrained_least_squares`.
+- Source: [REF-LAWSON-HANSON-1995], [REF-GOLUB-VANLOAN-2013, Section 6.2].
+
+### EQ-INV-LIN-004 — Non-negative least squares (Lawson-Hanson) and its KKT conditions
+
+`min ||W (A x - y)||` s.t. `x >= 0`; dual `w = (W A)'(W y - W A x)`;
+optimality: `x >= 0`, `w_i <= 0` where `x_i = 0`, `w_i = 0` where `x_i > 0`.
+
+- Domain: dense `A`; passive-set subproblems of full column rank.
+- Meaning: the active-set algorithm moves the most positive dual index into
+  the passive set and steps back to feasibility; clipping an unconstrained
+  solution is not the constrained optimum.
+- Code: `inverse.linear_problem.nonnegative_least_squares`.
+- Source: [REF-LAWSON-HANSON-1995, Chapter 23].
+
+### EQ-INV-LIN-005 — Projected gradient for box-constrained regularized least squares
+
+`x_(k+1) = P_[l,u](x_k - t_k grad Phi(x_k))` with backtracking until
+`Phi(x+) <= Phi(x) + grad'(x+ - x) + ||x+ - x||^2 / (2 t)`; optimality
+`||x - P(x - grad Phi(x))||`.
+
+- Domain: `l <= u` componentwise (infinite bounds allowed), [EQ-INV-LIN-001].
+- Meaning: matrix-free constrained solve; at the optimum `-grad Phi` is
+  non-positive at active lower bounds, non-negative at active upper bounds
+  and zero at free variables.
+- Code: `inverse.linear_problem.bounded_least_squares`.
+- Source: [REF-NOCEDAL-WRIGHT-2006, Section 16.7], [REF-BECK-TEBOULLE-2009].
+
+### EQ-INV-LIN-006 — Total least squares
+
+`min ||[dA, dy]||_F` s.t. `(A + dA) x = y + dy`; with `v` the right
+singular vector of `sigma_(n+1)([A, y])`, `x = -v_(1:n) / v_(n+1)`, unique
+when `sigma_n(A) > sigma_(n+1)([A, y])`.
+
+- Domain: `m >= n + 1`; independent errors of equal variance in `A` and `y`
+  (rescale otherwise).
+- Meaning: errors-in-variables fit; not uniformly better than least squares
+  and noise-sensitive when the gap is small.
+- Code: `inverse.linear_problem.total_least_squares`.
+- Source: [REF-GOLUB-VANLOAN-1980], [REF-VAN-HUFFEL-VANDEWALLE-1991].
+
+### EQ-INV-SPEC-001 — Whitened singular spectrum, nullspace and Picard coefficients
+
+`W A = U diag(sigma) V'`; rank `r = #{sigma_i > max(atol, rtol sigma_1)}`;
+`P_null = I - V_r V_r'` with a completed orthonormal basis of the full
+nullspace; Picard coefficients `|u_i'W y|` and `|u_i'W y| / sigma_i`;
+out-of-range data `||(I - U U')W y||`; noise amplification `1/sigma_i`.
+
+- Domain: dense operator (oracle scale); `sigma_i = 0` handled without
+  division.
+- Meaning: which parameter combinations the data can resolve. The numerical
+  cutoff is not a detection threshold: a coefficient `c` along `v_i` changes
+  the whitened data by `c sigma_i`, detectable against unit noise only when
+  `|c| sigma_i >~ 1` (heuristic). Repeated singular values define subspaces,
+  not unique vectors.
+- Code: `inverse.spectral.spectral_diagnostics`,
+  `inverse.spectral.SpectralDiagnostics.null_projection`,
+  `inverse.spectral.SpectralDiagnostics.detectable`.
+- Source: [REF-HANSEN-2008, Sections 2.1 and 2.4],
+  [REF-GOLUB-VANLOAN-2013, Section 8.6].
+
+### EQ-INV-SPEC-002 — Generalized SVD of a pair by QR of the stack
+
+`[A; L] = [Q_A; Q_L] R`, `Q_A = U C V'`, `X = R^-1 V`: `A X = U C`,
+`L X = Z S`, `C^2 + S^2 = I`, `gamma_i = c_i / s_i`; `s_i` computed as the
+column norms of `Q_L V`.
+
+- Domain: `m >= n` and full column rank of `[A; L]` (restricted scope; not a
+  general GSVD).
+- Meaning: simultaneous diagonalization of the data and penalty terms; the
+  generalized singular values play the role of `sigma_i` for general-form
+  Tikhonov.
+- Code: `inverse.spectral.generalized_svd`.
+- Source: [REF-VAN-LOAN-1976], [REF-GOLUB-VANLOAN-2013, Section 8.7].
+
+### EQ-INV-SPEC-003 — General-form Tikhonov in GSVD coordinates
+
+`x_lambda = X y`, `y_i = c_i u_i'b / (c_i^2 + lambda^2 s_i^2)`; filter factor
+`gamma_i^2 / (gamma_i^2 + lambda^2)`.
+
+- Domain: [EQ-INV-SPEC-002], `lambda > 0` (or every `c_i > 0`).
+- Meaning: all Tikhonov solutions for any `lambda` from one decomposition.
+- Code: `inverse.spectral.gsvd_tikhonov`.
+- Source: [REF-HANSEN-2008, Section 2.1].
+
+### EQ-INV-ITER-001 — Landweber iteration
+
+`z_(k+1) = z_k + omega B'(b - B z_k)`, `B = W A`, `b = W (y - A x_ref)`,
+`z_0 = 0`; on singular components `z_k = sum_i (1 - (1 - omega sigma_i^2)^k)
+(u_i'b / sigma_i) v_i`.
+
+- Domain: `0 < omega < 2 / ||B||^2` with a certified upper bound on `||B||`.
+- Meaning: iteration count regularizes; small singular components are
+  suppressed for small `k` (semi-convergence).
+- Code: `inverse.iterative.landweber`.
+- Source: [REF-LANDWEBER-1951], [REF-ENGL-HANKE-NEUBAUER-1996].
+
+### EQ-INV-ITER-002 — Discrepancy principle as a stopping rule
+
+Stop at the first `k` with `||W (A x_k - y)|| <= tau delta`, `tau >= 1`,
+`delta ~ sqrt(m)` for whitened unit noise.
+
+- Domain: known noise covariance; the test uses the DATA misfit, never an
+  augmented residual.
+- Meaning: the earliest iterate consistent with the noise level; `delta` is
+  a norm, not a standard deviation, and a misestimated `delta` biases the
+  stop.
+- Code: `inverse.iterative.krylov_regularization`,
+  `inverse.iterative.landweber`, `inverse.iterative.expected_noise_norm`.
+- Source: [REF-MOROZOV-1966], [REF-ENGL-HANKE-NEUBAUER-1996].
+
+### EQ-INV-ITER-003 — Hybrid LSQR: projected Tikhonov on the Golub-Kahan basis
+
+`B V_k = U_(k+1) T_k`, `q_k = argmin ||T_k q - beta e_1||^2 + lambda_k^2
+||q||^2`, `x_k = x_ref + V_k q_k`; projected GCV
+`G_k(lambda) = ||(I - T_k T_lambda^#) beta e_1||^2 / (k + 1 - sum_i f_i)^2`.
+
+- Domain: full reorthogonalization (stored bases), `L = I`.
+- Meaning: regularization of the projected problem stabilizes the
+  semi-convergence of LSQR. Projected GCV is a criterion on the projected
+  problem and is not the full-problem GCV; on deriv2 it was observed in the
+  tests to under-regularize, while the projected discrepancy rule tracked
+  the noise level.
+- Code: `inverse.iterative.hybrid_lsqr`.
+- Source: [REF-GAZZOLA-HANSEN-NAGY-2019], [REF-GOLUB-KAHAN-1965].
+
+### EQ-INV-SEL-001 — GCV, UPRE, discrepancy gap and discrete L-curve curvature
+
+With whitened residual `r_lambda` and `df = tr(H_lambda)`:
+`GCV = m ||r||^2 / (m - df)^2`, `UPRE = ||r||^2 + 2 df - m`,
+gap `||r|| - tau delta`, curvature
+`kappa = (x'y'' - x''y') / (x'^2 + y'^2)^(3/2)` of
+`(log ||r||, log ||L(x - x_ref)||)` by central differences in `log lambda`;
+Hutchinson `df` with common probes across `lambda`.
+
+- Domain: whitened unit noise (true covariance); positive increasing grid.
+- Meaning: data-driven choices of `lambda`. UPRE is unbiased for the
+  observation-space prediction risk `E||W A (x_lambda - x_true)||^2`, not
+  the parameter error. Grid-end optima are reported as boundary choices.
+- Code: `inverse.parameter_selection.regularization_path`,
+  `inverse.parameter_selection.select_regularization`,
+  `inverse.parameter_selection.logarithmic_grid`.
+- Source: [REF-GOLUB-HEATH-WAHBA-1979], [REF-STEIN-1981], [REF-MALLOWS-1973],
+  [REF-VOGEL-2002], [REF-HANSEN-OLEARY-1993], [REF-HUTCHINSON-1989].
+
+### EQ-INV-SEL-002 — Log evidence of the Gaussian prior implied by the penalty
+
+For the proper prior `x ~ N(x_ref, (lambda^2 L'L)^-1)` (`L` square
+invertible): `log p(y) = -1/2 [2 Phi_min + log det(B'B) - log det(lambda^2
+L'L) + m log(2 pi) + log det Gamma]`, `B = [W A; lambda L]`,
+`log det(B'B) = 2 sum_i log |R_ii|` from the stacked QR.
+
+- Domain: square invertible `L`; normalized, all constants included.
+- Meaning: empirical-Bayes choice of `lambda`; equals the density of
+  `y ~ N(A x_ref, Gamma + A C_0 A')`. It is not a fully Bayesian treatment
+  of `lambda`.
+- Code: `inverse.parameter_selection.regularization_path`.
+- Source: [REF-STUART-2010], [REF-TARANTOLA-2005].
+
+### EQ-INV-SEL-003 — Leave-one-group-out cross-validation
+
+`CV(lambda) = (1/G) sum_g ||W_g (A_g x_lambda^(-g) - y_g)||^2 / m_g`, with
+`x_lambda^(-g)` refitted without group `g`.
+
+- Domain: noise independent across groups (diagonal covariance).
+- Meaning: held-out predictive error of meaningful groups (sensors, time
+  blocks); with correlated noise across groups the marginal score leaks and
+  is refused.
+- Code: `inverse.parameter_selection.grouped_cross_validation`.
+- Source: [REF-HANSEN-2008, Section 2.7].
+
+### EQ-OPT-PROX-001 — Weighted soft thresholding and L1 prox with centre
+
+`prox_{t g}(v) = c + sign(v - c) max(|v - c| - t w, 0)` for `g(x) = sum_i w_i |x_i - c_i|`; with `c = 0, w = 1` this is `sign(v) max(|v| - t, 0)`.
+
+- Domain: `t >= 0`, `w_i >= 0`, finite `c`.
+- Meaning: closed-form minimiser of `t g(x) + 1/2 ||x - v||^2`, separable in the coordinates. With a box `[l, u]` the constrained minimiser is the same value clipped to the box (each scalar function is convex), which is what `prox_l1(..., lower=, upper=)` returns.
+- Code: `optimization.proximal.soft_threshold`, `optimization.proximal.prox_l1`.
+- Source: [REF-DAUBECHIES-DEFRISE-DEMOL-2004], [REF-BECK-TEBOULLE-2009].
+
+### EQ-OPT-PROX-002 — Nonnegative L1 prox and box projection
+
+`prox(v) = max(v - t w, 0)` for `g(x) = t sum w_i x_i + indicator(x >= 0)`; `proj(v) = min(max(v, l), u)` onto `{l <= x <= u}`.
+
+- Domain: `t >= 0`, `w_i >= 0`, `l <= u` entrywise.
+- Meaning: on the nonnegative orthant `|x_i| = x_i`, so the L1 penalty is linear and the prox is a shifted rectifier.
+- Code: `optimization.proximal.prox_nonnegative_l1`, `optimization.proximal.project_box`.
+- Source: [REF-BECK-TEBOULLE-2009].
+
+### EQ-OPT-PROX-003 — Elastic-net prox
+
+`prox_{t g}(v) = soft(v, t l1 w) / (1 + t l2)` for `g(x) = l1 sum w_i |x_i| + l2/2 ||x||^2`.
+
+- Domain: `t, l1, l2 >= 0`, `w_i >= 0`.
+- Meaning: soft threshold followed by the shrinkage `1 / (1 + t l2)` of the quadratic term.
+- Code: `optimization.proximal.prox_elastic_net`.
+- Source: [REF-BECK-TEBOULLE-2009].
+
+### EQ-OPT-PROX-004 — Group-L2 prox for disjoint groups
+
+`prox_{t g}(v)_G = max(0, 1 - t w_G / ||v_G||) v_G` for `g(x) = sum_G w_G ||x_G||_2`.
+
+- Domain: groups are disjoint index sets; `w_G >= 0`.
+- Meaning: block soft threshold. Overlapping groups make the prox non-separable and are rejected; indices in no group are unpenalised and unchanged.
+- Code: `optimization.proximal.prox_group_l2`.
+- Source: [REF-BOYD-ETAL-2011].
+
+### EQ-OPT-PROX-005 — Ball projections and the pointwise 2-norm prox
+
+`proj_{|x| <= r}(v) = v min(1, r/||v||)`; pointwise on `N` points with `c` stacked components `p_i = (p^1_i, ..., p^c_i)`: `proj(p)_i = p_i min(1, r_i / |p_i|)`; `prox_{t h}(v) = v - proj_{ball(t w)}(v)` for `h(p) = sum_i w_i |p_i|` (Moreau).
+
+- Domain: `r, r_i >= 0`.
+- Meaning: the l-infinity ball projection is clipping (dual of anisotropic TV); the pointwise 2-ball projection is the dual of isotropic TV; the Moreau identity gives the matching prox.
+- Code: `optimization.proximal.project_l2_ball`, `optimization.proximal.project_linf_ball`, `optimization.proximal.project_pointwise_l2_ball`, `optimization.proximal.prox_pointwise_l2`.
+- Source: [REF-CHAMBOLLE-POCK-2011].
+
+### EQ-OPT-PROX-006 — ISTA/FISTA step with backtracking
+
+`x+ = prox_{t g}(y - t grad f(y))`, accepted when `f(x+) <= f(y) + <grad f(y), x+ - y> + ||x+ - y||^2 / (2 t)`; FISTA: `theta_(k+1) = (1 + sqrt(1 + 4 theta_k^2))/2`, `y_(k+1) = x_k + (theta_k - 1)/theta_(k+1) (x_k - x_(k-1))`.
+
+- Domain: `f` convex with Lipschitz gradient, `g` convex with known prox.
+- Meaning: backtracking only reduces `t`, so no spectral bound is needed; the code accepts the inequality up to a relative slack of `1e-12 (1 + |f(y)|)` for rounding. A user `lipschitz` fixes `t = 1/L` without any check. FISTA is not monotone; the optional restart resets `theta = 1` when the objective rises.
+- Code: `optimization.proximal.ista`, `optimization.proximal.fista`.
+- Source: [REF-BECK-TEBOULLE-2009].
+
+### EQ-OPT-PROX-007 — Gradient mapping
+
+`G_t(x) = (x - prox_{t g}(x - t grad f(x))) / t`, optimality metric `||G_t(x)||`.
+
+- Domain: as EQ-OPT-PROX-006.
+- Meaning: zero exactly at minimisers of `f + g`; replaces the raw gradient, which is meaningless for non-smooth `g`. FISTA certifies it at the iterate, not at the extrapolated point.
+- Code: `optimization.proximal.ProximalGradientResult`.
+- Source: [REF-BECK-TEBOULLE-2009].
+
+### EQ-OPT-PROX-008 — Primal-dual hybrid gradient iteration and step condition
+
+`x+ = prox_{tau f}(x - tau K'y)`, `xbar = x+ + theta (x+ - x)`, `y+ = prox_{sigma g*}(y + sigma K xbar)`, with `tau sigma ||K||^2 < 1`; `prox_{sigma g*}(q) = q - sigma prox_{g/sigma}(q/sigma)`.
+
+- Domain: `f, g` convex lower semicontinuous, `theta` in `[0, 1]`.
+- Meaning: Chambolle-Pock for `min_x f(x) + g(Kx)`. The step condition is validated against a user-supplied upper BOUND of `||K||_2`; a power-iteration estimate is a lower bound and needs an explicit safety factor.
+- Code: `optimization.proximal.primal_dual_hybrid_gradient`.
+- Source: [REF-CHAMBOLLE-POCK-2011], [REF-CHAMBOLLE-POCK-2016].
+
+### EQ-OPT-PROX-009 — PDHG primal and dual residuals
+
+`p = (x - x+)/tau - K'(y - y+)` and `d = (y - y+)/sigma - theta K (x - x+)`.
+
+- Domain: iterates of EQ-OPT-PROX-008.
+- Meaning: `p` lies in `partial f(x+) + K'y+` and `d` in `partial g*(y+) - K x+`, so both vanish exactly at a saddle point. No primal-dual gap is reported.
+- Code: `optimization.proximal.PDHGResult`.
+- Source: [REF-CHAMBOLLE-POCK-2011].
+
+### EQ-OPT-PROX-010 — Scaled ADMM iteration
+
+`x+ = argmin f(x) + rho/2 ||L x - z + u||^2`, `z+ = prox_{g/rho}(L x+ + u)`, `u+ = u + L x+ - z+`.
+
+- Domain: `f, g` closed convex, `rho > 0`.
+- Meaning: scaled form for `min f(x) + g(z)` subject to `L x = z`; the unscaled multiplier is `rho u`. The x-update is a user callback whose inner accuracy is the caller's responsibility.
+- Code: `optimization.proximal.admm`.
+- Source: [REF-BOYD-ETAL-2011].
+
+### EQ-OPT-PROX-011 — ADMM residuals, stopping and penalty adaptation
+
+`r = L x+ - z+`, `s = rho L'(z+ - z)`; stop when `||r|| <= sqrt(m) abs + rel max(||L x||, ||z||)` and `||s|| <= sqrt(n) abs + rel ||rho L'u||`; residual balancing multiplies/divides `rho` by a factor and rescales `u` so that `rho u` is preserved.
+
+- Domain: iterates of EQ-OPT-PROX-010.
+- Meaning: primal feasibility and dual feasibility measures. Adaptation is capped (`max_rho_updates`) so that `rho` is eventually fixed.
+- Code: `optimization.proximal.ADMMResult`.
+- Source: [REF-BOYD-ETAL-2011].
+
+### EQ-INV-SPARSE-001 — L1-regularised least squares
+
+`min_x 1/2 ||W (A x - y)||^2 + alpha sum_i w_i |x_i - c_i|` (optionally on a box), `W = C^-1` with `C` a covariance factor.
+
+- Domain: `alpha >= 0`, `w_i >= 0`.
+- Meaning: `alpha` multiplies an UNSQUARED penalty, unlike the Tikhonov `lambda^2` that multiplies a squared norm. The smooth gradient is `A' W' W (A x - y)`; the penalty prox is EQ-OPT-PROX-001 on the box. With `alpha = 0` the problem is ordinary least squares, solved slowly by proximal gradient when `A` is ill conditioned.
+- Code: `inverse.sparse.l1_regularized_least_squares`.
+- Source: [REF-BECK-TEBOULLE-2009], [REF-DAUBECHIES-DEFRISE-DEMOL-2004].
+
+### EQ-INV-SPARSE-002 — Lasso zero threshold
+
+`alpha_max = max_i |(A' W' W (y - A c))_i| / w_i`; for `alpha >= alpha_max` the minimiser of EQ-INV-SPARSE-001 is `x = c`.
+
+- Domain: unconstrained problem (bounds not considered).
+- Meaning: subgradient optimality at `x = c` reads `|g_i| <= alpha w_i`; with `c = 0` and unit weights this is `||A' W' W y||_inf`.
+- Code: `inverse.sparse.lasso_zero_threshold`.
+- Source: [REF-BECK-TEBOULLE-2009].
+
+### EQ-INV-SPARSE-003 — Discrete total variation
+
+`TV(x) = sum_i w_i |(D x)_i|` with `|.|` the Euclidean norm (isotropic) or the sum of absolute values (anisotropic) of the `c` gradient components at point `i`.
+
+- Domain: `D` a forward-difference or grid-gradient operator (boundary and spacing as defined by that operator), `w_i >= 0` area weights.
+- Meaning: constants have `TV = 0`. For a one-dimensional difference both norms coincide. The penalised objective is `1/2 ||W (A x - y)||^2 + alpha TV(x)`, `alpha` unsquared.
+- Code: `inverse.sparse.total_variation_value`, `inverse.sparse.total_variation_regularized_least_squares`.
+- Source: [REF-RUDIN-OSHER-FATEMI-1992], [REF-CHAMBOLLE-POCK-2011].
+
+### EQ-INV-SPARSE-004 — TV by primal-dual on the stacked operator
+
+`K = [W A; D]`, `g(u, v) = 1/2 ||u - W y||^2 + alpha TV(v)`, `f = indicator(box)`; `prox_{sigma g*}(p, q) = ((p - sigma W y)/(1 + sigma), proj_{|q_i| <= alpha w_i}(q))`.
+
+- Domain: as EQ-INV-SPARSE-003.
+- Meaning: the conjugate of the quadratic gives the shifted shrinkage, the conjugate of the TV norm is the indicator of the dual ball of radius `alpha w_i` (EQ-OPT-PROX-005); `f` is the box projection.
+- Code: `inverse.sparse.total_variation_regularized_least_squares`.
+- Source: [REF-CHAMBOLLE-POCK-2011].
+
+### EQ-INV-SPARSE-005 — TV by ADMM with a CGLS x-update
+
+Split `z = D x`; `x+ = argmin 1/2 ||W (A x - y)||^2 + rho/2 ||D x - z + u||^2` is the least-squares problem `[W A; sqrt(rho) D] x = [W y; sqrt(rho)(z - u)]`; `z+` is the prox of `(alpha/rho) TV` (EQ-OPT-PROX-005).
+
+- Domain: no box constraints; stacked operator of full column rank for a unique x-update.
+- Meaning: the x-update runs CGLS from a zero start to a relative normal-residual tolerance; the number of inner iterations and the number of inner solves that missed their tolerance are reported, and such failures prevent `converged`.
+- Code: `inverse.sparse.total_variation_regularized_least_squares`.
+- Source: [REF-BOYD-ETAL-2011].
+
+### EQ-INV-SPARSE-006 — Debiasing refit on the support
+
+`x_debiased = c + S' argmin_b ||W (A S' b - (y - A c))||` with `S` the selection of `{i : x_i != c_i}`.
+
+- Domain: unconstrained problem.
+- Meaning: removes the shrinkage of the L1 penalty on the selected coefficients; it is a separate output and is not guaranteed to reduce the error (a wrong support is refitted too).
+- Code: `inverse.sparse.l1_regularized_least_squares`.
+- Source: [REF-BECK-TEBOULLE-2009].
+
+### EQ-INV-SPARSE-008 — Operator-norm bound for the stacked operator
+
+`||K||_2^2 <= ||W A||_2^2 + ||D||_2^2`, `||M||_2 <= ||M||_F`, `||D||_2 <= 2/h` (one dimension), `||D||_2^2 <= 4/h_x^2 + 4/h_y^2` (grid gradient).
+
+- Domain: `K = [W A; D]`.
+- Meaning: certified upper bounds used to validate `tau sigma ||K||^2 < 1` (EQ-OPT-PROX-008); loose bounds only shorten the steps.
+- Code: `inverse.sparse.frobenius_norm_bound`, `inverse.sparse.total_variation_regularized_least_squares`.
+- Source: [REF-GOLUB-VANLOAN-2013], [REF-CHAMBOLLE-POCK-2011].
+
+### EQ-INV-GN-001 — Differentiable forward contract and derivative checks
+
+`G: R^n -> R^m`, `jvp(x, v) = J(x) v`, `vjp(x, w) = J(x)' w`; Taylor remainder `r(h) = ||G(x + h v) - G(x) - h J(x) v|| = O(h^2)` and adjoint dot test `w'(J v) = (J'w)'v`.
+
+- Domain: `G` continuously differentiable near `x`; real finite `x`, `v`, `w`.
+- Meaning: `r(h)` decays with observed order 2 until roundoff (about `eps ||G||`) for an exact JVP and order 1 for a wrong one; the dot test verifies that `vjp` is the Euclidean adjoint of `jvp`. The `passed` flag of `check_derivatives` is a heuristic, not a proof, and degrades near non-smooth points.
+- Code: `inverse.gauss_newton.check_derivatives`.
+- Source: [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-GN-002 — Central-difference JVP and dense finite-difference VJP
+
+`J(x) v ~ (G(x + e v) - G(x - e v)) / (2 e)` with `e = s (1 + ||x||_2) / ||v||_2`, `s = eps^(1/3)` by default; `J'w` by assembling the `n` columns `J(x) e_j` and forming `(J'w)_j = w' (J e_j)`.
+
+- Domain: `v != 0`; the dense VJP costs `2 n` forward evaluations and requires `allow_dense_fd_vjp=True`.
+- Meaning: error `O(e^2)` truncation plus `O(eps ||G|| / e)` roundoff; the mode is chosen by the user, never a silent fallback from analytic derivatives.
+- Code: `inverse.gauss_newton.CallbackForward`.
+- Source: [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-GN-003 — Penalized nonlinear least-squares objective and gradient
+
+`Phi(x) = 1/2 ||W (G(x) - y)||^2 + lambda^2/2 ||L (x - x_ref)||^2`, `grad Phi = J' W'W r + lambda^2 L'L (x - x_ref)` with `r = G(x) - y`, `W'W = Gamma^-1`.
+
+- Domain: `lambda >= 0`; `Gamma` symmetric positive definite (whitening from a `probstat.linalg` covariance factor); `L` a linear operator with `n` columns.
+- Meaning: the MAP/Tikhonov objective in physical coordinates; `x_ref` is explicit (default zero) and is not the starting point; no transformed-coordinate Jacobian terms are involved.
+- Code: `inverse.gauss_newton.gauss_newton_krylov`.
+- Source: [REF-NOCEDAL-WRIGHT-2006]; [REF-TIKHONOV-1963].
+
+### EQ-INV-GN-004 — Gauss-Newton step as a stacked linearized least-squares problem
+
+`p = argmin_p || [W J; lambda L] p + [W r; lambda L (x - x_ref)] ||_2`, equivalently `(J'W'W J + lambda^2 L'L) p = - grad Phi`.
+
+- Domain: the stacked matrix has full column rank when `lambda > 0` and `L` has trivial null space; otherwise the Krylov iterate from zero is the minimum-norm least-squares solution within the iteration count.
+- Meaning: solved by LSQR or CGLS using only `jvp` and `vjp`; neither `J` nor the Hessian is formed. The Gauss-Newton Hessian omits the term `sum_i (W r)_i W grad^2 G_i`.
+- Code: `inverse.gauss_newton.gauss_newton_krylov`.
+- Source: [REF-NOCEDAL-WRIGHT-2006]; [REF-PAIGE-SAUNDERS-1982].
+
+### EQ-INV-GN-005 — Armijo backtracking on the full objective
+
+Accept the first `t in {1, f, f^2, ...}` with `Phi(x + t p) <= Phi(x) + c t grad Phi' p`, `0 < c < 1`, `0 < f < 1`, plus a roundoff slack `4 eps |Phi|`.
+
+- Domain: `grad Phi' p < 0` (descent); otherwise the iteration stops with `line_search_failure`.
+- Meaning: globalization on the penalized objective including the penalty; trials with non-finite forward values are rejected (recorded as `nan`), never clipped.
+- Code: `inverse.gauss_newton.gauss_newton_krylov`.
+- Source: [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-GN-006 — Discrepancy stopping rule
+
+Stop when `||W (G(x_k) - y)|| <= tau delta`.
+
+- Domain: `delta` is the noise level in the whitened norm, `tau >= 1` chosen by the caller (`tau > 1` for the classical theory).
+- Meaning: Morozov's principle applied to the nonlinear residual; for an ill-posed `G` the level, not the objective decrease, is the regularization.
+- Code: `inverse.gauss_newton.iteratively_regularized_gauss_newton`.
+- Source: [REF-MOROZOV-1966]; [REF-ENGL-HANKE-NEUBAUER-1996].
+
+### EQ-INV-GN-007 — Iteratively regularized Gauss-Newton (IRGNM)
+
+`x_(k+1) = x_k + p_k`, `p_k = argmin_p ||W (G(x_k) + J_k p - y)||^2 + lambda_k^2 ||L (x_k + p - x_ref)||^2`, `lambda_(k+1) = q lambda_k`, `0 < q < 1`.
+
+- Domain: `lambda_0 > 0`; convergence theory needs a tangential-cone-type condition on `G` and moderate `q`, which the code does not verify.
+- Meaning: full steps without line search, penalty centred at `x_ref` (not `x_k`), regularization decreasing with the iteration and stopped by [EQ-INV-GN-006]. Different from fixed-`lambda` Gauss-Newton ([EQ-INV-GN-004]/[EQ-INV-GN-005]) and from Levenberg-Marquardt damping.
+- Code: `inverse.gauss_newton.iteratively_regularized_gauss_newton`.
+- Source: [REF-ENGL-HANKE-NEUBAUER-1996].
+
+### EQ-INV-GN-008 — Inexact (forcing-term) inner tolerance
+
+`eta_k = eta` (constant) or `eta_k = min(1/2, max(eta, sqrt(||g_k|| / ||g_0||)))` (adaptive), used as the LSQR `atol = btol` or the CGLS relative normal-residual tolerance.
+
+- Domain: `eta > 0`.
+- Meaning: loosens the linearized solves far from the solution and tightens them as the gradient falls; the two Krylov solvers measure `eta` differently (see their stopping tests).
+- Code: `inverse.gauss_newton.gauss_newton_krylov`.
+- Source: [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-LG-001 — Linear-Gaussian posterior in data space
+
+`mean = mu + C0 A' S^-1 (y - A mu)`, `C_post = C0 - C0 A' S^-1 A C0`, `S = A C0 A' + Gamma`, with `C0 = P P'`.
+
+- Domain: `x ~ N(mu, C0)`, `y = A x + eps`, `eps ~ N(0, Gamma)` independent; `Gamma` SPD, `C0` PSD (may be singular), `S` SPD. Proper priors only.
+- Meaning: exact Gaussian conjugate update; `C0` is never inverted. The covariance is a difference and loses digits in strongly informed directions; the parameter-space form avoids this.
+- Code: `inverse.linear_gaussian.linear_gaussian_posterior`.
+- Source: [REF-TARANTOLA-2005], [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-LG-002 — Log evidence
+
+`log p(y) = -1/2 [ (y - A mu)' S^-1 (y - A mu) + log det S + m log 2 pi ]`.
+
+- Domain: as EQ-INV-LG-001.
+- Meaning: normal log density of `y` under `N(A mu, S)`; a density in the units of `y` (log of unit^-m).
+- Code: `inverse.linear_gaussian.linear_gaussian_posterior`.
+- Source: [REF-TARANTOLA-2005], [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-LG-003 — Prior-whitened (parameter-space) posterior
+
+`x = mu + P z`, `K = W A P`, `W = Gamma^-1/2`; `z | y ~ N((I + K'K)^-1 K' W (y - A mu), (I + K'K)^-1)`; `C_post = P (I + K'K)^-1 P'`.
+
+- Domain: `P` is `n x r`; the dense system is `r x r`.
+- Meaning: the covariance form is nonnegative by construction (no subtractive cancellation); no inverse of `C0`.
+- Code: `inverse.linear_gaussian.linear_gaussian_posterior`.
+- Source: [REF-KAIPIO-SOMERSALO-2007], [REF-BUI-THANH-ETAL-2013].
+
+### EQ-INV-LG-004 — Determinant lemma for the evidence
+
+`log det S = log det Gamma + log det(I + K'K)` and `r' S^-1 r = |W r|^2 - u'(I + K'K)^-1 u`, `u = K' W r`.
+
+- Domain: as EQ-INV-LG-003.
+- Meaning: evidence computed in parameter space agrees with the data-space value to rounding.
+- Code: `inverse.linear_gaussian.linear_gaussian_posterior`.
+- Source: [REF-GOLUB-VANLOAN-2013].
+
+### EQ-INV-LG-005 — Exact conditional simulation
+
+`x = x0 + C0 A' S^-1 (y - A x0 - eps0)`, `x0 ~ N(mu, C0)`, `eps0 ~ N(0, Gamma)`.
+
+- Domain: as EQ-INV-LG-001.
+- Meaning: an exact draw from the posterior (not an approximation); in parameter space `z = z_mean + L^-T xi`, `L L' = I + K'K`.
+- Code: `inverse.linear_gaussian.GaussianLinearPosterior.sample`.
+- Source: [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-LG-006 — Posterior predictive of a linear functional
+
+`H x | y ~ N(H mean, H C_post H' [+ Gamma_new])`.
+
+- Domain: `H` is `m' x n`; the optional noise term predicts new noisy observations.
+- Meaning: propagates posterior uncertainty to new linear quantities; cost `m'` covariance actions.
+- Code: `inverse.linear_gaussian.GaussianLinearPosterior.predictive`.
+- Source: [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-LG-007 — Low-rank posterior covariance and mean
+
+`K'K ~ V diag(lambda) V'`; `Cov(z | y) ~ I - V diag(lambda/(1+lambda)) V'`; `z_mean ~ V diag(1/(1+lambda)) V' K' W (y - A mu)`.
+
+- Domain: eigenpairs of the prior-preconditioned data-misfit Hessian.
+- Meaning: exact when every direction with `lambda > 0` is retained; otherwise the prior variance is kept in unresolved directions. The smallest retained `lambda` is a truncation indicator, not a certified bound.
+- Code: `inverse.linear_gaussian.low_rank_posterior`.
+- Source: [REF-BUI-THANH-ETAL-2013], [REF-SPANTINI-ETAL-2015].
+
+### EQ-INV-LG-008 — Low-rank posterior sampling
+
+`z = z_mean + xi + V diag(1/sqrt(1+lambda) - 1) V' xi`, `xi ~ N(0, I)`.
+
+- Domain: as EQ-INV-LG-007.
+- Meaning: covariance of the noise part is `I - V diag(lambda/(1+lambda)) V'`; the draw is `mu + P z`.
+- Code: `inverse.linear_gaussian.LowRankGaussianPosterior.sample`.
+- Source: [REF-BUI-THANH-ETAL-2013].
+
+### EQ-INV-LG-009 — Information gain and effective dimension
+
+`I(x; y) = 1/2 sum_i log(1 + lambda_i)`, `d_eff = sum_i lambda_i/(1 + lambda_i)`, shrinkage `1/(1 + lambda_i)`.
+
+- Domain: `lambda_i` eigenvalues of `K'K`.
+- Meaning: mutual information in nats equals `1/2 (log det S - log det Gamma)`; effective dimension counts data-informed directions. Truncated sums are lower bounds.
+- Code: `inverse.linear_gaussian.prior_whitened_information`.
+- Source: [REF-SPANTINI-ETAL-2015], [REF-ALEXANDERIAN-2021].
+
+### EQ-INV-PDE-001 — Conservative finite-volume diffusion system
+
+`-(k u')' = q` on `(0, L)`, `u(0) = u_L`, `u(L) = u_R`; `h = L/n`; face
+conductances `c_f`, jumps `w_f = u_f - u_(f-1)` with `u_(-1) = u_L`, `u_n = u_R`;
+cell equations `c_i w_i - c_(i+1) w_(i+1) = h q_i` (`i = 0..n-1`), i.e.
+`K(x) u = f(x)` with `K_ii = c_i + c_(i+1)`, `K_(i,i+1) = -c_(i+1)`,
+`f_0 = h q_0 + c_0 u_L`, `f_(n-1) = h q_(n-1) + c_n u_R`.
+
+- Domain: `n >= 2` cells, `q` sampled at cell centres, finite Dirichlet values.
+- Meaning: second-order accurate in the cell-centre error on smooth
+  solutions (observed order 2 in the tests); `K` is symmetric positive
+  definite and diagonally dominant, so the Thomas solve is stable. The
+  boundary face uses the adjacent cell and half-cell distance.
+- Code: `inverse.pde_models.EllipticDiffusion1D`.
+- Source: [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-PDE-002 — Log-conductivity and harmonic face averaging
+
+`k_i = exp(x_i)`; interior face `k_f = 2 k_a k_b / (k_a + k_b)`,
+`c_f = k_f / h`; boundary face `c_f = 2 k / h`. Derivatives:
+`d log k_f / d x_a = k_b/(k_a + k_b)`, `d log k_f / d x_b = k_a/(k_a + k_b)`,
+`d log c / d x = 1` at a boundary face.
+
+- Domain: `|x_i| <= 345` (`k` in `[1e-150, 1e150]`); outside, `ValueError`.
+- Meaning: positivity of `k` by construction; the harmonic mean is the
+  flux-continuous average across a conductivity jump and is differentiated
+  exactly (the derivative is of the discrete model actually solved).
+- Code: `inverse.pde_models.EllipticDiffusion1D`.
+- Source: [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-PDE-003 — Tangent (forward sensitivity) solve
+
+`K du = -(dr/dx)[v]`, `(dr/dx)[v]_i = e_i - e_(i+1)`,
+`e_f = c_f (dlog c_f[v]) w_f`; `J v = H du`, where `r(u, x) = K u - f`.
+
+- Domain: any admissible `x` and direction `v`; one tridiagonal solve with
+  the stored factorization plus `O(n)` assembly.
+- Meaning: exact directional derivative of the discrete sensor map
+  `G(x) = H u(x) + b`, including the dependence of the boundary right-hand
+  side on `x`.
+- Code: `inverse.pde_models.EllipticDiffusion1D.jvp`.
+- Source: [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-PDE-004 — Adjoint solve and matrix-free vector-Jacobian product
+
+`K' p = H' w`; `(J' w)_j = -sum_f c_f w_f (p_f - p_(f-1)) d log c_f / d x_j`
+with `p_(-1) = p_n = 0`.
+
+- Domain: any admissible `x`; one transpose solve and `O(n)` work per call,
+  independent of the number of parameters.
+- Meaning: equals `-p' (dK/dx_j) u + p' (df/dx_j)`. The Jacobian is never
+  formed; the gradient of a scalar misfit costs one forward and one adjoint
+  solve. The dot test `w'(J v) = (J'w)'v` holds to rounding.
+- Code: `inverse.pde_models.EllipticDiffusion1D.vjp`,
+  `inverse.pde_models.PDESolveCounts`.
+- Source: [REF-KAIPIO-SOMERSALO-2007], [REF-VOGEL-2002].
+
+### EQ-INV-PDE-005 — Thomas algorithm and its transpose
+
+`A = L U` with `m_i = l_i / p_i`, `p_(i+1) = d_(i+1) - m_i u_i`; `A x = b` by
+`y_(i+1) = b_(i+1) - m_i y_i`, back substitution with `p` and `u`; `A' x = b`
+by `U' z = b`, `L' x = z`.
+
+- Domain: tridiagonal `A` with nonzero pivots; no pivoting, so stability
+  needs diagonal dominance or symmetric positive definiteness.
+- Meaning: `O(n)` time and memory; zero or non-finite pivots raise
+  `ValueError`. The factors are reused for forward, tangent and adjoint solves.
+- Code: `inverse.pde_models.solve_tridiagonal`,
+  `inverse.pde_models.solve_tridiagonal_transpose`,
+  `inverse.pde_models.TridiagonalFactorization`.
+- Source: [REF-GOLUB-VANLOAN-2013].
+
+### EQ-INV-PDE-006 — Discrete flux conservation diagnostic
+
+`F_f = -c_f w_f`; cell balance `F_(i+1) - F_i = h q_i`; global balance
+`F_n - F_0 = h sum_i q_i`.
+
+- Domain: any admissible `x`.
+- Meaning: the finite-volume scheme conserves the source exactly up to the
+  linear-solve rounding; the reported residuals are `O(eps)` relative to the
+  flux scale, independent of `h`.
+- Code: `inverse.pde_models.EllipticDiffusion1D.face_fluxes`,
+  `inverse.pde_models.EllipticDiffusion1D.flux_balance`,
+  `inverse.pde_models.FluxBalance`.
+- Source: [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-PDE-007 — Sensor interpolation operator
+
+`G_j = (1 - t_j) U_(m_j) + t_j U_(m_j + 1)`, where `U` is the profile with
+nodes `0, (i + 1/2) h, L` carrying `(u_L, u_0, ..., u_(n-1), u_R)` and
+`s_j` lies in `[node_m, node_(m+1)]`, `t_j = (s_j - node_m)/(node_(m+1) - node_m)`.
+
+- Domain: sensors strictly inside `(0, L)`.
+- Meaning: affine in `u`: `G = H u + b`, with `b` the boundary-value
+  contribution; `H` has at most two entries per row and `H'` is applied in
+  `O(m)`. `b` does not enter derivatives.
+- Code: `inverse.pde_models.EllipticDiffusion1D.value`.
+- Source: [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-PDE-008 — Weighted least-squares misfit gradient by the adjoint
+
+`Phi(x) = 1/2 ||W (G(x) - y)||^2`, `W = diag(1/sigma_j)`,
+`grad Phi = J(x)' W' W (G(x) - y)`.
+
+- Domain: positive finite `sigma`.
+- Meaning: one forward and one adjoint solve give the whole gradient;
+  adding a prior or regularization term is the caller's responsibility.
+- Code: `inverse.pde_models.adjoint_gradient`,
+  `inverse.pde_models.AdjointGradient`.
+- Source: [REF-KAIPIO-SOMERSALO-2007], [REF-VOGEL-2002].
+
+### EQ-DES-LIN-001 — Whitened posterior of a linear Gaussian design
+
+`C = L (I + H)^-1 L'`, `H = B'B`, `B = L_R^-1 A L`, with prior covariance
+`P = L L'`, selected observation rows `A` (`k` by `n`) and noise covariance
+`R = L_R L_R'` of the selected sensors; the posterior precision in whitened
+coordinates `x = m + L z` is `I + H`.
+
+- Domain: `P` SPD, `R` SPD (diagonal for independent sensors), linear
+  observations `y = A x + e`.
+- Meaning: exact Gaussian posterior covariance in state coordinates; equals
+  `(P^-1 + A' R^-1 A)^-1` but is computed from the well-conditioned `I + H`.
+- Code: `design.linear_optimal.linear_design_criteria`.
+- Source: [REF-ALEXANDERIAN-2021], [REF-CHALONER-VERDINELLI-1995].
+
+### EQ-DES-LIN-002 — D-optimality and expected information gain
+
+`D = log det(I + H)`, `EIG = D / 2`.
+
+- Domain: as EQ-DES-LIN-001.
+- Meaning: D is maximized; invariant under invertible reparameterization
+  `x -> T x` of the state (the prior and rows transform consistently).
+  `EIG` is the mutual information between state and data in nats and equals
+  `design.linear_gaussian_information_gain` (EQ-OED-EIG-LIN-001).
+- Code: `design.linear_optimal.linear_design_criteria`,
+  `design.linear_optimal.greedy_linear_design`.
+- Source: [REF-CHALONER-VERDINELLI-1995], [REF-ALEXANDERIAN-2021].
+
+### EQ-DES-LIN-003 — A- and E-optimality
+
+`A = trace(C)`; `E_white = lambda_min(I + H)`; `E_state = lambda_max(C)`.
+
+- Domain: as EQ-DES-LIN-001.
+- Meaning: A and `E_state` are minimized and depend on the units (metric)
+  of the state; `E_white` (maximized) is the smallest posterior precision in
+  prior-whitened coordinates and is unit free.
+- Code: `design.linear_optimal.linear_design_criteria`.
+- Source: [REF-ALEXANDERIAN-2021].
+
+### EQ-DES-LIN-004 — Goal-oriented criterion
+
+`G = trace(Q C Q')` for the linear quantity of interest `q = Q x`
+(a single vector `c` gives `c' C c`).
+
+- Domain: `Q` is `q` by `n`.
+- Meaning: posterior variance of the target; transforms consistently under
+  `x -> T x` with `Q -> Q T^-1`, so it is unit free once `Q` is declared in
+  the same coordinates.
+- Code: `design.linear_optimal.linear_design_criteria`,
+  `design.linear_optimal.greedy_linear_design`.
+- Source: [REF-ALEXANDERIAN-2021].
+
+### EQ-DES-LIN-005 — Classical Fisher criteria and rank deficiency
+
+`F = A' R^-1 A`; `D = log det F`, `A = trace(F^-1)`, goal
+`trace(Q F^+ Q')` if every row of `Q` lies in `range(F)`.
+
+- Domain: no prior. Numerical rank counts eigenvalues of `F` above
+  `1e-12 n lambda_max(F)`.
+- Meaning: if `F` is singular then `D = -inf`, `A = inf`, `lambda_max(Cov) =
+  inf`, a non-estimable goal has `G = inf`, and the null space of `F` is
+  reported; no prior or jitter is added silently.
+- Code: `design.linear_optimal.linear_design_criteria`.
+- Source: [REF-CHALONER-VERDINELLI-1995].
+
+### EQ-DES-LIN-006 — Rank-one greedy update
+
+With current covariance `C`, candidate row `a` and noise variance `s^2`:
+`Delta logdet = log1p(a'Ca / s^2)`; `Delta trace(C) = -||C a||^2 / (s^2 + a'Ca)`;
+`Delta trace(Q C Q') = -||Q C a||^2 / (s^2 + a'Ca)`;
+`C+ = C - C a a' C / (s^2 + a'Ca)`.
+
+- Domain: independent noise across sensors (a repeated row is an independent
+  replicate); `s^2 > 0`.
+- Meaning: matrix determinant lemma and Sherman-Morrison downdate; the
+  `Delta logdet` sequence is non-increasing along the selection.
+- Code: `design.linear_optimal.greedy_linear_design`.
+- Source: [REF-GOLUB-VANLOAN-2013], [REF-ALEXANDERIAN-2021].
+
+### EQ-DES-LIN-007 — Joint formula for correlated noise
+
+`H = L' A' R^-1 A L` with the full `k` by `k` noise covariance `R` of the
+selected sensors (`R^-1` applied through the Cholesky factor of `R`).
+
+- Domain: `R` SPD; a singular `R` (perfectly correlated sensors) is rejected.
+- Meaning: information is not additive over sensors; a duplicate with noise
+  correlation `rho -> 1` contributes `O(1 - rho)`, an independent replicate
+  contributes `log(1 + ...)`.
+- Code: `design.linear_optimal.linear_design_criteria`.
+- Source: [REF-ALEXANDERIAN-2021], [REF-GOLUB-VANLOAN-2013].
+
+### EQ-DES-LIN-008 — Exhaustive subset oracle
+
+`S* = argmax_{|S| = k} D(S)` (or `argmin` of `A(S)` / `G(S)`), by evaluating
+every `k`-subset with EQ-DES-LIN-001..004.
+
+- Domain: `C(N, k)` at most `max_combinations`.
+- Meaning: exact optimum and full ranking for tiny problems; the gap of the
+  greedy value to this optimum is reported, not assumed zero.
+- Code: `design.linear_optimal.exhaustive_linear_design`.
+- Source: [REF-ALEXANDERIAN-2021].
+
+### EQ-INV-BENCH-001 — Benchmark data generation and the inverse-crime flag
+
+`y = b + e`, `e_i ~ N(0, s^2)` iid with `s = rho ||b|| / sqrt(m)` (not
+rescaled to a fixed norm; the realized `||e||` is reported); `b = A x_true`
+when `same_discretization`, otherwise `b = P_coarse(A_fine x_fine)` from an
+`r`-times finer grid with cell averaging `P_coarse`, and
+`x_true = P_coarse x_fine`.
+
+- Domain: `rho > 0`, `b != 0`; separate random-stream children for truth,
+  design and noise.
+- Meaning: benchmark inputs with withheld truth. Same-discretization data
+  verify algebra only (inverse crime); refined data carry a genuine model
+  error of the coarse operator.
+- Code: `inverse.benchmark_problems.diagonal_spectrum_benchmark`,
+  `inverse.benchmark_problems.deconvolution_benchmark`,
+  `inverse.benchmark_problems.sparse_sensing_benchmark`,
+  `inverse.benchmark_problems.correlated_gaussian_benchmark`,
+  `inverse.benchmark_problems.InverseBenchmark`.
+- Source: [REF-KAIPIO-SOMERSALO-2007], [REF-HANSEN-2008, Chapter 4],
+  [REF-GAZZOLA-HANSEN-NAGY-2019].
+
+### EQ-INV-PROF-001 — Profile negative log-likelihood
+
+`nll_prof(t) = min_{theta_-i} nll(theta_1, ..., theta_i = t, ..., theta_n)`, with `nll = -l` the negative log-likelihood, `theta_-i` the nuisance block, optionally under box constraints on the nuisance block.
+
+- Domain: `nll` finite on the feasible set; the grid brackets the supplied estimate.
+- Meaning: the profile re-optimizes the nuisance parameters at every fixed target value (continuation from the grid point nearest the estimate in both directions, warm starts, the estimate's nuisance block as a second start, optional extra starts). It is not a marginal over nuisance parameters and not the profile of a penalized/MAP objective. A local optimizer can return a local minimum; the flags `converged` and `start` are recorded per point.
+- Code: `inverse.profile_likelihood.profile_likelihood`.
+- Source: [REF-RAUE-ETAL-2009], [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-PROF-002 — Profile likelihood ratio and baseline refit
+
+`LR(t) = 2 (nll_prof(t) - nll_min)`, `nll_min = min(nll(theta_hat), min_t nll_prof(t))`.
+
+- Domain: grid values `t`; `theta_hat` the supplied estimate.
+- Meaning: LR is non-negative by construction because the baseline is the best value found. When some profile value is below `nll(theta_hat)` by more than a tolerance, `improved_estimate_found` is set and the better point is reported; the difference is never clipped.
+- Code: `inverse.profile_likelihood.ProfileLikelihoodResult`.
+- Source: [REF-RAUE-ETAL-2009], [REF-SEBER-WILD-2003].
+
+### EQ-INV-PROF-003 — Wilks profile-likelihood interval
+
+`{ t : LR(t) <= chi2_{1,level} }`, endpoints by linear interpolation of LR between the last grid point inside and the first outside.
+
+- Domain: regular asymptotics (interior true parameter, identifiable, unimodal profile, large sample).
+- Meaning: boundaries, weak identifiability, multimodality and small samples violate the Wilks assumptions. A side without a crossing inside the grid is reported as `None` with status `unbounded_within_grid` (the grid cannot distinguish an unbounded set from one longer than the grid); a non-finite neighbour gives `undetermined_nonfinite`. Disconnected sets are flagged (`connected=False`). Linear interpolation of a convex LR slightly narrows the interval; refine the grid.
+- Code: `inverse.profile_likelihood.profile_interval`.
+- Source: [REF-RAUE-ETAL-2009], [REF-SEBER-WILD-2003].
+
+### EQ-INV-PROF-004 — Efficient (nuisance-corrected) information
+
+`F_eff = F_tt - F_tn F_nn^{-1} F_nt = ((F^{-1})_tt)^{-1}`, with `F` partitioned into target `t` and nuisance `n` blocks.
+
+- Domain: symmetric `F` with positive-definite `F_nn`.
+- Meaning: information about the target after the nuisance parameters are estimated. Computed with a Cholesky factor of `F_nn` and triangular solves, no explicit inverse. If `F_nn` is singular the nuisance block is not estimable and `ValueError` is raised; no generalized inverse is used. For a linear Gaussian model the profile curvature equals `F_eff`.
+- Code: `inverse.profile_likelihood.efficient_information`.
+- Source: [REF-SEBER-WILD-2003], [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-PROF-005 — Delta-method variance of a functional
+
+`Var(q(theta_hat)) ~ c' C c`, `c = grad q(theta_hat)`, `C` the covariance of `theta_hat`.
+
+- Domain: smooth `q`, small estimator covariance, `C` symmetric positive semidefinite.
+- Meaning: first-order propagation; poor when `q` is strongly nonlinear over the uncertainty region or `C` is itself unreliable (non-identifiable parameters).
+- Code: `inverse.profile_likelihood.delta_method_variance`.
+- Source: [REF-SEBER-WILD-2003].
+
+### EQ-INV-PROF-006 — Local estimability of a linear functional
+
+`c' theta` is estimable iff `c` is orthogonal to null(M), i.e. `||(I - V_r V_r') c|| <= tol ||c||`, where `M = U S V'` is the SVD of the Jacobian (or of the Fisher matrix `J'J`, same null space) and `V_r` holds the right singular vectors with `s > max(m,n) eps s_max`.
+
+- Domain: local, linear, in the stated coordinates and units.
+- Meaning: a numerical local rank statement at one point; it does not establish structural identifiability and the rank cut is a tolerance choice.
+- Code: `inverse.profile_likelihood.functional_estimability`.
+- Source: [REF-SEBER-WILD-2003], [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INF-DA-001 — Delayed acceptance, stage 1 (surrogate screen)
+
+`a1(x, x') = min(1, pi~(x') q(x | x') / [pi~(x) q(x' | x)])`, with `pi~` the cheap surrogate and `q` the proposal.
+
+- Domain: `pi~(x) > 0` at the current state; a proposal with `pi~(x') = 0` is rejected without an exact evaluation. Symmetric `q` (random walk, pCN) cancels.
+- Meaning: Metropolis-Hastings test on the surrogate alone; a rejection costs no exact call. The surrogate support must contain the target support, otherwise the chain is not irreducible and not exact.
+- Code: `inference.delayed_acceptance.delayed_acceptance_metropolis`.
+- Source: [REF-CHRISTEN-FOX-2005].
+
+### EQ-INF-DA-002 — Delayed acceptance, stage 2 (exact correction)
+
+`a2(x, x') = min(1, pi(x') pi~(x) / [pi(x) pi~(x')])`, evaluated only after stage 1 accepts.
+
+- Domain: `pi(x) > 0` at the current state; `pi(x') = 0` rejects.
+- Meaning: removes the surrogate bias; the product `a1 a2` makes the exact target `pi` reversible for a fixed surrogate. Cached values of `pi(x)` and `pi~(x)` are replaced only on final acceptance.
+- Code: `inference.delayed_acceptance.delayed_acceptance_metropolis`.
+- Source: [REF-CHRISTEN-FOX-2005].
+
+### EQ-INF-DA-003 — Delayed acceptance with a pCN proposal
+
+`x' = sqrt(1 - beta^2) x + beta z`, `z ~ N(0, I)`, `pi(x) ∝ L(x) N(x; 0, I)`; stages 1 and 2 use the likelihood factors `L~` and `L` in place of `pi~` and `pi`.
+
+- Domain: `beta` in `(0, 1]`; the prior is exactly standard normal in the supplied coordinates; both callables are log-likelihoods.
+- Meaning: the pCN proposal is reversible with respect to the prior, so the prior cancels from both acceptance ratios and is never evaluated.
+- Code: `inference.delayed_acceptance.delayed_acceptance_metropolis`.
+- Source: [REF-COTTER-ROBERTS-STUART-WHITE-2013], [REF-CHRISTEN-FOX-2005].
+
+### EQ-INF-DA-004 — Detailed balance of the delayed-acceptance kernel
+
+`pi(x) q(x'|x) min(1, r) min(1, s) = pi(x') q(x|x') min(1, 1/r) min(1, 1/s)`, with `r = pi~(x') q(x|x') / [pi~(x) q(x'|x)]` and `s = pi(x') pi~(x) / [pi(x) pi~(x')]`.
+
+- Domain: fixed surrogate with `pi~ > 0` wherever `pi > 0`; `x != x'`.
+- Meaning: the four cases `r, s >= 1` or `< 1` verify the identity, so `pi` is invariant for the two-stage kernel. Adapting the surrogate or proposal from the chain history voids the argument; the sampler therefore uses no adaptation.
+- Code: `inference.delayed_acceptance.DelayedAcceptanceResult`.
+- Source: [REF-CHRISTEN-FOX-2005].
+
+### EQ-INF-DA-005 — Effective sample size per exact evaluation
+
+`ESS_exact = min_j ESS_j / N_exact`, with `ESS_j` the effective sample size of coordinate `j` of the kept draws and `N_exact = 1 + #{stage-1 acceptances}` over the whole run.
+
+- Domain: at least 4 kept draws and a non-constant coordinate; otherwise `nan`.
+- Meaning: the cost-normalised efficiency in exact-model calls. Burn-in calls are included in `N_exact`. Cost of surrogate calls and wall time are not counted; speed-up claims need a measurement of both.
+- Code: `inference.delayed_acceptance.DelayedAcceptanceResult`.
+- Source: [REF-CHRISTEN-FOX-2005].
+
+### EQ-INV-FS-001 — Basis expansion of a field
+
+`f(s) = sum_{j=1}^n x_j phi_j(s)`, `s in [0, L]`; point evaluation `f(s_i) = (Phi x)_i` with `Phi_ij = phi_j(s_i)`.
+
+- Domain: `L > 0`; `phi_j` piecewise constant on `n` equal cells, nodal hats at the `n` interior nodes `j L/(n+1)` (zero Dirichlet ends), or `sqrt(2/L) sin(j pi s / L)`; evaluation points in `[0, L]`.
+- Meaning: coefficients `x` are the unknowns of a discretized inverse problem; they are not field values unless the basis is nodal (hats). Hat fields vanish at `0` and `L`.
+- Code: `inverse.function_space.SineBasis`.
+- Source: [REF-STUART-2010].
+
+### EQ-INV-FS-002 — Exact mass (Gram) matrices
+
+`M_ij = int_0^L phi_i phi_j ds`: piecewise constant `h I` (`h = L/n`); hats `h/6 * tridiag(1, 4, 1)` (`h = L/(n+1)`); sine `I`. Then `||f||_{L2}^2 = x' M x`.
+
+- Domain: bases as in EQ-INV-FS-001.
+- Meaning: converts coefficient norms to `L2` norms; for non-orthonormal bases the discrete `l2` norm of `x` is not the `L2` norm of `f`.
+- Code: `inverse.function_space.HatBasis`.
+- Source: [REF-STUART-2010], [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-FS-003 — Observation operator by composite Gauss-Legendre quadrature
+
+`A_ij = int_0^L K_i(s) phi_j(s) ds ~= sum_p sum_{q=1}^5 w_q (b_p - a_p)/2 * K_i(s_pq) phi_j(s_pq)`, with five-point Gauss-Legendre nodes `x_q` on each panel `[a_p, b_p]`, `s_pq = (a_p+b_p)/2 + (b_p-a_p) x_q / 2`.
+
+- Domain: kernels continuous on panels; the panel grid is independent of the basis mesh.
+- Meaning: exact for polynomial integrands of degree <= 9 per panel; with a kink or jump of `phi_j` inside a panel the error is only convergent in the panel count. The nodes `0, +-sqrt(5 -+ 2 sqrt(10/7))/3` and weights `128/225, (322 +- 13 sqrt 70)/900` are the closed-form five-point rule.
+- Code: `inverse.function_space.SineBasis.integral_operator`.
+- Source: [REF-GOLUB-WELSCH-1969], [REF-DAVIS-RABINOWITZ-1984].
+
+### EQ-INV-FS-004 — Spectral Gaussian prior, eigenpairs and coefficient variances
+
+`C = a^2 (kappa^2 - Delta)^(-s)` with Dirichlet conditions on `[0, L]`; eigenfunctions `phi_k`, eigenvalues `lambda_k = a^2 (kappa^2 + (k pi/L)^2)^(-s)`; coefficients `x_k ~ N(0, lambda_k)` independent.
+
+- Domain: `a > 0`, `kappa >= 0`, `s > 1/2`.
+- Meaning: the variance of mode `k` depends only on `k`, not on the number of modes retained, so discretizations of different size represent the same prior. Larger `s` gives smoother fields.
+- Code: `inverse.function_space.SpectralGaussianPrior`.
+- Source: [REF-STUART-2010], [REF-COTTER-ROBERTS-STUART-WHITE-2013].
+
+### EQ-INV-FS-005 — Trace and truncation tail bound
+
+`tr C = sum_k lambda_k < infinity` iff `s > 1/2`; `sum_{k>N} lambda_k <= a^2 (L/pi)^(2s) N^(1-2s) / (2s-1)`.
+
+- Domain: `s > 1/2`, `N >= 1`.
+- Meaning: tail sum bounded by `int_N^inf a^2 (pi x/L)^(-2s) dx` because `lambda_k` decreases in `k` and `kappa^2 >= 0`. It bounds the expected squared `L2` truncation error and, multiplied by `2/L`, the pointwise variance error. It is a statement about the prior, not about the infinite-dimensional posterior.
+- Code: `inverse.function_space.SpectralGaussianPrior.remaining_trace_bound`.
+- Source: [REF-STUART-2010].
+
+### EQ-INV-FS-006 — Karhunen-Loeve draws and pointwise variance
+
+`f(s) = sum_{k<=N} sqrt(lambda_k) xi_k phi_k(s)`, `xi_k ~ N(0, 1)` iid; `Var f(s) = sum_{k<=N} lambda_k phi_k(s)^2`.
+
+- Domain: `s in [0, L]`.
+- Meaning: samples of the truncated prior; the variance vanishes at the Dirichlet ends. Truncation error of the variance is at most `(2/L) sum_{k>N} lambda_k`.
+- Code: `inverse.function_space.SpectralGaussianPrior.sample`.
+- Source: [REF-STUART-2010], [REF-COTTER-ROBERTS-STUART-WHITE-2013].
+
+### EQ-INV-FS-007 — Empirical pointwise and simultaneous credible bands
+
+Pointwise: sample quantiles at `(1 -+ level)/2`. Simultaneous: `mean_i +- c sd_i` with `c` the empirical `level` quantile of `T_j = max_i |f_ji - mean_i| / sd_i` over samples `j`.
+
+- Domain: `N >= 2` samples on a common grid with `sd_i > 0` at every grid point; `level in (0, 1)`.
+- Meaning: finite-sample empirical bands; `c` carries Monte Carlo error, reported as an approximate order-statistic interval. The simultaneous band covers the sampled grid only, not the continuum.
+- Code: `inverse.function_space.credible_bands`.
+- Source: [REF-STUART-2010], [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-HEAT-001 — Discrete heat equation and its one-step maps
+
+`u_t = kappa u_ss`, `u(0) = u(L) = 0`; `h = L/(n+1)`,
+`D = (kappa/h^2) tridiag(-1, 2, -1)`, `dt = T/N`; implicit Euler
+`(I + dt D) u^(k+1) = u^k`, Crank-Nicolson
+`(I + dt D/2) u^(k+1) = (I - dt D/2) u^k`; in both cases
+`u^(k+1) = S u^k` with `S = M^-1 B`, `M = I + theta dt D`, `theta in {1, 1/2}`.
+
+- Domain: `n >= 2` interior nodes, `kappa, T > 0`, `N >= 1`.
+- Meaning: the forward map from the initial state to the state at time `T` is
+  `S^N`; implicit Euler is first order and Crank-Nicolson second order in `dt`
+  (observed orders in `tests/test_heat_models.py`). `M` is tridiagonal and
+  factorized once; each step costs one `O(n)` solve.
+- Code: `inverse.heat_models.HeatEquation1D`.
+- Source: [REF-KAIPIO-SOMERSALO-2007], [REF-HANSEN-2008].
+
+### EQ-INV-HEAT-002 — Exact discrete adjoint of the time stepping
+
+`A = sum_k H_k S^k` (initial-state unknown); `A' y = a_0` with
+`a_K = H_K' y`, `a_k = H_k' y + S' a_(k+1)`, `S' = B M^-1` (`M`, `B`
+symmetric).
+
+- Domain: as EQ-INV-HEAT-001.
+- Meaning: `rmatvec` is the Euclidean transpose of the discrete forward map to
+  rounding (dot-product test relative error below `1e-12`), not a discretized
+  continuous adjoint. Cost: `K` tridiagonal solves, `O(N n)`; no dense matrix.
+- Code: `inverse.heat_models.HeatEquation1D`.
+- Source: [REF-GOLUB-VANLOAN-2013], [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-HEAT-003 — Closed-form singular values of the final-time map
+
+`mu_k = (4 kappa/h^2) sin^2(k pi h / (2 L))`, `sigma_k = |g(mu_k dt)|^N`,
+`g(x) = 1/(1 + x)` (implicit Euler) or `(1 - x/2)/(1 + x/2)` (Crank-Nicolson).
+
+- Domain: final-time observation of all `n` nodes.
+- Meaning: the orthonormal sine vectors diagonalize `D`, hence `S^N`; the
+  singular values decay like `exp(-kappa pi^2 k^2 T / L^2)` (severe
+  ill-posedness of the backward heat problem) up to the scheme error. For
+  Crank-Nicolson `|g| -> 1` for stiff modes, so the values are sorted rather
+  than assumed monotone in `k`.
+- Code: `inverse.heat_models.heat_semigroup_singular_values`.
+- Source: [REF-HANSEN-2008], [REF-GOLUB-VANLOAN-2013].
+
+### EQ-INV-HEAT-004 — Space-time linear observation operator
+
+`y_(t,s) = sum_j w_j(s) [(1 - theta) u^k_j + theta u^(k+1)_j]`, with
+`t = (k + theta) dt` and `w(s)` the two hat-function weights of `s`
+(boundary nodes carry the value zero).
+
+- Domain: sensors in `(0, L)`, times in `[0, T]`.
+- Meaning: the interpolation is part of the discrete model; its transpose
+  scatters the weights back to the nodes of steps `k` and `k+1`, so the adjoint
+  stays exact. Rows are time-major (all sensors at the first time, ...).
+  Evaluation stops at the last step needed.
+- Code: `inverse.heat_models.HeatEquation1D`.
+- Source: [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-HEAT-005 — Time-constant source operator
+
+`M u^k = B u^(k-1) + dt q`, `u^0 = 0`, i.e. `u^k = S u^(k-1) + dt M^-1 q`;
+`A q = sum_k H_k u^k`, `A' y = dt M^-1 sum_(k=1..K) a_k`.
+
+- Domain: as EQ-INV-HEAT-001; the source `q` is constant in time.
+- Meaning: linear counterpart of coefficient inversion (which is nonlinear).
+  For a sine source the final state is `(1 - g^N)/mu` times the sine mode for
+  both schemes (verified in the tests); the adjoint sums the adjoint states
+  and spends one extra solve, so `rmatvec` costs `K` solves as `matvec` does.
+- Code: `inverse.heat_models.HeatSource1D`.
+- Source: [REF-KAIPIO-SOMERSALO-2007], [REF-HANSEN-2008].
+
+### EQ-INV-HEAT-006 — Work counts
+
+One `matvec` and one `rmatvec` of a final-time operator each cost exactly `N`
+tridiagonal solves (`HeatSolveCounts`).
+
+- Domain: any configuration; sensor observations cost the index of the last
+  needed step.
+- Meaning: reported work for iterative solvers; solves are counted, assembly
+  and factorization (once, `O(n)`) are not.
+- Code: `inverse.heat_models.HeatSolveCounts`.
+- Source: [REF-GOLUB-VANLOAN-2013].
+
+### EQ-INV-HEAT-007 — Unconditional stability and the Crank-Nicolson caveat
+
+`|g(x)| <= 1` for all `x >= 0`, with `g_IE(x) = 1/(1+x)` and
+`g_CN(x) = (1 - x/2)/(1 + x/2)`; `g_CN(x) -> -1` as `x -> infinity`.
+
+- Domain: `x = mu dt`, `mu` an eigenvalue of `D`.
+- Meaning: both schemes are contractive for any `dt` (no CFL restriction; the
+  explicit Euler method would need `dt <= h^2/(2 kappa)` and is not offered).
+  Implicit Euler also preserves non-negativity (`M^-1 >= 0` entrywise);
+  Crank-Nicolson does not, and produces sign-alternating oscillations for
+  nonsmooth data when `mu dt >> 1`.
+- Code: `inverse.heat_models.heat_amplification`.
+- Source: [REF-HANSEN-2008]. Elementary algebra; checked in
+  `tests/test_heat_models.py`.
+
+### EQ-OPT-TR-001 — Steihaug truncated CG for the trust-region subproblem
+
+`min_p m(p) = g'p + 1/2 p'Hp  subject to  ||p||_2 <= Delta`, approximated by conjugate gradients on `H p = -g` from `p_0 = 0` with `r_0 = g`, `d_0 = -g`, `alpha_j = r_j'r_j / d_j'H d_j`, `z_(j+1) = z_j + alpha_j d_j`, `r_(j+1) = r_j + alpha_j H d_j`, `beta_j = r_(j+1)'r_(j+1) / r_j'r_j`, `d_(j+1) = -r_(j+1) + beta_j d_j`.
+
+- Domain: `H` symmetric (any definiteness), accessed only through `v -> H v`; `Delta > 0`.
+- Meaning: the iterate stays inside the region and the model value decreases monotonically along the CG path. The iteration ends on `d_j'H d_j <= 0` (negative or zero curvature, move to the boundary along `d_j`), on `||z_j + alpha_j d_j|| >= Delta` (boundary, see [EQ-OPT-TR-002]), or on `||r|| <= tol` (interior, inexact Newton step). For a positive definite `H` and a large region the result is `-H^-1 g`. The predicted reduction `-(g'p + 1/2 p'Hp)` is formed from the running `H z` without an extra Hessian action.
+- Code: `optimization.trust_region.steihaug_cg`.
+- Source: [REF-STEIHAUG-1983]; [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-OPT-TR-002 — Boundary intersection of a CG direction
+
+`tau >= 0` with `||z + tau d||_2 = Delta`, i.e. `a tau^2 + b tau + c = 0` with `a = d'd`, `b = 2 z'd`, `c = z'z - Delta^2 <= 0`, solved as `tau = (-b + sqrt(b^2 - 4ac)) / (2a)` for `b <= 0` and `tau = -2c / (b + sqrt(b^2 - 4ac))` for `b > 0`.
+
+- Domain: `||z|| <= Delta`, `d != 0`; the positive root exists and is unique because `c <= 0`.
+- Meaning: the step is cut exactly at the trust-region boundary; the second form avoids cancellation. On negative curvature the CG direction is a descent direction of the model, so the positive root is the minimizing boundary point along it.
+- Code: `optimization.trust_region.steihaug_cg`.
+- Source: [REF-NOCEDAL-WRIGHT-2006]; [REF-STEIHAUG-1983].
+
+### EQ-OPT-TR-003 — Trust-region ratio, acceptance and radius update
+
+`rho_k = (f(x_k) - f(x_k + p_k)) / (m_k(0) - m_k(p_k))`; the step is taken iff `rho_k > eta` (`0 <= eta < 1/4`); `Delta_(k+1) = ||p_k|| / 4` if `rho_k < 1/4`; `Delta_(k+1) = min(2 Delta_k, Delta_max)` if `rho_k > 3/4` and `||p_k|| = Delta_k`; otherwise `Delta_(k+1) = Delta_k`.
+
+- Domain: smooth `f`; predicted reduction positive.
+- Meaning: Nocedal-Wright Algorithm 4.1. A trial with a non-finite objective is a rejected step and shrinks the radius like `rho < 1/4`; the value is never clipped. When the predicted reduction is below `16 eps |f|` the ratio is not resolvable in floating point: the step is then taken iff `f` did not increase by more than that floor and the radius is kept (`rho` recorded as `nan`). With a gradient tolerance below what the objective can resolve the run ends with `"radius_collapse"`, not `"gradient"`.
+- Code: `optimization.trust_region.trust_region_newton_cg`.
+- Source: [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-OPT-TR-004 — Inexact-Newton forcing term for the inner CG
+
+`tol_k = min(eta_0, sqrt(||g_k||)) ||g_k||` (`"superlinear"`) or `tol_k = eta_0 ||g_k||` (`"constant"`), used as the absolute residual tolerance of [EQ-OPT-TR-001].
+
+- Domain: `eta_0 > 0` (default `1/2`).
+- Meaning: loose inner solves far from the solution and tighter ones as the gradient falls; the superlinear choice gives superlinear local convergence of the Newton-CG iteration when the Hessian is Lipschitz and the iterates stay interior. Work is bounded by `inner_max_iterations` (default `n`).
+- Code: `optimization.trust_region.trust_region_newton_cg`.
+- Source: [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-NTR-001 — Penalized least-squares objective and gradient
+
+`Phi(x) = 1/2 ||W (G(x) - y)||^2 + lambda^2/2 ||L (x - x_ref)||^2`, `grad Phi(x) = J(x)' W'W r(x) + lambda^2 L'L (x - x_ref)`, with `r = G - y`, `J = G'(x)`, `W'W = Gamma^-1`.
+
+- Domain: `G` continuously differentiable; `lambda >= 0`; `jvp`/`vjp` are exact adjoints.
+- Meaning: one `vjp` per gradient, no Jacobian formed. `lambda` is the statistical Tikhonov weight; the trust radius is numerical globalization and not a regularization parameter.
+- Code: `inverse.newton_trust_region.newton_trust_region_inversion`.
+- Source: [REF-NOCEDAL-WRIGHT-2006]; [REF-TIKHONOV-1963].
+
+### EQ-INV-NTR-002 — Gauss-Newton Hessian action
+
+`H_GN v = J' W'W J v + lambda^2 L'L v`.
+
+- Domain: positive semidefinite; positive definite if `lambda > 0` and `L` has trivial null space.
+- Meaning: one `jvp` and one `vjp` per action; drops the residual-weighted second derivative of [EQ-INV-NTR-003], so it equals the full Hessian exactly when `W'W r = 0` and approximates it for small residual or weak nonlinearity.
+- Code: `inverse.newton_trust_region.newton_trust_region_inversion`.
+- Source: [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-NTR-003 — Full Newton Hessian action with residual-weighted second derivative
+
+`H v = J' W'W J v + sum_i (W'W r)_i Hess G_i(x) v + lambda^2 L'L v`.
+
+- Domain: `G` twice continuously differentiable; the second-derivative sum is supplied by the user as `hvp_callback(x, v, W'W r)`.
+- Meaning: the exact Hessian of [EQ-INV-NTR-001]; it can be indefinite away from the optimum, which the trust region handles by the negative-curvature exit of [EQ-OPT-TR-001]. No finite-difference fallback exists unless [EQ-INV-NTR-004] is requested explicitly. A covariance that depends on `x` would add terms that are not included.
+- Code: `inverse.newton_trust_region.newton_trust_region_inversion`.
+- Source: [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-NTR-004 — Central difference of the gradient as Hessian action
+
+`H v ~ (grad Phi(x + e v) - grad Phi(x - e v)) / (2 e)`, `e = h (1 + ||x||) / ||v||`, `h = eps^(1/3)` by default.
+
+- Domain: explicit request `hvp="central_difference_of_gradient"`; smooth `G`.
+- Meaning: costs two gradient evaluations (two forward values and two `vjp` calls) per action and carries a truncation error `O(e^2)` and a rounding error `O(eps ||grad|| / e)`; it replaces the whole Hessian (including the Gauss-Newton and penalty parts) and never the first-derivative callbacks. A non-finite perturbed forward value ends the run with `"nonfinite"`.
+- Code: `inverse.newton_trust_region.newton_trust_region_inversion`.
+- Source: [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-NTR-005 — Trust-region reduction of the inverse problem and evaluation accounting
+
+Attempt `k`: `p_k = steihaug_cg(grad Phi(x_k), v -> H(x_k) v, Delta_k)` ([EQ-OPT-TR-001]); accept by `rho_k` ([EQ-OPT-TR-003]) with `Phi` evaluated through the cached forward value.
+
+- Domain: initial forward value finite; stop reasons `"gradient"` (the only converged one), `"radius_collapse"`, `"max_iterations"` (attempts, including rejected steps), `"nonfinite"`.
+- Meaning: `counts.jvp` equals the number of Hessian actions for Gauss-Newton, so the cost scales with CG iterations, not with the parameter count `n`; a trial with a non-finite forward value is a rejected step and appears as `nan` in the history.
+- Code: `inverse.newton_trust_region.newton_trust_region_inversion`.
+- Source: [REF-NOCEDAL-WRIGHT-2006]; [REF-STEIHAUG-1983].

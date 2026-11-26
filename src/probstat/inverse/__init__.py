@@ -50,6 +50,29 @@ Main entry points:
     ``2 d + 1`` sigma points per iteration, exact for linear problems.
     ``consensus_based_sampling``: weighted-ensemble sampler (Gaussian fixed
     point) or optimizer using only values of the posterior potential.
+    Matrix-free and research-grade layer (experimental, 0.28; ADR-0144):
+    ``LinearInverseProblem`` with ``solve_regularized`` (weighted, affine
+    Tikhonov by QR, SVD, LSQR, LSMR or CGLS), ``linear_estimator_analysis``
+    (resolution, influence, sampling covariance), constrained baselines
+    (``equality_constrained_least_squares``, ``nonnegative_least_squares``,
+    ``bounded_least_squares``, ``total_least_squares``);
+    ``spectral_diagnostics`` and ``generalized_svd``; ``landweber``,
+    ``krylov_regularization`` and ``hybrid_lsqr``; ``regularization_path``
+    with ``select_regularization`` (GCV, UPRE, discrepancy, L-curve,
+    evidence) and ``grouped_cross_validation``;
+    ``l1_regularized_least_squares`` and
+    ``total_variation_regularized_least_squares``; ``gauss_newton_krylov``
+    and ``iteratively_regularized_gauss_newton`` on a ``DifferentiableForward``,
+    ``newton_trust_region_inversion`` (Gauss-Newton or full Hessian actions),
+    with ``check_derivatives``; ``linear_gaussian_posterior`` and
+    ``low_rank_posterior``; ``EllipticDiffusion1D`` with tangent and adjoint
+    actions and ``HeatEquation1D`` / ``HeatSource1D`` with exact discrete
+    transposes; ``INVERSE_BENCHMARK_CATALOG`` with the benchmark builders
+    (L01-L06) that withhold the truth and flag inverse crimes;
+    ``profile_likelihood`` with ``profile_interval`` and
+    ``efficient_information`` for practical identifiability; function-space
+    bases (``SineBasis``, ``HatBasis``, ``PiecewiseConstantBasis``) with the
+    truncation-consistent ``SpectralGaussianPrior`` and ``credible_bands``.
 
 Assumptions:
     The forward model is deterministic given its inputs. Measurement errors
@@ -88,6 +111,13 @@ Common pitfalls:
     - ``interacting_langevin_sampler`` reports time averages; its final
       ensemble holds only ``J`` draws. With ``correction=False`` the
       covariance is biased low for a small ensemble.
+    - ``solve_regularized`` centres the penalty at ``reference`` and whitens
+      with ``noise``; its SVD route returns the minimum ``||x - x_ref||``
+      solution, not the minimum ``||x||`` one. ``krylov_regularization`` and
+      ``landweber`` regularize by stopping: without ``noise_norm`` they
+      over-fit noisy data.
+    - The ``l1``/TV coefficient ``alpha`` multiplies an UNSQUARED penalty,
+      unlike the ``lambda^2`` of Tikhonov.
     - ``unscented_kalman_inversion`` and ``consensus_based_sampling`` return
       Gaussian-type approximations for nonlinear models; check
       ``converged`` and compare with ``sample_posterior`` when the
@@ -103,10 +133,21 @@ References:
     [REF-TIKHONOV-1963], [REF-HANSEN-2008], [REF-HANSEN-OLEARY-1993],
     [REF-IGLESIAS-LAW-STUART-2013], [REF-EMERICK-REYNOLDS-2013],
     [REF-GARBUNO-INIGO-NUSKEN-REICH-2020], [REF-HUANG-SCHNEIDER-STUART-2022],
-    [REF-CARRILLO-ETAL-2022].
+    [REF-CARRILLO-ETAL-2022], [REF-PAIGE-SAUNDERS-1982],
+    [REF-GAZZOLA-HANSEN-NAGY-2019], [REF-STUART-2010],
+    [REF-BECK-TEBOULLE-2009], [REF-CHAMBOLLE-POCK-2011].
 
 """
 
+from .benchmark_problems import (
+    INVERSE_BENCHMARK_CATALOG,
+    BenchmarkCase,
+    InverseBenchmark,
+    correlated_gaussian_benchmark,
+    deconvolution_benchmark,
+    diagonal_spectrum_benchmark,
+    sparse_sensing_benchmark,
+)
 from .calibration import (
     IdentifiabilityDiagnostic,
     LinearCalibrationResult,
@@ -137,9 +178,71 @@ from .error_correlation import (
     ErrorCorrelation,
     error_correlation_kernel,
 )
+from .function_space import (
+    CredibleBands,
+    HatBasis,
+    PiecewiseConstantBasis,
+    SineBasis,
+    SpectralGaussianPrior,
+    credible_bands,
+)
+from .gauss_newton import (
+    CallbackForward,
+    DerivativeCheck,
+    DifferentiableForward,
+    GaussNewtonIteration,
+    GaussNewtonResult,
+    IRGNMIteration,
+    IRGNMResult,
+    ModelCounts,
+    check_derivatives,
+    gauss_newton_krylov,
+    iteratively_regularized_gauss_newton,
+)
+from .heat_models import (
+    HeatEquation1D,
+    HeatSolveCounts,
+    HeatSource1D,
+    heat_amplification,
+    heat_semigroup_singular_values,
+)
 from .interacting_langevin import (
     InteractingLangevinResult,
     interacting_langevin_sampler,
+)
+from .iterative import (
+    IterativeRegularizationResult,
+    expected_noise_norm,
+    hybrid_lsqr,
+    krylov_regularization,
+    landweber,
+)
+from .linear_gaussian import (
+    GaussianLinearPosterior,
+    LowRankGaussianPosterior,
+    PredictiveDistribution,
+    PriorWhitenedInformation,
+    linear_gaussian_posterior,
+    low_rank_posterior,
+    prior_whitened_information,
+)
+from .linear_problem import (
+    ConstrainedSolution,
+    LinearEstimatorAnalysis,
+    LinearInverseProblem,
+    LinearInverseSolution,
+    TotalLeastSquaresSolution,
+    bounded_least_squares,
+    equality_constrained_least_squares,
+    linear_estimator_analysis,
+    nonnegative_least_squares,
+    solve_regularized,
+    total_least_squares,
+)
+from .newton_trust_region import (
+    NewtonTrustRegionCounts,
+    NewtonTrustRegionResult,
+    newton_trust_region_inversion,
 )
 from .nonlinear import (
     CALIBRATION_GRADIENTS,
@@ -152,7 +255,37 @@ from .nonlinear import (
     fisher_identifiability,
 )
 from .observation import ForwardResponse, GaussianObservationModel, ParameterVector
+from .parameter_selection import (
+    CrossValidationPath,
+    RegularizationPath,
+    RegularizationSelection,
+    grouped_cross_validation,
+    logarithmic_grid,
+    regularization_path,
+    select_regularization,
+)
+from .pde_models import (
+    AdjointGradient,
+    EllipticDiffusion1D,
+    FluxBalance,
+    PDESolveCounts,
+    TridiagonalFactorization,
+    adjoint_gradient,
+    solve_tridiagonal,
+    solve_tridiagonal_transpose,
+)
 from .prediction import PosteriorPrediction, PredictedQuantity, predict
+from .profile_likelihood import (
+    EstimabilityResult,
+    ProfileInterval,
+    ProfileLikelihoodResult,
+    ProfilePoint,
+    delta_method_variance,
+    efficient_information,
+    functional_estimability,
+    profile_interval,
+    profile_likelihood,
+)
 from .regularization import (
     NonlinearTikhonovResult,
     PicardCoefficients,
@@ -167,6 +300,22 @@ from .regularization import (
     tikhonov,
     truncated_svd,
 )
+from .sparse import (
+    L1Result,
+    TotalVariationResult,
+    frobenius_norm_bound,
+    l1_regularized_least_squares,
+    lasso_zero_threshold,
+    total_variation_regularized_least_squares,
+    total_variation_value,
+)
+from .spectral import (
+    GeneralizedSVD,
+    SpectralDiagnostics,
+    generalized_svd,
+    gsvd_tikhonov,
+    spectral_diagnostics,
+)
 from .test_problems import (
     DiscreteIllPosedProblem,
     backward_heat_problem,
@@ -175,6 +324,97 @@ from .test_problems import (
 from .unscented_inversion import UnscentedInversionResult, unscented_kalman_inversion
 
 __all__ = [
+    "NewtonTrustRegionCounts",
+    "NewtonTrustRegionResult",
+    "newton_trust_region_inversion",
+    "HeatEquation1D",
+    "HeatSolveCounts",
+    "HeatSource1D",
+    "heat_amplification",
+    "heat_semigroup_singular_values",
+    "CredibleBands",
+    "HatBasis",
+    "PiecewiseConstantBasis",
+    "SineBasis",
+    "SpectralGaussianPrior",
+    "credible_bands",
+    "EstimabilityResult",
+    "ProfileInterval",
+    "ProfileLikelihoodResult",
+    "ProfilePoint",
+    "delta_method_variance",
+    "efficient_information",
+    "functional_estimability",
+    "profile_interval",
+    "profile_likelihood",
+    "INVERSE_BENCHMARK_CATALOG",
+    "BenchmarkCase",
+    "InverseBenchmark",
+    "correlated_gaussian_benchmark",
+    "deconvolution_benchmark",
+    "diagonal_spectrum_benchmark",
+    "sparse_sensing_benchmark",
+    "CallbackForward",
+    "DerivativeCheck",
+    "DifferentiableForward",
+    "GaussNewtonIteration",
+    "GaussNewtonResult",
+    "IRGNMIteration",
+    "IRGNMResult",
+    "ModelCounts",
+    "check_derivatives",
+    "gauss_newton_krylov",
+    "iteratively_regularized_gauss_newton",
+    "IterativeRegularizationResult",
+    "expected_noise_norm",
+    "hybrid_lsqr",
+    "krylov_regularization",
+    "landweber",
+    "GaussianLinearPosterior",
+    "LowRankGaussianPosterior",
+    "PredictiveDistribution",
+    "PriorWhitenedInformation",
+    "linear_gaussian_posterior",
+    "low_rank_posterior",
+    "prior_whitened_information",
+    "ConstrainedSolution",
+    "LinearEstimatorAnalysis",
+    "LinearInverseProblem",
+    "LinearInverseSolution",
+    "TotalLeastSquaresSolution",
+    "bounded_least_squares",
+    "equality_constrained_least_squares",
+    "linear_estimator_analysis",
+    "nonnegative_least_squares",
+    "solve_regularized",
+    "total_least_squares",
+    "CrossValidationPath",
+    "RegularizationPath",
+    "RegularizationSelection",
+    "grouped_cross_validation",
+    "logarithmic_grid",
+    "regularization_path",
+    "select_regularization",
+    "AdjointGradient",
+    "EllipticDiffusion1D",
+    "FluxBalance",
+    "PDESolveCounts",
+    "TridiagonalFactorization",
+    "adjoint_gradient",
+    "solve_tridiagonal",
+    "solve_tridiagonal_transpose",
+    "L1Result",
+    "TotalVariationResult",
+    "frobenius_norm_bound",
+    "l1_regularized_least_squares",
+    "lasso_zero_threshold",
+    "total_variation_regularized_least_squares",
+    "total_variation_value",
+    "GeneralizedSVD",
+    "SpectralDiagnostics",
+    "generalized_svd",
+    "gsvd_tikhonov",
+    "spectral_diagnostics",
     "DISCREPANCY_KERNELS",
     "DiscrepancyCalibration",
     "DiscrepancyFit",

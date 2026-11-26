@@ -9,6 +9,9 @@ Main entry points:
     ``two_sample_t_test``: Welch (default) or pooled t test for two
         independent samples.
     ``paired_t_test``: t test on the differences of paired measurements.
+    ``delayed_acceptance_metropolis`` (experimental, 0.28): two-stage
+        Metropolis-Hastings that screens proposals with a cheap surrogate
+        and keeps the exact target as invariant law.
     ``bootstrap_confidence_interval``: nonparametric bootstrap interval
         (BCa by default).
     ``adjust_p_values``: Bonferroni, Holm, BH, and BY adjustment.
@@ -123,7 +126,7 @@ References:
     [REF-CASELLA-BERGER-2002], [REF-EFRON-TIBSHIRANI-1993],
     [REF-MCCULLAGH-NELDER-1989], [REF-HOLM-1979],
     [REF-BENJAMINI-HOCHBERG-1995], [REF-GELMAN-ETAL-2013],
-    [REF-LITTLE-RUBIN-2019].
+    [REF-LITTLE-RUBIN-2019], [REF-CHRISTEN-FOX-2005].
 
 """
 
@@ -236,6 +239,7 @@ from .cramer_von_mises import (
     cramer_von_mises_cdf,
     cramer_von_mises_sf,
 )
+from .delayed_acceptance import DelayedAcceptanceResult, delayed_acceptance_metropolis
 from .discriminant import (
     LinearDiscriminant,
     QuadraticDiscriminant,
@@ -648,6 +652,8 @@ from .zero_count_models import (
 )
 
 __all__ = [
+    "DelayedAcceptanceResult",
+    "delayed_acceptance_metropolis",
     "GeneralizedParetoFit",
     "ImportanceEstimate",
     "PSISLOOResult",

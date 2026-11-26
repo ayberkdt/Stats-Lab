@@ -32,7 +32,7 @@ requirements point only backwards, and that every named laboratory exists.
    estimation, testing, Bayesian inference, modelling, model criticism,
    mixed models, count and categorical regression, robust and quantile
    regression, smoothing, and multivariate analysis.
-4. [Uncertainty quantification](#track-u--uncertainty-quantification) (U1-U17):
+4. [Uncertainty quantification](#track-u--uncertainty-quantification) (U1-U18):
    the ATHENS verification, validation, and UQ sequence, then the integrated
    toolset on one model.
 5. [Systems engineering](#track-e--systems-engineering) (E1-E6): reliability,
@@ -473,7 +473,8 @@ U1-U9 follow the ATHENS 2026 verification, validation, and UQ sequence
 extend the sequence with validation, discrepancy, figures, and the integrated
 toolset in which `probstat.workflow.UQStudy` runs every method on one model
 with one seed and produces a single report; U17 adds deterministic
-regularization of ill-posed inverse problems.
+regularization of ill-posed inverse problems and U18 its large-scale,
+non-smooth and Bayesian continuation.
 
 ### U1 — VV-UQ foundations (UQ-0)
 
@@ -660,6 +661,18 @@ nonlinear Tikhonov.
 - Requires: U7, M2
 - Lab: none; numbers asserted in [`tests/test_regularization.py`](../tests/test_regularization.py) and [`tests/test_linalg_svd.py`](../tests/test_linalg_svd.py)
 - Decision record: [ADR-0110](adr/ADR-0110-svd-and-regularization.md)
+
+### U18 — Large-scale, non-smooth and Bayesian inverse problems
+
+[Large-scale, non-smooth and Bayesian inverse problems](foundations/large-scale-inverse-problems.md):
+weighted affine Tikhonov, matrix-free operators and the adjoint test,
+semi-convergence and early-stopped Krylov methods, parameter choice on one
+path, total variation and `l1`, Gauss-Newton with adjoints, exact and
+low-rank Gaussian posteriors, design, profiles, and the inverse crime.
+
+- Requires: U17
+- Lab: none; numbers asserted in [`tests/test_linear_inverse_problem.py`](../tests/test_linear_inverse_problem.py) and [`tests/test_inverse_spectral_iterative_selection.py`](../tests/test_inverse_spectral_iterative_selection.py)
+- Decision record: [ADR-0144](adr/ADR-0144-matrix-free-inverse-problems.md)
 
 ## Track E — Systems engineering
 
