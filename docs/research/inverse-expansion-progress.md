@@ -93,6 +93,7 @@ Commands, exit codes and elapsed times of the verification runs
 | third round (approximation error, extended benchmarks, general-penalty hybrid LSQR): their test files with spectral/iterative/selection, presentation, guide figures, architecture, API and math reference tests | 99 passed, 5,719 subtests, exit 0, 256 s |
 | same round: documentation examples, documentation contract, learning paths | 95 passed, 1,030 subtests, exit 0, 523 s |
 | final full run: `python -m pytest -q -p no:randomly tests` in six parallel shards (245 test files) | 4,554 passed, 1 skipped, 0 failed; every shard exit 0; 17 min wall |
+| CI step "Examples run": every `examples/*.py` with `MPLBACKEND=Agg` | 0 failures, 1,714 s; no tracked file changed |
 | `python tools/inverse_benchmark_matrix.py --quick` | exit 0, 165 s, 39 runs, 0 failed runs; see below |
 
 ### Benchmark matrix (quick: seeds 11, 23, 37; median relative error)
@@ -118,8 +119,10 @@ Three seeds per cell: medians only, no ranking claim.
 ## Next atomic actions
 
 1. Run the CI packaging steps (`python -m build`, `twine check --strict`,
-   `tools/smoke_test_wheel.py`) in a clean virtual environment with
-   `pip install -e ".[dev,visualization]"`, and on Python 3.11 and 3.13.
+   `tools/smoke_test_wheel.py`) in a clean virtual environment, and the
+   suite on Python 3.11 and 3.13. Not run here: the local setuptools is
+   70.0 while `pyproject.toml` requires `setuptools>=77`, and an isolated
+   build would download the build backend.
 2. Add a `benchmarks/run.py` group for the inverse catalog (L01-L07, N01,
    N02, P01, P02) so that the quick benchmark report covers the new solvers.
 3. 04C: functional resolution with mass matrices, and the GSVD for
