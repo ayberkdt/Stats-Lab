@@ -23759,3 +23759,233 @@ Attempt `k`: `p_k = steihaug_cg(grad Phi(x_k), v -> H(x_k) v, Delta_k)` ([EQ-OPT
 - Meaning: `counts.jvp` equals the number of Hessian actions for Gauss-Newton, so the cost scales with CG iterations, not with the parameter count `n`; a trial with a non-finite forward value is a rejected step and appears as `nan` in the history.
 - Code: `inverse.newton_trust_region.newton_trust_region_inversion`.
 - Source: [REF-NOCEDAL-WRIGHT-2006]; [REF-STEIHAUG-1983].
+
+### EQ-INV-TGT-001 — Prior-whitened coordinates and posterior density
+
+`x = mu + P z`, `z ~ N(0, I_r)`, `C0 = P P'`, `Gamma = C C'`, `W = C^-1`:
+`log pi(z | y) = -1/2 ||W (G(mu + P z) - y)||^2 - 1/2 ||z||^2 + const`, with
+likelihood constant `-m/2 log 2 pi - 1/2 log det Gamma` and prior constant
+`-r/2 log 2 pi`.
+
+- Domain: `G: R^n -> R^m` differentiable, `P` an `n x r` factor (`r` columns,
+  possibly rectangular so that `C0` is singular), `Gamma` positive definite,
+  Gaussian additive noise.
+- Meaning: the density is that of `z`. The map `z -> x` is affine with the
+  constant Jacobian `P`, so no `z`-dependent Jacobian is omitted; a change of
+  variables to `x` only adds the constant `log |det P|` (square `P`). The
+  prior is part of `log_density` and must not be added again by a sampler that
+  already treats it as reference law ([EQ-INV-TGT-003]). A failed (non-finite)
+  forward value is a zero likelihood (`-inf`), never clipped.
+- Code: `inverse.posterior_targets.WhitenedGaussianPriorTarget`.
+- Source: [REF-STUART-2010], [REF-COTTER-ROBERTS-STUART-WHITE-2013],
+  [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-TGT-002 — Gradient of the whitened log posterior by one adjoint product
+
+`grad_z log pi(z | y) = -P' J(x)' W' W (G(x) - y) - z`, `x = mu + P z`.
+
+- Domain: `G` continuously differentiable at `x`; `J(x)'` available as an
+  adjoint action (`vjp`), `W' W = Gamma^-1`.
+- Meaning: one forward value (cached from the density call at the same `z`)
+  and one `vjp` per gradient; the Jacobian is never formed. Exactness of the
+  gradient depends on the `jvp`/`vjp` adjoint pair of the model
+  (`check_derivatives`).
+- Code: `inverse.posterior_targets.WhitenedGaussianPriorTarget.gradient`.
+- Source: [REF-STUART-2010], [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-TGT-003 — pCN acceptance uses the likelihood of the whitened target only
+
+`z' = sqrt(1 - beta^2) z + beta xi`, `xi ~ N(0, I)`;
+`alpha = min(1, exp(l(z') - l(z)))`, `l(z) = -1/2 ||W (G(mu + P z) - y)||^2`.
+
+- Domain: `0 < beta <= 1`; target `pi(z) proportional to exp(l(z)) N(z; 0, I)`.
+- Meaning: the proposal is reversible with respect to `N(0, I)`, so the
+  Gaussian factors cancel and only the likelihood enters. Passing the full
+  `log_density` to pCN would count the prior twice. No dimension-independent
+  mixing is claimed for an arbitrary nonlinear `G`; test chosen functionals
+  under refinement.
+- Code: `inverse.posterior_targets.sample_pcn`.
+- Source: [REF-COTTER-ROBERTS-STUART-WHITE-2013], [REF-STUART-2010].
+
+### EQ-INV-TGT-004 — Rank uniformity of simulation-based calibration, linear-Gaussian case
+
+`theta ~ N(mu, C0)`, `y = A theta + eps`, `eps ~ N(0, Gamma)`,
+`theta_1..L ~ N(m(y), C_post(y))` exact: `r_k = #{l : theta_{l,k} < theta_k}`
+is uniform on `{0, ..., L}` for each coordinate `k`; the chi-square statistic
+`sum_b (O_b - E_b)^2 / E_b` over `B` rank bins has about `B - 1` degrees of
+freedom, with p-value the chi-square survival function.
+
+- Domain: independent (or thinned) posterior draws; continuous parameters
+  (ties broken at random by the helper).
+- Meaning: a screening heuristic for the sampler. It holds for the simulated
+  model only and does not validate the real-world forward model, prior or
+  noise law. Correlated draws make a correct sampler look over-dispersed. A
+  per-coordinate threshold such as `p > 1e-3` is not a calibrated family-wise
+  test.
+- Code: `inverse.posterior_targets.simulation_based_calibration_linear_gaussian`.
+- Source: [REF-TALTS-ETAL-2018], [REF-KAIPIO-SOMERSALO-2007].
+
+## Regularized ensemble Kalman inversion (TEKI)
+
+### EQ-INV-TEKI-001 — Kalman-type ensemble update on a generic forward map
+
+`x_j^+ = x_j + C_xg (C_gg + alpha Gamma)^-1 (y + eta_j - g_j)`,
+`eta_j ~ N(0, alpha Gamma)`, with `g_j = G(x_j)`, ensemble means `x_bar`,
+`g_bar`, `C_xg = sum_j (x_j - x_bar)(g_j - g_bar)' / (J - 1)` and
+`C_gg = sum_j (g_j - g_bar)(g_j - g_bar)' / (J - 1)`.
+
+- Domain: `J >= 2`, `alpha > 0` finite, `Gamma` SPD (any covariance factor of
+  `probstat.linalg`); finite entries.
+- Meaning: the stochastic EKI/ES-MDA update with an inflated noise covariance
+  `alpha Gamma`. For a linear `G` the expectation over `eta` of the updated
+  ensemble mean is the Kalman mean `x_bar + K (y - g_bar)` of the ensemble's own
+  sample statistics. The members stay in the affine span of the prior
+  ensemble; the update does not produce posterior samples for a finite ensemble
+  or a nonlinear `G`.
+- Code: `inverse.regularized_ensemble.ensemble_kalman_update`.
+- Source: [REF-IGLESIAS-LAW-STUART-2013], [REF-EMERICK-REYNOLDS-2013].
+
+### EQ-INV-TEKI-002 — Observation-space and ensemble-space (Woodbury) solves
+
+With `X`, `Z` the anomalies of members and predictions divided by `sqrt(J - 1)`,
+`Gamma = L L'` and `Zw = L^-1 Z`:
+`C_xg (C_gg + alpha Gamma)^-1 = X Zw' (Zw Zw' + alpha I_m)^-1 L^-1
+= X (Zw' Zw + alpha I_J)^-1 Zw' L^-1`.
+
+- Domain: `alpha > 0`; both matrices are SPD, so Cholesky applies, and no
+  inverse is formed.
+- Meaning: the second form is the push-through (Woodbury) identity and solves
+  a `J x J` system, cheaper when `m >> J`. The two agree to rounding error.
+- Code: `inverse.regularized_ensemble.ensemble_kalman_update`
+  (argument `solve`).
+- Source: [REF-IGLESIAS-LAW-STUART-2013].
+
+### EQ-INV-TEKI-003 — Deterministic ensemble transform square-root update
+
+`x_bar^+ = x_bar + K (y - g_bar)`, `K = C_xg (C_gg + alpha Gamma)^-1`;
+anomalies `A^+ = A T`, `T = (I_J + Zw' Zw / alpha)^-1/2` (symmetric),
+members `x_j^+ = x_bar^+ + (A T)_j`, with `A` the unscaled parameter
+anomalies.
+
+- Domain: `alpha > 0`; `T` is computed by a symmetric eigen-decomposition of an
+  SPD matrix with eigenvalues at least one.
+- Meaning: for a linear `G` the updated sample mean and covariance equal
+  `x_bar + K (y - g_bar)` and `C_xx - K C_gx` exactly, for the ensemble's own
+  sample statistics. `T 1 = 1` because the anomalies sum to zero, so the mean is
+  unchanged by the transform. `T Q` with `Q` orthogonal and `Q 1 = 1` gives the
+  same first two moments; the symmetric choice is one member of this family.
+- Code: `inverse.regularized_ensemble.ensemble_kalman_update`
+  (argument `perturbed=False`).
+- Source: [REF-BISHOP-ETHERTON-MAJUMDAR-2001].
+
+### EQ-INV-TEKI-004 — Tikhonov EKI by augmented system
+
+`Ga(x) = [G(x); x]`, `ya = [y; mu]`, `Gamma_a = blockdiag(Gamma, C0)`, initial
+ensemble `x_j ~ N(mu, C0)`, and per iteration the update of [EQ-INV-TEKI-001]
+with `alpha = 1` applied to `(Ga, ya, Gamma_a)`.
+
+- Domain: `C0` SPD covariance of the prior; `J >= 2`; one iteration costs `J`
+  forward evaluations.
+- Meaning: regularized ensemble Kalman inversion. It is a derivative-free
+  optimizer: every iterate stays in the affine span of the initial ensemble
+  and the sample covariance collapses as the iterations proceed. The final spread
+  is NOT a posterior uncertainty. The formulation follows the augmented-system
+  construction built on the existing EKI sources (no dedicated TEKI
+  reference is registered in this library).
+- Code: `inverse.regularized_ensemble.tikhonov_ensemble_kalman_inversion`.
+- Source: [REF-IGLESIAS-LAW-STUART-2013], [REF-SCHILLINGS-STUART-2017].
+
+### EQ-INV-TEKI-005 — Tikhonov objective and misfit of the mean prediction
+
+`Phi(x) = |Gamma^-1/2 (y - G(x))|^2 + |C0^-1/2 (x - mu)|^2`;
+recorded misfit `|Gamma_a^-1/2 (ya - mean_j Ga(x_j))|`.
+
+- Domain: `Gamma`, `C0` SPD.
+- Meaning: for linear `G`, `Phi / 2` is the negative log posterior up to a
+  constant, so the minimizer of `Phi` is the MAP/Tikhonov solution towards
+  which the TEKI ensemble mean moves (in the span of the ensemble; exactly when
+  `J - 1 >= n` and in the limit of many iterations). The recorded misfit uses
+  the mean of the member predictions, not `G` at the mean of the members.
+- Code: `inverse.regularized_ensemble.TikhonovEnsembleResult`.
+- Source: [REF-SCHILLINGS-STUART-2017], [REF-IGLESIAS-LAW-STUART-2013].
+
+### EQ-INV-OBSLAW-001 — Gaussian observation law with a covariance factor
+
+`log p(y | eta) = -1/2 (r' Gamma^-1 r + log det Gamma + m log 2 pi)`, `r = y - eta`, score `Gamma^-1 r`, information `Gamma^-1`.
+
+- Domain: `Gamma` symmetric positive definite (full, diagonal or block covariance factor of `probstat.linalg`), `m` observations.
+- Meaning: fully normalized density, so evidences are comparable; correlated errors are allowed. `fisher_information` returns the diagonal of `Gamma^-1` (the full information is the precision matrix). The `log det Gamma` term matters as soon as `Gamma` is estimated.
+- Code: `inverse.observation_laws.GaussianLaw`.
+- Source: [REF-TARANTOLA-2005].
+
+### EQ-INV-OBSLAW-002 — Poisson observation law (identity and log link)
+
+`log p(y | mu) = y log mu - mu - log y!`, `mu = eta` (identity) or `mu = exp(eta)` (log); score `y/eta - 1` or `y - exp(eta)`; information `1/eta` or `exp(eta)`.
+
+- Domain: `y` nonnegative integers; identity link needs `eta > 0`; log link needs `|eta| <= 700`.
+- Meaning: the `y log mu` term is dropped for `y = 0`, so the limit `eta -> 0+` is finite (`-eta`) and free of `nan`; a zero rate with a positive count has probability zero and is rejected by the identity link rather than clipped.
+- Code: `inverse.observation_laws.PoissonLaw`.
+- Source: [REF-MCCULLAGH-NELDER-1989].
+
+### EQ-INV-OBSLAW-003 — Binomial observation law with logit link
+
+`log p(y | n, eta) = log C(n, y) - y softplus(-eta) - (n - y) softplus(eta)`, `softplus(t) = log(1 + e^t)`, score `y - n p`, information `n p (1 - p)`, `p = expit(eta)`.
+
+- Domain: known integer trials `n_i >= 0`, integer counts `0 <= y_i <= n_i`.
+- Meaning: `log p = -softplus(-eta)` and `log(1-p) = -softplus(eta)` stay finite for any finite `eta`, so saturated probabilities do not overflow.
+- Code: `inverse.observation_laws.BinomialLaw`.
+- Source: [REF-MCCULLAGH-NELDER-1989].
+
+### EQ-INV-OBSLAW-004 — Independent Student-t observation law
+
+`log p(y | eta) = sum_i [log t_nu((y_i - eta_i)/s_i) - log s_i]`, score `(nu + 1) r_i / (nu s_i^2 + r_i^2)`, information `(nu + 1)/((nu + 3) s_i^2)`.
+
+- Domain: `nu > 0`, scales `s_i > 0`.
+- Meaning: the PRODUCT of univariate t densities. It is not the multivariate t law (shared mixing variable, dependent components) and is not equal to a whitened multivariate t. The scale `s` is not a standard deviation; the variance `s^2 nu/(nu - 2)` exists only for `nu > 2`.
+- Code: `inverse.observation_laws.StudentTLaw`.
+- Source: [REF-LANGE-LITTLE-TAYLOR-1989].
+
+### EQ-INV-OBSLAW-005 — Censored Gaussian observation law
+
+`log p(y_i | eta_i) = log N(y_i; eta_i, s_i^2)` for an exact reading, `log Phi((L_i - eta_i)/s_i)` for `y_i = L_i` (left censored), `log(1 - Phi((U_i - eta_i)/s_i))` for `y_i = U_i` (right censored); score `(y - eta)/s^2`, `-phi(a)/(s Phi(a))`, `phi(b)/(s (1 - Phi(b)))`.
+
+- Domain: `L_i < U_i` (infinite when absent), recorded values within `[L_i, U_i]`.
+- Meaning: a detection limit is an event probability, not an imputed value. The log-CDF and log-survival come from `probstat.distributions.Normal` and remain finite at 40 sd and beyond; the score ratio is evaluated in log space.
+- Code: `inverse.observation_laws.CensoredGaussianLaw`.
+- Source: [REF-LANGE-LITTLE-TAYLOR-1989].
+
+### EQ-INV-OBSLAW-006 — Expected information of a censored Gaussian observation
+
+`s^2 I = [Phi(b) - Phi(a)] - b phi(b) + a phi(a) + phi(a)^2/Phi(a) + phi(b)^2/(1 - Phi(b))`, `a = (L - eta)/s`, `b = (U - eta)/s`.
+
+- Domain: terms with an infinite limit are zero; without limits `I = 1/s^2`.
+- Meaning: `E[score^2]` of the mixed continuous/discrete observation (interior part `int_a^b z^2 phi`, plus the two censoring masses times their squared scores). Verified against quadrature. Cancellation can occur for extreme standardized limits.
+- Code: `inverse.observation_laws.CensoredGaussianLaw.fisher_information`.
+- Source: [REF-MCCULLAGH-NELDER-1989].
+
+### EQ-INV-OBSLAW-007 — Missing observations and marginal covariance submatrix
+
+`log p(y_O | eta_O) = log N(y_O; eta_O, Gamma_OO)`, `Gamma_OO = Gamma[O, O]`; not `(Gamma^-1)[O, O]`.
+
+- Domain: observed index set `O` non-empty; missingness is assumed ignorable (missing at random).
+- Meaning: the marginal law of the observed entries uses the covariance submatrix. A sub-selection of the precision matrix is the conditional covariance given the dropped entries and gives a different (wrong) density. Informative missingness is not modelled; an all-masked data vector is rejected rather than treated as prior-only.
+- Code: `inverse.observation_laws.MissingMask`.
+- Source: [REF-TARANTOLA-2005].
+
+### EQ-INV-OBSLAW-008 — Fisher scoring for the penalized likelihood of a linear predictor
+
+`Phi(x) = -log p(y | A x) + lambda^2/2 ||L (x - x_ref)||^2`; step `x+ = argmin ||W (z - A x)||^2 + lambda^2 ||L (x - x_ref)||^2`, `W'W = I(eta)`, `z = eta + I(eta)^-1 s(y, eta)`; `x <- x + t (x+ - x)`, `t` by Armijo backtracking on `Phi`.
+
+- Domain: `eta = A x`, law-feasible iterates (infeasible trial points count as `Phi = inf`); for a Gaussian law one step is the weighted affine Tikhonov solution.
+- Meaning: Gauss-Newton on the deviance with expected information as the Hessian surrogate; the direction is a descent direction for the penalized objective, and convergence is declared on the decrement `-g'd`. Reported status is explicit (`converged`, `stop_reason`).
+- Code: `inverse.observation_laws.maximum_likelihood_linear`.
+- Source: [REF-MCCULLAGH-NELDER-1989], [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-OBSLAW-009 — Student-t IRLS weights
+
+`w_i = (nu + 1)/(nu s_i^2 + r_i^2)`, `r_i = y_i - eta_i`; step `min_x sum_i w_i (y_i - (A x)_i)^2` (plus penalty).
+
+- Domain: independent fixed scales `s_i`, `nu > 0`.
+- Meaning: EM / majorize-minimize weights of the t law; each weighted least-squares step does not increase the negative log-likelihood, and the limit is a local optimum of a non-convex objective (several optima are possible, so the start matters). The weight decreases like `1/r_i^2` for large residuals, which is the downweighting mechanism.
+- Code: `inverse.observation_laws.StudentTLaw.irls_weights`.
+- Source: [REF-LANGE-LITTLE-TAYLOR-1989].

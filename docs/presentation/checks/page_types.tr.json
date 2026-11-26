@@ -168,7 +168,7 @@
     "okuma": [
      "Kesin eşlenik sonsalı olan doğrusal-Gauss kalibrasyonu · 2 tohumun ortancası"
     ],
-    "kaynak": "Kaynak: benchmarks/results/quick.json (probstat 0.24.0, hızlı kip)",
+    "kaynak": "Kaynak: benchmarks/results/quick.json (probstat 0.27.0, hızlı kip)",
     "gorsel": "Yatay çubuklar: Laplace, statik HMC, tam kerte ADVI, NUTS, uyarlamalı Metropolis ve ortalama alan ADVI için sonsal standart sapmanın kesin eşlenik sonsala göre hatası; yalnız ortalama alan ADVI çubuğu uzun ve vurgulu."
    },
    "bullets": [],
@@ -243,7 +243,7 @@
      },
      {
       "ad": "Sınama",
-      "cumle": "4.300+ sınama: kapalı biçimler, sayım ve Monte Carlo hata sınırları."
+      "cumle": "4.400+ sınama: kapalı biçimler, sayım ve Monte Carlo hata sınırları."
      },
      {
       "ad": "Figür denetimi",
@@ -270,11 +270,11 @@
     "okuma": [
      "Ishigami işlevi, kestirim başına 256 koşu, 5 tohumun ortancası · hızlı başlangıç çalışması aynı tasarımı kullanıyor"
     ],
-    "kaynak": "Kaynak: benchmarks/results/quick.json (probstat 0.24.0); kesin ortalama kapalı biçimde",
+    "kaynak": "Kaynak: benchmarks/results/quick.json (probstat 0.27.0); kesin ortalama kapalı biçimde",
     "gorsel": "Yatay çubuklar: aynı koşu sayısında Monte Carlo, Latin hiperküp, Halton ve Sobol' tasarımlarıyla Ishigami ortalamasının göreli hatası; Sobol' çubuğu vurgulu ve en kısa."
    },
    "bullets": [],
-   "notes": "Kıyaslama takımında kesin ya da karelemeyle bulunmuş başvuru yanıtı olan 13 problem var ve 181 yöntem sonucu kayıtlı; her birinin hatası, maliyeti ve aralık kapsaması yazılı. En temiz satır bu: aynı 256 koşu, dört tasarım. Düz Monte Carlo Ishigami ortalamasını %7,8 ıskalıyor, karıştırılmış Sobol' noktaları %0,12. Hızlı başlangıç çalışmasının yayılımı Sobol' tasarımıyla yapması bu yüzden. Köprü: kanıtın kapsamadığı şeyler."
+   "notes": "Kıyaslama takımında kesin ya da karelemeyle bulunmuş başvuru yanıtı olan 16 problem var ve 199 yöntem sonucu kayıtlı; her birinin hatası, maliyeti ve aralık kapsaması yazılı. En temiz satır bu: aynı 256 koşu, dört tasarım. Düz Monte Carlo Ishigami ortalamasını %7,8 ıskalıyor, karıştırılmış Sobol' noktaları %0,12. Hızlı başlangıç çalışmasının yayılımı Sobol' tasarımıyla yapması bu yüzden. Köprü: kanıtın kapsamadığı şeyler."
   },
   {
    "id": "s15",
@@ -284,7 +284,7 @@
    "fields": {},
    "bullets": [
     "FORM ve SORM dört kollu sistem kıyaslamasında çözemiyor.",
-    "Kıyaslamalar: probstat 0.24.0, hızlı kip, 2 ile 5 tohum; kapsama oranları kaba.",
+    "Kıyaslamalar: probstat 0.27.0, hızlı kip, 2 ile 5 tohum; kapsama oranları kaba.",
     "Monte Carlo basamakları tohumla oynuyor; her biri %95 aralığını taşıyor."
    ],
    "notes": "Kıyaslamadaki dört kollu seri sistemde, yani birden çok tasarım noktalı bir limit durumda, FORM ve iki SORM türü yanıt vermeden duruyor; AK-MCS yaklaşık 26 koşuda, %16 göreli hatayla ulaşıyor. Hızlı kip az tohum koşturuyor, bu yüzden kapsama istatistikleri yalnızca yön gösteriyor; tam kıyaslama kipi daha çok koşturuyor. Kıyaslama dosyası çalışmadan daha eski bir sürümle kaydedildi. Ve her Monte Carlo sayısı tohumla oynuyor; her birinin aralığını taşıması bu yüzden. Havuzlama örneği yayılımı bilinen benzetim partileri kullanıyor: 12 partiyle REML partiler arası standart sapmayı gerçek 0,15 kN yerine 0,11 kN buluyor ve her küçülme payı bu belirsizliği taşıyor. Uydurma örneği de tek bir benzetim örneklemi: 199 yeniden uydurmayla ulaşılabilecek en küçük bootstrap p değeri 0,005; normal uyumun değeri bu yüzden bir kestirim değil, bir sınır. Köprü: akılda kalması gerekenler."

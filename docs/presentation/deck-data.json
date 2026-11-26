@@ -7,7 +7,7 @@
  "repository": {
   "licence": "BSD-3-Clause",
   "figure_text_floor_pt": 9.0,
-  "tests_floor": 4300,
+  "tests_floor": 4400,
   "equations_floor": 1650,
   "references_floor": 900,
   "adrs_floor": 140,
@@ -316,10 +316,10 @@
   }
  },
  "benchmark": {
-  "probstat_version": "0.24.0",
-  "generated": "2026-11-19",
-  "problems": 13,
-  "rows": 181,
+  "probstat_version": "0.27.0",
+  "generated": "2026-11-26",
+  "problems": 16,
+  "rows": 199,
   "seeds_propagation": 5,
   "seeds_calibration": 2,
   "sampling": {

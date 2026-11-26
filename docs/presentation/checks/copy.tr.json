@@ -231,7 +231,7 @@
    "body": [],
    "bullets": [],
    "labels": [],
-   "notes": "Kıyaslama takımında kesin ya da karelemeyle bulunmuş başvuru yanıtı olan 13 problem var ve 181 yöntem sonucu kayıtlı; her birinin hatası, maliyeti ve aralık kapsaması yazılı. En temiz satır bu: aynı 256 koşu, dört tasarım. Düz Monte Carlo Ishigami ortalamasını %7,8 ıskalıyor, karıştırılmış Sobol' noktaları %0,12. Hızlı başlangıç çalışmasının yayılımı Sobol' tasarımıyla yapması bu yüzden. Köprü: kanıtın kapsamadığı şeyler.",
+   "notes": "Kıyaslama takımında kesin ya da karelemeyle bulunmuş başvuru yanıtı olan 16 problem var ve 199 yöntem sonucu kayıtlı; her birinin hatası, maliyeti ve aralık kapsaması yazılı. En temiz satır bu: aynı 256 koşu, dört tasarım. Düz Monte Carlo Ishigami ortalamasını %7,8 ıskalıyor, karıştırılmış Sobol' noktaları %0,12. Hızlı başlangıç çalışmasının yayılımı Sobol' tasarımıyla yapması bu yüzden. Köprü: kanıtın kapsamadığı şeyler.",
    "font_px": {
     "headline": 60,
     "body": 34,
@@ -248,7 +248,7 @@
    "body": [],
    "bullets": [
     "FORM ve SORM dört kollu sistem kıyaslamasında çözemiyor.",
-    "Kıyaslamalar: probstat 0.24.0, hızlı kip, 2 ile 5 tohum; kapsama oranları kaba.",
+    "Kıyaslamalar: probstat 0.27.0, hızlı kip, 2 ile 5 tohum; kapsama oranları kaba.",
     "Monte Carlo basamakları tohumla oynuyor; her biri %95 aralığını taşıyor."
    ],
    "labels": [],

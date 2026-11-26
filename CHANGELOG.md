@@ -35,10 +35,22 @@ the mathematics re-derived.
   `total_variation_regularized_least_squares`, `gauss_newton_krylov` and
   `iteratively_regularized_gauss_newton` with `check_derivatives`,
   `linear_gaussian_posterior` and `low_rank_posterior`,
-  `EllipticDiffusion1D` with tangent and adjoint actions,
+  `EllipticDiffusion1D` with tangent and adjoint actions, `HeatEquation1D`
+  and `HeatSource1D` with exact discrete transposes,
+  `newton_trust_region_inversion`, function-space bases (`SineBasis`,
+  `HatBasis`, `PiecewiseConstantBasis`) with the truncation-consistent
+  `SpectralGaussianPrior` and `credible_bands`,
+  observation laws (`PoissonLaw`, `BinomialLaw`, `StudentTLaw`,
+  `CensoredGaussianLaw`, `GaussianLaw`, `MissingMask`) with Fisher-scoring
+  `maximum_likelihood_linear`, `ensemble_kalman_update` (stochastic or
+  square-root, observation or ensemble space) and
+  `tikhonov_ensemble_kalman_inversion`, `WhitenedGaussianPriorTarget` with
+  adapters to the existing pCN and NUTS samplers and
+  `simulation_based_calibration_linear_gaussian`,
   `profile_likelihood` and `efficient_information`, and the benchmark
   catalog L01-L06 that withholds the truth and flags inverse crimes. In
-  `probstat.optimization`: proximal maps, ISTA/FISTA, PDHG and ADMM. In
+  `probstat.optimization`: proximal maps, ISTA/FISTA, PDHG, ADMM, Steihaug CG
+  and trust-region Newton-CG. In
   `probstat.inference`: `delayed_acceptance_metropolis`. In
   `probstat.design`: A-, D-, E- and goal-oriented linear design with greedy
   and exhaustive selection. Guide:

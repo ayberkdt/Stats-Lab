@@ -187,6 +187,10 @@ twice finer grid, 2 % noise):
 | LSQR, discrepancy stop (5 iterations) | 0.137 |
 | TV, `alpha = 0.5`, PDHG, converged | 0.0141 |
 
+<picture><source media="(prefers-color-scheme: dark)" srcset="../images/guides/large-scale-tv-edges-dark.png"><img alt="A piecewise-constant true signal with its early-stopped LSQR and total-variation reconstructions from blurred, noisy data" src="../images/guides/large-scale-tv-edges.png"></picture>
+
+*Deblurring benchmark L04 with data from a twice finer grid: LSQR stopped by the discrepancy principle after 5 iterations rounds the jumps and rings (relative error 0.137); total variation with weight 0.5 keeps them (relative error 0.0141).*
+
 At larger weights (`alpha = 2` and `8`) PDHG reached the 20 000-iteration
 cap without meeting its tolerance; such runs are reported as
 `converged=False`, and their iterates should not be compared as optima.
@@ -214,6 +218,16 @@ one gradient of the misfit costs one forward and one adjoint solve for any
 number of cells, while the full Jacobian costs one tangent solve per cell
 (`tests/test_pde_models.py` checks this at `n = 200`).
 
+`HeatEquation1D` maps an initial temperature to later observations with
+implicit Euler or Crank-Nicolson steps; its transpose runs the adjoint
+steps backwards and is exact for the discrete model, and its singular values
+are known in closed form, which makes the severe ill-posedness of the
+backward heat problem visible: with `n = 32`, `T = 0.01` and 20 implicit
+Euler steps only 7 of 32 singular values exceed `1e-2`
+(`tests/test_heat_models.py`). When negative curvature or a poor
+Gauss-Newton model matters, `newton_trust_region_inversion` takes
+truncated-CG steps inside a trust region [REF-STEIHAUG-1983].
+
 ## 7. The Bayesian reading
 
 With a Gaussian prior `x ~ N(mu, C0)` the posterior is Gaussian and exact:
@@ -224,7 +238,11 @@ prior-whitened misfit Hessian `K'K` (`K = W A P`) has a few large
 eigenvalues `lambda_i`, `low_rank_posterior` keeps them:
 `C_post = P (I - V diag(lambda / (1 + lambda)) V') P'`
 [REF-SPANTINI-ETAL-2015]. Unresolved directions keep their prior variance;
-they do not collapse to zero. The information gained is
+they do not collapse to zero. For functions, `SpectralGaussianPrior`
+places a prior with covariance `a^2 (kappa^2 - d^2/ds^2)^(-s)` on sine
+coefficients; the variance of each coefficient is the same whatever the
+number of modes kept, so refining the representation does not change the
+prior (it is trace class for `s > 1/2`). The information gained is
 `1/2 sum log(1 + lambda_i)` and the effective number of resolved directions
 `sum lambda_i / (1 + lambda_i)`.
 
@@ -232,6 +250,18 @@ The same eigenvalues drive experimental design: `greedy_linear_design`
 adds the sensor with the largest gain in `log det(I + H)` (D-optimal) or
 the largest reduction of a goal variance, and `exhaustive_linear_design`
 shows how far greedy is from the optimum on small problems.
+
+Counts, censored measurements and outliers need other likelihoods:
+`maximum_likelihood_linear` fits a linear predictor under `PoissonLaw`,
+`BinomialLaw`, `CensoredGaussianLaw` or `StudentTLaw` by Fisher scoring, and
+`MissingMask` drops unobserved entries through the marginal covariance (not
+by deleting rows of the precision). For nonlinear posteriors,
+`WhitenedGaussianPriorTarget` writes the posterior in prior-whitened
+coordinates and hands it to the existing pCN and NUTS samplers;
+`simulation_based_calibration_linear_gaussian` checks a sampler against the
+exact answer, which validates the algorithm under the model, not the model.
+`tikhonov_ensemble_kalman_inversion` is a derivative-free optimizer whose
+ensemble collapses: its final spread is not a posterior.
 
 For parameters that are not identified, profile the likelihood rather than
 trusting a curvature: `profile_likelihood` re-optimizes the nuisance
@@ -288,4 +318,4 @@ changes the truth.
 [REF-STEIN-1981], [REF-GOLUB-HEATH-WAHBA-1979], [REF-STUART-2010],
 [REF-SPANTINI-ETAL-2015], [REF-BECK-TEBOULLE-2009], [REF-CHAMBOLLE-POCK-2011],
 [REF-BOYD-ETAL-2011], [REF-RAUE-ETAL-2009], [REF-CHRISTEN-FOX-2005],
-[REF-ALEXANDERIAN-2021], [REF-KAIPIO-SOMERSALO-2007].
+[REF-ALEXANDERIAN-2021], [REF-KAIPIO-SOMERSALO-2007], [REF-STEIHAUG-1983].

@@ -231,7 +231,7 @@
    "body": [],
    "bullets": [],
    "labels": [],
-   "notes": "The benchmark suite has 13 problems with exact or quadrature reference answers and records 181 method results, each with its error, cost, and interval coverage. This row is the cleanest: the same 256 runs, four designs. Plain Monte Carlo misses the Ishigami mean by 7.8%; scrambled Sobol' points by 0.12%. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover.",
+   "notes": "The benchmark suite has 16 problems with exact or quadrature reference answers and records 199 method results, each with its error, cost, and interval coverage. This row is the cleanest: the same 256 runs, four designs. Plain Monte Carlo misses the Ishigami mean by 7.8%; scrambled Sobol' points by 0.12%. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover.",
    "font_px": {
     "headline": 60,
     "body": 34,
@@ -248,7 +248,7 @@
    "body": [],
    "bullets": [
     "FORM and SORM fail on the four-branch system benchmark.",
-    "Benchmarks: probstat 0.24.0, quick mode, 2 to 5 seeds; coverage is coarse.",
+    "Benchmarks: probstat 0.27.0, quick mode, 2 to 5 seeds; coverage is coarse.",
     "Monte Carlo digits move with the seed; each carries its 95% interval."
    ],
    "labels": [],

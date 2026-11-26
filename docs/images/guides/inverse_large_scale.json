@@ -10,5 +10,14 @@
       "final_error": "1.77",
       "target": "5.71"
     }
+  },
+  "large-scale-tv-edges": {
+    "guide": "large-scale-inverse-problems",
+    "alt": "A piecewise-constant true signal with its early-stopped LSQR and total-variation reconstructions from blurred, noisy data",
+    "facts": {
+      "lsqr_error": "0.137",
+      "lsqr_iterations": "5",
+      "tv_error": "0.0141"
+    }
   }
 }

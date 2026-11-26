@@ -21,11 +21,13 @@ from typing import Any
 
 from probstat.inverse import (
     LinearInverseProblem,
+    deconvolution_benchmark,
     expected_noise_norm,
     krylov_regularization,
     second_derivative_problem,
+    total_variation_regularized_least_squares,
 )
-from probstat.linalg import ScaledIdentityCovariance
+from probstat.linalg import FirstDifferenceOperator, ScaledIdentityCovariance
 from probstat.visualization import theme
 
 from . import GuideFigure
@@ -161,6 +163,102 @@ def _semi_convergence_figure() -> tuple[Any, dict[str, str]]:
     return figure, facts
 
 
+@functools.cache
+def _edges() -> dict[str, Any]:
+    """Run the guide's deblurring comparison: L04, n = 64, refinement 2, 2% noise.
+
+    References:
+        [EQ-INV-BENCH-001], [EQ-INV-ITER-002], [EQ-INV-SPARSE-001].
+
+    """
+    case = deconvolution_benchmark(64, refinement=2, relative_noise=0.02)
+    problem = LinearInverseProblem.create(case.operator, case.data, noise=case.noise)
+    norm = math.hypot(*case.truth)
+    early = krylov_regularization(problem, noise_norm=expected_noise_norm(64))
+    tv = total_variation_regularized_least_squares(
+        case.operator,
+        case.data,
+        0.5,
+        noise=case.noise,
+        gradient=FirstDifferenceOperator(64, spacing=1.0 / 64),
+        max_iterations=20000,
+    )
+
+    def error(estimate: Any) -> float:
+        """Return the relative error against the withheld truth.
+
+        References:
+            [EQ-INV-BENCH-001].
+
+        """
+        pairs = zip(estimate, case.truth, strict=True)
+        return math.hypot(*(a - b for a, b in pairs)) / norm
+
+    return {
+        "grid": [(i + 0.5) / 64 for i in range(64)],
+        "truth": list(case.truth),
+        "lsqr": list(early.estimate),
+        "tv": list(tv.solution),
+        "lsqr_error": error(early.estimate),
+        "lsqr_iterations": early.iterations,
+        "tv_error": error(tv.solution),
+        "tv_converged": tv.converged,
+    }
+
+
+def _edges_figure() -> tuple[Any, dict[str, str]]:
+    """Draw the truth, the early-stopped LSQR and the TV reconstruction.
+
+    References:
+        [EQ-INV-SPARSE-001], [REF-RUDIN-OSHER-FATEMI-1992].
+
+    """
+    example = _edges()
+    if not example["tv_converged"]:
+        raise RuntimeError("the TV reconstruction of the guide did not converge")
+    facts = {
+        "lsqr_error": f"{example['lsqr_error']:.3f}",
+        "lsqr_iterations": f"{example['lsqr_iterations']}",
+        "tv_error": f"{example['tv_error']:.4f}",
+    }
+    axes = theme.new_axes(figsize=(7.2, 4.2))
+    palette = theme.active_palette()
+    grid = example["grid"]
+    axes.step(
+        grid,
+        example["truth"],
+        where="mid",
+        color=palette.muted,
+        linewidth=theme.CONTEXT_WIDTH,
+    )
+    lsqr_colour = theme.role_colour("series-3")
+    tv_colour = theme.role_colour("model")
+    theme.line(axes, grid, example["lsqr"], color=lsqr_colour, dashes=theme.FITTED)
+    theme.line(axes, grid, example["tv"], color=tv_colour)
+    axes.set_xlim(0.0, 1.12)
+    axes.set_ylim(-0.25, 1.25)
+    axes.grid(axis="x", visible=False)
+    axes.grid(axis="y", color=palette.rule, linewidth=0.7)
+    theme.direct_labels(
+        axes,
+        [
+            (grid[-1], example["truth"][-1], "truth", palette.muted),
+            (grid[-1], example["lsqr"][-1], "LSQR", lsqr_colour),
+            (grid[-1], example["tv"][-1], "TV", tv_colour),
+        ],
+        gap_points=13.0,
+    )
+    theme.axis_labels(axes, "Position s", "Value x(s)")
+    theme.title_block(
+        axes,
+        f"Total variation keeps the jumps (relative error {facts['tv_error']});\n"
+        f"early-stopped LSQR smooths them ({facts['lsqr_error']})",
+        "1D deblurring L04, n = 64, data from a twice finer grid, 2% noise · "
+        "TV weight 0.5 by PDHG",
+    )
+    return axes.figure, facts
+
+
 FIGURES = [
     GuideFigure(
         name="large-scale-semi-convergence",
@@ -171,5 +269,14 @@ FIGURES = [
             "with the discrepancy stop and the error-optimal iteration marked"
         ),
         draw=_semi_convergence_figure,
+    ),
+    GuideFigure(
+        name="large-scale-tv-edges",
+        guide="large-scale-inverse-problems",
+        alt=(
+            "A piecewise-constant true signal with its early-stopped LSQR and "
+            "total-variation reconstructions from blurred, noisy data"
+        ),
+        draw=_edges_figure,
     ),
 ]

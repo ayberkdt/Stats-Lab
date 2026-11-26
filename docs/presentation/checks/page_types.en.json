@@ -168,7 +168,7 @@
     "okuma": [
      "Linear-Gaussian calibration with an exact conjugate posterior · median over 2 seeds"
     ],
-    "kaynak": "Source: benchmarks/results/quick.json (probstat 0.24.0, quick mode)",
+    "kaynak": "Source: benchmarks/results/quick.json (probstat 0.27.0, quick mode)",
     "gorsel": "Horizontal bars: error of the posterior standard deviation for Laplace, static HMC, full-rank ADVI, NUTS, adaptive Metropolis, and mean-field ADVI against an exact conjugate posterior; only the mean-field ADVI bar is long and highlighted."
    },
    "bullets": [],
@@ -243,7 +243,7 @@
      },
      {
       "ad": "Test",
-      "cumle": "4,300+ tests against closed forms, enumeration, and Monte Carlo error bounds."
+      "cumle": "4,400+ tests against closed forms, enumeration, and Monte Carlo error bounds."
      },
      {
       "ad": "Audit figures",
@@ -270,11 +270,11 @@
     "okuma": [
      "Ishigami function, 256 runs per estimate, median over 5 seeds · the quick-start study uses the same design"
     ],
-    "kaynak": "Source: benchmarks/results/quick.json (probstat 0.24.0); exact mean in closed form",
+    "kaynak": "Source: benchmarks/results/quick.json (probstat 0.27.0); exact mean in closed form",
     "gorsel": "Horizontal bars: relative error of the Ishigami mean for Monte Carlo, Latin hypercube, Halton, and Sobol' designs at the same number of runs; the Sobol' bar is highlighted and the shortest."
    },
    "bullets": [],
-   "notes": "The benchmark suite has 13 problems with exact or quadrature reference answers and records 181 method results, each with its error, cost, and interval coverage. This row is the cleanest: the same 256 runs, four designs. Plain Monte Carlo misses the Ishigami mean by 7.8%; scrambled Sobol' points by 0.12%. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover."
+   "notes": "The benchmark suite has 16 problems with exact or quadrature reference answers and records 199 method results, each with its error, cost, and interval coverage. This row is the cleanest: the same 256 runs, four designs. Plain Monte Carlo misses the Ishigami mean by 7.8%; scrambled Sobol' points by 0.12%. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover."
   },
   {
    "id": "s15",
@@ -284,7 +284,7 @@
    "fields": {},
    "bullets": [
     "FORM and SORM fail on the four-branch system benchmark.",
-    "Benchmarks: probstat 0.24.0, quick mode, 2 to 5 seeds; coverage is coarse.",
+    "Benchmarks: probstat 0.27.0, quick mode, 2 to 5 seeds; coverage is coarse.",
     "Monte Carlo digits move with the seed; each carries its 95% interval."
    ],
    "notes": "On the four-branch series system of the benchmark, a limit state with several design points, FORM and both SORM variants stop without an answer; AK-MCS reaches it with about 26 runs at a relative error of 16%. Quick mode runs few seeds, so coverage statistics are indicative only; the full benchmark mode runs more. The benchmark file was recorded with an earlier release than the study. And every Monte Carlo number moves with the seed, which is why each one carries its interval. The pooling example uses simulated batches with a known spread: with 12 batches, REML puts the between-batch standard deviation at 0.11 kN against a true 0.15 kN, and every shrinkage share inherits that uncertainty. The fitting example is one simulated sample as well: with 199 refits the smallest attainable bootstrap p-value is 0.005, so the normal fit's value is a bound, not an estimate. Bridge: what to keep."

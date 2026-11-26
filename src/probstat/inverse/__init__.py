@@ -72,7 +72,15 @@ Main entry points:
     ``profile_likelihood`` with ``profile_interval`` and
     ``efficient_information`` for practical identifiability; function-space
     bases (``SineBasis``, ``HatBasis``, ``PiecewiseConstantBasis``) with the
-    truncation-consistent ``SpectralGaussianPrior`` and ``credible_bands``.
+    truncation-consistent ``SpectralGaussianPrior`` and ``credible_bands``;
+    ``WhitenedGaussianPriorTarget`` with ``sample_pcn`` / ``sample_hmc``
+    adapters to the existing samplers and
+    ``simulation_based_calibration_linear_gaussian``;
+    ``ensemble_kalman_update`` (stochastic or square-root, observation or
+    ensemble space) and ``tikhonov_ensemble_kalman_inversion`` with
+    covariance factors; observation laws (``PoissonLaw``, ``BinomialLaw``,
+    ``StudentTLaw``, ``CensoredGaussianLaw``, ``GaussianLaw``,
+    ``MissingMask``) with ``maximum_likelihood_linear``.
 
 Assumptions:
     The forward model is deterministic given its inputs. Measurement errors
@@ -255,6 +263,18 @@ from .nonlinear import (
     fisher_identifiability,
 )
 from .observation import ForwardResponse, GaussianObservationModel, ParameterVector
+from .observation_laws import (
+    BinomialLaw,
+    CensoredGaussianLaw,
+    GaussianLaw,
+    LikelihoodIteration,
+    MaximumLikelihoodResult,
+    MissingMask,
+    ObservationLaw,
+    PoissonLaw,
+    StudentTLaw,
+    maximum_likelihood_linear,
+)
 from .parameter_selection import (
     CrossValidationPath,
     RegularizationPath,
@@ -273,6 +293,16 @@ from .pde_models import (
     adjoint_gradient,
     solve_tridiagonal,
     solve_tridiagonal_transpose,
+)
+from .posterior_targets import (
+    SBC_CAVEAT,
+    LinearGaussianSBCResult,
+    TargetCounts,
+    WhitenedGaussianPriorTarget,
+    physical_posterior,
+    sample_hmc,
+    sample_pcn,
+    simulation_based_calibration_linear_gaussian,
 )
 from .prediction import PosteriorPrediction, PredictedQuantity, predict
 from .profile_likelihood import (
@@ -300,6 +330,12 @@ from .regularization import (
     tikhonov,
     truncated_svd,
 )
+from .regularized_ensemble import (
+    EnsembleKalmanUpdate,
+    TikhonovEnsembleResult,
+    ensemble_kalman_update,
+    tikhonov_ensemble_kalman_inversion,
+)
 from .sparse import (
     L1Result,
     TotalVariationResult,
@@ -324,6 +360,28 @@ from .test_problems import (
 from .unscented_inversion import UnscentedInversionResult, unscented_kalman_inversion
 
 __all__ = [
+    "BinomialLaw",
+    "CensoredGaussianLaw",
+    "GaussianLaw",
+    "LikelihoodIteration",
+    "MaximumLikelihoodResult",
+    "MissingMask",
+    "ObservationLaw",
+    "PoissonLaw",
+    "StudentTLaw",
+    "maximum_likelihood_linear",
+    "EnsembleKalmanUpdate",
+    "TikhonovEnsembleResult",
+    "ensemble_kalman_update",
+    "tikhonov_ensemble_kalman_inversion",
+    "SBC_CAVEAT",
+    "LinearGaussianSBCResult",
+    "TargetCounts",
+    "WhitenedGaussianPriorTarget",
+    "physical_posterior",
+    "sample_hmc",
+    "sample_pcn",
+    "simulation_based_calibration_linear_gaussian",
     "NewtonTrustRegionCounts",
     "NewtonTrustRegionResult",
     "newton_trust_region_inversion",

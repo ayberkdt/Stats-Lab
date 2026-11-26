@@ -78,7 +78,20 @@ unchanged.
    whitened-parameter space with evidence and conditional simulation, and the
    low-rank prior-preconditioned posterior. `inverse.pde_models` is a 1D
    elliptic log-conductivity prototype with exact discrete tangent and
-   adjoint. `inverse.profile_likelihood` adds profile intervals that never
+   adjoint, and `inverse.heat_models` gives implicit-Euler and
+   Crank-Nicolson heat operators whose `rmatvec` is the exact discrete
+   transpose. `optimization.trust_region` (Steihaug CG) and
+   `inverse.newton_trust_region` add Hessian-action Newton steps;
+   `inverse.function_space` adds bases with exact mass matrices and a
+   spectral Gaussian prior whose coefficient variances do not depend on the
+   truncation level. `inverse.observation_laws` adds normalized Poisson,
+   binomial, Student-t, censored and masked Gaussian laws with Fisher
+   scoring for linear predictors; `inverse.regularized_ensemble` adds
+   ensemble Kalman updates with covariance factors (Woodbury in ensemble
+   space, square-root transform) and Tikhonov EKI by the augmented system;
+   `inverse.posterior_targets` exposes a prior-whitened posterior target to
+   the EXISTING pCN and NUTS samplers and to the existing SBC routine rather
+   than adding samplers. `inverse.profile_likelihood` adds profile intervals that never
    fabricate an endpoint; `inference.delayed_acceptance` adds exact-target
    two-stage Metropolis-Hastings; `design.linear_optimal` adds A-, D-, E- and
    goal-oriented criteria with greedy and exhaustive selection.
@@ -125,4 +138,4 @@ References: [REF-PAIGE-SAUNDERS-1982], [REF-FONG-SAUNDERS-2011],
 [REF-GAZZOLA-HANSEN-NAGY-2019], [REF-HANSEN-2008], [REF-STUART-2010],
 [REF-BECK-TEBOULLE-2009], [REF-CHAMBOLLE-POCK-2011], [REF-BOYD-ETAL-2011],
 [REF-SPANTINI-ETAL-2015], [REF-ALEXANDERIAN-2021], [REF-RAUE-ETAL-2009],
-[REF-CHRISTEN-FOX-2005].
+[REF-CHRISTEN-FOX-2005], [REF-STEIHAUG-1983].

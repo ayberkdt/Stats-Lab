@@ -107,7 +107,7 @@
     <img class="koyu-gorsel" src="figures/calibration-en-dark.png" width="1728" height="553" alt="Horizontal bars: error of the posterior standard deviation for Laplace, static HMC, full-rank ADVI, NUTS, adaptive Metropolis, and mean-field ADVI against an exact conjugate posterior; only the mean-field ADVI bar is long and highlighted.">
     <p class="okuma" data-alan="okuma[]">Linear-Gaussian calibration with an exact conjugate posterior · median over <span data-alan="n"><span data-k="benchmark.seeds_calibration" data-fmt="int">2</span> seeds</span></p>
   </div>
-  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: benchmarks/results/quick.json (probstat <span data-k="benchmark.probstat_version" data-fmt="str">0.24.0</span>, quick mode)</span></footer>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: benchmarks/results/quick.json (probstat <span data-k="benchmark.probstat_version" data-fmt="str">0.27.0</span>, quick mode)</span></footer>
   <aside class="notlar">Inverse problems are judged against an answer that is known exactly: a straight-line model with Gaussian noise and a Gaussian prior, whose posterior is conjugate. Laplace is exact here by construction. The three Markov chain samplers recover the posterior standard deviation within <span data-k="benchmark.mcmc_sd_error_max" data-fmt="pct0">7%</span>. Mean-field ADVI underestimates it by <span data-k="benchmark.advi_mf_sd_error" data-fmt="pct0">40%</span>, because it ignores the correlation between intercept and slope; the full-rank variant does not. The library reports this instead of hiding it. Limitation: quick mode, <span data-k="benchmark.seeds_calibration" data-fmt="int">2</span> seeds. Bridge: from one simulator to a whole system.</aside>
 </section>
 
@@ -148,7 +148,7 @@
   <ol class="adimlar dikey">
     <li><b data-alan="adim_ad[]">Cite</b><span data-alan="adim_cumle[]"><span data-k="repository.references_floor" data-fmt="plus">900+</span> sources; every function's docstring names its source key.</span></li>
     <li><b data-alan="adim_ad[]">Register</b><span data-alan="adim_cumle[]"><span data-k="repository.equations_floor" data-fmt="plus">1,650+</span> equations, each with symbols, a source, and its code location.</span></li>
-    <li><b data-alan="adim_ad[]">Test</b><span data-alan="adim_cumle[]"><span data-k="repository.tests_floor" data-fmt="plus">4,300+</span> tests against closed forms, enumeration, and Monte Carlo error bounds.</span></li>
+    <li><b data-alan="adim_ad[]">Test</b><span data-alan="adim_cumle[]"><span data-k="repository.tests_floor" data-fmt="plus">4,400+</span> tests against closed forms, enumeration, and Monte Carlo error bounds.</span></li>
     <li><b data-alan="adim_ad[]">Audit figures</b><span data-alan="adim_cumle[]">Every themed figure keeps its text at <span data-k="repository.figure_text_floor_pt" data-fmt="int">9</span> pt or larger, inside the canvas.</span></li>
     <li><b data-alan="adim_ad[]">Integrate</b><span data-alan="adim_cumle[]">Ruff, strict mypy, all tests, and every lab run on Python <span data-k="repository.ci_python_first" data-fmt="str">3.11</span>–<span data-k="repository.ci_python_last" data-fmt="str">3.13</span>.</span></li>
   </ol>
@@ -163,15 +163,15 @@
     <img class="koyu-gorsel" src="figures/sampling-en-dark.png" width="1728" height="553" alt="Horizontal bars: relative error of the Ishigami mean for Monte Carlo, Latin hypercube, Halton, and Sobol' designs at the same number of runs; the Sobol' bar is highlighted and the shortest.">
     <p class="okuma" data-alan="okuma[]">Ishigami function, <span data-k="benchmark.sampling_runs" data-fmt="int">256</span> runs per estimate, median over <span data-alan="n"><span data-k="benchmark.seeds_propagation" data-fmt="int">5</span> seeds</span> · the quick-start study uses the same design</p>
   </div>
-  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: benchmarks/results/quick.json (probstat <span data-k="benchmark.probstat_version" data-fmt="str">0.24.0</span>); exact mean in closed form</span></footer>
-  <aside class="notlar">The benchmark suite has <span data-k="benchmark.problems" data-fmt="int">13</span> problems with exact or quadrature reference answers and records <span data-k="benchmark.rows" data-fmt="int">181</span> method results, each with its error, cost, and interval coverage. This row is the cleanest: the same <span data-k="benchmark.sampling_runs" data-fmt="int">256</span> runs, four designs. Plain Monte Carlo misses the Ishigami mean by <span data-k="benchmark.sampling.monte_carlo.error" data-fmt="pct1">7.8%</span>; scrambled Sobol' points by <span data-k="benchmark.sampling.scrambled_sobol.error" data-fmt="pct2">0.12%</span>. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover.</aside>
+  <footer class="alt-bilgi"><span class="kaynak" data-alan="kaynak">Source: benchmarks/results/quick.json (probstat <span data-k="benchmark.probstat_version" data-fmt="str">0.27.0</span>); exact mean in closed form</span></footer>
+  <aside class="notlar">The benchmark suite has <span data-k="benchmark.problems" data-fmt="int">16</span> problems with exact or quadrature reference answers and records <span data-k="benchmark.rows" data-fmt="int">199</span> method results, each with its error, cost, and interval coverage. This row is the cleanest: the same <span data-k="benchmark.sampling_runs" data-fmt="int">256</span> runs, four designs. Plain Monte Carlo misses the Ishigami mean by <span data-k="benchmark.sampling.monte_carlo.error" data-fmt="pct1">7.8%</span>; scrambled Sobol' points by <span data-k="benchmark.sampling.scrambled_sobol.error" data-fmt="pct2">0.12%</span>. That is why the quick-start study propagates on a Sobol' design. Bridge: what the evidence does not cover.</aside>
 </section>
 
 <section data-slide class="slide slayt" id="s15" data-tur="sinirlamalar" data-aile="anlati" aria-labelledby="h-s15">
   <header><p class="ust">Limitations</p><h2 id="h-s15">Three limits apply to these results</h2></header>
   <ul class="maddeler">
     <li class="madde">FORM and SORM fail on the four-branch system benchmark.</li>
-    <li class="madde">Benchmarks: probstat <span data-k="benchmark.probstat_version" data-fmt="str">0.24.0</span>, quick mode, <span data-k="benchmark.seeds_calibration" data-fmt="int">2</span> to <span data-k="benchmark.seeds_propagation" data-fmt="int">5</span> seeds; coverage is coarse.</li>
+    <li class="madde">Benchmarks: probstat <span data-k="benchmark.probstat_version" data-fmt="str">0.27.0</span>, quick mode, <span data-k="benchmark.seeds_calibration" data-fmt="int">2</span> to <span data-k="benchmark.seeds_propagation" data-fmt="int">5</span> seeds; coverage is coarse.</li>
     <li class="madde">Monte Carlo digits move with the seed; each carries its <span data-k="study.reliability.ci_level" data-fmt="pct0">95%</span> interval.</li>
   </ul>
   <footer class="alt-bilgi"><span>Said before the questions, not after them</span></footer>
