@@ -703,6 +703,21 @@ one seeded `InverseStudy` report. All cases are synthetic.
 - Lab: [`examples/large_scale_inverse_lab.py`](../examples/large_scale_inverse_lab.py)
 - Decision record: [ADR-0145](adr/ADR-0145-aerospace-uq-gaussian-processes-and-hybrid-models.md)
 
+### U21 — Uncertainty quantification for spacecraft systems
+
+[Uncertainty quantification for spacecraft systems](foundations/spacecraft-systems-uq.md):
+power budgets as a series system, orbital lifetime and disposal compliance,
+debris penetration, reentry casualty expectation, attitude knowledge and
+pointing budgets, engine health with CUSUM run lengths and calibrated
+remaining useful life, Gaussian-process telemetry alarms with conformal
+thresholds, thermal-model correlation and its identifiability, and inertia
+identification with torque design, together with where FORM works and where it
+does not. All cases are synthetic.
+
+- Requires: U19, U20
+- Lab: [`examples/spacecraft_mission_risk_lab.py`](../examples/spacecraft_mission_risk_lab.py)
+- Decision record: [ADR-0145](adr/ADR-0145-aerospace-uq-gaussian-processes-and-hybrid-models.md)
+
 ## Track E — Systems engineering
 
 Reliability of systems, Markov and semi-Markov models, risk and cost, and the

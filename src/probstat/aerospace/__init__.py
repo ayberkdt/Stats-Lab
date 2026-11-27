@@ -52,6 +52,9 @@ validated against any specific engine, and their cases are synthetic.
 ``power_budget``
     eclipse geometry, array and battery degradation and the end-of-life
     energy balance;
+``reentry_casualty``
+    fragment demise, casualty area and casualty expectation for an
+    uncontrolled reentry;
 ``engine_reliability``
     demonstration test planning, heritage priors, reliability growth,
     engine clusters with common cause and launch event trees;
@@ -404,6 +407,21 @@ from .power_budget import (
     required_bol_power,
     string_failure_pmf,
 )
+from .reentry_casualty import (
+    CasualtyAssessment,
+    Fragment,
+    FragmentFate,
+    Material,
+    assess_reentry_casualty,
+    casualty_area,
+    cylinder_fragment,
+    demonstration_fragments,
+    demonstration_materials,
+    plate_fragment,
+    reentry_casualty_model,
+    simulate_fragment,
+    sphere_fragment,
+)
 from .shell_buckling import (
     SP8007_COEFFICIENT,
     SP8007_MAX_RADIUS_TO_THICKNESS,
@@ -476,6 +494,19 @@ from .wind_loads import (
 )
 
 __all__ = [
+    "CasualtyAssessment",
+    "Fragment",
+    "FragmentFate",
+    "Material",
+    "assess_reentry_casualty",
+    "casualty_area",
+    "cylinder_fragment",
+    "demonstration_fragments",
+    "demonstration_materials",
+    "plate_fragment",
+    "reentry_casualty_model",
+    "simulate_fragment",
+    "sphere_fragment",
     "BinomialMixture",
     "ComponentBounds",
     "PowerBudgetState",

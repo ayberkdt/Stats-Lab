@@ -31045,3 +31045,156 @@ are the eigenvalues of `J` and a rigid body requires `I_a + I_b >= I_c`.
 - Code: `inverse.inertia_identification.rotational_energy`,
   `inverse.inertia_identification.angular_momentum`.
 - Source: [REF-MARKLEY-CRASSIDIS-2014].
+
+### EQ-SUR-GPANOM-001 — One-step-ahead predictive law and standardized residual
+
+`mu_t = m + k_*' (K + N)^-1 (y - m)`, `sigma_f,t^2 = k(t, t) - k_*' (K + N)^-1 k_*`, `s_t^2 = sigma_f,t^2 + sigma_n^2`, `z_t = (y_t - mu_t) / s_t`, with `k(t, t') = sigma_a^2 phi(|t - t'| / ell_a) + sigma_p^2 exp(-2 sin^2(pi |t - t'| / P) / ell_p^2)`; `K` is `k` on the window times, `N` the diagonal of per-sample noise variances, `k_*` the covariances to the query time.
+
+- Domain: strictly increasing times, a window of at least one sample, `K + N` positive definite (otherwise `ValueError`; no jitter is added), `phi` Matern-3/2, Matern-5/2 or squared exponential.
+- Meaning: the nominal-behaviour GP (orbital periodic component plus trend plus white noise) conditioned on the last `w` samples predicts the next observation; for a correct model the `z_t` are approximately independent standard normal, which is what makes a simple threshold interpretable. The prior mean `m` is a constant. The sliding window is *not* the full-history GP: it forgets samples older than `w`, so a slowly drifting fault can be absorbed.
+- Code: `surrogates.gp_anomaly.sliding_window_scores`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-SUR-GPANOM-002 — Negative log predictive density
+
+Gaussian: `-log p(y_t) = 1/2 log(2 pi s_t^2) + z_t^2 / 2`. Student-t with `nu` degrees of freedom and scale `s_t`: `-log p(y_t) = -log Gamma((nu+1)/2) + log Gamma(nu/2) + 1/2 log(nu pi) + log s_t + (nu+1)/2 log(1 + z_t^2 / nu)`.
+
+- Domain: `s_t > 0`; `nu > 0` finite for the Student-t form (`nu = inf` is the Gaussian form).
+- Meaning: a proper scoring rule that penalizes both a large residual and an over-confident (small) predictive variance; for the Student-t model `s_t` is the *scale*, with predictive variance `s_t^2 nu / (nu - 2)` for `nu > 2`.
+- Code: `surrogates.gp_anomaly.sliding_window_scores`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006], [REF-SHAH-WILSON-GHAHRAMANI-2014].
+
+### EQ-SUR-GPANOM-003 — Two-sided CUSUM of standardized residuals
+
+`S+_t = max(0, S+_{t-1} + z_t - k)`, `S-_t = max(0, S-_{t-1} - z_t - k)`, statistic `max(S+_t, S-_t)`; alarm when it exceeds `h`, after which both sums restart from zero.
+
+- Domain: `k >= 0`, `h > 0`, `S+_0 = S-_0 = 0`.
+- Meaning: Page's cumulative-sum scheme applied to the GP residuals; `k = delta / 2` is tuned to a shift `delta` of the standardized mean. `calibrate_cusum_threshold` picks the smallest `h` whose empirical alarm rate on nominal residuals is at most the target; this matches a rate on the given data, it is not a distribution-free guarantee because the CUSUM is path dependent.
+- Code: `surrogates.gp_anomaly.cusum`.
+- Source: [REF-PAGE-1954].
+
+### EQ-SUR-GPANOM-004 — Split-conformal alarm threshold
+
+`q = S_(r)` with `r = ceil((1 - alpha)(n + 1))`, the `r`-th smallest of `n` calibration scores; alarm when `S_new > q`. For exchangeable scores `P(S_new > q) <= alpha`, and `>= alpha - 1/(n + 1)` for continuous scores.
+
+- Domain: calibration scores from held-out nominal data (disjoint from the training window), `r <= n` (otherwise `ValueError`; the library never returns an infinite threshold silently). The rank is computed with exact rational arithmetic on the decimal value of `alpha`.
+- Meaning: the guarantee is marginal over the draw of the calibration set and the new score, and needs exchangeability. Telemetry is a time series: one-step-ahead residuals of a correct model are approximately independent but not exchangeable in general, so the guarantee is approximate and the realized false-alarm rate must be measured on fresh nominal data (`false_alarm_rate`), as the tests do. A distribution-shifting or autocorrelated channel needs adaptive or weighted conformal methods (see [REF-GIBBS-CANDES-2021]).
+- Code: `surrogates.gp_anomaly.conformal_threshold`.
+- Source: [REF-VOVK-GAMMERMAN-SHAFER-2005], [REF-LEI-ETAL-2018].
+
+### EQ-SUR-GPANOM-005 — Analytic Gaussian and Student-t alarm thresholds
+
+`tau = Phi^-1(1 - alpha / 2)` for `z ~ N(0, 1)`; `tau = t_nu^-1(1 - alpha / 2)` for `z ~ t_nu` (scale convention).
+
+- Domain: `0 < alpha < 1`, `nu > 0`.
+- Meaning: two-sided threshold on `|z|` with per-sample false-alarm rate `alpha` *if* the stated predictive law is correct. It inherits every model error (a mis-estimated noise scale, heavy-tailed noise); the tests measure by how much the realized rate departs from `alpha`.
+- Code: `surrogates.gp_anomaly.gaussian_threshold`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006], [REF-SHAH-WILSON-GHAHRAMANI-2014].
+
+### EQ-SUR-GPANOM-006 — Student-t observation noise by EM (outlier-robust training)
+
+`y_i = f(t_i) + e_i`, `e_i ~ t_nu(0, sigma^2)`, scale mixture `e_i | w_i ~ N(0, sigma^2 / w_i)`, `w_i ~ Gamma(nu / 2, nu / 2)`. E-step: `w_i = (nu + 1) / (nu + e2_i / sigma^2)`, `e2_i = (y_i - m_i)^2 + v_i` with `m_i`, `v_i` the posterior mean and latent variance at the training point. M-step: `sigma^2 = (1/n) sum_i w_i e2_i`, the GP refitted with per-sample noise `sigma^2 / w_i`.
+
+- Domain: `nu > 2` fixed (not estimated), `sigma^2 > 0`; kernel parameters are fixed during the EM steps and re-optimized once with the weights frozen.
+- Meaning: samples far from the fit receive a small weight `w_i` and therefore a large noise variance, so isolated outliers in the nominal training window do not inflate the noise estimate or bend the fitted function. The EM is a plug-in procedure (no joint posterior over `nu`, kernel and weights), and the weights are not a probability of being an outlier.
+- Code: `surrogates.gp_anomaly.fit_nominal_model`.
+- Source: [REF-LANGE-LITTLE-TAYLOR-1989], [REF-DEMPSTER-LAIRD-RUBIN-1977].
+
+### EQ-SUR-GPANOM-007 — Sliding-window Cholesky update in `O(w^2)`
+
+Window factor `L L' = K + N`. Appending a sample: `l = L^-1 k_new` (one forward solve) and `d = sqrt(k_nn + n_new - l'l)`. Dropping the oldest: with `L = [[a, 0], [b, L_22]]`, `chol(K_22 + N_22) = chol(L_22 L_22' + b b')`, a rank-one Cholesky update of `L_22` by `b`.
+
+- Domain: the updated matrix remains positive definite (otherwise `ValueError`, state unchanged); equals the batch GP on the same window with the same prior mean to rounding.
+- Meaning: bounded cost per sample (`O(w^2)`) instead of `O(n^3)`; it is a sliding-window GP, not an `O(1)` state-space filter. `batch_window_predict` recomputes the same law densely for verification.
+- Code: `surrogates.gp_anomaly.SlidingWindowGP`.
+- Source: [REF-GOLUB-VANLOAN-2013], [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-SUR-GPANOM-008 — Synthetic channel, fault models and rolling baseline
+
+Channel: `y_i = sum_j a_j sin(2 pi j t_i / P + phi_j) + x_i + e_i`, with `x` a Matern-3/2 process sampled from its state-space form (`lambda = sqrt(3) / ell`, `A = e^{-lambda dt} [[1 + lambda dt, dt], [-lambda^2 dt, 1 - lambda dt]]`, `Q = P_inf - A P_inf A'`, `P_inf = diag(sigma^2, lambda^2 sigma^2)`). Faults with `a = size * scale`, `j = i - onset >= 0`: spike `+a` for `duration` samples; step `+a`; drift `+a (j + 1) / L`; variance `+N(0, a^2)`. Baseline: `z_t = (y_t - mean(y_{t-w:t-1})) / sd(y_{t-w:t-1})`.
+
+- Domain: `P, dt, ell, sigma_n > 0`; `size, scale > 0`; baseline window `w >= 3` with non-zero spread.
+- Meaning: all data are synthetic (illustrative units, minutes); no real vehicle or engine data are involved, and the fault models are generic bias, ramp and noise-growth changes rather than a failure-mode catalogue. The baseline ignores the periodic structure, so at equal false-alarm rate it needs larger faults to alarm.
+- Code: `surrogates.gp_anomaly.inject_fault`.
+- Source: [REF-PAGE-1954], [REF-RASMUSSEN-WILLIAMS-2006], [REF-SARKKA-ALVAREZ-LAWRENCE-2019].
+
+### EQ-AERO-CASUALTY-001 — Lumped energy balance and demise criterion
+
+`dE/dt = P_in - P_rad`, demise when `max_t E(t) >= E_dem = m [c (T_m - T_0) + L_f]`, with the demise margin `M = 1 - max_t E(t) / E_dem` (`M > 0` survives).
+
+- Domain: `m` mass (kg), `c` specific heat (J/(kg K)), `T_m` melt temperature (K), `T_0` initial temperature (K) below `T_m`, `L_f` heat of fusion (J/kg), `E` absorbed energy (J). The body has one uniform temperature, no oxidation heat release, no spallation or ablative mass loss before demise, constant `c`, and the heat of fusion is absorbed at `T_m` (no run-off of molten material).
+- Meaning: demise means the whole body has been brought to its melting temperature and has absorbed the whole heat of fusion; a surviving fragment keeps its full mass. The margin `M` is continuous in every input, whereas the demise decision is a step function of it. All property values are user inputs; the library set is SYNTHETIC. The lumped model is an idealisation that is not validated here.
+- Code: `aerospace.reentry_casualty.simulate_fragment`.
+- Source: modelling assumption of this library (no verified external source for the lumped demise criterion); entry dynamics from [REF-ALLEN-EGGERS-1958] and [REF-CURTIS-2014].
+
+### EQ-AERO-CASUALTY-002 — Convective heating of a fragment and re-radiation
+
+`P_in = f_s A k s_h sqrt(rho / R_n) V^3`, `P_rad = epsilon sigma S T^4`, with `A = S / 4`, `R_n = sqrt(S / (4 pi))`.
+
+- Domain: `k = 1.7483e-4 kg^0.5/m` (Sutton-Graves constant for Earth air), `s_h > 0` heating-scale multiplier (uncertainty of the correlation), `f_s > 0` per-fragment shape factor, `rho` density (kg/m^3), `V` speed (m/s), `S` surface area (m^2), `epsilon` in (0, 1], `sigma` the Stefan-Boltzmann constant. Re-radiation leaves the whole surface at the body temperature to a zero-temperature environment (no ambient, no view factor).
+- Meaning: the stagnation-point correlation of an equivalent sphere acts over the mean projected area of a tumbling convex body. This overestimates the surface-averaged flux for a sphere and is not calibrated for plates or cylinders; `f_s` and `s_h` carry that uncertainty. Radiative and catalytic heating are not modelled.
+- Code: `aerospace.reentry_casualty.simulate_fragment`.
+- Source: [REF-SUTTON-GRAVES-1971].
+
+### EQ-AERO-CASUALTY-003 — Temperature-energy map
+
+`T(E) = T_0 + E / (m c)` for `E <= m c (T_m - T_0)`; `T = T_m` for `m c (T_m - T_0) <= E <= E_dem`; `T = T_m + (E - E_dem) / (m c)` beyond `E_dem`.
+
+- Domain: as for EQ-AERO-CASUALTY-001.
+- Meaning: the third branch is a bookkeeping continuation used only so that the margin of EQ-AERO-CASUALTY-001 is defined for demised fragments; it is not a physical result.
+- Code: `aerospace.reentry_casualty.simulate_fragment`.
+- Source: modelling assumption of this library (enthalpy form of a single-temperature phase change).
+
+### EQ-AERO-CASUALTY-004 — Impact kinetic energy
+
+`E_k = m V_i^2 / 2`.
+
+- Domain: `V_i` is the speed (m/s) at zero altitude of the ballistic trajectory of the fragment (entry equations of `aerospace.entry`, drag with `beta = m / (C_D A)`, 1976 standard atmosphere or an exponential atmosphere, non-rotating Earth, no winds).
+- Meaning: reported also for demised fragments, where it has no meaning. The mass is not reduced by partial melting, which is conservative.
+- Code: `aerospace.reentry_casualty.simulate_fragment`.
+- Source: [REF-ALLEN-EGGERS-1958], [REF-CURTIS-2014], [REF-US-STANDARD-ATMOSPHERE-1976].
+
+### EQ-AERO-CASUALTY-005 — Debris casualty area
+
+`A_c = sum_i n_i (sqrt(A_p) + sqrt(A_i))^2` over the fragments that reach the ground undemised with `E_k,i >= E_min`.
+
+- Domain: `A_p > 0` person projected area (m^2, a user input), `A_i = S_i / 4` mean projected area of fragment `i`, `n_i >= 1` its multiplicity, `E_min >= 0` the energy threshold (J, a user input to be checked against the governing standard).
+- Meaning: the sum of the two characteristic lengths squared is the usual form of a debris casualty area; here it is a modelling convention whose person area and energy threshold are inputs, not verified standard values.
+- Code: `aerospace.reentry_casualty.casualty_area`.
+- Source: modelling convention of this library (no verified external source).
+
+### EQ-AERO-CASUALTY-006 — Casualty expectation
+
+`E_c = A_c rho_pop`.
+
+- Domain: `rho_pop` mean population density under the ground track in persons per m^2 (the code takes persons per km^2 and multiplies by `1e-6`), a user input.
+- Meaning: expected number of casualties of one event for a uniform population under the debris footprint. The admissible value of `E_c` (commonly quoted as `1e-4`) is a user input labelled "to be checked against the governing standard".
+- Code: `aerospace.reentry_casualty.assess_reentry_casualty`.
+- Source: modelling convention of this library.
+
+### EQ-AERO-CASUALTY-007 — Probabilistic casualty model
+
+Inputs `theta = (h_b, gamma_b, V_b, s_h, rho_pop, s_T[mat], s_L[mat], s_eps[mat], s_beta[frag])`; outputs `survivors`, `casualty_survivors`, `A_c`, `E_c`, `casualty_margin = E_c,max - E_c`, `casualty_ratio = E_c / E_c,max`, and per fragment `demise_margin`, `impact_energy`, `casualty_area`.
+
+- Domain: `h_b` break-up altitude (m), `gamma_b` flight-path angle (rad, negative), `V_b` speed (m/s); `s_T`, `s_L`, `s_eps` multiply the melt temperature, heat of fusion and emissivity of each material; `s_beta` multiplies the ballistic coefficient of each fragment. A scaled emissivity above 1 is a model failure.
+- Meaning: `P(E_c > E_c,max)` is the limit-state probability. Because survival is a near-threshold switch per fragment, `E_c` is a step function of `theta`: gradient-based FORM sees a zero gradient almost everywhere and is not trustworthy; subset simulation and Monte Carlo are not affected, and FORM on the continuous `demise_margin` of the dominant switching fragment is a usable alternative whose accuracy has to be checked against Monte Carlo.
+- Code: `aerospace.reentry_casualty.reentry_casualty_model`.
+- Source: modelling construction of this library; uncertainty-model structure follows `aerospace.entry.entry_model`.
+
+### EQ-AERO-CASUALTY-008 — Smoothed casualty expectation (diagnostic)
+
+`E_c^smooth = rho_pop sum_i n_i 1[E_k,i >= E_min] (sqrt(A_p) + sqrt(A_i))^2 / (1 + exp(-M_i / w))`.
+
+- Domain: `w > 0` smoothing width of the demise margin `M_i` of fragment `i`.
+- Meaning: replaces the survival switch by a logistic weight, so the output is continuous in the inputs. It is a diagnostic surrogate, not an unbiased estimate of `E_c` (it assigns weight to fragments with `M_i` near 0 from both sides) and it still contains the hard energy-threshold indicator.
+- Code: `aerospace.reentry_casualty.reentry_casualty_model`.
+- Source: modelling construction of this library.
+
+### EQ-AERO-CASUALTY-009 — Fragment geometry and ballistic coefficient
+
+`A = S / 4`, `R_n = sqrt(S / (4 pi))`, `beta = m / (C_D A)`; sphere `S = pi d^2`; cylinder `S = pi d L + pi d^2 / 2`; plate `S = 2 L W + 2 t (L + W)`.
+
+- Domain: `d, L, W, t, S > 0` in m and m^2, `C_D > 0` a mean hypersonic drag coefficient (user input).
+- Meaning: the mean projected area of a randomly oriented convex body is a quarter of its surface area (Cauchy). For a sphere `A = pi d^2 / 4` and `R_n = d / 2`. Tumbling is represented only by this constant mean area and a constant `C_D`.
+- Code: `aerospace.reentry_casualty.Fragment`.
+- Source: [REF-ALLEN-EGGERS-1958] for the ballistic coefficient; the mean-projection relation is a standard geometric result used here as stated.

@@ -433,6 +433,7 @@ covariance has to pass.
 - [x] Attitude estimation with pointing budgets and spacecraft thermal model
   correlation (ADR-0145).
 - [x] Spacecraft power budgets and inertia identification (ADR-0145).
+- [x] Reentry casualty risk and GP telemetry anomaly detection (ADR-0145).
 - [x] Transitional MCMC with model-class selection, time-variant
   reliability (PHI2, first passage) and reliability sensitivities
   (ADR-0145).

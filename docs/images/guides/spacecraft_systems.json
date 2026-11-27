@@ -1,0 +1,19 @@
+{
+  "spacecraft-form-versus-simulation": {
+    "guide": "spacecraft-systems-uq",
+    "alt": "Dot chart of four synthetic failure probabilities: Monte Carlo estimates with 95 percent intervals as circles and FORM estimates as diamonds, for two power cases, a lifetime and a casualty case",
+    "facts": {
+      "smooth_form": "0.398",
+      "smooth_mc": "0.401",
+      "series_form": "0.277",
+      "series_mc": "0.385",
+      "orbit_form": "0.407",
+      "orbit_mc": "0.293",
+      "casualty_mc": "0.083",
+      "casualty_margin_form": "0.095",
+      "power_samples": "3000",
+      "orbit_samples": "1000",
+      "casualty_samples": "400"
+    }
+  }
+}

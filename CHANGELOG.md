@@ -59,7 +59,9 @@ the mathematics re-derived.
   estimation and pointing (gyro and star-tracker filter with a closed-form
   steady state, Allan-variance noise identification, pointing budget);
   spacecraft power budgets (eclipse fraction, array and battery
-  degradation, end-of-life energy balance, `power_budget_model`).
+  degradation, end-of-life energy balance, `power_budget_model`); reentry
+  casualty risk (fragment demise, casualty area and expectation,
+  `reentry_casualty_model`).
 - **Two aerospace laboratories.** `examples/spacecraft_mission_risk_lab.py`
   follows one synthetic mission (ascent dispersion, tank buckling, debris
   risk, engine health, entry) and prints a risk summary;
@@ -84,7 +86,8 @@ the mathematics re-derived.
   derivative observations and gradient prediction, sparse DTC/FITC/VFE,
   heteroscedastic, multi-output and operator-constrained GPs) and
   `surrogates.gp_bayes` (fully Bayesian hyperparameters, Bastos-O'Hagan
-  emulator diagnostics, nonlinear autoregressive multi-fidelity GPs,
+  emulator diagnostics, nonlinear autoregressive multi-fidelity GPs, GP
+  telemetry anomaly detection with calibrated thresholds,
   GP Sobol indices with posterior uncertainty,
   Laplace GP classification, Student-t and warped processes);
   `validation.KOHEmulatorCalibration` (Kennedy-O'Hagan calibration of an

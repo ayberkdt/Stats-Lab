@@ -189,6 +189,24 @@ from .gp_advanced import (
     select_inducing_points,
     sparse_gp_cost,
 )
+from .gp_anomaly import (
+    ChannelSpec,
+    DetectionStudy,
+    FaultedSeries,
+    NominalModel,
+    ScoreSeries,
+    SlidingWindowGP,
+    SyntheticChannel,
+    batch_window_predict,
+    calibrate_cusum_threshold,
+    contaminate_values,
+    detection_study,
+    fit_nominal_model,
+    inject_fault,
+    orbital_kernel,
+    simulate_telemetry,
+    sliding_window_scores,
+)
 from .gp_bayes import (
     BayesianGPPrediction,
     BayesianGPRegression,
@@ -332,6 +350,22 @@ from .stochastic_kriging import (
 )
 
 __all__ = [
+    "ChannelSpec",
+    "SyntheticChannel",
+    "simulate_telemetry",
+    "contaminate_values",
+    "orbital_kernel",
+    "NominalModel",
+    "fit_nominal_model",
+    "SlidingWindowGP",
+    "batch_window_predict",
+    "ScoreSeries",
+    "sliding_window_scores",
+    "calibrate_cusum_threshold",
+    "FaultedSeries",
+    "inject_fault",
+    "DetectionStudy",
+    "detection_study",
     "NargpPrediction",
     "NargpValidation",
     "NonlinearMultiFidelityGP",

@@ -66,7 +66,9 @@ experimental.
    through a synthetic wind field) [EQ-AERO-WIND-001]-[EQ-AERO-WIND-006];
    `attitude_estimation` (gyro-stellar filter and pointing budget)
    [EQ-AERO-ATT-001]-[EQ-AERO-ATT-009]; `power_budget` (end-of-life energy
-   balance) [EQ-AERO-POWER-001]-[EQ-AERO-POWER-010]. All
+   balance) [EQ-AERO-POWER-001]-[EQ-AERO-POWER-010]; `reentry_casualty`
+   (fragment demise and casualty expectation)
+   [EQ-AERO-CASUALTY-001]-[EQ-AERO-CASUALTY-009]. All
    example vehicles
    are synthetic.
 2. **Reliability and inference methods beside the existing ones.**
@@ -81,7 +83,9 @@ experimental.
    (fully Bayesian hyperparameters, Bastos-O'Hagan diagnostics, GP Sobol
    indices with posterior uncertainty, Laplace classification, Student-t and
    warped processes), and `surrogates.nonlinear_multifidelity` (NARGP)
-   [EQ-SUR-NARGP-001]-[EQ-SUR-NARGP-007]. `validation.koh_emulator` adds Kennedy-O'Hagan
+   [EQ-SUR-NARGP-001]-[EQ-SUR-NARGP-007], and `surrogates.gp_anomaly` (GP
+   telemetry anomaly detection) [EQ-SUR-GPANOM-001]-[EQ-SUR-GPANOM-008].
+   `validation.koh_emulator` adds Kennedy-O'Hagan
    calibration of an expensive simulator through a GP emulator in the
    modular form, with the exact block covariance and the predictive
    variance split into emulator, discrepancy, cross, parameter and noise
@@ -244,6 +248,14 @@ experimental.
   samples (errors in variables), while the output-error fit stayed within
   +0.02; with realistic torques, gyroscopic coupling let single-axis
   excitation identify every entry.
+- Reentry casualty: the casualty expectation is step-valued (each fragment
+  survives or not), so FORM stops with a vanishing gradient on it; on the
+  continuous demise margin of the critical fragment FORM and subset
+  simulation agree with simulation (about 0.09-0.10).
+- GP anomaly detection: at a 1 % target the Gaussian threshold gave a 2.7 %
+  false-alarm rate on heavy-tailed noise and the split-conformal threshold
+  1.9 % (400 calibration scores, serially dependent data); slow drifts are
+  absorbed by the sliding window and poorly detected.
 - Local-approximation MCMC on a two-parameter decay problem used 102 true
   evaluations for 1900 iterations and gave 17x the effective samples per
   true evaluation of plain Metropolis (52x on a 15 000-draw run); the
