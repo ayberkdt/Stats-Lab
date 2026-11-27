@@ -638,7 +638,12 @@ class ProbabilisticModel:
 
         """
         if type(x) is tuple:
-            values: dict[str, Any] = dict(self.inputs.as_mapping(x))
+            # ``as_mapping`` returns a fresh dict on every call, so the copy
+            # ``dict(...)`` made is only needed for another mapping type.
+            labelled = self.inputs.as_mapping(x)
+            values: dict[str, Any] = (
+                labelled if type(labelled) is dict else dict(labelled)
+            )
             if self._fixed_items:
                 values.update(self._fixed_items)
             return values
@@ -1040,4 +1045,3 @@ class ProbabilisticModel:
 
         """
         return self.inputs.means()
-

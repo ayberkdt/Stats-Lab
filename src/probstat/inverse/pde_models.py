@@ -30,9 +30,12 @@ import math
 from bisect import bisect_right
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from itertools import islice
 from typing import Protocol
 
 _LOG_K_LIMIT = 345.0
+_PLAIN_SEQUENCES = (list, tuple)
+_PLAIN_REALS = {float, int}
 
 
 def _finite_vector(
@@ -56,16 +59,30 @@ def _finite_vector(
         [EQ-INV-PDE-001]. Input validation only.
 
     """
-    if isinstance(values, (str, bytes)) or not isinstance(values, Sequence):
-        raise TypeError(f"{name} must be a sequence of real numbers")
-    out: list[float] = []
-    for value in values:
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
-            raise TypeError(f"{name} must contain real numbers")
-        number = float(value)
-        if not math.isfinite(number):
-            raise ValueError(f"{name} must contain only finite values")
-        out.append(number)
+    out: list[float] | None = None
+    if type(values) in _PLAIN_SEQUENCES and set(map(type, values)) <= _PLAIN_REALS:
+        # All entries are exact ``int`` or ``float`` (no ``bool``): convert
+        # and test in C. Anything else, or an entry that is not finite or
+        # overflows ``float``, takes the entry-by-entry path below so that
+        # the first offending entry decides the error as before.
+        try:
+            converted = list(map(float, values))
+        except OverflowError:
+            pass
+        else:
+            if all(map(math.isfinite, converted)):
+                out = converted
+    if out is None:
+        if isinstance(values, (str, bytes)) or not isinstance(values, Sequence):
+            raise TypeError(f"{name} must be a sequence of real numbers")
+        out = []
+        for value in values:
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise TypeError(f"{name} must contain real numbers")
+            number = float(value)
+            if not math.isfinite(number):
+                raise ValueError(f"{name} must contain only finite values")
+            out.append(number)
     if length is not None and len(out) != length:
         raise ValueError(f"{name} must have length {length}, got {len(out)}")
     if not out:
@@ -118,7 +135,16 @@ class TridiagonalFactorization:
 
     """
 
-    __slots__ = ("_multipliers", "_pivots", "_upper", "order")
+    __slots__ = (
+        "_multipliers",
+        "_pivots",
+        "_pivots_after",
+        "_pivots_before_reversed",
+        "_upper",
+        "_upper_reversed",
+        "_multipliers_reversed",
+        "order",
+    )
 
     def __init__(
         self,
@@ -158,6 +184,11 @@ class TridiagonalFactorization:
         self._pivots = pivots
         self._multipliers = multipliers
         self._upper = up
+        # Reversed and shifted copies so that the solves can ``zip`` the bands.
+        self._pivots_after = pivots[1:]
+        self._pivots_before_reversed = pivots[n - 2 :: -1] if n > 1 else []
+        self._upper_reversed = up[::-1]
+        self._multipliers_reversed = multipliers[::-1]
         self.order = n
 
     def solve(self, rhs: Sequence[float]) -> list[float]:
@@ -176,14 +207,30 @@ class TridiagonalFactorization:
             [EQ-INV-PDE-005], [REF-GOLUB-VANLOAN-2013].
 
         """
-        n = self.order
-        y = _finite_vector("rhs", rhs, n)
-        for i in range(n - 1):
-            y[i + 1] -= self._multipliers[i] * y[i]
-        y[n - 1] /= self._pivots[n - 1]
-        for i in range(n - 2, -1, -1):
-            y[i] = (y[i] - self._upper[i] * y[i + 1]) / self._pivots[i]
-        return y
+        y = _finite_vector("rhs", rhs, self.order)
+        # Forward elimination ``y[i+1] -= m[i] y[i]`` ...
+        last = y[0]
+        eliminated = [last]
+        push = eliminated.append
+        for multiplier, value in zip(
+            self._multipliers, islice(y, 1, None), strict=True
+        ):
+            last = value - multiplier * last
+            push(last)
+        # ... and back substitution ``y[i] = (y[i] - u[i] y[i+1]) / p[i]``.
+        last = last / self._pivots[-1]
+        solution = [last]
+        push = solution.append
+        for upper, pivot, value in zip(
+            self._upper_reversed,
+            self._pivots_before_reversed,
+            islice(reversed(eliminated), 1, None),
+            strict=True,
+        ):
+            last = (value - upper * last) / pivot
+            push(last)
+        solution.reverse()
+        return solution
 
     def solve_transpose(self, rhs: Sequence[float]) -> list[float]:
         """Solve ``A' x = rhs`` with the same factors (``A' = U' L'``).
@@ -201,14 +248,26 @@ class TridiagonalFactorization:
             [EQ-INV-PDE-005], [REF-GOLUB-VANLOAN-2013].
 
         """
-        n = self.order
-        z = _finite_vector("rhs", rhs, n)
-        z[0] /= self._pivots[0]
-        for i in range(1, n):
-            z[i] = (z[i] - self._upper[i - 1] * z[i - 1]) / self._pivots[i]
-        for i in range(n - 2, -1, -1):
-            z[i] -= self._multipliers[i] * z[i + 1]
-        return z
+        z = _finite_vector("rhs", rhs, self.order)
+        # Forward sweep with ``U'`` ``z[i] = (z[i] - u[i-1] z[i-1]) / p[i]`` ...
+        last = z[0] / self._pivots[0]
+        swept = [last]
+        push = swept.append
+        for upper, pivot, value in zip(
+            self._upper, self._pivots_after, islice(z, 1, None), strict=True
+        ):
+            last = (value - upper * last) / pivot
+            push(last)
+        # ... then ``z[i] -= m[i] z[i+1]`` backwards with ``L'``.
+        solution = [last]
+        push = solution.append
+        for multiplier, value in zip(
+            self._multipliers_reversed, islice(reversed(swept), 1, None), strict=True
+        ):
+            last = value - multiplier * last
+            push(last)
+        solution.reverse()
+        return solution
 
 
 def solve_tridiagonal(

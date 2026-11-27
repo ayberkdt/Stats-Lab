@@ -61,9 +61,7 @@ class Uniform(ContinuousDistribution):
             [EQ-DIST-UNIF-001], [REF-CASELLA-BERGER-2002, Section 3.3].
 
         """
-        return RealSupport(
-            self.lower, self.upper, lower_closed=True, upper_closed=True
-        )
+        return RealSupport(self.lower, self.upper, lower_closed=True, upper_closed=True)
 
     @property
     def width(self) -> float:
@@ -197,7 +195,11 @@ class Uniform(ContinuousDistribution):
             [REF-CASELLA-BERGER-2002, Chapter 2].
 
         """
-        target = require_probability(probability, name="probability")
+        target = (
+            probability
+            if type(probability) is float and 0.0 <= probability <= 1.0
+            else require_probability(probability, name="probability")
+        )
         if target == 1.0:
             # ``lower + width`` need not round to ``upper``.
             return self.upper
@@ -253,7 +255,11 @@ class Uniform(ContinuousDistribution):
             [REF-NIST-DLMF, Section 7.17], [REF-PYTHON-STATISTICS].
 
         """
-        q = require_probability(probability, name="probability")
+        q = (
+            probability
+            if type(probability) is float and 0.0 <= probability <= 1.0
+            else require_probability(probability, name="probability")
+        )
         if q == 1.0:
             # ``upper - (upper - lower)`` need not round to ``lower``.
             return self.lower
@@ -310,6 +316,5 @@ class Uniform(ContinuousDistribution):
         checked_size = require_non_negative_integer(size, name="size")
         generator = resolve_stream(seed).generator()
         return tuple(
-            self.lower + generator.random() * self.width
-            for _ in range(checked_size)
+            self.lower + generator.random() * self.width for _ in range(checked_size)
         )

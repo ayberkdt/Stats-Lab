@@ -97,6 +97,10 @@ LAB_REGRESSION_TESTS: dict[str, tuple[str, str]] = {
         "test_hierarchical_and_ppc.py",
         "hierarchical_normal_posterior",
     ),
+    "hotfire_test_campaign_lab": (
+        "test_hotfire_test_campaign_lab.py",
+        "KOHEmulatorCalibration",
+    ),
     "information_lab": ("test_information_theory.py", "ksg_mutual_information"),
     "input_modeling_lab": (
         "test_input_modeling_lab.py",
@@ -131,7 +135,15 @@ LAB_REGRESSION_TESTS: dict[str, tuple[str, str]] = {
         "estimate_directional_failure_probability",
     ),
     "risk_analysis_lab": ("test_rare_event_methods.py", "moving_particles"),
+    "rocket_propulsion_uq_lab": (
+        "test_rocket_propulsion_uq_lab.py",
+        "liquid_engine_model",
+    ),
     "sensitivity_lab": ("test_uq5_sensitivity.py", "estimate_sobol_indices"),
+    "spacecraft_mission_risk_lab": (
+        "test_spacecraft_mission_risk_lab.py",
+        "shell_buckling_model",
+    ),
     "state_space_learning_lab": (
         "test_filtering_parameter_estimation.py",
         "linear_gaussian_em",

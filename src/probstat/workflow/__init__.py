@@ -63,6 +63,15 @@ from .chaining import (
     input_law_hash,
     posterior_joint_input,
 )
+from .inverse_study import (
+    InverseStageRecord,
+    InverseStudy,
+    ReportTable,
+    ResolutionResult,
+    SampleSummary,
+    SpectrumResult,
+    StudyComparison,
+)
 from .mission import (
     MissionAssessment,
     MissionAssessmentResult,
@@ -85,6 +94,13 @@ from .study import (
 )
 
 __all__ = [
+    "InverseStudy",
+    "InverseStageRecord",
+    "ReportTable",
+    "SpectrumResult",
+    "SampleSummary",
+    "ResolutionResult",
+    "StudyComparison",
     "POSTERIOR_METHODS",
     "STAGE_STATUSES",
     "DesignPointAnalysis",

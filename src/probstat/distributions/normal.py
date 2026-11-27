@@ -25,6 +25,8 @@ from ._continuous import (
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
 
+_STANDARD_NORMAL = NormalDist()
+
 
 @dataclass(frozen=True, slots=True)
 class Normal(ContinuousDistribution):
@@ -90,9 +92,7 @@ class Normal(ContinuousDistribution):
         """
         point = real_argument(x, name="x")
         z = (point - self.mu) / self.sigma
-        return -0.5 * z * z - admath.log(self.sigma) - 0.5 * math.log(
-            2.0 * math.pi
-        )
+        return -0.5 * z * z - admath.log(self.sigma) - 0.5 * math.log(2.0 * math.pi)
 
     def pdf(self, x: float) -> float:
         """Evaluate the normal probability density function at ``x``.
@@ -221,7 +221,11 @@ class Normal(ContinuousDistribution):
             [REF-PYTHON-STATISTICS].
 
         """
-        target = require_probability(probability, name="probability")
+        target = (
+            probability
+            if type(probability) is float and 0.0 <= probability <= 1.0
+            else require_probability(probability, name="probability")
+        )
         if target == 0.0:
             return -math.inf
         if target == 1.0:
@@ -251,12 +255,16 @@ class Normal(ContinuousDistribution):
             [REF-NIST-DLMF, Section 7.17], [REF-PYTHON-STATISTICS].
 
         """
-        q = require_probability(probability, name="probability")
+        q = (
+            probability
+            if type(probability) is float and 0.0 <= probability <= 1.0
+            else require_probability(probability, name="probability")
+        )
         if q == 0.0:
             return math.inf
         if q == 1.0:
             return -math.inf
-        return self.mu - self.sigma * NormalDist().inv_cdf(q)
+        return self.mu - self.sigma * _STANDARD_NORMAL.inv_cdf(q)
 
     @property
     def mean(self) -> float:
@@ -309,4 +317,3 @@ class Normal(ContinuousDistribution):
         checked_size = require_non_negative_integer(size, name="size")
         generator = resolve_stream(seed).generator()
         return tuple(generator.gauss(self.mu, self.sigma) for _ in range(checked_size))
-

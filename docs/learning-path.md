@@ -674,6 +674,35 @@ low-rank Gaussian posteriors, design, profiles, and the inverse crime.
 - Lab: [`examples/large_scale_inverse_lab.py`](../examples/large_scale_inverse_lab.py)
 - Decision record: [ADR-0144](adr/ADR-0144-matrix-free-inverse-problems.md)
 
+### U19 — Uncertainty quantification for rocket propulsion
+
+[Uncertainty quantification for rocket propulsion](foundations/aerospace-propulsion-uq.md):
+ideal-rocket performance, solid-motor internal ballistics, linear
+thermoacoustic stability and engine-cluster reliability as probabilistic
+models; dispersion and Sobol ranking, FORM against subset simulation for rare
+events with parameter sensitivities, transitional MCMC with Bayesian model
+class selection, validated Gaussian-process emulators, and epistemic cluster
+reliability. All cases are synthetic.
+
+- Requires: U5, U6, U8, U16
+- Lab: [`examples/rocket_propulsion_uq_lab.py`](../examples/rocket_propulsion_uq_lab.py)
+- Decision record: [ADR-0145](adr/ADR-0145-aerospace-uq-gaussian-processes-and-hybrid-models.md)
+
+### U20 — Nonlinear Bayesian inversion
+
+[Nonlinear Bayesian inversion](foundations/nonlinear-bayesian-inversion.md):
+where the linear-Gaussian picture breaks, MAP and the Gauss-Newton Laplace
+approximation, pCN, gpCN and DILI samplers with measured efficiency,
+randomize-then-optimize, transport maps and SVGD, local-approximation MCMC
+and delayed acceptance for expensive models, evidence and model-class choice
+with transitional MCMC, nonlinear experimental design, heat-flux
+reconstruction from embedded thermocouples, a published PDE benchmark, and
+one seeded `InverseStudy` report. All cases are synthetic.
+
+- Requires: U8, U18
+- Lab: [`examples/large_scale_inverse_lab.py`](../examples/large_scale_inverse_lab.py)
+- Decision record: [ADR-0145](adr/ADR-0145-aerospace-uq-gaussian-processes-and-hybrid-models.md)
+
 ## Track E — Systems engineering
 
 Reliability of systems, Markov and semi-Markov models, risk and cost, and the

@@ -16,6 +16,127 @@ the mathematics re-derived.
 
 ### Added
 
+- **Aerospace propulsion and space operations** (experimental, ADR-0145).
+  The new package `probstat.aerospace` (layer 7): liquid-engine
+  performance (`ideal_rocket_performance`, the area-Mach inversion, nozzle
+  divergence, the Summerfield separation flag, mixture-ratio tables, the
+  turbine-pump balance, `liquid_engine_model`); solid-motor ballistics
+  (Vieille burn rate, tubular, end-burning and BATES grains, MEOP and burst
+  margin, `solid_motor_model`); linear thermoacoustic stability (`n`-`tau`
+  modes, Marble-Candel nozzle, Rayleigh index, eigenvalue sensitivities,
+  `instability_probability` by Monte Carlo, polynomial chaos and FORM);
+  planar ascent through the 1976 standard atmosphere with staging,
+  insertion windows, dispersion intervals and ellipses and an RSS budget
+  checked against Monte Carlo (`ascent_model`, `simulate_ascent`); engine
+  and vehicle reliability (classical and Bayesian demonstration plans,
+  heritage priors, Weibull test-time equivalence, growth, clusters with
+  common cause, launch event trees); conjunction probability (exact,
+  Foster, Chan, small-object, dilution, scale uncertainty, Monte Carlo);
+  atmospheric entry (planar entry with optional lift, the Allen-Eggers
+  closed-form checks, Sutton-Graves heating with the air coefficient of
+  NASA TR R-376, ablative heat-shield sizing, entry corridors,
+  `entry_model`); regenerative nozzle cooling (Bartz gas-side heat transfer,
+  the wall resistance network, Dittus-Boelter coolant convection, an exact
+  coolant energy balance, `nozzle_cooling_model`); micrometeoroid and
+  debris penetration risk (Poisson risk algebra, parameterized single- and
+  dual-wall ballistic limits, epistemic factors, shield thickness for a
+  requirement, Gamma-Poisson flux updating, `mmod_risk_model`); thin-walled
+  shell buckling (classical buckling, the NASA SP-8007 knockdown, Koiter's
+  imperfection law with the constant of SP-8007 revision 2, a probabilistic
+  knockdown, `shell_buckling_model`, thickness for a target reliability);
+  engine health monitoring (a chamber-pressure digital twin with joint
+  efficiency estimation by EKF and UKF, CUSUM and GLR fault detection,
+  inverse-Gaussian remaining-useful-life prognostics with calibration);
+  turbopump cavitation (suction head budget, suction specific speed and
+  Thoma number, pump operating point, `turbopump_cavitation_model`, the
+  minimum tank pressure for a target probability); post-flight entry
+  reconstruction (density profile and ballistic coefficient from
+  accelerometer data by filtering and by a batch Laplace fit); orbital
+  lifetime and disposal compliance (`orbital_lifetime_model`, closed-form
+  lifetime bounds, the highest compliant altitude with a drag sail); ascent
+  wind loads (q-alpha through a synthetic wind field, exceedance by
+  reliability methods and tail fits, `wind_loads_model`); attitude
+  estimation and pointing (gyro and star-tracker filter with a closed-form
+  steady state, Allan-variance noise identification, pointing budget);
+  spacecraft power budgets (eclipse fraction, array and battery
+  degradation, end-of-life energy balance, `power_budget_model`).
+- **Two aerospace laboratories.** `examples/spacecraft_mission_risk_lab.py`
+  follows one synthetic mission (ascent dispersion, tank buckling, debris
+  risk, engine health, entry) and prints a risk summary;
+  `examples/hotfire_test_campaign_lab.py` calibrates an engine model to
+  synthetic hot-fire data with an emulator and a discrepancy, calibrates a
+  nozzle-wall field, and chooses the next test by expected information
+  gain.
+- **Sensor placement for heat-flux reconstruction.**
+  `design.ihcp_sensor_design`: A-, D- and goal-oriented choice of
+  thermocouple depths on the exact Gaussian posterior of the inverse heat
+  conduction problem, with greedy and exhaustive selection.
+  The guide `docs/foundations/aerospace-propulsion-uq.md`, the lab
+  `examples/rocket_propulsion_uq_lab.py` and learning-path step U19. All
+  example vehicles are synthetic.
+- **Reliability and Bayesian updating for engineering models.**
+  `inference.transitional_mcmc` (TMCMC with the log evidence, model-class
+  selection, model-averaged predictions, hierarchical calibration),
+  `reliability.time_variant` (Rice and PHI2 outcrossing, first passage by
+  Monte Carlo and subset simulation), `reliability.reliability_sensitivity`
+  (FORM and score-function sensitivities, failure-indicator Sobol indices).
+- **Gaussian processes.** `surrogates.gp_advanced` (kernel algebra,
+  derivative observations and gradient prediction, sparse DTC/FITC/VFE,
+  heteroscedastic, multi-output and operator-constrained GPs) and
+  `surrogates.gp_bayes` (fully Bayesian hyperparameters, Bastos-O'Hagan
+  emulator diagnostics, nonlinear autoregressive multi-fidelity GPs,
+  GP Sobol indices with posterior uncertainty,
+  Laplace GP classification, Student-t and warped processes);
+  `validation.KOHEmulatorCalibration` (Kennedy-O'Hagan calibration of an
+  expensive simulator through a GP emulator, with the predictive variance
+  split into emulator, discrepancy, parameter and noise parts);
+  `validation.FunctionalCalibration` (calibration of field-valued
+  simulators through a principal-component basis and GP emulators of its
+  weights, after Higdon et al. 2008).
+- **Hybrid physics-ML models.** `surrogates.reduced_order` (POD, operator
+  inference, DMD, EDMD, SINDy, ensemble SINDy) and
+  `surrogates.physics_informed` (PINNs with exact jet derivatives, hybrid
+  ODEs, residual hybrids with split-conformal intervals, DeepONet) and
+  `surrogates.latent_force` (latent force models: first-order channels in
+  closed form, second-order and Matern forces as an exact Kalman smoother,
+  inference of the unknown input).
+- **Research inverse layer.** `inverse.laplace_nonlinear` (Gauss-Newton
+  Laplace with a low-rank Hessian, RTO, RML, pCN, gpCN, DILI),
+  `inverse.transport_maps` (triangular transport maps, SVGD),
+  `inverse.inertia_identification` (inertia tensor from gyro data with a
+  realizable parameterization and excitation design),
+  `inverse.thermal_correlation` (correlation of a lumped spacecraft thermal
+  network to test data, with identifiability and flight predictions),
+  `inverse.modal_updating` (Bayesian structural model updating from modal
+  data with damage probabilities and damage-class selection),
+  `inverse.local_approximation_mcmc` (asymptotically exact Metropolis-
+  Hastings with a refined local-regression surrogate, and delayed
+  acceptance with it), `inverse.heat_conduction_inverse` (the inverse heat conduction problem
+  of a slab with embedded thermocouples: Beck's sequential function
+  specification, Tikhonov, CGLS and a Gaussian-process posterior, with an
+  exact discrete adjoint and resolution against sensor depth),
+  `inverse.benchmark_aristoff_bangerth` (the 64-parameter elliptic
+  benchmark of Aristoff and Bangerth, 2023, with an exact discrete
+  adjoint), `design.nonlinear_optimal` (nested Monte Carlo, contrastive and
+  Laplace expected information gain) and `workflow.InverseStudy` (one
+  seeded, counted Markdown report from spectrum to posterior comparison).
+
+### Changed
+
+- Hot paths of dense linear algebra, the GP likelihood, input transforms,
+  normal, lognormal and uniform quantiles, input validation, Sobol-index
+  estimation, Gaussian-process prediction with variance, LSQR, CGLS, LSMR,
+  conjugate gradients, counted operators,
+  convolution, difference and gradient operators,
+  tridiagonal heat and elliptic solves, subset simulation, crude Monte
+  Carlo, random-walk Metropolis and the Sobol and Latin-hypercube
+  generators run 1.2-2.9x faster (measured against 0.27 on 2026-11-27,
+  `tools/benchmark_hot_paths.py`) and reproduce the previous results bit
+  for bit, which `tests/test_hot_path_equivalence*.py` checks with
+  `float.hex`.
+
+### Added (inverse problems, ADR-0144)
+
 - **Matrix-free inverse-problem layer** (experimental, ADR-0144). In
   `probstat.linalg`: the `LinearOperator` protocol with validated operators
   (dense, diagonal, callback, selection, permutation, first differences and

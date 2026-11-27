@@ -42,6 +42,7 @@ LAYER = {
     "probstat.workflow": 7,
     "probstat.timeseries": 7,
     "probstat.methodlab": 7,
+    "probstat.aerospace": 7,
     "probstat.visualization": 9,
 }
 

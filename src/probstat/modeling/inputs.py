@@ -41,7 +41,7 @@ import warnings
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from statistics import NormalDist
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol, cast, runtime_checkable
 
 from probstat.distributions import Categorical
 from probstat.foundations.random_streams import RandomStream, resolve_stream
@@ -73,6 +73,38 @@ from .copulas import (
 
 _STANDARD_NORMAL = NormalDist()
 _LOG_SQRT_TWO_PI = 0.5 * math.log(2.0 * math.pi)
+# ``math.sqrt`` is correctly rounded, so the constant equals ``math.sqrt(2.0)``
+# evaluated at every call (checked bit for bit in the equivalence tests).
+_SQRT2 = math.sqrt(2.0)
+_FLOAT_ONLY = frozenset((float,))
+_UPPER_CLAMP = 1.0 - 2.0**-53
+
+
+def _checked_vector(values: Iterable[object], name: str) -> Vector:
+    """Return :func:`~probstat.linalg.as_vector` of ``values`` with a fast path.
+
+    A vector whose entries are all exactly of type ``float`` and finite is
+    returned as the tuple of its entries, which is what the validator returns
+    for it. Anything else (other number types, non-finite entries) goes through
+    the validator itself, so values, exception types and messages are those of
+    ``as_vector(values, name=name)``. The finiteness test ``isfinite(sum)`` is
+    exact in the sense needed: a non-finite entry always makes the sum
+    non-finite, and a finite sum that overflowed only sends the vector to the
+    validator, which accepts it.
+
+    References:
+        Project validation policy [REF-PROBSTAT-VALIDATION]. No equation is evaluated.
+
+    """
+    try:
+        items = tuple(values)
+    except TypeError as error:
+        raise TypeError(f"{name} must be iterable") from error
+    if _FLOAT_ONLY.issuperset(map(type, items)):
+        floats = cast("Vector", items)
+        if math.isfinite(sum(floats)):
+            return floats
+    return as_vector(items, name=name)
 
 
 @runtime_checkable
@@ -474,7 +506,7 @@ def standard_normal_cdf(z: float) -> float:
         [REF-NIST-DLMF, Equation 7.2.2].
 
     """
-    return 0.5 * math.erfc(-z / math.sqrt(2.0))
+    return 0.5 * math.erfc(-z / _SQRT2)
 
 
 def standard_normal_quantile(probability: float) -> float:
@@ -558,10 +590,28 @@ def _marginal_from_latent(law: Marginal, z: float) -> float:
         [REF-LIU-DERKIUREGHIAN-1986].
 
     """
-    inverse_survival = None if is_discrete_law(law) else getattr(law, "isf", None)
+    return _latent_value(law, is_discrete_law(law), z)
+
+
+def _latent_value(law: Marginal, discrete: bool, z: float) -> float:
+    """Return ``F^-1(Phi(z))`` for a law whose discreteness is already known.
+
+    Body of :func:`_marginal_from_latent` with the ``is_discrete_law`` test
+    hoisted out so that :class:`JointInput` can reuse the flags it computed at
+    construction; the floating-point expressions are unchanged.
+
+    Equation:
+        [EQ-MOD-NATAF-001], [EQ-DIST-ISF-001].
+
+    References:
+        [REF-LIU-DERKIUREGHIAN-1986].
+
+    """
+    inverse_survival = None if discrete else getattr(law, "isf", None)
     if z > 0.0 and inverse_survival is not None:
-        return float(inverse_survival(max(standard_normal_cdf(-z), 1e-300)))
-    probability = min(max(standard_normal_cdf(z), 1e-300), 1.0 - 2.0**-53)
+        # -(-z) == z exactly, so this is Phi(-z) of the original expression.
+        return float(inverse_survival(max(0.5 * math.erfc(z / _SQRT2), 1e-300)))
+    probability = min(max(0.5 * math.erfc(-z / _SQRT2), 1e-300), _UPPER_CLAMP)
     return float(law.quantile(probability))
 
 
@@ -1018,6 +1068,7 @@ class JointInput:
     _rosenblatt: bool = field(init=False, repr=False, compare=False)
     _discrete: tuple[bool, ...] = field(init=False, repr=False, compare=False)
     _copula: Copula = field(init=False, repr=False, compare=False)
+    _names: tuple[str, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         """Validate names and the copula; cache the Nataf factors.
@@ -1038,6 +1089,7 @@ class JointInput:
         inputs = tuple(self.inputs)
         _validated_names(inputs)
         object.__setattr__(self, "inputs", inputs)
+        object.__setattr__(self, "_names", tuple(item.name for item in inputs))
         discrete = tuple(item.is_discrete for item in inputs)
         object.__setattr__(self, "_discrete", discrete)
         object.__setattr__(self, "_rosenblatt", False)
@@ -1305,7 +1357,7 @@ class JointInput:
             [REF-SMITH-UQ-2024, Chapter 3].
 
         """
-        return tuple(item.name for item in self.inputs)
+        return self._names
 
     @property
     def dimension(self) -> int:
@@ -1483,7 +1535,7 @@ class JointInput:
             [REF-SMITH-UQ-2024, Chapter 3]. No equation is evaluated.
 
         """
-        vector = as_vector(x, name="x")
+        vector = _checked_vector(x, "x")
         if len(vector) != self.dimension:
             raise ValueError("input vector length must equal the dimension")
         return dict(zip(self.names, vector, strict=True))
@@ -1703,7 +1755,7 @@ class JointInput:
             [REF-LIU-DERKIUREGHIAN-1986], [REF-ROSENBLATT-1952].
 
         """
-        vector = as_vector(u, name="u")
+        vector = _checked_vector(u, "u")
         if len(vector) != self.dimension:
             raise ValueError("u length must equal the dimension")
         if self._rosenblatt:
@@ -1717,8 +1769,12 @@ class JointInput:
             )
         latent = vector if self.is_independent else matvec(self._lower, vector)
         return tuple(
-            _marginal_from_latent(item.distribution, z)
-            for item, z in zip(self.inputs, latent, strict=True)
+            [
+                _latent_value(item.distribution, flag, z)
+                for item, z, flag in zip(
+                    self.inputs, latent, self._discrete, strict=True
+                )
+            ]
         )
 
     def from_unit(self, point: Sequence[float]) -> Vector:
@@ -1749,15 +1805,18 @@ class JointInput:
             [REF-ROSENBLATT-1952].
 
         """
-        coordinates = as_vector(point, name="point")
+        coordinates = _checked_vector(point, "point")
         if len(coordinates) != self.dimension:
             raise ValueError("design point length must equal the dimension")
-        if any(not 0.0 < value < 1.0 for value in coordinates):
+        # Every entry is finite here, so "not 0 < v < 1" is "v <= 0 or v >= 1".
+        if coordinates and (min(coordinates) <= 0.0 or max(coordinates) >= 1.0):
             raise ValueError("design coordinates must lie strictly inside (0, 1)")
         if self.is_independent:
             return tuple(
-                float(item.distribution.quantile(value))
-                for item, value in zip(self.inputs, coordinates, strict=True)
+                [
+                    float(item.distribution.quantile(value))
+                    for item, value in zip(self.inputs, coordinates, strict=True)
+                ]
             )
         if self._rosenblatt:
             return self._from_copula_point(self._copula.inverse_rosenblatt(coordinates))

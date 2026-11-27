@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from operator import mul
 
 from .dense import Matrix, Vector, as_matrix, as_vector, solve_upper
 
@@ -80,10 +81,20 @@ class HouseholderQR:
         target = as_vector(right_hand_side, name="right_hand_side")
         if len(target) != len(self.q):
             raise ValueError("right_hand_side length must equal the row count")
-        projected = tuple(
-            math.fsum(self.q[i][j] * target[i] for i in range(len(target)))
-            for j in range(len(self.r))
-        )
+        width = len(self.r)
+        try:
+            q_columns = tuple(zip(*self.q, strict=True))
+        except ValueError:
+            q_columns = ()
+        if len(q_columns) == width:
+            projected = tuple(
+                math.fsum(map(mul, column, target)) for column in q_columns
+            )
+        else:  # malformed hand-built factor: keep the reference behaviour
+            projected = tuple(
+                math.fsum(self.q[i][j] * target[i] for i in range(len(target)))
+                for j in range(width)
+            )
         return solve_upper(self.r, projected)
 
     def r_inverse(self) -> Matrix:
@@ -129,17 +140,17 @@ class HouseholderQR:
         """
         inverse = self.r_inverse()
         size = len(inverse)
-        rows: list[Vector] = []
+        # Entry (i, j) is a correctly rounded sum of the products
+        # ``inverse[i][k] * inverse[j][k]``; the products commute exactly, so
+        # entry (j, i) is the same float and only ``j >= i`` is formed.
+        rows = [[0.0] * size for _ in range(size)]
         for i in range(size):
-            rows.append(
-                tuple(
-                    math.fsum(
-                        inverse[i][k] * inverse[j][k] for k in range(max(i, j), size)
-                    )
-                    for j in range(size)
-                )
-            )
-        return tuple(rows)
+            row_i = inverse[i]
+            for j in range(i, size):
+                total = math.fsum(map(mul, row_i[j:], inverse[j][j:]))
+                rows[i][j] = total
+                rows[j][i] = total
+        return tuple(tuple(row) for row in rows)
 
     def hat_diagonal(self) -> Vector:
         """Return the diagonal of the orthogonal projector ``Q Q'``.
@@ -155,7 +166,7 @@ class HouseholderQR:
             [REF-MONTGOMERY-PECK-VINING-2021, Chapter 6].
 
         """
-        return tuple(math.fsum(value * value for value in row) for row in self.q)
+        return tuple(math.fsum(map(mul, row, row)) for row in self.q)
 
 
 def householder_qr(
@@ -214,27 +225,31 @@ def householder_qr(
         reflectors.append(vector)
         for j in range(k, columns):
             column = work[j]
-            projection = 2.0 * math.fsum(
-                vector[i] * column[k + i] for i in range(rows - k)
-            )
+            tail = column[k:]
+            projection = 2.0 * math.fsum(map(mul, vector, tail))
             if projection != 0.0:
-                for i in range(rows - k):
-                    column[k + i] -= projection * vector[i]
+                column[k:] = [
+                    c - projection * v for c, v in zip(tail, vector, strict=True)
+                ]
     upper = tuple(
         tuple(work[j][i] if j >= i else 0.0 for j in range(columns))
         for i in range(columns)
     )
+    finite_reflectors = all(all(map(math.isfinite, v)) for v in reflectors)
     q_columns: list[list[float]] = []
     for j in range(columns):
         column = [1.0 if i == j else 0.0 for i in range(rows)]
-        for k in range(columns - 1, -1, -1):
+        # Reflectors ``k > j`` act on the all-zero tail ``column[k:]`` and
+        # leave it unchanged (their projection is exactly zero), so they are
+        # skipped; this is the structure of ``H_0 ... H_(p-1) e_j``.
+        for k in range(j if finite_reflectors else columns - 1, -1, -1):
             vector = reflectors[k]
-            projection = 2.0 * math.fsum(
-                vector[i] * column[k + i] for i in range(rows - k)
-            )
+            tail = column[k:]
+            projection = 2.0 * math.fsum(map(mul, vector, tail))
             if projection != 0.0:
-                for i in range(rows - k):
-                    column[k + i] -= projection * vector[i]
+                column[k:] = [
+                    c - projection * v for c, v in zip(tail, vector, strict=True)
+                ]
         q_columns.append(column)
     q = tuple(tuple(q_columns[j][i] for j in range(columns)) for i in range(rows))
     deficient = tuple(

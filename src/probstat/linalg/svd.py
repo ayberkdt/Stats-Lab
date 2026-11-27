@@ -21,7 +21,9 @@ from __future__ import annotations
 
 import math
 import operator
+from collections.abc import Sequence
 from dataclasses import dataclass
+from operator import mul, truediv
 
 from probstat.foundations.validation import require_finite_real
 
@@ -32,8 +34,8 @@ DEFAULT_JACOBI_TOLERANCE = 1e-15
 _MACHINE_EPSILON = 2.0**-52
 
 
-def _dot(left: list[float], right: list[float]) -> float:
-    """Return a correctly rounded inner product of two equal-length lists.
+def _dot(left: Sequence[float], right: Sequence[float]) -> float:
+    """Return a correctly rounded inner product of two equal-length sequences.
 
     Args:
         left: First vector.
@@ -172,16 +174,18 @@ class SingularValueDecomposition:
             if value > threshold
         ]
         rows, columns = self.shape
-        return tuple(
-            tuple(
-                math.fsum(
-                    self.v[i][index] * self.u[j][index] / self.singular_values[index]
-                    for index in kept
+        kept_values = [self.singular_values[index] for index in kept]
+        u_kept = [[self.u[j][index] for index in kept] for j in range(rows)]
+        result: list[Vector] = []
+        for i in range(columns):
+            v_kept = [self.v[i][index] for index in kept]
+            result.append(
+                tuple(
+                    math.fsum(map(truediv, map(mul, v_kept, u_row), kept_values))
+                    for u_row in u_kept
                 )
-                for j in range(rows)
             )
-            for i in range(columns)
-        )
+        return tuple(result)
 
     def reconstruct(self) -> Matrix:
         """Return ``U diag(sigma) V'``.
@@ -197,16 +201,26 @@ class SingularValueDecomposition:
 
         """
         rows, columns = self.shape
-        k = len(self.singular_values)
-        return tuple(
-            tuple(
-                math.fsum(
-                    self.u[i][index] * self.singular_values[index] * self.v[j][index]
-                    for index in range(k)
+        values = self.singular_values
+        k = len(values)
+        u_rows = [self.u[i][:k] for i in range(rows)]
+        v_rows = [self.v[j][:k] for j in range(columns)]
+        if any(len(row) != k for row in u_rows) or any(len(row) != k for row in v_rows):
+            # Malformed hand-built factors: keep the reference IndexError.
+            return tuple(
+                tuple(
+                    math.fsum(
+                        self.u[i][index] * values[index] * self.v[j][index]
+                        for index in range(k)
+                    )
+                    for j in range(columns)
                 )
-                for j in range(columns)
+                for i in range(rows)
             )
-            for i in range(rows)
+        # ``(u_ik s_k) v_jk``: the left-to-right product of the reference.
+        return tuple(
+            tuple(math.fsum(map(mul, scaled, v_row)) for v_row in v_rows)
+            for scaled in (list(map(mul, u_row, values)) for u_row in u_rows)
         )
 
     def _threshold(self, tolerance: float | None) -> float:
@@ -298,9 +312,12 @@ def _one_sided_jacobi(
         [REF-HESTENES-1958], [REF-GOLUB-VANLOAN-2013, Sections 8.5-8.6].
 
     """
+    # Every column has the same length (built so by ``_tall_svd``), so the
+    # rotations below zip without the ``strict`` length check.
     size = len(columns)
     v = [[1.0 if i == j else 0.0 for i in range(size)] for j in range(size)]
-    norms = [_dot(column, column) for column in columns]
+    fsum = math.fsum
+    norms = [fsum(map(mul, column, column)) for column in columns]
     for sweep in range(1, max_sweeps + 1):
         rotated = False
         for p in range(size - 1):
@@ -308,7 +325,7 @@ def _one_sided_jacobi(
                 alpha, beta = norms[p], norms[q]
                 if alpha == 0.0 or beta == 0.0:
                     continue
-                gamma = _dot(columns[p], columns[q])
+                gamma = fsum(map(mul, columns[p], columns[q]))
                 if abs(gamma) <= tolerance * math.sqrt(alpha) * math.sqrt(beta):
                     continue
                 rotated = True
@@ -317,13 +334,14 @@ def _one_sided_jacobi(
                 c = 1.0 / math.hypot(1.0, t)
                 s = c * t
                 cp, cq = columns[p], columns[q]
-                columns[p] = [c * a - s * b for a, b in zip(cp, cq, strict=True)]
-                columns[q] = [s * a + c * b for a, b in zip(cp, cq, strict=True)]
+                columns[p] = [c * a - s * b for a, b in zip(cp, cq, strict=False)]
+                columns[q] = [s * a + c * b for a, b in zip(cp, cq, strict=False)]
                 vp, vq = v[p], v[q]
-                v[p] = [c * a - s * b for a, b in zip(vp, vq, strict=True)]
-                v[q] = [s * a + c * b for a, b in zip(vp, vq, strict=True)]
-                norms[p] = _dot(columns[p], columns[p])
-                norms[q] = _dot(columns[q], columns[q])
+                v[p] = [c * a - s * b for a, b in zip(vp, vq, strict=False)]
+                v[q] = [s * a + c * b for a, b in zip(vp, vq, strict=False)]
+                columns_p, columns_q = columns[p], columns[q]
+                norms[p] = fsum(map(mul, columns_p, columns_p))
+                norms[q] = fsum(map(mul, columns_q, columns_q))
         if not rotated:
             return v, sweep
     raise ValueError("one-sided Jacobi SVD did not converge")
@@ -370,7 +388,7 @@ def _tall_svd(
     if zero:
         _complete_orthonormal(work, zero, len(work[0]))
     if q is not None:
-        u_columns = [[_dot(list(q[i]), column) for i in range(rows)] for column in work]
+        u_columns = [[_dot(q[i], column) for i in range(rows)] for column in work]
     else:
         u_columns = work
     u = tuple(tuple(u_columns[j][i] for j in range(size)) for i in range(rows))

@@ -50,6 +50,8 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
+from itertools import islice
+from operator import add
 
 from probstat.inverse.pde_models import TridiagonalFactorization
 from probstat.linalg import OperatorBase
@@ -490,14 +492,14 @@ class _HeatOperator(OperatorBase):
         """
         if self._scheme_name == "implicit_euler":
             return list(u)
-        n = self.cells
         k = 0.5 * self._dt * self._c
-        out = [0.0] * n
-        for i in range(n):
-            left = u[i - 1] if i > 0 else 0.0
-            right = u[i + 1] if i < n - 1 else 0.0
-            out[i] = u[i] - k * (2.0 * u[i] - left - right)
-        return out
+        padded = [0.0, *u, 0.0]
+        return [
+            centre - k * (2.0 * centre - left - right)
+            for centre, left, right in zip(
+                u, padded, islice(padded, 2, None), strict=False
+            )
+        ]
 
     def _observe_add(self, step: int, u: Sequence[float], out: list[float]) -> None:
         """Add the contribution of the state at ``step`` to the observations.
@@ -559,10 +561,11 @@ class _HeatOperator(OperatorBase):
         u = list(initial) if initial is not None else [0.0] * n
         out = [0.0] * self.shape[0]
         self._observe_add(0, u, out)
+        scaled = None if source is None else [self._dt * q for q in source]
         for step in range(1, self._last_step + 1):
             rhs = self._apply_b(u)
-            if source is not None:
-                rhs = [r + self._dt * q for r, q in zip(rhs, source, strict=True)]
+            if scaled is not None:
+                rhs = list(map(add, rhs, scaled))
             u = self._factorization.solve(rhs)
             self._counts[2] += 1
             self._observe_add(step, u, out)
@@ -599,7 +602,7 @@ class _HeatOperator(OperatorBase):
                 self._counts[3] += 1
             self._observe_transpose_add(step, y, a)
             if source:
-                total = [t + v for t, v in zip(total, a, strict=True)]
+                total = list(map(add, total, a))
         self._counts[1] += 1
         if not source:
             return a

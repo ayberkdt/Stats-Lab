@@ -362,6 +362,10 @@ the noisy-time mean keeps a bias that more steps do not remove
 `validate_sensitivities` report, rather than assume, whether a cheap model
 saves work or gives usable gradients.
 
+See also [Nonlinear Bayesian inversion](nonlinear-bayesian-inversion.md) for
+the Laplace approximation, the prior-respecting samplers, transport maps,
+local-approximation MCMC, nonlinear design and an applied heat-flux case.
+
 ## 8. Benchmarks and the inverse crime
 
 Data generated with the same discretization that inverts them make every

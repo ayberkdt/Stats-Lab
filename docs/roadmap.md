@@ -404,6 +404,43 @@ covariance has to pass.
   factors and a spherical-harmonic gravity case; every task of the
   roadmap is verified, with its limitations recorded in
   [`research/inverse-expansion-progress.md`](research/inverse-expansion-progress.md).
+- [x] Laplace, RTO, RML, gpCN and DILI posteriors for nonlinear problems,
+  triangular transport maps and SVGD, nonlinear Bayesian design, the
+  Aristoff-Bangerth benchmark and the `InverseStudy` report (ADR-0145).
+
+## Aerospace, Gaussian-process and hybrid-model track (0.28, experimental)
+
+- [x] The `aerospace` package: liquid engines, solid motors, thermoacoustic
+  stability, planar ascent with dispersion, engine and vehicle reliability,
+  conjunction probability and atmospheric entry with heat-shield sizing,
+  with a guide and a lab (ADR-0145).
+- [x] The inverse heat conduction problem for thermal-protection systems
+  (ADR-0145).
+- [x] Regenerative nozzle cooling, debris penetration risk and
+  local-approximation MCMC for expensive forward models (ADR-0145).
+- [x] Probabilistic shell buckling against the SP-8007 knockdown and
+  calibration of field-valued simulators (ADR-0145).
+- [x] Engine health monitoring with prognostics and thermocouple placement
+  for heat-flux reconstruction (ADR-0145).
+- [x] Latent force models and two aerospace laboratories (mission risk,
+  hot-fire test campaign) (ADR-0145).
+- [x] Turbopump cavitation risk and post-flight entry reconstruction
+  (ADR-0145).
+- [x] Orbital lifetime and disposal compliance; nonlinear multi-fidelity
+  Gaussian processes (ADR-0145).
+- [x] Structural model updating from modal data and ascent wind loads
+  (ADR-0145).
+- [x] Attitude estimation with pointing budgets and spacecraft thermal model
+  correlation (ADR-0145).
+- [x] Spacecraft power budgets and inertia identification (ADR-0145).
+- [x] Transitional MCMC with model-class selection, time-variant
+  reliability (PHI2, first passage) and reliability sensitivities
+  (ADR-0145).
+- [x] Advanced and fully Bayesian Gaussian processes, Kennedy-O'Hagan
+  calibration with an emulator, reduced-order and physics-informed hybrid
+  models (ADR-0145).
+- [x] Bit-identical speed-ups of the linear-algebra, GP and sampling hot
+  paths with equivalence tests (ADR-0145).
 
 ## Beyond the current scope
 

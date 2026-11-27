@@ -642,6 +642,18 @@ from .studentized_range import (
     studentized_range_quantile,
     studentized_range_sf,
 )
+from .transitional_mcmc import (
+    EvidenceDecomposition,
+    HierarchicalCalibrationResult,
+    ModelAveragedPredictive,
+    ModelSelection,
+    TMCMCResult,
+    decompose_log_evidence,
+    hierarchical_calibration,
+    model_averaged_predictive,
+    model_class_selection,
+    transitional_mcmc,
+)
 from .variational import VariationalResult, advi
 from .zero_count_models import (
     VuongTest,
@@ -652,6 +664,16 @@ from .zero_count_models import (
 )
 
 __all__ = [
+    "transitional_mcmc",
+    "TMCMCResult",
+    "decompose_log_evidence",
+    "EvidenceDecomposition",
+    "model_class_selection",
+    "ModelSelection",
+    "model_averaged_predictive",
+    "ModelAveragedPredictive",
+    "hierarchical_calibration",
+    "HierarchicalCalibrationResult",
     "DelayedAcceptanceResult",
     "delayed_acceptance_metropolis",
     "GeneralizedParetoFit",

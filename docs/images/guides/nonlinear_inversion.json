@@ -1,0 +1,14 @@
+{
+  "inversion-heat-flux-6mm": {
+    "guide": "nonlinear-bayesian-inversion",
+    "alt": "Heat flux against time: a dashed true triangular pulse, the Gaussian-process posterior mean with a shaded 95 percent band, and a Tikhonov estimate, from a sensor 6 mm deep",
+    "facts": {
+      "depth_mm": "6",
+      "gp_error": "0.191",
+      "discrepancy_error": "0.111",
+      "gcv_error": "50.5",
+      "covered": "30",
+      "points": "30"
+    }
+  }
+}

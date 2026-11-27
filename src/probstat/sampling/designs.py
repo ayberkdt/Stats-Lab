@@ -23,6 +23,7 @@ import math
 import warnings
 from collections.abc import Sequence
 from dataclasses import dataclass
+from operator import xor
 
 from probstat.distributions.normal import Normal
 from probstat.foundations.random_streams import RandomStream, resolve_stream
@@ -156,6 +157,23 @@ def _open_unit(value: float) -> float:
     return min(max(value, tiny), 1.0 - tiny)
 
 
+def _open_unit_row(row: list[float]) -> tuple[float, ...]:
+    """Return ``row`` with every coordinate clamped as by :func:`_open_unit`.
+
+    A row that is already inside ``[2^-53, 1 - 2^-53]`` is returned unchanged,
+    exactly what clamping each entry would give; the common case therefore
+    costs two reductions instead of one function call per coordinate.
+
+    References:
+        [REF-OWEN-2013, Section 17.1]. No equation is evaluated.
+
+    """
+    tiny = 2.0**-53
+    if min(row) < tiny or max(row) > 1.0 - tiny:
+        return tuple(min(max(value, tiny), 1.0 - tiny) for value in row)
+    return tuple(row)
+
+
 def monte_carlo_design(
     size: int, dimension: int, *, seed: int | RandomStream | None = None
 ) -> SamplingDesign:
@@ -179,9 +197,9 @@ def monte_carlo_design(
     _check_size_dimension(size, dimension)
     stream = resolve_stream(seed)
     generator = stream.generator()
+    draw = generator.random
     points = tuple(
-        tuple(_open_unit(generator.random()) for _ in range(dimension))
-        for _ in range(size)
+        _open_unit_row([draw() for _ in range(dimension)]) for _ in range(size)
     )
     return SamplingDesign(points, "mc", True, stream.seed)
 
@@ -215,17 +233,17 @@ def latin_hypercube(
     _check_size_dimension(size, dimension)
     stream = resolve_stream(seed)
     generator = stream.generator()
-    columns: list[list[float]] = []
+    columns: list[tuple[float, ...]] = []
+    draw = generator.random
     for _ in range(dimension):
         permutation = list(range(size))
         generator.shuffle(permutation)
-        columns.append(
-            [
-                _open_unit((stratum + (0.5 if centered else generator.random())) / size)
-                for stratum in permutation
-            ]
-        )
-    points = tuple(tuple(column[row] for column in columns) for row in range(size))
+        if centered:
+            column = [(stratum + 0.5) / size for stratum in permutation]
+        else:
+            column = [(stratum + draw()) / size for stratum in permutation]
+        columns.append(_open_unit_row(column))
+    points = tuple(zip(*columns, strict=True))
     return SamplingDesign(points, "lhs", True, stream.seed)
 
 
@@ -542,12 +560,17 @@ def sobol(
         centre = 1 << (_SOBOL_BITS - bits - 1)
     state = [0] * dimension
     raw: list[list[int]] = []
+    # Direction integers of every axis for one Gray-code bit, so that a point
+    # costs one XOR sweep (a fresh list per point replaces the copy).
+    by_bit = [
+        [directions[axis][bit] for axis in range(dimension)]
+        for bit in range(_SOBOL_BITS)
+    ]
     for index in range(total):
         if index >= skip:
-            raw.append(list(state))
+            raw.append(state)
         changed = ((index + 1) & -(index + 1)).bit_length() - 1
-        for axis in range(dimension):
-            state[axis] ^= directions[axis][changed]
+        state = list(map(xor, state, by_bit[changed]))
     if mode == "owen":
         assert generator is not None
         columns = []
@@ -559,11 +582,8 @@ def sobol(
         raw = [[columns[axis][i] for axis in range(dimension)] for i in range(size)]
     scale = 2.0**-_SOBOL_BITS
     points = tuple(
-        tuple(
-            _open_unit(((row[axis] ^ shifts[axis]) + centre) * scale)
-            for axis in range(dimension)
-        )
-        for row in raw
+        _open_unit_row([((value ^ shift) + centre) * scale for value, shift in pairs])
+        for pairs in (zip(row, shifts, strict=True) for row in raw)
     )
     return SamplingDesign(
         points, "sobol", mode != "none", stream.seed if stream else None

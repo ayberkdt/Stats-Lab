@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import math
 import statistics
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
+from itertools import repeat
+from operator import mul, sub
+from typing import Any, cast
 
 from probstat.foundations.validation import (
     require_finite_real,
@@ -319,8 +322,8 @@ def estimate_sobol_indices(
     if len(a) < 2:
         raise ValueError("at least two rows are required")
     n, dimension = len(a), len(a[0])
-    ya = tuple(_evaluate(model, row) for row in a)
-    yb = tuple(_evaluate(model, row) for row in b)
+    ya = _evaluate_rows(model, a)
+    yb = _evaluate_rows(model, b)
     if estimator != "saltelli2010":
         return _alternative_sobol(model, a, b, ya, yb, estimator)
     variance = statistics.pvariance(ya + yb)
@@ -330,39 +333,24 @@ def estimate_sobol_indices(
     centre = statistics.fmean(ya + yb)
     if variance == 0.0:
         raise ValueError("Sobol indices require positive output variance")
+    # The same products as the original generator expressions, formed by C
+    # iterators; ``fsum`` sees identical operands in identical order.
+    centred_b = [v - centre for v in yb]
     first: list[float] = []
     total: list[float] = []
     for i in range(dimension):
-        values = tuple(
-            _evaluate(model, a_row[:i] + (b_row[i],) + a_row[i + 1 :])
-            for a_row, b_row in zip(a, b, strict=True)
-        )
-        first.append(
-            math.fsum((yb[k] - centre) * (values[k] - ya[k]) for k in range(n))
-            / n
-            / variance
-        )
+        values = _evaluate_rows(model, _hybrid_rows(a, b, i))
+        differences = list(map(sub, values, ya))
+        first.append(math.fsum(map(mul, centred_b, differences)) / n / variance)
         total.append(
-            0.5 * math.fsum((ya[k] - values[k]) ** 2 for k in range(n)) / n / variance
+            0.5 * math.fsum(map(pow, map(sub, ya, values), repeat(2))) / n / variance
         )
     second = [[0.0] * dimension for _ in range(dimension)]
     pair_evaluations = 0
     for i in range(dimension):
         for j in range(i + 1, dimension):
-            values = tuple(
-                _evaluate(
-                    model,
-                    tuple(
-                        b_row[k] if k in (i, j) else a_row[k] for k in range(dimension)
-                    ),
-                )
-                for a_row, b_row in zip(a, b, strict=True)
-            )
-            closed = (
-                math.fsum((yb[k] - centre) * (values[k] - ya[k]) for k in range(n))
-                / n
-                / variance
-            )
+            values = _evaluate_rows(model, _pair_rows(a, b, i, j))
+            closed = math.fsum(map(mul, centred_b, map(sub, values, ya))) / n / variance
             second[i][j] = second[j][i] = closed - first[i] - first[j]
             pair_evaluations += n
     evaluations = n * (2 + dimension) + pair_evaluations
@@ -411,26 +399,12 @@ def _alternative_sobol(
 
     """
     n, dimension = len(a), len(a[0])
-    yab = [
-        tuple(
-            _evaluate(model, a_row[:i] + (b_row[i],) + a_row[i + 1 :])
-            for a_row, b_row in zip(a, b, strict=True)
-        )
-        for i in range(dimension)
-    ]
+    yab = [_evaluate_rows(model, _hybrid_rows(a, b, i)) for i in range(dimension)]
     first, total, variance = alternative_indices(estimator, ya, yb, yab)
     second = [[0.0] * dimension for _ in range(dimension)]
     for i in range(dimension):
         for j in range(i + 1, dimension):
-            values = tuple(
-                _evaluate(
-                    model,
-                    tuple(
-                        b_row[k] if k in (i, j) else a_row[k] for k in range(dimension)
-                    ),
-                )
-                for a_row, b_row in zip(a, b, strict=True)
-            )
+            values = _evaluate_rows(model, _pair_rows(a, b, i, j))
             closed = closed_index(estimator, ya, yb, values, variance)
             second[i][j] = second[j][i] = closed - first[i] - first[j]
     pairs = dimension * (dimension - 1) // 2
@@ -444,6 +418,9 @@ def _alternative_sobol(
     )
 
 
+_FLOAT_ONLY = {float}
+
+
 def _matrix(
     rows: Iterable[Sequence[object]], name: str
 ) -> tuple[tuple[float, ...], ...]:
@@ -453,12 +430,24 @@ def _matrix(
         [REF-SALTELLI-2010]. No sensitivity equation is evaluated.
 
     """
-    result = tuple(
-        tuple(
-            require_finite_real(v, name=f"{name}[{i}][{j}]") for j, v in enumerate(row)
-        )
-        for i, row in enumerate(rows)
-    )
+    isfinite: Callable[[Any], bool] = math.isfinite
+    built: list[tuple[float, ...]] = []
+    for i, row in enumerate(rows):
+        if (
+            type(row) in (tuple, list)
+            and set(map(type, row)) <= _FLOAT_ONLY
+            and all(map(isfinite, row))
+        ):
+            # fast path: exact finite floats only
+            built.append(tuple(cast("Sequence[float]", row)))
+        else:
+            built.append(
+                tuple(
+                    require_finite_real(v, name=f"{name}[{i}][{j}]")
+                    for j, v in enumerate(row)
+                )
+            )
+    result = tuple(built)
     if not result or not result[0] or any(len(row) != len(result[0]) for row in result):
         raise ValueError(f"{name} must be a non-empty rectangular matrix")
     return result
@@ -474,6 +463,62 @@ def _evaluate(
 
     """
     return require_finite_real(model(row), name="model output")
+
+
+def _hybrid_rows(
+    a: tuple[tuple[float, ...], ...], b: tuple[tuple[float, ...], ...], i: int
+) -> Iterator[tuple[float, ...]]:
+    """Yield the rows of ``A`` with column ``i`` taken from ``B``.
+
+    References:
+        [REF-SALTELLI-2010]. No new equation is introduced.
+
+    """
+    for a_row, b_row in zip(a, b, strict=True):
+        yield a_row[:i] + (b_row[i],) + a_row[i + 1 :]
+
+
+def _pair_rows(
+    a: tuple[tuple[float, ...], ...],
+    b: tuple[tuple[float, ...], ...],
+    i: int,
+    j: int,
+) -> Iterator[tuple[float, ...]]:
+    """Yield the rows of ``A`` with columns ``i < j`` taken from ``B``.
+
+    References:
+        [REF-SALTELLI-2010]. No new equation is introduced.
+
+    """
+    for a_row, b_row in zip(a, b, strict=True):
+        row = list(a_row)
+        row[i] = b_row[i]
+        row[j] = b_row[j]
+        yield tuple(row)
+
+
+def _evaluate_rows(
+    model: Callable[[tuple[float, ...]], float], rows: Iterable[tuple[float, ...]]
+) -> tuple[float, ...]:
+    """Evaluate the model on every row in order and validate each response.
+
+    The common case, a finite built-in ``float``, is accepted inline; any other
+    response goes through :func:`require_finite_real` so errors are unchanged.
+
+    References:
+        [REF-SALTELLI-2010]. No new equation is introduced.
+
+    """
+    result: list[float] = []
+    append = result.append
+    isfinite = math.isfinite
+    for row in rows:
+        value = model(row)
+        if type(value) is float and isfinite(value):
+            append(value)
+        else:
+            append(require_finite_real(value, name="model output"))
+    return tuple(result)
 
 
 def _finite_tuple(values: Iterable[object], name: str) -> tuple[float, ...]:

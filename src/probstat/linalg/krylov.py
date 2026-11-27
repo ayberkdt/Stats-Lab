@@ -39,6 +39,7 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from operator import mul
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 
@@ -74,7 +75,10 @@ def _dot(left: Sequence[float], right: Sequence[float]) -> float:
         [REF-GOLUB-VANLOAN-2013, Section 1.1]. No named equation is needed.
 
     """
-    return math.fsum(a * b for a, b in zip(left, right, strict=True))
+    if len(left) != len(right):
+        # Raise the exact error of the strict zip this check replaces.
+        list(zip(left, right, strict=True))
+    return math.fsum(map(mul, left, right))
 
 
 def _axpy(alpha: float, x: Sequence[float], y: Sequence[float]) -> list[float]:
@@ -84,7 +88,10 @@ def _axpy(alpha: float, x: Sequence[float], y: Sequence[float]) -> list[float]:
         [REF-GOLUB-VANLOAN-2013, Section 1.1]. No named equation is needed.
 
     """
-    return [alpha * a + b for a, b in zip(x, y, strict=True)]
+    if len(x) != len(y):
+        # Raise the exact error of the strict zip this check replaces.
+        list(zip(x, y, strict=True))
+    return [alpha * a + b for a, b in zip(x, y, strict=False)]
 
 
 def _scale(alpha: float, x: Sequence[float]) -> list[float]:
@@ -548,6 +555,9 @@ def lsqr(
     arnorm = alpha * beta
     anorm = acond = nan
     damp2 = damp * damp
+    # ``x = x0 + z`` is only needed by the callback and at exit, so it is
+    # formed lazily; the values are those of the eager update.
+    x_stale = False
     for k in range(1, limit + 1):
         av = counted.matvec(v)
         u = _axpy(-alpha, u, av)
@@ -584,7 +594,7 @@ def lsqr(
         z = _axpy(t1, w, z)
         w = _axpy(t2, w, v)
         ddnorm += _dot(dk, dk)
-        x = [a + c for a, c in zip(x0, z, strict=True)]
+        x_stale = True
         res2 += psi * psi
         augmented = math.sqrt(phibar * phibar + res2)
         znorm = _norm(z)
@@ -594,9 +604,12 @@ def lsqr(
         residuals.append(rnorm)
         normals.append(arnorm)
         iterations = k
-        if callback is not None and callback(k, tuple(x), rnorm):
-            reason = "callback"
-            break
+        if callback is not None:
+            x = [a + c for a, c in zip(x0, z, strict=True)]
+            x_stale = False
+            if callback(k, tuple(x), rnorm):
+                reason = "callback"
+                break
         if augmented <= b_tol * bnorm + a_tol * anorm * znorm:
             reason = "residual_tolerance"
             break
@@ -612,6 +625,8 @@ def lsqr(
         if alpha == 0.0:
             reason = "normal_tolerance"
             break
+    if x_stale:
+        x = [a + c for a, c in zip(x0, z, strict=True)]
     return _finish(
         counted,
         b,
@@ -750,6 +765,9 @@ def lsmr(
     normar = alpha * beta
     norm_a = cond_a = nan
     x = list(x0)
+    # ``x = x0 + z`` is only needed by the callback and at exit, so it is
+    # formed lazily; the values are those of the eager update.
+    x_stale = False
     for k in range(1, limit + 1):
         u = _axpy(-alpha, u, counted.matvec(v))
         beta = _norm(u)
@@ -805,15 +823,18 @@ def lsmr(
             minrbar = min(minrbar, rhobarold)
         cond_a = max(maxrbar, rhotemp) / min(minrbar, rhotemp)
         normar = abs(zetabar)
-        x = [a + c2 for a, c2 in zip(x0, z, strict=True)]
+        x_stale = True
         znorm = _norm(z)
         normr = math.sqrt(max(augmented * augmented - damp * damp * znorm * znorm, 0.0))
         residuals.append(normr)
         normals.append(normar)
         iterations = k
-        if callback is not None and callback(k, tuple(x), normr):
-            reason = "callback"
-            break
+        if callback is not None:
+            x = [a + c2 for a, c2 in zip(x0, z, strict=True)]
+            x_stale = False
+            if callback(k, tuple(x), normr):
+                reason = "callback"
+                break
         if augmented <= b_tol * bnorm + a_tol * norm_a * znorm:
             reason = "residual_tolerance"
             break
@@ -826,6 +847,8 @@ def lsmr(
         if alpha == 0.0:
             reason = "normal_tolerance"
             break
+    if x_stale:
+        x = [a + c2 for a, c2 in zip(x0, z, strict=True)]
     return _finish(
         counted,
         b,

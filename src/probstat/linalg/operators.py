@@ -34,6 +34,9 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from functools import cache
+from itertools import islice, repeat
+from operator import add, mul, sub, truediv
 from typing import Protocol, runtime_checkable
 
 from .dense import Matrix, Vector
@@ -61,8 +64,19 @@ def _vector(values: Sequence[float], size: int, name: str) -> Vector:
         evaluated.
 
     """
+    kind = type(values)
+    if (
+        (kind is tuple or kind is list)
+        and len(values) == size
+        and list(map(type, values)).count(float) == size
+        # Every entry is an exact ``float``, so a finite total proves that
+        # no entry is infinite or NaN (an overflowing total of finite
+        # entries only sends the vector down the entrywise path below).
+        and math.isfinite(sum(values))
+    ):
+        return tuple(values)  # an exact tuple is returned as it is
     try:
-        vector = tuple(float(value) for value in values)
+        vector = tuple(map(float, values))
     except (TypeError, ValueError) as error:
         raise TypeError(f"{name} must be a sequence of real numbers") from error
     if len(vector) != size:
@@ -436,10 +450,9 @@ class DenseOperator(OperatorBase):
             [EQ-LINALG-OP-001].
 
         """
-        return tuple(
-            math.fsum(a * b for a, b in zip(row, vector, strict=True))
-            for row in self._rows
-        )
+        # ``vector`` was validated to the row width, so ``map`` pairs every
+        # entry (the former ``zip(strict=True)`` could not raise here).
+        return tuple(math.fsum(map(mul, row, vector)) for row in self._rows)
 
     def _transpose(self, vector: Vector) -> Sequence[float]:
         """Return ``A'y`` with compensated column sums.
@@ -448,10 +461,7 @@ class DenseOperator(OperatorBase):
             [EQ-LINALG-OP-001].
 
         """
-        return tuple(
-            math.fsum(a * b for a, b in zip(column, vector, strict=True))
-            for column in self._columns
-        )
+        return tuple(math.fsum(map(mul, column, vector)) for column in self._columns)
 
 
 class IdentityOperator(OperatorBase):
@@ -822,13 +832,15 @@ class FirstDifferenceOperator(OperatorBase):
 
         """
         h = self.spacing
-        n = len(vector)
         if self.boundary == "none":
-            return tuple((vector[i + 1] - vector[i]) / h for i in range(n - 1))
+            return tuple(
+                [(b - a) / h for a, b in zip(vector, vector[1:], strict=False)]
+            )
         if self.boundary == "periodic":
-            return tuple((vector[(i + 1) % n] - vector[i]) / h for i in range(n))
+            shifted = (*vector[1:], *vector[:1])
+            return tuple([(b - a) / h for a, b in zip(vector, shifted, strict=True)])
         padded = (0.0, *vector, 0.0)
-        return tuple((padded[i + 1] - padded[i]) / h for i in range(n + 1))
+        return tuple([(b - a) / h for a, b in zip(padded, padded[1:], strict=False)])
 
     def _transpose(self, vector: Vector) -> Sequence[float]:
         """Apply the transposed stencil (a negative backward difference).
@@ -838,23 +850,19 @@ class FirstDifferenceOperator(OperatorBase):
 
         """
         h = self.spacing
-        n = self._shape[1]
-        result = [0.0] * n
+        scaled = [value / h for value in vector]
+        # Every ``result[m]`` receives its terms in the order of the former
+        # scatter loop (the term of the earlier row first, then the minus term
+        # of the later row), starting from ``0.0``; the ends get one term.
+        inner = [
+            (0.0 + earlier) - later
+            for earlier, later in zip(scaled, islice(scaled, 1, None), strict=False)
+        ]
         if self.boundary == "none":
-            for i, value in enumerate(vector):
-                result[i] -= value / h
-                result[i + 1] += value / h
-        elif self.boundary == "periodic":
-            for i, value in enumerate(vector):
-                result[i] -= value / h
-                result[(i + 1) % n] += value / h
-        else:
-            for i, value in enumerate(vector):
-                if i < n:
-                    result[i] += value / h
-                if i >= 1:
-                    result[i - 1] -= value / h
-        return result
+            return [0.0 - scaled[0], *inner, 0.0 + scaled[-1]]
+        if self.boundary == "periodic":
+            return [(0.0 - scaled[0]) + scaled[-1], *inner]
+        return inner
 
 
 class GridGradientOperator(OperatorBase):
@@ -911,16 +919,19 @@ class GridGradientOperator(OperatorBase):
         """
         r, c = self.rows_count, self.columns_count
         hy, hx = self.spacing
-        dx = [0.0] * (r * c)
-        dy = [0.0] * (r * c)
-        for i in range(r):
-            base = i * c
-            for j in range(c):
-                k = base + j
-                if j + 1 < c:
-                    dx[k] = (vector[k + 1] - vector[k]) / hx
-                if i + 1 < r:
-                    dy[k] = (vector[k + c] - vector[k]) / hy
+        size = r * c
+        dx = [0.0] * size
+        dy = [0.0] * size
+        # Horizontal differences exclude the last column of every row; the
+        # vertical ones exclude the last row, so one pass covers all rows.
+        for base in range(0, size, c):
+            stop = base + c - 1
+            dx[base:stop] = map(
+                truediv,
+                map(sub, vector[base + 1 : stop + 1], vector[base:stop]),
+                repeat(hx),
+            )
+        dy[: size - c] = map(truediv, map(sub, vector[c:size], vector), repeat(hy))
         return dx + dy
 
     def _transpose(self, vector: Vector) -> Sequence[float]:
@@ -934,22 +945,105 @@ class GridGradientOperator(OperatorBase):
         hy, hx = self.spacing
         size = r * c
         result = [0.0] * size
-        for i in range(r):
-            base = i * c
-            for j in range(c):
-                k = base + j
-                if j + 1 < c:
-                    value = vector[k] / hx
-                    result[k] -= value
-                    result[k + 1] += value
-                if i + 1 < r:
-                    value = vector[size + k] / hy
-                    result[k] -= value
-                    result[k + c] += value
+        scaled_x = list(map(truediv, vector[:size], repeat(hx)))
+        scaled_y = list(map(truediv, vector[size:], repeat(hy)))
+        # Each ``result[m]`` receives its terms in the order of the former
+        # raster loop: the vertical term of the row above, the horizontal term
+        # of the left neighbour, then the minus terms of the node itself
+        # (horizontal before vertical); every pass below is one of these.
+        above = size - c
+        result[c:] = map(add, result[c:], scaled_y)
+        for base in range(0, size, c):
+            stop = base + c - 1
+            result[base + 1 : stop + 1] = map(
+                add, result[base + 1 : stop + 1], scaled_x[base:stop]
+            )
+        for base in range(0, size, c):
+            stop = base + c - 1
+            result[base:stop] = map(sub, result[base:stop], scaled_x[base:stop])
+        result[:above] = map(sub, result[:above], scaled_y)
         return result
 
 
 _CONVOLUTION_BOUNDARIES = ("zero", "periodic", "reflect")
+_MIN_BLOCK = 8
+_MAX_FUSED_TAPS = 24
+
+
+@cache
+def _fused_forward(taps: int) -> Callable[..., Callable[..., list[float]]]:
+    """Return a builder of a one-pass ``fsum`` row kernel for ``taps`` taps.
+
+    ``_fused_forward(k)(w0, ..., w_k-1)`` is a function of ``k`` equally long
+    slices ``s0, ..., s_k-1`` that returns ``[fsum((w0 * a0, ..., w_k-1 *
+    a_k-1)) for (a0, ..., a_k-1) in zip(s0, ...)]``; the source text is made of
+    the tap count only.
+
+    Args:
+        taps: Number of taps ``k`` (positive).
+
+    Returns:
+        The builder.
+
+    References:
+        [EQ-LINALG-OP-004].
+
+    """
+    weights = ", ".join(f"w{t}" for t in range(taps))
+    slices = ", ".join(f"s{t}" for t in range(taps))
+    # the trailing comma makes a single target unpack its one-tuple
+    values = ", ".join(f"a{t}" for t in range(taps)) + ","
+    terms = ", ".join(f"w{t} * a{t}" for t in range(taps))
+    source = (
+        f"def build({weights}):\n"
+        f"    def run({slices}):\n"
+        f"        return [fsum(({terms},))"
+        f" for {values} in zip({slices}, strict=True)]\n"
+        "    return run\n"
+    )
+    namespace: dict[str, object] = {"fsum": math.fsum}
+    exec(source, namespace)  # noqa: S102 - integers only; see the docstring
+    builder: Callable[..., Callable[..., list[float]]] = namespace["build"]  # type: ignore[assignment]
+    return builder
+
+
+@cache
+def _fused_scatter(taps: int) -> Callable[..., Callable[..., list[float]]]:
+    """Return a builder of a one-pass scatter-add kernel for ``taps`` taps.
+
+    ``_fused_scatter(k)(w0, ..., w_k-1)`` is a function of the current values
+    ``r`` and ``k`` equally long slices ``s0, ..., s_k-1`` that returns ``[(...
+    ((r + w0 * a0) + w1 * a1) ...) + w_k-1 * a_k-1 for ...]``: the additions
+    of the taps into one entry, in the order of the taps, as a plain sum.
+
+    Args:
+        taps: Number of taps ``k`` (positive).
+
+    Returns:
+        The builder.
+
+    References:
+        [EQ-LINALG-OP-004].
+
+    """
+    weights = ", ".join(f"w{t}" for t in range(taps))
+    slices = ", ".join(f"s{t}" for t in range(taps))
+    # the trailing comma makes a single target unpack its one-tuple
+    values = ", ".join(f"a{t}" for t in range(taps)) + ","
+    expression = "r"
+    for t in range(taps):
+        expression = f"({expression} + w{t} * a{t})"
+    source = (
+        f"def build({weights}):\n"
+        f"    def run(rs, {slices}):\n"
+        f"        return [{expression}"
+        f" for r, {values} in zip(rs, {slices}, strict=True)]\n"
+        "    return run\n"
+    )
+    namespace: dict[str, object] = {}
+    exec(source, namespace)  # noqa: S102 - integers only; see the docstring
+    builder: Callable[..., Callable[..., list[float]]] = namespace["build"]  # type: ignore[assignment]
+    return builder
 
 
 class Convolution1DOperator(OperatorBase):
@@ -966,7 +1060,22 @@ class Convolution1DOperator(OperatorBase):
 
     """
 
-    __slots__ = ("boundary", "kernel", "_taps")
+    __slots__ = (
+        "boundary",
+        "kernel",
+        "_block",
+        "_block_offsets",
+        "_edge_passes",
+        "_flat",
+        "_forward_block",
+        "_head_flat",
+        "_middle",
+        "_row_indices",
+        "_row_weights",
+        "_scatter_block",
+        "_tail_flat",
+        "_taps",
+    )
 
     def __init__(
         self, kernel: Sequence[float], size: int, *, boundary: str = "zero"
@@ -1004,7 +1113,78 @@ class Convolution1DOperator(OperatorBase):
                     row.append((i, mapped, weight))
             taps.append(tuple(row))
         self._taps = tuple(taps)
+        self._flat = tuple(tap for row in self._taps for tap in row)
+        self._row_indices = tuple(tuple(tap[1] for tap in row) for row in self._taps)
+        self._row_weights = tuple(tuple(tap[2] for tap in row) for row in self._taps)
+        self._find_block(size)
         super().__init__(size, size, name=f"convolution ({boundary})")
+
+    def _find_block(self, size: int) -> None:
+        """Locate the run of rows that all apply the same shifted stencil.
+
+        Away from the ends every row reads ``x_(i + d)`` with the same offsets
+        ``d`` and weights, which lets ``_forward`` and ``_transpose`` work on
+        whole slices. A run is used only if it is contiguous, has at least
+        :data:`_MIN_BLOCK` rows and distinct offsets; otherwise the block is
+        empty and the row-by-row path is used throughout.
+
+        References:
+            [EQ-LINALG-OP-004].
+
+        """
+        self._block = (0, 0)
+        self._block_offsets: tuple[tuple[int, float], ...] = ()
+        self._forward_block: Callable[..., list[float]] | None = None
+        self._scatter_block: Callable[..., list[float]] | None = None
+        self._middle: tuple[int, int, tuple[int, ...]] = (0, 0, ())
+        self._edge_passes: tuple[tuple[int, int, int, float], ...] = ()
+        self._head_flat: tuple[tuple[int, int, float], ...] = ()
+        self._tail_flat: tuple[tuple[int, int, float], ...] = ()
+        signatures = [
+            (tuple(j - i for _, j, _ in row), tuple(w for _, _, w in row))
+            for i, row in enumerate(self._taps)
+        ]
+        reference = signatures[size // 2]
+        matching = [
+            i for i, signature in enumerate(signatures) if signature == reference
+        ]
+        low, high = matching[0], matching[-1] + 1
+        offsets, weights = reference
+        if (
+            high - low != len(matching)
+            or len(matching) < _MIN_BLOCK
+            or len(set(offsets)) != len(offsets)
+            or not offsets
+        ):
+            return
+        self._block = (low, high)
+        self._block_offsets = tuple(zip(offsets, weights, strict=True))
+        self._head_flat = tuple(tap for row in self._taps[:low] for tap in row)
+        self._tail_flat = tuple(tap for row in self._taps[high:] for tap in row)
+        count = len(offsets)
+        fused = count <= _MAX_FUSED_TAPS
+        if fused:
+            self._forward_block = _fused_forward(count)(*weights)
+        # Scatter passes in order of decreasing offset ``d``: for every ``j``
+        # that is increasing row ``i = j - d``, the order of the row loop.
+        taps = sorted(zip(offsets, weights, strict=True), key=lambda tap: -tap[0])
+        first_full = low + taps[0][0]
+        last_full = high + taps[-1][0]
+        if not fused or first_full >= last_full:
+            self._edge_passes = tuple((low + d, high + d, low, w) for d, w in taps)
+            return
+        self._middle = (first_full, last_full, tuple(first_full - d for d, _ in taps))
+        self._scatter_block = _fused_scatter(count)(*(w for _, w in taps))
+        # Entries ``j`` outside ``[first_full, last_full)`` miss some taps.
+        edges = []
+        for d, w in taps:
+            for first, last in (
+                (low + d, min(high + d, first_full)),
+                (max(low + d, last_full), high + d),
+            ):
+                if first < last:
+                    edges.append((first, last, first - d, w))
+        self._edge_passes = tuple(edges)
 
     def _map(self, index: int, size: int) -> int | None:
         """Map a possibly out-of-range index by the boundary rule.
@@ -1030,9 +1210,37 @@ class Convolution1DOperator(OperatorBase):
             [EQ-LINALG-OP-004].
 
         """
-        return tuple(
-            math.fsum(weight * vector[j] for _, j, weight in row) for row in self._taps
+        low, high = self._block
+        fetch = vector.__getitem__
+        rows = zip(self._row_indices, self._row_weights, strict=True)
+        if high == low:
+            return tuple(
+                math.fsum(map(mul, weights, map(fetch, indices)))
+                for indices, weights in rows
+            )
+        head = [
+            math.fsum(map(mul, weights, map(fetch, indices)))
+            for indices, weights in islice(rows, low)
+        ]
+        # Rows ``low .. high - 1`` share one stencil: ``fsum`` of the products
+        # of every tap's shifted slice, in the taps' order.
+        slices = [
+            vector[low + offset : high + offset] for offset, _ in self._block_offsets
+        ]
+        kernel = self._forward_block
+        if kernel is not None:
+            head.extend(kernel(*slices))
+        else:
+            streams = [
+                map(mul, repeat(weight), values)
+                for (_, weight), values in zip(self._block_offsets, slices, strict=True)
+            ]
+            head.extend(map(math.fsum, zip(*streams, strict=True)))
+        head.extend(
+            math.fsum(map(mul, weights, map(fetch, indices)))
+            for indices, weights in islice(rows, high - low, None)
         )
+        return tuple(head)
 
     def _transpose(self, vector: Vector) -> Sequence[float]:
         """Return ``K'y`` by scatter-adding through the index map.
@@ -1042,9 +1250,31 @@ class Convolution1DOperator(OperatorBase):
 
         """
         result = [0.0] * self._shape[1]
-        for row in self._taps:
-            for i, j, weight in row:
+        # ``_flat`` lists the taps row by row, tap by tap, so the additions
+        # into every ``result[j]`` follow the order of the nested loops. The
+        # shared-stencil rows are applied tap by tap on whole slices, largest
+        # offset first (that is, increasing row ``i = j - d`` for every ``j``),
+        # between the leading and the trailing rows' scatter loops.
+        low, high = self._block
+        if high == low:
+            for i, j, weight in self._flat:
                 result[j] += weight * vector[i]
+            return result
+        for i, j, weight in self._head_flat:
+            result[j] += weight * vector[i]
+        kernel = self._scatter_block
+        if kernel is not None:
+            first, last, starts = self._middle
+            length = last - first
+            result[first:last] = kernel(
+                result[first:last], *(vector[k : k + length] for k in starts)
+            )
+        for first, last, start, weight in self._edge_passes:
+            result[first:last] = map(
+                add, result[first:last], map(mul, repeat(weight), vector[start:])
+            )
+        for i, j, weight in self._tail_flat:
+            result[j] += weight * vector[i]
         return result
 
 
@@ -1505,6 +1735,85 @@ class CountingOperator(OperatorBase):
         """
         return OperatorCounts(self._forward_calls, self._transpose_calls)
 
+    def _plain(self, name: str) -> OperatorBase | None:
+        """Return the base when it validates exactly as :class:`OperatorBase`.
+
+        The base qualifies when ``matvec``/``rmatvec`` (``name``) is not
+        overridden on its class or instance and its shape equals this
+        wrapper's, so the wrapper's own checks can stand in for the base's.
+
+        References:
+            [EQ-LINALG-OP-001].
+
+        """
+        base = self.base
+        if not isinstance(base, OperatorBase):
+            return None
+        if getattr(type(base), name) is not getattr(OperatorBase, name):
+            return None
+        instance = getattr(base, "__dict__", None)
+        if instance is not None and name in instance:
+            return None
+        if base.shape != self._shape:
+            return None
+        return base
+
+    def matvec(self, vector: Sequence[float]) -> Vector:
+        """Return ``A x`` and count the call.
+
+        Args:
+            vector: Finite vector of length ``n``.
+
+        Returns:
+            Finite vector of length ``m``.
+
+        Raises:
+            TypeError: If an entry is not real.
+            ValueError: If the length is wrong or a value (input or output)
+                is not finite.
+
+        References:
+            [EQ-LINALG-OP-001].
+
+        """
+        base = self._plain("matvec")
+        if base is None:
+            return super().matvec(vector)
+        rows, columns = self._shape
+        checked = _vector(vector, columns, f"{self.name} input")
+        self._forward_calls += 1
+        # The base would re-check ``checked`` (it passed the same test) and
+        # this wrapper would re-check the base's validated output.
+        return _vector(base._forward(checked), rows, f"{base.name} output")
+
+    def rmatvec(self, vector: Sequence[float]) -> Vector:
+        """Return ``A'y`` and count the call.
+
+        Args:
+            vector: Finite vector of length ``m``.
+
+        Returns:
+            Finite vector of length ``n``.
+
+        Raises:
+            TypeError: If an entry is not real.
+            ValueError: If the length is wrong or a value (input or output)
+                is not finite.
+
+        References:
+            [EQ-LINALG-OP-001].
+
+        """
+        base = self._plain("rmatvec")
+        if base is None:
+            return super().rmatvec(vector)
+        rows, columns = self._shape
+        checked = _vector(vector, rows, f"{self.name} transpose input")
+        self._transpose_calls += 1
+        return _vector(
+            base._transpose(checked), columns, f"{base.name} transpose output"
+        )
+
     def _forward(self, vector: Vector) -> Sequence[float]:
         """Count and apply ``A``.
 
@@ -1562,7 +1871,7 @@ def materialize(
         unit = [0.0] * columns
         unit[j] = 1.0
         columns_list.append(_apply(checked, unit))
-    return tuple(tuple(column[i] for column in columns_list) for i in range(rows))
+    return tuple(zip(*columns_list, strict=True))
 
 
 @dataclass(frozen=True, slots=True)
@@ -1621,8 +1930,8 @@ def adjoint_test(
     yv = _vector(y, rows, "y")
     ax = _apply(checked, xv)
     aty = _apply_transpose(checked, yv)
-    forward = math.fsum(a * b for a, b in zip(yv, ax, strict=True))
-    backward = math.fsum(a * b for a, b in zip(aty, xv, strict=True))
+    forward = math.fsum(map(mul, yv, ax))
+    backward = math.fsum(map(mul, aty, xv))
     scale = math.hypot(*ax) * math.hypot(*yv) + math.hypot(*xv) * math.hypot(*aty)
     error = abs(forward - backward) / scale if scale > 0.0 else 0.0
     tol = _real(tolerance, "tolerance")

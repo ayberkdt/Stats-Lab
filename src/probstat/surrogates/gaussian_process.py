@@ -36,7 +36,8 @@ import math
 import warnings
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from operator import mul
+from functools import reduce
+from operator import add, mul
 
 from probstat.foundations.random_streams import RandomStream, resolve_stream
 from probstat.foundations.validation import require_finite_real
@@ -381,6 +382,64 @@ def _length_scale_factor(kernel: str, squared: float) -> float:
     return (5.0 / 3.0) * (1.0 + _SQRT5 * r) * math.exp(-_SQRT5 * r)
 
 
+def _cross_covariance(
+    kernel: str,
+    point: Sequence[float],
+    train: Sequence[Sequence[float]],
+    scales: Sequence[float],
+    signal: float,
+) -> tuple[float, ...]:
+    """Return ``(k(point, x_1), ..., k(point, x_n))`` for a stationary kernel.
+
+    Entry for entry the value of :func:`kernel_value`: the squared scaled
+    differences are formed axis by axis over all training points and summed
+    with ``math.fsum`` per point. Anything the bulk form cannot reproduce
+    (unknown kernel, ragged inputs, a failing operation) is computed point by
+    point with :func:`kernel_value`, so exceptions are the reference ones.
+
+    Equation:
+        [EQ-SUR-GP-001], [EQ-SUR-GP-002], [EQ-SUR-GP-008].
+
+    References:
+        [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
+
+    """
+    dimension = len(point)
+    if (
+        dimension > 0
+        and kernel in KERNELS
+        and len(scales) == dimension
+        and set(map(len, train)) == {dimension}
+    ):
+        try:
+            squares = [
+                [((a - b) / ell) ** 2 for b in column]
+                for a, column, ell in zip(
+                    point, zip(*train, strict=True), scales, strict=True
+                )
+            ]
+            sums = list(map(math.fsum, zip(*squares, strict=True)))
+            exp = math.exp
+            if kernel == "squared_exponential":
+                return tuple([signal * exp(-0.5 * squared) for squared in sums])
+            if kernel == "matern52":
+                radii = list(map(math.sqrt, sums))
+                return tuple(
+                    [
+                        signal
+                        * ((1.0 + _SQRT5 * r + 5.0 * squared / 3.0) * exp(-_SQRT5 * r))
+                        for r, squared in zip(radii, sums, strict=True)
+                    ]
+                )
+            radii = list(map(math.sqrt, sums))
+            return tuple(
+                [signal * ((1.0 + _SQRT3 * r) * exp(-_SQRT3 * r)) for r in radii]
+            )
+        except (ArithmeticError, ValueError):
+            pass
+    return tuple(kernel_value(kernel, point, other, scales, signal) for other in train)
+
+
 def _split_parameters(
     log_parameters: Sequence[float], dimension: int, estimate_noise: bool
 ) -> tuple[float, Vector, float]:
@@ -647,6 +706,8 @@ def _assemble(
     signal: float,
     noise: float,
     kernel: str,
+    *,
+    derivatives: bool = True,
 ) -> tuple[
     list[list[float]],
     list[list[tuple[float, ...]]],
@@ -658,6 +719,16 @@ def _assemble(
     The squared scaled differences ``((x_ia - x_ja)/ell_a)^2`` are formed
     exactly as in :func:`kernel_value`, so the fitted surrogate factorizes
     bit-for-bit the matrix the likelihood saw.
+
+    Args:
+        points: Training inputs.
+        scales: Length scales.
+        signal: Signal variance.
+        noise: Diagonal noise variance of the matrix.
+        kernel: Kernel name.
+        derivatives: When ``False`` only the rows of ``K`` are formed (the
+            other three results are empty lists); the rows are bit-identical
+            either way.
 
     Returns:
         Lower-triangle rows of ``K``, per-pair scaled squared differences,
@@ -678,40 +749,93 @@ def _assemble(
     matrix: list[list[float]] = []
     squared_exponential = kernel == "squared_exponential"
     matern32 = kernel == "matern32"
+    exp = math.exp
+    sqrt = math.sqrt
+    fsum = math.fsum
+    dimension = len(scales)
+    # With equal-length points the squared differences are formed axis by
+    # axis (same ``((a - b) / ell) ** 2`` per entry, no per-pair unpacking);
+    # otherwise the pairwise strict ``zip`` reports the length mismatch.
+    uniform = dimension > 0 and all(len(point) == dimension for point in points)
+    axes = (
+        [[point[axis] for point in points] for axis in range(dimension)]
+        if uniform
+        else []
+    )
     for i in range(count):
-        row_parts: list[tuple[float, ...]] = []
-        row_corr: list[float] = []
-        row_factor: list[float] = []
-        row_matrix: list[float] = []
         xi = points[i]
-        for j in range(i):
-            difference = tuple(
-                ((a - b) / ell) ** 2
-                for a, b, ell in zip(xi, points[j], scales, strict=True)
-            )
-            squared = math.fsum(difference)
-            if squared_exponential:
-                value = math.exp(-0.5 * squared)
-                factor = value
-            elif matern32:
-                r = math.sqrt(squared)
-                decay = math.exp(-_SQRT3 * r)
-                value = (1.0 + _SQRT3 * r) * decay
-                factor = 3.0 * decay
-            else:
-                r = math.sqrt(squared)
-                decay = math.exp(-_SQRT5 * r)
-                value = (1.0 + _SQRT5 * r + 5.0 * squared / 3.0) * decay
-                factor = (5.0 / 3.0) * (1.0 + _SQRT5 * r) * decay
-            row_parts.append(difference)
-            row_corr.append(value)
-            row_factor.append(factor)
-            row_matrix.append(signal * value)
+        if uniform:
+            failed = False
+            try:
+                pairs = zip(
+                    *[
+                        [((xi[axis] - other) / ell) ** 2 for other in axes[axis][:i]]
+                        for axis, ell in enumerate(scales)
+                    ],
+                    strict=True,
+                )
+                if derivatives:
+                    row_parts = list(pairs)
+                    squared_sums = list(map(fsum, row_parts))
+                else:
+                    row_parts = []
+                    squared_sums = list(map(fsum, pairs))
+            except (ArithmeticError, ValueError):
+                failed = True
+            if failed:
+                # The row forms every square before it sums any; replay it
+                # pair by pair so that the first failing operation of the
+                # reference order is the one reported.
+                for j in range(i):
+                    fsum(
+                        [
+                            ((a - b) / ell) ** 2
+                            for a, b, ell in zip(xi, points[j], scales, strict=True)
+                        ]
+                    )
+                raise AssertionError("row failed in bulk but not pair by pair")
+        else:
+            row_parts = [
+                tuple(
+                    [
+                        ((a - b) / ell) ** 2
+                        for a, b, ell in zip(xi, points[j], scales, strict=True)
+                    ]
+                )
+                for j in range(i)
+            ]
+            squared_sums = list(map(fsum, row_parts))
+        # One comprehension per quantity of the row; each entry is the same
+        # expression, on the same operands, as the former per-pair loop.
+        if squared_exponential:
+            row_corr = [exp(-0.5 * squared) for squared in squared_sums]
+            row_factor = list(row_corr)
+        elif matern32:
+            radii = list(map(sqrt, squared_sums))
+            decays = [exp(-_SQRT3 * r) for r in radii]
+            row_corr = [
+                (1.0 + _SQRT3 * r) * decay
+                for r, decay in zip(radii, decays, strict=True)
+            ]
+            row_factor = [3.0 * decay for decay in decays]
+        else:
+            radii = list(map(sqrt, squared_sums))
+            decays = [exp(-_SQRT5 * r) for r in radii]
+            row_corr = [
+                (1.0 + _SQRT5 * r + 5.0 * squared / 3.0) * decay
+                for r, squared, decay in zip(radii, squared_sums, decays, strict=True)
+            ]
+            row_factor = [
+                (5.0 / 3.0) * (1.0 + _SQRT5 * r) * decay
+                for r, decay in zip(radii, decays, strict=True)
+            ]
+        row_matrix = [signal * value for value in row_corr]
         row_matrix.append(signal + noise)
-        parts.append(row_parts)
-        correlation.append(row_corr)
-        factors.append(row_factor)
         matrix.append(row_matrix)
+        if derivatives:
+            parts.append(row_parts)
+            correlation.append(row_corr)
+            factors.append(row_factor)
     return matrix, parts, correlation, factors
 
 
@@ -805,25 +929,28 @@ def gaussian_process_log_marginal_likelihood(
     value = -0.5 * _sumprod(y, alpha)
     value += -0.5 * log_det - 0.5 * count * _LOG_TWO_PI
     columns = _inverse_factor_columns(lower)
+    sumprod = _sumprod
     diagonal_weight = [
         alpha[a] * alpha[a] - _sumprod(columns[a], columns[a]) for a in range(count)
     ]
     trace_weight = math.fsum(diagonal_weight)
     signal_sum = 0.0
     axis_sums = [0.0] * dimension
-    for b in range(count):
+    for b in range(1, count):
         alpha_b = alpha[b]
         column_b = columns[b]
-        row_corr = correlation[b]
-        row_factor = factors[b]
-        row_parts = parts[b]
-        for a in range(b):
-            weight = alpha[a] * alpha_b - _sumprod(columns[a][b - a :], column_b)
-            signal_sum += weight * row_corr[a]
-            scaled_weight = weight * row_factor[a]
-            difference = row_parts[a]
-            for axis in range(dimension):
-                axis_sums[axis] += scaled_weight * difference[axis]
+        weights = [
+            alpha_a * alpha_b - sumprod(columns[a][b - a :], column_b)
+            for a, alpha_a in enumerate(alpha[:b])
+        ]
+        # ``reduce(add, ...)`` adds term by term in the order of the former
+        # scalar loop, so every accumulator sees the same rounding sequence.
+        signal_sum = reduce(add, map(mul, weights, correlation[b]), signal_sum)
+        scaled = list(map(mul, weights, factors[b]))
+        for axis, differences in enumerate(zip(*parts[b], strict=True)):
+            axis_sums[axis] = reduce(
+                add, map(mul, scaled, differences), axis_sums[axis]
+            )
     return value, _gradient(
         signal, trace_weight, signal_sum, axis_sums, tau, extra, estimate_noise
     )
@@ -934,7 +1061,9 @@ class GaussianProcessRegression:
         object.__setattr__(self, "_factorization", factorization)
         object.__setattr__(self, "_dense_factor", dense_factor)
         signal, scales, noise, lower, _ = factorization
-        rows, _, _, _ = _assemble(self.points, scales, signal, noise, self.kernel)
+        rows, _, _, _ = _assemble(
+            self.points, scales, signal, noise, self.kernel, derivatives=False
+        )
         if dense_factor is None:
             condition = _condition_number(rows, lower)
         else:
@@ -963,7 +1092,9 @@ class GaussianProcessRegression:
         if self.relative_nugget > 0.0:
             noise += self.relative_nugget * signal
         count = len(self.points)
-        rows, _, _, _ = _assemble(self.points, scales, signal, noise, self.kernel)
+        rows, _, _, _ = _assemble(
+            self.points, scales, signal, noise, self.kernel, derivatives=False
+        )
         targets = tuple(
             (value - self.output_mean) / self.output_scale for value in self.values
         )
@@ -1037,16 +1168,16 @@ class GaussianProcessRegression:
         if len(point) != len(self.points[0]):
             raise ValueError("x must have the training input dimension")
         signal, scales, noise, lower, alpha = self._factorization
-        cross = tuple(
-            kernel_value(self.kernel, point, train, scales, signal)
-            for train in self.points
-        )
-        mean = math.fsum(a * b for a, b in zip(cross, alpha, strict=True))
+        cross = _cross_covariance(self.kernel, point, self.points, scales, signal)
+        if len(cross) == len(alpha):
+            mean = math.fsum(map(mul, cross, alpha))
+        else:
+            mean = math.fsum(a * b for a, b in zip(cross, alpha, strict=True))
         if self._dense_factor is None:
             whitened = solve_lower(lower, cross)
         else:
             whitened = self._dense_factor.solve_lower(cross)
-        variance = signal - math.fsum(v * v for v in whitened)
+        variance = signal - math.fsum(map(mul, whitened, whitened))
         if include_noise:
             variance += noise
         return (
@@ -1167,7 +1298,12 @@ def _objective_noise(
     try:
         signal, scales, extra = _split_parameters(theta, dimension, estimate_noise)
         rows, _, _, _ = _assemble(
-            points, scales, signal, nugget + extra + tau * signal, kernel
+            points,
+            scales,
+            signal,
+            nugget + extra + tau * signal,
+            kernel,
+            derivatives=False,
         )
         backend = _accelerated_backend()
         if backend is None:

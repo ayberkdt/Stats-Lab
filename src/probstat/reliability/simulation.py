@@ -523,24 +523,29 @@ def _modified_metropolis_chain(
         [EQ-REL-SUBSET-002], [REF-AU-BECK-2001].
 
     """
+    gauss = generator.gauss
+    uniform = generator.random
+    exp = math.exp
+    add_point = points.append
+    add_value = values.append
     current, current_value = start, start_value
-    points.append(current)
-    values.append(current_value)
+    add_point(current)
+    add_value(current_value)
     accepted = 0
     for _ in range(length - 1):
         candidate = []
         for coordinate in current:
-            trial = coordinate + spread * generator.gauss(0.0, 1.0)
-            ratio = math.exp(0.5 * (coordinate * coordinate - trial * trial))
-            candidate.append(trial if generator.random() < ratio else coordinate)
+            trial = coordinate + spread * gauss(0.0, 1.0)
+            ratio = exp(0.5 * (coordinate * coordinate - trial * trial))
+            candidate.append(trial if uniform() < ratio else coordinate)
         proposal = tuple(candidate)
         if proposal != current:
             proposal_value = evaluate(proposal)
             if proposal_value <= threshold:
                 current, current_value = proposal, proposal_value
                 accepted += 1
-        points.append(current)
-        values.append(current_value)
+        add_point(current)
+        add_value(current_value)
     return accepted
 
 
@@ -570,13 +575,16 @@ def _conditional_chain(
         [REF-WANG-BROCCARDO-SONG-2019].
 
     """
+    gauss = generator.gauss
+    add_point = points.append
+    add_value = values.append
     current, current_value = start, start_value
-    points.append(current)
-    values.append(current_value)
+    add_point(current)
+    add_value(current_value)
     accepted = 0
     for _ in range(length - 1):
         proposal = tuple(
-            rho * coordinate + sigma * generator.gauss(0.0, 1.0)
+            rho * coordinate + sigma * gauss(0.0, 1.0)
             for coordinate, rho, sigma in zip(
                 current, correlations, spreads, strict=True
             )
@@ -585,8 +593,8 @@ def _conditional_chain(
         if proposal_value <= threshold:
             current, current_value = proposal, proposal_value
             accepted += 1
-        points.append(current)
-        values.append(current_value)
+        add_point(current)
+        add_value(current_value)
     return accepted
 
 

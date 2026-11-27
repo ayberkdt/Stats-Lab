@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
@@ -319,12 +320,16 @@ def select_outputs(
     if type(outputs) is not dict and not isinstance(outputs, Mapping):
         raise TypeError("model output must be a mapping")
     selected: dict[str, float] = {}
+    isfinite = math.isfinite
     for quantity in quantities:
-        if quantity.name not in outputs:
-            raise ValueError(f"model output is missing QoI {quantity.name!r}")
-        selected[quantity.name] = require_finite_real(
-            outputs[quantity.name], name=f"output[{quantity.name!r}]"
-        )
+        name = quantity.name
+        if name not in outputs:
+            raise ValueError(f"model output is missing QoI {name!r}")
+        value = outputs[name]
+        if type(value) is float and isfinite(value):
+            selected[name] = value  # exact finite float: no validator needed
+        else:
+            selected[name] = require_finite_real(value, name=f"output[{name!r}]")
     return FrozenMapping(selected)
 
 

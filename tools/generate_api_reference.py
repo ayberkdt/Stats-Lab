@@ -77,6 +77,12 @@ GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
         ("cost",),
     ),
     (
+        "Aerospace engineering",
+        "Rocket propulsion models with uncertainty: liquid engines, solid "
+        "motors, and combustion instability.",
+        ("aerospace",),
+    ),
+    (
         "Method development",
         "Estimator combinators, certification checks, pre-specified "
         "simulation studies, and candidate selection.",

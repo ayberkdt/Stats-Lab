@@ -19,6 +19,8 @@ from ._continuous import density_from_log
 from .constraints import FINITE_REAL, POSITIVE_FINITE
 from .support import RealSupport
 
+_STANDARD_NORMAL = NormalDist()
+
 
 @dataclass(frozen=True, slots=True)
 class LogNormal(ContinuousDistribution):
@@ -192,7 +194,11 @@ class LogNormal(ContinuousDistribution):
             [REF-NIST-DISTRIBUTIONS], [REF-PYTHON-STATISTICS].
 
         """
-        target = require_probability(probability, name="probability")
+        target = (
+            probability
+            if type(probability) is float and 0.0 <= probability <= 1.0
+            else require_probability(probability, name="probability")
+        )
         if target == 0.0:
             return 0.0
         if target == 1.0:
@@ -226,13 +232,17 @@ class LogNormal(ContinuousDistribution):
             [REF-NIST-DLMF, Section 7.17], [REF-PYTHON-STATISTICS].
 
         """
-        q = require_probability(probability, name="probability")
+        q = (
+            probability
+            if type(probability) is float and 0.0 <= probability <= 1.0
+            else require_probability(probability, name="probability")
+        )
         if q == 0.0:
             return math.inf
         if q == 1.0:
             return 0.0
         try:
-            return math.exp(self.mu - self.sigma * NormalDist().inv_cdf(q))
+            return math.exp(self.mu - self.sigma * _STANDARD_NORMAL.inv_cdf(q))
         except OverflowError as error:
             raise OverflowError("lognormal quantile exceeds float range") from error
 
@@ -274,9 +284,7 @@ class LogNormal(ContinuousDistribution):
         """
         squared_scale = self.sigma**2
         try:
-            result = math.expm1(squared_scale) * math.exp(
-                2.0 * self.mu + squared_scale
-            )
+            result = math.expm1(squared_scale) * math.exp(2.0 * self.mu + squared_scale)
         except OverflowError as error:
             raise OverflowError("lognormal variance exceeds float range") from error
         if not math.isfinite(result):

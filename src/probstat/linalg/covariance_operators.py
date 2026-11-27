@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
+from operator import mul, truediv
 
 from .dense import Matrix, Vector, as_matrix, cholesky, solve_lower
 from .operators import CallbackOperator, _vector
@@ -161,7 +162,8 @@ class _CovarianceBase:
             [EQ-LINALG-COV-001].
 
         """
-        return math.fsum(value * value for value in self.whiten(vector))
+        whitened = self.whiten(vector)
+        return math.fsum(map(mul, whitened, whitened))
 
     def whitening_operator(self) -> CallbackOperator:
         """Return ``W = C^-1`` as an operator with ``rmatvec = W'``.
@@ -278,9 +280,7 @@ class DiagonalCovariance(_CovarianceBase):
 
         """
         checked = _vector(vector, self.dimension, "vector")
-        return tuple(
-            r / s for r, s in zip(checked, self.standard_deviations, strict=True)
-        )
+        return tuple(map(truediv, checked, self.standard_deviations))
 
     def whiten_transpose(self, vector: Sequence[float]) -> Vector:
         """Return ``v_i / s_i`` (the factor is symmetric).
@@ -299,9 +299,7 @@ class DiagonalCovariance(_CovarianceBase):
 
         """
         checked = _vector(vector, self.dimension, "vector")
-        return tuple(
-            z * s for z, s in zip(checked, self.standard_deviations, strict=True)
-        )
+        return tuple(map(mul, checked, self.standard_deviations))
 
     def unwhiten_transpose(self, vector: Sequence[float]) -> Vector:
         """Return ``s_i v_i``.
@@ -463,11 +461,11 @@ class DenseCovariance(_CovarianceBase):
         """
         values = list(_vector(vector, self.dimension, "vector"))
         size = self.dimension
+        upper = self._upper
         for i in range(size - 1, -1, -1):
-            total = values[i] - math.fsum(
-                self.lower[j][i] * values[j] for j in range(i + 1, size)
-            )
-            values[i] = total / self.lower[i][i]
+            upper_row = upper[i]
+            total = values[i] - math.fsum(map(mul, upper_row[i + 1 :], values[i + 1 :]))
+            values[i] = total / upper_row[i]
         return tuple(values)
 
     def unwhiten(self, vector: Sequence[float]) -> Vector:
@@ -479,7 +477,7 @@ class DenseCovariance(_CovarianceBase):
         """
         checked = _vector(vector, self.dimension, "vector")
         return tuple(
-            math.fsum(row[j] * checked[j] for j in range(i + 1))
+            math.fsum(map(mul, row[: i + 1], checked))
             for i, row in enumerate(self.lower)
         )
 
@@ -492,9 +490,9 @@ class DenseCovariance(_CovarianceBase):
         """
         checked = _vector(vector, self.dimension, "vector")
         size = self.dimension
+        upper = self._upper
         return tuple(
-            math.fsum(self._upper[i][j] * checked[j] for j in range(i, size))
-            for i in range(size)
+            math.fsum(map(mul, upper[i][i:], checked[i:])) for i in range(size)
         )
 
     def log_det(self) -> float:

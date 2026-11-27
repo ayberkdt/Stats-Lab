@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable
+from operator import mul
 
 from probstat.foundations.validation import require_finite_real
 
@@ -182,7 +183,7 @@ def dot(left: Vector, right: Vector) -> float:
     """
     if len(left) != len(right):
         raise ValueError("vectors must have equal length")
-    return math.fsum(a * b for a, b in zip(left, right, strict=True))
+    return math.fsum(map(mul, left, right))
 
 
 def norm(vector: Vector) -> float:
@@ -351,19 +352,26 @@ def cholesky(matrix: Matrix) -> Matrix:
 
     """
     size = len(matrix)
-    lower = [[0.0] * size for _ in range(size)]
+    # Row ``r`` of the factor is built as a list of its ``r + 1`` leading
+    # entries; ``map`` stops at the shorter operand, so each inner product
+    # runs over exactly the ``column`` entries computed so far.
+    rows: list[list[float]] = []
     for row in range(size):
-        for column in range(row + 1):
-            remainder = matrix[row][column] - math.fsum(
-                lower[row][inner] * lower[column][inner] for inner in range(column)
-            )
-            if row == column:
-                if remainder <= 0.0 or not math.isfinite(remainder):
-                    raise ValueError("matrix must be positive definite")
-                lower[row][column] = math.sqrt(remainder)
-            else:
-                lower[row][column] = remainder / lower[column][column]
-    return tuple(tuple(row) for row in lower)
+        source = matrix[row]
+        current: list[float] = []
+        for column in range(row):
+            other = rows[column]
+            remainder = source[column] - math.fsum(map(mul, current, other))
+            current.append(remainder / other[column])
+        remainder = source[row] - math.fsum(map(mul, current, current))
+        if remainder <= 0.0 or not math.isfinite(remainder):
+            raise ValueError("matrix must be positive definite")
+        current.append(math.sqrt(remainder))
+        rows.append(current)
+    return tuple(
+        tuple(current) + (0.0,) * (size - index - 1)
+        for index, current in enumerate(rows)
+    )
 
 
 def cholesky_semidefinite(matrix: Matrix, *, tolerance: float = 1e-12) -> Matrix:
@@ -392,21 +400,28 @@ def cholesky_semidefinite(matrix: Matrix, *, tolerance: float = 1e-12) -> Matrix
     size = len(matrix)
     largest = max(max(abs(value) for value in row) for row in matrix)
     threshold = tolerance * max(1.0, largest)
-    lower = [[0.0] * size for _ in range(size)]
+    rows: list[list[float]] = []
     for row in range(size):
-        for column in range(row + 1):
-            remainder = matrix[row][column] - math.fsum(
-                lower[row][inner] * lower[column][inner] for inner in range(column)
-            )
-            if row == column:
-                if remainder < -threshold:
-                    raise ValueError("matrix must be positive semidefinite")
-                lower[row][column] = math.sqrt(max(0.0, remainder))
-            elif lower[column][column] > threshold:
-                lower[row][column] = remainder / lower[column][column]
+        source = matrix[row]
+        current: list[float] = []
+        for column in range(row):
+            other = rows[column]
+            remainder = source[column] - math.fsum(map(mul, current, other))
+            if other[column] > threshold:
+                current.append(remainder / other[column])
             elif abs(remainder) > threshold:
                 raise ValueError("matrix must be positive semidefinite")
-    return tuple(tuple(row) for row in lower)
+            else:
+                current.append(0.0)
+        remainder = source[row] - math.fsum(map(mul, current, current))
+        if remainder < -threshold:
+            raise ValueError("matrix must be positive semidefinite")
+        current.append(math.sqrt(max(0.0, remainder)))
+        rows.append(current)
+    return tuple(
+        tuple(current) + (0.0,) * (size - index - 1)
+        for index, current in enumerate(rows)
+    )
 
 
 def solve_lower(lower: Matrix, right_hand_side: Vector) -> Vector:
@@ -431,12 +446,13 @@ def solve_lower(lower: Matrix, right_hand_side: Vector) -> Vector:
     """
     solution: list[float] = []
     for row, target in enumerate(right_hand_side):
-        pivot = lower[row][row]
+        lower_row = lower[row]
+        pivot = lower_row[row]
         if pivot == 0.0:
             raise ValueError("triangular matrix is singular")
-        residual = target - math.fsum(
-            lower[row][column] * solution[column] for column in range(row)
-        )
+        # ``solution`` holds exactly ``row`` entries and ``lower_row`` at least
+        # ``row + 1``, so ``map`` pairs ``lower[row][:row]`` with ``solution``.
+        residual = target - math.fsum(map(mul, lower_row, solution))
         solution.append(residual / pivot)
     return tuple(solution)
 
@@ -464,12 +480,20 @@ def solve_upper(upper: Matrix, right_hand_side: Vector) -> Vector:
     size = len(right_hand_side)
     solution = [0.0] * size
     for row in range(size - 1, -1, -1):
-        pivot = upper[row][row]
+        upper_row = upper[row]
+        pivot = upper_row[row]
         if pivot == 0.0:
             raise ValueError("triangular matrix is singular")
-        residual = right_hand_side[row] - math.fsum(
-            upper[row][column] * solution[column] for column in range(row + 1, size)
-        )
+        tail = upper_row[row + 1 : size]
+        if len(tail) != size - row - 1:
+            # A short row: reproduce the reference IndexError exactly.
+            residual = right_hand_side[row] - math.fsum(
+                upper[row][column] * solution[column] for column in range(row + 1, size)
+            )
+        else:
+            residual = right_hand_side[row] - math.fsum(
+                map(mul, tail, solution[row + 1 :])
+            )
         solution[row] = residual / pivot
     return tuple(solution)
 
@@ -560,6 +584,74 @@ def _inverse_from_cholesky(lower: Matrix) -> Matrix:
 
     """
     size = len(lower)
+    if not _unit_solve_is_sparse_exact(lower):
+        return _inverse_from_cholesky_reference(lower)
+    upper = transpose(lower)
+    columns: list[Vector] = []
+    for j in range(size):
+        # Forward substitution for ``e_j``: every entry before ``j`` is an
+        # exact zero and the zero products drop out of the exactly rounded sum,
+        # so only the entries from ``j`` on are formed.
+        forward = [1.0 / lower[j][j]]
+        for i in range(j + 1, size):
+            lower_row = lower[i]
+            residual = 0.0 - math.fsum(map(mul, lower_row[j:i], forward))
+            forward.append(residual / lower_row[i])
+        columns.append(solve_upper(upper, (0.0,) * j + tuple(forward)))
+    return tuple(
+        tuple(0.5 * (columns[j][i] + columns[i][j]) for j in range(size))
+        for i in range(size)
+    )
+
+
+def _unit_solve_is_sparse_exact(lower: Matrix) -> bool:
+    """Return whether unit-vector forward solves may skip their leading zeros.
+
+    The skip is exact for a square factor with finite entries and a strictly
+    positive diagonal (zero products are then exact signed zeros and the
+    quotient of a zero by a positive pivot is ``+0.0``); any other input is
+    sent to the reference loop.
+
+    Args:
+        lower: Candidate lower Cholesky factor.
+
+    Returns:
+        ``True`` when the structure-exploiting loop reproduces the reference
+        bit for bit.
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Section 3.1]. No equation is evaluated.
+
+    """
+    size = len(lower)
+    for index, row in enumerate(lower):
+        if len(row) != size or not row[index] > 0.0:
+            return False
+        if not all(map(math.isfinite, row)):
+            return False
+    return True
+
+
+def _inverse_from_cholesky_reference(lower: Matrix) -> Matrix:
+    """Return ``(L L')^-1`` by one full forward/back solve per unit vector.
+
+    The straightforward loop used for factors that fail the structural
+    guard of :func:`_unit_solve_is_sparse_exact`.
+
+    Args:
+        lower: Lower Cholesky factor.
+
+    Returns:
+        Symmetrized inverse of ``L L'``.
+
+    Equation:
+        [EQ-LINALG-002], [EQ-LINALG-003], [EQ-LINALG-011].
+
+    References:
+        [REF-GOLUB-VANLOAN-2013, Sections 3.1 and 4.2].
+
+    """
+    size = len(lower)
     columns = tuple(
         cholesky_solve(lower, tuple(1.0 if row == j else 0.0 for row in range(size)))
         for j in range(size)
@@ -627,11 +719,15 @@ def lu_solve(matrix: Matrix, right_hand_side: Vector) -> Vector:
             raise ValueError("matrix is singular to working precision")
         work[column], work[pivot_row] = work[pivot_row], work[column]
         pivot = work[column][column]
+        pivot_values = work[column][column:]
         for row in range(column + 1, size):
-            factor = work[row][column] / pivot
+            target = work[row]
+            factor = target[column] / pivot
             if factor != 0.0:
-                for inner in range(column, size + 1):
-                    work[row][inner] -= factor * work[column][inner]
+                target[column:] = [
+                    a - factor * b
+                    for a, b in zip(target[column:], pivot_values, strict=True)
+                ]
     upper = tuple(tuple(row[:size]) for row in work)
     return solve_upper(upper, tuple(row[size] for row in work))
 
@@ -673,11 +769,15 @@ def _lu_diagonal(matrix: Matrix) -> tuple[Vector, int] | None:
             swaps += 1
         pivot = work[column][column]
         diagonal.append(pivot)
+        pivot_values = work[column][column:]
         for row in range(column + 1, size):
-            factor = work[row][column] / pivot
+            target = work[row]
+            factor = target[column] / pivot
             if factor != 0.0:
-                for inner in range(column, size):
-                    work[row][inner] -= factor * work[column][inner]
+                target[column:] = [
+                    a - factor * b
+                    for a, b in zip(target[column:], pivot_values, strict=True)
+                ]
     return tuple(diagonal), swaps
 
 

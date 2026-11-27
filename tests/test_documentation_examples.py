@@ -60,6 +60,7 @@ DOCSTRING_SECTIONS = ("Main entry points:", "Assumptions:", "Common pitfalls:")
 # Package -> its foundation (or prerequisite) guide; the package docstring
 # names the same file on its ``Guide:`` line.
 PACKAGE_GUIDES: dict[str, str] = {
+    "aerospace": "foundations/aerospace-propulsion-uq.md",
     "causal": "foundations/causal-inference.md",
     "conformal": "foundations/conformal-prediction.md",
     "cost": "foundations/cost-analysis.md",

@@ -26224,3 +26224,4824 @@ a conditional density estimator trained on pairs `theta ~ q(theta)`,
 - Meaning: `W A` and `W y` replace `A` and `y` everywhere, so reported misfits are in whitened units and equal `1/2 (A x - y)' Gamma^-1 (A x - y)`; the penalty and its weights are unchanged. Solving with `noise=DiagonalCovariance(v)` equals solving the manually whitened problem up to floating-point rounding.
 - Code: `inverse.sparse_extended.irls_regularized_least_squares`, `inverse.sparse_extended.huber_total_variation_least_squares`, `inverse.sparse_extended.tgv2_least_squares_1d`, `inverse.sparse_extended.tgv2_least_squares_2d`, `inverse.sparse_extended.nonconvex_sparse_least_squares`.
 - Source: [REF-KAIPIO-SOMERSALO-2007], [REF-TARANTOLA-2005].
+
+### EQ-AERO-PC-001 — Encounter-plane projection
+
+`w = v/||v||`, `r_perp = r - (r.w) w`, `e1 = r_perp/||r_perp||`, `e2 = w x e1`,
+`m = (||r_perp||, 0)`, `P = [e1 e2]' (C_1 + C_2) [e1 e2]`, `R = R_1 + R_2`.
+
+- Domain: `r` (m) and `v` (m/s) the relative position and velocity of
+  secondary minus primary, `v != 0`; `C_i` symmetric `3 x 3` position
+  covariances (m^2) in the same coordinates; independent errors; rectilinear
+  relative motion at constant speed; `P` positive definite with condition
+  number below `1e10`.
+- Meaning: during a short high-speed encounter the relative position at the
+  time of closest approach has a Gaussian law in the plane perpendicular to
+  the relative velocity; the projection removes the (irrelevant) along-path
+  component of `r`. Invalid for slow or long encounters and non-Gaussian errors.
+- Code: `aerospace.conjunction.encounter_plane_geometry`,
+  `aerospace.conjunction.plane_encounter`.
+- Source: [REF-FOSTER-ESTES-1992], [REF-NASA-CARA-HANDBOOK],
+  [REF-AKELLA-ALFRIEND-2000]. The frame construction is elementary and written
+  out here.
+
+### EQ-AERO-PC-002 — Collision probability as a disc integral
+
+`Pc = int_(||x|| <= R) (2 pi sqrt(det P))^-1 exp(-(x - m)' P^-1 (x - m) / 2) dx`
+`   = int_0^R int_0^(2 pi) f(r cos t, r sin t) r dt dr`.
+
+- Domain: `P` symmetric positive definite `2 x 2`, `R > 0`.
+- Meaning: probability that the miss vector lies in the hard-body disc.
+  Evaluated by the rotated one-dimensional quadrature
+  (`multivariate.gaussian_disc_probability`, [EQ-MVN-DISC-001]) and, as an
+  independent check, by polar Gauss-Legendre / trapezoid integration with node
+  doubling until the relative change is below the tolerance (not a bound;
+  non-convergence is reported).
+- Code: `aerospace.conjunction.collision_probability`,
+  `aerospace.conjunction.foster_probability`.
+- Source: [REF-FOSTER-ESTES-1992], [REF-NASA-CARA-HANDBOOK].
+
+### EQ-AERO-PC-003 — Chan's series for equal variances
+
+`Pc = sum_(m>=0) e^(-v) v^m / m! * (1 - e^(-a) sum_(k=0)^m a^k / k!)`,
+`v = d^2/(2 sigma^2)`, `a = R^2/(2 sigma^2)`.
+
+- Domain: `P = sigma^2 I`, `d = ||m|| >= 0`, `R > 0`.
+- Meaning: `||X||^2/sigma^2` is noncentral chi-square with two degrees of
+  freedom, a Poisson(`v`) mixture of central laws; the inner bracket is the
+  central chi-square cdf with `2(m+1)` degrees of freedom at `R^2/sigma^2`. For
+  `d = 0` it reduces to `1 - exp(-R^2/(2 sigma^2))`. Implemented with the
+  inner tails by reverse cumulative sums so that a very small `Pc` keeps its
+  relative accuracy; the weights are summed over `v +/- (40 sqrt(v) + 40)`.
+- Code: `aerospace.conjunction.chan_series_probability`.
+- Source: [REF-CHAN-2008] (the book was not opened; the series form is derived
+  here from the noncentral chi-square law and checked against a 50-digit
+  quadrature in the tests).
+
+### EQ-AERO-PC-004 — Small-object approximation
+
+`Pc ~ pi R^2 f(0)`, `f(0) = exp(-m' P^-1 m / 2) / (2 pi sqrt(det P))`.
+
+- Domain: `R` small against every length on which the density varies; the first
+  neglected term `(pi R^4/8) Laplacian f(0)` is reported as the error estimate.
+- Meaning: the leading term of the mean-value expansion of the disc integral;
+  proportional to `R^2` (radius elasticity two).
+- Code: `aerospace.conjunction.collision_probability` (`method="small-object"`),
+  `multivariate.small_disc_probability`.
+- Source: [REF-NASA-CARA-HANDBOOK] (Appendix N lists the approximation);
+  expansion derived in [EQ-MVN-SMALLDISC-001].
+
+### EQ-AERO-PC-005 — Covariance scale, maximum probability and dilution
+
+`p(c) = Pc[N(m, c P)]`, `c* = argmax_c p(c)` (exists when `||m|| > R`),
+dilution region: `c_0 > c*`.
+
+- Domain: `||m|| > R`; for `||m|| <= R` `p(c)` has no finite maximizer.
+- Meaning: `p(c) -> 0` as `c -> 0` and `c -> infinity`. In the dilution region
+  a larger uncertainty lowers `Pc`, so a small `Pc` is not a conservative
+  statement; `p(c*)` is the largest probability reachable by scaling the
+  covariance only. For an isotropic covariance and small `R`,
+  `c* sigma^2 = ||m||^2/2` and `p(c*) = R^2/(e ||m||^2)`.
+- Code: `aerospace.conjunction.dilution_analysis`,
+  `multivariate.maximum_disc_probability`.
+- Source: [REF-ALFANO-2005B], [REF-NASA-CARA-HANDBOOK].
+
+### EQ-AERO-PC-006 — Sensitivity to radius and covariance scale
+
+`dPc/dR ~ (4 D(h/2) - D(h))/3`, `D(h) = (Pc(R(1+h)) - Pc(R(1-h)))/(2 R h)`;
+likewise `dPc/d ln c` with `D(h) = (p(e^h) - p(e^-h))/(2 h)`; elasticities
+`R Pc'/Pc` and `(dPc/d ln c)/Pc`.
+
+- Domain: `0 < h <= 0.1`.
+- Meaning: Richardson-extrapolated central differences (error `O(h^4)`) of the
+  exact disc probability. For the Rayleigh case `Pc = 1 - exp(-R^2/(2 c sigma^2))`:
+  `dPc/dR = (R/sigma^2) e^(-a)`, `dPc/d ln c = -a e^(-a)`, `a = R^2/(2 sigma^2)`.
+- Code: `aerospace.conjunction.collision_probability_sensitivity`.
+- Source: [REF-NASA-CARA-HANDBOOK]; the differences are standard numerical
+  analysis written out here.
+
+### EQ-AERO-PC-007 — Probability under a log-normal covariance scale
+
+`E[Pc] = int p(c_med e^(s z)) phi(z) dz`, `Var = E[p^2] - E[p]^2`,
+`z in [-9, 9]` by Gauss-Legendre with `n` and `2n` nodes.
+
+- Domain: `s > 0`, `c_med > 0`; the neglected normal mass is about `1e-19`.
+- Meaning: expected collision probability when the covariance scale is itself
+  uncertain; the difference of the two node counts is the error estimate (not a
+  bound). Quantiles of `Pc` come from Monte Carlo scales because `p(c)` is not
+  monotone (dilution).
+- Code: `aerospace.conjunction.pc_under_scale_uncertainty`.
+- Source: [REF-DAVIS-RABINOWITZ-1984], [REF-NASA-CARA-HANDBOOK].
+
+### EQ-AERO-PC-008 — Crude Monte Carlo collision estimate
+
+`y ~ N(r, C_1 + C_2)`, hit iff `||y||^2 - (y.w)^2 <= R^2`;
+`p_hat = hits/N`, `se = sqrt(p_hat (1 - p_hat)/N)`, Wilson score interval.
+
+- Domain: `C_1 + C_2` positive definite in three dimensions; rectilinear
+  motion.
+- Meaning: the squared perpendicular distance to the straight path through the
+  primary; independent of the encounter-plane projection, hence a validation of
+  [EQ-AERO-PC-001] and [EQ-AERO-PC-002]. About `100/p` samples are needed for a
+  10 % relative error at probability `p`.
+- Code: `aerospace.conjunction.monte_carlo_collision_probability`.
+- Source: [REF-WILSON-1927].
+
+### EQ-AERO-PC-009 — Covariance realism and its effect on Pc
+
+`d_i^2 = e_i' P_i^-1 e_i ~ chi2(n)`, `s = mean(d^2)/n`; `Pc` evaluated at
+`c = 1`, `c = s` and over the chi-square confidence interval of `s`.
+
+- Domain: independent residual pairs; the interval is that of
+  `probstat.filtering.covariance_realism`.
+- Meaning: tests whether the covariance used for `Pc` matches observed
+  prediction errors and propagates the one-number scale correction (and its
+  uncertainty) through the collision probability. The scale cannot repair a
+  wrong shape; the goodness-of-fit p-value reports that.
+- Code: `aerospace.conjunction.conjunction_realism`.
+- Source: [REF-HORWOOD-ETAL-2014], [REF-NASA-CARA-HANDBOOK],
+  [REF-BAR-SHALOM-LI-KIRUBARAJAN-2001].
+
+### EQ-AERO-CI-001 — Dispersion function of a duct with a compact n-tau flame
+
+`F(omega) = a_L p(L) + b_L w(L) = 0`, with `[p; w](x) = T(x) [p; w](0)`, `T(x) = [[cos kx, i(omega + i alpha) S], [i omega S, cos kx]]`, `S = sin(kx) / (k c)`, `k^2 = omega (omega + i alpha) / c^2`, inlet vector `(p, w)(0) = (b_0, -a_0)`, and the flame jump `[p] = 0`, `[w] = Theta n exp(i omega tau) w(x_f^-)`. Closed-closed, `alpha = 0`: `F = i (omega / c) [sin kL + K cos(k (L - x_f)) sin(k x_f)] / k`, `K = Theta n exp(i omega tau)`.
+
+- Domain: time dependence `exp(-i omega t)`; `p` pressure (Pa), `w = rho0 c u` (Pa); uniform mean temperature, mean flow neglected in the duct; compact flame (`omega x_flame / c << 1`); `alpha >= 0` linear friction (1/s); `Theta = DeltaT / T = (gamma - 1) Q / (gamma p u) >= 0`; end conditions `a p + b w = 0`.
+- Meaning: the roots `omega = 2 pi f + i sigma` are the eigenfrequencies; `sigma > 0` is linear instability. `F` is analytic in `omega` and every parameter. For `n = 0` the roots are the acoustic modes `m pi c / L` (closed-closed) shifted to `-i alpha / 2 + sqrt(omega_m^2 - alpha^2 / 4)` by friction. First-order perturbation of a closed-closed mode `m`: `delta omega = -(c Theta n / (2 L)) exp(i omega_m tau) sin(2 k_m x_f)`.
+- Code: `aerospace.combustion_instability.dispersion_function`.
+- Source: [REF-CROCCO-1951], [REF-SUTTON-BIBLARZ-2017], [REF-MAGRI-JUNIPER-2013].
+
+### EQ-AERO-CI-002 — End conditions and the Marble-Candel compact choked nozzle
+
+`closed: u' = 0`, `open: p' = 0`, `choked outlet: rho0 c u' / p' = zeta = (gamma - 1) M / 2`, giving `a_L = -zeta`, `b_L = 1` in `a p + b w = 0`.
+
+- Domain: nozzle acoustically compact (`omega L_nozzle / c << 1`), isentropic perturbations (entropy waves ignored), low Mach number `M` at the nozzle entry; the mean flow enters only through this admittance.
+- Meaning: a choked nozzle absorbs acoustic energy; with `n = 0` and a closed inlet every mode decays at `-(c / L) atanh(zeta)` exactly. `M -> 0` recovers a rigid wall.
+- Code: `aerospace.combustion_instability.ChamberConfig`.
+- Source: [REF-MARBLE-CANDEL-1977].
+
+### EQ-AERO-CI-003 — Newton solution of the eigenvalue problem
+
+`omega_{j+1} = omega_j - F(omega_j) / F'(omega_j)`, started at `omega_0 = -i alpha / 2 + sqrt(omega_m^2 - alpha^2 / 4)` with `omega_m = m pi c / L` (or `(m - 1/2) pi c / L` for one open end); stop when `|omega_{j+1} - omega_j| <= tol max(1, |omega_{j+1}|)`.
+
+- Domain: simple roots (`F' != 0`); the derivative is exact (forward-mode differentiation of `F`).
+- Meaning: returns frequency `Re(omega) / (2 pi)` and growth rate `Im(omega)` with an explicit status (`converged`, `maximum iterations reached`, `singular derivative`, `non-finite value`, `overflow`). There is no line search or restart; a start far from an acoustic mode may converge to another root, which is why the probabilistic model rejects root jumps larger than a fraction of a mode spacing.
+- Code: `aerospace.combustion_instability.solve_mode`.
+- Source: [REF-MAGRI-JUNIPER-2013], [REF-CROCCO-1951].
+
+### EQ-AERO-CI-004 — Implicit eigenvalue sensitivities
+
+`d omega / d p = -(dF / dp) / (dF / d omega)` at `F(omega(p), p) = 0`, for `p` in `{n, tau, alpha, c, x_f, Theta, L}`; `d sigma / d p = Im(d omega / d p)`, `d f / d p = Re(d omega / d p) / (2 pi)`.
+
+- Domain: simple eigenvalue; `dF/dp` and `dF/d omega` are exact partial derivatives (forward-mode complex differentiation of the same `F`).
+- Meaning: first-order effect of each parameter on frequency and growth rate from one `F` evaluation per parameter, without re-solving; the low-order analogue of the adjoint-based eigenvalue sensitivity. For `n = 0`: `d omega / d alpha = -i/2` (closed-closed) and `d omega / d n = -(c Theta / (2 L)) exp(i omega tau) sin(2 k x_f)`.
+- Code: `aerospace.combustion_instability.eigenvalue_sensitivities`.
+- Source: [REF-MAGRI-JUNIPER-2013].
+
+### EQ-AERO-CI-005 — Rayleigh index and acoustic-energy balance of a mode
+
+`sigma = c [ Re(conj(p_f) [w]) + Re(conj(p) w)|_0 - Re(conj(p) w)|_L - (alpha / c) integral |w|^2 dx ] / integral (|p|^2 + |w|^2) dx`, with `[w] = Theta n exp(i omega tau) w(x_f^-)`.
+
+- Domain: mode shape `(p, w)` from the transfer matrices of EQ-AERO-CI-001; integrals by Simpson's rule per segment.
+- Meaning: the first term is the Rayleigh index of the compact flame (positive when heat release is in phase with pressure, `phase_cosine > 0`); the others are the end fluxes and friction. The sum reproduces `Im(omega)` (an identity of the transfer-matrix solution), so the split shows which mechanism drives or damps the mode.
+- Code: `aerospace.combustion_instability.rayleigh_index`.
+- Source: [REF-RAYLEIGH-1878], [REF-MAGRI-JUNIPER-2013].
+
+### EQ-AERO-CI-006 — Probabilistic thermoacoustic model
+
+`X = (n, tau, alpha, c, x_f)` independent normal with `sd = cv |mean|`, `Y = (sigma(X), f(X))` the growth rate and frequency of the tracked mode.
+
+- Domain: normal inputs with a 6-sigma margin from the bounds (`tau, alpha, c > 0`, `0 < x_f < L`); a non-converged solve or a root displaced by more than `max_mode_shift` mode spacings raises instead of being dropped.
+- Meaning: a `ProbabilisticModel`, so propagation, sensitivity, reliability and surrogate tools apply directly.
+- Code: `aerospace.combustion_instability.thermoacoustic_model`.
+- Source: [REF-MAGRI-JUNIPER-2013], [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-CI-007 — Probability of linear instability
+
+`P(sigma > 0) = P(g(X) <= 0)` with `g = -sigma`; estimated by Monte Carlo `(1/N) sum 1[sigma(X_i) > 0]` (Wilson interval), by a Hermite PCE surrogate of `sigma`, and by FORM `Phi(-beta)`.
+
+- Domain: the Monte Carlo and surrogate estimates are consistent; FORM is first order and is exact only when the failure boundary is a hyperplane in standard-normal space.
+- Meaning: the three estimates and their agreement flags are reported together; disagreement indicates curvature of the stability boundary or surrogate error, not a bug to be hidden.
+- Code: `aerospace.combustion_instability.instability_probability`.
+- Source: [REF-MAGRI-JUNIPER-2013], [REF-RAYLEIGH-1878].
+
+### EQ-AERO-LRE-001 — Characteristic velocity
+
+`c* = sqrt(R T_c / gamma) / (2/(gamma+1))^((gamma+1)/(2(gamma-1)))`, with
+`R = R_u / M`; `c* = p_c A_t / mdot` for choked flow.
+
+- Domain: `gamma > 1`, `M > 0` kg/kmol, `T_c > 0` K, `R_u = 8314.462618`
+  J/(kmol K). Perfect gas, frozen composition, stagnation conditions in the
+  chamber; SI units, result in m/s.
+- Meaning: the ideal characteristic velocity of the propellant combination at
+  its chamber temperature; the delivered value is `eta_c* c*` (EQ-AERO-LRE-005).
+- Code: `aerospace.liquid_engine.characteristic_velocity`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-LRE-002 — Isentropic area-Mach relation
+
+`A/A* = (1/M) [ (2/(gamma+1)) (1 + (gamma-1) M^2 / 2) ]^((gamma+1)/(2(gamma-1)))`,
+solved for the supersonic `M_e` with `A/A* = epsilon = A_e/A_t`.
+
+- Domain: `gamma > 1`, `M > 0`, `epsilon >= 1`. The log form
+  `F(M) = ln(A/A*) - ln(epsilon)` is strictly increasing for `M > 1`; it is
+  solved by Newton's method inside a bracket `[1, M_hi]` with bisection when a
+  step leaves the bracket. The result reports `converged`, iterations,
+  residual, and stop reason.
+- Meaning: quasi-one-dimensional isentropic nozzle geometry to Mach number
+  map; the subsonic root is not used.
+- Code: `aerospace.liquid_engine.exit_mach_from_area_ratio`,
+  `aerospace.liquid_engine.area_ratio_from_mach`,
+  `aerospace.liquid_engine.expansion_ratio_from_pressure_ratio`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-LRE-003 — Isentropic exit pressure ratio
+
+`p_e / p_c = (1 + (gamma-1) M_e^2 / 2)^(-gamma/(gamma-1))`.
+
+- Domain: `gamma > 1`, `M_e >= 0`. Frozen, calorically perfect, isentropic.
+- Meaning: static exit pressure as a fraction of the chamber (stagnation)
+  pressure; `p_e = (p_e/p_c) p_c`.
+- Code: `aerospace.liquid_engine.exit_pressure_ratio`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-LRE-004 — Thrust coefficient with pressure term
+
+`CF = lambda sqrt( 2 g^2/(g-1) (2/(g+1))^((g+1)/(g-1)) (1 - (p_e/p_c)^((g-1)/g)) ) + (p_e - p_a) epsilon / p_c`,
+with `g = gamma`. For `p_e/p_c -> 0` the momentum term tends to
+`CF_max = sqrt( 2 g^2/(g-1) (2/(g+1))^((g+1)/(g-1)) )`.
+
+- Domain: `gamma > 1`, `epsilon >= 1`, `p_c > 0`, `p_a >= 0` (zero is vacuum),
+  `lambda in (0, 1]`. The divergence factor multiplies only the momentum term.
+- Meaning: thrust per unit chamber pressure and throat area,
+  `F = CF p_c A_t`. The vacuum `CF` increases with `epsilon` toward `CF_max`;
+  at fixed `p_a` the maximum is at `p_e = p_a`.
+- Code: `aerospace.liquid_engine.thrust_coefficient`,
+  `aerospace.liquid_engine.limiting_thrust_coefficient`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-LRE-005 — Specific impulse, thrust and mass flow with c* efficiency
+
+`c* = eta_c* c*_ideal`, `mdot = p_c A_t / c*`, `F = CF p_c A_t`,
+`Isp = F / (mdot g0) = CF c* / g0`, with `g0 = 9.80665` m/s^2.
+
+- Domain: `eta_c* in (0, 1]`, `p_c`, `A_t > 0`. `p_c` is an input; a change
+  of chamber pressure caused by `eta_c*` is not modelled.
+- Meaning: `eta_c*` scales `Isp` and `c*` linearly, mass flow inversely, and
+  leaves thrust unchanged at fixed `p_c` and `A_t`.
+- Code: `aerospace.liquid_engine.ideal_rocket_performance`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-LRE-006 — Conical-nozzle divergence factor
+
+`lambda = (1 + cos alpha) / 2`.
+
+- Domain: half-angle `alpha in [0, pi/2)` rad, conical nozzle, exit flow
+  uniform in magnitude and directed radially from the cone apex.
+- Meaning: axial-momentum loss of the diverging exit flow; `lambda = 0.98296`
+  at 15 degrees. Contoured nozzles have an effective angle chosen by the user.
+- Code: `aerospace.liquid_engine.divergence_factor`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-LRE-007 — Summerfield separation criterion
+
+`separation predicted if p_e < 0.4 p_a`; the reported margin is
+`p_e - 0.4 p_a` (Pa, positive: no separation predicted).
+
+- Domain: `p_e, p_a >= 0`. Empirical rule for free-shock separation in an
+  over-expanded nozzle; no contour, wall-temperature, or transient effects.
+- Meaning: a screening flag, not a flow-separation solver. The margin is
+  finite in vacuum.
+- Code: `aerospace.liquid_engine.separation_margin`.
+- Source: [REF-SUTTON-BIBLARZ-2017] (the Summerfield criterion as presented there).
+
+### EQ-AERO-LRE-008 — Mixture-ratio table interpolation
+
+`y(O/F) = y_k + t (y_(k+1) - y_k)` (linear) or the cubic Hermite form
+`y = h00 y_k + h10 h d_k + h01 y_(k+1) + h11 h d_(k+1)` with
+Fritsch-Carlson slopes `d_k` (PCHIP), `t = (O/F - x_k)/h`, for each of
+`T_c`, `gamma`, `M`.
+
+- Domain: strictly increasing nodes, evaluation only inside the table range
+  (no extrapolation). The data must come from the user, for example from CEA
+  [REF-GORDON-MCBRIDE-1994]; the bundled demonstration table is synthetic and
+  illustrative only.
+- Meaning: PCHIP preserves monotonicity of each data interval and does not
+  overshoot, which matters near the temperature maximum.
+- Code: `aerospace.liquid_engine.MixtureRatioTable`.
+- Source: [REF-FRITSCH-CARLSON-1980], [REF-GORDON-MCBRIDE-1994].
+
+### EQ-AERO-LRE-009 — Simplified turbine-pump power balance
+
+`P_pump = mdot_p dp / (rho eta_p)`, `w_t = eta_t c_p T_in (1 - PR^(-(g-1)/g))`,
+`mdot_t = sum P_pump / w_t`, flow fraction `mdot_t / mdot_engine`.
+
+- Domain: single turbine with a perfect gas, shaft power equal to total pump
+  power, efficiencies include mechanical losses, `PR > 1`. No cycle closure.
+- Meaning: the required turbine gas flow for a gas-generator or expander
+  style cycle at the simplest level; a fraction at or above one is flagged
+  infeasible.
+- Code: `aerospace.liquid_engine.power_balance`,
+  `aerospace.liquid_engine.pump_power`,
+  `aerospace.liquid_engine.turbine_specific_work`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-LRE-010 — Probabilistic liquid-engine model
+
+`Y = g(X)` with `X = (p_c, O/F, eta_c*, d_t, epsilon, p_a, alpha)`,
+`A_t = pi d_t^2 / 4`, `(T_c, gamma, M) = table(O/F)`, and
+`Y = (F, Isp, Isp_vac, mdot, p_e, p_e - 0.4 p_a, c*)` from
+EQ-AERO-LRE-001 to EQ-AERO-LRE-008.
+
+- Domain: independent marginals; each input is a distribution or a fixed
+  number. A draw outside the table range or outside an input domain fails the
+  run under the model's `on_failure` policy.
+- Meaning: the standard `ProbabilisticModel` used by propagation, Sobol
+  sensitivity, FORM and subset simulation. Vacuum `Isp` does not depend on
+  `p_c` or `d_t` in this model.
+- Code: `aerospace.liquid_engine.liquid_engine_model`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-SRM-001 — Saint-Robert / Vieille burn rate with temperature sensitivity
+
+`r = a(T) (p / p_ref)^n`, `a(T) = a_0 exp(sigma_p (T - T_ref))`.
+
+- Domain: `p >= 0` Pa, `a_0 > 0` m/s (burn rate at `p_ref` and `T_ref`),
+  `0 <= n < 1`, `sigma_p >= 0` 1/K, `T, T_ref > 0` K, `p_ref > 0` Pa. Valid
+  over the pressure and temperature range where the propellant was
+  characterized; erosive burning, pressure-coupled response and the change of
+  `n` with pressure (plateau, mesa, slope breaks) are not modelled.
+- Meaning: `r` is the regression rate of the burning surface normal to
+  itself; `sigma_p = (1/a)(da/dT)` at constant pressure is the temperature
+  sensitivity of the burn rate. `n >= 1` is refused because the equilibrium
+  pressure of EQ-AERO-SRM-002 does not exist there.
+- Code: `aerospace.solid_motor.burn_rate`,
+  `aerospace.solid_motor.burn_rate_coefficient`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-SRM-002 — Klemmung and quasi-steady equilibrium chamber pressure
+
+`Kn = A_b / A_t`, `rho_p A_b r(p) = p A_t / c*`, hence
+`p_eq = (a rho_p c* Kn / p_ref^n)^(1 / (1 - n))`.
+
+- Domain: `A_b, A_t > 0` m2, `c* > 0` m/s, `rho_p > 0` kg/m3, `0 <= n < 1`;
+  choked nozzle and negligible gas storage in the chamber.
+- Meaning: the pressure at which the gas generated by the burning surface
+  equals the choked discharge. `d ln p_eq / d ln Kn = 1 / (1 - n)`, so the
+  pressure is strictly increasing in `Kn` and very sensitive to it for `n`
+  near one (stable burning needs `n < 1`). The same result with the
+  temperature correction scales as `exp(sigma_p dT / (1 - n))`. The
+  steady state of the full gas balance EQ-AERO-SRM-003 differs from this
+  closed form by the relative amount `p / (rho_p R T_c (1 - n))` (about 0.5 %
+  at 6 MPa) unless the volume-growth term is dropped.
+- Code: `aerospace.solid_motor.equilibrium_pressure`,
+  `aerospace.solid_motor.klemmung`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-SRM-003 — Transient chamber gas mass balance (pressure form)
+
+`d(rho_g V)/dt = rho_p A_b r - p A_t / c*` with the perfect-gas density
+`rho_g = p / (R T_c)` and the free volume `V = V_c - V_p(e)`, `dV/dt = A_b r`,
+which gives
+`dp/dt = (R T_c / V) (rho_p A_b r - p A_t / c*) - (p / V) A_b r`,
+`de/dt = r`, with `R T_c = (c* Gamma(gamma))^2`,
+`Gamma = sqrt(gamma) (2/(gamma+1))^((gamma+1)/(2(gamma-1)))`. After web
+burn-out (`A_b = 0`, constant `V`): `dp/dt = -R T_c A_t p / (V c*)`, an
+exponential decay with time constant `tau = V c* / (R T_c A_t)`.
+
+- Domain: `V > 0` (the case volume must exceed the propellant volume),
+  `p >= 0`; uniform chamber state, constant `c*`, `T_c` and `gamma`, the
+  flame temperature is the gas temperature in the chamber, no igniter and no
+  heat loss. The explicit Runge-Kutta step must satisfy `h <~ tau` (the code
+  takes `h <= tau / 4` of the initial chamber).
+- Meaning: filling transient (from the initial pressure to the equilibrium
+  of EQ-AERO-SRM-002 with relaxation time about `tau / (1 - n)`) and the
+  tail-off. The state is integrated with the fixed-step integrator of
+  EQ-NUM-ODE-001 and the web burn-out is located with the Hermite event of
+  EQ-NUM-ODE-002. Setting the last term to zero (`dilatation=False`) gives the
+  frozen-volume balance whose steady state is exactly EQ-AERO-SRM-002.
+- Code: `aerospace.solid_motor.simulate_solid_motor`,
+  `aerospace.solid_motor.chamber_rt`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-SRM-004 — Grain burning area, volume and web
+
+With the web burned `e` (m), `0 <= e <= w`:
+tubular bore burner `A_b = 2 pi (r_i + e) L`, `w = r_o - r_i`,
+`V_p = pi L (r_o^2 - (r_i + e)^2)`; tube burning on bore and outside
+`A_b = 2 pi L (r_i + r_o)`, `w = (r_o - r_i)/2`,
+`V_p = pi L ((r_o - e)^2 - (r_i + e)^2)`; end burner `A_b = pi R^2`, `w = L`,
+`V_p = pi R^2 (L - e)`; `N` BATES segments with `u = d_0 + 2 e`:
+`A_b = N [pi u (L - 2 e) + (pi/2)(D^2 - u^2)]`,
+`V_p = N (pi/4)(D^2 - u^2)(L - 2 e)`, `w = min((D - d_0)/2, L/2)`.
+
+- Domain: SI units, positive dimensions with `r_o > r_i`, `d_0 < D`; outer
+  surfaces bonded or inhibited as stated, burning surfaces recede uniformly
+  normal to themselves; the sliver left at burn-out is neglected (`A_b = 0`
+  for `e > w`).
+- Meaning: `dV_p / de = -A_b` for every geometry. The history `A_b(e)` is
+  classified neutral (constant within a tolerance), progressive (increasing),
+  regressive (decreasing), or mixed (progressive-regressive and so on); the
+  default BATES case is progressive then regressive.
+- Code: `aerospace.solid_motor.TubularGrain`,
+  `aerospace.solid_motor.EndBurningGrain`,
+  `aerospace.solid_motor.BatesGrain`,
+  `aerospace.solid_motor.GrainGeometry`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-SRM-005 — Linear throat erosion
+
+`R_t(t) = R_t(0) + epsilon t`, `A_t(t) = pi R_t(t)^2`.
+
+- Domain: `epsilon >= 0` m/s radial recession rate, constant in time and
+  independent of the pressure; the exit area stays fixed, so the area ratio
+  `A_e / A_t(t)` decreases.
+- Meaning: erosion enlarges the throat, lowers `Kn` and therefore the
+  pressure of EQ-AERO-SRM-002 (`p ~ A_t^(-1/(1-n))`), lengthens the burn and
+  slightly changes `C_F`. For an end burner the burn-out time follows from
+  integrating `de/dt = K pi^(-m) R_t^(-2m)` with `m = n/(1-n)`, which the tests
+  use as a closed-form check. The linear law is a modelling assumption, not a
+  measured law.
+- Code: `aerospace.solid_motor.SolidMotorParameters.throat_area`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-SRM-006 — Ideal nozzle: exit Mach number, pressure ratio and thrust coefficient
+
+`eps = (1/M_e) [ (2/(gamma+1)) (1 + (gamma-1) M_e^2 / 2) ]^((gamma+1)/(2(gamma-1)))`
+(supersonic root), `p_e / p_c = (1 + (gamma-1) M_e^2 / 2)^(-gamma/(gamma-1))`,
+`C_F = Gamma sqrt( (2 gamma/(gamma-1)) [1 - (p_e/p_c)^((gamma-1)/gamma)] ) + (p_e/p_c - p_a/p_c) eps`,
+`F = C_F p_c A_t`.
+
+- Domain: `gamma > 1`, `eps = A_e / A_t >= 1`, `p_c > 0`, `p_a >= 0`;
+  isentropic, perfect gas, choked, fully expanded without separation, no
+  divergence or friction loss (those are separate correction factors that are
+  not applied here).
+- Meaning: `C_F` is maximal where `p_e = p_a`. With `p_a = 0` it is
+  independent of `p_c`, and then `F = C_F c* mdot`, so the total impulse is
+  `C_F c* m_p` when `C_F` is constant. With `p_a > 0` the thrust can become
+  negative at start-up pressures, where the model without separation is
+  invalid; the trace reports it as computed.
+- Code: `aerospace.solid_motor.exit_mach_number`,
+  `aerospace.solid_motor.exit_pressure_ratio`,
+  `aerospace.solid_motor.ideal_thrust_coefficient`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-SRM-007 — Impulse, burn time, MEOP and burst margin
+
+`I_t = integral_0^(t_a) F dt` (trapezoid rule on the trace),
+`t_b = time at which e = w`, `F_avg = I_t / t_a`,
+`I_sp = I_t / (m_p g_0)`, `m_p = rho_p (V_p(0) - V_p(e_end))`,
+`MEOP = max_t p(t)`, `burst margin = p_burst - MEOP`.
+
+- Domain: `t_a = t_b` for the quasi-steady mode (abrupt cut-off) and the end
+  of the tail-off (pressure at `tail_fraction` times the peak or at zero
+  thrust) for the transient mode; `g_0 = 9.80665` m/s2.
+- Meaning: the realized peak pressure of one burn; the design MEOP of the
+  motor is an upper quantile of its distribution over the input uncertainty
+  (grain temperature, propellant and throat scatter). A case burst is
+  `burst margin <= 0`. The quantities of interest of
+  `aerospace.solid_motor.solid_motor_model` are `meop`, `total_impulse`,
+  `burn_time` and `burst_margin`.
+- Code: `aerospace.solid_motor.SolidMotorResult`,
+  `aerospace.solid_motor.simulate_solid_motor`,
+  `aerospace.solid_motor.solid_motor_model`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-SUR-GPB-001 — Hyperparameter posterior of a Gaussian process
+
+`p(theta | y) ∝ N(y; 0, K_theta + (nu0 + sigma_n^2) I) * prod_j N(theta_j; m_j, s_j^2)`, with `theta = (log sigma_f^2, log ell_1..d, log sigma_n^2)`, `K_theta` the kernel matrix, `nu0` an explicit nugget, `m_j, s_j` the log-normal prior parameters.
+
+- Domain: standardized outputs (zero sample mean, unit sample variance); positive-definite `K_theta + (nu0 + sigma_n^2) I`; `|theta_j| <= 12` (outside the box the density is zero).
+- Meaning: Gaussian-process hyperparameters receive a prior and are sampled by slice sampling instead of being set to the type-II maximum-likelihood value. A kernel matrix that is not positive definite is a zero-density state and is counted in `failed_factorizations`.
+- Code: `surrogates.gp_bayes.fit_bayesian_gp`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006], [REF-NEAL-2003].
+
+### EQ-SUR-GPB-002 — Posterior predictive mixture of a Bayesian GP
+
+`E[f*] = (1/S) sum_s mu_s`, `Var[f*] = (1/S) sum_s sigma_s^2 + (1/S) sum_s (mu_s - E[f*])^2`, `F(q) = (1/S) sum_s Phi((q - mu_s) / sigma_s)`, with `mu_s, sigma_s^2` the GP predictive moments at posterior draw `theta_s`.
+
+- Domain: `S >= 1` posterior draws; `sigma_s >= 0` (a zero variance contributes a step CDF).
+- Meaning: law of total variance for the predictive mixture; the second term is the variance caused by hyperparameter uncertainty and is absent from the type-II ML predictive variance. Quantiles are those of the mixture CDF, not of a Gaussian with the total variance.
+- Code: `surrogates.gp_bayes.BayesianGPRegression.predict`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-SUR-GPB-003 — Mahalanobis distance of validation errors and its reference law
+
+`MD = (y - m)' V^-1 (y - m)`, `MD ~ chi^2_k` for known hyperparameters, `(nu - 2) MD / (k nu) ~ F(k, nu)` when the variance is estimated on `nu > 2` degrees of freedom, `D_i = (y_i - m_i) / sqrt(V_ii)`.
+
+- Domain: `k` validation points, `V` the predictive covariance (symmetric positive definite), `m` the predictive mean.
+- Meaning: a value in the upper tail signals an overconfident or biased emulator, a value in the lower tail an overly conservative one. With plug-in hyperparameters the chi-square reference is approximate; the screening thresholds in the code are not exact tests.
+- Code: `surrogates.gp_bayes.validate_emulator_moments`.
+- Source: [REF-BASTOS-OHAGAN-2009].
+
+### EQ-SUR-GPB-004 — Pivoted-Cholesky errors
+
+`V_Pi = L L'`, `e = L^-1 (r_Pi)` with `r = y - m` and the pivot `Pi` chosen greedily by the largest remaining conditional variance; `sum_k e_k^2 = MD`.
+
+- Domain: full-rank `V`; the factorization stops (reported as not full rank) when the largest remaining conditional variance falls below `1e-12` of the largest marginal variance.
+- Meaning: the errors are independent standard normal for a valid emulator, and large errors at late pivots point at a wrong correlation structure.
+- Code: `surrogates.gp_bayes.validate_emulator_moments`.
+- Source: [REF-BASTOS-OHAGAN-2009].
+
+### EQ-SUR-GPB-005 — Credible-interval coverage of validation outputs
+
+`c = (1/k) sum_i 1{ |D_i| <= z_{(1+level)/2} }`, flagged when `|c - level| > 3 sqrt(level (1 - level) / k)`.
+
+- Domain: `0 < level < 1`; the Student-t quantile replaces the normal quantile when degrees of freedom are given.
+- Meaning: empirical coverage of the central credible intervals on held-out runs. Validation errors of a GP are correlated, so the binomial band is a screening rule, not an exact test.
+- Code: `surrogates.gp_bayes.validate_emulator_moments`.
+- Source: [REF-BASTOS-OHAGAN-2009].
+
+### EQ-SUR-GPB-006 — Sobol indices on GP posterior sample paths
+
+`S_i = (1/N) sum_j f(B_j) (f(AB_i,j) - f(A_j)) / V`, `ST_i = (1/(2N)) sum_j (f(A_j) - f(AB_i,j))^2 / V`, `V = Var(pooled f(A), f(B))`, evaluated for each draw `f ~ GP(m, V_post)` on the stacked design `(A, B, AB_1..d)`.
+
+- Domain: independent inputs uniform on a box; `AB_i` is `A` with column `i` taken from `B`; the joint posterior covariance receives an explicit relative jitter.
+- Meaning: one index estimate per posterior path gives a distribution that carries the emulator uncertainty; the Monte Carlo error of the shared design is common to all paths. The first-order estimator is Saltelli et al. (2010), the total-index estimator is Jansen (1999).
+- Code: `surrogates.gp_bayes.gp_sobol_posterior`.
+- Source: [REF-OAKLEY-OHAGAN-2004], [REF-MARREL-ETAL-2009], [REF-SALTELLI-2010], [REF-JANSEN-1999].
+
+### EQ-SUR-GPB-007 — Laplace approximation of the GP classification posterior
+
+`Psi(f) = log p(y | f) - (1/2) f' K^-1 f`, Newton step `a = b - W^1/2 B^-1 W^1/2 K b`, `b = W f + (t - pi)`, `B = I + W^1/2 K W^1/2 = L L'`, `log q(y | X) = -(1/2) a' f_hat + log p(y | f_hat) - sum_i log L_ii`.
+
+- Domain: labels `y_i in {-1, +1}` (`t_i = (y_i + 1) / 2`), logistic likelihood `p(y_i | f_i) = sigmoid(y_i f_i)`, `pi = sigmoid(f)`, `W = diag(pi (1 - pi))`.
+- Meaning: Gaussian approximation of the latent posterior at its mode `f_hat`; `log q` approximates the log marginal likelihood and is used to select the kernel hyperparameters.
+- Code: `surrogates.gp_bayes.fit_laplace_gp_classifier`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-SUR-GPB-008 — Laplace predictive class probability
+
+`f_bar_* = k_*' (t - pi_hat)`, `v_* = k_** - (L^-1 W^1/2 k_*)' (L^-1 W^1/2 k_*)`, `pi_* = integral sigmoid(f) N(f; f_bar_*, v_*) df`.
+
+- Domain: `f_bar_*, v_*` the Gaussian latent predictive moments at the test input; the integral is evaluated by composite Simpson quadrature on `f_bar_* ± 9 sqrt(v_*)`.
+- Meaning: averaging the logistic over the latent predictive law pulls the class probability towards 1/2 where the latent uncertainty is large; far from the data it returns to the prior value 1/2.
+- Code: `surrogates.gp_bayes.LaplaceGPClassifier.predict_proba`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-SUR-GPB-009 — Student-t process marginal likelihood
+
+`log p(y) = log Gamma((nu + n)/2) - log Gamma(nu/2) - (n/2) log((nu - 2) pi) - (1/2) log|K| - ((nu + n)/2) log(1 + beta/(nu - 2))`, `beta = y' K^-1 y`.
+
+- Domain: `nu > 2` (covariance form of the multivariate Student-t, `Cov(y) = K`), positive-definite `K` that includes the noise variance.
+- Meaning: tends to the Gaussian log density as `nu -> infinity`; for `n = 1` it is the univariate Student-t density with scale `sqrt(K (nu - 2)/nu)`.
+- Code: `surrogates.gp_bayes.student_t_process_log_marginal_likelihood`.
+- Source: [REF-SHAH-WILSON-GHAHRAMANI-2014].
+
+### EQ-SUR-GPB-010 — Student-t process predictive law
+
+`f* | y ~ MVT_{nu+n}(mu_*, ((nu + beta - 2)/(nu + n - 2)) Sigma_*)`, `mu_* = k_*' K^-1 y`, `Sigma_* = k_** - k_*' K^-1 k_*`.
+
+- Domain: covariance form; `nu > 2`.
+- Meaning: the predictive mean equals the GP mean, the predictive variance is the GP variance multiplied by a factor that depends on the observed data through `beta`, and the factor tends to 1 as `nu -> infinity`. Outputs are standardized before `beta` is formed, so the factor is not invariant to the output scale.
+- Code: `surrogates.gp_bayes.StudentTProcessRegression.predict_with_variance`.
+- Source: [REF-SHAH-WILSON-GHAHRAMANI-2014].
+
+### EQ-SUR-GPB-011 — Box-Cox warped GP likelihood with Jacobian
+
+`z = (y^lambda - 1)/lambda` (`log y` for `lambda = 0`), `log p(y) = log p_GP(z) + sum_i (lambda - 1) log y_i`.
+
+- Domain: `y_i > 0`; the GP is fitted to the warped outputs.
+- Meaning: the Jacobian `dz/dy = y^(lambda - 1)` makes likelihoods of different `lambda` comparable; `lambda` is selected by golden-section search on this profile (a unimodal profile is assumed, not verified).
+- Code: `surrogates.gp_bayes.fit_warped_gp`.
+- Source: [REF-SNELSON-RASMUSSEN-GHAHRAMANI-2004], [REF-BOX-COX-1964].
+
+### EQ-SUR-GPB-012 — Quantiles of the warped GP through the inverse warp
+
+`q_y(p) = (lambda (mu + sigma Phi^-1(p)) + 1)^(1/lambda)` (`exp(.)` for `lambda = 0`), with `mu, sigma^2` the latent predictive moments of `z`.
+
+- Domain: `lambda (mu + sigma Phi^-1(p)) + 1 > 0`; otherwise the quantile lies outside the image of the warp and the code raises `ValueError` instead of clipping.
+- Meaning: the warp is increasing, so quantiles map exactly; the median is the inverse warp of the latent mean. The predictive law of `y` is asymmetric and respects positivity.
+- Code: `surrogates.gp_bayes.WarpedGPRegression.quantile`.
+- Source: [REF-SNELSON-RASMUSSEN-GHAHRAMANI-2004].
+
+### EQ-SUR-PIML-001 — Second-order input jets of a tanh network
+
+For a scalar-input MLP with pre-activation jets `(z, z', z'')` (derivatives in
+the input `t`) and `a = tanh z`, each hidden unit maps the jet to
+`(a, (1 - a^2) z', (1 - a^2)(z'' - 2 a z'^2))`; affine layers map jets
+linearly (the bias enters only the value). The input jet is `(t, 1, 0)`; the
+output jet is `(u, u', u'')`.
+
+- Domain: scalar input and output, `tanh` hidden layers, identity output;
+  parameters and `t` may be floats or reverse-mode tape variables.
+- Meaning: exact (no step size) first and second input derivatives at about
+  three times the cost of a forward pass. Because the jet program uses only
+  arithmetic and `admath`, the weight gradient of any loss built from
+  `(u, u', u'')` is obtained by reverse-mode differentiation of the
+  recorded program (reverse over forward-Taylor mode). Checked against the
+  nested forward-mode Hessian of `MLP.forward` to 1e-12.
+- Code: `surrogates.physics_informed.network_jet`.
+- Source: [REF-RAISSI-PERDIKARIS-KARNIADAKIS-2019],
+  [REF-GRIEWANK-WALTHER-2008].
+
+### EQ-SUR-PIML-002 — Physics-informed loss with explicit weights
+
+`L(w) = a_r (1/N_r) sum_i R(t_i, u, u', u'')^2 + a_c sum_c omega_c (u^(k_c)(t_c) - v_c)^2 + a_d (1/N_d) sum_j (u(t_j) - y_j)^2`,
+with `u = u(t; w)`, collocation points `t_i` (uniform grid), conditions
+`(t_c, k_c, v_c, omega_c)` of derivative order `k_c in {0, 1, 2}`, data
+`(t_j, y_j)` and weights `a_r, a_c, a_d >= 0`.
+
+- Domain: smooth `R`; conditions enforced softly (penalties), not exactly.
+- Meaning: the network is trained so that the differential-equation residual
+  vanishes at the collocation points while the conditions and data are
+  matched. The three weights are explicit inputs and the unweighted terms are
+  reported; the solution quality depends on them and on the (non-convex)
+  optimization, so `converged`/`message` are reported rather than assumed.
+- Code: `surrogates.physics_informed.fit_pinn_1d`,
+  `surrogates.physics_informed.PINNLossWeights`,
+  `surrogates.physics_informed.PINNCondition`,
+  `surrogates.physics_informed.PINNResult`.
+- Source: [REF-RAISSI-PERDIKARIS-KARNIADAKIS-2019],
+  [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-SUR-PIML-003 — Inverse PINN (joint weights and physical parameters)
+
+`(w*, theta*) = argmin_{w, theta} L(w, theta)` with `L` of
+[EQ-SUR-PIML-002] and `R = R(t, u, u', u''; theta)`.
+
+- Domain: `theta` identifiable from the equation and the data; the residual
+  written with arithmetic and `admath` so that it can be recorded.
+- Meaning: sparse noisy data plus a known equation form estimate the unknown
+  physical parameter (for `u' = -k u`, the decay rate `k`). The estimate is
+  a penalized fit, not a maximum-likelihood estimate with a stated
+  uncertainty; compare it with a classical fit (the tests use the log-linear
+  least-squares rate).
+- Code: `surrogates.physics_informed.fit_pinn_1d`.
+- Source: [REF-RAISSI-PERDIKARIS-KARNIADAKIS-2019].
+
+### EQ-SUR-PIML-004 — Hybrid ODE with an RK4 shooting loss
+
+`y' = f_phys(t, y; theta) + E NN(y; w)`, with `E` embedding the network output
+in selected state components. For non-overlapping segments of `S` observation
+intervals started at the observed state `y_i`, `y_hat` is the RK4 solution
+with `m` substeps per interval and
+`L(w, theta) = (1/K) sum ||y_hat_k - y_obs_k||^2 + lambda ||w||^2`
+over all compared state entries `K`.
+
+- Domain: uniformly spaced observation times; a known right-hand side
+  `f_phys` written with arithmetic and `admath`; low observation noise (each
+  segment starts at a noisy state, an errors-in-variables bias).
+- Meaning: gradients are exact reverse-mode derivatives through every RK4
+  stage (discretize-then-differentiate), not a sensitivity or continuous
+  adjoint ODE. The network learns the missing term, for example nonlinear
+  damping of an oscillator; `lambda > 0` discourages it from absorbing
+  errors of the known part.
+- Code: `surrogates.physics_informed.fit_hybrid_ode`,
+  `surrogates.physics_informed.HybridODEResult`.
+- Source: [REF-RACKAUCKAS-ETAL-2020],
+  [REF-CHEN-RUBANOVA-BETTENCOURT-DUVENAUD-2018],
+  [REF-HAIRER-NORSETT-WANNER-1993].
+
+### EQ-SUR-PIML-005 — Sequentially thresholded least-squares distillation
+
+With monomial library `Theta(x) in R^(n x p)` (total degree at most `D`), the
+iteration `c^(r+1) = argmin_{supp(c) = A_r} ||Theta c - g||_2` and
+`A_(r+1) = {k in A_r : |c_k| >= tau}` stops when `A_(r+1) = A_r`.
+
+- Domain: `n > p`, full-rank library on the active set (rank deficiency is an
+  error), inputs of order one so that `tau` has a meaning in the target's
+  units.
+- Meaning: converts a learned network term `g = NN(x)` evaluated on visited
+  states into a short polynomial. The recovered form is trustworthy only for
+  states the trajectories visited and only if the true term is in the
+  library; with one trajectory the library is not identifiable and a
+  spurious dense polynomial can result (observed in the fast test).
+- Code: `surrogates.physics_informed.distill_sparse_regression`,
+  `surrogates.physics_informed.SparseDistillation`.
+- Source: [REF-BRUNTON-PROCTOR-KUTZ-2016].
+
+### EQ-SUR-PIML-006 — Residual (discrepancy) learning with conformal intervals
+
+`mu(x) = f_phys(x) + r(x)`, `r` fitted to `y_i - f_phys(x_i)` on the training
+set (GP or deep ensemble); the interval is `[mu(x) - q, mu(x) + q]` with `q`
+the split-conformal quantile [EQ-SUR-PIML-007] of `|y_i - mu(x_i)|` on a
+disjoint calibration set. Physics-only (`r = 0`) and ML-only (`f_phys = 0`)
+are the two degenerate cases.
+
+- Domain: training, calibration and test pairs exchangeable for the coverage
+  guarantee.
+- Meaning: the marginal coverage `>= 1 - alpha` holds for exchangeable test
+  data only. Under extrapolation it is not guaranteed: in the shipped
+  synthetic comparison the hybrid GP interval covered 7 % of extrapolation
+  points at nominal 90 %. The GP and ensemble standardize their targets, so
+  away from the data the residual model reverts to the mean training
+  residual rather than to zero.
+- Code: `surrogates.physics_informed.fit_residual_hybrid`,
+  `surrogates.physics_informed.ResidualHybridModel`,
+  `surrogates.physics_informed.compare_physics_ml_hybrid`,
+  `surrogates.physics_informed.HybridComparison`.
+- Source: [REF-KENNEDY-OHAGAN-2001],
+  [REF-LAKSHMINARAYANAN-PRITZEL-BLUNDELL-2017],
+  [REF-LEI-ETAL-2018].
+
+### EQ-SUR-PIML-007 — Split-conformal quantile (local copy)
+
+`k = ceil((1 - alpha)(n + 1))` evaluated in exact rational arithmetic from
+the decimal text of `alpha`; `q = s_(k)` the `k`-th smallest score, `+inf` if
+`k = n + 1`.
+
+- Domain: `0 < alpha < 1`, `n >= 1`.
+- Meaning: identical to [EQ-CONF-001]; kept in the surrogate layer because
+  `probstat.conformal` (layer 6) may not be imported from layer 5. The tests
+  compare it with `conformal.conformal_quantile` and show a case
+  (`alpha = 0.7`, `n = 9`) where floating-point `ceil` gives the wrong rank.
+- Code: `surrogates.physics_informed.split_conformal_halfwidth`.
+- Source: [REF-VOVK-GAMMERMAN-SHAFER-2005], [REF-LEI-ETAL-2018],
+  [REF-ANGELOPOULOS-BATES-2023].
+
+### EQ-SUR-PIML-008 — DeepONet
+
+`G_w(u)(y) = sum_{k=1}^p b_k(u(x_1), ..., u(x_m); w_b) t_k(y; w_t) + b_0`,
+with a branch MLP `b` on the `m` sensor values and a trunk MLP `t` on the
+query location; training minimizes
+`(1/(N Q)) sum_{i,j} (G_w(u_i)(y_j) - G(u_i)(y_j))^2`.
+
+- Domain: input functions sampled at fixed sensors; a shared query grid.
+- Meaning: learns an operator `u -> G(u)` from generated function-image pairs
+  rather than one solution. Generalization is measured on held-out functions
+  from the same family only; it says nothing about functions outside it.
+  Training uses full-batch Adam with the exact reverse-mode gradient.
+- Code: `surrogates.physics_informed.fit_deeponet`,
+  `surrogates.physics_informed.DeepONet`,
+  `surrogates.physics_informed.DeepONetFit`,
+  `surrogates.physics_informed.deeponet_relative_error`.
+- Source: [REF-LU-JIN-PANG-ZHANG-KARNIADAKIS-2021], [REF-CHEN-CHEN-1995].
+
+### EQ-SUR-PIML-009 — Antiderivative operator on a trigonometric family
+
+For `u(s) = a_0 + a_1 cos(pi s) + b_1 sin(pi s)`,
+`G(u)(y) = int_0^y u(s) ds = a_0 y + a_1 sin(pi y)/pi + b_1 (1 - cos(pi y))/pi`.
+
+- Domain: `y in [0, 1]`; coefficients uniform on `[-1, 1]` in the generator.
+- Meaning: closed-form images for the synthetic DeepONet benchmark (not data
+  from any physical system); verified against a 2000-panel Simpson rule.
+- Code: `surrogates.physics_informed.antiderivative_exact`,
+  `surrogates.physics_informed.antiderivative_dataset`.
+- Source: [REF-LU-JIN-PANG-ZHANG-KARNIADAKIS-2021].
+
+### EQ-SUR-ROM-001 — POD basis and energy-based truncation rule
+
+`X_c = X - m 1' = U S W'`, modes `V = [u_1 ... u_r]`, `a = V'(x - m)`,
+`x ~= m + V a`; the rank is the given `r` or
+`r(e) = min{ r : sum_(i<=r) sigma_i^2 >= e sum_i sigma_i^2 }`.
+
+- Domain: finite real snapshots `x_k in R^n`, `k = 1..m`; `m` is the mean of
+  the snapshots when centring is requested and zero otherwise; `0 < e <= 1`;
+  `r` is at most the numerical rank of `X_c`.
+- Meaning: the leading left singular vectors of the snapshot matrix span the
+  `r`-dimensional subspace that minimizes the summed squared projection error
+  of the data. `e` is the fraction of the squared-singular-value "energy"
+  retained; it is an explicit user choice, not a property of the physics, and
+  exactly one of `r` and `e` must be given to `fit_pod`.
+- Code: `surrogates.reduced_order.fit_pod`,
+  `surrogates.reduced_order.PODBasis`.
+- Source: [REF-SIROVICH-1987] and [REF-GOLUB-VANLOAN-2013, Section 8.6].
+
+### EQ-SUR-ROM-002 — Eckart-Young projection error
+
+`||X_c - V V' X_c||_F^2 = sum_(i>r) sigma_i^2`, and no rank-`r` matrix is
+closer to `X_c` in the Frobenius norm.
+
+- Domain: [EQ-SUR-ROM-001], the training snapshots.
+- Meaning: the training reconstruction error of a POD basis is known in
+  closed form from the discarded singular values. It says nothing about the
+  error on snapshots that were not used to build the basis.
+- Code: `surrogates.reduced_order.PODBasis.truncation_error`,
+  `surrogates.reduced_order.PODBasis.reconstruction_error`.
+- Source: [REF-ECKART-YOUNG-1936] and [REF-GOLUB-VANLOAN-2013, Section 8.6].
+
+### EQ-SUR-ROM-003 — Intrusive POD-Galerkin reduced model
+
+`x' = c + A x + Q(x, x) + B u`, `x = m + V a`
+gives `a' = c_r + A_r a + H q(a) + B_r u` with
+`c_r = V'(c + A m + Q(m, m))`,
+`A_r[:, j] = V'(A v_j + Q(m, v_j) + Q(v_j, m))`,
+`H[:, (i,j)] = V'(Q(v_i, v_j) + Q(v_j, v_i))` for `i < j`,
+`H[:, (i,i)] = V' Q(v_i, v_i)`, `B_r = V' B`, and the compact quadratic
+features `q(a) = (a_i a_j)_(i <= j)`.
+
+- Domain: full-order operators available; `Q` bilinear (not necessarily
+  symmetric); `V` has orthonormal columns.
+- Meaning: Galerkin projection of the full-order tendency onto the POD
+  subspace. Keeping only `i <= j` makes the quadratic operator unique, which
+  the Kronecker form `a (x) a` is not. Stability of the full-order system is
+  not inherited by the reduced model.
+- Code: `surrogates.reduced_order.galerkin_reduced_model`,
+  `surrogates.reduced_order.quadratic_features`,
+  `surrogates.reduced_order.ReducedModel.rhs`.
+- Source: [REF-PEHERSTORFER-WILLCOX-2016] and [REF-SIROVICH-1987].
+
+### EQ-SUR-ROM-004 — Operator inference by regularized least squares
+
+`min_O sum_k ||O d_k - r_k||^2 + lambda_1 ||O_(c,A,B)||_F^2
++ lambda_2 ||O_H||_F^2`, with data rows
+`d_k = [1, a_k', q(a_k)', u_k']`, `a_k = V'(x_k - m)`, `r_k = V' x'_k`;
+the minimizer solves the augmented least-squares problem with extra rows
+`sqrt(lambda_j) e_j'`.
+
+- Domain: pairs `(x_k, x'_k)` and optional inputs; `lambda_1, lambda_2 >= 0`;
+  at `lambda = 0` the data matrix must have full column rank, otherwise a
+  `ValueError` is raised and no pseudo-inverse is used.
+- Meaning: learns the reduced operators from data without access to the
+  full-order operators. For noise-free data inside the span of `V` and a
+  full-rank data matrix it returns the Galerkin operators of
+  [EQ-SUR-ROM-003] up to rounding; with noisy or finite-difference
+  derivatives it is biased and the learned model may be unstable.
+- Code: `surrogates.reduced_order.fit_operator_inference`.
+- Source: [REF-PEHERSTORFER-WILLCOX-2016], [REF-TIKHONOV-1963] and
+  [REF-GOLUB-VANLOAN-2013, Section 5.3].
+
+### EQ-SUR-ROM-005 — Regularization selection by held-out trajectory error
+
+`lambda* = argmin_lambda ||a_sim(lambda) - a_data||_F / ||a_data||_F` over the
+trailing validation samples, where `a_sim(lambda)` integrates the model fitted
+on the leading samples from `a_data[0]`; candidates whose simulation diverges
+score `+inf`.
+
+- Domain: one uniformly sampled trajectory; `0 < validation_fraction < 1`.
+- Meaning: a declared selection rule of this library (not taken from the
+  cited paper): it favors weights for which the learned model is stable over
+  the whole record and predicts the held-out tail. It is a heuristic with no
+  generalization guarantee and it raises `ValueError` if every candidate
+  fails.
+- Code: `surrogates.reduced_order.select_operator_inference_regularization`.
+- Source: [REF-PEHERSTORFER-WILLCOX-2016] and [REF-TIKHONOV-1963].
+
+### EQ-SUR-ROM-006 — Reduced-model time stepping with divergence status
+
+`a_(n+1) = a_n + (h/6)(k_1 + 2 k_2 + 2 k_3 + k_4)`, `k_1 = f(t_n, a_n)`,
+`k_2 = f(t_n + h/2, a_n + h k_1/2)`, `k_3 = f(t_n + h/2, a_n + h k_2/2)`,
+`k_4 = f(t_n + h, a_n + h k_3)`, stopped when `a_n` is non-finite or
+`||a_n|| > L`.
+
+- Domain: fixed step `h > 0`; input `u(t)` supplied as a function of time.
+- Meaning: classical fourth-order Runge-Kutta. A reduced model can blow up in
+  finite time even when the full-order system is bounded; the run then
+  returns `completed = False` with a stop reason instead of overflowing, and
+  no state is clipped.
+- Code: `surrogates.reduced_order.ReducedModel.simulate`.
+- Source: [REF-HAIRER-NORSETT-WANNER-1993, Section II.1].
+
+### EQ-SUR-ROM-007 — Exact dynamic mode decomposition
+
+`X = [x_0 ... x_(m-2)]`, `Y = [x_1 ... x_(m-1)]`, `X ~= U_r S_r W_r'`,
+`A~ = U_r' Y W_r S_r^-1`, `A~ z = lambda z`,
+`phi = Y W_r S_r^-1 z`, `b = W^-1 U_r' x_0`,
+`x_k ~= sum_i b_i lambda_i^k U_r z_i`; continuous eigenvalues
+`log(lambda) / dt`.
+
+- Domain: uniformly sampled snapshots, at least three; `r` from a given rank,
+  the energy rule of [EQ-SUR-ROM-001], or the numerical rank.
+- Meaning: the best-fit linear operator `Y ~= A X` restricted to the leading
+  POD subspace of the data. For data generated by a linear map the
+  eigenvalues are those of the map when `r` equals the dimension of the
+  Krylov space of the data. Truncation, noise and nonlinearity bias the
+  eigenvalues (noise typically damps them).
+- Code: `surrogates.reduced_order.fit_dmd`,
+  `surrogates.reduced_order.DMDResult`.
+- Source: [REF-SCHMID-2010] and [REF-TU-ETAL-2014].
+
+### EQ-SUR-ROM-008 — Extended DMD on a dictionary
+
+`min_K ||Psi_X K - Psi_Y||_F^2 + lambda ||K||_F^2`,
+`Psi_X[k, :] = psi(x_k)'`, `Psi_Y[k, :] = psi(F(x_k))'`;
+eigenfunctions `phi_i(x) = psi(x)' xi_i` with `K xi_i = lambda_i xi_i`;
+state recovery `x ~= C' psi(x)`, `C = argmin ||Psi_X C - X||`.
+
+- Domain: pairs `(x_k, F(x_k))`; dictionary `psi = (psi_1..psi_N)` of
+  monomials, Gaussian radial functions `exp(-||x - c||^2 / (2 w^2))` or user
+  functions; the regression must be full rank unless `lambda > 0`.
+- Meaning: finite-dimensional approximation of the Koopman operator
+  `phi -> phi o F`. If the dictionary spans a Koopman-invariant subspace the
+  eigenvalues and multi-step lifted predictions are exact; otherwise
+  `phi(F(x)) = lambda phi(x)` holds only approximately and predictions drift.
+- Code: `surrogates.reduced_order.fit_edmd`,
+  `surrogates.reduced_order.EDMDResult`,
+  `surrogates.reduced_order.polynomial_dictionary`,
+  `surrogates.reduced_order.rbf_dictionary`,
+  `surrogates.reduced_order.custom_dictionary`.
+- Source: [REF-WILLIAMS-KEVREKIDIS-ROWLEY-2015].
+
+### EQ-SUR-ROM-009 — Derivative estimation from sampled states
+
+Central: `x'_k ~= (x_(k+1) - x_(k-1)) / (2h)`; ends:
+`(-3 x_0 + 4 x_1 - x_2) / (2h)` and `(3 x_(m-1) - 4 x_(m-2) + x_(m-3)) / (2h)`;
+local polynomial: `x'_k = c_1` of the degree-`p` least-squares fit
+`x(t_k + tau) ~= sum_j c_j tau^j` to the `w` nearest samples.
+
+- Domain: uniform step `h > 0`; `w >= p + 1`; `w` at most the number of
+  samples.
+- Meaning: the differences have truncation error `O(h^2)` and amplify white
+  state noise of standard deviation `s` to about `s / (sqrt(2) h)`. The local
+  fit (Savitzky-Golay derivative) trades that variance for a smoothing bias
+  where the signal varies faster than the polynomial resolves.
+- Code: `surrogates.reduced_order.finite_difference_derivatives`,
+  `surrogates.reduced_order.local_polynomial_derivatives`.
+- Source: [REF-SAVITZKY-GOLAY-1964] and [REF-BRUNTON-PROCTOR-KUTZ-2016].
+
+### EQ-SUR-ROM-010 — Sequentially thresholded least squares (SINDy)
+
+`xi^(0) = argmin ||x'_j - Theta xi||_2^2`;
+`S^(t+1) = { i in S^t : |xi_i^(t)| >= tau }`,
+`xi^(t+1) = argmin_(supp xi = S^(t+1)) ||x'_j - Theta xi||_2^2`, repeated
+until `S` stops changing; `Theta[k, i] = theta_i(x_k)`.
+
+- Domain: library `theta_i` of monomials or user functions, threshold
+  `tau >= 0` in the units of the library terms, derivative estimates from
+  [EQ-SUR-ROM-009]; a singular active-set regression raises unless an explicit
+  ridge weight is given.
+- Meaning: a hard-threshold sparse regression that identifies the active
+  terms of `x' = Theta(x) Xi`. The active-set solves use the normal equations
+  of the unit-norm columns, which squares their condition number. The result
+  reports whether the support stabilized within the pass limit and the
+  relative residual of each equation; an incomplete library shows up as a
+  large residual.
+- Code: `surrogates.reduced_order.fit_sindy`,
+  `surrogates.reduced_order.SINDyResult`.
+- Source: [REF-BRUNTON-PROCTOR-KUTZ-2016].
+
+### EQ-SUR-ROM-011 — Ensemble SINDy inclusion probabilities and intervals
+
+`p_ji = #{ b : xi^b_ji != 0, term i offered } / #{ b : term i offered }`;
+interval `[Q_((1-c)/2), Q_(1-(1-c)/2)]` of `{ xi^b_ji }` over the members;
+selected coefficient: the median of the non-zero `xi^b_ji` where
+`p_ji >= p_min`, zero elsewhere.
+
+- Domain: `B >= 2` members, each running [EQ-SUR-ROM-010] on a bootstrap
+  sample of the rows (data mode), on a random subset of the library (library
+  mode), or both; coverage `0 < c < 1`.
+- Meaning: stability of the identified support under resampling. The
+  probabilities and intervals are bootstrap quantities, not posterior
+  probabilities or confidence statements. Library bagging lets correlated
+  terms stand in for an omitted true term, which lowers the sharpness of the
+  probabilities. Members whose regression is rank deficient are dropped and
+  counted in `failed`.
+- Code: `surrogates.reduced_order.fit_ensemble_sindy`,
+  `surrogates.reduced_order.EnsembleSINDyResult`.
+- Source: [REF-FASEL-ETAL-2022], [REF-BRUNTON-PROCTOR-KUTZ-2016] and
+  [REF-EFRON-TIBSHIRANI-1993].
+
+### EQ-SUR-ROM-012 — Eigenpairs of a general real matrix
+
+`A -> H = Q' A Q` (Householder, upper Hessenberg); shifted QR iteration
+`H - mu I = QR`, `H <- R Q + mu I` with the Wilkinson shift from the trailing
+`2 x 2` block and deflation of
+`|h_(l,l-1)| <= eps (|h_(l-1,l-1)| + |h_(l,l)|)`;
+eigenvectors from `(A - (lambda + delta) I) v_(k+1) = v_k`, three steps,
+`delta = 1e-10 ||A||_F`.
+
+- Domain: finite real square matrix; at most 100 sweeps per eigenvalue,
+  otherwise `ValueError`.
+- Meaning: complex eigenvalues of the small reduced operators of DMD and
+  EDMD. Eigenvalue accuracy degrades for defective matrices (about
+  `sqrt(eps)` for a double eigenvalue) and eigenvectors of a repeated
+  eigenvalue are not independent in that case; the routine reports the
+  numbers and does not repair them.
+- Code: `surrogates.reduced_order.eigen_general`.
+- Source: [REF-GOLUB-VANLOAN-2013, Sections 7.4-7.5] and [REF-WILKINSON-1965].
+
+### EQ-REL-TV-001 — Rice mean upcrossing rate over a barrier
+
+`nu(t) = (s_dot / s) phi((b - m) / s) psi(-b' / s_dot)`, `psi(z) = phi(z) + z Phi(z)`; for a constant barrier `nu = s_dot exp(-(b - m)^2 / (2 s^2)) / (2 pi s)`.
+
+- Domain: differentiable stationary Gaussian process with mean `m`, standard deviation `s`, derivative standard deviation `s_dot > 0` (`X(t)` and `X'(t)` independent at equal time); barrier `b(t)` with slope `b'`.
+- Meaning: expected number of upcrossings of `b` per unit time, `nu = f_X(b) E[(X' - b')^+]`. Closed-form oracle for first-passage estimators. For `b' = 0` it is Rice's classical formula with `s_dot / s = sqrt(lambda_2 / lambda_0)`.
+- Code: `reliability.time_variant.rice_upcrossing_rate`.
+- Source: [REF-RICE-1944], [REF-RICE-1945], [REF-CRAMER-LEADBETTER-1967].
+
+### EQ-REL-TV-002 — Outcrossing rate and the first-passage union bound
+
+`nu(t) = lim_{dt->0} P(G(U,t) > 0 and G(U,t+dt) <= 0) / dt` and `P_f(0,T) <= P_f(0) + integral_0^T nu(t) dt`.
+
+- Domain: time-variant limit state `G(u,t)` in standard-normal space, failure `G <= 0`, integrable `nu`.
+- Meaning: every failure in `[0,T]` either exists at `t = 0` or begins with an outcrossing, so the expected number of outcrossings bounds the first-passage probability from above. The bound may exceed one and is loose when crossings cluster.
+- Code: `reliability.time_variant.phi2_time_variant`.
+- Source: [REF-ANDRIEU-RENAUD-SUDRET-LEMAIRE-2004], [REF-RICE-1944].
+
+### EQ-REL-TV-003 — PHI2 outcrossing probability
+
+`P(not E_1 and E_2) = Phi(-beta_2) - Phi_2(-beta_1, -beta_2; rho)`, `rho = alpha_1 . alpha_2`, `nu ~ P / dt`.
+
+- Domain: FORM indices `beta_1 = beta(t)`, `beta_2 = beta(t+dt)` with unit design-point directions `alpha_1`, `alpha_2`; `E_i = {alpha_i . U >= beta_i}`; `Phi_2` the bivariate standard normal CDF.
+- Meaning: the outcrossing event is a safe-to-failed transition between two linearised limit states. Exact for limit states linear in `u`; the relative error of the rate is `O(dt)` and rounding grows as `dt` shrinks (difference of two numbers of size `Phi(-beta)`).
+- Code: `reliability.time_variant.phi2_outcrossing_probability`.
+- Source: [REF-ANDRIEU-RENAUD-SUDRET-LEMAIRE-2004].
+
+### EQ-REL-TV-004 — Poisson first-passage approximation
+
+`P_f(0,T) ~ 1 - (1 - P_f(0)) exp(-integral_0^T nu(t) dt)`.
+
+- Domain: rare, approximately independent outcrossings (high thresholds, horizon long relative to the correlation time).
+- Meaning: never exceeds the union bound `P_f(0) + integral nu dt` and is always in `[0,1]`. It overestimates for low thresholds because crossings of smooth processes occur in clusters.
+- Code: `reliability.time_variant.PHI2Result`.
+- Source: [REF-RICE-1944], [REF-ANDRIEU-RENAUD-SUDRET-LEMAIRE-2004].
+
+### EQ-REL-TV-005 — Matern-3/2 process with exact grid sampling
+
+`rho(tau) = (1 + lam |tau|) exp(-lam |tau|)`, `lam = sqrt(3)/ell`, `s_dot = lam s`; state `(X, X')` evolves by `Y_{k+1} = Phi(h) Y_k + L e_k`, `Phi(h) = e^{-lam h} [[1 + lam h, h], [-lam^2 h, 1 - lam h]]`, `L L^T = P_inf - Phi P_inf Phi^T`, `P_inf = diag(s^2, lam^2 s^2)`.
+
+- Domain: `s, ell, h > 0` with `lam h >= 1e-3` (closed-form innovation covariance loses accuracy below that).
+- Meaning: the grid values have exactly the Matern-3/2 covariance (verified column by column in the tests) at cost `O(steps)`; the process is once differentiable so the Rice rate is finite.
+- Code: `reliability.time_variant.Matern32Process`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-REL-TV-006 — Random-harmonic stationary process
+
+`X(t) = m + sum_k s_k (z_{2k} cos w_k t + z_{2k+1} sin w_k t)`; variance `sum s_k^2`, `s_dot^2 = sum s_k^2 w_k^2`, `rho(tau) = sum s_k^2 cos(w_k tau) / sum s_k^2`.
+
+- Domain: independent standard normals `z`, positive `s_k`, `w_k`.
+- Meaning: stationary, exact in continuous time and linear in `z`, so FORM is exact and PHI2 and Rice can be compared in closed form. For one harmonic `X = s R cos(w t - phi)` with Rayleigh `R`, so `P(max over a period >= r) = exp(-r^2 / (2 s^2))` exactly.
+- Code: `reliability.time_variant.HarmonicProcess`.
+- Source: [REF-RICE-1945], [REF-CRAMER-LEADBETTER-1967].
+
+### EQ-REL-TV-007 — Grid first passage and its union bound
+
+`P_f^grid = P(max_k (X_k - b_k) >= 0) <= P(X_0 >= b_0) + sum_k P(X_k < b_k, X_{k+1} >= b_{k+1})`.
+
+- Domain: process values on `t_k = k h`; Gaussian linearised events give each step term as the PHI2 probability with `dt = h`.
+- Meaning: the first grid exceedance is either at `k = 0` or an up-step, so the bound is rigorous for the grid event; the grid event lies below the continuous first-passage probability. Estimated by crude Monte Carlo (binomial standard error) and by subset simulation in the space of the standard-normal innovations (Au-Beck c.o.v.).
+- Code: `reliability.time_variant.first_passage_comparison`, `reliability.time_variant.first_passage_monte_carlo`, `reliability.time_variant.first_passage_subset_simulation`.
+- Source: [REF-AU-BECK-2001], [REF-MELCHERS-BECK-2018].
+
+### EQ-REL-RSENS-001 — FORM sensitivity of the reliability index
+
+`d beta / d theta_k = (dG/dtheta_k)(u*; theta) / ||grad_u G(u*; theta)||`.
+
+- Domain: parametrised standard-space limit state `G(u; theta)` with a unique, regular design point `u* = argmin ||u||` on `G = 0`; for independent normal inputs `G(u; theta) = g(mu + sigma u; d)` and `theta = (mu, sigma, d)`.
+- Meaning: envelope theorem on the constrained minimisation. Distribution parameters and deterministic design parameters of `g` enter identically. Verified against central differences of repeated FORM runs and, for linear `g`, the closed form `dbeta/dmu_i = -a_i/s`.
+- Code: `reliability.reliability_sensitivity.form_sensitivities`, `reliability.reliability_sensitivity.form_sensitivities_finite_difference`, `reliability.reliability_sensitivity.normal_input_limit_state`.
+- Source: [REF-HOHENBICHLER-RACKWITZ-1986], [REF-DITLEVSEN-MADSEN-1996].
+
+### EQ-REL-RSENS-002 — First-order probability sensitivity
+
+`d Phi(-beta) / d theta_k = -phi(beta) d beta / d theta_k`.
+
+- Domain: as EQ-REL-RSENS-001.
+- Meaning: derivative of the FORM probability; equals the exact `dP_f/dtheta_k` when `G` is linear in `u`, and is a first-order approximation otherwise.
+- Code: `reliability.reliability_sensitivity.FORMSensitivityResult`.
+- Source: [REF-HOHENBICHLER-RACKWITZ-1986].
+
+### EQ-REL-RSENS-003 — Score of independent normal inputs
+
+`d ln f / d mu_i = (x_i - mu_i)/sigma_i^2`, `d ln f / d sigma_i = ((x_i - mu_i)^2/sigma_i^2 - 1)/sigma_i`.
+
+- Domain: `X_i ~ N(mu_i, sigma_i^2)` independent, `sigma_i > 0`.
+- Meaning: score vector with zero mean; the likelihood-ratio derivative of the input density with respect to its parameters.
+- Code: `reliability.reliability_sensitivity.normal_scores`.
+- Source: [REF-RUBINSTEIN-KROESE-2004], [REF-PAPAIOANNOU-BREITUNG-STRAUB-2018].
+
+### EQ-REL-RSENS-004 — Score-function Monte Carlo estimator
+
+`dP_f/dtheta = E[1{g(X) <= 0} s(X; theta)] ~ (1/N) sum_j 1_F(x_j) s(x_j)`, `se = sd(1_F s)/sqrt(N)`.
+
+- Domain: `g` independent of `theta`, regular density family, finite score variance.
+- Meaning: unbiased from the same crude samples that give `P_f`; the variance of `1_F s` is large for rare events, which is why the subset form (EQ-REL-RSENS-005) exists. It does not apply to parameters of `g`.
+- Code: `reliability.reliability_sensitivity.score_function_monte_carlo`, `reliability.reliability_sensitivity.score_function_estimator`.
+- Source: [REF-RUBINSTEIN-KROESE-2004], [REF-PAPAIOANNOU-BREITUNG-STRAUB-2018].
+
+### EQ-REL-RSENS-005 — Score-function estimator from subset simulation
+
+`dP_f/dtheta = P(F_{m-1}) E[1_F s | F_{m-1}] ~ p0^{m-1} (1/N) sum_j 1_F(x_j) s(x_j)` over the final-level samples.
+
+- Domain: `F subset F_{m-1}`; final-level samples distributed as `f(. | F_{m-1})`; intermediate sets treated as fixed.
+- Meaning: the identity `E[1_F s] = P(F_{m-1}) E[1_F s | F_{m-1}]` is exact; thresholds chosen from data introduce a small Au-Beck-type bias. Standard error: batch means over the chains combined with the level c.o.v. of the conditioning probability `p0^{m-1}` as if independent (an approximation).
+- Code: `reliability.reliability_sensitivity.score_function_subset`.
+- Source: [REF-SONG-LU-QIAO-2009], [REF-AU-BECK-2001].
+
+### EQ-REL-RSENS-006 — First-order index of the failure indicator
+
+`S_i = Var(E[1_F | X_i]) / Var(1_F)`, `Var(1_F) = P_f (1 - P_f)`; binned estimate `sum_b w_b (ybar_b - ybar)^2 - sum_b w_b ybar_b (1 - ybar_b)/(n_b - 1)` over equal-count bins.
+
+- Domain: i.i.d. samples of the input law (crude Monte Carlo), enough failures per bin.
+- Meaning: share of the failure-indicator variance explained by one input alone; the second term removes the within-bin sampling bias. Binning smooths the conditional mean and biases the index downward when it varies strongly inside a bin; values can be slightly negative from noise and are not clipped.
+- Code: `reliability.reliability_sensitivity.failure_indicator_sobol`.
+- Source: [REF-SOBOL-1993], [REF-SALTELLI-2008].
+
+### EQ-INF-TMCMC-001 — Transitional densities and plausibility weights
+
+`pi_j(x) proportional to p(x) L(x)^q_j`, `0 = q_0 < q_1 < ... < q_m = 1`;
+the plausibility weight of a sample `x_i ~ pi_j` for the step to `q_{j+1}` is
+`w_i = L(x_i)^(q_{j+1} - q_j)`.
+
+- Domain: a proper prior that can be sampled; `L` finite or zero (`log L` may
+  be `-inf`, never NaN or `+inf`).
+- Meaning: `pi_0` is the prior and `pi_m` the posterior; `w_i` is the ratio
+  `pi_{j+1}(x_i) / pi_j(x_i)` of unnormalized densities, so weighted samples
+  of `pi_j` represent `pi_{j+1}`. Resampling with probabilities proportional
+  to `w_i` followed by Markov moves that leave `pi_{j+1}` invariant gives
+  samples of `pi_{j+1}`.
+- Code: `inference.transitional_mcmc.transitional_mcmc`.
+- Source: [REF-CHING-CHEN-2007].
+
+### EQ-INF-TMCMC-002 — Exponent by bisection on the coefficient of variation
+
+`q_{j+1} = sup { q in (q_j, 1] : CoV(w) <= c }`,
+`CoV(w) = sqrt( mean(w^2) / mean(w)^2 - 1 )`,
+`w_i = exp((q - q_j) l_i)`, `l_i = log L(x_i)`; `c = 1` by default.
+
+- Domain: `c > 0`; at least two samples with `l_i` finite. The mean is over
+  the samples with positive likelihood (population divisor `n`).
+- Meaning: `CoV(w)` is non-decreasing in the increment (the cumulant function
+  `K` of `l` is convex with `K(0) = 0`, so `K(2d) - 2K(d)` is non-decreasing
+  for `d >= 0`), hence bisection finds the largest admissible step; the
+  achieved value equals `c` at every stage except possibly the last, where the
+  full step satisfies `CoV <= c`. A request that no positive increment can
+  meet at double precision is reported as `"tempering_stalled"`.
+- Code: `inference.transitional_mcmc.transitional_mcmc`.
+- Source: [REF-CHING-CHEN-2007];
+  [REF-BETZ-PAPAIOANNOU-STRAUB-2016] (analysis of the rule).
+
+### EQ-INF-TMCMC-003 — Evidence as the product of mean plausibility weights
+
+`log Z_hat = sum_{j=0}^{m-1} log S_j`, `S_j = (1/N) sum_{i=1}^{N} w_i^{(j)}`,
+an estimate of `log Z = log integral p(x) L(x) dx`.
+
+- Domain: the weights of [EQ-INF-TMCMC-001]; the mean runs over all `N`
+  samples, zero-likelihood samples contributing `w_i = 0`.
+- Meaning: `S_j` estimates `Z_{j+1} / Z_j` by importance sampling from
+  `pi_j`, and `Z_0 = 1` because the prior is normalized; the product telescopes
+  to `Z`. `Z_hat` is consistent; `log Z_hat` is biased by Jensen's
+  inequality and by chain correlation, so it is judged by replication over
+  seeds (the library reports no standard error for it). `L` must contain
+  every normalizing constant of the data density for `Z` to be the marginal
+  likelihood `p(D | M)`.
+- Code: `inference.transitional_mcmc.TMCMCResult`.
+- Source: [REF-CHING-CHEN-2007].
+
+### EQ-INF-TMCMC-004 — Metropolis moves with scaled weighted covariance
+
+Proposal `x' ~ N(x, beta^2 Sigma_j)`, with
+`Sigma_j = sum_i W_i (x_i - m)(x_i - m)'`, `W_i = w_i / sum w`, accepted with
+probability `min{1, p(x') L(x')^q / (p(x) L(x)^q)}`, `q = q_{j+1}`; the scale
+follows `log beta <- log beta + g (a_j - a*)` with `a_j` the acceptance rate
+of the stage, `a*` the target and `g` the gain.
+
+- Domain: `Sigma_j` positive definite (no jitter is added; a failed Cholesky
+  factorization is reported as `"singular_covariance"`); `beta > 0`.
+- Meaning: each distinct resampled sample (leader) starts one chain whose
+  recorded length equals its multiplicity after `burn_in` discarded steps, so
+  the stage again holds `N` samples. `beta`, `Sigma_j` and the kernel of a stage
+  are fixed from the previous stage and the current weights before that stage
+  moves. The initial `beta = 0.2` follows the original method; adaptation
+  replaces the fixed value as advised by Betz et al.
+- Code: `inference.transitional_mcmc.transitional_mcmc`.
+- Source: [REF-CHING-CHEN-2007]; [REF-BETZ-PAPAIOANNOU-STRAUB-2016].
+
+### EQ-INF-TMCMC-005 — Posterior model probabilities and Bayes factors
+
+`P(M_k | D) = P(M_k) Z_k / sum_l P(M_l) Z_l`, `B_{kl} = Z_k / Z_l`,
+`log B_{kl} = log Z_k - log Z_l`.
+
+- Domain: `Z_k = p(D | M_k)` the marginal likelihood of model class `k` for
+  the same data `D` (all normalizing constants included), prior model
+  probabilities summing to one; evaluated by log-sum-exp.
+- Meaning: the posterior odds of two model classes are the Bayes factor times
+  the prior odds. Evidences depend on the prior of each model class, so a
+  vague prior penalizes a model through the Ockham factor of
+  [EQ-INF-TMCMC-006].
+- Code: `inference.transitional_mcmc.model_class_selection`.
+- Source: [REF-BECK-YUEN-2004]; [REF-KASS-RAFTERY-1995].
+
+### EQ-INF-TMCMC-006 — Log evidence as data fit minus information gain
+
+`log Z = E_post[log L(x)] - KL(post || prior)`,
+`KL(post || prior) = E_post[log (post(x) / p(x))]`.
+
+- Domain: a proper prior and posterior with `E_post[|log L|] < infinity`.
+- Meaning: the first term rewards fit to the data, the second is the
+  information the data add about the parameters (the Ockham factor of Beck
+  and Yuen), which grows with the number of parameters the data constrain.
+  Estimator: `log Z_hat` from [EQ-INF-TMCMC-003]; `E_post[log L]` by the
+  sample mean of `log L` at the final samples; the information gain is their
+  difference, so it carries both Monte Carlo errors and can be slightly
+  negative. The reported standard error of the data-fit mean treats the
+  samples as independent and is therefore a lower bound.
+- Code: `inference.transitional_mcmc.decompose_log_evidence`.
+- Source: [REF-BECK-YUEN-2004].
+
+### EQ-INF-TMCMC-007 — Model-averaged posterior predictive
+
+`p(y | D) = sum_k P(M_k | D) p(y | D, M_k)`,
+`p(y | D, M_k) = integral p(y | theta_k, M_k) p(theta_k | D, M_k) d theta_k`.
+
+- Domain: posterior model probabilities of [EQ-INF-TMCMC-005]; a predictive
+  sampler per model.
+- Meaning: draws are obtained by choosing a model with its posterior
+  probability, a posterior sample of that model uniformly, and then a
+  predictive draw; the mixture accounts for model uncertainty in addition to
+  parameter uncertainty.
+- Code: `inference.transitional_mcmc.model_averaged_predictive`.
+- Source: [REF-HOETING-ETAL-1999]; [REF-BECK-YUEN-2004].
+
+### EQ-INF-TMCMC-008 — Hierarchical prior across repeated tests
+
+`theta_i | mu, sigma ~ N(mu, diag(sigma^2))`, `i = 1..m`;
+`mu_k ~ N(a_k, b_k^2)`; `log sigma_k ~ N(c_k, e_k^2)` or `sigma` known;
+`p(theta, mu, sigma | D)` proportional to
+`prod_i p(D_i | theta_i) N(theta_i; mu, diag(sigma^2)) p(mu) p(sigma)`.
+
+- Domain: tests independent given their parameters; `b_k, e_k > 0`; the
+  state `(mu, log sigma, theta_1..theta_m)` is sampled jointly (the Jacobian
+  of `sigma = exp(log sigma)` is absorbed in the log-normal hyperprior).
+- Meaning: partial pooling; each `theta_i` is shrunk towards `mu` by an
+  amount that depends on `sigma` and on how informative `D_i` is. A new test
+  has `theta ~ N(mu, diag(sigma^2))` with `(mu, sigma)` from the posterior.
+  With known `sigma` and Gaussian data the model is linear-Gaussian and its
+  evidence and posterior are available in closed form, which is how the
+  implementation is tested.
+- Code: `inference.transitional_mcmc.hierarchical_calibration`.
+- Source: [REF-GELMAN-ETAL-2013]; [REF-CHING-CHEN-2007] (the sampler).
+
+### EQ-INV-TMAP-001 — Integrated-positive monotone triangular parametrization
+
+`S_k(u) = a_k(u_<k) + c u_k + int_0^(u_k) exp(b_k(u_<k, t)) dt`,
+`k = 1..d`, with polynomials `a_k` (total degree `p_a`) and `b_k` (total
+degree `p_b`) in inputs standardized by `u_i = (x_i - m_i)/s_i`, and floor
+`c = min_slope in (0, 1)`.
+
+- Domain: any real coefficients; `s_i > 0`.
+- Meaning: `dS_k/du_k = c + exp(b_k) >= c > 0` for every coefficient vector,
+  so each component is strictly increasing, the Jacobian is triangular with
+  positive diagonal, and the floor makes `S_k(u_<k, .)` onto `R`: the map is
+  a bijection of `R^d` by construction, with no monotonicity constraint to
+  check on data. The integral is evaluated by Gauss-Legendre quadrature (exact
+  for constant `b_k`); densities use the exact slope, so map and density agree
+  to the quadrature error. `p_a = 1`, `p_b = 0` is the Gaussian (Cholesky)
+  family.
+- Code: `inverse.transport_maps.TriangularTransportMap`.
+- Source: [REF-MARZOUK-ETAL-2017], [REF-ROSENBLATT-1952].
+
+### EQ-INV-TMAP-002 — Sample-based maximum-likelihood objective
+
+`J_k(theta_k) = (1/N) sum_n [ S_k(x_n)^2 / 2 - log (dS_k/dx_k)(x_n) ]`
+(`+ ridge |theta_k|^2 / 2`), minimized separately for each `k`.
+
+- Domain: samples `x_n` of the target; reference `N(0, I)`.
+- Meaning: the negative log likelihood of the samples under the pullback
+  density, which separates over components because the Jacobian is
+  triangular. Exactly quadratic in `a_k`; not guaranteed jointly convex in the
+  slope coefficients of the integrated-exponential family, so the damped
+  Newton solver returns a stationary point and reports `converged` and
+  `stop_reason`.
+- Code: `inverse.transport_maps.fit_triangular_map_from_samples`.
+- Source: [REF-MARZOUK-ETAL-2017], [REF-EL-MOSELHY-MARZOUK-2012].
+
+### EQ-INV-TMAP-003 — Pullback density and conditional structure
+
+`pi_hat(x) = N(S(x); 0, I) |det grad S(x)|`,
+`log |det grad S| = sum_k [log s_k^out - log s_k^in + log(c + exp b_k)]`.
+For the map `T`, `T#rho (x) = rho(T^-1(x)) / |det grad T(T^-1(x))|`.
+
+- Domain: `S` of [EQ-INV-TMAP-001].
+- Meaning: density estimate from samples; for a map fitted to a density,
+  the normalized density of the pushforward of the reference.
+- Code: `inverse.transport_maps.SampleTransportFit`,
+  `inverse.transport_maps.DensityTransportFit`.
+- Source: [REF-MARZOUK-ETAL-2017].
+
+### EQ-INV-TMAP-004 — KL objective of a map to an unnormalized density
+
+`KL(T#rho || pi) = E_rho[ -log pi~(T(z)) - log |det grad T(z)| ] + log Z`,
+`pi~ = Z pi`, minimized over the coefficients of `T` with the expectation over
+a fixed Gauss-Hermite tensor rule (or fixed Monte Carlo points).
+
+- Domain: `pi~` positive and differentiable on the range of `T`.
+- Meaning: mode-seeking variational objective, independent of `Z`; the fixed
+  reference rule turns it into a deterministic smooth function of the
+  coefficients. Not convex in general; the diagnostic of [EQ-INV-TMAP-005]
+  reveals a poor stationary point.
+- Code: `inverse.transport_maps.fit_triangular_map_from_density`.
+- Source: [REF-EL-MOSELHY-MARZOUK-2012], [REF-MARZOUK-ETAL-2017].
+
+### EQ-INV-TMAP-005 — Variance diagnostic and normalizer bound
+
+`w(z) = log pi~(T(z)) + log |det grad T(z)| - log rho(z)`;
+`E_rho[w] = log Z - KL(T#rho || pi)`, `Var_rho[w] = 0` iff `T#rho = pi`,
+and `KL ~ Var_rho[w] / 2` for small variance.
+
+- Domain: independent reference draws `z ~ N(0, I)`.
+- Meaning: the sample mean of `w` is a lower bound of `log Z` in
+  expectation; its variance measures how far the map is from exact; the
+  self-normalized weights `exp(w)` correct the samples by importance
+  sampling, with effective sample size `(sum e^w)^2 / sum e^(2w)`.
+- Code: `inverse.transport_maps.DensityTransportFit`.
+- Source: [REF-MARZOUK-ETAL-2017].
+
+### EQ-INV-TMAP-006 — Conditional sampling by triangular inversion and SVGD
+
+For `x = (y, theta)` with `S` triangular, fixing the leading block `y` gives
+the conditional of `theta` by solving `S_k(y, theta_<k, theta_k) = z_k` for
+`k > dim(y)` with `z ~ N(0, I)`. SVGD moves particles by
+`phi(x) = (1/n) sum_j [k(x_j, x) grad log p(x_j) + grad_(x_j) k(x_j, x)]`
+with `k(x, x') = exp(-|x - x'|^2 / h)`, `h = med^2 / log n`.
+
+- Domain: observation components ordered first for the conditional; SVGD
+  target the prior-whitened log posterior.
+- Meaning: likelihood-free posterior sampling from joint simulations; SVGD
+  particles are not independent draws and underestimate the variance in more
+  than a few dimensions.
+- Code: `inverse.transport_maps.SampleTransportFit`,
+  `inverse.transport_maps.svgd_posterior`.
+- Source: [REF-ROSENBLATT-1952], [REF-LIU-WANG-2016],
+  [REF-MARZOUK-ETAL-2017].
+
+### EQ-INV-TMAP-007 — Moment comparison with a quadrature reference
+
+`e_i = (mean_i(samples) - mean_i(ref)) / sd_i(ref)`,
+`r_i = var_i(samples) / var_i(ref)`,
+`rel = ||C_samples - C_ref||_F / ||C_ref||_F`.
+
+- Domain: reference from `quadrature_reference` on a box holding the mass.
+- Meaning: standardized mean error, variance ratio (`< 1`: underestimated
+  spread) and relative covariance error; sampling error of the sample moments
+  is not removed.
+- Code: `inverse.transport_maps.compare_samples_to_reference`.
+- Source: [REF-DAVIS-RABINOWITZ-1984].
+
+### EQ-DES-NOED-001 — Nested Monte Carlo EIG and its upward bias
+
+`EIG_hat = (1/N) sum_n [ log p(y_n | theta_n) - log (1/M) sum_m
+p(y_n | theta_nm) ]`, `theta_n, theta_nm ~ p(theta)`, `y_n ~ p(y | theta_n)`.
+
+- Domain: Gaussian noise `N(0, s_j^2)`; constants cancel.
+- Meaning: consistent as `N, M -> inf`; by Jensen's inequality
+  `E[EIG_hat] >= EIG` with bias `O(1/M)` and variance `O(1/N)`; cost
+  `N (1 + M)` design predictions.
+- Code: `design.nonlinear_optimal.nested_monte_carlo_eig`.
+- Source: [REF-RYAN-2003], [REF-HUAN-MARZOUK-2013], [REF-RAINFORTH-ETAL-2018].
+
+### EQ-DES-NOED-002 — Prior contrastive lower bound
+
+`L_N = (1/N) sum_n [ log p(y_n | theta_n) - log (1/N) sum_m p(y_n | theta_m) ]`
+with one pool `theta_1..theta_N ~ p(theta)`.
+
+- Domain: as [EQ-DES-NOED-001].
+- Meaning: every term has the expectation of the prior contrastive bound with
+  `N - 1` contrast samples: `E[L_N] <= EIG` and `L_N <= log N`; cost `N`
+  design predictions. Tight only when `log N` exceeds the EIG.
+- Code: `design.nonlinear_optimal.contrastive_lower_bound_eig`.
+- Source: [REF-FOSTER-ETAL-2020], [REF-HUAN-MARZOUK-2013].
+
+### EQ-DES-NOED-003 — Gauss-Newton Laplace EIG
+
+`EIG_L = E_theta[ 1/2 log det(I + L' J(theta)' R^-1 J(theta) L) ]`,
+`L L' = Sigma`, `J = d g / d theta`, `R = diag(s_j^2)`.
+
+- Domain: differentiable model, Gaussian prior and noise.
+- Meaning: prior entropy minus the expected entropy of the Laplace
+  (Gauss-Newton) posterior centered at the data-generating parameter; exact for
+  models linear in `theta` ([EQ-OED-EIG-LIN-001]); for nonlinear models an
+  approximation of unknown error sign.
+- Code: `design.nonlinear_optimal.laplace_eig`.
+- Source: [REF-TIERNEY-KADANE-1986], [REF-HUAN-MARZOUK-2013],
+  [REF-CHALONER-VERDINELLI-1995].
+
+### EQ-DES-NOED-004 — Exhaustive and greedy design choice with common random numbers
+
+`d* = argmax_(d in C^(m)) EIG_hat(d; omega)` over all `m`-subsets of the
+candidates `C` (exhaustive), or `c_(k+1) = argmax_c EIG_hat({c_1..c_k, c};
+omega)` (greedy), with one fixed random stream `omega` for every design.
+
+- Domain: finite candidate set; at most 20000 designs for the exhaustive
+  search.
+- Meaning: common random numbers make differences between designs less noisy
+  than the estimates themselves; greedy is myopic and need not equal the
+  exhaustive optimum. Differences below the standard errors are not
+  meaningful.
+- Code: `design.nonlinear_optimal.exhaustive_nonlinear_design`,
+  `design.nonlinear_optimal.greedy_nonlinear_design`.
+- Source: [REF-HUAN-MARZOUK-2013], [REF-CHALONER-VERDINELLI-1995].
+
+### EQ-DES-NOED-005 — Synthetic exponential-decay observation model
+
+`g(theta; t) = A exp(-exp(theta) t)`, `theta = log lambda`, `t >= 0` in s,
+`d g / d theta = -A t exp(theta) exp(-exp(theta) t)`.
+
+- Domain: `A != 0`; `lambda` in 1/s; prior `N(mu, sigma^2)` on `theta`.
+- Meaning: at `t = 0` the prediction does not depend on `theta`, so a sensor at
+  `t = 0` has zero information; the sensitivity peaks near `t = 1/lambda`.
+  A mathematical illustration, not instrument data.
+- Code: `design.nonlinear_optimal.exponential_decay_model`.
+- Source: [REF-HUAN-MARZOUK-2013].
+
+### EQ-DES-NOED-006 — Synthetic source-location observation model
+
+`g(theta; x) = q / ((x - theta)^2 + h^2)`,
+`d g / d theta = 2 q (x - theta) / ((x - theta)^2 + h^2)^2`.
+
+- Domain: `q != 0`, height `h > 0` in m, positions in m.
+- Meaning: inverse-square intensity of a point source at height `h`; the
+  response is nonmonotone in `theta`, so one sensor leaves a reflection
+  ambiguity and the posterior can be bimodal. A mathematical illustration, not
+  instrument data.
+- Code: `design.nonlinear_optimal.source_location_model`.
+- Source: [REF-HUAN-MARZOUK-2013].
+
+### EQ-AERO-REL-001 — Binomial and success-run demonstration plan
+
+`n = min { n : P(Binomial(n, 1 - R) <= r) <= 1 - C }`; for `r = 0`,
+`n = ceil(ln(1 - C) / ln R)`. Achieved confidence
+`C* = 1 - P(Binomial(n, 1 - R) <= r)`.
+
+- Domain: `0 < R, C < 1`, integer `r >= 0`; one pass/fail outcome per hot-fire
+  test with a common reliability `R`. Illustrative: `R = 0.99`, `C = 0.90`,
+  `r = 0` gives `n = 230`.
+- Meaning: the number of identical tests that must be passed to claim
+  reliability `R` at confidence `C`; the plan wraps
+  `reliability.success_run_sample_size` and adds the achieved confidence.
+- Code: `aerospace.engine_reliability.demonstration_plan`.
+- Source: [REF-ATWOOD-NUREG-6823-2003], [REF-NASA-PRA-2011].
+
+### EQ-AERO-REL-002 — Clopper-Pearson lower bound on reliability
+
+With `s = n - f` successes, `R_L` solves `P(Binomial(n, R_L) >= s) = 1 - C`,
+that is `R_L = Beta^{-1}_{1-C}(s, f + 1)`; `R_L = 0` for `s = 0` and
+`R_L = (1 - C)^(1/n)` for `f = 0`.
+
+- Domain: `n >= 1`, `0 <= f <= n`, `0 < C < 1`.
+- Meaning: exact one-sided confidence bound on the per-test reliability; the
+  plan of EQ-AERO-REL-001 is exactly the smallest `n` for which `R_L >= R`.
+  It equals the lower end of the two-sided interval at level `2C - 1`.
+- Code: `aerospace.engine_reliability.reliability_lower_bound`.
+- Source: [REF-CLOPPER-PEARSON-1934], [REF-ATWOOD-NUREG-6823-2003].
+
+### EQ-AERO-REL-003 — Operating characteristic, consumer and producer risk
+
+`P_a(R) = P(Binomial(n, 1 - R) <= r)`; consumer risk `P_a(R_demo) <= 1 - C`;
+producer risk `1 - P_a(R_design)`.
+
+- Domain: `0 <= R <= 1`, `n >= 1`, `r >= 0`.
+- Meaning: probability of passing a hot-fire plan as a function of the true
+  reliability; `smallest_plan_for_producer_risk` searches `r = 0, 1, ...` for
+  the first plan whose producer risk at `R_design > R_demo` is acceptable.
+- Code: `aerospace.engine_reliability.operating_characteristic`,
+  `aerospace.engine_reliability.smallest_plan_for_producer_risk`.
+- Source: [REF-ATWOOD-NUREG-6823-2003], [REF-NASA-PRA-2011].
+
+### EQ-AERO-REL-004 — Heritage prior and Bayesian demonstration
+
+Power prior `R ~ Beta(a_0 + w s, b_0 + w f)` from `s` heritage successes and
+`f` failures with weight `w in [0, 1]`; equivalent test count `a + b`;
+posterior after `n` tests with `r` failures `Beta(a + n - r, b + r)`; the
+demonstration holds when `P(R >= R_req) = 1 - I_{R_req}(a + n - r, b + r) >= C`.
+
+- Domain: `a, b > 0`, `0 <= r <= n`. The smallest `n` is found by doubling and
+  bisection (the posterior survival probability increases in `n` at fixed `r`).
+- Meaning: Bayesian test-size reduction from relevant heritage data; the
+  weight `w` is the analyst's judgement of heritage relevance.
+- Code: `aerospace.engine_reliability.heritage_prior`,
+  `aerospace.engine_reliability.equivalent_prior_tests`,
+  `aerospace.engine_reliability.bayesian_demonstration_confidence`,
+  `aerospace.engine_reliability.bayesian_demonstration_size`.
+- Source: [REF-HAMADA-ETAL-2008], [REF-GELMAN-ETAL-2013],
+  [REF-RAIFFA-SCHLAIFER-1961].
+
+### EQ-AERO-REL-005 — Beta-binomial predictive pass probability
+
+`P(X = x) = C(n, x) B(x + b, n - x + a) / B(a, b)` for the number of failures
+`X` in `n` tests under a `Beta(a, b)` prior on the reliability; the plan passes
+with probability `P(X <= r)`.
+
+- Domain: `a, b > 0`, `n >= 1`. For `Beta(1, 1)`, `P(X <= r) = (r + 1)/(n + 1)`.
+- Meaning: prior-predictive assurance that a test series is passed, the
+  operating characteristic averaged over the prior.
+- Code: `aerospace.engine_reliability.predictive_pass_probability`.
+- Source: [REF-GELMAN-ETAL-2013], [REF-HAMADA-ETAL-2008].
+
+### EQ-AERO-REL-006 — Time-on-test equivalents for exponential and Weibull lives
+
+Exponential: `lambda_0 = -ln R / t_m`, `T = chi2_C(2r + 2) / (2 lambda_0)`;
+for `r = 0`, `T / t_m = ln(1 - C) / ln R`. Weibull with known shape `beta_w`:
+`R(L t_m) = R(t_m)^(L^beta_w)`, `L = t_test / t_m`, and the number of units is
+the binomial plan of EQ-AERO-REL-001 at reliability `R^(L^beta_w)`.
+
+- Domain: constant failure rate (exponential) or known shape, no unit-to-unit
+  extra variation, failures caused by run time only (not by the start
+  transient); `t_m, t_test > 0`.
+- Meaning: converts a mission-reliability requirement into test hours or
+  into a number of units run for a stated duration.
+- Code: `aerospace.engine_reliability.exponential_test_time`,
+  `aerospace.engine_reliability.weibull_demonstration_units`.
+- Source: [REF-ATWOOD-NUREG-6823-2003], [REF-KECECIOGLU-1993].
+
+### EQ-AERO-REL-007 — Mission reliability under a Crow-AMSAA fit
+
+`R_NHPP = exp(-lambda ((T + tau)^beta - T^beta))` and the frozen-configuration
+projection `R_const = exp(-w(T) tau)`, `w(T) = lambda beta T^(beta - 1)`, for
+a power-law mean `Lambda(t) = lambda t^beta` fitted to a test campaign of length
+`T` and a mission of burn duration `tau`.
+
+- Domain: `T, tau > 0`; `beta < 1` indicates growth. The shape is declared
+  growing when the upper limit of its confidence interval is below one.
+- Meaning: the probability of no failure in the next `tau` units of test time;
+  for `beta < 1` the NHPP value exceeds the constant-rate value because the
+  intensity keeps falling during the mission. Test time is not the number of
+  starts; the analyst must map hot-fire seconds to mission seconds.
+- Code: `aerospace.engine_reliability.assess_test_campaign`,
+  `aerospace.engine_reliability.nhpp_mission_reliability`.
+- Source: [REF-CROW-1974], [REF-MIL-HDBK-189C-2011].
+
+### EQ-AERO-REL-008 — Beta-mixture prior and its conjugate update
+
+Prior `p ~ sum_j w_j Beta(a_j, b_j)`; after `e` events and `m` non-events the
+posterior is `sum_j w_j' Beta(a_j + e, b_j + m)` with
+`w_j' proportional to w_j B(a_j + e, b_j + m) / B(a_j, b_j)`; the log evidence
+of the observed sequence is `ln sum_j w_j B(a_j + e, b_j + m)/B(a_j, b_j)`.
+
+- Domain: `w_j > 0`, `sum_j w_j = 1`, `a_j, b_j > 0`.
+- Meaning: a prior of the form "heritage-like with probability `w`, otherwise
+  an unproven design"; failures shift weight to the vague component. The
+  mixture mean is `sum_j w_j a_j / (a_j + b_j)`. The weights are sensitive to
+  the choice of the components and need a sensitivity study.
+- Code: `aerospace.engine_reliability.BetaMixture`.
+- Source: [REF-GELMAN-ETAL-2013], [REF-HAMADA-ETAL-2008].
+
+### EQ-AERO-REL-009 — Clustered-engine outcomes with common cause and catastrophic split
+
+With `q_i = (1 - beta) q` and `q_c = beta q`,
+`P(success) = (1 - q_c) sum_{b=0}^{n-k} C(n, b) (q_i (1 - c))^b (1 - q_i)^(n-b)`,
+`P(no catastrophe) = (1 - q_c)(1 - q_i c)^n + q_c (1 - c)^n`,
+`P(benign shortfall) = P(no catastrophe) - P(success)`,
+`P(catastrophic) = 1 - P(no catastrophe)`.
+
+- Domain: `1 <= k <= n`, `q, beta, c in [0, 1]`, `beta = 0` for `n = 1`. The
+  probability basis of the beta-factor model (NUREG/CR-5485 convention) is
+  used: the marginal outage probability is `q - beta (1 - beta) q^2`. The
+  same probabilities are obtained from the exact BDD of `systems.SystemModel`
+  with components `E_i` (outage, probability `q`), `X_i` (outage benign,
+  failure probability `c`), structure `k_out_of_n(E)` in series with
+  `parallel(E_i, X_i)`, and a beta-factor group over the `E_i`.
+- Meaning: engine-out capability of a cluster. At fixed `q`, raising `beta`
+  lowers the success probability of a `k = n - 1` cluster only for
+  `q < 1 / (n (n - 1))` (leading order). Illustrative numbers only.
+- Code: `aerospace.engine_reliability.EngineClusterModel`.
+- Source: [REF-MOSLEH-ETAL-1998], [REF-NASA-PRA-2011],
+  [REF-RAUSAND-HOYLAND-2004].
+
+### EQ-AERO-REL-010 — Exact moments of cluster reliability under Beta inputs
+
+`R(q, beta, c)` of EQ-AERO-REL-009 is a polynomial `sum c_{ijl} q^i beta^j c^l`
+for fixed `n, k`; for independent inputs
+`E[R] = sum c_{ijl} E[q^i] E[beta^j] E[c^l]` and `E[R^2]` from the square of
+the polynomial, with `E[x^m] = prod_{i<m} (a + i)/(a + b + i)` for
+`Beta(a, b)` and the weighted sum for a mixture.
+
+- Domain: independent Beta, Beta-mixture or constant inputs. Expanding the
+  polynomial loses a few digits to cancellation for large clusters.
+- Meaning: exact mean and variance of the mission reliability under
+  epistemic uncertainty, the oracle for the Monte Carlo propagation; it agrees
+  with `systems.ccf_parameter_uncertainty` when only `beta` is uncertain.
+- Code: `aerospace.engine_reliability.cluster_reliability_moments`.
+- Source: [REF-MOSLEH-ETAL-1998], [REF-GELMAN-ETAL-2013].
+
+### EQ-AERO-REL-011 — Epistemic propagation and Sobol ranking
+
+`R^(s) = f(theta^(s))`, `theta^(s)` drawn independently from the input laws,
+one draw shared by all engines of a cluster; credible interval from the
+empirical quantiles of the sorted `R^(s)`; first-order `S_i` and total-effect
+`S_Ti` Sobol indices by pick-freeze on two independent samples.
+
+- Domain: independent inputs; constants are fixed and left out of the ranking;
+  the Sobol design needs positive output variance.
+- Meaning: distribution of the mission reliability given the state of
+  knowledge (Apostolakis-Kaplan state-of-knowledge dependence) and a
+  ranking of which parameter drives its uncertainty. Pick-freeze estimates
+  have `O(N^(-1/2))` error and are not clipped.
+- Code: `aerospace.engine_reliability.propagate_reliability`,
+  `aerospace.engine_reliability.cluster_reliability_distribution`,
+  `aerospace.engine_reliability.ClusterUncertainty`.
+- Source: [REF-SALTELLI-2010], [REF-APOSTOLAKIS-KAPLAN-1981].
+
+### EQ-AERO-REL-012 — Launch-vehicle event tree
+
+`P(success) = P_1 (1 - q_sep)(1 - q_ign) P_2`, with `P_1`, `P_2` from
+EQ-AERO-REL-009 for the first stage and the upper stage; end states
+`success`, `loss_of_mission` (benign shortfalls, separation and ignition
+failures) and `loss_of_vehicle` (catastrophic engine failures), with
+`P(loss_of_vehicle) = C_1 + P_1 (1 - q_sep)(1 - q_ign) C_2` for catastrophic
+probabilities `C_1, C_2`.
+
+- Domain: the initiating event is one launch attempt (frequency one), headings
+  in the order cluster, separation, ignition, upper engine; conditional
+  probabilities are given on the path. The assignment of failures to end
+  states is an analyst's assumption.
+- Meaning: top-level reliability and loss split of a two-stage vehicle with
+  uncertainty propagation; all inputs in the tests are illustrative and not
+  data from any real vehicle.
+- Code: `aerospace.engine_reliability.launch_event_tree`,
+  `aerospace.engine_reliability.vehicle_reliability`,
+  `aerospace.engine_reliability.vehicle_outcome_probabilities`,
+  `aerospace.engine_reliability.vehicle_reliability_distribution`.
+- Source: [REF-NASA-PRA-2011], [REF-KAPLAN-GARRICK-1981].
+
+### EQ-SUR-GPX-001 — Kernel algebra and exact kernel gradients
+
+`k = k_1 + k_2`, `k = k_1 k_2`; `dk/dtheta = (dk_1/dtheta_1, dk_2/dtheta_2)` for a sum and `(k_2 dk_1/dtheta_1, k_1 dk_2/dtheta_2)` for a product, with `theta` the log hyperparameters.
+
+- Domain: `k_1`, `k_2` positive semidefinite kernels with positive hyperparameters stored as logs.
+- Meaning: sums and (Schur) products of kernels are kernels; the gradient with respect to the log parameters is exact and feeds the marginal-likelihood gradient. A white component cannot be a product factor.
+- Code: `surrogates.gp_advanced.Kernel`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 4.2].
+
+### EQ-SUR-GPX-002 — Periodic, rational-quadratic, linear and white kernels
+
+`k_per = s^2 exp(-2 sin^2(pi r/p)/l^2)`, `k_RQ = s^2 (1 + r^2/(2 a l^2))^(-a)`, `k_lin = b + v x.y`, `k_white = s_n^2 [i = j]`, with `r = ||x - y||`.
+
+- Domain: all hyperparameters positive; the white variance is added to the diagonal of training matrices only.
+- Meaning: periodic structure of period `p`, a scale mixture of squared exponentials (tends to the SE kernel as `a -> infinity`), a random affine function, and observation noise. Gradients with respect to the log parameters: periodic `(k, 4 k sin^2(u)/l^2, 2 k u sin(2u)/l^2)` with `u = pi r/p`; RQ `(k, 2 a k w/(1+w), a k (w/(1+w) - log(1+w)))` with `w = r^2/(2 a l^2)`.
+- Code: `surrogates.gp_advanced.PeriodicKernel`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Chapter 4].
+
+### EQ-SUR-GPX-003 — Composite-kernel log marginal likelihood and gradient
+
+`log p(y | theta) = -1/2 y' K^-1 y - 1/2 log det K - n/2 log 2 pi`, `d/d theta_j = 1/2 tr((alpha alpha' - K^-1) dK/d theta_j)`, `K = K_theta(X, X) + diag(nugget + n_i)`, `alpha = K^-1 y`.
+
+- Domain: `K` positive definite (otherwise `ValueError`; no jitter is added), outputs centered.
+- Meaning: type-II maximum likelihood for any kernel built with the algebra of [EQ-SUR-GPX-001]; the same formula as [EQ-SUR-GP-004] for the generalized kernel. The 1-norm condition number of `K` is reported.
+- Code: `surrogates.gp_advanced.fit_kernel_gp`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Section 5.4].
+
+### EQ-SUR-GPX-004 — Derivative kernel blocks
+
+For `k = s^2 phi(q)`, `q = sum_i (D_i/l_i)^2`, `D = x - y`: `cov(d_i f(x), f(y)) = s^2 phi'(q) 2 D_i/l_i^2`, `cov(f(x), d_j f(y)) = -s^2 phi'(q) 2 D_j/l_j^2`, `cov(d_i f(x), d_j f(y)) = s^2 [-2 phi'(q) delta_ij/l_i^2 - 4 phi''(q) D_i D_j/(l_i^2 l_j^2)]`.
+
+- Domain: squared exponential, Matern 5/2, Matern 3/2 (for the last, `phi''` diverges like `1/r` at `r = 0` but `phi'' D_i D_j -> 0`).
+- Meaning: covariances between a smooth GP and its gradient; in 1-D for the SE kernel `d^2k/dx dy = k (1/l^2 - D^2/l^4)`. Verified against finite differences.
+- Code: `surrogates.gp_advanced.derivative_kernel_blocks`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Chapter 9], [REF-SOLAK-ETAL-2002].
+
+### EQ-SUR-GPX-005 — Joint posterior of values and gradients
+
+`(f(X), grad f(X_g))' ~ N(m, K_J + diag(sigma_f^2, sigma_g^2))` with blocks from [EQ-SUR-GPX-004]; posterior of `(f(x), grad f(x))` by Gaussian conditioning: `mu = c' alpha`, `Sigma = K_** - V'V`, `V = L^-1 C`.
+
+- Domain: joint matrix positive definite; explicit noise variances on the diagonal.
+- Meaning: exact gradient observations constrain the shape of `f` and shrink the predictive variance of both `f` and `grad f`; with no gradient data this is the ordinary GP.
+- Code: `surrogates.gp_advanced.fit_derivative_gp`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Chapter 9], [REF-SOLAK-ETAL-2002].
+
+### EQ-SUR-GPX-006 — Predictive derivative of a plain GP
+
+`grad f(x_*) | y ~ N(G' alpha, H - G' K^-1 G)`, `G_ji = d k(x_*, x_j)/d x_*,i`, `H_ij = d^2 k(x, y)/d x_i d y_j` at `y = x`.
+
+- Domain: stationary ARD kernel, `K` including the noise variance.
+- Meaning: mean and covariance of the latent gradient of a fitted exact GP; the mean equals the derivative of the predictive mean.
+- Code: `surrogates.gp_advanced.gaussian_process_gradient`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006, Chapter 9].
+
+### EQ-SUR-GPX-007 — Sparse GP prior with inducing variables
+
+`q(f) = N(0, Q_nn)`, `Q_nn = K_nm K_mm^-1 K_mn`; with `V = L_m^-1 K_mn`, `Q_nn = V'V`; `D = sigma_n^2 I` (DTC, VFE) or `diag(K_nn - Q_nn) + sigma_n^2 I` (FITC).
+
+- Domain: `m <= n` inducing inputs `Z`; `K_mm + nugget I` positive definite.
+- Meaning: the projected-process (Nystrom) approximation with an optional exact diagonal; `log N(y | 0, Q_nn + D)` is evaluated in `O(n m^2)` by `B = I + V D^-1 V'`: `log det(Q_nn + D) = sum log D_i + log det B` and `y'(Q_nn + D)^-1 y = y' D^-1 y - c'c`, `c = L_B^-1 V D^-1 y`.
+- Code: `surrogates.gp_advanced.fit_sparse_gp`.
+- Source: [REF-QUINONERO-CANDELA-RASMUSSEN-2005], [REF-SNELSON-GHAHRAMANI-2006].
+
+### EQ-SUR-GPX-008 — Collapsed variational free energy (VFE)
+
+`F = log N(y | 0, Q_nn + sigma_n^2 I) - tr(K_nn - Q_nn)/(2 sigma_n^2)`.
+
+- Domain: as [EQ-SUR-GPX-007] with `D = sigma_n^2 I`.
+- Meaning: Titsias' bound `F <= log p(y)` with equality iff `Q_nn = K_nn` (for example `Z = X`); the trace term penalizes inducing sets that explain the prior poorly, which stabilizes joint optimization of `Z` and the hyperparameters.
+- Code: `surrogates.gp_advanced.fit_sparse_gp`.
+- Source: [REF-TITSIAS-2009].
+
+### EQ-SUR-GPX-009 — Sparse predictive law
+
+`mu(x) = k_m(x)' L_m^-T L_B^-T c`, `sigma^2(x) = k(x,x) - |s|^2 + |L_B^-1 s|^2` with `s = L_m^-1 k_m(x)` (that is, `K_** - Q_** + K_*m Sigma K_m*`, `Sigma = (K_mm + K_mn D^-1 K_nm)^-1`).
+
+- Domain: DTC, FITC, VFE with the factors of [EQ-SUR-GPX-007].
+- Meaning: latent predictive mean and variance of the sparse model; add `sigma_n^2` for a new observation.
+- Code: `surrogates.gp_advanced.SparseGaussianProcess`.
+- Source: [REF-TITSIAS-2009], [REF-QUINONERO-CANDELA-RASMUSSEN-2005].
+
+### EQ-SUR-GPX-010 — Sparse versus exact cost model
+
+`cost_exact ~ n^2 d/2 + n^3/6 + n^2`, `cost_sparse ~ n m d + m^2 d/2 + n m^2 + m^3/3 + n m` (multiply-adds); kernel evaluations `n(n+1)/2` versus `m(m+1)/2 + n m + n`.
+
+- Domain: leading-order counts for one likelihood evaluation, `1 <= m <= n`.
+- Meaning: the exact GP is cubic in `n`, the sparse GP linear in `n` and quadratic in `m`; the kernel-evaluation counts are exact and are checked by an instrumented kernel in the tests. It is a model, not a timing measurement.
+- Code: `surrogates.gp_advanced.sparse_gp_cost`.
+- Source: [REF-QUINONERO-CANDELA-RASMUSSEN-2005], [REF-GOLUB-VANLOAN-2013, Section 4.2].
+
+### EQ-SUR-GPX-011 — Most-likely heteroscedastic GP
+
+`y_i = f(x_i) + eps_i`, `eps_i ~ N(0, exp(r(x_i)))`; alternation: fit `f` with noise `n_i^(t)`, set `v_i = (y_i - mu_i)^2 + s_i^2`, fit a GP to `z_i = log v_i + c`, set `n_i^(t+1) = exp(m_z(x_i))`; stop when `|L_t - L_(t-1)|/(1 + |L_(t-1)|) <= tol` (or the likelihood decreases, or the iteration limit).
+
+- Domain: smooth kernels for `f` and `r`; `c` is an explicit user offset (default 0).
+- Meaning: `v_i = E[eps_i^2 | y]` is the EM update of a per-point noise variance smoothed by a GP on its logarithm (the infinite-sample limit of Kersting's sampled estimator). Because `z` is the log of a noisy positive quantity, the recovered level is biased low by Jensen's inequality unless `c` corrects it; the trend with `x` is recovered.
+- Code: `surrogates.gp_advanced.fit_heteroscedastic_gp`.
+- Source: [REF-KERSTING-ETAL-2007].
+
+### EQ-SUR-GPX-012 — Linear model of coregionalization
+
+`Cov(f_p(x), f_q(x')) = sum_r B^r[p,q] k_r(x, x')`, `B^r = W_r W_r' + diag(kappa_r)`; `K_ij = sum_r B^r[p_i,p_j] k_r(x_i,x_j) + delta_ij (sigma_(p_i)^2 + nugget)`; gradient with `M^r = (alpha alpha' - K^-1) o K_r`: `dW_r[p,a] = sum_(i in p) (M^r W_r[:,a])_i`, `dlog kappa_r[p] = 1/2 kappa_r[p] sum_(i,j in p) M^r_ij`, `dlog sigma_p^2 = 1/2 sigma_p^2 sum_(i in p) W_ii`.
+
+- Domain: `W_r` real `P x q`, `kappa_r > 0`, latent kernels without white noise; heterotopic data allowed (each output has its own inputs).
+- Meaning: one latent kernel is the intrinsic coregionalization model, several are the LMC; `B^r` encodes the output correlations learned from the data. `W_r` is identifiable only up to rotation and a scale shared with the kernel variance.
+- Code: `surrogates.gp_advanced.fit_multi_output_gp`.
+- Source: [REF-ALVAREZ-ROSASCO-LAWRENCE-2012].
+
+### EQ-SUR-GPX-013 — Operator-transformed squared-exponential covariances
+
+With `L = sum_m a_m d^m/dx^m`, `D_m = d^m k/d D^m = s^2 (-1/l)^m He_m(D/l) exp(-D^2/(2 l^2))`, `D = x - y`: `cov(Lu(x), u(y)) = sum_m a_m D_m`, `cov(u(x), Lu(y)) = sum_n a_n (-1)^n D_n`, `cov(Lu(x), Lu(y)) = sum_(m,n) a_m a_n (-1)^n D_(m+n)`.
+
+- Domain: one input dimension, constant coefficients, `k` the squared exponential.
+- Meaning: for `L = d/dx` the last covariance is `k (1/l^2 - D^2/l^4)`; for `L = d^2/dx^2 - c` it is `D_4 - 2 c D_2 + c^2 D_0`.
+- Code: `surrogates.gp_advanced.operator_covariances`.
+- Source: [REF-JIDLING-ETAL-2017], [REF-RAISSI-ETAL-2017].
+
+### EQ-SUR-GPX-014 — Posterior of u from observations of L u
+
+`(Lu(X_L), u(X_u))' ~ N(0, K_J + diag(noise))` with `K_J` from [EQ-SUR-GPX-013]; `u(x_*) | data ~ N(c_u' alpha, k(x_*,x_*) - |L^-1 c_u|^2)` and the same for `(Lu)(x_*)` with `c_L`.
+
+- Domain: joint matrix positive definite; direct `u` observations (boundary values) remove the null space of `L`.
+- Meaning: physics-informed inference of `u` from a noisy source term `f = L u`. Where `L` has a null space (constants for `d/dx`), `u` is identified only with an anchor; the posterior variance reports the lack of identification. The condition number of the joint matrix is reported.
+- Code: `surrogates.gp_advanced.fit_operator_gp`.
+- Source: [REF-JIDLING-ETAL-2017], [REF-RAISSI-ETAL-2017].
+
+### EQ-INV-LAPX-001 — Whitened nonlinear posterior and stacked residual
+
+`y = G(x) + eps, eps ~ N(0, Gamma), x = mu + P z, z ~ N(0, I_r); pi(z) ~ exp(-1/2 ||H(z)||^2), H(z) = [W (G(mu + P z) - y); z]`, with `W' W = Gamma^-1`, `P` of size `n x r` and prior covariance `P P'`.
+
+- Domain: `G` differentiable with `jvp`/`vjp`; `Gamma` a `probstat.linalg` covariance factor; `P` an operator or dense matrix.
+- Meaning: the posterior of the prior-whitened coordinates is a nonlinear least-squares density; the log likelihood is `-1/2 ||W (G(x) - y)||^2` up to `-1/2 (m log 2 pi + log det Gamma)`; its gradient is `-P' J' W' W (G(x) - y)`. All model calls are counted (`EvaluationCounts`).
+- Code: `inverse.laplace_nonlinear.NonlinearBayesProblem`.
+- Source: [REF-KAIPIO-SOMERSALO-2007], [REF-COTTER-ROBERTS-STUART-WHITE-2013].
+
+### EQ-INV-LAPX-002 — MAP point and prior-preconditioned Gauss-Newton Hessian
+
+`z_map = argmin 1/2 ||W (G(mu + P z) - y)||^2 + 1/2 ||z||^2; H = P' J(x_map)' Gamma^-1 J(x_map) P`, with eigenpairs `H v_i = lambda_i v_i`.
+
+- Domain: a local minimizer found by Gauss-Newton-Krylov or Newton trust region; `H` is the Gauss-Newton (not the full) Hessian of the misfit and is positive semidefinite.
+- Meaning: `lambda_i` measures how strongly the data inform whitened direction `v_i` relative to the prior (`lambda_i > 1`: data dominate). The eigenpairs are computed matrix-free (randomized or Lanczos) with `jvp`/`vjp` only. `H` equals the exact misfit Hessian for linear `G`.
+- Code: `inverse.laplace_nonlinear.compute_map`, `inverse.laplace_nonlinear.laplace_approximation`.
+- Source: [REF-NOCEDAL-WRIGHT-2006], [REF-BUI-THANH-ETAL-2013], [REF-VILLA-PETRA-GHATTAS-2021].
+
+### EQ-INV-LAPX-003 — Low-rank Laplace posterior, covariance actions and samples
+
+`Sigma_z = (I + V diag(lambda) V')^-1 = I - V diag(lambda/(1+lambda)) V'; Sigma_z^(1/2) = I - V diag(1 - (1+lambda)^(-1/2)) V'; x ~ N(x_map, P Sigma_z P')`.
+
+- Domain: retained eigenpairs of EQ-INV-LAPX-002; exact for linear `G` when every `lambda_i > 0` is retained.
+- Meaning: covariance and precision actions and samples cost one `P`, `P'` and `rank` inner products; no `r x r` matrix is formed. Unresolved directions keep the prior covariance. The Laplace posterior is a Gaussian at the MAP; it cannot capture skewness or multimodality.
+- Code: `inverse.laplace_nonlinear.LaplaceApproximation`.
+- Source: [REF-BUI-THANH-ETAL-2013], [REF-VILLA-PETRA-GHATTAS-2021].
+
+### EQ-INV-LAPX-004 — Laplace log-evidence
+
+`log p(y) ~ -1/2 (m log 2 pi + log det Gamma) - 1/2 ||W (G(x_map) - y)||^2 - 1/2 ||z_map||^2 - 1/2 sum_i log(1 + lambda_i)`.
+
+- Domain: `z_map` a minimizer, `lambda_i` the eigenvalues of EQ-INV-LAPX-002 (all of them for the full formula).
+- Meaning: Laplace (Gaussian) approximation of `int exp(-Phi(z)) dz`; exact for linear Gaussian problems. Truncating the sum at the retained rank drops `1/2 sum log(1 + lambda_i)` over unresolved directions and overestimates the evidence by at most `1/2 (r - rank) log(1 + threshold)` when the eigensolver bracketed the threshold (not certified). The Gauss-Newton Hessian replaces the full Hessian.
+- Code: `inverse.laplace_nonlinear.LaplaceApproximation`.
+- Source: [REF-BUI-THANH-ETAL-2013], [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-LAPX-005 — Marginal posterior variances by exact formula and probing
+
+`d_i = ||P' e_i||^2 - sum_k lambda_k/(1+lambda_k) (P v_k)_i^2`; probing estimate `d_hat = (1/K) sum_j s_j * (P Sigma_z P' s_j)` with Rademacher `s_j`.
+
+- Domain: the low-rank covariance of EQ-INV-LAPX-003; the exact formula needs `n` adjoint applications of `P`, the probing estimator `K` covariance actions.
+- Meaning: the probing estimator is unbiased for the diagonal; the reported standard error is the sample standard error over probes.
+- Code: `inverse.laplace_nonlinear.LaplaceApproximation`.
+- Source: [REF-BEKAS-KOKIOPOULOU-SAAD-2007], [REF-HUTCHINSON-1989].
+
+### EQ-INV-LAPX-006 — Randomize-then-optimize proposal
+
+`H'(z_ref) = Q R (thin QR); z* solves h(z*) = xi, h(z) = Q' H(z), xi ~ N(0, I_r); q(z) = (2 pi)^(-r/2) |det Q' H'(z)| exp(-1/2 ||h(z)||^2)`.
+
+- Domain: `h: R^r -> R^r` a bijection (assumed; Newton failures are counted); `H'(z) = [W J P; I]`.
+- Meaning: `z*` is the minimizer of `||Q'(H(z) - v)||^2` for `v ~ N(0, I_(m+r))`, i.e. a perturbed optimization; `q` is the exact density of `z*` by change of variables. For linear `G`, `q` is the posterior. Dense `r x r` Jacobians are formed (`r` JVPs per Newton iteration).
+- Code: `inverse.laplace_nonlinear.randomize_then_optimize`.
+- Source: [REF-BARDSLEY-SOLONEN-HAARIO-LAINE-2014].
+
+### EQ-INV-LAPX-007 — RTO importance weight and independence Metropolis-Hastings
+
+`pi(z)/q(z) ~ exp(-1/2 ||(I - Q Q') H(z)||^2) / |det Q' H'(z)|; alpha(z, z') = min(1, w(z')/w(z))`.
+
+- Domain: as EQ-INV-LAPX-006.
+- Meaning: the weight corrects the RTO proposal to the posterior, either as importance weights (Kish ESS `1/sum w^2` measures proposal quality) or through an independence Metropolis-Hastings chain. For linear `G` the weight is constant. Proposals whose optimization failed are dropped or rejected and counted, which biases the result if the failure rate is not negligible.
+- Code: `inverse.laplace_nonlinear.randomize_then_optimize`, `inverse.laplace_nonlinear.sample_moments`.
+- Source: [REF-BARDSLEY-SOLONEN-HAARIO-LAINE-2014].
+
+### EQ-INV-LAPX-008 — Randomized maximum likelihood (approximate)
+
+`z = argmin 1/2 ||W (G(mu + P z) - y - eps)||^2 + 1/2 ||z - zeta||^2, eps ~ N(0, Gamma), zeta ~ N(0, I)`.
+
+- Domain: each optimization converged; non-converged ones are dropped and counted.
+- Meaning: exact for linear Gaussian problems (the optimum is an affine map of `(eps, zeta)` with the posterior law). For nonlinear `G` there is no Jacobian correction and the law differs from the posterior; this sampler is approximate and must be compared with a corrected or MCMC reference.
+- Code: `inverse.laplace_nonlinear.randomized_maximum_likelihood`.
+- Source: [REF-KITANIDIS-1995], [REF-BARDSLEY-SOLONEN-HAARIO-LAINE-2014].
+
+### EQ-INV-LAPX-009 — Generalized pCN with the Laplace proposal covariance
+
+`z' = m + sqrt(1 - beta^2) (z - m) + beta Sigma^(1/2) xi; log alpha = ell(z') - ell(z) - 1/2 ||z'||^2 + 1/2 ||z||^2 + 1/2 q(z') - 1/2 q(z), q(z) = ||z - m||^2 + sum lambda_i (v_i'(z - m))^2`.
+
+- Domain: `m = z_map`, `Sigma` the Laplace covariance, `ell` the log likelihood; `beta in (0, 1]`. The reference Gaussian differs from `N(0, I)` only on a finite-rank subspace, so the measures are equivalent as the discretization is refined.
+- Meaning: the proposal is reversible for `N(m, Sigma)`; the chain targets the exact posterior for every `G`. `beta = 1` is an independence sampler (exact acceptance 1 for linear `G` with full rank). One forward solve per iteration.
+- Code: `inverse.laplace_nonlinear.gpcn_chain`, `inverse.laplace_nonlinear.pcn_chain`.
+- Source: [REF-RUDOLF-SPRUNGK-2018], [REF-COTTER-ROBERTS-STUART-WHITE-2013].
+
+### EQ-INV-LAPX-010 — DILI-style split of Langevin and pCN
+
+`z = V u + z_perp; u' = u + (h/2) M g(z) + sqrt(h M) zeta, M = diag(1/(1+lambda)), g = V' grad log pi; z_perp' = rho z_perp + beta (xi - V V' xi), beta = sqrt(h)/(1 + h/4); log alpha = ell(z') - ell(z) - 1/2 ||u'||^2 + 1/2 ||u||^2 + log q(u | z') - log q(u' | z)`.
+
+- Domain: `V` the orthonormal Laplace eigenvectors; `rho = sqrt(1 - beta^2)`. The complement pCN is reversible for its Gaussian marginal and cancels, leaving a Metropolis-adjusted Langevin ratio in the likelihood-informed coordinates.
+- Meaning: the informed directions use gradient and Hessian-based preconditioning, the rest use prior-reversible pCN; the chain is exact for every `G`. One forward solve and one adjoint per iteration. This follows the structure of DILI MCMC, not the published operator-weighted proposal.
+- Code: `inverse.laplace_nonlinear.dili_chain`.
+- Source: [REF-CUI-LAW-MARZOUK-2016], [REF-CUI-MARTIN-MARZOUK-SOLONEN-SPANTINI-2014].
+
+### EQ-INV-LAPX-011 — Effective sample size per model evaluation
+
+`ESS_work = min_q ESS(q(x_t)) / (N_value + N_vjp)`; `ESS_grad = min_q ESS / N_vjp`; `ESS_fwd = min_q ESS / N_value`.
+
+- Domain: split-chain ESS of a single chain of the log likelihood and the chosen quantities; `N` are the model calls of the post-burn-in phase.
+- Meaning: a cost-normalized efficiency that charges one unit per forward solve and per adjoint solve (the same factorization is reused, so adjoint cost can be lower than a forward solve). Single-chain ESS values are noisy and the minimum over a handful of functionals is not the ESS of every functional.
+- Code: `inverse.laplace_nonlinear.ChainResult`.
+- Source: [REF-GEYER-1992], [REF-VEHTARI-ETAL-2021].
+
+### EQ-AERO-ASC-001 — Standard atmosphere layers (0 to 86 km)
+
+`H = r0 h / (r0 + h)`, `T = T_b + L_b (H - H_b)`,
+`p = p_b (T_b / T)^(g0 M / (R* L_b))` for `L_b != 0`,
+`p = p_b exp(-g0 M (H - H_b) / (R* T_b))` for `L_b = 0`,
+`rho = p M / (R* T)`, `a = sqrt(1.4 (R*/M) T)`.
+
+- Domain: geometric altitude `h >= 0` (m), `r0 = 6 356 766` m, `g0 = 9.80665`
+  m/s^2, `M = 28.9644` kg/kmol, `R* = 8314.32` J/(kmol K); seven layers with
+  `(H_b [km], T_b [K], L_b [K/km])` = (0, 288.15, -6.5), (11, 216.65, 0),
+  (20, 216.65, +1), (32, 228.65, +2.8), (47, 270.65, 0), (51, 270.65, -2.8),
+  (71, 214.65, -2); base pressures chained from `p_0 = 101325` Pa. Above
+  86 km geometric (`H = 84.852` km) the code uses an isothermal exponential
+  extension at 186.946 K with constant molecular weight, flagged
+  `extended`; this extension is not part of the 1976 model.
+- Meaning: air temperature, pressure, density and sound speed for drag and
+  the ambient-pressure thrust loss. The density multiplier of the ascent model
+  scales only `rho`.
+- Code: `aerospace.ascent.atmosphere`,
+  `aerospace.ascent.geometric_from_geopotential`.
+- Source: [REF-US-STANDARD-ATMOSPHERE-1976].
+
+### EQ-AERO-ASC-002 — Planar point-mass ascent equations
+
+`theta' = v cos(gamma) / r`, `h' = v sin(gamma)`,
+`v' = (F - D)/m - g sin(gamma)`, `gamma' = (v/r - g/v) cos(gamma)` after the
+pitch-over kick (`gamma' = 0` before it), `m' = -mdot`, with
+`r = R_E + h`, `g = mu / r^2`.
+
+- Domain: non-rotating spherical Earth, `R_E = 6 378 137` m,
+  `mu = 3.986004418e14` m^3/s^2; thrust along the velocity vector (zero angle
+  of attack), no lift, no wind. Vertical flight until `kick_time`, then the
+  velocity vector is rotated instantaneously by `kick_angle` from the
+  vertical. Integrated by classical RK4 with equal steps no longer than
+  `max_step` on each segment; staging and kick times coincide with step
+  boundaries; ground impact is located by bisection of one sub-step to
+  `|h| < 1e-6` m.
+- Meaning: gravity-turn ascent used for Monte Carlo dispersion analysis. The
+  accumulators `int F/m dt`, `int g sin(gamma) dt`, `int D/m dt` satisfy
+  `v = thrust_dv - gravity_loss - drag_loss` along the integration. Vehicle
+  data are illustrative, not those of a real launcher.
+- Code: `aerospace.ascent.simulate_ascent`, `aerospace.ascent.coast_arc`.
+- Source: [REF-CURTIS-2014].
+
+### EQ-AERO-ASC-003 — Staged thrust, mass flow and delivered Isp
+
+`mdot = F_vac / (Isp_vac g0)`, `F = F_vac - p_a A_e`,
+`Isp = F / (mdot g0)`, burn time `t_b = m_p / mdot`.
+
+- Domain: `F_vac > p_0 A_e >= 0`, `Isp_vac > 0`, `m_p > 0`. The mass flow
+  is constant, so burnout and staging times are known in closed form. A
+  stage's dry mass is jettisoned at its burnout, optionally followed by a
+  coast; the last stage's dry mass stays with the payload.
+- Meaning: altitude-dependent thrust through the nozzle-exit pressure term of
+  ideal-rocket theory; a stage can be built from the vacuum thrust and vacuum
+  specific impulse of the liquid-engine model.
+- Code: `aerospace.ascent.StageSpec`, `aerospace.ascent.VehicleSpec`,
+  `aerospace.ascent.stage_from_engine`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-ASC-004 — Aerodynamic drag
+
+`D = (1/2) k_rho rho v^2 C_D(M) S`, `M = v / a(h)`.
+
+- Domain: `C_D` constant or piecewise linear in Mach number over the
+  supplied table (a Mach number outside the table is an error), reference
+  area `S > 0`, density scale `k_rho > 0`; no lift.
+- Meaning: drag deceleration `D/m` along the velocity; the drag-coefficient
+  scale of the probabilistic model multiplies `C_D`.
+- Code: `aerospace.ascent.DragModel`.
+- Source: [REF-CURTIS-2014].
+
+### EQ-AERO-ASC-005 — Osculating orbit of a planar state and insertion window
+
+`E = v^2/2 - mu/r`, `H = r v cos(gamma)`, `p = H^2/mu`,
+`e = sqrt(1 + 2 E H^2 / mu^2)`, `r_p = p/(1+e)`, `r_a = p/(1-e)`,
+`a = -mu/(2E)`.
+
+- Domain: `v > 0`, `H != 0`; `r_a = inf` and `E >= 0` mean an unbound
+  orbit. Perigee and apogee altitudes are `r_p - R_E` and `r_a - R_E`
+  (negative perigee altitude: the osculating orbit intersects the planet).
+  Insertion success: bound orbit with `r_p - R_E >= min_perigee` and
+  `apogee_min <= r_a - R_E <= apogee_max`.
+- Meaning: the orbit the vehicle would follow after burnout if it did not
+  hit the ground first, on the idealized spherical non-rotating Earth.
+- Code: `aerospace.ascent.orbital_elements`,
+  `aerospace.ascent.specific_energy`, `aerospace.ascent.InsertionWindow`.
+- Source: [REF-CURTIS-2014].
+
+### EQ-AERO-ASC-006 — Rocket equation and vertical-burn closed form
+
+`dv = Isp g0 ln(m0/mf)`; vertical burn in vacuum under uniform `g`:
+`v(t) = v_e ln(m0/m) - g t`,
+`h(t) = v_e (m0/mdot) [(1 - x) ln(1 - x) + x] - g t^2 / 2`, `x = mdot t / m0`,
+`v_e = Isp g0`.
+
+- Domain: `0 < mf <= m0`; constant `mdot`, constant `Isp`; starting from rest
+  at `h = 0`; `x < 1`. The gravity loss of the burn is exactly `g t_b`.
+- Meaning: reference solution against which the integrator is verified; the
+  inverse-square gravity of the simulation gives a larger `v` because gravity
+  decreases with altitude.
+- Code: `aerospace.ascent.rocket_equation_delta_v`,
+  `aerospace.ascent.vertical_burn_closed_form`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-ASC-007 — Probabilistic ascent model
+
+`y = M(s_F, s_I, s_p, s_d, s_C, s_rho, alpha_k, t_k)`, with multiplicative
+scales on vacuum thrust, vacuum Isp, propellant mass, dry mass, drag
+coefficient and density, and the kick angle `alpha_k` (rad) and time `t_k` (s).
+
+- Domain: independent inputs; scales positive; the ascent must reach burnout
+  on a bound orbit, otherwise the run fails (policy `on_failure`). Outputs:
+  perigee/apogee altitude, eccentricity, specific energy, burnout altitude,
+  speed, flight-path angle and time, final mass, gravity and drag loss,
+  maximum dynamic pressure and the 0/1 insertion indicator. An open-loop
+  gravity turn is sensitive near stall: sufficiently large kick or low
+  thrust makes the vehicle impact, which is reported as a failed run.
+- Meaning: wraps the deterministic ascent as a
+  `probstat.modeling.ProbabilisticModel`, so propagation, Sobol sensitivity,
+  FORM and subset simulation apply unchanged.
+- Code: `aerospace.ascent.ascent_model`.
+- Source: [REF-CURTIS-2014].
+
+### EQ-AERO-ASC-008 — Dispersion intervals, ellipse and RSS budget
+
+3-sigma interval `m +/- k s` with `k = sqrt(2) erfinv(c)` (3.0 at
+`c = 0.9973`); dispersion ellipse `(z-m)^T S^-1 (z-m) = -2 ln(1 - c)`
+(radius 3.44 at `c = 0.9973`); linear budget
+`RSS = sqrt( sum_i (dy/dx_i)^2 sigma_i^2 )` with central-difference slopes.
+
+- Domain: Monte Carlo sample of `n >= 2` runs (the empirical interval needs
+  `n >> 1/(1 - c)`); ellipse needs a non-singular sample covariance;
+  `RSS` assumes independent inputs and a response linear over the dispersion
+  range. It fails for nonlinear responses (mean shift, skewed tails),
+  interactions, correlated or non-Gaussian inputs, and cliffs where the
+  ascent fails.
+- Meaning: the standard 99.73% dispersion statement and the root-sum-square
+  dispersion budget, reported next to the Monte Carlo standard deviation so
+  that the linear approximation can be judged.
+- Code: `aerospace.ascent.dispersion_intervals`,
+  `aerospace.ascent.dispersion_ellipse`,
+  `aerospace.ascent.dispersion_budget`.
+- Source: [REF-CURTIS-2014].
+
+### EQ-INV-ABBENCH-001 — Benchmark forward problem and coefficient parametrization
+
+`-div(a(x) grad u(x)) = 10` in `(0, 1)^2`, `u = 0` on the boundary, `a(x) = theta_k` on cell `k = 8 row + col` of a uniform `8 x 8` grid (`row` upward, `col` rightward), `theta in R^64`.
+
+- Domain: `theta_k > 0`; dimensionless units as in the paper; constant forcing `f = 10`.
+- Meaning: the membrane model of Aristoff and Bangerth (Section 2.2.1, Eq. (2.2)-(2.3)); the map `theta -> u` is nonlinear and homogeneous of degree `-1` (`u(c theta) = u(theta) / c`).
+- Code: `inverse.benchmark_aristoff_bangerth.AristoffBangerthForward`.
+- Source: [REF-ARISTOFF-BANGERTH-2023].
+
+### EQ-INV-ABBENCH-002 — Q1 discretization and observation operator
+
+`A(theta) U = b`, `A(theta) = sum_k theta_k A_k`, `(A_k)_ij = int_{cell k} grad phi_i . grad phi_j`, `b_i = 10 int phi_i`; `z = M U`, `M_kl = phi_l(x_k)`, `x_k = (i, j) / 14`, `k = 13 (i - 1) + (j - 1)`, `1 <= i, j <= 13`.
+
+- Domain: bilinear (Q1) elements on a uniform `32 x 32` mesh (1089 nodes, 961 interior unknowns); other mesh sizes `8 m x 8 m` are allowed for convergence studies. The local stiffness of a square Q1 cell is `(1/6) [[4,-1,-2,-1],[-1,4,-1,-2],[-2,-1,4,-1],[-1,-2,-1,4]]`, independent of the cell size.
+- Meaning: the paper's chain `a(x) -> U -> z` (Eq. (2.4)). The nodal interpolation error is second order in `h`; for `theta = 1` the maximum error against the Fourier series of `-Delta u = 1` over the 169 points was measured as 1.69e-2, 3.27e-3, 9.04e-4 on the 8 x 8, 16 x 16 and 32 x 32 meshes.
+- Code: `inverse.benchmark_aristoff_bangerth.AristoffBangerthForward.value`.
+- Source: [REF-ARISTOFF-BANGERTH-2023], [REF-ELMAN-SILVESTER-WATHEN-2014].
+
+### EQ-INV-ABBENCH-003 — Likelihood and prior of the benchmark
+
+`L(z_hat | theta) = exp(-|z_hat - z(theta)|^2 / (2 sigma^2))`, `sigma = 0.05`; `pi_pr(theta) = prod_i exp(-(ln theta_i)^2 / (2 sigma_pr^2))`, `sigma_pr = 2`.
+
+- Domain: `theta_i > 0`; both are non-normalized; `z_hat` is Table 2.1 of the paper (169 values).
+- Meaning: Eq. (2.5) and (2.6) read literally as functions of `theta` (no Jacobian factor). In `t = ln theta` the prior is `N(sigma_pr^2, sigma_pr^2)` (mean of `theta_k` equals `exp(sigma_pr^2 + sigma_pr^2 / 2) = 403.43`, as stated in the paper), so `theta = exp(sigma_pr^2 + sigma_pr u)` with `u ~ N(0, I)` samples the prior and lets preconditioned Crank-Nicolson target the posterior.
+- Code: `inverse.benchmark_aristoff_bangerth.log_likelihood`, `inverse.benchmark_aristoff_bangerth.log_prior`, `inverse.benchmark_aristoff_bangerth.standardized_log_likelihood`.
+- Source: [REF-ARISTOFF-BANGERTH-2023].
+
+### EQ-INV-ABBENCH-004 — Posterior and the paper's Metropolis-Hastings acceptance
+
+`pi(theta | z_hat) ∝ L(z_hat | theta) pi_pr(theta)`; proposal `theta~_k = theta_k exp(xi_k)`, `xi_k ~ N(0, s^2)`, `s = 0.0725`; `alpha = min(1, pi(theta~) / pi(theta) * prod_k theta~_k / theta_k)`.
+
+- Domain: `theta > 0`; the factor `prod theta~/theta = exp(sum xi_k)` is the Hastings ratio of the log-normal random walk (paper Appendix A.2).
+- Meaning: Eq. (2.1). The published reference statistics (Table 3.1 means with 2-sigma uncertainties, `2e11` samples) are stored as `REFERENCE_POSTERIOR_MEAN` and `REFERENCE_POSTERIOR_MEAN_TWO_SIGMA`; the sampler needs about `1e4` evaluations per independent sample (paper Section 3.1), so short runs resolve only the well-determined parameters.
+- Code: `inverse.benchmark_aristoff_bangerth.log_posterior`, `inverse.benchmark_aristoff_bangerth.log_posterior_gradient`, `inverse.benchmark_aristoff_bangerth.metropolis_hastings`.
+- Source: [REF-ARISTOFF-BANGERTH-2023], [REF-METROPOLIS-ETAL-1953], [REF-HASTINGS-1970].
+
+### EQ-INV-ABBENCH-005 — Exact discrete Jacobian action and adjoint
+
+`J v = -M A^-1 (sum_k v_k A_k) U`, `(J' w)_k = -p' A_k U` with `A p = M' w`; `grad_theta log pi = J' (z_hat - z) / sigma^2 - ln(theta_k) / (sigma_pr^2 theta_k)`.
+
+- Domain: `theta > 0`; `A = L L'` factorized by a banded Cholesky algorithm (half-bandwidth 32); one factorization serves `value`, `jvp` and `vjp` at the same `theta`.
+- Meaning: differentiates the discrete map exactly (`dA/dtheta_k = A_k`, `dU/dtheta_k = -A^-1 A_k U`), so `w'(J v) = (J' w)' v` to rounding; no finite-difference or discretize-then-differentiate mismatch.
+- Code: `inverse.benchmark_aristoff_bangerth.AristoffBangerthForward.jvp`, `inverse.benchmark_aristoff_bangerth.AristoffBangerthForward.vjp`.
+- Source: [REF-ARISTOFF-BANGERTH-2023], [REF-GOLUB-VANLOAN-2013].
+
+### EQ-VAL-KOHEM-001 — Emulator prior and fixed hyperparameters (modular)
+
+`eta ~ GP(m, k_eta)`, `k_eta(w, w') = sigma_f^2 kappa(r)`,
+`r^2 = sum_i ((w_i - w'_i)/ell_i)^2`, `w = (x, t)`; `(m, sigma_f^2, ell, nu)`
+fixed at the simulator-only maximum-likelihood fit to `z_j = eta(w_j)`.
+
+- Domain: scalar simulator output; `kappa` squared exponential, Matern 3/2 or
+  Matern 5/2; `nu >= 0` the diagonal nugget of the fit (standardized
+  regularization included, reported in original units).
+- Meaning: the "modular" approach: the emulator is learned from the runs only
+  and held fixed, so field data cannot distort it. A constant mean `m`, no
+  scale factor `rho` between simulator and reality, and a stationary kernel are
+  simplifications of the full Kennedy-O'Hagan model. Fully joint estimation of
+  the emulator hyperparameters is not implemented.
+- Code: `validation.koh_emulator.KOHEmulatorCalibration`.
+- Source: [REF-KENNEDY-OHAGAN-2001], [REF-HIGDON-ETAL-2004],
+  [REF-BAYARRI-ETAL-2007], [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-VAL-KOHEM-002 — Joint likelihood of simulator runs and field data
+
+`(z, y) | theta, psi ~ N(m 1, Sigma)`,
+`Sigma = [[A, B], [B', C + D + E]]`,
+`A_jj' = k_eta(w_j, w_j') + nu 1[j = j']`, `B_ji = k_eta(w_j, (x_i, theta))`,
+`C_ii' = k_eta((x_i, theta), (x_i', theta))`, `D_ii' = k_delta(x_i, x_i')`,
+`E = diag(s_i^2)`.
+
+- Domain: `theta` in the prior box, `psi = (sigma_delta, ell_delta)`;
+  `Sigma` positive definite.
+- Meaning: marginalizing both Gaussian processes gives one multivariate normal
+  for the runs and the field data; the `B` block carries the information the
+  runs provide about `eta` at `(x_i, theta)`. Without discrepancy `D = 0`.
+- Code: `validation.koh_emulator.KOHEmulatorCalibration.joint_covariance`,
+  `validation.koh_emulator.KOHEmulatorCalibration.log_joint_likelihood`.
+- Source: [REF-KENNEDY-OHAGAN-2001], [REF-HIGDON-ETAL-2004].
+
+### EQ-VAL-KOHEM-003 — Conditional form used for evaluation
+
+`log p(z, y | theta, psi) = log p(z) + log N(y; mu, S)`,
+`mu = m 1 + B' A^-1 (z - m 1)`, `S = C - B' A^-1 B + D + E`.
+
+- Domain: as EQ-VAL-KOHEM-002.
+- Meaning: `A` and `z` do not depend on `(theta, psi)` when the emulator is
+  fixed, so one Cholesky factorization of `A` is reused and each evaluation
+  factorizes only the `N x N` matrix `S`. The part of `mu` and `S` that
+  depends on `theta` alone is cached across hyperparameter updates.
+  `log p(z)` is available as `simulator_log_likelihood`.
+- Code: `validation.koh_emulator.KOHEmulatorCalibration.log_conditional_likelihood`,
+  `validation.koh_emulator.KOHEmulatorCalibration.log_joint_likelihood`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006], [REF-KENNEDY-OHAGAN-2001].
+
+### EQ-VAL-KOHEM-004 — Posterior and priors
+
+`p(theta, psi | z, y)` proportional to
+`p(z, y | theta, psi) p(theta) p(psi)`, with `theta` uniform on a box,
+`log sigma_delta ~ N(a, b^2)`, `log(ell_delta,i / R_i) ~ N(c, d^2)`
+(`R_i` the range of control input `i`), and optionally `log s ~ N(e, f^2)`
+for one unknown noise sd.
+
+- Domain: the box should contain the design range in `t`; the default priors
+  `a = log(0.1 s_z)`, `b = 1`, `c = log 0.5`, `d = 0.5` are stated defaults,
+  not recommendations: the posterior of `theta` depends on them (see
+  EQ-VAL-KOHEM-007).
+- Meaning: sampled by coordinate-wise slice sampling (default) or
+  transitional MCMC, which also returns the log evidence of the field data
+  given the runs. A covariance that is not numerically positive definite has
+  zero density and is counted in `failed_evaluations`.
+- Code: `validation.koh_emulator.KOHEmulatorCalibration.log_posterior`,
+  `validation.koh_emulator.KOHEmulatorCalibration.sample`.
+- Source: [REF-HIGDON-ETAL-2004], [REF-NEAL-2003], [REF-CHING-CHEN-2007].
+
+### EQ-VAL-KOHEM-005 — Conditional law of reality given a posterior draw
+
+With `zeta* = eta(x*, theta) + delta*` and `c_eta`, `c_delta` the covariances
+of `eta*` and `delta*` with `(z, y)`, `u = (z, y)`:
+`E[zeta* | u] = m + (c_eta + c_delta)' Sigma^-1 (u - m 1)`,
+`V_eta = sigma_f^2 - c_eta' Sigma^-1 c_eta`,
+`V_delta = sigma_delta^2 - c_delta' Sigma^-1 c_delta`,
+`C_ed = - c_eta' Sigma^-1 c_delta`,
+`Var[zeta* | u] = V_eta + V_delta + 2 C_ed`.
+
+- Domain: one posterior draw `(theta, psi)`; `c_delta` has zeros in the run
+  block and `k_delta(x*, x_i)` in the field block.
+- Meaning: the data constrain the sum `eta + delta`, so `C_ed` is typically
+  negative; it is reported separately instead of being assigned to either
+  field. Conditional variances below minus `1e-9` times the prior scale raise
+  an error; smaller negative values are rounding and set to zero.
+- Code: `validation.koh_emulator.KOHEmulatorCalibration.predict`.
+- Source: [REF-KENNEDY-OHAGAN-2001], [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-VAL-KOHEM-006 — Predictive variance decomposition over posterior draws
+
+`Var(y*) = E[V_eta] + E[V_delta] + 2 E[C_ed] + Var(E[zeta* | u]) + E[s*^2]`,
+expectations over the `M` posterior draws (mixture of Gaussians).
+
+- Domain: `M >= 1` equally weighted draws; `s*^2` the noise variance of the
+  new observation (zero when predicting reality itself).
+- Meaning: law of total variance. The five parts (emulator, discrepancy,
+  emulator-discrepancy covariance, parameter, noise) add up to the mixture
+  variance exactly (the `parameter` part is the variance across draws of the
+  conditional mean, so it contains the uncertainty of `theta` and of the
+  hyperparameters). The reported interval inverts the mixture CDF by
+  bisection.
+- Code: `validation.koh_emulator.KOHPrediction`,
+  `validation.koh_emulator.KOHEmulatorCalibration.predict`.
+- Source: [REF-KENNEDY-OHAGAN-2001], [REF-BAYARRI-ETAL-2007].
+
+### EQ-VAL-KOHEM-007 — Identifiability diagnostics
+
+`contraction_k = 1 - Var_post(theta_k) / Var_prior(theta_k)`, with
+`Var_prior = (b - a)^2 / 12` for a uniform box; `rho_k = corr(theta_k,
+log sigma_delta)` and `corr(theta_k, log ell_delta,i)` over the posterior
+draws; `shift_k = (mean_with - mean_without) / sd_without` against the
+no-discrepancy calibration of the same data and emulator.
+
+- Domain: posterior draws with non-constant coordinates (`nan` otherwise).
+- Meaning: contraction near 0 means the data did not inform `theta`; a strong
+  correlation with the discrepancy amplitude signals that `theta` and `delta`
+  trade off (confounding). When the simulator is structurally wrong the
+  no-discrepancy posterior is narrow and biased, and `|shift| > 2` flags that
+  it excludes the with-discrepancy posterior. The contraction threshold 0.5
+  is a screening convention, not a test.
+- Code: `validation.koh_emulator.KOHEmulatorCalibration.identifiability`,
+  `validation.koh_emulator.IdentifiabilityReport`.
+- Source: [REF-BRYNJARSDOTTIR-OHAGAN-2014], [REF-KENNEDY-OHAGAN-2001].
+
+### EQ-WF-INVSTUDY-001 — Prior-whitened spectrum and detectable directions
+
+`K = W J(x_0) P`, `K = U diag(sigma) V'`, `lambda_i = sigma_i^2`,
+`detectable = #{ i : lambda_i > tau }`, posterior-to-prior variance ratio along
+`v_i`: `1 / (1 + lambda_i)`.
+
+- Domain: `y = G(x) + e`, `e ~ N(0, Gamma)`, `W' W = Gamma^-1`, prior
+  `x = mu + P z`, `z ~ N(0, I_r)`; `J(x_0)` the Jacobian at the linearization
+  point `x_0` (exact and point independent for a linear `G`); `tau > 0`.
+- Meaning: `lambda_i` are the eigenvalues of the prior-preconditioned
+  Gauss-Newton Hessian `K' K`. For a linear-Gaussian problem the posterior
+  covariance of `z` is `V diag(1 / (1 + lambda)) V'` on the range of `K'` and
+  `I` on its complement, so `lambda_i > 1` means the data at least halve the
+  prior variance of that direction. For a nonlinear `G` the statement is local
+  to `x_0` (the prior mean or the MAP, whichever the study records).
+- Code: `workflow.inverse_study.InverseStudy.spectrum`.
+- Source: [REF-BUI-THANH-ETAL-2013], [REF-HANSEN-2008].
+
+### EQ-WF-INVSTUDY-002 — Child streams and work ledger of a study
+
+Stage stream `S(stage, k) = root.child(stage, k)` for the `k`-th run of `stage`;
+stage work `w = n_G + n_J + n_Jt` (calls of `G(x)`, `J v`, `J' w`); study work
+`W = sum over recorded stages of w`.
+
+- Domain: `k = 0, 1, ...` counts runs of the same stage within one study; counts
+  are differences of the problem's cumulative counters before and after the
+  stage.
+- Meaning: a stage result depends on the root seed and on its own run index
+  only, never on which other stages ran before it, so adding or reordering
+  other stages does not change it (a stage that needs a missing prerequisite
+  runs that prerequisite as its own recorded stage with its own stream). For a
+  linear problem `n_G` counts applications of `A` (value and tangent are the
+  same product) and `n_Jt` applications of `A'`.
+- Code: `workflow.inverse_study.InverseStudy`,
+  `workflow.inverse_study.InverseStageRecord`.
+- Source: [REF-KAIPIO-SOMERSALO-2007], [REF-STEELE-LEA-FLOOD-2014].
+
+### EQ-WF-INVSTUDY-003 — Monte Carlo standard error of a posterior mean
+
+`MCSE_i = s_i / sqrt(ESS_i)` for MCMC draws, with `s_i^2` the sample variance of
+coordinate `i` and `ESS_i` the split-chain effective sample size; for equally
+weighted particle sets without a valid ESS the iid-naive `s_i / sqrt(N)`.
+
+- Domain: one stored chain of at least eight draws per coordinate; `ESS_i`
+  `nan` for a constant series.
+- Meaning: the standard error of the sample mean as an estimate of the
+  posterior mean. The iid-naive value understates the error of dependent
+  particles (SMC, transitional MCMC) and is labelled `iid-naive` in the report.
+  A single chain gives no between-chain R-hat.
+- Code: `workflow.inverse_study.SampleSummary`,
+  `workflow.inverse_study.InverseStudy.sample`.
+- Source: [REF-GEYER-1992], [REF-VEHTARI-ETAL-2021].
+
+### EQ-WF-INVSTUDY-004 — Moment comparison against a reference
+
+`e_i = |m_i - mu_i| / sd_i`, `z_i = |m_i - mu_i| / MCSE_i`, `rho_i = v_i / sd_i^2`;
+coordinate `i` passes iff
+`|m_i - mu_i| <= tol_m sd_i + c MCSE_i` and `|rho_i - 1| <= tol_v`.
+
+- Domain: sample mean `m_i` and variance `v_i` of the posterior draws; reference
+  mean `mu_i` and variance `sd_i^2` (exact linear-Gaussian posterior, quadrature,
+  or user moments); `tol_m, tol_v > 0`, `c >= 0` (defaults 0.25, 0.3, 3).
+- Meaning: a screening check at stated tolerances for the stored sample. The
+  variance ratio of an ESS-sized Gaussian sample has a relative error of about
+  `sqrt(2 / ESS)`, so `tol_v` must exceed it; the MCSE allowance accounts for the
+  Monte Carlo error of the mean only. A pass is not a convergence proof.
+- Code: `workflow.inverse_study.InverseStudy.compare`,
+  `workflow.inverse_study.StudyComparison`.
+- Source: [REF-VEHTARI-ETAL-2021], [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-WF-INVSTUDY-005 — Physical moments of a whitened quadrature reference
+
+`mean_x = mu + P mean_z`, `var_x,i = (P C_z P')_ii`,
+`log p(y) = log Z_q + c - (r / 2) log(2 pi)`.
+
+- Domain: `r <= 2` whitened parameters; `mean_z`, `C_z` and `Z_q = integral
+  exp(log_likelihood(z) - ||z||^2 / 2) dz` from tensor Gauss-Legendre
+  quadrature on a box in `z`; `c = -(1/2)(m log 2 pi + log det Gamma)` the
+  data-density constant.
+- Meaning: the whitened posterior is no wider than the standard normal prior
+  times a bounded likelihood, so a box of `+-8` per coordinate holds all but a
+  negligible mass unless the likelihood is extremely peaked far from the prior;
+  the reference reports its truncation and refinement estimates. The
+  reference cost (model evaluations of `log_posterior`) is charged to the first
+  `compare` stage that builds it.
+- Code: `workflow.inverse_study.InverseStudy.compare`.
+- Source: [REF-KAIPIO-SOMERSALO-2007], [REF-DAVIS-RABINOWITZ-1984].
+
+### EQ-INV-IHCP-001 — Slab conduction, finite-volume implicit-Euler forward model
+
+`rho c dx (T_i^k - T_i^(k-1)) / dt = G (T_(i-1)^k - 2 T_i^k + T_(i+1)^k)`,
+`G = k / dx`, `dx = L / nx`, for the cells `i = 0 .. nx - 1`; cell `0` gains the
+flux `q^k` (W/m^2) and has no left neighbour, the last cell loses
+`G_b T_(nx-1)^k` with `G_b = 1 / (dx / (2 k) + 1 / h)` (`G_b = 0` for an
+insulated back face). In matrix form `M T^k = c T^(k-1) + e_0 q^k`, with the
+symmetric tridiagonal positive definite `M`, `c = rho c dx / dt`. The flux is
+piecewise constant on `n_q` intervals of length `Delta` holding `substeps` steps
+each; a reading is the linear interpolation of `T^k` between cell centres at
+the sensor depth, taken at the end of every `sample_every`-th interval.
+
+- Domain: SI units; temperatures are rises above a uniform initial temperature;
+  constant properties `k, rho, c` (small temperature rise), one-dimensional
+  conduction, no ablation, pyrolysis or contact resistance; sensor depth in
+  `[dx / 2, L - dx / 2]`. The material of the examples is SYNTHETIC
+  (carbon-phenolic-like: `k = 1`, `rho = 1450`, `c = 1250`, `L = 0.02`) and is
+  not data for any real heat shield.
+- Meaning: the model is linear in `q` and time invariant. Implicit Euler is
+  unconditionally stable and first order in `dt`; the cell-centred scheme with
+  linear sensor interpolation is second order in `dx` (observed orders in
+  `tests/test_heat_conduction_inverse.py`).
+- Code: `inverse.heat_conduction_inverse.SlabFluxOperator`.
+- Source: [REF-CARSLAW-JAEGER-1959], [REF-BECK-BLACKWELL-STCLAIR-1985].
+
+### EQ-INV-IHCP-002 — Exact discrete adjoint of the flux-to-sensor map
+
+With `S = c M^-1`, `theta^k = S theta^(k-1) + M^-1 e_0 q_(j(k))` and
+`y = sum_k H_k theta^k`: `nu^K = M^-1 H_K' y_K`,
+`nu^k = M^-1 (H_k' y_k + c nu^(k+1))`, `(A' y)_j = sum_(k in interval j) (nu^k)_0`
+(`H_k` is the interpolation at reading steps and zero otherwise).
+
+- Domain: as EQ-INV-IHCP-001; `M` symmetric so `M^-T = M^-1`.
+- Meaning: `rmatvec` is the exact Euclidean transpose of the discrete forward
+  map, not a discretized continuous adjoint; the dot-product test holds to
+  rounding (`<= 1e-13` relative). One tridiagonal solve per time step, no dense
+  matrix.
+- Code: `inverse.heat_conduction_inverse.SlabFluxOperator`.
+- Source: [REF-GOLUB-VANLOAN-2013], [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-IHCP-003 — Semi-infinite solid under a constant surface flux
+
+`theta(x, t) = (2 q / k) sqrt(alpha t / pi) exp(-x^2 / (4 alpha t))
+- (q x / k) erfc(x / (2 sqrt(alpha t)))`, `alpha = k / (rho c)`.
+
+- Domain: `theta_t = alpha theta_xx`, `-k theta_x(0, t) = q`, `theta(x, 0) = 0`,
+  `theta -> 0` as `x -> infinity`; `x, t >= 0`.
+- Meaning: the early-time limit of the finite slab, valid while
+  `4 sqrt(alpha t)` is small compared with the thickness. At the surface
+  `theta = 2 q sqrt(t / pi) / sqrt(k rho c)` (effusivity form).
+- Code: `inverse.heat_conduction_inverse.semi_infinite_flux_response`.
+- Source: [REF-CARSLAW-JAEGER-1959].
+
+### EQ-INV-IHCP-004 — Insulated finite slab under a constant surface flux (series)
+
+`theta(x, t) = q alpha t / (k L) + q (x - L)^2 / (2 k L) - q L / (6 k)
+- (2 q L / (k pi^2)) sum_(n>=1) n^-2 exp(-n^2 pi^2 alpha t / L^2) cos(n pi x / L)`.
+
+- Domain: `theta_t = alpha theta_xx` on `(0, L)`, `-k theta_x(0) = q`,
+  `theta_x(L) = 0`, `theta(x, 0) = 0`. Derivation: a particular solution
+  `A t + w(x)` with `A = alpha q / (k L)`, `w' = (A / alpha)(x - L)`; the
+  constant `-q L / (6 k)` removes the mean of the remainder so that it expands
+  in the decaying modes `cos(n pi x / L)`; the coefficients follow from
+  `int_0^L (x - L)^2 cos(n pi x / L) dx = 2 L^3 / (n pi)^2`.
+- Meaning: the series is zero at `t = 0` and conserves energy,
+  `int_0^L theta dx = q t / (rho c)` (both checked in the tests); the truncation
+  error at `t = 0` is about `2 q L / (k pi^2 terms)` and decays exponentially for
+  `t > 0`.
+- Code: `inverse.heat_conduction_inverse.insulated_slab_flux_response`.
+- Source: [REF-CARSLAW-JAEGER-1959].
+
+### EQ-INV-IHCP-005 — Exact discrete energy balance
+
+`dt sum_k q^k = rho c dx sum_i T_i^K + dt sum_k G_b T_(nx-1)^k`.
+
+- Domain: implicit Euler of EQ-INV-IHCP-001, any `nx`, `dt`, any flux.
+- Meaning: summing the cell equations over cells and steps, the interior
+  conductances telescope; the relation holds to rounding (relative residual
+  `~1e-16`), a conservation check independent of the accuracy of the scheme.
+- Code: `inverse.heat_conduction_inverse.SlabFluxOperator`.
+- Source: [REF-CARSLAW-JAEGER-1959].
+
+### EQ-INV-IHCP-006 — Toeplitz structure and sensitivity coefficients
+
+`y_(m,s) = sum_(j < m) phi_s(m - j) q_j`, `phi_s(n) = Phi_s(n) - Phi_s(n - 1)`,
+`Phi_s(0) = 0`, where `Phi_s(m)` is the reading at time `m Delta` for a unit
+flux held from `t = 0`.
+
+- Domain: `sample_every = 1`; time-invariant model, readings at interval ends.
+- Meaning: `A` is block lower-triangular Toeplitz and is obtained from one
+  forward run on the all-ones flux; `Phi_s(l)` are Beck's sensitivity
+  coefficients (K per W/m^2), `phi_s` the response to one interval of unit flux.
+  Coefficient magnitudes fall quickly with depth (measured in the tests).
+- Code: `inverse.heat_conduction_inverse.SlabFluxOperator`.
+- Source: [REF-BECK-BLACKWELL-STCLAIR-1985].
+
+### EQ-INV-IHCP-007 — Beck's sequential function specification
+
+At stage `j`: `q_hat_j = sum_(s, l=1..r) X_(s,l) e_(s,l) / sum X_(s,l)^2`,
+`X_(s,l) = Phi_s(l)`, `e_(s,l) = y_(j+l, s) - sum_(i<j) phi_s(j + l - i) q_hat_i`.
+
+- Domain: `1 <= r <= n_q`; equal uncorrelated noise; near the end the window is
+  truncated to the available readings.
+- Meaning: the flux is assumed constant over the `r` future intervals and the
+  past estimates are held fixed; `r = 1` is exact inversion of one reading
+  (maximum noise amplification), larger `r` stabilizes at the price of lag and
+  smoothing. The variance of the first-stage estimate is `sigma^2 / sum X^2`.
+- Code: `inverse.heat_conduction_inverse.beck_sequential_estimate`.
+- Source: [REF-BECK-BLACKWELL-STCLAIR-1985].
+
+### EQ-INV-IHCP-008 — Linear map, bias and noise gain of the sequential estimator
+
+`q_hat = G y`; `E[q_hat] = G A q` (bias `(G A - I) q`); `Cov = sigma^2 G G'`;
+RMS noise gain `sqrt(trace(G G') / n_q)` in (W/m^2) per K.
+
+- Domain: as EQ-INV-IHCP-007; `G` is obtained by applying the estimator to the
+  unit data vectors.
+- Meaning: quantifies the bias-variance trade-off in `r`: in the tests the noise
+  gain decreases and the bias increases with `r`, and the total RMS error has an
+  interior minimum.
+- Code: `inverse.heat_conduction_inverse.beck_linear_map`,
+  `inverse.heat_conduction_inverse.beck_noise_gain`.
+- Source: [REF-BECK-BLACKWELL-STCLAIR-1985].
+
+### EQ-INV-IHCP-009 — Whole-domain Tikhonov estimate, averaging kernel, equal-noise resolution
+
+`q_hat = argmin ||A q - y||^2 / sigma^2 + lambda^2 ||L q||^2`, `L = I` (order 0) or
+the first difference in time (order 1); averaging kernel
+`R = (A'A / sigma^2 + lambda^2 L'L)^-1 A'A / sigma^2`. For `L = I` with
+`A'A / sigma^2 = V diag(g) V'`: `R = V diag(g / (g + lambda^2)) V'` and the RMS
+standard deviation of `q_hat` is `sqrt(sum_i g_i / (g_i + lambda^2)^2 / n)`.
+
+- Domain: `lambda > 0`, `sigma > 0`; `lambda` chosen by GCV, the discrepancy
+  principle (target `tau sqrt(m)` in whitened units) or the L-curve.
+- Meaning: row `i` of `R` shows how the estimate at interval `i` averages the
+  true flux; its centroid offset (lag) and spread (width) quantify the
+  resolution. For `L` the first difference, `R 1 = 1` (constants unpenalized).
+  Compared at equal noise, deeper sensors give wider kernels.
+- Code: `inverse.heat_conduction_inverse.tikhonov_flux_estimate`,
+  `inverse.heat_conduction_inverse.averaging_kernel`,
+  `inverse.heat_conduction_inverse.kernel_resolution`,
+  `inverse.heat_conduction_inverse.resolution_at_noise_level`.
+- Source: [REF-HANSEN-2008], [REF-BECK-BLACKWELL-STCLAIR-1985].
+
+### EQ-INV-IHCP-010 — Linear-Gaussian posterior of the flux with a Matern prior
+
+Prior `q ~ N(m0 1, C)`, `C_ij = s^2 k_nu(|t_i - t_j| / l)` with
+`k_(1/2)(r) = exp(-r)`, `k_(3/2)(r) = (1 + sqrt(3) r) exp(-sqrt(3) r)`,
+`k_(5/2)(r) = (1 + sqrt(5) r + 5 r^2 / 3) exp(-sqrt(5) r)`; noise
+`N(0, sigma^2 I)`. Posterior mean `m0 1 + C A' S^-1 (y - m0 A 1)`,
+`S = A C A' + sigma^2 I`, covariance `C - C A' S^-1 A C`; pointwise band
+`mean +- z sd` with `z` the normal quantile of `(1 + level) / 2`.
+
+- Domain: `s, l, sigma > 0`; evidence `log p(y)` used to select `(s, l)` on a grid.
+- Meaning: the band covers the truth with probability `level` only if prior and
+  noise model are right; with the truth drawn from the prior the measured
+  pointwise coverage is close to nominal (tests), while an overconfident prior
+  gives poor coverage and model error reduces it.
+- Code: `inverse.heat_conduction_inverse.bayesian_flux_posterior`,
+  `inverse.heat_conduction_inverse.select_gp_hyperparameters`,
+  `inverse.heat_conduction_inverse.matern_covariance`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006], [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-INV-IHCP-011 — Time lag of a buried sensor
+
+Impulse response of the semi-infinite solid at depth `x`:
+`theta ~ t^(-1/2) exp(-x^2 / (4 alpha t))`, maximal at `t_p = x^2 / (2 alpha)`.
+
+- Domain: `x > 0`, semi-infinite solid (a back face adds later reflections).
+- Meaning: a flux event is seen by a sensor at depth `x` delayed by about `t_p`
+  and smoothed over a comparable time; sampled on intervals of length `Delta`
+  the discrete peak lies within about `2.5 Delta` after `t_p` (tests).
+- Code: `inverse.heat_conduction_inverse.impulse_response_peak_time`,
+  `inverse.heat_conduction_inverse.sensitivity_summary`.
+- Source: [REF-BECK-BLACKWELL-STCLAIR-1985], [REF-CARSLAW-JAEGER-1959].
+
+### EQ-INV-IHCP-012 — CGLS with the discrepancy principle
+
+Iterate CGLS from `q_0 = 0`; stop at the first `k` with
+`||A q_k - y|| <= tau sigma sqrt(m)`.
+
+- Domain: `tau >= 1`; `sigma` the noise standard deviation.
+- Meaning: the iteration number is the regularization parameter; only operator
+  actions are needed. If the target is not reached within the iteration cap the
+  status is `discrepancy_unmet` and the last iterate is returned.
+- Code: `inverse.heat_conduction_inverse.cgls_flux_estimate`.
+- Source: [REF-HANSEN-2008], [REF-HESTENES-STIEFEL-1952].
+
+### EQ-AERO-ENTRY-001 — Planar entry equations of motion and exponential atmosphere
+
+`theta' = V cos(gamma)/r`, `h' = V sin(gamma)`, `V' = -D/m - g sin(gamma)`,
+`gamma' = (L/D)(D/m)/V + (V/r - g/V) cos(gamma)`, with `r = R_E + h`,
+`g = mu/r^2`, `D/m = rho V^2 / (2 beta)`, `beta = m/(C_D A)`; exponential
+atmosphere `rho = rho_0 exp(-h/H)`.
+
+- Domain: point mass over a spherical non-rotating Earth (`R_E = 6 378 137 m`,
+  `mu = 3.986004418e14 m^3/s^2`), planar flight, constant `C_D` and constant
+  `L/D` with the lift rotated toward increasing `gamma` (no bank); SI units;
+  `-pi/2 <= gamma < 0` at entry. The 1976 standard atmosphere (isothermal
+  extension above 86 km) or the exponential model supplies `rho`.
+- Meaning: the standard planar entry equations; the term `(V/r - g/V) cos(gamma)`
+  is the net centrifugal-minus-gravity turning and nearly cancels near
+  circular speed. With gravity and curvature removed (`idealised=True`) and
+  `L/D = 0` the flight path is a straight line (EQ-AERO-ENTRY-003).
+- Code: `aerospace.entry.simulate_entry`, `aerospace.entry.ExponentialAtmosphere`.
+- Source: [REF-ALLEN-EGGERS-1958], [REF-CURTIS-2014],
+  [REF-US-STANDARD-ATMOSPHERE-1976].
+
+### EQ-AERO-ENTRY-002 — Sutton-Graves stagnation-point heat flux and heat load
+
+`q = k sqrt(rho / R_n) V^3`, `Q = integral q dt`, with
+`k = K / (2 sqrt(101325)) = 1.7483e-4 kg^0.5/m` (Earth air), from the
+report's air coefficient `K = 0.1113 kg/(s m^1.5 atm^0.5)` with
+`p_s = rho V^2` and `h_s - h_w = V^2 / 2`.
+
+- Domain: cold-wall convective laminar heating at the stagnation point of a
+  blunt body of effective radius `R_n` (m); `rho` in kg/m^3, `V` in m/s, `q` in
+  W/m^2, `Q` in J/m^2. No radiative heating, turbulence, catalysis or real-gas
+  correction.
+- Meaning: engineering correlation; the heat flux rises as `V^3` and falls as
+  `1/sqrt(R_n)`. The value of `k` depends on the gas model of the original
+  correlation: the report defines `K = q sqrt(R_n / p_s) / (h_s - h_w)`
+  (its equation 33) and correlates `K = 0.1113` for air (its table II,
+  average error 3.3 %, maximum 9.8 %); the often quoted 1.7415e-4 is 0.4 %
+  lower. The `heating_scale` input of `entry_model` carries the correlation
+  uncertainty.
+- Code: `aerospace.entry.sutton_graves_heat_flux`, `aerospace.entry.simulate_entry`.
+- Source: [REF-SUTTON-GRAVES-1971].
+
+### EQ-AERO-ENTRY-003 — Allen-Eggers velocity-altitude relation
+
+`V(h) = V_e exp(-rho(h) H / (2 beta sin|gamma|))`, equivalently
+`V = V_0 exp(-H (rho(h) - rho(h_0)) / (2 beta sin|gamma|))` from a finite entry
+altitude `h_0`.
+
+- Domain: exponential atmosphere, straight-line flight at constant `gamma`,
+  gravity and centrifugal term neglected, no lift, constant `beta`; `V_e` is the
+  speed at infinite altitude.
+- Meaning: exact solution of `dV/dh = rho V / (2 beta sin|gamma|)` under those
+  assumptions; the speed is nearly constant above the sensible atmosphere and
+  collapses over a few scale heights.
+- Code: `aerospace.entry.AllenEggersEntry`.
+- Source: [REF-ALLEN-EGGERS-1958].
+
+### EQ-AERO-ENTRY-004 — Allen-Eggers peak deceleration
+
+`a_max = V_e^2 sin|gamma| / (2 e H)` at `rho* = beta sin|gamma| / H`, i.e. at
+altitude `h* = H ln(rho_0 H / (beta sin|gamma|))` and speed `V_e e^(-1/2)`.
+
+- Domain: as EQ-AERO-ENTRY-003.
+- Meaning: the peak deceleration is independent of the ballistic coefficient
+  and grows linearly with `sin|gamma|` (steep entry, high load); `beta` only
+  sets the altitude of the peak, by `H ln` of the `beta` ratio.
+- Code: `aerospace.entry.AllenEggersEntry.peak_deceleration`.
+- Source: [REF-ALLEN-EGGERS-1958].
+
+### EQ-AERO-ENTRY-005 — Allen-Eggers peak heating and heat load
+
+`q_max = k V_e^3 e^(-1/2) sqrt(beta sin|gamma| / (3 H R_n))` at `rho = rho*/3`
+(altitude `h* + H ln 3`, speed `V_e e^(-1/6)`); heat load between densities
+`rho_1` and `rho_2`:
+`Q = k V_e^2 sqrt(pi beta H / (R_n sin|gamma|)) [erf(sqrt(c rho_2)) - erf(sqrt(c rho_1))]`
+with `c = H / (beta sin|gamma|)`, tending to the total
+`k V_e^2 sqrt(pi beta H / (R_n sin|gamma|))`.
+
+- Domain: as EQ-AERO-ENTRY-003 with the Sutton-Graves heat flux
+  (EQ-AERO-ENTRY-002).
+- Meaning: peak heating occurs `H ln 3` above the peak deceleration; the total
+  heat load falls as `1/sqrt(sin|gamma|)`, so shallow entries heat more and
+  load less, the classic steep-versus-shallow trade-off.
+- Code: `aerospace.entry.AllenEggersEntry.peak_heat_flux`,
+  `aerospace.entry.AllenEggersEntry.heat_load`.
+- Source: [REF-ALLEN-EGGERS-1958], [REF-SUTTON-GRAVES-1971].
+
+### EQ-AERO-ENTRY-006 — Ablative recession
+
+`s = f Q / (rho_a H_eff)`.
+
+- Domain: `Q` convective heat load (J/m^2) fully absorbed by ablation, `rho_a`
+  ablator density (kg/m^3), `H_eff` effective heat of ablation (J/kg, including
+  blowing and re-radiation), `f >= 1` a safety factor. Synthetic parameters.
+- Meaning: mass lost per unit area `Q / H_eff` divided by the density gives the
+  surface recession. Engineering-level estimate, not a material response code.
+- Code: `aerospace.entry.heat_shield_sizing`.
+- Source: [REF-SUTTON-GRAVES-1971].
+
+### EQ-AERO-ENTRY-007 — Insulation depth from semi-infinite conduction
+
+`x = 2 sqrt(alpha t_h) erfc^-1((T_b - T_0)/(T_s - T_0))`, with
+`t_h = Q / q_peak`.
+
+- Domain: one-dimensional constant-property conduction into a semi-infinite
+  solid whose surface is held at `T_s` for the equivalent heating time `t_h`;
+  `T_0` initial temperature, `T_b` allowable bond-line temperature,
+  `T_0 < T_b < T_s`; `alpha` diffusivity (m^2/s).
+- Meaning: the temperature at depth `x` is
+  `T_0 + (T_s - T_0) erfc(x / (2 sqrt(alpha t_h)))`; the depth that brings it
+  to `T_b` is the insulation depth. It neglects the adiabatic back face and the
+  surface motion, so it is an estimate rather than a bound.
+- Code: `aerospace.entry.heat_shield_sizing`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-ENTRY-008 — Required thickness and margin
+
+`t_req = s + x`, `margin = t_design - t_req`.
+
+- Domain: EQ-AERO-ENTRY-006 and EQ-AERO-ENTRY-007; failure of the design is
+  `t_req > t_design`, i.e. `margin < 0`.
+- Meaning: additive heat-shield thickness; the quantity whose exceedance
+  probability the reliability tools estimate.
+- Code: `aerospace.entry.heat_shield_sizing`, `aerospace.entry.HeatShieldSizing`.
+- Source: [REF-SUTTON-GRAVES-1971].
+
+### EQ-AERO-ENTRY-009 — Probabilistic entry forward map
+
+`x = (gamma_e, V_e, beta, R_n, k_rho, k_q, H_eff) -> y = (a_max, q_max, Q, t_req, margin, downrange, ...)`.
+
+- Domain: independent inputs; `k_rho` scales the density, `k_q` scales the
+  Sutton-Graves constant. A run that does not reach the terminal altitude
+  (skip-out, time-out, numerical failure) raises and follows the model's
+  failure policy.
+- Meaning: the composition of EQ-AERO-ENTRY-001, -002, -006, -007 and -008 as a
+  `ProbabilisticModel` for propagation, Sobol indices and reliability.
+- Code: `aerospace.entry.entry_model`.
+- Source: [REF-ALLEN-EGGERS-1958], [REF-SUTTON-GRAVES-1971], [REF-AU-BECK-2001].
+
+### EQ-AERO-ENTRY-010 — Entry-corridor bounds by bisection
+
+`gamma_shallow = min{ |gamma| : status(gamma) = landed }`,
+`gamma_steep = max{ |gamma| : a_peak(gamma) <= g_limit }`, each found by
+bisection on `|gamma|` to a tolerance `eps` after `ceil(log2(width/eps))` runs.
+
+- Domain: single-pass entries at fixed speed; skip-out and peak load assumed
+  monotone in `|gamma|` (bracket ends are checked).
+- Meaning: the corridor between skip-out and the load limit; its width is
+  `gamma_shallow - gamma_steep`.
+- Code: `aerospace.entry.entry_corridor`.
+- Source: [REF-ALLEN-EGGERS-1958].
+
+### EQ-AERO-ENTRY-011 — Parabolic refinement of a discrete peak
+
+`delta = (y_- - y_+) / (2 (y_- - 2 y_0 + y_+))`, `y_peak = y_0 - (y_- - y_+) delta / 4`.
+
+- Domain: three consecutive samples of a smooth series on a uniform grid with
+  `y_0` the discrete maximum (`|delta| <= 1/2`).
+- Meaning: the vertex of the parabola through the three points; the peak value
+  error is third order in the step, and the altitude of the peak is interpolated
+  quadratically at the same offset.
+- Code: `aerospace.entry.simulate_entry`.
+- Source: [REF-CURTIS-2014].
+
+### EQ-INV-LOCAL-001 — Tricube-weighted local polynomial regression of the forward map
+
+`G_hat(x) = beta_0`, `beta = argmin_beta sum_i w_i |G(x_i) - A_i beta|^2`,
+`w_i = (1 - (d_i / h)^3)^3`, `d_i = |(x_i - x) / s|`, `h = 1.1 max_i d_i`,
+`A_i = [1, u_i, u_{i,j} u_{i,l} (j <= l)]`, `u_i = (x_i - x) / (s h)`.
+
+- Domain: `k` nearest stored true evaluations `G(x_i)`; local linear
+  (`p = 1 + n` terms) or local quadratic (`p = (n+1)(n+2)/2`); `k >= p + 1`;
+  accepted only if `cond(B) = sqrt(lambda_max / lambda_min)` of
+  `B'B`, `B = diag(sqrt w) A`, is at most `condition_limit`.
+- Meaning: the value at `x` is the intercept, a linear smoother
+  `sum_i l_i G(x_i)` with `l_i = (c_0' b_i) sqrt(w_i)`; no ridge, jitter or
+  pseudo-inverse. Fewer than `k` stored points or an ill-conditioned design
+  means no approximation exists and the point must be refined.
+- Code: `inverse.local_approximation_mcmc.local_weighted_fit`.
+- Source: [REF-CONRAD-MARZOUK-PILLAI-SMITH-2016].
+
+### EQ-INV-LOCAL-002 — Leave-one-out indicator of the log-likelihood perturbation
+
+`delta_j = (c_0' b_j) r_j / (1 - H_jj)`, `H_jj = b_j' C b_j`,
+`r_j = sqrt(w_j) (G(x_j) - A_j beta)`, `C = (B'B)^-1`;
+`eps(x) = max_j |l(G_hat) - l(G_hat - delta_j)|`.
+
+- Domain: fixed weights; `H_jj < 1` (otherwise `eps = +inf`).
+- Meaning: `G_hat - delta_j` is exactly the fit that omits neighbour `j`
+  (weighted-least-squares deletion formula). `eps` is the largest change of
+  the log-likelihood, hence of the log acceptance ratio, caused by deleting
+  one neighbour; it can be small by accident for a smooth but wrong fit.
+- Code: `inverse.local_approximation_mcmc.local_weighted_fit`.
+- Source: [REF-CONRAD-MARZOUK-PILLAI-SMITH-2016].
+
+### EQ-INV-LOCAL-003 — Refinement probability and cross-validation trigger
+
+`beta_t = min(1, beta_0 t^-gamma)`; refine (one true evaluation) if
+`U_t < beta_t`, or no fit exists, or `eps(x') + eps(x) > tau`.
+
+- Domain: `t = 1, 2, ...` the iteration; `beta_0 in [0, 1]`, `gamma >= 0`,
+  `tau > 0`.
+- Meaning: `sum_t beta_t = infinity` iff `beta_0 > 0` and `gamma <= 1`
+  (reported as `refinement_never_stops`), the necessary mechanism by which the
+  store keeps growing in the limit so that the approximation error vanishes
+  and the adaptation diminishes. It does not guarantee a small error at finite
+  length; with `beta_0 = 0` or `gamma > 1` and no cross-validation refinement
+  the limit law is biased.
+- Code: `inverse.local_approximation_mcmc.local_approximation_metropolis`.
+- Source: [REF-CONRAD-MARZOUK-PILLAI-SMITH-2016].
+
+### EQ-INV-LOCAL-004 — Metropolis acceptance with the local approximation
+
+`alpha = min(1, exp[log p_0(x') + l_hat(x') - log p_0(x) - l_hat(x)])`,
+`l_hat(x) = -1/2 sum_o ((y_o - G_hat_o(x)) / s_o)^2`, exact `G` at stored points.
+
+- Domain: symmetric Gaussian random-walk proposal; Gaussian noise; the store
+  after this iteration's refinements is used for both states.
+- Meaning: a Metropolis step for the approximate posterior defined by the
+  current store; the chain is adaptive (store-dependent), so its asymptotic
+  exactness is not a detailed-balance statement.
+- Code: `inverse.local_approximation_mcmc.local_approximation_metropolis`.
+- Source: [REF-CONRAD-MARZOUK-PILLAI-SMITH-2016].
+
+### EQ-INV-LOCAL-005 — Delayed acceptance with a frozen local surrogate
+
+`a_1 = min(1, pi_hat(x') / pi_hat(x))`, then
+`a_2 = min(1, pi(x') pi_hat(x) / [pi(x) pi_hat(x')])`, `pi_hat = p_0 exp(l_hat)`
+from a store fixed before the run.
+
+- Domain: random-walk proposal; `pi_hat > 0` wherever `pi > 0`. Where the
+  quadratic fit is ill-posed the surrogate uses the linear fit, then the
+  nearest stored value (deterministic, counted in `fallback_calls`).
+- Meaning: invariant law is the exact posterior for any fixed surrogate
+  (see EQ-INF-DA-004); surrogate error affects only the second-stage
+  acceptance rate, i.e. efficiency.
+- Code: `inverse.local_approximation_mcmc.local_approximation_delayed_acceptance`.
+- Source: [REF-CHRISTEN-FOX-2005].
+
+### EQ-INV-LOCAL-006 — Effective sample size per true forward evaluation
+
+`ESS_true = min_j ESS_j / N_G`, `N_G` = number of calls of `G` in the whole
+run (initial point, design, refinements, second-stage evaluations).
+
+- Domain: kept draws after burn-in; `ESS_j` the per-coordinate effective sample
+  size.
+- Meaning: the cost-normalised efficiency used to compare with plain
+  Metropolis (`N_G` equals the number of iterations plus one); burn-in
+  evaluations are included in `N_G` but not in `ESS_j`.
+- Code: `inverse.local_approximation_mcmc.local_approximation_metropolis`.
+- Source: [REF-CONRAD-MARZOUK-PILLAI-SMITH-2016].
+
+### EQ-AERO-MMOD-001 — Poisson penetration count and probability of no penetration
+
+`N = sum_i A_i T F_i(>d_c,i)`, `PNP = P(K = 0) = exp(-N)`, `K ~ Poisson(N)`.
+
+- Domain: surfaces `i` of area `A_i` (m^2) exposed for `T` (same time unit as
+  the flux) to a cumulative flux `F_i(>d)` (m^-2 per time unit) of particles
+  larger than `d`; `d_c,i` is the critical diameter of the shield (m). Impacts
+  form a homogeneous Poisson process; the counts of different surfaces add.
+  Synthetic example: `A = 10 m^2`, `T = 5`, `d_c = 2 mm`,
+  `F = 1e-3 (d / 1 mm)^-2` gives `N = 0.0125`.
+- Meaning: expected number of penetrations and the probability that none
+  occurs; the PNPs of the surfaces multiply. A particle penetrates when its
+  diameter is at least `d_c` (no probabilistic ballistic limit, no secondary
+  damage). Penetration counts can be simulated (`simulate_penetration_counts`).
+- Code: `aerospace.debris_risk.penetration_risk`.
+- Source: [REF-NASA-PRA-2011].
+
+### EQ-AERO-MMOD-002 — Angle and speed discretisation
+
+`N_i = A_i T sum_{j,k} w_{jk} F_i(>d_c,i(theta_j, V_k))`, `sum w_{jk} = 1`.
+For an isotropic flux on a flat plate `P(theta <= x) = sin^2 x`; the
+equal-probability midpoint bins are `theta_k = asin(sqrt((k + 1/2) / n))`
+with weights `1/n`.
+
+- Domain: `0 <= theta < pi/2` from the surface normal, `V > 0` (m/s); particle
+  size is independent of angle and speed within a surface; a constant
+  projectile density.
+- Meaning: the weighted bin sum approximates the integral over the angle and
+  speed distributions (midpoint rule in probability); it converges with the
+  number of bins, at rate `n^-3/4` for the integrable grazing-incidence
+  singularity `cos(theta)^-1/2` (measured relative errors 1.2e-2, 2.2e-3,
+  3.9e-4 at 20, 200, 2000 bins in the synthetic test).
+- Code: `aerospace.debris_risk.ImpactEnvironment`,
+  `aerospace.debris_risk.isotropic_angle_bins`.
+- Source: [REF-NASA-PRA-2011].
+
+### EQ-AERO-MMOD-003 — Cumulative flux laws
+
+Power law `F(>d) = F_ref (d / d_ref)^(-q)` (optionally `0` for
+`d >= d_max`); tabulated flux by log-log linear interpolation between nodes
+(exact for a power-law table).
+
+- Domain: `F_ref, d_ref, q > 0`; tabulated fluxes positive and non-increasing,
+  no extrapolation unless requested.
+- Meaning: the user-supplied flux. No environment model (ORDEM, MASTER) is
+  included or implied; `demonstration_flux` is a synthetic power law.
+- Code: `aerospace.debris_risk.PowerLawFlux`,
+  `aerospace.debris_risk.TabulatedFlux`, `aerospace.debris_risk.demonstration_flux`.
+- Source: [REF-NASA-PRA-2011].
+
+### EQ-AERO-MMOD-004 — Single-wall ballistic limit (parameterised power law)
+
+`d_c = K t^a rho_p^b rho_t^c V^d cos(theta)^e`.
+
+- Domain: wall thickness `t`, projectile and target densities `rho_p`, `rho_t`,
+  impact speed `V`, angle `theta` from the normal in `[0, pi/2)`; `K > 0` and
+  the exponents are user-supplied, valid only in the units and the range of
+  their source.
+- Meaning: a family, not a published equation: no coefficient set is built in.
+  `demonstration_single_wall_limit` uses invented numbers
+  (`K = 50, a = 1, b = -1/2, c = 1/2, d = -1/2, e = 1/2`, SI units).
+- Code: `aerospace.debris_risk.PowerLawBallisticLimit`,
+  `aerospace.debris_risk.SingleWallShield`.
+- Source: [REF-COUR-PALAIS-1987].
+
+### EQ-AERO-MMOD-005 — Dual-wall (Whipple) ballistic limit with three speed regimes
+
+With boundary speeds `V_b < V_h`:
+`d_c = d_ball(V)` for `V <= V_b`; `d_c = d_hyper(V)` for `V >= V_h`; otherwise
+`d_c = d_ball(V_b) + (V - V_b) / (V_h - V_b) (d_hyper(V_h) - d_ball(V_b))`,
+each regime `d = K t_b^a t_w^b S^c rho_p^d rho_w^e V^f cos(theta)^g`.
+
+- Domain: bumper thickness `t_b`, rear-wall thickness `t_w`, standoff `S`,
+  densities, speed, angle; user-supplied coefficients and exponents.
+- Meaning: the structure of the regimes (ballistic, linear transition,
+  hypervelocity) with the transition joining the two regimes at the boundary
+  speeds, so `d_c` is continuous in `V` at `V_b` and `V_h` by construction
+  (tested). The regime-selecting speed is the impact speed itself. Coefficients
+  of `demonstration_dual_wall_limit` are invented.
+- Code: `aerospace.debris_risk.DualWallBallisticLimit`,
+  `aerospace.debris_risk.DualWallRegime`, `aerospace.debris_risk.DualWallShield`.
+- Source: [REF-CHRISTIANSEN-1993], [REF-WHIPPLE-1947].
+
+### EQ-AERO-MMOD-006 — Epistemic factors and the nested PNP distribution
+
+`N(f, g) = A T f sum w F(>g d_c)`, `f = m_f exp(s_f Z_1)`, `g = m_g exp(s_g Z_2)`;
+`PNP_k = exp(-N(f_k, g_k))`; `E[PNP] >= exp(-E[N])`.
+
+- Domain: lognormal multiplicative factors on the flux (`f`) and on the
+  critical diameter (`g`); `s >= 0`. For a power-law flux of exponent `q`,
+  `N = N_0 f g^-q`, lognormal with log-sd `sqrt(s_f^2 + q^2 s_g^2)`.
+- Meaning: the aleatory Poisson part is analytic for every epistemic draw, so
+  the outer Monte Carlo is the only sampling. The Jensen gap against the PNP at
+  the mean inputs, `E[PNP] - exp(-N(E f, E g))`, is non-negative for a flux
+  factor alone (N linear in `f`) but can be negative when `g` is uncertain,
+  because `N` is convex in `g`; `poisson_jensen_gap = E[PNP] - exp(-E[N]) >= 0`
+  always.
+- Code: `aerospace.debris_risk.EpistemicFactors`,
+  `aerospace.debris_risk.pnp_distribution`.
+- Source: [REF-GELMAN-ETAL-2013], [REF-SMITH-UQ-2024].
+
+### EQ-AERO-MMOD-007 — Deterministic mean PNP by Gauss-Hermite quadrature
+
+`E[PNP] = sum_{a,b} w_a w_b exp(-N(m_f e^{s_f z_a}, m_g e^{s_g z_b}))`.
+
+- Domain: probabilists' Gauss-Hermite nodes `z`, weights summing to one;
+  accurate while `N` is smooth in the scores (check by doubling the order for
+  large `s`).
+- Meaning: noise-free reference for `pnp_distribution`, also returning
+  `std(PNP)`, `exp(-E[N])` and both Jensen gaps.
+- Code: `aerospace.debris_risk.mean_pnp_quadrature`.
+- Source: [REF-GOLUB-WELSCH-1969], [REF-GELMAN-ETAL-2013].
+
+### EQ-AERO-MMOD-008 — Required thickness for a PNP requirement
+
+`PNP >= R  <=>  N(t) <= -ln R`; root of `N_basis(t) + ln R = 0` in `log t`.
+Bases: nominal (`f = g = 1`), the `p`-quantile of `N` over the epistemic
+draws, or the epistemic mean of PNP.
+
+- Domain: `0 < R < 1`; `N` decreasing in the design variable `t` and a bracket
+  enclosing the root (endpoints checked). Epistemic bases use fixed draws
+  (common random numbers).
+- Meaning: the thickness of a shield family that just meets the requirement,
+  with and without epistemic margin. For `N = N_0(t) f g^-q` with
+  `N_0 ~ t^-q` the margin factor on `t` is `exp(z_p s / q)` with
+  `s = sqrt(s_f^2 + q^2 s_g^2)` (tested).
+- Code: `aerospace.debris_risk.required_thickness`.
+- Source: [REF-NASA-PRA-2011], [REF-GELMAN-ETAL-2013].
+
+### EQ-AERO-MMOD-009 — Gamma-Poisson update of the flux factor
+
+`n_j | f ~ Poisson(f mu_j)`, `f ~ Gamma(a_0, b_0)` gives
+`f | n ~ Gamma(a_0 + sum n_j, b_0 + sum mu_j)`, with `mu_j = A_j T F(>d_det)`.
+
+- Domain: independent counts of impact features larger than the detection size
+  on returned surfaces, shape and rate `a_0, b_0 > 0`, `mu_j > 0`; the flux
+  shape (size slope) and the detection completeness are assumed correct.
+- Meaning: conjugate posterior of the multiplicative flux factor.
+  `gamma_prior_from_mean_cv` gives `a_0 = 1/cv^2`, `b_0 = a_0 / mean`.
+- Code: `aerospace.debris_risk.update_flux_factor`,
+  `aerospace.debris_risk.baseline_impact_count`,
+  `aerospace.debris_risk.gamma_prior_from_mean_cv`.
+- Source: [REF-GELMAN-ETAL-2013].
+
+### EQ-AERO-MMOD-010 — Posterior predictive PNP and count
+
+`E[exp(-N_0 f)] = (b / (b + N_0))^a` for `f ~ Gamma(a, b)`;
+`P(K = k) = Gamma(a + k) / (k! Gamma(a)) (b / (b + mu))^a (mu / (b + mu))^k`;
+`PNP >= exp(-N_0 q_c)` with posterior probability `c`, `q_c` the posterior
+`c`-quantile of `f`.
+
+- Domain: `N_0 >= 0` nominal expected penetrations of a future mission,
+  `a, b > 0`.
+- Meaning: Laplace transform of the Gamma law (exact PNP averaged over the
+  posterior), negative-binomial predictive of a future count, and a
+  lower credible bound on PNP (PNP is decreasing in `f`).
+- Code: `aerospace.debris_risk.FluxFactorPosterior`,
+  `aerospace.debris_risk.mean_pnp_gamma_flux`.
+- Source: [REF-GELMAN-ETAL-2013].
+
+### EQ-AERO-MMOD-011 — MMOD risk as a probabilistic model
+
+Inputs `(f, g, T)` (the first two tagged epistemic), quantities
+`N = expected_penetrations` and `pnp = exp(-N)`.
+
+- Domain: independent marginals (distributions or fixed numbers; at least one
+  random).
+- Meaning: the object consumed by Sobol, FORM and subset simulation, for example
+  `ModelLimitState(model, "pnp", 0.95, "below")` is the event that the PNP
+  requirement is missed. For lognormal `f`, `g` that event is a half-space in
+  standard-normal space and its probability is
+  `1 - Phi(ln(-ln R / N_0) / sqrt(s_f^2 + q^2 s_g^2))` (the exact value used by
+  the tests).
+- Code: `aerospace.debris_risk.mmod_risk_model`.
+- Source: [REF-SMITH-UQ-2024], [REF-SALTELLI-2010].
+
+### EQ-AERO-COOL-001 — Bartz gas-side heat-transfer coefficient
+
+`h_g = [ 0.026 / D_t^0.2 * (mu^0.2 c_p / Pr^0.6) * (p_c / c*)^0.8 * (D_t / r_c)^0.1 ] * (A_t / A)^0.9 * sigma`,
+with `h_g` in W/(m^2 K), throat diameter `D_t` (m), stagnation viscosity `mu`
+(Pa s), specific heat `c_p` (J/(kg K)), Prandtl number `Pr`, chamber pressure
+`p_c` (Pa), characteristic velocity `c*` (m/s), throat wall radius of curvature
+`r_c` (m), local area `A` and throat area `A_t` (m^2), and `sigma` from
+[EQ-AERO-COOL-002].
+
+- Domain: turbulent, attached boundary layer in a converging-diverging nozzle
+  with a stagnation state in the chamber; SI units throughout. Then
+  `p_c / c* = mdot / A_t` is the throat mass flux (kg/(m^2 s)) and the constant
+  0.026 is dimensionless. Dropping the `(D_t/r_c)^0.1` and `(A_t/A)^0.9`
+  factors and `sigma` gives the pipe form `0.026 (k/D) Re^0.8 Pr^0.4` with
+  `Re = G D_t / mu` and `k = mu c_p / Pr`, which fixes the units (verified in
+  the tests).
+- Meaning: the empirical Bartz equation for convective film coefficients in
+  rocket nozzles. It is a correlation with an uncertainty of the order of
+  tens of percent; the model exposes a dimensionless multiplier on `h_g` for
+  that uncertainty. Scaling laws that follow directly: `h_g ~ p_c^0.8`,
+  `h_g ~ c*^-0.8`, `h_g ~ D_t^-0.2` at fixed `D_t / r_c` (`D_t^-0.1` at fixed
+  `r_c`), `h_g ~ (A_t/A)^0.9`.
+- Code: `aerospace.nozzle_cooling.bartz_base_coefficient`,
+  `aerospace.nozzle_cooling.bartz_heat_transfer_coefficient`.
+- Source: [REF-BARTZ-1957], [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-COOL-002 — Boundary-layer property-variation factor
+
+`sigma = 1 / { [ (T_w / (2 T_c)) Z + 1/2 ]^(0.8 - omega/5) * Z^(omega/5) }`,
+`Z = 1 + (gamma - 1) M^2 / 2`, with gas-side wall temperature `T_w`,
+chamber temperature `T_c`, local Mach number `M` and viscosity exponent
+`omega` in `mu ~ T^omega` (default 0.6).
+
+- Domain: `T_w > 0`, `T_c > 0`, `M >= 0`, `gamma > 1`. `sigma = 1` at `M = 0`
+  and `T_w = T_c`; a cold wall gives `sigma > 1`; `sigma` decreases as `T_w`
+  rises, so `h_g` depends on the unknown wall temperature.
+- Meaning: corrects the stagnation-property film coefficient for the
+  temperature and density variation across the boundary layer.
+- Code: `aerospace.nozzle_cooling.bartz_property_correction`.
+- Source: [REF-BARTZ-1957].
+
+### EQ-AERO-COOL-003 — Adiabatic-wall (recovery) temperature
+
+`T_aw = T_c (1 + r (gamma - 1) M^2 / 2) / (1 + (gamma - 1) M^2 / 2)`, with
+recovery factor `r` (default `Pr^(1/3)`, turbulent boundary layer) and Eucken
+Prandtl number `Pr = 4 gamma / (9 gamma - 5)` when no value is supplied.
+
+- Domain: `gamma > 1`, `M >= 0`, `0 < r <= 1.2` (enforced). `T_aw = T_c` at
+  `M = 0` and for `r = 1`.
+- Meaning: the wall temperature at which the convective heat flux vanishes;
+  the driving temperature of the gas side, `q = h_g (T_aw - T_wg)`.
+- Code: `aerospace.nozzle_cooling.adiabatic_wall_temperature`.
+- Source: [REF-BARTZ-1957], [REF-BERGMAN-2011].
+
+### EQ-AERO-COOL-004 — Thermal-resistance network at one station
+
+`q = h_g (T_aw - T_wg) = k_w (T_wg - T_wc) / t = h_c (T_wc - T_b)`;
+eliminating the wall temperatures, `q = (T_aw - T_b) / (1/h_g + t/k_w + 1/h_c)`
+when `h_g` is constant. With `h_g = h_0 sigma(T_wg)` the gas-side wall
+temperature solves
+`f(T) = h_0 sigma(T) (T_aw - T) - (T - T_b) / (t/k_w + 1/h_c) = 0`
+on `[T_b, T_aw]`.
+
+- Domain: `T_b < T_aw`, plane wall of thickness `t` (m) and constant
+  conductivity `k_w` (W/(m K)), all fluxes referred to the gas-side area; the
+  curvature error is of relative order `t / (2 r)`. `f` is strictly decreasing
+  with `f(T_b) > 0 > f(T_aw)`, so the root is unique; it is found by Newton's
+  method safeguarded by bisection. `h_c` includes the lumped wetted-area ratio.
+- Meaning: series heat-flow resistances of the gas film, the wall and the
+  coolant film, solved exactly (to the iteration tolerance) at every station.
+- Code: `aerospace.nozzle_cooling.solve_wall_network`.
+- Source: [REF-BERGMAN-2011], [REF-BARTZ-1957].
+
+### EQ-AERO-COOL-005 — Dittus-Boelter coolant-side coefficient
+
+`Re = G D_h / mu`, `G = mdot_c / (N w b)`, `D_h = 2 w b / (w + b)`,
+`Nu = 0.023 Re^0.8 Pr^n`, `h_c = Nu k / D_h`, `h_eff = m_c phi h_c`, with `N`
+rectangular channels of width `w` and height `b`, `Pr = c_p mu / k`, `n = 0.4`
+for a heated fluid, wetted-area ratio `phi` and uncertainty multiplier `m_c`.
+
+- Domain: fully developed turbulent flow, `Re >= 1e4`, `0.6 <= Pr <= 160`,
+  moderate property variation (constant coolant properties are assumed);
+  outside these the result flags `correlation_valid = False`. Unit fin
+  efficiency is assumed in `phi`.
+- Meaning: forced-convection coefficient of the coolant in the channels.
+- Code: `aerospace.nozzle_cooling.coolant_side_coefficient`,
+  `aerospace.nozzle_cooling.ChannelGeometry`.
+- Source: [REF-BERGMAN-2011].
+
+### EQ-AERO-COOL-006 — Coolant energy balance and implicit marching
+
+`mdot_c c_p dT_b/ds = q'(s) = 2 pi r(s) q(s)`, discretized by
+`T_b,k = T_b,j + (Delta s / (2 mdot_c c_p)) (q'_j + q'_k(T_b,k))` between
+consecutive stations `j` (upstream in the coolant direction) and `k`, with
+`Delta s` the chord length; the heat load is
+`Q = sum (Delta s / 2)(q'_j + q'_k)`.
+
+- Domain: steady flow, no heat conduction along the wall, constant `c_p`,
+  `mdot_c > 0`. The implicit trapezoidal rule is solved by fixed-point
+  iteration (a contraction because `q'` falls weakly with `T_b`).
+  Counter-flow starts at the nozzle exit, co-flow at the injector face.
+- Meaning: the heat absorbed by the coolant, `mdot_c c_p (T_out - T_in)`,
+  equals the trapezoidal integral of the wall heat flux times the perimeter
+  exactly in the discrete scheme (to the iteration tolerance) and converges to
+  the continuous integral with the number of stations.
+- Code: `aerospace.nozzle_cooling.solve_regenerative_cooling`,
+  `aerospace.nozzle_cooling.CoolingSolution`.
+- Source: [REF-BERGMAN-2011], [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-COOL-007 — Local area ratio and Mach number along the contour
+
+`A/A_t = (r/r_t)^2`, and `M(x)` solves `A/A*(M) = A/A_t` on the subsonic
+branch (`M < 1`) upstream of the throat and on the supersonic branch
+(`M > 1`) downstream, with `A/A*` from [EQ-AERO-LRE-002].
+
+- Domain: `gamma > 1`; the contour is non-increasing in radius up to the throat
+  and non-decreasing after it. The conical-contour builder uses tangent
+  circular throat arcs of radius `1.5 r_t` (upstream) and `0.382 r_t`
+  (downstream); the Bartz curvature radius is the mean of the two.
+- Meaning: quasi-one-dimensional isentropic flow gives the local Mach number
+  used in `sigma` and `T_aw`. Because the arcs have different curvature, the
+  Mach slope has a jump at the throat.
+- Code: `aerospace.nozzle_cooling.local_mach`,
+  `aerospace.nozzle_cooling.station_profile`,
+  `aerospace.nozzle_cooling.conical_contour`,
+  `aerospace.nozzle_cooling.NozzleContour`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-COOL-008 — Wall-temperature margin and coolant-side flag
+
+`m_T = T_limit - max_x T_wg(x)` and `m_c = T_cool,max - max_x T_wc(x)`.
+
+- Domain: `T_limit` is a user-supplied material limit of the gas-side wall and
+  `T_cool,max` a user-supplied coolant-side wall temperature above which
+  boiling or coking is flagged; both are synthetic in this library.
+- Meaning: a negative `m_T` is a thermal failure of the wall; a negative `m_c`
+  raises the `boiling_flag` (the single-phase Dittus-Boelter model is then no
+  longer valid and the flag, not the temperatures, is the result).
+- Code: `aerospace.nozzle_cooling.CoolingSolution`.
+- Source: [REF-SUTTON-BIBLARZ-2017].
+
+### EQ-AERO-COOL-009 — Probabilistic cooling model
+
+`Y = g(X)` with `X = (m_B, m_c, k_w, t, mdot_c, p_c, c*, T_in)`, independent
+inputs, and `Y = (T_wg,max, x_peak, T_out, Q, m_T, q_max, m_c)`.
+
+- Domain: every input strictly positive; draws outside the physical domain or a
+  solver non-convergence fail the run under the model's failure policy. Gas,
+  coolant, channel and contour are fixed.
+- Meaning: propagates correlation multipliers and operating-point uncertainty
+  to the peak wall temperature so that Sobol analysis, FORM, subset
+  simulation and Gaussian-process emulation apply unchanged.
+- Code: `aerospace.nozzle_cooling.nozzle_cooling_model`.
+- Source: [REF-BARTZ-1957], [REF-BERGMAN-2011].
+
+### EQ-AERO-BUCK-001 — Classical buckling stress and load of a thin cylinder
+
+`sigma_cl = E t / (R sqrt(3 (1 - nu^2)))`, `P_cl = 2 pi R t sigma_cl`, with
+Young modulus `E` (Pa), wall thickness `t` (m), mid-surface radius `R` (m),
+Poisson ratio `nu`.
+
+- Domain: thin isotropic circular cylinder, axial compression, linear
+  small-deflection theory of the perfect shell.
+- Meaning: the upper-bound buckling load of the perfect shell; for `nu = 0.3` the
+  stress is `0.605 E t / R` (Eqs. 7 and 8 of NASA/SP-8007-2020/REV 2 with
+  `gamma = 1`).
+- Code: `aerospace.shell_buckling.classical_buckling_stress`,
+  `aerospace.shell_buckling.classical_buckling_load`.
+- Source: [REF-NASA-SP-8007-2020].
+
+### EQ-AERO-BUCK-002 — Koiter asymptotic imperfection law
+
+`(1 - lambda)^2 = c lambda d`, `c = 4 |a|`, with the knockdown
+`lambda = P_cr / P_cl`, imperfection amplitude `d = delta / t` (in wall
+thicknesses) and `a < 0` the initial slope `lambda = 1 + a xi` of the
+asymmetric post-buckling path.
+
+- Domain: small imperfection affine to the critical mode, asymmetric
+  (unstable) bifurcation, asymptotic validity of the cubic potential
+  `Phi = (1 - lambda) xi^2 / 2 + a xi^3 / 3 - lambda xi_bar xi`; limit load
+  from `d lambda / d xi = 0`. For small `d`, `lambda ~ 1 - sqrt(c d)`.
+- Meaning: square-root imperfection sensitivity. The derivation of the
+  relation from the potential is in the module docstring. Cylinder constant:
+  `c = 2 alpha = (3/2) sqrt(3 (1 - nu^2))` (about 2.45 at `nu = 0.33`), so that
+  the closed form equals Eq. 138 of NASA/SP-8007-2020/REV 2,
+  `gamma = 1 + alpha eps - sqrt(alpha eps (2 + alpha eps))`, with
+  `alpha = (3/4) sqrt(3 (1 - nu^2))` and `eps` the imperfection amplitude over
+  the wall thickness (Eqs. 138-139, printed page 65, "based on the curve
+  presented by Koiter", Figure 4-22 for `nu = 0.3`; read from the report
+  2026-11-27). The original paper of Koiter was not read.
+- Code: `aerospace.shell_buckling.koiter_coefficient`,
+  `aerospace.shell_buckling.koiter_knockdown`.
+- Source: [REF-NASA-SP-8007-2020, Eqs. 138-139].
+
+### EQ-AERO-BUCK-003 — Closed-form knockdown, inverse and slope
+
+`lambda = 2 / (2 + x + sqrt(x^2 + 4 x))`, `x = c d`; `d = (1 - lambda)^2 / (c lambda)`;
+`d lambda / d d = - c lambda / (2 (1 - lambda) + c d)`.
+
+- Domain: `d >= 0`, `c > 0`, `0 < lambda <= 1`.
+- Meaning: `lambda` is the smaller root of `lambda^2 - (2 + x) lambda + 1 = 0`
+  (the roots multiply to 1); it is 1 at `d = 0`, strictly decreasing, and the
+  slope behaves as `- sqrt(c) / (2 sqrt(d))` as `d -> 0`. The inverse is exact,
+  which makes the probabilistic knockdown exact. With `c = 2 alpha` and
+  `y = c d / 2` this is `lambda = 1 + y - sqrt(y (2 + y))`, the form of
+  Eq. 138 of NASA/SP-8007-2020/REV 2.
+- Code: `aerospace.shell_buckling.koiter_knockdown`,
+  `aerospace.shell_buckling.koiter_imperfection_for_knockdown`,
+  `aerospace.shell_buckling.koiter_knockdown_derivative`.
+- Source: [REF-NASA-SP-8007-2020, Eqs. 138-139].
+
+### EQ-AERO-BUCK-004 — NASA SP-8007 empirical axial-compression knockdown
+
+`gamma = 1 - 0.901 (1 - exp(-phi))`, `phi = (1/16) sqrt(R / t)`, `R/t < 1500`;
+design load `gamma P_cl`.
+
+- Domain: unstiffened isotropic circular cylinder in axial compression,
+  `R/t < 1500`.
+- Meaning: an empirical lower bound; Eq. 9 of NASA/SP-8007-2020/REV 2 (taken
+  from its reference [101]), with `phi` from its Eq. 10 (pages 23-24); the
+  report describes it as a good lower bound for most test data compiled from
+  the 1930s to the 1960s. Equations 7-10 were read from the report on
+  2026-11-27. The code raises for `R/t >= 1500`.
+- Code: `aerospace.shell_buckling.sp8007_axial_knockdown`,
+  `aerospace.shell_buckling.sp8007_buckling_load`,
+  `aerospace.shell_buckling.sp8007_design_thickness`.
+- Source: [REF-NASA-SP-8007-2020], [REF-NASA-SP-8007-1968].
+
+### EQ-AERO-BUCK-005 — Probabilistic knockdown from the imperfection law
+
+`k_p = lambda(q_(1-p) / t)`, so that `P(lambda < k_p) = p`, where `q_(1-p)` is the
+`(1 - p)`-quantile of the imperfection amplitude `delta` (m).
+
+- Domain: `lambda(d)` strictly decreasing, so `{lambda < k} = {delta > t d(k)}`;
+  imperfection law independent of `t` and of the Koiter constant.
+- Meaning: the knockdown that the shell exceeds with probability `1 - p`; the
+  comparison with SP-8007 (`compare_knockdowns`) is conditional on the assumed
+  imperfection law and the Koiter constant and says nothing about real
+  fabrication quality.
+- Code: `aerospace.shell_buckling.probabilistic_knockdown`,
+  `aerospace.shell_buckling.compare_knockdowns`.
+- Source: [REF-MELCHERS-BECK-2018].
+
+### EQ-AERO-BUCK-006 — Probabilistic buckling model, margin and failure
+
+`P_cr = lambda(delta / t) P_cl(E, t, R)`, `M = P_cr - P_applied`, failure
+`M <= 0`, with independent random `E`, `t`, `R`, `delta`, `P_applied`.
+
+- Domain: inputs positive (`delta >= 0`); Koiter validity as in
+  [EQ-AERO-BUCK-002]. Lognormal and Weibull imperfection laws by mean and
+  coefficient of variation (`lognormal_from_mean_cov`, `weibull_from_mean_cov`).
+- Meaning: model outputs buckling load, knockdown, classical load, margin;
+  `P(M <= 0)` by FORM, subset simulation and Monte Carlo.
+- Code: `aerospace.shell_buckling.shell_buckling_model`,
+  `aerospace.shell_buckling.lognormal_from_mean_cov`,
+  `aerospace.shell_buckling.weibull_from_mean_cov`.
+- Source: [REF-MELCHERS-BECK-2018], [REF-NIST-DISTRIBUTIONS].
+
+### EQ-AERO-BUCK-007 — Thickness for a target failure probability
+
+`beta(t) = beta_target`, `beta_target = - Phi^-1(p_target)`, where `beta(t)` is the
+FORM index of [EQ-AERO-BUCK-006] with lognormal thickness of mean `t`.
+
+- Domain: `beta` increasing in `t` on the bracket (thicker wall raises `P_cl`
+  and lowers `delta / t`); solved by Brent's method.
+- Meaning: the reliability-based thickness, to compare with the deterministic
+  SP-8007 thickness from `gamma(R/t) P_cl(t) = SF * P_applied`. FORM is
+  first-order, so confirm with Monte Carlo (done in the tests).
+- Code: `aerospace.shell_buckling.design_thickness_for_reliability`,
+  `aerospace.shell_buckling.ThicknessDesign`.
+- Source: [REF-HASOFER-LIND-1974], [REF-MELCHERS-BECK-2018].
+
+### EQ-VAL-FUNCEM-001 — Field basis: centring, scaling, SVD truncation
+
+`mu_l = mean_i z_i(s_l)`, `c^2 = sum_il (z_i(s_l) - mu_l)^2 / (n m)`,
+`Z_il = (z_i(s_l) - mu_l) / c = (U S Phi')_il`, `w_ij = (Phi' Z_i)_j`,
+`p_eta = min{p : sum_(j<=p) S_j^2 >= threshold sum_j S_j^2}`,
+truncation fraction `sum_(j>p_eta) S_j^2 / sum_j S_j^2` and per-location
+variance `tau_l^2 = c^2 (1/n) sum_i (Z_il - (Phi w_i)_l)^2`.
+
+- Domain: `n >= 2` runs on a common one-dimensional grid of `m >= 2` strictly
+  increasing locations, not all identical.
+- Meaning: the field is reconstructed as `mu + c Phi w` with orthonormal modes
+  `Phi`; the omitted energy fraction is the relative squared truncation error
+  of the training runs and `tau_l^2` the residual variance carried by the
+  emulator as a separate term. One global scale `c` keeps isotropic noise
+  isotropic. The truncation term is exact on the training grid (the residual is
+  orthogonal to `Phi`) and an assumption elsewhere.
+- Code: `validation.functional_calibration.fit_field_basis`.
+- Source: [REF-HIGDON-GATTIKER-WILLIAMS-RIGHTLEY-2008],
+  [REF-GOLUB-VANLOAN-2013].
+
+### EQ-VAL-FUNCEM-002 — Gaussian emulator of the basis weights
+
+`w_j(x, t) ~ GP(m_j, k_j)` independently for `j = 1..p_eta`, conditioned on
+the run weights: `E[w_j* | runs] = m_j + k_*' A_j^-1 (w_j - m_j 1)`,
+`Cov[w_j* | runs] = K_** - K_*' A_j^-1 K_*`, `A_j = K_j + nu_j I`; field
+emulator `eta(x, t)(s_l) = mu_l + c (Phi w)_l` with variance
+`c^2 sum_j v_j Phi_jl^2 + tau_l^2`.
+
+- Domain: joint input `(x, t)`; hyperparameters `(m_j, sigma_j^2, ell_j,
+  nu_j)` fixed at the maximum-likelihood fit to the run weights alone
+  (modular); `A_j` positive definite.
+- Meaning: independence of the weight processes is a modelling assumption (the
+  run weights are uncorrelated by the SVD, which is weaker). The emulator
+  uncertainty `c^2 sum_j v_j Phi_jl^2` and the truncation variance `tau_l^2`
+  are reported as separate terms.
+- Code: `validation.functional_calibration.FieldEmulator`.
+- Source: [REF-HIGDON-GATTIKER-WILLIAMS-RIGHTLEY-2008],
+  [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-VAL-FUNCEM-003 — Projected (reduced) field data
+
+`a_e = G^-1 Phi_f' (y_e - mu_f) / c`, `G = Phi_f' Phi_f`; model
+`a_e = w(x_e, theta) + P v_e + e_e`, `P = G^-1 Phi_f' D / c`,
+`e_e ~ N(0, (s/c)^2 G^-1)`.
+
+- Domain: field grid inside the simulator grid; `Phi_f`, `mu_f` the modes and
+  mean linearly interpolated to the field grid (`G = I` on the simulator grid);
+  `G` positive definite (rank check `lambda_min > 1e-12 lambda_max`); iid
+  Gaussian noise of sd `s`.
+- Meaning: `a_e` is the generalized least-squares coefficient vector of the
+  centred data on the (interpolated) basis; the noise law is exact. The part of
+  the data orthogonal to the span of `Phi_f` is discarded: harmless for
+  `theta` when the truncation error is small, but it removes the information
+  on the noise level that this part carries.
+- Code: `validation.functional_calibration.FunctionalCalibration`.
+- Source: [REF-HIGDON-GATTIKER-WILLIAMS-RIGHTLEY-2008].
+
+### EQ-VAL-FUNCEM-004 — Basis-represented discrepancy
+
+`delta_e(s) = sum_k D_k(s) v_ek`, `v ~ N(0, sigma_delta^2 I)`, shared by all
+experiments (`v_e = v`) or independent per experiment; projected contribution
+`P v` of [EQ-VAL-FUNCEM-003], covariance `sigma_delta^2 P P'` (all pairs of
+experiments when shared, same experiment only when independent).
+
+- Domain: user basis `D` (`m_f x k`), for example Gaussian bumps
+  `exp(-(s - c_k)^2 / (2 h^2))` from `gaussian_bump_basis`; the discrepancy does
+  not depend on the control input `x`.
+- Meaning: model error represented in a few smooth bumps. Components of `D`
+  inside the span of `Phi_f` are confounded with `theta`; components orthogonal
+  to it are invisible to the reduced data.
+- Code: `validation.functional_calibration.gaussian_bump_basis`.
+- Source: [REF-HIGDON-GATTIKER-WILLIAMS-RIGHTLEY-2008],
+  [REF-HIGDON-ETAL-2004].
+
+### EQ-VAL-FUNCEM-005 — Posterior of `theta` and hyperparameters
+
+`p(theta, psi | runs, a) ~ p(theta) p(psi) N(a; mu_w(theta), S(theta) +
+sigma_delta^2 Pbar + R)`, `mu_w` and `S` the conditional weight moments
+[EQ-VAL-FUNCEM-002] at `(x_e, theta)` (block structure over weights and
+experiments), `Pbar` the projected discrepancy covariance of
+[EQ-VAL-FUNCEM-004], `R = (s/c)^2 G^-1` per experiment.
+
+- Domain: `theta` uniform on a box; `log sigma_delta` and (optionally)
+  `log s` independent normal; emulator hyperparameters fixed (modular).
+- Meaning: Gaussian likelihood of the projected data given the runs, one
+  Cholesky factorization per evaluation; sampled by slice sampling or
+  transitional MCMC. Failed factorizations count as zero density and are
+  reported.
+- Code: `validation.functional_calibration.FunctionalCalibration`.
+- Source: [REF-HIGDON-GATTIKER-WILLIAMS-RIGHTLEY-2008],
+  [REF-KENNEDY-OHAGAN-2001].
+
+### EQ-VAL-FUNCEM-006 — Posterior predictive field and variance decomposition
+
+For a draw `(theta, psi)`, with latent `L = (w at experiments and new controls,
+v)` Gaussian and `a = H L + e`: `L | a ~ N(m + K_La K_aa^-1 (a - H m),
+K_LL - K_La K_aa^-1 K_aL)`; field `zeta*(s_l) = mu_l + c (Phi w*)_l +
+D_l v* + r_l + eps`, `r_l ~ N(0, tau_l^2)`. Across draws
+`Var(y*_l) = E[V_eta] + tau_l^2 + E[V_delta] + 2 E[C_ed] +
+Var(E[zeta*_l | draw]) + E[s^2]`.
+
+- Domain: new controls inside the simulator control range; draws evenly spaced
+  from the posterior sample.
+- Meaning: exact law-of-total-variance split into emulator, truncation,
+  discrepancy, emulator-discrepancy covariance, parameter and noise parts. The
+  truncation residual `r_l` is not conditioned on the data (prior only). The
+  interval is a quantile of the equally weighted Gaussian mixture.
+- Code: `validation.functional_calibration.FunctionalCalibration.predict`.
+- Source: [REF-HIGDON-GATTIKER-WILLIAMS-RIGHTLEY-2008],
+  [REF-KENNEDY-OHAGAN-2001].
+
+### EQ-VAL-FUNCEM-007 — Emulator validation on held-out runs
+
+Reduced space: `z_ij = (w_hat_ij - w_ij) / sqrt(v_ij)` with `w_ij` the
+projection of the held-out field, `RMSE_j = sqrt(mean_i (w_hat_ij - w_ij)^2)`;
+full field: `RMSE = sqrt(mean_il (eta_hat_il - z_il)^2)`, relative to
+`sqrt(mean_il (z_il - mu_l)^2)`, reconstruction error of the basis alone
+`sqrt(mean_il (z_il - (mu + c Phi Phi' Z_i)_l)^2)`, and interval coverage with
+variance `c^2 sum_j v_j Phi_jl^2 + tau_l^2`.
+
+- Domain: held-out runs from the same simulator and input box.
+- Meaning: separates truncation error (basis) from weight-emulation error
+  (GP); standardized RMSE near 1 and coverage near the nominal level indicate a
+  calibrated emulator.
+- Code: `validation.functional_calibration.FieldEmulator.validate`.
+- Source: [REF-HIGDON-GATTIKER-WILLIAMS-RIGHTLEY-2008],
+  [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-VAL-FUNCEM-008 — Contraction and comparison with the scalar calibration
+
+`contraction = 1 - Var_post(theta) / ((high - low)^2 / 12)`; comparison
+ratio `sd_scalar / sd_field` of the posterior standard deviations of the scalar
+Kennedy-O'Hagan calibration at one output location and the field calibration
+of the same experiments.
+
+- Domain: uniform box prior on `theta`; the scalar calibration fits its own
+  emulator and (when requested) a GP discrepancy on the control input.
+- Meaning: measures the information gained by using the whole field instead of
+  one output; a ratio above one means the field posterior is tighter. Tighter
+  is not better when the model is structurally wrong: see the bias
+  demonstration in the tests.
+- Code: `validation.functional_calibration.FunctionalCalibration.compare_with_scalar`.
+- Source: [REF-KENNEDY-OHAGAN-2001], [REF-HIGDON-GATTIKER-WILLIAMS-RIGHTLEY-2008].
+
+### EQ-DES-IHCPD-001 — Candidate reading rows and exact posterior covariance
+
+`A_c = rows (s-1, 2s-1, ...) of Phi_x`, `C = (C0^-1 + sum_r a_r a_r' / v_r)^-1`,
+`v_r = sigma^2 + (f |a_r' q_ref|)^2`, with `Phi_x` the lower-triangular Toeplitz
+sensitivity matrix of a sensor at depth `x` (`phi_x(m - j)`), `s` the sampling
+period in flux intervals, `C0` the Matern covariance of `q`, `sigma` the noise
+floor (K), `f >= 0` the relative noise fraction and `q_ref` a reference flux.
+
+- Domain: linear constant-property slab model of EQ-INV-IHCP-001, independent
+  Gaussian reading noise, Matern prior of known amplitude and length scale;
+  `f = 0` gives constant noise `sigma^2`.
+- Meaning: the posterior covariance of the surface flux is exact and does not
+  depend on the data, so a sensor set is scored before any experiment. The
+  relative term is a modelling choice for a tolerance proportional to the
+  reading, not a thermocouple standard.
+- Code: `design.ihcp_sensor_design.build_ihcp_design_problem`.
+- Source: [REF-BECK-BLACKWELL-STCLAIR-1985], [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-DES-IHCPD-002 — A- and D-criteria of a thermocouple set
+
+`A(S) = trace C(S)`, `D(S) = log det(I + L' A_S' V_S^-1 A_S L) = log det C0 - log det C(S)`
+with `C0 = L L'` and `A_S`, `V_S` the stacked rows and noise variances of the
+sensors in `S`.
+
+- Domain: as EQ-DES-IHCPD-001; `S` is a set of physical sensors, each
+  contributing all its reading rows.
+- Meaning: `A` is the total posterior variance of the discretized flux (units
+  `(W/m^2)^2`); `D/2` is the expected information gain in nats. Both are
+  evaluated by the library criteria of EQ-DES-LIN-001/002 on the stacked rows.
+- Code: `design.ihcp_sensor_design.ihcp_design_criteria`.
+- Source: [REF-ALEXANDERIAN-2021], [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-DES-IHCPD-003 — Goal functionals: absorbed heat and peak-time flux
+
+`E = c' q` with `c = Delta (1, ..., 1)` (J/m^2), `Var(E | S) = c' C(S) c`;
+`q_p = e_p' q` with `p` the interval containing the peak time, `Var(q_p | S) = C(S)_pp`.
+
+- Domain: piecewise-constant flux on intervals of length `Delta`; `c' q`
+  is the rectangle-rule value of `integral q dt`.
+- Meaning: the goal-oriented criteria of EQ-DES-LIN-004 for the two quantities
+  a thermal-protection analysis needs; the total-heat variance uses the
+  library goal criterion, the peak-flux variance is a diagonal entry of the
+  returned posterior covariance.
+- Code: `design.ihcp_sensor_design.ihcp_design_criteria`.
+- Source: [REF-ALEXANDERIAN-2021].
+
+### EQ-DES-IHCPD-004 — Greedy and exhaustive sensor selection, greedy gap
+
+`S_g = {s_1, ..., s_k}`, `s_i = argmin_s J(S_{i-1} + s)` (`argmax` for `D`);
+`S* = argmin_{|S| = k} J(S)`; `gap = |J(S_g) - J(S*)| / |J(S*) - J(empty)|`.
+
+- Domain: finite candidate set; by default one candidate per depth.
+- Meaning: the gap is the share of the optimal improvement that greedy forgoes;
+  it is measured, not assumed. Greedy is not optimal in general: a small
+  hand-built instance has a total-heat gap of about 3.3 percent, while on the
+  synthetic slab every measured cell had gap zero.
+- Code: `design.ihcp_sensor_design.greedy_sensor_selection`, `design.ihcp_sensor_design.exhaustive_sensor_selection`, `design.ihcp_sensor_design.greedy_gap`, `design.ihcp_sensor_design.optimal_depth_study`.
+- Source: [REF-ALEXANDERIAN-2021].
+
+### EQ-DES-IHCPD-005 — Design variance equals the estimator's error variance
+
+`E[(m(y) - q)(m(y) - q)'] = C`, `m(y) = C (A' V^-1 y + C0^-1 m0)`, for
+`q ~ N(m0, C0)`, `y = A q + e`, `e ~ N(0, V)`.
+
+- Domain: data drawn from the prior predictive of the same model.
+- Meaning: the mean square of the error of the Bayesian posterior mean over
+  simulated data estimates `C_ii`, `c' C c` and `C_pp` with relative standard
+  error `sqrt(2 / N)` for `N` replicates (zero-mean Gaussian error); the
+  design formulas and `bayesian_flux_posterior` must agree within that band.
+- Code: `design.ihcp_sensor_design.posterior_error_monte_carlo`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006], [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-DES-IHCPD-006 — Resolved share of the prior modes
+
+`C0 = V diag(lambda) V'`, `r_i = 1 - v_i' C v_i / lambda_i in [0, 1]`; the cutoff
+is `#{i : r_i >= 1/2}` with modes sorted by decreasing `lambda_i`.
+
+- Domain: as EQ-DES-IHCPD-001; the leading modes of a stationary Matern
+  covariance are the slowly varying flux components.
+- Meaning: the fraction of each prior mode's variance removed by the data;
+  it shows which flux frequencies a sensor depth resolves.
+- Code: `design.ihcp_sensor_design.sensor_frequency_profile`, `design.ihcp_sensor_design.depth_frequency_study`.
+- Source: [REF-HANSEN-2008], [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-DES-IHCPD-007 — Halving the noise against adding a sensor
+
+`F(sigma / 2) = 4 F(sigma)`, `F(S + s') = F(S) + F(s')`, `F = A' A / sigma^2`.
+
+- Domain: independent noise.
+- Meaning: halving the noise of every reading of one sensor is exactly four
+  replicate sensors at the old noise; a second sensor at another depth adds
+  a different, weaker row space. The comparison is made by the exhaustive
+  optimum of each option and reports the winner per criterion.
+- Code: `design.ihcp_sensor_design.second_sensor_value`.
+- Source: [REF-ALEXANDERIAN-2021].
+
+### EQ-AERO-PHM-001 — Normalised chamber-pressure lag with efficiency loss
+
+`p~_k = p~_(k-1) + a (eta m~ - p~_(k-1)) + w_p`, `a = 1 - exp(-dt / tau_p)`,
+`p~ = p / p_ref`, `p_ref = c*_ideal mdot_nom / A_t`, `m~ = mdot / mdot_nom`;
+steady state `p = eta c*_ideal mdot / A_t`.
+
+- Domain: choked perfect-gas flow at a fixed throat area, a single first-order
+  chamber lag of time constant `tau_p` (s), `eta = c*_delivered / c*_ideal`
+  in `(0, 1.5]`, `w_p ~ N(0, q_p^2)`; SI inputs, non-dimensional states.
+  Synthetic; no data from a real engine.
+- Meaning: the pressure relaxes to the value set by the delivered
+  characteristic velocity; a loss of `eta` lowers the steady pressure
+  proportionally (through `c*`, EQ-AERO-LRE-001).
+- Code: `aerospace.health_monitoring.EnginePhmSpec`,
+  `aerospace.health_monitoring.simulate_plant`.
+- Source: [REF-SUTTON-BIBLARZ-2017], [REF-SAXENA-GOEBEL-SIMON-EKLUND-2008].
+
+### EQ-AERO-PHM-002 — Augmented joint state-parameter model
+
+`x = [p~, m~, eta, r]`; `f(x) = [p~ + a (eta m~ - p~), m~ + b (1 - m~),
+eta + r, r]`, `x_k = f(x_(k-1)) + w_k`, `w_k ~ N(0, Q)`, `y_k = [p~, m~] +
+v_k`, `v_k ~ N(0, R)`; Jacobian rows `[1-a, a eta, a m~, 0]`, `[0, 1-b, 0, 0]`,
+`[0, 0, 1, 1]`, `[0, 0, 0, 1]`. Linear special case (`m~ = 1`): state
+`[p~, eta, r]`, `F = [[1-a, a, 0], [0, 1, 1], [0, 0, 1]]`, `H = [1, 0, 0]`.
+
+- Domain: additive Gaussian noise with known covariances; `b = 1 - exp(-dt /
+  tau_m)`; `eta` is a random walk with random-walk drift `r` per step.
+- Meaning: the efficiency and its drift are estimated jointly with the
+  physical states by the EKF/UKF; in the linear special case both must equal
+  the Kalman filter (verified by test), and consistency is judged by NEES/NIS.
+- Code: `aerospace.health_monitoring.augmented_model`,
+  `aerospace.health_monitoring.linear_special_case`,
+  `aerospace.health_monitoring.estimate_health`.
+- Source: [REF-KALMAN-1960], [REF-JULIER-UHLMANN-2004].
+
+### EQ-AERO-PHM-003 — Standardised innovation and two-sided CUSUM
+
+`z_k = nu_k[c] / sqrt(S_k[c][c])`; `S+_k = max(0, S+_(k-1) + z_k - kappa)`,
+`S-_k = max(0, S-_(k-1) - z_k - kappa)`, `S_0 = 0`; alarm at the first `k`
+with `max(S+_k, S-_k) > h`.
+
+- Domain: `kappa >= 0` the reference value (optimal at `delta/2` for a mean
+  shift of `delta` sigma), `h > 0` the threshold; in control `z_k` is `N(0, 1)`
+  and white only if the filter is consistent.
+- Meaning: accumulates small persistent innovation bias that a single-sample
+  test misses; the filter absorbs a step in `eta` over time, so the detector
+  sees a transient and its threshold must be measured on innovations, not
+  taken from the iid theory.
+- Code: `aerospace.health_monitoring.normalized_innovations`,
+  `aerospace.health_monitoring.cusum_monitor`.
+- Source: [REF-PAGE-1954], [REF-KALMAN-1960].
+
+### EQ-AERO-PHM-004 — CUSUM average run length
+
+`ARL ~= (exp(-2 Delta b) - 1 + 2 Delta b) / (2 Delta^2)`, `Delta = mu - kappa`,
+`b = h + 1.166`; `ARL ~= b^2` as `Delta -> 0`; two sided: `1/ARL = 1/ARL(mu) +
+1/ARL(-mu)`. Exact one-sided value from `L(u) = 1 + L(0) Phi(kappa - u - mu) +
+int_0^h L(v) phi(v - u + kappa - mu) dv`, `ARL = L(0)`.
+
+- Domain: iid `N(mu, 1)` observations, one-sided upper CUSUM from zero; the
+  constant `1.166 = 2 x 0.5826` is twice the corrected-diffusion overshoot
+  constant `-zeta(1/2)/sqrt(2 pi)` (value computed here) [REF-SIEGMUND-1979]. The integral equation is
+  solved by the midpoint rule.
+- Meaning: relates the threshold to the false-alarm rate (`mu = 0`) and to the
+  detection delay of a sustained shift (`mu > 0`); the measured agreement of
+  the approximation with the numerical solution and with Monte Carlo is in the
+  tests.
+- Code: `aerospace.health_monitoring.cusum_arl_siegmund`,
+  `aerospace.health_monitoring.cusum_arl_numerical`.
+- Source: [REF-PAGE-1954], [REF-BROOK-EVANS-1972], [REF-SIEGMUND-1979].
+
+### EQ-AERO-PHM-005 — Windowed GLR test for a step change
+
+`g_n = max_(1<=L<=min(M,n)) (z_(n-L+1) + ... + z_n)^2 / (2 L)`; alarm when
+`g_n > h`; change time `n - L* + 1` and size `mean of the last L* samples` at
+the maximiser. Per pair `(n, L)`: `P(g > h) = erfc(sqrt(h))` under no change;
+union bound `P(false alarm in T samples) <= min(1, T M erfc(sqrt(h)))`.
+
+- Domain: unit-variance Gaussian observations, unknown change time and size
+  (generalised likelihood ratio, maximised over a window `M`).
+- Meaning: detects a step of unknown magnitude and estimates when it began;
+  the bound is conservative because the pairs `(n, L)` are dependent.
+- Code: `aerospace.health_monitoring.glr_mean_shift`,
+  `aerospace.health_monitoring.glr_false_alarm_bound`.
+- Source: [REF-WILLSKY-JONES-1976].
+
+### EQ-AERO-PHM-006 — Wiener first-passage time is inverse Gaussian
+
+`X_t = x_0 - mu t + sigma W_t`, `T = inf{t : X_t = B}`, `d = x_0 - B > 0`:
+`T ~ IG(d/mu, d^2/sigma^2)`, `F(t) = Phi(sqrt(lam/t)(t/m - 1)) + exp(2 lam/m)
+Phi(-sqrt(lam/t)(t/m + 1))`, `m = d/mu`, `lam = d^2/sigma^2`; `E T = d/mu`,
+`Var T = d sigma^2 / mu^3`. For monitoring on a grid of step `Delta` the
+barrier is shifted to `d + 0.5826 sigma sqrt(Delta)`.
+
+- Domain: `mu > 0`, `sigma > 0`, continuous monitoring (the shift is a
+  first-order discrete-monitoring correction, checked by Monte Carlo in the
+  tests but not exact).
+- Meaning: law of the time until a degrading health index with drift and
+  diffusion first reaches its failure threshold; verified against Monte Carlo
+  paths (Brownian-bridge crossing correction) in the tests.
+- Code: `aerospace.health_monitoring.inverse_gaussian_cdf`,
+  `aerospace.health_monitoring.wiener_first_passage_cdf`,
+  `aerospace.health_monitoring.wiener_first_passage_quantile`,
+  `aerospace.health_monitoring.sample_inverse_gaussian`.
+- Source: [REF-CHHIKARA-FOLKS-1989], [REF-SIEGMUND-1979],
+  [REF-SAXENA-GOEBEL-SIMON-EKLUND-2008].
+
+### EQ-AERO-PHM-007 — Predictive RUL mixture and PIT calibration
+
+`F_RUL(t) = P0 + (1/N) sum_(i: r_i<0, eta_i>B) F_IG(t; d_i/|r_i|, d_i^2/sigma^2)`,
+`(eta_i, r_i) ~ N(m, P)` from the filtered `(eta, r)` belief, `d_i = eta_i - B
+(+ 0.5826 sigma)`, `P0` the share of draws already at or below `B`; draws with
+`r_i >= 0` never fail. Calibration: `PIT = F_RUL(true RUL)` is uniform, so the
+central `l`-interval covers with probability `l`.
+
+- Domain: Wiener degradation with diffusion `sigma = eta_process_std`, filter
+  belief Gaussian; the distribution is improper when some draws never fail.
+- Meaning: predictive remaining useful life including estimation uncertainty
+  of both level and drift; coverage and PIT mean/variance are measured over
+  predeclared seeds against the simulated truth.
+- Code: `aerospace.health_monitoring.predict_rul`,
+  `aerospace.health_monitoring.RulDistribution`,
+  `aerospace.health_monitoring.rul_calibration`,
+  `aerospace.health_monitoring.rul_coverage_study`.
+- Source: [REF-SAXENA-GOEBEL-SIMON-EKLUND-2008], [REF-KALMAN-1960].
+
+### EQ-SUR-LFM-001 — First-order latent force model and its mean
+
+`dy_d/dt + D_d y_d = B_d + S_d f(t)`, `y_d(t) = y_d(0) e^(-D_d t) + B_d/D_d (1 - e^(-D_d t)) + S_d int_0^t e^(-D_d (t - tau)) f(tau) dtau`; with `f ~ GP(0, k)`, `k(t, t') = exp(-(t - t')^2 / (2 l^2))`, the mean is `m_d(t) = B_d/D_d + (y_d(0) - B_d/D_d) e^(-D_d t)`.
+
+- Domain: `D_d > 0` (1/time), `S_d`, `B_d` real, `l > 0`, `t >= 0`; the ODE starts at `t = 0` and the default initial state is equilibrium `y_d(0) = B_d / D_d`, which makes the mean constant. The force has unit prior variance, so `S_d f` is the input felt by channel `d`.
+- Meaning: the outputs are a linear functional of one Gaussian process, hence jointly Gaussian with the covariances of [EQ-SUR-LFM-002] and [EQ-SUR-LFM-003]. Only the products `S_d f` and a global sign are identified.
+- Code: `surrogates.latent_force.lfm_mean`.
+- Source: [REF-ALVAREZ-LUENGO-LAWRENCE-2013].
+
+### EQ-SUR-LFM-002 — Output-force covariance (erf form)
+
+`Cov(y(t), f(t')) = S l sqrt(pi/2) exp(D^2 l^2 / 2 - D (t - t')) [erf((t - t' - D l^2) / (sqrt(2) l)) + erf((t' + D l^2) / (sqrt(2) l))]`.
+
+- Domain: `D > 0`, `l > 0`, `t, t' >= 0`; implemented for `D l <= 10` (larger products overflow `exp(D^2 l^2 / 2)`); the sum of erf values is evaluated as `erfc(-a) - erfc(b)` and the exponential is combined with the large-argument `erfc` asymptotics, which avoids cancellation and overflow.
+- Meaning: complete the square in `-D (t - tau) - (tau - t')^2 / (2 l^2)` and integrate the Gaussian over `tau in [0, t]`. It vanishes at `t = 0`, is the cross term used for the force posterior in [EQ-SUR-LFM-005], and tends to `(S / D) k(t - t')` for `D l` large.
+- Code: `surrogates.latent_force.lfm_force_covariance`.
+- Source: [REF-ALVAREZ-LUENGO-LAWRENCE-2013].
+
+### EQ-SUR-LFM-003 — Output-output covariance (four erf pairs)
+
+With `s = sqrt(2) l`, `P(E, a, b) = e^E (erf(a) + erf(b))`: `Cov(y_d(t), y_d'(t')) = S S' l sqrt(pi/2) / (D + D') [ P(D'^2 l^2/2 + D'(t - t'), (t' - t - D' l^2)/s, (t + D' l^2)/s) + P(D^2 l^2/2 + D(t' - t), (t - t' - D l^2)/s, (t' + D l^2)/s) - P(D'^2 l^2/2 - D t - D' t', (t' - D' l^2)/s, D' l/sqrt(2)) - P(D^2 l^2/2 - D t - D' t', (t - D l^2)/s, D l/sqrt(2)) ]`.
+
+- Domain: as [EQ-SUR-LFM-002] for both decays.
+- Meaning: `K = S int_0^t e^(-D (t - tau)) c'(t', tau) dtau` with the output-force covariance `c'` of [EQ-SUR-LFM-002]; the integrals `int e^(a x) erf(b x + c) dx` are elementary, so the double convolution has a closed form. It is symmetric under `(t, D, S) <-> (t', D', S')`, vanishes at `t = 0` or `t' = 0`, and tends to `S S' k(t - t') / (D D')` for large decays. Verified in the tests against Gauss-Legendre double quadrature and Monte Carlo of the ODE.
+- Code: `surrogates.latent_force.lfm_output_covariance`.
+- Source: [REF-ALVAREZ-LUENGO-LAWRENCE-2013].
+
+### EQ-SUR-LFM-004 — Latent force marginal likelihood and exact gradient
+
+`log p(y | theta) = -(1/2) r' (K + N)^-1 r - (1/2) log|K + N| - (n/2) log(2 pi)`, `r = y - m`, `N = diag(sigma_c^2)`; `d log p / d theta_i = (1/2) alpha' (dK_i) alpha - (1/2) tr((K + N)^-1 dK_i) + (dm_i)' alpha`, `alpha = (K + N)^-1 r`.
+
+- Domain: `theta = (log D_c, S_c, B_c, log l, log sigma_c^2)`; `dK` follows from the analytic derivatives of [EQ-SUR-LFM-003] with respect to `D`, `D'`, `l` (each erf pair `e^E (erfc(-a) - erfc(b))` has the derivative `value dE + (2/sqrt(pi)) (e^(E - a^2) da + e^(E - b^2) db)`) and trivially with respect to `S_c` and the noise; the fit works with `mu_c = B_c / D_c` (chain rule `d/dlog D |_mu = d/dlog D |_B + B d/dB`, `d/dmu = D d/dB`).
+- Meaning: type-II maximum likelihood of the hybrid model; maximized with BFGS. The sensitivities and the force are identified only through `S_c f` and a global sign, and absolute decay rates are partly confounded with the smoothness of the unknown force (several channels sharing the force identify ratios).
+- Code: `surrogates.latent_force.latent_force_log_likelihood`.
+- Source: [REF-ALVAREZ-LUENGO-LAWRENCE-2013], [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-SUR-LFM-005 — Posterior of the outputs and of the latent force
+
+`E y_c(t*) = m_c(t*) + k_*' (K + N)^-1 r`, `Var y_c(t*) = K_cc(t*, t*) - k_*' (K + N)^-1 k_*`, `E f(t*) = c_*' (K + N)^-1 r`, `Var f(t*) = 1 - c_*' (K + N)^-1 c_*`, with `(k_*)_j = Cov(y_c(t*), y_(c_j)(t_j))` from [EQ-SUR-LFM-003] and `(c_*)_j = Cov(y_(c_j)(t_j), f(t*))` from [EQ-SUR-LFM-002].
+
+- Domain: `t* >= 0`; observation noise adds `sigma_c^2` to a predicted new measurement.
+- Meaning: exact Gaussian conditioning of the jointly Gaussian pair `(y, f)`, so the force is inferred with uncertainty; far from the data it reverts to the prior `N(0, 1)`. `S_c f` (the force felt by channel `c`) has mean `S_c E f` and variance `S_c^2 Var f`.
+- Code: `surrogates.latent_force.LatentForceModel`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006], [REF-ALVAREZ-LUENGO-LAWRENCE-2013].
+
+### EQ-SUR-LFM-006 — Matern force as a linear SDE
+
+`dz = F z dt + L dW`, `f = z_0`, `L = e_last`, spectral density `q`, stationary covariance `P_inf` with `F P_inf + P_inf F' + q L L' = 0` and `[P_inf exp(F tau)']_(0,0) = k_nu(|tau|)`; with `lam = sqrt(2 nu) / l`: `nu = 1/2`: `F = [-lam]`, `q = 2 lam`, `P_inf = [1]`; `nu = 3/2`: `F = [[0, 1], [-lam^2, -2 lam]]`, `q = 4 lam^3`, `P_inf = diag(1, lam^2)`; `nu = 5/2`: `F = [[0, 1, 0], [0, 0, 1], [-lam^3, -3 lam^2, -3 lam]]`, `q = 16 lam^5 / 3`, `P_inf = [[1, 0, -lam^2/3], [0, lam^2/3, 0], [-lam^2/3, 0, lam^4]]`.
+
+- Domain: `nu in {1/2, 3/2, 5/2}`, unit variance, `l > 0`.
+- Meaning: the Matern process is the first component of a linear time-invariant SDE, so coupling it to a linear ODE gives a linear-Gaussian state-space model. The Lyapunov residual and the kernel `[P_inf exp(F tau)']_(0,0)` are checked in the tests.
+- Code: `surrogates.latent_force.matern_state_space`.
+- Source: [REF-RASMUSSEN-WILLIAMS-2006], [REF-SARKKA-ALVAREZ-LAWRENCE-2019].
+
+### EQ-SUR-LFM-007 — Kalman evidence and smoother of the state-space latent force model
+
+Joint state `x = (y_1, y_1', ..., z)`, `dx = F x dt + L dW`; discretization `A = exp(F dt)`, `Q = int_0^dt exp(F s) (q L L') exp(F' s) ds` (Van Loan block exponential of `[[F, q L L'], [0, -F']] dt`); scalar updates `s = P_ii + sigma^2`, `e = y - m_i`, `K = P e_i / s`; `log p(y) = sum -(log(2 pi s) + e^2 / s) / 2`; smoother `r_(j-1) = z' e_j / s_j + L_j' r_j`, `N_(j-1) = z' z / s_j + L_j' N_j L_j`, `L_j = T_j (I - K_j z)`, `E x_j = a_j + P_j r_(j-1)`, `Var x_j = P_j - P_j N_(j-1) P_j`.
+
+- Domain: `P_0` has zero variance in the output states (equilibrium start) and the stationary `P_inf` in the force states; observations may be heterotopic; diagonal noise.
+- Meaning: the Kalman filter returns the exact GP evidence and the Bryson-Frazier (adjoint) smoother the exact posterior marginals of the outputs and the force, both in `O(n)`; no predicted covariance is inverted. The tests compare both with a dense GP built from the Green's function convolution with the Matern kernel (evidence to 1e-8 and marginals to 2e-6).
+- Code: `surrogates.latent_force.smooth_latent_force_state_space`.
+- Source: [REF-SARKKA-ALVAREZ-LAWRENCE-2019], [REF-VAN-LOAN-1976].
+
+### EQ-SUR-LFM-008 — Second-order (mass-spring-damper) latent force channel
+
+`m y'' + c y' + k y = g f(t)` is normalized to `y'' + 2 zeta omega y' + omega^2 y = S f(t)` with `omega = sqrt(k / m)`, `zeta = c / (2 sqrt(k m))`, `S = g / m`; impulse response `S e^(-zeta omega t) sin(omega_d t) / omega_d`, `omega_d = omega sqrt(1 - zeta^2)` for `zeta < 1`.
+
+- Domain: SI units (`m` in kg, `c` in N s/m, `k` in N/m, `y` in m, `g f` in N); `m, k > 0`, `c >= 0`; the mass and the gain are identified only through `g / m`; the impulse response is used by the tests as an independent oracle for the state-space block `d/dt (y, y') = [[0, 1], [-omega^2, -2 zeta omega]] (y, y') + (0, S f)`.
+- Meaning: the second-order channel is added to the state with two states per output, `(y, y')`, driven by the first force state.
+- Code: `surrogates.latent_force.mass_spring_damper_channel`.
+- Source: [REF-ALVAREZ-LUENGO-LAWRENCE-2013], [REF-SARKKA-ALVAREZ-LAWRENCE-2019].
+
+### EQ-AERO-PUMP-001 — Vapour-pressure law (Antoine form, Clausius-Clapeyron)
+
+`ln p_v = A - B / (T + C)`; for `C = 0`, `B = L/R`, `A = ln p_ref + B / T_ref`,
+which is `ln(p_v / p_ref) = (L/R) (1/T_ref - 1/T)`.
+
+- Domain: `p_v` in Pa, `T` in K inside the stated validity interval
+  `[t_min, t_max]`, `B > 0`, `T + C > 0`; `L` the specific latent heat (J/kg)
+  and `R` the specific gas constant (J/(kg K)), both constant.
+- Meaning: integrating `d ln p / dT = L / (R T^2)` for an ideal vapour,
+  negligible liquid volume and constant latent heat gives the `C = 0` case; a
+  nonzero `C` is the Antoine generalisation. The constants are user supplied;
+  the demonstration law (`p_v(90 K) = 1.0e5 Pa`, `L/R = 820 K`) is invented and
+  not fitted to any fluid. Temperatures outside the interval are rejected.
+- Code: `aerospace.turbopump.VapourPressureModel`,
+  `aerospace.turbopump.clausius_clapeyron_model`.
+- Source: derived here (Clausius-Clapeyron integration); the Antoine form is a
+  named empirical family whose constants are not taken from any source here.
+
+### EQ-AERO-PUMP-002 — Darcy-Weisbach line loss head
+
+`h_L = (f L / D + K) v^2 / (2 g0)`, `v = 4 Q / (pi D^2)`.
+
+- Domain: `Q >= 0` (m^3/s), `D > 0` (m), `L >= 0` (m), Darcy friction factor
+  `f >= 0` and summed minor losses `K >= 0` supplied by the caller; `h_L` in
+  metres of liquid column; incompressible steady one-dimensional flow.
+- Meaning: the dynamic-head scaling of pipe-flow losses; no roughness or
+  Reynolds-number correlation is evaluated.
+- Code: `aerospace.turbopump.line_loss_head`.
+- Source: standard textbook relation, stated here without a catalogue
+  reference (to be checked against a fluid-mechanics text before citing).
+
+### EQ-AERO-PUMP-003 — Net positive suction head available
+
+`NPSH_a = (p_tank - p_v) / (rho g0) + h a / g0 - h_L`.
+
+- Domain: `p_tank` absolute free-surface pressure (Pa), `p_v` vapour pressure
+  (Pa), `rho` (kg/m^3), `h >= 0` liquid column height along the feed axis (m),
+  `a >= 0` proper acceleration along that axis (m/s^2; `a = g0` at rest on the
+  pad), `h_L` from EQ-AERO-PUMP-002; one liquid column, no ullage thermal
+  collapse, no sloshing, quasi-steady.
+- Meaning: inlet total head above the vapour head; the inlet velocity head is
+  included because the total head is referenced to the tank. `NPSH_a <= 0`
+  means the liquid is at or below its vapour pressure at the inlet and is
+  flagged. The column term `rho a h / (rho g0)` merges the hydrostatic and the
+  acceleration head.
+- Code: `aerospace.turbopump.npsh_available`.
+- Source: standard head budget, definition of NPSH after [REF-BRENNEN-1994]
+  and [REF-NASA-SP-8052-1971] (neither document was read for this record: to
+  be checked against the sources).
+
+### EQ-AERO-PUMP-004 — Suction specific speed (dimensionless and dimensional)
+
+`S* = w sqrt(Q) / (g0 NPSH_r)^(3/4)`; `S = N sqrt(Q) / NPSH_r^(3/4)` with `N` in
+rev/min; `S = S* g0^(3/4) 60 / (2 pi)`; `NPSH_r = (w sqrt(Q) / S*)^(4/3) / g0`.
+
+- Domain: `w` in rad/s, `Q` in m^3/s (inlet flow of one inducer), `NPSH_r` in
+  m, all positive. `S*` is a user input characteristic of the inducer design;
+  no value is supplied from the literature, and the dimensional `S` depends on
+  the unit system and must be quoted with its units.
+- Meaning: a similarity group fixing the required head at a given speed and
+  flow; the exponents 4/3 (speed) and 2/3 (flow) follow from the definition.
+  The conversion factor is derived dimensionally (checked in the tests).
+- Code: `aerospace.turbopump.suction_specific_speed`,
+  `aerospace.turbopump.suction_specific_speed_dimensional`,
+  `aerospace.turbopump.suction_specific_speed_from_dimensional`,
+  `aerospace.turbopump.npsh_required_from_suction_specific_speed`.
+- Source: concept after [REF-BRENNEN-1994] and [REF-NASA-SP-8052-1971]
+  (not read; definition re-derived dimensionally, to be checked against the
+  sources).
+
+### EQ-AERO-PUMP-005 — Thoma cavitation number
+
+`sigma = NPSH_r / H`, so `NPSH_r = sigma H`.
+
+- Domain: `H > 0` pump head (m) and critical `sigma > 0` supplied by the user
+  (not taken from any source here).
+- Meaning: the required head as a fixed fraction of the pump head; the
+  alternative to EQ-AERO-PUMP-004 when a Thoma number is known.
+- Code: `aerospace.turbopump.npsh_required_from_thoma`.
+- Source: concept after [REF-BRENNEN-1994] (not read; to be checked against
+  the source).
+
+### EQ-AERO-PUMP-006 — Head-breakdown margin
+
+`M = NPSH_a / NPSH_r`, `M_H = NPSH_a - NPSH_r`; cavitation expected when
+`M < 1`.
+
+- Domain: `NPSH_r > 0`; `NPSH_a` any real (negative values give `M < 0`).
+- Meaning: ratio and difference forms of the suction margin used as the limit
+  state of the reliability analysis. The sharpness of the breakdown threshold
+  (for example a 3 percent head drop) is a property of the test criterion and
+  is not modelled.
+- Code: `aerospace.turbopump.suction_margin`.
+- Source: [REF-NASA-SP-8052-1971], [REF-BRENNEN-1994] (concept; not read).
+
+### EQ-AERO-PUMP-007 — Pump and system curve intersection
+
+`h0 + h1 Q + h2 Q^2 = h_s + k Q^2`, with `h0 > h_s >= 0`, `h1 <= 0`, `h2 < 0`,
+`k >= 0`; shaft power `P = rho g0 Q H / eta`.
+
+- Domain: `Q` in m^3/s, `H` in m, `h1` in m/(m^3/s), `h2` and `k` in
+  m/(m^3/s)^2, `eta in (0, 1]`. The pump curve is strictly decreasing for
+  `Q >= 0` and the system curve non-decreasing, so the root is unique; it is
+  bracketed on `[0, Q_0]` with `Q_0 = 2 h0 / (-h1 + sqrt(h1^2 - 4 h2 h0))` the
+  zero-head flow. The closed-form root of the quadratic is the test oracle.
+- Meaning: steady operating flow and head; the power equals
+  `liquid_engine.pump_power` of the corresponding `PumpSpec` (EQ-AERO-LRE-009).
+- Code: `aerospace.turbopump.pump_operating_point`.
+- Source: derived here; power relation as in EQ-AERO-LRE-009.
+
+### EQ-AERO-PUMP-008 — Cavitation limit-state model
+
+`g(X) = NPSH_a(X) / NPSH_r(X) - 1`, with `NPSH_a` from EQ-AERO-PUMP-003 using
+`p_v(T)` from EQ-AERO-PUMP-001 and loss `h_L = c v^2 / (2 g0)` (`c` the total
+loss coefficient `f L / D + K`), and `NPSH_r` from EQ-AERO-PUMP-004 with the
+uncertain `S*` and pump speed; failure `g <= 0`.
+
+- Domain: inputs `p_tank`, `T`, `a`, `c`, `S*`, `w` independent (distribution or
+  fixed); `rho`, `Q`, `h`, `D` fixed; `T` must stay in the validity interval of
+  the vapour law (a draw outside it fails the run under the failure policy).
+  `Q` is not coupled to the pump speed in this model.
+- Meaning: a probabilistic wrapper so that propagation, Sobol indices, FORM,
+  subset simulation and Monte Carlo apply unchanged. All numbers in the
+  demonstration case are synthetic.
+- Code: `aerospace.turbopump.turbopump_cavitation_model`.
+- Source: composition of EQ-AERO-PUMP-001 to EQ-AERO-PUMP-006.
+
+### EQ-AERO-PUMP-009 — Minimum tank pressure for a target cavitation probability
+
+`p*` such that `beta(p*) = -Phi^(-1)(P_target)`, where `beta(p)` is the FORM
+index of EQ-AERO-PUMP-008 with a lognormal tank pressure of mean `p`.
+
+- Domain: `P_target in (0, 0.5)`; `beta` non-decreasing in `p` because `NPSH_a`
+  increases with `p` and `NPSH_r` does not depend on it; a bracket
+  `[lower, upper]` whose ends straddle the target; FORM converged at every
+  evaluation. The root is found by Brent's method.
+- Meaning: tank-pressurisation sizing: the smallest mean pressure for which the
+  first-order probability of head breakdown does not exceed the target. FORM is
+  an approximation; the test cross-checks the result by Monte Carlo.
+- Code: `aerospace.turbopump.minimum_tank_pressure_for_probability`.
+- Source: [REF-MELCHERS-BECK-2018], [REF-HASOFER-LIND-1974].
+
+### EQ-AERO-RECON-001 — Entry flight with a corrected density
+
+`h' = V sin(gamma)`, `V' = -rho V^2 / (2 beta) - g sin(gamma)`,
+`gamma' = (V/r - g/V) cos(gamma)`, `r = R_E + h`, `g = mu/r^2`,
+`rho(h) = rho_base(h) exp(c(h))`, `beta = beta_ref exp(b)`.
+
+- Domain: planar drag-only point mass (`L/D = 0`) over a spherical non-rotating
+  Earth, SI units, known entry state, `h > 0`, `V > 0`. `c(h)` is the
+  dimensionless log-density correction (`c = 0` is the base atmosphere) and `b`
+  the log ballistic-coefficient offset.
+- Meaning: the equations of [EQ-AERO-ENTRY-001] with an unknown smooth
+  multiplicative density correction and an unknown ballistic coefficient. The
+  estimators advance them with classical RK4 (`substeps` per sample); the
+  synthetic truth uses a finer step. Synthetic numbers only.
+- Code: `aerospace.entry_reconstruction.EntryReconstructionSetup`,
+  `aerospace.entry_reconstruction.synthesize_entry_truth`.
+- Source: [REF-ALLEN-EGGERS-1958], [REF-US-STANDARD-ATMOSPHERE-1976] and
+  [REF-KARLGAARD-KUTTY-SCHOENENBERGER-MUNK-2014] (problem setting only).
+
+### EQ-AERO-RECON-002 — Sensed deceleration and the density-ballistic degeneracy
+
+`a = rho V^2 / (2 beta) = rho_base exp(c - b) V^2 / (2 beta_ref)`; the whole
+history `(h, V, gamma)(t)` depends on `(c, b)` only through `c(h) - b`.
+
+- Domain: `L/D = 0` and a known entry state. The accelerometer senses the
+  aerodynamic acceleration (gravity is not sensed) with additive Gaussian noise.
+- Meaning: every kinematic measurement (sensed deceleration, radar altitude and
+  speed) constrains the ratio `rho / beta` and nothing else, so the split
+  between density and ballistic coefficient is not identified by such data:
+  only a prior on `beta` or independent density information (an anchor) can
+  separate them. With lift or a varying angle of attack this would not hold.
+- Code: `aerospace.entry_reconstruction.simulate_entry_measurements`,
+  `aerospace.entry_reconstruction.reconstruct_entry_batch`.
+- Source: derived from [EQ-AERO-RECON-001]; verified numerically in
+  `tests/test_aerospace_entry_reconstruction.py`. Setting:
+  [REF-ALLEN-EGGERS-1958].
+
+### EQ-AERO-RECON-003 — Augmented-state filter with a mean-reverting density correction
+
+`x = (h, V, gamma, b, c)`, `x_k = f(x_{k-1}) + w_k`, where `f` is the RK4 flow of
+[EQ-AERO-RECON-001] over one sample with `c` frozen, `b' = b`, and
+`c' = a c`, `a = exp(-|dh|/ell)`, `Var(w_c) = s_c^2 (1 - a^2)`; `y_k = a(x_k) + v_k`.
+
+- Domain: altitude strictly decreasing along the flight, `dh` the altitude
+  change over the sample, `ell > 0` the correlation length, `s_c > 0` the
+  stationary standard deviation.
+- Meaning: `c` is an Ornstein-Uhlenbeck process in altitude, i.e. an
+  exponential-kernel Gaussian process sampled along the descent; for small
+  `|dh| / ell` it is a random walk in altitude. The process covariance depends
+  on the altitude step, so the filter is run one sample at a time with `Q_k`
+  recomputed from the predicted mean, and the per-sample records are assembled
+  for the Rauch-Tung-Striebel smoother. Small additive noise on `(h, V, gamma)`
+  absorbs integration error. EKF and UKF are Gaussian approximations.
+- Code: `aerospace.entry_reconstruction.reconstruct_entry_filter`.
+- Source: [REF-KALMAN-1960], [REF-RAUCH-TUNG-STRIEBEL-1965],
+  [REF-JULIER-UHLMANN-2004], [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-AERO-RECON-004 — Batch MAP estimate in whitened coordinates
+
+`u = (b, c_1, ..., c_n) = F z`, `Sigma_prior = F F'`,
+`min_z 1/2 ||W (G(F z) - y)||^2 + 1/2 ||z||^2`, `W = diag(1/sigma)`.
+
+- Domain: `Sigma_prior = blockdiag(s_b^2, K)` with
+  `K_ij = s_c^2 exp(-|h_i - h_j| / ell)` at the spline nodes; `G` the simulated
+  measurement history (sensed deceleration, optional radar fixes, optional
+  density anchors); Gaussian independent noise.
+- Meaning: the MAP point of the Gaussian-prior, Gaussian-noise inverse problem
+  for the correction on a node spline and the ballistic-coefficient offset,
+  found by Gauss-Newton with a forward-difference Jacobian (step `1e-5`). The
+  problem is nonlinear in `z`; convergence is reported, not assumed.
+- Code: `aerospace.entry_reconstruction.reconstruct_entry_batch`.
+- Source: [REF-TARANTOLA-2005], [REF-KAIPIO-SOMERSALO-2007],
+  [REF-RASMUSSEN-WILLIAMS-2006], [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-AERO-RECON-005 — Laplace posterior covariance of the reconstruction
+
+`Cov(u | y) ~ F (I + J' W' W J)^(-1) F'`, `J = dG/dz` at the MAP point.
+
+- Domain: `J` at the estimate; exact only for a linear `G`.
+- Meaning: Gauss-Newton Hessian approximation of the posterior precision;
+  pointwise standard deviations of `c(h)` and of `c(h) - b` follow from
+  `w' Cov w` with the spline weights `w`. It ignores the nonlinearity of `G`
+  beyond the linearization.
+- Code: `aerospace.entry_reconstruction.BatchReconstruction`.
+- Source: [REF-BUI-THANH-ETAL-2013], [REF-KAIPIO-SOMERSALO-2007].
+
+### EQ-AERO-RECON-006 — Node spline for the correction and the density band
+
+`c(h) = w(h)' c_nodes` with the natural cubic spline weights `w(h)` on uniform
+nodes (second derivatives `y'' = M y`, `M` from the tridiagonal system
+`y''_{i-1} + 4 y''_i + y''_{i+1} = (6/d^2)(y_{i-1} - 2 y_i + y_{i+1})`,
+`y''_0 = y''_{n-1} = 0`); density band `rho_base(h) exp(c +- z sd_c)`.
+
+- Domain: `h` clamped to the node range (the correction is held constant
+  outside it); `z > 0` standard deviations.
+- Meaning: the discretization of `c` for the batch method (interpolation error
+  `O(d^4)` for smooth `c`) and the log-normal density band built from the
+  posterior mean and standard deviation of `c`.
+- Code: `aerospace.entry_reconstruction.BatchReconstruction`,
+  `aerospace.entry_reconstruction.FilterReconstruction`.
+- Source: [REF-GOLUB-VANLOAN-2013] (tridiagonal system), [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-AERO-RECON-007 — Identifiability measures and band coverage
+
+`ratio_sd = sd(c(h*) - b)`, `corr = Corr(b, c(h*))`; coverage
+`#{k : |c_true(h_k) - m_k| <= z s_k} / #{k}`.
+
+- Domain: posterior mean `m_k` and standard deviation `s_k` of `c` at the true
+  altitudes `h_k` of the accelerometer samples inside a stated altitude window.
+- Meaning: `ratio_sd` is what the kinematics determine; `corr -> 1` with the
+  individual sds near their priors is the signature of the unidentified split.
+  The coverage of a nominal 95 percent band is pooled over predeclared seeds;
+  points of one flight are strongly correlated, so a pooled fraction is not a
+  binomial proportion.
+- Code: `aerospace.entry_reconstruction.band_coverage`,
+  `aerospace.entry_reconstruction.BatchReconstruction`.
+- Source: [REF-PROBSTAT-VALIDATION], [REF-BUI-THANH-ETAL-2013].
+
+### EQ-SUR-NARGP-001 — Nonlinear autoregressive fidelity recursion
+
+`f_1 ~ GP(0, k_1)`, and for `t = 2..s`: `f_t(x) = g_t(x, f_(t-1)(x))` with
+`g_t ~ GP(0, k_t)` on the augmented input `(x, f)`. The linear AR(1) model of
+[EQ-SUR-MF-001] is the special case `g_t(x, f) = rho f + delta_t(x)`.
+
+- Domain: `x` in `R^d`, `f` real; every level is a scalar-output code.
+- Meaning: the relation between fidelities is an unknown function of the
+  lower-fidelity output (and of `x`), not a constant scale factor, so
+  nonlinear cross-correlations are representable.
+- Code: `surrogates.nonlinear_multifidelity.fit_nargp`.
+- Source: [REF-PERDIKARIS-ETAL-2017].
+
+### EQ-SUR-NARGP-002 — Structured NARGP kernel
+
+`k_t((x, f), (x', f')) = k_rho(x, x') k_f(f, f') + k_delta(x, x')`, with
+`k_rho` a unit-variance stationary ARD kernel in `x`, `k_f` a stationary
+kernel in the scalar `f` with variance `s_f^2`, and `k_delta` a stationary ARD
+kernel in `x` with variance `s_delta^2`; `2 d + 3` log hyperparameters
+`(ell_rho, s_f^2, ell_f, s_delta^2, ell_delta)`.
+
+- Domain: positive hyperparameters; positive semi-definite as a sum of a
+  product of kernels and a kernel.
+- Meaning: `k_rho` lets the strength of the dependence on the lower level vary
+  over the input space, `k_f` models the map `f_(t-1) -> f_t`, and `k_delta`
+  the additive discrepancy. The variance of the product is carried by `k_f`
+  only (it is identified once).
+- Code: `surrogates.nonlinear_multifidelity.nargp_kernel`.
+- Source: [REF-PERDIKARIS-ETAL-2017], [REF-RASMUSSEN-WILLIAMS-2006].
+
+### EQ-SUR-NARGP-003 — Training input from the lower posterior mean
+
+`z_t(x_i) = g_t(x_i, m_(t-1)(x_i))` for `x_i` in `D_t`, where `m_(t-1)` is the
+plug-in posterior mean of level `t - 1` (the level-1 posterior mean, or the
+chained plug-in mean of [EQ-SUR-NARGP-006] for `t > 2`).
+
+- Domain: any design; for nested `D_t subset D_(t-1)` the posterior mean equals
+  the observed lower response up to the diagonal nugget, otherwise the lower
+  level is predicted at the new points and its uncertainty there is ignored
+  in training.
+- Meaning: the second GP input is a deterministic function of the data; its
+  uncertainty is accounted for at prediction time by [EQ-SUR-NARGP-004].
+- Code: `surrogates.nonlinear_multifidelity.fit_nargp`.
+- Source: [REF-PERDIKARIS-ETAL-2017].
+
+### EQ-SUR-NARGP-004 — Monte Carlo propagation of the lower predictive law
+
+Draw `z_1^i ~ N(m_1(x*), s_1^2(x*))`; `(m_2^i, s_2^2^i) = GP_2(x*, z_1^i)`; for
+a higher level `z_2^i ~ N(m_2^i, s_2^2^i)` and so on up to level `T`. With the
+top-level moments `(m_T^i, v_T^i)`, `i = 1..N`:
+`mean = (1/N) sum m_T^i`,
+`variance = (1/N) sum v_T^i + (1/(N-1)) sum (m_T^i - mean)^2`.
+
+- Domain: `N >= 2` independent draws; kernel hyperparameters treated as known.
+- Meaning: moments of the Gaussian-mixture predictive law of `f_T(x*)` (law of
+  total variance); the law itself is non-Gaussian because `g_t` is nonlinear
+  in its second input.
+- Code: `surrogates.nonlinear_multifidelity.NonlinearMultiFidelityGP.predict_mc`.
+- Source: [REF-PERDIKARIS-ETAL-2017].
+
+### EQ-SUR-NARGP-005 — Monte Carlo standard errors of the propagated moments
+
+`se(mean) = sd(m_T^i) / sqrt(N)` and `se(variance) = sd(u_i) / sqrt(N)` with
+`u_i = v_T^i + (m_T^i - mean)^2`.
+
+- Domain: `N >= 2`; i.i.d. draws; the variance error is first order (the
+  estimated mean enters `u_i`).
+- Meaning: reported with every propagated prediction so that Monte Carlo noise
+  can be compared with the emulator error. Zero at level 1, where the law is
+  Gaussian and exact.
+- Code: `surrogates.nonlinear_multifidelity.NargpPrediction`.
+- Source: [REF-PERDIKARIS-ETAL-2017].
+
+### EQ-SUR-NARGP-006 — Plug-in predictor
+
+`z_1 = m_1(x*)`; `(m_t, v_t) = GP_t(x*, z_(t-1))`; `z_t = m_t`. The plug-in
+mean and variance are `(m_T, v_T)`.
+
+- Domain: as [EQ-SUR-NARGP-004].
+- Meaning: cheap and deterministic but it discards the lower-level uncertainty,
+  so the variance is too small wherever `g_t` is nonlinear in its second
+  argument (the tests measure the ratio of plug-in to propagated variance).
+- Code: `surrogates.nonlinear_multifidelity.NonlinearMultiFidelityGP.predict_plugin`.
+- Source: [REF-PERDIKARIS-ETAL-2017].
+
+### EQ-SUR-NARGP-007 — Top-level emulator validation from propagated moments
+
+`D_i = (y_i - mean_i) / sqrt(variance_i)` and `MD = (y - mean)' V^-1 (y - mean)`
+with the diagonal `V = diag(variance_i)`, passed to the Bastos-O'Hagan
+diagnostics of [EQ-SUR-GPB-003], [EQ-SUR-GPB-004], [EQ-SUR-GPB-005].
+
+- Domain: held-out top-level runs; correlation between test points is
+  ignored because the joint mixture law is not available in closed form.
+- Meaning: marginal screening diagnostics (standardized errors, coverage,
+  pivoted errors); the Mahalanobis statistic is approximate.
+- Code: `surrogates.nonlinear_multifidelity.validate_nargp`.
+- Source: [REF-BASTOS-OHAGAN-2009], [REF-PERDIKARIS-ETAL-2017].
+
+### EQ-AERO-DECAY-001 — Circular-orbit drag decay
+
+`da/dt = -sqrt(mu a) rho(a - R_E, F(t)) / B`, `B = m / (C_D A)`.
+
+- Domain: circular orbit of radius `a` (m) about a spherical, non-rotating
+  Earth (`mu = 3.986004418e14 m^3/s^2`, `R_E = 6378137 m` as in
+  `aerospace.ascent`); drag is the only force; `rho` in kg/m^3 at the
+  altitude `h = a - R_E` and the activity index `F(t)`; `B` in kg/m^2 with
+  mass `m`, drag coefficient `C_D` and mean projected area `A`.
+- Meaning: derived here from the energy balance. The drag acceleration is
+  `-rho v v_vec / (2 B)`, so `dE/dt = -rho v^3 / (2 B)` with `E = -mu/(2a)`
+  and `v^2 = mu/a`; hence `da/dt = (2 a^2 / mu) dE/dt = -rho sqrt(mu a) / B`.
+  The orbit stays circular. The ballistic coefficient is uncertain through
+  `C_D`, the area (attitude) and the mass. Atmospheric rotation is neglected.
+  Integrated by `aerospace.orbital_decay.orbital_decay` (classical RK4,
+  adaptive step `dt = min(dt_max, f H / |da/dt|)`, bisection on the last
+  step).
+- Code: `aerospace.orbital_decay.orbital_decay`,
+  `aerospace.orbital_decay.ballistic_coefficient`.
+- Source: [REF-KING-HELE-1987], [REF-CURTIS-2014].
+
+### EQ-AERO-DECAY-002 — Piecewise-exponential density with activity scaling (synthetic)
+
+`rho(h, F) = rho_0 s^p exp(-sum_i [min(h, z_{i+1}) - z_i]^+ / (H_i s^q))`,
+`s = F / F_ref`.
+
+- Domain: layers with strictly increasing base altitudes `z_i` (m) and scale
+  heights `H_i` (m) at `F_ref`; reference density `rho_0` at `z_0` (kg/m^3);
+  exponents `p`, `q` real; `F > 0`. Below `z_0` the first layer is
+  extrapolated.
+- Meaning: an exponential atmosphere (`rho` falls by `e` over one scale
+  height) whose reference density scales as `s^p` and whose scale heights
+  scale as `s^q`. The form is continuous across the layer boundaries for
+  every `F`, because the exponent accumulates over the layers. `p` and `q`
+  are user-supplied, *synthetic demonstration* parameters; no empirical
+  thermosphere model (NRLMSISE, Jacchia) or its coefficients is used, and the
+  `demonstration_thermosphere` numbers are not fitted to measurements.
+- Code: `aerospace.orbital_decay.SyntheticThermosphere`,
+  `aerospace.orbital_decay.demonstration_thermosphere`.
+- Source: [REF-KING-HELE-1987] (exponential-atmosphere decay theory; the
+  profile parameters are synthetic).
+
+### EQ-AERO-DECAY-003 — Synthetic solar-activity index
+
+`F(t) = F_mean (1 + A sin(2 pi (t / P + phi))) exp(sigma n(t))`.
+
+- Domain: `F_mean > 0`, `0 <= A < 1`, `P > 0` (years), `phi` in cycles,
+  `sigma >= 0`; `n(t)` is the piecewise-linear interpolation of independent
+  standard-normal knot values at `0, Delta, 2 Delta, ...`, held constant after
+  the last knot.
+- Meaning: an invented 11-year-period cycle times log-normal noise with median
+  one, so `F > 0`. It is a stand-in for the solar-activity input of a
+  thermosphere model, not a solar-cycle record: all parameters are user
+  inputs. The cycle phase and amplitude are the model inputs `solar_phase`
+  and `solar_amplitude`; the noise knots are `solar_noise_j`.
+- Code: `aerospace.orbital_decay.SolarActivity`,
+  `aerospace.orbital_decay.demonstration_solar_activity`,
+  `aerospace.orbital_decay.synthetic_noise_values`.
+- Source: [REF-KING-HELE-1987] (role of the density variation in decay;
+  the process itself is synthetic).
+
+### EQ-AERO-DECAY-004 — Lifetime at a frozen activity (quadrature)
+
+`T = B int_{a_e}^{a_0} da / (sqrt(mu a) rho(a - R_E))`.
+
+- Domain: circular orbit, constant activity `F`, `a_0 > a_e = R_E + h_re`.
+- Meaning: the decay equation separates when `F` is constant. The integral
+  is evaluated by composite five-point Gauss-Legendre panels split at the
+  layer bases, with panels at most half a scale height wide; it is
+  independent of the time stepping and serves as its oracle. A density error
+  factor `k` is equivalent to `B -> B/k`.
+- Code: `aerospace.orbital_decay.static_lifetime`.
+- Source: [REF-KING-HELE-1987], [REF-CURTIS-2014].
+
+### EQ-AERO-DECAY-005 — Closed-form lifetime bounds, constant scale height
+
+`T_c = (H B / c) (1/rho(h_0) - 1/rho(h_e))`, `c = sqrt(mu r_f)`.
+
+- Domain: `rho = rho_r exp(-(h - h_r)/H)` with constant `H`; `r_f` the radius
+  at which `sqrt(mu a)` is frozen.
+- Meaning: with `sqrt(mu a)` frozen at `c`, `da/dt = -c rho / B` integrates
+  exactly. Since `sqrt(mu a)` decreases along the path, freezing at the initial
+  radius `R_E + h_0` gives a lower bound on `T` and at the reentry radius an
+  upper bound; the relative gap is about `(h_0 - h_e) / (2 (R_E + h))`. The
+  mid-radius value lies between the bounds. This is a derivation made for
+  this module, not a formula quoted from the book.
+- Code: `aerospace.orbital_decay.exponential_lifetime_bounds`.
+- Source: [REF-KING-HELE-1987], [REF-CURTIS-2014].
+
+### EQ-AERO-DECAY-006 — Orbit-averaged decay of semi-major axis and eccentricity
+
+`<da/dt> = -(a^2 / (mu B)) (1 / 2 pi) int_0^{2 pi} rho v^3 (1 - e cos E) dE`,
+`<de/dt> = -((1 - e^2) / B) (1 / 2 pi) int_0^{2 pi} rho v cos E dE`,
+with `r = a (1 - e cos E)`, `v^2 = mu (2/r - 1/a)`, `h = r - R_E`.
+
+- Domain: `0 < e < 1`, activity frozen over a revolution, drag only,
+  non-rotating atmosphere.
+- Meaning: derived here from `dE/dt = -rho v^3 / (2 B)` (specific energy) and
+  the angular-momentum loss `dh_m/dt = -rho v h_m / (2 B)` with
+  `e^2 = 1 + 2 E h_m^2 / mu^2`, which gives
+  `de/dt = -rho v (1 - e^2) cos E / (B (1 - e cos E))`. The time average uses
+  `dt = (1 - e cos E) dE / n`, which cancels the denominator in `de/dt` and
+  leaves the factor `(1 - e cos E)` in `da/dt`. The result agrees with the
+  Gauss variational equations for a tangential acceleration
+  (`de/dt = 2 (e + cos nu) f / v`), checked in the tests against an
+  independent true-anomaly quadrature. The averages are computed by the
+  periodic trapezoid rule in `E` with `quadrature_points` nodes (geometric
+  convergence; more nodes are needed when `a e` is large compared with the
+  scale height). In the test case with `a e` about 7.7 scale heights the
+  perigee radius falls much more slowly than the apogee radius. Reentry is
+  declared when the perigee altitude reaches the reentry altitude.
+- Code: `aerospace.orbital_decay.orbital_decay` (argument `eccentricity`).
+- Source: [REF-KING-HELE-1987], [REF-CURTIS-2014].
+
+### EQ-AERO-DECAY-007 — Lifetime model, compliance margin and non-compliance probability
+
+`M = T_d - T(X)`, `P_nc = P(T(X) > T_d)`, `B = 1 / (C_D f_att (A/m))`.
+
+- Domain: random inputs `X = (h_0, C_D, A/m, f_att, phi, A, k, n_1..n_k)` with
+  deadline `T_d` (years); `T` is the lifetime of `orbital_decay` with the
+  density error factor `k`; an orbit still up at the horizon is continued by
+  the frozen-activity lifetime from its final altitude (`static_tail`).
+- Meaning: the event `T > T_d` is evaluated on `ln T >= ln T_d` (same surface).
+  `P_nc` is estimated by FORM (iHL-RF), subset simulation or Monte Carlo. The
+  lifetime is periodic in the solar-cycle phase, which a first-order
+  approximation in standard-normal space cannot represent: FORM agreed with
+  simulation with the phase fixed and was biased with a random phase (both
+  measured in the tests).
+- Code: `aerospace.orbital_decay.orbital_lifetime_model`,
+  `aerospace.orbital_decay.noncompliance_probability`.
+- Source: [REF-HASOFER-LIND-1974], [REF-AU-BECK-2001],
+  [REF-MELCHERS-BECK-2018], [REF-SALTELLI-2010].
+
+### EQ-AERO-DECAY-008 — Highest compliant initial altitude
+
+`h* = max { h : P_nc(h) <= p_t }`.
+
+- Domain: `P_nc(h)` as in EQ-AERO-DECAY-007 with the nominal initial altitude
+  `h`; target `0 < p_t < 1`; bracket with `P_nc(low) <= p_t < P_nc(high)`.
+- Meaning: for fixed other inputs two solutions of the scalar decay equation
+  cannot cross, so a higher start never reenters earlier: `T` is non-decreasing
+  in `h`, and with common random numbers the Monte Carlo `P_nc(h)` is a
+  non-decreasing step function (FORM: non-decreasing up to its approximation).
+  `h*` is found by bisection (a secant method can be defeated by a step
+  function) to the requested tolerance. A drag sail enters through a larger
+  `A/m` and raises `h*`.
+- Code: `aerospace.orbital_decay.maximum_compliant_altitude`.
+- Source: [REF-KING-HELE-1987], [REF-MELCHERS-BECK-2018].
+
+### EQ-INV-MODAL-001 — Parameterized stiffness and generalized eigenproblem
+
+`K(theta) = K_0 + sum_i theta_i K_i`, `K phi_j = lambda_j M phi_j`, `M = L L'`,
+`A = L^-1 K L^-T`, `A y = lambda y`, `phi = L^-T y`, `phi_i' M phi_j = delta_ij`;
+`lambda_j = omega_j^2` and `f_j = sqrt(lambda_j) / (2 pi)`.
+
+- Domain: `K_i`, `M` symmetric, `M` positive definite, `theta_i > 0`, `K(theta)`
+  positive definite for a frequency to exist; SI units (kg, N/m, Hz).
+- Meaning: natural frequencies and mass-normalized shapes of a linear
+  undamped structure; `theta_i = 1` is nominal and damage is `theta_i < 1`.
+  The lumped spring-mass chain is a synthetic idealization, not a model of a
+  real vehicle.
+- Code: `inverse.modal_updating.generalized_eigen`,
+  `inverse.modal_updating.ModalStructure`.
+- Source: [REF-GOLUB-VANLOAN-2013], [REF-BECK-KATAFYGIOTIS-1998].
+
+### EQ-INV-MODAL-002 — Eigenvalue sensitivities
+
+`d lambda_j / d theta_i = phi_j' K_i phi_j` for mass-normalized `phi_j`
+(from differentiating `K phi = lambda M phi` and using `phi' M phi = 1`).
+
+- Domain: simple eigenvalue `lambda_j` (relative gap to the neighbours above
+  `1e-8` is enforced).
+- Meaning: the exact first-order response of the squared frequency to a
+  stiffness scaling; checked against central differences in the tests.
+- Code: `inverse.modal_updating.ModalStructure.eigenvalue_sensitivities`.
+- Source: [REF-BECK-KATAFYGIOTIS-1998], [REF-GOLUB-VANLOAN-2013].
+
+### EQ-INV-MODAL-003 — Modal assurance criterion
+
+`MAC(a, b) = (a' b)^2 / ((a' a)(b' b))`.
+
+- Domain: nonzero vectors of equal length; `MAC` in `[0, 1]`.
+- Meaning: squared cosine between two shapes, invariant to scale and sign; one
+  exactly for parallel shapes. Used for matching data modes to model modes at
+  the measured degrees of freedom.
+- Code: `inverse.modal_updating.mac`, `inverse.modal_updating.match_modes`.
+- Source: [REF-BECK-KATAFYGIOTIS-1998].
+
+### EQ-INV-MODAL-004 — Frequency likelihood
+
+`log f_hat_k = log f_{j_k}(theta) + e_k`, `e_k ~ N(0, delta^2)` independent,
+so `log p(f_hat | theta) = -1/2 sum_k [log(2 pi delta^2) + ((log f_hat_k -
+log f_{j_k}(theta)) / delta)^2]`.
+
+- Domain: `delta > 0` is about the relative error of a frequency; data mode
+  `k` is matched to model mode `j_k` by order.
+- Meaning: Gaussian relative frequency error, exact in the logarithm. It is a
+  density of `log f_hat`; the constant is the same for all model classes
+  fitted to the same data.
+- Code: `inverse.modal_updating.ModalUpdatingProblem.log_likelihood`.
+- Source: [REF-BECK-KATAFYGIOTIS-1998].
+
+### EQ-INV-MODAL-005 — Shape likelihood with profiled scale
+
+`psi_hat_k = a_k psi_k(theta) + eta_k`, `eta_k ~ N(0, sigma^2 I_p)`, with
+`psi_hat_k` rescaled to unit norm and `psi_k` the model shape at the measured
+degrees of freedom; the scale is maximized,
+`a_k = psi_hat_k' psi_k / psi_k' psi_k`, giving the residual `r_k = psi_hat_k -
+a_k psi_k` and `log L_shape = -1/2 sum_k [p log(2 pi sigma^2) + ||r_k||^2 /
+sigma^2]`.
+
+- Domain: `p >= 2` measured degrees of freedom, `sigma > 0`, model shape not
+  zero at the measured degrees of freedom.
+- Meaning: a profile (not marginal) likelihood; it ignores the uncertainty of
+  `a_k`, so `r_k` has `p - 1` effective degrees of freedom while the constant
+  keeps `p`. Class evidences on the same data share the construction, so ratios
+  are consistent, the absolute value is not a fully marginalized evidence.
+- Code: `inverse.modal_updating.ModalUpdatingProblem.log_likelihood`,
+  `inverse.modal_updating.ModalData`.
+- Source: [REF-BECK-KATAFYGIOTIS-1998].
+
+### EQ-INV-MODAL-006 — Lognormal prior in log coordinates
+
+`u = log theta`, `u_q ~ N(log m_q, s_q^2)` independent, optionally truncated to
+`u_q <= log(upper)`; `log p(u) = sum_q [-1/2 ((u_q - log m_q) / s_q)^2 -
+log s_q - 1/2 log 2 pi]`; posterior `pi(u) ~ L(u) p(u)`.
+
+- Domain: `m_q, s_q > 0`; the truncation constant is not included.
+- Meaning: positivity of the stiffness scalings and a multiplicative prior
+  uncertainty; the truncation to `theta <= 1` expresses damage-only classes.
+- Code: `inverse.modal_updating.ModalUpdatingProblem`,
+  `inverse.modal_updating.modal_tmcmc`.
+- Source: [REF-BECK-KATAFYGIOTIS-1998], [REF-CHING-CHEN-2007].
+
+### EQ-INV-MODAL-007 — MAP and Laplace evidence
+
+`-log pi(u) = 1/2 ||r(u)||^2 + const` with the stacked whitened residual
+`r(u)`; `u_map = argmin 1/2 ||r||^2`, `H = J' J` (Gauss-Newton), covariance
+`H^-1`, and `log Z ~ log L(u_map) + log p(u_map) + (d/2) log(2 pi) - 1/2 log
+det H`.
+
+- Domain: smooth residual, `H` positive definite at a local minimum.
+- Meaning: a Gaussian approximation about one mode; exact for linear Gaussian
+  problems (checked on a one-mass case). It reports a single mode and ignores
+  prior truncation.
+- Code: `inverse.modal_updating.modal_laplace`.
+- Source: [REF-BECK-KATAFYGIOTIS-1998].
+
+### EQ-INV-MODAL-008 — Damage probability
+
+`P(theta_i < 1 - X | data) = Phi((log(1 - X) - u_map,i) / sd_i)` (Laplace) or
+the fraction of posterior samples with `theta_i < 1 - X` (TMCMC).
+
+- Domain: `0 < X < 1`.
+- Meaning: posterior probability that segment `i` lost more than the fraction
+  `X` of its stiffness. The Laplace value is unreliable for multimodal or
+  skewed posteriors; compare with TMCMC.
+- Code: `inverse.modal_updating.ModalLaplace.damage_probability`,
+  `inverse.modal_updating.ModalTMCMC.damage_probability`.
+- Source: [REF-BECK-KATAFYGIOTIS-1998], [REF-CHING-CHEN-2007].
+
+### EQ-INV-MODAL-009 — Damage-class selection
+
+`P(C_k | data) = P(C_k) Z_k / sum_l P(C_l) Z_l` for the classes `undamaged`
+(`theta = 1`, `Z = L(1)`) and `damage_j` (`theta_j` free with the prior of
+EQ-INV-MODAL-006 truncated to `theta_j <= 1`, `Z_j` by TMCMC).
+
+- Domain: all classes use the same data and likelihood construction.
+- Meaning: posterior class probabilities with the Ockham penalty built in; a
+  wrong class can win if the data cannot discriminate segments.
+- Code: `inverse.modal_updating.damage_class_selection`.
+- Source: [REF-BECK-YUEN-2004], [REF-CHING-CHEN-2007].
+
+### EQ-AERO-WIND-001 — Synthetic random wind profile (cosine expansion)
+
+`w(h) = a T(h) [ w_jet exp(-(h - h_jet)^2 / (2 s^2)) + sigma sum_{k=0}^{K-1} sqrt(lam_k) xi_k phi_k(h) ]`,
+`phi_0 = 1`, `phi_k = sqrt(2) cos(k pi h / H)`,
+`lam_k = exp(-(k pi ell / H)^2 / 2) / sum_j exp(-(j pi ell / H)^2 / 2)`,
+`xi_k ~ N(0, 1)` independent; `T(h) = 1` for `h <= 0.75 H`,
+`(1 + cos(pi (h - 0.75 H) / (0.25 H))) / 2` up to `H`, `0` above. Symbols: `h`
+altitude (m), `w` horizontal wind along downrange (m/s, positive = tail wind),
+`w_jet`, `h_jet`, `s` jet speed, altitude and width, `sigma` rms fluctuation
+(m/s), `ell` correlation length (m), `H` top altitude (m), `a` global amplitude.
+
+- Domain: `s, ell, H > 0`, `sigma >= 0`, `K >= 1` with at least 95 % of the
+  spectral weight retained (checked). SYNTHETIC: every parameter value in the
+  library (`SYNTHETIC_DEMONSTRATION_WIND`) is invented and is not a wind
+  climatology of any site or season.
+- Meaning: the cosine series is the exact Karhunen-Loeve expansion of the
+  stationary-type field with covariance `sigma^2 T(h) T(h') sum_k lam_k phi_k(h)
+  phi_k(h')`; its pointwise variance is `sigma^2 T^2 (lam_0 + 2 sum_{k>=1} lam_k
+  cos^2(k pi h / H))`, which oscillates around `sigma^2 T^2` and is doubled
+  near `h = 0` and `h = H` (reflection effect of a cosine basis). The `xi_k` are
+  standard normals, so standard-normal-space reliability methods act on them.
+- Code: `aerospace.wind_loads.SyntheticWindField`.
+- Source: [REF-GHANEM-SPANOS-1991].
+
+### EQ-AERO-WIND-002 — Air-relative velocity and angle of attack
+
+`V_rel = sqrt(v^2 - 2 v w cos(gamma) + w^2)`,
+`alpha = atan2(w sin(gamma), v - w cos(gamma))`.
+
+- Domain: `v >= 0` inertial speed (m/s), `gamma` flight-path angle (rad), `w`
+  horizontal wind (m/s); the body axis lies along the inertial velocity (zero
+  incidence without wind, the gravity-turn attitude of the ascent model) and
+  the Earth does not rotate, so the air-relative velocity is
+  `(v cos(gamma) - w, v sin(gamma))`.
+- Meaning: `alpha` is the signed angle from the body axis to the relative
+  velocity; it is `atan2(w, v)` in vertical flight and `0` in horizontal flight
+  or without wind. An ideal-autopilot approximation: no load relief, lift or
+  attitude dynamics.
+- Code: `aerospace.wind_loads.relative_flow`.
+- Source: [REF-CURTIS-2014].
+
+### EQ-AERO-WIND-003 — Dynamic pressure and the q-alpha load indicator
+
+`q = rho(h) V_rel^2 / 2`, `L = max_i q_i |alpha_i|` over the evaluated grid
+points `i` with `v_i >= v_min`; maximum dynamic pressure `q_max = max_i q_i`.
+
+- Domain: `rho` from the U.S. Standard Atmosphere 1976 (extension above 86 km as
+  in the ascent model); `v_min` excludes the pad and the first seconds of
+  rise (default 50 m/s), where `alpha` is not meaningful.
+- Meaning: `q |alpha|` (Pa rad) is the customary first indicator of the
+  bending-moment demand on a slender body. The maximum is taken on the
+  integration grid (a lower bound of the continuous maximum) and is piecewise
+  smooth, not smooth, in the model inputs. The trajectory is the no-wind flight
+  of the ascent model; the wind enters the loads only.
+- Code: `aerospace.wind_loads.wind_load_history`.
+- Source: [REF-CURTIS-2014], [REF-US-STANDARD-ATMOSPHERE-1976].
+
+### EQ-AERO-WIND-004 — Small-wind (first-order) limit
+
+`q |alpha| = q_0 |w| sin(gamma) / v + O(w^2)`, hence
+`max_i q_i |alpha_i| = a max_i q_{0,i} |w_i| sin(gamma_i) / v_i + O(a^2)`.
+
+- Domain: `|w| << v`; `q_0 = rho v^2 / 2` is the no-wind dynamic pressure and
+  `w_i` the wind at amplitude 1. The argmax of the first-order functional is
+  assumed stable for the small amplitudes used.
+- Meaning: independent oracle of the numerical slope: the load indicator is
+  proportional to the wind amplitude and insensitive to its sign at small
+  amplitude. The neglected trajectory perturbation due to wind-modified drag
+  multiplies `alpha = O(w)` and therefore enters at order `w^2` (an argument,
+  not a measured bound).
+- Code: `aerospace.wind_loads.small_wind_slope`.
+- Source: [REF-CURTIS-2014].
+
+### EQ-AERO-WIND-005 — Probabilistic wind-load model and margin
+
+`y = M(xi_1..xi_K, s_F, s_C, a)`, outputs `q_max`, its altitude, `L = max q |alpha|`,
+its altitude and the margin `m = L_design - L`; limit state `g = m`, failure
+`g <= 0`.
+
+- Domain: `xi_k ~ N(0, 1)`; `s_F`, `s_C` multipliers of vacuum thrust (at fixed
+  `Isp`, so the mass flow scales with it) and of the drag coefficient; `a` the
+  optional wind amplitude; `L_design > 0` an invented design limit (Pa rad).
+  The ascent must reach burnout, otherwise the run fails (policy
+  `on_failure`).
+- Meaning: couples the wind field (EQ-AERO-WIND-001), the dispersed no-wind
+  ascent of `simulate_ascent` and the loads (EQ-AERO-WIND-003) in one
+  `ProbabilisticModel` for FORM, subset simulation, Monte Carlo and Sobol
+  analysis.
+- Code: `aerospace.wind_loads.wind_loads_model`,
+  `aerospace.wind_loads.wind_load_limit_state`.
+- Source: [REF-CURTIS-2014], [REF-GHANEM-SPANOS-1991].
+
+### EQ-AERO-WIND-006 — Exceedance probability: reliability and tail fits
+
+`P_f = P(L >= L_design)` by FORM `Phi(-beta)`, subset simulation and crude Monte
+Carlo; tail estimate from `n` profile maxima `Y_j`:
+`P(Y > x) = zeta_u (1 + xi (x - u) / sigma)^(-1/xi)` for `x >= u`, `zeta_u` the
+fraction of `Y_j` above `u` and `(sigma, xi)` the GPD maximum-likelihood fit to
+the excesses; block-maxima estimate `P(Y > x) = 1 - F_GEV(x)^(1/b)` from the
+GEV fit to maxima of `b` consecutive profiles.
+
+- Domain: `x > u` (above the empirical `threshold_quantile`), at least 10
+  exceedances and 20 blocks; the profiles are independent draws, so the block
+  maximum has distribution `F^b`.
+- Meaning: the three simulation estimators and the two extreme-value
+  estimators target the same small probability; their agreement within the
+  stated bands (see the tests) shows whether FORM linearisation of the
+  non-smooth flight maximum and the tail extrapolation are adequate. All
+  numbers refer to the synthetic demonstration set.
+- Code: `aerospace.wind_loads.wind_reliability_study`,
+  `aerospace.wind_loads.wind_extreme_study`.
+- Source: [REF-MELCHERS-BECK-2018], [REF-AU-BECK-2001], [REF-COLES-2001],
+  [REF-PICKANDS-1975], [REF-BALKEMA-DEHAAN-1974].
+
+### EQ-AERO-ATT-001 — Gyro and star-tracker model and its exact discretisation
+
+`x = [theta, b]`, `x_k = F x_(k-1) + w_k`, `F = [[1, -dt], [0, 1]]`,
+`y_k = theta_k + v_k`, `R = sigma_n^2`, `Q = int_0^dt F(s) diag(sigma_v^2, sigma_u^2) F(s)' ds`,
+that is `Q11 = sigma_v^2 dt + sigma_u^2 dt^3/3`, `Q12 = -sigma_u^2 dt^2/2`,
+`Q22 = sigma_u^2 dt`. Gyro reading `omega + b + eta_v`; `eta_v` white with density
+`sigma_v^2` (rad^2/s), `b' = eta_u` with density `sigma_u^2` (rad^2/s^3).
+
+- Domain: `sigma_v, sigma_u >= 0` not both zero; `sigma_n, dt > 0`; one axis, small
+  angles, white independent noises, constant parameters, no star-tracker dropout.
+- Meaning: the error-state model of attitude knowledge for a gyro-stellar estimator;
+  `Q` is the exact integral of the continuous noise over one sample, with the
+  attitude and bias noises correlated through the bias integration (`Q12 < 0`).
+  `det Q = sigma_u^2 sigma_v^2 dt^2 + sigma_u^4 dt^4/12 >= 0`.
+- Code: `aerospace.attitude_estimation.attitude_process_noise`,
+  `aerospace.attitude_estimation.attitude_state_space`,
+  `aerospace.attitude_estimation.GyroStarTrackerModel`.
+- Source: [REF-KALMAN-1960] for the filter; the discretisation is derived here.
+
+### EQ-AERO-ATT-002 — Closed-form steady-state attitude covariance (pre-update)
+
+With `q = sigma_u^2 dt`, `R = sigma_n^2`, `beta = dt sqrt(q/R)`, `g = sigma_v^2 dt / R`,
+`w = (beta - 4 + sqrt(beta^2/3 + 16 + 4g))/2` (equivalently
+`2(beta(2 - beta/6) + g)/(4 - beta + sqrt(beta^2/3 + 16 + 4g))`),
+`t = (w + 2 + sqrt(w(w+4)))/2`: the predicted covariance `P^-` has
+`p11 = R t sqrt(w(w+4))`, `p12 = -sqrt(q R) t`, `p22 = P_22 + q`.
+
+- Domain: the model of EQ-AERO-ATT-001.
+- Meaning: derivation. The Riccati fixed point of `P^- = F (P^- - P^- H' S^-1 H P^-) F' + Q`
+  gives `p12^2 = q S` with `S = p11 + R` and `p12 < 0`; eliminating the
+  posterior bias variance leaves `s^4 - dt sqrt(q) s^3 - (2R + c0) s^2 - dt sqrt(q) R s + R^2 = 0`
+  with `s = sqrt(S)`, `c0 = sigma_v^2 dt - sigma_u^2 dt^3/6`; with `t = s/sqrt(R)` this
+  is a reciprocal quartic, and `z = t + 1/t` solves `z^2 - beta z - (4 + c0/R) = 0`.
+  The larger root `z = 2 + w` and `t >= 1` give the stabilising solution. The
+  pre-update (predicted) attitude variance is `p11`. Limit `sigma_u = 0`, `g << 1`:
+  `p11 = R sqrt(g) (1 + sqrt(g)/2 + O(g))`. Verified against a doubling Riccati solver
+  and against exact rational Riccati residuals; Farrenkopf's published result was not read.
+- Code: `aerospace.attitude_estimation.steady_state_attitude_closed_form`.
+- Source: derived here; problem setting [REF-FARRENKOPF-1978]; Riccati [REF-KALMAN-1960].
+
+### EQ-AERO-ATT-003 — Post-update steady state and the numerical Riccati reference
+
+`S = p11 + R`, `P_11 = p11 R / S = p11 / t^2`, `P_12 = p12 R / S`,
+`P_22 = p22 - p12^2 / S = sqrt(q) p11 / (sqrt(R) t dt) - q/2`, `K = [p11, p12] / S`.
+Numerical reference: structure-preserving doubling `(A, G, H) -> (A W^-1 A,
+G + A W^-1 G A', H + A' H W^-1 A)`, `W = I + G H`, from `A = F'`, `G = H' R^-1 H`, `H = Q`.
+
+- Domain: the model of EQ-AERO-ATT-001.
+- Meaning: `sqrt(P_11)` is the attitude knowledge error after the star-tracker update
+  (the quantity used in the pointing budget); `sqrt(p11)` is the error just before the
+  update. The doubling iteration converges quadratically and shares no code with the
+  closed form. Where the bias variance is many orders below the attitude variance the
+  numerical bias entry loses relative precision; the closed form was the more accurate
+  (relative Riccati residual of the bias entry 1e-24 to 1e-25 for the closed form against
+  0.06-0.25 for the doubling solution in two extreme cases checked at 80 digits).
+- Code: `aerospace.attitude_estimation.steady_state_attitude_riccati`,
+  `aerospace.attitude_estimation.SteadyStateAttitude`.
+- Source: [REF-KALMAN-1960]; the doubling form is standard and was checked here only
+  against the Riccati recursion (no REF key).
+
+### EQ-AERO-ATT-004 — Overlapping Allan variance
+
+`AVAR(m dt) = [1 / (2 (N - 2m + 1) m^2)] sum_(j=0)^(N-2m) (C_(j+2m) - 2 C_(j+m) + C_j)^2`,
+`C_k = sum_(i<k) g_i`, equivalently the mean square of differences of adjacent
+`m`-sample cluster means over all overlapping start indices.
+
+- Domain: `N >= 2m + 1`, equally spaced finite readings.
+- Meaning: variance of the difference of adjacent cluster means, halved; invariant to a
+  constant offset. The Allan-variance definition and the IEEE gyro standard are to be
+  checked (no REF key yet).
+- Code: `aerospace.attitude_estimation.overlapping_allan_deviation`.
+- Source: definition; literature to be checked (no REF key).
+
+### EQ-AERO-ATT-005 — Allan variance of the sampled gyro model
+
+`AVAR(tau = m dt) = sigma_v^2 / tau + sigma_u^2 dt (2 m^2 + 1) / (6 m)`, tending to
+`sigma_v^2/tau + sigma_u^2 tau/3` for `m >> 1`. Simulated readings:
+`g_k = omega + b_k + n_k`, `b_k = b_(k-1) + sigma_u sqrt(dt) xi_k`, `n_k ~ N(0, sigma_v^2/dt)`.
+
+- Domain: white rate noise independent of a discrete random-walk bias; `m >= 1`.
+- Meaning: derived here. White noise of variance `sigma_v^2/dt` gives `sigma_v^2/tau`
+  exactly. For the random walk, the `j`-th increment enters the difference of two
+  adjacent cluster means with weight `(j-1)/m` (first cluster) or `(2m-j+1)/m` (second),
+  whose squares sum to `(2m^2+1)/(3m)`; multiplying by `sigma_u^2 dt / 2` gives the
+  second term. The deviation has log-log slope `-1/2` where the first term dominates
+  and `+1/2` where the second does. Verified by Monte Carlo of the walk and by the
+  fitted parameters on simulated data.
+- Code: `aerospace.attitude_estimation.allan_model_variance`,
+  `aerospace.attitude_estimation.simulate_gyro_rate`.
+- Source: derived here; literature to be checked (no REF key).
+
+### EQ-AERO-ATT-006 — Allan noise fit
+
+`AVAR_m = sigma_v^2 / (m dt) + sigma_u^2 dt (2 m^2 + 1) / (6 m) + e_m`, weighted least
+squares in `(sigma_v^2, sigma_u^2)` with weights `nu_m / AVAR_m^2`, `nu_m = N/m - 1`
+(two passes, the second with the fitted curve); the standard error of `sigma` is
+`2.3 sqrt(Var(coefficient)) / (2 sigma)`.
+
+- Domain: at least three cluster sizes; both coefficients positive for a converged fit.
+- Meaning: a coefficient not identified as positive is reported as zero with
+  `converged = False` and a `stop_reason`. The raw least-squares errors ignore the
+  correlation between cluster sizes and were too small by 2.04 to 2.55 times in
+  40-seed simulations (N = 40000), hence the empirical factor 2.3; it is not a derived
+  constant. In the same simulations the fitted `sigma_u` was biased low (about -4 %
+  and -15 % mean bias for the two walk levels used).
+- Code: `aerospace.attitude_estimation.fit_allan_noise`,
+  `aerospace.attitude_estimation.AllanFit`.
+- Source: derived here (weighted least squares on EQ-AERO-ATT-005).
+
+### EQ-AERO-ATT-007 — Pointing error budget
+
+`e = e_know + e_jitter + e_thermal + e_align`, `u_c^2 = sum_i sum_j u_i u_j r_ij`,
+`RSS = sqrt(sum_i u_i^2)`, `u_know = sqrt(P_11)` from EQ-AERO-ATT-003.
+
+- Domain: zero-mean sources with sensitivity 1 each, standard uncertainties `u_i > 0`
+  in rad, a positive semi-definite correlation matrix `r`.
+- Meaning: the RSS ignores correlation and is the law of propagation only for
+  independent sources; with positive correlation it is too small. Source labels
+  (knowledge and jitter random; thermal-elastic and alignment bias-type) are metadata
+  of the library budget entries.
+- Code: `aerospace.attitude_estimation.pointing_budget`,
+  `aerospace.attitude_estimation.PointingBudgetResult`.
+- Source: law of propagation as implemented by [EQ-UQ-BUDGET-001].
+
+### EQ-AERO-ATT-008 — Probability of meeting the pointing requirement
+
+`P(|e| <= r_req) = erf(r_req / (sqrt(2) u_c))` for a Gaussian total; the 3-sigma
+requirement is met when `3 u_c <= r_req`; coverage of the RSS interval
+`P(|e| <= 3 RSS) = erf(3 RSS / (sqrt(2) u_c))`.
+
+- Domain: jointly Gaussian zero-mean sources.
+- Meaning: the budget compliance test and the probability of the error staying inside
+  the requirement are different statements: `3 u_c = r_req` gives 99.73 %, not 100 %.
+  With correlated sources the stated 99.73 % of an RSS interval is not achieved.
+  Checked against Monte Carlo with Gaussian-copula (Cholesky) sampling.
+- Code: `aerospace.attitude_estimation.pointing_budget`.
+- Source: Gaussian error function; propagation of EQ-AERO-ATT-007.
+
+### EQ-AERO-ATT-009 — Sensor-grade ranking and requirement probability
+
+`sigma_k = exp(log lo_k + U_k (log hi_k - log lo_k))`, `U_k ~ U(0,1)` independent,
+`f(U) = sqrt(P_11)` from EQ-AERO-ATT-003; Sobol indices of `f`; probability
+`P(3 sqrt(f^2 + sum_other u^2) <= r_req)` over the grades.
+
+- Domain: `0 < lo_k < hi_k`; independent log-uniform grades.
+- Meaning: the log-uniform ranges are a synthetic description of sensor grades, not
+  data on any real sensor. Sobol indices depend on the ranges chosen; the pure
+  integrator regime (`sigma_u` negligible) has analytic indices from the moments
+  `E[X^s] = (b^s - a^s)/(s ln(b/a))`, used as a test oracle.
+- Code: `aerospace.attitude_estimation.knowledge_sobol_ranking`,
+  `aerospace.attitude_estimation.grade_requirement_probability`,
+  `aerospace.attitude_estimation.SensorGrades`.
+- Source: [REF-SOBOL-1993]; the pick-freeze estimator is `sensitivity.estimate_sobol_indices`.
+
+### EQ-INV-THERM-001 — Lumped thermal network energy balance
+
+`C_i dT_i/dt = F_i(T, t) = Q_i(t) + sum_links [ G_ij (T_j - T_i) + R_ij (T_j^4 - T_i^4) ]`
+for the free nodes `i = 1..n`; boundary nodes have a fixed `T_b`. `G_ij` (W/K)
+is a conductance, `R_ij = epsilon sigma A F` (W/K^4) a gray-surface radiative
+coupling, `Q_i` (W) the internal dissipation and `C_i` (J/K) the heat
+capacity. A parameter `theta_k > 0` multiplies the nominal value of every link
+of its group: `G_l(theta) = G_l^nom theta_k`.
+
+- Domain: absolute temperatures `T > 0` (K), positive `C`, `G`, `R`; every
+  free node connected to a boundary node for a unique steady state.
+- Meaning: the standard lumped-capacitance network with linear conduction and
+  net radiation between gray surfaces with constant view factors; no
+  temperature-dependent properties, convection or phase change. The bundled
+  five-node case is synthetic and not a model of any real vehicle.
+- Code: `inverse.thermal_correlation.ThermalNetwork`.
+- Source: [REF-BERGMAN-2011].
+
+### EQ-INV-THERM-002 — Steady state, exact Jacobians and sensitivities
+
+Steady state `F(T, theta) = 0` by damped Newton iteration
+`(dF/dT) dT = -F`, with `dF_i/dT_j = sum_links (+a_j)` and `dF_i/dT_i =
+-sum_links a_i`, `a = G` (conduction) or `a = 4 R T^3` (radiation); the
+parameter derivative is `dF_i/dtheta_k = sum_{l in group k} +- G_l^nom (T_s -
+T_f)` or `+- R_l^nom (T_s^4 - T_f^4)`; the steady sensitivity is
+`dT/dtheta = -(dF/dT)^-1 dF/dtheta`.
+
+- Domain: a converged solution with nonsingular `dF/dT` (an M-matrix whenever
+  every node is connected to a boundary node).
+- Meaning: all derivatives are analytic (no finite differences) and are checked
+  against central differences in the tests; the iteration rejects steps that
+  would give a non-positive temperature and reports failure through
+  `stop_reason`.
+- Code: `inverse.thermal_correlation.solve_steady_state`.
+- Source: [REF-BERGMAN-2011], [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-THERM-003 — Backward Euler transient and discrete sensitivity
+
+`C (T_{k+1} - T_k)/dt = F(T_{k+1}, t_{k+1}, theta)`, solved by Newton with the
+matrix `C/dt - dF/dT`; the sensitivity `S_k = dT_k/dtheta` obeys
+`(C/dt - dF/dT) S_{k+1} = (C/dt) S_k + dF/dtheta (T_{k+1})`, with `S_0` the
+steady sensitivity when the start is the steady state under `Q(0)`.
+
+- Domain: `dt > 0`; the scheme is first order and unconditionally stable.
+- Meaning: `S_k` is the exact derivative of the discrete solution (not of the
+  continuous one); it feeds the Gauss-Newton Hessian of transient data. The
+  single-node case is checked against the exact recursion and, at first order
+  in `dt`, against the exponential response.
+- Code: `inverse.thermal_correlation.simulate_transient`.
+- Source: [REF-BERGMAN-2011], [REF-BECK-BLACKWELL-STCLAIR-1985].
+
+### EQ-INV-THERM-004 — Energy conservation identities
+
+Steady: `sum_i Q_i = sum_b q_b` with `q_b` the heat flow into boundary node
+`b`. Transient step: `sum_i C_i (T_{k+1,i} - T_{k,i}) = dt (sum_i Q_i(t_{k+1})
+- sum_b q_b(T_{k+1}))`. Over all nodes the link inflows add up to zero.
+
+- Domain: any converged solve of the network of EQ-INV-THERM-001.
+- Meaning: each link gives `+q` to one node and `-q` to the other, so the
+  identities hold to the Newton tolerance and test the code, not the physics.
+- Code: `inverse.thermal_correlation.SteadyState`.
+- Source: [REF-BERGMAN-2011].
+
+### EQ-INV-THERM-005 — Likelihood with a per-sensor discrepancy
+
+`y = G(theta) + delta + e`, `e ~ N(0, sigma^2 I)`, `delta_s ~ N(0, tau^2)` one
+offset per sensor `s`, shared by its `R` records. Integrating `delta` out, each
+sensor block of the data covariance is `sigma^2 I_R + tau^2 1 1'`, whose
+inverse is `sigma^-2 (I - kappa P)` with `P = 1 1'/R`, `kappa = R tau^2 /
+(sigma^2 + R tau^2)`, and
+`log p(y | theta, tau) = -1/2 [m log 2 pi + m log sigma^2 + n_s log(1 + R tau^2
+/ sigma^2)] - 1/2 ||W r||^2`, `r = y - G(theta)`, `W = sigma^-1 [(I - P) +
+sqrt(1 - kappa) P]` per sensor. `tau = 0` is the independent-error model.
+
+- Domain: known `sigma > 0`, equal numbers of records for all sensors.
+- Meaning: a persistent offset per sensor is the simplest additive model-form
+  error of Kennedy-O'Hagan type; it absorbs unmodelled physics only if that
+  effect is roughly constant between tests and the predicted case.
+- Code: `inverse.thermal_correlation.ThermalCorrelationProblem`.
+- Source: [REF-KENNEDY-OHAGAN-2001].
+
+### EQ-INV-THERM-006 — Lognormal prior, MAP and Laplace evidence
+
+`u = log theta ~ N(m, diag(s^2))`; `u_map = argmin 1/2 ||W (y - G(e^u))||^2 + 1/2
+||(u - m)/s||^2` by Levenberg-Marquardt with the analytic Jacobian `dG/du_k =
+theta_k dG/dtheta_k`; `H = J'J + diag(s^-2)`, `Sigma = H^-1` and `log p(y | tau)
+~ log L + log p(u_map) + (p/2) log 2 pi - 1/2 log det H`.
+
+- Domain: smooth residual, `H` positive definite at a local minimum.
+- Meaning: a Gaussian approximation in the log parameters, one mode; with a
+  discrepancy the level `tau` is chosen on a grid by `log evidence + log p(log
+  tau)` and held fixed (plug-in). Transitional MCMC samples `(u, log tau)`
+  without these approximations.
+- Code: `inverse.thermal_correlation.thermal_laplace`.
+- Source: [REF-NOCEDAL-WRIGHT-2006], [REF-CHING-CHEN-2007].
+
+### EQ-INV-THERM-007 — Identifiability of series conductances
+
+For conductances `G_a`, `G_b` in series with an unsensed node between them
+and no other path, the steady state depends on them only through
+`R_a + R_b = 1/G_a + 1/G_b`. With `u_k = log G_k` the derivatives are `d(R_a +
+R_b)/du_a = -R_a` and `d(R_a + R_b)/du_b = -R_b` (`R_k = 1/G_k`), so every
+steady reading is unchanged along `(delta u_a, delta u_b) ~ (R_b, -R_a)`, i.e.
+`R_a delta u_a + R_b delta u_b = 0` to first order. The likelihood Hessian
+`J'J` then has a zero eigenvalue with that eigenvector, and the profile
+`min_nuisance 1/2 ||W r||^2` along `u_a` is flat.
+
+- Domain: steady data; a transient with the heat capacity of the unsensed
+  node breaks the degeneracy.
+- Meaning: the posterior along the null direction equals the prior; the
+  report lists `eig(J'J)`, the weakest direction, shrinkage `sd_post/sd_prior`
+  and the posterior correlation.
+- Code: `inverse.thermal_correlation.identifiability_report`.
+- Source: [REF-BERGMAN-2011], [REF-BECK-BLACKWELL-STCLAIR-1985].
+
+### EQ-INV-THERM-008 — Posterior predictive of an untested case
+
+For posterior draws `(theta^(j), tau^(j))`, the flight prediction at node `i`
+is `T_i^(j) = T_i^steady(theta^(j); Q_f, T_b,f) + 1[i is a sensor] tau^(j) z_j`
+with `z_j ~ N(0, 1)`; the band is the `(1 -+ level)/2` empirical quantile
+pair.
+
+- Domain: a steady flight condition solvable for the draws; draws whose solve
+  fails are counted and dropped.
+- Meaning: a band for the true temperature (not a new noisy reading); the
+  discrepancy at flight is treated as exchangeable with that of the tests,
+  a conservative assumption, not a physical model.
+- Code: `inverse.thermal_correlation.predict_flight`.
+- Source: [REF-KENNEDY-OHAGAN-2001].
+
+### EQ-AERO-POWER-001 — Cylindrical-shadow eclipse fraction and critical beta
+
+`f(h, beta) = (1/pi) arccos( sqrt(1 - rho^2) / cos(beta) )` for `cos(beta) > sqrt(1 - rho^2)`, otherwise `f = 0`; `rho = R_E / (R_E + h)`; `beta* = arcsin(rho)`.
+
+- Domain: circular orbit of radius `r = R_E + h`, spherical Earth of radius `R_E`, `|beta| <= pi/2`, cylindrical umbra (axis along the anti-Sun direction, radius `R_E`).
+- Meaning: derived from `r^2 - (s . r)^2 < R_E^2` with `s . r = r cos(beta) cos(theta) < 0`; the eclipse is the arc `|theta - pi| < phi`, `cos(phi) = sqrt(1 - rho^2) / cos(beta)`, `f = phi / pi`. At `beta = 0`, `f = arcsin(rho) / pi`; for `|beta| >= beta*` there is no eclipse. Penumbra, finite Sun disk and refraction are neglected, so the eclipse duration is slightly overstated.
+- Code: `aerospace.power_budget.eclipse_fraction`, `aerospace.power_budget.critical_beta`, `aerospace.power_budget.eclipse_duration`.
+- Source: [REF-CURTIS-2014] (two-body geometry only); the shadow formula is derived in the docstring.
+
+### EQ-AERO-POWER-002 — Orbital period and cycles per year
+
+`T = 2 pi sqrt(r^3 / mu)`, `n_year = (365.25 d) / T`.
+
+- Domain: circular orbit, `r = R_E + h > 0`.
+- Meaning: one battery charge-discharge cycle per orbit.
+- Code: `aerospace.power_budget.orbital_period`.
+- Source: [REF-CURTIS-2014].
+
+### EQ-AERO-POWER-003 — Solar-array power at mission year t
+
+`P(t) = P_BOL eta_bus cos(theta) (1 - k_T dT) D(t) (1 - n_f / N)`, with `D(t) = (1 - d)^t` (compound) or `1 - d t` (linear).
+
+- Domain: `P_BOL > 0`, `eta_bus` in `(0, 1]`, incidence angle `|theta| < pi/2`, `k_T >= 0`, `1 - k_T dT > 0`, `d` in `[0, 1)`, `0 <= n_f < N`, `D > 0`.
+- Meaning: multiplicative loss chain with a deterministic degradation law of uncertain rate and a failed-string fraction (a real number: a continuous surrogate of the binomial count, EQ-AERO-POWER-009). All coefficients are user inputs; none is shipped as data.
+- Code: `aerospace.power_budget.array_power`, `aerospace.power_budget.PowerDesign`.
+- Source: derived (loss chain); no coefficient source.
+
+### EQ-AERO-POWER-004 — Battery capacity fade and depth of discharge
+
+`C(t) = C_0 (1 - a n)` (linear) or `C_0 (1 - a sqrt(n))` (square root), `n = n_year t`; `DoD = E_e / (C(t) eta_d)`.
+
+- Domain: `a >= 0`, `C(t) > 0`, `eta_d` in `(0, 1]`, `E_e` the eclipse load energy (Wh).
+- Meaning: the user's fade law in the cycle count, and the fraction of capacity drawn in one eclipse once the discharge efficiency is accounted for. The constraint is `DoD <= DoD_max`.
+- Code: `aerospace.power_budget.battery_capacity`.
+- Source: derived; no coefficient source.
+
+### EQ-AERO-POWER-005 — Energy balance per orbit
+
+`E_req = L_s T_s + E_e / (eta_d eta_c)`, `E_av = P(t) T_s`, `margin = E_av - E_req`, `m_P = margin / E_req`.
+
+- Domain: `T_s = T - f T` the sunlit duration, `E_e = L_e f T`, loads in W (times a load factor), efficiencies in `(0, 1]`, `E_req > 0`; energies in Wh (1 Wh = 3600 J).
+- Meaning: conservation of energy over one orbit with a constant array power over the sunlit arc; the battery returns `E_e / eta_d` which the array must replace through a charger of efficiency `eta_c`. The balance assumes full recharge within the sunlit arc and ignores charge taper and battery voltage dynamics.
+- Code: `aerospace.power_budget.power_budget`, `aerospace.power_budget.PowerBudgetState`.
+- Source: derived (energy conservation).
+
+### EQ-AERO-POWER-006 — Series-system margin and lifetime
+
+`m = min(m_P, m_D)`, `m_D = (DoD_max - DoD) / DoD_max`, `T_life = inf { t : m(t) < 0 }`.
+
+- Domain: both margins dimensionless and zero at their limit; `m(t)` non-increasing in `t` for non-negative degradation and fade rates.
+- Meaning: the mission fails if either the energy margin is negative or the depth of discharge exceeds its limit (a series system); the lifetime is the first sign change, found by bisection, censored at a horizon. Exhausted array or battery counts as a negative margin.
+- Code: `aerospace.power_budget.power_lifetime`, `aerospace.power_budget.PowerLifetime`.
+- Source: [REF-MELCHERS-BECK-2018] (series systems).
+
+### EQ-AERO-POWER-007 — Power-budget probabilistic model
+
+`x = (P_BOL, d, lambda_L, a, eta_c, eta_d, n_f) -> (m_P, m_D, m, DoD, P(T), C(T), T_life)` at the end-of-life time `T`.
+
+- Domain: independent inputs, each a distribution or a number; loads scaled by the load factor `lambda_L`.
+- Meaning: the forward map of the model and its quantities of interest; the failure event is `ModelLimitState(model, "combined_margin", 0, "below")`, a piecewise-smooth limit state with a kink where `m_P = m_D`.
+- Code: `aerospace.power_budget.power_budget_model`.
+- Source: [REF-MELCHERS-BECK-2018], [REF-SALTELLI-2010].
+
+### EQ-AERO-POWER-008 — Failure probability and series bounds
+
+`P_f = P(m < 0)`, `max(P_P, P_D) <= P_f <= min(1, P_P + P_D)`.
+
+- Domain: `P_P = P(m_P < 0)`, `P_D = P(m_D < 0)`; FORM, subset simulation or Monte Carlo on `m`.
+- Meaning: FORM linearizes `m` at one design point, so on a minimum it follows one branch and underestimates `P_f` when both modes contribute; the component FORM probabilities give the standard lower and union upper bounds, valid to the accuracy of FORM on each mode.
+- Code: `aerospace.power_budget.power_failure_probability`, `aerospace.power_budget.component_form_bounds`.
+- Source: [REF-HASOFER-LIND-1974], [REF-AU-BECK-2001], [REF-MELCHERS-BECK-2018].
+
+### EQ-AERO-POWER-009 — Binomial string failures
+
+`P(n_f = k) = C(N, k) q^k (1 - q)^(N-k)`, `P_f = sum_k P(n_f = k) P(fail | n_f = k)`.
+
+- Domain: `N >= 1` strings failing independently with probability `q` in `[0, 1]` over the mission.
+- Meaning: exact mixture over the discrete failure count; counts with negligible mass are skipped and their total mass bounds the truncation error.
+- Code: `aerospace.power_budget.string_failure_pmf`, `aerospace.power_budget.binomial_mixture_probability`.
+- Source: derived (total probability).
+
+### EQ-AERO-POWER-010 — Required beginning-of-life power
+
+`P_BOL* = min { p : P_f(p) <= p_t }`.
+
+- Domain: target `0 < p_t < 1`, bracket with `P_f(low) > p_t >= P_f(high)`.
+- Meaning: the combined margin is increasing in `P_BOL` pathwise, so with common random numbers the Monte Carlo `P_f(p)` is a non-increasing step function of `p` (FORM: up to its approximation); the root is found by bisection. A target below the probability of the modes that do not depend on `P_BOL` (the depth-of-discharge mode) has no root.
+- Code: `aerospace.power_budget.required_bol_power`.
+- Source: [REF-MELCHERS-BECK-2018].
+
+### EQ-INV-INERTIA-001 — Euler's rigid-body equations with zero-order-hold torque
+
+`J w' + w x (J w) = tau + d`, i.e. `w' = J^-1 (tau + d - w x (J w))`; on each
+sample interval `[t_k, t_(k+1)]` the torque `tau_k` is constant and `w` is
+advanced by classical RK4.
+
+- Domain: `J` symmetric positive definite (kg m^2), `w` body-frame angular
+  rate (rad/s), `tau` known applied torque and `d` an unknown constant
+  disturbance torque (N m), all in the body frame; the body is rigid.
+- Meaning: rotational dynamics of a rigid spacecraft about its centre of mass.
+  The RK4 solution has truncation error `O(h^4)`; it is checked against the
+  exact axisymmetric torque-free solution `w_z = const`, `(w_x, w_y)` rotating
+  at `(I_z - I) w_z / I`.
+- Code: `inverse.inertia_identification.simulate_rates`,
+  `inverse.inertia_identification.simulate_inertia_data`.
+- Source: [REF-MARKLEY-CRASSIDIS-2014], [REF-HAIRER-NORSETT-WANNER-1993].
+
+### EQ-INV-INERTIA-002 — Cholesky parameterization and realizability
+
+`J = L L'`, `L = [[e^a1, 0, 0], [l21, e^a2, 0], [l31, l32, e^a3]]`,
+`theta = (a1, a2, a3, l21, l31, l32)`; principal moments `I_1 <= I_2 <= I_3`
+are the eigenvalues of `J` and a rigid body requires `I_a + I_b >= I_c`.
+
+- Domain: any real `theta` gives `J` symmetric positive definite; realizability
+  is the extra constraint `I_a + I_b >= I_c` for the three permutations.
+- Meaning: positive definiteness alone does not make a mass distribution
+  (`I_a = integral rho (r^2 - r_a^2) dV` obeys the triangle inequalities), so
+  the module reports the normalized margins and rejects violating samples; it
+  never repairs an estimate.
+- Code: `inverse.inertia_identification.inertia_from_theta`,
+  `inverse.inertia_identification.theta_from_inertia`,
+  `inverse.inertia_identification.check_realizable`,
+  `inverse.inertia_identification.principal_axes`.
+- Source: [REF-GOLUB-VANLOAN-2013], [REF-MARKLEY-CRASSIDIS-2014].
+
+### EQ-INV-INERTIA-003 — Euler's equations are linear in the inertia entries
+
+`(M(a) + [w]x M(w)) j - d = tau`, with `j = (Jxx, Jyy, Jzz, Jxy, Jxz, Jyz)`,
+`J v = M(v) j`, `M(v) = [[vx,0,0,vy,vz,0],[0,vy,0,vx,0,vz],[0,0,vz,0,vx,vy]]`,
+`a = w'`, and `[w]x` the cross-product matrix.
+
+- Domain: rate `w` and acceleration `a` known exactly.
+- Meaning: because `w x (J w) = [w]x M(w) j` the regression form needs no
+  nonlinear search; with exact `w`, `a` and enough excitation least squares
+  returns `j` exactly. The result is not constrained to be positive definite.
+- Code: `inverse.inertia_identification.regression_estimate`,
+  `inverse.inertia_identification.inertia_entries`.
+- Source: derived (expansion of `J v` and the vector triple product).
+
+### EQ-INV-INERTIA-004 — Errors-in-variables bias of differenced regression
+
+`a_k ~ (y_(k+1) - y_(k-1)) / (2 dt)` (central) or `Delta y / (m dt)`
+(integral, window `m`); the derivative noise has variance
+`sigma^2 / (2 dt^2)` (central) and enters the regressors, so
+`E[j_hat] ~ (S + Sigma)^-1 S j`-type attenuation with a noise-induced
+`Sigma > 0` that does not vanish as the record grows.
+
+- Domain: white gyro noise `sigma`, `dt` the sample interval.
+- Meaning: the noisy derivative is a regressor, not the response, so ordinary
+  least squares is inconsistent (biased toward smaller inertia), and the
+  truncation error of the difference adds an `O(dt^2)` bias even at zero
+  noise. The size is measured in the tests, not given by a formula here.
+- Code: `inverse.inertia_identification.regression_estimate`.
+- Source: derived (noise in the regressors); numerical sizes measured.
+
+### EQ-INV-INERTIA-005 — Output-error likelihood and MAP by Levenberg-Marquardt
+
+`y_k = w(t_k; theta) + e_k`, `e_k ~ N(0, sigma^2 I)`;
+`r(theta) = [ (y_k - w(t_k; theta)) / sigma ; (theta - m) / s ]`,
+`theta_MAP = argmin 0.5 ||r(theta)||^2`.
+
+- Domain: known initial rate, known `sigma`, optional Gaussian prior
+  `N(m, diag(s^2))` on `theta` (and on `d` when estimated).
+- Meaning: output-error estimation compares integrated rates with the data,
+  so no differentiation noise enters; the stacked residual is minimized by
+  Levenberg-Marquardt with central-difference sensitivities.
+- Code: `inverse.inertia_identification.InertiaProblem`,
+  `inverse.inertia_identification.inertia_laplace`,
+  `inverse.inertia_identification.weak_prior`.
+- Source: [REF-NOCEDAL-WRIGHT-2006], [REF-TARANTOLA-2005].
+
+### EQ-INV-INERTIA-006 — Laplace covariance and its image on the inertia entries
+
+`C_theta = (J_r' J_r)^-1`, `C_j = G C_theta G'` with `G = d j / d theta`,
+`dJ = dL L' + L dL'`.
+
+- Domain: Gauss-Newton Hessian `J_r' J_r` of the stacked residual at the MAP
+  positive definite; `G` is exact (not finite-differenced).
+- Meaning: local Gaussian approximation of the posterior of `theta` and its
+  first-order image on `(Jxx, Jyy, Jzz, Jxy, Jxz, Jyz)`. If the Hessian is not
+  positive definite the covariance is reported as unavailable.
+- Code: `inverse.inertia_identification.InertiaLaplace`.
+- Source: [REF-TARANTOLA-2005], [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-INERTIA-007 — Posterior of principal moments and axis angles
+
+`theta^(s) ~ N(theta_MAP, C_theta)`, `J^(s) = L L'`, reject if
+`I_a + I_b < I_c`; `(I_1, I_2, I_3)^(s)` and
+`angle_i^(s) = arccos |u_i^(s) . u_i^MAP|` from the eigen-decomposition of
+`J^(s)`.
+
+- Domain: moments ordered ascending; axes matched by rank, so nearly equal
+  moments make the angles ill defined.
+- Meaning: Monte Carlo posterior of the nonlinear functions of `J` that matter
+  for attitude control, with the physical-realizability rejection reported as
+  `rejected / (accepted + rejected)`.
+- Code: `inverse.inertia_identification.InertiaLaplace`,
+  `inverse.inertia_identification.InertiaPosterior`.
+- Source: [REF-GOLUB-VANLOAN-2013], [REF-MARKLEY-CRASSIDIS-2014].
+
+### EQ-INV-INERTIA-008 — Bayesian D-criterion for torque excitation
+
+`F = J_r' J_r` (data only), `P = diag(1 / s^2)`, `D = log det (F + P)`,
+`Cov(j) = G (F + P)^-1 G'`; shrinkage of entry `i` is
+`sd_post(j_i) / sd_prior(j_i)`.
+
+- Domain: `F` evaluated at a nominal `theta` (it does not depend on realized
+  noise); equal peak torque norm across compared sequences.
+- Meaning: larger `D` means a smaller posterior volume; shrinkage near one
+  means the data barely reduce the prior uncertainty of that entry. At small
+  rates `w' ~ J^-1 tau`, so torques about one axis only reveal one column of
+  `J^-1`.
+- Code: `inverse.inertia_identification.assess_excitation`,
+  `inverse.inertia_identification.fisher_information`,
+  `inverse.inertia_identification.excitation_torques`.
+- Source: [REF-TARANTOLA-2005], [REF-NOCEDAL-WRIGHT-2006].
+
+### EQ-INV-INERTIA-009 — Torque-free invariants
+
+`T = w' J w / 2` and `|J w|` are constant when `tau = d = 0`.
+
+- Domain: torque-free rigid body; the body-frame vector `J w` rotates, only
+  its magnitude is constant (the inertial-frame vector is constant).
+- Meaning: conservation checks for the integrator; RK4 drift falls like
+  `O(h^4)`.
+- Code: `inverse.inertia_identification.rotational_energy`,
+  `inverse.inertia_identification.angular_momentum`.
+- Source: [REF-MARKLEY-CRASSIDIS-2014].

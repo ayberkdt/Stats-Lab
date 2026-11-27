@@ -7024,3 +7024,852 @@ approximation that evaluates the likelihood gradient at the Tweedie posterior
 mean of the clean state; no equation or section number is cited. Metadata
 checked against DataCite (2026-11-26).
 DOI: [10.48550/arXiv.2209.14687](https://doi.org/10.48550/arXiv.2209.14687).
+
+## REF-AKELLA-ALFRIEND-2000
+
+Maruthi R. Akella and Kyle T. Alfriend. "Probability of Collision Between
+Space Objects." *Journal of Guidance, Control, and Dynamics* 23(5), 769-772,
+2000. Cited for the short-encounter assumptions of
+`probstat.aerospace.conjunction` (rectilinear relative motion at constant
+speed, constant Gaussian position uncertainty, collision probability as the
+integral of the planar density over the combined hard-body disc). The paper
+was not opened; title, authors, journal, volume, issue, pages and year were
+checked against Crossref (2026-11-27).
+DOI: [10.2514/2.4611](https://doi.org/10.2514/2.4611).
+
+## REF-RAYLEIGH-1878
+
+Rayleigh, J. W. S. (Lord Rayleigh) (1878). The explanation of certain acoustical phenomena. *Nature*, 18, 319-321. Cited for the Rayleigh criterion: heat added in phase with the pressure oscillation drives it.
+ Metadata checked against Crossref (2026-11-26).
+DOI: [10.1038/018319a0](https://doi.org/10.1038/018319a0).
+
+## REF-CROCCO-1951
+
+Crocco, L. (1951). Aspects of combustion stability in liquid propellant rocket motors, part I: fundamentals, low frequency instability with monopropellants. *Journal of the American Rocket Society*, 21(6), 163-178. Cited for the n-tau (interaction index and time lag) model of unsteady combustion response. Metadata checked against Crossref (2026-11-27).
+DOI: [10.2514/8.4393](https://doi.org/10.2514/8.4393).
+
+## REF-MARBLE-CANDEL-1977
+
+Marble, F. E., and Candel, S. M. (1977). Acoustic disturbance from gas non-uniformities convected through a nozzle. *Journal of Sound and Vibration*, 55(2), 225-243. Cited for the compact-nozzle boundary condition (admittance of a choked nozzle).
+ Metadata checked against Crossref (2026-11-26).
+DOI: [10.1016/0022-460X(77)90596-X](https://doi.org/10.1016/0022-460X(77)90596-X).
+
+## REF-MAGRI-JUNIPER-2013
+
+Magri, L., and Juniper, M. P. (2013). Sensitivity analysis of a time-delayed thermo-acoustic system via an adjoint-based approach. *Journal of Fluid Mechanics*, 719, 183-202. Cited for first-order eigenvalue sensitivities of a thermoacoustic system with a time-delayed heat-release law.
+ Metadata checked against Crossref (2026-11-26).
+DOI: [10.1017/jfm.2012.639](https://doi.org/10.1017/jfm.2012.639).
+
+## REF-SUTTON-BIBLARZ-2017
+
+George P. Sutton and Oscar Biblarz. *Rocket Propulsion Elements*, 9th ed.
+Wiley, 2017 (the publisher's page lists December 2016). ISBN
+978-1-118-75365-1, confirmed on the publisher's page on 2026-11-27.
+
+Cited for ideal-rocket theory (characteristic velocity, thrust coefficient,
+isentropic nozzle flow, nozzle divergence factor, flow separation in
+over-expanded nozzles, turbopump power balance) used throughout
+`probstat.aerospace`.
+
+## REF-GORDON-MCBRIDE-1994
+
+Sanford Gordon and Bonnie J. McBride. *Computer Program for Calculation of
+Complex Chemical Equilibrium Compositions and Applications. Part 1: Analysis.*
+NASA Reference Publication 1311 (E-8017), NASA Lewis Research Center, October
+1994. NASA Technical Reports Server document 19950013764 (record read on
+2026-11-27; no DOI).
+
+Cited as the source type (the chemical-equilibrium code CEA) from which a
+user-supplied mixture-ratio table of chamber temperature, ratio of specific
+heats and molecular weight should be generated; the library does not
+reproduce CEA.
+
+## REF-BASTOS-OHAGAN-2009
+
+Leonardo S. Bastos and Anthony O'Hagan. "Diagnostics for Gaussian Process
+Emulators." *Technometrics* 51(4), 425-438, 2009.
+Cited for the individual standardized errors, the Mahalanobis distance with
+its scaled-F reference law, and the pivoted-Cholesky errors used to validate
+a Gaussian-process emulator. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1198/TECH.2009.08019](https://doi.org/10.1198/TECH.2009.08019).
+
+## REF-OAKLEY-OHAGAN-2004
+
+Jeremy E. Oakley and Anthony O'Hagan. "Probabilistic Sensitivity Analysis of
+Complex Models: A Bayesian Approach." *Journal of the Royal Statistical
+Society: Series B* 66(3), 751-769, 2004.
+Cited for variance-based sensitivity analysis of a Gaussian-process emulator
+with the emulator uncertainty propagated to the indices. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1111/j.1467-9868.2004.05304.x](https://doi.org/10.1111/j.1467-9868.2004.05304.x).
+
+## REF-MARREL-ETAL-2009
+
+Amandine Marrel, Bertrand Iooss, Beatrice Laurent, and Olivier Roustant.
+"Calculations of Sobol Indices for the Gaussian Process Metamodel." *Reliability
+Engineering & System Safety* 94(3), 742-751, 2009.
+Cited for computing Sobol indices on Gaussian-process sample paths to obtain a
+distribution of each index. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1016/j.ress.2008.07.008](https://doi.org/10.1016/j.ress.2008.07.008).
+
+## REF-SHAH-WILSON-GHAHRAMANI-2014
+
+Amar Shah, Andrew Gordon Wilson, and Zoubin Ghahramani. "Student-t Processes
+as Alternatives to Gaussian Processes." *Proceedings of the 17th International
+Conference on Artificial Intelligence and Statistics (AISTATS)*, PMLR 33,
+877-885, 2014.
+Cited for the Student-t process marginal likelihood and the data-dependent
+predictive covariance scaling. Preprint record: Metadata checked against DataCite (2026-11-27). Metadata checked against Crossref (2026-11-26).
+DOI: [10.48550/arXiv.1402.4306](https://doi.org/10.48550/arXiv.1402.4306).
+
+## REF-SNELSON-RASMUSSEN-GHAHRAMANI-2004
+
+Edward Snelson, Zoubin Ghahramani, and Carl Edward Rasmussen. "Warped Gaussian
+Processes." In *Advances in Neural Information Processing Systems 16* (NIPS
+2003), 337-344, 2004. Cited for Gaussian-process regression on a monotonically
+warped output with the Jacobian in the likelihood. Record read on the publisher's page on 2026-11-27; no DOI.
+<https://papers.nips.cc/paper/2481-warped-gaussian-processes>.
+
+## REF-BOX-COX-1964
+
+George E. P. Box and David R. Cox. "An Analysis of Transformations." *Journal
+of the Royal Statistical Society: Series B* 26(2), 211-252, 1964.
+Cited for the power transform of a positive response used as the output warp. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1111/j.2517-6161.1964.tb00553.x](https://doi.org/10.1111/j.2517-6161.1964.tb00553.x).
+
+## REF-RAISSI-PERDIKARIS-KARNIADAKIS-2019
+
+Maziar Raissi, Paris Perdikaris, and George E. Karniadakis. "Physics-informed
+neural networks: A deep learning framework for solving forward and inverse
+problems involving nonlinear partial differential equations." *Journal of
+Computational Physics* 378, 686-707, 2019. Cited for training a network on the
+residual of a differential equation at collocation points plus conditions and
+data, and for estimating unknown equation parameters jointly (inverse problem). Metadata checked against Crossref (2026-11-26).
+DOI: [10.1016/j.jcp.2018.10.045](https://doi.org/10.1016/j.jcp.2018.10.045).
+
+## REF-CHEN-RUBANOVA-BETTENCOURT-DUVENAUD-2018
+
+Ricky T. Q. Chen, Yulia Rubanova, Jesse Bettencourt, and David Duvenaud.
+"Neural Ordinary Differential Equations." In *Advances in Neural Information
+Processing Systems 31* (NeurIPS 2018), 2018. Cited for parametrizing an ODE
+right-hand side by a neural network and training it through an ODE solver.
+Preprint: [arXiv:1806.07366](https://arxiv.org/abs/1806.07366). Metadata checked against DataCite (2026-11-27). Metadata checked against Crossref (2026-11-26).
+DOI: [10.48550/arXiv.1806.07366](https://doi.org/10.48550/arXiv.1806.07366).
+
+## REF-RACKAUCKAS-ETAL-2020
+
+Christopher Rackauckas, Yingbo Ma, Julius Martensen, Collin Warner, Kirill
+Zubov, Rohit Supekar, Dominic Skinner, Ali Ramadhan, and Alan Edelman.
+"Universal Differential Equations for Scientific Machine Learning." Preprint,
+2020. Cited for augmenting known differential-equation physics with a neural
+network trained through the solver to learn a missing term.
+Preprint: [arXiv:2001.04385](https://arxiv.org/abs/2001.04385). Metadata checked against DataCite (2026-11-27). Metadata checked against Crossref (2026-11-26).
+DOI: [10.48550/arXiv.2001.04385](https://doi.org/10.48550/arXiv.2001.04385).
+
+## REF-LU-JIN-PANG-ZHANG-KARNIADAKIS-2021
+
+Lu Lu, Pengzhan Jin, Guofei Pang, Zhongqiang Zhang, and George Em
+Karniadakis. "Learning nonlinear operators via DeepONet based on the
+universal approximation theorem of operators." *Nature Machine Intelligence*
+3, 218-229, 2021. Cited for the branch-trunk network architecture that learns
+an operator from sampled input functions, and the antiderivative benchmark. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1038/s42256-021-00302-5](https://doi.org/10.1038/s42256-021-00302-5).
+
+## REF-CHEN-CHEN-1995
+
+Tianping Chen and Hong Chen. "Universal approximation to nonlinear operators
+by neural networks with arbitrary activation functions and its application to
+dynamical systems." *IEEE Transactions on Neural Networks* 6(4), 911-917,
+1995. Cited for the approximation theorem on which the branch-trunk operator
+network is based. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1109/72.392253](https://doi.org/10.1109/72.392253).
+
+## REF-BRUNTON-PROCTOR-KUTZ-2016
+
+Steven L. Brunton, Joshua L. Proctor, and J. Nathan Kutz. "Discovering
+Governing Equations from Data by Sparse Identification of Nonlinear Dynamical
+Systems." *Proceedings of the National Academy of Sciences* 113(15), 3932-3937,
+2016. Cited for SINDy and sequentially thresholded least squares. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1073/pnas.1517384113](https://doi.org/10.1073/pnas.1517384113).
+
+## REF-SCHMID-2010
+
+Peter J. Schmid. "Dynamic Mode Decomposition of Numerical and Experimental
+Data." *Journal of Fluid Mechanics* 656, 5-28, 2010. Cited for dynamic mode
+decomposition. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1017/S0022112010001217](https://doi.org/10.1017/S0022112010001217).
+
+## REF-TU-ETAL-2014
+
+Jonathan H. Tu, Clarence W. Rowley, Dirk M. Luchtenburg, Steven L. Brunton, and
+J. Nathan Kutz. "On Dynamic Mode Decomposition: Theory and Applications."
+*Journal of Computational Dynamics* 1(2), 391-421, 2014. Cited for exact DMD
+modes and the reduced operator. Metadata checked against Crossref (2026-11-26).
+DOI: [10.3934/jcd.2014.1.391](https://doi.org/10.3934/jcd.2014.1.391).
+
+## REF-WILLIAMS-KEVREKIDIS-ROWLEY-2015
+
+Matthew O. Williams, Ioannis G. Kevrekidis, and Clarence W. Rowley. "A
+Data-Driven Approximation of the Koopman Operator: Extending Dynamic Mode
+Decomposition." *Journal of Nonlinear Science* 25, 1307-1346, 2015. Cited for
+extended DMD on a dictionary of observables. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1007/s00332-015-9258-5](https://doi.org/10.1007/s00332-015-9258-5).
+
+## REF-PEHERSTORFER-WILLCOX-2016
+
+Benjamin Peherstorfer and Karen Willcox. "Data-Driven Operator Inference for
+Nonintrusive Projection-Based Model Reduction." *Computer Methods in Applied
+Mechanics and Engineering* 306, 196-215, 2016. Cited for operator inference of
+reduced polynomial operators by least squares. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1016/j.cma.2016.03.025](https://doi.org/10.1016/j.cma.2016.03.025).
+
+## REF-FASEL-ETAL-2022
+
+Urban Fasel, J. Nathan Kutz, Bingni W. Brunton, and Steven L. Brunton.
+"Ensemble-SINDy: Robust Sparse Model Discovery in the Low-Data, High-Noise
+Limit, with Active Learning and Control." *Proceedings of the Royal Society A*
+478(2260), 20210904, 2022. Cited for bagging SINDy models and inclusion
+probabilities. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1098/rspa.2021.0904](https://doi.org/10.1098/rspa.2021.0904).
+
+## REF-SIROVICH-1987
+
+Lawrence Sirovich. "Turbulence and the Dynamics of Coherent Structures. Part I:
+Coherent Structures." *Quarterly of Applied Mathematics* 45(3), 561-571, 1987.
+Cited for the snapshot method of proper orthogonal decomposition. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1090/qam/910462](https://doi.org/10.1090/qam/910462).
+
+## REF-ECKART-YOUNG-1936
+
+Carl Eckart and Gale Young. "The Approximation of One Matrix by Another of
+Lower Rank." *Psychometrika* 1(3), 211-218, 1936. Cited for the best low-rank
+approximation and its error in terms of the discarded singular values. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1007/BF02288367](https://doi.org/10.1007/BF02288367).
+
+## REF-SAVITZKY-GOLAY-1964
+
+Abraham Savitzky and Marcel J. E. Golay. "Smoothing and Differentiation of Data
+by Simplified Least Squares Procedures." *Analytical Chemistry* 36(8),
+1627-1639, 1964. Cited for local polynomial smoothing and differentiation. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1021/ac60214a047](https://doi.org/10.1021/ac60214a047).
+
+## REF-WILKINSON-1965
+
+James H. Wilkinson. *The Algebraic Eigenvalue Problem*. Oxford University
+Press, 1965. Cited for shifted QR iteration, Wilkinson shifts and inverse
+iteration for eigenvectors. The book has no DOI; title, author and year confirmed through a review indexed by Crossref (DOI 10.1137/1008125) on 2026-11-27.
+
+## REF-ANDRIEU-RENAUD-SUDRET-LEMAIRE-2004
+
+C. Andrieu-Renaud, B. Sudret, and M. Lemaire. "The PHI2 method: a way to
+compute time-variant reliability." *Reliability Engineering & System Safety*
+84(1), 75-86, 2004. Cited for the outcrossing rate from two FORM analyses and
+the bivariate normal probability. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1016/j.ress.2003.10.005](https://doi.org/10.1016/j.ress.2003.10.005).
+
+## REF-RICE-1944
+
+Stephen O. Rice. "Mathematical Analysis of Random Noise." *Bell System
+Technical Journal* 23(3), 282-332, 1944. Cited for the mean upcrossing rate of
+a Gaussian process. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1002/j.1538-7305.1944.tb00874.x](https://doi.org/10.1002/j.1538-7305.1944.tb00874.x).
+
+## REF-RICE-1945
+
+Stephen O. Rice. "Mathematical Analysis of Random Noise (continued)." *Bell
+System Technical Journal* 24(1), 46-156, 1945. Cited for the statistical
+properties of random noise currents and the crossing formulas. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1002/j.1538-7305.1945.tb00453.x](https://doi.org/10.1002/j.1538-7305.1945.tb00453.x).
+
+## REF-CRAMER-LEADBETTER-1967
+
+Harald Cramer and M. Ross Leadbetter. *Stationary and Related Stochastic
+Processes: Sample Function Properties and Their Applications*. Wiley, 1967.
+Cited for the Rice formula under moving barriers and the Poisson limit of
+crossings. The book has no DOI; title, authors and year confirmed through contemporary reviews indexed by Crossref (e.g. DOI 10.2307/1266213) on 2026-11-27.
+
+## REF-HOHENBICHLER-RACKWITZ-1986
+
+Michael Hohenbichler and Rudiger Rackwitz. "Sensitivity and Importance
+Measures in Structural Reliability." *Civil Engineering Systems* 3(4),
+203-209, 1986. Cited for the derivative of the reliability index with respect
+to distribution and design parameters at the design point. Metadata checked against Crossref
+(2026-11-27).
+DOI: [10.1080/02630258608970445](https://doi.org/10.1080/02630258608970445).
+
+## REF-PAPAIOANNOU-BREITUNG-STRAUB-2018
+
+Iason Papaioannou, Karl Breitung, and Daniel Straub. "Reliability Sensitivity
+Estimation with Sequential Importance Sampling." *Structural Safety* 75,
+24-34, 2018. Cited for score-function estimators of failure-probability
+derivatives with respect to distribution parameters. Metadata checked against Crossref (2026-11-27).
+DOI: [10.1016/j.strusafe.2018.05.003](https://doi.org/10.1016/j.strusafe.2018.05.003).
+
+## REF-SONG-LU-QIAO-2009
+
+Shufang Song, Zhenzhou Lu, and Hongwei Qiao. "Subset Simulation for
+Structural Reliability Sensitivity Analysis." *Reliability Engineering &
+System Safety* 94(2), 658-665, 2009. Cited for the score-function derivative
+estimator on subset-simulation samples. Metadata checked against Crossref (2026-11-27).
+DOI: [10.1016/j.ress.2008.07.006](https://doi.org/10.1016/j.ress.2008.07.006).
+
+## REF-CHING-CHEN-2007
+
+Jianye Ching and Yi-Chu Chen. "Transitional Markov Chain Monte Carlo Method for
+Bayesian Model Updating, Model Class Selection, and Model Averaging." *Journal
+of Engineering Mechanics* 133(7), 816-832, 2007. Cited for the transitional
+densities, the plausibility-weight rule for the exponents, the evidence
+estimator as the product of mean weights, and the resampling into Metropolis
+chains. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1061/(ASCE)0733-9399(2007)133:7(816)](https://doi.org/10.1061/(ASCE)0733-9399(2007)133:7(816)).
+
+## REF-BECK-YUEN-2004
+
+James L. Beck and Ka-Veng Yuen. "Model Selection Using Response Measurements:
+Bayesian Probabilistic Approach." *Journal of Engineering Mechanics* 130(2),
+192-203, 2004. Cited for Bayesian model class selection by posterior model
+probabilities and for the split of the log evidence into the posterior mean
+data fit minus the relative entropy of the posterior from the prior (the Ockham
+factor). Metadata checked against Crossref (2026-11-26).
+DOI: [10.1061/(ASCE)0733-9399(2004)130:2(192)](https://doi.org/10.1061/(ASCE)0733-9399(2004)130:2(192)).
+
+## REF-BETZ-PAPAIOANNOU-STRAUB-2016
+
+Wolfgang Betz, Iason Papaioannou, and Daniel Straub. "Transitional Markov
+Chain Monte Carlo: Observations and Improvements." *Journal of Engineering
+Mechanics* 142(5), 04016016, 2016. Cited for the analysis of the
+coefficient-of-variation rule of TMCMC and for tuning the proposal scaling
+and the chain construction. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1061/(ASCE)EM.1943-7889.0001066](https://doi.org/10.1061/(ASCE)EM.1943-7889.0001066).
+
+## REF-HOETING-ETAL-1999
+
+Jennifer A. Hoeting, David Madigan, Adrian E. Raftery, and Chris T. Volinsky.
+"Bayesian Model Averaging: A Tutorial." *Statistical Science* 14(4), 382-417,
+1999. Cited for model-averaged posterior predictive distributions weighted by
+posterior model probabilities. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1214/ss/1009212519](https://doi.org/10.1214/ss/1009212519).
+
+## REF-MARZOUK-ETAL-2017
+
+Youssef Marzouk, Tarek Moselhy, Matthew Parno, and Alessio Spantini. "An
+Introduction to Sampling via Measure Transport." In *Handbook of Uncertainty
+Quantification*, edited by Roger Ghanem, David Higdon, and Houman Owhadi,
+Springer, 2017. arXiv:1602.05023.
+
+Cited for triangular monotone transport maps, the KL objective of a map from
+samples or from an unnormalized density, and the variance diagnostic. Pages 785-825. Metadata checked against Crossref (2026-11-27).
+DOI: [10.1007/978-3-319-12385-1_23](https://doi.org/10.1007/978-3-319-12385-1_23).
+
+## REF-EL-MOSELHY-MARZOUK-2012
+
+Tarek A. El Moselhy and Youssef M. Marzouk. "Bayesian Inference with Optimal
+Maps." *Journal of Computational Physics* 231(23), 7815-7850, 2012.
+
+Cited for the construction of a transport map from the reference to the
+posterior by optimization.
+ Metadata checked against Crossref (2026-11-26).
+DOI: [10.1016/j.jcp.2012.07.022](https://doi.org/10.1016/j.jcp.2012.07.022).
+
+## REF-HAMADA-ETAL-2008
+
+Michael S. Hamada, Alyson G. Wilson, C. Shane Reese, and Harry F. Martz.
+*Bayesian Reliability*. Springer Series in Statistics. Springer, New York, 2008.
+
+Cited for Beta-binomial reliability demonstration, informative (heritage)
+priors for pass/fail test data, and mixture priors in
+`probstat.aerospace.engine_reliability`.
+ Metadata checked against Crossref (2026-11-26).
+DOI: [10.1007/978-0-387-77950-8](https://doi.org/10.1007/978-0-387-77950-8).
+
+## REF-KECECIOGLU-1993
+
+Dimitri Kececioglu. *Reliability and Life Testing Handbook*, Volume 1. PTR
+Prentice Hall, 1993. ISBN 0-13-772377-6 (catalogue record read on 2026-11-27).
+Cited for the Weibull test-time equivalence (a unit tested for `L` mission
+durations has reliability `R^(L^beta)`) used in
+`probstat.aerospace.engine_reliability.weibull_demonstration_units`; the
+relation follows from the Weibull survival function and is verified in the
+tests.
+
+## REF-ALVAREZ-ROSASCO-LAWRENCE-2012
+
+Mauricio A. Álvarez, Lorenzo Rosasco, and Neil D. Lawrence. "Kernels for
+Vector-Valued Functions: A Review." *Foundations and Trends in Machine
+Learning* 4(3), 195-266, 2012. Cited for the intrinsic and linear models of
+coregionalization with `B = W W' + diag(kappa)`. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1561/2200000036](https://doi.org/10.1561/2200000036).
+
+## REF-TITSIAS-2009
+
+Michalis K. Titsias. "Variational Learning of Inducing Variables in Sparse
+Gaussian Processes." *Proceedings of the 12th International Conference on
+Artificial Intelligence and Statistics (AISTATS)*, PMLR 5, 567-574, 2009. Cited
+for the collapsed variational free-energy bound and the sparse predictive law.
+Record read on the publisher's page on 2026-11-27; no DOI.
+<https://proceedings.mlr.press/v5/titsias09a.html>.
+
+## REF-QUINONERO-CANDELA-RASMUSSEN-2005
+
+Joaquin Quiñonero-Candela and Carl Edward Rasmussen. "A Unifying View of Sparse
+Approximate Gaussian Process Regression." *Journal of Machine Learning
+Research* 6(65), 1939-1959, 2005. Cited for the DTC/FITC marginal likelihoods
+and predictive laws and for the `O(n m^2)` cost of sparse GP regression.
+Record read on the publisher's page on 2026-11-27; no DOI.
+<https://www.jmlr.org/papers/v6/quinonero-candela05a.html>.
+
+## REF-SNELSON-GHAHRAMANI-2006
+
+Edward Snelson and Zoubin Ghahramani. "Sparse Gaussian Processes using
+Pseudo-inputs." In *Advances in Neural Information Processing Systems 18*
+(NIPS 2005), 1257-1264, 2005. Cited for the FITC approximation and
+gradient-based optimization of pseudo-inputs. Record read on the publisher's page on 2026-11-27; no DOI.
+<https://papers.nips.cc/paper/2857-sparse-gaussian-processes-using-pseudo-inputs>.
+
+## REF-SOLAK-ETAL-2002
+
+Ercan Solak, Roderick Murray-Smith, William E. Leithead, Douglas J. Leith, and
+Carl Edward Rasmussen. "Derivative Observations in Gaussian Process Models of
+Dynamic Systems." In *Advances in Neural Information Processing Systems 15*
+(NIPS 2002). Cited for joint GP observations of function values and
+derivatives through the derivative kernel blocks. Record read on the publisher's page on 2026-11-27; no DOI. Page numbers are
+omitted because the sources disagree.
+<https://papers.neurips.cc/paper_files/paper/2002/hash/5b8e4fd39d9786228649a8a8bec4e008-Abstract.html>.
+
+## REF-JIDLING-ETAL-2017
+
+Carl Jidling, Niklas Wahlström, Adrian Wills, and Thomas B. Schön. "Linearly
+Constrained Gaussian Processes." In *Advances in Neural Information Processing
+Systems 30* (NIPS 2017), 1215-1224, 2017. Cited for Gaussian-process priors
+under linear operator constraints and the induced cross-covariances. Proceedings
+page read on 2026-11-27; preprint record checked against DataCite. Metadata checked against Crossref (2026-11-26).
+DOI: [10.48550/arXiv.1703.00787](https://doi.org/10.48550/arXiv.1703.00787).
+
+## REF-RAISSI-ETAL-2017
+
+Maziar Raissi, Paris Perdikaris, and George Em Karniadakis. "Machine learning
+of linear differential equations using Gaussian processes." *Journal of
+Computational Physics* 348, 683-693, 2017. Cited for GP priors on `u` with
+observations of `L u` for a linear differential operator `L` and the
+closed-form operator-transformed kernels. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1016/j.jcp.2017.07.050](https://doi.org/10.1016/j.jcp.2017.07.050).
+
+## REF-KERSTING-ETAL-2007
+
+Kristian Kersting, Christian Plagemann, Patrick Pfaff, and Wolfram Burgard.
+"Most Likely Heteroscedastic Gaussian Process Regression." In *Proceedings of
+the 24th International Conference on Machine Learning (ICML)*, 393-400, 2007.
+Cited for the alternating fit of a main GP and a GP on the log noise level. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1145/1273496.1273546](https://doi.org/10.1145/1273496.1273546).
+
+## REF-BARDSLEY-SOLONEN-HAARIO-LAINE-2014
+
+Johnathan M. Bardsley, Antti Solonen, Heikki Haario, and Marko Laine.
+"Randomize-Then-Optimize: A Method for Sampling from Posterior Distributions in
+Nonlinear Inverse Problems." *SIAM Journal on Scientific Computing* 36(4),
+A1895-A1910, 2014. Cited for the randomize-then-optimize proposal, its density
+with the determinant correction and the Metropolis-Hastings correction. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1137/140964023](https://doi.org/10.1137/140964023).
+
+## REF-CUI-LAW-MARZOUK-2016
+
+Tiangang Cui, Kody J. H. Law, and Youssef M. Marzouk.
+"Dimension-Independent Likelihood-Informed MCMC."
+*Journal of Computational Physics* 304, 109-137, 2016. Cited for the
+likelihood-informed subspace split of the proposal (Langevin in the informed
+subspace, pCN in the complement) and for dimension-robust sampling efficiency. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1016/j.jcp.2015.10.008](https://doi.org/10.1016/j.jcp.2015.10.008).
+
+## REF-VILLA-PETRA-GHATTAS-2021
+
+Umberto Villa, Noemi Petra, and Omar Ghattas.
+"hIPPYlib: An Extensible Software Framework for Large-Scale Inverse Problems
+Governed by PDEs: Part I: Deterministic Inversion and Linearized Bayesian
+Inference." *ACM Transactions on Mathematical Software* 47(2), Article 16,
+2021. Cited for the matrix-free workflow of MAP point, low-rank Hessian
+eigenpairs and Laplace posterior with the prior-preconditioned Hessian. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1145/3428447](https://doi.org/10.1145/3428447).
+
+## REF-RUDOLF-SPRUNGK-2018
+
+Daniel Rudolf and Bjoern Sprungk. "On a Generalization of the Preconditioned
+Crank-Nicolson Metropolis Algorithm." *Foundations of Computational Mathematics*
+18(2), 309-343, 2018. Cited for the generalized pCN proposal that is reversible
+for a Gaussian reference measure with a general covariance and for its
+acceptance ratio. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1007/s10208-016-9340-x](https://doi.org/10.1007/s10208-016-9340-x).
+
+## REF-KITANIDIS-1995
+
+Peter K. Kitanidis. "Quasi-Linear Geostatistical Theory for Inversing."
+*Water Resources Research* 31(10), 2411-2419, 1995. Cited for the
+randomized-maximum-likelihood idea of drawing a perturbed-data optimum
+(perturbation of data in a quasi-linear inversion) and its exactness for linear
+Gaussian problems. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1029/95WR01945](https://doi.org/10.1029/95WR01945).
+
+## REF-BEKAS-KOKIOPOULOU-SAAD-2007
+
+Costas Bekas, Effrosini Kokiopoulou, and Yousef Saad. "An Estimator for the
+Diagonal of a Matrix." *Applied Numerical Mathematics* 57(11-12), 1214-1229,
+2007. Cited for the Rademacher probing estimator of the diagonal of an operator
+available only through matrix-vector products. Metadata checked against Crossref (2026-11-26).
+DOI: [10.1016/j.apnum.2007.01.003](https://doi.org/10.1016/j.apnum.2007.01.003).
+
+## REF-CURTIS-2014
+
+Howard D. Curtis. *Orbital Mechanics for Engineering Students*.
+Butterworth-Heinemann (Elsevier), 2014. ISBN 978-0-08-097747-8. Catalogue
+record read on Open Library on 2026-11-27 (title, author, publishers, ISBN;
+LC classification TL1050 .C87 2014); the record states no edition and lists
+the publication date as 2013.
+
+Cited for the planar two-body relations used by `probstat.aerospace.ascent`:
+specific energy, angular momentum, eccentricity, perigee and apogee radii from
+a state given by radius, speed and flight-path angle, and the point-mass
+planar equations of motion of a launch vehicle in a central gravity field.
+
+## REF-US-STANDARD-ATMOSPHERE-1976
+
+National Oceanic and Atmospheric Administration, National Aeronautics and
+Space Administration, and United States Air Force. *U.S. Standard Atmosphere,
+1976.* NOAA-S/T 76-1562, NASA-TM-X-74335. U.S. Government Printing Office,
+Washington, D.C., October 1976 (no DOI). NASA Technical Reports Server record
+19770009539 read on 2026-11-27 (title, both report numbers, date). The layer
+base pressures used in the tests (22632.1, 5474.89, 868.019 and 110.906 Pa at
+11, 20, 32 and 47 km) and the sea-level density were cross-checked against a
+secondary tabulation of the 1976 standard, not against the report itself.
+
+Cited for the layer structure of the standard atmosphere up to 86 km
+(geopotential bases, base temperatures, lapse rates, sea-level pressure
+101325 Pa and density 1.2250 kg/m^3, the hydrostatic and ideal-gas relations
+and the conversion between geometric and geopotential altitude) used by
+`probstat.aerospace.ascent.atmosphere`.
+
+## REF-ARISTOFF-BANGERTH-2023
+
+David Aristoff and Wolfgang Bangerth. "A Benchmark for the Bayesian Inversion of
+Coefficients in Partial Differential Equations." *SIAM Review* 65(4),
+1074-1105, 2023 (arXiv:2102.07263). Cited for the complete benchmark definition
+(forward model, likelihood, prior, measurement vector, Metropolis-Hastings
+sampler) and the reference posterior means. Metadata checked against
+Crossref (2026-11-27).
+DOI: [10.1137/21M1399464](https://doi.org/10.1137/21M1399464).
+
+## REF-ELMAN-SILVESTER-WATHEN-2014
+
+Howard C. Elman, David J. Silvester, and Andrew J. Wathen. *Finite Elements and
+Fast Iterative Solvers: with Applications in Incompressible Fluid Dynamics*.
+2nd edition. Oxford University Press, 2014. Cited for the bilinear (Q1) finite
+element discretization of the diffusion problem `-div(a grad u) = f`.
+Metadata checked against Crossref (2026-11-27).
+DOI: [10.1093/acprof:oso/9780199678792.001.0001](https://doi.org/10.1093/acprof:oso/9780199678792.001.0001).
+
+## REF-BAYARRI-ETAL-2007
+
+M. J. Bayarri, James O. Berger, Rui Paulo, Jerry Sacks, John A. Cafeo, James
+Cavendish, Chin-Hsu Lin, and Jian Tu. "A Framework for Validation of Computer
+Models." *Technometrics* 49(2), 138-154, 2007.
+Cited for the modular treatment of an emulated simulator with a bias
+(discrepancy) function and the validation of computer models against field
+data used by `probstat.validation.koh_emulator`. Metadata checked against
+Crossref (2026-11-27).
+DOI: [10.1198/004017007000000092](https://doi.org/10.1198/004017007000000092).
+
+## REF-BECK-BLACKWELL-STCLAIR-1985
+
+James V. Beck, Ben Blackwell, and Charles R. St. Clair Jr. *Inverse Heat
+Conduction: Ill-Posed Problems*. Wiley-Interscience, 1985. ISBN 0-471-08319-4.
+Cited for the sensitivity coefficients of the inverse heat conduction problem,
+the sequential function specification method with future time steps and the
+discussion of the time lag and smoothing caused by sensor depth. The book has
+no DOI; title, subtitle, the three authors, publisher, year and ISBN read from
+the Open Library catalogue record on 2026-11-27.
+
+## REF-CARSLAW-JAEGER-1959
+
+H. S. Carslaw and J. C. Jaeger. *Conduction of Heat in Solids*. 2nd edition.
+Clarendon Press, Oxford, 1959. Cited for the semi-infinite-solid response to a
+constant surface flux and for the eigenfunction-expansion solutions of the
+finite slab. The book has no DOI; authors, edition, publisher and year read
+from the Open Library catalogue record on 2026-11-27.
+
+## REF-ALLEN-EGGERS-1958
+
+H. Julian Allen and A. J. Eggers Jr. "A Study of the Motion and Aerodynamic
+Heating of Ballistic Missiles Entering the Earth's Atmosphere at High Supersonic
+Speeds." NACA Report 1381, National Advisory Committee for Aeronautics, 1958. Record
+read on the NASA Technical Reports Server (19930091020) on 2026-11-27 (title,
+authors, report number, year); no DOI. The formulas used were derived again
+and are verified against quadrature and the integrator in
+`tests/test_aerospace_entry.py`.
+
+Cited for the closed-form ballistic-entry solution in an exponential
+atmosphere: the velocity-altitude relation, the peak deceleration and its
+altitude, and the steep-versus-shallow trade-off used in
+`probstat.aerospace.entry`.
+
+## REF-SUTTON-GRAVES-1971
+
+Kenneth Sutton and Randolph A. Graves Jr. "A General Stagnation-Point
+Convective-Heating Equation for Arbitrary Gas Mixtures." NASA Technical Report
+R-376, National Aeronautics and Space Administration, Washington, D.C.,
+November 1971. Report read from the NASA Technical Reports Server copy
+(19720003329) on 2026-11-27: the definition of the heat-transfer coefficient
+(equation 33) and the air value `K = 0.1113 kg/(s m^1.5 atm^0.5)` (table II),
+from which the SI constant 1.7483e-4 kg^0.5/m is derived; no DOI.
+
+Cited for the stagnation-point convective heat-flux correlation
+`q = k sqrt(rho/R_n) V^3` used in `probstat.aerospace.entry`.
+
+## REF-CONRAD-MARZOUK-PILLAI-SMITH-2016
+
+P. R. Conrad, Y. M. Marzouk, N. S. Pillai and A. Smith, "Accelerating
+asymptotically exact MCMC for computationally intensive models via local
+approximations", Journal of the American Statistical Association 111(516),
+1591-1607 (2016). Cited for the local-regression surrogate, the random and
+cross-validation refinement of the evaluation store and the asymptotic
+exactness argument. Metadata checked against Crossref (2026-11-27).
+DOI: [10.1080/01621459.2015.1096787](https://doi.org/10.1080/01621459.2015.1096787).
+
+## REF-CHRISTIANSEN-1993
+
+Eric L. Christiansen. "Design and Performance Equations for Advanced
+Meteoroid and Debris Shields." *International Journal of Impact Engineering*
+14(1-4), 145-156, 1993.
+
+Cited for the structure of dual-wall ballistic limit equations with ballistic,
+shatter (transition) and hypervelocity regimes. Metadata checked against Crossref (2026-11-27).
+DOI: [10.1016/0734-743x(93)90016-z](https://doi.org/10.1016/0734-743x(93)90016-z).
+
+## REF-COUR-PALAIS-1987
+
+Burton G. Cour-Palais. "Hypervelocity Impact in Metals, Glass and
+Composites." *International Journal of Impact Engineering* 5(1-4), 221-237,
+1987.
+
+Cited for the single-wall ballistic limit as a power law in thickness,
+densities, speed and obliquity. Metadata checked against Crossref (2026-11-27).
+DOI: [10.1016/0734-743x(87)90040-6](https://doi.org/10.1016/0734-743x(87)90040-6).
+
+## REF-WHIPPLE-1947
+
+Fred L. Whipple. "Meteorites and Space Travel." *The Astronomical Journal*
+52, 131, 1947.
+
+Cited for the bumper (Whipple) shield concept. Metadata checked against Crossref (2026-11-27).
+DOI: [10.1086/106009](https://doi.org/10.1086/106009).
+
+## REF-BARTZ-1957
+
+D. R. Bartz. "A Simple Equation for Rapid Estimation of Rocket Nozzle
+Convective Heat Transfer Coefficients." *Jet Propulsion* 27(1), 1957, in the
+Technical Notes section, pp. 49-53. Cited for the Bartz correlation of the
+gas-side convective heat-transfer coefficient in a rocket nozzle and its
+property-variation factor `sigma` used in `probstat.aerospace.nozzle_cooling`.
+The DOI below resolves to that Technical Notes section; its Crossref and
+OpenAlex records (read 2026-11-27) give the journal, volume, issue, pages and
+year but not the note's title or author, and the publisher's page refused
+automated access, so the title and author are as commonly cited and were not
+confirmed against a record.
+DOI: [10.2514/8.12572](https://doi.org/10.2514/8.12572).
+
+## REF-BERGMAN-2011
+
+Theodore L. Bergman, Adrienne S. Lavine, Frank P. Incropera and David P.
+DeWitt. *Fundamentals of Heat and Mass Transfer*, 7th ed. Wiley, 2011. ISBN
+978-0-470-50197-9. Cited for the Dittus-Boelter forced-convection correlation,
+the series thermal-resistance wall model and the turbulent recovery factor
+`Pr^(1/3)` in `probstat.aerospace.nozzle_cooling`. Title, edition, publisher,
+year and ISBN read from the Open Library catalogue record on 2026-11-27, which
+names "Theodore L. Bergman ... [et al.]"; the co-authors are as commonly cited.
+The correlation originates with F. W. Dittus and L. M. K. Boelter (1930),
+reprinted as "Heat transfer in automobile radiators of the tubular type",
+*International Communications in Heat and Mass Transfer* 12(1), 3-22, 1985
+(metadata checked against Crossref, 2026-11-27; DOI 10.1016/0735-1933(85)90003-x).
+
+## REF-NASA-SP-8007-1968
+
+V. I. Weingarten, P. Seide, and J. P. Peterson. *Buckling of Thin-Walled
+Circular Cylinders*. NASA SP-8007, National Aeronautics and Space
+Administration, August 1968 (NASA Technical Reports Server 19690013955,
+https://ntrs.nasa.gov/citations/19690013955). Cited for the original
+space-vehicle design criteria for buckling of circular cylinders. Record read
+on the NASA Technical Reports Server on 2026-11-27 (title, authors, report
+number, date).
+
+## REF-NASA-SP-8007-2020
+
+Mark W. Hilburger. *Buckling of Thin-Walled Circular Cylinders*.
+NASA/SP-8007-2020/REV 2, National Aeronautics and Space Administration,
+December 2020 (NASA Technical Reports Server 20205011530,
+https://ntrs.nasa.gov/citations/20205011530). Cited for the classical axial
+buckling stress (Eqs. 7 and 8) and the empirical axial-compression knockdown
+factor (Eqs. 9 and 10, `R/t < 1500`) and the imperfection-sensitivity
+knockdown based on Koiter's curve (Eqs. 138-139). Equations 7-10 and 138-139
+were read from the report on 2026-11-27.
+
+## REF-HIGDON-GATTIKER-WILLIAMS-RIGHTLEY-2008
+
+David Higdon, James Gattiker, Brian Williams, and Maria Rightley. "Computer
+Model Calibration Using High-Dimensional Output." *Journal of the American
+Statistical Association* 103(482), 570-583, 2008. Cited for the principal-
+component basis representation of a field-valued simulator, the Gaussian-process
+emulation of the basis weights, and the calibration of the reduced (projected)
+data with a basis-represented discrepancy. Metadata checked against Crossref (2026-11-27).
+DOI: [10.1198/016214507000000888](https://doi.org/10.1198/016214507000000888).
+
+## REF-SAXENA-GOEBEL-SIMON-EKLUND-2008
+
+Abhinav Saxena, Kai Goebel, Don Simon, and Neil Eklund. "Damage propagation
+modeling for aircraft engine run-to-failure simulation." *2008 International
+Conference on Prognostics and Health Management*, 1-9, 2008. Cited for the
+construction of synthetic run-to-failure degradation records from a health
+index that decays towards a failure threshold, the pattern followed by the
+synthetic engine-efficiency degradation of the health-monitoring twin.
+Metadata checked against Crossref (2026-11-27).
+DOI: [10.1109/PHM.2008.4711414](https://doi.org/10.1109/PHM.2008.4711414).
+
+## REF-BROOK-EVANS-1972
+
+D. Brook and D. A. Evans. "An Approach to the Probability Distribution of
+Cusum Run Length." *Biometrika* 59(3), 539-549, 1972. Cited for the integral
+equation of the average run length of a CUSUM scheme, solved numerically in
+`probstat.aerospace.health_monitoring.cusum_arl_numerical`. Metadata checked against Crossref (2026-11-27).
+DOI: [10.1093/biomet/59.3.539](https://doi.org/10.1093/biomet/59.3.539).
+
+## REF-WILLSKY-JONES-1976
+
+Alan S. Willsky and Harold L. Jones. "A Generalized Likelihood Ratio Approach
+to the Detection and Estimation of Jumps in Linear Systems." *IEEE
+Transactions on Automatic Control* 21(1), 108-112, 1976. Cited for the
+generalized likelihood ratio test of an abrupt change with unknown time and
+size. Metadata checked against Crossref (2026-11-27).
+DOI: [10.1109/tac.1976.1101146](https://doi.org/10.1109/tac.1976.1101146).
+
+## REF-SIEGMUND-1979
+
+D. Siegmund. "Corrected Diffusion Approximations in Certain Random Walk
+Problems." *Advances in Applied Probability* 11(4), 701-719, 1979. Cited for
+the corrected diffusion approximation behind the overshoot constant
+`-zeta(1/2)/sqrt(2 pi) = 0.5826` (value computed here) used for the
+discrete-monitoring barrier shift and, doubled, in the CUSUM run-length
+approximation; the paper itself was not read. Metadata checked against Crossref (2026-11-27).
+DOI: [10.2307/1426855](https://doi.org/10.2307/1426855).
+
+## REF-CHHIKARA-FOLKS-1989
+
+Raj S. Chhikara and J. Leroy Folks. *The Inverse Gaussian Distribution:
+Theory, Methodology, and Applications*. Statistics: Textbooks and Monographs
+95. Marcel Dekker, 1989. ISBN 0-8247-7997-5. Cited for the inverse Gaussian
+law of the first-passage time of a Brownian motion with drift and its
+distribution function. The book has no DOI; title, authors, series,
+publisher and year read from the Open Library catalogue record on 2026-11-27.
+
+## REF-ALVAREZ-LUENGO-LAWRENCE-2013
+
+Mauricio A. Alvarez, David Luengo, and Neil D. Lawrence. "Linear Latent Force
+Models Using Gaussian Processes." *IEEE Transactions on Pattern Analysis and
+Machine Intelligence* 35(11), 2693-2705, 2013. Cited for the latent force model
+(a linear ODE driven by a Gaussian-process force) and its induced covariance
+functions. Metadata checked against Crossref (2026-11-27).
+DOI: [10.1109/tpami.2013.86](https://doi.org/10.1109/tpami.2013.86).
+
+## REF-SARKKA-ALVAREZ-LAWRENCE-2019
+
+Simo Sarkka, Mauricio A. Alvarez, and Neil D. Lawrence. "Gaussian Process
+Latent Force Models for Learning and Stochastic Control of Physical Systems."
+*IEEE Transactions on Automatic Control* 64(7), 2953-2960, 2019. Cited for the
+state-space (stochastic differential equation) form of latent force models
+that gives exact GP regression in linear time. Metadata checked against
+Crossref (2026-11-27).
+DOI: [10.1109/tac.2018.2874749](https://doi.org/10.1109/tac.2018.2874749).
+
+## REF-NASA-SP-8052-1971
+
+NASA. "Liquid rocket engine turbopump inducers." NASA SP-8052 (NASA Space
+Vehicle Design Criteria), May 1971. NASA Technical Reports Server 19710025474.
+Record read on the NASA Technical Reports Server on 2026-11-27 (title, report
+number, date); no DOI. The document itself was not read.
+
+Cited for the concept of the net positive suction head required by an inducer
+and the suction specific speed.
+
+## REF-BRENNEN-1994
+
+Christopher E. Brennen. *Hydrodynamics of Pumps.* Oxford University Press and
+Concepts ETI, 1994. ISBN 0-19-856442-2, catalogue record (Open Library) read on
+2026-11-27; no DOI. The book itself was not read.
+
+Cited for the concepts of net positive suction head, Thoma cavitation number
+and suction specific speed.
+
+## REF-KARLGAARD-KUTTY-SCHOENENBERGER-MUNK-2014
+
+Christopher D. Karlgaard, Prasad Kutty, Mark Schoenenberger, and Michael M. Munk.
+"Mars Science Laboratory Entry Atmospheric Data System Trajectory and Atmosphere
+Reconstruction." Journal of Spacecraft and Rockets 51(4), 1029-1047, 2014.
+Metadata checked against Crossref (2026-11-27). The article itself was not read.
+
+Cited only for the problem setting of `probstat.aerospace.entry_reconstruction`:
+reconstructing the trajectory and the atmosphere of an entry after flight from
+flight data. No formula, algorithm or number of the paper is used; the models,
+filters and numbers in the module are this library's own and synthetic.
+
+DOI: [10.2514/1.a32770](https://doi.org/10.2514/1.a32770).
+
+## REF-PERDIKARIS-ETAL-2017
+
+Paris Perdikaris, Maziar Raissi, Andreas Damianou, Neil D. Lawrence, and
+George Em Karniadakis. "Nonlinear information fusion algorithms for
+data-efficient multi-fidelity modelling." *Proceedings of the Royal Society A*
+473(2198), 20160751, 2017. Cited for the nonlinear autoregressive
+multi-fidelity GP (NARGP): a Gaussian process on the augmented input
+`(x, f_(t-1)(x))` with the structured kernel `k_rho k_f + k_delta`, fitted
+recursively and propagated through the levels by Monte Carlo.
+Metadata checked against Crossref (2026-11-27).
+DOI: [10.1098/rspa.2016.0751](https://doi.org/10.1098/rspa.2016.0751).
+
+## REF-KING-HELE-1987
+
+Desmond King-Hele. *Satellite Orbits in an Atmosphere: Theory and
+Applications*. Blackie, Glasgow and London, 1987. ISBN 0-216-92252-6.
+Catalogue record (Open Library) read on 2026-11-27; no DOI; the book was not
+read.
+
+Cited for the theory of satellite orbital decay in an atmosphere with an
+exponential density profile, and for the use of orbit-averaged equations for
+the semi-major axis and eccentricity in the analysis of lifetimes.
+
+## REF-BECK-KATAFYGIOTIS-1998
+
+James L. Beck and Lambros S. Katafygiotis. "Updating Models and Their
+Uncertainties. I: Bayesian Statistical Framework." *Journal of Engineering
+Mechanics* 124(4), 455-461, 1998. Cited for the Bayesian framework of updating
+structural models from identified modal data, with a prior on the stiffness
+parameters and a Gaussian error model for frequencies and mode shapes.
+Metadata checked against Crossref (2026-11-27).
+DOI: [10.1061/(ASCE)0733-9399(1998)124:4(455)](https://doi.org/10.1061/(ASCE)0733-9399(1998)124:4(455)).
+
+## REF-FARRENKOPF-1978
+
+R. L. Farrenkopf (as commonly cited; the Crossref record lists no author).
+"Analytic Steady-State Accuracy Solutions for Two Common Spacecraft Attitude
+Estimators." *Journal of Guidance and Control* 1(4), 282-284, 1978 (now
+*Journal of Guidance, Control, and Dynamics*). Metadata checked against
+Crossref (2026-11-27).
+DOI: [10.2514/3.55779](https://doi.org/10.2514/3.55779).
+
+Cited for the problem setting: analytic steady-state accuracy of a gyro and
+star-tracker attitude filter. The paper was not read; the steady state
+implemented in `probstat.aerospace.attitude_estimation` is derived and
+verified numerically in this library, not quoted from it.
+
+## REF-MARKLEY-CRASSIDIS-2014
+
+F. Landis Markley and John L. Crassidis. *Fundamentals of Spacecraft Attitude
+Determination and Control*. Springer New York, 2014. Cited for Euler's
+equations of a rigid body and the attitude-dynamics setting in which the
+inertia identification of `probstat.inverse.inertia_identification` is posed;
+the book was not read for the implementation, whose relations are derived in
+the equation records. Metadata checked against Crossref (2026-11-27).
+DOI: [10.1007/978-1-4939-0802-8](https://doi.org/10.1007/978-1-4939-0802-8).

@@ -235,15 +235,15 @@
     "adimlar": [
      {
       "ad": "Cite",
-      "cumle": "950+ sources; every function's docstring names its source key."
+      "cumle": "1,050+ sources; every function's docstring names its source key."
      },
      {
       "ad": "Register",
-      "cumle": "1,850+ equations, each with symbols, a source, and its code location."
+      "cumle": "2,200+ equations, each with symbols, a source, and its code location."
      },
      {
       "ad": "Test",
-      "cumle": "5,100+ tests against closed forms, enumeration, and Monte Carlo error bounds."
+      "cumle": "6,500+ tests against closed forms, enumeration, and Monte Carlo error bounds."
      },
      {
       "ad": "Audit figures",
@@ -256,7 +256,7 @@
     ]
    },
    "bullets": [],
-   "notes": "Each check is enforced by a test, not by a promise. The documentation contract fails when a function's references section names no source key or an equation identifier is missing from the registry. Tests use independent oracles: closed forms, exact enumeration, published values, a multiple-precision reference, or statistical checks whose tolerance comes from the Monte Carlo standard error, so they hold on every platform. Figures follow one semantic theme in a light and a dark palette. Continuous integration runs lint, strict type checking, the tests, the quick benchmark, and all 44 labs on 3 Python versions. Design choices are recorded in 140+ decision records. Bridge: the benchmarks score methods against exact answers."
+   "notes": "Each check is enforced by a test, not by a promise. The documentation contract fails when a function's references section names no source key or an equation identifier is missing from the registry. Tests use independent oracles: closed forms, exact enumeration, published values, a multiple-precision reference, or statistical checks whose tolerance comes from the Monte Carlo standard error, so they hold on every platform. Figures follow one semantic theme in a light and a dark palette. Continuous integration runs lint, strict type checking, the tests, the quick benchmark, and all 47 labs on 3 Python versions. Design choices are recorded in 140+ decision records. Bridge: the benchmarks score methods against exact answers."
   },
   {
    "id": "s14",

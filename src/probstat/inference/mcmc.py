@@ -737,21 +737,17 @@ def _run_chain(
     """
     generator = stream.generator()
     dimension = len(start)
-    evaluations = 0
-
-    def evaluate(point: Vector) -> float:
-        """Count and evaluate the target log-density.
-
-        References:
-            [EQ-MCMC-MH-001]. No new equation is introduced.
-
-        """
-        nonlocal evaluations
-        evaluations += 1
-        return log_density(point)
+    gauss = generator.gauss
+    uniform = generator.random
+    log = math.log
+    fsum = math.fsum
+    mul = operator.mul
+    add = operator.add
+    axes = range(dimension)
 
     state = start
-    current = evaluate(state)
+    evaluations = 1
+    current = log_density(state)
     if not math.isfinite(current):
         raise ValueError("initial point must have a finite log-density")
     lower = cholesky(covariance)
@@ -765,11 +761,14 @@ def _run_chain(
     trace: list[float] = []
     total = warmup + draws * thin
     for iteration in range(total):
-        z = tuple(generator.gauss(0.0, 1.0) for _ in range(dimension))
-        step = matvec(lower, z)
-        proposal = tuple(a + b for a, b in zip(state, step, strict=True))
-        proposed = evaluate(proposal)
-        accepted = math.log(1.0 - generator.random()) < proposed - current
+        z = [gauss(0.0, 1.0) for _ in axes]
+        # ``lower`` is dimension x dimension and ``z`` has ``dimension``
+        # entries, so ``matvec``'s length check cannot fire; the rows are the
+        # same exactly rounded ``fsum`` of products ``matvec`` takes.
+        proposal = tuple(map(add, state, [fsum(map(mul, row, z)) for row in lower]))
+        evaluations += 1
+        proposed = log_density(proposal)
+        accepted = log(1.0 - uniform()) < proposed - current
         if accepted:
             state, current = proposal, proposed
         if iteration < warmup:
@@ -1642,8 +1641,7 @@ def convergence_warnings(result: MCMCResult) -> tuple[str, ...]:
     """
     if result.draws_per_chain < 4:
         return (
-            "fewer than 4 draws per chain: convergence diagnostics were not "
-            "computed",
+            "fewer than 4 draws per chain: convergence diagnostics were not computed",
         )
     chain_count = len(result.chains)
     threshold = ESS_PER_CHAIN_THRESHOLD * chain_count

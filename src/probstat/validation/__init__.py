@@ -126,6 +126,24 @@ from .credibility_scale import (
     weighted_evidence_review_level,
 )
 from .discrepancy import AdditiveGaussianDiscrepancy
+from .functional_calibration import (
+    EmulatorValidation,
+    FieldBasis,
+    FieldEmulator,
+    FieldEmulatorPrediction,
+    FieldPrediction,
+    FunctionalCalibration,
+    ScalarComparison,
+    fit_field_basis,
+    gaussian_bump_basis,
+)
+from .koh_emulator import (
+    IdentifiabilityReport,
+    KOHEmulatorCalibration,
+    KOHPrediction,
+    KOHResult,
+    LogNormalPrior,
+)
 from .metrics import (
     AsmeComparison,
     BayesFactorResult,
@@ -198,6 +216,20 @@ from .shift import (
 )
 
 __all__ = [
+    "FieldBasis",
+    "fit_field_basis",
+    "FieldEmulator",
+    "FieldEmulatorPrediction",
+    "EmulatorValidation",
+    "FunctionalCalibration",
+    "FieldPrediction",
+    "ScalarComparison",
+    "gaussian_bump_basis",
+    "KOHEmulatorCalibration",
+    "LogNormalPrior",
+    "KOHResult",
+    "KOHPrediction",
+    "IdentifiabilityReport",
     "CredibilityAssessment",
     "CredibilityFactor",
     "CredibilityLevel",

@@ -1,0 +1,39 @@
+{
+  "propulsion-growth-rate-sobol": {
+    "guide": "aerospace-propulsion-uq",
+    "alt": "Dot chart of first-order and total-effect Sobol indices of the growth rate for five uncertain chamber parameters, ordered by first-order index",
+    "facts": {
+      "first": "tau",
+      "first_index": "0.39",
+      "second": "n",
+      "second_index": "0.38",
+      "third_total": "0.07",
+      "coverage": "1.00"
+    }
+  },
+  "propulsion-instability-flame-lag": {
+    "guide": "aerospace-propulsion-uq",
+    "alt": "Probability of thermoacoustic instability against the mean flame time lag in milliseconds: a line with markers and a shaded 95 percent band that rises and falls repeatedly across the lag range",
+    "facts": {
+      "peak": "0.56",
+      "peak_lag": "3.5",
+      "calm_from": "5.0",
+      "calm_to": "7.0",
+      "last": "0.26",
+      "last_lag": "8.0",
+      "runs": "400"
+    }
+  },
+  "propulsion-motor-pressure-band": {
+    "guide": "aerospace-propulsion-uq",
+    "alt": "Chamber pressure in megapascals against time since ignition: a shaded 5 to 95 percent band and median of 150 motor burns, with a dashed line at the median burst pressure",
+    "facts": {
+      "mean_peak": "6.37",
+      "q95_peak": "7.39",
+      "burst": "8.40",
+      "gap": "1.0",
+      "probability": "5.4e-03",
+      "runs": "1400"
+    }
+  }
+}

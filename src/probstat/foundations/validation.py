@@ -27,6 +27,8 @@ def require_non_negative_integer(value: object, *, name: str) -> int:
         not evaluate a mathematical equation.
 
     """
+    if type(value) is int and value >= 0:
+        return value  # fast path: an exact non-negative ``int``
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError(f"{name} must be an integer")
     if value < 0:
@@ -52,6 +54,9 @@ def require_probability(value: object, *, name: str = "p") -> float:
         [EQ-PROB-001], [REF-KOLMOGOROV-1956].
 
     """
+    if type(value) is float and 0.0 <= value <= 1.0:
+        # Fast path: the comparison is False for NaN and for values outside [0, 1].
+        return value
     if isinstance(value, bool) or not isinstance(value, Real):
         raise TypeError(f"{name} must be a real number")
     result = float(value)
@@ -164,7 +169,11 @@ def coerce_finite_sample(
 
     """
     result: list[float] = []
+    isfinite = math.isfinite
     for index, value in enumerate(values):
+        if type(value) is float and isfinite(value):
+            result.append(value)  # fast path: exact finite float
+            continue
         if isinstance(value, bool) or not isinstance(value, Real):
             raise TypeError(f"{name}[{index}] must be a real number")
         observation = float(value)
@@ -174,4 +183,3 @@ def coerce_finite_sample(
     if not result:
         raise ValueError(f"{name} must contain at least one observation")
     return tuple(result)
-
