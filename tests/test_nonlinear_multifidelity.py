@@ -346,7 +346,72 @@ class BenchmarkTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Fit every benchmark once (shared by the tests)."""
+        """Fit the nonlinear benchmark once (shared by the tests)."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            cls.tests = _grid(30)
+            cls.nonlinear = _nonlinear_benchmark()
+
+    def test_nonlinear_cross_correlation_beats_linear_and_single(self) -> None:
+        """NARGP is at least 4x more accurate than AR(1) and the single GP."""
+        b = self.nonlinear
+        self.assertLess(b.rmse, 0.1)
+        self.assertLess(b.rmse, 0.25 * b.ar1_rmse)
+        self.assertLess(b.rmse, 0.25 * b.single_rmse)
+
+    def test_nonlinear_predictive_coverage(self) -> None:
+        """The plug-in-hyperparameter 95% interval covers at least 70%.
+
+        Measured 0.833 on 30 test points (the nominal 0.95 is not reached
+        because the kernel hyperparameters are treated as known).
+        """
+        self.assertGreaterEqual(self.nonlinear.coverage, 0.7)
+
+    def test_plugin_equals_propagated_mean_when_lower_level_is_certain(self) -> None:
+        """With a well-resolved low fidelity the two predictors agree."""
+        b = self.nonlinear
+        for q in b.predictions:
+            self.assertAlmostEqual(
+                q.mean, q.plugin_mean, delta=5.0 * q.mean_mcse + 1e-4
+            )
+
+    def test_plugin_underestimates_variance_with_sparse_low_fidelity(self) -> None:
+        """With 5 low runs the plug-in variance falls below the propagated one.
+
+        Measured on 40 test points: mean ratio 0.87, smallest ratio 0.10.
+        """
+
+        def f1(x: list[float]) -> float:
+            return math.sin(2.0 * math.pi * x[0]) + 0.3 * x[0]
+
+        def f2(x: list[float]) -> float:
+            return (x[0] - math.sqrt(2.0)) * f1(x) ** 2
+
+        low = [[i / 4.0] for i in range(5)]
+        high = [low[i] for i in (0, 1, 3, 4)]
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            model = fit_nargp(
+                [low, high], [[f1(x) for x in low], [f2(x) for x in high]], seed=1
+            )
+            preds = model.predict_mc_many(_grid(40), samples=100, seed=2)
+        ratios = [p.plugin_variance / p.variance for p in preds]
+        self.assertLess(math.fsum(ratios) / len(ratios), 0.95)
+        self.assertLess(min(ratios), 0.5)
+        # in expectation the propagated variance is never smaller; allow MC noise
+        for p in preds:
+            self.assertLess(
+                p.plugin_variance, p.variance + 4.0 * p.variance_mcse + 1e-12
+            )
+
+
+@unittest.skipUnless(os.environ.get("PROBSTAT_SLOW") == "1", "slow tier")
+class ExtendedBenchmarkTests(unittest.TestCase):
+    """Linear, two-dimensional and three-level benchmarks (slow tier)."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Fit the extended benchmarks once (shared by the tests)."""
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             cls.tests = _grid(30)
@@ -398,21 +463,6 @@ class BenchmarkTests(unittest.TestCase):
                     f"{b.coverage:.3f} {b.ar1_coverage:.3f} {b.single_coverage:.3f}"
                 )
 
-    def test_nonlinear_cross_correlation_beats_linear_and_single(self) -> None:
-        """NARGP is at least 4x more accurate than AR(1) and the single GP."""
-        b = self.nonlinear
-        self.assertLess(b.rmse, 0.1)
-        self.assertLess(b.rmse, 0.25 * b.ar1_rmse)
-        self.assertLess(b.rmse, 0.25 * b.single_rmse)
-
-    def test_nonlinear_predictive_coverage(self) -> None:
-        """The plug-in-hyperparameter 95% interval covers at least 70%.
-
-        Measured 0.833 on 30 test points (the nominal 0.95 is not reached
-        because the kernel hyperparameters are treated as known).
-        """
-        self.assertGreaterEqual(self.nonlinear.coverage, 0.7)
-
     def test_linear_relation_not_worse_than_ar1_by_a_margin(self) -> None:
         """For f_h = 2 f_l + x NARGP stays within 0.05 of AR(1) (RMS about 1.5)."""
         b = self.linear
@@ -440,43 +490,6 @@ class BenchmarkTests(unittest.TestCase):
         # measured 0.60 (known-hyperparameter intervals are too narrow here)
         self.assertGreaterEqual(b.coverage, 0.4)
         self.assertGreater(b.coverage, b.ar1_coverage)
-
-    def test_plugin_equals_propagated_mean_when_lower_level_is_certain(self) -> None:
-        """With a well-resolved low fidelity the two predictors agree."""
-        b = self.nonlinear
-        for q in b.predictions:
-            self.assertAlmostEqual(
-                q.mean, q.plugin_mean, delta=5.0 * q.mean_mcse + 1e-4
-            )
-
-    def test_plugin_underestimates_variance_with_sparse_low_fidelity(self) -> None:
-        """With 5 low runs the plug-in variance falls below the propagated one.
-
-        Measured on 40 test points: mean ratio 0.87, smallest ratio 0.10.
-        """
-
-        def f1(x: list[float]) -> float:
-            return math.sin(2.0 * math.pi * x[0]) + 0.3 * x[0]
-
-        def f2(x: list[float]) -> float:
-            return (x[0] - math.sqrt(2.0)) * f1(x) ** 2
-
-        low = [[i / 4.0] for i in range(5)]
-        high = [low[i] for i in (0, 1, 3, 4)]
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            model = fit_nargp(
-                [low, high], [[f1(x) for x in low], [f2(x) for x in high]], seed=1
-            )
-            preds = model.predict_mc_many(_grid(40), samples=100, seed=2)
-        ratios = [p.plugin_variance / p.variance for p in preds]
-        self.assertLess(math.fsum(ratios) / len(ratios), 0.95)
-        self.assertLess(min(ratios), 0.5)
-        # in expectation the propagated variance is never smaller; allow MC noise
-        for p in preds:
-            self.assertLess(
-                p.plugin_variance, p.variance + 4.0 * p.variance_mcse + 1e-12
-            )
 
 
 class DiagnosticsTests(unittest.TestCase):
